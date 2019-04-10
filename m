@@ -2,245 +2,199 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC3A4C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 08:07:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98BE4C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 08:17:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A286A20818
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 08:07:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A286A20818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1FC872133D
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 08:16:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="vTv86x89";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="JAeVhB+R"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FC872133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1B9AB6B0271; Wed, 10 Apr 2019 04:07:30 -0400 (EDT)
+	id 730416B0273; Wed, 10 Apr 2019 04:16:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 18FC56B0272; Wed, 10 Apr 2019 04:07:30 -0400 (EDT)
+	id 6DFB96B0274; Wed, 10 Apr 2019 04:16:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07E896B0273; Wed, 10 Apr 2019 04:07:30 -0400 (EDT)
+	id 5A7436B0275; Wed, 10 Apr 2019 04:16:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D6AB86B0271
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 04:07:29 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 54so1460449qtn.15
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 01:07:29 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 369176B0273
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 04:16:59 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id f196so1320267qke.4
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 01:16:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=5p0rXfrK49lAJ5msdIhH9Thf5gXTDO5k0PwBh05IM48=;
-        b=Tyr1JdMSRs4c/ioV/PzxhHrqIMv0m3dhRMg17XxRLe6ZwDAUsCG/dwhxHXeG+v/22d
-         Iwjyk/0ahR2aZHi2elABof2jAYJoAkQgNjno0sjPDiNaXhnYyNVk22c3Y7oryagu6LQe
-         Ryu1Nq/yMEc9MH8Tb8ym/tz6SvdF3NIJ8rUuG0qelwK7EDq1XoClT9Qfm5dnDl84vEA9
-         xys8/3WDesJrF2HtPnftUMOb4Xy0lMV2Mhr+DLfcN8sKHQqD5GupbD1+CZb0AFI6cNph
-         k0oRQvE/K4T9wr2fNZvIFE4bCkEW4q0R0Ya3ZEZsYv0Wb04UURQqQQJGatFRmSPiLwit
-         vPQA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWFb81pknrM2x2i6g/8QER+m3+Z9EKV8zxVz3iFL/OV7Z6WmX/0
-	okW2Y5RFcUu3dR+oPp9gBWb3RdUZGRi4JFg9Ji4wdHvdVO9c3XtTB0mhAXy4nQtmDxmAcLTSjDG
-	h5E3lJ5ouzsJa59BXsbluvc680CjYf7rYKVXedr5WvrTmB3E5I0IKs2TTiOeGj7tGhQ==
-X-Received: by 2002:a0c:91f0:: with SMTP id r45mr33392913qvr.7.1554883649666;
-        Wed, 10 Apr 2019 01:07:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQ1GJpusqCzD9/wRt5aGCUU6j9OCUgP1jcQv6ECjNVXIV1H91+lkPJcG17Uh3hsNTAHzb2
-X-Received: by 2002:a0c:91f0:: with SMTP id r45mr33392862qvr.7.1554883648958;
-        Wed, 10 Apr 2019 01:07:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554883648; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=m/uVHFT1jhHjwl1wvSmrccMP41EGDLxAQtR3VjpelW4=;
+        b=C4iYiQWySOOFPWiGkc18Dbhm2qEssr0lwoqa+I9t2qtncKD4vSrQ5tHknNU9kExgcV
+         MgLgycHNyfK1GMuxp3vsGouFYbKuIw+aA/g5F1k7zrJrZSE4btmepJw5+rCvexb783Il
+         hAQeQQXTG9B1iHga1YagArFu7kyqI3uL55gRIgTSJkSAaI3ZpL9aGCVpXU4qDdk3Sm4P
+         QG+1slzBlqi54keVMdGi2ZkUEPQXmHxgeHvTQeCjbnjKIxeAZCvgAmCEFhOZPBvRzEX7
+         dZogFHT8ryLRIA7y0jpXSNmTb8+CHvPtBrX7fXhrMKiQ+AMutZTlZ1gW0mb5KZatf4oc
+         SqzQ==
+X-Gm-Message-State: APjAAAU8Ans6XqGVA5SagbmZcy9k5Uvt8je7p0Igo7Sc8IAaY2fhpVGd
+	wg3bGxPAfTMjaEbqpVHvMuu/gesOlsHBJzWQRuAeb2ZbaCRq7Ff7r5HCB8CuFVNfCdjj8cmn5HJ
+	7a/5xwOsbp22ight7wWYTG7dyytW+BsjsUna4ja4pVwk4hovph8uINN8L7He54i5WYQ==
+X-Received: by 2002:aed:2208:: with SMTP id n8mr33352801qtc.168.1554884218845;
+        Wed, 10 Apr 2019 01:16:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyFecq/0FrPiWLm7GDiO/QiYjyV4/xBB6w5lqGmF0bAwhwCn6jZD8ngCe2RvIJ4tmZ0Wa/w
+X-Received: by 2002:aed:2208:: with SMTP id n8mr33352762qtc.168.1554884218219;
+        Wed, 10 Apr 2019 01:16:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554884218; cv=none;
         d=google.com; s=arc-20160816;
-        b=w39fSgPxvFP6mOP0o/0XLOON4wK4h7R7ZCmaSNY304rMuuSyWi5iu8XIitbZZ0duhU
-         jeVepFgJOUPy1RtjX0ztywqhXvChVQvpQ5lOXi8M8QP2P4vPAe5iExcfgSztUFNFUyhb
-         d4UW1WxKGmM0GrVbwwFq9famGKqZgrHK20l7K1GDgai4xhb3+Vy7IDn0e1MZ0XHA0p2R
-         gREVosfSDIeSzZUxmpqpYLu1OjitQyXRk23xSGIX1u0DR/UV9Uyd+LxK3Prs5IRCPa2Y
-         QuxbnA/Ft2SQnYXS7jFr6u4ck0byLwFIvBe2kVkaD8rxDqIgHzBxhCrn5UiBDyGGkrgx
-         tJmg==
+        b=D1wm8tgi2r9wkBQBxFLohwYfnaSZaQkUzgR6pY49T6Yux+M5I2cRDZO1WmLiRTGzal
+         z2QQ963ed0zqIgKpK4c3wx31FxCt3p3aHXhkxYQvn+iB3Fu2kcoC7d5YlDwW+mK/rmS2
+         8RY4GdmcY0xB9DerWTcs3fv+2t6Lv1zOBqbEFCQU5OkpXPIp3V9uLzGKDaW9X9fxUPSl
+         KGAIY+NBMy1DvMD+Lt/nNKXzlUprogPTb3aAX3MPRu1Y/SlMyIhTGZjLjW5mVP8THJDq
+         fafiuuM9PGSQbTOJkPFdVYVDZ8zw7howaDGP3dLEvlaLP7DnpA+tf/9JFCJzJVD+9b87
+         g0Yw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=5p0rXfrK49lAJ5msdIhH9Thf5gXTDO5k0PwBh05IM48=;
-        b=WFm2mx6JyaS4JkOxpT4FZ51aO8DG/ucv64RVhe0d8TrXXv+8dVeuPXXZmUTKAE/c9n
-         B74o9LkiEHqGyxBevpwJKKYZ1GcXbCQBZrimGkWpFrwn3jT9jbiTuiMfgAdTIzNeFPuS
-         XKBy3XCBcYZMw93F3bK/XKFXGZlBME6dycI4EibokcVO+kL1lrzUv2nbDXS5NJKCTMRN
-         2vHbzndlO24K6VurCSA2fnJiGyPz4yZeb+hOoG4mdFKm7PYJTheoQes9R0s6EelbBdm3
-         EvbqQHRiKujpKKKIfqjcme5qmLxVzpLV+2t8tmw7P/I+jsDEBptkU1x5rO6dA3Qbnlq3
-         JfMQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=m/uVHFT1jhHjwl1wvSmrccMP41EGDLxAQtR3VjpelW4=;
+        b=DhXlsnXRiOW7tG4W5JfB62m+bLjQ+xS/pyLHG6o5Wi7CunDc6JvaC7KVNydXwYYfTY
+         g5Tib77xgP2LyADbsmb493ZJNOxsh7goAEFoRVgyR3CM9xAdpT28WfSEbI1LiitTzU0C
+         A9xfiR7Z42JrzkEQOJ5HP072YlffUz0Nlvbm0Tfake7Fu6v8te2iT8/CVsO0DORVeA85
+         yBNRc4AfMBhjp/qkvWAdn1jRe70lJ4F5ISQyTTLRIuMvFKMq1W3S7VW+SuUTmQV7c73z
+         rahvYsS2rt0A2Btrrvpgil85on72a83T+oFEYvPREHaLELK7U6K6huSKy157V8hB+qwP
+         vc0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i33si8348596qvd.144.2019.04.10.01.07.28
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=vTv86x89;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=JAeVhB+R;
+       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from new1-smtp.messagingengine.com (new1-smtp.messagingengine.com. [66.111.4.221])
+        by mx.google.com with ESMTPS id 7si6039366qvg.130.2019.04.10.01.16.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 01:07:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 10 Apr 2019 01:16:58 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.221;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1CE1F307EAB0;
-	Wed, 10 Apr 2019 08:07:28 +0000 (UTC)
-Received: from [10.36.117.213] (ovpn-117-213.ams2.redhat.com [10.36.117.213])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 193045C223;
-	Wed, 10 Apr 2019 08:07:24 +0000 (UTC)
-Subject: Re: [PATCH v1 1/4] mm/memory_hotplug: Release memory resource after
- arch_remove_memory()
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
- Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-References: <20190409100148.24703-1-david@redhat.com>
- <20190409100148.24703-2-david@redhat.com>
- <20190409154115.0e94499072e93947a9c1e54e@linux-foundation.org>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <7cbea607-284c-4e20-fee8-128dae33b143@redhat.com>
-Date: Wed, 10 Apr 2019 10:07:24 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=vTv86x89;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=JAeVhB+R;
+       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailnew.nyi.internal (Postfix) with ESMTP id C3C1D14D2E;
+	Wed, 10 Apr 2019 04:16:57 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute5.internal (MEProxy); Wed, 10 Apr 2019 04:16:57 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=m/uVHFT1jhHjwl1wvSmrccMP41E
+	GDLxAQtR3VjpelW4=; b=vTv86x891gs2zeQ0anLIdh4jLJdItCLHC1bgyKJpLQp
+	ueh4sVyQQ2jtNvo/eVjk94ChD/ZBcaiKZsM1hxlnWDXRZfkHXA1Mp6Ju2XulA3ne
+	ljIrjTtYu4/EGl3LdEuEaGv7O8fMdxH/tuVCZhBiY9hwiVDKsZx8MG9eQn9onC7b
+	wHfhXhOGNgOEJpZcoO3Cf97G/Aq2y8ZVYLrW6JM/1S9SnVG+CJup/w4O+9CWlRzZ
+	EdOZWu/uXOmyw7ewfpl/9eqhaUTKu1DflnbdmPCn5w1aZgOzC+N++2Fh0Psa9HYK
+	6W6th5LMUpOpz9KPa6RpVOk9sp6llI8V+/Jjcx3juDQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=m/uVHF
+	T1jhHjwl1wvSmrccMP41EGDLxAQtR3VjpelW4=; b=JAeVhB+RKxo8VoPuYMZRnW
+	RNw4G56faDioJGzB8f3p5qK1ktZ3FlJQrS9IivEQdBV5CpoekLVR1PJmlXyRLr2y
+	rW3iIc36+1l7LdmiSdp7WoI4oH6wIR7XAUzsFpSk0A91OjuKiB8rLXBUhF1rvXcM
+	VCQsTnCPI1JVgR7dOpb1V4x+3+H7wFl3+xIbDAMc/LVse+1iyBpQv3vew8GRS1ZP
+	Z3AwQbrTX6sDUJhX1zSSSP1FmtXNvmC+NvCGLVq6FkMU/CAcjAP5WMPS38ZONYmA
+	oVK2MtyDWSDWmEnLKy160OKFVR3tuRX5j5CKowEYj1TZllSARVIjdE21W7FbhUJQ
+	==
+X-ME-Sender: <xms:d6atXON43mYmyfinx8E3M1GfCH8J9ndOCkiOy5a7T67NI3LRxTDHzw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudejgddtvdcutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
+    hrlhcuvffnffculdduhedmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
+    redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
+    hinhdrtggtqeenucffohhmrghinhepkhgvrhhnvghlrdhorhhgnecukfhppeduvdegrddu
+    jedurdduledrudelgeenucfrrghrrghmpehmrghilhhfrhhomhepmhgvsehtohgsihhnrd
+    gttgenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:d6atXBENj7Kztz9HxoAFCfV4BhEOGaPkjHPtD9nc3yyJigy9IxGY4w>
+    <xmx:d6atXCSVlp-e5sEUFdE8SLndAtySbZIw6maP-T0gaD0UjWT9318sNg>
+    <xmx:d6atXJR0LbXjKnimvSSiWK71bTJ_nzcFTz7YnwdC2pZgChOYddRFVA>
+    <xmx:eaatXFQI54cMgvE9WEp3tiwqaVEzSoVlT5cIixgnTBMNH0xPnE2Z5g>
+Received: from localhost (124-171-19-194.dyn.iinet.net.au [124.171.19.194])
+	by mail.messagingengine.com (Postfix) with ESMTPA id EB0EA10394;
+	Wed, 10 Apr 2019 04:16:54 -0400 (EDT)
+Date: Wed, 10 Apr 2019 18:16:18 +1000
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>,
+	Qian Cai <cai@lca.pw>,
+	Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/1] mm: Remove the SLAB allocator
+Message-ID: <20190410081618.GA25494@eros.localdomain>
+References: <20190410024714.26607-1-tobin@kernel.org>
+ <f06aaeae-28c0-9ea4-d795-418ec3362d17@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190409154115.0e94499072e93947a9c1e54e@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 10 Apr 2019 08:07:28 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f06aaeae-28c0-9ea4-d795-418ec3362d17@suse.cz>
+X-Mailer: Mutt 1.11.4 (2019-03-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 10.04.19 00:41, Andrew Morton wrote:
-> On Tue,  9 Apr 2019 12:01:45 +0200 David Hildenbrand <david@redhat.com> wrote:
+On Wed, Apr 10, 2019 at 10:02:36AM +0200, Vlastimil Babka wrote:
+> On 4/10/19 4:47 AM, Tobin C. Harding wrote:
+> > Recently a 2 year old bug was found in the SLAB allocator that crashes
+> > the kernel.  This seems to imply that not that many people are using the
+> > SLAB allocator.
 > 
->> __add_pages() doesn't add the memory resource, so __remove_pages()
->> shouldn't remove it. Let's factor it out. Especially as it is a special
->> case for memory used as system memory, added via add_memory() and
->> friends.
->>
->> We now remove the resource after removing the sections instead of doing
->> it the other way around. I don't think this change is problematic.
->>
->> add_memory()
->> 	register memory resource
->> 	arch_add_memory()
->>
->> remove_memory
->> 	arch_remove_memory()
->> 	release memory resource
->>
->> While at it, explain why we ignore errors and that it only happeny if
->> we remove memory in a different granularity as we added it.
+> AFAIK that bug required CONFIG_DEBUG_SLAB_LEAK, not just SLAB. That
+> seems to imply not that many people are using SLAB when debugging and
+> yeah, SLUB has better debugging support. But I wouldn't dare to make the
+> broader implication :)
+
+Point noted.
+
+> > Currently we have 3 slab allocators.  Two is company three is a crowd -
+> > let's get rid of one. 
+> > 
+> >  - The SLUB allocator has been the default since 2.6.23
 > 
-> Seems sane.
+> Yeah, with a sophisticated reasoning :)
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=a0acd820807680d2ccc4ef3448387fcdbf152c73
 > 
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1820,6 +1806,25 @@ void try_offline_node(int nid)
->>  }
->>  EXPORT_SYMBOL(try_offline_node);
->>  
->> +static void __release_memory_resource(u64 start, u64 size)
->> +{
->> +	int ret;
->> +
->> +	/*
->> +	 * When removing memory in the same granularity as it was added,
->> +	 * this function never fails. It might only fail if resources
->> +	 * have to be adjusted or split. We'll ignore the error, as
->> +	 * removing of memory cannot fail.
->> +	 */
->> +	ret = release_mem_region_adjustable(&iomem_resource, start, size);
->> +	if (ret) {
->> +		resource_size_t endres = start + size - 1;
->> +
->> +		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
->> +			&start, &endres, ret);
->> +	}
->> +}
+> >  - The SLOB allocator is kinda sexy.  Its only 664 LOC, the general
+> >    design is outlined in KnR, and there is an optimisation taken from
+> >    Knuth - say no more.
+> > 
+> > If you are using the SLAB allocator please speak now or forever hold your peace ...
 > 
-> The types seem confused here.  Should `start' and `size' be
-> resource_size_t?  Or maybe phys_addr_t.
+> FWIW, our enterprise kernel use it (latest is 4.12 based), and openSUSE
+> kernels as well (with openSUSE Tumbleweed that includes latest
+> kernel.org stables). AFAIK we don't enable SLAB_DEBUG even in general
+> debug kernel flavours as it's just too slow.
 
-Hmm, right now it has the same prototype as register_memory_resource. I
-guess using resource_size_t is the right thing to do.
+Ok, so that probably already kills this.  Thanks for the response.  No
+flaming, no swearing, man! and they said LKML was a harsh environment ...
 
-> 
-> release_mem_region_adjustable() takes resource_size_t's.
-> 
-> Is %pa the way to print a resource_size_t?  I guess it happens to work
-> because resource_size_t happens to map onto phys_addr_t, which isn't
-> ideal.
+> IIRC last time Mel evaluated switching to SLUB, it wasn't a clear
+> winner, but I'll just CC him for details :)
 
-Documentation/core-api/printk-formats.rst
+Probably don't need to take up too much of Mel's time, if we have one
+user in production we have to keep it, right.
 
-"
-	%pa[p]	0x01234567 or 0x0123456789abcdef
-
-For printing a phys_addr_t type (and its derivatives, such as
-resource_size_t) ...
-"
+Thanks for your time Vlastimil.
 
 
-Care to fixup both u64 to resource_size_t? Or should I send a patch?
-Whatever you prefer.
-
-Thanks!
-
--- 
-
-Thanks,
-
-David / dhildenb
+	Tobin
 
