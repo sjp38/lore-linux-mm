@@ -2,239 +2,265 @@ Return-Path: <SRS0=DRoR=SM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92824C10F0E
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 01:20:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41262C10F0E
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:11:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 463832133D
-	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 01:20:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AFD7621741
+	for <linux-mm@archiver.kernel.org>; Wed, 10 Apr 2019 02:11:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=iluvatar.ai header.i=@iluvatar.ai header.b="O+XctjsQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 463832133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=iluvatar.ai
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="0pg82SOI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFD7621741
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EF7926B0006; Tue,  9 Apr 2019 21:20:40 -0400 (EDT)
+	id 1D9CB6B0006; Tue,  9 Apr 2019 22:11:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EA6A36B0008; Tue,  9 Apr 2019 21:20:40 -0400 (EDT)
+	id 1898F6B0008; Tue,  9 Apr 2019 22:11:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D96936B000A; Tue,  9 Apr 2019 21:20:40 -0400 (EDT)
+	id 029556B000A; Tue,  9 Apr 2019 22:11:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A062B6B0006
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 21:20:40 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y2so409738pfl.16
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 18:20:40 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D044C6B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2019 22:11:06 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id q203so871461itb.2
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2019 19:11:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:content-disposition:dkim-signature:date:from:to
-         :cc:subject:message-id:references:mime-version:in-reply-to
-         :user-agent;
-        bh=GcuAOHRiKIFSZeRnIegs+sx9nR6bVTMEV5kQiFAX6gE=;
-        b=qxqLQojgLMjSpS2a8WBZOMP6XbnMRZSbQFfFwr4YQ54OaJ+f8N6TbmSx4yKJ+AORWN
-         uQR4XzK8Z4K89oZ7XtlWMXBPfCkMiEl0lfa99qmxyuD5C3sf6FZ8ItHBz5820ew5HVCd
-         j6KyIRCqNm/WAlHPvy1QRxFy1c5lnXk5SJ5idn3Z5YRt07xnzlLak/SDe8IJjZSPqaHf
-         JuA/wwfcRHHj/2EPLlmmWVBD78AeeUFnhaNn9hoxtJJZrY+33jhKvYsbYVyPlW1DtHE8
-         rbFooP9AAvz8HXUiFaGeFsngnsA4ryGN4WdS4QvMdd6KKwjUdcsZ84UV/LEvLbmabhPy
-         A+eQ==
-X-Gm-Message-State: APjAAAWBrzDEGz+hqtagaYTGU2lHlWPa0ziGd0IrSZw+ioDsK/1Bsnc1
-	1QozascSqbD+RhOeJg2lqwAToMav4TiNinI5ijqBHnf6Av8/OwS99r0NlcNqv6j1KCDyvv5GM+5
-	+Xd6lQV3xF9QSp+E2Qi2QbbOtCVbieMGwcCh6GFPoxAfi/mumC7GWrYfNI270PgC+Sg==
-X-Received: by 2002:a17:902:b602:: with SMTP id b2mr41266245pls.293.1554859240192;
-        Tue, 09 Apr 2019 18:20:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRgpjriQAUEc2OLdeEqOlNEonXMp8v5izCTlG5+zXjg2P36aNYUtOclTAVlFRkpgCkd1fn
-X-Received: by 2002:a17:902:b602:: with SMTP id b2mr41266194pls.293.1554859239448;
-        Tue, 09 Apr 2019 18:20:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554859239; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
+        b=nlKVBYKiQdFS9pPtBdyZtMJWRvbcZ97w68nzTtHjMYE77YLdZbLICZ217LOURl7stE
+         tqG/LXTQcDy5ttRA+Kv89NkKSmXB+fGTDqUdGEJgX+Xpd6TwMBfeuCkBFeuPxv7LXTxj
+         O2tYsOrS9UY7/MNlLZA0acifmkV9LQBYDx5IhNqMMLBzsUH3s5SrMLoPid5GVe9MCls7
+         lTYtoybduZ6mBaZWhEPEgFybISBexkbq2lcqvyXRa50SFwhL9tT7iaRW041eLGP84cS9
+         lymhStDyvJGNu2hGk8fDVsHEtgJT+uhGbtV4+8UpGwmpBx2l+/IG2CaHHKwielDYDV9w
+         6wDA==
+X-Gm-Message-State: APjAAAXUfuAhxbuaLtejOi9gfv/ua3aWl3d3RyhH39/bPDEbT9DZyDMz
+	yF25/OYOGPxyzttSPPTOxX+mbmQeFlIfQxCEemU6lsIL1oR61iTNAZKplU7YY2N9/JovE8x4xCG
+	pN52+K9YflkOrR7pRXivCgy+Z6e9mZPXB2yWyZ2nludDOxMt1rOFV7nfZb9QIOuM=
+X-Received: by 2002:a02:9345:: with SMTP id e5mr29070921jah.29.1554862266456;
+        Tue, 09 Apr 2019 19:11:06 -0700 (PDT)
+X-Received: by 2002:a02:9345:: with SMTP id e5mr29070891jah.29.1554862265610;
+        Tue, 09 Apr 2019 19:11:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554862265; cv=none;
         d=google.com; s=arc-20160816;
-        b=b68J8TsO0qcV+E0xOu3oLvC3NcGSkUw1BggpFHObc39pbQCnMvWOs9aghWdLbiAUNT
-         +oCOIgCRE3MZLqgnm0NRiVy9LIKlVi0XZU+XH60TGAq7VuQiUL3nKwtOxf1VPauZh+f+
-         Eqa8kftk8u3F8cmn+N1Dbet1GLUbYyXexprorWWgeqtN9yN/TLD8c2k3DVxONN4P8IWk
-         uMlyxz/qyjlfyFHY5tvXvYi2IxDMVm2HWpPn0/3vOPq9qKtfFTg1i7Y0wmPbvUKiopcd
-         zIsGxfd6T/ZJzXgE+2KkrYV8dYBhWWrCEkitdQkND3IcVK/Yx327y+Rwo50x3M7ARFGR
-         VvzA==
+        b=oa6sIs4Wr/2EojAmOpWVFJ+KFW1hoWc9BJKI5B+InNEXImA9Wmz6RONGxDU/QGvPFl
+         IivpWXfgmHWz+eIkZG0pZfZRv5W5nHQGWnlBzAWVFgP+XwCrgluEHks/+YQPzIdmX4j+
+         Lkv8MFEev7ELV7rs7SOQRCB6tkKOA6nRyTmKS13JOGZEFEf4DNGcAVn1dX0RJ9gQSJUY
+         SKwRLnGRyDwAXdu1iJoiN6YmHgcNadaIqOQTDQhaMzNYW6fcCzTcMSkK4NU/J9s+EirD
+         mS7P6pXVfsu+YwKo8va0Ol/raia+6jM+zsuc6g2YiFr9ydY+lJxmt987zscjjafT9TDM
+         78tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:mime-version:references:message-id:subject
-         :cc:to:from:date:dkim-signature:content-disposition;
-        bh=GcuAOHRiKIFSZeRnIegs+sx9nR6bVTMEV5kQiFAX6gE=;
-        b=fFKDADsUMpw7+y7u3HTODct1e/0JFzeaWRjT6mT5vPqCXHkDYSSmjdfjTgg/0eUMyR
-         LrwizK8JVRLcVGIrWUz2AHZrQhGagJaaJAfDsJxriDkGaW7qhCs1YS9JT/kfelY5CXuD
-         797eNJeu0eihOlJ7pa7+5G/YJeNjhSp3a4bOl/+J4xZL4R0deLZlo0qDyg4iuKvtOvQp
-         gaIrkgASU3LBGhrj14ayHrhMaZ4TOEWh0T5/faqG0WLetF5l/i1DuNjNiNfsXOIo9pD1
-         3V4tqYZd/+ipMZTb3G7jKqoKEig6ORqPOro5wj9vUdWb0jt3DZokNSgeVQOyzNSj9uJu
-         dR4Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
+        b=Uxil8YnJkyxXw5AH16NaHDAYXB+43vbNookCVuAeAsU0BvWg0R1wOVP+oTw/RX1XfR
+         I9DYom5duWdPv91HKwOdlX5dv+klospp0yKZQk95HWVDK5uToIzIJmPJZPs9Lcn1BsBc
+         ygt+FXZUp0I0uFDjSeqyUEn0/QGlEDgnkxeZjxUbOFpGbaeUw5hdG8uKFiMFi2a0DQRX
+         r0kcPUwtAypx9aqdpMnTV91PL7QvkzaHWUoMjhQsqOQYcb9t5u11SwI4myt6YpZ4Gz4p
+         f6aoX1J26jH/xr6lyILsDPqtRgrkFCIbfn7VIG97+GqFNpZd4AUSvwSte7+w6b9Cgszc
+         KHrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b=O+XctjsQ;
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-Received: from smg.iluvatar.ai (owa.iluvatar.ai. [103.91.158.24])
-        by mx.google.com with ESMTP id y6si30773206plp.201.2019.04.09.18.20.38
-        for <linux-mm@kvack.org>;
-        Tue, 09 Apr 2019 18:20:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) client-ip=103.91.158.24;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0pg82SOI;
+       spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z200sor1328995itb.10.2019.04.09.19.11.05
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 09 Apr 2019 19:11:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@iluvatar.ai header.s=key_2018 header.b=O+XctjsQ;
-       spf=pass (google.com: domain of sjhuang@iluvatar.ai designates 103.91.158.24 as permitted sender) smtp.mailfrom=sjhuang@iluvatar.ai;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=iluvatar.ai
-X-AuditID: 0a650161-773ff700000078a3-da-5cad44e6e592
-Received: from owa.iluvatar.ai (s-10-101-1-102.iluvatar.local [10.101.1.102])
-	by smg.iluvatar.ai (Symantec Messaging Gateway) with SMTP id AB.C4.30883.6E44DAC5; Wed, 10 Apr 2019 09:20:38 +0800 (HKT)
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-DKIM-Signature: v=1; a=rsa-sha256; d=iluvatar.ai; s=key_2018;
-	c=relaxed/relaxed; t=1554859237; h=from:subject:to:date:message-id;
-	bh=GcuAOHRiKIFSZeRnIegs+sx9nR6bVTMEV5kQiFAX6gE=;
-	b=O+XctjsQKh9LHjxwrPveCyJsIuMjwXVgEkBmPe5T004HJ/7DIvdDJwozzctACuW2oZIMZIdoJEA
-	p7t+SS5TB1u7iiIW3H/T4pp4DGjCwIa9iw57crF8B/IsNPXhFtxU9c39eWaaY09CKwBP8QN5FRIty
-	YuRvoWuzFD4uXczpBRU=
-Received: from hsj-Precision-5520 (10.101.199.253) by
- S-10-101-1-102.iluvatar.local (10.101.1.102) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256) id
- 15.1.1415.2; Wed, 10 Apr 2019 09:20:37 +0800
-Date: Wed, 10 Apr 2019 09:20:36 +0800
-From: Huang Shijie <sjhuang@iluvatar.ai>
-To: "Weiny, Ira" <ira.weiny@intel.com>
-CC: Matthew Wilcox <willy@infradead.org>, "akpm@linux-foundation.org"
-	<akpm@linux-foundation.org>, "william.kucharski@oracle.com"
-	<william.kucharski@oracle.com>, "palmer@sifive.com" <palmer@sifive.com>,
-	"axboe@kernel.dk" <axboe@kernel.dk>, "keescook@chromium.org"
-	<keescook@chromium.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 1/2] mm/gup.c: fix the wrong comments
-Message-ID: <20190410012034.GB3640@hsj-Precision-5520>
-References: <20190408023746.16916-1-sjhuang@iluvatar.ai>
- <20190408141313.GU22763@bombadil.infradead.org>
- <20190409010832.GA28081@hsj-Precision-5520>
- <20190409024929.GW22763@bombadil.infradead.org>
- <20190409030417.GA3324@hsj-Precision-5520>
- <20190409111905.GY22763@bombadil.infradead.org>
- <2807E5FD2F6FDA4886F6618EAC48510E79CA51BA@CRSMSX101.amr.corp.intel.com>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=0pg82SOI;
+       spf=pass (google.com: domain of dan.j.williams@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=8B9lCJLeymvncj1USaXc65os0BUeWCHWyugSHvMXZpk=;
+        b=0pg82SOIoW+W0YyQ5xNEBnjnawiZOHXDiuZNgyjrwjgZQVrzEqerg/C2BIDdLhZsrx
+         BfncUG+4tjPZyT9n4MVhPIsZzQ5we0g0OVnYX360flRNGMeDn72PFN1iToOP9GdCUDg0
+         G17T6+fhfo1nFUUiTU1MzCp5pnSyUtLBbOeB+vsrj5pXvbjlGzZ0M9a6zeZFNbtNKFBs
+         X97KEc9tWuLfrmmbAHImpZuMTZN4cUyDfx5XtG3PQtqK2SZDK/sXcoSYkbd89/NVVLYK
+         HVA+Lt/knOIPRU9rX43xJMnm/MkWKzXMJDG/BFCBRY3CghycFuzFgCmEmyV9O9yCW5U6
+         askg==
+X-Google-Smtp-Source: APXvYqyBAmPBedawt4crdvXhqyaXfSyXYDKADKRRvPMkEuPYFjXBMi1U8GsELuKKDQOczQgHbY1p7WZkDktP5lqZiKM=
+X-Received: by 2002:a24:7c52:: with SMTP id a79mr1472650itd.51.1554862264952;
+ Tue, 09 Apr 2019 19:11:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <2807E5FD2F6FDA4886F6618EAC48510E79CA51BA@CRSMSX101.amr.corp.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Originating-IP: [10.101.199.253]
-X-ClientProxiedBy: S-10-101-1-102.iluvatar.local (10.101.1.102) To
- S-10-101-1-102.iluvatar.local (10.101.1.102)
-X-Brightmail-Tracker: H4sIAAAAAAAAA+NgFprCIsWRmVeSWpSXmKPExsXClcqYpvvMZW2MwZ7rzBZz1q9hs1h9t5/N
-	Yv/T5ywWZ7pzLS7vmsNmcW/Nf1aLzRMWAInFXUwWv3/MYXPg9JjdcJHFY/MKLY/Fe14yeVw+
-	W+qx6dMkdo8TM36zeHx8eovF41LzdXaPz5vkAjijuGxSUnMyy1KL9O0SuDJmL9zNXrBIpmLZ
-	wjfsDYzvhLsYOTkkBEwkFkycyNLFyMUhJHCCUeLK35VsIAlmAR2JBbs/AdkcQLa0xPJ/HCA1
-	LAJvmSQOnbrICNHwnVFi3tKlTCANLAKqEg2T1oHZbAIaEnNP3GUGsUUE1CQWTVrGAjF0MrPE
-	/VOxILawgKXEuu5j7CA2r4CZxLyX/VBDPzNJvFveygKREJQ4OfMJC8gVnAIhEpMn5YKERQWU
-	JQ5sO84EEhYSUJB4sVIL4hkliSV7ZzFB2IUS31/eZZnAKDwLyTuzEN6ZhWT+AkbmVYz8xbnp
-	epk5pWWJJYlFeomZmxghUZW4g/FG50u9Q4wCHIxKPLwB09fECLEmlhVX5h5ilOBgVhLh/fgG
-	KMSbklhZlVqUH19UmpNafIhRmoNFSZy3bKJJjJBAemJJanZqakFqEUyWiYNTqoFpN+Ovf+9Z
-	M6f/XaNSKbC29pXINNeljKYlaueVEif7O0zz1N4mybyJ/0P/+x/+Djcu7dZft9Liaku5anXv
-	b/slf2oXrOFZxbmgMvDWJNW7LH2vAvZ33f/Mr/+t7ajLI4UT+/YdTT/6K/5R/8ZO1aqbBy85
-	FHlM4C8MS/kpxG+iffHmAZftx57aqBgbH3ULnJDOOIV5k6Fxsa0Ap+/dHdofnTMYfh2392gI
-	cygp6L5g16b4kdPiwq8/N55xHmRT3twx97/l5K4PBzSFrl3Q2lBxWOnKSufinGo2s9s1WiYf
-	L9m1iOnEFXDuUlUo6L1hYHPtFIvk78qFwlvPcHwwkQvQUre7l/nu4DnG8vSO/2VKLMUZiYZa
-	zEXFiQC7gcoaJwMAAA==
+References: <155440490809.3190322.15060922240602775809.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155440491334.3190322.44013027330479237.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAKv+Gu8ocQGxTAapfjb5WufhL=Qj54LythHcPHsyy+wUnVBnfA@mail.gmail.com>
+ <CAPcyv4gUL8j+EaAZ556_NKXLgva++HgPBOeeAUNHN+DAWaewaQ@mail.gmail.com> <CAKv+Gu_M-V-3ahHTj10iyx=eC2pBzFg027NmdBX1x7nXrpqK7g@mail.gmail.com>
+In-Reply-To: <CAKv+Gu_M-V-3ahHTj10iyx=eC2pBzFg027NmdBX1x7nXrpqK7g@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 9 Apr 2019 19:10:53 -0700
+Message-ID: <CAA9_cmeRqr=b-hmaxA0aLZE98YGS9hF8h8JGGp9K6c_qhLK3AQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/5] efi: Detect UEFI 2.8 Special Purpose Memory
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, "the arch/x86 maintainers" <x86@kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Darren Hart <dvhart@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
+	Andy Shevchenko <andy@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 09, 2019 at 02:55:31PM +0000, Weiny, Ira wrote:
-> > On Tue, Apr 09, 2019 at 11:04:18AM +0800, Huang Shijie wrote:
-> > > On Mon, Apr 08, 2019 at 07:49:29PM -0700, Matthew Wilcox wrote:
-> > > > On Tue, Apr 09, 2019 at 09:08:33AM +0800, Huang Shijie wrote:
-> > > > > On Mon, Apr 08, 2019 at 07:13:13AM -0700, Matthew Wilcox wrote:
-> > > > > > On Mon, Apr 08, 2019 at 10:37:45AM +0800, Huang Shijie wrote:
-> > > > > > > The root cause is that sg_alloc_table_from_pages() requires
-> > > > > > > the page order to keep the same as it used in the user space,
-> > > > > > > but
-> > > > > > > get_user_pages_fast() will mess it up.
-> > > > > >
-> > > > > > I don't understand how get_user_pages_fast() can return the
-> > > > > > pages in a different order in the array from the order they appear in
-> > userspace.
-> > > > > > Can you explain?
-> > > > > Please see the code in gup.c:
-> > > > >
-> > > > > 	int get_user_pages_fast(unsigned long start, int nr_pages,
-> > > > > 				unsigned int gup_flags, struct page **pages)
-> > > > > 	{
-> > > > > 		.......
-> > > > > 		if (gup_fast_permitted(start, nr_pages)) {
-> > > > > 			local_irq_disable();
-> > > > > 			gup_pgd_range(addr, end, gup_flags, pages, &nr);
-> > // The @pages array maybe filled at the first time.
-> > > >
-> > > > Right ... but if it's not filled entirely, it will be filled
-> > > > part-way, and then we stop.
-> > > >
-> > > > > 			local_irq_enable();
-> > > > > 			ret = nr;
-> > > > > 		}
-> > > > > 		.......
-> > > > > 		if (nr < nr_pages) {
-> > > > > 			/* Try to get the remaining pages with
-> > get_user_pages */
-> > > > > 			start += nr << PAGE_SHIFT;
-> > > > > 			pages += nr;                                                  // The
-> > @pages is moved forward.
-> > > >
-> > > > Yes, to the point where gup_pgd_range() stopped.
-> > > >
-> > > > > 			if (gup_flags & FOLL_LONGTERM) {
-> > > > > 				down_read(&current->mm->mmap_sem);
-> > > > > 				ret = __gup_longterm_locked(current,
-> > current->mm,      // The @pages maybe filled at the second time
-> > > >
-> > > > Right.
-> > > >
-> > > > > 				/*
-> > > > > 				 * retain FAULT_FOLL_ALLOW_RETRY
-> > optimization if
-> > > > > 				 * possible
-> > > > > 				 */
-> > > > > 				ret = get_user_pages_unlocked(start,
-> > nr_pages - nr,    // The @pages maybe filled at the second time.
-> > > > > 							      pages, gup_flags);
-> > > >
-> > > > Yes.  But they'll be in the same order.
-> > > >
-> > > > > BTW, I do not know why we mess up the page order. It maybe used in
-> > some special case.
-> > > >
-> > > > I'm not discounting the possibility that you've found a bug.
-> > > > But documenting that a bug exists is not the solution; the solution
-> > > > is fixing the bug.
-> > > I do not think it is a bug :)
+On Tue, Apr 9, 2019 at 10:21 AM Ard Biesheuvel
+<ard.biesheuvel@linaro.org> wrote:
+>
+> On Tue, 9 Apr 2019 at 09:44, Dan Williams <dan.j.williams@intel.com> wrote:
+> >
+> > On Fri, Apr 5, 2019 at 9:21 PM Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
 > > >
-> > > If we use the get_user_pages_unlocked(), DMA is okay, such as:
-> > >                      ....
-> > > 		     get_user_pages_unlocked()
-> > > 		     sg_alloc_table_from_pages()
-> > > 	             .....
+> > > Hi Dan,
 > > >
-> > > I think the comment is not accurate enough. So just add more comments,
-> > > and tell the driver users how to use the GUPs.
-> > 
-> > gup_fast() and gup_unlocked() should return the pages in the same order.
-> > If they do not, then it is a bug.
-> 
-> Is there a reproducer for this?  Or do you have some debug output which shows this problem?
-Is Matthew right?
+> > > On Thu, 4 Apr 2019 at 21:21, Dan Williams <dan.j.williams@intel.com> wrote:
+> > > >
+> > > > UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
+> > > > interpretation of the EFI Memory Types as "reserved for a special
+> > > > purpose".
+> > > >
+> > > > The proposed Linux behavior for special purpose memory is that it is
+> > > > reserved for direct-access (device-dax) by default and not available for
+> > > > any kernel usage, not even as an OOM fallback. Later, through udev
+> > > > scripts or another init mechanism, these device-dax claimed ranges can
+> > > > be reconfigured and hot-added to the available System-RAM with a unique
+> > > > node identifier.
+> > > >
+> > > > A follow-on patch integrates parsing of the ACPI HMAT to identify the
+> > > > node and sub-range boundaries of EFI_MEMORY_SP designated memory. For
+> > > > now, arrange for EFI_MEMORY_SP memory to be reserved.
+> > > >
+> > > > Cc: Thomas Gleixner <tglx@linutronix.de>
+> > > > Cc: Ingo Molnar <mingo@redhat.com>
+> > > > Cc: Borislav Petkov <bp@alien8.de>
+> > > > Cc: "H. Peter Anvin" <hpa@zytor.com>
+> > > > Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> > > > Cc: Darren Hart <dvhart@infradead.org>
+> > > > Cc: Andy Shevchenko <andy@infradead.org>
+> > > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > > > ---
+> > > >  arch/x86/Kconfig                  |   18 ++++++++++++++++++
+> > > >  arch/x86/boot/compressed/eboot.c  |    5 ++++-
+> > > >  arch/x86/boot/compressed/kaslr.c  |    2 +-
+> > > >  arch/x86/include/asm/e820/types.h |    9 +++++++++
+> > > >  arch/x86/kernel/e820.c            |    9 +++++++--
+> > > >  arch/x86/platform/efi/efi.c       |   10 +++++++++-
+> > > >  include/linux/efi.h               |   14 ++++++++++++++
+> > > >  include/linux/ioport.h            |    1 +
+> > > >  8 files changed, 63 insertions(+), 5 deletions(-)
+> > > >
+> > > > diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> > > > index c1f9b3cf437c..cb9ca27de7a5 100644
+> > > > --- a/arch/x86/Kconfig
+> > > > +++ b/arch/x86/Kconfig
+> > > > @@ -1961,6 +1961,24 @@ config EFI_MIXED
+> > > >
+> > > >            If unsure, say N.
+> > > >
+> > > > +config EFI_SPECIAL_MEMORY
+> > > > +       bool "EFI Special Purpose Memory Support"
+> > > > +       depends on EFI
+> > > > +       ---help---
+> > > > +         On systems that have mixed performance classes of memory EFI
+> > > > +         may indicate special purpose memory with an attribute (See
+> > > > +         EFI_MEMORY_SP in UEFI 2.8). A memory range tagged with this
+> > > > +         attribute may have unique performance characteristics compared
+> > > > +         to the system's general purpose "System RAM" pool. On the
+> > > > +         expectation that such memory has application specific usage
+> > > > +         answer Y to arrange for the kernel to reserve it for
+> > > > +         direct-access (device-dax) by default. The memory range can
+> > > > +         later be optionally assigned to the page allocator by system
+> > > > +         administrator policy. Say N to have the kernel treat this
+> > > > +         memory as general purpose by default.
+> > > > +
+> > > > +         If unsure, say Y.
+> > > > +
+> > >
+> > > EFI_MEMORY_SP is now part of the UEFI spec proper, so it does not make
+> > > sense to make any understanding of it Kconfigurable.
+> >
+> > No, I think you're misunderstanding what this Kconfig option is trying
+> > to achieve.
+> >
+> > The configuration capability is solely for the default kernel policy.
+> > As can already be seen by Christoph's response [1] the thought that
+> > the firmware gets more leeway to dictate to Linux memory policy may be
+> > objectionable.
+> >
+> > [1]: https://lore.kernel.org/lkml/20190409121318.GA16955@infradead.org/
+> >
+> > So the Kconfig option is gating whether the kernel simply ignores the
+> > attribute and gives it to the page allocator by default. Anything
+> > fancier, like sub-dividing how much is OS managed vs device-dax
+> > accessed requires the OS to reserve it all from the page-allocator by
+> > default until userspace policy can be applied.
+> >
+>
+> I don't think this policy should dictate whether we pretend that the
+> attribute doesn't exist in the first place. We should just wire up the
+> bit fully, and only apply this policy at the very end.
 
- " gup_fast() and gup_unlocked() should return the pages in the same order.
- If they do not, then it is a bug."
+The bit is just a policy hint, if the kernel is not implementing any
+of the policy why even check for the bit?
 
-If Matthew is right,
-I need more time to debug the DMA issue...
-	
+>
+> > > Instead, what I would prefer is to implement support for EFI_MEMORY_SP
+> > > unconditionally (including the ability to identify it in the debug
+> > > dump of the memory map etc), in a way that all architectures can use
+> > > it. Then, I think we should never treat it as ordinary memory and make
+> > > it the firmware's problem not to use the EFI_MEMORY_SP attribute in
+> > > cases where it results in undesired behavior in the OS.
+> >
+> > No, a policy of "never treat it as ordinary memory" confuses the base
+> > intent of the attribute which is an optional hint to get the OS to not
+> > put immovable / non-critical allocations in what could be a precious
+> > resource.
+> >
+>
+> The base intent is to prevent the OS from using memory that is
+> co-located with an accelerator for any purpose other than what the
+> accelerator needs it for. Having a Kconfigurable policy that may be
+> disabled kind of misses the point IMO. I think 'optional hint' doesn't
+> quite capture the intent.
 
-Thanks
-Huang Shijie
- 
+That's not my understanding, and an EFI attribute is the wrong
+mechanism to meet such a requirement. If this memory is specifically
+meant for use with a given accelerator then it had better be marked
+reserved and the accelerator driver is then responsible for publishing
+the resource to the OS if at all.
 
-> 
-> Ira
-> 
+You did prompt me to go back and re-read the wording in the spec. It
+still seems clear to me that the attribute is an optional hint not a
+hard requirement. Whether the OS honors an optional hint is an OS
+policy and I fail to see why the OS should bother to detect the bit
+without implementing any associated policy.
+
+> > Moreover, the interface for platform firmware to indicate that a
+> > memory range should never be treated as ordinary memory is simply the
+> > existing "reserved" memory type, not this attribute. That's the
+> > mechanism to use when platform firmware knows that a driver is needed
+> > for a given mmio resource.
+> >
+>
+> Reserved memory is memory that simply should never touched at all by
+> the OS, and on ARM, we take care never to map it anywhere.
+
+That's not a guarantee, at least on x86. Some shipping persistent
+memory platforms describe it as reserved and then the ACPI NFIT
+further describes what that reserved memory contains and how the OS
+can use it. See commit af1996ef59db "ACPI: Change NFIT driver to
+insert new resource".
 
