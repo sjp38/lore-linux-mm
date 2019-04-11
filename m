@@ -2,119 +2,125 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9EC0C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:25:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35FE5C282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:40:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A7622146F
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:25:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B703B20693
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:40:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CCrxixgm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A7622146F
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SoNczOUv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B703B20693
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 274B36B026B; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
+	id 157B46B026B; Thu, 11 Apr 2019 12:40:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2229F6B026C; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
+	id 0E0126B026C; Thu, 11 Apr 2019 12:40:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 116206B026D; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
+	id EE9B56B026D; Thu, 11 Apr 2019 12:40:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3C616B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:25:55 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id v4so2731199vka.10
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:25:55 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B365E6B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:40:26 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id u2so4725157pgi.10
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:40:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
-        b=kxq163K+WH+CWyy9kc2A/+C3TlGKa/fFVlGZWh5h1EhhzoY+XEJmpN2fitjaKRtniI
-         webtltwp60fvyK55zw570+W7PyJVhIQRuj0M6peA+QU6K1DC8+qaTjOK5boGGjYpNAZd
-         A8Rag3T+cX/JuiwMPaadDV18QGgBJkWfAIFbrxR7IqXurPd6pyq9q8JxXGPcWxOw5fRu
-         i05TgjQyWg8CYSdP3Vkofh24liGCH6tobuXmA1Iy/10zzeDSrtDER6ahISh1hUozLbVW
-         sqUe9kXzDnyrH4wyCXJ9fV2eNEVpKP5KMJn1MMiKv6qVezOh1ZdtkmFVgss8rzVeB392
-         zOxw==
-X-Gm-Message-State: APjAAAUi5+V7YvD6bu8bLMl9uiO0ERSVXwY0Ng5DSv3vYKiQStowQkE5
-	/Uz/GCfdK+g7ukBSxEs7xxGJvpYFVi9eS/0p+OnWgCJXYSVZcL9oi7OmGeg3THBgv0vA0kGRKNy
-	7raBTFH0xBeQ++T/DsCajcQ3gbHJah/qSWW1rdppi7IzFNHs8++iYUffQgS7BTzXbkA==
-X-Received: by 2002:ab0:6994:: with SMTP id t20mr17033520uaq.105.1554999955438;
-        Thu, 11 Apr 2019 09:25:55 -0700 (PDT)
-X-Received: by 2002:ab0:6994:: with SMTP id t20mr17033460uaq.105.1554999954618;
-        Thu, 11 Apr 2019 09:25:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554999954; cv=none;
+        bh=kRgyn84oa29XmD7BiIgkjrSoRGcUByl/xukvkl6TYAI=;
+        b=BAd9/5NlbK/ivld28sZ0eJobyKljQVzUSg6lQeNcFAqZPK/mbQa0w/r76LQk8lvAN8
+         LLdwzulZiYmnZJ1u5Rmr7zLI0Z5qUOTgAyWCOZ3W62WqSzhVITVPQy0I+9DslpHefyfN
+         DJ8Vy6MNvCb+vvhlrRsR2snXLAY6ctbyy4KYJmr5LZBfwoqsNm+eilu2w1MGjHjIqXvb
+         P4sg6Wd3lpqcr2G00QxfCEZvYkj8ROfUVaIdOOzt1c42YP708RqeoUS7R5OUJobBWjra
+         h8eFhAQRAXgM8vOM120t/Qt7vosG3XyEJGc1Sy+8xyA4zmjnth9+WiDuHWu8qAtotqBn
+         qsyw==
+X-Gm-Message-State: APjAAAW7xj2I8JO4o0ScS8JeNZ/RFpR2DO4HeOTL5uWxvPpVAn3A16uA
+	t/33vUugh41ih/z6l9olclWcIMi2CbBOdKnev8hLON+UmDnTJC+MQgcbY+kUIByBAciCWVN1QWf
+	MjBljfj27rXGUkfBqniQpGBdTgpt/rzHmopYN2OQmGqMC6vL5kVb5KqAz3EuCJokc5w==
+X-Received: by 2002:a17:902:e110:: with SMTP id cc16mr51683657plb.147.1555000826097;
+        Thu, 11 Apr 2019 09:40:26 -0700 (PDT)
+X-Received: by 2002:a17:902:e110:: with SMTP id cc16mr51683547plb.147.1555000824989;
+        Thu, 11 Apr 2019 09:40:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555000824; cv=none;
         d=google.com; s=arc-20160816;
-        b=rIZcVm8c+wDEmMP+AmvDv5F6kR/sIqUBnT+HzcaujNgpzjWJJQukGJ8+45wMhrZgAf
-         c9wW5bo84G4s9JHOiUsT1HFhNT+3/zywbEBFFkxVdJ519Mkp0d5Fvv6PwTbyyG94EbeI
-         OTSgFl4W+oJBOhq02+cow9VGedxfTG7F/rXH1JIuSp6ivdo6G6yPR4NAsmfwhGCj2ooD
-         vp2J4MY/WgrDPwx0Kx3P+rXX7NoX5hZMAn2KR7HDKkS3V2w9QEV5hLwrvSaFAODDrrtM
-         4FQ9PfD06KWzzljJsshXcvIepZij1ttsOfOGbczFK4s3zEN6f3f0ZoRwVjfWj1dBSXyh
-         encQ==
+        b=xXb8HYhGGOY8xdMiG0Ew+luXufLAaDrSHOUu6JDYQoWt2F53mgl0Ldkt8CWEqvKylX
+         PYiZsAYO7NHrpSaUZCIrZ+H1inQJHgPKqKoq4TBEASdv2r2Uwu/dd+m97kWWgKKIV0S+
+         e4HfFFmBqisY37ODzmJSSVODecJdcYzsmqIB+CzgNkVGdrhFJzZgI+l1Uf73mnWmyTMR
+         LxbHh8qDQePkxwdnVHebkZ3tZK5qH79OJAX2UPGb19d4iNW0092YY5a5rzOMmt26vaSe
+         gqJ7jfDzPRrRgijZZrWGjTiKY7UxGGUIeGprSA6WNhS47Vg5RTsKw7alhre0KzGHbflD
+         Wchw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
-        b=QRQvFydAO6HgOhgfXfoaRY/QWifSQRu2dPJ6zSRviFVpfkpzmPusHHaDz6v+Mvx2mP
-         ajZNMxCJTzPkgtCsEzR3C5TqqoIXmfNhGJgzfJGAQaOP9Bf5le3GNaVQDbXP4g341jIB
-         pcua6io+L3v6IggYmhO+LNxvbjpVv5iysNZSvkFR3oL+/6LikJMalpw5CEn/HUY4KL3w
-         8s/NPVA5tWHAe4MEcjiyH8/Td/3iAN7pqN9HgqM5KIvEU+X6ggPsXx2SIMdN9jlVDCEQ
-         ByRhlKM9FSEfiDRwR7KmTNjQi4aNdno83iOGtygcHXq0sgTeWUcDc3dvUcNCG7rcRE0d
-         +0cw==
+        bh=kRgyn84oa29XmD7BiIgkjrSoRGcUByl/xukvkl6TYAI=;
+        b=PXQULqhJGYWRtveKGCZSm+lAdJMdokMjHpHkGmYxsW5MeT8swQ0YxeQU5z46bFkJb3
+         Q5AHhgVZ4ezeMwFlV/iJwDqSjmlbT/UYSbhW+SOHb/IhkRYe//E32vPI9eQg7ocx3Aek
+         LzsST6yy3HyAIhkcmiYpxsux1msC13z1Wa1nhVC45JcMrWY75ECp9H1hg/ckVs3oaQW6
+         8dVmgkakApBAcgeHO2WdMKRXrZoLaPr/Es0+sUtIogJ9I9pGFWsxqXkDqyJAqV/BAJGQ
+         xnNMDlfhBOMoo8g0IuAKUkVmZZOwheuZMI5iPCZDnBj1bEvTeoiktw6MgxVfxglBEF5S
+         8wSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=CCrxixgm;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SoNczOUv;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m14sor23928903vsk.106.2019.04.11.09.25.54
+        by mx.google.com with SMTPS id n25sor36319320pgv.11.2019.04.11.09.40.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Apr 2019 09:25:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 11 Apr 2019 09:40:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=CCrxixgm;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SoNczOUv;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
-        b=CCrxixgma4yFpHCkZzUEv9SdR6N+nGl21esIDWcXQHPs/rneFFO1ER7Yy3t/O3kvF6
-         K2LjEoUEUPmyDMq7RAaPlpLis7lAfXDTS8pxT2Zch6lvz2bLr3P9wSHHS/59Wt8IM7e3
-         vaAF7DEX4jyCHQK9U0VNFdFzcxmQEtJXCsqxZh6JSoTmTVJ2MewFgXKUnHVvFZ+v2B5n
-         tRWuGsTBo0fPP3L7a3+E/yvdFYYkRjBBjxOu+SP9DjfrZSKt3XkVN4VmMzw2dIiD0KK7
-         z9GI8GwZRe/JGK8edMcgZlynAfWMd6pRwRgZtrJz3SVey2z7P1EFR2lKrHovn0GWIqj+
-         Rx8g==
-X-Google-Smtp-Source: APXvYqwqdTSlcxUw2QsTDyZA0bTXMB88+SSatujAvWzoL8vneYzf/siPNRgBheK5KubuB7JpH0/MTvYJxRsBXwuZuw4=
-X-Received: by 2002:a67:e256:: with SMTP id w22mr17217643vse.173.1554999953603;
- Thu, 11 Apr 2019 09:25:53 -0700 (PDT)
+        bh=kRgyn84oa29XmD7BiIgkjrSoRGcUByl/xukvkl6TYAI=;
+        b=SoNczOUvZP35dy1JqqbI48ANljHHieaupBksGGPCN9782NN4FNvPZAMOeymTzYuYJl
+         KiHd8ACn2sggNQkz4cP9Y0UlLatijbbSrAMLoUQOyy7ZC740Yt1HM9hRU7VK+riBtyWt
+         SpCvuvoxNhHY6NYST5pv7zkv5F6hTtUq5hBXFpQgntYKCUYQ1oGyMotbJ50fPfaHyJp9
+         4guhGuIJTEMB6yJ9EnbQqZmUChheWvHCl+MSGrHIRNeXz3E65krd7ZXz0Jx3mawxlStn
+         iLNK8lGgq1HcHDIXEwJ65fH//h8oODA1f+R97yN1b91gq/KkfVLVEa0rOgeJHpJA4l8O
+         mwfA==
+X-Google-Smtp-Source: APXvYqwealWxNqfe0UwP6cRYXZUxVOaGNLqMHlBL7SnCGa5or89aJ7/sNi4RivH+ohBpurt1TGx6k8oqHitkrhMhtoM=
+X-Received: by 2002:a63:cf0d:: with SMTP id j13mr47949382pgg.34.1555000824096;
+ Thu, 11 Apr 2019 09:40:24 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
- <20190411103018.tcsinifuj7klh6rp@brauner.io> <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
- <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
-In-Reply-To: <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
-From: Daniel Colascione <dancol@google.com>
-Date: Thu, 11 Apr 2019 09:25:41 -0700
-Message-ID: <CAKOZuesgCpyLzs3g=RxyjBMjiMMxDbA2kOZZs3YOqOv=Ri6KgQ@mail.gmail.com>
-Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
- process killing
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Christian Brauner <christian@brauner.io>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
-	Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	"Eric W. Biederman" <ebiederm@xmission.com>, Shakeel Butt <shakeelb@google.com>, 
-	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>, 
-	Daniel Colascione <dancol@google.com>, Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, 
-	linux-mm <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, 
-	LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@android.com>, 
-	Oleg Nesterov <oleg@redhat.com>
+References: <cover.1553093420.git.andreyknvl@google.com> <44ad2d0c55dbad449edac23ae46d151a04102a1d.1553093421.git.andreyknvl@google.com>
+ <20190322114357.GC13384@arrakis.emea.arm.com> <CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
+ <20190328141934.38960af0@gandalf.local.home> <20190329103039.GA44339@arrakis.emea.arm.com>
+ <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com>
+In-Reply-To: <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Thu, 11 Apr 2019 18:40:12 +0200
+Message-ID: <CAAeHK+zzMukPL3SXJOqZkCfdT4UaVi=7sxrRfuktZt4DodgO7g@mail.gmail.com>
+Subject: Re: [PATCH v13 04/20] mm, arm64: untag user pointers passed to memory syscalls
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>, 
+	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
+	Daniel Borkmann <daniel@iogearbox.net>, Peter Zijlstra <peterz@infradead.org>, 
+	Arnaldo Carvalho de Melo <acme@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,75 +128,68 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 8:23 AM Suren Baghdasaryan <surenb@google.com> wrote:
-> > > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
-> > > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
-> > > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
-> > > > victim process. The usage of this flag is currently limited to SIGKILL
-> > > > signal and only to privileged users.
+On Tue, Apr 2, 2019 at 2:47 PM Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+> On Fri, Mar 29, 2019 at 11:30 AM Catalin Marinas
+> <catalin.marinas@arm.com> wrote:
+> >
+> > (I trimmed down the cc list a bit since it's always bouncing)
+> >
+> > On Thu, Mar 28, 2019 at 02:19:34PM -0400, Steven Rostedt wrote:
+> > > On Thu, 28 Mar 2019 19:10:07 +0100
+> > > Andrey Konovalov <andreyknvl@google.com> wrote:
+> > >
+> > > > > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > > > > ---
+> > > > > >  ipc/shm.c      | 2 ++
+> > > > > >  mm/madvise.c   | 2 ++
+> > > > > >  mm/mempolicy.c | 5 +++++
+> > > > > >  mm/migrate.c   | 1 +
+> > > > > >  mm/mincore.c   | 2 ++
+> > > > > >  mm/mlock.c     | 5 +++++
+> > > > > >  mm/mmap.c      | 7 +++++++
+> > > > > >  mm/mprotect.c  | 1 +
+> > > > > >  mm/mremap.c    | 2 ++
+> > > > > >  mm/msync.c     | 2 ++
+> > > > > >  10 files changed, 29 insertions(+)
+> > > > >
+> > > > > I wonder whether it's better to keep these as wrappers in the arm64
+> > > > > code.
+> > > >
+> > > > I don't think I understand what you propose, could you elaborate?
+> > >
+> > > I believe Catalin is saying that instead of placing things like:
+> > >
+> > > @@ -1593,6 +1593,7 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+> > >       unsigned long ret;
+> > >       long err;
+> > >
+> > > +     shmaddr = untagged_addr(shmaddr);
+> > >
+> > > To instead have the shmaddr set to the untagged_addr() before calling
+> > > the system call, and passing the untagged addr to the system call, as
+> > > that goes through the arm64 architecture specific code first.
+> >
+> > Indeed. For example, we already have a SYSCALL_DEFINE6(mmap, ...) in
+> > arch/arm64/kernel/sys.c, just add the untagging there. We could do
+> > something similar for the other syscalls. I don't mind doing this in the
+> > generic code but if it's only needed for arm64, I'd rather keep the
+> > generic changes to a minimum.
+>
+> Do I understand correctly, that I'll need to add ksys_ wrappers for
+> each of the memory syscalls, and then redefine them in
+> arch/arm64/kernel/sys.c with arm64_ prefix, like it is done for the
+> personality syscall right now? This will require generic changes as
+> well.
 
-FWIW, I like Suren's general idea, but I was thinking of a different
-way of exposing the same general functionality to userspace. The way I
-look at it, it's very useful for an auto-balancing memory system like
-Android (or, I presume, something that uses oomd) to recover memory
-*immediately* after a SIGKILL instead of waiting for the process to
-kill itself: a process's death can be delayed for a long time due to
-factors like scheduling and being blocked in various uninterruptible
-kernel-side operations. Suren's proposal is basically about pulling
-forward in time page reclaimation that would happen anyway.
+ping
 
-What if we let userspace control exactly when this reclaimation
-happens? I'm imagining a new* kernel facility that basically looks
-like this. It lets lmkd determine for itself how much work the system
-should expend on reclaiming memory from dying processes.
-
-size_t try_reap_dying_process(
-  int pidfd,
-  int flags /* must be zero */,
-  size_t maximum_bytes_to_reap);
-
-Precondition: process is pending group-exit (someone already sent it SIGKILL)
-Postcondition: some memory reclaimed from dying process
-Invariant: doesn't sleep; stops reaping after MAXIMUM_BYTES_TO_REAP
-
--> success: return number of bytes reaped
--> failure: (size_t)-1
-
-EBUSY: couldn't get mmap_sem
-EINVAL: PIDFD isn't a pidfd or otherwise invalid arguments
-EPERM: process hasn't been send SIGKILL: try_reap_dying_process on a
-process that isn't dying is illegal
-
-Kernel-side, try_reap_dying_process would try-acquire mmap_sem and
-just fail if it couldn't get it. Once acquired, it would release
-"easy" pages (using the same check the oom reaper uses) until it
-either ran out of pages or hit the MAXIMUM_BYTES_TO_REAP cap. The
-purpose of MAXIMUM_BYTES_TO_REAP is to let userspace bound-above the
-amount of time we spend reclaiming pages. It'd be up to userspace to
-set policy on retries, the actual value of the reap cap, the priority
-at which we run TRY_REAP_DYING_PROCESS, and so on. We return the
-number of bytes we managed to free this way so that lmkd can make an
-informed decision about what to do next, e.g., kill something else or
-wait a little while.
-
-Personally, I like th approach a bit more that recruiting the oom
-reaper through because it doesn't affect any kind of  emergency memory
-reserve permission and because it frees us from having to think about
-whether the oom reaper's thread priority is right for this particular
-job.
-
-It also occurred to me that try_reap_dying_process might make a decent
-shrinker callback. Shrinkers are there, AIUI, to reclaim memory that's
-easy to free and that's not essential for correct kernel operation.
-Usually, it's some kind of cache that meets these criteria. But the
-private pages of a dying process also meet the criteria, don't they?
-I'm imagining the shrinker just picking an arbitrary doomed (dying but
-not yet dead) process and freeing some of its pages. I know there are
-concerns about slow shrinkers causing havoc throughout the system, but
-since this shrinker would be bounded above on CPU time and would never
-block, I feel like it'd be pretty safe.
-
-* insert standard missive about system calls being cheap, but we can
-talk about the way in which we expose this functionality after we
-agree that it's a good idea generally
+>
+> >
+> > (I had a hack overriding __SC_CAST to do this automatically for pointer
+> > arguments but this wouldn't work on mmap() and friends as the argument
+> > is unsigned long)
+> >
+> > --
+> > Catalin
 
