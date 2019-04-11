@@ -2,172 +2,142 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2611C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 22:12:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC0B7C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 23:14:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D9472146F
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 22:12:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="AGTSA/Xj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D9472146F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 594562186A
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 23:14:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 594562186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDEC56B0269; Thu, 11 Apr 2019 18:12:51 -0400 (EDT)
+	id BC5586B0010; Thu, 11 Apr 2019 19:14:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8F166B026A; Thu, 11 Apr 2019 18:12:51 -0400 (EDT)
+	id B77F56B026A; Thu, 11 Apr 2019 19:14:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA56D6B026B; Thu, 11 Apr 2019 18:12:51 -0400 (EDT)
+	id A3C5C6B026B; Thu, 11 Apr 2019 19:14:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 991D46B0269
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 18:12:51 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id r21so6112236iod.12
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 15:12:51 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D27D6B0010
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 19:14:54 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id w9so5013628plz.11
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:14:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=VdvttgJMgi7y1biuAcRc/Ir8rfp3LIcUFLMa+DzZmPc=;
-        b=BL2P/rpDbxY8jv3oaJFOiqpQiVK23bxZOL7/OwN0cN3WWq+vFou2SG5PVYnQdPNPgP
-         42Pe+SYENB0XRzlHOPyePu0uinNLomEOX+8wfU+xLTagNVzgteF4+2jKMx3dGVkik0o2
-         Bus8izRGiqTUmoQHYfv1FLm8wkIoznJy9qt6b9tu60n0Jn9prr+yqILh8q+bnJc7Xurm
-         IcBoMZYJM8bP1JM049cBgTGpsY1fNYh3HysBRdYdWYpaDokoQo2nFGjAPiuhIEUmUQ/K
-         12j+2Vuqt95P6OghY9xUNWq3SsReDeuwRDU4bmrFTSZOTVDHLKQgSQ4G/b6vSdQjHTM9
-         qzLQ==
-X-Gm-Message-State: APjAAAWZij0f0ibSXTXNy1lIGKZ0pSVFElILZczKJ+W87135GGRZKmCJ
-	+Vae5DxS6RPNTRarnBKXPbO381owgeaQy4bKHMeJaUiPKEK66gMmFCQ1cZYGwJzsA5ObIVxlZRt
-	vRORlCjmze6XuVnIB2DWwJAd07mMryTxs7kwNTkHYWlXIriE+70nA7zcwkPXWPlpibQ==
-X-Received: by 2002:a24:ad0:: with SMTP id 199mr10457237itw.125.1555020771272;
-        Thu, 11 Apr 2019 15:12:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxDZnW3cw8jtrKqoPJkq3aXg5pGJ08E7qxkmXW6+BGzI6Zuk54K7E0VoyCW6Efg+tH5bYHV
-X-Received: by 2002:a24:ad0:: with SMTP id 199mr10457169itw.125.1555020770550;
-        Thu, 11 Apr 2019 15:12:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555020770; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=0OQc2KFOseBtS6C5gc68UcucYkNWGRFhIlRqasBgoaA=;
+        b=k7hgQR1fOqmQbnS2tqDek1nPuhbk4F96Ee9DpdKj219jYHk+fe1cbVpbqQPlRunrU9
+         cDq3rUMbIrAnu5bolqG8L4Cd1Hxe8l7VE6PGMPQemoqRBlOmKkKQwPjse9kbUoYcQYVS
+         uXbuLkS5Ahf3g/i6GIqah7iE6xkrqtYNKCd7ULIo0GzvorvwryAEAEPZ8lIcXyp8xR6h
+         lP/aNjsgfZA6pZlSbA706asxczKSmOae8xdU9K9hwIKdLsjp6bcHaxzOUSzU4S9o6t5v
+         xlX1Nmc5CQZHBX211+1B8iS8AJQq70/dtxwoSB3ERV1sQtxVL6RAxjUs8zy4mjvlmc1b
+         KgwQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAVedSJ2ht7MsxQ2BZAIW9oQJtCbEXtd7Y6f6POE0rLkK6QI5ahK
+	KOhrXyF3Kp6a2QkjmvjEOP9+K5uRxdr+AARlH79Ut9XMTHl99NifwvpBeTY5l0gkIZrrfR1RmYS
+	IoStNBwCZqnLO8j4Dtz3tnaavTJK6rhMaLSK2tLitRrdwYgx7bIbDYd/+sd/GkHc=
+X-Received: by 2002:a17:902:61:: with SMTP id 88mr12346738pla.166.1555024493934;
+        Thu, 11 Apr 2019 16:14:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw0xz+ajiq2FpaHXrh1P/6aJ2xYE3eDsMLM+LEt+1g7FP2TiQrniX1qVAj+2U7Xc6Oi71KC
+X-Received: by 2002:a17:902:61:: with SMTP id 88mr12346672pla.166.1555024493075;
+        Thu, 11 Apr 2019 16:14:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555024493; cv=none;
         d=google.com; s=arc-20160816;
-        b=NEHo6SCxIiro6aNN8r3cGz82LSW6XzFCKmjbOfaAs0hvkLhI84Fi3eE4x39Bf8fr/k
-         TfrDMddcTkoR2IskqSG081JkBP6Nfwctngkcl7WGQ/x4jPgO1IEJU5/oPkY4o51JHL9Q
-         bgEcJ3knKa8bKX0Ltcwcb/eFr5DfgBcW8B95ZSMnDOluA5J19mRi8o3s+fIG93tEoKkP
-         Hxh/Z7kSFoGdLtWoJCQIcaKNhvF5vtoN0R69mR2zuptL+i7ESZ05R3A9ls7koHCOwaBy
-         v6A2zc/unuwc7bNHmtYZ4BAXPHCmmyF7wsfAxT4OTV3LrAijbjA5V8HneltgGPV7b58c
-         qLzQ==
+        b=ruBXljgfGaXfCJaHksDsVJNvqzVbZ0LQXSQ+4pe7QdjVSykyMAnGv2CJ1jUe3RrffR
+         wtwnSd3WmsqesB0fOIJrikW2JjZdehTZMyUoVlF3R8nC4zlF/v/+NY1F2tktp9X3gpZL
+         jyzAQA5WfYihHTXoO4Lv/SKB9efkqrKlbK9xI05LE6DZdGkoVcKCihzqVFwmfX9rmi6f
+         f9wYq9dI84Kz9l/1uFcJAq946073yVj2+KHK2u2JKFvMR9KA71yHAVDbbs+9yTIDbuVl
+         1GmOaVYvcVS4kd5FMiJ7la5+AZl5kM2OlP8gPfIrQucBOfi3u/gNl1VqeRmxn+24VACu
+         px3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=VdvttgJMgi7y1biuAcRc/Ir8rfp3LIcUFLMa+DzZmPc=;
-        b=k4pCc9mLYYB42qBqGVq//qN7j7WdudLwRRQqD56kaZ6Mi+BNIfroFVXTCQCcdWsmMr
-         JTZsbCzNGklUgn9rp0olm4TuCbVU1pXMyPkmr4PjY1UQhqRY5ofz90/1yvdwtvwkF3Vd
-         4hzSJvCEIz5G9Z1eRtr5zQMxAbBJdJEnEH2HvMSZItfpDUGFpzfjRuDInKqksrmecOIk
-         8hfSDJT7UQR+qr07Y+3/GiJPwt6tNtfD+IDQXlVzCscWwP1nW1P3NKEY0vCst73aL7S8
-         14wF1Be/I0xTdc5DKpKFS7Jq1NaUrhq7kbzEODnP0lGvD6vRBEEz7L6sEeWYJdWgSlX7
-         XdyA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=0OQc2KFOseBtS6C5gc68UcucYkNWGRFhIlRqasBgoaA=;
+        b=pAh0CuM8uoxCZ/OAVHP6i7Ld6CQKAwozrAi7omIPrftowcNTCW7hGqSr/qhRkrgvRL
+         I+rU1fkqjm/lqUK3ddp9IstqaKbHWDWripcJYdZXPOoY4bsUexfzcr8fGtDYb+vAySAO
+         px1C3yw/1n05s0fAr5D5wbLN6IXdFBC6+bFghTIwlJLQ5AbPI05Ro2VDTipKJLcmyXYq
+         0FywpBMgSe9o0hUMWq8h1C29/H0vFhiKBJhG5KccV5NUBEcNpk0vyO2DtiAHbYutLiY/
+         pmZvyGmMVBkKIPpwMzqh4vzxrxbnEstWJd9WjeuiguZKd++36I0lNRB1ZI0gr98WRnco
+         dG0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="AGTSA/Xj";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 129si21999184jai.75.2019.04.11.15.12.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 15:12:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id q4si35668996pfh.157.2019.04.11.16.14.52
+        for <linux-mm@kvack.org>;
+        Thu, 11 Apr 2019 16:14:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="AGTSA/Xj";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BLrpgY057632;
-	Thu, 11 Apr 2019 22:12:47 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=VdvttgJMgi7y1biuAcRc/Ir8rfp3LIcUFLMa+DzZmPc=;
- b=AGTSA/XjMxDbPhN9y6K65txnTEY72U776+CCrxESpVxd0KJUTLaXyueLt9j/xJ1tYXAh
- iN1tW39ot6Ya2hm0wn3WVLOLWBbHGZMNhlTeLtWsVXUG2VkQSJwhnfc4fOUSzPzOnE0i
- lTvtJBSVp0TorOosKe/pBwJR4IdZ3XplBLjGVa4Ao15eN55/McrmvBXLNZKxG0451W21
- bAHU9AmbE/AXvgPrffo+zJNQLbQ3+lDSET3r9orwYNueB95NRwebJ1NpR4SBbRFjMCWg
- zQwJfVD3a8gbi4zhXIxm4y50RhUm9nEMA39Q+Oo9qEUOKjdeo3T/HNKp4QxNIJC+ZUnb og== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2rphmeupf6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Apr 2019 22:12:47 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BMBweH083206;
-	Thu, 11 Apr 2019 22:12:46 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3020.oracle.com with ESMTP id 2rtd848u6u-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Apr 2019 22:12:46 +0000
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3BMCfet021761;
-	Thu, 11 Apr 2019 22:12:42 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 11 Apr 2019 15:12:41 -0700
-Date: Thu, 11 Apr 2019 18:13:10 -0400
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org,
-        dave@stgolabs.net, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: Simplify shrink_inactive_list()
-Message-ID: <20190411221310.sz5jtsb563wlaj3v@ca-dmjordan1.us.oracle.com>
-References: <155490878845.17489.11907324308110282086.stgit@localhost.localdomain>
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-160-97.pa.nsw.optusnet.com.au [49.195.160.97])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 9F97C105E6F9;
+	Fri, 12 Apr 2019 09:14:44 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hEiu3-0008Sw-S5; Fri, 12 Apr 2019 09:14:43 +1000
+Date: Fri, 12 Apr 2019 09:14:43 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: jglisse@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
+	Ming Lei <ming.lei@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Matthew Wilcox <willy@infradead.org>,
+	Ernesto A =?iso-8859-1?Q?=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
+	Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH v1 12/15] fs/direct-io: keep track of wether a page is
+ coming from GUP or not
+Message-ID: <20190411231443.GD1695@dread.disaster.area>
+References: <20190411210834.4105-1-jglisse@redhat.com>
+ <20190411210834.4105-13-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <155490878845.17489.11907324308110282086.stgit@localhost.localdomain>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=887
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904110140
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=910 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904110140
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190411210834.4105-13-jglisse@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=UJetJGXy c=1 sm=1 tr=0 cx=a_idp_d
+	a=EHa8gIBQe3daEtuMEU8ptg==:117 a=EHa8gIBQe3daEtuMEU8ptg==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=8nJEP1OIZ-IA:10 a=oexKYjalfGEA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=eWkzej_naR1Ak5NVtaAA:9
+	a=wPNLvfGTeEIA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 10, 2019 at 06:07:04PM +0300, Kirill Tkhai wrote:
-> @@ -1934,17 +1935,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
->  	reclaim_stat->recent_scanned[file] += nr_taken;
->  
-> -	if (current_is_kswapd()) {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
-> -		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
-> -				   nr_scanned);
-> -	} else {
-> -		if (global_reclaim(sc))
-> -			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
-> -		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
-> -				   nr_scanned);
-> -	}
-> +	if (global_reclaim(sc))
-> +		__count_vm_events(PGSCAN_KSWAPD + is_direct, nr_scanned);
-> +	__count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD + is_direct,
-> +			     nr_scanned);
+On Thu, Apr 11, 2019 at 05:08:31PM -0400, jglisse@redhat.com wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
+> 
+> We want to keep track of how we got a reference on page when doing DIO,
+> ie wether the page was reference through GUP (get_user_page*) or not.
+> For that this patch rework the way page reference is taken and handed
+> over between DIO code and BIO. Instead of taking a reference for page
+> that have been successfuly added to a BIO we just steal the reference
+> we have when we lookup the page (either through GUP or for ZERO_PAGE).
+> 
+> So this patch keep track of wether the reference has been stolen by the
+> BIO or not. This avoids a bunch of get_page()/put_page() so this limit
+> the number of atomic operations.
 
-Nice to avoid duplication like this, but now it takes looking at
-vm_event_item.h to understand that (PGSCAN_KSWAPD + is_direct) might mean
-PGSCAN_DIRECT.
+Is the asme set of changes appropriate for the fs/iomap.c direct IO
+path (i.e. XFS)?
 
-What about this pattern for each block instead, which makes the stat used
-explicit and avoids the header change?
-
-       stat = current_is_kswapd() ? PG*_KSWAPD : PG*_DIRECT;
+-Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
