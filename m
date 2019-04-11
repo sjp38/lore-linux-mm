@@ -2,231 +2,236 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D0A1C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:06:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11028C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:33:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 16A6921841
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:06:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 99A6B2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:33:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="l1Qloyy0";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="LDugmDy9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16A6921841
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	dkim=pass (1024-bit key) header.d=eInfochipsIndia.onmicrosoft.com header.i=@eInfochipsIndia.onmicrosoft.com header.b="EwkahNqo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99A6B2133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=einfochips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B8B06B0005; Thu, 11 Apr 2019 01:06:20 -0400 (EDT)
+	id 2D6C76B0005; Thu, 11 Apr 2019 01:33:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 866A26B0006; Thu, 11 Apr 2019 01:06:20 -0400 (EDT)
+	id 2860C6B0006; Thu, 11 Apr 2019 01:33:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72DD06B0007; Thu, 11 Apr 2019 01:06:20 -0400 (EDT)
+	id 175FD6B0007; Thu, 11 Apr 2019 01:33:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9206B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:06:20 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id x18so4055654qkf.8
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:06:20 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D34256B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:33:26 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id v16so3534293pfn.11
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:33:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=45Iu1B+qpnB39VRdP0Ukhw/nt2qEjdh6GzIe7gVrsbQ=;
-        b=DEBhdItLfQHuuIvV1moBkL1EFJDuOjSu4NAHkbmEiUwFkoAawwOts4La9bXhzWwCUp
-         Z6wVD7D6GkTd2rLR4DesfsV7HJWEF1FiBH6UMw9PsoRV6Bs1Ge8FgIfcZj/ayS87nuuW
-         zKlhLOnlKj/2J71+mgopJJRO03FUEENMEwXc/VIfWxo8/oOGoFZA6NSQeGOwajemPmfK
-         QTlJXFLfu5s3qUzFuqXJzPby6b1fFO8+5oh8xefuo58971V7sUdWNCqK7PZpJmCUucdq
-         Z/8LKHattv08zyBXJ6Y31GJ6TBWpMwMvMMDjcEVIDrq58YngdtDyRMM3JnfocUtgZpPV
-         EeDg==
-X-Gm-Message-State: APjAAAWOxr62yF9veQRwwx5+HoYOZgKlijfRbqEzVEaS8BFKTbTtVg1H
-	Nh0TpZaPWPLQaYpDJZ2Gh8F6YBLvRtiR3crVHpUKCmB4T5VdZRj5+dut4pElFLkTOYHvtz0F4IN
-	IPqdWYyteO3IFSob+TiKVwigU+eAOStHfdFRjQkKE84g7I3v+h0s0/+9iGZQJPwwfpw==
-X-Received: by 2002:a0c:b9af:: with SMTP id v47mr37141145qvf.213.1554959180065;
-        Wed, 10 Apr 2019 22:06:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwgOBYDgPfTE9sDfF8kOJnZnkB6ZSZJE/71NBdALA60YKVWPtZW9HmYaGR0JyUcd+1DGYXk
-X-Received: by 2002:a0c:b9af:: with SMTP id v47mr37141108qvf.213.1554959179404;
-        Wed, 10 Apr 2019 22:06:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554959179; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=f/01hvD1MohZ5VWaUYvOCFUU2hZKlsxB3EeWHB9PWUg=;
+        b=GVMTaRQRazb7bgxBfV/qHd3T1ZqInxyzU7/lEzQn7fZLV+uPzgh13qwtpMcP+gebOu
+         /uhI7HXN9/EwBtOvO0zVqJu7wXOb+bqrNG2DXJFg7hAakmHEG4SRwGr5h5jIr60N9JJ7
+         /Dce8PUbTI6ohijEooEKCRbNu7RWfGYFX8M8IwPsYUo1G0UeyS2DOJhAxzx+1b0XXWQW
+         Bcz4qveNyJlwZdvP0Pew4A0jRNdz3043aNU25blLYjTW/EIo7I4fwGuFRllofNmMjFPr
+         JylPTk+LqUO0DvhWfXsU9Iy3QdKO8kQNkewQ4TwMQ3GzcOm96uBwQ3NtyJLy60006+Mc
+         aEmg==
+X-Gm-Message-State: APjAAAWhfVNfwELRAuZN/YD+pQHdjs1vHr78oS2lv8Yy3ZVgBWk19cz2
+	gjAhUqz6sc479oVIOAq0BOJNUDZod0JmxkJlY9uQKm3l5PdI/euoYK2M03hyTKp3VzmNtzSmyT/
+	aZTMML0Dz8M5/bV+BUWFHJh/OOW4xvBvoWWOMoaHTDyrhn/G1x9X5D9021kaN9cYe3A==
+X-Received: by 2002:a62:4649:: with SMTP id t70mr48140944pfa.100.1554960806200;
+        Wed, 10 Apr 2019 22:33:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzd0TGCp5cEShyJ5jVoOqRHwvqlPmCTee6sGe0xsQHShDaOGAnYDMK7MDbioJWc3t8zo8h
+X-Received: by 2002:a62:4649:: with SMTP id t70mr48140885pfa.100.1554960805229;
+        Wed, 10 Apr 2019 22:33:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554960805; cv=none;
         d=google.com; s=arc-20160816;
-        b=TKr8RxBHuPa6egICAV37couqpBZ4wuk5ORLVMtLhkOVOf4dVQUobyri3dOx48oL4lT
-         uzUuGGDyJvMpclRKoYAB1yv5QfaCJCYaFCjO38dxBVDapozWlhMyg7Yhzojz+UPqtQZO
-         /K82XbLoiAjXkvN6JRgtcDgmAnBH8EEBmhJdVveC4VzmswS8U74Skn1cS2LlCCmANFaZ
-         c6zk59ItKgc1oVwnuF5esNHmbHcsFtQ7JbhaLQpg8AD2O6XDx/bHhmr1kXYgXDl9lS8d
-         rhxr+xkRdqznQuFlFOyXrlm30+zu3ndQfa0QtfTFJ5/TpSAOC8fmmzDJoRVLrp57dP62
-         hxvg==
+        b=chp4nOGLq4raq7fKqX6Wc6aRR1obMLe67PGaxeKvGqMRq3VAH7EmQXjE5566pCNJG9
+         MNpIYNNj9/hSw1fA1S/Sv3UTNC81qmxENKhwecVP2hzMDR1z4aVzYLXPPUeDWwZ7E1eW
+         JElv5zYmPtPgs+maGaaeRJXJG6hRv/ZeBf7AU56/r0Qj3bUCNnQyMb4UiK738rVOQ/FF
+         kEY5iU1MJz6q+RX3xKMay1YWkd3Qf0n+l1fDRxr/g+3hNjZPU33WzJWmo54I6GhCn9BF
+         oiWAPXj6TToK8zI+GQb/63GmLF5FQiZSPdpKtObhrpvnXV62qporX4VqJJ9bW8cHkFvt
+         clWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=45Iu1B+qpnB39VRdP0Ukhw/nt2qEjdh6GzIe7gVrsbQ=;
-        b=czgfntu9CwleHK+NUmykl27bioMZ3TVIrs6RTJVCoJgamiL37LRr0iVWqgjKnT4EzH
-         wAd5McpjxMKTmW4FDPcK2wTi5tT7a38zwqlecYhiatlez5vzSrzTETUo4LwjhEQuoEnN
-         vVWtP23mGrUAy5X6FhOMiAUyzdAzw4rQQUVfircFxqsNTQnOxzeLPXRGBUDJCowwbXFy
-         xi+gHlXqc+Jk8L7WiOZb41YC2g+jAOYN2X5EW2qkc+0jagdEUfefVhbPi9iIXmH6Ac7r
-         5AVpVJdXEoDjkGu8PzF4sjSo+jCKScATFVVdARhsXJJFtRMG3kp1DzSz5SZvLf+dJBxH
-         Byjw==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=f/01hvD1MohZ5VWaUYvOCFUU2hZKlsxB3EeWHB9PWUg=;
+        b=0pcJjXyUigO3G5fU+Vd7KDcbEnk92uJX1SKyGE0xn7oYOxHvcW3XeJO4p8bCcFLM4/
+         U6pAJ1CYzAnkRUAbgLv08IAFC3vwOzCaKTbLoAuF1mE0ehiY/XfRDoMkEGLaiKT4cG9I
+         BCksoCuTH7pX64NDXER9NQrXRpqH7vHKEyqT7e2bNKLTfzAcrDgo64ucWFbSPS9vzk3H
+         u6m3aL44f72m7UAPB2KezHCkRIXRSjzc1yVzjKAE8++jGZ2K+dHwhAguhPJb1GcmWBP2
+         mE87SddTnZaKkCaKNG8B5M73DoBrPEtxvJHwhXXC4Hpep9jq8ARz09hZFAEkw3MI2YNP
+         cOIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=l1Qloyy0;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=LDugmDy9;
-       spf=neutral (google.com: 66.111.4.224 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from new2-smtp.messagingengine.com (new2-smtp.messagingengine.com. [66.111.4.224])
-        by mx.google.com with ESMTPS id d16si6645053qtj.301.2019.04.10.22.06.19
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=EwkahNqo;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.42 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+Received: from APC01-HK2-obe.outbound.protection.outlook.com (mail-eopbgr1300042.outbound.protection.outlook.com. [40.107.130.42])
+        by mx.google.com with ESMTPS id a13si33811630pgh.139.2019.04.10.22.33.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 22:06:19 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.224 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.224;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 10 Apr 2019 22:33:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.42 as permitted sender) client-ip=40.107.130.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=l1Qloyy0;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=LDugmDy9;
-       spf=neutral (google.com: 66.111.4.224 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailnew.nyi.internal (Postfix) with ESMTP id F0346811D;
-	Thu, 11 Apr 2019 01:06:18 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute5.internal (MEProxy); Thu, 11 Apr 2019 01:06:19 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=45Iu1B+qpnB39VRdP0Ukhw/nt2q
-	Ejdh6GzIe7gVrsbQ=; b=l1Qloyy0N3NHG+Dq0uWHfSP1OKFv/mKAVBCPkyEHVsF
-	khWJ7QW6Y2ab+w/ruKn2bTyhyAPZVlrDTwsgZfv2DDrR3GmhF1k2f5X+cVLmixQT
-	UOmBTgGFiS74q2CQOrzpfvMaQQruhGfoK6cSOPLpCGbQH915K+wF/SDpsbLrR+wz
-	e3PnqfTJsXkyroOlekc0MS54591i2DUGor1XsJ7nkqHwE8UrROJRBvMwVepD9ZQn
-	6Dw1t7CRJi194GhPb99WAUs+4c7GHykYH8z8AV8e3YtPJEoaBjp8JIB5PeEhzpxu
-	fOHWMEHmAXwVAcY5jSDq/OwwEeaKolvolCIhd9CFf2Q==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=45Iu1B
-	+qpnB39VRdP0Ukhw/nt2qEjdh6GzIe7gVrsbQ=; b=LDugmDy9EBTwh4CG8C7fil
-	/6JFtb2Nnvkw60p1kiPX4Fqk55/URBvvR2foHoQyHR/49WVhc4ZgkKMTPFh/XI+M
-	CAuI/YgPDtX2JDPGDVzbphhJ6xBE4Vduc91udjqsDhbJUd+tC4/cJoFDZ7fISkUs
-	4DmVq0f3fESCMty96WWKPij40BI2+bNHf+h3yvapFVGN9/8Z8bXBP/70QIpoqitt
-	8DLa5xqBzacmFOmANvRAONIn2ydNwWdCJ15cybFY8L02h6GdvT76VXYNcRePDLOk
-	vJtfmdyFnEndwTSkKqXTki7lAiTmWUkJl9j7aYLDxrCBz8vkmp6DojVWN1VxIP/g
-	==
-X-ME-Sender: <xms:R8uuXL9Mck2N9mrFeLNhbAvkEWJDw-A6mD4QlvkdinyR_Wi4uFbjcA>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudekgdekiecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
-    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
-    hrlhcuvffnffculdeftddmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
-    redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
-    hinhdrtggtqeenucfkphepuddvgedrudejuddrudelrdduleegnecurfgrrhgrmhepmhgr
-    ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:R8uuXC47zZxSq_HzhxcXeeVrqEsUUOaxb5BVLY_jHr3rIPXwav961w>
-    <xmx:R8uuXILhC61rHkW4KsT9OJ6ei8rB12WF6sMOvoVbwrGCra8Z3JK1wA>
-    <xmx:R8uuXHuOGcj6-WZQxGDxEPFTdZ9iErwVl5p3JMiE1sDgyQnEDecJCg>
-    <xmx:SsuuXNnbR3gffchT_Am5_yg3m9p7t5_SXsPkKZS0Wg4-55CrmOW4hA>
-Received: from localhost (124-171-19-194.dyn.iinet.net.au [124.171.19.194])
-	by mail.messagingengine.com (Postfix) with ESMTPA id D9FDBE40FF;
-	Thu, 11 Apr 2019 01:06:14 -0400 (EDT)
-Date: Thu, 11 Apr 2019 15:05:38 +1000
-From: "Tobin C. Harding" <me@tobin.cc>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>,
-	Alexander Viro <viro@ftp.linux.org.uk>,
-	Christoph Hellwig <hch@infradead.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Andreas Dilger <adilger@dilger.ca>,
-	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
-	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
-	David Chinner <david@fromorbit.com>,
-	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>,
-	linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH v3 14/15] dcache: Implement partial shrink via Slab
- Movable Objects
-Message-ID: <20190411050538.GA22216@eros.localdomain>
-References: <20190411013441.5415-1-tobin@kernel.org>
- <20190411013441.5415-15-tobin@kernel.org>
- <20190411023322.GD2217@ZenIV.linux.org.uk>
- <20190411024821.GB6941@eros.localdomain>
- <20190411044746.GE2217@ZenIV.linux.org.uk>
+       dkim=pass header.i=@eInfochipsIndia.onmicrosoft.com header.s=selector1-einfochips-com header.b=EwkahNqo;
+       spf=pass (google.com: domain of pankaj.suryawanshi@einfochips.com designates 40.107.130.42 as permitted sender) smtp.mailfrom=pankaj.suryawanshi@einfochips.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=eInfochipsIndia.onmicrosoft.com; s=selector1-einfochips-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=f/01hvD1MohZ5VWaUYvOCFUU2hZKlsxB3EeWHB9PWUg=;
+ b=EwkahNqo8zYPigRvCUX875SznmYF2P08fHmy8VPiFhLha33RcoSF3D+hbS36QH+UXmd5Q8rHY0OK0G1SEPfM4PtvpjufoQ+0ZiKyc9ZC5ni0JQRSg4B5aNeDZcM05RiGe6ry/TiwbLm0wrmiXSHBCT9sdVAWbKTZXIKYqw6/Kg4=
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com (20.177.88.78) by
+ SG2PR02MB2778.apcprd02.prod.outlook.com (20.177.86.78) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1771.21; Thu, 11 Apr 2019 05:33:22 +0000
+Received: from SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b]) by SG2PR02MB3098.apcprd02.prod.outlook.com
+ ([fe80::f432:20e4:2d22:e60b%4]) with mapi id 15.20.1771.019; Thu, 11 Apr 2019
+ 05:33:22 +0000
+From: Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+To: Christopher Lameter <cl@linux.com>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [External] Re: Basics : Memory Configuration
+Thread-Topic: [External] Re: Basics : Memory Configuration
+Thread-Index: AQHU7qEJC6EuUiGvjEiZ+OVh95dcd6Yz/amAgAJxijU=
+Date: Thu, 11 Apr 2019 05:33:22 +0000
+Message-ID:
+ <SG2PR02MB309859B3EFFF331580DBA8C5E82F0@SG2PR02MB3098.apcprd02.prod.outlook.com>
+References:
+ <SG2PR02MB3098925678D8D40B683E10E2E82D0@SG2PR02MB3098.apcprd02.prod.outlook.com>,<0100016a02d5038e-2e436033-7726-4d2a-b29d-d3dbc4c66637-000000@email.amazonses.com>
+In-Reply-To:
+ <0100016a02d5038e-2e436033-7726-4d2a-b29d-d3dbc4c66637-000000@email.amazonses.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-GB
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pankaj.suryawanshi@einfochips.com; 
+x-originating-ip: [14.98.130.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 66e8d897-7af6-4d62-6876-08d6be3f3696
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:SG2PR02MB2778;
+x-ms-traffictypediagnostic: SG2PR02MB2778:
+x-microsoft-antispam-prvs:
+ <SG2PR02MB2778265B3A8A4CADDFE205D6E82F0@SG2PR02MB2778.apcprd02.prod.outlook.com>
+x-forefront-prvs: 00046D390F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(376002)(39850400004)(366004)(346002)(136003)(396003)(199004)(189003)(55236004)(78486014)(52536014)(6506007)(14454004)(106356001)(66066001)(97736004)(478600001)(33656002)(86362001)(76176011)(53546011)(8936002)(7696005)(44832011)(256004)(305945005)(7736002)(99286004)(14444005)(5024004)(74316002)(105586002)(53936002)(9686003)(186003)(5660300002)(229853002)(6246003)(54906003)(4326008)(55016002)(66574012)(316002)(3846002)(25786009)(2906002)(6116002)(81166006)(71200400001)(26005)(6436002)(6916009)(102836004)(8676002)(476003)(446003)(11346002)(486006)(81156014)(71190400001)(68736007)(586874002);DIR:OUT;SFP:1101;SCL:1;SRVR:SG2PR02MB2778;H:SG2PR02MB3098.apcprd02.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: einfochips.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ Ddx/yFysrWC4fokHAeGtpK9FVOrEnUYEHokJj+7WepvmEORCTDI4/F3InqtXR4zIzxc6MuKg6Zyex30gw4ubBA92OYmjnHOewpHJkyEuDkiVTeUjVHHflrAjoJqYiEZvC617gftjylQ14SOtdwiBL6GHO02BzK+PARIwan43Om3suS2mRMaHgnEKpkJaY/FZYc2qjVJcYD36trf1gX6kOEqAng2pbWR5AxnWTU8ngeSi9nDm4aPURKwKRM0O4STotEevVm45IMdZnqnt0nOQjumLLwoR+MIE0SRNKS+xbrelplwEQ/oX8if5w+kwxOS9pJQs12gF/SkTOiQ+MXZwQI7rhcDvw6duqdtutlVkPgXxh0BAkAobyIbWcXwbsrgvQvmwyZsY0k4culmokolmZYQs+X1MbhJuTuDcF84UydY=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190411044746.GE2217@ZenIV.linux.org.uk>
-X-Mailer: Mutt 1.11.4 (2019-03-13)
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-OriginatorOrg: einfochips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 66e8d897-7af6-4d62-6876-08d6be3f3696
+X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Apr 2019 05:33:22.5626
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 0adb040b-ca22-4ca6-9447-ab7b049a22ff
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SG2PR02MB2778
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 05:47:46AM +0100, Al Viro wrote:
-> On Thu, Apr 11, 2019 at 12:48:21PM +1000, Tobin C. Harding wrote:
-> 
-> > Oh, so putting entries on a shrink list is enough to pin them?
-> 
-> Not exactly pin, but __dentry_kill() has this:
->         if (dentry->d_flags & DCACHE_SHRINK_LIST) {
->                 dentry->d_flags |= DCACHE_MAY_FREE;
->                 can_free = false;
->         }
->         spin_unlock(&dentry->d_lock);
->         if (likely(can_free))
->                 dentry_free(dentry);
-> and shrink_dentry_list() - this:
->                         if (dentry->d_lockref.count < 0)
->                                 can_free = dentry->d_flags & DCACHE_MAY_FREE;
->                         spin_unlock(&dentry->d_lock);
->                         if (can_free)
->                                 dentry_free(dentry);
-> 			continue;
-> so if dentry destruction comes before we get around to
-> shrink_dentry_list(), it'll stop short of dentry_free() and mark it for
-> shrink_dentry_list() to do just dentry_free(); if it overlaps with
-> shrink_dentry_list(), but doesn't progress all the way to freeing,
-> we will
-> 	* have dentry removed from shrink list
-> 	* notice the negative ->d_count (i.e. that it has already reached
-> __dentry_kill())
-> 	* see that __dentry_kill() is not through with tearing the sucker
-> apart (no DCACHE_MAY_FREE set)
-> ... and just leave it alone, letting __dentry_kill() do the rest of its
-> thing - it's already off the shrink list, so __dentry_kill() will do
-> everything, including dentry_free().
-> 
-> The reason for that dance is the locking - shrink list belongs to whoever
-> has set it up and nobody else is modifying it.  So __dentry_kill() doesn't
-> even try to remove the victim from there; it does all the teardown
-> (detaches from inode, unhashes, etc.) and leaves removal from the shrink
-> list and actual freeing to the owner of shrink list.  That way we don't
-> have to protect all shrink lists a single lock (contention on it would
-> be painful) and we don't have to play with per-shrink-list locks and
-> all the attendant headaches (those lists usually live on stack frame
-> of some function, so just having the lock next to the list_head would
-> do us no good, etc.).  Much easier to have the shrink_dentry_list()
-> do all the manipulations...
-> 
-> The bottom line is, once it's on a shrink list, it'll stay there
-> until shrink_dentry_list().  It may get extra references after
-> being inserted there (e.g. be found by hash lookup), it may drop
-> those, whatever - it won't get freed until we run shrink_dentry_list().
-> If it ends up with extra references, no problem - shrink_dentry_list()
-> will just kick it off the shrink list and leave it alone.
-> 
-> Note, BTW, that umount coming between isolate and drop is not a problem;
-> it call shrink_dcache_parent() on the root.  And if shrink_dcache_parent()
-> finds something on (another) shrink list, it won't put it to the shrink
-> list of its own, but it will make note of that and repeat the scan in
-> such case.  So if we find something with zero refcount and not on
-> shrink list, we can move it to our shrink list and be sure that its
-> superblock won't go away under us...
 
-Man, that was good to read.  Thanks for taking the time to write this.
+________________________________________
+From: Christopher Lameter <cl@linux.com>
+Sent: 09 April 2019 21:31
+To: Pankaj Suryawanshi
+Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
+Subject: [External] Re: Basics : Memory Configuration
 
 
-	Tobin
+
+On Tue, 9 Apr 2019, Pankaj Suryawanshi wrote:
+
+
+> I am confuse about memory configuration and I have below questions
+
+Hmmm... Yes some of the terminology that you use is a bit confusing.
+
+> 1. if 32-bit os maximum virtual address is 4GB, When i have 4 gb of ram
+> for 32-bit os, What about the virtual memory size ? is it required
+> virtual memory(disk space) or we can directly use physical memory ?
+
+The virtual memory size is the maximum virtual size of a single process.
+Multiple processes can run and each can use different amounts of physical
+memory. So both are actually independent.
+
+Okay Got it.
+
+The size of the virtual memory space per process is configurable on x86 32
+bit (2G, 3G, 4G). Thus the possible virtual process size may vary
+depending on the hardware architecture and the configuration of the
+kernel.
+
+Another Questions -
+- Q. If i configures VMSPLIT =3D 2G/2G what does it mean ?
+- Q. Disk Space is used by Virtual Memory ? If this is true, than without s=
+econdary storage there is no virtual memory ?
+        let say for 32-bit os i have 4GB ram than what is the use case of v=
+irtual memory ?
+
+> 2. In 32-bit os 12 bits are offset because page size=3D4k i.e 2^12 and
+> 2^20 for page addresses
+>    What about 64-bit os, What is offset size ? What is page size ? How it=
+ calculated.
+
+12 bits are passed through? Thats what you mean?
+
+The remainder of the bits  are used to lookup the physical frame
+number(PFN) in the page tables.
+
+64 bit is the same. However, the number of bits used for lookups in the
+page tables are much higher.
+
+- Q. for 32-bit os page size is 4k, what is the page size for 64-bit os ? p=
+age size and offset is related to each other ?
+- Q. if i increase the page size from 4k to 8k, does it change the offset s=
+ize that it 2^12 to 2^13 ?
+- Q. Why only 48 bits are used in 64-bit os ?
+
+
+> 3. What is PAE? If enabled how to decide size of PAE, what is maximum
+> and minimum size of extended memory.
+
+PAE increases the physical memory size that can be addressed through a
+page table lookup. The number of bits that can be specified in the PFN is
+increased and thus more than 4GB of physical memory can be used by the
+operating system. However, the virtual memory size stays the same and an
+individual process still cannot use more memory.
+
+- Q. Let say i enabled PAE for 32-bit os with 6GB ram.Virtual size is same =
+4GB, 32-bit os cant address more thatn 4gb, Than what is the use of 6GB wit=
+h PAE enabled.
+***************************************************************************=
+***************************************************************************=
+******* eInfochips Business Disclaimer: This e-mail message and all attachm=
+ents transmitted with it are intended solely for the use of the addressee a=
+nd may contain legally privileged and confidential information. If the read=
+er of this message is not the intended recipient, or an employee or agent r=
+esponsible for delivering this message to the intended recipient, you are h=
+ereby notified that any dissemination, distribution, copying, or other use =
+of this message or its attachments is strictly prohibited. If you have rece=
+ived this message in error, please notify the sender immediately by replyin=
+g to this message and please delete it from your computer. Any views expres=
+sed in this message are those of the individual sender unless otherwise sta=
+ted. Company has taken enough precautions to prevent the spread of viruses.=
+ However the company accepts no liability for any damage caused by any viru=
+s transmitted by this email. **********************************************=
+***************************************************************************=
+************************************
 
