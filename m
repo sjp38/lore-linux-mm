@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4367AC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35777C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3A3020850
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3A3020850
+	by mail.kernel.org (Postfix) with ESMTP id D613220850
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D613220850
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F0E76B026C; Thu, 11 Apr 2019 17:08:52 -0400 (EDT)
+	id EC5046B026D; Thu, 11 Apr 2019 17:08:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 553BE6B026D; Thu, 11 Apr 2019 17:08:52 -0400 (EDT)
+	id E23476B026E; Thu, 11 Apr 2019 17:08:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3C3AD6B026E; Thu, 11 Apr 2019 17:08:52 -0400 (EDT)
+	id C9D1E6B026F; Thu, 11 Apr 2019 17:08:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A0096B026C
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:08:52 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id d8so6177590qkk.17
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:08:52 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A607D6B026D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:08:54 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id l26so6812208qtk.18
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:08:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=W/N1NPAdMMPgiENmVjRvzAftohKD0XW58WPEDgE8mHY=;
-        b=G4AnKXFm4ps8pjb2BWQpJKW8c/2vO8D39t8KTDyCQygGheTZbM3g/SwxFLl6zBLE+o
-         t8T/THJ5VWmzpN5kIvKG+YEugS/J8E1xZe2DI/gjMeZuOawtCo0qWCqPJl4lRhm4eJSj
-         ccvfi0BU1NINSaCisrZ4IODO3xPQ9jNAMnefgvaxaeTgL1lZFG1ZcGUfSVu0LRzkXzvn
-         F1llidFzyQToE1Q7Nqa2PZYiOCiiAtH0EdcbPBxSWBaVtxBBux7+Vp+BJy/fbu9nnRpr
-         DUeJiE7+Le+iAgNSaJts6TgNZO0WWcEc5LumfdVoFmBdpKp3mSP3EgBH/grZ5Y0jqL2L
-         2i3w==
+        bh=tJY/hNbZ3bSboRGCLaNnbTCmp0SlQGBJRAI1x7JusCc=;
+        b=MBngYfFjDCrA08pKzxLpNvDHQCk15H3WznhgioKrb0LOBlW0V01Bq0zzul6/Jcz38y
+         L+328yQohd5NOxzsp0/PyHorVGJN5HOyWqw8hBPu8QL5f62NjIOu1K0SZ1awqrQoIN/C
+         Ws5svuCVsgu5aNA6euK6Q06+5HT/MTXU0S28hUc29DDsm1ikVDiIIS6awRgbma59hyR2
+         xO2DOLhU36gbInCV64mNu7Q9WknL/h98KOnlybQ3mGf6eMbnI3upDCXhoElnVvCWEG/f
+         jlwIQzBqOqGk5btGknrhgCg62r+XpBoGOPbKBQ61esCYVPXv2apsTLSCFRyFyLQg1UQe
+         M84w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWK02B09gFLzgUiit3m5mngy15KouYOxeq44GT7A4a4jBwN9uUu
-	Vby5cfR4Uo+MMtRMcxme67cv2erBDmKKFRzynOm8CA7nPmGYLD5TkpYhbV6LNMt2bEQ2x04kumY
-	E4jI/rMqTLQ0SbjR01z8SgOtV/39pOtL3hui/zRVIjBYhie1pUW4swzF783Zp3aKgOA==
-X-Received: by 2002:ac8:6646:: with SMTP id j6mr43297789qtp.197.1555016931798;
-        Thu, 11 Apr 2019 14:08:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwH0wTkvwGmXccmhYXz4ineO7yCwpQnYqJPr4oPbA/Ai+nqM71CVniXZVL0oPE2jYS5FodG
-X-Received: by 2002:ac8:6646:: with SMTP id j6mr43297678qtp.197.1555016930534;
-        Thu, 11 Apr 2019 14:08:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555016930; cv=none;
+X-Gm-Message-State: APjAAAXGSz2yN9RHx1BuDW//+4JztG1N+8/Zm1MAwyk7pMEXT0aSubH3
+	5EjKhjnqtt8WNMcmQdqv8wvTLDBzklIKZPx6JTykjJA9AvoasQkzk9pMSngsJVpqHSBEB+p+eMv
+	3i/IwLQ6x0I4XoHf6k05v2mp6fiPxl36LnfMP3mCjzUGM3KnDDi2pRok+8DOxQ9tZTA==
+X-Received: by 2002:a37:49ca:: with SMTP id w193mr38759365qka.261.1555016934397;
+        Thu, 11 Apr 2019 14:08:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzd2NzUy5FFCDMcwkHZCYW5c2YZOibkXX/On5a3Y+gxM/NfIAFk54mabdwrNpVzoyRcBeiA
+X-Received: by 2002:a37:49ca:: with SMTP id w193mr38759297qka.261.1555016933418;
+        Thu, 11 Apr 2019 14:08:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555016933; cv=none;
         d=google.com; s=arc-20160816;
-        b=bRozwUrtVr/T3W4rdeNGqkAZEn7+Aa/Q++7HPtjmSb+gHYid0Lj3WtLWn1fam3WJqf
-         OZ82tlEZDRThQGDNKOEc5gUJkNR4JX/eiA6icIt8OxSx733zgetUDC3XtgWeSm40huAh
-         PxsGBytztWdlXdpYJEwIg44o7Qvf+f/VdWqfVcUuGB8G4E6WeAw6bNbKIPm9Ybl0a4f3
-         bZ4J4j4n6iqiyXRK0S4oZbj3l7fxoLRyKj30Z7fwA66WYwCSc5Fs5A5Ya6l7tUYLqZ5b
-         B38cCxWYSjVJzNbmptB1OATe2UM4kDXDlxd7I3SF1Qvf5NgHUHa5eftVUAnS47shDh4V
-         kUlg==
+        b=PCJ1AOxA7ZjoGKP/5PPtyEoZ6vzESFSZrasw7J5nif2WqcnW2ZB9sipXKth8/Cm0se
+         vOAENoscZ98neP5mVJd3Ut0WTD0KjPd2EVyxGlqkd+hfL1hEV8e1zsb9Jk7SgSfZAmZc
+         tnQ785XIxL9WG6pashSo/z3L/mTVswYatP4h62djNdEhVkcQqd0uBV16uOWDXGrqr8WY
+         EUwNfcv9awusSpD57ERLhfLnj9//HgHW/FzqGjtoqEL92rcfCyqD0Lb9PnaKZboYTmfO
+         vDdts+Rzk1OPq9RuUEF9aegoDhItgLybEEWdW5qVQ+aU4D4AqmRjXtvqId1ETqT4CJTB
+         pYBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=W/N1NPAdMMPgiENmVjRvzAftohKD0XW58WPEDgE8mHY=;
-        b=Av436I/UI7mpZrmuCHMN87j44I0bFC9z/zWm41FmiDYIV6gpAgSOq56X88mWPiphR6
-         oVt/4D50fNtpjqetCJTjJ3LsDjgLzs6V+3S0Fm1vMjP63GxAIfPDCvu4+k4Tna1K5W9i
-         1xo9xs6hF7dGFUojUsAcNyxbca88JMdp5Uv07BNncFr7CU8XwWeuL9943TyKczyoFZT5
-         rohBjvH3hO7Z20EqHexiVwXT081RPg/9Mc5BeXkuHOs6vzK5r1fOKVNs4KgpUHbmazQq
-         VLcut5k8nwcNc+BjClrA5H+PRvB90xURWGkvLKmW6cXGz0n/wxNbcDNQ7oWeOmUJqTpE
-         KpLQ==
+        bh=tJY/hNbZ3bSboRGCLaNnbTCmp0SlQGBJRAI1x7JusCc=;
+        b=kia7JJsN8omfPIl7+au8Vv+M0k8k3QHj+mzJbOrjppojUaRmnz4vUNeeZXaYDmCoXA
+         ByYqGoifd7y3DPMz3Quwp0HBQqAb7dyzbewozP8q8UsFGyXiA6FJ5k53rMyCDjtkjlsi
+         CZX6mM/v1OhMxWW4s/nPmIlQoD6kpYPE744F9k9Z0/jttBgMyBvQGq8uxWGi67tP2oQQ
+         /lNpbsOvRoV2sTMjdcYuc3xKeOpH97iBVD3xNi9dWRU+zhcfesO+f5E6P/hW07RTmTQh
+         7m4TaAdhAhScvkDafPhOc5liPnIttcDwI1xUfJmOY0K+KrTDvZ32eBhtrxZ13H9QrHhB
+         DWaw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i28si5825726qkk.260.2019.04.11.14.08.50
+        by mx.google.com with ESMTPS id 38si12193653qvk.147.2019.04.11.14.08.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 14:08:50 -0700 (PDT)
+        Thu, 11 Apr 2019 14:08:53 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 909725AFF4;
-	Thu, 11 Apr 2019 21:08:49 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 40B6489C36;
+	Thu, 11 Apr 2019 21:08:52 +0000 (UTC)
 Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DB0BE5C219;
-	Thu, 11 Apr 2019 21:08:47 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B270B5C220;
+	Thu, 11 Apr 2019 21:08:49 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-kernel@vger.kernel.org
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -103,19 +103,29 @@ Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Dave Chinner <david@fromorbit.com>,
 	Jason Gunthorpe <jgg@ziepe.ca>,
 	Matthew Wilcox <willy@infradead.org>,
-	Coly Li <colyli@suse.de>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	linux-bcache@vger.kernel.org
-Subject: [PATCH v1 03/15] block: introduce bvec_page()/bvec_set_page() to get/set bio_vec.bv_page
-Date: Thu, 11 Apr 2019 17:08:22 -0400
-Message-Id: <20190411210834.4105-4-jglisse@redhat.com>
+	Ilya Dryomov <idryomov@gmail.com>,
+	Sage Weil <sage@redhat.com>,
+	Alex Elder <elder@kernel.org>,
+	ceph-devel@vger.kernel.org,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Latchesar Ionkov <lucho@ionkov.net>,
+	Steve French <sfrench@samba.org>,
+	linux-cifs@vger.kernel.org,
+	Mike Marshall <hubcap@omnibond.com>,
+	Martin Brandenburg <martin@omnibond.com>,
+	devel@lists.orangefs.org,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	v9fs-developer@lists.sourceforge.net
+Subject: [PATCH v1 04/15] block: introduce BIO_VEC_INIT() macro to initialize bio_vec structure
+Date: Thu, 11 Apr 2019 17:08:23 -0400
+Message-Id: <20190411210834.4105-5-jglisse@redhat.com>
 In-Reply-To: <20190411210834.4105-1-jglisse@redhat.com>
 References: <20190411210834.4105-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 11 Apr 2019 21:08:49 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 11 Apr 2019 21:08:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -124,12 +134,9 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-This add an helper to lookup the page a bvec struct points to. We want
-to convert all direct dereference of bvec->page to call to those helpers
-so that we can change the bvec->page fields.
-
-To make coccinelle convertion (in latter patch) easier this patch also
-do update some macro and some code that coccinelle is not able to match.
+This add a macro to initialize bio_vec structure. We want to convert
+all initialization with that macro so that it is easier to change the
+bvec->page fields in latter patch.
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org
@@ -146,237 +153,173 @@ Cc: Ming Lei <ming.lei@redhat.com>
 Cc: Dave Chinner <david@fromorbit.com>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>
 Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Coly Li <colyli@suse.de>
-Cc: Kent Overstreet <kent.overstreet@gmail.com>
-Cc: linux-bcache@vger.kernel.org
+Cc: Ilya Dryomov <idryomov@gmail.com>
+Cc: Sage Weil <sage@redhat.com>
+Cc: Alex Elder <elder@kernel.org>
+Cc: ceph-devel@vger.kernel.org
+Cc: Eric Van Hensbergen <ericvh@gmail.com>
+Cc: Latchesar Ionkov <lucho@ionkov.net>
+Cc: Steve French <sfrench@samba.org>
+Cc: linux-cifs@vger.kernel.org
+Cc: Mike Marshall <hubcap@omnibond.com>
+Cc: Martin Brandenburg <martin@omnibond.com>
+Cc: devel@lists.orangefs.org
+Cc: Dominique Martinet <asmadeus@codewreck.org>
+Cc: v9fs-developer@lists.sourceforge.net
 ---
- block/bounce.c            |  2 +-
- drivers/block/rbd.c       |  2 +-
- drivers/md/bcache/btree.c |  2 +-
- include/linux/bvec.h      | 14 ++++++++++++--
- lib/iov_iter.c            | 32 ++++++++++++++++----------------
- 5 files changed, 31 insertions(+), 21 deletions(-)
+ block/blk-integrity.c | 4 ++--
+ block/blk-merge.c     | 2 +-
+ fs/9p/vfs_addr.c      | 2 +-
+ fs/ceph/file.c        | 8 +++-----
+ fs/cifs/connect.c     | 4 ++--
+ fs/orangefs/inode.c   | 2 +-
+ include/linux/bvec.h  | 2 ++
+ mm/page_io.c          | 6 +-----
+ net/ceph/messenger.c  | 6 +-----
+ 9 files changed, 14 insertions(+), 22 deletions(-)
 
-diff --git a/block/bounce.c b/block/bounce.c
-index 47eb7e936e22..d6ba1cac969f 100644
---- a/block/bounce.c
-+++ b/block/bounce.c
-@@ -85,7 +85,7 @@ static void bounce_copy_vec(struct bio_vec *to, unsigned char *vfrom)
- #else /* CONFIG_HIGHMEM */
+diff --git a/block/blk-integrity.c b/block/blk-integrity.c
+index d1ab089e0919..916a5406649d 100644
+--- a/block/blk-integrity.c
++++ b/block/blk-integrity.c
+@@ -40,7 +40,7 @@
+  */
+ int blk_rq_count_integrity_sg(struct request_queue *q, struct bio *bio)
+ {
+-	struct bio_vec iv, ivprv = { NULL };
++	struct bio_vec iv, ivprv = BIO_VEC_INIT(NULL, 0, 0);
+ 	unsigned int segments = 0;
+ 	unsigned int seg_size = 0;
+ 	struct bvec_iter iter;
+@@ -82,7 +82,7 @@ EXPORT_SYMBOL(blk_rq_count_integrity_sg);
+ int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
+ 			    struct scatterlist *sglist)
+ {
+-	struct bio_vec iv, ivprv = { NULL };
++	struct bio_vec iv, ivprv = BIO_VEC_INIT(NULL, 0, 0);
+ 	struct scatterlist *sg = NULL;
+ 	unsigned int segments = 0;
+ 	struct bvec_iter iter;
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index 1c9d4f0f96ea..c355fb9e9e8e 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -447,7 +447,7 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
+ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
+ 				   struct bio *nxt)
+ {
+-	struct bio_vec end_bv = { NULL }, nxt_bv;
++	struct bio_vec end_bv = BIO_VEC_INIT(NULL, 0, 0), nxt_bv;
  
- #define bounce_copy_vec(to, vfrom)	\
--	memcpy(page_address((to)->bv_page) + (to)->bv_offset, vfrom, (to)->bv_len)
-+	memcpy(page_address(bvec_page(to)) + (to)->bv_offset, vfrom, (to)->bv_len)
+ 	if (bio->bi_seg_back_size + nxt->bi_seg_front_size >
+ 	    queue_max_segment_size(q))
+diff --git a/fs/9p/vfs_addr.c b/fs/9p/vfs_addr.c
+index 0bcbcc20f769..b626b28f0ce9 100644
+--- a/fs/9p/vfs_addr.c
++++ b/fs/9p/vfs_addr.c
+@@ -53,7 +53,7 @@
+ static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
+ {
+ 	struct inode *inode = page->mapping->host;
+-	struct bio_vec bvec = {.bv_page = page, .bv_len = PAGE_SIZE};
++	struct bio_vec bvec = BIO_VEC_INIT(page, PAGE_SIZE, 0);
+ 	struct iov_iter to;
+ 	int retval, err;
  
- #endif /* CONFIG_HIGHMEM */
+diff --git a/fs/ceph/file.c b/fs/ceph/file.c
+index 9f53c3d99304..d3c8035335a2 100644
+--- a/fs/ceph/file.c
++++ b/fs/ceph/file.c
+@@ -100,11 +100,9 @@ static ssize_t __iter_get_bvecs(struct iov_iter *iter, size_t maxsize,
+ 		size += bytes;
  
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index 2210c1b9491b..aa3b82be5946 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -2454,7 +2454,7 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
- 	};
+ 		for ( ; bytes; idx++, bvec_idx++) {
+-			struct bio_vec bv = {
+-				.bv_page = pages[idx],
+-				.bv_len = min_t(int, bytes, PAGE_SIZE - start),
+-				.bv_offset = start,
+-			};
++			struct bio_vec bv = BIO_VEC_INIT(pages[idx],
++				min_t(int, bytes, PAGE_SIZE - start),
++				start);
  
- 	ceph_bvec_iter_advance_step(&it, bytes, ({
--		if (memchr_inv(page_address(bv.bv_page) + bv.bv_offset, 0,
-+		if (memchr_inv(page_address(bvec_page(&bv)) + bv.bv_offset, 0,
- 			       bv.bv_len))
- 			return false;
- 	}));
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index 64def336f053..b5f3168dc5ff 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -435,7 +435,7 @@ static void do_btree_node_write(struct btree *b)
- 		struct bvec_iter_all iter_all;
+ 			bvecs[bvec_idx] = bv;
+ 			bytes -= bv.bv_len;
+diff --git a/fs/cifs/connect.c b/fs/cifs/connect.c
+index 4c0e44489f21..86438f3933a9 100644
+--- a/fs/cifs/connect.c
++++ b/fs/cifs/connect.c
+@@ -809,8 +809,8 @@ cifs_read_page_from_socket(struct TCP_Server_Info *server, struct page *page,
+ 	unsigned int page_offset, unsigned int to_read)
+ {
+ 	struct msghdr smb_msg;
+-	struct bio_vec bv = {
+-		.bv_page = page, .bv_len = to_read, .bv_offset = page_offset};
++	struct bio_vec bv = BIO_VEC_INIT(page, to_read, page_offset);
++
+ 	iov_iter_bvec(&smb_msg.msg_iter, READ, &bv, 1, to_read);
+ 	return cifs_readv_from_socket(server, &smb_msg);
+ }
+diff --git a/fs/orangefs/inode.c b/fs/orangefs/inode.c
+index c3334eca18c7..5ebd2da4c093 100644
+--- a/fs/orangefs/inode.c
++++ b/fs/orangefs/inode.c
+@@ -23,7 +23,7 @@ static int read_one_page(struct page *page)
+ 	const __u32 blocksize = PAGE_SIZE;
+ 	const __u32 blockbits = PAGE_SHIFT;
+ 	struct iov_iter to;
+-	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
++	struct bio_vec bv = BIO_VEC_INIT(page, PAGE_SIZE, 0);
  
- 		bio_for_each_segment_all(bv, b->bio, j, iter_all)
--			memcpy(page_address(bv->bv_page),
-+			memcpy(page_address(bvec_page(bv)),
- 			       base + j * PAGE_SIZE, PAGE_SIZE);
+ 	iov_iter_bvec(&to, READ, &bv, 1, PAGE_SIZE);
  
- 		bch_submit_bbio(b->bio, b->c, &k.key, 0);
 diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index f6275c4da13a..44866555258a 100644
+index 44866555258a..8f8fb528ce53 100644
 --- a/include/linux/bvec.h
 +++ b/include/linux/bvec.h
-@@ -51,6 +51,16 @@ struct bvec_iter_all {
- 	unsigned	done;
- };
- 
-+static inline struct page *bvec_page(const struct bio_vec *bvec)
-+{
-+	return bvec->bv_page;
-+}
+@@ -70,6 +70,8 @@ static inline struct page *bvec_nth_page(struct page *page, int idx)
+  * various member access, note that bio_data should of course not be used
+  * on highmem page vectors
+  */
++#define BIO_VEC_INIT(p, l, o) {.bv_page = (p), .bv_len = (l), .bv_offset = (o)}
 +
-+static inline void bvec_set_page(struct bio_vec *bvec, struct page *page)
-+{
-+	bvec->bv_page = page;
-+}
-+
- static inline struct page *bvec_nth_page(struct page *page, int idx)
- {
- 	return idx == 0 ? page : nth_page(page, idx);
-@@ -64,7 +74,7 @@ static inline struct page *bvec_nth_page(struct page *page, int idx)
+ #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
  
  /* multi-page (mp_bvec) helpers */
- #define mp_bvec_iter_page(bvec, iter)				\
--	(__bvec_iter_bvec((bvec), (iter))->bv_page)
-+	(bvec_page(__bvec_iter_bvec((bvec), (iter))))
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 2e8019d0e048..6b3be0445c61 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -287,11 +287,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 		struct kiocb kiocb;
+ 		struct file *swap_file = sis->swap_file;
+ 		struct address_space *mapping = swap_file->f_mapping;
+-		struct bio_vec bv = {
+-			.bv_page = page,
+-			.bv_len  = PAGE_SIZE,
+-			.bv_offset = 0
+-		};
++		struct bio_vec bv = BIO_VEC_INIT(page, PAGE_SIZE, 0);
+ 		struct iov_iter from;
  
- #define mp_bvec_iter_len(bvec, iter)				\
- 	min((iter).bi_size,					\
-@@ -192,6 +202,6 @@ static inline void mp_bvec_last_segment(const struct bio_vec *bvec,
- #define mp_bvec_for_each_page(pg, bv, i)				\
- 	for (i = (bv)->bv_offset / PAGE_SIZE;				\
- 		(i <= (((bv)->bv_offset + (bv)->bv_len - 1) / PAGE_SIZE)) && \
--		(pg = bvec_nth_page((bv)->bv_page, i)); i += 1)
-+		(pg = bvec_nth_page(bvec_page(bv), i)); i += 1)
+ 		iov_iter_bvec(&from, WRITE, &bv, 1, PAGE_SIZE);
+diff --git a/net/ceph/messenger.c b/net/ceph/messenger.c
+index 3083988ce729..3e16187491d8 100644
+--- a/net/ceph/messenger.c
++++ b/net/ceph/messenger.c
+@@ -523,11 +523,7 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
+ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
+ 		     int page_offset, size_t length)
+ {
+-	struct bio_vec bvec = {
+-		.bv_page = page,
+-		.bv_offset = page_offset,
+-		.bv_len = length
+-	};
++	struct bio_vec bvec = BIO_VEC_INIT(page, length, page_offset);
+ 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+ 	int r;
  
- #endif /* __LINUX_BVEC_ITER_H */
-diff --git a/lib/iov_iter.c b/lib/iov_iter.c
-index ea36dc355da1..e20a3b1d8b0e 100644
---- a/lib/iov_iter.c
-+++ b/lib/iov_iter.c
-@@ -608,7 +608,7 @@ size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
- 		might_fault();
- 	iterate_and_advance(i, bytes, v,
- 		copyout(v.iov_base, (from += v.iov_len) - v.iov_len, v.iov_len),
--		memcpy_to_page(v.bv_page, v.bv_offset,
-+		memcpy_to_page(bvec_page(&v), v.bv_offset,
- 			       (from += v.bv_len) - v.bv_len, v.bv_len),
- 		memcpy(v.iov_base, (from += v.iov_len) - v.iov_len, v.iov_len)
- 	)
-@@ -709,7 +709,7 @@ size_t _copy_to_iter_mcsafe(const void *addr, size_t bytes, struct iov_iter *i)
- 	iterate_and_advance(i, bytes, v,
- 		copyout_mcsafe(v.iov_base, (from += v.iov_len) - v.iov_len, v.iov_len),
- 		({
--		rem = memcpy_mcsafe_to_page(v.bv_page, v.bv_offset,
-+		rem = memcpy_mcsafe_to_page(bvec_page(&v), v.bv_offset,
-                                (from += v.bv_len) - v.bv_len, v.bv_len);
- 		if (rem) {
- 			curr_addr = (unsigned long) from;
-@@ -744,7 +744,7 @@ size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
- 		might_fault();
- 	iterate_and_advance(i, bytes, v,
- 		copyin((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
--		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_from_page((to += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
- 	)
-@@ -770,7 +770,7 @@ bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
- 				      v.iov_base, v.iov_len))
- 			return false;
- 		0;}),
--		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_from_page((to += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
- 	)
-@@ -790,7 +790,7 @@ size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
- 	iterate_and_advance(i, bytes, v,
- 		__copy_from_user_inatomic_nocache((to += v.iov_len) - v.iov_len,
- 					 v.iov_base, v.iov_len),
--		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_from_page((to += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
- 	)
-@@ -824,7 +824,7 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
- 	iterate_and_advance(i, bytes, v,
- 		__copy_from_user_flushcache((to += v.iov_len) - v.iov_len,
- 					 v.iov_base, v.iov_len),
--		memcpy_page_flushcache((to += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_page_flushcache((to += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy_flushcache((to += v.iov_len) - v.iov_len, v.iov_base,
- 			v.iov_len)
-@@ -849,7 +849,7 @@ bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
- 					     v.iov_base, v.iov_len))
- 			return false;
- 		0;}),
--		memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_from_page((to += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
- 	)
-@@ -951,7 +951,7 @@ size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
- 		return pipe_zero(bytes, i);
- 	iterate_and_advance(i, bytes, v,
- 		clear_user(v.iov_base, v.iov_len),
--		memzero_page(v.bv_page, v.bv_offset, v.bv_len),
-+		memzero_page(bvec_page(&v), v.bv_offset, v.bv_len),
- 		memset(v.iov_base, 0, v.iov_len)
- 	)
- 
-@@ -974,7 +974,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
- 	}
- 	iterate_all_kinds(i, bytes, v,
- 		copyin((p += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
--		memcpy_from_page((p += v.bv_len) - v.bv_len, v.bv_page,
-+		memcpy_from_page((p += v.bv_len) - v.bv_len, bvec_page(&v),
- 				 v.bv_offset, v.bv_len),
- 		memcpy((p += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
- 	)
-@@ -1300,7 +1300,7 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
- 	0;}),({
- 		/* can't be more than PAGE_SIZE */
- 		*start = v.bv_offset;
--		get_page(*pages = v.bv_page);
-+		get_page(*pages = bvec_page(&v));
- 		return v.bv_len;
- 	}),({
- 		return -EFAULT;
-@@ -1387,7 +1387,7 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
- 		*pages = p = get_pages_array(1);
- 		if (!p)
- 			return -ENOMEM;
--		get_page(*p = v.bv_page);
-+		get_page(*p = bvec_page(&v));
- 		return v.bv_len;
- 	}),({
- 		return -EFAULT;
-@@ -1419,7 +1419,7 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
- 		}
- 		err ? v.iov_len : 0;
- 	}), ({
--		char *p = kmap_atomic(v.bv_page);
-+		char *p = kmap_atomic(bvec_page(&v));
- 		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
- 				      p + v.bv_offset, v.bv_len,
- 				      sum, off);
-@@ -1461,7 +1461,7 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
- 		off += v.iov_len;
- 		0;
- 	}), ({
--		char *p = kmap_atomic(v.bv_page);
-+		char *p = kmap_atomic(bvec_page(&v));
- 		sum = csum_and_memcpy((to += v.bv_len) - v.bv_len,
- 				      p + v.bv_offset, v.bv_len,
- 				      sum, off);
-@@ -1507,7 +1507,7 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump,
- 		}
- 		err ? v.iov_len : 0;
- 	}), ({
--		char *p = kmap_atomic(v.bv_page);
-+		char *p = kmap_atomic(bvec_page(&v));
- 		sum = csum_and_memcpy(p + v.bv_offset,
- 				      (from += v.bv_len) - v.bv_len,
- 				      v.bv_len, sum, off);
-@@ -1696,10 +1696,10 @@ int iov_iter_for_each_range(struct iov_iter *i, size_t bytes,
- 		return 0;
- 
- 	iterate_all_kinds(i, bytes, v, -EINVAL, ({
--		w.iov_base = kmap(v.bv_page) + v.bv_offset;
-+		w.iov_base = kmap(bvec_page(&v)) + v.bv_offset;
- 		w.iov_len = v.bv_len;
- 		err = f(&w, context);
--		kunmap(v.bv_page);
-+		kunmap(bvec_page(&v));
- 		err;}), ({
- 		w = v;
- 		err = f(&w, context);})
 -- 
 2.20.1
 
