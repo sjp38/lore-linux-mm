@@ -2,300 +2,178 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74BACC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86A4EC10F11
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:33:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17046204EC
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FsQW3DxU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17046204EC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 48BD7217D4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:33:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48BD7217D4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=zeniv.linux.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC3376B0278; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
+	id C84A66B0266; Wed, 10 Apr 2019 22:33:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B47096B027A; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
+	id C35FD6B0269; Wed, 10 Apr 2019 22:33:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9EA4C6B027B; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
+	id AFE596B026A; Wed, 10 Apr 2019 22:33:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75CAE6B0278
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id i80so3173170ybg.22
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:06 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6228A6B0266
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:33:57 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id x18so2784916wmj.5
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 19:33:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
-        b=dq2FjRxOf+jmsIFB5/Fh9HjTHWed64S70IWbjc366I8kCMlC1rDgFYBk2kOgxwOwwu
-         K7ta0Agj50fT50G+E7MT/M/NPL1kIy/8eJZ/G8kxkyUWJQMPt1pf+Itl8ySgJaXdQgqn
-         Hv05RdREAL2MWpeLfC9eU+s+I+ZGI5sI1yVtinKEtoO1a55BgwyAAD9Yk5ZCqwu7tWTj
-         LIxUz6S7+7ZAzEu8U8iqzi3sLwAV/+0YCLSL2Ge3V0x+pXCx2z4PTeeVGj3Olgea2azY
-         WlKt+tBoUqRJtUn2jRPtFD/YT3GrmSKaWHU1ybVe0YNEduRcvNqMnRMDcUW2eHO6OaF9
-         Ts8w==
-X-Gm-Message-State: APjAAAXBtSwPP2y3bUTfSAjVmt1+E3m1IbJvDabmiF4E8WhZW3bOkOHV
-	wNs6df04iwobLuni4TWmq6dzF4wy2nVkdtO3iirvuNoABCXeT/rLZuIy96pIgX1NNrr5G3agf04
-	Qe+S1b8T54YJhwxh+Q61O8IX6aBW0VlItxOEesXc87Mv13YjV9sfN0hLMGiY+XeVxjA==
-X-Received: by 2002:a81:344b:: with SMTP id b72mr37236024ywa.38.1554947046107;
-        Wed, 10 Apr 2019 18:44:06 -0700 (PDT)
-X-Received: by 2002:a81:344b:: with SMTP id b72mr37235988ywa.38.1554947045332;
-        Wed, 10 Apr 2019 18:44:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554947045; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent:sender;
+        bh=CPhlCb1xiC+aF9i/+wHcC5N2VlUxpHJ03lW18xSoMSI=;
+        b=F6lYr9xTi6m2LwxS45JJq9QaA1cbd0d7lh0MhBDpAb03Mln52ReCuXUlCvus7HjCvF
+         UWizvbdEEOmkJTwXtt3vsMb9wlmYwM0RrsbVmmY8CgOMHWCq509Q94G89HJnhAo/7Ezq
+         AKjgPDMgGGoANizNwPOdib3ZDLEQSpsNJ6+SaCsFn5S2FuYmZCUXSnZKE33SlDiUXvBF
+         MWhu5cn5gGIuTB5U4wKtqulxNI9roptlsFmrPtl5FnldEmEftupI7TQ9XdRMIlKmAKBD
+         Iiewh/KvdBm+xAChS71nMINh4qVfT+Ek/7s637smDq5jd6xeXoxTEPKrbnEycvuXXmkw
+         w5+Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+X-Gm-Message-State: APjAAAVY0p+n7rA7DoI+SsbUhSBzQvlROTQXhtfaGJlWJZEBD1CTQffz
+	IJ81sqoX7Yx1vduE975GJ+GbO5iLH24zJ+fxV+2VWdeta2dwLBSLY3MlYyuYARhfsll+WYHMKAs
+	cDdc5kAfG6wunlAlqLVn8Z8MvzmX9e6nv/+mTOvBVMS1Gs2f2UPyVlATI3xxQlDR3PA==
+X-Received: by 2002:adf:ec11:: with SMTP id x17mr31483659wrn.120.1554950036847;
+        Wed, 10 Apr 2019 19:33:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6XRvkzMyicRXvWBOnDO8QcdjzBmEsIC5vRg65OAoGIZs3/Qa9tp7LUwN9tEO2axKIrjjL
+X-Received: by 2002:adf:ec11:: with SMTP id x17mr31483618wrn.120.1554950035884;
+        Wed, 10 Apr 2019 19:33:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554950035; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q8yArOsIhj/A8Odza0WSDno/hnOUaKwqSOHPvXeQ+Ix7e1tTjetM/wmhIieX0zf0FB
-         7G6tG3+3E/0g0sBvthywiAB50coSNFfuHP66ve67L9WHmjwM969dUz/Q/em2rYDGrkcQ
-         BFSBGWp9sZNr41jkdBUdRJnQ4TtI7EMYuZbylEeZ1bYvpszGPTnGxGN+EkT9g6Nn+cxz
-         9BRsMDXz7gpJqwtAT+UPNnPw1NWOHIwk/Z0fQvaXw40iX8k5bFyx0FgThZTJTZ34iJrE
-         yils5ncKFK3lmCBkDxZ8OaQTWVVX6qZAUqRdvBGRF21+RvNuRtYtTHphHmH7DBImb/QV
-         wpRQ==
+        b=Rb5xFwWaxcYtSC4Zr2l3rneSRGLupJpcSmosXPgy0ZjoerSeZKR81EzTTPU/rkYJqU
+         +EfWnvSJG+UMtuZrdA1X3wq5e8zbokgKzxjntC7F2H5/RweMoo34v8Wm4hl1oW/5umZY
+         i5ghbx8DGqbghbinF6HeBAhZ0oXXrDJf0bP5cxG3DDrxg9/SLaAeTo5s9Dfht00OPW6i
+         PoijL2U8iDjUQs74oUdwWzyMR8AEUczeMPnUE6Lk7/rGa19OqmARFefRzBB0peWmhk8a
+         ttJ2Sfu6a95Rz/+OEZo24UZQ2WWgj8VK/28dEG2GmpY0bHV5NQzyrJGMLIrb0my6IGjo
+         dbRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
-        b=DBJKTiWVsD+RIiAb6IFyd4YMoje7lRwujLORW6VtwMc9oVcY6AikSwuU+ofiK6cCBA
-         nvCwvxywuR+Ib1M4Ztek/2sUlmsLCmf0kybg+nbP7fWhbzFOSUe3Qch0UgM0H/U+E9Vp
-         HfXX5mJMKtp4jAtzEMQFgAcAUIV4dRruwDZZ8ERwslrdB3OhJl2JpRYWJXckeSvZ9+S3
-         FGXYgO18Pd+0keiU2tunvC8NHWW31RRo0NP+SR2gqu/sZYj6tJQTIaP63rRNjZlfMhDl
-         lVPb18Dl1deKESUYIK+A/ibDH2veY4vN1GEVfK4h+K0X5dAhlxY15ZNowLqqfGsiF6kv
-         gmpw==
+        h=sender:user-agent:in-reply-to:content-disposition:mime-version
+         :references:message-id:subject:cc:to:from:date;
+        bh=CPhlCb1xiC+aF9i/+wHcC5N2VlUxpHJ03lW18xSoMSI=;
+        b=Z44BMxhPVJIEGwcdanTwHoILVFkeKYsO8lrq7YKVIo7+68O1msy9Lbuxih54+sjTuZ
+         +hkpadL45+2VqCftK637k/tXXs/ws+9xglqrJpaHsVVeoVqxHh2QoVLtWCppmW+GL9fG
+         Vt2akQuBc2X/pvNw0Ac5iqsW6u6uw63ijQqm9sKFdL8XvHcdkzT5VL9sBKx4tW/9TDuD
+         a53/64ZZKeD6VODLCxoheXVCrMC8ChPRicBkb90KuwTYCuQ1cKznikc/ll3hKk0OQJSs
+         rif9buijgPzNuxCN2RFDIk0ti9gFKqBw79p4wNRL36QoHXl2U/iJz5m5S5lt3NPaEG4c
+         MRMA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=FsQW3DxU;
-       spf=pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35JuuXAYKCMEz1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id z65sor15758224yba.179.2019.04.10.18.44.05
+       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id h13si2299296wmc.65.2019.04.10.19.33.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Apr 2019 18:44:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 10 Apr 2019 19:33:55 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) client-ip=195.92.253.2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=FsQW3DxU;
-       spf=pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35JuuXAYKCMEz1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
-        b=FsQW3DxUQfr3UEIOZaRtKQ14YG36rNMZAoP4RXuDnHZhTnzx8vfU+n++RB/3o0dp0u
-         SH9s3G7Hv6ADWQtomsgGHp312SSsN6EYFO/ZI8x3zaQMzGdV60aG2if6ijB0CU2Xj/5p
-         Wr+u7Wyb361ndUXGOOmlpRDdcHAAPNwaAxiqvx8CH06ziaPdVT7gmlngsPDr1J560YOg
-         I5i/EcCf6HzZpeddrmKyHhq3l9q6cka24b266kjFb1tp+leUWTHkX9an5xjDZPYer8TK
-         J/UNaD9DJCmOSB51Myj5q3PE83dNf3d9ehU/VPU0ePxzOZUM8hhQHSuA7EePSmvIH3LA
-         aFig==
-X-Google-Smtp-Source: APXvYqzoYtryft6snCAH2tsCLNm6pZ/FkqZ/mICxzIwSzE/D420FbpbEJQwThBXlAukM5+6xtF5vw2sOQK0=
-X-Received: by 2002:a25:5:: with SMTP id 5mr10518104yba.52.1554947044969; Wed,
- 10 Apr 2019 18:44:04 -0700 (PDT)
-Date: Wed, 10 Apr 2019 18:43:53 -0700
-In-Reply-To: <20190411014353.113252-1-surenb@google.com>
-Message-Id: <20190411014353.113252-3-surenb@google.com>
-Mime-Version: 1.0
-References: <20190411014353.113252-1-surenb@google.com>
-X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
- process killing
-From: Suren Baghdasaryan <surenb@google.com>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.com, rientjes@google.com, willy@infradead.org, 
-	yuzhoujian@didichuxing.com, jrdr.linux@gmail.com, guro@fb.com, 
-	hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, ebiederm@xmission.com, 
-	shakeelb@google.com, christian@brauner.io, minchan@kernel.org, 
-	timmurray@google.com, dancol@google.com, joel@joelfernandes.org, 
-	jannh@google.com, surenb@google.com, linux-mm@kvack.org, 
-	lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
-	kernel-team@android.com
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: best guess record for domain of viro@ftp.linux.org.uk designates 195.92.253.2 as permitted sender) smtp.mailfrom=viro@ftp.linux.org.uk
+Received: from viro by ZenIV.linux.org.uk with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hEPWk-0002SB-Qp; Thu, 11 Apr 2019 02:33:22 +0000
+Date: Thu, 11 Apr 2019 03:33:22 +0100
+From: Al Viro <viro@zeniv.linux.org.uk>
+To: "Tobin C. Harding" <tobin@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
+	Alexander Viro <viro@ftp.linux.org.uk>,
+	Christoph Hellwig <hch@infradead.org>,
+	Pekka Enberg <penberg@cs.helsinki.fi>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Christopher Lameter <cl@linux.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Miklos Szeredi <mszeredi@redhat.com>,
+	Andreas Dilger <adilger@dilger.ca>,
+	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
+	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
+	David Chinner <david@fromorbit.com>,
+	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>,
+	linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v3 14/15] dcache: Implement partial shrink via Slab
+ Movable Objects
+Message-ID: <20190411023322.GD2217@ZenIV.linux.org.uk>
+References: <20190411013441.5415-1-tobin@kernel.org>
+ <20190411013441.5415-15-tobin@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190411013441.5415-15-tobin@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add new SS_EXPEDITE flag to be used when sending SIGKILL via
-pidfd_send_signal() syscall to allow expedited memory reclaim of the
-victim process. The usage of this flag is currently limited to SIGKILL
-signal and only to privileged users.
+On Thu, Apr 11, 2019 at 11:34:40AM +1000, Tobin C. Harding wrote:
+> +/*
+> + * d_isolate() - Dentry isolation callback function.
+> + * @s: The dentry cache.
+> + * @v: Vector of pointers to the objects to isolate.
+> + * @nr: Number of objects in @v.
+> + *
+> + * The slab allocator is holding off frees. We can safely examine
+> + * the object without the danger of it vanishing from under us.
+> + */
+> +static void *d_isolate(struct kmem_cache *s, void **v, int nr)
+> +{
+> +	struct dentry *dentry;
+> +	int i;
+> +
+> +	for (i = 0; i < nr; i++) {
+> +		dentry = v[i];
+> +		__dget(dentry);
+> +	}
+> +
+> +	return NULL;		/* No need for private data */
+> +}
 
-Signed-off-by: Suren Baghdasaryan <surenb@google.com>
----
- include/linux/sched/signal.h |  3 ++-
- include/linux/signal.h       | 11 ++++++++++-
- ipc/mqueue.c                 |  2 +-
- kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
- kernel/time/itimer.c         |  2 +-
- 5 files changed, 43 insertions(+), 12 deletions(-)
+Huh?  This is compeletely wrong; what you need is collecting the ones
+with zero refcount (and not on shrink lists) into a private list.
+*NOT* bumping the refcounts at all.  And do it in your isolate thing.
 
-diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
-index e412c092c1e8..8a227633a058 100644
---- a/include/linux/sched/signal.h
-+++ b/include/linux/sched/signal.h
-@@ -327,7 +327,8 @@ extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
- extern void force_sigsegv(int sig, struct task_struct *p);
- extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
- extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
--extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
-+extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
-+				bool expedite);
- extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
- 				const struct cred *);
- extern int kill_pgrp(struct pid *pid, int sig, int priv);
-diff --git a/include/linux/signal.h b/include/linux/signal.h
-index 9702016734b1..34b7852aa4a0 100644
---- a/include/linux/signal.h
-+++ b/include/linux/signal.h
-@@ -446,8 +446,17 @@ int __save_altstack(stack_t __user *, unsigned long);
- } while (0);
- 
- #ifdef CONFIG_PROC_FS
-+
-+/*
-+ * SS_FLAGS values used in pidfd_send_signal:
-+ *
-+ * SS_EXPEDITE indicates desire to expedite the operation.
-+ */
-+#define SS_EXPEDITE	0x00000001
-+
- struct seq_file;
- extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
--#endif
-+
-+#endif /* CONFIG_PROC_FS */
- 
- #endif /* _LINUX_SIGNAL_H */
-diff --git a/ipc/mqueue.c b/ipc/mqueue.c
-index aea30530c472..27c66296e08e 100644
---- a/ipc/mqueue.c
-+++ b/ipc/mqueue.c
-@@ -720,7 +720,7 @@ static void __do_notify(struct mqueue_inode_info *info)
- 			rcu_read_unlock();
- 
- 			kill_pid_info(info->notify.sigev_signo,
--				      &sig_i, info->notify_owner);
-+				      &sig_i, info->notify_owner, false);
- 			break;
- 		case SIGEV_THREAD:
- 			set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
-diff --git a/kernel/signal.c b/kernel/signal.c
-index f98448cf2def..02ed4332d17c 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -43,6 +43,7 @@
- #include <linux/compiler.h>
- #include <linux/posix-timers.h>
- #include <linux/livepatch.h>
-+#include <linux/oom.h>
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/signal.h>
-@@ -1394,7 +1395,8 @@ int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
- 	return success ? 0 : retval;
- }
- 
--int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
-+int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
-+				  bool expedite)
- {
- 	int error = -ESRCH;
- 	struct task_struct *p;
-@@ -1402,8 +1404,17 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
- 	for (;;) {
- 		rcu_read_lock();
- 		p = pid_task(pid, PIDTYPE_PID);
--		if (p)
-+		if (p) {
- 			error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
-+
-+			/*
-+			 * Ignore expedite_reclaim return value, it is best
-+			 * effort only.
-+			 */
-+			if (!error && expedite)
-+				expedite_reclaim(p);
-+		}
-+
- 		rcu_read_unlock();
- 		if (likely(!p || error != -ESRCH))
- 			return error;
-@@ -1420,7 +1431,7 @@ static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
- {
- 	int error;
- 	rcu_read_lock();
--	error = kill_pid_info(sig, info, find_vpid(pid));
-+	error = kill_pid_info(sig, info, find_vpid(pid), false);
- 	rcu_read_unlock();
- 	return error;
- }
-@@ -1487,7 +1498,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
- 
- 	if (pid > 0) {
- 		rcu_read_lock();
--		ret = kill_pid_info(sig, info, find_vpid(pid));
-+		ret = kill_pid_info(sig, info, find_vpid(pid), false);
- 		rcu_read_unlock();
- 		return ret;
- 	}
-@@ -1704,7 +1715,7 @@ EXPORT_SYMBOL(kill_pgrp);
- 
- int kill_pid(struct pid *pid, int sig, int priv)
- {
--	return kill_pid_info(sig, __si_special(priv), pid);
-+	return kill_pid_info(sig, __si_special(priv), pid, false);
- }
- EXPORT_SYMBOL(kill_pid);
- 
-@@ -3577,10 +3588,20 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
- 	struct pid *pid;
- 	kernel_siginfo_t kinfo;
- 
--	/* Enforce flags be set to 0 until we add an extension. */
--	if (flags)
-+	/* Enforce no unknown flags. */
-+	if (flags & ~SS_EXPEDITE)
- 		return -EINVAL;
- 
-+	if (flags & SS_EXPEDITE) {
-+		/* Enforce SS_EXPEDITE to be used with SIGKILL only. */
-+		if (sig != SIGKILL)
-+			return -EINVAL;
-+
-+		/* Limit expedited killing to privileged users only. */
-+		if (!capable(CAP_SYS_NICE))
-+			return -EPERM;
-+	}
-+
- 	f = fdget_raw(pidfd);
- 	if (!f.file)
- 		return -EBADF;
-@@ -3614,7 +3635,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
- 		prepare_kill_siginfo(sig, &kinfo);
- 	}
- 
--	ret = kill_pid_info(sig, &kinfo, pid);
-+	ret = kill_pid_info(sig, &kinfo, pid, (flags & SS_EXPEDITE) != 0);
- 
- err:
- 	fdput(f);
-diff --git a/kernel/time/itimer.c b/kernel/time/itimer.c
-index 02068b2d5862..c926483cdb53 100644
---- a/kernel/time/itimer.c
-+++ b/kernel/time/itimer.c
-@@ -140,7 +140,7 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
- 	struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
- 
- 	trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
--	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
-+	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid, false);
- 
- 	return HRTIMER_NORESTART;
- }
--- 
-2.21.0.392.gf8f6787159e-goog
+> +static void d_partial_shrink(struct kmem_cache *s, void **v, int nr,
+> +		      int node, void *_unused)
+> +{
+> +	struct dentry *dentry;
+> +	LIST_HEAD(dispose);
+> +	int i;
+> +
+> +	for (i = 0; i < nr; i++) {
+> +		dentry = v[i];
+> +		spin_lock(&dentry->d_lock);
+> +		dentry->d_lockref.count--;
+> +
+> +		if (dentry->d_lockref.count > 0 ||
+> +		    dentry->d_flags & DCACHE_SHRINK_LIST) {
+> +			spin_unlock(&dentry->d_lock);
+> +			continue;
+> +		}
+> +
+> +		if (dentry->d_flags & DCACHE_LRU_LIST)
+> +			d_lru_del(dentry);
+> +
+> +		d_shrink_add(dentry, &dispose);
+> +
+> +		spin_unlock(&dentry->d_lock);
+> +	}
+
+Basically, that loop (sans jerking the refcount up and down) should
+get moved into d_isolate().
+> +
+> +	if (!list_empty(&dispose))
+> +		shrink_dentry_list(&dispose);
+> +}
+
+... with this left in d_partial_shrink().  And you obviously need some way
+to pass the list from the former to the latter...
 
