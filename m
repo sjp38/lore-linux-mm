@@ -2,156 +2,248 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E5CDC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:22:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7283FC10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:35:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7D122084D
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:22:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7D122084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 16BA52083E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:35:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="PU8b+ihN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16BA52083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 618236B026B; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
+	id AA2046B000A; Thu, 11 Apr 2019 14:35:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 59FF86B026C; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
+	id A4F4C6B0269; Thu, 11 Apr 2019 14:35:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 467546B026D; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
+	id 8F16C6B026B; Thu, 11 Apr 2019 14:35:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E026B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:22:23 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id 41so3565254edr.19
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:22:23 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5148F6B000A
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:35:10 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id g1so4782598pfo.2
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:35:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=y6BbQw+t8nUtNL9E+M+Ca0ZOhHpnkjkb6OsUGCwrwpA=;
-        b=gfDAIKTINpmU/lQNYkHRkHsWw7DTuMRpptm0C2MXv9Xbrlb7Ai83U1iVEhT8hjyaWz
-         9RiieGE6NK6Q9LVqLTtKaP/FWhj/VT0LPKtyNyW2LJGX6cikgj8+mRuBPzhcmQPMdq6c
-         m549wzUpwSEw8Exr8KCN/m1eeBjnwa72EqJkRWTD5V3aEnGfl5QigE8t+oJsN0aNZkvs
-         C3EZkFFHnnPKXPhX4pajISrrCFJWNunw08VjFhv838HaZijMhKe8Gat9tCkigm9hvuxr
-         aUGu5mMD/6qu/Q/wEi/2jIqvs1ru6TDKzim+xnTMY6b/wB7MwyivvnCIfeWWrZ9kBzln
-         RR2w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX3p03btAU3MaDc849VonOz62r2Pj+zPyxd6VjEW3iqabHzLibY
-	uVFuAmbKnNUH62U6AW3IrkrHOi70YumYK9ay25hUjIaGahHsy5dDhT/P95bzDYHM3mawaqulzyl
-	CMW58e6Tc2fQLg89RBHF2otSSrG5zaKwcl3K6060KJg9VF7sd5HUF7qhfLFsfBrM=
-X-Received: by 2002:a50:b582:: with SMTP id a2mr33028290ede.268.1555006943494;
-        Thu, 11 Apr 2019 11:22:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3MJ57Xtj9WmpFo8UApPm/UDycmNXDa+f7ilHA9SiE4/Bv6clytRaq0BlPD3CGKcl5hRpI
-X-Received: by 2002:a50:b582:: with SMTP id a2mr33028237ede.268.1555006942695;
-        Thu, 11 Apr 2019 11:22:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555006942; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Fo8SXwQkbF6q15nxNsaxghCGyZTgOADH7D7wGrqPxA0=;
+        b=q4V+SU3Ywa5Rbg0pR1Rn/Me3jv2zyv6DphNp3khUUjBQN6TU5qIhyUTDKooQjL74k8
+         ZhChKyReuViGyxYZQOWCWqs2tgT6YXbU4hezZY51NkXFbo5OIZbhYo31KBgzVfkq/ZSP
+         3ZRXB3j5cnig9HKk9cvwoHSSqvfS70ACqIRq+atKnKM22c4rkW/ULWCH1nMdjMrEyOZ0
+         SDaM9xdkyP8lOAe8tJ+FTe8+B9zNZEfCre6XqEaR6yhaqwcp0KRCG/Rw/Jgw55ynNAp8
+         Oy9/zYjYRJU4AfQBDUJAt00MlepXmRLP10PEtrav99DUy5rKrECNtyOS3JL9tO8ldF0N
+         /VeQ==
+X-Gm-Message-State: APjAAAXrRtAgjU3HQk5tDTtNgtR9R45N980NGYyCvvRkc1krmQjDyNTU
+	KRT+F1EPK0UUfJtdQBDJpDKMiqCWqdMESgdGlt/6CCNtjfP+23ngPo6RID96GuBOh250GK6Bxxs
+	ZASRZE8T47EtAhPHnFu5J08dvtIpsVYi+luL1hypA4IHVuAGk7uVeH49Ock8o8E8qTg==
+X-Received: by 2002:a63:4b21:: with SMTP id y33mr49250155pga.37.1555007709819;
+        Thu, 11 Apr 2019 11:35:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkyXOkzlPuKte58gIRG3YlFf9nKAv6ZrwLKzn6nCAMxTp7X1nEPd5UHiJ5c4Kc5W1SKW4X
+X-Received: by 2002:a63:4b21:: with SMTP id y33mr49250056pga.37.1555007708725;
+        Thu, 11 Apr 2019 11:35:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555007708; cv=none;
         d=google.com; s=arc-20160816;
-        b=NAtfww2LQmx0H0zQJuX7jN/dCSpqe0BSpuzUfunlNFCZuHGrIAhvSALPFhn65sdG42
-         iY05id9vUPOYiTbUwp8clMLY98NmSeq5noJSMnNUjWUn93BBqP3gHDEVbg9WKNGwJo/b
-         VvsgZ5CXHrIHbrzIWNA3uRtAsOx3dMKlatf0xp/trcrrdOPNWN5MJFb/mR8dpNZb+MRC
-         jVSLzFHDKgyLFbsaP6rjDf1B65XSKKa0p0ZOKHd1b4vSTz/BvtjapabP53DLcT9HecjI
-         uartF7F8yzF/bUZwbqNbMCfDPkk+NKZ2WPQ4V6NXHTvRbyKbtOqERZYwsx3pfv0Pti75
-         mb2A==
+        b=EslDzppiSmIGHZfQzolI8NaYvo3iNb3t8pNBtIrhZ8LWCWkt3xMOzFvD6QsK9w1iMa
+         MMLZLUrF2nI1jN8JQWbuxfcbCwNqNz7gWRS5gGKi7xVEPmTgrCYGrUK51PV3biJOy6/T
+         sADel1ADnV0Folj+zTqZ2ED+/ivSsH+JDxRdd7vDOUi42AD8epCKxlg1DiQYzwoGiTPo
+         HObjX+Z9fGVTguzaJ9UOaoTIb371L0eXH6KRseEqMhaVyl2zd1sq8cXIW6gdjAzXk0X3
+         sSoU9uVtzEPYMyOcYaOsja3f398oRwnZlHr7APj5SD5h3cQbRS/ttDZ+dueR+jcwKbkp
+         GF/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=y6BbQw+t8nUtNL9E+M+Ca0ZOhHpnkjkb6OsUGCwrwpA=;
-        b=hjwsgg8k6JFP7EznsiLkykFN0Hs+mwTq+wp0+wLVDbK1uywKvABvIu8VhSYTCLUlpC
-         KoXM2ViFHdjoVJRBA1Nu1+TtUXwPmFSZf0pPYiejpkASNRH9y1of0Bph7w4obgOACV35
-         1HfY2Kkx5eNxnoQS9H6nvrWEnENEXUS8SW8elLeEb4E/QIlYsTwnEE9W+/3lxVz51Wdi
-         Or8B/ey3S70ezVI/7HP1GZG0mpVoBLeJ+A64N2c7nekz2Xp79p0pDvoijp6qdJBIiUUw
-         LINh0ywDUfEjZbvQZaK3Y2Co6bD9pwzaYvr1iGj7cUJWWS8n9Iisk+HCUlf4D2WYP7Wb
-         b1OA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=Fo8SXwQkbF6q15nxNsaxghCGyZTgOADH7D7wGrqPxA0=;
+        b=eRbmj+2LX32fNbSdvs5QaGeLJp1TnBwIKzPsGcqMoT6vz0rQmcm3D5jLyt6ubvIgP7
+         v/aPyB7gTUvOEkDSQQ0jXxh/vZJ9mCRq1DcPrm6g/YCIDeek6/g3EEZZAqL3QSLz9x9v
+         e2RaYvXDBq/VlZhFrty5PzQfr0dIVXyGNKPwmZllgBdAATZy3QVlVc7bEXZfL4Yb6leK
+         mMiSXnK5CS1+OlqOUChuVpZiIVON1e2gbM7gwOpHG27oHXP/7b8x9wLukZYc8RP2nyKU
+         TywvPlBDACTjvpNnO/2gKE0gQ82fqQyRGe1aPz1vO7tLHEdSREs4jYSXKuYy3EwvlvlS
+         84mg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k44si3323699ede.102.2019.04.11.11.22.22
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PU8b+ihN;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id be7si28304512plb.266.2019.04.11.11.35.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 11:22:22 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 11 Apr 2019 11:35:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3AC1DAD81;
-	Thu, 11 Apr 2019 18:22:22 +0000 (UTC)
-Date: Thu, 11 Apr 2019 20:22:20 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Yufen Yu <yuyufen@huawei.com>, linux-mm@kvack.org,
-	kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
-Subject: Re: [PATCH v2] hugetlbfs: fix protential null pointer dereference
-Message-ID: <20190411182220.GD10383@dhcp22.suse.cz>
-References: <20190411035318.32976-1-yuyufen@huawei.com>
- <20190411081900.GP10383@dhcp22.suse.cz>
- <b3287006-2d80-8ead-ea63-2047fc5ef602@oracle.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PU8b+ihN;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BISllO090762;
+	Thu, 11 Apr 2019 18:35:03 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=Fo8SXwQkbF6q15nxNsaxghCGyZTgOADH7D7wGrqPxA0=;
+ b=PU8b+ihNIENwF1cmv34uW7m7ADooxaxXJF+NSXixIdJYnEkN0yV/23qI6kZ+s5VOeaNE
+ YdhOiuMVD3wVv1Zib4lvITcmnjIhw/ThoQPvtMWBuOFuj2/TPlNMvMXwOcO3p6ufEstO
+ cQZmnQ4vNZRA8JQiRwOHHDDxOsQEuC5O7ynOrTSkaN4bWsmW9GBuKL6iIuYFn/UdoC6v
+ Mc1Zk0PhacjctAiQAdU4K5QDaPTBr7Y77GB5DENWXgOKGX8+Kjv0lxYZQUqSoyfPKMrT
+ 92A6yqVN/xDXoXvPD5dUHSkby9s0gWkQwJIEANCvoNL9hGkzM3E1BSqZbTdWXWyuDkt0 wQ== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2130.oracle.com with ESMTP id 2rphmettm3-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 11 Apr 2019 18:35:03 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BIX24b009114;
+	Thu, 11 Apr 2019 18:33:02 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2rpytcx6u0-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 11 Apr 2019 18:33:02 +0000
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3BIWt1x010202;
+	Thu, 11 Apr 2019 18:32:57 GMT
+Received: from [192.168.1.222] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 11 Apr 2019 11:32:55 -0700
+Subject: Re: [PATCH v2 2/2] hugetlb: use same fault hash key for shared and
+ private mappings
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        Davidlohr Bueso <dave@stgolabs.net>,
+        Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+References: <20190328234704.27083-1-mike.kravetz@oracle.com>
+ <20190328234704.27083-3-mike.kravetz@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <0b1d1faf-ff72-a51f-b48a-175c9c5cab53@oracle.com>
+Date: Thu, 11 Apr 2019 11:32:52 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b3287006-2d80-8ead-ea63-2047fc5ef602@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190328234704.27083-3-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904110123
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904110123
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-04-19 09:52:45, Mike Kravetz wrote:
-> On 4/11/19 1:19 AM, Michal Hocko wrote:
-> > On Thu 11-04-19 11:53:18, Yufen Yu wrote:
-> >> This patch can avoid protential null pointer dereference for resv_map.
-> >>
-> >> As Mike Kravetz say:
-> >>     Even if we can not hit this condition today, I still believe it
-> >>     would be a good idea to make this type of change.  It would
-> >>     prevent a possible NULL dereference in case the structure of code
-> >>     changes in the future.
-> > 
-> > What kind of change would that be and wouldn't it require much more
-> > changes?
-> > 
-> > In other words it is not really clear why is this an improvement. Random
-> > checks for NULL that cannot happen tend to be more confusing long term
-> > because people will simply blindly follow them and build a cargo cult
-> > around.
-> 
-> Since that was my comment, I should reply.
-> 
-> You are correct in that it would require significant changes to hit this
-> issue.  I 'think' Yufen Yu came up with this patch by examining the hugetlbfs
-> code and noticing that this is the ONLY place where we do not check for
-> NULL.  Since I knew those other NULL checks were required, I was initially
-> concerned about this situation.  It took me some time and analysis to convince
-> myself that this was OK.  I don't want to make someone else repeat that.
-> Perhaps we should just comment this to avoid any confusion?
-> 
-> /*
->  * resv_map can not be NULL here.  hugetlb_reserve_pages is only called from
->  * two places:
->  * 1) hugetlb_file_setup. In this case the inode is created immediately before
->  *    the call with S_IFREG.  Hence a regular file so resv_map created.
->  * 2) hugetlbfs_file_mmap called via do_mmap.  In do_mmap, there is the
->  *    following check:
->  *      if (!file->f_op->mmap)
->  *              return -ENODEV;
->  *    hugetlbfs_get_inode only assigns hugetlbfs_file_operations to S_IFREG
->  *    inodes.  Hence, resv_map will not be NULL.
->  */
-> 
-> Or, do you think that is too much?
-> Ideally, that comment should have been added as part of 58b6e5e8f1ad
-> ("hugetlbfs: fix memory leak for resv_map") as it could cause one to wonder
-> if resv_map could be NULL.
+On 3/28/19 4:47 PM, Mike Kravetz wrote:
+> hugetlb uses a fault mutex hash table to prevent page faults of the
+> same pages concurrently.  The key for shared and private mappings is
+> different.  Shared keys off address_space and file index.  Private
+> keys off mm and virtual address.  Consider a private mappings of a
+> populated hugetlbfs file.  A write fault will first map the page from
+> the file and then do a COW to map a writable page.
 
-I would much rather explain a comment explaining _when_ inode_resv_map
-might return NULL than add checks just to be sure.
+Davidlohr suggested adding the stack trace to the commit log.  When I
+originally 'discovered' this issue I was debugging something else.  The
+routine remove_inode_hugepages() contains the following:
+
+			 * ...
+			 * This race can only happen in the hole punch case.
+			 * Getting here in a truncate operation is a bug.
+			 */
+			if (unlikely(page_mapped(page))) {
+				BUG_ON(truncate_op);
+
+				i_mmap_lock_write(mapping);
+				hugetlb_vmdelete_list(&mapping->i_mmap,
+					index * pages_per_huge_page(h),
+					(index + 1) * pages_per_huge_page(h));
+				i_mmap_unlock_write(mapping);
+			}
+
+			lock_page(page);
+			/*
+			 * We must free the huge page and remove from page
+			 * ...
+			 */
+			VM_BUG_ON(PagePrivate(page));
+			remove_huge_page(page);
+			freed++;
+
+I observed that the page could be mapped (again) before the call to lock_page
+if we raced with a private write fault.  However, for COW faults the faulting
+code is holding the page lock until it unmaps the file page.  Hence, we will
+not call remove_huge_page() with the page mapped.  That is good.  However, for
+simple read faults the page remains mapped after releasing the page lock and
+we can call remove_huge_page with a mapped page and BUG.
+
+Sorry, the original commit message was not completely accurate in describing
+the issue.  I was basing the change on behavior experienced during debug of
+a another issue.  Actually, it is MUCH easier to BUG by making private read
+faults race with hole punch.  As a result, I now think this should go to
+stable.
+
+Andrew, below is an updated commit message.  No changes to code.  Would you
+like me to send an updated patch?  Also, need to add stable.
+
+hugetlb uses a fault mutex hash table to prevent page faults of the
+same pages concurrently.  The key for shared and private mappings is
+different.  Shared keys off address_space and file index.  Private
+keys off mm and virtual address.  Consider a private mappings of a
+populated hugetlbfs file.  A fault will map the page from the file
+and if needed do a COW to map a writable page.
+
+Hugetlbfs hole punch uses the fault mutex to prevent mappings of file
+pages.  It uses the address_space file index key.  However, private
+mappings will use a different key and could race with this code to map
+the file page.  This causes problems (BUG) for the page cache remove
+code as it expects the page to be unmapped.  A sample stack is:
+
+page dumped because: VM_BUG_ON_PAGE(page_mapped(page))
+kernel BUG at mm/filemap.c:169!
+...
+RIP: 0010:unaccount_page_cache_page+0x1b8/0x200
+...
+Call Trace:
+__delete_from_page_cache+0x39/0x220
+delete_from_page_cache+0x45/0x70
+remove_inode_hugepages+0x13c/0x380
+? __add_to_page_cache_locked+0x162/0x380
+hugetlbfs_fallocate+0x403/0x540
+? _cond_resched+0x15/0x30
+? __inode_security_revalidate+0x5d/0x70
+? selinux_file_permission+0x100/0x130
+vfs_fallocate+0x13f/0x270
+ksys_fallocate+0x3c/0x80
+__x64_sys_fallocate+0x1a/0x20
+do_syscall_64+0x5b/0x180
+entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+There seems to be another potential COW issue/race with this approach
+of different private and shared keys as noted in commit 8382d914ebf7
+("mm, hugetlb: improve page-fault scalability").
+
+Since every hugetlb mapping (even anon and private) is actually a file
+mapping, just use the address_space index key for all mappings.  This
+results in potentially more hash collisions.  However, this should not
+be the common case.
+
+Fixes: b5cec28d36f5 ("hugetlbfs: truncate_hugepages() takes a range of pages")
+Cc: <stable@vger.kernel.org>
+
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
 
