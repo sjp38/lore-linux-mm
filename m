@@ -2,147 +2,235 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9A1BC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:51:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4D00C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 12:00:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7238E2133D
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:51:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7238E2133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id 32518217F4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 12:00:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eQ8CaCgL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32518217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E64176B0007; Thu, 11 Apr 2019 07:51:52 -0400 (EDT)
+	id 9A3BD6B0003; Thu, 11 Apr 2019 08:00:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E13906B0008; Thu, 11 Apr 2019 07:51:52 -0400 (EDT)
+	id 9533C6B0008; Thu, 11 Apr 2019 08:00:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D02AE6B000A; Thu, 11 Apr 2019 07:51:52 -0400 (EDT)
+	id 7F56E6B000A; Thu, 11 Apr 2019 08:00:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AF81A6B0007
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:51:52 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id 18so5266362qtw.20
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:51:52 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4016A6B0003
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:00:16 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x9so3980982pln.0
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 05:00:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version:sender;
-        bh=9li4JbAciQB6kgcEj0A6yp2jZtSSjmDuZnBSu5j3roI=;
-        b=L6escfCQlW/AV62jKlvpTkyQTSpTm1q0rKfu3hqO0hUXT110+mNGMWbzRJD/PAd4h9
-         eNz5xU74CgkM4LOd1kj361WiLthoKVnG60CxqrvV+ikxqEhPj8lbFuD8dxPcPSf56Lgj
-         QYtodHX7sgmC3kJytYO6ylrhpOuoPkoF5+fvdYgVFxD3iKWxU1ii8wmnsjOQzmdO1KkI
-         upfe8gEqSSKyX3Pq8B5VVtHHveOLZP4Fj8n5Rhl84vSSzwAWV/LtZ5w8qeujJ11XLs8c
-         OdwDsiX1OpK+Oi9cyddKULm8Ugl2DxgMfei1qW++OpgU2XLYg1wTHGYlXIIERgSk6Zeu
-         wocg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: APjAAAU6/dwLo0uvBT3vsmcFWDGDVSSujywrFOGMPOo/T/SS7az40hph
-	2SoPx8lYxxHaaP6XVQC8Rzm5tNeyqSq8umLEG30ArdB9/qrOoomR7tndelMpSG9y3Z1c7ZKoYkB
-	c+vQYMcD4ne1QV4x+C2IVVpz0xqx7ov6rRirfSA1Qai4sluVjddltUVEytWmqVnEBdg==
-X-Received: by 2002:ae9:e109:: with SMTP id g9mr36166517qkm.251.1554983512445;
-        Thu, 11 Apr 2019 04:51:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzy0IzYLjfW7P/fOPJiGzuS1WULQ5+OAyp58IgYu8d3vay8XRuHhwXj5ir7Xv16VEndJZqq
-X-Received: by 2002:ae9:e109:: with SMTP id g9mr36166472qkm.251.1554983511656;
-        Thu, 11 Apr 2019 04:51:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554983511; cv=none;
-        d=google.com; s=arc-20160816;
-        b=JIYxLqyDxEi8BS44suWSPL8TTWFQMzyR/7fZFwu89ui01sdS2i0BfNfl2Y1h2sy9dU
-         DiAup/gIgJ9Z1bYdyKM5REa4vxejm66S2oiMCij/Dp5b8rxMvbjrdngrQa/R9V2MRi1n
-         0g5wiCJxqOCp6hvHf0nAOzhq86ubiiZdHala19mXOYwRjIx0C+0cM1x4yavRVoXUn6Zo
-         FQaztHKm5AiKmi4Nb6kVvBczvSALBPiX2QEz63rqGpoKKxrDMNScSB3zOUuOUfLb3Y8Y
-         Pi0+cPTyO0I/bO4Svb81Sfa2t2+IAf57GXVyCbV085CUvORKSymBBndqFQU+FC3/ndSk
-         F4BA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:references:in-reply-to:date:cc:to:from:subject
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id;
-        bh=9li4JbAciQB6kgcEj0A6yp2jZtSSjmDuZnBSu5j3roI=;
-        b=D6V4Xwo/VJPRiO57hkXuo1zT4XjHedjjhUcEGEMJi6tDdMA43ItAEjLfXPAObBi5gy
-         5LhJXD7Ujuse44NFuYxQkMpLDpjjrkBeW8AyGVTyL/CDKy7oVsmXUhzJ1VCbaCFvg+A6
-         jRK+0d5tmplBM0K+QJQCD9cxdtJ6Tv6WNn0vbOpUVjQwc/B0No7A5E6yAbJSKFk0aSz8
-         3KHJh84bxJDpPRVI2w0Lx+5gOUTg3wNrb5ZakzNy1GdEdjptw0k8VJyyGONWd+YbDkAV
-         BAoVT2C2A/WAj7cnCVOVX/8xBgh1xTT36/lNuvzrt52zDqhWNQPxNZo+yF1RtPSSp433
-         ZPGg==
+        bh=mOz4LJIx6oY4+IvkYn925JGORlAdzALmC6ZHeKJ/DLk=;
+        b=aqyuAIOdymw84kSKLb1h8hn88xHs2mzVVu0QlF4yUybFoyfqm9KcTO+pCbyUDNHzRP
+         96iVSpYB9lrxML6i16M0oo7hKA73Q10osF660q5C70n+j8WXsZ2YhJFzIGUJHnadDw1/
+         IO7MOC2ZN+p4qhYxEH9k3sXmoe6QivbZc66uyCvc/FQxuenJKzQC62027nPTrVFPfoNB
+         OGrFX2BZVfCp9R7xRcdAX/E6cI0SmFZBgdHCWjsSLx/i7A3TGtNGRF76+t83Ka8k9X6O
+         x0umCudo95bMT1WYpyT0OlEuD5nhjI6kW0hc1MxEORLFPIn3gaZF5ePuhpok1P6XKfsZ
+         9lHg==
+X-Gm-Message-State: APjAAAVh9Ra8ZmJNaiKFw+fiNdWdTvoiiEJwoPNgz3wQ8jCZTWxnRdwL
+	SI46VmdR6mSC+MCxTYs5u+1rU0k17PJGH1HJb2k/GJA87zZ5GMINdrwjMe6mylb1Pv6XqfclQAO
+	ZFcgXqhAb6jpKhM8hjBRZda47CmZqpwqon1+oh2AIgk1O9yGc9hVTCaUXFKaIipJwuw==
+X-Received: by 2002:a63:1003:: with SMTP id f3mr45189487pgl.227.1554984015665;
+        Thu, 11 Apr 2019 05:00:15 -0700 (PDT)
+X-Received: by 2002:a63:1003:: with SMTP id f3mr45189315pgl.227.1554984013729;
+        Thu, 11 Apr 2019 05:00:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554984013; cv=none;
+        d=google.com; s=arc-20160816;
+        b=N8vfhaHS4hVGwe9/njpExSt4rybSFbupURex082sV/oR30dfQ51J9b4QZAHHzFKmZD
+         1Jh7jW3KPaWllMnlVTXvot3ZJ6bCy96B1jxZiO9QoG0x/SP6F7BqFLO2pVnqwhcgPVPa
+         jR+PKLpqfLUP5ao9NFhXoIiC6g+tYkzxrJPpaf4MJK4ln7uaK7yAQKYJ4fsrD5Wbk3aq
+         ICubqpttjqMolmi5B+UNo8Ffvu37zW5t7n5DGoSFs52x0eJb7o2MnW8y2yc2+/3uxXHr
+         uT4Be+TfRXUMbgeA1u2NGL8JXP5c4Pbsym4aCRgh0ywbStfiFYZReipX4XREA8hKaN8G
+         3B2Q==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=mOz4LJIx6oY4+IvkYn925JGORlAdzALmC6ZHeKJ/DLk=;
+        b=jxukg9wh27oNFdgraOKiOILUZlihQ4THRM4CkN21si2sjnVrloQFk6VhNDn+lLtN5x
+         8IarcNDymknHYq7L9hEfGlu3PYhrTwQ4zx6t4exrCB801aiFMvEdYHdPwSFGPDTzInHX
+         BmJ/ckNYIyPe32xwpiN1ElPbPXJ+Hex82OL6+/Np4JzHvuE/WS6Wpp7pTaSMknJ+68tA
+         XqJEwS704rfWT6TPgw3tdbogOwKiYBAkq/qjLFAD5zkyix7p/OMpbH1irjT2ymB5zYcN
+         kIFByT6tWvJIRkGegzo1WrrAFVOwBBGXRASWFufFPTQZEGvC2e+rAfa1Muk2JGtD6TRR
+         SabA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id n4si10633690qkg.43.2019.04.11.04.51.51
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eQ8CaCgL;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e18sor32862497pgm.1.2019.04.11.05.00.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 04:51:51 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 05:00:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.91)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1hEYEk-0000Q3-UT; Thu, 11 Apr 2019 07:51:22 -0400
-Message-ID: <e1fc2c84f5ef2e1408f6fee7228a52a458990b31.camel@surriel.com>
-Subject: Re: [Lsf-pc] [RFC 0/2] opportunistic memory reclaim of a killed
- process
-From: Rik van Riel <riel@surriel.com>
-To: Suren Baghdasaryan <surenb@google.com>, akpm@linux-foundation.org
-Cc: dancol@google.com, mhocko@suse.com, jannh@google.com,
- minchan@kernel.org,  penguin-kernel@I-love.SAKURA.ne.jp,
- kernel-team@android.com, rientjes@google.com, 
- linux-kernel@vger.kernel.org, willy@infradead.org, linux-mm@kvack.org, 
- hannes@cmpxchg.org, shakeelb@google.com, jrdr.linux@gmail.com, 
- yuzhoujian@didichuxing.com, joel@joelfernandes.org, timmurray@google.com, 
- lsf-pc@lists.linux-foundation.org, guro@fb.com, christian@brauner.io, 
- ebiederm@xmission.com
-Date: Thu, 11 Apr 2019 07:51:21 -0400
-In-Reply-To: <20190411014353.113252-1-surenb@google.com>
-References: <20190411014353.113252-1-surenb@google.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-EhA/ljhQjzQ1y1msvysd"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
-Mime-Version: 1.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eQ8CaCgL;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=mOz4LJIx6oY4+IvkYn925JGORlAdzALmC6ZHeKJ/DLk=;
+        b=eQ8CaCgLblUsBaqcaciU8fINUxHKrT3aXWX21gzx2XQhWfNpR/Vq8veZ11M3ozduGq
+         fvd02vf6WZB6mQ/W/DlR6IbRaQmCe9wgafEb0k9J6/VtKKY5iQLxOoi4iLWdmlzk2CLe
+         S1z+PnQFFoTaVDH/yMXPWtsmm9GOvjoyBIH5PZiDpLsh3Rx3pgGtBJOl+C/thS8VA1yF
+         bKVCkNIf3FU9AcAZmUOcPyz6FFnOwBSg0shZWRB8Jlo3SPWxNVnyAs1RkXlY4a0TqH45
+         CSWSZKV4PfRzuXY/22WdiVUseEopI6ehHlDkdUEplfb97BQK56hZT2UXl+XysfuOLjwj
+         zMnQ==
+X-Google-Smtp-Source: APXvYqyhYUF8DoaSmRWlwExBWvZgKoVLZuaHcaZU9QW+jcBPKYZZljshBE8eC9Ux8uba3sIBcjB0SQ==
+X-Received: by 2002:a65:5682:: with SMTP id v2mr47372105pgs.100.1554984013348;
+        Thu, 11 Apr 2019 05:00:13 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id h19sm61863210pfd.130.2019.04.11.05.00.10
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 05:00:12 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: hannes@cmpxchg.org,
+	chris@chrisdown.name,
+	mhocko@kernel.org
+Cc: akpm@linux-foundation.org,
+	cgroups@vger.kernel.org,
+	linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/memcg: add allocstall to memory.stat
+Date: Thu, 11 Apr 2019 19:59:51 +0800
+Message-Id: <1554983991-16769-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+The current item 'pgscan' is for pages in the memcg,
+which indicates how many pages owned by this memcg are scanned.
+While these pages may not scanned by the taskes in this memcg, even for
+PGSCAN_DIRECT.
 
---=-EhA/ljhQjzQ1y1msvysd
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Sometimes we need an item to indicate whehter the tasks in this memcg
+under memory pressure or not.
+So this new item allocstall is added into memory.stat.
 
-On Wed, 2019-04-10 at 18:43 -0700, Suren Baghdasaryan via Lsf-pc wrote:
-> The time to kill a process and free its memory can be critical when
-> the
-> killing was done to prevent memory shortages affecting system
-> responsiveness.
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ Documentation/admin-guide/cgroup-v2.rst |  3 +++
+ include/linux/memcontrol.h              | 18 ++++++++++++++++++
+ mm/memcontrol.c                         | 18 +-----------------
+ mm/vmscan.c                             |  2 ++
+ 4 files changed, 24 insertions(+), 17 deletions(-)
 
-The OOM killer is fickle, and often takes a fairly
-long time to trigger. Speeding up what happens after
-that seems like the wrong thing to optimize.
-
-Have you considered using something like oomd to
-proactively kill tasks when memory gets low, so
-you do not have to wait for an OOM kill?
-
---=20
-All Rights Reversed.
-
---=-EhA/ljhQjzQ1y1msvysd
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlyvKjkACgkQznnekoTE
-3oPNQQgAs0Uab4UlWgiiD7o0gAjFu9zNhtef6Q+Tk1qFZDMnzCeQcQgFr9c4iRXN
-YA7MqnAcKQ6mzle90nxueQHEgz067Eh9AEnnkzxnUEL7OmPsm7p/LKobNAelX86F
-aJD2Ohpsaz4wDODe4je4iK2cK7pkQ5zkYn25+lm8MO5Ei4rDXLXTdTqwtHNompWG
-V/64CxuTdeHiZa8HFrN2u+1SB0BUN2+kAJlfkkatfiDIUqyWNtN3oaQrK5/eFxXr
-GnBrInkKVfr5+L2JfiCcC3fasbhQi4Z1g9HqQ7rxaT1QHziDMDhDp0g1ssR63nKr
-JnFMfXOPt3pXbyfNAJB1ZOCk4xF1rA==
-=JzJl
------END PGP SIGNATURE-----
-
---=-EhA/ljhQjzQ1y1msvysd--
+diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+index 19c4e78..a06f17a 100644
+--- a/Documentation/admin-guide/cgroup-v2.rst
++++ b/Documentation/admin-guide/cgroup-v2.rst
+@@ -1221,6 +1221,9 @@ PAGE_SIZE multiple when read back.
+ 		Part of "slab" that cannot be reclaimed on memory
+ 		pressure.
+ 
++          allocstall
++                The number of direct reclaim the tasks in this memcg entering
++
+ 	  pgfault
+ 		Total number of page faults incurred
+ 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 1565831..7fe9c57 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -45,6 +45,7 @@ enum memcg_stat_item {
+ 	MEMCG_SOCK,
+ 	/* XXX: why are these zone and not node counters? */
+ 	MEMCG_KERNEL_STACK_KB,
++	MEMCG_ALLOCSTALL,
+ 	MEMCG_NR_STAT,
+ };
+ 
+@@ -412,6 +413,23 @@ static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
+ 
+ struct mem_cgroup *get_mem_cgroup_from_page(struct page *page);
+ 
++/**
++ * If current->active_memcg is non-NULL, do not fallback to current->mm->memcg.
++ */
++static __always_inline struct mem_cgroup *get_mem_cgroup_from_current(void)
++{
++	if (unlikely(current->active_memcg)) {
++		struct mem_cgroup *memcg = root_mem_cgroup;
++
++		rcu_read_lock();
++		if (css_tryget_online(&current->active_memcg->css))
++			memcg = current->active_memcg;
++		rcu_read_unlock();
++		return memcg;
++	}
++	return get_mem_cgroup_from_mm(current->mm);
++}
++
+ static inline
+ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
+ 	return css ? container_of(css, struct mem_cgroup, css) : NULL;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 10af4dd..780659f9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -853,23 +853,6 @@ struct mem_cgroup *get_mem_cgroup_from_page(struct page *page)
+ EXPORT_SYMBOL(get_mem_cgroup_from_page);
+ 
+ /**
+- * If current->active_memcg is non-NULL, do not fallback to current->mm->memcg.
+- */
+-static __always_inline struct mem_cgroup *get_mem_cgroup_from_current(void)
+-{
+-	if (unlikely(current->active_memcg)) {
+-		struct mem_cgroup *memcg = root_mem_cgroup;
+-
+-		rcu_read_lock();
+-		if (css_tryget_online(&current->active_memcg->css))
+-			memcg = current->active_memcg;
+-		rcu_read_unlock();
+-		return memcg;
+-	}
+-	return get_mem_cgroup_from_mm(current->mm);
+-}
+-
+-/**
+  * mem_cgroup_iter - iterate over memory cgroup hierarchy
+  * @root: hierarchy root
+  * @prev: previously returned memcg, NULL on first invocation
+@@ -5624,6 +5607,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
+ 
+ 	/* Accumulated memory events */
+ 
++	seq_printf(m, "allocstall %lu\n", acc.vmevents[MEMCG_ALLOCSTALL]);
+ 	seq_printf(m, "pgfault %lu\n", acc.vmevents[PGFAULT]);
+ 	seq_printf(m, "pgmajfault %lu\n", acc.vmevents[PGMAJFAULT]);
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 347c9b3..3ff8b1b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3024,6 +3024,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	if (global_reclaim(sc))
+ 		__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+ 
++	count_memcg_events(get_mem_cgroup_from_current(), MEMCG_ALLOCSTALL, 1);
++
+ 	do {
+ 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+ 				sc->priority);
+-- 
+1.8.3.1
 
