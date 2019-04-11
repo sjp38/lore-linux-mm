@@ -2,263 +2,192 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B891C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:08:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1FF8C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:11:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2934620850
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:08:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="PN3lgWkD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2934620850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 8AA8F20850
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:11:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AA8F20850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B46B36B0269; Thu, 11 Apr 2019 16:08:28 -0400 (EDT)
+	id 1584E6B0269; Thu, 11 Apr 2019 16:11:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ACCEC6B026A; Thu, 11 Apr 2019 16:08:28 -0400 (EDT)
+	id 1068D6B026A; Thu, 11 Apr 2019 16:11:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 995336B026B; Thu, 11 Apr 2019 16:08:28 -0400 (EDT)
+	id F117E6B026B; Thu, 11 Apr 2019 16:11:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B366B0269
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:08:28 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id n18so5189059yba.9
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:08:28 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A0B176B0269
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:11:55 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y7so3672408eds.7
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:11:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=MCmOdUk7t0kgqaj6nH2xU4Mztx+DrWgSylXE7z1aynQ=;
-        b=Mse4UkJO0+wGwRc7xQmbwzTeQMsBZavsWDbln842n4ZYQlQDGnT6LP/UPQ11nmpJ6p
-         N/4UPcZifd8CS+1pgjOh2EFtwEJk/s8d81N7zbusUR0iuw+XmI9lk0wL1je9c2Qw2QNn
-         16pmsFzqdlmhl3S370dUCakZCmKoBPtpxMZiB/Df6KkspGG4UkFqW+3CVAYPk+IiEBia
-         RI1GjPWoPycn5FjWNGxURV3HDDv6wq5KeB9+4xpqMhdjijtYc08gEL9K9cs9FEqJjuov
-         mLl6DavoeCtkNa7LjoWNXw1XKP8M0waL/BIRyF+w/+JIaEvzXddOBl3DxfnBKed5MtSt
-         Y1Kw==
-X-Gm-Message-State: APjAAAVWggRarQEouoDMpn0eAKi2n8azzX8Tv8UAzR/DM3eZBP5oBBJG
-	8CXEn4I/U5hKpld/mxDVGpATi2Fr35rl+fwtenoSb2q9/LyEurnaNRkHtaF9DOk312wiUWlvoZv
-	hRHmGNM9YLUdFt3B/SZJtF2Pf0mHLtHGYDnLG/L8YhjAGVu3rHdBXv4dWOie2nVqE9g==
-X-Received: by 2002:a81:3010:: with SMTP id w16mr41520352yww.388.1555013308088;
-        Thu, 11 Apr 2019 13:08:28 -0700 (PDT)
-X-Received: by 2002:a81:3010:: with SMTP id w16mr41520270yww.388.1555013307175;
-        Thu, 11 Apr 2019 13:08:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555013307; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=JKvQz9IhtW3K86EwtdMcJ9G8ihTRQXOBDTfeIETRrPQ=;
+        b=Q/k6AK9UnKu5Qhgh1CqZFfUsiwrBqpoRxrbXcLYtkB2w9duZAx4dv97lFN2lBgn7DC
+         VfBht+FPZHY8HBEQlDgktBxA6KYDamU5ixlLfp3IrU7jpvtOxj4JCxjkvILCUrafk8CY
+         53sASfgkqktgJslapodLVAmayX9nor68eR9UgVwKtLMXTCTqzrfFs5UHej0Euw6P6B5Z
+         ZbAD77k4Wjwo7qO68kCUWwulB0TUnQsyfe5o3n8TwxRxRzscXiUaSt6t7dtViOs5Xo8u
+         s6eomDZGdB1imwA+/OqsEHAg64/YGTD10fZob3QTfG0ZC76sCKlFGV1jkYk+7Nj1dAg+
+         qN5w==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVH3mGJu/ENdiT4tX6XFzkIjMTKQ/bzRMnE913lchxAaQhJi4V+
+	9NvlHQAH+v0xGqreHBOUcbs7aBp/YlzQXKB07QW/niWXrFLux37PWXwYOBvDK5NMdtpabfzv6lm
+	fKTAO2sHLTuwYc7TcFgGUp7v6voTRvaP+atcYoNlUELbtVsHQEYLaNQVa1ys0cfE=
+X-Received: by 2002:a17:906:bc2:: with SMTP id y2mr19162417ejg.98.1555013515140;
+        Thu, 11 Apr 2019 13:11:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVB3eGy5zvOM+l/RNgcBF9Ss5drvfT7H2fSuJJwlPeyR1GTrnEPa7159AHU5JbviiynE2X
+X-Received: by 2002:a17:906:bc2:: with SMTP id y2mr19162383ejg.98.1555013514211;
+        Thu, 11 Apr 2019 13:11:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555013514; cv=none;
         d=google.com; s=arc-20160816;
-        b=zlriWJyztW9xYpMoWQfxYbTU5zLG7Fyksi/0vBZrr/0Nvk7C9WQAXwLxGA6xORrADW
-         NPw1JlqHvSWWZkJT/5peFGCHaTTTn9JW7GE1atyHg7K1QNPN1kd5g2FJOjG0DvDVHqBb
-         6J/B3hdO10RgzMm158RouK8rxw/SkhtDxoeNqz6RMLiGYyXbOZ18fTCN6UFlRZn874w0
-         NCp9iM6dZE4BdQqMnJOCHdcw2jm0bhNAG7TRs7ddCS0WE8uroWi+8tjzmFulmgsZQxID
-         mYHeiUTfEhtd94Z5/cRx+SbDCzuqjDtK7BJZDaYIcsesteGE3oKapnwhGgzNJ84eytjT
-         RBrg==
+        b=k9QdGNOOG1j1UJWlOOaLukqRRcTsVukapPo15tE+6VYHF9T/TnpwwagGg9dRhJqzZJ
+         E3Y3hrmkiVaMCbqmoXkEkCrcyXKpZ1JX42ukENhwAZNDMvWc6KSrw66UnAV0gR//NLpV
+         bnLAy7YT533vCG2Es3kZNQAMssMsUySwPcdoNikFnzsJXfqxrMWjsTdSSZyaM7XCZ025
+         9vwd5GOx7AjW8J8m3R5wZN0KdKb/j9epMVACDWrz/z5Wd/V6HUERGvLAOy+XwH/mJxGW
+         v4rngRh89aOv0GT+YqTBSTHfSSrcFDKetl0+bbWZpB+dNzd0U2s2f6VaOdR8Z5LL1AXG
+         vMqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=MCmOdUk7t0kgqaj6nH2xU4Mztx+DrWgSylXE7z1aynQ=;
-        b=rfoHCudq11iOWdfJrIDUCW7o7Dc3Nspij3U5ZvOniz7S7wG09GAjgiyHU759S2zozJ
-         eSHVoxbN9hmsn3ukq4dggGeEZdLdb8gje1Jury6ZvR6hu9M6HedqaHmiX3SJ8VEg5ljh
-         7QS2R06ouHc5uPAcYer9fVS6XIYWmwOMbPtuKBqsyLzp9Mo1P9XFWgGgePqbqjIHq55Y
-         mPmplimAgPBerBXLe0HVSnHL+eDO8H67hj537FMrqVb3EPVy8b2Nq/cxGH8zbNFbtb2l
-         hGsRcbQ98Gv8F9UNwyUaFE7DlmTlMbALzHq7BY35FRSZlSxvHsGgLZTMjKNaSHDfdkqL
-         kZJg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=JKvQz9IhtW3K86EwtdMcJ9G8ihTRQXOBDTfeIETRrPQ=;
+        b=YMv2Nrc32AWNmNLg4RmAxINODczG+L36+/mwrhOX8k1JpkD40h0MaMIfuMNQz5I9cW
+         Vazo2sgMRVQEJh3v9k6eHqhgL1N9i414l3jIAwTGWYi5I6lOzpird3ogaU1XG9jz/j6b
+         1kGtWW46fizq6Q8tefh1vLV0jTta7B7kElc3SN7KBGfQUmRAXr6Cio+RdWqYbRKNBzjh
+         w4FiDcIMY0Lm4SMMSDu/30uns27c9kd8NK9025TSGbzOHPV+QB6t8M2mCjCKSVOdpk8J
+         7vko3BIvzKsnS3nhuQUuzLCRSnlM48f6M0Py1qD3nqITCO3CI2gQ+alVneohp4lBPzZA
+         p9wg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PN3lgWkD;
-       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v63sor18564313ybv.116.2019.04.11.13.08.27
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j3si1780934edt.141.2019.04.11.13.11.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Apr 2019 13:08:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 13:11:54 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PN3lgWkD;
-       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=MCmOdUk7t0kgqaj6nH2xU4Mztx+DrWgSylXE7z1aynQ=;
-        b=PN3lgWkD6qaMLyp0PtnfLsvj3OF9tRn1eTJw6d1rnTkHXEp3U1VUdI46GFU7mLRmDh
-         VM95TvnWkFkCWCLBYQj7FW/P9VueQ3pYX5+lDtD9n7OUTNCa0+yld4rr+v2NdGtvDE3S
-         RJEm6gVzuAuK5+ZuZKKsqopkam1J/xVP3Ndk27FoxJm3Df6UXL7Zkec3x2dCmXBKgGMC
-         0rUFxlJw8ZVuup7IlIUKLI5N1XqoSO6b5Xppyw7FH0sPKTepeOuEcBBKo/259gxC1MhA
-         pGgaj3+pGDxttnjAdYP+r1b3svGoEMZtD8esrn+e6PGCOEzI5HG7sJt88fYT5O1zVpRm
-         Ry/A==
-X-Google-Smtp-Source: APXvYqyNu6MIoeBWsFVGLQshOwqj3Wpc8wGYqvhgR1TirvxsuzR/P9yAdh9xRg5BgsxYGE/XIc7/b70QrL2TrLM8iXM=
-X-Received: by 2002:a25:a049:: with SMTP id x67mr41690409ybh.3.1555013306518;
- Thu, 11 Apr 2019 13:08:26 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1E911AE0F;
+	Thu, 11 Apr 2019 20:11:53 +0000 (UTC)
+Date: Thu, 11 Apr 2019 22:11:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Suren Baghdasaryan <surenb@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com,
+	jrdr.linux@gmail.com, guro@fb.com,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	penguin-kernel@i-love.sakura.ne.jp, ebiederm@xmission.com,
+	shakeelb@google.com, Christian Brauner <christian@brauner.io>,
+	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>,
+	Daniel Colascione <dancol@google.com>, Jann Horn <jannh@google.com>,
+	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+	lsf-pc@lists.linux-foundation.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	"Cc: Android Kernel" <kernel-team@android.com>
+Subject: Re: [RFC 0/2] opportunistic memory reclaim of a killed process
+Message-ID: <20190411201151.GA4743@dhcp22.suse.cz>
+References: <20190411014353.113252-1-surenb@google.com>
+ <20190411105111.GR10383@dhcp22.suse.cz>
+ <CAJWu+oq45tYxXJpLPLAU=-uZaYRg=OnxMHkgp2Rm0nbShb_eEA@mail.gmail.com>
+ <20190411181243.GB10383@dhcp22.suse.cz>
+ <20190411191430.GA46425@google.com>
 MIME-Version: 1.0
-References: <20190215185151.GG7897@sirena.org.uk> <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
- <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
- <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
- <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
- <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com> <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
- <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com> <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
- <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com> <20190306140529.GG3549@rapoport-lnx>
- <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com> <CAPcyv4jBjUScKExK09VkL8XKibNcbw11ET4WNUWUWbPXeT9DFQ@mail.gmail.com>
- <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com>
- <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com> <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com>
-In-Reply-To: <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com>
-From: Guenter Roeck <groeck@google.com>
-Date: Thu, 11 Apr 2019 13:08:15 -0700
-Message-ID: <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com>
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-To: Kees Cook <keescook@chromium.org>
-Cc: kernelci@groups.io, Dan Williams <dan.j.williams@intel.com>, 
-	Guillaume Tucker <guillaume.tucker@collabora.com>, Mike Rapoport <rppt@linux.ibm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
-	Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
-	Kevin Hilman <khilman@baylibre.com>, 
-	Enric Balletbo i Serra <enric.balletbo@collabora.com>, Nicholas Piggin <npiggin@gmail.com>, 
-	Dominik Brodowski <linux@dominikbrodowski.net>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Adrian Reber <adrian@lisas.de>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Linux MM <linux-mm@kvack.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, 
-	Richard Guy Briggs <rgb@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190411191430.GA46425@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 10:35 AM Kees Cook <keescook@chromium.org> wrote:
->
-> On Thu, Apr 11, 2019 at 9:42 AM Guenter Roeck <groeck@google.com> wrote:
-> >
-> > On Thu, Apr 11, 2019 at 9:19 AM Kees Cook <keescook@chromium.org> wrote:
-> > >
-> > > On Thu, Mar 7, 2019 at 7:43 AM Dan Williams <dan.j.williams@intel.com> wrote:
-> > > > I went ahead and acquired one of these boards to see if I can can
-> > > > debug this locally.
-> > >
-> > > Hi! Any progress on this? Might it be possible to unblock this series
-> > > for v5.2 by adding a temporary "not on ARM" flag?
-> > >
-> >
-> > Can someone send me a pointer to the series in question ? I would like
-> > to run it through my testbed.
->
-> It's already in -mm and linux-next (",mm: shuffle initial free memory
-> to improve memory-side-cache utilization") but it gets enabled with
-> CONFIG_SHUFFLE_PAGE_ALLOCATOR=y (which was made the default briefly in
-> -mm which triggered problems on ARM as was reverted).
->
+On Thu 11-04-19 15:14:30, Joel Fernandes wrote:
+> On Thu, Apr 11, 2019 at 08:12:43PM +0200, Michal Hocko wrote:
+> > On Thu 11-04-19 12:18:33, Joel Fernandes wrote:
+> > > On Thu, Apr 11, 2019 at 6:51 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Wed 10-04-19 18:43:51, Suren Baghdasaryan wrote:
+> > > > [...]
+> > > > > Proposed solution uses existing oom-reaper thread to increase memory
+> > > > > reclaim rate of a killed process and to make this rate more deterministic.
+> > > > > By no means the proposed solution is considered the best and was chosen
+> > > > > because it was simple to implement and allowed for test data collection.
+> > > > > The downside of this solution is that it requires additional “expedite”
+> > > > > hint for something which has to be fast in all cases. Would be great to
+> > > > > find a way that does not require additional hints.
+> > > >
+> > > > I have to say I do not like this much. It is abusing an implementation
+> > > > detail of the OOM implementation and makes it an official API. Also
+> > > > there are some non trivial assumptions to be fullfilled to use the
+> > > > current oom_reaper. First of all all the process groups that share the
+> > > > address space have to be killed. How do you want to guarantee/implement
+> > > > that with a simply kill to a thread/process group?
+> > > 
+> > > Will task_will_free_mem() not bail out in such cases because of
+> > > process_shares_mm() returning true?
+> > 
+> > I am not really sure I understand your question. task_will_free_mem is
+> > just a shortcut to not kill anything if the current process or a victim
+> > is already dying and likely to free memory without killing or spamming
+> > the log. My concern is that this patch allows to invoke the reaper
+> 
+> Got it.
+> 
+> > without guaranteeing the same. So it can only be an optimistic attempt
+> > and then I am wondering how reasonable of an interface this really is.
+> > Userspace send the signal and has no way to find out whether the async
+> > reaping has been scheduled or not.
+> 
+> Could you clarify more what you're asking to guarantee? I cannot picture it.
+> If you mean guaranteeing that "a task is dying anyway and will free its
+> memory on its own", we are calling task_will_free_mem() to check that before
+> invoking the oom reaper.
 
-Boot tests report
+No, I am talking about the API aspect. Say you kall kill with the flag
+to make the async address space tear down. Now you cannot really
+guarantee that this is safe to do because the target task might
+clone(CLONE_VM) at any time. So this will be known only once the signal
+is sent, but the calling process has no way to find out. So the caller
+has no way to know what is the actual result of the requested operation.
+That is a poor API in my book.
 
-Qemu test results:
-    total: 345 pass: 345 fail: 0
+> Could you clarify what is the draback if OOM reaper is invoked in parallel to
+> an exiting task which will free its memory soon? It looks like the OOM reaper
+> is taking all the locks necessary (mmap_sem) in particular and is unmapping
+> pages. It seemed to me to be safe, but I am missing what are the main draw
+> backs of this - other than the intereference with core dump. One could be
+> presumably scalability since the since OOM reaper could be bottlenecked by
+> freeing memory on behalf of potentially several dying tasks.
 
-This is on top of next-20190410 with CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
-and the known crashes fixed.
+oom_reaper or any other kernel thread doing the same is a mere
+implementation detail I think. The oom killer doesn't really need the
+oom_reaper to act swiftly because it is there to act as a last resort if
+the oom victim cannot terminate on its own. If you want to offer an
+user space API then you can assume users will like to use it and expect
+a certain behavior but what that is? E.g. what if there are thousands of
+tasks killed this way? Do we care that some of them will not get the
+async treatment? If yes why do we need an API to control that at all?
 
-$ git log --oneline next-20190410..
-3367c36ce744 Set SHUFFLE_PAGE_ALLOCATOR=y for testing.
-d2aee8b3cd5d Revert "crypto: scompress - Use per-CPU struct instead
-multiple variables"
-4bc9f5bc9a84 Fix: rhashtable: use bit_spin_locks to protect hash bucket.
+Am I more clear now?
 
-Boot tests on arm are:
-
-Building arm:versatilepb:versatile_defconfig:aeabi:pci:scsi:mem128:versatile-pb:rootfs
-... running ........ passed
-Building arm:versatilepb:versatile_defconfig:aeabi:pci:mem128:versatile-pb:initrd
-... running ........ passed
-Building arm:versatileab:versatile_defconfig:mem128:versatile-ab:initrd
-... running ........ passed
-Building arm:imx25-pdk:imx_v4_v5_defconfig:nonand:mem128:imx25-pdk:initrd
-... running ........ passed
-Building arm:kzm:imx_v6_v7_defconfig:nodrm:mem128:initrd ... running
-.......... passed
-Building arm:mcimx6ul-evk:imx_v6_v7_defconfig:nodrm:mem256:imx6ul-14x14-evk:initrd
-... running .......... passed
-Building arm:mcimx6ul-evk:imx_v6_v7_defconfig:nodrm:sd:mem256:imx6ul-14x14-evk:rootfs
-... running .......... passed
-Building arm:vexpress-a9:multi_v7_defconfig:nolocktests:mem128:vexpress-v2p-ca9:initrd
-... running ........ passed
-Building arm:vexpress-a9:multi_v7_defconfig:nolocktests:sd:mem128:vexpress-v2p-ca9:rootfs
-... running ........ passed
-Building arm:vexpress-a9:multi_v7_defconfig:nolocktests:virtio-blk:mem128:vexpress-v2p-ca9:rootfs
-... running ........ passed
-Building arm:vexpress-a15:multi_v7_defconfig:nolocktests:sd:mem128:vexpress-v2p-ca15-tc1:rootfs
-... running ........ passed
-Building arm:vexpress-a15-a7:multi_v7_defconfig:nolocktests:sd:mem256:vexpress-v2p-ca15_a7:rootfs
-... running ........ passed
-Building arm:beagle:multi_v7_defconfig:sd:mem256:omap3-beagle:rootfs
-... running ............ passed
-Building arm:beaglexm:multi_v7_defconfig:sd:mem512:omap3-beagle-xm:rootfs
-... running ........... passed
-Building arm:overo:multi_v7_defconfig:sd:mem256:omap3-overo-tobi:rootfs
-... running ........... passed
-Building arm:midway:multi_v7_defconfig:mem2G:ecx-2000:initrd ...
-running .......... passed
-Building arm:sabrelite:multi_v7_defconfig:mem256:imx6dl-sabrelite:initrd
-... running ............ passed
-Building arm:mcimx7d-sabre:multi_v7_defconfig:mem256:imx7d-sdb:initrd
-... running .......... passed
-Building arm:xilinx-zynq-a9:multi_v7_defconfig:mem128:zynq-zc702:initrd
-... running ............ passed
-Building arm:xilinx-zynq-a9:multi_v7_defconfig:sd:mem128:zynq-zc702:rootfs
-... running ............ passed
-Building arm:xilinx-zynq-a9:multi_v7_defconfig:sd:mem128:zynq-zc706:rootfs
-... running ............ passed
-Building arm:xilinx-zynq-a9:multi_v7_defconfig:sd:mem128:zynq-zed:rootfs
-... running ........... passed
-Building arm:cubieboard:multi_v7_defconfig:mem128:sun4i-a10-cubieboard:initrd
-... running ........... passed
-Building arm:raspi2:multi_v7_defconfig:bcm2836-rpi-2-b:initrd ...
-running .......... passed
-Building arm:raspi2:multi_v7_defconfig:sd:bcm2836-rpi-2-b:rootfs ...
-running .......... passed
-Building arm:virt:multi_v7_defconfig:virtio-blk:mem512:rootfs ...
-running ......... passed
-Building arm:smdkc210:exynos_defconfig:cpuidle:nocrypto:mem128:exynos4210-smdkv310:initrd
-... running ......... passed
-Building arm:realview-pb-a8:realview_defconfig:realview_pb:mem512:arm-realview-pba8:initrd
-... running ........ passed
-Building arm:realview-pbx-a9:realview_defconfig:realview_pb:arm-realview-pbx-a9:initrd
-... running ........ passed
-Building arm:realview-eb:realview_defconfig:realview_eb:mem512:arm-realview-eb:initrd
-... running ........ passed
-Building arm:realview-eb-mpcore:realview_defconfig:realview_eb:mem512:arm-realview-eb-11mp-ctrevb:initrd
-... running ......... passed
-Building arm:akita:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:borzoi:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:mainstone:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:spitz:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:terrier:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:tosa:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:z2:pxa_defconfig:nofdt:nodebug:notests:novirt:nousb:noscsi:initrd
-... running ..... passed
-Building arm:collie:collie_defconfig:aeabi:notests:initrd ... running
-..... passed
-Building arm:integratorcp:integrator_defconfig:mem128:integratorcp:initrd
-... running ....... passed
-Building arm:palmetto-bmc:aspeed_g4_defconfig:aspeed-bmc-opp-palmetto:initrd
-... running ................. passed
-Building arm:witherspoon-bmc:aspeed_g5_defconfig:notests:aspeed-bmc-opp-witherspoon:initrd
-... running ........... passed
-Building arm:ast2500-evb:aspeed_g5_defconfig:notests:aspeed-ast2500-evb:initrd
-... running ................ passed
-Building arm:romulus-bmc:aspeed_g5_defconfig:notests:aspeed-bmc-opp-romulus:initrd
-... running ......................... passed
-Building arm:mps2-an385:mps2_defconfig:mps2-an385:initrd ... running
-...... passed
-
-Guenter
+-- 
+Michal Hocko
+SUSE Labs
 
