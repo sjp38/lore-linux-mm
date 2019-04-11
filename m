@@ -4,79 +4,79 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCAD3C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7428AC10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D1C9217F4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D1C9217F4
+	by mail.kernel.org (Postfix) with ESMTP id 1D6E8217F4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D6E8217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6065A6B0006; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
+	id A26CA6B0008; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 592556B000A; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
+	id 93D096B000C; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27F8A6B000C; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
+	id 7B1406B000E; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC8F6B000A
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 18so3545508pgx.11
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 20:57:26 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 415F86B0008
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 23:57:27 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 33so3532354pgv.17
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 20:57:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=9VGPp5u5MHlsn+PLrxQC9AI+6qwPcFhzNxibXCLjh3U=;
-        b=gXVWoSBjLwx1yXvNwXVOxGBZYrREy99VvCRxp7WsN89OQChg1kAPWf2zW9kV0qGtU2
-         WFFqrB9Z4vCgxKjoiZ29IeC4dW2liy5whZGPCJBiZwk8+vvWh4fSbZ+6C7dEDuwbwX4a
-         B5huEnuMa+U/VYW4TxLnwrvJkU8fhk6XCF186dA2ZC3loXeb98OCbWfHDPTJrNWM38HO
-         ecixbCpsCddGVhGyDZQoLZxXyjYUKK/wJNDma7KVildjLOu3ojY4OsZkMrJQEEloWuLh
-         9mWOr+yV2hsNi/ujb6e8WJNqXy9JG5eg9A62b/A2OJZhGUP8s9nc7Aw5CKLv4vyXCNYC
-         wfFQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXm/K9Ab2gbFEKl9VgdUu+nUp/cv/5ix8wK8uLKPVTbn+BzwKtT
-	xMAmTvy4fxFSVqM6HFnoOVfHAEMAnMw2oQaUPbnzbfxgD+KhTAv22ILBaTkK9hjdHEncdp2rjZC
-	GhAHq9/rDJ2NItUl2ZBFHXSw55LYthbTZ65mq1heM53oB77rbavFZgIy3ldd5lueRMA==
-X-Received: by 2002:a62:1f92:: with SMTP id l18mr48244662pfj.180.1554955046348;
+        bh=Y2aF/IIl27dEEAGYQuuIG6kjUSKoSHWS2RatmAtZPo4=;
+        b=AH4LCbve+7HZPKAc/6OOwns8zneFlhrNAhpNpDas0r/tYZGUr+vt40t8HGKCbfN5Uq
+         B6CVUQpWK+/z067yDIsEGEjJvpnM1SOZPg8TrdEWhFGpyxLMJeXw/09BSx7nR/vkq3Wd
+         hREa9SJxqiVen13/nBBhiEw+UHwafdAZCnHMNDYE9AFr4RIpK9xw1o31T9ecTG1ZPLuC
+         qRtl0e94sizujmgM7Ovzz5p5mWheu0ijtHVDgxRXo85MPA/u1WKUK5x4yMxSIpu7K0hG
+         3bTD2p+/xBAa7MQcSfX/E+Vb3tffXjz1+GS/D8LbBHMMxuXMQW7/zKIbIP2Xw50SGBzo
+         CNHA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUGQ86mxmV5jPk2ApZStDEyL9xTuIQkO0O+Qpd2Tn1eycZtkmt7
+	mKaMGu+8kTUk1jAHh8CCg8ZWDsJlGOTgl9TecxVoW7CJKRPn3Z9np1SbqsGQOx5fMOiXZbU5G6R
+	HkXansol0P4HUP/XceuZivqaZH/VXHUexrkHHCx41C3fXdYcMEMDaiNXavznCbZX5yw==
+X-Received: by 2002:a17:902:441:: with SMTP id 59mr18173997ple.242.1554955046669;
         Wed, 10 Apr 2019 20:57:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzBZ4USuZCRTqeJaWbvZG2tVgGuUMAygqnQFmGbwnf40iEbiBZhwh72bCQaUZxT9AvaY0f9
-X-Received: by 2002:a62:1f92:: with SMTP id l18mr48244593pfj.180.1554955044787;
-        Wed, 10 Apr 2019 20:57:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554955044; cv=none;
+X-Google-Smtp-Source: APXvYqxzmVsq82GZ1ars2niBviJDP59wZxw5vnmBxAN9qj6vGlN3hkqF/CejH8uIaYN+W3kc7S31
+X-Received: by 2002:a17:902:441:: with SMTP id 59mr18173915ple.242.1554955045125;
+        Wed, 10 Apr 2019 20:57:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554955045; cv=none;
         d=google.com; s=arc-20160816;
-        b=UlKgcPBg7wonOfDhdpQR91ZlZEXvccGXG20bLYLYiySoZT6h/gBzlD5lbh1RRdJn1w
-         vp/EyHeR07zuRV3ICvCZo9bQLblYO54eZE3zdkD9K9Q5AaJ+0DDLIg84R/I6WZSUgQUh
-         2aV/o1lL4V56SBoin+Sw4q758oJRuh9mjhFvAYbGzhegHY6xhQLTN4dTZSGgky3Rl1XH
-         ELxZiGFKchfCAs1vp5IqD+0xI1Iebl9OQEThI2UWbyucAGoBvWS9pw/w/0KemssHaLmw
-         IFLslznbAG0X6xUtKOr6coWPcLpK5nZygwgM8VAoNuB/jfCjv7htBi8iXwMeBDUBVFi3
-         tVgw==
+        b=puW64LNuAy1RPkWJFUSxK+r/sWNtLu/3cRDyBtYwnLFglh0tn0/oAjdsdu6kuq4Q0q
+         eqdm4otC+q5Uh++RKqfOSnBilqsQlyHmLQ5Ae1btuwRLCbw481x1hP558yWiuDjvmn3G
+         9m2qF2Q+uEa9fNR3HZa4+cX1/qwatX1A1wtDaeDTr6AhGze58XbOVNzbT553hNJTx2BM
+         0Oj9zeCNplpFKoe0AXWwG184q4gAAHoVw+QOXIq/ZoRu01JxkW6IJ+OkUudjk7CCKO2A
+         BUu/SMZjC1QeXv/+jQf378RL4iHqky94XtVlybak7sUWSUNnqRHj3mNM6S/AHqgLWWjv
+         JkWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=9VGPp5u5MHlsn+PLrxQC9AI+6qwPcFhzNxibXCLjh3U=;
-        b=BUvXcQqjDXlyynD2tLTRPvvW2u17qZscrEJkGrPS6uHhe53DagWVKTMDT2dwy5HaHB
-         3qlbkGDSI0m3p8yceA75wthcd/RkzALgFaenxua7L78GOFt7WS2qBEym9KEkklK3Db0e
-         NmYi4HVWHNkqyCOnrizi64bUDX9zEH8RkzhKMuxHko1pgpkPhNLzps3VFWk8VdK4cMtn
-         +Fbfy+J4fgGS9E0TXy07tcXLIstxyUX6/zY2aMUk17cNeDuld7sqaWV08/Do5/umWQ9u
-         gAy5DMZKDM0xhQVLy/fyMj94u/Sy/qNUv9d2uSedYL6YeyRK8VT1j8JtWf8j3Wt7NrfM
-         qn7w==
+        bh=Y2aF/IIl27dEEAGYQuuIG6kjUSKoSHWS2RatmAtZPo4=;
+        b=xuzZZ/bwpzHa9Topw7cF9y2reF99yKXozC8fmuXY2fPx4MX14a0xTe/Mon3ZgHKHA0
+         pF8U2jf0VinVmoe+jMyyGS3qfs0LMq0zS9PcSC+GgMDi5c7y1GKhUXEUQ445UYwoZwiC
+         /hWgEzw/87dXthOSKmMlv2wbY1KjSBjf6xNQY6/CmRYlttTD6qxl45ESxpsRzU5JnCaz
+         cZql8Z/zOSqM24V3y0Duzq1PtItqa3VDG9bVrd5Sl0z8GN3z+hR9oUFnjGGofcDdsjRx
+         23FvGPNwjZjVXTh2KxFWePM3sWpBk99L4zDsJHb9rkf5hZofRcrTxJG8OXGACWo9L0K3
+         +EiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id v18si10830416plo.394.2019.04.10.20.57.24
+Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
+        by mx.google.com with ESMTPS id m128si33434437pga.142.2019.04.10.20.57.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 20:57:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
+        Wed, 10 Apr 2019 20:57:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) client-ip=115.124.30.130;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R901e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R231e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TP0I5rB_1554955031)
           by smtp.aliyun-inc.com(127.0.0.1);
           Thu, 11 Apr 2019 11:57:22 +0800
@@ -96,9 +96,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v2 PATCH 3/9] mm: numa: promote pages to DRAM when it gets accessed twice
-Date: Thu, 11 Apr 2019 11:56:53 +0800
-Message-Id: <1554955019-29472-4-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH 4/9] mm: migrate: make migrate_pages() return nr_succeeded
+Date: Thu, 11 Apr 2019 11:56:54 +0800
+Message-Id: <1554955019-29472-5-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -108,324 +108,297 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-NUMA balancing would promote the pages to DRAM once it is accessed, but
-it might be just one off access.  To reduce migration thrashing and
-memory bandwidth pressure, just promote the page which gets accessed
-twice by extending page_check_references() to support second reference
-algorithm for anonymous page.
+The migrate_pages() returns the number of pages that were not migrated,
+or an error code.  When returning an error code, there is no way to know
+how many pages were migrated or not migrated.
 
-The page_check_reference() would walk all mapped pte or pmd to check if
-the page is referenced or not, but such walk sounds unnecessary to NUMA
-balancing since NUMA balancing would have pte or pmd referenced bit set
-all the time, so anonymous page would have at least one referenced pte
-or pmd.  And, distinguish with page reclaim path via scan_control,
-scan_control would be NULL in NUMA balancing path.
-
-This approach is not definitely the optimal one to distinguish the
-hot or cold pages accurately.  It may need much more sophisticated
-algorithm to distinguish hot or cold pages accurately.
+In the following patch, migrate_pages() is used to demote pages to PMEM
+node, we need account how many pages are reclaimed (demoted) since page
+reclaim behavior depends on this.  Add *nr_succeeded parameter to make
+migrate_pages() return how many pages are demoted successfully for all
+cases.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/huge_memory.c |  11 ++++++
- mm/internal.h    |  80 ++++++++++++++++++++++++++++++++++++++
- mm/memory.c      |  21 ++++++++++
- mm/vmscan.c      | 116 ++++++++++++++++---------------------------------------
- 4 files changed, 146 insertions(+), 82 deletions(-)
+ include/linux/migrate.h |  5 +++--
+ mm/compaction.c         |  3 ++-
+ mm/gup.c                |  4 +++-
+ mm/memory-failure.c     |  7 +++++--
+ mm/memory_hotplug.c     |  4 +++-
+ mm/mempolicy.c          |  7 +++++--
+ mm/migrate.c            | 18 ++++++++++--------
+ mm/page_alloc.c         |  4 +++-
+ 8 files changed, 34 insertions(+), 18 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 404acdc..0b18ac45 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1590,6 +1590,17 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 	}
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index e13d9bf..837fdd1 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -66,7 +66,8 @@ extern int migrate_page(struct address_space *mapping,
+ 			struct page *newpage, struct page *page,
+ 			enum migrate_mode mode);
+ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+-		unsigned long private, enum migrate_mode mode, int reason);
++		unsigned long private, enum migrate_mode mode, int reason,
++		unsigned int *nr_succeeded);
+ extern int isolate_movable_page(struct page *page, isolate_mode_t mode);
+ extern void putback_movable_page(struct page *page);
+ 
+@@ -84,7 +85,7 @@ extern int migrate_page_move_mapping(struct address_space *mapping,
+ static inline void putback_movable_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t new,
+ 		free_page_t free, unsigned long private, enum migrate_mode mode,
+-		int reason)
++		int reason, unsigned int *nr_succeeded)
+ 	{ return -ENOSYS; }
+ static inline int isolate_movable_page(struct page *page, isolate_mode_t mode)
+ 	{ return -EBUSY; }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index f171a83..c6a0ec4 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2065,6 +2065,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 	unsigned long last_migrated_pfn;
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
+ 	bool update_cached;
++	unsigned int nr_succeeded = 0;
+ 
+ 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
+@@ -2173,7 +2174,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 
+ 		err = migrate_pages(&cc->migratepages, compaction_alloc,
+ 				compaction_free, (unsigned long)cc, cc->mode,
+-				MR_COMPACTION);
++				MR_COMPACTION, &nr_succeeded);
+ 
+ 		trace_mm_compaction_migratepages(cc->nr_migratepages, err,
+ 							&cc->migratepages);
+diff --git a/mm/gup.c b/mm/gup.c
+index f84e226..b482b8c 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1217,6 +1217,7 @@ static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
+ 	long i;
+ 	bool drain_allow = true;
+ 	bool migrate_allow = true;
++	unsigned int nr_succeeded = 0;
+ 	LIST_HEAD(cma_page_list);
+ 
+ check_again:
+@@ -1257,7 +1258,8 @@ static long check_and_migrate_cma_pages(unsigned long start, long nr_pages,
+ 			put_page(pages[i]);
+ 
+ 		if (migrate_pages(&cma_page_list, new_non_cma_page,
+-				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
++				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE,
++				  &nr_succeeded)) {
+ 			/*
+ 			 * some of the pages failed migration. Do get_user_pages
+ 			 * without migration.
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index fc8b517..b5d8a8f 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1686,6 +1686,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct page *hpage = compound_head(page);
++	unsigned int nr_succeeded = 0;
+ 	LIST_HEAD(pagelist);
  
  	/*
-+	 * Promote the page when it gets NUMA fault twice.
-+	 * It is safe to set page flag since the page is locked now.
-+	 */
-+	if (!node_state(page_nid, N_CPU_MEM) &&
-+	    page_check_references(page, NULL) != PAGEREF_PROMOTE) {
-+		put_page(page);
-+		page_nid = NUMA_NO_NODE;
-+		goto clear_pmdnuma;
-+	}
-+
-+	/*
- 	 * Migrate the THP to the requested node, returns with page unlocked
- 	 * and access rights restored.
- 	 */
-diff --git a/mm/internal.h b/mm/internal.h
-index a514808..bee4d6c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -89,8 +89,88 @@ static inline void set_page_refcounted(struct page *page)
- /*
-  * in mm/vmscan.c:
-  */
-+struct scan_control {
-+	/* How many pages shrink_list() should reclaim */
-+	unsigned long nr_to_reclaim;
-+
-+	/*
-+	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
-+	 * are scanned.
-+	 */
-+	nodemask_t	*nodemask;
-+
-+	/*
-+	 * The memory cgroup that hit its limit and as a result is the
-+	 * primary target of this reclaim invocation.
-+	 */
-+	struct mem_cgroup *target_mem_cgroup;
-+
-+	/* Writepage batching in laptop mode; RECLAIM_WRITE */
-+	unsigned int may_writepage:1;
-+
-+	/* Can mapped pages be reclaimed? */
-+	unsigned int may_unmap:1;
-+
-+	/* Can pages be swapped as part of reclaim? */
-+	unsigned int may_swap:1;
-+
-+	/* e.g. boosted watermark reclaim leaves slabs alone */
-+	unsigned int may_shrinkslab:1;
-+
-+	/*
-+	 * Cgroups are not reclaimed below their configured memory.low,
-+	 * unless we threaten to OOM. If any cgroups are skipped due to
-+	 * memory.low and nothing was reclaimed, go back for memory.low.
-+	 */
-+	unsigned int memcg_low_reclaim:1;
-+	unsigned int memcg_low_skipped:1;
-+
-+	unsigned int hibernation_mode:1;
-+
-+	/* One of the zones is ready for compaction */
-+	unsigned int compaction_ready:1;
-+
-+	/* Allocation order */
-+	s8 order;
-+
-+	/* Scan (total_size >> priority) pages at once */
-+	s8 priority;
-+
-+	/* The highest zone to isolate pages for reclaim from */
-+	s8 reclaim_idx;
-+
-+	/* This context's GFP mask */
-+	gfp_t gfp_mask;
-+
-+	/* Incremented by the number of inactive pages that were scanned */
-+	unsigned long nr_scanned;
-+
-+	/* Number of pages freed so far during a call to shrink_zones() */
-+	unsigned long nr_reclaimed;
-+
-+	struct {
-+		unsigned int dirty;
-+		unsigned int unqueued_dirty;
-+		unsigned int congested;
-+		unsigned int writeback;
-+		unsigned int immediate;
-+		unsigned int file_taken;
-+		unsigned int taken;
-+	} nr;
-+};
-+
-+enum page_references {
-+	PAGEREF_RECLAIM,
-+	PAGEREF_RECLAIM_CLEAN,
-+	PAGEREF_KEEP,
-+	PAGEREF_ACTIVATE,
-+	PAGEREF_PROMOTE = PAGEREF_ACTIVATE,
-+};
-+
- extern int isolate_lru_page(struct page *page);
- extern void putback_lru_page(struct page *page);
-+enum page_references page_check_references(struct page *page,
-+					   struct scan_control *sc);
- 
- /*
-  * in mm/rmap.c:
-diff --git a/mm/memory.c b/mm/memory.c
-index 47fe250..01c1ead 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3680,6 +3680,27 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
- 		goto out;
+@@ -1713,7 +1714,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
  	}
  
-+	/*
-+	 * Promote the page when it gets NUMA fault twice.
-+	 * Need lock the page before check its references.
-+	 */
-+	if (!node_state(page_nid, N_CPU_MEM)) {
-+		if (!trylock_page(page)) {
-+			put_page(page);
-+			target_nid = NUMA_NO_NODE;
-+			goto out;
-+		}
-+
-+		if (page_check_references(page, NULL) != PAGEREF_PROMOTE) {
-+			unlock_page(page);
-+			put_page(page);
-+			target_nid = NUMA_NO_NODE;
-+			goto out;
-+		}
-+
-+		unlock_page(page);
-+	}
-+
- 	/* Migrate to the requested node */
- 	migrated = migrate_misplaced_page(page, vma, target_nid);
- 	if (migrated) {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a5ad0b3..0504845 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -63,76 +63,6 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
- 
--struct scan_control {
--	/* How many pages shrink_list() should reclaim */
--	unsigned long nr_to_reclaim;
--
--	/*
--	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
--	 * are scanned.
--	 */
--	nodemask_t	*nodemask;
--
--	/*
--	 * The memory cgroup that hit its limit and as a result is the
--	 * primary target of this reclaim invocation.
--	 */
--	struct mem_cgroup *target_mem_cgroup;
--
--	/* Writepage batching in laptop mode; RECLAIM_WRITE */
--	unsigned int may_writepage:1;
--
--	/* Can mapped pages be reclaimed? */
--	unsigned int may_unmap:1;
--
--	/* Can pages be swapped as part of reclaim? */
--	unsigned int may_swap:1;
--
--	/* e.g. boosted watermark reclaim leaves slabs alone */
--	unsigned int may_shrinkslab:1;
--
--	/*
--	 * Cgroups are not reclaimed below their configured memory.low,
--	 * unless we threaten to OOM. If any cgroups are skipped due to
--	 * memory.low and nothing was reclaimed, go back for memory.low.
--	 */
--	unsigned int memcg_low_reclaim:1;
--	unsigned int memcg_low_skipped:1;
--
--	unsigned int hibernation_mode:1;
--
--	/* One of the zones is ready for compaction */
--	unsigned int compaction_ready:1;
--
--	/* Allocation order */
--	s8 order;
--
--	/* Scan (total_size >> priority) pages at once */
--	s8 priority;
--
--	/* The highest zone to isolate pages for reclaim from */
--	s8 reclaim_idx;
--
--	/* This context's GFP mask */
--	gfp_t gfp_mask;
--
--	/* Incremented by the number of inactive pages that were scanned */
--	unsigned long nr_scanned;
--
--	/* Number of pages freed so far during a call to shrink_zones() */
--	unsigned long nr_reclaimed;
--
--	struct {
--		unsigned int dirty;
--		unsigned int unqueued_dirty;
--		unsigned int congested;
--		unsigned int writeback;
--		unsigned int immediate;
--		unsigned int file_taken;
--		unsigned int taken;
--	} nr;
--};
--
- #ifdef ARCH_HAS_PREFETCH
- #define prefetch_prev_lru_page(_page, _base, _field)			\
- 	do {								\
-@@ -1002,21 +932,32 @@ void putback_lru_page(struct page *page)
- 	put_page(page);		/* drop ref from isolate */
- }
- 
--enum page_references {
--	PAGEREF_RECLAIM,
--	PAGEREF_RECLAIM_CLEAN,
--	PAGEREF_KEEP,
--	PAGEREF_ACTIVATE,
--};
--
--static enum page_references page_check_references(struct page *page,
--						  struct scan_control *sc)
-+/*
-+ * Called by NUMA balancing to implement access twice check for
-+ * promoting pages from cpuless nodes.
-+ *
-+ * The sc would be NULL in NUMA balancing path.
-+ */
-+enum page_references page_check_references(struct page *page,
-+					   struct scan_control *sc)
+ 	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+-				MIGRATE_SYNC, MR_MEMORY_FAILURE);
++				MIGRATE_SYNC, MR_MEMORY_FAILURE, &nr_succeeded);
+ 	if (ret) {
+ 		pr_info("soft offline: %#lx: hugepage migration failed %d, type %lx (%pGp)\n",
+ 			pfn, ret, page->flags, &page->flags);
+@@ -1742,6 +1743,7 @@ static int __soft_offline_page(struct page *page, int flags)
  {
- 	int referenced_ptes, referenced_page;
- 	unsigned long vm_flags;
-+	struct mem_cgroup *memcg = sc ? sc->target_mem_cgroup : NULL;
-+
-+	if (sc)
-+		referenced_ptes = page_referenced(page, 1, memcg, &vm_flags);
-+	else
-+		/*
-+		 * The page should always has at least one referenced pte
-+		 * in NUMA balancing path since NUMA balancing set referenced
-+		 * bit by default in PAGE_NONE.
-+		 * So, it sounds unnecessary to walk rmap to get the number of
-+		 * referenced ptes.  This also help avoid potential ptl
-+		 * deadlock for huge pmd.
-+		 */
-+		referenced_ptes = 1;
- 
--	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
--					  &vm_flags);
- 	referenced_page = TestClearPageReferenced(page);
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
++	unsigned int nr_succeeded = 0;
  
  	/*
-@@ -1027,8 +968,19 @@ static enum page_references page_check_references(struct page *page,
- 		return PAGEREF_RECLAIM;
+ 	 * Check PageHWPoison again inside page lock because PageHWPoison
+@@ -1801,7 +1803,8 @@ static int __soft_offline_page(struct page *page, int flags)
+ 						page_is_file_cache(page));
+ 		list_add(&page->lru, &pagelist);
+ 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+-					MIGRATE_SYNC, MR_MEMORY_FAILURE);
++					MIGRATE_SYNC, MR_MEMORY_FAILURE,
++					&nr_succeeded);
+ 		if (ret) {
+ 			if (!list_empty(&pagelist))
+ 				putback_movable_pages(&pagelist);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 1140f3b..29414a4 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1375,6 +1375,7 @@ static struct page *new_node_page(struct page *page, unsigned long private)
+ 	unsigned long pfn;
+ 	struct page *page;
+ 	int ret = 0;
++	unsigned int nr_succeeded = 0;
+ 	LIST_HEAD(source);
  
- 	if (referenced_ptes) {
--		if (PageSwapBacked(page))
-+		if (PageSwapBacked(page)) {
-+			if (!sc) {
-+				if (referenced_page)
-+					return PAGEREF_ACTIVATE;
-+
-+				SetPageReferenced(page);
-+
-+				return PAGEREF_KEEP;
-+			}
-+
- 			return PAGEREF_ACTIVATE;
-+		}
-+
- 		/*
- 		 * All mapped pages start out with page table
- 		 * references from the instantiating fault, so we need
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+@@ -1435,7 +1436,8 @@ static struct page *new_node_page(struct page *page, unsigned long private)
+ 	if (!list_empty(&source)) {
+ 		/* Allocate a new page from the nearest neighbor node */
+ 		ret = migrate_pages(&source, new_node_page, NULL, 0,
+-					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
++					MIGRATE_SYNC, MR_MEMORY_HOTPLUG,
++					&nr_succeeded);
+ 		if (ret) {
+ 			list_for_each_entry(page, &source, lru) {
+ 				pr_warn("migrating pfn %lx failed ret:%d ",
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index af171cc..96d6e2e 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -962,6 +962,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 	nodemask_t nmask;
+ 	LIST_HEAD(pagelist);
+ 	int err = 0;
++	unsigned int nr_succeeded = 0;
+ 
+ 	nodes_clear(nmask);
+ 	node_set(source, nmask);
+@@ -977,7 +978,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
+-					MIGRATE_SYNC, MR_SYSCALL);
++					MIGRATE_SYNC, MR_SYSCALL, &nr_succeeded);
+ 		if (err)
+ 			putback_movable_pages(&pagelist);
+ 	}
+@@ -1156,6 +1157,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	struct mempolicy *new;
+ 	unsigned long end;
+ 	int err;
++	unsigned int nr_succeeded = 0;
+ 	LIST_HEAD(pagelist);
+ 
+ 	if (flags & ~(unsigned long)MPOL_MF_VALID)
+@@ -1228,7 +1230,8 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 		if (!list_empty(&pagelist)) {
+ 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+ 			nr_failed = migrate_pages(&pagelist, new_page, NULL,
+-				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
++				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND,
++				&nr_succeeded);
+ 			if (nr_failed)
+ 				putback_movable_pages(&pagelist);
+ 		}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index ac6f493..84bba47 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1387,6 +1387,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+  * @mode:		The migration mode that specifies the constraints for
+  *			page migration, if any.
+  * @reason:		The reason for page migration.
++ * @nr_succeeded:	The number of pages migrated successfully.
+  *
+  * The function returns after 10 attempts or if no pages are movable any more
+  * because the list has become empty or no retryable pages exist any more.
+@@ -1397,11 +1398,10 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+  */
+ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 		free_page_t put_new_page, unsigned long private,
+-		enum migrate_mode mode, int reason)
++		enum migrate_mode mode, int reason, unsigned int *nr_succeeded)
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
+-	int nr_succeeded = 0;
+ 	int pass = 0;
+ 	struct page *page;
+ 	struct page *page2;
+@@ -1455,7 +1455,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 				retry++;
+ 				break;
+ 			case MIGRATEPAGE_SUCCESS:
+-				nr_succeeded++;
++				(*nr_succeeded)++;
+ 				break;
+ 			default:
+ 				/*
+@@ -1472,11 +1472,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 	nr_failed += retry;
+ 	rc = nr_failed;
+ out:
+-	if (nr_succeeded)
+-		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
++	if (*nr_succeeded)
++		count_vm_events(PGMIGRATE_SUCCESS, *nr_succeeded);
+ 	if (nr_failed)
+ 		count_vm_events(PGMIGRATE_FAIL, nr_failed);
+-	trace_mm_migrate_pages(nr_succeeded, nr_failed, mode, reason);
++	trace_mm_migrate_pages(*nr_succeeded, nr_failed, mode, reason);
+ 
+ 	if (!swapwrite)
+ 		current->flags &= ~PF_SWAPWRITE;
+@@ -1501,12 +1501,13 @@ static int do_move_pages_to_node(struct mm_struct *mm,
+ 		struct list_head *pagelist, int node)
+ {
+ 	int err;
++	unsigned int nr_succeeded = 0;
+ 
+ 	if (list_empty(pagelist))
+ 		return 0;
+ 
+ 	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
+-			MIGRATE_SYNC, MR_SYSCALL);
++			MIGRATE_SYNC, MR_SYSCALL, &nr_succeeded);
+ 	if (err)
+ 		putback_movable_pages(pagelist);
+ 	return err;
+@@ -1939,6 +1940,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
+ 	pg_data_t *pgdat = NODE_DATA(node);
+ 	int isolated;
+ 	int nr_remaining;
++	unsigned int nr_succeeded = 0;
+ 	LIST_HEAD(migratepages);
+ 
+ 	/*
+@@ -1963,7 +1965,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
+ 	list_add(&page->lru, &migratepages);
+ 	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
+ 				     NULL, node, MIGRATE_ASYNC,
+-				     MR_NUMA_MISPLACED);
++				     MR_NUMA_MISPLACED, &nr_succeeded);
+ 	if (nr_remaining) {
+ 		if (!list_empty(&migratepages)) {
+ 			list_del(&page->lru);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bda17c2..e53cc96 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8139,6 +8139,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 	unsigned long pfn = start;
+ 	unsigned int tries = 0;
+ 	int ret = 0;
++	unsigned int nr_succeeded = 0;
+ 
+ 	migrate_prep();
+ 
+@@ -8166,7 +8167,8 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 		cc->nr_migratepages -= nr_reclaimed;
+ 
+ 		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
+-				    NULL, 0, cc->mode, MR_CONTIG_RANGE);
++				    NULL, 0, cc->mode, MR_CONTIG_RANGE,
++				    &nr_succeeded);
+ 	}
+ 	if (ret < 0) {
+ 		putback_movable_pages(&cc->migratepages);
 -- 
 1.8.3.1
 
