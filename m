@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D36B8C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AEA7C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87F23217F9
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 397D62075B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="iznmAI5R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87F23217F9
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="yBlNj5Aj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 397D62075B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 29C896B0271; Wed, 10 Apr 2019 21:37:36 -0400 (EDT)
+	id E346E6B0273; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24CCC6B0272; Wed, 10 Apr 2019 21:37:36 -0400 (EDT)
+	id DE48F6B0274; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1151E6B0273; Wed, 10 Apr 2019 21:37:36 -0400 (EDT)
+	id C86E66B0275; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E67E66B0271
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:37:35 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id f89so4160562qtb.4
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:37:35 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A807A6B0273
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id o135so3690913qke.11
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:37:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Tz/SWwtx1/b22exijoLQtrMgYyhU13VuaiIWZg1apv8=;
-        b=s7wn7PpnIyqdEWAtSx2Euua0auS4CIzK4O5wCRpgORM3Gltu3hwxOptPZz/WTxeRFT
-         LbjQUk2r1xFSJhq2hS2pA2ibf2OXzy4CPwE3DCKrJmv6xsLnXlEO2A0UA8UwYfX4+SkU
-         Q4DkfIgBrVlOxY2g5atJIAnybacDE5XY23B5qc6Gm3jpdDDcrraL2DfC4y23uRriocPH
-         ernM1UUigQTOjaX5J4X5HeEmgIFetSRMDmrs+WuaiNAPr4dfTOoggNs2HOSu+epRDDsP
-         DcSwNhIQEweBZSYqTEtjyTYYb7Yo3y1Itq0/GjaFOrl75BtjViGZGZdW0f0OO/NMor5E
-         MjTA==
-X-Gm-Message-State: APjAAAXjYLn5YOP8LGLFDYRZkwp+5Mwhr7H1PvN3RTJCBkGMhTIDE6K1
-	kpQMinXfX4RNt8c3cDh8TBLPTYdAiI+/TGvydjiCdEV19zH6I/bJuZf4wAsrbYg13TPQcjhCTWx
-	1uBAR4xGhroq/VRiuz8CuTp7vigLg0QXJOt+YsQ8rwwdYY8IZ5Dyt4SHcMq8E4iM=
-X-Received: by 2002:a37:a81:: with SMTP id 123mr36195740qkk.290.1554946655697;
-        Wed, 10 Apr 2019 18:37:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjpdIsq8oRPPkbSiht6mXgsMEkxBNS9QMsgO9yCSGT0yZHYeKBeEqPmH12R4sFZ4UOWltY
-X-Received: by 2002:a37:a81:: with SMTP id 123mr36195683qkk.290.1554946654567;
-        Wed, 10 Apr 2019 18:37:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554946654; cv=none;
+        bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=;
+        b=bBbW7XcvhwdoEcFf+SLuF55gskwgAdEigO5YE4Ow+xZJAMuntb07JfYdZ+aLPufIBa
+         IElGzOa7NXxHb4URDzCX1AqsMreHafl91tWsPSTu01ILhHtm23NeZ6QxKknM3pPb8YSD
+         55DPDroVZdZYDrR3UkLlRsnHRWl54cAXNbg0hC3JhHL9zGx0XD+9RGtFuOt5gJO7bPrx
+         5n6f8W8G4meyQBjkgozYcb89TXFshOgxzaAtEfJDB86HJT0LlGZE2MlQfamhgxnT44Bq
+         ZWOf5NmL6beGIbs4g12Sc0Q3DSB6qNnAOUMkyI5RLKCwyn49/KXJNlmShUHatfq6RpAJ
+         wOcA==
+X-Gm-Message-State: APjAAAU0JRpEFFHQQK6ULTCMFzumonWDQw/CVVhVqtKJYwbkvIQNab1c
+	QrLCAKkOn3Wc/rF9xJE2PfBO7/UTnvQrgLEqBxPr+OBHFe5UNjPvX4LKvVc5W2GzIc//8/tuoam
+	lTJMPFOtqT5sOp/QtLTY8HcyFP4Y3EjWBloqcYDTxMHnv8f3sAmASgBNT5dzPa2I=
+X-Received: by 2002:a0c:f806:: with SMTP id r6mr36700376qvn.188.1554946663429;
+        Wed, 10 Apr 2019 18:37:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz68k1rRPb84r6AWeFC8RCH7p6WHxvOFj6slNaIvpkOioXJkk4EG11c4G6CiRjeN0KB7L6m
+X-Received: by 2002:a0c:f806:: with SMTP id r6mr36700338qvn.188.1554946662494;
+        Wed, 10 Apr 2019 18:37:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554946662; cv=none;
         d=google.com; s=arc-20160816;
-        b=h8ieYGMRE/HLuw7/BmBQup9QPIGde4Y1p4aqT/aTM2shxOwtWV+r6wijZdgs7dtmSX
-         yVZ5RMv0vFPUEEeaNjV1WBbCGwBMTI/SiQdl82VoqqpaPOjB3CUGQt2CSN3qih9amAbv
-         nJMr2uLF15uoI/8JXyvbtlLuc/BNVs49Eq59kwKQWDgD4p8/pOy/hq6hloZi5MrP8WSn
-         JplVdDXplmW+eaMKRjDFlUanbYvRmkwI1rPWlfDAK3N8cEwfQg8j7YH15lwKnGFJ2wWP
-         7FThcCHeVBT/KxklxZF3pppvgXqyyNlmB9qAMyhJdn81qTz9evujTP8s/V7MNJmZNgCo
-         4ZJw==
+        b=KUkBu9fy8iTWIoQMOKTi5xhRhVlh5eZ6BdaUoWhqlM/lNOz3yRF+XmwwEgTvf1wJTy
+         se1lmZu+Y2ERv4Nnf2eoQUov9Z3RF9Elab38rXRI4KamTON1S5zMNqhhwsxeS1NTIWpr
+         1tlvSUHdJylzIksotIIODunLyDv2+OMaaGgBEqnmO+deUOCEWct8X3v8rrbn88EPPUFE
+         pzdsdO7kU4vMD+Ku8YmEzb8f1htcoTrFMHTLGsTvcDJ0BldG9woeJNRi8CYvyYimLG16
+         +EqnIr/yt/I8XDmi5FWfyQY4N5qjzWYRFLSgzDWl5HcfHmNFNbPSoMkPatkQMm7o3E3l
+         oADA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Tz/SWwtx1/b22exijoLQtrMgYyhU13VuaiIWZg1apv8=;
-        b=e0VsX8P18RkAF7aSHZeWwyMf2myP1jV+sqxOm2KnFl7hRvXhPpHliduSrv24QQ68u3
-         Pkck50PkaGoCYBPboxv9Klxswb1P9jB55pnBnnGS655aKYC0PDyn3MKvW8BjWTh2MI5d
-         XuMRoGk6SQajhlkDX7IpZQSBiQ3Jw71DWXOURkNSUJXoj1fvlyOlnpGEBpnB6sCYeWOj
-         0+I2SVOS3T5TtefCz3uoFRI/SDZ6FwR2Fojt5L+SD1Wif5veqM51mER8SEQhFD3Vm+tX
-         ZjaUo4Kjbg0XDmisFtUKWrj06XaMe8kgu4eBgbbRPv177nKlka/jiXqXE17BVxR0zVmg
-         E/Cw==
+        bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=;
+        b=BLlDz1kTpmEgsWI01KT69vqXf1lEcUxvywE1egLkozulLO6dfpemOUAsKd0iLFLG0x
+         mE8w3X++wU2ANhtkjbG9koQcVA9N5QKnACNCKoQwXkGYGfvGbj02N60AYIPsAmztZ3NN
+         qqZ0H6DBNJa6v0QIqBolGbDJ1q4j9ET9JJ2q5uKYgFtMsToBld9rh5jFEXGd3wmieZqC
+         iUNlVVih4HnoryUS8CwhrbH2mRYEEVO0gC0Ben4g51bHS6NRERHt8NzOMQOo6ISSYV1i
+         /jyoc8W8Ij+WIXasufKonR1PnYFHTtc3iuJ1tonBV6AR7I/Pp0NJG7liKtT2eN0hCkiw
+         qQyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=iznmAI5R;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=yBlNj5Aj;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id 58si1866447qtr.13.2019.04.10.18.37.34
+        by mx.google.com with ESMTPS id k59si3146115qte.346.2019.04.10.18.37.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 18:37:34 -0700 (PDT)
+        Wed, 10 Apr 2019 18:37:42 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=iznmAI5R;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=yBlNj5Aj;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 42902E381;
-	Wed, 10 Apr 2019 21:37:34 -0400 (EDT)
+	by mailnew.nyi.internal (Postfix) with ESMTP id 3835E999B;
+	Wed, 10 Apr 2019 21:37:42 -0400 (EDT)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Wed, 10 Apr 2019 21:37:34 -0400
+  by compute3.internal (MEProxy); Wed, 10 Apr 2019 21:37:42 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=Tz/SWwtx1/b22exijoLQtrMgYyhU13VuaiIWZg1apv8=; b=iznmAI5R
-	H9ikZ/IxUJRwg4UQ92VO03JXfnlZj/iJfMtu17QXBLgQtDR+f3u8p8GbVAW4r4hH
-	08v3gkNkv38cluYvTeXyzLFFXG0OzdiLGj3jlV2ZZ28XdENqLZ1JLLrhvmBQshH/
-	5bM5YLEi3slnOVkF5xyu61ADUXeWqagDwbQfuOe8N/GS7Mvsj5JHnpG/tZHIAnVw
-	8t2VvNfUEibKktEdhsSi0OyPGlKNIXP5jqluRhFYljLTi9ETNX655jayoAL5Pefo
-	UMYCAIDzi8LbZgTnM8nsew0lwwBbvhg3w+andcwCcEpb/OflKCy+zQl5Qt5hMTEw
-	bNhRvkWL8TzgdQ==
-X-ME-Sender: <xms:XpquXLTfO_DCWnZoFxnJLHuFl1tkD_Z29m74o1SynRw0yxxkr-KNLg>
+	fm2; bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=; b=yBlNj5Aj
+	x0jERAcX2nr8Cd8pENxlZdO97pwvF1NoK6TuCQ1brau0DWTvV1ZSAt1dD+zRVwt1
+	f7G5jP181kU6gbOeouIaRF4A6IZLX20cnJ0PCFa/nGlv/IfL6IJWJtdT0N3ZOXBU
+	TEj8iyiSmiX8iwAMHX9jUxkgs4KHVBbZL5HdCCorCoHBuh4x0Fr43See53XVlJl5
+	vzXXuJUfpxuFmBKCN8ruXW6Q8GiYxgFV1oW8b40DUJ3RHiA+nFIPaSBX6MckJ9W+
+	UUSWKB2gpBjc4X76BEUfeXBA9tKmd1n+ZV7ZxbWuO4pxRq1wdrzfVUn39bFzO9sn
+	v4xFOp3swHx1Ug==
+X-ME-Sender: <xms:ZZquXJCrAVQEDp_0eq0hFxaFtI5OiOF4bIethMS67w2YR9Kdq7_Dbg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudekgdegvdcutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
@@ -105,13 +105,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudekgdegvdcutefuodetggdote
     ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
     epuddvgedrudejuddrudelrdduleegnecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgs
     ihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:XpquXKs_o7x4LvcYUIxG90FGXBLlOVDNw8V040LKW-i994uPuSVhTA>
-    <xmx:XpquXDL_yu9XbCU6j23_CznDVFUBaMPcHUeaZd25EPia4RHWlG5vXA>
-    <xmx:XpquXPnukGHvNVNQW4zc-G1tnIfwjpQwaBlUG-Iy-xsMX2FlLF-LmA>
-    <xmx:XpquXOHR_FLICvEA9aNI3PGLWIa9jgwAcXPlr5PKB0HHsGfkUhB4Yg>
+X-ME-Proxy: <xmx:ZZquXLezwxv2nRBUMSG-riGoxXI303uykE5A8vzzWrl_5OtCCx5O7A>
+    <xmx:ZZquXNEuO00nfKwnCztsTH-gnPDWMoTAfPvgDz7HuE_iOP6tDZxdUQ>
+    <xmx:ZZquXNXFyubUjW-O0i8GykgVGgog10PVBVThGrr6IJvGV-RRXL4kCw>
+    <xmx:ZpquXO5IVF19Ojbcc8e9uXN0JvZAt1FudYX4shceC83MWYKHF_PAYQ>
 Received: from eros.localdomain (124-171-19-194.dyn.iinet.net.au [124.171.19.194])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 655DDE4332;
-	Wed, 10 Apr 2019 21:37:26 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 62D49E408B;
+	Wed, 10 Apr 2019 21:37:34 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -137,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v3 14/15] dcache: Implement partial shrink via Slab Movable Objects
-Date: Thu, 11 Apr 2019 11:34:40 +1000
-Message-Id: <20190411013441.5415-15-tobin@kernel.org>
+Subject: [RFC PATCH v3 15/15] dcache: Add CONFIG_DCACHE_SMO
+Date: Thu, 11 Apr 2019 11:34:41 +1000
+Message-Id: <20190411013441.5415-16-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190411013441.5415-1-tobin@kernel.org>
 References: <20190411013441.5415-1-tobin@kernel.org>
@@ -151,124 +151,69 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The dentry slab cache is susceptible to internal fragmentation.  Now
-that we have Slab Movable Objects we can attempt to defragment the
-dcache.  Dentry objects are inherently _not_ relocatable however under
-some conditions they can be free'd.  This is the same as shrinking the
-dcache but instead of shrinking the whole cache we only attempt to free
-those objects that are located in partially full slab pages.  There is
-no guarantee that this will reduce the memory usage of the system, it is
-a compromise between fragmented memory and total cache shrinkage with
-the hope that some memory pressure can be alleviated.
+In an attempt to make the SMO patchset as non-invasive as possible add a
+config option CONFIG_DCACHE_SMO (under "Memory Management options") for
+enabling SMO for the DCACHE.  Whithout this option dcache constructor is
+used but no other code is built in, with this option enabled slab
+mobility is enabled and the isolate/migrate functions are built in.
 
-This is implemented using the newly added Slab Movable Objects
-infrastructure.  The dcache 'migration' function is intentionally _not_
-called 'd_migrate' because we only free, we do not migrate.  Call it
-'d_partial_shrink' to make explicit that no reallocation is done.
-
-Implement isolate and 'migrate' functions for the dentry slab cache.
+Add CONFIG_DCACHE_SMO to guard the partial shrinking of the dcache via
+Slab Movable Objects infrastructure.
 
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- fs/dcache.c | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 71 insertions(+)
+ fs/dcache.c | 4 ++++
+ mm/Kconfig  | 7 +++++++
+ 2 files changed, 11 insertions(+)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 606cfca20d42..5c707ed9ab5a 100644
+index 5c707ed9ab5a..5ef68b78b457 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -30,6 +30,7 @@
- #include <linux/bit_spinlock.h>
- #include <linux/rculist_bl.h>
- #include <linux/list_lru.h>
-+#include <linux/backing-dev.h>
- #include "internal.h"
- #include "mount.h"
- 
-@@ -3068,6 +3069,74 @@ void d_tmpfile(struct dentry *dentry, struct inode *inode)
+@@ -3069,6 +3069,7 @@ void d_tmpfile(struct dentry *dentry, struct inode *inode)
  }
  EXPORT_SYMBOL(d_tmpfile);
  
-+/*
-+ * d_isolate() - Dentry isolation callback function.
-+ * @s: The dentry cache.
-+ * @v: Vector of pointers to the objects to isolate.
-+ * @nr: Number of objects in @v.
-+ *
-+ * The slab allocator is holding off frees. We can safely examine
-+ * the object without the danger of it vanishing from under us.
-+ */
-+static void *d_isolate(struct kmem_cache *s, void **v, int nr)
-+{
-+	struct dentry *dentry;
-+	int i;
-+
-+	for (i = 0; i < nr; i++) {
-+		dentry = v[i];
-+		__dget(dentry);
-+	}
-+
-+	return NULL;		/* No need for private data */
-+}
-+
-+/*
-+ * d_partial_shrink() - Dentry migration callback function.
-+ * @s: The dentry cache.
-+ * @v: Vector of pointers to the objects to migrate.
-+ * @nr: Number of objects in @v.
-+ * @node: The NUMA node where new object should be allocated.
-+ * @private: Returned by d_isolate() (currently %NULL).
-+ *
-+ * Dentry objects _can not_ be relocated and shrinking the whole dcache
-+ * can be expensive.  This is an effort to free dentry objects that are
-+ * stopping slab pages from being free'd without clearing the whole dcache.
-+ *
-+ * This callback is called from the SLUB allocator object migration
-+ * infrastructure in attempt to free up slab pages by freeing dentry
-+ * objects from partially full slabs.
-+ */
-+static void d_partial_shrink(struct kmem_cache *s, void **v, int nr,
-+		      int node, void *_unused)
-+{
-+	struct dentry *dentry;
-+	LIST_HEAD(dispose);
-+	int i;
-+
-+	for (i = 0; i < nr; i++) {
-+		dentry = v[i];
-+		spin_lock(&dentry->d_lock);
-+		dentry->d_lockref.count--;
-+
-+		if (dentry->d_lockref.count > 0 ||
-+		    dentry->d_flags & DCACHE_SHRINK_LIST) {
-+			spin_unlock(&dentry->d_lock);
-+			continue;
-+		}
-+
-+		if (dentry->d_flags & DCACHE_LRU_LIST)
-+			d_lru_del(dentry);
-+
-+		d_shrink_add(dentry, &dispose);
-+
-+		spin_unlock(&dentry->d_lock);
-+	}
-+
-+	if (!list_empty(&dispose))
-+		shrink_dentry_list(&dispose);
-+}
-+
++#ifdef CONFIG_DCACHE_SMO
+ /*
+  * d_isolate() - Dentry isolation callback function.
+  * @s: The dentry cache.
+@@ -3136,6 +3137,7 @@ static void d_partial_shrink(struct kmem_cache *s, void **v, int nr,
+ 	if (!list_empty(&dispose))
+ 		shrink_dentry_list(&dispose);
+ }
++#endif	/* CONFIG_DCACHE_SMO */
+ 
  static __initdata unsigned long dhash_entries;
  static int __init set_dhash_entries(char *str)
- {
-@@ -3113,6 +3182,8 @@ static void __init dcache_init(void)
+@@ -3182,7 +3184,9 @@ static void __init dcache_init(void)
  					   sizeof_field(struct dentry, d_iname),
  					   dcache_ctor);
  
-+	kmem_cache_setup_mobility(dentry_cache, d_isolate, d_partial_shrink);
-+
++#ifdef CONFIG_DCACHE_SMO
+ 	kmem_cache_setup_mobility(dentry_cache, d_isolate, d_partial_shrink);
++#endif
+ 
  	/* Hash may have been set up in dcache_init_early */
  	if (!hashdist)
- 		return;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 47040d939f3b..92fc27ad3472 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -265,6 +265,13 @@ config SMO_NODE
+        help
+          On NUMA systems enable moving objects to and from a specified node.
+ 
++config DCACHE_SMO
++       bool "Enable Slab Movable Objects for the dcache"
++       depends on SLUB
++       help
++         Under memory pressure we can try to free dentry slab cache objects from
++         the partial slab list if this is enabled.
++
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT
+ 
 -- 
 2.21.0
 
