@@ -4,76 +4,76 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 093C9C282DA
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AE20CC282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B620220850
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B620220850
+	by mail.kernel.org (Postfix) with ESMTP id 756852146F
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:08:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 756852146F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 991DB6B026A; Thu, 11 Apr 2019 17:08:48 -0400 (EDT)
+	id 28DB56B026B; Thu, 11 Apr 2019 17:08:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F7226B026B; Thu, 11 Apr 2019 17:08:48 -0400 (EDT)
+	id 218646B026C; Thu, 11 Apr 2019 17:08:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 724E86B026C; Thu, 11 Apr 2019 17:08:48 -0400 (EDT)
+	id 0BC2C6B026D; Thu, 11 Apr 2019 17:08:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 436366B026A
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:08:48 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g25so6168867qkm.22
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:08:48 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D41266B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:08:49 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id g25so6168933qkm.22
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:08:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=0Njb3cVhtrdJZi5FqSZVo9erCodEOGeR5p/8OpCuACM=;
-        b=CsA5u2scsGW8VNhgr8blLsF4IjX2upaCQ+NB5DgrWHciuV/sJNpzf+uVLXXWtTzfp0
-         J08SKt3K6ZRQenJ13VEfGEVJNAMi7Qdws56de4nS4Lfsn8i0lfTbfl3MrZ9TfgxedGdj
-         /HU/92ahBmJlM2yuvqzOZ1XUK0NEX2hgRCdGPfq3KjiqkYnJkJXIxmMSW+3ZVv2JMtB6
-         Urd/O6pbibAIePMrxxk3IYJlZshxAW+v2ruUWpamKjwUSGT2LNMa4gwtj+4+RcwIw7n3
-         J9s2RXzUbPwrr+CcOXGblzjmSNbPXXKMsoERkkMebZc784+ARs59aTxYuj3c2rAp+r2R
-         bIvQ==
+        bh=7Ca7Z8NG5OMgg4MbdGL4h958yxZA80rzhHRQRgRbXrM=;
+        b=hwCvUaeljYq2BX4U53UkU8cQL4iHYQD6Qn1LUYOo6SnGHtiWGNsYhFD2uEoGCyrFDL
+         zAfDFOcTAdMpisKCprSpvywKGU6djkyHCGoVPVBI6etyyyCKKW1Ux3UXCLQcSzQmMlrT
+         KHQe/U7SbPQ1eS7JfwIbar/jfR483bSdv5Z6WWg/yCKAC85skJTOLMeGWbSDPxD//8GA
+         thmFXcVHrRjVqRwiXsRFg1lABx81OqacB23k22B/4gse/i0N5EjU2UdpmjNnAr5EuM0D
+         QhiZ2e3tOAszddweTLCdN+jjfuDPmbddAV2LFdjTT70I2SvkkzpHiVW5TwXLAGTy5j0f
+         28OQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV+GNZ1I6hXIH1e6Dgdq4/LpRKNJ6wDOKhKHeK6CY+woV4RGmI6
-	7IEJ2keHBDvDJtK5OtBLE1nnAqeoSHPVyCM6SMXM3gJg/8pTXRcg0d27JrFvGVK4m3LlshO+X8M
-	yBsSGLVfNhI9WeM0zjr+1nb1i4nyW/C77fwgiEUM0+kC74bV8CIan5/CCBm2HR8FaAw==
-X-Received: by 2002:a0c:b15c:: with SMTP id r28mr42301991qvc.122.1555016928038;
+X-Gm-Message-State: APjAAAUCXyfdNYXECV+AQZ4lex5UslkDYAjgyX4ozICsJux/4cNXSAjL
+	HlaE9fb+uIFW3g6kfijLxo6NOLfF3am4raDOHdthFhDSTD6KlNpl+pUARLct6sC+r3ntLgW7prw
+	M4dux655UrColYKJMMW8p6NDnMJNBM1UKnwCaeaI45mRWzKREh1xHcdLIAWTXVV/3XQ==
+X-Received: by 2002:ac8:30ea:: with SMTP id w39mr44240917qta.351.1555016929594;
+        Thu, 11 Apr 2019 14:08:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6Ad2h1xz9pNa8yrrzePgNYqlOk3B1AFqJ2TCEfAwsKy8t3tPEwBIocIBlezM3+cbvMrLv
+X-Received: by 2002:ac8:30ea:: with SMTP id w39mr44240840qta.351.1555016928644;
         Thu, 11 Apr 2019 14:08:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTG3QUqHOVmSPOXxmE+80iweJjEm3E4AxV0LUROnZ3bZWE7ESJYX0hhPpgvzVE/Q44l1fF
-X-Received: by 2002:a0c:b15c:: with SMTP id r28mr42301883qvc.122.1555016927035;
-        Thu, 11 Apr 2019 14:08:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555016927; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1555016928; cv=none;
         d=google.com; s=arc-20160816;
-        b=NRsFo9SZDZkm8fVkyUg1dQ9VO+CzssjGP/qFT6dN/flwfSHRozTtOxlFFr1jWmQq2a
-         EdGSzR4JgAQi99IrjrDNFQ+1b87gAJ7f/At3h1sbbTQA4fkQBtbNtvaFzj/6MBVNhmXS
-         DFExUqkf0scWT/rPEMwwfb7wtNZBxpw/17hX7RowavVMGK6NVNLN8KO8WBUkUPs7B3O3
-         Lg5mcgzP9FlvKu1jpbVOarCi4OjxAFK7HaalX5ifkjuc/WVGFk/Yse0aI26WFGm1tb0Q
-         M3nuoezajIkWb8JjtcC/WzgEn3uQEYDHZ1GAUm08Fzjc6P9e0Hdau71wmaTX4xbsO+VU
-         UOSQ==
+        b=uarwICkayo3JSLA9YLF+bTOQRDrVrVhS7xUkiytZx0bYiXdrrW4l2AQIkH2AjnrImQ
+         bocf3aVXFzaasO9y2H92NqHAbo0CMS599nr8C0QfkgST9Sx9pWcFmhlQ/j8QQhKAhl01
+         iH5vx2XytkHZdZ2JCzzfhRXKLgGDMger4/UwyaJQ9H0A710+3eyNseXmtGHidkqAOJJo
+         4ceJR7Jbhn8FoCom1Tv2x9wDCOF18E+aETZ9gvZmahOrvD2UP8566jobghCoQIzB38KV
+         yvrzRQk8BmyVdCORuQU0UA5nEwEXWO2AlgLP9r31etVW2yyc/pCTK4i/UOzoxxMLamyB
+         hJXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=0Njb3cVhtrdJZi5FqSZVo9erCodEOGeR5p/8OpCuACM=;
-        b=mmvU98fqNSL26KQLAV3RmMjHO1F0JJfdFvq4vrqNwEPVWaeWbEqxoUFi+Sr7+y/ED3
-         6e99Uq4yl2sPpj2KKYblf3CyBzKDCSA4guvakut8NNTrlaXrW0q/ALukPNWBKuOYnZWO
-         lNdD+7ESEmJXS7F6ryu4N3AvmQ+/f+ptoTxTTfYc/LpOnikuD39v+t56K78fBEATthL4
-         GAZbW/GZ0sLKt8FoPA3DET6HcL9s7fxNT5AgyprK6ZcfR1ClfV4GFxT7HjJW57Xt+arO
-         5hmrcXjaDKUGYx+ltbm55jPo9I8xx/qC6wtBwJpN/+m3vjS/5bOBaduA3GPHFXDRS1XO
-         7+mw==
+        bh=7Ca7Z8NG5OMgg4MbdGL4h958yxZA80rzhHRQRgRbXrM=;
+        b=IrwhSXdLj4dCOHvlrFvV+5QsY6ixv9wU6bijQUinW3l3Fl/uOmm+WNCWcYnNXyHprm
+         8Qyv5zpeiDI1FIPybu8G2aYGCze4uZN8NWjdHNclKRef18LceseOkoGwffacm4FybDeI
+         CQJtpc1gkXPeqjrFpU/Fpea9lm8yZJGTBLmGH1zbku5D2dBWW1P9qme+TAWlzhSwh2ko
+         wNY+M5rjYzZT24a+ActhawtdcnVs8hGF+vau927V+OFvK/jxvvhk/wD5itmk4zSKcusj
+         RPdL6ZyxYf0FpoyEoaPzCqeBeptWYRGkxkjX21E9UIUMTQtQDCyjq2lE+bEkUbf2k4w2
+         fdpw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e3si1309901qvp.90.2019.04.11.14.08.46
+        by mx.google.com with ESMTPS id i33si2138482qvd.144.2019.04.11.14.08.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 14:08:47 -0700 (PDT)
+        Thu, 11 Apr 2019 14:08:48 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 27B22307D910;
-	Thu, 11 Apr 2019 21:08:46 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id BBE38368E6;
+	Thu, 11 Apr 2019 21:08:47 +0000 (UTC)
 Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 99D0A5C219;
-	Thu, 11 Apr 2019 21:08:44 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 492F15C21E;
+	Thu, 11 Apr 2019 21:08:46 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-kernel@vger.kernel.org
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -102,18 +102,17 @@ Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Ming Lei <ming.lei@redhat.com>,
 	Dave Chinner <david@fromorbit.com>,
 	Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	=?UTF-8?q?Ernesto=20A=20=2E=20Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>
-Subject: [PATCH v1 01/15] fs/direct-io: fix trailing whitespace issues
-Date: Thu, 11 Apr 2019 17:08:20 -0400
-Message-Id: <20190411210834.4105-2-jglisse@redhat.com>
+	Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v1 02/15] iov_iter: add helper to test if an iter would use GUP
+Date: Thu, 11 Apr 2019 17:08:21 -0400
+Message-Id: <20190411210834.4105-3-jglisse@redhat.com>
 In-Reply-To: <20190411210834.4105-1-jglisse@redhat.com>
 References: <20190411210834.4105-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 11 Apr 2019 21:08:46 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 11 Apr 2019 21:08:48 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -122,7 +121,10 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-Remove bunch of trailing whitespace. Just hurts my eyes.
+Add an helper to test if call to iov_iter_get_pages*() with a given
+iter would result in calls to GUP (get_user_pages*()). We want to
+track differently page reference if they are coming from GUP and thus
+we need to know when GUP is use for a given iter.
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org
@@ -139,60 +141,32 @@ Cc: Ming Lei <ming.lei@redhat.com>
 Cc: Dave Chinner <david@fromorbit.com>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>
 Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Ernesto A. Fernández <ernesto.mnd.fernandez@gmail.com>
 ---
- fs/direct-io.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ include/linux/uio.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 9bb015bc4a83..52a18858e3e7 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -196,7 +196,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
- 		sdio->to = ((ret - 1) & (PAGE_SIZE - 1)) + 1;
- 		return 0;
- 	}
--	return ret;	
-+	return ret;
+diff --git a/include/linux/uio.h b/include/linux/uio.h
+index f184af1999a8..b12b2878a266 100644
+--- a/include/linux/uio.h
++++ b/include/linux/uio.h
+@@ -98,6 +98,17 @@ static inline bool iov_iter_bvec_no_ref(const struct iov_iter *i)
+ 	return (i->type & ITER_BVEC_FLAG_NO_REF) != 0;
  }
  
- /*
-@@ -344,7 +344,7 @@ static void dio_aio_complete_work(struct work_struct *work)
- static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio);
- 
- /*
-- * Asynchronous IO callback. 
-+ * Asynchronous IO callback.
-  */
- static void dio_bio_end_aio(struct bio *bio)
- {
-@@ -777,7 +777,7 @@ static inline int dio_bio_add_page(struct dio_submit *sdio)
- 	}
- 	return ret;
- }
--		
++/**
++ * iov_iter_get_pages_use_gup - true if iov_iter_get_pages(i) use GUP
++ * @i: iter
++ * Returns: true if a call to iov_iter_get_pages*() with the iter provided in
++ *          argument would result in the use of get_user_pages*()
++ */
++static inline bool iov_iter_get_pages_use_gup(const struct iov_iter *i)
++{
++	return iov_iter_type(i) & (ITER_IOVEC | ITER_PIPE);
++}
 +
  /*
-  * Put cur_page under IO.  The section of cur_page which is described by
-  * cur_page_offset,cur_page_len is put into a BIO.  The section of cur_page
-@@ -839,7 +839,7 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
-  * An autonomous function to put a chunk of a page under deferred IO.
+  * Total number of bytes covered by an iovec.
   *
-  * The caller doesn't actually know (or care) whether this piece of page is in
-- * a BIO, or is under IO or whatever.  We just take care of all possible 
-+ * a BIO, or is under IO or whatever.  We just take care of all possible
-  * situations here.  The separation between the logic of do_direct_IO() and
-  * that of submit_page_section() is important for clarity.  Please don't break.
-  *
-@@ -940,7 +940,7 @@ static inline void dio_zero_block(struct dio *dio, struct dio_submit *sdio,
- 	 * We need to zero out part of an fs block.  It is either at the
- 	 * beginning or the end of the fs block.
- 	 */
--	if (end) 
-+	if (end)
- 		this_chunk_blocks = dio_blocks_per_fs_block - this_chunk_blocks;
- 
- 	this_chunk_bytes = this_chunk_blocks << sdio->blkbits;
 -- 
 2.20.1
 
