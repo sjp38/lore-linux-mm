@@ -2,103 +2,106 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EBA4C282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0522EC10F11
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E252204EC
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B565C204EC
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sVv0xkpT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E252204EC
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="VQ8uE7fS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B565C204EC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF8B86B0275; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
+	id 2E8A56B0276; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA87B6B0276; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
+	id 29EF36B0278; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBDDD6B0277; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
+	id 0C43F6B0279; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 847726B0275
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a3so3135026pfi.17
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
+Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D43FF6B0276
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:03 -0400 (EDT)
+Received: by mail-ua1-f69.google.com with SMTP id z31so569401uac.23
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc:content-transfer-encoding;
-        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
-        b=B78DqsLHhnALVqRVunLM88k02LdL83b+QkyjV8oaefsUHIfDlMlUW1MECgphTE3Xeh
-         ZKnIBd1aO/JA8Q5SYAugSmoLCxnqzzg1xHNMbxHDc7O8BnxHH9GYApphH4CedmZvDzv6
-         JwnEtNP7EqXrTmj4NF+qdZZGEKlMhaXnhOSvSv9ehXl1ajYcUtikC2IraIwwQG5KFUvh
-         2tFem8qu8lIXUEX3wrLQIXF/PM35y+iGCXt6o1yq8/NE1uZhc0omlNK5rmO3fkp7ezF2
-         84mbjX1QhNXwN3Z23mpQlq5n7mB+9bxQPPisTrYu8KcRTRENiPxgqT1PiHGtIStSIlDt
-         UoWQ==
-X-Gm-Message-State: APjAAAVlUOkLCWSIOUj7P2cmT9YhmkD/5x/kanB2s2VoAX9JvCWttjyk
-	AGAKPo+kO0IvziQxDdpfr81yVTEqYMjVsWV66ImaCak1GpVFZz6ACm6AhlakMM826uUVuT/AEPj
-	E5Cp5CXjOEYNfWnefBCMusyc/fhN1lvBBzrSoClU+qPNUtgAOmi6TviffqOPaUi6bPw==
-X-Received: by 2002:a63:3188:: with SMTP id x130mr42654203pgx.64.1554947041609;
-        Wed, 10 Apr 2019 18:44:01 -0700 (PDT)
-X-Received: by 2002:a63:3188:: with SMTP id x130mr42654139pgx.64.1554947040555;
-        Wed, 10 Apr 2019 18:44:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554947040; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
+        b=StshEQ8DU4IRS2evIaCOC+ejIBbQP6l+BwwOX8QMH47WY6WzLQe6XPQXR4Bn20+h1O
+         eRE9ABBD9nrex5LdU4o0pyfU3jnVj+GtbYuOR7/4r4ZLgb4znLXLULflIq9aHX3Ai905
+         YYVTPZOP5q/y/qqzp2Mt3+Rdc9sfQbmA90+sb3gAciAnKOwv2xGNWpSY8zpYZINtfefw
+         BbyjdosAvOr0dRjy8hfkbPwJbsnx6bNu1dPycAKls6Difea5L7m2wt5ozJp2Jd7xgTDo
+         UE7cvY/mhKUlbvy8jfag3770+tka9J/IrG3ca0tAuW2gG8R0v9ReP+4sKlV9cxaMXvB/
+         ulgA==
+X-Gm-Message-State: APjAAAWQuOC5ZYTmOhKhoERzs0mn8EXQ7heR/9B2TkSK8ylx+215OUMG
+	RkWUtBoMUS1K/yi4U5J9+LTo+/9jyFhaon+U/GVw8CvWfUMi2bEed1ICySf8BYOInKed4+5fRdU
+	AxL7ibIAJzk3w15w30EWShUw+hz/uropIgUgFLfFJVxLmExhMQ7ZaclvIaFH0Q0Os/g==
+X-Received: by 2002:a67:b44c:: with SMTP id c12mr15735701vsm.169.1554947043509;
+        Wed, 10 Apr 2019 18:44:03 -0700 (PDT)
+X-Received: by 2002:a67:b44c:: with SMTP id c12mr15735684vsm.169.1554947042981;
+        Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554947042; cv=none;
         d=google.com; s=arc-20160816;
-        b=G7bvhBC9UVEJYv4HTG16jzO5oiWHR0qGcsHBo/TfuFMqpNyg1qf9Lmna3yMPNvK29/
-         z5TnQ+ee5XefzRJytIolhK5l9K2K8W7F5LPfGHxiGXkj0PP6rqjd2EDKPB/LDIxU/a0v
-         SNTN1J9t29PEOSjilGZS0n9pg/4gYuKyih/cpC5G4TXXvEZOZ8/dhgiJv2d1OykAxn0i
-         5lWrA2yEAOSucc3dYb6vRNjitJimUDTihfnAAAWMqCcW20mzjWlur7pWEbZ2WZNmau4E
-         aTMcbiSjSMb92thwOtzMiZB5l3UddyXFMvZlMyo3Yz1xcw2QBwGg+jexLh9PBaEzPnV9
-         /1Eg==
+        b=pbJRf59CTxk8NmATZy0wr8YNJhP3BeF7I1wFWRTpMVlh+2s1ibSlw3xAygdtpgl3Km
+         SfEqse3NgMOhIYeVrOWCa4siVoMgec36KWbWcuP6yGVdo+MFdoqK9YQSIur/EfgNkpdi
+         LhmwcqHwpxTHOKE7P3vLHBuHi2WSkBPdwOABZo6xZEAfy5VAlKusQjJ+GIlIF3IqaRY2
+         BOTxqBHY7VpvdpknMANNZtCjBZCLuczOewNtYJNnckCNpmrOamwTY3aWY5VKjHWEu4GO
+         0ERisdzQDlSOoPTxWLihtTRASWhYqPP+BjKKJLBpLyapWzm/M96/3p7bNLVndBbEWez8
+         HIzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:from:subject:mime-version
-         :message-id:date:dkim-signature;
-        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
-        b=AS8M1Ky1anINjyIDanmA8UBDYZfZCLSKxRt6bYt87dpelbZF/ygxJf7eXwIgedXZuo
-         LyLbKmylUSPSQrUU7xtq5mTYE45atM4RtstU1cwQ5ZK8ISMvoj+ETjpyYevosI81OZHJ
-         hxBT4lh+M9Z1SJ0MrgQWhY0dPHrq7deA4cZtomQ1SadXbEQgMtfE+zSHL/Ic9GjOmDfi
-         cBEUI686qNcLghZLH54TZx84RGPIoZUGf1BQEFVJZ5EaDgeEiwXjGPWciApoG0R/geM4
-         4m179IXeHGrvTlFJALOhqAktDkD4xljXpcRN28bsurr2rbK4TsaYDxHwcZCbQhN+gyNp
-         nOuw==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
+        b=A/woA5zsGx9q5/2CI947LB46gkMhQIbgw/wODL+sx+8Otcj7+ROmujPIuWz5YJaweU
+         l14Ueui79yoJP4Yi4dRSGsmxVth+Gm43UWjUp3rwfFUMHOKm3XI4cY0yrxqUP675klhn
+         qYcXCCcbWG6hO14fvtB1StC9YTWH4BgPlNET38N2QJdOXlToK5G6r36eMO1Q0jhvaHUB
+         GRYPRDntMWoz0y1PPsqPWNhuki9abPkkgNznUt4s0PD/Rf/GKu7kJs1QBaq7ODIrFiWf
+         UGjmD7I6DjDkQzOTlAjLmZwBSCXVbJrh1VyOn1JNszKxwZLTruHgLtZREXOXM/QFx+75
+         Zb4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=sVv0xkpT;
-       spf=pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=335uuXAYKCLwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=VQ8uE7fS;
+       spf=pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=34puuXAYKCL8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id h12sor40953790pgq.71.2019.04.10.18.44.00
+        by mx.google.com with SMTPS id w7sor15846412vkd.5.2019.04.10.18.44.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Apr 2019 18:44:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=sVv0xkpT;
-       spf=pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=335uuXAYKCLwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=VQ8uE7fS;
+       spf=pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=34puuXAYKCL8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc
-         :content-transfer-encoding;
-        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
-        b=sVv0xkpTwtzSlxpxf7Eh4uPvLQht8KTOHpymErP8ujjl0cROfAcy7azfsZtPXzWhWD
-         cPgOu8rqPN+xOWDfdsbN52MxtcOc8fPxkqn1nTl62mmFD96RJ3eCnLvqiljGRTmR+iU2
-         u/8Wm3cwbwW0mNn+qKGQvNbBO57ZzMpj+1ZVHMkfxMRgVg+wd1ZXlbaMZjQehFJeS3+D
-         I5DtiYpbRf9zi0jJ5YUu0jLfd6NTxO8SXl1KmcijblbJDQNv52x7jwD2KAQNYPIZX5ED
-         9ThgeOsWuFoiKZpvcFu2LQm8oDNYWq/0s+1e6KxU9h+JPK2hW29GfO5mc8EA+4hoT0b3
-         AMvw==
-X-Google-Smtp-Source: APXvYqygCxVEH3ItByD6IxnaQ7ZdqZzlBm5rUdx0sPDioNv5BDwnqxGY49XVXyyMG+u6hN8qQpv1cl41iCU=
-X-Received: by 2002:a63:b74b:: with SMTP id w11mr915185pgt.87.1554947039847;
- Wed, 10 Apr 2019 18:43:59 -0700 (PDT)
-Date: Wed, 10 Apr 2019 18:43:51 -0700
-Message-Id: <20190411014353.113252-1-surenb@google.com>
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
+        b=VQ8uE7fSnqdKErP7/p4dHAFIDW6jI3qLUsMTULdhHlqde5jIwhtKd6+qPR5tAHjXPL
+         XCNL9Aj0wz1Y7vECvW1Ugi2US2rH7DQDFoCij9lkUZImbDw3EM60HOoIkNqQuLwD/34g
+         3tkLTC/C2K922qnKAdHrHfX5GUD5eAl/+jQVn+GKGwbvYi9D4E30VgYgQkFCWpd31AeC
+         TcxaOdDnIXkLAs0ERzKVT0n7FojrV/2A/02wTu15JMLHIOBjxOHCuDEJEqLdE6/3f6rP
+         aZrtWVlzwBTUACFHg6sNWtO5or9++2FlOLH+28Exhs/7J9gbHRoXdTz/CNKP+55GGjd2
+         3raw==
+X-Google-Smtp-Source: APXvYqx9ebEgF18enAdLfuKzN1eizWR9w5VxGzxkPww+DyZ2FJ0mMzOj/JkBJbSd9g/xUnj4BFlUP2Quw3o=
+X-Received: by 2002:a1f:10a5:: with SMTP id 37mr5464480vkq.6.1554947042655;
+ Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
+Date: Wed, 10 Apr 2019 18:43:52 -0700
+In-Reply-To: <20190411014353.113252-1-surenb@google.com>
+Message-Id: <20190411014353.113252-2-surenb@google.com>
 Mime-Version: 1.0
+References: <20190411014353.113252-1-surenb@google.com>
 X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [RFC 0/2] opportunistic memory reclaim of a killed process
+Subject: [RFC 1/2] mm: oom: expose expedite_reclaim to use oom_reaper outside
+ of oom_kill.c
 From: Suren Baghdasaryan <surenb@google.com>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.com, rientjes@google.com, willy@infradead.org, 
@@ -110,117 +113,60 @@ Cc: mhocko@suse.com, rientjes@google.com, willy@infradead.org,
 	lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
 	kernel-team@android.com
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The time to kill a process and free its memory can be critical when the
-killing was done to prevent memory shortages affecting system
-responsiveness.
+Create an API to allow users outside of oom_kill.c to mark a victim and
+wake up oom_reaper thread for expedited memory reclaim of the process being
+killed.
 
-In the case of Android, where processes can be restarted easily, killing a
-less important background process is preferred to delaying or throttling
-an interactive foreground process. At the same time unnecessary kills
-should be avoided as they cause delays when the killed process is needed
-again. This requires a balanced decision from the system software about
-how long a kill can be postponed in the hope that memory usage will
-decrease without such drastic measures.
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+---
+ include/linux/oom.h |  1 +
+ mm/oom_kill.c       | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)
 
-As killing a process and reclaiming its memory is not an instant operation,
-a margin of free memory has to be maintained to prevent system performance
-deterioration while memory of the killed process is being reclaimed. The
-size of this margin depends on the minimum reclaim rate to cover the
-worst-case scenario and this minimum rate should be deterministic.
-
-Note that on asymmetric architectures like ARM big.LITTLE the reclaim rate
-can vary dramatically depending on which core it=E2=80=99s performed at (se=
-e test
-results). It=E2=80=99s a usual scenario that a non-essential victim process=
- is
-being restricted to a less performant or throttled CPU for power saving
-purposes. This makes the worst-case reclaim rate scenario very probable.
-
-The cases when victim=E2=80=99s memory reclaim can be delayed further due t=
-o
-process being blocked in an uninterruptible sleep or when it performs a
-time-consuming operation makes the reclaim time even more unpredictable.
-
-Increasing memory reclaim rate and making it more deterministic would
-allow for a smaller free memory margin and would lead to more opportunities
-to avoid killing a process.
-
-Note that while other strategies like throttling memory allocations are
-viable and can be employed for other non-essential processes they would
-affect user experience if applied towards an interactive process.
-
-Proposed solution uses existing oom-reaper thread to increase memory
-reclaim rate of a killed process and to make this rate more deterministic.
-By no means the proposed solution is considered the best and was chosen
-because it was simple to implement and allowed for test data collection.
-The downside of this solution is that it requires additional =E2=80=9Cexped=
-ite=E2=80=9D
-hint for something which has to be fast in all cases. Would be great to
-find a way that does not require additional hints.
-
-Other possible approaches include:
-- Implementing a dedicated syscall to perform opportunistic reclaim in the
-context of the process waiting for the victim=E2=80=99s death. A natural bo=
-ost
-bonus occurs if the waiting process has high or RT priority and is not
-limited by cpuset cgroup in its CPU choices.
-- Implement a mechanism that would perform opportunistic reclaim if it=E2=
-=80=99s
-possible unconditionally (similar to checks in task_will_free_mem()).
-- Implement opportunistic reclaim that uses shrinker interface, PSI or
-other memory pressure indications as a hint to engage.
-
-Test details:
-Tests are performed on a Qualcomm=C2=AE Snapdragon=E2=84=A2 845 8-core ARM =
-big.LITTLE
-system with 4 little cores (0.3-1.6GHz) and 4 big cores (0.8-2.5GHz)
-running Android.
-Memory reclaim speed was measured using signal/signal_generate,
-kmem/rss_stat and sched/sched_process_exit traces.
-
-Test results:
-powersave governor, min freq
-                        normal kills      expedited kills
-        little          856 MB/sec        3236 MB/sec
-        big             5084 MB/sec       6144 MB/sec
-
-performance governor, max freq
-                        normal kills      expedited kills
-        little          5602 MB/sec       8144 MB/sec
-        big             14656 MB/sec      12398 MB/sec
-
-schedutil governor (default)
-                        normal kills      expedited kills
-        little          2386 MB/sec       3908 MB/sec
-        big             7282 MB/sec       6820-16386 MB/sec
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-min reclaim speed:      856 MB/sec        3236 MB/sec
-
-The patches are based on 5.1-rc1
-
-Suren Baghdasaryan (2):
-  mm: oom: expose expedite_reclaim to use oom_reaper outside of
-    oom_kill.c
-  signal: extend pidfd_send_signal() to allow expedited process killing
-
- include/linux/oom.h          |  1 +
- include/linux/sched/signal.h |  3 ++-
- include/linux/signal.h       | 11 ++++++++++-
- ipc/mqueue.c                 |  2 +-
- kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
- kernel/time/itimer.c         |  2 +-
- mm/oom_kill.c                | 15 +++++++++++++++
- 7 files changed, 59 insertions(+), 12 deletions(-)
-
---=20
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index d07992009265..6c043c7518c1 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -112,6 +112,7 @@ extern unsigned long oom_badness(struct task_struct *p,
+ 		unsigned long totalpages);
+ 
+ extern bool out_of_memory(struct oom_control *oc);
++extern bool expedite_reclaim(struct task_struct *task);
+ 
+ extern void exit_oom_victim(void);
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 3a2484884cfd..6449710c8a06 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -1102,6 +1102,21 @@ bool out_of_memory(struct oom_control *oc)
+ 	return !!oc->chosen;
+ }
+ 
++bool expedite_reclaim(struct task_struct *task)
++{
++	bool res = false;
++
++	task_lock(task);
++	if (task_will_free_mem(task)) {
++		mark_oom_victim(task);
++		wake_oom_reaper(task);
++		res = true;
++	}
++	task_unlock(task);
++
++	return res;
++}
++
+ /*
+  * The pagefault handler calls here because it is out of memory, so kill a
+  * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
+-- 
 2.21.0.392.gf8f6787159e-goog
 
