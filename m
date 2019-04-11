@@ -2,153 +2,141 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65FB1C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 10:56:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BFFCCC282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:08:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0AC52217D4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 10:56:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AC52217D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 78650218A6
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:08:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="aETz7abn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78650218A6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78BF36B0273; Thu, 11 Apr 2019 06:56:22 -0400 (EDT)
+	id 0F17F6B0006; Thu, 11 Apr 2019 07:08:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 738DA6B0274; Thu, 11 Apr 2019 06:56:22 -0400 (EDT)
+	id 0A00C6B0007; Thu, 11 Apr 2019 07:08:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 64ED66B0275; Thu, 11 Apr 2019 06:56:22 -0400 (EDT)
+	id EAA4E6B000E; Thu, 11 Apr 2019 07:08:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 18DEE6B0273
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 06:56:22 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h22so1553789edh.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 03:56:22 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C6DB06B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:08:27 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id x58so5228943qtc.1
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:08:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Q9l4I5pQ1tPLFiOxAuLKL3TeAsjjhqRb4S0f7sdrzoo=;
-        b=pWFSR4H4BBH8AoDtzPJjD6qAmavu+1cYRp1+oGdAzhUfHbOs2Z3uOOmSHvVx2RTK3B
-         VDh72B1Kd7aVRj/j7xxwU2i/gTTCmw3t8xsoEGd0RcRW55bDqDAnzEEiMFBKPwT7jnIl
-         54mGzgyGIjxKgQVNbMIF0bIsVKu5M+IKl4/180RWa0AMYTHTy7PJkyUNdXsdN80DsVac
-         CiCaWLr+gN3taVwehUov43ZaGCFy/RnyLLIzfo6AeZyMoeZKiqhjGDx6soI9+98eMNgp
-         /C/AjVoV2SkZX9SvSm96SA+Ws13kB3whGZUDLz/jufwwqzDMmN/UYrZSINFFJxbjr1dp
-         qdKg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXL/tGdB/NaXVeEl4rkuH0e0/qt2GouVaXKIZY3f4SaJLuda7Nz
-	rrYLgBGGUueuieCrI8nsQkObmaY6+7mQ2xbRLOia9kaoOyfov4oZ9+B3lEINTK/BzmEhrmeMcWs
-	S9KpSfJj6XF/gE72x29scoErrEXZ5pSs6Xk6ly5syONitfvfDQlvN54Ozo/daydY=
-X-Received: by 2002:a05:6402:3d4:: with SMTP id t20mr21604829edw.104.1554980181646;
-        Thu, 11 Apr 2019 03:56:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyC6N7Xk34M1vIWHDmSdTjC75l9Vdfcb+gzV583RkuGPQywIkZP0nPtePNhMQtFjHJbfwtz
-X-Received: by 2002:a05:6402:3d4:: with SMTP id t20mr21604792edw.104.1554980180859;
-        Thu, 11 Apr 2019 03:56:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554980180; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
+        b=PNd1nR0AEOmEUD1mKyOS93NM+OIB5QYSnXg8j1bB+FLoqO6OLZub8AfzDh1Gl5D2B9
+         rGffi2bgXubk5ryhp+LQIqXBktzWWcGVq3HO0CswrmbboQnhkEioYfoveISNlRn/8gq2
+         LzXZKcwB+n1y3klpO2rnhkAJHBSJWfZTJZMxlyZVvTNVCpf6MmxenDnUEiwP3XHO3xBC
+         EN105A7xSe7+zY3w6zinzWmp0ZFh1oHXnOYrEpRMuBfYikWo5i4lXiMVhEr+hyQGv0ch
+         UpmwZvoBW3xLka4Uf0rWyJw6uV+REm/RU2SH5LNMfS4ZR9waElTqq762FRnG1XQxH2Lt
+         YFrA==
+X-Gm-Message-State: APjAAAVdo53AdBEJ9/XcjBvHfMPg04VHDTGX3tOX6FEboo7lTUmjQ9B2
+	/hW1FlYSFh4a13i0MeIYzGr8zxfw1fm7m77KWkXgv48gDns04FtzYRyZCl68VQoURCjw3BzM358
+	WLo7+n1KXB2qpacPudHuUU3vAwKakLi8C4k+xuR3lMVEJSY2DbZIotWMEl6qyPFfIZA==
+X-Received: by 2002:a0c:b885:: with SMTP id y5mr40855774qvf.25.1554980907463;
+        Thu, 11 Apr 2019 04:08:27 -0700 (PDT)
+X-Received: by 2002:a0c:b885:: with SMTP id y5mr40855681qvf.25.1554980906303;
+        Thu, 11 Apr 2019 04:08:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554980906; cv=none;
         d=google.com; s=arc-20160816;
-        b=A03FAYW2pRhPzL7A7YJQtpftpvnfH5qyG7RKArQYDwdo9kfkR4B23veRn51DNlv9++
-         cKG3XmdaLLG9bCclPxAf2jVtapNQCDvg8mDabDrO0d6euwDkRxFma0+ARIQIgKeRNizO
-         g94uXGfYUdF1XH1h+9wb+vY3i1wiOb/DpjXla6vU3KweBp1mOD5XBqMfb5FwZ2L+DANo
-         XOc20lbU8qFG3nMRiYN0chKKGiNqwJB+DHcbM/Mjfthr0eX/TZPbduAA5MQtlOzcoJG3
-         741LzXodWA5MLllwk07mvQoQpk0aOxtH8Gza2K4Fbikhqre5h1Ml2SxXoT8IXJUFEO2s
-         V5fg==
+        b=wovjUOW6uVwbTDuiHYkfsYYBsnCbK6LgGQcxPsCdjgnzE/5R3NQDtv5gDYRoVsoc/U
+         qenUPHan8V7k6LkH9PNRPxwcc6Ytt2aWAqxW26pg1s9eAjoCE1Mwa0i6OlGfOptqFPVt
+         zVrKN+KSN/hcDvEhIXtmnoFdFTCQqUV5siMB6PZeZLGLh1UEmwtggpooU/Ze/MlxRrng
+         b0hIgANwVEt6bBaMvlUgq86XVVBqzb0VwYke/FEAwlJXwpBl8FjtAAaRG+5aeQZMRNkI
+         YmJF9eWyyb4MYM4OyyGp9Xt1tMcxWcs/pjoPZBe2Kw5XgULyP9N+21NfJ9YLRW1YL0qI
+         zFvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Q9l4I5pQ1tPLFiOxAuLKL3TeAsjjhqRb4S0f7sdrzoo=;
-        b=wLMRnKE8F7KZgKiwR7oqAi+jASEfTAh/0R4Vkxuqn6KvhDzjLQtpoITTNRXFPK9Y0Y
-         x7HWER4xe3BhXyo5Po+Hfg1e4aDuix5uZJdSGGfgzTcADJRfrY3Yahqc7wNbQxR42Jwo
-         4ehPdxYrSAe+BLoEZGE9D2ovO6DpppfOK224AvoEWvaw/Bx+e/gRtTaNVlMwigOUshOS
-         uE0Gd6rSabCCTI+keBWf5QwWchAKfSqZRp0oARDf4GLzO0HFETJghpJNpwxe9S4Aq6HC
-         QUwa0dTHBOxQVNv0rOIv3+M18dJYuocJUFyW2EZ262lz33wMx99kUC80dxSjNOMwn8n4
-         Q+iQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
+        b=0dxEeVwiKtOsPtwn394GO5KyuD7ibcCr9iefp77NkaBTLm+9ykLiSbmZVpaG2d+chD
+         5S52m67f3nDiz79mDbkOC+MN6XjNcQrpPzq5JHklGl7oBvLqxwEqr8Uo2/ZS+vM3njLi
+         a+uEMohe8shVgFAAwn/OQicJSgUeuluA/9a+O58+/6YgU7ziqcOydDmqSE3/4NigN+Oi
+         orEIgUYnx5ZklKvX4DMor0Jsjua3+B9ifx4pniSxfwQMD5wHezhsCHW+2u8zgprhgWyd
+         cZfhqqk7BPN/7CSJUfcY3cv/jxTsI+z516G1aJ8csc5AREFvh2iIYqHpLmY4qf9jCkhE
+         kLHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si466624edd.76.2019.04.11.03.56.20
+       dkim=pass header.i=@lca.pw header.s=google header.b=aETz7abn;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o4sor52761330qtj.18.2019.04.11.04.08.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 03:56:20 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 04:08:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2CF44ABAC;
-	Thu, 11 Apr 2019 10:56:20 +0000 (UTC)
-Date: Thu, 11 Apr 2019 12:56:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: Re: [PATCH] mm/memory_hotplug: Drop memory device reference after
- find_memory_block()
-Message-ID: <20190411105617.GS10383@dhcp22.suse.cz>
-References: <20190410101455.17338-1-david@redhat.com>
- <20190411084141.GQ10383@dhcp22.suse.cz>
- <0bbe632f-cb85-4a98-0c79-ded11cf39081@redhat.com>
+       dkim=pass header.i=@lca.pw header.s=google header.b=aETz7abn;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
+        b=aETz7abniOl4e7+DOb09PavxLRotel7kJCk74Ao7xi6iXh4035rmyXLnjLc1AC7QAO
+         qmWcaPbYuO08VIlIweDHCdx2ELh+F+QAL4loRPySdpl+sE+HG2YeAgbXgprtG3jGQ/xA
+         Od3nE4KuHXRpy+ZxFDJ+Hu9Vcw7BNN1fodzWKd+1vCLx/KZpyYKvCODFl55ylKIzk3RE
+         nmElPELmiCkTB1cfq+2jSIDeJIpgNBy+LB2x030VbZQ9zzN7gniLAY1fVyMvxmEe97sV
+         I1vak7UGl6CEfNrUNZE7j0eW8p2ItVHpcY44bnK1P9N+RmCA454t7rpukGpOBYhn7eQV
+         QebA==
+X-Google-Smtp-Source: APXvYqzJI/Ye781pG1kq/AXJLXP983d6SGgYHt0QuC/1Q91EfvxZngkCINzqhN2vJqknEOb7ng8/Pw==
+X-Received: by 2002:aed:3a44:: with SMTP id n62mr42701258qte.147.1554980905245;
+        Thu, 11 Apr 2019 04:08:25 -0700 (PDT)
+Received: from Qians-MBP.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id g12sm21105028qkk.85.2019.04.11.04.08.23
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 04:08:24 -0700 (PDT)
+Subject: Re: [PATCH] slab: fix an infinite loop in leaks_show()
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
+ iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ "Tobin C. Harding" <tobin@kernel.org>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Michal Hocko <mhocko@kernel.org>
+References: <20190411032635.10325-1-cai@lca.pw>
+ <43517646-a808-bccd-a05e-1b583fc411c7@suse.cz>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <02049855-d37f-965e-12f7-f2549cae73ec@lca.pw>
+Date: Thu, 11 Apr 2019 07:08:23 -0400
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0bbe632f-cb85-4a98-0c79-ded11cf39081@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <43517646-a808-bccd-a05e-1b583fc411c7@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-04-19 11:11:05, David Hildenbrand wrote:
-> On 11.04.19 10:41, Michal Hocko wrote:
-> > On Wed 10-04-19 12:14:55, David Hildenbrand wrote:
-> >> While current node handling is probably terribly broken for memory block
-> >> devices that span several nodes (only possible when added during boot,
-> >> and something like that should be blocked completely), properly put the
-> >> device reference we obtained via find_memory_block() to get the nid.
-> > 
-> > The changelog could see some improvements I believe. (Half) stating
-> > broken status of multinode memblock is not really useful without a wider
-> > context so I would simply remove it. More to the point, it would be much
-> > better to actually describe the actual problem and the user visible
-> > effect.
-> > 
-> > "
-> > d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug") has started
-> > using find_memory_block to get a nodeid for the beginnig of the onlined
-> > pfn range. The commit has missed that the memblock contains a reference
-> > counted object and a missing put_device will leak the kobject behind
-> > which ADD THE USER VISIBLE EFFECT HERE.
-> > "
+
+
+On 4/11/19 4:20 AM, Vlastimil Babka wrote:
+> On 4/11/19 5:26 AM, Qian Cai wrote:
+>> "cat /proc/slab_allocators" could hang forever on SMP machines with
+>> kmemleak or object debugging enabled due to other CPUs running do_drain()
+>> will keep making kmemleak_object or debug_objects_cache dirty and unable
+>> to escape the first loop in leaks_show(),
 > 
-> I don't think mentioning the commit a second time is really needed.
-> 
-> "
-> Right now we are using find_memory_block() to get the node id for the
-> pfn range to online. We are missing to drop a reference to the memory
-> block device. While the device still gets unregistered via
-> device_unregister(), resulting in no user visible problem, the device is
-> never released via device_release(), resulting in a memory leak. Fix
-> that by properly using a put_device().
-> "
+> So what if we don't remove SLAB (yet?) but start removing the debugging
+> functionality that has been broken for years and nobody noticed. I think
+> Linus already mentioned that we remove at least the
+> /proc/slab_allocators file...
 
-OK, sounds good to me. I was not sure about all the sysfs machinery
-and the kobj dependencies but if there are no sysfs files leaking and
-crashing upon a later access then a leak of a small amount of memory
-that is not user controlable then this is not super urgent.
-
-Thanks!
-
--- 
-Michal Hocko
-SUSE Labs
+In my experience, 2-year isn't that long for debugging features to be silently
+broken with SLAB where kmemleak is broken for more than 4-year there. See
+92d1d07daad6 ("mm/slab.c: kmemleak no scan alien caches").
 
