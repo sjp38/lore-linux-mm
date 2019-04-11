@@ -2,181 +2,227 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33A2AC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:19:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88FCAC10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:21:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E06712083E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:19:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E06712083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2F8692083E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:21:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F8692083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 677E16B0005; Thu, 11 Apr 2019 11:19:18 -0400 (EDT)
+	id D51926B0005; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FD9A6B000D; Thu, 11 Apr 2019 11:19:18 -0400 (EDT)
+	id CFF686B000D; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C60C6B000E; Thu, 11 Apr 2019 11:19:18 -0400 (EDT)
+	id B7BC06B000E; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0176B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:19:17 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h22so1957619edh.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:19:17 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 76BD16B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id f14so4589316pgf.12
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:21:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=gvkErz07z/zs6QLuG75dNvZDEXuPwxUe15TghfaWU2E=;
-        b=nX/ckVWmfh32aqT6UzUQfLx3xWmUkSUiAYvfIbbUmyEnlk1nsjd2SqaPyOgYB6QoOd
-         ifLWF1jN7oqQOz0bd2qxBn60+2oX5MSi4G/KQgVgbPB8Gfna1iVGAjn0NLuopXqH1xYt
-         0HbNX4W4yETNDuNtpXhJRLUcWhBDLTBUdn2cZ1M/flX2WRRT7lN4DLwLb9X1HTTPUCOJ
-         55P6DWScwknUQq/PClisLWTBL33wEoxmEMhjPySm3YuR2AF/1PE6WsrSNziW1OZkEoEA
-         ZX+y9pGkCirG4flKMmhwJtEaNrDrdvJRnms8rNgNn506u7T88miy+8Bl8nGn16qUbuvn
-         g2eg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUZfBpAWIgzGvj0po0rY5quNPg+5ihSplz2G/GSAv5QIdW+TI/2
-	QmKKdGtnM9pg6qskrvJNfxScSHsUauHg/UIBx5xR8e3oZr5AtF7mpns/JoUg9aek+ethvSmn/A4
-	U5Cf5FMguLoTXCi+M21RtQETa8QBwB+F11djclEMwvFBS8ivneGYdKUXWHN0b5MI=
-X-Received: by 2002:aa7:d3d8:: with SMTP id o24mr32333593edr.53.1554995957515;
-        Thu, 11 Apr 2019 08:19:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzr2zqrJPazONsBp5xRe0wRqMQQPgitVtH/yzU21omqO5VtjeQDxzmCHfGGhZEwkVikWLtE
-X-Received: by 2002:aa7:d3d8:: with SMTP id o24mr32333539edr.53.1554995956743;
-        Thu, 11 Apr 2019 08:19:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554995956; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=mDfoE6wE+iHLLf4Ng64SszcGcnad8zY7Z2JToZcJlWM=;
+        b=E+lOMrwqiW2XKu6Vho8uMWrpdq2MaNng/4qQKN3YkmTzCLGBzxUWbtVEMrcIL5Kc73
+         3eWX4KEMAV27LnVC1sUpGkdL66QApoXRz00UBDKMW3oq6M8twL9UgQoAgORZGzqycFZk
+         pCvSFXVJC4+zldq/HcYzlOCJRcLYwFDxy4bBHiIldIZ177HdTR413iIS8QSBe9M2pZy1
+         rGIUQWAQUEuOPr6o+wLhH8g5BcrIbZ1LLheLRp5dES9EgYfYxF9rI/rfq8WOym1zECHn
+         VOn4I5GiN7IO8jTrV9x4xVhOW7jCWt5JOZ8qZX/17qc5ttCuOQh/hJPtmUeSAzId6oZM
+         CRHA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUfGSJ+cgfv/SL49C3dkItjJAOkaiDVvjl6b9Jm1MujhFUuHOlG
+	3PUFkm5+D+LTs29BGRXEhXOBsjC1gxoDkieC06pufbCYef+jMvQ9J0pZSSI0MdIAHZxQ/Fg+aPJ
+	HuGQo1I5k34m9IEwsEcwoHJ8gUotWoA1sbZ/9RsGbdM8SQl4rITbZSKsv3tp8SWo5Gg==
+X-Received: by 2002:a65:5106:: with SMTP id f6mr46838617pgq.253.1554996073020;
+        Thu, 11 Apr 2019 08:21:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmULY2G5tMQchJQGWA5UGu7+ZgAcir5h1wlwQF7hQIa8BDGyhbBgZlUfK7wrBv3pE9xd9X
+X-Received: by 2002:a65:5106:: with SMTP id f6mr46838524pgq.253.1554996072057;
+        Thu, 11 Apr 2019 08:21:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554996072; cv=none;
         d=google.com; s=arc-20160816;
-        b=T95qsW+gAB06ZWfnsz80iweko4ZLmT5lPX3OV9wlgF5SSkSfoo7bZj3hVl/NUCzAaP
-         dbQgDReMYQPNj50cwREVRYICXxLmjR5i9t6OLnP+/m/DtjRkT8XiBVDob2wX8XBI6g8k
-         o8Mwx5WRmLoPgL/ZjYvsVli865NjoeVdDdLvhNVQfTvrMkR8BqzXVQidh7Jh/RJzCqjO
-         oHl2S2oxCjnjS2nc5HVs+sPRuT07F1dEDDtrKitBoCC32etMUcE1PbjL8XxYFscqc17x
-         4ISUM7GetnYvvI1jvk9YUjt6noQ/MWKZq09A+3Ok6cnhhEvPQtqNxf5a7jfY2Lb+XHEI
-         bP4Q==
+        b=n4zm68Z7M98xmyMdl3WbM2bj8uAH9N8+gzXIW4an7V3UcQJJhWqDhM1xE2+yLZIDJO
+         hY46xqmRwpzr1uITmOkyJ98oe5Z5PvmMZ+B5y5uHWoBWZSCs452s5eJiOqMWpfzAQMiJ
+         AwxMT+LSYW3QNZzRrCIQUXbbfR1nR3C8IzpnXIvw7uCDsFF3ykfj01I039wuAlx+Z9lJ
+         wel5V8Ao8uX+IchWBEkjfNizNN4v2gPrNUPs1vlrfBjmHtVAX77UHqfMfGNmlYXdQ9Oq
+         8VXqEWZEd7EjRZusly55FNRduRu4+rH0xYvJt7IsWZ6dwh/GEdZXWPuEvEDj/aoA7a0x
+         jhcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=gvkErz07z/zs6QLuG75dNvZDEXuPwxUe15TghfaWU2E=;
-        b=s/qTo5yEozPySAD4Zvg6vtkj5jWH9cqtwjQh6VAq3M1YIwiy4vukTGi39sL7lGoYhf
-         BG46e3SCKMpm5qm9Ki9qamE/Cr4VxsgJAD2kvCdQw9pdjXrx41GX3LC3nYjT2tdrm8KC
-         B1CGu6e+HDf4AopY7ROe2xYIzdRGJhIMaQAEwzs7aL5R9CW4y3/aIWqWbCKEKQhscBwL
-         xII2tBAygFGHu8U4zzJ3XanoOLjPSRDsVvu7cbNmmxYv2BzWaAHEGveU/5pMdBVmyxc9
-         XWp1B9aj7YiBFl4+8XOiA713/BVFip693GBV+/R3SXjIAEmncDSrrnWdjtrn7iu1oRBZ
-         1NNQ==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=mDfoE6wE+iHLLf4Ng64SszcGcnad8zY7Z2JToZcJlWM=;
+        b=H4bVTOg+PCHWI/if0ZaXDqLY53D1ahYAWniKapQra3fTGnydpMeNgg+0qX15FGzANC
+         6dkVhZjW2bIUxijVGydOtwJWOrkVD/YAto9hQNxlFa9rHYZM/uIsg8M4XvccI4vr3q9A
+         hYoe/BLY5y3Rht0a7iBTJjFBquHD5NrH/q9TWA9j8NQ6ekmd1fRCwVyWcHVPWI0Fdlkt
+         7rhFus12dHUH30FUHKhXP9fjtxCYyYSfKc7jAB0jCXOs2UHltiapb2hh2vX/lglqo2mZ
+         2Ot0V5feA5WVjTfFMpO6S9ffXiyaslWxBsje5FTSZDBYr2I7H/wTHBzIH1nGeCfWio9y
+         jtMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p12si1525849edj.372.2019.04.11.08.19.16
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id cn16si36719923plb.174.2019.04.11.08.21.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 08:19:16 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 11 Apr 2019 08:21:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B93ADABE1;
-	Thu, 11 Apr 2019 15:19:15 +0000 (UTC)
-Date: Thu, 11 Apr 2019 17:19:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>, Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
-Message-ID: <20190411151911.GZ10383@dhcp22.suse.cz>
-References: <20190410191321.9527-1-longman@redhat.com>
- <20190410195443.GL10383@dhcp22.suse.cz>
- <daef5f22-0bc2-a637-fa3d-833205623fb6@redhat.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Apr 2019 08:21:11 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,337,1549958400"; 
+   d="scan'208";a="150001000"
+Received: from fmsmsx108.amr.corp.intel.com ([10.18.124.206])
+  by orsmga002.jf.intel.com with ESMTP; 11 Apr 2019 08:21:10 -0700
+Received: from fmsmsx102.amr.corp.intel.com (10.18.124.200) by
+ FMSMSX108.amr.corp.intel.com (10.18.124.206) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 11 Apr 2019 08:21:10 -0700
+Received: from crsmsx152.amr.corp.intel.com (172.18.7.35) by
+ FMSMSX102.amr.corp.intel.com (10.18.124.200) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 11 Apr 2019 08:21:10 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.94]) by
+ CRSMSX152.amr.corp.intel.com ([169.254.5.30]) with mapi id 14.03.0415.000;
+ Thu, 11 Apr 2019 09:21:08 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: Jerome Glisse <jglisse@redhat.com>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Andrew
+ Morton" <akpm@linux-foundation.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, =?utf-8?B?Q2hyaXN0aWFuIEvDtm5pZw==?=
+	<christian.koenig@amd.com>, Joonas Lahtinen
+	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
+	"Vivi, Rodrigo" <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, "Andrea
+ Arcangeli" <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, "Felix
+ Kuehling" <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross
+ Zwisler <zwisler@kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>,
+	Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3JjbcOhcg==?=
+	<rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Ralph Campbell
+	<rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>,
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Arnd Bergmann
+	<arnd@arndb.de>
+Subject: RE: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
+ mmu notifier is happening v2
+Thread-Topic: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
+ mmu notifier is happening v2
+Thread-Index: AQHU4/PFtHRclNkri06P8CLyl5padqY2FSUAgAFwOYD//6KRwA==
+Date: Thu, 11 Apr 2019 15:21:08 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79CAEBED@CRSMSX101.amr.corp.intel.com>
+References: <20190326164747.24405-1-jglisse@redhat.com>
+ <20190326164747.24405-8-jglisse@redhat.com>
+ <20190410234124.GE22989@iweiny-DESK2.sc.intel.com>
+ <20190411143918.GA4266@redhat.com>
+In-Reply-To: <20190411143918.GA4266@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiZTIzYTJjZWEtN2Y0Ny00ODRjLWI0NzMtN2NlZWUzYTMwMTkwIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiMlZwYlpvSEpNQUFhMktBbHZjV2hEcFFMUXEzNXF6K1RWUGRpeHRqNDZ3WUl3V2ZxM3lKSUp3YlZtZjI0eVBDYiJ9
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.0.600.7
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <daef5f22-0bc2-a637-fa3d-833205623fb6@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-04-19 10:02:16, Waiman Long wrote:
-> On 04/10/2019 03:54 PM, Michal Hocko wrote:
-> > On Wed 10-04-19 15:13:19, Waiman Long wrote:
-> >> The current control mechanism for memory cgroup v2 lumps all the memory
-> >> together irrespective of the type of memory objects. However, there
-> >> are cases where users may have more concern about one type of memory
-> >> usage than the others.
-> >>
-> >> We have customer request to limit memory consumption on anonymous memory
-> >> only as they said the feature was available in other OSes like Solaris.
-> > Please be more specific about a usecase.
-> 
-> From that customer's point of view, page cache is more like common goods
-> that can typically be shared by a number of different groups. Depending
-> on which groups touch the pages first, it is possible that most of those
-> pages can be disproportionately attributed to one group than the others.
-> Anonymous memory, on the other hand, are not shared and so can more
-> correctly represent the memory footprint of an application. Of course,
-> there are certainly cases where an application can have large private
-> files that can consume a lot of cache pages. These are probably not the
-> case for the applications used by that customer.
-
-So you are essentially interested in the page cache limiting, right?
-This has been proposed several times already and always rejected because
-this is not a good idea.
-
-I would really like to see a more specific example where this makes
-sense. False sharing can be certainly happen, no questions about that
-but then the how big of a problem that is? Please more specifics.
-
-> >> To allow finer-grained control of memory, this patchset 2 new control
-> >> knobs for memory controller:
-> >>  - memory.subset.list for specifying the type of memory to be under control.
-> >>  - memory.subset.high for the high limit of memory consumption of that
-> >>    memory type.
-> > Please be more specific about the semantic.
-> >
-> > I am really skeptical about this feature to be honest, though.
-> >
-> 
-> Please see patch 1 which has a more detailed description. This is just
-> an overview for the cover letter.
-
-No, please describe the whole design in high level in the cover letter.
-I am not going to spend time reviewing specific patches if the whole
-idea is not clear beforhand. Design should be clear first before diving
-into technical details.
- 
-> >> For simplicity, the limit is not hierarchical and applies to only tasks
-> >> in the local memory cgroup.
-> > This is a no-go to begin with.
-> 
-> The reason for doing that is to introduce as little overhead as
-> possible.
-
-We are not going to break semantic based on very vague hand waving about
-overhead.
-
-> We can certainly make it hierarchical, but it will complicate
-> the code and increase runtime overhead. Another alternative is to limit
-> this feature to only leaf memory cgroups. That should be enough to cover
-> what the customer is asking for and leave room for future hierarchical
-> extension, if needed.
-
-No, this is a broken design that doesn't fall into the over cgroups
-design.
-
--- 
-Michal Hocko
-SUSE Labs
+PiBPbiBXZWQsIEFwciAxMCwgMjAxOSBhdCAwNDo0MTo1N1BNIC0wNzAwLCBJcmEgV2Vpbnkgd3Jv
+dGU6DQo+ID4gT24gVHVlLCBNYXIgMjYsIDIwMTkgYXQgMTI6NDc6NDZQTSAtMDQwMCwgSmVyb21l
+IEdsaXNzZSB3cm90ZToNCj4gPiA+IEZyb206IErDqXLDtG1lIEdsaXNzZSA8amdsaXNzZUByZWRo
+YXQuY29tPg0KPiA+ID4NCj4gPiA+IENQVSBwYWdlIHRhYmxlIHVwZGF0ZSBjYW4gaGFwcGVucyBm
+b3IgbWFueSByZWFzb25zLCBub3Qgb25seSBhcyBhDQo+ID4gPiByZXN1bHQgb2YgYSBzeXNjYWxs
+IChtdW5tYXAoKSwgbXByb3RlY3QoKSwgbXJlbWFwKCksIG1hZHZpc2UoKSwgLi4uKQ0KPiA+ID4g
+YnV0IGFsc28gYXMgYSByZXN1bHQgb2Yga2VybmVsIGFjdGl2aXRpZXMgKG1lbW9yeSBjb21wcmVz
+c2lvbiwNCj4gPiA+IHJlY2xhaW0sIG1pZ3JhdGlvbiwgLi4uKS4NCj4gPiA+DQo+ID4gPiBVc2Vy
+cyBvZiBtbXUgbm90aWZpZXIgQVBJIHRyYWNrIGNoYW5nZXMgdG8gdGhlIENQVSBwYWdlIHRhYmxl
+IGFuZA0KPiA+ID4gdGFrZSBzcGVjaWZpYyBhY3Rpb24gZm9yIHRoZW0uIFdoaWxlIGN1cnJlbnQg
+QVBJIG9ubHkgcHJvdmlkZSByYW5nZQ0KPiA+ID4gb2YgdmlydHVhbCBhZGRyZXNzIGFmZmVjdGVk
+IGJ5IHRoZSBjaGFuZ2UsIG5vdCB3aHkgdGhlIGNoYW5nZXMgaXMNCj4gPiA+IGhhcHBlbmluZw0K
+PiA+ID4NCj4gPiA+IFRoaXMgcGF0Y2ggaXMganVzdCBwYXNzaW5nIGRvd24gdGhlIG5ldyBpbmZv
+cm1hdGlvbnMgYnkgYWRkaW5nIGl0IHRvDQo+ID4gPiB0aGUgbW11X25vdGlmaWVyX3JhbmdlIHN0
+cnVjdHVyZS4NCj4gPiA+DQo+ID4gPiBDaGFuZ2VzIHNpbmNlIHYxOg0KPiA+ID4gICAgIC0gSW5p
+dGlhbGl6ZSBmbGFncyBmaWVsZCBmcm9tIG1tdV9ub3RpZmllcl9yYW5nZV9pbml0KCkNCj4gPiA+
+IGFyZ3VtZW50cw0KPiA+ID4NCj4gPiA+IFNpZ25lZC1vZmYtYnk6IErDqXLDtG1lIEdsaXNzZSA8
+amdsaXNzZUByZWRoYXQuY29tPg0KPiA+ID4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgt
+Zm91bmRhdGlvbi5vcmc+DQo+ID4gPiBDYzogbGludXgtbW1Aa3ZhY2sub3JnDQo+ID4gPiBDYzog
+Q2hyaXN0aWFuIEvDtm5pZyA8Y2hyaXN0aWFuLmtvZW5pZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IEpv
+b25hcyBMYWh0aW5lbiA8am9vbmFzLmxhaHRpbmVuQGxpbnV4LmludGVsLmNvbT4NCj4gPiA+IENj
+OiBKYW5pIE5pa3VsYSA8amFuaS5uaWt1bGFAbGludXguaW50ZWwuY29tPg0KPiA+ID4gQ2M6IFJv
+ZHJpZ28gVml2aSA8cm9kcmlnby52aXZpQGludGVsLmNvbT4NCj4gPiA+IENjOiBKYW4gS2FyYSA8
+amFja0BzdXNlLmN6Pg0KPiA+ID4gQ2M6IEFuZHJlYSBBcmNhbmdlbGkgPGFhcmNhbmdlQHJlZGhh
+dC5jb20+DQo+ID4gPiBDYzogUGV0ZXIgWHUgPHBldGVyeEByZWRoYXQuY29tPg0KPiA+ID4gQ2M6
+IEZlbGl4IEt1ZWhsaW5nIDxGZWxpeC5LdWVobGluZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IEphc29u
+IEd1bnRob3JwZSA8amdnQG1lbGxhbm94LmNvbT4NCj4gPiA+IENjOiBSb3NzIFp3aXNsZXIgPHp3
+aXNsZXJAa2VybmVsLm9yZz4NCj4gPiA+IENjOiBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxpYW1z
+QGludGVsLmNvbT4NCj4gPiA+IENjOiBQYW9sbyBCb256aW5pIDxwYm9uemluaUByZWRoYXQuY29t
+Pg0KPiA+ID4gQ2M6IFJhZGltIEtyxI1tw6HFmSA8cmtyY21hckByZWRoYXQuY29tPg0KPiA+ID4g
+Q2M6IE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+DQo+ID4gPiBDYzogQ2hyaXN0aWFu
+IEtvZW5pZyA8Y2hyaXN0aWFuLmtvZW5pZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IFJhbHBoIENhbXBi
+ZWxsIDxyY2FtcGJlbGxAbnZpZGlhLmNvbT4NCj4gPiA+IENjOiBKb2huIEh1YmJhcmQgPGpodWJi
+YXJkQG52aWRpYS5jb20+DQo+ID4gPiBDYzoga3ZtQHZnZXIua2VybmVsLm9yZw0KPiA+ID4gQ2M6
+IGRyaS1kZXZlbEBsaXN0cy5mcmVlZGVza3RvcC5vcmcNCj4gPiA+IENjOiBsaW51eC1yZG1hQHZn
+ZXIua2VybmVsLm9yZw0KPiA+ID4gQ2M6IEFybmQgQmVyZ21hbm4gPGFybmRAYXJuZGIuZGU+DQo+
+ID4gPiAtLS0NCj4gPiA+ICBpbmNsdWRlL2xpbnV4L21tdV9ub3RpZmllci5oIHwgNiArKysrKy0N
+Cj4gPiA+ICAxIGZpbGUgY2hhbmdlZCwgNSBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+
+ID4gPg0KPiA+ID4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvbW11X25vdGlmaWVyLmgNCj4g
+PiA+IGIvaW5jbHVkZS9saW51eC9tbXVfbm90aWZpZXIuaCBpbmRleCA2MmY5NGNkODU0NTUuLjAz
+Nzk5NTZmZmYyMw0KPiA+ID4gMTAwNjQ0DQo+ID4gPiAtLS0gYS9pbmNsdWRlL2xpbnV4L21tdV9u
+b3RpZmllci5oDQo+ID4gPiArKysgYi9pbmNsdWRlL2xpbnV4L21tdV9ub3RpZmllci5oDQo+ID4g
+PiBAQCAtNTgsMTAgKzU4LDEyIEBAIHN0cnVjdCBtbXVfbm90aWZpZXJfbW0geyAgI2RlZmluZQ0K
+PiA+ID4gTU1VX05PVElGSUVSX1JBTkdFX0JMT0NLQUJMRSAoMSA8PCAwKQ0KPiA+ID4NCj4gPiA+
+ICBzdHJ1Y3QgbW11X25vdGlmaWVyX3JhbmdlIHsNCj4gPiA+ICsJc3RydWN0IHZtX2FyZWFfc3Ry
+dWN0ICp2bWE7DQo+ID4gPiAgCXN0cnVjdCBtbV9zdHJ1Y3QgKm1tOw0KPiA+ID4gIAl1bnNpZ25l
+ZCBsb25nIHN0YXJ0Ow0KPiA+ID4gIAl1bnNpZ25lZCBsb25nIGVuZDsNCj4gPiA+ICAJdW5zaWdu
+ZWQgZmxhZ3M7DQo+ID4gPiArCWVudW0gbW11X25vdGlmaWVyX2V2ZW50IGV2ZW50Ow0KPiA+ID4g
+IH07DQo+ID4gPg0KPiA+ID4gIHN0cnVjdCBtbXVfbm90aWZpZXJfb3BzIHsNCj4gPiA+IEBAIC0z
+NjMsMTAgKzM2NSwxMiBAQCBzdGF0aWMgaW5saW5lIHZvaWQNCj4gbW11X25vdGlmaWVyX3Jhbmdl
+X2luaXQgKHN0cnVjdCBtbXVfbm90aWZpZXJfcmFuZ2UgKnJhbmdlLA0KPiA+ID4gIAkJCQkJICAg
+dW5zaWduZWQgbG9uZyBzdGFydCwNCj4gPiA+ICAJCQkJCSAgIHVuc2lnbmVkIGxvbmcgZW5kKQ0K
+PiA+ID4gIHsNCj4gPiA+ICsJcmFuZ2UtPnZtYSA9IHZtYTsNCj4gPiA+ICsJcmFuZ2UtPmV2ZW50
+ID0gZXZlbnQ7DQo+ID4gPiAgCXJhbmdlLT5tbSA9IG1tOw0KPiA+ID4gIAlyYW5nZS0+c3RhcnQg
+PSBzdGFydDsNCj4gPiA+ICAJcmFuZ2UtPmVuZCA9IGVuZDsNCj4gPiA+IC0JcmFuZ2UtPmZsYWdz
+ID0gMDsNCj4gPiA+ICsJcmFuZ2UtPmZsYWdzID0gZmxhZ3M7DQo+ID4NCj4gPiBXaGljaCBvZiB0
+aGUgInVzZXIgcGF0Y2ggc2V0cyIgdXNlcyB0aGUgbmV3IGZsYWdzPw0KPiA+DQo+ID4gSSdtIG5v
+dCBzZWVpbmcgdGhhdCB1c2VyIHlldC4gIEluIGdlbmVyYWwgSSBkb24ndCBzZWUgYW55dGhpbmcg
+d3JvbmcNCj4gPiB3aXRoIHRoZSBzZXJpZXMgYW5kIEkgbGlrZSB0aGUgaWRlYSBvZiB0ZWxsaW5n
+IGRyaXZlcnMgd2h5IHRoZSBpbnZhbGlkYXRlIGhhcw0KPiBmaXJlZC4NCj4gPg0KPiA+IEJ1dCBp
+cyB0aGUgZmxhZ3MgYSBmdXR1cmUgZmVhdHVyZT8NCj4gPg0KPiANCj4gSSBiZWxpZXZlIHRoZSBs
+aW5rIHdlcmUgaW4gdGhlIGNvdmVyOg0KPiANCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTkv
+MS8yMy84MzMNCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTkvMS8yMy84MzQNCj4gaHR0cHM6
+Ly9sa21sLm9yZy9sa21sLzIwMTkvMS8yMy84MzINCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIw
+MTkvMS8yMy84MzENCj4gDQo+IEkgaGF2ZSBtb3JlIGNvbWluZyBmb3IgSE1NIGJ1dCBpIGFtIHdh
+aXRpbmcgYWZ0ZXIgNS4yIG9uY2UgYW1kZ3B1IEhNTQ0KPiBwYXRjaCBhcmUgbWVyZ2UgdXBzdHJl
+YW0gYXMgaXQgd2lsbCBjaGFuZ2Ugd2hhdCBpcyBwYXNzZWQgZG93biB0byBkcml2ZXINCj4gYW5k
+IGl0IHdvdWxkIGNvbmZsaWN0IHdpdGggbm9uIG1lcmdlZCBITU0gZHJpdmVyIChsaWtlIGFtZGdw
+dSB0b2RheSkuDQo+IA0KDQpVbmZvcnR1bmF0ZWx5IHRoaXMgZG9lcyBub3QgYW5zd2VyIG15IHF1
+ZXN0aW9uLiAgWWVzIEkgc2F3IHRoZSBsaW5rcyB0byB0aGUgcGF0Y2hlcyB3aGljaCB1c2UgdGhp
+cyBpbiB0aGUgaGVhZGVyLiAgRnVydGhlcm1vcmUsIEkgY2hlY2tlZCB0aGUgbGlua3MgYWdhaW4s
+IEkgc3RpbGwgZG8gbm90IHNlZSBhIHVzZSBvZiByYW5nZS0+ZmxhZ3Mgbm9yIGEgdXNlIG9mIHRo
+ZSBuZXcgZmxhZ3MgcGFyYW1ldGVyIHRvIG1tdV9ub3RpZmllcl9yYW5nZV9pbml0KCkuDQoNCkkg
+c3RpbGwgZ2F2ZSBhIHJldmlld2VkIGJ5IGJlY2F1c2UgSSdtIG5vdCBzYXlpbmcgaXQgaXMgd3Jv
+bmcgSSdtIGp1c3QgdHJ5aW5nIHRvIHVuZGVyc3RhbmQgd2hhdCB1c2UgZHJpdmVycyBoYXZlIG9m
+IHRoaXMgZmxhZy4NCg0KU28gYWdhaW4gSSdtIGN1cmlvdXMgd2hhdCBpcyB0aGUgdXNlIGNhc2Ug
+b2YgdGhlc2UgZmxhZ3MgYW5kIHRoZSB1c2UgY2FzZSBvZiBleHBvc2luZyBpdCB0byB0aGUgdXNl
+cnMgb2YgTU1VIG5vdGlmaWVycz8NCg0KSXJhDQoNCj4gQ2hlZXJzLA0KPiBKw6lyw7RtZQ0K
 
