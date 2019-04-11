@@ -2,175 +2,172 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 573E5C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:53:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4AA5C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:03:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00DB22082E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:52:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cfBtLJFe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00DB22082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F7D020850
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:03:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F7D020850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 766216B026D; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
+	id 0A6526B026B; Thu, 11 Apr 2019 14:03:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 713A06B026E; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
+	id 054EE6B026C; Thu, 11 Apr 2019 14:03:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 602736B026F; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
+	id EAC626B026D; Thu, 11 Apr 2019 14:03:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F4A6B026D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id 187so5308819wmc.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:52:59 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C8BB96B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:03:43 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id x58so6374197qtc.1
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:03:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
-        b=V7L850QfqtytqRvjsG/wGHyk0+35dfwZiQd4auEnVRPUiqWR+wmfcSZDHHBhHKRfJ8
-         9W8XK1Qfa3/QV8zdBkFGOVrR3mvsVyTvdLOmII/fyETj4ep+R3XQEr0t9m3Axc3VIFd2
-         hXNXW2g++C/SlzCcSm26YtSoxCq4HruZGt/2mA3joRgbLGA9uHzwYtSfI1hbkGtXQyju
-         opW6iJo9K8z197wCodeeGmgFNYyw+CR+Scw1Be75yBa2ri4C+3cJB2sfPyPUR2zYGhgp
-         jHAaf8ZmNhuiHw75spz8xUXpucmAenick0F8+ZW+pjsY2ax6l93v1o3KqxOA8mbWMosi
-         q9mQ==
-X-Gm-Message-State: APjAAAVi3ngSCTpqX+acZRf9zvCdYwz348qLkFjq8a4BvmnqOy7nJ0i/
-	YU7QozPOHTVjZnfVc0Hd0eD7goSBLuwLZHa6BJjUK1lWBlefhkISPH8/O9RglGVMeI8oaVew3dJ
-	ZJ8cM3UhNh+V9U0+p/eyWH2En/H8Nt0yVtJYCGAj/Rw4lebBUVaR3+1R1/H6nwZAL3w==
-X-Received: by 2002:a1c:a010:: with SMTP id j16mr7498876wme.40.1555005178604;
-        Thu, 11 Apr 2019 10:52:58 -0700 (PDT)
-X-Received: by 2002:a1c:a010:: with SMTP id j16mr7498825wme.40.1555005177165;
-        Thu, 11 Apr 2019 10:52:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555005177; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=8J9fw/5KcumUfMxmqt75E7CG7dVNV+nGFyw6PXr6yvY=;
+        b=K+Lssvo4vDsO6dGKTbQUqZ/Kq5uHYH6VCjZpsHr7R4wEnQK6wofLWQktPkRJzQXsfe
+         wcoqMunw/mIxzylenPbziiMlaF5XBGkQodvexKqDxLJnaf4Xqp1XESTgITSl04u9zUdd
+         /nGu8dABQfib+PM0o1h52uz6bYWKdQElgX2+n9UlLGsenvbPynQaGncdH4+QqPo48YLW
+         8z08wWNbDtxe9uJc1RavbcEAOyyyWaV5r3RLMoEujRFevZ1uwNXyHrnlUouzy2aCfP6i
+         3hskx7bB87ahnsVPKt0hW+wLzcGfBigJxUpKTLZg6lePw44RIEpDsDPZFW8SiJaBeZxR
+         swLw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW9L9NPkN8dB6+4GX5RuKLi8tWOc/3gxfwwKgagmTvIsRqikS4v
+	X5NAL14Jt7b6zVCxYld1rj0RNAJ3uMjCuJELvWbx+Kx+zWgMCv1AJmygaW/6GlktsGck0olSsb5
+	imWXd8PdiBgM7xwQBCFytod1ooadVuOsKW+6X9RoP51r647sXsjTEFQdb8byT6qu1Yw==
+X-Received: by 2002:ac8:3789:: with SMTP id d9mr45079160qtc.34.1555005823574;
+        Thu, 11 Apr 2019 11:03:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz8FdUKjo9ey/zKfU1pvAFUSKl+T6Sx7GYxM8ybslkVnRstT2cTBBf6ZqrlUFoSnvVxAeCw
+X-Received: by 2002:ac8:3789:: with SMTP id d9mr45079105qtc.34.1555005823045;
+        Thu, 11 Apr 2019 11:03:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555005823; cv=none;
         d=google.com; s=arc-20160816;
-        b=c6lFCnmtJKv5cMaueKoIsXb/jYVXh7GZwbC0K/IdGE+ffehoCi6zFOjnuxY/3atBZf
-         7ZAG42aM+J4Si+ILc8BrUC9JjcnouEIUh2ZgyQ5gDp0+x8r164IpO/aAbGOkw/0w0UKq
-         huJy4zYFO0dcsQX1a4B60WmKCPOXCLAF9bl09vK8/RNEAqQhVCR6g2ixqswIxAw3xGON
-         S8DwKdhTU4f2jH5wmrGIqwnvNtqo9PjMcvZLyEGOEz3IGi45WWJfq7J1O3mtlI3NYjHU
-         lKinv88g/WRoOJH5VzfpUhESqt+Z4zNI0L7huaoy/TvXdd3tesBqkAeGLJxEAOspwqr9
-         xC3Q==
+        b=f4YLwlNj4O87A2uCffYxUSnPjUEsVYUGMzXOHRjcYboA7CIZ4cniZzjyNy1Bv0rnvX
+         J35Fcqe97FGKUWulTTTGqJ7nGTuRfeBQFfZtBKg3javQq/qGnRN6Pztcfzz5htv+IhUa
+         OKmi5wFjOVPz4rcxMiWjYk9D/Ge2sehHgXkvsVdxLFgkLRmeFD/ldxQn72O3L73ghzUh
+         MzCQphMonoT3TUSjz4QmcOMw+FfB6bHVnRctTzfkbqgh7Q13hih49NL7D/ImYRa5OUZE
+         vuxE4x0nGi04N6sn69m+cwmMr3iSQlOdiI8My7doMy7GM1aJulittTOtdkBohbhbMLts
+         Co5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
-        b=bhhrLa+FI/OJ9eXYGJvjn2MDKbgqkJ0nTDRtHyvFPtipZdxAIM26h/iSWu0eDz+I6G
-         rrcAtkYJjFYb57wK46v6tY5aOcZMak6AGkHtSH659rveuIcOqEHK7c8JcxrTFyaKOsAE
-         WC+99OINjmnhLAkvaPhQW4lFbHN9ahUgqf6UbjTVMWwkoTmN006ytjoKDJ1qehMInTrb
-         GrxVOPE8RRvbs6aWzlkSs663ky6mRk9ZLSg7hhgupjA1uTwyBkIYdNGt0aGPf4D4yrDn
-         cRhvpZTTKRwloZL4xmMzAT50Uw2l4MgRVKW9Fyxam85VuWU7+2UngLivL1ZvYcfhtkbu
-         CuWw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=8J9fw/5KcumUfMxmqt75E7CG7dVNV+nGFyw6PXr6yvY=;
+        b=0xTHbt2S/rwikNUi/evN9grMkQWaFNY/0lPWs0Qunx0IxvZYe/pJ2vQ42H91KZTCPL
+         W23FAVXZQVjBi7oFRidaozye/NP9wViMoQX7xYxttBFUqveMrZjOYIzIQj+CCwkSekkw
+         W3hAb6GX3EANvuusjzsjMv4kfznURmbmuq4tfNthG8uapn6PLuYhk5evBmgv0UJDX4j1
+         /fseYeWphz2/Ojw9uyND6/louF4fwT8jd/M7bhUxiXgC3H9jB2sV4fZGHQqVz1t1PXSE
+         M9P9PbCsmzL0GeTP2si79eKJUvRxC7IqjN/wxHE3ytjnQIEYp6BIl/J941PXPPp2wOVs
+         tRKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cfBtLJFe;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g5sor29602470wrp.41.2019.04.11.10.52.57
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a77si4555591qkc.262.2019.04.11.11.03.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Apr 2019 10:52:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 11:03:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=cfBtLJFe;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
-        b=cfBtLJFewyMKRnYYnw21vINnPqrk2z7GXrfM4YvSVrWBgQq+nJOjapX/bWa5GUvuYY
-         H3toxmQkRamCTdWSc8N3hDwzQdehoe+ScCzHOv6ZBgAJX3biWy24vKWv0lNW4hrPaXaO
-         qBo1S2X8vw7dHA2BxIBEuMUibMJqCRACcBwW8wcxJ2Yqwv+asIld9QHvEQnMVQOJPgWy
-         bp+m/WK6Dg+OZiuHifUQQfGgY6JUUuTSwDSXRs3EJl8COHu1SeN09A6JrgzaeNx/3XHH
-         XRcffG/t68HskedwzTcwrH5utbMjIhnZI1NtOUdPNt4GKX40dNXqMl0hOKzAz/WV4qKE
-         NwdQ==
-X-Google-Smtp-Source: APXvYqwhl9r+dJ0Z/fammLyczcHvRtwhpBRx/JMX+uk7Nbkdaz4yEC6SKsx9MC9/KkL3DGJtwTYbXhZG31qaO53ZZtA=
-X-Received: by 2002:adf:dc8e:: with SMTP id r14mr8296918wrj.118.1555005176426;
- Thu, 11 Apr 2019 10:52:56 -0700 (PDT)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C43581219B9;
+	Thu, 11 Apr 2019 18:03:30 +0000 (UTC)
+Received: from localhost.localdomain.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id E94405D9C4;
+	Thu, 11 Apr 2019 18:03:28 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH] mm/hmm: kconfig split HMM address space mirroring from device memory
+Date: Thu, 11 Apr 2019 14:03:26 -0400
+Message-Id: <20190411180326.18958-1-jglisse@redhat.com>
 MIME-Version: 1.0
-References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
- <20190411153313.GE22763@bombadil.infradead.org> <CAJuCfpGQ8c-OCws-zxZyqKGy1CfZpjxDKMH__qAm5FFXBcnWOw@mail.gmail.com>
- <CAKOZuetFU4tXE27bxA86zzDfNSCbw83p8fPxfkQ_d_Em0C04Sg@mail.gmail.com> <20190411173649.GF22763@bombadil.infradead.org>
-In-Reply-To: <20190411173649.GF22763@bombadil.infradead.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Thu, 11 Apr 2019 10:52:45 -0700
-Message-ID: <CAJuCfpG1P42qnDmGZLGkYy+mkS7QjfYUjGGpEBa9UGgLt5=q4Q@mail.gmail.com>
-Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
- process killing
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Daniel Colascione <dancol@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, yuzhoujian@didichuxing.com, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
-	"Eric W. Biederman" <ebiederm@xmission.com>, Shakeel Butt <shakeelb@google.com>, 
-	Christian Brauner <christian@brauner.io>, Minchan Kim <minchan@kernel.org>, 
-	Tim Murray <timmurray@google.com>, Joel Fernandes <joel@joelfernandes.org>, 
-	Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, 
-	LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@android.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 11 Apr 2019 18:03:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 10:36 AM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Thu, Apr 11, 2019 at 10:33:32AM -0700, Daniel Colascione wrote:
-> > On Thu, Apr 11, 2019 at 10:09 AM Suren Baghdasaryan <surenb@google.com> wrote:
-> > > On Thu, Apr 11, 2019 at 8:33 AM Matthew Wilcox <willy@infradead.org> wrote:
-> > > >
-> > > > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
-> > > > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
-> > > > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
-> > > > > victim process. The usage of this flag is currently limited to SIGKILL
-> > > > > signal and only to privileged users.
-> > > >
-> > > > What is the downside of doing expedited memory reclaim?  ie why not do it
-> > > > every time a process is going to die?
-> > >
-> > > I think with an implementation that does not use/abuse oom-reaper
-> > > thread this could be done for any kill. As I mentioned oom-reaper is a
-> > > limited resource which has access to memory reserves and should not be
-> > > abused in the way I do in this reference implementation.
-> > > While there might be downsides that I don't know of, I'm not sure it's
-> > > required to hurry every kill's memory reclaim. I think there are cases
-> > > when resource deallocation is critical, for example when we kill to
-> > > relieve resource shortage and there are kills when reclaim speed is
-> > > not essential. It would be great if we can identify urgent cases
-> > > without userspace hints, so I'm open to suggestions that do not
-> > > involve additional flags.
-> >
-> > I was imagining a PI-ish approach where we'd reap in case an RT
-> > process was waiting on the death of some other process. I'd still
-> > prefer the API I proposed in the other message because it gets the
-> > kernel out of the business of deciding what the right signal is. I'm a
-> > huge believer in "mechanism, not policy".
->
-> It's not a question of the kernel deciding what the right signal is.
-> The kernel knows whether a signal is fatal to a particular process or not.
-> The question is whether the killing process should do the work of reaping
-> the dying process's resources sometimes, always or never.  Currently,
-> that is never (the process reaps its own resources); Suren is suggesting
-> sometimes, and I'm asking "Why not always?"
+From: Jérôme Glisse <jglisse@redhat.com>
 
-If there are no downsides of doing this always (like using some
-resources that can be utilized in a better way) then by all means,
-let's do it unconditionally. My current implementation is not one of
-such cases :)
+To allow building device driver that only care about address space
+mirroring (like RDMA ODP) on platform that do not have all the pre-
+requisite for HMM device memory (like ZONE_DEVICE on ARM) split the
+HMM_MIRROR option dependency from the HMM_DEVICE dependency.
 
-I think with implementation when killing process is doing the reaping
-of the victim's mm this can be done unconditionally because we don't
-use resources which might otherwise be used in a better way. Overall I
-like Daniel's idea of the process that requested killing and is
-waiting for the victim to die helping in reaping its memory. It kind
-of naturally elevates the priority of the reaping if the priority of
-the waiting process is higher than victim's priority (a kind of
-priority inheritance).
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Cc: Leon Romanovsky <leonro@mellanox.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+---
+ mm/Kconfig | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 2e6d24d783f7..00d9febbc775 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -679,12 +679,13 @@ config ZONE_DEVICE
+ config ARCH_HAS_HMM
+ 	bool
+ 	default y
+-	depends on (X86_64 || PPC64)
+-	depends on ZONE_DEVICE
+ 	depends on MMU && 64BIT
+-	depends on MEMORY_HOTPLUG
+-	depends on MEMORY_HOTREMOVE
+-	depends on SPARSEMEM_VMEMMAP
++
++config ARCH_HAS_HMM_DEVICE
++	bool
++	default y
++	depends on (X86_64 || PPC64)
++	depends on ARCH_HAS_ZONE_DEVICE
+ 
+ config MIGRATE_VMA_HELPER
+ 	bool
+@@ -710,7 +711,8 @@ config HMM_MIRROR
+ 
+ config DEVICE_PRIVATE
+ 	bool "Unaddressable device memory (GPU memory, ...)"
+-	depends on ARCH_HAS_HMM
++	depends on ARCH_HAS_HMM_DEVICE
++	depends on ZONE_DEVICE
+ 	select HMM
+ 	select DEV_PAGEMAP_OPS
+ 
+@@ -721,7 +723,8 @@ config DEVICE_PRIVATE
+ 
+ config DEVICE_PUBLIC
+ 	bool "Addressable device memory (like GPU memory)"
+-	depends on ARCH_HAS_HMM
++	depends on ARCH_HAS_HMM_DEVICE
++	depends on ZONE_DEVICE
+ 	select HMM
+ 	select DEV_PAGEMAP_OPS
+ 
+-- 
+2.20.1
 
