@@ -2,218 +2,225 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AEA7C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EBA4C282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 397D62075B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:37:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3E252204EC
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="yBlNj5Aj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 397D62075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sVv0xkpT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E252204EC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E346E6B0273; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
+	id CF8B86B0275; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE48F6B0274; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
+	id CA87B6B0276; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C86E66B0275; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
+	id BBDDD6B0277; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A807A6B0273
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:37:43 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id o135so3690913qke.11
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:37:43 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 847726B0275
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:02 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a3so3135026pfi.17
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=;
-        b=bBbW7XcvhwdoEcFf+SLuF55gskwgAdEigO5YE4Ow+xZJAMuntb07JfYdZ+aLPufIBa
-         IElGzOa7NXxHb4URDzCX1AqsMreHafl91tWsPSTu01ILhHtm23NeZ6QxKknM3pPb8YSD
-         55DPDroVZdZYDrR3UkLlRsnHRWl54cAXNbg0hC3JhHL9zGx0XD+9RGtFuOt5gJO7bPrx
-         5n6f8W8G4meyQBjkgozYcb89TXFshOgxzaAtEfJDB86HJT0LlGZE2MlQfamhgxnT44Bq
-         ZWOf5NmL6beGIbs4g12Sc0Q3DSB6qNnAOUMkyI5RLKCwyn49/KXJNlmShUHatfq6RpAJ
-         wOcA==
-X-Gm-Message-State: APjAAAU0JRpEFFHQQK6ULTCMFzumonWDQw/CVVhVqtKJYwbkvIQNab1c
-	QrLCAKkOn3Wc/rF9xJE2PfBO7/UTnvQrgLEqBxPr+OBHFe5UNjPvX4LKvVc5W2GzIc//8/tuoam
-	lTJMPFOtqT5sOp/QtLTY8HcyFP4Y3EjWBloqcYDTxMHnv8f3sAmASgBNT5dzPa2I=
-X-Received: by 2002:a0c:f806:: with SMTP id r6mr36700376qvn.188.1554946663429;
-        Wed, 10 Apr 2019 18:37:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz68k1rRPb84r6AWeFC8RCH7p6WHxvOFj6slNaIvpkOioXJkk4EG11c4G6CiRjeN0KB7L6m
-X-Received: by 2002:a0c:f806:: with SMTP id r6mr36700338qvn.188.1554946662494;
-        Wed, 10 Apr 2019 18:37:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554946662; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc:content-transfer-encoding;
+        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
+        b=B78DqsLHhnALVqRVunLM88k02LdL83b+QkyjV8oaefsUHIfDlMlUW1MECgphTE3Xeh
+         ZKnIBd1aO/JA8Q5SYAugSmoLCxnqzzg1xHNMbxHDc7O8BnxHH9GYApphH4CedmZvDzv6
+         JwnEtNP7EqXrTmj4NF+qdZZGEKlMhaXnhOSvSv9ehXl1ajYcUtikC2IraIwwQG5KFUvh
+         2tFem8qu8lIXUEX3wrLQIXF/PM35y+iGCXt6o1yq8/NE1uZhc0omlNK5rmO3fkp7ezF2
+         84mbjX1QhNXwN3Z23mpQlq5n7mB+9bxQPPisTrYu8KcRTRENiPxgqT1PiHGtIStSIlDt
+         UoWQ==
+X-Gm-Message-State: APjAAAVlUOkLCWSIOUj7P2cmT9YhmkD/5x/kanB2s2VoAX9JvCWttjyk
+	AGAKPo+kO0IvziQxDdpfr81yVTEqYMjVsWV66ImaCak1GpVFZz6ACm6AhlakMM826uUVuT/AEPj
+	E5Cp5CXjOEYNfWnefBCMusyc/fhN1lvBBzrSoClU+qPNUtgAOmi6TviffqOPaUi6bPw==
+X-Received: by 2002:a63:3188:: with SMTP id x130mr42654203pgx.64.1554947041609;
+        Wed, 10 Apr 2019 18:44:01 -0700 (PDT)
+X-Received: by 2002:a63:3188:: with SMTP id x130mr42654139pgx.64.1554947040555;
+        Wed, 10 Apr 2019 18:44:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554947040; cv=none;
         d=google.com; s=arc-20160816;
-        b=KUkBu9fy8iTWIoQMOKTi5xhRhVlh5eZ6BdaUoWhqlM/lNOz3yRF+XmwwEgTvf1wJTy
-         se1lmZu+Y2ERv4Nnf2eoQUov9Z3RF9Elab38rXRI4KamTON1S5zMNqhhwsxeS1NTIWpr
-         1tlvSUHdJylzIksotIIODunLyDv2+OMaaGgBEqnmO+deUOCEWct8X3v8rrbn88EPPUFE
-         pzdsdO7kU4vMD+Ku8YmEzb8f1htcoTrFMHTLGsTvcDJ0BldG9woeJNRi8CYvyYimLG16
-         +EqnIr/yt/I8XDmi5FWfyQY4N5qjzWYRFLSgzDWl5HcfHmNFNbPSoMkPatkQMm7o3E3l
-         oADA==
+        b=G7bvhBC9UVEJYv4HTG16jzO5oiWHR0qGcsHBo/TfuFMqpNyg1qf9Lmna3yMPNvK29/
+         z5TnQ+ee5XefzRJytIolhK5l9K2K8W7F5LPfGHxiGXkj0PP6rqjd2EDKPB/LDIxU/a0v
+         SNTN1J9t29PEOSjilGZS0n9pg/4gYuKyih/cpC5G4TXXvEZOZ8/dhgiJv2d1OykAxn0i
+         5lWrA2yEAOSucc3dYb6vRNjitJimUDTihfnAAAWMqCcW20mzjWlur7pWEbZ2WZNmau4E
+         aTMcbiSjSMb92thwOtzMiZB5l3UddyXFMvZlMyo3Yz1xcw2QBwGg+jexLh9PBaEzPnV9
+         /1Eg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=;
-        b=BLlDz1kTpmEgsWI01KT69vqXf1lEcUxvywE1egLkozulLO6dfpemOUAsKd0iLFLG0x
-         mE8w3X++wU2ANhtkjbG9koQcVA9N5QKnACNCKoQwXkGYGfvGbj02N60AYIPsAmztZ3NN
-         qqZ0H6DBNJa6v0QIqBolGbDJ1q4j9ET9JJ2q5uKYgFtMsToBld9rh5jFEXGd3wmieZqC
-         iUNlVVih4HnoryUS8CwhrbH2mRYEEVO0gC0Ben4g51bHS6NRERHt8NzOMQOo6ISSYV1i
-         /jyoc8W8Ij+WIXasufKonR1PnYFHTtc3iuJ1tonBV6AR7I/Pp0NJG7liKtT2eN0hCkiw
-         qQyg==
+        h=content-transfer-encoding:cc:to:from:subject:mime-version
+         :message-id:date:dkim-signature;
+        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
+        b=AS8M1Ky1anINjyIDanmA8UBDYZfZCLSKxRt6bYt87dpelbZF/ygxJf7eXwIgedXZuo
+         LyLbKmylUSPSQrUU7xtq5mTYE45atM4RtstU1cwQ5ZK8ISMvoj+ETjpyYevosI81OZHJ
+         hxBT4lh+M9Z1SJ0MrgQWhY0dPHrq7deA4cZtomQ1SadXbEQgMtfE+zSHL/Ic9GjOmDfi
+         cBEUI686qNcLghZLH54TZx84RGPIoZUGf1BQEFVJZ5EaDgeEiwXjGPWciApoG0R/geM4
+         4m179IXeHGrvTlFJALOhqAktDkD4xljXpcRN28bsurr2rbK4TsaYDxHwcZCbQhN+gyNp
+         nOuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=yBlNj5Aj;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id k59si3146115qte.346.2019.04.10.18.37.42
+       dkim=pass header.i=@google.com header.s=20161025 header.b=sVv0xkpT;
+       spf=pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=335uuXAYKCLwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id h12sor40953790pgq.71.2019.04.10.18.44.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 18:37:42 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
+        (Google Transport Security);
+        Wed, 10 Apr 2019 18:44:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=yBlNj5Aj;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 3835E999B;
-	Wed, 10 Apr 2019 21:37:42 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Wed, 10 Apr 2019 21:37:42 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:date:from
-	:in-reply-to:message-id:mime-version:references:subject:to
-	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=bQrKJO1ca6Jnb6VAVcy4YOcaMtIAYDp36gD1sjc6/M8=; b=yBlNj5Aj
-	x0jERAcX2nr8Cd8pENxlZdO97pwvF1NoK6TuCQ1brau0DWTvV1ZSAt1dD+zRVwt1
-	f7G5jP181kU6gbOeouIaRF4A6IZLX20cnJ0PCFa/nGlv/IfL6IJWJtdT0N3ZOXBU
-	TEj8iyiSmiX8iwAMHX9jUxkgs4KHVBbZL5HdCCorCoHBuh4x0Fr43See53XVlJl5
-	vzXXuJUfpxuFmBKCN8ruXW6Q8GiYxgFV1oW8b40DUJ3RHiA+nFIPaSBX6MckJ9W+
-	UUSWKB2gpBjc4X76BEUfeXBA9tKmd1n+ZV7ZxbWuO4pxRq1wdrzfVUn39bFzO9sn
-	v4xFOp3swHx1Ug==
-X-ME-Sender: <xms:ZZquXJCrAVQEDp_0eq0hFxaFtI5OiOF4bIethMS67w2YR9Kdq7_Dbg>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudekgdegvdcutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
-    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
-    fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
-    ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
-    epuddvgedrudejuddrudelrdduleegnecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgs
-    ihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:ZZquXLezwxv2nRBUMSG-riGoxXI303uykE5A8vzzWrl_5OtCCx5O7A>
-    <xmx:ZZquXNEuO00nfKwnCztsTH-gnPDWMoTAfPvgDz7HuE_iOP6tDZxdUQ>
-    <xmx:ZZquXNXFyubUjW-O0i8GykgVGgog10PVBVThGrr6IJvGV-RRXL4kCw>
-    <xmx:ZpquXO5IVF19Ojbcc8e9uXN0JvZAt1FudYX4shceC83MWYKHF_PAYQ>
-Received: from eros.localdomain (124-171-19-194.dyn.iinet.net.au [124.171.19.194])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 62D49E408B;
-	Wed, 10 Apr 2019 21:37:34 -0400 (EDT)
-From: "Tobin C. Harding" <tobin@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Roman Gushchin <guro@fb.com>,
-	Alexander Viro <viro@ftp.linux.org.uk>,
-	Christoph Hellwig <hch@infradead.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Andreas Dilger <adilger@dilger.ca>,
-	Waiman Long <longman@redhat.com>,
-	Tycho Andersen <tycho@tycho.ws>,
-	"Theodore Ts'o" <tytso@mit.edu>,
-	Andi Kleen <ak@linux.intel.com>,
-	David Chinner <david@fromorbit.com>,
-	Nick Piggin <npiggin@gmail.com>,
-	Rik van Riel <riel@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Jonathan Corbet <corbet@lwn.net>,
-	linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v3 15/15] dcache: Add CONFIG_DCACHE_SMO
-Date: Thu, 11 Apr 2019 11:34:41 +1000
-Message-Id: <20190411013441.5415-16-tobin@kernel.org>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190411013441.5415-1-tobin@kernel.org>
-References: <20190411013441.5415-1-tobin@kernel.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@google.com header.s=20161025 header.b=sVv0xkpT;
+       spf=pass (google.com: domain of 335uuxaykclwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=335uuXAYKCLwuwtgpdiqqing.eqonkpwz-oomxcem.qti@flex--surenb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc
+         :content-transfer-encoding;
+        bh=nMpKzlGnRjDmkTf14iU5Inuh5KPox7tkPv+EdiTrd5w=;
+        b=sVv0xkpTwtzSlxpxf7Eh4uPvLQht8KTOHpymErP8ujjl0cROfAcy7azfsZtPXzWhWD
+         cPgOu8rqPN+xOWDfdsbN52MxtcOc8fPxkqn1nTl62mmFD96RJ3eCnLvqiljGRTmR+iU2
+         u/8Wm3cwbwW0mNn+qKGQvNbBO57ZzMpj+1ZVHMkfxMRgVg+wd1ZXlbaMZjQehFJeS3+D
+         I5DtiYpbRf9zi0jJ5YUu0jLfd6NTxO8SXl1KmcijblbJDQNv52x7jwD2KAQNYPIZX5ED
+         9ThgeOsWuFoiKZpvcFu2LQm8oDNYWq/0s+1e6KxU9h+JPK2hW29GfO5mc8EA+4hoT0b3
+         AMvw==
+X-Google-Smtp-Source: APXvYqygCxVEH3ItByD6IxnaQ7ZdqZzlBm5rUdx0sPDioNv5BDwnqxGY49XVXyyMG+u6hN8qQpv1cl41iCU=
+X-Received: by 2002:a63:b74b:: with SMTP id w11mr915185pgt.87.1554947039847;
+ Wed, 10 Apr 2019 18:43:59 -0700 (PDT)
+Date: Wed, 10 Apr 2019 18:43:51 -0700
+Message-Id: <20190411014353.113252-1-surenb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
+Subject: [RFC 0/2] opportunistic memory reclaim of a killed process
+From: Suren Baghdasaryan <surenb@google.com>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com, rientjes@google.com, willy@infradead.org, 
+	yuzhoujian@didichuxing.com, jrdr.linux@gmail.com, guro@fb.com, 
+	hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp, ebiederm@xmission.com, 
+	shakeelb@google.com, christian@brauner.io, minchan@kernel.org, 
+	timmurray@google.com, dancol@google.com, joel@joelfernandes.org, 
+	jannh@google.com, surenb@google.com, linux-mm@kvack.org, 
+	lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
+	kernel-team@android.com
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In an attempt to make the SMO patchset as non-invasive as possible add a
-config option CONFIG_DCACHE_SMO (under "Memory Management options") for
-enabling SMO for the DCACHE.  Whithout this option dcache constructor is
-used but no other code is built in, with this option enabled slab
-mobility is enabled and the isolate/migrate functions are built in.
+The time to kill a process and free its memory can be critical when the
+killing was done to prevent memory shortages affecting system
+responsiveness.
 
-Add CONFIG_DCACHE_SMO to guard the partial shrinking of the dcache via
-Slab Movable Objects infrastructure.
+In the case of Android, where processes can be restarted easily, killing a
+less important background process is preferred to delaying or throttling
+an interactive foreground process. At the same time unnecessary kills
+should be avoided as they cause delays when the killed process is needed
+again. This requires a balanced decision from the system software about
+how long a kill can be postponed in the hope that memory usage will
+decrease without such drastic measures.
 
-Signed-off-by: Tobin C. Harding <tobin@kernel.org>
----
- fs/dcache.c | 4 ++++
- mm/Kconfig  | 7 +++++++
- 2 files changed, 11 insertions(+)
+As killing a process and reclaiming its memory is not an instant operation,
+a margin of free memory has to be maintained to prevent system performance
+deterioration while memory of the killed process is being reclaimed. The
+size of this margin depends on the minimum reclaim rate to cover the
+worst-case scenario and this minimum rate should be deterministic.
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 5c707ed9ab5a..5ef68b78b457 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -3069,6 +3069,7 @@ void d_tmpfile(struct dentry *dentry, struct inode *inode)
- }
- EXPORT_SYMBOL(d_tmpfile);
- 
-+#ifdef CONFIG_DCACHE_SMO
- /*
-  * d_isolate() - Dentry isolation callback function.
-  * @s: The dentry cache.
-@@ -3136,6 +3137,7 @@ static void d_partial_shrink(struct kmem_cache *s, void **v, int nr,
- 	if (!list_empty(&dispose))
- 		shrink_dentry_list(&dispose);
- }
-+#endif	/* CONFIG_DCACHE_SMO */
- 
- static __initdata unsigned long dhash_entries;
- static int __init set_dhash_entries(char *str)
-@@ -3182,7 +3184,9 @@ static void __init dcache_init(void)
- 					   sizeof_field(struct dentry, d_iname),
- 					   dcache_ctor);
- 
-+#ifdef CONFIG_DCACHE_SMO
- 	kmem_cache_setup_mobility(dentry_cache, d_isolate, d_partial_shrink);
-+#endif
- 
- 	/* Hash may have been set up in dcache_init_early */
- 	if (!hashdist)
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 47040d939f3b..92fc27ad3472 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -265,6 +265,13 @@ config SMO_NODE
-        help
-          On NUMA systems enable moving objects to and from a specified node.
- 
-+config DCACHE_SMO
-+       bool "Enable Slab Movable Objects for the dcache"
-+       depends on SLUB
-+       help
-+         Under memory pressure we can try to free dentry slab cache objects from
-+         the partial slab list if this is enabled.
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT
- 
--- 
-2.21.0
+Note that on asymmetric architectures like ARM big.LITTLE the reclaim rate
+can vary dramatically depending on which core it=E2=80=99s performed at (se=
+e test
+results). It=E2=80=99s a usual scenario that a non-essential victim process=
+ is
+being restricted to a less performant or throttled CPU for power saving
+purposes. This makes the worst-case reclaim rate scenario very probable.
+
+The cases when victim=E2=80=99s memory reclaim can be delayed further due t=
+o
+process being blocked in an uninterruptible sleep or when it performs a
+time-consuming operation makes the reclaim time even more unpredictable.
+
+Increasing memory reclaim rate and making it more deterministic would
+allow for a smaller free memory margin and would lead to more opportunities
+to avoid killing a process.
+
+Note that while other strategies like throttling memory allocations are
+viable and can be employed for other non-essential processes they would
+affect user experience if applied towards an interactive process.
+
+Proposed solution uses existing oom-reaper thread to increase memory
+reclaim rate of a killed process and to make this rate more deterministic.
+By no means the proposed solution is considered the best and was chosen
+because it was simple to implement and allowed for test data collection.
+The downside of this solution is that it requires additional =E2=80=9Cexped=
+ite=E2=80=9D
+hint for something which has to be fast in all cases. Would be great to
+find a way that does not require additional hints.
+
+Other possible approaches include:
+- Implementing a dedicated syscall to perform opportunistic reclaim in the
+context of the process waiting for the victim=E2=80=99s death. A natural bo=
+ost
+bonus occurs if the waiting process has high or RT priority and is not
+limited by cpuset cgroup in its CPU choices.
+- Implement a mechanism that would perform opportunistic reclaim if it=E2=
+=80=99s
+possible unconditionally (similar to checks in task_will_free_mem()).
+- Implement opportunistic reclaim that uses shrinker interface, PSI or
+other memory pressure indications as a hint to engage.
+
+Test details:
+Tests are performed on a Qualcomm=C2=AE Snapdragon=E2=84=A2 845 8-core ARM =
+big.LITTLE
+system with 4 little cores (0.3-1.6GHz) and 4 big cores (0.8-2.5GHz)
+running Android.
+Memory reclaim speed was measured using signal/signal_generate,
+kmem/rss_stat and sched/sched_process_exit traces.
+
+Test results:
+powersave governor, min freq
+                        normal kills      expedited kills
+        little          856 MB/sec        3236 MB/sec
+        big             5084 MB/sec       6144 MB/sec
+
+performance governor, max freq
+                        normal kills      expedited kills
+        little          5602 MB/sec       8144 MB/sec
+        big             14656 MB/sec      12398 MB/sec
+
+schedutil governor (default)
+                        normal kills      expedited kills
+        little          2386 MB/sec       3908 MB/sec
+        big             7282 MB/sec       6820-16386 MB/sec
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+min reclaim speed:      856 MB/sec        3236 MB/sec
+
+The patches are based on 5.1-rc1
+
+Suren Baghdasaryan (2):
+  mm: oom: expose expedite_reclaim to use oom_reaper outside of
+    oom_kill.c
+  signal: extend pidfd_send_signal() to allow expedited process killing
+
+ include/linux/oom.h          |  1 +
+ include/linux/sched/signal.h |  3 ++-
+ include/linux/signal.h       | 11 ++++++++++-
+ ipc/mqueue.c                 |  2 +-
+ kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
+ kernel/time/itimer.c         |  2 +-
+ mm/oom_kill.c                | 15 +++++++++++++++
+ 7 files changed, 59 insertions(+), 12 deletions(-)
+
+--=20
+2.21.0.392.gf8f6787159e-goog
 
