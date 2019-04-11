@@ -6,80 +6,80 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA551C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:58:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B62C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:58:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7245B217F4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:58:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7245B217F4
+	by mail.kernel.org (Postfix) with ESMTP id 305CB2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:58:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 305CB2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 149A16B000C; Wed, 10 Apr 2019 23:58:02 -0400 (EDT)
+	id CBB996B000E; Wed, 10 Apr 2019 23:58:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F99D6B000E; Wed, 10 Apr 2019 23:58:02 -0400 (EDT)
+	id C6A686B0010; Wed, 10 Apr 2019 23:58:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F02736B0010; Wed, 10 Apr 2019 23:58:01 -0400 (EDT)
+	id B0C666B0266; Wed, 10 Apr 2019 23:58:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F946B000C
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 23:58:01 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id d16so3205650pll.21
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 20:58:01 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 733A56B000E
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 23:58:10 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id j184so3551031pgd.7
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 20:58:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=kPV/IimYK8rIwnVzgWtbkuEOj9DcMDBGg1cT6gUJMCE=;
-        b=NtWaX/AFnnTvRkcg89//yDBYkFRkaM8LBQIw4nF4Il078H+6C7fkc1EPx63Vp2dwHB
-         KaKTdUg/J5Jk7BilEqEAtIYeDCq6YAHHR+lVFXwKyKZdwPXa4lQno/QM64pCL0xzW3I9
-         K9cFGuBvXoGZKVgb+yvCW+3TjpBEEXWm6pstZsggBS0s36FavKbcPayHS0O3Rt+5dLzV
-         xP1thCSbqYcEQA8uspubf3TI2qL4rtEU616dv/3SbEwHsP4m1j24ywVRFv3NnUp4RMiU
-         jDZv9ELE7aE4SIcN736ncnVU3YA3rCL4GM4dESIaPjqugZXQQoaZFSns/AM/unm1NRFL
-         GsrQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAULNXb7SmkLaCEV080MdlayxP7RA4ZkZ8o0AKstkcZBBkqKtPtV
-	6zYI9GBB7KbbNE1Eb0MURIRbafqcf7Xaa9sgWuWhcmUKwlGWfy/FjT50ErPcXqyFp4EeQq00nQ/
-	oP0cqHNOlovm+yasORvUA2YveuD3VKJIf7BCHeaCPN3yGhTA6UlIi+W3wQcX41PzQ6Q==
-X-Received: by 2002:a63:711d:: with SMTP id m29mr45178533pgc.109.1554955081301;
-        Wed, 10 Apr 2019 20:58:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwf0tO+XBYV99+JNELIJ/keN/hba1UwHO5vhYW4nljK6uYSZTFQMWz04INdMNrwaMPbVgfI
-X-Received: by 2002:a63:711d:: with SMTP id m29mr45178477pgc.109.1554955080041;
-        Wed, 10 Apr 2019 20:58:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554955080; cv=none;
+        bh=VBnAD41t69RqBOb9zPduWfXXPAif/Mt2uvTkTO6jcCY=;
+        b=JlJ9PJc+lTp5Gw0Kcn3RMlQu0AMn/8rI49rGuyqh5icQpLayiDrsf6eRNJkENG6L7M
+         +EkMFvA50hycN0pugg6JrD8gvHMZB9mEec3lk9T84jQguFv0bFiL6bfQq0zqrPqmFU6H
+         rjJcFgRlwTnh+sz6pSlhb/NvmJMbQbU5fTgghHDTFfinY6cZzifQrEpSGrTN3bmUWA52
+         n+kc2QP4rcZkPSGkS9S20tWBlI/9nJdbBtP3BiC8LAtF5uCc7VPh0i2BtejmiP4o3iI9
+         eOQ16jRWDDISgixfS8dnfcbR/LL9Lph8bKWi6Gn/oMlXx3XOCZk4jK5KOa3dhDT4qNax
+         /BUA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAV8dZ/a7UPEwZI5PAG9PH8RocFVpYnmnsNORMCWhigrFy7YjWGn
+	0ByuK1oHFs2Knd7meV9sSCXaRzzSFpDMQ96o2YmaXKrxuSFTTzn4fWpny0/f0jzyLIEhJqyOZ6/
+	iqrZsQuMyMHFjc/mbvUYtTL7CUiJNv5iR8bcGsLbhW7aN3OsOuH8X4olV/m6uf+x/vw==
+X-Received: by 2002:aa7:8208:: with SMTP id k8mr48203906pfi.69.1554955090103;
+        Wed, 10 Apr 2019 20:58:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxgThj1c2HUo7PVm1SD82v/7lVustNb/ddJUsOBDdXcROSn7gdoP/NPwpXgBoAgAWi5+ONr
+X-Received: by 2002:aa7:8208:: with SMTP id k8mr48203839pfi.69.1554955088839;
+        Wed, 10 Apr 2019 20:58:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554955088; cv=none;
         d=google.com; s=arc-20160816;
-        b=pJXuQR3+kKBtLBYAzlrC8+LGU95i7+HNkEgDZteXiLCsqQKSvPB0vdLLnnpAaxG+i4
-         k8lO9E8npMzMQgrh6IGvD1MGUJFhpodne90Vp7riNipKIclro0p6mS8PKUQghiK6iSyt
-         k6atcsUtl/c3fisrIGi2cdEY2Hczk2nqJFBCNpCQf99N9hNP8hgh03cn8hTII+8gcmEV
-         CZYemdITEdOrPdMO91a+BdWuEnKcoW/620itKZRH3N5lodRfJ7jOpLP7pHZOUq6xofaP
-         ZsiRB5yteZXEdPC44vapukTm3Xpbvkdo/HLh82+4odsjeOsxHU8X5lOtzcUhNDDIPeVy
-         s33Q==
+        b=tpzZ/TpN2KvdN17YiEZalSr20h8eAmgpoSnQ1mmoGQYVqZcEW0kPl9cHTfmAJ7jL9G
+         kAPo1zzrbCkLAqy6tFWFSikqc4SK9AcsZuPlVPcLfdgdVdw/HM9G9TlPyE1JrqDEF26I
+         wTkoScA2r0rBCcoiiGwEiJMqmkYR1yTXYjmvWXDoz0KmYr9a7XEwkpOeGcZdLWNf4Jp6
+         P2OFT9SsHoyEL4irl8d3PmRRfPyO6sLMFOfwc6/VHMdnLzWabfDdydDmMGsgkksoZd4T
+         QqXNOnhvS3TSy2b0VvqhYW+TNMJaZcRFXYp7XS9JQHQSiSoqfDUKUuW37cSEFRddlJrZ
+         pu8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=kPV/IimYK8rIwnVzgWtbkuEOj9DcMDBGg1cT6gUJMCE=;
-        b=nKKoCbnEk1z3anTH5+Kh3kJI7hbyaqDB3TWnObV99+jZmfIkjQkMOYgCfQ3iMd3e2C
-         aHSxza1w4JS3kr9W8rDIW1eo8xqsZPdSgYZmoUNKozKp4jsogbE6nDaVYsetAklwcFBV
-         uYrNqqz73NPoWLamOzgSY4L4QWtwnxadgUYcn+RJrjTUATS6YhXnsk/74qXeqrF300u2
-         Kv+e09qveVMHLJPKe1VZu4M38wO+BFwACGhXgwtVkDVKeDGnbq2C+Zaj2faHyI8pRepi
-         G/1RHvOn92DqQeroMAyw4VPszLvl7jbpiyqmMMuMdr0kXNLFxknLE8s7uKRZTkbiriOj
-         rmPg==
+        bh=VBnAD41t69RqBOb9zPduWfXXPAif/Mt2uvTkTO6jcCY=;
+        b=DAtkOQikZmjsO3vqnR3PUNGVuwsFZVTvDcR8+1y8DvLt0x9kVDUwqtj0YSrBK7HiNn
+         Aibay8hdZtfnExg/mc/gAr/pKX6R7ZAFXFCogf5vXwa3KY3mTUDGZ9B8p/zKLki6WNwT
+         7fsX4Q0HfiGHfyYUr9wFEpPMPAY9cBkSaYYF/QYFm07hnjObiGlKn3Ym5BjNmL5Oe7qA
+         2MFPrU+wkE8P70oVe0PJpXAnAQ4piETqh0ohWtTBSGpI28/mqzhOERKgb+wrUrVRYmwy
+         g9dime7aI1ms8qXu1FBEOHSlulsvnIP9xRI0NGMoFnpg16yWAriGQJYPqTgjtaKIZkWF
+         jNsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id a23si32832829pls.188.2019.04.10.20.57.59
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id a5si33597356pff.39.2019.04.10.20.58.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 20:58:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        Wed, 10 Apr 2019 20:58:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R941e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R501e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TP0I5rB_1554955031)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 11 Apr 2019 11:57:23 +0800
+          Thu, 11 Apr 2019 11:57:24 +0800
 From: Yang Shi <yang.shi@linux.alibaba.com>
 To: mhocko@suse.com,
 	mgorman@techsingularity.net,
@@ -96,9 +96,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v2 PATCH 6/9] mm: vmscan: don't demote for memcg reclaim
-Date: Thu, 11 Apr 2019 11:56:56 +0800
-Message-Id: <1554955019-29472-7-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v2 PATCH 9/9] mm: numa: add page promotion counter
+Date: Thu, 11 Apr 2019 11:56:59 +0800
+Message-Id: <1554955019-29472-10-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -108,108 +108,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The memcg reclaim happens when the limit is breached, but demotion just
-migrate pages to the other node instead of reclaiming them.  This sounds
-pointless to memcg reclaim since the usage is not reduced at all.
+Add counter for page promotion for NUMA balancing.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/vmscan.c | 38 +++++++++++++++++++++-----------------
- 1 file changed, 21 insertions(+), 17 deletions(-)
+ include/linux/vm_event_item.h | 1 +
+ mm/huge_memory.c              | 4 ++++
+ mm/memory.c                   | 4 ++++
+ mm/vmstat.c                   | 1 +
+ 4 files changed, 10 insertions(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2a96609..80cd624 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1046,8 +1046,12 @@ static void page_check_dirty_writeback(struct page *page,
- 		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
- }
- 
--static inline bool is_demote_ok(int nid)
-+static inline bool is_demote_ok(int nid, struct scan_control *sc)
- {
-+	/* It is pointless to do demotion in memcg reclaim */
-+	if (!global_reclaim(sc))
-+		return false;
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 499a3aa..9f52a62 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -51,6 +51,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		NUMA_HINT_FAULTS,
+ 		NUMA_HINT_FAULTS_LOCAL,
+ 		NUMA_PAGE_MIGRATE,
++		NUMA_PAGE_PROMOTE,
+ #endif
+ #ifdef CONFIG_MIGRATION
+ 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 0b18ac45..ca9d688 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1609,6 +1609,10 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+ 	migrated = migrate_misplaced_transhuge_page(vma->vm_mm, vma,
+ 				vmf->pmd, pmd, vmf->address, page, target_nid);
+ 	if (migrated) {
++		if (!node_state(page_nid, N_CPU_MEM) &&
++		    node_state(target_nid, N_CPU_MEM))
++			count_vm_numa_events(NUMA_PAGE_PROMOTE, HPAGE_PMD_NR);
 +
- 	/* Current node is cpuless node */
- 	if (!node_state(nid, N_CPU_MEM))
- 		return false;
-@@ -1267,7 +1271,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				 * Demotion only happen from primary nodes
- 				 * to cpuless nodes.
- 				 */
--				if (is_demote_ok(page_to_nid(page))) {
-+				if (is_demote_ok(page_to_nid(page), sc)) {
- 					list_add(&page->lru, &demote_pages);
- 					unlock_page(page);
- 					continue;
-@@ -2219,7 +2223,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 	 * deactivation is pointless.
- 	 */
- 	if (!file && !total_swap_pages &&
--	    !is_demote_ok(pgdat->node_id))
-+	    !is_demote_ok(pgdat->node_id, sc))
- 		return false;
- 
- 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
-@@ -2306,7 +2310,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 *
- 	 * If current node is already PMEM node, demotion is not applicable.
- 	 */
--	if (!is_demote_ok(pgdat->node_id)) {
-+	if (!is_demote_ok(pgdat->node_id, sc)) {
- 		/*
- 		 * If we have no swap space, do not bother scanning
- 		 * anon pages.
-@@ -2315,18 +2319,18 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			scan_balance = SCAN_FILE;
- 			goto out;
- 		}
-+	}
- 
--		/*
--		 * Global reclaim will swap to prevent OOM even with no
--		 * swappiness, but memcg users want to use this knob to
--		 * disable swapping for individual groups completely when
--		 * using the memory controller's swap limit feature would be
--		 * too expensive.
--		 */
--		if (!global_reclaim(sc) && !swappiness) {
--			scan_balance = SCAN_FILE;
--			goto out;
--		}
-+	/*
-+	 * Global reclaim will swap to prevent OOM even with no
-+	 * swappiness, but memcg users want to use this knob to
-+	 * disable swapping for individual groups completely when
-+	 * using the memory controller's swap limit feature would be
-+	 * too expensive.
-+	 */
-+	if (!global_reclaim(sc) && !swappiness) {
-+		scan_balance = SCAN_FILE;
-+		goto out;
- 	}
- 
- 	/*
-@@ -2675,7 +2679,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 	 */
- 	pages_for_compaction = compact_gap(sc->order);
- 	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
--	if (get_nr_swap_pages() > 0 || is_demote_ok(pgdat->node_id))
-+	if (get_nr_swap_pages() > 0 || is_demote_ok(pgdat->node_id, sc))
- 		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
- 	if (sc->nr_reclaimed < pages_for_compaction &&
- 			inactive_lru_pages > pages_for_compaction)
-@@ -3373,7 +3377,7 @@ static void age_active_anon(struct pglist_data *pgdat,
- 	struct mem_cgroup *memcg;
- 
- 	/* Aging anon page as long as demotion is fine */
--	if (!total_swap_pages && !is_demote_ok(pgdat->node_id))
-+	if (!total_swap_pages && !is_demote_ok(pgdat->node_id, sc))
- 		return;
- 
- 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 		flags |= TNF_MIGRATED;
+ 		page_nid = target_nid;
+ 	} else
+diff --git a/mm/memory.c b/mm/memory.c
+index 01c1ead..7b1218b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3704,6 +3704,10 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
+ 	/* Migrate to the requested node */
+ 	migrated = migrate_misplaced_page(page, vma, target_nid);
+ 	if (migrated) {
++		if (!node_state(page_nid, N_CPU_MEM) &&
++		    node_state(target_nid, N_CPU_MEM))
++			count_vm_numa_event(NUMA_PAGE_PROMOTE);
++
+ 		page_nid = target_nid;
+ 		flags |= TNF_MIGRATED;
+ 	} else
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index d1e4993..fd194e3 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1220,6 +1220,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
+ 	"numa_hint_faults",
+ 	"numa_hint_faults_local",
+ 	"numa_pages_migrated",
++	"numa_pages_promoted",
+ #endif
+ #ifdef CONFIG_MIGRATION
+ 	"pgmigrate_success",
 -- 
 1.8.3.1
 
