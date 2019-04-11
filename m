@@ -2,142 +2,173 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74176C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:17:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34E04C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:56:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DF212133D
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:17:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DF212133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id E013721905
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:56:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E013721905
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B9496B0005; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
+	id 68B856B0007; Thu, 11 Apr 2019 03:56:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 768636B0006; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
+	id 614046B0008; Thu, 11 Apr 2019 03:56:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 658846B0007; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
+	id 4DCCE6B000A; Thu, 11 Apr 2019 03:56:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 16DCF6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s6so2583613edr.21
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 00:17:11 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EF12D6B0007
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 03:55:59 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id j3so2646020edb.14
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 00:55:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=r2zr0dkkseZ4YwG+4x5cG1AgJqCY9BJpepDcOBgMdDo=;
-        b=Rh0frU5G/dOemWZAuKr05mUXH8YkkGPoeNJ1P5iaMGtexEAd+MA5IFVzo1jkcETRfy
-         ekQuIBfm2Wo2LFL/ab05MrcZPnwY3Ry2zHx3J6jmOMPlauogEO4PRWXY/tu/nwW4qjLD
-         KPZn7aVTYJ2SWVqlD455DljmZR0My3wLVc8gZkS8g3PYms7aLgPlD2sNObxtXFKEy9lt
-         OnQbu7IdGZWMcM4VOqKLTE3vVg+ddEcUdo7h7ysPD3XKYh1ZvOAVHxO0dMuG12KYoXxR
-         ObBQz283sxx1D9Q96oT6QY0Rf27KvrmIjwjXy5CIMumj615ft459ypVMQWU2kF/bmocL
-         VgVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVdsruys+spSaEDTPw9/MwJ5LX3AlIRHTiGxUCbOzdlq16vqbrL
-	fqEA9toVIBGoxhdS4mpmG8Lb2EdrXymlNY1/4cgmDb0S6Hzm7RhJ2OIXeYQ4L40b5RXg72Nl+kC
-	3HucMMPzFd6PkGR5NMuUR3Lg2S9iaMyt4FqH5EVzR9Rc/3C3WNx9Iz7SclMiLyzs=
-X-Received: by 2002:a17:906:1347:: with SMTP id x7mr26530048ejb.64.1554967030445;
-        Thu, 11 Apr 2019 00:17:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxAXtO2KihLPTrdHGwPGs2rNRJa/ewjoBhc/zDCkiySOlxcbtKksiq+MU2muN3v6wWp78Xb
-X-Received: by 2002:a17:906:1347:: with SMTP id x7mr26530001ejb.64.1554967029486;
-        Thu, 11 Apr 2019 00:17:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554967029; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=FY8VqdDHcmvdr4qx1CHQmIyQ7GBMhlGXTGnA2ywRnLk=;
+        b=aYJnlfbyJCoOsxJlPijz/T2aodcUGL+8HLNR2V+iZyyjFssnAhn6vjJgFl0f5O6nOQ
+         tkXy0wXVzPxSIH1MocQhHloEidb2EcfXP+NKxh4SUKIIo5OK8McPm+swuqBK7tgi4OX6
+         vHKJUA0pJJeH+wWlEDNBtDO40J50sCnO+vtbD99mdE7Up6ZW0u2wWYc9SffDjzDSsAir
+         UyudWNMMD6QMfZBT3lEDkE0A1HS353V7scOiDcZAtmuIeWqPSIfIkI8ZO7cKBsePtZuv
+         3qg4loyBRye7EsKa2apDYIoHME4ivx/iAkwpu/Kd8HEbjUm/Af7vQLzD8gRHPRKG4hsf
+         qH1g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXnh14V7L4CR7ZbgpFKFdHO/HmBmENQngBYk9m2sFvn2HgpZF2N
+	Yf1LeCkUbZAH8vQXjuutfBN3xF5eyM9lv8uQvGl9kDP4nAOIRdyg1CD+LNhfdCg83S6uB4rryL1
+	L2Qz+k0sHJR3YQ6WMkydhlrpUBVEPbuCuj3ObclWMzsjUtACid8HogD4KiQrnLkI=
+X-Received: by 2002:a50:a4e4:: with SMTP id x33mr30451735edb.61.1554969359434;
+        Thu, 11 Apr 2019 00:55:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyxrDR67XcwgoBMWSvxxmoYiv9rHMGOXh76lqeNu18f8cnudw3eruxWoR1e8h3Vye5OaNtb
+X-Received: by 2002:a50:a4e4:: with SMTP id x33mr30451699edb.61.1554969358305;
+        Thu, 11 Apr 2019 00:55:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554969358; cv=none;
         d=google.com; s=arc-20160816;
-        b=LXza/kccVUlI/4sKZODm3lDaskcVRAAqcxC/uuHYk56ea+xDWRMiTNQ3F0lxgW/f5l
-         8IkeHfh2CJCVnJ//8wMSs0W6QsiC9vFjcbDoTI/hxri924f/OV6REfzQlMWkR5MVVpjf
-         QQy4zBIHS6Wu1cw0iuW2Bc9nlcrWbJChjL9ERRQVrTwRlkt1JG4rTEbeXGqwHFmZQD84
-         cJnBWBxxqVnIW/aO95HqMIyzARdj25gnZtgJX+Z5AojTYtpA5Ii81aC+FVOEm5oHHCZZ
-         PbP6vJLwe1mHA124qttaDkV1cFUSFDvpaYAlg4xRXeWN4c5jhroDW4wr8sJ76PERL/OZ
-         /xcw==
+        b=cmirKv9OOseL/qCbYH8QHF3OPTHNGeRal7mLZg3ZDMu1KKv2wYmMvbduNuE1hHZpwS
+         ViNCWSWP2MXtlN6ECZzA27AnXBFcNIEybUfx0z59rZoCsGkETSzg0NblSTnr/XcMrJaU
+         ktAACjfGMvs/JFb4/Wfb7VgpsZ4mZMA4yhDlEJ7dDuK1hbZNFBIV3BvNz5oOEviYELIx
+         89iz19INqie7Y+Gak7RpFhMZfuhjIZ1Y0OkABwJQBXNJ5/SlDJZlyEMZ4lHEiXMVS0TJ
+         mwXhPRiDKMay29Y1Ark3ifiPCOpKFiST0+wDQkxTGxcMkuiBb6qgC4C1+o7KhIiRG6R2
+         /PbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=r2zr0dkkseZ4YwG+4x5cG1AgJqCY9BJpepDcOBgMdDo=;
-        b=pFMUPVNIn1NsDH7VgxvTkFUkhehWYzNT+ZyP707wU1+r6e3hMe7Qsp9pVcYPp/xDXg
-         E0/TnnRe42o7RQc2tag5JsGEgDUT3qrqFZS45qDfEY3vzmIY2b+wikrxfTQXFowAcDqF
-         iv3O/fcdr1geNLc2x8pc7/5s1cC69A/TRPBHBdl2Jx6Mj1x9uUkDvT7lRPGlLtjntpce
-         M0ewiEpg5nrLfd1bpyAj4/3pFn2T0y4bamcEnqCGk9L9J6tsL24dfhuDGPt4vsUx9xlV
-         8qMYAmSQKqQs+YrQXelDv9mUE7p38zSZ3wTIsnXg22gcyOjuFFEwhAEevdplUWirtp4X
-         WcYA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=FY8VqdDHcmvdr4qx1CHQmIyQ7GBMhlGXTGnA2ywRnLk=;
+        b=LiTf8nvjJsFcPz5sww7GIesIqH53PMn1Oe58Ha+DjriqpZTHRalHnxP5T8cB6L5d9j
+         hOShFN5wA7gwtGAdO0tiNga+f0N4I+KqHjEsVhFcjYIAYN+1Ew+kNmoXlozmHMo5cPUJ
+         3RzWaPQYE/tINcdlRtv8gxc0nfTinRgExTNMfSz1g9iEaQ03GSbjfEcfm9ZLJp7YJJeT
+         +GA++v+H7zNZDgH2cicvzBEzGzxpm+sWmduslORXyAKAHC7nOw65x8Nomb/kbtE8eRDT
+         4Rm5ywAbkLqOuwvgGXsEdXIobhM+gEqnNTK1vDwSnxAtTgrFXyEXlXB0EA3txNWzY7cu
+         0Kdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
-        by mx.google.com with ESMTPS id g9si2983811edq.352.2019.04.11.00.17.09
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a17si426455eds.424.2019.04.11.00.55.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Apr 2019 00:17:09 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 00:55:58 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 81.250.144.103
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id A0D7EFF80C;
-	Thu, 11 Apr 2019 07:17:05 +0000 (UTC)
-Subject: Re: [PATCH v2 2/5] arm64, mm: Move generic mmap layout functions to
- mm
-To: Kees Cook <keescook@chromium.org>
-Cc: Albert Ou <aou@eecs.berkeley.edu>,
- Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt
- <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
- Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
- LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>,
- Linux-MM <linux-mm@kvack.org>, Paul Burton <paul.burton@mips.com>,
- Alexander Viro <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>,
- "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
- Andrew Morton <akpm@linux-foundation.org>, linux-mips@vger.kernel.org,
- linux-riscv@lists.infradead.org,
- linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
- Luis Chamberlain <mcgrof@kernel.org>
-References: <20190404055128.24330-1-alex@ghiti.fr>
- <20190404055128.24330-3-alex@ghiti.fr> <20190410065908.GC2942@infradead.org>
- <8d482fd0-b926-6d11-0554-a0f9001d19aa@ghiti.fr>
- <CAGXu5jKt8f7=DKrvcPg-NUJGbc-vanMNojfDsEiBt3vP05G4oQ@mail.gmail.com>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <4c498b2b-e916-3389-209f-aa4cc7b523ff@ghiti.fr>
-Date: Thu, 11 Apr 2019 09:16:09 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.5.2
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id AFE66ACAE;
+	Thu, 11 Apr 2019 07:55:57 +0000 (UTC)
+Date: Thu, 11 Apr 2019 09:55:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: "Tobin C. Harding" <me@tobin.cc>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "Tobin C. Harding" <tobin@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>,
+	Qian Cai <cai@lca.pw>,
+	Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/1] mm: Remove the SLAB allocator
+Message-ID: <20190411075556.GO10383@dhcp22.suse.cz>
+References: <20190410024714.26607-1-tobin@kernel.org>
+ <f06aaeae-28c0-9ea4-d795-418ec3362d17@suse.cz>
+ <20190410081618.GA25494@eros.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKt8f7=DKrvcPg-NUJGbc-vanMNojfDsEiBt3vP05G4oQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: fr
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190410081618.GA25494@eros.localdomain>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/10/2019 08:27 PM, Kees Cook wrote:
-> On Wed, Apr 10, 2019 at 12:33 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
->> On 04/10/2019 08:59 AM, Christoph Hellwig wrote:
->>> On Thu, Apr 04, 2019 at 01:51:25AM -0400, Alexandre Ghiti wrote:
->>>> - fix the case where stack randomization should not be taken into
->>>>     account.
->>> Hmm.  This sounds a bit vague.  It might be better if something
->>> considered a fix is split out to a separate patch with a good
->>> description.
->> Ok, I will move this fix in another patch.
-> Yeah, I think it'd be best to break this into a few (likely small) patches:
-> - update the compat case in the arm64 code
-> - fix the "not randomized" case
-> - move the code to mm/ (line-for-line identical for easy review)
->
-> That'll make it much easier to review (at least for me).
->
-> Thanks!
->
+On Wed 10-04-19 18:16:18, Tobin C. Harding wrote:
+> On Wed, Apr 10, 2019 at 10:02:36AM +0200, Vlastimil Babka wrote:
+> > On 4/10/19 4:47 AM, Tobin C. Harding wrote:
+> > > Recently a 2 year old bug was found in the SLAB allocator that crashes
+> > > the kernel.  This seems to imply that not that many people are using the
+> > > SLAB allocator.
+> > 
+> > AFAIK that bug required CONFIG_DEBUG_SLAB_LEAK, not just SLAB. That
+> > seems to imply not that many people are using SLAB when debugging and
+> > yeah, SLUB has better debugging support. But I wouldn't dare to make the
+> > broader implication :)
+> 
+> Point noted.
+> 
+> > > Currently we have 3 slab allocators.  Two is company three is a crowd -
+> > > let's get rid of one. 
+> > > 
+> > >  - The SLUB allocator has been the default since 2.6.23
+> > 
+> > Yeah, with a sophisticated reasoning :)
+> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=a0acd820807680d2ccc4ef3448387fcdbf152c73
+> > 
+> > >  - The SLOB allocator is kinda sexy.  Its only 664 LOC, the general
+> > >    design is outlined in KnR, and there is an optimisation taken from
+> > >    Knuth - say no more.
+> > > 
+> > > If you are using the SLAB allocator please speak now or forever hold your peace ...
+> > 
+> > FWIW, our enterprise kernel use it (latest is 4.12 based), and openSUSE
+> > kernels as well (with openSUSE Tumbleweed that includes latest
+> > kernel.org stables). AFAIK we don't enable SLAB_DEBUG even in general
+> > debug kernel flavours as it's just too slow.
+> 
+> Ok, so that probably already kills this.  Thanks for the response.  No
+> flaming, no swearing, man! and they said LKML was a harsh environment ...
+> 
+> > IIRC last time Mel evaluated switching to SLUB, it wasn't a clear
+> > winner, but I'll just CC him for details :)
+> 
+> Probably don't need to take up too much of Mel's time, if we have one
+> user in production we have to keep it, right.
 
-Sorry about that, I'm working on it.
+Well, I wouldn't be opposed to dropping SLAB. Especially when this is
+not a longterm stable kmalloc implementation anymore. It turned out that
+people want to push features from SLUB back to SLAB and then we are just
+having two featurefull allocators and double the maintenance cost.
 
-Thanks,
+So as long as the performance gap is no longer there and the last data
+from Mel (I am sorry but I cannot find a link handy) suggests that there
+is no overall winner in benchmarks then why to keep them both?
 
-Alex
+That being said, if somebody is willing to go and benchmark both
+allocators to confirm Mel's observations and current users of SLAB
+can confirm their workloads do not regress either then let's just drop
+it.
+
+Please please have it more rigorous then what happened when SLUB was
+forced to become a default
+-- 
+Michal Hocko
+SUSE Labs
 
