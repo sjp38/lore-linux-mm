@@ -4,130 +4,124 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A86EFC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:40:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E6ABC10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:42:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C7A220693
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:40:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B4155217D4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:42:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rcj98wqA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C7A220693
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZHLg5oUi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4155217D4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F15946B026C; Thu, 11 Apr 2019 12:40:53 -0400 (EDT)
+	id 527D76B026B; Thu, 11 Apr 2019 12:42:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E9C556B026D; Thu, 11 Apr 2019 12:40:53 -0400 (EDT)
+	id 4FC796B026C; Thu, 11 Apr 2019 12:42:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D3D6E6B026E; Thu, 11 Apr 2019 12:40:53 -0400 (EDT)
+	id 3C5ED6B026D; Thu, 11 Apr 2019 12:42:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8096B026C
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:40:53 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id s26so4556034pfm.18
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:40:53 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 176846B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:42:49 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id y9so4803497ywc.22
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:42:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=xjkeztdV1bSp1P3BTq+bBb2VfW42+e2YxlyeXyVPm18=;
-        b=Wt2cDiJ3u6NrgsJLlut13asA61EJ5IA/9dFtpE0AuCgmgUzXNcDwMOtX2hR6I8rR9p
-         i5/ECi6vAZmcmZT1hNvw+pExRzGGe2xY+1q+19/DK5xh0Can+lJISEdIOY2JIqTNqDjo
-         A/j2Vt8ICoJF6TMw2nAjFT/nwykltP98jUNV/BRJHAhWsUNPV+ZNzVa8s7uhiAQWNs8c
-         wbzkqIvdTsLeaOcBNP4Y/wsJf1n6qdSAmxSPE9BGZtNe2rj/e9eoAhNpSd4zqeYZV/VC
-         4iWq90NFuELx4y2XHf7u+5EFO9HNTQCRUvgwQqjh7A9XbxVq3wbKnEMBuVW+UzytHQZ2
-         fdTg==
-X-Gm-Message-State: APjAAAXXeSIhXDFhpyNJvmIwbYPzQOamdhKAWHvucN17snNEpOFRXQPE
-	7+OVZkZm4fFQ9qKrYOzxJ4UYUtbf8MLxehGrVXwjoMPJLjgmzr/j548Oplvfl9PnIHHKUyuqqiY
-	+7g9PEHKrqC9vMxhXDHLlOMS17rN5l9xbsI5A91Xjvo7sOrz22b3CYi0WqXHONSRhSQ==
-X-Received: by 2002:a62:1c54:: with SMTP id c81mr9175745pfc.122.1555000853283;
-        Thu, 11 Apr 2019 09:40:53 -0700 (PDT)
-X-Received: by 2002:a62:1c54:: with SMTP id c81mr9175691pfc.122.1555000852647;
-        Thu, 11 Apr 2019 09:40:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555000852; cv=none;
+        bh=BSA7wAcOkSLlzctNlW4vWiUg1c9DSNGuTiqEkfsYEjo=;
+        b=WmYyvBza9Yt0eH2tt6EY49sGzkhPz0jpP5Tfo/Za3z1ADx6FXlG9lwWOQcfEnHeF25
+         5vxK67O1E+k7yIZqBPevAucquVWLcalNNvc4EHQMXnS/1io+jmpKFmMGYMbqm8PkNVTq
+         g3kpJd8L/h/koHdN44GqtFcSJqv8e3ILivm3lcCtZRsfS5/Zm0z3A+l0HyhaQ4Dxg5gW
+         jAA42dlw4vHKsk0pRpbL8tuXJO+dyeluKnTE2/pcywzW+Vtq2oIgMjoPqxE0yV5AwhaX
+         vfnUppdSaVcXZw1JOItglA4c2TjbyPNEGm88Xw3vvD1pxde9pV5GbKEo2BzUABL1liOc
+         TqqA==
+X-Gm-Message-State: APjAAAWgBC7W9AxgwE5Lte9CezN4mv+DuehrUP7dMQKwQbgpNrxhAioG
+	ElKAb4wzBzXDVhOInBqR8V6+Ui3XldZ4dQYrEDsFGyVrqaYWPn+2D/VQlK9SNC9dDFM7znRRaPm
+	96HT3cU/01Gz6BU5Oo7A1Yoh82/7WyH2Kjyw58crjsamYbBf9rpUBcqvkgt24gvmEcw==
+X-Received: by 2002:a25:4147:: with SMTP id o68mr43537074yba.148.1555000968793;
+        Thu, 11 Apr 2019 09:42:48 -0700 (PDT)
+X-Received: by 2002:a25:4147:: with SMTP id o68mr43536998yba.148.1555000967982;
+        Thu, 11 Apr 2019 09:42:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555000967; cv=none;
         d=google.com; s=arc-20160816;
-        b=CSD9xDxh0Bxzgl/uCyU9TW4zEbiXjIV+tJlOYikqjUwJoWgSHr9U5PLc6n80I1B4sg
-         vffS2u9qPt2CqkCZJgwvFJC2aSwSEqjytbusa9IWHnBQk7P0VbylODMP+xY+v0sNjogp
-         N2q36hIypuOsc9Cgo1k+f/Q83MrgFKwfiokSlp6zSwNPn6SzvQGkY0jBAgBBHcoxFIpy
-         KMqIpxmxtTKWJDX0z1dV8zr/A2Fux7A1YQ2+LEiBHKOYDatEp2DMf5y4k0lDozvhp305
-         eMJJEls5nJb67pp/U0/acl/OjwHIeiwnhlELoIuFwbYkdOYAaPmxIivHZpB5DnJZLdc2
-         oD3g==
+        b=k8Csupr+GAGKZpPEG2yYePxbIphAYBIktrYKElvnpA4qvlQ0bXPcxQTjrnIiQyXvfn
+         mOxq76GSYBdp22itryErt96rcIBtfB0qE5zEj922b6J8oCMQc1jm9AoNbTiWvpf0fbu+
+         OW/xkbcSjw0k+ere1gUMQ4h4jaQgNfnecVLolAzv4mY/C6uJVAzOTOSYX9IZCfQLSbQJ
+         5ZaViERqnwpaKHviWr2QW2pw1LyOP6RVZmfbCgyP2mt+ag+Nbvi0LLDfcr32XZLCGo3n
+         /oK5Zo3+2eVLOfL5r+0b4pAIwHWj3qxp24jvdYeZMOmbdromTQ958WaCHbShRRLwuANf
+         LQ0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=xjkeztdV1bSp1P3BTq+bBb2VfW42+e2YxlyeXyVPm18=;
-        b=mz4c/N4YO28mdRW/wiCgcjxETMEWwdvXp8jJBKlHP2dm2JwDe7vkPao1xe1TFjs6HH
-         pQdRricimqm8pSnQVR7TEI9K9NWFjtiMpnHN8rrsjjON3+ffC7DJFCBbkYXq3sAuCgnz
-         sWf2eRG0N1VwP1+asnB0hTPv5A+TZ77I8Pwtrm3mHZPFKltc8Yh33RyYPsz40lZceWZH
-         YhKIa9pUXGqAFI+HLFwTDUgaTy8yNznY/J62lCDkgjebcS/emrE27OYrWt7LIwJ58S1Z
-         /QKVhlEh4r6Bi+bV3f6F+7LlHFJNjnlUpE/FNT6m+d+BGrcZF70pIJ8MZG2HILm8gv8a
-         xrWA==
+        bh=BSA7wAcOkSLlzctNlW4vWiUg1c9DSNGuTiqEkfsYEjo=;
+        b=fV9Hn2lMVxPvr0g35qaPWItD2VRSc2Err7PKP3NLH4KRKiZ9n7jE2rOfcoKzQvovNS
+         82Ga/lFJotBG7nprOE3EgUFN/RDRrqwvJTHtu1gId1oKa84HyAr9P+Vw6qoY3vMlumBx
+         HwJ2kg9fFgLyVeX4isQOZTBhd+13hDUWcZFNELZYmCWftWAo9Jlnip2eSb5qcGy+5+Dl
+         +Ywgy5UmUPMM6FYOQC8/K2m/Y+ZkQ0PwWexF9C9ZV7/sONtU6HhKCr0764AsWFDluMEX
+         VPACEtfZQvrBho+MbqyAW5GJUq17Fememj/Dse4/dkQyLT7UZ6cIXCwQr9W1M5bVT1XS
+         b3/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rcj98wqA;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZHLg5oUi;
+       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 89sor11985717ple.49.2019.04.11.09.40.52
+        by mx.google.com with SMTPS id 128sor20181974ybg.153.2019.04.11.09.42.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Apr 2019 09:40:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 11 Apr 2019 09:42:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rcj98wqA;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZHLg5oUi;
+       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=xjkeztdV1bSp1P3BTq+bBb2VfW42+e2YxlyeXyVPm18=;
-        b=rcj98wqAzGbatlWWe59/uozNfBj4rO4ppoFs7mGR2ajPBUwj64832uJJyerLf4f3hB
-         NnmxAn4yW6fcN9KVe0IAWbiXYZY4vrQtwmFymMNZVnSiQ0JpqGAyOD1UtGfQdtW01ZeD
-         OaNzPQgtpvIEpNfKlI1wguSq5hSEq91Dh2i894yBi6iNy8BZqecoRn3JObtitoOIgehs
-         yUjSzlhM47F3YfhW1IImyLMgAY/Zrc35jZyjy4XfebF+xbNmuq3uLzYelQ8U9PBP7Mc2
-         OgzLzImWEduK38qhmERe/KjDfP1ALP0KObg7rAae7KbV6i6xu2IkaulXfjPpeMuaoj3O
-         F2bw==
-X-Google-Smtp-Source: APXvYqw84X17/2tMcnAAiHtTY2ZpMsDA6RxuoF7vbUoxpmIEnE9pJ0qp4rvejKC2mQB45W0JQtnaZYip7fW/+yH01xM=
-X-Received: by 2002:a17:902:bd4b:: with SMTP id b11mr14797620plx.68.1555000851965;
- Thu, 11 Apr 2019 09:40:51 -0700 (PDT)
+        bh=BSA7wAcOkSLlzctNlW4vWiUg1c9DSNGuTiqEkfsYEjo=;
+        b=ZHLg5oUiZ7PADbbxTPmb/WsaETcl7adx55BpjlMoWbMWOUMagh8EL+bnGH7n4dVIWC
+         qIOFh+IZ4PXVC+gpv1xWnXCTDaIkAs/aYqw4hdqipEov8gj480QMTrffAfUdi3t/5ZCC
+         ltm4BxoinZ37dYVl2S4vxNSMIyAWgMB5MiV6GWuQ+K4AZF94R5PHOm+aLCsbZJ+eYo4P
+         5lvp3KA2ER4agUaLhJ2YrtqZybvuymIFVHcFYzcTJnbRDOujXyeU6e/kJjze+bmz/ZSM
+         qznxmiBhseZ1op2Dc+iNdJy2sSiaVri/gJnsd431sO+SGY+XMqhvpzwECiFx72JBYAYz
+         G/Wg==
+X-Google-Smtp-Source: APXvYqwitDr3lcVKRDmlY1iKyvtiPzjYrs/F9J5p5FgXRkJnmEUEV+NtSF97So8fFJqc1eKEHvCRAmddioLmTd0my8c=
+X-Received: by 2002:a25:e54a:: with SMTP id c71mr40728505ybh.336.1555000967421;
+ Thu, 11 Apr 2019 09:42:47 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1553093420.git.andreyknvl@google.com> <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
- <20190322154136.GP13384@arrakis.emea.arm.com> <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
-In-Reply-To: <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 11 Apr 2019 18:40:40 +0200
-Message-ID: <CAAeHK+zeeTw7fpXoV6YYRyizGCL0d8pqDS=-z2pBoWmBzm+eTQ@mail.gmail.com>
-Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in prctl_set_mm*
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>, 
-	Kate Stewart <kstewart@linuxfoundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
-	Shuah Khan <shuah@kernel.org>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
-	Eric Dumazet <edumazet@google.com>, "David S. Miller" <davem@davemloft.net>, 
-	Alexei Starovoitov <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>, 
-	Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, 
-	Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	"David (ChunMing) Zhou" <David1.Zhou@amd.com>, Yishai Hadas <yishaih@mellanox.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
-	netdev <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Chintan Pandya <cpandya@codeaurora.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <20190215185151.GG7897@sirena.org.uk> <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+ <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+ <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+ <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com> <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+ <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com> <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+ <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com> <20190306140529.GG3549@rapoport-lnx>
+ <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com> <CAPcyv4jBjUScKExK09VkL8XKibNcbw11ET4WNUWUWbPXeT9DFQ@mail.gmail.com>
+ <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com>
+In-Reply-To: <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com>
+From: Guenter Roeck <groeck@google.com>
+Date: Thu, 11 Apr 2019 09:42:35 -0700
+Message-ID: <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com>
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+To: kernelci@groups.io, Kees Cook <keescook@chromium.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, 
+	Guillaume Tucker <guillaume.tucker@collabora.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
+	Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
+	Kevin Hilman <khilman@baylibre.com>, 
+	Enric Balletbo i Serra <enric.balletbo@collabora.com>, Nicholas Piggin <npiggin@gmail.com>, 
+	Dominik Brodowski <linux@dominikbrodowski.net>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Adrian Reber <adrian@lisas.de>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Linux MM <linux-mm@kvack.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, 
+	Richard Guy Briggs <rgb@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -135,50 +129,127 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 1, 2019 at 6:44 PM Andrey Konovalov <andreyknvl@google.com> wrote:
+On Thu, Apr 11, 2019 at 9:19 AM Kees Cook <keescook@chromium.org> wrote:
 >
-> On Fri, Mar 22, 2019 at 4:41 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> On Thu, Mar 7, 2019 at 7:43 AM Dan Williams <dan.j.williams@intel.com> wrote:
 > >
-> > On Wed, Mar 20, 2019 at 03:51:24PM +0100, Andrey Konovalov wrote:
-> > > @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
-> > >       if (opt == PR_SET_MM_AUXV)
-> > >               return prctl_set_auxv(mm, addr, arg4);
+> > On Thu, Mar 7, 2019 at 1:17 AM Guillaume Tucker
+> > <guillaume.tucker@collabora.com> wrote:
 > > >
-> > > -     if (addr >= TASK_SIZE || addr < mmap_min_addr)
-> > > +     if (untagged_addr(addr) >= TASK_SIZE ||
-> > > +                     untagged_addr(addr) < mmap_min_addr)
-> > >               return -EINVAL;
+> > > On 06/03/2019 14:05, Mike Rapoport wrote:
+> > > > On Wed, Mar 06, 2019 at 10:14:47AM +0000, Guillaume Tucker wrote:
+> > > >> On 01/03/2019 23:23, Dan Williams wrote:
+> > > >>> On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
+> > > >>> <guillaume.tucker@collabora.com> wrote:
+> > > >>>
+> > > >>> Is there an early-printk facility that can be turned on to see how far
+> > > >>> we get in the boot?
+> > > >>
+> > > >> Yes, I've done that now by enabling CONFIG_DEBUG_AM33XXUART1 and
+> > > >> earlyprintk in the command line.  Here's the result, with the
+> > > >> commit cherry picked on top of next-20190304:
+> > > >>
+> > > >>   https://lava.collabora.co.uk/scheduler/job/1526326
+> > > >>
+> > > >> [    1.379522] ti-sysc 4804a000.target-module: sysc_flags 00000222 != 00000022
+> > > >> [    1.396718] Unable to handle kernel paging request at virtual address 77bb4003
+> > > >> [    1.404203] pgd = (ptrval)
+> > > >> [    1.406971] [77bb4003] *pgd=00000000
+> > > >> [    1.410650] Internal error: Oops: 5 [#1] ARM
+> > > >> [...]
+> > > >> [    1.672310] [<c07051a0>] (clk_hw_create_clk.part.21) from [<c06fea34>] (devm_clk_get+0x4c/0x80)
+> > > >> [    1.681232] [<c06fea34>] (devm_clk_get) from [<c064253c>] (sysc_probe+0x28c/0xde4)
+> > > >>
+> > > >> It's always failing at that point in the code.  Also when
+> > > >> enabling "debug" on the kernel command line, the issue goes
+> > > >> away (exact same binaries etc..):
+> > > >>
+> > > >>   https://lava.collabora.co.uk/scheduler/job/1526327
+> > > >>
+> > > >> For the record, here's the branch I've been using:
+> > > >>
+> > > >>   https://gitlab.collabora.com/gtucker/linux/tree/beaglebone-black-next-20190304-debug
+> > > >>
+> > > >> The board otherwise boots fine with next-20190304 (SMP=n), and
+> > > >> also with the patch applied but the shuffle configs set to n.
+> > > >>
+> > > >>> Were there any boot *successes* on ARM with shuffling enabled? I.e.
+> > > >>> clues about what's different about the specific memory setup for
+> > > >>> beagle-bone-black.
+> > > >>
+> > > >> Looking at the KernelCI results from next-20190215, it looks like
+> > > >> only the BeagleBone Black with SMP=n failed to boot:
+> > > >>
+> > > >>   https://kernelci.org/boot/all/job/next/branch/master/kernel/next-20190215/
+> > > >>
+> > > >> Of course that's not all the ARM boards that exist out there, but
+> > > >> it's a fairly large coverage already.
+> > > >>
+> > > >> As the kernel panic always seems to originate in ti-sysc.c,
+> > > >> there's a chance it's only visible on that platform...  I'm doing
+> > > >> a KernelCI run now with my test branch to double check that,
+> > > >> it'll take a few hours so I'll send an update later if I get
+> > > >> anything useful out of it.
 > > >
-> > >       error = -EINVAL;
+> > > Here's the result, there were a couple of failures but some were
+> > > due to infrastructure errors (nyan-big) and I'm not sure about
+> > > what was the problem with the meson boards:
 > > >
-> > >       down_write(&mm->mmap_sem);
-> > > -     vma = find_vma(mm, addr);
-> > > +     vma = find_vma(mm, untagged_addr(addr));
+> > >   https://staging.kernelci.org/boot/all/job/gtucker/branch/kernelci-local/kernel/next-20190304-1-g4f0b547b03da/
 > > >
-> > >       prctl_map.start_code    = mm->start_code;
-> > >       prctl_map.end_code      = mm->end_code;
+> > > So there's no clear indicator that the shuffle config is causing
+> > > any issue on any other platform than the BeagleBone Black.
+> > >
+> > > >> In the meantime, I'm happy to try out other things with more
+> > > >> debug configs turned on or any potential fixes someone might
+> > > >> have.
+> > > >
+> > > > ARM is the only arch that sets ARCH_HAS_HOLES_MEMORYMODEL to 'y'. Maybe the
+> > > > failure has something to do with it...
+> > > >
+> > > > Guillaume, can you try this patch:
 > >
-> > Does this mean that we are left with tagged addresses for the
-> > mm->start_code etc. values? I really don't think we should allow this,
-> > I'm not sure what the implications are in other parts of the kernel.
+> > Mike, I appreciate the help!
 > >
-> > Arguably, these are not even pointer values but some address ranges. I
-> > know we decided to relax this notion for mmap/mprotect/madvise() since
-> > the user function prototypes take pointer as arguments but it feels like
-> > we are overdoing it here (struct prctl_mm_map doesn't even have
-> > pointers).
+> > >
+> > > Sure, it doesn't seem to be fixing the problem though:
+> > >
+> > >   https://lava.collabora.co.uk/scheduler/job/1527471
+> > >
+> > > I've added the patch to the same branch based on next-20190304.
+> > >
+> > > I guess this needs to be debugged a little further to see what
+> > > the panic really is about.  I'll see if I can spend a bit more
+> > > time on it this week, unless there's any BeagleBone expert
+> > > available to help or if someone has another fix to try out.
 > >
-> > What is the use-case for allowing tagged addresses here? Can user space
-> > handle untagging?
+> > Thanks for the help Guillaume!
+> >
+> > I went ahead and acquired one of these boards to see if I can can
+> > debug this locally.
 >
-> I don't know any use cases for this. I did it because it seems to be
-> covered by the relaxed ABI. I'm not entirely sure what to do here,
-> should I just drop this patch?
+> Hi! Any progress on this? Might it be possible to unblock this series
+> for v5.2 by adding a temporary "not on ARM" flag?
+>
 
-ping
+Can someone send me a pointer to the series in question ? I would like
+to run it through my testbed.
 
+Thanks,
+Guenter
+
+> Thanks!
 >
-> >
-> > --
-> > Catalin
+> --
+> Kees Cook
+>
+> -=-=-=-=-=-=-=-=-=-=-=-
+> Groups.io Links: You receive all messages sent to this group.
+>
+> View/Reply Online (#350): https://groups.io/g/kernelci/message/350
+> Mute This Topic: https://groups.io/mt/30172851/955378
+> Group Owner: kernelci+owner@groups.io
+> Unsubscribe: https://groups.io/g/kernelci/unsub  [groeck@google.com]
+> -=-=-=-=-=-=-=-=-=-=-=-
+>
 
