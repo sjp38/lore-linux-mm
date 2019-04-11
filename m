@@ -7,101 +7,101 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0522EC10F11
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74BACC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B565C204EC
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 17046204EC
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 01:44:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="VQ8uE7fS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B565C204EC
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FsQW3DxU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17046204EC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E8A56B0276; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
+	id BC3376B0278; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29EF36B0278; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
+	id B47096B027A; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C43F6B0279; Wed, 10 Apr 2019 21:44:04 -0400 (EDT)
+	id 9EA4C6B027B; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f69.google.com (mail-ua1-f69.google.com [209.85.222.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D43FF6B0276
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:03 -0400 (EDT)
-Received: by mail-ua1-f69.google.com with SMTP id z31so569401uac.23
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:03 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 75CAE6B0278
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 21:44:06 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id i80so3173170ybg.22
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 18:44:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
-        b=StshEQ8DU4IRS2evIaCOC+ejIBbQP6l+BwwOX8QMH47WY6WzLQe6XPQXR4Bn20+h1O
-         eRE9ABBD9nrex5LdU4o0pyfU3jnVj+GtbYuOR7/4r4ZLgb4znLXLULflIq9aHX3Ai905
-         YYVTPZOP5q/y/qqzp2Mt3+Rdc9sfQbmA90+sb3gAciAnKOwv2xGNWpSY8zpYZINtfefw
-         BbyjdosAvOr0dRjy8hfkbPwJbsnx6bNu1dPycAKls6Difea5L7m2wt5ozJp2Jd7xgTDo
-         UE7cvY/mhKUlbvy8jfag3770+tka9J/IrG3ca0tAuW2gG8R0v9ReP+4sKlV9cxaMXvB/
-         ulgA==
-X-Gm-Message-State: APjAAAWQuOC5ZYTmOhKhoERzs0mn8EXQ7heR/9B2TkSK8ylx+215OUMG
-	RkWUtBoMUS1K/yi4U5J9+LTo+/9jyFhaon+U/GVw8CvWfUMi2bEed1ICySf8BYOInKed4+5fRdU
-	AxL7ibIAJzk3w15w30EWShUw+hz/uropIgUgFLfFJVxLmExhMQ7ZaclvIaFH0Q0Os/g==
-X-Received: by 2002:a67:b44c:: with SMTP id c12mr15735701vsm.169.1554947043509;
-        Wed, 10 Apr 2019 18:44:03 -0700 (PDT)
-X-Received: by 2002:a67:b44c:: with SMTP id c12mr15735684vsm.169.1554947042981;
-        Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554947042; cv=none;
+        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
+        b=dq2FjRxOf+jmsIFB5/Fh9HjTHWed64S70IWbjc366I8kCMlC1rDgFYBk2kOgxwOwwu
+         K7ta0Agj50fT50G+E7MT/M/NPL1kIy/8eJZ/G8kxkyUWJQMPt1pf+Itl8ySgJaXdQgqn
+         Hv05RdREAL2MWpeLfC9eU+s+I+ZGI5sI1yVtinKEtoO1a55BgwyAAD9Yk5ZCqwu7tWTj
+         LIxUz6S7+7ZAzEu8U8iqzi3sLwAV/+0YCLSL2Ge3V0x+pXCx2z4PTeeVGj3Olgea2azY
+         WlKt+tBoUqRJtUn2jRPtFD/YT3GrmSKaWHU1ybVe0YNEduRcvNqMnRMDcUW2eHO6OaF9
+         Ts8w==
+X-Gm-Message-State: APjAAAXBtSwPP2y3bUTfSAjVmt1+E3m1IbJvDabmiF4E8WhZW3bOkOHV
+	wNs6df04iwobLuni4TWmq6dzF4wy2nVkdtO3iirvuNoABCXeT/rLZuIy96pIgX1NNrr5G3agf04
+	Qe+S1b8T54YJhwxh+Q61O8IX6aBW0VlItxOEesXc87Mv13YjV9sfN0hLMGiY+XeVxjA==
+X-Received: by 2002:a81:344b:: with SMTP id b72mr37236024ywa.38.1554947046107;
+        Wed, 10 Apr 2019 18:44:06 -0700 (PDT)
+X-Received: by 2002:a81:344b:: with SMTP id b72mr37235988ywa.38.1554947045332;
+        Wed, 10 Apr 2019 18:44:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554947045; cv=none;
         d=google.com; s=arc-20160816;
-        b=pbJRf59CTxk8NmATZy0wr8YNJhP3BeF7I1wFWRTpMVlh+2s1ibSlw3xAygdtpgl3Km
-         SfEqse3NgMOhIYeVrOWCa4siVoMgec36KWbWcuP6yGVdo+MFdoqK9YQSIur/EfgNkpdi
-         LhmwcqHwpxTHOKE7P3vLHBuHi2WSkBPdwOABZo6xZEAfy5VAlKusQjJ+GIlIF3IqaRY2
-         BOTxqBHY7VpvdpknMANNZtCjBZCLuczOewNtYJNnckCNpmrOamwTY3aWY5VKjHWEu4GO
-         0ERisdzQDlSOoPTxWLihtTRASWhYqPP+BjKKJLBpLyapWzm/M96/3p7bNLVndBbEWez8
-         HIzw==
+        b=Q8yArOsIhj/A8Odza0WSDno/hnOUaKwqSOHPvXeQ+Ix7e1tTjetM/wmhIieX0zf0FB
+         7G6tG3+3E/0g0sBvthywiAB50coSNFfuHP66ve67L9WHmjwM969dUz/Q/em2rYDGrkcQ
+         BFSBGWp9sZNr41jkdBUdRJnQ4TtI7EMYuZbylEeZ1bYvpszGPTnGxGN+EkT9g6Nn+cxz
+         9BRsMDXz7gpJqwtAT+UPNnPw1NWOHIwk/Z0fQvaXw40iX8k5bFyx0FgThZTJTZ34iJrE
+         yils5ncKFK3lmCBkDxZ8OaQTWVVX6qZAUqRdvBGRF21+RvNuRtYtTHphHmH7DBImb/QV
+         wpRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
-        b=A/woA5zsGx9q5/2CI947LB46gkMhQIbgw/wODL+sx+8Otcj7+ROmujPIuWz5YJaweU
-         l14Ueui79yoJP4Yi4dRSGsmxVth+Gm43UWjUp3rwfFUMHOKm3XI4cY0yrxqUP675klhn
-         qYcXCCcbWG6hO14fvtB1StC9YTWH4BgPlNET38N2QJdOXlToK5G6r36eMO1Q0jhvaHUB
-         GRYPRDntMWoz0y1PPsqPWNhuki9abPkkgNznUt4s0PD/Rf/GKu7kJs1QBaq7ODIrFiWf
-         UGjmD7I6DjDkQzOTlAjLmZwBSCXVbJrh1VyOn1JNszKxwZLTruHgLtZREXOXM/QFx+75
-         Zb4g==
+        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
+        b=DBJKTiWVsD+RIiAb6IFyd4YMoje7lRwujLORW6VtwMc9oVcY6AikSwuU+ofiK6cCBA
+         nvCwvxywuR+Ib1M4Ztek/2sUlmsLCmf0kybg+nbP7fWhbzFOSUe3Qch0UgM0H/U+E9Vp
+         HfXX5mJMKtp4jAtzEMQFgAcAUIV4dRruwDZZ8ERwslrdB3OhJl2JpRYWJXckeSvZ9+S3
+         FGXYgO18Pd+0keiU2tunvC8NHWW31RRo0NP+SR2gqu/sZYj6tJQTIaP63rRNjZlfMhDl
+         lVPb18Dl1deKESUYIK+A/ibDH2veY4vN1GEVfK4h+K0X5dAhlxY15ZNowLqqfGsiF6kv
+         gmpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=VQ8uE7fS;
-       spf=pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=34puuXAYKCL8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FsQW3DxU;
+       spf=pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35JuuXAYKCMEz1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id w7sor15846412vkd.5.2019.04.10.18.44.02
+        by mx.google.com with SMTPS id z65sor15758224yba.179.2019.04.10.18.44.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 10 Apr 2019 18:44:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=VQ8uE7fS;
-       spf=pass (google.com: domain of 34puuxaykcl8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=34puuXAYKCL8xzwjsglttlqj.htrqnsz2-rrp0fhp.twl@flex--surenb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FsQW3DxU;
+       spf=pass (google.com: domain of 35juuxaykcmez1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=35JuuXAYKCMEz1yluinvvnsl.jvtspu14-ttr2hjr.vyn@flex--surenb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=1R5t7+lNOeidJ8ZneBm0ViFTLutFvxRUicyozCMV/Ds=;
-        b=VQ8uE7fSnqdKErP7/p4dHAFIDW6jI3qLUsMTULdhHlqde5jIwhtKd6+qPR5tAHjXPL
-         XCNL9Aj0wz1Y7vECvW1Ugi2US2rH7DQDFoCij9lkUZImbDw3EM60HOoIkNqQuLwD/34g
-         3tkLTC/C2K922qnKAdHrHfX5GUD5eAl/+jQVn+GKGwbvYi9D4E30VgYgQkFCWpd31AeC
-         TcxaOdDnIXkLAs0ERzKVT0n7FojrV/2A/02wTu15JMLHIOBjxOHCuDEJEqLdE6/3f6rP
-         aZrtWVlzwBTUACFHg6sNWtO5or9++2FlOLH+28Exhs/7J9gbHRoXdTz/CNKP+55GGjd2
-         3raw==
-X-Google-Smtp-Source: APXvYqx9ebEgF18enAdLfuKzN1eizWR9w5VxGzxkPww+DyZ2FJ0mMzOj/JkBJbSd9g/xUnj4BFlUP2Quw3o=
-X-Received: by 2002:a1f:10a5:: with SMTP id 37mr5464480vkq.6.1554947042655;
- Wed, 10 Apr 2019 18:44:02 -0700 (PDT)
-Date: Wed, 10 Apr 2019 18:43:52 -0700
+        bh=PyLdI7PZk1GSB43N13T7W74jY1CSZ1+A35vi7emlRBQ=;
+        b=FsQW3DxUQfr3UEIOZaRtKQ14YG36rNMZAoP4RXuDnHZhTnzx8vfU+n++RB/3o0dp0u
+         SH9s3G7Hv6ADWQtomsgGHp312SSsN6EYFO/ZI8x3zaQMzGdV60aG2if6ijB0CU2Xj/5p
+         Wr+u7Wyb361ndUXGOOmlpRDdcHAAPNwaAxiqvx8CH06ziaPdVT7gmlngsPDr1J560YOg
+         I5i/EcCf6HzZpeddrmKyHhq3l9q6cka24b266kjFb1tp+leUWTHkX9an5xjDZPYer8TK
+         J/UNaD9DJCmOSB51Myj5q3PE83dNf3d9ehU/VPU0ePxzOZUM8hhQHSuA7EePSmvIH3LA
+         aFig==
+X-Google-Smtp-Source: APXvYqzoYtryft6snCAH2tsCLNm6pZ/FkqZ/mICxzIwSzE/D420FbpbEJQwThBXlAukM5+6xtF5vw2sOQK0=
+X-Received: by 2002:a25:5:: with SMTP id 5mr10518104yba.52.1554947044969; Wed,
+ 10 Apr 2019 18:44:04 -0700 (PDT)
+Date: Wed, 10 Apr 2019 18:43:53 -0700
 In-Reply-To: <20190411014353.113252-1-surenb@google.com>
-Message-Id: <20190411014353.113252-2-surenb@google.com>
+Message-Id: <20190411014353.113252-3-surenb@google.com>
 Mime-Version: 1.0
 References: <20190411014353.113252-1-surenb@google.com>
 X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [RFC 1/2] mm: oom: expose expedite_reclaim to use oom_reaper outside
- of oom_kill.c
+Subject: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
+ process killing
 From: Suren Baghdasaryan <surenb@google.com>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.com, rientjes@google.com, willy@infradead.org, 
@@ -119,54 +119,183 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Create an API to allow users outside of oom_kill.c to mark a victim and
-wake up oom_reaper thread for expedited memory reclaim of the process being
-killed.
+Add new SS_EXPEDITE flag to be used when sending SIGKILL via
+pidfd_send_signal() syscall to allow expedited memory reclaim of the
+victim process. The usage of this flag is currently limited to SIGKILL
+signal and only to privileged users.
 
 Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 ---
- include/linux/oom.h |  1 +
- mm/oom_kill.c       | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ include/linux/sched/signal.h |  3 ++-
+ include/linux/signal.h       | 11 ++++++++++-
+ ipc/mqueue.c                 |  2 +-
+ kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
+ kernel/time/itimer.c         |  2 +-
+ 5 files changed, 43 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index d07992009265..6c043c7518c1 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -112,6 +112,7 @@ extern unsigned long oom_badness(struct task_struct *p,
- 		unsigned long totalpages);
+diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
+index e412c092c1e8..8a227633a058 100644
+--- a/include/linux/sched/signal.h
++++ b/include/linux/sched/signal.h
+@@ -327,7 +327,8 @@ extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+ extern void force_sigsegv(int sig, struct task_struct *p);
+ extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+ extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
+-extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
++extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
++				bool expedite);
+ extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
+ 				const struct cred *);
+ extern int kill_pgrp(struct pid *pid, int sig, int priv);
+diff --git a/include/linux/signal.h b/include/linux/signal.h
+index 9702016734b1..34b7852aa4a0 100644
+--- a/include/linux/signal.h
++++ b/include/linux/signal.h
+@@ -446,8 +446,17 @@ int __save_altstack(stack_t __user *, unsigned long);
+ } while (0);
  
- extern bool out_of_memory(struct oom_control *oc);
-+extern bool expedite_reclaim(struct task_struct *task);
+ #ifdef CONFIG_PROC_FS
++
++/*
++ * SS_FLAGS values used in pidfd_send_signal:
++ *
++ * SS_EXPEDITE indicates desire to expedite the operation.
++ */
++#define SS_EXPEDITE	0x00000001
++
+ struct seq_file;
+ extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
+-#endif
++
++#endif /* CONFIG_PROC_FS */
  
- extern void exit_oom_victim(void);
+ #endif /* _LINUX_SIGNAL_H */
+diff --git a/ipc/mqueue.c b/ipc/mqueue.c
+index aea30530c472..27c66296e08e 100644
+--- a/ipc/mqueue.c
++++ b/ipc/mqueue.c
+@@ -720,7 +720,7 @@ static void __do_notify(struct mqueue_inode_info *info)
+ 			rcu_read_unlock();
  
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 3a2484884cfd..6449710c8a06 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1102,6 +1102,21 @@ bool out_of_memory(struct oom_control *oc)
- 	return !!oc->chosen;
+ 			kill_pid_info(info->notify.sigev_signo,
+-				      &sig_i, info->notify_owner);
++				      &sig_i, info->notify_owner, false);
+ 			break;
+ 		case SIGEV_THREAD:
+ 			set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
+diff --git a/kernel/signal.c b/kernel/signal.c
+index f98448cf2def..02ed4332d17c 100644
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -43,6 +43,7 @@
+ #include <linux/compiler.h>
+ #include <linux/posix-timers.h>
+ #include <linux/livepatch.h>
++#include <linux/oom.h>
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/signal.h>
+@@ -1394,7 +1395,8 @@ int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
+ 	return success ? 0 : retval;
  }
  
-+bool expedite_reclaim(struct task_struct *task)
-+{
-+	bool res = false;
+-int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
++int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
++				  bool expedite)
+ {
+ 	int error = -ESRCH;
+ 	struct task_struct *p;
+@@ -1402,8 +1404,17 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
+ 	for (;;) {
+ 		rcu_read_lock();
+ 		p = pid_task(pid, PIDTYPE_PID);
+-		if (p)
++		if (p) {
+ 			error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
 +
-+	task_lock(task);
-+	if (task_will_free_mem(task)) {
-+		mark_oom_victim(task);
-+		wake_oom_reaper(task);
-+		res = true;
++			/*
++			 * Ignore expedite_reclaim return value, it is best
++			 * effort only.
++			 */
++			if (!error && expedite)
++				expedite_reclaim(p);
++		}
++
+ 		rcu_read_unlock();
+ 		if (likely(!p || error != -ESRCH))
+ 			return error;
+@@ -1420,7 +1431,7 @@ static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
+ {
+ 	int error;
+ 	rcu_read_lock();
+-	error = kill_pid_info(sig, info, find_vpid(pid));
++	error = kill_pid_info(sig, info, find_vpid(pid), false);
+ 	rcu_read_unlock();
+ 	return error;
+ }
+@@ -1487,7 +1498,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
+ 
+ 	if (pid > 0) {
+ 		rcu_read_lock();
+-		ret = kill_pid_info(sig, info, find_vpid(pid));
++		ret = kill_pid_info(sig, info, find_vpid(pid), false);
+ 		rcu_read_unlock();
+ 		return ret;
+ 	}
+@@ -1704,7 +1715,7 @@ EXPORT_SYMBOL(kill_pgrp);
+ 
+ int kill_pid(struct pid *pid, int sig, int priv)
+ {
+-	return kill_pid_info(sig, __si_special(priv), pid);
++	return kill_pid_info(sig, __si_special(priv), pid, false);
+ }
+ EXPORT_SYMBOL(kill_pid);
+ 
+@@ -3577,10 +3588,20 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
+ 	struct pid *pid;
+ 	kernel_siginfo_t kinfo;
+ 
+-	/* Enforce flags be set to 0 until we add an extension. */
+-	if (flags)
++	/* Enforce no unknown flags. */
++	if (flags & ~SS_EXPEDITE)
+ 		return -EINVAL;
+ 
++	if (flags & SS_EXPEDITE) {
++		/* Enforce SS_EXPEDITE to be used with SIGKILL only. */
++		if (sig != SIGKILL)
++			return -EINVAL;
++
++		/* Limit expedited killing to privileged users only. */
++		if (!capable(CAP_SYS_NICE))
++			return -EPERM;
 +	}
-+	task_unlock(task);
 +
-+	return res;
-+}
-+
- /*
-  * The pagefault handler calls here because it is out of memory, so kill a
-  * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
+ 	f = fdget_raw(pidfd);
+ 	if (!f.file)
+ 		return -EBADF;
+@@ -3614,7 +3635,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
+ 		prepare_kill_siginfo(sig, &kinfo);
+ 	}
+ 
+-	ret = kill_pid_info(sig, &kinfo, pid);
++	ret = kill_pid_info(sig, &kinfo, pid, (flags & SS_EXPEDITE) != 0);
+ 
+ err:
+ 	fdput(f);
+diff --git a/kernel/time/itimer.c b/kernel/time/itimer.c
+index 02068b2d5862..c926483cdb53 100644
+--- a/kernel/time/itimer.c
++++ b/kernel/time/itimer.c
+@@ -140,7 +140,7 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
+ 	struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
+ 
+ 	trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
+-	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
++	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid, false);
+ 
+ 	return HRTIMER_NORESTART;
+ }
 -- 
 2.21.0.392.gf8f6787159e-goog
 
