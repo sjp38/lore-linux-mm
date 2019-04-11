@@ -3,235 +3,166 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16D40C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:22:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 920C8C282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:28:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7460217F4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:22:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7460217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D8522184B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:28:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D8522184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 58C056B000D; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
+	id CB4EE6B000D; Thu, 11 Apr 2019 10:28:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 53DFC6B000E; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
+	id C3DE46B000E; Thu, 11 Apr 2019 10:28:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42D4B6B0010; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
+	id AE03F6B0010; Thu, 11 Apr 2019 10:28:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E2146B000D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id p26so5643971qtq.21
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:22:36 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EEB46B000D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:28:05 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id x2so4494816pge.16
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:28:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-transfer-encoding
-         :content-language;
-        bh=HIxVLZjqp4MH33lnupVZYwTAxNsDbfL0VH8DqWCvrfI=;
-        b=LTtR4UpKWyThdE4d3pEE/w3JJNOv8Gjsy7Z1bZ5frIlR0GtwSpu0zR2bg4aO02/YbB
-         zs2UHYJX3fgX9GZ7Joy8C3I/92HoeP9J/QO+nL+6QH0veRrpyqhTw7BWGHpmVAt/TYKx
-         OvtNsxWNjBIjGqVqeQ0QmEWYI8O4B4NUVMf7TI1TuzIRMKeDllCoEzmxd32mOT6Xbp94
-         BVZ7rJk8RdnnsWPfc/NiXZnWuJlZRG+pg1xj3KVUdpsSepGMgL8lTW2oh1xiWW4YwlCF
-         qrZn/Ewb6ypJ+d7GcPpLuaJsPLZ0TKjy+Jo70PLHYRrhQuxDpYidOwlJLaEiJwAn60vU
-         43xQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUZ/gMosyGP66QkI7vHt61Z6A1e6U+xRQqTCdX7RwQKKvli2W5e
-	pANy7G/+pU40WPfjDhKptZNN2SpOMDoiYmoVqYZQBU8qgarbGTcLKAjEBOyOOGqaZs8vyo+68t6
-	5veBvJHdaneh8NmX4/vkbdJLkkwNQqPFCg284AHViJ3QacL+eyZfuLvTAzZU0ucgJsQ==
-X-Received: by 2002:a05:620a:15f5:: with SMTP id p21mr6643540qkm.5.1554992555633;
-        Thu, 11 Apr 2019 07:22:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywkuycXfsUEetSjv++vct5/3wygZz9ymtXFqZ8biiVOrWnLRgbUJ50FFZC7XiIVhTZCUUD
-X-Received: by 2002:a05:620a:15f5:: with SMTP id p21mr6643450qkm.5.1554992554543;
-        Thu, 11 Apr 2019 07:22:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554992554; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=J7i1OxODupLTqpV2Tv9xgeaP12UcsIOA4HqplkmMYgM=;
+        b=jXLhnDR3+iFQ90WyrJDizjREoNlySizAnmrggo6vA5F2PqSQEoN8OUdkCBF4/L59wZ
+         xsaFS5atNr+Wa1OUZ4po/rKKmNJQ25lApWQBG2GaP5FSqXsv36WszvkPlPDSG0MoCKZ9
+         E8o7LydPrtDN9c5bQ6wfmpsPwFICx5DjJCBzMLTqA4cPXbZnudgDD6V+BvKyVcIs9fhp
+         OTPPbKUcH5GZbF/+aa0BWnw6EdN++/FzBdsuRaFRZ58BSnz1l4B2WObfkcL8e3Ymqu6U
+         DNoa86TPgaxcLHPnzHZ0ukEZvsgRc8fiBpucRf/36Vg+AyXrpbXLNZe/p6h7N1qokXfS
+         0tng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWTmjFKBOtc62XEjxtEUTzcIaea2Le4OeTPZxVXtuvUkI4El8+s
+	VFN43HV5ns5DnfG8lT9Si0+jz+6uyfIcAFzD29B2WjbqIyMFNyHSfvFQnzN/HngJGwg15NJPk60
+	ZSb6EIa+oQo0UJZnGvB7ABDrRS3mj1uBjOCFCVI3yZj0KCco4UWRQz1Wx+qfc4hyXSQ==
+X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr49564834plb.93.1554992884825;
+        Thu, 11 Apr 2019 07:28:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz/oNEst9N2SPAUujVa6C0YtunrAQQRkMNu5bU6n/puaFrxtKlIkt0dKV2PTP9+/lvM0qqK
+X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr49564767plb.93.1554992884035;
+        Thu, 11 Apr 2019 07:28:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554992884; cv=none;
         d=google.com; s=arc-20160816;
-        b=dsLi2cVw+GZ5foSpD9BxCQg9OBoptxSvZZR/fKiA1o5cxDORMujPfeM9Dz6TEedw05
-         HAKUB2qL7T2DXriFuSsZa1nP6S5QfBpas+NcuRXOEVn8j/LsiFiMQ6tEJtI1WQwJExb2
-         xfu12smej+iUV9jFTIoO6jf4saNDdqq7/qrFZdlfwgvwGP7HPP0khiSWKAO0TYDElaea
-         4EmEUX88OYoOsaFlQcQeDO8wgO2JKo9KkAi93drMGSCisobxPUPimVOyBp7hvJ0BcmCS
-         F4LLFBTScnNL6gjKoDxrjLoIOiG7JQ0A3ZgdwMGA10V1JmjQCK4pE+DhCuqu3RIuN6/0
-         h4Jg==
+        b=P88/REMnHIotoV9lvsCAuF6JQkmocQF1QnB6csKa1m8S5/+4D2RnF4RLAoaZYawmLf
+         iWmTtW1/e/2/RElHeTNpaqYTx1OHqmnbOL9uO27TFkK6Sr8xzdRhPmJKMP72th8aAIz0
+         OvmWJXEDpMhuMq6SInnpSHTBM/lGTfMH3fmHt6672x/CD8ply0//vCOZ/IzbPtYEshq5
+         3nSsOAO62gY040fxK/goB4TpnlfIuzmpsmHMGXBrF7eTc6Z8pNXvDfYwiIKuAcrUnIAt
+         YGU68/Z7Cwtb100QIntfaPgl2LXiZjUzPznTGxmruBjMXF4RRFo7i0wh0uR950jzpR/E
+         kR0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=HIxVLZjqp4MH33lnupVZYwTAxNsDbfL0VH8DqWCvrfI=;
-        b=DYCVTxKXlXvqRPHxF7iFwAH24fyPBeg5fsj2RS+EKNruGds2PYEHUqXapW/J8ttNVa
-         aRW2/A4ivFmFhg7fXc3ZGY3oQFbIVbz8zm0Yi6gU0UpYO06kFab9OAUMRNkeHcH4fMVD
-         U99NnO4RmvTaBqSMUIqgIxU2JtN2CzCQw0M4DF91Og3Eg1e8/m6NPgq56nv+gV9S6Spv
-         aQQEfoQQBgTj4iz8cqGazA6WaQjdbQU/3EbUQPp2UMaDLK9wcJTolMdYCypUlFmoROli
-         llwgelZTVtjdI6iyW8ZVUpG6LcwACUMYOriUmNWcg4lgpWJGwyU9bSrulozkPhByfePR
-         hUYA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=J7i1OxODupLTqpV2Tv9xgeaP12UcsIOA4HqplkmMYgM=;
+        b=VlL8X3k5ejpqx0/T09PCimYpgNALUGv5kERA7nSUlEpmYMMuWUKMJUQrQ9+/bxMYWI
+         OgrcIkXyGm/i8qu4sBEl1/WhgqZTSA4UOe3TOti015Qu6lZm7G7vF8GjAsUC0nQ2u280
+         ErO1OmgCUfg8/jPjMiv3nPBnY6e53VAz6VYAh7T89DoEFdMKhrhzEVDgO2MgC0xrQ8LX
+         szlINkGyThXF07zLM6/ADIB/sgeZBgwvOVdjkPySl4GcjUke/BGrLGH2SlEFV0hq1sHR
+         INfPO6ZyahUF1rGLjAxmiU4O0e5MCEbHMkqJPK7+6FaRKlbdAPm2UZBBfs2ZZc9sr+oq
+         l8fA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r43si5214206qte.172.2019.04.11.07.22.34
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id p187si36823934pfp.89.2019.04.11.07.28.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 07:22:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 11 Apr 2019 07:28:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5010FC7910;
-	Thu, 11 Apr 2019 14:22:28 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-47.bos.redhat.com [10.18.17.47])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 52F6E61B60;
-	Thu, 11 Apr 2019 14:22:23 +0000 (UTC)
-Subject: Re: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
-To: Chris Down <chris@chrisdown.name>
-Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Jonathan Corbet <corbet@lwn.net>,
- Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>,
- linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
- Shakeel Butt <shakeelb@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>
-References: <20190410191321.9527-1-longman@redhat.com>
- <20190410213824.GA13638@chrisdown.name>
-From: Waiman Long <longman@redhat.com>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Apr 2019 07:28:03 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,337,1549958400"; 
+   d="scan'208";a="141894098"
+Received: from tqlu-mobl.amr.corp.intel.com (HELO [10.251.9.147]) ([10.251.9.147])
+  by orsmga003.jf.intel.com with ESMTP; 11 Apr 2019 07:28:03 -0700
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@suse.com,
+ mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
+ akpm@linux-foundation.org, keith.busch@intel.com, dan.j.williams@intel.com,
+ fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
+ ziy@nvidia.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=longman@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- weim8xU=
-Organization: Red Hat
-Message-ID: <d8d6f82f-a950-8eea-16ce-9189e78f37fd@redhat.com>
-Date: Thu, 11 Apr 2019 10:22:22 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <36901495-1891-7e08-b978-955af02f3d57@intel.com>
+Date: Thu, 11 Apr 2019 07:28:02 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190410213824.GA13638@chrisdown.name>
+In-Reply-To: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 11 Apr 2019 14:22:33 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/10/2019 05:38 PM, Chris Down wrote:
-> Hi Waiman,
->
-> Waiman Long writes:
->> The current control mechanism for memory cgroup v2 lumps all the memor=
-y
->> together irrespective of the type of memory objects. However, there
->> are cases where users may have more concern about one type of memory
->> usage than the others.
->
-> I have concerns about this implementation, and the overall idea in
-> general. We had per-class memory limiting in the cgroup v1 API, and it
-> ended up really poorly, and resulted in a situation where it's really
-> hard to compose a usable system out of it any more.
->
-> A major part of the restructure in cgroup v2 has been to simplify
-> things so that it's more easy to understand for service owners and
-> sysadmins. This was intentional, because otherwise the system overall
-> is hard to make into something that does what users *really* want, and
-> users end up with a lot of confusion, misconfiguration, and generally
-> an inability to produce a coherent system, because we've made things
-> too hard to piece together.
->
-> In general, for purposes of resource control, I'm not convinced that
-> it makes sense to limit only one kind of memory based on prior
-> experience with v1. Can you give a production use case where this
-> would be a clear benefit, traded off against the increase in
-> complexity to the API?
->
+This isn't so much another aproach, as it it some tweaks on top of
+what's there.  Right?
 
-As I said in my previous email on this thread, the customer considered
-pages cache as common goods not fully representing the "real" memory
-footprint used by an application.=C2=A0 Depending on actual mix of
-applications running on a system, there are certainly cases where their
-view is correct. In fact, what the customer is asking for is not even
-provided by the v1 API even with that many classes of memory that you
-can choose from.
+This set seems to present a bunch of ideas, like "promote if accessed
+twice".  Seems like a good idea, but I'm a lot more interested in seeing
+data about it being a good idea.  What workloads is it good for?  Bad for?
 
->> For simplicity, the limit is not hierarchical and applies to only task=
-s
->> in the local memory cgroup.
->
-> We've made an explicit effort to make all things hierarchical -- this
-> confuses things further. Even if we did have something like this, it
-> would have to respect the hierarchy, we really don't want to return to
-> the use_hierarchy days where users, sysadmins, and even ourselves are
-> confused by the resource control semantics that are supposed to be
-> achieved.
-
-I see your point. I am now suggesting that this new feature is limited
-to just leaf memory cgroup for now. We can extend it to full
-hierarchical support in the future if necessary.
-
->
->> We have customer request to limit memory consumption on anonymous memo=
-ry
->> only as they said the feature was available in other OSes like Solaris=
-=2E
->
-> What's the production use case where this is demonstrably providing
-> clear benefits in terms of resource control? How can it compose as
-> part of an easy to understand, resource controlling system? I'd like
-> to see a lot more information on why this is needed, and the usability
-> and technical tradeoffs considered.=20
-
-Simply put, the customers want to control and limit memory consumption
-based on the anonymous memory (RSS) that are used by the applications.
-This was what they were doing in the past and their tooling was based on
-this. They want to continue doing that after migrating to Linux. Adding
-page cache into the mix and they don't know how they should handle that.
-
-Cheers,
-Longman
+These look like fun to play with, but I'd be really curious what you
+think needs to be done before we start merging these ideas.
 
