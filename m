@@ -2,176 +2,185 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 091F5C282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:06:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BA2DC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:18:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B05732133D
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:06:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B05732133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3809B2083E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:18:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="De16ed2X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3809B2083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36D446B026B; Thu, 11 Apr 2019 12:06:03 -0400 (EDT)
+	id CB2226B026B; Thu, 11 Apr 2019 12:18:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31C0A6B026C; Thu, 11 Apr 2019 12:06:03 -0400 (EDT)
+	id C60FB6B026C; Thu, 11 Apr 2019 12:18:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E4D56B026D; Thu, 11 Apr 2019 12:06:03 -0400 (EDT)
+	id B4F346B026D; Thu, 11 Apr 2019 12:18:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D9EDC6B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:06:02 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id y2so4522689pfn.13
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:06:02 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9384D6B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:18:47 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id z24so6001758qto.7
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:18:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=hddqM44mWDkd/J4jllhhXriuc2neJLStWNpkPX4TQR0=;
-        b=qS1Vg9apaICMzVhmzHKWNEiLn1m9hn3JPkWVQMyy9/6cO0xkNhu056vVb5kSOyMR5v
-         cgaKDh8C9+kxutExS27GtAQi6Ta7TIZAkAN8CzPAjXn49XDT3MqTOWPo/xFo//6kFdzF
-         Vq8NclyTrcmIQoJZAgTqmxkOm5d0wPf9sZVDsR5JzvYHTklqZhHwz6bk9FL19ppqDIPQ
-         apjK/ImFjFetK1Z3zDmoJe0xmj41Hr13D/am6SlAx5DLX9cfZ3FPTPDEQACinFRTTT2e
-         zNVBVikUGz6ik9s0+kAnKhbWRyq/JhyljnCkBcP7FvHaomKgwyBjuc7qOVdAP5lzzj3s
-         yaXA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUM2ZIO0VnYK8Th0l0jhn6nwb1ZtMkh3fwcsyIK5Evd3IxNrJeX
-	ZFugRx6DDklS2rnsIEoy+752rHn5sMg6jrlLBfmI/01ruUatAbV7gBu4FgMDqCTjFcnSGPKKK22
-	lrsn3+wDSr61bhDlGa4/Fwx2kSQYKFWV1VieShno1DXX65GZoVTGLJd9q27N5PjEpHA==
-X-Received: by 2002:a17:902:b60d:: with SMTP id b13mr51785292pls.100.1554998762464;
-        Thu, 11 Apr 2019 09:06:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwi5VwXkogHuXxmr0PNTBEkIfaiOwVrScnXCBmybay/+gVsLwpb7b767gfG4HOLIIyf/OHj
-X-Received: by 2002:a17:902:b60d:: with SMTP id b13mr51785176pls.100.1554998761317;
-        Thu, 11 Apr 2019 09:06:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554998761; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=dtBnB10BHscANlI2Pry7Ppm8oEPt+C4ZM4LG9RdUtdk=;
+        b=rf2COIBSyPPqAxDBrl2aXtpb4gpuRCt2UHMcgfgxVP67AmCEPB0nykYol2x0W5nhg9
+         2WlbV5LifWywkTehppcyANQFKEHVbSGUoj8S5ypB/JyAl+Mtr4svs1llCg1YZBMgZAQ8
+         UBlN9lR79SRk2JhU1vooA6SM2TmL0xkPIsgKs8XHfNztUeICSxAkpuqUJGSA8xOA++6k
+         hd0QVQ7IbxOrG+5NRY8aU3qXE65jkT7l2JZ765o0+yV7O2bl6nXFJ2KKl6ZslpwW7/Fv
+         MfsvGeUi71Zlhk4nbPw2Jsj4jLDNF9/BSEyH/f8oXaL23talHVWhjapvDwRb8aKhKMZF
+         BJSw==
+X-Gm-Message-State: APjAAAWEHc9zqQNql+QPPAR49B0vU8YduNUjsqDNuklc8xr+5alsy/NL
+	WEfUAlngH4U7ZVECCtGveHS26dEat+YnZI5hwY8N7GfMYEZRLxgRk1pZCUdG6ynNS0Wx8LOoQ/r
+	j3vfsHX8QH38PbvohDJ/svhpTgYpQglwMnZs6Wi+8Mq7NizZLi2ksD6yc4kdJ729mMQ==
+X-Received: by 2002:a0c:986d:: with SMTP id e42mr41344920qvd.51.1554999527210;
+        Thu, 11 Apr 2019 09:18:47 -0700 (PDT)
+X-Received: by 2002:a0c:986d:: with SMTP id e42mr41344794qvd.51.1554999525790;
+        Thu, 11 Apr 2019 09:18:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554999525; cv=none;
         d=google.com; s=arc-20160816;
-        b=g1VSzC3BwiVUsfPDbI6SbNYmgZjx2XJzDWrVzGa7zxhLm3XELf/R2bYZSYqKK4KQ17
-         OC6pAYthEWTuzJm2PuN5/DGpf0eIx4bIqUEO0CL3o7Sfj/9gwFYwPKJvn7/xY3jDtjSq
-         MQM/zkgk2uic/LLaNXdtl6XfMM+8hfg8X54115P8JJKDI0MVSA8IwaiNxJ7MgN97AfEn
-         Pad3ewKGqmm+NkO9lGeoCd+cr8kGd1fjGyBByTBOWjukKUNYtiZw4NNNKpqPin4yXFz1
-         n9IVbaXr31H4hbMQUgyul1IPdcdFm2AIDIr4ANUO+2+qmvkiwp8JgQGbvRbiIhHrALUN
-         k4vw==
+        b=Wd7NPAaMLwXyXyCcvKRD/ac+HjatzKFGYGIcYk3QaOIfqmhSmo0LojF4UfWeBx1+OL
+         RLs6NW+2mkujwo6H6XRKxHxwnr4S8UWwMCiY4ZHxoMI028Ar/nZHkHDXn4anUkPp1LhP
+         chzdth/Z8MlPiZWCrOVVs9cpGUj1KQOuDCmdif79u9lz4UMBnrrZ7o3uvRYEFQIfJAvF
+         JcqCSCBTVaB9wb3wvdrvZtHyAxZvNV8sHYA8WtjgnMjprSC5YjVu20D5l+6SWSo61mGF
+         +SSATlgOTvlNqoxLbJ/fMCyJaay0eCm3LfOcsyVOT5KkmPpzNc8fp3b+MtRH6R92f3NM
+         +U3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=hddqM44mWDkd/J4jllhhXriuc2neJLStWNpkPX4TQR0=;
-        b=CJVQGDZKK8WKwR6NUjb6HC6iF88FbGTLPq9GJX9EWhQncn6LfzkoFhe1r5u13EvS4E
-         NYBkKQjPwmJeXDO2vRnN/hcFNaXInwJ6fYBePH4w2HurPBebZRDX+H+WSSN0v94ooy2+
-         lHblZBcKrDFzrhDudAsAnt0Jfi8gKf+j7cPm+PBEkzxMpZDNT4sToAX8i3IbdXK4rnEP
-         fUUVI+1Ez0DPT1c/VYxeiPYl/165Oc6TOwP39yZis6KTwPq+yL2wY8ub83kCCcCHHRi5
-         ZD7dzldaAK57WhY0VZd3qSaSELl43b6B2Ygerj/8pmwiuuyOqcaG/I3IbOQkAhSziEwx
-         3zPA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=dtBnB10BHscANlI2Pry7Ppm8oEPt+C4ZM4LG9RdUtdk=;
+        b=l55dtMJrgvQ9JiKlgsDyzI3fT4cr+DerIWPT3M61jW7NG+mQKYyTXOyNNWdzDUbLlB
+         W8BRlzpi5jg/ddDN9jZKmqk2mRUqNfwlJbXv+/umz/q4x0/Ty2EAL3gqZLhGeqBfz0Wf
+         lJewcag+ex5fEhgOfMJ1/itK9TFcVmHhWT53ZU359DBaa8qiHnDhAHu9EJNF5Plxq0gc
+         l8eIWUlbDBocjBFiE/HU+M+RZEpJmuZGY1T6gQGu0pYDSthQWxp3Fzc/PqIWah4chzOq
+         zLkX9sSlxtcBXbIq+HntdmX/R2MtePHCwkuPCsNdeNjfTQGltY7hYmJCteR54VteTvhS
+         pljg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id f63si29145676pff.107.2019.04.11.09.06.00
+       dkim=pass header.i=@google.com header.s=20161025 header.b=De16ed2X;
+       spf=pass (google.com: domain of joelaf@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=joelaf@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k37sor31655780qte.10.2019.04.11.09.18.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 09:06:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 09:18:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joelaf@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Apr 2019 09:06:00 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,337,1549958400"; 
-   d="scan'208";a="134936916"
-Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
-  by orsmga006.jf.intel.com with ESMTP; 11 Apr 2019 09:06:00 -0700
-Subject: Re: [v2 PATCH 7/9] mm: vmscan: check if the demote target node is
- contended or not
-To: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@suse.com,
- mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
- akpm@linux-foundation.org, keith.busch@intel.com, dan.j.williams@intel.com,
- fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
- ziy@nvidia.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
- <1554955019-29472-8-git-send-email-yang.shi@linux.alibaba.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <6d40d60e-dde4-7d70-c7a8-1a444c70c3ff@intel.com>
-Date: Thu, 11 Apr 2019 09:06:00 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=De16ed2X;
+       spf=pass (google.com: domain of joelaf@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=joelaf@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=dtBnB10BHscANlI2Pry7Ppm8oEPt+C4ZM4LG9RdUtdk=;
+        b=De16ed2XEEtRbo1CKENs6sMutHD49Q/cAstG3x5wpdUx4DYv3vn40aZ7zGxs9pKUVk
+         ek9QFv0RYGM538H15uQSE5LbohaaIJCUg3LcLe/YhVbL6RalwlCudvAPNrrnoKElWsFy
+         JbF/ndTJJqlDbBBt3CnWLC2x1CfLe3+PtzByzBGTFse0rpiDiCHpCqH597QWvGbXVEyG
+         FEtE4zye0+fCtu9PhwqVIEGGh9u/EPP+2pTHpDHfkdI4CPDLNUN3oGq220fh2X2a8qHw
+         NgNJikpyAVpALN8w62AAEgQHCP1yb5FfC3P6SpnQjNJU4Kkr2Kpre+vEGC8ZjZKo8Gl5
+         o8SA==
+X-Google-Smtp-Source: APXvYqx5CWpGgbACybyrinBfzS83tX4KRJs57zlMkMYYYLfTduHXBqgvj3424Yc5issdUsStUoC8yj5bc9QGP2WynL0=
+X-Received: by 2002:ac8:1a21:: with SMTP id v30mr42590152qtj.103.1554999525039;
+ Thu, 11 Apr 2019 09:18:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1554955019-29472-8-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190411014353.113252-1-surenb@google.com> <20190411105111.GR10383@dhcp22.suse.cz>
+In-Reply-To: <20190411105111.GR10383@dhcp22.suse.cz>
+From: Joel Fernandes <joelaf@google.com>
+Date: Thu, 11 Apr 2019 12:18:33 -0400
+Message-ID: <CAJWu+oq45tYxXJpLPLAU=-uZaYRg=OnxMHkgp2Rm0nbShb_eEA@mail.gmail.com>
+Subject: Re: [RFC 0/2] opportunistic memory reclaim of a killed process
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Suren Baghdasaryan <surenb@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
+	jrdr.linux@gmail.com, guro@fb.com, Johannes Weiner <hannes@cmpxchg.org>, 
+	penguin-kernel@i-love.sakura.ne.jp, ebiederm@xmission.com, 
+	shakeelb@google.com, Christian Brauner <christian@brauner.io>, 
+	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>, 
+	Daniel Colascione <dancol@google.com>, "Joel Fernandes (Google)" <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, 
+	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	"Cc: Android Kernel" <kernel-team@android.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/10/19 8:56 PM, Yang Shi wrote:
-> When demoting to PMEM node, the target node may have memory pressure,
-> then the memory pressure may cause migrate_pages() fail.
-> 
-> If the failure is caused by memory pressure (i.e. returning -ENOMEM),
-> tag the node with PGDAT_CONTENDED.  The tag would be cleared once the
-> target node is balanced again.
-> 
-> Check if the target node is PGDAT_CONTENDED or not, if it is just skip
-> demotion.
+On Thu, Apr 11, 2019 at 6:51 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Wed 10-04-19 18:43:51, Suren Baghdasaryan wrote:
+> [...]
+> > Proposed solution uses existing oom-reaper thread to increase memory
+> > reclaim rate of a killed process and to make this rate more determinist=
+ic.
+> > By no means the proposed solution is considered the best and was chosen
+> > because it was simple to implement and allowed for test data collection=
+.
+> > The downside of this solution is that it requires additional =E2=80=9Ce=
+xpedite=E2=80=9D
+> > hint for something which has to be fast in all cases. Would be great to
+> > find a way that does not require additional hints.
+>
+> I have to say I do not like this much. It is abusing an implementation
+> detail of the OOM implementation and makes it an official API. Also
+> there are some non trivial assumptions to be fullfilled to use the
+> current oom_reaper. First of all all the process groups that share the
+> address space have to be killed. How do you want to guarantee/implement
+> that with a simply kill to a thread/process group?
 
-This seems like an actively bad idea to me.
+Will task_will_free_mem() not bail out in such cases because of
+process_shares_mm() returning true? AFAIU, Suren's patch calls that.
+Also, if I understand correctly, this patch is opportunistic and knows
+what it may not be possible to reap in advance this way in all cases.
+        /*
+         * Make sure that all tasks which share the mm with the given tasks
+         * are dying as well to make sure that a) nobody pins its mm and
+         * b) the task is also reapable by the oom reaper.
+         */
+        rcu_read_lock();
+        for_each_process(p) {
+                if (!process_shares_mm(p, mm))
 
-Why do we need an *active* note to say the node is contended?  Why isn't
-just getting a failure back from migrate_pages() enough?  Have you
-observed this in practice?
+> > Other possible approaches include:
+> > - Implementing a dedicated syscall to perform opportunistic reclaim in =
+the
+> > context of the process waiting for the victim=E2=80=99s death. A natura=
+l boost
+> > bonus occurs if the waiting process has high or RT priority and is not
+> > limited by cpuset cgroup in its CPU choices.
+> > - Implement a mechanism that would perform opportunistic reclaim if it=
+=E2=80=99s
+> > possible unconditionally (similar to checks in task_will_free_mem()).
+> > - Implement opportunistic reclaim that uses shrinker interface, PSI or
+> > other memory pressure indications as a hint to engage.
+>
+> I would question whether we really need this at all? Relying on the exit
+> speed sounds like a fundamental design problem of anything that relies
+> on it. Sure task exit might be slow, but async mm tear down is just a
+> mere optimization this is not guaranteed to really help in speading
+> things up. OOM killer uses it as a guarantee for a forward progress in a
+> finite time rather than as soon as possible.
+
+Per the data collected by Suren, it does speed things up. It would be
+nice if we can reuse this mechanism, or come up with a similar
+mechanism.
+
+thanks,
+
+ - Joel
 
