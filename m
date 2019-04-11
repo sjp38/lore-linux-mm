@@ -6,105 +6,105 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9A16C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:48:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 573E5C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:53:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67E692082E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:48:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 00DB22082E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 17:52:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jz89wF/P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67E692082E
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cfBtLJFe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00DB22082E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C4C356B026D; Thu, 11 Apr 2019 13:48:03 -0400 (EDT)
+	id 766216B026D; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD2506B026E; Thu, 11 Apr 2019 13:48:03 -0400 (EDT)
+	id 713A06B026E; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A9A346B026F; Thu, 11 Apr 2019 13:48:03 -0400 (EDT)
+	id 602736B026F; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C3F6B026D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:48:03 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id v22so2819565vkv.12
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:48:03 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 12F4A6B026D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:52:59 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 187so5308819wmc.1
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:52:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=EdmEfhETvX5sRZ2i3AN4xgxKTisr0Ltj90Tc5NPzL+I=;
-        b=RVsAfzUGWrEAtfrglCjo7bFZa43SXdWdGg9259RsKQ2rrfkbZ4wbMOow/MHG4mDvPl
-         kOdlogu8nV446Lvg6BS/jUKG91HtOuJjdZRDEc3tyzPsfIv7L0b/D1nASo+Mmj61pYJN
-         5RxaYeU2jQthX/bWsGoZ+GRrhqPLq6nLJZSpobfvK5ONELTOtTQFns+8XBGiPucb3EhK
-         pUf1siOVoE8bBq0q1H2/G4oW1F5LTCXo8xINFRrJ6PkEBsGnJbsmbzKoFDVljyvByCGH
-         z5ij/oWSlAqpgcP1JEcpbl/NjoZdj1laLVXSyLhzkuxQoGJpchKkIWfdryBN0rOBeV7U
-         0QiQ==
-X-Gm-Message-State: APjAAAU07BM8MIQCAn+a4bbHPA+tFsvxoI94nzUjSgyAf/gXswQqJ3+u
-	XOOk9K6TCxUpevxlRNyo8rOc4QWi6h31KWe9CFy00asyIN0mrGi65yWGvDTZSN6BtgtqCnQ8GL3
-	roEWGevxgjkMhb6x/VcktCqNq/XJFSq0yr247wWxwnIC+QNT1LGBK/bc6jNJi6ZfSOA==
-X-Received: by 2002:a67:f813:: with SMTP id l19mr28812492vso.46.1555004883244;
-        Thu, 11 Apr 2019 10:48:03 -0700 (PDT)
-X-Received: by 2002:a67:f813:: with SMTP id l19mr28812457vso.46.1555004882389;
-        Thu, 11 Apr 2019 10:48:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555004882; cv=none;
+        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
+        b=V7L850QfqtytqRvjsG/wGHyk0+35dfwZiQd4auEnVRPUiqWR+wmfcSZDHHBhHKRfJ8
+         9W8XK1Qfa3/QV8zdBkFGOVrR3mvsVyTvdLOmII/fyETj4ep+R3XQEr0t9m3Axc3VIFd2
+         hXNXW2g++C/SlzCcSm26YtSoxCq4HruZGt/2mA3joRgbLGA9uHzwYtSfI1hbkGtXQyju
+         opW6iJo9K8z197wCodeeGmgFNYyw+CR+Scw1Be75yBa2ri4C+3cJB2sfPyPUR2zYGhgp
+         jHAaf8ZmNhuiHw75spz8xUXpucmAenick0F8+ZW+pjsY2ax6l93v1o3KqxOA8mbWMosi
+         q9mQ==
+X-Gm-Message-State: APjAAAVi3ngSCTpqX+acZRf9zvCdYwz348qLkFjq8a4BvmnqOy7nJ0i/
+	YU7QozPOHTVjZnfVc0Hd0eD7goSBLuwLZHa6BJjUK1lWBlefhkISPH8/O9RglGVMeI8oaVew3dJ
+	ZJ8cM3UhNh+V9U0+p/eyWH2En/H8Nt0yVtJYCGAj/Rw4lebBUVaR3+1R1/H6nwZAL3w==
+X-Received: by 2002:a1c:a010:: with SMTP id j16mr7498876wme.40.1555005178604;
+        Thu, 11 Apr 2019 10:52:58 -0700 (PDT)
+X-Received: by 2002:a1c:a010:: with SMTP id j16mr7498825wme.40.1555005177165;
+        Thu, 11 Apr 2019 10:52:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555005177; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zu/lemjSDAfyDAAsV8hp5vr7sUumZCaCJB5hZ8nCiBTqPA/ZVwiEZgfDtKl/CYmS7z
-         u+p5Je1698hVFTh9Q/AGIoTcxgCTnDvGn5AQKVeV9xgc9Bn6WriZuUH+JDL07PWXnIqo
-         n7E7rEGCbxZzhX7TFYBGvu7uWbUr3zUPhdlwc9mrNVPaHjkcJIph1YHCJJ+WjiTzYnB+
-         u4YSgvYpDOuH+0ujG5HcLtF1H257vf0onnH7hF2UN8qmVqxhzxhowXuQeT0OT5DcSK6D
-         j4JGXF29Z0pIHmXOHce8HdqR42GOxQJegmIn65Z66xjh164DUhPaN+Nh5HxcLjujpcdN
-         Ra+g==
+        b=c6lFCnmtJKv5cMaueKoIsXb/jYVXh7GZwbC0K/IdGE+ffehoCi6zFOjnuxY/3atBZf
+         7ZAG42aM+J4Si+ILc8BrUC9JjcnouEIUh2ZgyQ5gDp0+x8r164IpO/aAbGOkw/0w0UKq
+         huJy4zYFO0dcsQX1a4B60WmKCPOXCLAF9bl09vK8/RNEAqQhVCR6g2ixqswIxAw3xGON
+         S8DwKdhTU4f2jH5wmrGIqwnvNtqo9PjMcvZLyEGOEz3IGi45WWJfq7J1O3mtlI3NYjHU
+         lKinv88g/WRoOJH5VzfpUhESqt+Z4zNI0L7huaoy/TvXdd3tesBqkAeGLJxEAOspwqr9
+         xC3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=EdmEfhETvX5sRZ2i3AN4xgxKTisr0Ltj90Tc5NPzL+I=;
-        b=iHkyerVY+GIZxPMeBr5oLQL/9LGeILD32etwDnBX8oUVY+siK2mEUrIiGjKL8n5z+L
-         i3Ovk//xgeEuUzD6l2sPPhAqAnqDNX1aekbQFdmIRZPJcRtkpR3y8dyuzRiqO9bbnT+g
-         epEUiHROe3xd0GlEROmWBWPZZYunGa3+JXhOOd/yWFyZFCopl54QdUcZMFIliQOJm3PD
-         nlOKXIcfDCM7fcfewzgamPBLEOSQoE0sPcA1QuLPdPWxNeglK+ViSDOeLsnvyRJ5gcRl
-         NbGrl+MSmzN7Zx4PLzS+1yajsGfPRgCR8spmZziAcEclwj/rv8M5TRFQdZCT5qs9LumC
-         QgFA==
+        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
+        b=bhhrLa+FI/OJ9eXYGJvjn2MDKbgqkJ0nTDRtHyvFPtipZdxAIM26h/iSWu0eDz+I6G
+         rrcAtkYJjFYb57wK46v6tY5aOcZMak6AGkHtSH659rveuIcOqEHK7c8JcxrTFyaKOsAE
+         WC+99OINjmnhLAkvaPhQW4lFbHN9ahUgqf6UbjTVMWwkoTmN006ytjoKDJ1qehMInTrb
+         GrxVOPE8RRvbs6aWzlkSs663ky6mRk9ZLSg7hhgupjA1uTwyBkIYdNGt0aGPf4D4yrDn
+         cRhvpZTTKRwloZL4xmMzAT50Uw2l4MgRVKW9Fyxam85VuWU7+2UngLivL1ZvYcfhtkbu
+         CuWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="jz89wF/P";
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cfBtLJFe;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v3sor24460396vsj.14.2019.04.11.10.48.02
+        by mx.google.com with SMTPS id g5sor29602470wrp.41.2019.04.11.10.52.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Apr 2019 10:48:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 11 Apr 2019 10:52:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="jz89wF/P";
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cfBtLJFe;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=EdmEfhETvX5sRZ2i3AN4xgxKTisr0Ltj90Tc5NPzL+I=;
-        b=jz89wF/PI7xg90sbXXootb01OYHrWVY1nyKpnYun8KA/55ifTn0poh8w9zFwRH252Z
-         Dw+IysDpcGaJw6W5CznS2kYl/jSmZrStx7LG6OgW7ihxHEasnyj+5cNjp8m1rxozoENV
-         vMjq/0/brXM7n2UaYUjItZAJjRAXYz1OmAao8Sd69dilMIvL2IJT3oDvDBgrSAejGbbH
-         Zkfmdw/a3nVbVz2iTiFBR2bFuKyW6eJU5N2v2KaFR6vXkF5HJzyxVz9TqJVHMm1aLN/9
-         EFNznjoGr1qh/+0NrHLQrLhfHjTFVDwPn5uDgrh7B5/JwMRo4NtPiZ0lSShhe+MBfz37
-         1zCA==
-X-Google-Smtp-Source: APXvYqwI0Tosne+pusVzKzdHblB/C7MtpXTvYlDo3J+xGAIK5hCHrHvOO0GrDJKsNhe/ffI89eTSYRDp9xlhLXpu9Ig=
-X-Received: by 2002:a05:6102:212:: with SMTP id z18mr29458490vsp.218.1555004881611;
- Thu, 11 Apr 2019 10:48:01 -0700 (PDT)
+        bh=UWmf2gFVGYdGp3+zu1SOeQRU5dF4/Q9osFeNuzPV66M=;
+        b=cfBtLJFewyMKRnYYnw21vINnPqrk2z7GXrfM4YvSVrWBgQq+nJOjapX/bWa5GUvuYY
+         H3toxmQkRamCTdWSc8N3hDwzQdehoe+ScCzHOv6ZBgAJX3biWy24vKWv0lNW4hrPaXaO
+         qBo1S2X8vw7dHA2BxIBEuMUibMJqCRACcBwW8wcxJ2Yqwv+asIld9QHvEQnMVQOJPgWy
+         bp+m/WK6Dg+OZiuHifUQQfGgY6JUUuTSwDSXRs3EJl8COHu1SeN09A6JrgzaeNx/3XHH
+         XRcffG/t68HskedwzTcwrH5utbMjIhnZI1NtOUdPNt4GKX40dNXqMl0hOKzAz/WV4qKE
+         NwdQ==
+X-Google-Smtp-Source: APXvYqwhl9r+dJ0Z/fammLyczcHvRtwhpBRx/JMX+uk7Nbkdaz4yEC6SKsx9MC9/KkL3DGJtwTYbXhZG31qaO53ZZtA=
+X-Received: by 2002:adf:dc8e:: with SMTP id r14mr8296918wrj.118.1555005176426;
+ Thu, 11 Apr 2019 10:52:56 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
  <20190411153313.GE22763@bombadil.infradead.org> <CAJuCfpGQ8c-OCws-zxZyqKGy1CfZpjxDKMH__qAm5FFXBcnWOw@mail.gmail.com>
  <CAKOZuetFU4tXE27bxA86zzDfNSCbw83p8fPxfkQ_d_Em0C04Sg@mail.gmail.com> <20190411173649.GF22763@bombadil.infradead.org>
 In-Reply-To: <20190411173649.GF22763@bombadil.infradead.org>
-From: Daniel Colascione <dancol@google.com>
-Date: Thu, 11 Apr 2019 10:47:50 -0700
-Message-ID: <CAKOZuet8-en+tMYu_QqVCxmkak44T7MnmRgfJBot0+P_A+Qzkw@mail.gmail.com>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Thu, 11 Apr 2019 10:52:45 -0700
+Message-ID: <CAJuCfpG1P42qnDmGZLGkYy+mkS7QjfYUjGGpEBa9UGgLt5=q4Q@mail.gmail.com>
 Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
  process killing
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Suren Baghdasaryan <surenb@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+Cc: Daniel Colascione <dancol@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
 	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, yuzhoujian@didichuxing.com, 
 	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
 	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
@@ -160,11 +160,17 @@ On Thu, Apr 11, 2019 at 10:36 AM Matthew Wilcox <willy@infradead.org> wrote:
 > that is never (the process reaps its own resources); Suren is suggesting
 > sometimes, and I'm asking "Why not always?"
 
-FWIW, Suren's initial proposal is that the oom_reaper kthread do the
-reaping, not the process sending the kill. Are you suggesting that
-sending SIGKILL should spend a while in signal delivery reaping pages
-before returning? I thought about just doing it this way, but I didn't
-like the idea: it'd slow down mass-killing programs like killall(1).
-Programs expect sending SIGKILL to be a fast operation that returns
-immediately.
+If there are no downsides of doing this always (like using some
+resources that can be utilized in a better way) then by all means,
+let's do it unconditionally. My current implementation is not one of
+such cases :)
+
+I think with implementation when killing process is doing the reaping
+of the victim's mm this can be done unconditionally because we don't
+use resources which might otherwise be used in a better way. Overall I
+like Daniel's idea of the process that requested killing and is
+waiting for the victim to die helping in reaping its memory. It kind
+of naturally elevates the priority of the reaping if the priority of
+the waiting process is higher than victim's priority (a kind of
+priority inheritance).
 
