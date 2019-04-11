@@ -2,174 +2,166 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9448BC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:27:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46DDBC282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:41:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 44CCB2083E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:27:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="JigCMARg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44CCB2083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=iki.fi
+	by mail.kernel.org (Postfix) with ESMTP id 0E94821841
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:41:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E94821841
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDB5B6B000D; Thu, 11 Apr 2019 04:27:33 -0400 (EDT)
+	id 7058A6B0010; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8A5B6B000E; Thu, 11 Apr 2019 04:27:33 -0400 (EDT)
+	id 6B34B6B0266; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B797D6B0010; Thu, 11 Apr 2019 04:27:33 -0400 (EDT)
+	id 57BA46B0269; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B4066B000D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:27:33 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id g7so4408692qkb.7
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:27:33 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0543D6B0010
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f7so2728492edi.3
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:41:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=8u2aEsZLEcR3+NjWzB2WQbH67+zA4PHcHkWEVgf17q8=;
-        b=BWTTZ9yw3usB7T019IRDm2wuVd4x0s6xdSH4aMkxVit+wSySlScfc5FctMGFS4Sowt
-         WNznLCk9YArSypzhtg4lKhHuPNwBwiVl2XgHmbwKzGXpxPlZYwpeRRnfLE9u6Iou2CFq
-         aNdOhXUiQ0+lXk7ET4QjITgp+KPtzAtE+oODEAYw6WzbUEc7Zt7zV7gxpnX8hMkWRwG6
-         fQOa5j8ZbdKgTQEn0L6SI1eOAxbJLWeihRc1Li/q1AuU95PZENMcrMv3Y/T5OMYAdowF
-         Fi005tURO0cnqp0zfeZjS4+FcxPTG7zA8kyJ5c377hfK104cjn6XdvFfkniB/dWPwenF
-         HxvQ==
-X-Gm-Message-State: APjAAAViKFc2d9MxjByzwT5lcnLoIhJ4TAHhgZtoJyoIfoxp7O6X1nJ4
-	p97sYaZ/95z4iLOl0/WILPTLZIfDPVtmg3D2K0OqBAH4Q0yep9L0tM/NN7TiqM7HMDI3Ci6hI/o
-	faerBexEisI/nAtj7ZmjLt89OUsYvAtmFAbNPu5SUHeIfk/eQVHgNtCc0HNQnayc=
-X-Received: by 2002:a05:620a:11:: with SMTP id j17mr38074000qki.111.1554971253356;
-        Thu, 11 Apr 2019 01:27:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzVnSD+kEK/LFzU1N+nsIrgg4EnllvBnbV0ARDSaCxeNJN3hXVWFB3pEQGIA6iDWV/RXxid
-X-Received: by 2002:a05:620a:11:: with SMTP id j17mr38073980qki.111.1554971252796;
-        Thu, 11 Apr 2019 01:27:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554971252; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Hv0Tu5vKqrOSuiUXKFVHMWeUz81r+CwRL52LI/dsHVw=;
+        b=Rv9LIUcyjFl/lNhFnEMsCLdVBJGbXhrFXAqZdCB8HcP0vvtlcPKTwjmrLa2f5PMqB4
+         QqOl+pq9eNjbbFxthc/1s2LTj+A8uGDV5bklIdVpGrqMNxMKhLeJ9i1u9hm4fH0f4Bzr
+         vjbBegPT1IWJx5Nt0LuIctA7lM0VL3wTtipaNMLqdgjmqNdCmWHcs1krXRzrKL/BUB7N
+         KGWtEMsEo+Lw/gva5fSDmod3LJnvCcQXQtMegaahptchBNp59Cmpit2gi1fRCtyakToF
+         tCMiyEF+BW3yQkvTaUehUo36ecChHYBOVik/S+fXvZVGKJaipaUlGdNzslKtd8TDKkX0
+         Qt9Q==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAU1D4QTabQZE8vbd9ZawooFLqyR78ITsIsJ7YTNOyCuXBcXjnc8
+	a4pNew6U9XydeQHq8GHg3y7Ex5Vh9X5r2Il7ezURqsX5O89Nbjfn8r5hRFPpoufODDbwVTuIAFG
+	/jio3p8iV8r9RqEvAj2PrLi7QzCfKCYGJVdkfQDo6AWKS26ucOK8Q30mcFDYrS2U=
+X-Received: by 2002:a17:906:2481:: with SMTP id e1mr5538677ejb.22.1554972105538;
+        Thu, 11 Apr 2019 01:41:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwOFZ6+VhCKgKJmtQhKk/MQHtZncRelLSO6/YbTbEl1llvGa9jtVkZrKsSG0mLQTMLGUpp
+X-Received: by 2002:a17:906:2481:: with SMTP id e1mr5538635ejb.22.1554972104584;
+        Thu, 11 Apr 2019 01:41:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554972104; cv=none;
         d=google.com; s=arc-20160816;
-        b=yjDvHT1+Si9eMEZ5VcsDuZmD5mZk8mDfaO8A1VAHICRmpOW39UbKS4X1G3DK5GNg1s
-         08TCdj6rd4PTQBciuqDnGo0cMCQmykKCoVeVCBjO2ppZR3gwIsi3hPE+sqwj92YDVPvk
-         8tdpwKFTKzAQHVFr8cEKPXbmF8GFDONozf6n/yVn3PszVguq6hrix9yg6YvTkB2Q4Fmn
-         yri2MMGd2ouFTIA3XBlGEJcGFlGvKHPmQ9BOXZ5KOpNBOk3JP4JGQjN9a7lgXDDL4Y25
-         d6ZFZab0yKjTSAjcasfbuoGunAXQj9p76DOBVnQ2NUwCLNwhvLu8C5h5EpfHNIZd2ucd
-         R5gQ==
+        b=Q3YQFrGo8R2LEeSInd94UjmcN28d2MJYmsU1IrDQk+dg2eDt7vYDaaVBYZUuBu1Lfv
+         aTsKVWdfVxNuOMKtlMomqFn9iSl6xeg1IZqJ7+li78T3yOp5p4gH8NixWIn7uN+StvmJ
+         MN6257VXYw56efF2Z60kcA6UMUZqLYGuXiQecwlQ3U0tjUbU6JGs9RtUnuiJrCAo1Xgl
+         71MvzOJHGyfj+dUAc3HWujbjuLtHU54PIipGW/uco57NzM4GGG/AMX5Ajk20oKjpGsWx
+         1Hf7nGPNPVV+5TVA7dRLZBaSinG7+xwtrPhkglKsmBoft236uBy7/rT5AFUCZ/dqod63
+         uFAg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=8u2aEsZLEcR3+NjWzB2WQbH67+zA4PHcHkWEVgf17q8=;
-        b=VBfFbBom5nPYREWFC5yZw927iSh6EJBLY+C7BGxN/rZb02V6/dUogRiLDIk56P7jmV
-         yFP+iixY+W3SdNXxJs83bsBqv9T5347arxZiEkXbQZdrFF1RzE6q7uupN4LQWw4DsmNC
-         FxsvGTVT1N5PLpTkOuWD13siwjJrdilwSZEN5KHDQA1uRsA9Ioj+54RYXZzcsS2s2QKG
-         J3eEGoeSRgdZ6Q2FeNvmUYuENYvvog93FqnhmLh0hdOm9lEErbVV/2xSvMhKF/+0vB9N
-         mfxDmQ/s20pGWJfX8nXAeb7ZB0VZh4NBcosXHwWtQa+8rEyxaandq1jks3/dE12EVoCS
-         jRfQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Hv0Tu5vKqrOSuiUXKFVHMWeUz81r+CwRL52LI/dsHVw=;
+        b=c9VIp34eU+DGibIn2FhwpPMm0waVvLRgVUV1J2mzHlaAmvpqqjGvhJcii9VdWxEzef
+         cGTAK/43x/4jrxUIrnaUo/nIG2z5M/Np84DhdfjXp5YCOodc2lQbuear6alPet8ekS9h
+         Ung//UM//7wYaWkwohJEwl6mmHNKpNme9MSavE0ort1VSpKzZDnzIKV2zoJD0oMj8n58
+         gJVzZzg/7ADCXgaxfs664bsQPUCSEfAJ+QvxOL2pHM6TYe6fEnA6hrc8T0AS+Um4c/tC
+         LfvlqjpeYzkpaBBl/dgGjGLrL52Aqu4OTFWpXTt+Lar6k3J3abcJn36wUStD7mO5LiVa
+         qvmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=JigCMARg;
-       spf=neutral (google.com: 66.111.4.224 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
-Received: from new2-smtp.messagingengine.com (new2-smtp.messagingengine.com. [66.111.4.224])
-        by mx.google.com with ESMTPS id c11si6742618qko.203.2019.04.11.01.27.32
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h18si3420351ede.228.2019.04.11.01.41.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 01:27:32 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.224 is neither permitted nor denied by domain of penberg@iki.fi) client-ip=66.111.4.224;
+        Thu, 11 Apr 2019 01:41:44 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=JigCMARg;
-       spf=neutral (google.com: 66.111.4.224 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
-Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 663755A4B;
-	Thu, 11 Apr 2019 04:27:32 -0400 (EDT)
-Received: from mailfrontend2 ([10.202.2.163])
-  by compute4.internal (MEProxy); Thu, 11 Apr 2019 04:27:32 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:content-type
-	:date:from:in-reply-to:message-id:mime-version:references
-	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
-	:x-sasl-enc; s=fm2; bh=8u2aEsZLEcR3+NjWzB2WQbH67+zA4PHcHkWEVgf17
-	q8=; b=JigCMARgrDNIum5VLN/vsLwM+7b/HmaMjhOl1gQgI1DMsfEtQqx1Lp7V+
-	I1LKTlANOniVThkARVNXhfzle/8SlP4NfgNpkJTg8HIUvDryMe5NqsIfP9ZPnBpj
-	cm1QmSfLlvmamSRIQ/7QJZz9c2WKBAmZllGZvlhijoyOLXwG4O/QleI0bnmAf9A0
-	dyZxq7AqyAL/j9MWFghdSCXxSmZI/oYZ8rkzytD1JbwlP5znLwquo9CdX+c+ZrIm
-	FKIh6n+Qcvb9+OW9or4cHefL1Gop8IEXaP66p+iBv/6SWUMb4mx+12wNXyutZi1P
-	qZO3AK7K/isKWsgBGqfEZn5IdM98Q==
-X-ME-Sender: <xms:cvquXPlLS1jKDZyF9S0eQ_ARSvEfJaE7UTphtybQYLmmgUSR3eXa8A>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudelgddtgecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
-    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
-    fjughrpefuvfhfhffkffgfgggjtgfgsehtjeertddtfeejnecuhfhrohhmpefrvghkkhgr
-    ucfgnhgsvghrghcuoehpvghnsggvrhhgsehikhhirdhfiheqnecukfhppeekledrvdejrd
-    effedrudejfeenucfrrghrrghmpehmrghilhhfrhhomhepphgvnhgsvghrghesihhkihdr
-    fhhinecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:cvquXCamhNVXpsG2lkdemOFWlAxkJKq2ForH_5aE07efjcGoYJK3jw>
-    <xmx:cvquXMEySeVlh6qzIBe5XnJoCw6dGLvQ3VvBDKXlDYuPz6GDL22hiQ>
-    <xmx:cvquXHLQew1GiXylqBoe1ISWPi81u7HBHR74FEMTlUI8Fdss_PzvJQ>
-    <xmx:dPquXBf-aX-K65DfcfNHEHMBQsnTnMeRjjbt4v2zvPC6APqNaf3OqA>
-Received: from [192.168.1.104] (89-27-33-173.bb.dnainternet.fi [89.27.33.173])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 2B2E01030F;
-	Thu, 11 Apr 2019 04:27:28 -0400 (EDT)
-Subject: Re: [PATCH 0/1] mm: Remove the SLAB allocator
-To: Michal Hocko <mhocko@kernel.org>, "Tobin C. Harding" <me@tobin.cc>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Tobin C. Harding" <tobin@kernel.org>,
- Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>,
- Qian Cai <cai@lca.pw>, Linus Torvalds <torvalds@linux-foundation.org>,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Mel Gorman <mgorman@techsingularity.net>
-References: <20190410024714.26607-1-tobin@kernel.org>
- <f06aaeae-28c0-9ea4-d795-418ec3362d17@suse.cz>
- <20190410081618.GA25494@eros.localdomain>
- <20190411075556.GO10383@dhcp22.suse.cz>
-From: Pekka Enberg <penberg@iki.fi>
-Message-ID: <262df687-c934-b3e2-1d5f-548e8a8acb74@iki.fi>
-Date: Thu, 11 Apr 2019 11:27:26 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B8AC1AD65;
+	Thu, 11 Apr 2019 08:41:43 +0000 (UTC)
+Date: Thu, 11 Apr 2019 10:41:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Oscar Salvador <osalvador@suse.de>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>
+Subject: Re: [PATCH] mm/memory_hotplug: Drop memory device reference after
+ find_memory_block()
+Message-ID: <20190411084141.GQ10383@dhcp22.suse.cz>
+References: <20190410101455.17338-1-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190411075556.GO10383@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190410101455.17338-1-david@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed 10-04-19 12:14:55, David Hildenbrand wrote:
+> While current node handling is probably terribly broken for memory block
+> devices that span several nodes (only possible when added during boot,
+> and something like that should be blocked completely), properly put the
+> device reference we obtained via find_memory_block() to get the nid.
 
-On 4/11/19 10:55 AM, Michal Hocko wrote:
-> Please please have it more rigorous then what happened when SLUB was
-> forced to become a default
+The changelog could see some improvements I believe. (Half) stating
+broken status of multinode memblock is not really useful without a wider
+context so I would simply remove it. More to the point, it would be much
+better to actually describe the actual problem and the user visible
+effect.
 
-This is the hard part.
+"
+d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug") has started
+using find_memory_block to get a nodeid for the beginnig of the onlined
+pfn range. The commit has missed that the memblock contains a reference
+counted object and a missing put_device will leak the kobject behind
+which ADD THE USER VISIBLE EFFECT HERE.
+"
 
-Even if you are able to show that SLUB is as fast as SLAB for all the 
-benchmarks you run, there's bound to be that one workload where SLUB 
-regresses. You will then have people complaining about that (rightly so) 
-and you're again stuck with two allocators.
+> Fixes: d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug")
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Wei Yang <richard.weiyang@gmail.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Arun KS <arunks@codeaurora.org>
+> Cc: Mathieu Malaterre <malat@debian.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-To move forward, I think we should look at possible *pathological* cases 
-where we think SLAB might have an advantage. For example, SLUB had much 
-more difficulties with remote CPU frees than SLAB. Now I don't know if 
-this is the case, but it should be easy to construct a synthetic 
-benchmark to measure this.
+Other than that
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-For example, have a userspace process that does networking, which is 
-often memory allocation intensive, so that we know that SKBs traverse 
-between CPUs. You can do this by making sure that the NIC queues are 
-mapped to CPU N (so that network softirqs have to run on that CPU) but 
-the process is pinned to CPU M.
+> ---
+>  mm/memory_hotplug.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 5eb4a4c7c21b..328878b6799d 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -854,6 +854,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	 */
+>  	mem = find_memory_block(__pfn_to_section(pfn));
+>  	nid = mem->nid;
+> +	put_device(&mem->dev);
+>  
+>  	/* associate pfn range with the zone */
+>  	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+> -- 
+> 2.20.1
 
-It's, of course, worth thinking about other pathological cases too. 
-Workloads that cause large allocations is one. Workloads that cause lots 
-of slab cache shrinking is another.
-
-- Pekka
+-- 
+Michal Hocko
+SUSE Labs
 
