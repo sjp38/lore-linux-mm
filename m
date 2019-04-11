@@ -2,84 +2,84 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FBE9C282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3A16C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C0942133D
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C0942133D
+	by mail.kernel.org (Postfix) with ESMTP id A13B72133D
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 03:57:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A13B72133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A4F126B0005; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
+	id EB6516B000D; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9AB666B0006; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
+	id DCA066B0008; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8867B6B0008; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
+	id BF4E46B000C; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D9DD6B0005
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8244B6B0007
 	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 23:57:26 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i23so3406169pfa.0
+Received: by mail-pg1-f200.google.com with SMTP id 14so3526948pgf.22
         for <linux-mm@kvack.org>; Wed, 10 Apr 2019 20:57:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=zT5IRyMHrSI4fnrzELRIPvo8b6vbfkc3L02HfOTWYA0=;
-        b=bxCcfI2uYSBdhwdfx6YFCuyDZYCoiLA9isj0j383c4R3DHu6++35srWHzFgeazjnwK
-         JL3YfASJglN+eGsrPeNdD4MQVVVzU4raKvMeVHbL8artkBbKcU7OLa/s94z3BRq5t/T9
-         x/FPOcpAkUSSxEe7Oo14Z1oFAYMfwJZ1a6Ys4MNd0LGbo0UiNDTs0pJo1S1ypTjQFZIv
-         KYwMILMaNbBB40rUw3UHgVUD7JTDfBMZyt1BoZSk6uEbyL3qFXB/WDWwzi4DMTRwERyS
-         sLK9AQUgUzf6g24zTltRnk5++TjggN7ET/zzWXbDfeSlEikDE5BJHPxHRdSEWydNojux
-         TaRg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXgTTbSIDUCeMyEl9jxVsk6UsWkIl9ta4WdzZO4BR3QTqW89npB
-	+c0e2kpaaMh3bohzyXa5pMX/mwL9SeeSrX0oGOf+0R6ITiVP8IMbga757vTs/9h+JA2K4YRuy/D
-	/b4PWj3iAiMBB8gufajflSEHacrgEu5hvSJ9XK+8KxGnS+oK3l9N+oj/g0lSDvtNxOw==
-X-Received: by 2002:a63:e850:: with SMTP id a16mr42823238pgk.195.1554955045686;
+         :subject:date:message-id;
+        bh=Vu9YpOaZ5KXjzh8lefx9H1HtgMHx3EfluYwAvOEIvX4=;
+        b=ZqZ+atIsIPZ5HOimzaiBnFO02gh9Cjvqjr1I5IHkc8fKZUg8MPdf9HlR33cLUprTDn
+         SM/vWGTtU8BOftM+kbAQUWlyNuEtL5voMxx5vfAgxZ3BTnxQ8WpklamybgWF1bMk+IEl
+         wjpBuMuRb4VSd6qltxURz5dy2XCDYlVVunKhDpWoD3a1XQyJKA9+zCZF7Ld6KYohbuHU
+         Gfpjy7Q9bEftUNYBWAOVQ1H/jDwvbI98tE0fbx/ps97VYYHQd/she0AmKMGeLKRixiFZ
+         PlSAFfrG3pNEwDkp0h0jtzGnThaLPxYpXtK4GCuW5Et8vNYYK7L1ZeUFBHmfF9sMN4Zj
+         j+Zw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXjSYNQWgRwS16OgfGUJVRUr8YJxPXQ+EhN6GNPSebuQFh80078
+	bIgu9w4lTestKOrngx/ySjGouZpBdHw900vbrvBQiPvgwkxbOrPGeLU+HGJJOY1N31QOk0ggzRk
+	h1xvHhk1TnxPKh67iF0xLFOqtrJ20pTZaJBpfhPPr9NPgu2BNowG13pIFp3+nHmL9AA==
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr47984781plk.226.1554955045428;
         Wed, 10 Apr 2019 20:57:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyLWpd07NhCUJF6+l2ljPHMRzx0/pqZmNlVYqP6pLpUe+5XEPw0Z1UVeuf/wcUkrrkhyE2
-X-Received: by 2002:a63:e850:: with SMTP id a16mr42823161pgk.195.1554955044144;
+X-Google-Smtp-Source: APXvYqwyJTBmbdPJJnZn28xf320Dwbqzwj/wiu81xBT9EndIi++mICz4nfZs4/E/2CABYd7cEzEp
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr47984715plk.226.1554955044327;
         Wed, 10 Apr 2019 20:57:24 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1554955044; cv=none;
         d=google.com; s=arc-20160816;
-        b=BuujULZAouVhuMaDLtROx5mZcnLy7Cpscf2464+CjwZb8ODRrB+1NaEr24XmYUfRFv
-         5mAoBT3FiHrA2f18DjZm1Riaa0U84cnXyMSGvjVWZt1j8CiiXBklpP9L+bDZW29jtnOu
-         Ags4KIk0/4Y+NieJK6i2Ukjo+kAQkUEq5DtAQEWO0wRVMeyP3wWNPYOFOp38G4D/o6Cv
-         pxDbkcE5RWAKbAhaL7aNJYpb98HzHYOjcgTpuje/Icl0o2S3KBOjsBbujHfoZuWMVw7M
-         n/rdzYft2mROQxJNbBQu2QNc1g5olfbLw5KjLphf8NXmoUY10BO/XpL5VuEMCfbNYLRi
-         umdw==
+        b=J2E8atJjO/dvd9pD0dMY8JanGshd6LQpVtVsACB5S46dwjjQRI3j2zdmt/pSBgjjQK
+         omRxO3II3yEXlC//i3Bto83ftFWT2nFEeMqgUKGcqbyYuBHMU4SE6AOd02aG0T6+omKN
+         P6FeoWmILJ964ppWr3NtvhgkVdrOkfHLcc1GIIFSmbtrEudgHtGILxG+m+rzY476uuYe
+         hljx1T7BHKk4MwJo6jrUXIutqjRV5p2jJBfYPmyi7EUbH0VHge8r1Bl+i+jpAWwbBDy+
+         6Vp2X4yLccZXztuNOtm32sUBrnEMSKsRPUBPJBrR3biS4Z3MruZg6GRzAqLxPZ/LoJDe
+         LgCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=zT5IRyMHrSI4fnrzELRIPvo8b6vbfkc3L02HfOTWYA0=;
-        b=b/c58pCu0HXZVK+QPFkLln4Gc2nbdV0IZBxqeNfl7MV13HOVlS3e/Kv97Vr415mV4T
-         A8gMTIfpduw0GqW9SddzfGUV2vxzyiYw9S562SgDagTtejkY6AIS9Xkh/3rfI5oOjSbY
-         GVbeQQaRQN+g+9HKHzMPzc/C/y8DSVbLZCNjv8SlxZnzTDURWEh7HhBhhXm48IVC9wHg
-         OZB3WWHyAfaomf4/tBHwlUqRB05VgBgK8ifm5T4RDxAXY3IZnMrnS1iYDPuLWVYuljfQ
-         IvekdwGcjtu7NFvZs1t3OTBLrSKeVP5j26kT05FBWiUm7krSpNEGfXHSGxScMiOFmZc/
-         whAg==
+        h=message-id:date:subject:cc:to:from;
+        bh=Vu9YpOaZ5KXjzh8lefx9H1HtgMHx3EfluYwAvOEIvX4=;
+        b=GsV35toPtUeyFG2cpq/U0JIFwdRftUeSqFomFZ9PgjoJoRrzqoD8Gp35A3M36asEIM
+         uafeLBMSe+IkwMNI0jHW/KhMuEd9ZDvRlVYBwSIUIMtak4oQUCJk73URi3r7YxKiV4gI
+         SqLcvwbx6L1sL7+XEq3Jgtm5kchtaKXOKrGapFW2y6pnOaJZ897AZCOaF3i3+/lq2ANe
+         6SJSIbTZ2y++T967wsO3hB8OH9gqzC3GxxHOqAQIs52W5IR463/wIWptJTu+K93k5XiF
+         /TB7P3aE7TNRUwyuHJyw01SN0mz1foFKwFBKxOCsH2d7szvEKCi9+cYORdZWvcBg2TFf
+         W2sg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id i19si15607342pfr.246.2019.04.10.20.57.23
+Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
+        by mx.google.com with ESMTPS id h29si35435980pfd.180.2019.04.10.20.57.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 10 Apr 2019 20:57:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) client-ip=115.124.30.130;
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R761e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TP0I5rB_1554955031;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TP0I5rB_1554955031)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 11 Apr 2019 11:57:22 +0800
+          Thu, 11 Apr 2019 11:57:21 +0800
 From: Yang Shi <yang.shi@linux.alibaba.com>
 To: mhocko@suse.com,
 	mgorman@techsingularity.net,
@@ -96,134 +96,175 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v2 PATCH 1/9] mm: define N_CPU_MEM node states
-Date: Thu, 11 Apr 2019 11:56:51 +0800
-Message-Id: <1554955019-29472-2-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Date: Thu, 11 Apr 2019 11:56:50 +0800
+Message-Id: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kernel has some pre-defined node masks called node states, i.e.
-N_MEMORY, N_CPU, etc.  But, there might be cpuless nodes, i.e. PMEM
-nodes, and some architectures, i.e. Power, may have memoryless nodes.
-It is not very straight forward to get the nodes with both CPUs and
-memory.  So, define N_CPU_MEMORY node states.  The nodes with both CPUs
-and memory are called "primary" nodes.  /sys/devices/system/node/primary
-would show the current online "primary" nodes.
 
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- drivers/base/node.c      |  2 ++
- include/linux/nodemask.h |  3 ++-
- mm/memory_hotplug.c      |  6 ++++++
- mm/page_alloc.c          |  1 +
- mm/vmstat.c              | 11 +++++++++--
- 5 files changed, 20 insertions(+), 3 deletions(-)
+With Dave Hansen's patches merged into Linus's tree
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 86d6cd9..1b963b2 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -634,6 +634,7 @@ static ssize_t show_node_state(struct device *dev,
- #endif
- 	[N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
- 	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
-+	[N_CPU_MEM] = _NODE_ATTR(primary, N_CPU_MEM),
- };
- 
- static struct attribute *node_state_attrs[] = {
-@@ -645,6 +646,7 @@ static ssize_t show_node_state(struct device *dev,
- #endif
- 	&node_state_attr[N_MEMORY].attr.attr,
- 	&node_state_attr[N_CPU].attr.attr,
-+	&node_state_attr[N_CPU_MEM].attr.attr,
- 	NULL
- };
- 
-diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-index 27e7fa3..66a8964 100644
---- a/include/linux/nodemask.h
-+++ b/include/linux/nodemask.h
-@@ -398,7 +398,8 @@ enum node_states {
- 	N_HIGH_MEMORY = N_NORMAL_MEMORY,
- #endif
- 	N_MEMORY,		/* The node has memory(regular, high, movable) */
--	N_CPU,		/* The node has one or more cpus */
-+	N_CPU,			/* The node has one or more cpus */
-+	N_CPU_MEM,		/* The node has both cpus and memory */
- 	NR_NODE_STATES
- };
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index f767582..1140f3b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -729,6 +729,9 @@ static void node_states_set_node(int node, struct memory_notify *arg)
- 
- 	if (arg->status_change_nid >= 0)
- 		node_set_state(node, N_MEMORY);
-+
-+	if (node_state(node, N_CPU))
-+		node_set_state(node, N_CPU_MEM);
- }
- 
- static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
-@@ -1569,6 +1572,9 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
- 
- 	if (arg->status_change_nid >= 0)
- 		node_clear_state(node, N_MEMORY);
-+
-+	if (node_state(node, N_CPU))
-+		node_clear_state(node, N_CPU_MEM);
- }
- 
- static int __ref __offline_pages(unsigned long start_pfn,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 03fcf73..7cd88a4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -122,6 +122,7 @@ struct pcpu_drain {
- #endif
- 	[N_MEMORY] = { { [0] = 1UL } },
- 	[N_CPU] = { { [0] = 1UL } },
-+	[N_CPU_MEM] = { { [0] = 1UL } },
- #endif	/* NUMA */
- };
- EXPORT_SYMBOL(node_states);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 36b56f8..1a431dc 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1910,15 +1910,22 @@ static void __init init_cpu_node_state(void)
- 	int node;
- 
- 	for_each_online_node(node) {
--		if (cpumask_weight(cpumask_of_node(node)) > 0)
-+		if (cpumask_weight(cpumask_of_node(node)) > 0) {
- 			node_set_state(node, N_CPU);
-+			if (node_state(node, N_MEMORY))
-+				node_set_state(node, N_CPU_MEM);
-+		}
- 	}
- }
- 
- static int vmstat_cpu_online(unsigned int cpu)
- {
-+	int node = cpu_to_node(cpu);
-+
- 	refresh_zone_stat_thresholds();
--	node_set_state(cpu_to_node(cpu), N_CPU);
-+	node_set_state(node, N_CPU);
-+	if (node_state(node, N_MEMORY))
-+		node_set_state(node, N_CPU_MEM);
- 	return 0;
- }
- 
--- 
-1.8.3.1
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=c221c0b0308fd01d9fb33a16f64d2fd95f8830a4
+
+PMEM could be hot plugged as NUMA node now.  But, how to use PMEM as NUMA node
+effectively and efficiently is still a question. 
+
+There have been a couple of proposals posted on the mailing list [1] [2] [3].
+
+
+Changelog
+=========
+v1 --> v2:
+* Dropped the default allocation node mask.  The memory placement restriction
+  could be achieved by mempolicy or cpuset.
+* Dropped the new mempolicy since its semantic is not that clear yet.
+* Dropped PG_Promote flag.
+* Defined N_CPU_MEM nodemask for the nodes which have both CPU and memory.
+* Extended page_check_references() to implement "twice access" check for
+  anonymous page in NUMA balancing path.
+* Reworked the memory demotion code.
+
+v1: https://lore.kernel.org/linux-mm/1553316275-21985-1-git-send-email-yang.shi@linux.alibaba.com/
+
+
+Design
+======
+Basically, the approach is aimed to spread data from DRAM (closest to local
+CPU) down further to PMEM and disk (typically assume the lower tier storage
+is slower, larger and cheaper than the upper tier) by their hotness.  The
+patchset tries to achieve this goal by doing memory promotion/demotion via
+NUMA balancing and memory reclaim as what the below diagram shows:
+
+    DRAM <--> PMEM <--> Disk
+      ^                   ^
+      |-------------------|
+               swap
+
+When DRAM has memory pressure, demote pages to PMEM via page reclaim path.
+Then NUMA balancing will promote pages to DRAM as long as the page is referenced
+again.  The memory pressure on PMEM node would push the inactive pages of PMEM 
+to disk via swap.
+
+The promotion/demotion happens only between "primary" nodes (the nodes have
+both CPU and memory) and PMEM nodes.  No promotion/demotion between PMEM nodes
+and promotion from DRAM to PMEM and demotion from PMEM to DRAM.
+
+The HMAT is effectively going to enforce "cpu-less" nodes for any memory range
+that has differentiated performance from the conventional memory pool, or
+differentiated performance for a specific initiator, per Dan Williams.  So,
+assuming PMEM nodes are cpuless nodes sounds reasonable.
+
+However, cpuless nodes might be not PMEM nodes.  But, actually, memory
+promotion/demotion doesn't care what kind of memory will be the target nodes,
+it could be DRAM, PMEM or something else, as long as they are the second tier
+memory (slower, larger and cheaper than regular DRAM), otherwise it sounds
+pointless to do such demotion.
+
+Defined "N_CPU_MEM" nodemask for the nodes which have both CPU and memory in
+order to distinguish with cpuless nodes (memory only, i.e. PMEM nodes) and
+memoryless nodes (some architectures, i.e. Power, may have memoryless nodes).
+Typically, memory allocation would happen on such nodes by default unless
+cpuless nodes are specified explicitly, cpuless nodes would be just fallback
+nodes, so they are also as known as "primary" nodes in this patchset.  With
+two tier memory system (i.e. DRAM + PMEM), this sounds good enough to
+demonstrate the promotion/demotion approach for now, and this looks more
+architecture-independent.  But it may be better to construct such node mask
+by reading hardware information (i.e. HMAT), particularly for more complex
+memory hierarchy.
+
+To reduce memory thrashing and PMEM bandwidth pressure, promote twice faulted
+page in NUMA balancing.  Implement "twice access" check by extending
+page_check_references() for anonymous pages.
+
+When doing demotion, demote to the less-contended local PMEM node.  If the
+local PMEM node is contended (i.e. migrate_pages() returns -ENOMEM), just do
+swap instead of demotion.  To make things simple, demotion to the remote PMEM
+node is not allowed for now if the local PMEM node is online.  If the local
+PMEM node is not online, just demote to the remote one.  If no PMEM node online,
+just do normal swap.
+
+Anonymous page only for the time being since NUMA balancing can't promote
+unmapped page cache.
+
+Added vmstat counters for pgdemote_kswapd, pgdemote_direct and
+numa_pages_promoted.
+
+There are definitely still some details need to be sorted out, for example,
+shall respect to mempolicy in demotion path, etc.
+
+Any comment is welcome.
+
+
+Test
+====
+The stress test was done with mmtests + applications workload (i.e. sysbench,
+grep, etc).
+
+Generate memory pressure by running mmtest's usemem-stress-numa-compact,
+then run other applications as workload to stress the promotion and demotion
+path.  The machine was still alive after the stress test had been running for
+~30 hours.  The /proc/vmstat also shows:
+
+...
+pgdemote_kswapd 3316563
+pgdemote_direct 1930721
+...
+numa_pages_promoted 81838
+
+
+TODO
+====
+1. Promote page cache. There are a couple of ways to handle this in kernel,
+   i.e. promote via active LRU in reclaim path on PMEM node, or promote in
+   mark_page_accessed().
+
+2. Promote/demote HugeTLB. Now HugeTLB is not on LRU and NUMA balancing just
+   skips it.
+
+3. May place kernel pages (i.e. page table, slabs, etc) on DRAM only.
+
+
+[1]: https://lore.kernel.org/linux-mm/20181226131446.330864849@intel.com/
+[2]: https://lore.kernel.org/linux-mm/20190321200157.29678-1-keith.busch@intel.com/
+[3]: https://lore.kernel.org/linux-mm/20190404071312.GD12864@dhcp22.suse.cz/T/#me1c1ed102741ba945c57071de9749e16a76e9f3d
+
+
+Yang Shi (9):
+      mm: define N_CPU_MEM node states
+      mm: page_alloc: make find_next_best_node find return cpuless node
+      mm: numa: promote pages to DRAM when it gets accessed twice
+      mm: migrate: make migrate_pages() return nr_succeeded
+      mm: vmscan: demote anon DRAM pages to PMEM node
+      mm: vmscan: don't demote for memcg reclaim
+      mm: vmscan: check if the demote target node is contended or not
+      mm: vmscan: add page demotion counter
+      mm: numa: add page promotion counter
+
+ drivers/base/node.c            |   2 +
+ include/linux/gfp.h            |  12 +++
+ include/linux/migrate.h        |   6 +-
+ include/linux/mmzone.h         |   3 +
+ include/linux/nodemask.h       |   3 +-
+ include/linux/vm_event_item.h  |   3 +
+ include/linux/vmstat.h         |   1 +
+ include/trace/events/migrate.h |   3 +-
+ mm/compaction.c                |   3 +-
+ mm/debug.c                     |   1 +
+ mm/gup.c                       |   4 +-
+ mm/huge_memory.c               |  15 ++++
+ mm/internal.h                  | 105 +++++++++++++++++++++++++
+ mm/memory-failure.c            |   7 +-
+ mm/memory.c                    |  25 ++++++
+ mm/memory_hotplug.c            |  10 ++-
+ mm/mempolicy.c                 |   7 +-
+ mm/migrate.c                   |  33 +++++---
+ mm/page_alloc.c                |  19 +++--
+ mm/vmscan.c                    | 262 +++++++++++++++++++++++++++++++++++++++++----------------------
+ mm/vmstat.c                    |  14 +++-
+ 21 files changed, 418 insertions(+), 120 deletions(-)
 
