@@ -5,99 +5,99 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 816EFC282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:02:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16D40C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:22:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E8E02077C
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:02:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E8E02077C
+	by mail.kernel.org (Postfix) with ESMTP id B7460217F4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 14:22:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7460217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2B476B000D; Thu, 11 Apr 2019 10:02:31 -0400 (EDT)
+	id 58C056B000D; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDA5F6B000E; Thu, 11 Apr 2019 10:02:31 -0400 (EDT)
+	id 53DFC6B000E; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A7C796B0010; Thu, 11 Apr 2019 10:02:31 -0400 (EDT)
+	id 42D4B6B0010; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 86E876B000D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:02:31 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id x23so5110243qka.19
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:02:31 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2146B000D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 10:22:36 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id p26so5643971qtq.21
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:22:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-transfer-encoding
          :content-language;
-        bh=qfpVOn1kEo43TPI82t/Dr92Tbv1uw32xbJim4SSRCoM=;
-        b=qekOZZN1bdGgYshWJnXx4ueZOKsEpjIunAJDUG65QDQLzDJJmO7Ix8aCz8nCk6MWFj
-         cZkq9eFYxi7vtEdMJhKxlEDgYGDBwpfZ1lVbehRE301poYx/iKozn06MfQQieeNKY0Xu
-         QN3IENR77DuHuP4RdbPjsSrOQgNyai2G2BwtQ2FLeQPY9CbzWLBOi9XxBkutjdffAQg7
-         7tA0k+/N/JtY4GPJtxT7P7k4e8K69Rc2p7OoJ7+67E8mXm/ejRz3m3qNA5suMEJdXN9z
-         c+UF5TNXaRTE6+vXEntSXoSqRiWXpFO0D2MmepkLCUposdzH1I8/gvoiXef8IUKmt/RD
-         zUhg==
+        bh=HIxVLZjqp4MH33lnupVZYwTAxNsDbfL0VH8DqWCvrfI=;
+        b=LTtR4UpKWyThdE4d3pEE/w3JJNOv8Gjsy7Z1bZ5frIlR0GtwSpu0zR2bg4aO02/YbB
+         zs2UHYJX3fgX9GZ7Joy8C3I/92HoeP9J/QO+nL+6QH0veRrpyqhTw7BWGHpmVAt/TYKx
+         OvtNsxWNjBIjGqVqeQ0QmEWYI8O4B4NUVMf7TI1TuzIRMKeDllCoEzmxd32mOT6Xbp94
+         BVZ7rJk8RdnnsWPfc/NiXZnWuJlZRG+pg1xj3KVUdpsSepGMgL8lTW2oh1xiWW4YwlCF
+         qrZn/Ewb6ypJ+d7GcPpLuaJsPLZ0TKjy+Jo70PLHYRrhQuxDpYidOwlJLaEiJwAn60vU
+         43xQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUUPeU3XunOMETp7GaImnlN54RllaS5NcIllciLQcc7ZcHk8W6A
-	bM58y/btOjS1IcdZ0gYfht0p7Wqup9ByxjjlRqZRgmahPoyLC+SEr34Pov0IHAEMqUHPrVWpz1/
-	a/1QGipV6u9WIOg3mlI9BJQEP+h3X5R7pdlNmICRhfBLVBL4i3Y2qL5KCVY2EHjNsGw==
-X-Received: by 2002:a0c:c950:: with SMTP id v16mr41537386qvj.204.1554991351104;
-        Thu, 11 Apr 2019 07:02:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzlOoZcmH0lPJkNrdZqZkHfmBeEhniHXtHcbUuOKBN70kzc7+67a9krEKr/HDGBBJy1HNG3
-X-Received: by 2002:a0c:c950:: with SMTP id v16mr41537256qvj.204.1554991349832;
-        Thu, 11 Apr 2019 07:02:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554991349; cv=none;
+X-Gm-Message-State: APjAAAUZ/gMosyGP66QkI7vHt61Z6A1e6U+xRQqTCdX7RwQKKvli2W5e
+	pANy7G/+pU40WPfjDhKptZNN2SpOMDoiYmoVqYZQBU8qgarbGTcLKAjEBOyOOGqaZs8vyo+68t6
+	5veBvJHdaneh8NmX4/vkbdJLkkwNQqPFCg284AHViJ3QacL+eyZfuLvTAzZU0ucgJsQ==
+X-Received: by 2002:a05:620a:15f5:: with SMTP id p21mr6643540qkm.5.1554992555633;
+        Thu, 11 Apr 2019 07:22:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqywkuycXfsUEetSjv++vct5/3wygZz9ymtXFqZ8biiVOrWnLRgbUJ50FFZC7XiIVhTZCUUD
+X-Received: by 2002:a05:620a:15f5:: with SMTP id p21mr6643450qkm.5.1554992554543;
+        Thu, 11 Apr 2019 07:22:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554992554; cv=none;
         d=google.com; s=arc-20160816;
-        b=fnXr8EYP9HushIua0XK56KBgf9IaFFIRJM2SI3Uz3NhNbX16kJfNJJrLt/vMzhNg2x
-         2YkRH7QOwPNHIYn6V+8+f2lVOKtdJsd9ah7HQNTaj0sMqc3J7Koqe3mPrmMaZ4dvJqfB
-         U01Ps5qmozCKOpu1fdiUb2WLfA4AMaN0l8fITAhx3OkHXseVLMUol2NMscvzjs2pM07e
-         KcdjaoS6ew+zqDI1e9ZK6OpNPcOotf9NR+II6SvmawRhfm1hWMh8sGwlssdXYyOLdYX+
-         NAKv5NxnSxuKxtRAYsTWSeoGYO2xO6MezRnOHweRQN0yqoPJgPNnAVjMa34X0x/BCobf
-         zI/A==
+        b=dsLi2cVw+GZ5foSpD9BxCQg9OBoptxSvZZR/fKiA1o5cxDORMujPfeM9Dz6TEedw05
+         HAKUB2qL7T2DXriFuSsZa1nP6S5QfBpas+NcuRXOEVn8j/LsiFiMQ6tEJtI1WQwJExb2
+         xfu12smej+iUV9jFTIoO6jf4saNDdqq7/qrFZdlfwgvwGP7HPP0khiSWKAO0TYDElaea
+         4EmEUX88OYoOsaFlQcQeDO8wgO2JKo9KkAi93drMGSCisobxPUPimVOyBp7hvJ0BcmCS
+         F4LLFBTScnNL6gjKoDxrjLoIOiG7JQ0A3ZgdwMGA10V1JmjQCK4pE+DhCuqu3RIuN6/0
+         h4Jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=qfpVOn1kEo43TPI82t/Dr92Tbv1uw32xbJim4SSRCoM=;
-        b=cQUN9AgQ76lH2/GxfW07bK7U1nLEUr+WHk9OMKO7DUePXU8fBdxI9ytp9rTfpVbVRT
-         eHkVzdHyCSSl1bEJQelIdQMuK6WGR5N+wWi34vXG6TQZP+IzEz70H+UsQ+PG1FR+bvcw
-         XeiYEH4dXu4mmDcdS3ss5jJohPWE8EcUwmdRcBo8quA6ZyNqt6+tygR9elGoP0+k7Ut1
-         yCcr9THwHDieLgd7QKS1xDN4AfiRoDtncX05tsc8SUmtHedooFXmSyCb/q7oQNGzAI3n
-         5G5nER44BOkFm6WHWbWuPbczr8GGx/UYRdPJ+jm6Tpti3a+Z6lfjRUUcbsgCkB9mQSkh
-         Zf2w==
+        bh=HIxVLZjqp4MH33lnupVZYwTAxNsDbfL0VH8DqWCvrfI=;
+        b=DYCVTxKXlXvqRPHxF7iFwAH24fyPBeg5fsj2RS+EKNruGds2PYEHUqXapW/J8ttNVa
+         aRW2/A4ivFmFhg7fXc3ZGY3oQFbIVbz8zm0Yi6gU0UpYO06kFab9OAUMRNkeHcH4fMVD
+         U99NnO4RmvTaBqSMUIqgIxU2JtN2CzCQw0M4DF91Og3Eg1e8/m6NPgq56nv+gV9S6Spv
+         aQQEfoQQBgTj4iz8cqGazA6WaQjdbQU/3EbUQPp2UMaDLK9wcJTolMdYCypUlFmoROli
+         llwgelZTVtjdI6iyW8ZVUpG6LcwACUMYOriUmNWcg4lgpWJGwyU9bSrulozkPhByfePR
+         hUYA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h22si2881975qkg.26.2019.04.11.07.02.29
+        by mx.google.com with ESMTPS id r43si5214206qte.172.2019.04.11.07.22.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 07:02:29 -0700 (PDT)
+        Thu, 11 Apr 2019 07:22:34 -0700 (PDT)
 Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 6A5D53DBE7;
-	Thu, 11 Apr 2019 14:02:23 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5010FC7910;
+	Thu, 11 Apr 2019 14:22:28 +0000 (UTC)
 Received: from llong.remote.csb (dhcp-17-47.bos.redhat.com [10.18.17.47])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id BF490108F821;
-	Thu, 11 Apr 2019 14:02:16 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 52F6E61B60;
+	Thu, 11 Apr 2019 14:22:23 +0000 (UTC)
 Subject: Re: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
-To: Michal Hocko <mhocko@kernel.org>
+To: Chris Down <chris@chrisdown.name>
 Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
  Johannes Weiner <hannes@cmpxchg.org>, Jonathan Corbet <corbet@lwn.net>,
- Vladimir Davydov <vdavydov.dev@gmail.com>, linux-kernel@vger.kernel.org,
- cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org,
+ Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>,
+ linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org,
  Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
- Shakeel Butt <shakeelb@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>,
- Aaron Lu <aaron.lu@intel.com>
+ Shakeel Butt <shakeelb@google.com>, Kirill Tkhai <ktkhai@virtuozzo.com>
 References: <20190410191321.9527-1-longman@redhat.com>
- <20190410195443.GL10383@dhcp22.suse.cz>
+ <20190410213824.GA13638@chrisdown.name>
 From: Waiman Long <longman@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=longman@redhat.com; prefer-encrypt=mutual; keydata=
@@ -144,75 +144,93 @@ Autocrypt: addr=longman@redhat.com; prefer-encrypt=mutual; keydata=
  wGA5uquIgb8p3/ENgYpDPrsZ72CxVC2NEJjJwwnRBStjJOGQX4lV1uhN1XsZjBbRHdKF2W9g
  weim8xU=
 Organization: Red Hat
-Message-ID: <daef5f22-0bc2-a637-fa3d-833205623fb6@redhat.com>
-Date: Thu, 11 Apr 2019 10:02:16 -0400
+Message-ID: <d8d6f82f-a950-8eea-16ce-9189e78f37fd@redhat.com>
+Date: Thu, 11 Apr 2019 10:22:22 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
  Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190410195443.GL10383@dhcp22.suse.cz>
+In-Reply-To: <20190410213824.GA13638@chrisdown.name>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 11 Apr 2019 14:02:29 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 11 Apr 2019 14:22:33 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/10/2019 03:54 PM, Michal Hocko wrote:
-> On Wed 10-04-19 15:13:19, Waiman Long wrote:
+On 04/10/2019 05:38 PM, Chris Down wrote:
+> Hi Waiman,
+>
+> Waiman Long writes:
 >> The current control mechanism for memory cgroup v2 lumps all the memor=
 y
 >> together irrespective of the type of memory objects. However, there
 >> are cases where users may have more concern about one type of memory
 >> usage than the others.
->>
->> We have customer request to limit memory consumption on anonymous memo=
-ry
->> only as they said the feature was available in other OSes like Solaris=
-=2E
-> Please be more specific about a usecase.
-
-=46rom that customer's point of view, page cache is more like common good=
-s
-that can typically be shared by a number of different groups. Depending
-on which groups touch the pages first, it is possible that most of those
-pages can be disproportionately attributed to one group than the others.
-Anonymous memory, on the other hand, are not shared and so can more
-correctly represent the memory footprint of an application. Of course,
-there are certainly cases where an application can have large private
-files that can consume a lot of cache pages. These are probably not the
-case for the applications used by that customer.
-
 >
->> To allow finer-grained control of memory, this patchset 2 new control
->> knobs for memory controller:
->>  - memory.subset.list for specifying the type of memory to be under co=
-ntrol.
->>  - memory.subset.high for the high limit of memory consumption of that=
-
->>    memory type.
-> Please be more specific about the semantic.
+> I have concerns about this implementation, and the overall idea in
+> general. We had per-class memory limiting in the cgroup v1 API, and it
+> ended up really poorly, and resulted in a situation where it's really
+> hard to compose a usable system out of it any more.
 >
-> I am really skeptical about this feature to be honest, though.
+> A major part of the restructure in cgroup v2 has been to simplify
+> things so that it's more easy to understand for service owners and
+> sysadmins. This was intentional, because otherwise the system overall
+> is hard to make into something that does what users *really* want, and
+> users end up with a lot of confusion, misconfiguration, and generally
+> an inability to produce a coherent system, because we've made things
+> too hard to piece together.
+>
+> In general, for purposes of resource control, I'm not convinced that
+> it makes sense to limit only one kind of memory based on prior
+> experience with v1. Can you give a production use case where this
+> would be a clear benefit, traded off against the increase in
+> complexity to the API?
 >
 
-Please see patch 1 which has a more detailed description. This is just
-an overview for the cover letter.
+As I said in my previous email on this thread, the customer considered
+pages cache as common goods not fully representing the "real" memory
+footprint used by an application.=C2=A0 Depending on actual mix of
+applications running on a system, there are certainly cases where their
+view is correct. In fact, what the customer is asking for is not even
+provided by the v1 API even with that many classes of memory that you
+can choose from.
 
 >> For simplicity, the limit is not hierarchical and applies to only task=
 s
 >> in the local memory cgroup.
-> This is a no-go to begin with.
+>
+> We've made an explicit effort to make all things hierarchical -- this
+> confuses things further. Even if we did have something like this, it
+> would have to respect the hierarchy, we really don't want to return to
+> the use_hierarchy days where users, sysadmins, and even ourselves are
+> confused by the resource control semantics that are supposed to be
+> achieved.
 
-The reason for doing that is to introduce as little overhead as
-possible. We can certainly make it hierarchical, but it will complicate
-the code and increase runtime overhead. Another alternative is to limit
-this feature to only leaf memory cgroups. That should be enough to cover
-what the customer is asking for and leave room for future hierarchical
-extension, if needed.
+I see your point. I am now suggesting that this new feature is limited
+to just leaf memory cgroup for now. We can extend it to full
+hierarchical support in the future if necessary.
+
+>
+>> We have customer request to limit memory consumption on anonymous memo=
+ry
+>> only as they said the feature was available in other OSes like Solaris=
+=2E
+>
+> What's the production use case where this is demonstrably providing
+> clear benefits in terms of resource control? How can it compose as
+> part of an easy to understand, resource controlling system? I'd like
+> to see a lot more information on why this is needed, and the usability
+> and technical tradeoffs considered.=20
+
+Simply put, the customers want to control and limit memory consumption
+based on the anonymous memory (RSS) that are used by the applications.
+This was what they were doing in the past and their tooling was based on
+this. They want to continue doing that after migrating to Linux. Adding
+page cache into the mix and they don't know how they should handle that.
 
 Cheers,
 Longman
