@@ -2,270 +2,142 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0B17C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:41:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74176C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:17:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2EF8217D4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 05:41:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="rh5xwZnp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2EF8217D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1DF212133D
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 07:17:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DF212133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B9C56B0005; Thu, 11 Apr 2019 01:41:35 -0400 (EDT)
+	id 7B9496B0005; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36B7F6B0006; Thu, 11 Apr 2019 01:41:35 -0400 (EDT)
+	id 768636B0006; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 280336B0007; Thu, 11 Apr 2019 01:41:35 -0400 (EDT)
+	id 658846B0007; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E56426B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:41:34 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id n63so3539147pfb.14
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:41:34 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 16DCF6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 03:17:11 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id s6so2583613edr.21
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 00:17:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=fLMsq6LduXyvQ3MlccSmAAuSnoDwjI6/ufiAHqMmwtk=;
-        b=XIQRl0yabkyxOwqIqmOzHqPH/0nkUzEXiXk6q9cdmzHEaxsJeQXljd6scjj1OecgwK
-         Z1mmCP3Flq3fXt4T0MJ/sInoNNkPRJrDbUcNavwUtVAAZhAIVLNas+/MmAJVnPBs5a88
-         7wS/20OwVgirEbCQtl6h6m/TmaG/iOKV7M9Pcxa3zj13OYQa2r/ZtnLtY8H24+Kay0oq
-         ZEKzAo39IddtksFGEqxT6AAV4mWfmnu2khYyuVlaSm4B01MWeYGfXgT15ZLz9FrZ4M+6
-         aXbg1xVaS8pw40Uab2sltKqWy7KaW/83+9/DjciRB0z0oyxKjV8PiQipByYLxsKakniX
-         MRcA==
-X-Gm-Message-State: APjAAAUcp9daK5Srm6EsqKmNGzw3g57bkx3Zee3viasyLUwj783jbZZh
-	A6QooieAdPCnX6qN5X4fgP9kOZWnH1jbtEZYgc4jEF52ZwiWAACXoDpddDhsiY6UQVsv7cg3VvW
-	8NR7tecP8N9BMZSGX3fNsk4OECWYpDP6GE5vAIvA0uESfR9w2+PDBAQfDjhxt4zBbDQ==
-X-Received: by 2002:a62:b40b:: with SMTP id h11mr48204386pfn.133.1554961294531;
-        Wed, 10 Apr 2019 22:41:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrQu5xxoHiwEZ8jWYTqVefhqima7Ix0novdqh482nSiWEtR8dsK42383rPboJ7071c7+NW
-X-Received: by 2002:a62:b40b:: with SMTP id h11mr48204332pfn.133.1554961293537;
-        Wed, 10 Apr 2019 22:41:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554961293; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=r2zr0dkkseZ4YwG+4x5cG1AgJqCY9BJpepDcOBgMdDo=;
+        b=Rh0frU5G/dOemWZAuKr05mUXH8YkkGPoeNJ1P5iaMGtexEAd+MA5IFVzo1jkcETRfy
+         ekQuIBfm2Wo2LFL/ab05MrcZPnwY3Ry2zHx3J6jmOMPlauogEO4PRWXY/tu/nwW4qjLD
+         KPZn7aVTYJ2SWVqlD455DljmZR0My3wLVc8gZkS8g3PYms7aLgPlD2sNObxtXFKEy9lt
+         OnQbu7IdGZWMcM4VOqKLTE3vVg+ddEcUdo7h7ysPD3XKYh1ZvOAVHxO0dMuG12KYoXxR
+         ObBQz283sxx1D9Q96oT6QY0Rf27KvrmIjwjXy5CIMumj615ft459ypVMQWU2kF/bmocL
+         VgVQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAVdsruys+spSaEDTPw9/MwJ5LX3AlIRHTiGxUCbOzdlq16vqbrL
+	fqEA9toVIBGoxhdS4mpmG8Lb2EdrXymlNY1/4cgmDb0S6Hzm7RhJ2OIXeYQ4L40b5RXg72Nl+kC
+	3HucMMPzFd6PkGR5NMuUR3Lg2S9iaMyt4FqH5EVzR9Rc/3C3WNx9Iz7SclMiLyzs=
+X-Received: by 2002:a17:906:1347:: with SMTP id x7mr26530048ejb.64.1554967030445;
+        Thu, 11 Apr 2019 00:17:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAXtO2KihLPTrdHGwPGs2rNRJa/ewjoBhc/zDCkiySOlxcbtKksiq+MU2muN3v6wWp78Xb
+X-Received: by 2002:a17:906:1347:: with SMTP id x7mr26530001ejb.64.1554967029486;
+        Thu, 11 Apr 2019 00:17:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554967029; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ta8kmRIv5cxRlCHEBw08lMYEOaC4ka+AjjJrZrmdkyH4e2rMQvukh3xYf408w9QOsU
-         jIlD3rJhTWLOA1NEnJRf8LxSBD5vo2VZbG20aKHBYsv5LZFwKOi3LUPGSIDyMeiYqzlh
-         XvZkJC8lpovpAmM3GAaOBaMTA6FLt5T0gG7p9/RA827+HxXJn2ybAKByM/GISEqBRovG
-         T//PRQsVhPjbYNMVzrG4NhyVQyoRsJg8tRJphcSxTb/wiiK8FhNzuRvgpF4J93eCavLQ
-         VvYyCkNMKki04qHO+/Tpp0GdQQ6cGrDg7KLjdnOUl6ZhLDT6SBuNnscIzU+uuaJq1Eut
-         V/dA==
+        b=LXza/kccVUlI/4sKZODm3lDaskcVRAAqcxC/uuHYk56ea+xDWRMiTNQ3F0lxgW/f5l
+         8IkeHfh2CJCVnJ//8wMSs0W6QsiC9vFjcbDoTI/hxri924f/OV6REfzQlMWkR5MVVpjf
+         QQy4zBIHS6Wu1cw0iuW2Bc9nlcrWbJChjL9ERRQVrTwRlkt1JG4rTEbeXGqwHFmZQD84
+         cJnBWBxxqVnIW/aO95HqMIyzARdj25gnZtgJX+Z5AojTYtpA5Ii81aC+FVOEm5oHHCZZ
+         PbP6vJLwe1mHA124qttaDkV1cFUSFDvpaYAlg4xRXeWN4c5jhroDW4wr8sJ76PERL/OZ
+         /xcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=fLMsq6LduXyvQ3MlccSmAAuSnoDwjI6/ufiAHqMmwtk=;
-        b=CQmIKIJkl7XX7dp6qksfRbW/NQAayWE5qmsmiBlDq2htcdwQNPiyKoIEgRPakp7fRJ
-         W1l1xBOMYv1oK2psv288BZDGfDMqP/moDEX2DGPMKjVS4D6tCFB06W5K4rN0MoCE9JNn
-         9uDx7OYtdrQcfLo2rl0gDRqo7phmZU0+2qgRjvdegO+0rD/fdjn0zuWyvwmSaEum+EqU
-         FgRVuUIz0+Bm268UVhsUXt3KYxl4yDwiJSpHaiTaItHIu7cRmEdSae3LQeKDP6Wm7q1R
-         8gaBGnf/3ksUGmchxerrBVZP46Tv678SYlWxeT4PYAn/6hwdl0pIMwumNgyJTHPRZkV4
-         tGQQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=r2zr0dkkseZ4YwG+4x5cG1AgJqCY9BJpepDcOBgMdDo=;
+        b=pFMUPVNIn1NsDH7VgxvTkFUkhehWYzNT+ZyP707wU1+r6e3hMe7Qsp9pVcYPp/xDXg
+         E0/TnnRe42o7RQc2tag5JsGEgDUT3qrqFZS45qDfEY3vzmIY2b+wikrxfTQXFowAcDqF
+         iv3O/fcdr1geNLc2x8pc7/5s1cC69A/TRPBHBdl2Jx6Mj1x9uUkDvT7lRPGlLtjntpce
+         M0ewiEpg5nrLfd1bpyAj4/3pFn2T0y4bamcEnqCGk9L9J6tsL24dfhuDGPt4vsUx9xlV
+         8qMYAmSQKqQs+YrQXelDv9mUE7p38zSZ3wTIsnXg22gcyOjuFFEwhAEevdplUWirtp4X
+         WcYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=rh5xwZnp;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 34si5986432plf.288.2019.04.10.22.41.33
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
+        by mx.google.com with ESMTPS id g9si2983811edq.352.2019.04.11.00.17.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 22:41:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 11 Apr 2019 00:17:09 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=rh5xwZnp;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [193.47.165.251])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 77CE72133D;
-	Thu, 11 Apr 2019 05:41:32 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1554961293;
-	bh=AdnMGIM+zhpk/AkMMfHhD20tBsmxleW3asrU9KtW8Gc=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=rh5xwZnp5NtzdWY12ZClWowEtz2If+pz5H1YPGtq5iAN4hd9v2j5LBMyN4hDRcC2B
-	 KEkPhf+wxZis6qATkiruJu7Kvh+SOqmhTu52iEOjdqAcCYRSUKChGI/RZP2hKAfwx7
-	 vTKjBisVFCSA38vNvsD6cN8iNJ25yiU8dgzw4Zdg=
-Date: Thu, 11 Apr 2019 08:41:30 +0300
-From: Leon Romanovsky <leon@kernel.org>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: jglisse@redhat.com, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
- mmu notifier is happening v2
-Message-ID: <20190411054130.GY3201@mtr-leonro.mtl.com>
-References: <20190326164747.24405-1-jglisse@redhat.com>
- <20190326164747.24405-8-jglisse@redhat.com>
- <20190410234124.GE22989@iweiny-DESK2.sc.intel.com>
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id A0D7EFF80C;
+	Thu, 11 Apr 2019 07:17:05 +0000 (UTC)
+Subject: Re: [PATCH v2 2/5] arm64, mm: Move generic mmap layout functions to
+ mm
+To: Kees Cook <keescook@chromium.org>
+Cc: Albert Ou <aou@eecs.berkeley.edu>,
+ Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt
+ <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
+ Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
+ LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>,
+ Linux-MM <linux-mm@kvack.org>, Paul Burton <paul.burton@mips.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>,
+ "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mips@vger.kernel.org,
+ linux-riscv@lists.infradead.org,
+ linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
+ Luis Chamberlain <mcgrof@kernel.org>
+References: <20190404055128.24330-1-alex@ghiti.fr>
+ <20190404055128.24330-3-alex@ghiti.fr> <20190410065908.GC2942@infradead.org>
+ <8d482fd0-b926-6d11-0554-a0f9001d19aa@ghiti.fr>
+ <CAGXu5jKt8f7=DKrvcPg-NUJGbc-vanMNojfDsEiBt3vP05G4oQ@mail.gmail.com>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <4c498b2b-e916-3389-209f-aa4cc7b523ff@ghiti.fr>
+Date: Thu, 11 Apr 2019 09:16:09 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.2
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="DoqoDKVG8/W9HA34"
-Content-Disposition: inline
-In-Reply-To: <20190410234124.GE22989@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <CAGXu5jKt8f7=DKrvcPg-NUJGbc-vanMNojfDsEiBt3vP05G4oQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: fr
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
---DoqoDKVG8/W9HA34
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, Apr 10, 2019 at 04:41:57PM -0700, Ira Weiny wrote:
-> On Tue, Mar 26, 2019 at 12:47:46PM -0400, Jerome Glisse wrote:
-> > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> >
-> > CPU page table update can happens for many reasons, not only as a result
-> > of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
-> > as a result of kernel activities (memory compression, reclaim, migratio=
-n,
-> > ...).
-> >
-> > Users of mmu notifier API track changes to the CPU page table and take
-> > specific action for them. While current API only provide range of virtu=
-al
-> > address affected by the change, not why the changes is happening
-> >
-> > This patch is just passing down the new informations by adding it to the
-> > mmu_notifier_range structure.
-> >
-> > Changes since v1:
-> >     - Initialize flags field from mmu_notifier_range_init() arguments
-> >
-> > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: linux-mm@kvack.org
-> > Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
-> > Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> > Cc: Jani Nikula <jani.nikula@linux.intel.com>
-> > Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
-> > Cc: Jan Kara <jack@suse.cz>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Cc: Peter Xu <peterx@redhat.com>
-> > Cc: Felix Kuehling <Felix.Kuehling@amd.com>
-> > Cc: Jason Gunthorpe <jgg@mellanox.com>
-> > Cc: Ross Zwisler <zwisler@kernel.org>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > Cc: Paolo Bonzini <pbonzini@redhat.com>
-> > Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Christian Koenig <christian.koenig@amd.com>
-> > Cc: Ralph Campbell <rcampbell@nvidia.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: kvm@vger.kernel.org
-> > Cc: dri-devel@lists.freedesktop.org
-> > Cc: linux-rdma@vger.kernel.org
-> > Cc: Arnd Bergmann <arnd@arndb.de>
-> > ---
-> >  include/linux/mmu_notifier.h | 6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> > index 62f94cd85455..0379956fff23 100644
-> > --- a/include/linux/mmu_notifier.h
-> > +++ b/include/linux/mmu_notifier.h
-> > @@ -58,10 +58,12 @@ struct mmu_notifier_mm {
-> >  #define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
-> >
-> >  struct mmu_notifier_range {
-> > +	struct vm_area_struct *vma;
-> >  	struct mm_struct *mm;
-> >  	unsigned long start;
-> >  	unsigned long end;
-> >  	unsigned flags;
-> > +	enum mmu_notifier_event event;
-> >  };
-> >
-> >  struct mmu_notifier_ops {
-> > @@ -363,10 +365,12 @@ static inline void mmu_notifier_range_init(struct=
- mmu_notifier_range *range,
-> >  					   unsigned long start,
-> >  					   unsigned long end)
-> >  {
-> > +	range->vma =3D vma;
-> > +	range->event =3D event;
-> >  	range->mm =3D mm;
-> >  	range->start =3D start;
-> >  	range->end =3D end;
-> > -	range->flags =3D 0;
-> > +	range->flags =3D flags;
+On 04/10/2019 08:27 PM, Kees Cook wrote:
+> On Wed, Apr 10, 2019 at 12:33 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+>> On 04/10/2019 08:59 AM, Christoph Hellwig wrote:
+>>> On Thu, Apr 04, 2019 at 01:51:25AM -0400, Alexandre Ghiti wrote:
+>>>> - fix the case where stack randomization should not be taken into
+>>>>     account.
+>>> Hmm.  This sounds a bit vague.  It might be better if something
+>>> considered a fix is split out to a separate patch with a good
+>>> description.
+>> Ok, I will move this fix in another patch.
+> Yeah, I think it'd be best to break this into a few (likely small) patches:
+> - update the compat case in the arm64 code
+> - fix the "not randomized" case
+> - move the code to mm/ (line-for-line identical for easy review)
 >
-> Which of the "user patch sets" uses the new flags?
+> That'll make it much easier to review (at least for me).
 >
-> I'm not seeing that user yet.  In general I don't see anything wrong with=
- the
-> series and I like the idea of telling drivers why the invalidate has fire=
-d.
+> Thanks!
 >
-> But is the flags a future feature?
 
-It seems that it is used in HMM ODP patch.
-https://patchwork.kernel.org/patch/10894281/
+Sorry about that, I'm working on it.
 
-Thanks
+Thanks,
 
->
-> For the series:
->
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
->
-> Ira
->
-> >  }
-> >
-> >  #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
-> > --
-> > 2.20.1
-> >
-
---DoqoDKVG8/W9HA34
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJcrtOKAAoJEORje4g2clin4zsP/AmYfZt5oiQTeSP4Xjgwykq0
-CzkUmZpJm/vc8F5iiy8PVa00rdya2SH+kRF4wx01H0qC4YfOwxuQTDAekUbrMeHM
-huKKVZbzds16MerDumdudWGmW+u2m9Qmt1MoDp7zcZ6kLHCtnQ3y905427D/M4yu
-MdQd0LVxa05sk2Tb1D8krE9NkrHMR6nEGfHXE9AE3eSQf9WfqFjFHXGfvxDRylDR
-XW/sjkdogpVrONpQ/ZbCPFroOoZS98CLfU894RO9DB/d7kTtWFiSsj3Uh+QR1p64
-JWsVhxIERsBYE5PeJ6Y3amF0IXJi8SqiKxIAgi9Qs2xmBIbZBIUP0Snk982qLKzg
-Arr7ShCqlg3Zuecwho9onbe3epsZkH9gdLqUqEOe8LXXlRGZ7GVmI6tkNg09SXNY
-g7EsDhTMZ8qKGmpzel1qIK/o63ushKp+gtIrBxDLWBF6x61BIni1BkeJdxeKuB/3
-OIoN1uETEA10OBIuCT4nH4t5S43CnaGx7B4gN8AY501XXjdeTMUmweO1bRhlwfaX
-Ty/xN767bs3Jm9rFjBtAFpx9KYcUc+dOLQESqHvXDk8dL1A2ptljOBLqExzxdSqT
-euS5qt4NsdH1vnhJRBFdhGKaIW9DG/t3s0mNKeP1nC62BGbdCfN7hZrKjetGhNxI
-JppWRIdYbztvSoppOAp/
-=pROR
------END PGP SIGNATURE-----
-
---DoqoDKVG8/W9HA34--
+Alex
 
