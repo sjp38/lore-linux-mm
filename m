@@ -5,109 +5,96 @@ X-Spam-Level:
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA9C3C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:19:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E5CDC10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:22:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A82A620818
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:19:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A82A620818
+	by mail.kernel.org (Postfix) with ESMTP id C7D122084D
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 18:22:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7D122084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4914F6B026B; Thu, 11 Apr 2019 14:19:49 -0400 (EDT)
+	id 618236B026B; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 440466B026C; Thu, 11 Apr 2019 14:19:49 -0400 (EDT)
+	id 59FF86B026C; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 358526B026D; Thu, 11 Apr 2019 14:19:49 -0400 (EDT)
+	id 467546B026D; Thu, 11 Apr 2019 14:22:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9176B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:19:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p90so3527801edp.11
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:19:48 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E8E026B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:22:23 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id 41so3565254edr.19
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:22:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=HPsNaI6UgA2pfuoIs5OFTN9/9rHtbmLIk2kt19mCXGA=;
-        b=VOAQCE9Smhv1q6exOIOEEjt4sEBrYG3Ju3ZQSe2WFuNp4niU1wNPbWbRdg2qNFpQ0A
-         wCBAToLmHGrve78a9PR2jOsiULA+9mcA5KSFTasstyx2i9ld4u1FJTdYoO16e5/4LLbM
-         RsUXyjNdiiHfxoCcMeTO2cEg5fMl9dRcFIS2qPhiYNYthfkjOnzv4E1Wk/q9H+xm7a4R
-         pHFnkeX+K+r10ImfUl7A/5oFa/G8IEU9C5OZUe6RlwjE3hQ1xTvVYdL7vCY2hXOa6Dvn
-         WJRMVBVUrzREiL7SWdRk6k1XSKEMpX5fR2EnoWWsFXxK3uUM3Kj2eFlM3eud2EC1J91h
-         mQMw==
+        bh=y6BbQw+t8nUtNL9E+M+Ca0ZOhHpnkjkb6OsUGCwrwpA=;
+        b=gfDAIKTINpmU/lQNYkHRkHsWw7DTuMRpptm0C2MXv9Xbrlb7Ai83U1iVEhT8hjyaWz
+         9RiieGE6NK6Q9LVqLTtKaP/FWhj/VT0LPKtyNyW2LJGX6cikgj8+mRuBPzhcmQPMdq6c
+         m549wzUpwSEw8Exr8KCN/m1eeBjnwa72EqJkRWTD5V3aEnGfl5QigE8t+oJsN0aNZkvs
+         C3EZkFFHnnPKXPhX4pajISrrCFJWNunw08VjFhv838HaZijMhKe8Gat9tCkigm9hvuxr
+         aUGu5mMD/6qu/Q/wEi/2jIqvs1ru6TDKzim+xnTMY6b/wB7MwyivvnCIfeWWrZ9kBzln
+         RR2w==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXsmsW5Z8KhMY7756/RXBOCpdTvEcl7W7aXoQdlhoLjgriaGKb4
-	P+7+ghH7VEJefajdOsASDgWeEsw3Nm/zcrjEQ6SvbHN59N8yjcqe4nX62nXqN8+H2gtfpopRfru
-	ZefIMfgOd52w+eRv2jP53pxhuh6OdAltBc4EUNJ8VXT0CjCxA7F/ChFMD5+HqNEU=
-X-Received: by 2002:a17:906:4899:: with SMTP id v25mr6551026ejq.71.1555006788440;
-        Thu, 11 Apr 2019 11:19:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxzvdHsKMg2YphzWvg2If2hxXZSrC30wFZWovbIA7bowANDCXIak9Z+DLPO1UYmqixuQpQp
-X-Received: by 2002:a17:906:4899:: with SMTP id v25mr6550987ejq.71.1555006787689;
-        Thu, 11 Apr 2019 11:19:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555006787; cv=none;
+X-Gm-Message-State: APjAAAX3p03btAU3MaDc849VonOz62r2Pj+zPyxd6VjEW3iqabHzLibY
+	uVFuAmbKnNUH62U6AW3IrkrHOi70YumYK9ay25hUjIaGahHsy5dDhT/P95bzDYHM3mawaqulzyl
+	CMW58e6Tc2fQLg89RBHF2otSSrG5zaKwcl3K6060KJg9VF7sd5HUF7qhfLFsfBrM=
+X-Received: by 2002:a50:b582:: with SMTP id a2mr33028290ede.268.1555006943494;
+        Thu, 11 Apr 2019 11:22:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3MJ57Xtj9WmpFo8UApPm/UDycmNXDa+f7ilHA9SiE4/Bv6clytRaq0BlPD3CGKcl5hRpI
+X-Received: by 2002:a50:b582:: with SMTP id a2mr33028237ede.268.1555006942695;
+        Thu, 11 Apr 2019 11:22:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555006942; cv=none;
         d=google.com; s=arc-20160816;
-        b=pUKOpihWslZkXsar52QFRQg0bvBupwpiSIazXbOTuEiX8jBIBCkw1fdO8bY6tsKnKL
-         ARybkRgqlAoGTQ+Go7E+ZFN1Qc+028vFbYgd8dbr86dA+6nhfu8EVC2EEnXYgVXlJu1g
-         qpzpgiajdemsDlhSBBE9QK4HQTHYU4weBpznvzVLth6cvnq6A8wrLuQgqT4ooizJc3Ws
-         EepxkAnld7aiQFCJEYz514J0UbOnYwUQF7GwLDYQHpHNOGi8J+2drrmsTRsgjkjLlsaa
-         ySUT0mX7aCfYdn5R9Gkukvoa0yj83uUWx1rmgg7mJdUcgjfDyaAzJGBOI7JI2ZJ9SAjX
-         q37Q==
+        b=NAtfww2LQmx0H0zQJuX7jN/dCSpqe0BSpuzUfunlNFCZuHGrIAhvSALPFhn65sdG42
+         iY05id9vUPOYiTbUwp8clMLY98NmSeq5noJSMnNUjWUn93BBqP3gHDEVbg9WKNGwJo/b
+         VvsgZ5CXHrIHbrzIWNA3uRtAsOx3dMKlatf0xp/trcrrdOPNWN5MJFb/mR8dpNZb+MRC
+         jVSLzFHDKgyLFbsaP6rjDf1B65XSKKa0p0ZOKHd1b4vSTz/BvtjapabP53DLcT9HecjI
+         uartF7F8yzF/bUZwbqNbMCfDPkk+NKZ2WPQ4V6NXHTvRbyKbtOqERZYwsx3pfv0Pti75
+         mb2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=HPsNaI6UgA2pfuoIs5OFTN9/9rHtbmLIk2kt19mCXGA=;
-        b=ZAs+98PkDvEhOlcuG3xf5s5spm9l+Jt1VHhj8U7CYCt/C99idxxtEmkF0PSwbpXEeC
-         PkqIlMTCCftwaAa8JCuooZaMZH2EyeDxFrqtP3suQjhWjACdh3WTA37/SNLiGZ452F88
-         RqArC5O7/lb7ARkBg6yDW/IRdN3vqJqQv/ww/rmGIxuL12dn3BJt/PewQaol1FsdOBcJ
-         IVxV771Wrw0jLfMhBMnT1LT4db4UdC0C1YxYb+TIoX2m7+HdkbAUCJd/r0MCDrZRDwU8
-         O1QRi/UtqBEpK55xYoNyL26NDZ3eb/AjG/uBimpzmMuXFagIZbR8mc3PMhtHz5aD5bBq
-         92VA==
+        bh=y6BbQw+t8nUtNL9E+M+Ca0ZOhHpnkjkb6OsUGCwrwpA=;
+        b=hjwsgg8k6JFP7EznsiLkykFN0Hs+mwTq+wp0+wLVDbK1uywKvABvIu8VhSYTCLUlpC
+         KoXM2ViFHdjoVJRBA1Nu1+TtUXwPmFSZf0pPYiejpkASNRH9y1of0Bph7w4obgOACV35
+         1HfY2Kkx5eNxnoQS9H6nvrWEnENEXUS8SW8elLeEb4E/QIlYsTwnEE9W+/3lxVz51Wdi
+         Or8B/ey3S70ezVI/7HP1GZG0mpVoBLeJ+A64N2c7nekz2Xp79p0pDvoijp6qdJBIiUUw
+         LINh0ywDUfEjZbvQZaK3Y2Co6bD9pwzaYvr1iGj7cUJWWS8n9Iisk+HCUlf4D2WYP7Wb
+         b1OA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l17si361784edv.58.2019.04.11.11.19.47
+        by mx.google.com with ESMTPS id k44si3323699ede.102.2019.04.11.11.22.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 11:19:47 -0700 (PDT)
+        Thu, 11 Apr 2019 11:22:22 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1E593AD3E;
-	Thu, 11 Apr 2019 18:19:47 +0000 (UTC)
-Date: Thu, 11 Apr 2019 20:19:46 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 3AC1DAD81;
+	Thu, 11 Apr 2019 18:22:22 +0000 (UTC)
+Date: Thu, 11 Apr 2019 20:22:20 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	ebiederm@xmission.com, Shakeel Butt <shakeelb@google.com>,
-	Christian Brauner <christian@brauner.io>,
-	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>,
-	lsf-pc@lists.linux-foundation.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	kernel-team <kernel-team@android.com>
-Subject: Re: [RFC 0/2] opportunistic memory reclaim of a killed process
-Message-ID: <20190411181946.GC10383@dhcp22.suse.cz>
-References: <20190411014353.113252-1-surenb@google.com>
- <20190411105111.GR10383@dhcp22.suse.cz>
- <CAJuCfpEqCKSHwAmR_TR3FaQzb=jkPH1nvzvkhAG57=Pb09GVrA@mail.gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Yufen Yu <yuyufen@huawei.com>, linux-mm@kvack.org,
+	kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com
+Subject: Re: [PATCH v2] hugetlbfs: fix protential null pointer dereference
+Message-ID: <20190411182220.GD10383@dhcp22.suse.cz>
+References: <20190411035318.32976-1-yuyufen@huawei.com>
+ <20190411081900.GP10383@dhcp22.suse.cz>
+ <b3287006-2d80-8ead-ea63-2047fc5ef602@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJuCfpEqCKSHwAmR_TR3FaQzb=jkPH1nvzvkhAG57=Pb09GVrA@mail.gmail.com>
+In-Reply-To: <b3287006-2d80-8ead-ea63-2047fc5ef602@oracle.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -115,21 +102,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-04-19 09:47:31, Suren Baghdasaryan wrote:
-[...]
-> > I would question whether we really need this at all? Relying on the exit
-> > speed sounds like a fundamental design problem of anything that relies
-> > on it.
+On Thu 11-04-19 09:52:45, Mike Kravetz wrote:
+> On 4/11/19 1:19 AM, Michal Hocko wrote:
+> > On Thu 11-04-19 11:53:18, Yufen Yu wrote:
+> >> This patch can avoid protential null pointer dereference for resv_map.
+> >>
+> >> As Mike Kravetz say:
+> >>     Even if we can not hit this condition today, I still believe it
+> >>     would be a good idea to make this type of change.  It would
+> >>     prevent a possible NULL dereference in case the structure of code
+> >>     changes in the future.
+> > 
+> > What kind of change would that be and wouldn't it require much more
+> > changes?
+> > 
+> > In other words it is not really clear why is this an improvement. Random
+> > checks for NULL that cannot happen tend to be more confusing long term
+> > because people will simply blindly follow them and build a cargo cult
+> > around.
 > 
-> Relying on it is wrong, I agree. There are protections like allocation
-> throttling that we can fall back to stop memory depletion. However
-> having a way to free up resources that are not needed by a dying
-> process quickly would help to avoid throttling which hurts user
-> experience.
+> Since that was my comment, I should reply.
+> 
+> You are correct in that it would require significant changes to hit this
+> issue.  I 'think' Yufen Yu came up with this patch by examining the hugetlbfs
+> code and noticing that this is the ONLY place where we do not check for
+> NULL.  Since I knew those other NULL checks were required, I was initially
+> concerned about this situation.  It took me some time and analysis to convince
+> myself that this was OK.  I don't want to make someone else repeat that.
+> Perhaps we should just comment this to avoid any confusion?
+> 
+> /*
+>  * resv_map can not be NULL here.  hugetlb_reserve_pages is only called from
+>  * two places:
+>  * 1) hugetlb_file_setup. In this case the inode is created immediately before
+>  *    the call with S_IFREG.  Hence a regular file so resv_map created.
+>  * 2) hugetlbfs_file_mmap called via do_mmap.  In do_mmap, there is the
+>  *    following check:
+>  *      if (!file->f_op->mmap)
+>  *              return -ENODEV;
+>  *    hugetlbfs_get_inode only assigns hugetlbfs_file_operations to S_IFREG
+>  *    inodes.  Hence, resv_map will not be NULL.
+>  */
+> 
+> Or, do you think that is too much?
+> Ideally, that comment should have been added as part of 58b6e5e8f1ad
+> ("hugetlbfs: fix memory leak for resv_map") as it could cause one to wonder
+> if resv_map could be NULL.
 
-I am not opposing speeding up the exit time in general. That is a good
-thing. Especially for a very large processes (e.g. a DB). But I do not
-really think we want to expose an API to control this specific aspect.
+I would much rather explain a comment explaining _when_ inode_resv_map
+might return NULL than add checks just to be sure.
 -- 
 Michal Hocko
 SUSE Labs
