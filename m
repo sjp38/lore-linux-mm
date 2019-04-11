@@ -2,182 +2,225 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 310D3C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:28:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 665D3C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:51:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C3C382073F
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:28:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="G8uviIkL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3C382073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 1D5BE2146F
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 20:51:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D5BE2146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6550C6B0269; Thu, 11 Apr 2019 16:28:13 -0400 (EDT)
+	id 7055C6B0269; Thu, 11 Apr 2019 16:51:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 629686B026A; Thu, 11 Apr 2019 16:28:13 -0400 (EDT)
+	id 68DC46B026A; Thu, 11 Apr 2019 16:51:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F1D46B026B; Thu, 11 Apr 2019 16:28:13 -0400 (EDT)
+	id 557D66B026B; Thu, 11 Apr 2019 16:51:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0279A6B0269
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:28:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id h27so3638610eda.8
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:28:12 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B8D6B0269
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:51:28 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id p90so3720171edp.11
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 13:51:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=woVzfZGcSwnBxxuUFWVwRSs3kH2EYlIWop6DF6lHv4A=;
-        b=eRdXqDeLXszMFhPG6zv/c16Cfcr2L6UOvHEgZ1slEBtiNqOVaRYz9s0+APqsG6MPj1
-         x+pj6i6oxSlzwhZcpLw893xSRvVCbKca9m/4Tl6/+MBoFuJG4xM9z6rZvdmLMnSmtXZd
-         N1vujWS7VfpQLC5+kj51TPCmowQJpJtg8RyvMANXMGbFHjLtDEGBEuPaXmEZrSM7rpoF
-         SyVnSAM6BVnBrfG2HUEbZLokzTE7S5yYYBnraUERdgYCbXSJyAxtiQwULSijfZj3aifE
-         z4WlOXG6ZZwLR2jcM+1khpK9dMes9i65yzZWJEf7u4yfCVeGXtLZJb0XMAQJ+NFZ71+I
-         d8bQ==
-X-Gm-Message-State: APjAAAU32V0u0av3CP+Oer8gmF41bcKMdkXlarN1EAzHtIEe4CXL7LEq
-	asd0eeUjuy60+AN9lDtBmyGdq5V/MoaO8Ct0Z9hIeUwhY/lEvixL8IRfLqH9MZRt/C6LmPzGgCR
-	30eIRXKV1Y8RMd/8aVTNnfCCg1uYsJeAwJaQZ/ZJT+3+HfLfGgrXKKiDd9flfwJcj7Q==
-X-Received: by 2002:a17:906:5949:: with SMTP id g9mr28299072ejr.15.1555014492473;
-        Thu, 11 Apr 2019 13:28:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzLrbrlG+BdnoF9RhULcYskdBsqEtki4f2dQp/guI3dHoQsUUati8gnv831R+PzHdxFyEHs
-X-Received: by 2002:a17:906:5949:: with SMTP id g9mr28298994ejr.15.1555014490402;
-        Thu, 11 Apr 2019 13:28:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555014490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=N4DmJGRpRMXC++KQt7GTKbLUBRCE4AHAAJo/0113FgU=;
+        b=Pr1BfJfEFzixHLIdjP6Y1tKVbnhbNdIonemdKtjXr6wFDJGbzp5c7DUe+KbKlmJMDo
+         9VbNbk8CJaBzn/Wnqjadvnn03drBaqpSqWOBsLgDc52kYXsGdkPtsN9uOmgYXGNmik0n
+         D0PlB+iHwG0BrlltB5+/SSCMZ6T4gpT5oXkfzHhKaQnurQ8c2gj8X4oCjmEX/2XiwGcL
+         H5afT/Vc9iE96yxsyoiQ9Eptzm0/MZvSSqyp2zhtXR6ENLzaE3BG6XjZpK/ZKEkeyO0U
+         k7URnK/NRSyKHp0+9IEQanIrA+0x6g2ZIh+yGAovgd7iFcR4IXbV5zVmcMn4W9B+9RN1
+         uSyQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWiLuYcHFJ4uzbfks3uWS4RL5q+huxhSdmAM7zFYZWY47LB44qC
+	9K5K9zUvyP82CwY+L4XyMkwhGAW/HHM9MCe+NloLqcHgWjfGH1hne1AcEVdbDXjb3gCCoPus26S
+	8E3xbZLq2lSuBaSeo+iC3aJSqM1pkKuuNQPLJzne+Rww5WtVaqU9ZByOUIX8QOCWm/w==
+X-Received: by 2002:a05:6402:8d5:: with SMTP id d21mr19350661edz.225.1555015887568;
+        Thu, 11 Apr 2019 13:51:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOFBwlEYNNKGCCz0auiZePFz0jaJBdoLh75OJG9+18ohy224yCLl/3sIMfxogyeyYVVsdo
+X-Received: by 2002:a05:6402:8d5:: with SMTP id d21mr19350622edz.225.1555015886770;
+        Thu, 11 Apr 2019 13:51:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555015886; cv=none;
         d=google.com; s=arc-20160816;
-        b=eHFcpbwG14+nRFdhxyB6aP9UMM1xMWnRureVy2hGmWIytuXPiZWERRdHEn7wTUcS6+
-         Gh3qIbA7sWYMzEDlK/+7u1SaC2VMNZuM8QniLY474W5hi1OGhsTrSfDik0VIBeMfYrQ8
-         EhPj1RYC+HVPrtcqKDFjEfcSkOvH9coA0tn9GdEJoLrv0mHRWAgSNrerx5MItv9a7RJl
-         /KxkJRn2wG2PIUx2+vLZ+KE6vhebNp7YZoBDdHwogKn44UoZ7ZenehwUZaVkK6DK19Ne
-         PPNrEd7mXAEeHf+MrsMU0xpGuOTCapFlbPlefAmNaDmcEvaZKNMr+bdegg1jfAQOOV0l
-         C4eg==
+        b=QyWXWja9ZfpWx1si5KBBsSBCgvilt2oz/nPWN3YEDxH2vdcBXxSO2D0Y+feJUzJjsu
+         5oWDZoAEKOuvS1RhmEcVG7g3lHUjV47aMueCynQFc04AUesGlmQkZrEN2+iswlJL40/t
+         TmtNXoW6WvA2vf44uptZDu84fTbipfCJ9bL+Z1hlWi5elrSfKXmPvsosBTTGqeMG3w34
+         aMn3s3GCfK2fR82dhLJwKbIFsPdBbUPt3xUusXDaCVZruY3riahZ9SRXL1GehZF1dS1s
+         aScqglr0YKwn4N7AKKhZAZlfkKy/QE20EeQCiNk4gQgAprDSW99sptBHno5e/jWQJS9I
+         vhew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=woVzfZGcSwnBxxuUFWVwRSs3kH2EYlIWop6DF6lHv4A=;
-        b=lNnYwlSp3ZjlhIbKf+CkOfSo6ZGrRJzk/xLnTuR6rkTI6XlisWOITAeLWGmEubPmnw
-         foc6M6LCAJ5nI5LL/umk4shhZrPorILwAh8zDJz+fAwLBQk958+iKNkB6R9eQT0/NmZj
-         Zq5KUn6oQNoqKRAVl9Wre/cBtsepkE5hgHlVt5udPOBhwjn+F51P4cilNNMLjf85MTof
-         itKLd4CN4mAgLLgkoaihm1A0MqdRu13Oq2mH61j5pRUBsSNR4Fq8p9KBMfZIPR8n7XC3
-         +OPa/QUy3S+1aQ81bvLQTPPFgwqmiItxBx4py0znvSD0yo2pWaJlDKUUuYO5Dm/BRyTs
-         0R+g==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=N4DmJGRpRMXC++KQt7GTKbLUBRCE4AHAAJo/0113FgU=;
+        b=YkJYT/dBbz3xuspxliAztlqvKPmSVuQq/QvH1zY6aY0Rbbft7yw14gVEtt8M9BEcE3
+         EpZbmKdSRgiuplJtnJO/MdFFtjTO7a9XUl3x5FwEt2PJmVDw0HGL9833afBzhc7DGapb
+         yRgVBFP21xcXJk5kFlLfoZ1vs1+V5WMnFZTX4jUMZfXLw4n9qFnczzXJL/rJviZjAggK
+         5c8oU5DcpWjIXuN5axEFhuhv3kPpm9PM7ovEvYevPakQPtXp4tsKGj6qKHhjZy+6Ebmk
+         HpJc512XVhukbqQYiAVBDdW9uHi5+vwT7HyS1L4Tjv5f4cWjifluaEcbJX1rckiLKm6v
+         2g9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G8uviIkL;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id h21si2057410edj.48.2019.04.11.13.28.09
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g7si5206595edr.56.2019.04.11.13.51.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 13:28:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 11 Apr 2019 13:51:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G8uviIkL;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BK9esF173636;
-	Thu, 11 Apr 2019 20:27:53 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=woVzfZGcSwnBxxuUFWVwRSs3kH2EYlIWop6DF6lHv4A=;
- b=G8uviIkLAA9Z4UISLkf/C4W8xdBmwKfeekBgf+eUf/T5l7j3aBysnlTWaWmUuNpMucs9
- 1/Xw5m4YJisDnkHWyx0hLuB6TE92uqt0brXoo7VB0MhawF7UH6Olx59SC+IGyGdj6/Lg
- dAIEQDF2iVN82OwwzNmODFuBqQ3uKmOO0BQUigXwCAp6krbDL1QyEB/VL5llFQgynlGK
- KQyE7Ba+3NE4HA4uNTIp4IWevgLZUJV5vmEP0hn+vWzuG1/MEbPHc9ZTSftVo5oqttk7
- tt4g+WH1/b82cIp/1eAyFcHj5O2mpMG7O3pjLbU6wSEVHsRZ5mhvxnITl7B5aNRNeXyZ fg== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2130.oracle.com with ESMTP id 2rphmeuat5-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Apr 2019 20:27:53 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3BKRf6p072214;
-	Thu, 11 Apr 2019 20:27:52 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3030.oracle.com with ESMTP id 2rt9upu0ak-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 11 Apr 2019 20:27:52 +0000
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3BKRix9020217;
-	Thu, 11 Apr 2019 20:27:44 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 11 Apr 2019 13:27:43 -0700
-Date: Thu, 11 Apr 2019 16:28:07 -0400
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Alexey Kardashevskiy <aik@ozlabs.ru>,
-        Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
-        Alan Tull <atull@kernel.org>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Christoph Lameter <cl@linux.com>, Davidlohr Bueso <dave@stgolabs.net>,
-        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
-        Paul Mackerras <paulus@ozlabs.org>, Wu Hao <hao.wu@intel.com>,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/6] mm: change locked_vm's type from unsigned long to
- atomic64_t
-Message-ID: <20190411202807.q2fge33uoduhtehq@ca-dmjordan1.us.oracle.com>
-References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
- <20190402204158.27582-2-daniel.m.jordan@oracle.com>
- <614ea07a-dd1e-2561-b6f4-2d698bf55f5b@ozlabs.ru>
- <20190411095543.GA55197@lakrids.cambridge.arm.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3BKpILi119542
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:51:25 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2rtbqmu3vd-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 16:51:23 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 11 Apr 2019 21:49:57 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 11 Apr 2019 21:49:51 +0100
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3BKnoGY52625548
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 11 Apr 2019 20:49:50 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8A67CA4055;
+	Thu, 11 Apr 2019 20:49:50 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 61C83A404D;
+	Thu, 11 Apr 2019 20:49:48 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.230])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 11 Apr 2019 20:49:48 +0000 (GMT)
+Date: Thu, 11 Apr 2019 23:49:46 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Guenter Roeck <groeck@google.com>
+Cc: Kees Cook <keescook@chromium.org>, kernelci@groups.io,
+        Dan Williams <dan.j.williams@intel.com>,
+        Guillaume Tucker <guillaume.tucker@collabora.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@suse.com>, Mark Brown <broonie@kernel.org>,
+        Tomeu Vizoso <tomeu.vizoso@collabora.com>,
+        Matt Hart <matthew.hart@linaro.org>,
+        Stephen Rothwell <sfr@canb.auug.org.au>,
+        Kevin Hilman <khilman@baylibre.com>,
+        Enric Balletbo i Serra <enric.balletbo@collabora.com>,
+        Nicholas Piggin <npiggin@gmail.com>,
+        Dominik Brodowski <linux@dominikbrodowski.net>,
+        Masahiro Yamada <yamada.masahiro@socionext.com>,
+        Adrian Reber <adrian@lisas.de>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
+        Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+        Richard Guy Briggs <rgb@redhat.com>,
+        "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+References: <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
+ <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+ <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com>
+ <20190306140529.GG3549@rapoport-lnx>
+ <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com>
+ <CAPcyv4jBjUScKExK09VkL8XKibNcbw11ET4WNUWUWbPXeT9DFQ@mail.gmail.com>
+ <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com>
+ <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com>
+ <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com>
+ <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190411095543.GA55197@lakrids.cambridge.arm.com>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=18 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=867
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904110133
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9224 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=18 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=894 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904110133
+In-Reply-To: <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19041120-0016-0000-0000-0000026DE2C6
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19041120-0017-0000-0000-000032CA1B06
+Message-Id: <20190411204945.GA26085@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-11_13:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904110136
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 10:55:43AM +0100, Mark Rutland wrote:
-> On Thu, Apr 11, 2019 at 02:22:23PM +1000, Alexey Kardashevskiy wrote:
-> > On 03/04/2019 07:41, Daniel Jordan wrote:
+On Thu, Apr 11, 2019 at 01:08:15PM -0700, Guenter Roeck wrote:
+> On Thu, Apr 11, 2019 at 10:35 AM Kees Cook <keescook@chromium.org> wrote:
+> >
+> > On Thu, Apr 11, 2019 at 9:42 AM Guenter Roeck <groeck@google.com> wrote:
+> > >
+> > > On Thu, Apr 11, 2019 at 9:19 AM Kees Cook <keescook@chromium.org> wrote:
+> > > >
+> > > > On Thu, Mar 7, 2019 at 7:43 AM Dan Williams <dan.j.williams@intel.com> wrote:
+> > > > > I went ahead and acquired one of these boards to see if I can can
+> > > > > debug this locally.
+> > > >
+> > > > Hi! Any progress on this? Might it be possible to unblock this series
+> > > > for v5.2 by adding a temporary "not on ARM" flag?
+> > > >
+> > >
+> > > Can someone send me a pointer to the series in question ? I would like
+> > > to run it through my testbed.
+> >
+> > It's already in -mm and linux-next (",mm: shuffle initial free memory
+> > to improve memory-side-cache utilization") but it gets enabled with
+> > CONFIG_SHUFFLE_PAGE_ALLOCATOR=y (which was made the default briefly in
+> > -mm which triggered problems on ARM as was reverted).
+> >
 > 
-> > > -	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %ld/%ld%s\n", current->pid,
-> > > +	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %lld/%lu%s\n", current->pid,
-> > >  		incr ? '+' : '-', npages << PAGE_SHIFT,
-> > > -		current->mm->locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
-> > > -		ret ? "- exceeded" : "");
-> > > +		(s64)atomic64_read(&current->mm->locked_vm) << PAGE_SHIFT,
-> > > +		rlimit(RLIMIT_MEMLOCK), ret ? "- exceeded" : "");
-> > 
-> > 
-> > 
-> > atomic64_read() returns "long" which matches "%ld", why this change (and
-> > similar below)? You did not do this in the two pr_debug()s above anyway.
+> Boot tests report
 > 
-> Unfortunately, architectures return inconsistent types for atomic64 ops.
+> Qemu test results:
+>     total: 345 pass: 345 fail: 0
 > 
-> Some return long (e..g. powerpc), some return long long (e.g. arc), and
-> some return s64 (e.g. x86).
+> This is on top of next-20190410 with CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
+> and the known crashes fixed.
+> 
+> $ git log --oneline next-20190410..
+> 3367c36ce744 Set SHUFFLE_PAGE_ALLOCATOR=y for testing.
+> d2aee8b3cd5d Revert "crypto: scompress - Use per-CPU struct instead
+> multiple variables"
+> 4bc9f5bc9a84 Fix: rhashtable: use bit_spin_locks to protect hash bucket.
+> 
+> Boot tests on arm are:
+> 
+> Building arm:versatilepb:versatile_defconfig:aeabi:pci:scsi:mem128:versatile-pb:rootfs
+> ... running ........ passed
+> Building arm:versatilepb:versatile_defconfig:aeabi:pci:mem128:versatile-pb:initrd
+> ... running ........ passed
 
-Yes, Mark said it all, I'm just chiming in to confirm that's why I added the
-cast.
+...
 
-Btw, thanks for doing this, Mark.
+> Building arm:witherspoon-bmc:aspeed_g5_defconfig:notests:aspeed-bmc-opp-witherspoon:initrd
+> ... running ........... passed
+> Building arm:ast2500-evb:aspeed_g5_defconfig:notests:aspeed-ast2500-evb:initrd
+> ... running ................ passed
+> Building arm:romulus-bmc:aspeed_g5_defconfig:notests:aspeed-bmc-opp-romulus:initrd
+> ... running ......................... passed
+> Building arm:mps2-an385:mps2_defconfig:mps2-an385:initrd ... running
+> ...... passed
+
+The issue was with an omap2 board and, AFAIK, qemu does not simulate those.
+
+-- 
+Sincerely yours,
+Mike.
 
