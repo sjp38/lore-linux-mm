@@ -2,258 +2,198 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC37CC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:22:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CAF6C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:31:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69FA62077C
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:22:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CAA622146F
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:31:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="C5Q/Zxjm";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="GaprauWM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69FA62077C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="EU8l7n5j"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAA622146F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 085446B026B; Thu, 11 Apr 2019 17:22:27 -0400 (EDT)
+	id 622CE6B026E; Thu, 11 Apr 2019 17:31:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 035FF6B026E; Thu, 11 Apr 2019 17:22:26 -0400 (EDT)
+	id 5D2F26B0284; Thu, 11 Apr 2019 17:31:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E3DE36B0283; Thu, 11 Apr 2019 17:22:26 -0400 (EDT)
+	id 4C2446B0285; Thu, 11 Apr 2019 17:31:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9606B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:22:26 -0400 (EDT)
-Received: by mail-ua1-f72.google.com with SMTP id j45so1081154uag.15
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:22:26 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4396B026E
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:31:49 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id n10so6943806qtk.9
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:31:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=J59ZmlOdTWha1uc+6rXK0NSv6K3t61Wr5VdtTAYniFg=;
-        b=q+p7KMoKwdSSzD6VEirhxHvxTAPvDZ/aFdjyCsw6C6gBrfCeni9MuiQ1D+Fa1TYOK1
-         T1X/Q136P3ECr+h1lZVPGivMg8FlmaI8Jf/YAnY8qlj5OMr08RrlR4ZUrV9ByP+pZ9iK
-         p7WfK3zikKgKDSh4qGxv//LFK9c6Rzon0JABi0l/XC5a34V/JCqt3Igz6Hmpo1u4fEi1
-         +oW+CJU2ocDcX9yLe9UpiIVoKk7yJcDWUSxawu11IEPdG+n5Qz9Nkzzb3pcL32xFNYR1
-         ffoYXxtss8JGs0l9qF7aGeztzBGJ8PYBvqgsRM5QKcLHH3HUlgjec3Y8fl1z0S9Eb5Dr
-         rjlQ==
-X-Gm-Message-State: APjAAAVr4Hm4UavJH34GkonHdik1WDDLPY0Q2E+T4W6VnCSt3QP1eH8x
-	2QKnY5cspApXO+PDDUURdPP4ia0eeaxoKYX3zX+tUv1Wi51hL1x+57PqQp3SwI8z318UdA/9dwc
-	W0sziE1xYdtEYen4X7Gxi3qazz4SP2SMfbHMN0zyYEi/aOi0/UOfTheR/zJywEywU9g==
-X-Received: by 2002:a67:e9c8:: with SMTP id q8mr27259605vso.120.1555017746377;
-        Thu, 11 Apr 2019 14:22:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/ZKOx3cf8SoWh4lMpelKYESWsEOpJndE6k/CYVDwuvIsjmvRss87jdCoyK3nEq8KMaHpH
-X-Received: by 2002:a67:e9c8:: with SMTP id q8mr27259586vso.120.1555017745578;
-        Thu, 11 Apr 2019 14:22:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555017745; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=3OqG8bpvaiUhwKE/BjM7CPLdVnvy5MPJ5aI4Qoz+FGA=;
+        b=gxc/B4O0rhSXxafXR65xxXQ7/H2D29yy+ruN5EFEbGDllNOrN/nl5Q8oSr9XLlK85g
+         YGTTePKnmk6TspZj90fJxtkp23z/9zpqlFCY8DInozUQ3W5QnNwQs7uIfSIcSLvxusaE
+         Yo28MpN94ijxZZJVtH9dGYKrquyeveDSRVBywnMQKVenHR4X1ThOkP0uqezpPfdkt2JL
+         Vja1+m6pqynA2k7aThRjNI5+FHcVDZZLA6R8aDjBYvjfOLA9gdSFtOZoheut0DbjKe4i
+         QbRQbKOoJwlhp5dq58nidLY6c/ibKNYTp/2HEC1v7krAfjsAgsXwFUbngYQD/Z4oBcvp
+         mm8w==
+X-Gm-Message-State: APjAAAXPMV+V+4jmb5mMUVW2tzchChylLQ1j0iAkEeC3oadGi21GiWLX
+	fcgZyoBD8tFEQJiuP7mjldigEQ3H0LR/isTI/x24+EurfEpEKMe3kfkGjwcwlhysrJNxk9Kol7S
+	5qAyAazbtcY756M9MV8Fuc65WaYvGI9EBwxIYcF25Tp/tWB5H9y5nkQOLKz2waCBaaA==
+X-Received: by 2002:ac8:8d4:: with SMTP id y20mr44205831qth.13.1555018308685;
+        Thu, 11 Apr 2019 14:31:48 -0700 (PDT)
+X-Received: by 2002:ac8:8d4:: with SMTP id y20mr44205750qth.13.1555018307537;
+        Thu, 11 Apr 2019 14:31:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555018307; cv=none;
         d=google.com; s=arc-20160816;
-        b=bqsyjHLFXeAfYlZpCExGJZgkVGHmx05xEDEeoZdeQ/nBziK/1CzTAhN4TZFbNkaEbX
-         UapT3iiRV7eBQTDFFEdA8TGQividNjsdZRP7cu+KVD0adE6dmcyG7u0rCY1EMq8h4+9C
-         rKwDKv4mXG98zxIThofvtDv+zBUqTGfhMRmK/MG6xLUP5+ErhRNWy0d6VnpMeKX20w++
-         Qg3DLfJpJW3RTd25gXRFSOpIeYhb6Z4uTSRMw702OXmqj7IW8CmOxcw0QK6EnJxMPT6n
-         H7dtbrZGR3klGcbHTHgS3vwHgQTHw1Gtd0g79EqeAy/6ZEDolKxDNuJmZ49mTNFY3J2F
-         i9Bw==
+        b=f96Pa4oYY+wqGyHtnHRksI21ZWNe6qZLj+DyBiA5YoHTzeB9QLFSAFGH59FYkOiaq5
+         WXnZaw62mcFTkdsru8USH9sW5xdazQYdUHwHr3MzZjf7pGntSOKpHy6aFkWFxjbzcuFr
+         aKpUqPQaadfyUvRmMZFkpMb6skQLnblqNF83U0tb1QLHn6ksZwNnl24RTY4hH3CfHXiS
+         FYqeGuVTBK8wjCofg4HhpnBBniMzL2MrYf87HQIJq6TGEZLeerIVcosKcU6lbLAzX3Nk
+         jG3WKEHNg00O3iamjZodnA2vvwAG/eajAjRH4gI3abh4VgWm22gxzy+4gwxmGjqi8Hkw
+         TeuA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=J59ZmlOdTWha1uc+6rXK0NSv6K3t61Wr5VdtTAYniFg=;
-        b=kgG11twFzslIR5rfT6qN0eYXjW5OGUIdpveMazofDqbKX9Vsr+y1fpi+brXpHDbFgB
-         p1o5TPBEs8ZmjBurYl26xJgQqdKD9OySB+E+m5W56/wvZoaWovQZdK9hhOextlSZl0h9
-         hsMflT044Vp1wX9W7NpjWeClj1ianm7ajcoTjUBPDjOU3ugP5WQpzr8fQdxUnmIaYiKT
-         sX9J17eD4x4IVUx/ceci1frvPviEM6JSrZPTRTHKe4pQw96SBtxQxCkNf1dj5Bfe9O4V
-         qq/hpirKASjDzMhBNLCwhsx3f0F6tYHVx9YxIKhAXNVnIB1E0bruZE5PWXNxHhKH/Pwo
-         EB+Q==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=3OqG8bpvaiUhwKE/BjM7CPLdVnvy5MPJ5aI4Qoz+FGA=;
+        b=Jyq92SsbKdj9DXlv/pLVZ4pNISnMLy4NZIDgbmIueG0Mby0WuksmF86DzZ3dgAGPtX
+         4nJU/odlmwbo6dpchH0xLn+3WAw7b4QG7gbUvqeRHOIw3IZ09HZZjJ5uwxqhArL/O1iK
+         xe5s9Mdc/TkAhn+mQ+krTi6qX2iLIXYCJ+LlWcDmM29q87oXPeOclCv6na+zeOk1xnsw
+         kRyrAX/zH9ZlS7MOMdt2AmADdfU7xZjac9zVDp/8A10B03/wce1pp9No6YlX/epF41YI
+         3JPAYWDGrhcC2lLM8YFd5/7wpQpIZlfcfxo0JIaLhuJZFgNAeqHAVlQcE+K9nmsT36lU
+         ptcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="C5Q/Zxjm";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=GaprauWM;
-       spf=pass (google.com: domain of prvs=9004ee2826=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=9004ee2826=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id z25si7816020vsj.278.2019.04.11.14.22.25
+       dkim=pass header.i=@lca.pw header.s=google header.b=EU8l7n5j;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q7sor36170979qvh.48.2019.04.11.14.31.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 14:22:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=9004ee2826=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 14:31:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="C5Q/Zxjm";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=GaprauWM;
-       spf=pass (google.com: domain of prvs=9004ee2826=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=9004ee2826=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3BLCoNZ013831;
-	Thu, 11 Apr 2019 14:21:40 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=J59ZmlOdTWha1uc+6rXK0NSv6K3t61Wr5VdtTAYniFg=;
- b=C5Q/ZxjmL8Qsp02unNiG36lJkdXCpOGra3lM0wBog4IyNkgvVpJlkIcrBik23nPrtaqN
- hh7WIW9JLH1s8suulT/5EPEEwP5fStblJIW9vgKhZuCXf0ayyK7DDecySE5RLF5RVmIC
- r1mBWGls6Cm891o8o5+fKmxhfd9XkqYDGmg= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2rt5wmhn9p-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 11 Apr 2019 14:21:40 -0700
-Received: from prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) by
- prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 11 Apr 2019 14:21:38 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 11 Apr 2019 14:21:38 -0700
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Thu, 11 Apr 2019 14:21:38 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=J59ZmlOdTWha1uc+6rXK0NSv6K3t61Wr5VdtTAYniFg=;
- b=GaprauWMbNYde7rr4mieyFI2H44/tHhhsUtQhFZm8f9kwTkWDYqYr5LwsWoCA9rYmienACKXhi+A4DlGIXCMli81eA0joVUq3KYD2gwWt1LYz0hA+zwC2ijyAS5A9dOMLqswmUzWqYDceQyxtcfIQHYg4OWgwroJ23egA/6DJeY=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2229.namprd15.prod.outlook.com (52.135.196.156) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1771.16; Thu, 11 Apr 2019 21:21:36 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d1a1:d74:852:a21e]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d1a1:d74:852:a21e%5]) with mapi id 15.20.1792.016; Thu, 11 Apr 2019
- 21:21:36 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Waiman Long <longman@redhat.com>
-CC: Chris Down <chris@chrisdown.name>, Tejun Heo <tj@kernel.org>,
-        Li Zefan
-	<lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>,
-        Jonathan Corbet
-	<corbet@lwn.net>, Michal Hocko <mhocko@kernel.org>,
-        Vladimir Davydov
-	<vdavydov.dev@gmail.com>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        "cgroups@vger.kernel.org"
-	<cgroups@vger.kernel.org>,
-        "linux-doc@vger.kernel.org"
-	<linux-doc@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Shakeel Butt
-	<shakeelb@google.com>,
-        Kirill Tkhai <ktkhai@virtuozzo.com>
-Subject: Re: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
-Thread-Topic: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
-Thread-Index: AQHU79GY2Ag2UCG9SEWEuTyzVdk7J6Y1688AgAEYggCAAHUdAA==
-Date: Thu, 11 Apr 2019 21:21:35 +0000
-Message-ID: <20190411212129.GA31565@tower.DHCP.thefacebook.com>
-References: <20190410191321.9527-1-longman@redhat.com>
- <20190410213824.GA13638@chrisdown.name>
- <d8d6f82f-a950-8eea-16ce-9189e78f37fd@redhat.com>
-In-Reply-To: <d8d6f82f-a950-8eea-16ce-9189e78f37fd@redhat.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: CO1PR15CA0087.namprd15.prod.outlook.com (10.175.176.159) To
- BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:3965]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 2be1fb45-fde0-4020-abfc-08d6bec3ad5b
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2229;
-x-ms-traffictypediagnostic: BYAPR15MB2229:
-x-microsoft-antispam-prvs: <BYAPR15MB2229268A7F7819066ABC4F66BE2F0@BYAPR15MB2229.namprd15.prod.outlook.com>
-x-forefront-prvs: 00046D390F
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(346002)(396003)(366004)(376002)(39860400002)(199004)(189003)(86362001)(46003)(256004)(446003)(476003)(316002)(14444005)(6116002)(99286004)(76176011)(102836004)(71190400001)(478600001)(6506007)(486006)(386003)(71200400001)(2906002)(11346002)(54906003)(52116002)(14454004)(68736007)(25786009)(4326008)(81166006)(81156014)(5660300002)(186003)(305945005)(53546011)(1076003)(7736002)(105586002)(6916009)(106356001)(8676002)(97736004)(33656002)(8936002)(6246003)(53936002)(9686003)(7416002)(6486002)(229853002)(6512007)(6436002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2229;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: ffp2amr/FaUuv3a0Ob/CkfXBeR3AKJxoNVLNi3Y9q8lDcBGDwsIbsSCG6ZNOI1/wMXxEWylfaWvLenZUywRJb7C4rW4DD9Z5xVbHaZfuWYKkwWgvP7jqLU6pO+DLLiUn3/kntaKTSAcmxkNbbbJ4bw74MYKzZSUSTNGQkU/YHTIfTWZDwzN+XRZn3+KGWudZMaEO+GDax5KZO6BYgX2LKB3XAktiPBdo2/xb+bszr3IaflR64GZ/4JDgsJvcf+fM1D4XUyBg3fZtn5xOsPrXxPZjoTWsyzsd3o2mK1yS/XIWwXMU7W0hWZWDl3tfLm2pQPOrwQuwucqMXep719GuMvDiHTe3ym9axF8/bVZ+wscTFdJiOxlksJPgMfx9UJUP2txsCjSabDMuOTH7x13QPSZfC+611/TWUFC3CxldhMo=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <1E5B2719146AB44CB3FB15816522B144@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@lca.pw header.s=google header.b=EU8l7n5j;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=3OqG8bpvaiUhwKE/BjM7CPLdVnvy5MPJ5aI4Qoz+FGA=;
+        b=EU8l7n5jrbaWT2rnF5SCnjzHOtqGp+detg+64WnL25G/HHKCHiFxcpQjAI9iMFsUVr
+         aQznuQJq1S2biRCBSk4PlYxEgwPFOi32NJjhYXVRjG4/LHiqtoRPLb2F05y5xEwJZPDQ
+         jck9lw413exw9RYdeq2xhfp/RiqdXR+R2F8SWqH0pbo1g9bZvQwwGzxqCTUODemukeaX
+         vRr0a8oKHpzRx6LE6rkoClK+6l0lm9AACZK5xkuDi+RkyJPBpBIgtFcb8daAk2Zhieb4
+         wLvdQFoeCp5SIkjHKULM1jlarkaoVvXDsqBS9JupMhIQPE4Rv30Lek2gqF2A+AQ8AHWq
+         8WIA==
+X-Google-Smtp-Source: APXvYqwUQeZO4niaQIliUfDO/bTDu2EtxF2q3U/X8Wy4Miirz3W0LXYoWnUZnbNSCo/cbvWCXJ/p5A==
+X-Received: by 2002:a0c:afd4:: with SMTP id t20mr43584794qvc.128.1555018306182;
+        Thu, 11 Apr 2019 14:31:46 -0700 (PDT)
+Received: from Qians-MBP.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id e128sm13871914qkd.79.2019.04.11.14.31.45
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 14:31:45 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com,
+	osalvador@suse.de,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/hotplug: treat CMA pages as unmovable
+Date: Thu, 11 Apr 2019 17:31:24 -0400
+Message-Id: <20190411213124.8254-1-cai@lca.pw>
+X-Mailer: git-send-email 2.20.1 (Apple Git-117)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 2be1fb45-fde0-4020-abfc-08d6bec3ad5b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Apr 2019 21:21:35.9182
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2229
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-11_13:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 10:22:22AM -0400, Waiman Long wrote:
-> On 04/10/2019 05:38 PM, Chris Down wrote:
-> > Hi Waiman,
-> >
-> > Waiman Long writes:
-> >> The current control mechanism for memory cgroup v2 lumps all the memor=
-y
-> >> together irrespective of the type of memory objects. However, there
-> >> are cases where users may have more concern about one type of memory
-> >> usage than the others.
-> >
-> > I have concerns about this implementation, and the overall idea in
-> > general. We had per-class memory limiting in the cgroup v1 API, and it
-> > ended up really poorly, and resulted in a situation where it's really
-> > hard to compose a usable system out of it any more.
-> >
-> > A major part of the restructure in cgroup v2 has been to simplify
-> > things so that it's more easy to understand for service owners and
-> > sysadmins. This was intentional, because otherwise the system overall
-> > is hard to make into something that does what users *really* want, and
-> > users end up with a lot of confusion, misconfiguration, and generally
-> > an inability to produce a coherent system, because we've made things
-> > too hard to piece together.
-> >
-> > In general, for purposes of resource control, I'm not convinced that
-> > it makes sense to limit only one kind of memory based on prior
-> > experience with v1. Can you give a production use case where this
-> > would be a clear benefit, traded off against the increase in
-> > complexity to the API?
-> >
->=20
-> As I said in my previous email on this thread, the customer considered
-> pages cache as common goods not fully representing the "real" memory
-> footprint used by an application.=A0 Depending on actual mix of
-> applications running on a system, there are certainly cases where their
-> view is correct. In fact, what the customer is asking for is not even
-> provided by the v1 API even with that many classes of memory that you
-> can choose from.
+When offlining a memory block that contains reserved CMA areas, it will
+set those page blocks migration type as MIGRATE_ISOLATE. Then, onlining
+will set them as MIGRATE_MOVABLE. As the results, those page blocks lose
+their original types, i.e., MIGRATE_CMA, and then it causes troubles
+like accounting for CMA areas becomes inconsist,
 
-Hello Waiman!
+ # grep cma /proc/vmstat
+ nr_free_cma 205824
 
-If I understand the case correctly, the customer wants to get signaled
-when anon memory consumption will reach a certain point, right?
+ # cat /sys/kernel/debug/cma/cma-kvm_cma/count
+ 209920
 
-I doubt that the idea is to keep only the certain amount of anon memory
-resident and swap out everything else. So, probably, the reaction will
-be to kill the application.
+Also, kmemleak still think those memory address are reserved but have
+already been used by the buddy allocator after onlining.
 
-If so, do we really need a control?
-Maybe polling memory.stats::anon will be enough?
+Offlined Pages 4096
+kmemleak: Cannot insert 0xc000201f7d040008 into the object search tree
+(overlaps existing)
+Call Trace:
+[c00000003dc2faf0] [c000000000884b2c] dump_stack+0xb0/0xf4 (unreliable)
+[c00000003dc2fb30] [c000000000424fb4] create_object+0x344/0x380
+[c00000003dc2fbf0] [c0000000003d178c] __kmalloc_node+0x3ec/0x860
+[c00000003dc2fc90] [c000000000319078] kvmalloc_node+0x58/0x110
+[c00000003dc2fcd0] [c000000000484d9c] seq_read+0x41c/0x620
+[c00000003dc2fd60] [c0000000004472bc] __vfs_read+0x3c/0x70
+[c00000003dc2fd80] [c0000000004473ac] vfs_read+0xbc/0x1a0
+[c00000003dc2fdd0] [c00000000044783c] ksys_read+0x7c/0x140
+[c00000003dc2fe20] [c00000000000b108] system_call+0x5c/0x70
+kmemleak: Kernel memory leak detector disabled
+kmemleak: Object 0xc000201cc8000000 (size 13757317120):
+kmemleak:   comm "swapper/0", pid 0, jiffies 4294937297
+kmemleak:   min_count = -1
+kmemleak:   count = 0
+kmemleak:   flags = 0x5
+kmemleak:   checksum = 0
+kmemleak:   backtrace:
+     cma_declare_contiguous+0x2a4/0x3b0
+     kvm_cma_reserve+0x11c/0x134
+     setup_arch+0x300/0x3f8
+     start_kernel+0x9c/0x6e8
+     start_here_common+0x1c/0x4b0
+kmemleak: Automatic memory scanning thread ended
 
-If not, I can imagine some sort of threshold notification mechanism
-on top of memory.stats. Similar to what is build on top of psi.
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/page_alloc.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-Tracking the size of anon memory is definitely useful for spotting
-userspace leaks and spkies, so an ability to set up thresholds and get
-events sounds appealing to me.
-
-Thanks!
-
-Roman
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d96ca5bc555b..896db9241fa6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8015,14 +8015,18 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+ 	 * can still lead to having bootmem allocations in zone_movable.
+ 	 */
+ 
+-	/*
+-	 * CMA allocations (alloc_contig_range) really need to mark isolate
+-	 * CMA pageblocks even when they are not movable in fact so consider
+-	 * them movable here.
+-	 */
+-	if (is_migrate_cma(migratetype) &&
+-			is_migrate_cma(get_pageblock_migratetype(page)))
+-		return false;
++	if (is_migrate_cma(get_pageblock_migratetype(page))) {
++		/*
++		 * CMA allocations (alloc_contig_range) really need to mark
++		 * isolate CMA pageblocks even when they are not movable in fact
++		 * so consider them movable here.
++		 */
++		if (is_migrate_cma(migratetype))
++			return false;
++
++		pr_warn("page: %px is in CMA", page);
++		return true;
++	}
+ 
+ 	pfn = page_to_pfn(page);
+ 	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+-- 
+2.20.1 (Apple Git-117)
 
