@@ -2,186 +2,195 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54598C282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:20:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9EC0C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:25:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3D952146F
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:20:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8A7622146F
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 16:25:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="aqrr9mcq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3D952146F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=android.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CCrxixgm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A7622146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 931EF6B026C; Thu, 11 Apr 2019 12:20:25 -0400 (EDT)
+	id 274B36B026B; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B6CD6B026D; Thu, 11 Apr 2019 12:20:25 -0400 (EDT)
+	id 2229F6B026C; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 758CB6B026E; Thu, 11 Apr 2019 12:20:25 -0400 (EDT)
+	id 116206B026D; Thu, 11 Apr 2019 12:25:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 374126B026C
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:20:25 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f67so4552193pfh.9
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:20:25 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E3C616B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 12:25:55 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id v4so2731199vka.10
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 09:25:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=3w9TkuZHAqslrWVxIfj/pr9QdQEYv2bicep/qG+WXX8=;
-        b=gMRljEbFQg/VhcTrZ7FpqXnYocIidloB0eJdc0mV/bBs/vEw4puFhZ+loyMH7Lpspu
-         VA/5WygunIwujsk0ioFq43fQQB9TpAfzzKOucTZdV/jH6XRJZu6vxCIXKn/63gjksSVX
-         CendS/psgg5PeMHyUhwMZGXWi+QTV/nfMkd/dVeauKdNhia1HuUpgNcXIVX5wOohKRGs
-         HyyVa7UcSNhnyaHKVsxtj/NRak3rEmZeiQLq8azPEx6Tm3lmUvGK0Fyt8wW8HRxqzASl
-         GQNUTtQarkrWhlMRS3XLyss2lA4IHEpfCaMok9VJIct2Ejl3+YlNisc908SOCHkLSygU
-         WZgw==
-X-Gm-Message-State: APjAAAXp8Db7NpUvNY6Tb/+sMxjM2AJXoTeqTRA8Vse+c0F83ob0MZWX
-	PmXKrX0NGPKkiZjaDk7SOWKkUKQTUdjvSkRFYITikhwbTFUUZVc+Rf6QCgszSk3y/ZLPeG+CIeW
-	CP81hfVOraUo2Dq8G/yoXIA6No/+Jn8V5fGSRK6dhDexRkA+F/cqxFViKvBEyo62vbA==
-X-Received: by 2002:a63:530e:: with SMTP id h14mr12329646pgb.136.1554999624755;
-        Thu, 11 Apr 2019 09:20:24 -0700 (PDT)
-X-Received: by 2002:a63:530e:: with SMTP id h14mr12329576pgb.136.1554999624019;
-        Thu, 11 Apr 2019 09:20:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554999624; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
+        b=kxq163K+WH+CWyy9kc2A/+C3TlGKa/fFVlGZWh5h1EhhzoY+XEJmpN2fitjaKRtniI
+         webtltwp60fvyK55zw570+W7PyJVhIQRuj0M6peA+QU6K1DC8+qaTjOK5boGGjYpNAZd
+         A8Rag3T+cX/JuiwMPaadDV18QGgBJkWfAIFbrxR7IqXurPd6pyq9q8JxXGPcWxOw5fRu
+         i05TgjQyWg8CYSdP3Vkofh24liGCH6tobuXmA1Iy/10zzeDSrtDER6ahISh1hUozLbVW
+         sqUe9kXzDnyrH4wyCXJ9fV2eNEVpKP5KMJn1MMiKv6qVezOh1ZdtkmFVgss8rzVeB392
+         zOxw==
+X-Gm-Message-State: APjAAAUi5+V7YvD6bu8bLMl9uiO0ERSVXwY0Ng5DSv3vYKiQStowQkE5
+	/Uz/GCfdK+g7ukBSxEs7xxGJvpYFVi9eS/0p+OnWgCJXYSVZcL9oi7OmGeg3THBgv0vA0kGRKNy
+	7raBTFH0xBeQ++T/DsCajcQ3gbHJah/qSWW1rdppi7IzFNHs8++iYUffQgS7BTzXbkA==
+X-Received: by 2002:ab0:6994:: with SMTP id t20mr17033520uaq.105.1554999955438;
+        Thu, 11 Apr 2019 09:25:55 -0700 (PDT)
+X-Received: by 2002:ab0:6994:: with SMTP id t20mr17033460uaq.105.1554999954618;
+        Thu, 11 Apr 2019 09:25:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554999954; cv=none;
         d=google.com; s=arc-20160816;
-        b=n3xR8p5TKj4pLr8P9QT1QjpOIv8Tyufh6i/B42cpirTPvP5wGNKk7VKFXNNxl8TtlC
-         ykVwhopGcLjDKLdaaQ8mYu7iA/8P8A6o3MUFv44RldoYIHXK7FhBxCKvS/+Ir99PFGLs
-         hu0KMZFjyexk6xuLy/DERB2c1of73toNjhwuML81g+932UErGyXQaH9ik2t4uek6BP7U
-         9dR2PmKKm7AO1Ka91kk+Jz+j9DlK3YU2qdJYbKg4FzWWIcGaFIZIoVH/ncWmqB+7uWPq
-         t+Aw0iFkxDVV03ObIV1lQkrSr/JtdRtBW6X6tGLVI5r1Jce6TGRkd+JhQkXSOIKquSvu
-         DDUQ==
+        b=rIZcVm8c+wDEmMP+AmvDv5F6kR/sIqUBnT+HzcaujNgpzjWJJQukGJ8+45wMhrZgAf
+         c9wW5bo84G4s9JHOiUsT1HFhNT+3/zywbEBFFkxVdJ519Mkp0d5Fvv6PwTbyyG94EbeI
+         OTSgFl4W+oJBOhq02+cow9VGedxfTG7F/rXH1JIuSp6ivdo6G6yPR4NAsmfwhGCj2ooD
+         vp2J4MY/WgrDPwx0Kx3P+rXX7NoX5hZMAn2KR7HDKkS3V2w9QEV5hLwrvSaFAODDrrtM
+         4FQ9PfD06KWzzljJsshXcvIepZij1ttsOfOGbczFK4s3zEN6f3f0ZoRwVjfWj1dBSXyh
+         encQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=3w9TkuZHAqslrWVxIfj/pr9QdQEYv2bicep/qG+WXX8=;
-        b=ql9zCrGZDoRGaamMjQEp/LOwBaQsVxpftZJ93TPBOZvjYpOr22Y8YlDmNwyqDGGy3U
-         ASs3LcYHzC882nP+LxdoqBPQ81vZ0fc4pxVSDLo0IX2INkR8kNEQiYA/MUQPz3XS85s9
-         kTP2Cl1cSw2lyoduKwiHHrFlSSuOQRjQkz9QslE0O6fdEA3IqQAsnJBM9yWbbmXoKVUW
-         83fBg8NKWDQ0S3+DKteUrtlGYInR4Rju+EYgpXL8+rX7GEdHPrz7rjSHk+nSII/gA1t7
-         //SsrOPCk4z/8k58s9ludgakxk/PkUjxlix1L8rrMPaqRq4lK0P5diCPpKedNxsk3diu
-         II6Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
+        b=QRQvFydAO6HgOhgfXfoaRY/QWifSQRu2dPJ6zSRviFVpfkpzmPusHHaDz6v+Mvx2mP
+         ajZNMxCJTzPkgtCsEzR3C5TqqoIXmfNhGJgzfJGAQaOP9Bf5le3GNaVQDbXP4g341jIB
+         pcua6io+L3v6IggYmhO+LNxvbjpVv5iysNZSvkFR3oL+/6LikJMalpw5CEn/HUY4KL3w
+         8s/NPVA5tWHAe4MEcjiyH8/Td/3iAN7pqN9HgqM5KIvEU+X6ggPsXx2SIMdN9jlVDCEQ
+         ByRhlKM9FSEfiDRwR7KmTNjQi4aNdno83iOGtygcHXq0sgTeWUcDc3dvUcNCG7rcRE0d
+         +0cw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=aqrr9mcq;
-       spf=pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sspatil@android.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=CCrxixgm;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j7sor39549982pfa.29.2019.04.11.09.20.23
+        by mx.google.com with SMTPS id m14sor23928903vsk.106.2019.04.11.09.25.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Apr 2019 09:20:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 11 Apr 2019 09:25:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=aqrr9mcq;
-       spf=pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sspatil@android.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=android.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=CCrxixgm;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=android.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=3w9TkuZHAqslrWVxIfj/pr9QdQEYv2bicep/qG+WXX8=;
-        b=aqrr9mcq2AeDtB59HAIaIucdjBx2Yzk4ptZilZRNndX4ha+I/ju9YYj6Ggq9psCcEz
-         hfJ+mbRqvBmAbF1f+WvsNFsFx/SGp9HVcxK7Ubjt5dpdAcTKAm0klQaEKf/Vye2SKLMP
-         AmxCHFkVF6LGPtlspwIna02aLr9Ak/6fx+p9RNdrExRDBFEUxLgR40S24CZXf1g9nU/Z
-         rJ9uqvU/B/pldGfMkK9jbbCAZGSt+ViBEROl5PTlZAVVNcTn9wq4FzBGrcqCqdmDTLh8
-         gygeK5c51xR8R0XeR0q5qi5WCnUGLHmY5qtRS5RQy5JA0JI46557f9Co/Wvw+bBfqWnG
-         kKWA==
-X-Google-Smtp-Source: APXvYqzUPW5eM71ndUc6UDWTkzD31OKaYqK67v6v5VZ9SRY7hlz4748BeUborAx0SFYr/LSSK6DuEg==
-X-Received: by 2002:a62:69c2:: with SMTP id e185mr50470609pfc.119.1554999623683;
-        Thu, 11 Apr 2019 09:20:23 -0700 (PDT)
-Received: from localhost ([2620:0:1000:1601:3fed:2d30:9d40:70a3])
-        by smtp.gmail.com with ESMTPSA id c22sm42692365pfn.136.2019.04.11.09.20.22
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Apr 2019 09:20:23 -0700 (PDT)
-Date: Thu, 11 Apr 2019 09:20:22 -0700
-From: Sandeep Patil <sspatil@android.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Suren Baghdasaryan <surenb@google.com>, akpm@linux-foundation.org,
-	rientjes@google.com, willy@infradead.org,
-	yuzhoujian@didichuxing.com, jrdr.linux@gmail.com, guro@fb.com,
-	hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp,
-	ebiederm@xmission.com, shakeelb@google.com, christian@brauner.io,
-	minchan@kernel.org, timmurray@google.com, dancol@google.com,
-	joel@joelfernandes.org, jannh@google.com, linux-mm@kvack.org,
-	lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org,
-	kernel-team@android.com
-Subject: Re: [RFC 0/2] opportunistic memory reclaim of a killed process
-Message-ID: <20190411162022.GB124555@google.com>
-References: <20190411014353.113252-1-surenb@google.com>
- <20190411105111.GR10383@dhcp22.suse.cz>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=6URVyeJUSk4JGBhzUK/GU3l+GiR1jafukhgScONoVh8=;
+        b=CCrxixgma4yFpHCkZzUEv9SdR6N+nGl21esIDWcXQHPs/rneFFO1ER7Yy3t/O3kvF6
+         K2LjEoUEUPmyDMq7RAaPlpLis7lAfXDTS8pxT2Zch6lvz2bLr3P9wSHHS/59Wt8IM7e3
+         vaAF7DEX4jyCHQK9U0VNFdFzcxmQEtJXCsqxZh6JSoTmTVJ2MewFgXKUnHVvFZ+v2B5n
+         tRWuGsTBo0fPP3L7a3+E/yvdFYYkRjBBjxOu+SP9DjfrZSKt3XkVN4VmMzw2dIiD0KK7
+         z9GI8GwZRe/JGK8edMcgZlynAfWMd6pRwRgZtrJz3SVey2z7P1EFR2lKrHovn0GWIqj+
+         Rx8g==
+X-Google-Smtp-Source: APXvYqwqdTSlcxUw2QsTDyZA0bTXMB88+SSatujAvWzoL8vneYzf/siPNRgBheK5KubuB7JpH0/MTvYJxRsBXwuZuw4=
+X-Received: by 2002:a67:e256:: with SMTP id w22mr17217643vse.173.1554999953603;
+ Thu, 11 Apr 2019 09:25:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190411105111.GR10383@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
+ <20190411103018.tcsinifuj7klh6rp@brauner.io> <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
+ <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
+In-Reply-To: <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Thu, 11 Apr 2019 09:25:41 -0700
+Message-ID: <CAKOZuesgCpyLzs3g=RxyjBMjiMMxDbA2kOZZs3YOqOv=Ri6KgQ@mail.gmail.com>
+Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
+ process killing
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Christian Brauner <christian@brauner.io>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
+	Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
+	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
+	"Eric W. Biederman" <ebiederm@xmission.com>, Shakeel Butt <shakeelb@google.com>, 
+	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>, 
+	Daniel Colascione <dancol@google.com>, Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, 
+	linux-mm <linux-mm@kvack.org>, lsf-pc@lists.linux-foundation.org, 
+	LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@android.com>, 
+	Oleg Nesterov <oleg@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 12:51:11PM +0200, Michal Hocko wrote:
-> On Wed 10-04-19 18:43:51, Suren Baghdasaryan wrote:
-> [...]
-> > Proposed solution uses existing oom-reaper thread to increase memory
-> > reclaim rate of a killed process and to make this rate more deterministic.
-> > By no means the proposed solution is considered the best and was chosen
-> > because it was simple to implement and allowed for test data collection.
-> > The downside of this solution is that it requires additional “expedite”
-> > hint for something which has to be fast in all cases. Would be great to
-> > find a way that does not require additional hints.
-> 
-> I have to say I do not like this much. It is abusing an implementation
-> detail of the OOM implementation and makes it an official API. Also
-> there are some non trivial assumptions to be fullfilled to use the
-> current oom_reaper. First of all all the process groups that share the
-> address space have to be killed. How do you want to guarantee/implement
-> that with a simply kill to a thread/process group?
-> 
-> > Other possible approaches include:
-> > - Implementing a dedicated syscall to perform opportunistic reclaim in the
-> > context of the process waiting for the victim’s death. A natural boost
-> > bonus occurs if the waiting process has high or RT priority and is not
-> > limited by cpuset cgroup in its CPU choices.
-> > - Implement a mechanism that would perform opportunistic reclaim if it’s
-> > possible unconditionally (similar to checks in task_will_free_mem()).
-> > - Implement opportunistic reclaim that uses shrinker interface, PSI or
-> > other memory pressure indications as a hint to engage.
-> 
-> I would question whether we really need this at all? Relying on the exit
-> speed sounds like a fundamental design problem of anything that relies
-> on it.
+On Thu, Apr 11, 2019 at 8:23 AM Suren Baghdasaryan <surenb@google.com> wrote:
+> > > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
+> > > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
+> > > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
+> > > > victim process. The usage of this flag is currently limited to SIGKILL
+> > > > signal and only to privileged users.
 
-OTOH, we want to keep as many processes around as possible for recency. In which
-case, the exit path (particularly the memory reclaim) becomes critical to
-maintain interactivity for phones.
+FWIW, I like Suren's general idea, but I was thinking of a different
+way of exposing the same general functionality to userspace. The way I
+look at it, it's very useful for an auto-balancing memory system like
+Android (or, I presume, something that uses oomd) to recover memory
+*immediately* after a SIGKILL instead of waiting for the process to
+kill itself: a process's death can be delayed for a long time due to
+factors like scheduling and being blocked in various uninterruptible
+kernel-side operations. Suren's proposal is basically about pulling
+forward in time page reclaimation that would happen anyway.
 
-Android keeps processes around because cold starting applications is much
-slower than simply bringing them up from background. This obviously presents
-the problem when a background application _is_ killed, it is almost always to
-address sudden spike in memory needs by something else much more important
-and user visible. e.g. a foreground application or critical system process.
+What if we let userspace control exactly when this reclaimation
+happens? I'm imagining a new* kernel facility that basically looks
+like this. It lets lmkd determine for itself how much work the system
+should expend on reclaiming memory from dying processes.
 
-> Sure task exit might be slow, but async mm tear down is just a
-> mere optimization this is not guaranteed to really help in speading
-> things up. OOM killer uses it as a guarantee for a forward progress in a
-> finite time rather than as soon as possible.
+size_t try_reap_dying_process(
+  int pidfd,
+  int flags /* must be zero */,
+  size_t maximum_bytes_to_reap);
 
-With OOM killer, things are already really bad. When lmkd[1] kills processes,
-it is doing so to serve the immediate needs of the system while trying to
-avoid the OOM killer.
+Precondition: process is pending group-exit (someone already sent it SIGKILL)
+Postcondition: some memory reclaimed from dying process
+Invariant: doesn't sleep; stops reaping after MAXIMUM_BYTES_TO_REAP
 
+-> success: return number of bytes reaped
+-> failure: (size_t)-1
 
-- ssp
+EBUSY: couldn't get mmap_sem
+EINVAL: PIDFD isn't a pidfd or otherwise invalid arguments
+EPERM: process hasn't been send SIGKILL: try_reap_dying_process on a
+process that isn't dying is illegal
 
-1] https://android.googlesource.com/platform/system/core/+/refs/heads/master/lmkd/
+Kernel-side, try_reap_dying_process would try-acquire mmap_sem and
+just fail if it couldn't get it. Once acquired, it would release
+"easy" pages (using the same check the oom reaper uses) until it
+either ran out of pages or hit the MAXIMUM_BYTES_TO_REAP cap. The
+purpose of MAXIMUM_BYTES_TO_REAP is to let userspace bound-above the
+amount of time we spend reclaiming pages. It'd be up to userspace to
+set policy on retries, the actual value of the reap cap, the priority
+at which we run TRY_REAP_DYING_PROCESS, and so on. We return the
+number of bytes we managed to free this way so that lmkd can make an
+informed decision about what to do next, e.g., kill something else or
+wait a little while.
+
+Personally, I like th approach a bit more that recruiting the oom
+reaper through because it doesn't affect any kind of  emergency memory
+reserve permission and because it frees us from having to think about
+whether the oom reaper's thread priority is right for this particular
+job.
+
+It also occurred to me that try_reap_dying_process might make a decent
+shrinker callback. Shrinkers are there, AIUI, to reclaim memory that's
+easy to free and that's not essential for correct kernel operation.
+Usually, it's some kind of cache that meets these criteria. But the
+private pages of a dying process also meet the criteria, don't they?
+I'm imagining the shrinker just picking an arbitrary doomed (dying but
+not yet dead) process and freeing some of its pages. I know there are
+concerns about slow shrinkers causing havoc throughout the system, but
+since this shrinker would be bounded above on CPU time and would never
+block, I feel like it'd be pretty safe.
+
+* insert standard missive about system calls being cheap, but we can
+talk about the way in which we expose this functionality after we
+agree that it's a good idea generally
 
