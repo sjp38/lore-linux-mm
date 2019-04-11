@@ -2,104 +2,108 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46DDBC282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:41:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 368B0C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:44:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E94821841
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:41:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E94821841
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F1C882082E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 08:44:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1C882082E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7058A6B0010; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
+	id 8FDEB6B0269; Thu, 11 Apr 2019 04:44:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B34B6B0266; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
+	id 8ACBB6B026A; Thu, 11 Apr 2019 04:44:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 57BA46B0269; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
+	id 79DB66B026B; Thu, 11 Apr 2019 04:44:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0543D6B0010
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:41:46 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f7so2728492edi.3
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:41:45 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD856B0269
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:44:37 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w3so2730842edt.2
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 01:44:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=Hv0Tu5vKqrOSuiUXKFVHMWeUz81r+CwRL52LI/dsHVw=;
-        b=Rv9LIUcyjFl/lNhFnEMsCLdVBJGbXhrFXAqZdCB8HcP0vvtlcPKTwjmrLa2f5PMqB4
-         QqOl+pq9eNjbbFxthc/1s2LTj+A8uGDV5bklIdVpGrqMNxMKhLeJ9i1u9hm4fH0f4Bzr
-         vjbBegPT1IWJx5Nt0LuIctA7lM0VL3wTtipaNMLqdgjmqNdCmWHcs1krXRzrKL/BUB7N
-         KGWtEMsEo+Lw/gva5fSDmod3LJnvCcQXQtMegaahptchBNp59Cmpit2gi1fRCtyakToF
-         tCMiyEF+BW3yQkvTaUehUo36ecChHYBOVik/S+fXvZVGKJaipaUlGdNzslKtd8TDKkX0
-         Qt9Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAU1D4QTabQZE8vbd9ZawooFLqyR78ITsIsJ7YTNOyCuXBcXjnc8
-	a4pNew6U9XydeQHq8GHg3y7Ex5Vh9X5r2Il7ezURqsX5O89Nbjfn8r5hRFPpoufODDbwVTuIAFG
-	/jio3p8iV8r9RqEvAj2PrLi7QzCfKCYGJVdkfQDo6AWKS26ucOK8Q30mcFDYrS2U=
-X-Received: by 2002:a17:906:2481:: with SMTP id e1mr5538677ejb.22.1554972105538;
-        Thu, 11 Apr 2019 01:41:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwOFZ6+VhCKgKJmtQhKk/MQHtZncRelLSO6/YbTbEl1llvGa9jtVkZrKsSG0mLQTMLGUpp
-X-Received: by 2002:a17:906:2481:: with SMTP id e1mr5538635ejb.22.1554972104584;
-        Thu, 11 Apr 2019 01:41:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554972104; cv=none;
+        bh=nmfoATupWxetV9EcTz/sbn00BkippC4W9DWzyJJNEEE=;
+        b=PQgsN30NUBs+L5lZnODixPAPjcOtiPhu50ZdOkAxuSMlDFQ2uSSSqSpgEu+BPzEaZX
+         6HYlg/96XVhq+WxamePCpmIQYrmfU2aI7r/qwzEvfhjA7jli6a8HaDYaQMqeWVYVTawo
+         v3nQIpnVGnyBM9vUFFyqy5iiBkHw9TW7SUGF72CMVxdbF3p/Z5tlI4Qj3qqn5T/TOtUm
+         FUYq1HCrU88IQ8IkkQj4tcx1ZMkNS0EuIM8CguxggMdJWa1FMNGlNX1wehrnjo6WZSKg
+         I2pp5K2caPrkuRxWXJSeUOAJ1FPzODxVcci8ncG9oFDsSYy7pzv3DOPwhaGosUKpy0Aj
+         19GA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAWft0w0NE5rQDTQiluk8ampdeoLezPTrtWHiE1mk9QEpdwce36K
+	ZqJYh0E+3un47PuVCRos1CyGxY7johg52POalMbMy78LasP2Y9Sj9FAg/5DVSbzGoocycTUJJGu
+	NB4RoLO15KY+MBBcBjKgu0ohSvR7KauCs8eO/4zOZDUJF3k2/Mp3bBky5PkISsvBTxg==
+X-Received: by 2002:a17:906:184e:: with SMTP id w14mr27214345eje.209.1554972276701;
+        Thu, 11 Apr 2019 01:44:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyF/rGacL7dlhKSowwuGvpISmE6WVAPKVygPvhfIpZxRmMnjADZqhugP28JnDKGfCbmXeBi
+X-Received: by 2002:a17:906:184e:: with SMTP id w14mr27214315eje.209.1554972275842;
+        Thu, 11 Apr 2019 01:44:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554972275; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q3YQFrGo8R2LEeSInd94UjmcN28d2MJYmsU1IrDQk+dg2eDt7vYDaaVBYZUuBu1Lfv
-         aTsKVWdfVxNuOMKtlMomqFn9iSl6xeg1IZqJ7+li78T3yOp5p4gH8NixWIn7uN+StvmJ
-         MN6257VXYw56efF2Z60kcA6UMUZqLYGuXiQecwlQ3U0tjUbU6JGs9RtUnuiJrCAo1Xgl
-         71MvzOJHGyfj+dUAc3HWujbjuLtHU54PIipGW/uco57NzM4GGG/AMX5Ajk20oKjpGsWx
-         1Hf7nGPNPVV+5TVA7dRLZBaSinG7+xwtrPhkglKsmBoft236uBy7/rT5AFUCZ/dqod63
-         uFAg==
+        b=XuiElo3zUuI9uoSVycl4UkZvjz0uBTbj0AKAom39cT7khE7Fh39rI2o8A14ENp3MWh
+         rV3R3t/pk8Vlyb9GD5pNqweuqtQM0ZQv8RhPZPVqHfxcvfP4A0NiSoTCGTsDEaND/2ZG
+         6Z+rgBFOGpeTfutQmaGccMW54N8VDczFshqOdxWlexDQZRMWbjcHf70bgx1nE0/X4SqK
+         m8aoOW4dw6BtAxyg5u7tS9LXfjZo3n2eyLvLSA4rHG8Dri32uwAo4QNODfdQLDxz1Wtv
+         gMR3lRXy/1g58CZ6BUK9xnxRpB16R7Y4mIwAqFqgQyiFsELU5mCO5orJ5jTKSKoREFCK
+         RvCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=Hv0Tu5vKqrOSuiUXKFVHMWeUz81r+CwRL52LI/dsHVw=;
-        b=c9VIp34eU+DGibIn2FhwpPMm0waVvLRgVUV1J2mzHlaAmvpqqjGvhJcii9VdWxEzef
-         cGTAK/43x/4jrxUIrnaUo/nIG2z5M/Np84DhdfjXp5YCOodc2lQbuear6alPet8ekS9h
-         Ung//UM//7wYaWkwohJEwl6mmHNKpNme9MSavE0ort1VSpKzZDnzIKV2zoJD0oMj8n58
-         gJVzZzg/7ADCXgaxfs664bsQPUCSEfAJ+QvxOL2pHM6TYe6fEnA6hrc8T0AS+Um4c/tC
-         LfvlqjpeYzkpaBBl/dgGjGLrL52Aqu4OTFWpXTt+Lar6k3J3abcJn36wUStD7mO5LiVa
-         qvmQ==
+        bh=nmfoATupWxetV9EcTz/sbn00BkippC4W9DWzyJJNEEE=;
+        b=L6HD5PzXsIxPUnjQZkFuOtMGwmCbJauyoztWARhcm+GwDWeDjS27QsaqtoguAL0Zsh
+         5ap1MtDkMK/xq9UyH6+x3KzcRAqfEwIhG1F7qG1w9ZHN+TY8mCuAh4reC6T06sj3h4LT
+         Ul2X3jZudDXi1nNMTXGIR7IXvTBCVtuM2ZgERQ2FybDavgBziBsj6PbB5VZGjZsoePbB
+         tFwT/P7WTn9K1jgzp4ZqHjazaDYn5UMRPJniwclwFJau1t0367C4Cj7I2HW2faW2issz
+         ISjyJAggpgse3Y97X9NAtycKGoHOaPM6G2OQN8+GanuIg5CuwJKkpyZFJRBVKcOGgyx2
+         2oVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h18si3420351ede.228.2019.04.11.01.41.44
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id q16si1392630edd.40.2019.04.11.01.44.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 01:41:44 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 11 Apr 2019 01:44:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) client-ip=81.17.249.7;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B8AC1AD65;
-	Thu, 11 Apr 2019 08:41:43 +0000 (UTC)
-Date: Thu, 11 Apr 2019 10:41:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id 756C29889D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:44:35 +0000 (UTC)
+Received: (qmail 29726 invoked from network); 11 Apr 2019 08:44:35 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 11 Apr 2019 08:44:35 -0000
+Date: Thu, 11 Apr 2019 09:44:33 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Tobin C. Harding" <me@tobin.cc>, Vlastimil Babka <vbabka@suse.cz>,
+	"Tobin C. Harding" <tobin@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: Re: [PATCH] mm/memory_hotplug: Drop memory device reference after
- find_memory_block()
-Message-ID: <20190411084141.GQ10383@dhcp22.suse.cz>
-References: <20190410101455.17338-1-david@redhat.com>
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Tejun Heo <tj@kernel.org>,
+	Qian Cai <cai@lca.pw>,
+	Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 0/1] mm: Remove the SLAB allocator
+Message-ID: <20190411084433.GC18914@techsingularity.net>
+References: <20190410024714.26607-1-tobin@kernel.org>
+ <f06aaeae-28c0-9ea4-d795-418ec3362d17@suse.cz>
+ <20190410081618.GA25494@eros.localdomain>
+ <20190411075556.GO10383@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190410101455.17338-1-david@redhat.com>
+In-Reply-To: <20190411075556.GO10383@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -107,61 +111,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 10-04-19 12:14:55, David Hildenbrand wrote:
-> While current node handling is probably terribly broken for memory block
-> devices that span several nodes (only possible when added during boot,
-> and something like that should be blocked completely), properly put the
-> device reference we obtained via find_memory_block() to get the nid.
-
-The changelog could see some improvements I believe. (Half) stating
-broken status of multinode memblock is not really useful without a wider
-context so I would simply remove it. More to the point, it would be much
-better to actually describe the actual problem and the user visible
-effect.
-
-"
-d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug") has started
-using find_memory_block to get a nodeid for the beginnig of the onlined
-pfn range. The commit has missed that the memblock contains a reference
-counted object and a missing put_device will leak the kobject behind
-which ADD THE USER VISIBLE EFFECT HERE.
-"
-
-> Fixes: d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug")
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Wei Yang <richard.weiyang@gmail.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Arun KS <arunks@codeaurora.org>
-> Cc: Mathieu Malaterre <malat@debian.org>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-
-Other than that
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memory_hotplug.c | 1 +
->  1 file changed, 1 insertion(+)
+On Thu, Apr 11, 2019 at 09:55:56AM +0200, Michal Hocko wrote:
+> > > FWIW, our enterprise kernel use it (latest is 4.12 based), and openSUSE
+> > > kernels as well (with openSUSE Tumbleweed that includes latest
+> > > kernel.org stables). AFAIK we don't enable SLAB_DEBUG even in general
+> > > debug kernel flavours as it's just too slow.
+> > 
+> > Ok, so that probably already kills this.  Thanks for the response.  No
+> > flaming, no swearing, man! and they said LKML was a harsh environment ...
+> > 
+> > > IIRC last time Mel evaluated switching to SLUB, it wasn't a clear
+> > > winner, but I'll just CC him for details :)
+> > 
+> > Probably don't need to take up too much of Mel's time, if we have one
+> > user in production we have to keep it, right.
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 5eb4a4c7c21b..328878b6799d 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -854,6 +854,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->  	 */
->  	mem = find_memory_block(__pfn_to_section(pfn));
->  	nid = mem->nid;
-> +	put_device(&mem->dev);
->  
->  	/* associate pfn range with the zone */
->  	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
-> -- 
-> 2.20.1
+> Well, I wouldn't be opposed to dropping SLAB. Especially when this is
+> not a longterm stable kmalloc implementation anymore. It turned out that
+> people want to push features from SLUB back to SLAB and then we are just
+> having two featurefull allocators and double the maintenance cost.
+> 
+
+Indeed.
+
+> So as long as the performance gap is no longer there and the last data
+> from Mel (I am sorry but I cannot find a link handy) suggests that there
+> is no overall winner in benchmarks then why to keep them both?
+> 
+
+The link isn't public. It was based on kernel 5.0 but I still haven't
+gotten around to doing a proper writeup. The very short summary is that
+with the defaults, SLUB is either performance-neutral or a win versus slab
+which is a big improvement over a few years ago. It's worth noting that
+there still is a partial relianace on it using high-order pages to get
+that performance. If the max order is 0 then there are cases when SLUB
+is a loss *but* even that is not universal.  hackbench using processes
+and sockets to communicate seems to be the hardest hit when SLUB is not
+using high-order pages. This still allows the possibility that SLUB can
+degrade over time if the system gets badly enough fragmented and there
+are cases where kcompactd and fragmentation avoidance will be more active
+than it was relative to SLAB. Again, this is much better than it was a
+few years ago and I'm not aware of bug reports that point to compaction
+overhead due to SLUB.
+
+> That being said, if somebody is willing to go and benchmark both
+> allocators to confirm Mel's observations and current users of SLAB
+> can confirm their workloads do not regress either then let's just drop
+> it.
+> 
+
+Independent verification would be nice. Of particular interest would be
+a real set of networking tests on a high-speed network. The hardware in
+the test grid I use doesn't have a fast enough network for me to draw a
+reliable conclusion.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
