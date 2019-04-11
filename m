@@ -2,141 +2,151 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFFCCC282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:08:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58A99C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:10:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78650218A6
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:08:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="aETz7abn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78650218A6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 21839218AE
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 11:10:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21839218AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F17F6B0006; Thu, 11 Apr 2019 07:08:28 -0400 (EDT)
+	id B77A96B0007; Thu, 11 Apr 2019 07:10:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A00C6B0007; Thu, 11 Apr 2019 07:08:28 -0400 (EDT)
+	id B263D6B000E; Thu, 11 Apr 2019 07:10:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EAA4E6B000E; Thu, 11 Apr 2019 07:08:27 -0400 (EDT)
+	id A16E86B026D; Thu, 11 Apr 2019 07:10:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DB06B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:08:27 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x58so5228943qtc.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:08:27 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FE726B0007
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 07:10:03 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id c67so4744041qkg.5
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 04:10:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
-        b=PNd1nR0AEOmEUD1mKyOS93NM+OIB5QYSnXg8j1bB+FLoqO6OLZub8AfzDh1Gl5D2B9
-         rGffi2bgXubk5ryhp+LQIqXBktzWWcGVq3HO0CswrmbboQnhkEioYfoveISNlRn/8gq2
-         LzXZKcwB+n1y3klpO2rnhkAJHBSJWfZTJZMxlyZVvTNVCpf6MmxenDnUEiwP3XHO3xBC
-         EN105A7xSe7+zY3w6zinzWmp0ZFh1oHXnOYrEpRMuBfYikWo5i4lXiMVhEr+hyQGv0ch
-         UpmwZvoBW3xLka4Uf0rWyJw6uV+REm/RU2SH5LNMfS4ZR9waElTqq762FRnG1XQxH2Lt
-         YFrA==
-X-Gm-Message-State: APjAAAVdo53AdBEJ9/XcjBvHfMPg04VHDTGX3tOX6FEboo7lTUmjQ9B2
-	/hW1FlYSFh4a13i0MeIYzGr8zxfw1fm7m77KWkXgv48gDns04FtzYRyZCl68VQoURCjw3BzM358
-	WLo7+n1KXB2qpacPudHuUU3vAwKakLi8C4k+xuR3lMVEJSY2DbZIotWMEl6qyPFfIZA==
-X-Received: by 2002:a0c:b885:: with SMTP id y5mr40855774qvf.25.1554980907463;
-        Thu, 11 Apr 2019 04:08:27 -0700 (PDT)
-X-Received: by 2002:a0c:b885:: with SMTP id y5mr40855681qvf.25.1554980906303;
-        Thu, 11 Apr 2019 04:08:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554980906; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=I/kmvnWPqGwhEx/wx0Tfdw8YtCd3PF0otIwlvdQzFyU=;
+        b=JgbiaCLGhp7uWSZvhnsowMTOGI1LnmVpNOr97Qzjww5o+O/rO1VRqlxTfUWakZ1rTa
+         McRzKOM/rZVo34x9zMMJ1N+ZVYA7TH9Vs9oXcoihBo0NB+NjOYeHB2/Ks1mlM1eVEYA9
+         wqbOGkvXZXMwPG+NzKA1GkoB1kGuXpt7e05gXRyXu+X2EMUGUUjZudSH5JOwhMrWMZkG
+         S+xzD7Noez6aPpajH6MpGdYWptlwxrPQt/1ZpPXmdbJsRu81bMyCCfqXAsawKBxCjCqF
+         6JM37/WRylJfwkT4KG6jdQmaVbJBnVMLIXXgI9BLGmanHTmzdgU8p30/UoZKIq+8yK74
+         TXQg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXDFuvjqi7uMNNldvI/zen9K70DgiTj726MiYBxC8VqJadYmOKw
+	ThSOEnOOOJnG2kOXh3DpGkPVvky6B3LNi8OzAYwzpn46XkVEdHgz/ZOKtW36SehlfPQVrBmNNV5
+	YCtY+OfUm/JeH9s8OEMVlBr4Av9yQNWpyWrVxuFUspsts7jLfb+LJk0dWYEzcudd7Ow==
+X-Received: by 2002:a37:4dd0:: with SMTP id a199mr36664795qkb.164.1554981003310;
+        Thu, 11 Apr 2019 04:10:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyVgk2JZ2qjMRCUz276yag/EQtuLhA4SzWv+ZlYq6dSdhhcinqkxt8FDmiZP57SgFHyXoXy
+X-Received: by 2002:a37:4dd0:: with SMTP id a199mr36664733qkb.164.1554981002383;
+        Thu, 11 Apr 2019 04:10:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554981002; cv=none;
         d=google.com; s=arc-20160816;
-        b=wovjUOW6uVwbTDuiHYkfsYYBsnCbK6LgGQcxPsCdjgnzE/5R3NQDtv5gDYRoVsoc/U
-         qenUPHan8V7k6LkH9PNRPxwcc6Ytt2aWAqxW26pg1s9eAjoCE1Mwa0i6OlGfOptqFPVt
-         zVrKN+KSN/hcDvEhIXtmnoFdFTCQqUV5siMB6PZeZLGLh1UEmwtggpooU/Ze/MlxRrng
-         b0hIgANwVEt6bBaMvlUgq86XVVBqzb0VwYke/FEAwlJXwpBl8FjtAAaRG+5aeQZMRNkI
-         YmJF9eWyyb4MYM4OyyGp9Xt1tMcxWcs/pjoPZBe2Kw5XgULyP9N+21NfJ9YLRW1YL0qI
-         zFvA==
+        b=M92kv7ipi8xvu3fYf21XJ+UKtc4d7iEJSYeF6NA7UNzAsYVQqBhBbNeYOFtj+SM+Dv
+         DD/U5T1hL0+dWTovXveR9EeViASMPduxoPik2hyyN+Gaye2fgoyXIpDIqbEH2RE0YCF7
+         0F2TQvf2W3t/heHGJO0NxHjykZtreecFvhdzGparcUHcml6AC+1Rj5ECE3xbhVHVHnJ8
+         ugdReQJoyPyaCHX/6nuhwg/FMxqzZhd4219xVZlOTmVk42hXM5ChjqSYG0i8G6G1CJsu
+         MkGYXTUA6p64sJ16T3KbRsN221A35GmdiBmfvmS9tKQq4xIZTIv8CRj9IBZnHoFoNrqR
+         BxzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
-        b=0dxEeVwiKtOsPtwn394GO5KyuD7ibcCr9iefp77NkaBTLm+9ykLiSbmZVpaG2d+chD
-         5S52m67f3nDiz79mDbkOC+MN6XjNcQrpPzq5JHklGl7oBvLqxwEqr8Uo2/ZS+vM3njLi
-         a+uEMohe8shVgFAAwn/OQicJSgUeuluA/9a+O58+/6YgU7ziqcOydDmqSE3/4NigN+Oi
-         orEIgUYnx5ZklKvX4DMor0Jsjua3+B9ifx4pniSxfwQMD5wHezhsCHW+2u8zgprhgWyd
-         cZfhqqk7BPN/7CSJUfcY3cv/jxTsI+z516G1aJ8csc5AREFvh2iIYqHpLmY4qf9jCkhE
-         kLHg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=I/kmvnWPqGwhEx/wx0Tfdw8YtCd3PF0otIwlvdQzFyU=;
+        b=QD0rs8XCXyRBrFHYi3TR9j6/3RUF8fjNborIqKCLPJ3gxYLFfsphzaT61oqmaIpqJc
+         dkOSZoBO4G/FNuL9pCllejFYP1Ge92PrF+Fo+aJFTPisYyRLcBuVxqjimbOW5HLMeZOt
+         e8yb2fahFwXmdzFfOTjGVHkj/SS06zXS8c3ftnA7m34HnsqzD8sAfrFKMwsDRhYDQbuG
+         /TpNjmUlkraUVBPc3PcntDnXWbV9i1H6uW0k9F48lvDP4q9HVun6oZg8vrZYOE1CXaO0
+         yYy5WipAbV32Ca/MxMK6JQxj51kVuQmC7tyB19z3h6ScTTmXfmlIwgoTbvAt0rF3tCqr
+         pDqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=aETz7abn;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4sor52761330qtj.18.2019.04.11.04.08.25
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y14si1603470qvc.188.2019.04.11.04.10.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Apr 2019 04:08:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=aETz7abn;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=BrWL5cUJ7Q9VjCaWG7iC17HiKVbyiOuihuBRu7fgqyc=;
-        b=aETz7abniOl4e7+DOb09PavxLRotel7kJCk74Ao7xi6iXh4035rmyXLnjLc1AC7QAO
-         qmWcaPbYuO08VIlIweDHCdx2ELh+F+QAL4loRPySdpl+sE+HG2YeAgbXgprtG3jGQ/xA
-         Od3nE4KuHXRpy+ZxFDJ+Hu9Vcw7BNN1fodzWKd+1vCLx/KZpyYKvCODFl55ylKIzk3RE
-         nmElPELmiCkTB1cfq+2jSIDeJIpgNBy+LB2x030VbZQ9zzN7gniLAY1fVyMvxmEe97sV
-         I1vak7UGl6CEfNrUNZE7j0eW8p2ItVHpcY44bnK1P9N+RmCA454t7rpukGpOBYhn7eQV
-         QebA==
-X-Google-Smtp-Source: APXvYqzJI/Ye781pG1kq/AXJLXP983d6SGgYHt0QuC/1Q91EfvxZngkCINzqhN2vJqknEOb7ng8/Pw==
-X-Received: by 2002:aed:3a44:: with SMTP id n62mr42701258qte.147.1554980905245;
-        Thu, 11 Apr 2019 04:08:25 -0700 (PDT)
-Received: from Qians-MBP.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id g12sm21105028qkk.85.2019.04.11.04.08.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 04:08:24 -0700 (PDT)
-Subject: Re: [PATCH] slab: fix an infinite loop in leaks_show()
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
- iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- "Tobin C. Harding" <tobin@kernel.org>,
- Linus Torvalds <torvalds@linux-foundation.org>,
- Michal Hocko <mhocko@kernel.org>
-References: <20190411032635.10325-1-cai@lca.pw>
- <43517646-a808-bccd-a05e-1b583fc411c7@suse.cz>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <02049855-d37f-965e-12f7-f2549cae73ec@lca.pw>
-Date: Thu, 11 Apr 2019 07:08:23 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.6.1
+        Thu, 11 Apr 2019 04:10:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5D472D77F2;
+	Thu, 11 Apr 2019 11:10:01 +0000 (UTC)
+Received: from t460s.redhat.com (unknown [10.36.118.43])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B657660BF7;
+	Thu, 11 Apr 2019 11:09:56 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Oscar Salvador <osalvador@suse.de>,
+	Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>
+Subject: [PATCH v2] mm/memory_hotplug: Drop memory device reference after find_memory_block()
+Date: Thu, 11 Apr 2019 13:09:55 +0200
+Message-Id: <20190411110955.1430-1-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <43517646-a808-bccd-a05e-1b583fc411c7@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 11 Apr 2019 11:10:01 +0000 (UTC)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Right now we are using find_memory_block() to get the node id for the
+pfn range to online. We are missing to drop a reference to the memory
+block device. While the device still gets unregistered via
+device_unregister(), resulting in no user visible problem, the device is
+never released via device_release(), resulting in a memory leak. Fix
+that by properly using a put_device().
 
+Fixes: d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug")
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Arun KS <arunks@codeaurora.org>
+Cc: Mathieu Malaterre <malat@debian.org>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: Wei Yang <richard.weiyang@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ mm/memory_hotplug.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-On 4/11/19 4:20 AM, Vlastimil Babka wrote:
-> On 4/11/19 5:26 AM, Qian Cai wrote:
->> "cat /proc/slab_allocators" could hang forever on SMP machines with
->> kmemleak or object debugging enabled due to other CPUs running do_drain()
->> will keep making kmemleak_object or debug_objects_cache dirty and unable
->> to escape the first loop in leaks_show(),
-> 
-> So what if we don't remove SLAB (yet?) but start removing the debugging
-> functionality that has been broken for years and nobody noticed. I think
-> Linus already mentioned that we remove at least the
-> /proc/slab_allocators file...
-
-In my experience, 2-year isn't that long for debugging features to be silently
-broken with SLAB where kmemleak is broken for more than 4-year there. See
-92d1d07daad6 ("mm/slab.c: kmemleak no scan alien caches").
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 5eb4a4c7c21b..328878b6799d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -854,6 +854,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	 */
+ 	mem = find_memory_block(__pfn_to_section(pfn));
+ 	nid = mem->nid;
++	put_device(&mem->dev);
+ 
+ 	/* associate pfn range with the zone */
+ 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+-- 
+2.20.1
 
