@@ -2,130 +2,407 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74291C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:33:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72F05C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:34:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F43F2083E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:33:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 25A6D217D4
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:34:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OBiPuxAU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F43F2083E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZN6hgXSC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25A6D217D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AFCA06B0003; Thu, 11 Apr 2019 11:33:29 -0400 (EDT)
+	id B721B6B0003; Thu, 11 Apr 2019 11:34:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AAD596B0005; Thu, 11 Apr 2019 11:33:29 -0400 (EDT)
+	id B22516B0005; Thu, 11 Apr 2019 11:34:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 99D176B000D; Thu, 11 Apr 2019 11:33:29 -0400 (EDT)
+	id A39346B000D; Thu, 11 Apr 2019 11:34:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6E56B0003
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:33:29 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id y10so4299769pll.14
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:33:29 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 54D106B0003
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:34:45 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id h14so4089143wrr.22
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:34:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=KCh9rGSq/KL+6mqDbYpIlhQVTAEOXp0DwEg9orG5vFk=;
-        b=LU1SWXna4Bgve5TEkX8j+SN84kozr6+s17/d1UHJvtG7QKNw6XLo2+FynJgDzjKDgp
-         b5Nxa+h+YvaLoTjGo8otOL5Zn48d5z8uvlcAN5V5lyFbRW215ViYzrHXeEG7EluQmiqD
-         kdVJA+FsUXd/6Cp2imjKWoH5m5dWChWJga63bbibSxvSovTstS39AExQu/eQJtpl2RWn
-         hOhGPvoqj58huQWZzeHEJDJb5HmAkKc9yNRMqyIINgRhX04O14rqox2VmJ+8Z69+BVCU
-         EfBaLTYI3sDYjJo107TsCuhPzV8UX/0sX4mtxijqQo9y5NfRgNux7Lr4f1Qpsg5bkvZ2
-         jwMA==
-X-Gm-Message-State: APjAAAUqdKpceXH1EYjc89lNFXYZ5S9dzQ5BiMCS5X0CinDlMVKXgQrB
-	isBXdfBW2GKweBHbdzQU22IRYUTp+0oplJkS49qvAsy0vE6F3DX8wnJeER//yg7wusBUau4oI+o
-	ONpjAQVHtzR7Zu11DDKA/ToyXpvLDOd14nz5vh6HSnLJYqI40N0TjRFquYj3MvyFFjw==
-X-Received: by 2002:a63:e004:: with SMTP id e4mr48222836pgh.344.1554996808906;
-        Thu, 11 Apr 2019 08:33:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy93/h3xOdk0c1fa9qQJYP5G9iN8Q6HaE+j5dqihFpd5yHRcAdznbtX8Udp/syPX09M5HIb
-X-Received: by 2002:a63:e004:: with SMTP id e4mr48222782pgh.344.1554996808298;
-        Thu, 11 Apr 2019 08:33:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554996808; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:references
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=H8CKRiQBJrU9wnvoQVT3UbKuoETyr+5Jz1SZnQKUh/k=;
+        b=BUJ0+8/84we3Jd/yEVkxYsqphbhXYgovrIpqDypmDDhJOeHkSKVR6plGveEsaTbS7u
+         GO2h+Zcq5AI07I5DvtgSWhuy3JI2bgUTTv/zOEf0sHImxE5vdkUR16k49M5pa+pE2Z18
+         UvVdVKO9Wwsr10bAo3TYS0K6C4xNl8UAkeId/IKJStM1BY52hHb1oDuWJrwqYafAPALz
+         04/3R3HKBaswCZcp4VxaNfQGiM1WQNCG1ynnhYMCyNmVl8W1iz7CLpJrZcqdU+083bYK
+         g3EIoR10X2EX5j+pTnPjtnq09XwJLAdIgyrI4g1C30J3W/mUJOal6DniqqLTrT9nBuHg
+         0okQ==
+X-Gm-Message-State: APjAAAXN4y9XGIBxWr98j3DMjFnninagT2rN9GCnyCw+EM8cdI4H+inD
+	TXiyoIi6MZeh/DysQAuN/c2+ZIsUNZ731j76JCqCLV68COppbXocJAal5Zce+oxJkzltrXXc5ki
+	gsFhU2XBpPkn+AOXNUk5GLZBMZ0UHdqqKNYHOB1LjPOh1Q38k1oYQtXj82hsFXg+EZQ==
+X-Received: by 2002:a5d:4d42:: with SMTP id a2mr32217769wru.130.1554996884867;
+        Thu, 11 Apr 2019 08:34:44 -0700 (PDT)
+X-Received: by 2002:a5d:4d42:: with SMTP id a2mr32217684wru.130.1554996883325;
+        Thu, 11 Apr 2019 08:34:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554996883; cv=none;
         d=google.com; s=arc-20160816;
-        b=YZMh0y9/G6VX9AFhYVDWhrlzyGfkCWiOTghhkQYgpIVaSfakBe7vZWP2GeLNn/rckw
-         bwlyb7u1K9x8BQtv1+0XctwSOgolFbTrLnXM2I6d1adKbW6mZ46FDAscWxcyu50X6B4T
-         F/Z/vhKdobkO+79vNliPEc47vuwnQXf2Sq3fR5lkuJhECgdP0Je1y43zlKsymHfkUCUl
-         9CYeI200F0ocT0lmB5ram7hOlv3BySUMhA8Md5HKdYAJPUwAw1qYNU9MSg5nk6nBYlVS
-         6Q5AfDcVr2qyPZfvlShYTz1GdHWCCZFhvO06QZo80BJR9JCiabtQUsTTc7EFzIsBVTmL
-         bPiQ==
+        b=Ywl6S0BVZfqQXfd4Zm4wsac/BndewGgGJ0Z4y7d08K+cxw5Y/gyolqA40Vqi72wJuX
+         sU5hz+LjmAifjQzox/BPYn1voNemIgb9jIGY72h94h05I02fKkxtiSM9ktTTgOX9hDSL
+         N5TjQh2JwapKTtvkbKFNRLguh5VdIApNTR0i+AUToqQGSiuBDx0AlMc862Z05phjOkN4
+         dQ2OlsXXk+WDzwx1czme2qlQZfCSXHLydPoCMbXBE3m05MKqoaWK4ygC4w5IRnMjUv61
+         5fyqFSlNPgebSp1ZrFzhtdFA0ACiAfojkt2OchShJGICwryDBn7y/q9WMDmAct47MPY4
+         mDCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=KCh9rGSq/KL+6mqDbYpIlhQVTAEOXp0DwEg9orG5vFk=;
-        b=b+eya5jQXKxK5amWugoxkZocKR328egAmgp3suHLsFVEZCU2B/jEqXC6ejSwmGEqwR
-         xlu0t6WH839T00q/QO66J5J4gioi0w7/r8Ic/0P/u1fl+D8+f7ZblUGYXBY2rKkHNk2J
-         Cgs6cwaZ6NhGNeE1srPyb9mBCrpJi4rdJtEidgOuiI78W5PTp/XPy4njh7enlujmSuZZ
-         hqVgiCSbrs4AqgCZ9XcT1Ll/rnb16b345ZuYIGMwf2LzM6S93mS9ltuFBwa8ztJPJ64l
-         4xwQ01kBvGYD4qdxGJ4GbSe1+8yNVv45LWhLn07kB39Xdt3m2XRLOD4ydiyUxE/594CK
-         ykHA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject
+         :dkim-signature;
+        bh=H8CKRiQBJrU9wnvoQVT3UbKuoETyr+5Jz1SZnQKUh/k=;
+        b=RHygTOCaEaXqfaxPyNVG3RaSY9ngV8dsSOhqI0e1cHfQlPahz33RJD1vYOkkU+fuN7
+         oJpDI+azha9BNKNKzNX47TrKK8rxyvjFuo6pFJVUDwP1UqtyjrsTTWzMx+Hv2qRE36w2
+         tfnAl7JCvqs5tFbnnyRa5JgyDauq7HfOMSELrtOojIpDiHhC1nScL2PxJmfcXNwTRu9s
+         mBa9bIa87OIa7V9swi6jFrfZjAHrQKQUQG0W6dbLdCwU5rqaW9twZQ0UjnEQ3a0hKgpf
+         /GMKWXj3hHagCSKxcY9Tjk958ogNkuTEiqUND8fmVSr1iZtWARtpQA2nymRDYJQUXR9E
+         ymoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OBiPuxAU;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s9si22922009pfa.282.2019.04.11.08.33.28
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZN6hgXSC;
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t17sor14073826wru.32.2019.04.11.08.34.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Apr 2019 08:33:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 08:34:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OBiPuxAU;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=KCh9rGSq/KL+6mqDbYpIlhQVTAEOXp0DwEg9orG5vFk=; b=OBiPuxAUqmi4MzzMOAbfGUg3p
-	OsRROYl/3oMT+lqMELNrjtTdjmaVU12ZIvPy1FUKd7IaQdx3001ZjQfUwxsPDbpEpQ4t3K1anfRwb
-	mfeQVW5DYiApCBa1+F1q0ISj2o5jsPKF9RB5Qygpqo9r2RefUae3Vg7XKslgaIrXSDE4oF9unbEwM
-	61iSdWXRcAqbiynMfNqpz99f+OKBTkQruOitwbYhW77q3qFUfMCl1G4UNlsI5GFmcKgYQhr7UKH+Q
-	0CUUcg3x87CVAUNx3f6AE58umR0TooNMRd/ErVEm+IV/gev4UEn3czJF2NE7Kv61qYZrM1Bkcmzqj
-	niIdh0kKw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hEbhR-0004hT-HN; Thu, 11 Apr 2019 15:33:13 +0000
-Date: Thu, 11 Apr 2019 08:33:13 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, rientjes@google.com,
-	yuzhoujian@didichuxing.com, jrdr.linux@gmail.com, guro@fb.com,
-	hannes@cmpxchg.org, penguin-kernel@I-love.SAKURA.ne.jp,
-	ebiederm@xmission.com, shakeelb@google.com, christian@brauner.io,
-	minchan@kernel.org, timmurray@google.com, dancol@google.com,
-	joel@joelfernandes.org, jannh@google.com, linux-mm@kvack.org,
-	lsf-pc@lists.linux-foundation.org, linux-kernel@vger.kernel.org,
-	kernel-team@android.com
-Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
- process killing
-Message-ID: <20190411153313.GE22763@bombadil.infradead.org>
-References: <20190411014353.113252-1-surenb@google.com>
- <20190411014353.113252-3-surenb@google.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZN6hgXSC;
+       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:references:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=H8CKRiQBJrU9wnvoQVT3UbKuoETyr+5Jz1SZnQKUh/k=;
+        b=ZN6hgXSCtlTPbMmvp/ojwcsYK2THTdLfGjYX2Bap1YoEHgNJ1uDyGtUkwzWrt5kSrG
+         o3YCoLy4wwkDIsWuLlkZmKuVvniTOghG3qHYy7zm/3F+6fBgYmeS6wxKRpKRlbF8bEQL
+         6IdNbXP5yIoJkQi9rozhLFTOOQulS2wgq9LJLe7okPzxgOfBTMLs/8kv3UCgr+5V9gZK
+         QaGABA2/c/0TcjGkhPp8KHxECaaUYl0YMcaC44T5NnNbxHIg7zjCC5N9VDQCqFV9FtIf
+         KdsHmp9BhSnSlhvZdq5FyCl4C9HWDUo7VV2a2zI5huVnxvqFDSLr/H46KmO5/xPEYCdr
+         Psbw==
+X-Google-Smtp-Source: APXvYqwP0+fI2vXpZJYCfbxU5ppVWn4tyWRPpJ4O101dUJBwc0UoRitGEoY1DegOuYY13O2b/Ri8Vw==
+X-Received: by 2002:adf:df0f:: with SMTP id y15mr10845698wrl.175.1554996882485;
+        Thu, 11 Apr 2019 08:34:42 -0700 (PDT)
+Received: from ?IPv6:::1? (lan.nucleusys.com. [92.247.61.126])
+        by smtp.gmail.com with ESMTPSA id f11sm50072974wrm.30.2019.04.11.08.34.40
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 08:34:41 -0700 (PDT)
+Subject: [PATCH 1/4] z3fold: introduce helper functions
+From: Vitaly Wool <vitalywool@gmail.com>
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com,
+ Dan Streetman <ddstreet@ieee.org>
+References: <b86e6a5e-44d6-2c1b-879e-54a1bc671ad3@gmail.com>
+Message-ID: <0d1e978b-1701-9d46-de86-cc6b7d8934f0@gmail.com>
+Date: Thu, 11 Apr 2019 17:34:38 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190411014353.113252-3-surenb@google.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <b86e6a5e-44d6-2c1b-879e-54a1bc671ad3@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
-> Add new SS_EXPEDITE flag to be used when sending SIGKILL via
-> pidfd_send_signal() syscall to allow expedited memory reclaim of the
-> victim process. The usage of this flag is currently limited to SIGKILL
-> signal and only to privileged users.
+This patch introduces a separate helper function for object
+allocation, as well as 2 smaller helpers to add a buddy to the list
+and to get a pointer to the pool from the z3fold header. No
+functional changes here.
 
-What is the downside of doing expedited memory reclaim?  ie why not do it
-every time a process is going to die?
+Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
+---
+  mm/z3fold.c | 184 ++++++++++++++++++++++++++++------------------------
+  1 file changed, 100 insertions(+), 84 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index aee9b0b8d907..7a59875d880c 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -255,10 +255,15 @@ static enum buddy handle_to_buddy(unsigned long handle)
+  	return (handle - zhdr->first_num) & BUDDY_MASK;
+  }
+  
++static inline struct z3fold_pool *zhdr_to_pool(struct z3fold_header *zhdr)
++{
++	return zhdr->pool;
++}
++
+  static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
+  {
+  	struct page *page = virt_to_page(zhdr);
+-	struct z3fold_pool *pool = zhdr->pool;
++	struct z3fold_pool *pool = zhdr_to_pool(zhdr);
+  
+  	WARN_ON(!list_empty(&zhdr->buddy));
+  	set_bit(PAGE_STALE, &page->private);
+@@ -295,9 +300,10 @@ static void release_z3fold_page_locked_list(struct kref *ref)
+  {
+  	struct z3fold_header *zhdr = container_of(ref, struct z3fold_header,
+  					       refcount);
+-	spin_lock(&zhdr->pool->lock);
++	struct z3fold_pool *pool = zhdr_to_pool(zhdr);
++	spin_lock(&pool->lock);
+  	list_del_init(&zhdr->buddy);
+-	spin_unlock(&zhdr->pool->lock);
++	spin_unlock(&pool->lock);
+  
+  	WARN_ON(z3fold_page_trylock(zhdr));
+  	__release_z3fold_page(zhdr, true);
+@@ -349,6 +355,23 @@ static int num_free_chunks(struct z3fold_header *zhdr)
+  	return nfree;
+  }
+  
++/* Add to the appropriate unbuddied list */
++static inline void add_to_unbuddied(struct z3fold_pool *pool,
++				struct z3fold_header *zhdr)
++{
++	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0 ||
++			zhdr->middle_chunks == 0) {
++		struct list_head *unbuddied = get_cpu_ptr(pool->unbuddied);
++
++		int freechunks = num_free_chunks(zhdr);
++		spin_lock(&pool->lock);
++		list_add(&zhdr->buddy, &unbuddied[freechunks]);
++		spin_unlock(&pool->lock);
++		zhdr->cpu = smp_processor_id();
++		put_cpu_ptr(pool->unbuddied);
++	}
++}
++
+  static inline void *mchunk_memmove(struct z3fold_header *zhdr,
+  				unsigned short dst_chunk)
+  {
+@@ -406,10 +429,8 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
+  
+  static void do_compact_page(struct z3fold_header *zhdr, bool locked)
+  {
+-	struct z3fold_pool *pool = zhdr->pool;
++	struct z3fold_pool *pool = zhdr_to_pool(zhdr);
+  	struct page *page;
+-	struct list_head *unbuddied;
+-	int fchunks;
+  
+  	page = virt_to_page(zhdr);
+  	if (locked)
+@@ -430,18 +451,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
+  	}
+  
+  	z3fold_compact_page(zhdr);
+-	unbuddied = get_cpu_ptr(pool->unbuddied);
+-	fchunks = num_free_chunks(zhdr);
+-	if (fchunks < NCHUNKS &&
+-	    (!zhdr->first_chunks || !zhdr->middle_chunks ||
+-			!zhdr->last_chunks)) {
+-		/* the page's not completely free and it's unbuddied */
+-		spin_lock(&pool->lock);
+-		list_add(&zhdr->buddy, &unbuddied[fchunks]);
+-		spin_unlock(&pool->lock);
+-		zhdr->cpu = smp_processor_id();
+-	}
+-	put_cpu_ptr(pool->unbuddied);
++	add_to_unbuddied(pool, zhdr);
+  	z3fold_page_unlock(zhdr);
+  }
+  
+@@ -453,6 +463,67 @@ static void compact_page_work(struct work_struct *w)
+  	do_compact_page(zhdr, false);
+  }
+  
++/* returns _locked_ z3fold page header or NULL */
++static inline struct z3fold_header *__z3fold_alloc(struct z3fold_pool *pool,
++						size_t size, bool can_sleep)
++{
++	struct z3fold_header *zhdr = NULL;
++	struct page *page;
++	struct list_head *unbuddied;
++	int chunks = size_to_chunks(size), i;
++
++lookup:
++	/* First, try to find an unbuddied z3fold page. */
++	unbuddied = get_cpu_ptr(pool->unbuddied);
++	for_each_unbuddied_list(i, chunks) {
++		struct list_head *l = &unbuddied[i];
++
++		zhdr = list_first_entry_or_null(READ_ONCE(l),
++					struct z3fold_header, buddy);
++
++		if (!zhdr)
++			continue;
++
++		/* Re-check under lock. */
++		spin_lock(&pool->lock);
++		l = &unbuddied[i];
++		if (unlikely(zhdr != list_first_entry(READ_ONCE(l),
++						struct z3fold_header, buddy)) ||
++		    !z3fold_page_trylock(zhdr)) {
++			spin_unlock(&pool->lock);
++			zhdr = NULL;
++			put_cpu_ptr(pool->unbuddied);
++			if (can_sleep)
++				cond_resched();
++			goto lookup;
++		}
++		list_del_init(&zhdr->buddy);
++		zhdr->cpu = -1;
++		spin_unlock(&pool->lock);
++
++		page = virt_to_page(zhdr);
++		if (test_bit(NEEDS_COMPACTING, &page->private)) {
++			z3fold_page_unlock(zhdr);
++			zhdr = NULL;
++			put_cpu_ptr(pool->unbuddied);
++			if (can_sleep)
++				cond_resched();
++			goto lookup;
++		}
++
++		/*
++		 * this page could not be removed from its unbuddied
++		 * list while pool lock was held, and then we've taken
++		 * page lock so kref_put could not be called before
++		 * we got here, so it's safe to just call kref_get()
++		 */
++		kref_get(&zhdr->refcount);
++		break;
++	}
++	put_cpu_ptr(pool->unbuddied);
++
++	return zhdr;
++}
+  
+  /*
+   * API Functions
+@@ -546,7 +617,7 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+  static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+  			unsigned long *handle)
+  {
+-	int chunks = 0, i, freechunks;
++	int chunks = size_to_chunks(size);
+  	struct z3fold_header *zhdr = NULL;
+  	struct page *page = NULL;
+  	enum buddy bud;
+@@ -561,56 +632,8 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+  	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
+  		bud = HEADLESS;
+  	else {
+-		struct list_head *unbuddied;
+-		chunks = size_to_chunks(size);
+-
+-lookup:
+-		/* First, try to find an unbuddied z3fold page. */
+-		unbuddied = get_cpu_ptr(pool->unbuddied);
+-		for_each_unbuddied_list(i, chunks) {
+-			struct list_head *l = &unbuddied[i];
+-
+-			zhdr = list_first_entry_or_null(READ_ONCE(l),
+-						struct z3fold_header, buddy);
+-
+-			if (!zhdr)
+-				continue;
+-
+-			/* Re-check under lock. */
+-			spin_lock(&pool->lock);
+-			l = &unbuddied[i];
+-			if (unlikely(zhdr != list_first_entry(READ_ONCE(l),
+-					struct z3fold_header, buddy)) ||
+-			    !z3fold_page_trylock(zhdr)) {
+-				spin_unlock(&pool->lock);
+-				put_cpu_ptr(pool->unbuddied);
+-				goto lookup;
+-			}
+-			list_del_init(&zhdr->buddy);
+-			zhdr->cpu = -1;
+-			spin_unlock(&pool->lock);
+-
+-			page = virt_to_page(zhdr);
+-			if (test_bit(NEEDS_COMPACTING, &page->private)) {
+-				z3fold_page_unlock(zhdr);
+-				zhdr = NULL;
+-				put_cpu_ptr(pool->unbuddied);
+-				if (can_sleep)
+-					cond_resched();
+-				goto lookup;
+-			}
+-
+-			/*
+-			 * this page could not be removed from its unbuddied
+-			 * list while pool lock was held, and then we've taken
+-			 * page lock so kref_put could not be called before
+-			 * we got here, so it's safe to just call kref_get()
+-			 */
+-			kref_get(&zhdr->refcount);
+-			break;
+-		}
+-		put_cpu_ptr(pool->unbuddied);
+-
++retry:
++		zhdr = __z3fold_alloc(pool, size, can_sleep);
+  		if (zhdr) {
+  			if (zhdr->first_chunks == 0) {
+  				if (zhdr->middle_chunks != 0 &&
+@@ -630,8 +653,9 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+  					z3fold_page_unlock(zhdr);
+  				pr_err("No free chunks in unbuddied\n");
+  				WARN_ON(1);
+-				goto lookup;
++				goto retry;
+  			}
++			page = virt_to_page(zhdr);
+  			goto found;
+  		}
+  		bud = FIRST;
+@@ -662,8 +686,12 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+  	if (!page)
+  		return -ENOMEM;
+  
+-	atomic64_inc(&pool->pages_nr);
+  	zhdr = init_z3fold_page(page, pool);
++	if (!zhdr) {
++		__free_page(page);
++		return -ENOMEM;
++	}
++	atomic64_inc(&pool->pages_nr);
+  
+  	if (bud == HEADLESS) {
+  		set_bit(PAGE_HEADLESS, &page->private);
+@@ -680,19 +708,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+  		zhdr->middle_chunks = chunks;
+  		zhdr->start_middle = zhdr->first_chunks + ZHDR_CHUNKS;
+  	}
+-
+-	if (zhdr->first_chunks == 0 || zhdr->last_chunks == 0 ||
+-			zhdr->middle_chunks == 0) {
+-		struct list_head *unbuddied = get_cpu_ptr(pool->unbuddied);
+-
+-		/* Add to unbuddied list */
+-		freechunks = num_free_chunks(zhdr);
+-		spin_lock(&pool->lock);
+-		list_add(&zhdr->buddy, &unbuddied[freechunks]);
+-		spin_unlock(&pool->lock);
+-		zhdr->cpu = smp_processor_id();
+-		put_cpu_ptr(pool->unbuddied);
+-	}
++	add_to_unbuddied(pool, zhdr);
+  
+  headless:
+  	spin_lock(&pool->lock);
+-- 
+2.17.1
 
