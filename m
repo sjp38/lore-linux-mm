@@ -2,352 +2,151 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08395C10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:23:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 449C1C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:24:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97A782083E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:23:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="N+pgtVmh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97A782083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id F373C20449
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:24:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F373C20449
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A2866B0005; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
+	id 8BC856B0003; Thu, 11 Apr 2019 11:24:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 250A66B000D; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
+	id 8691D6B000D; Thu, 11 Apr 2019 11:24:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13F656B000E; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
+	id 7597D6B000E; Thu, 11 Apr 2019 11:24:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B5AE46B000D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:23:41 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id k4so4084891wrw.11
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:23:41 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 262E46B0003
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:24:18 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s6so3298409edr.21
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:24:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
-        b=qncDSK/SctypNO9xedvGJH+nCGMcOOXnwylpcbJ8pUQXbtd/0qbmsxbcHm/V9LnivF
-         w+GU8ghVfUxP8gqLt4MLpyU1HRLADHmXEl4Pr1vPyQO92rku4jV+QGDhM3KGqcqnC9HZ
-         wjdv0IrJpNUH4HnMYwlcBjn0WeqJZ56gRb7i2jCiFwQ21APX4ePO9RljX5nZDWP5OYax
-         2ycvsPypVlkLMmVY+jG0NKPkbWC0sd0P9dzkcMIW2/LxHFImYKBxgbgbgO6mS6gc91m+
-         rq2i4Wc1aaSSxvJMVsnDLiXtf+dNFUdRHObOKd+jIEG93WFn+ZqoaaB2XCL2trwjxChR
-         2dXw==
-X-Gm-Message-State: APjAAAVDj+O+GV8xSpOBiK7f3F9FfTDEulObtPNIsG1v+8Kvqd3uytO/
-	c4oRr73ZRMuBNKZkVAt6soACBNlZnAaN9gGgudX9iL4e2FzEBjCDDbxuotbZmbY/uKWPUlqYdhl
-	HbFRyLGcyEJqtVju+vpv+cs3E3RgjsZ74xJra/HeGa75zwBiQeA0t/RJv0gVSCMVs5Q==
-X-Received: by 2002:a5d:4987:: with SMTP id r7mr14028789wrq.280.1554996221236;
-        Thu, 11 Apr 2019 08:23:41 -0700 (PDT)
-X-Received: by 2002:a5d:4987:: with SMTP id r7mr14028734wrq.280.1554996220229;
-        Thu, 11 Apr 2019 08:23:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554996220; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=+67s+k+pvedEzDIh8ULcxnC93V9BDsvieDjsFaqYTX4=;
+        b=RsjlRvyVLGzTYyLUr/gc5TvKO28htgZQOuQ61QLSWM6cyIA+ADGwozhjOIE0usRjIO
+         ofDBGWk/BGm7Z4sGczGEkjGHt48zREdxv1GaID0OZOvjeg6nMwXw2oKiYDfrYnK+r9VM
+         PBdlNdDTgoZZsqA7SE+l6/sXv2eGqz13dhH/oiMrESvETcuTBesC9gMICde5RM7DgnFi
+         pNCBDz4UGsIeD3cFObfk2h817bWRedCmfFYtuiUos7RFcA9gpYHNeu6AOmCoYh3leX92
+         2Qedzrwgz8Dgluo40eOqBtm5Kr6dQxUzhmKf6dvKvrL0JWWq36lcAemtagPZwXUvXcYN
+         opCg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUQvyXRuPW+IKehGtXboLOBZs/itZPbxFsDwEOu/FTpd1SJ1o0a
+	TrtqPlEtwRj90goY4cYLk8Hwnbgn8kvEoeGLgvoXUHvP60oPrcUjq+wD3ozJtL0muKjMeBRx0kH
+	wK/GX/81pjSoNYtwoHgLUxsCZKj2ZyNKH8cMvHBGrZCWS3F+BEEUUygrMBOLzSbk=
+X-Received: by 2002:a50:e61a:: with SMTP id y26mr18173221edm.157.1554996257685;
+        Thu, 11 Apr 2019 08:24:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw2rpK6n6Jn+Bcb/mASMBhUYj/odgiTE/Z9z4jHu2PqhQaWfEwSd2ruaNSELi8ylaDXuJ0D
+X-Received: by 2002:a50:e61a:: with SMTP id y26mr18173185edm.157.1554996256987;
+        Thu, 11 Apr 2019 08:24:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554996256; cv=none;
         d=google.com; s=arc-20160816;
-        b=xZBN7VyY2ZeisBxWq+k4c7FaU4/Ce4lyGLWMGKI8vDblc7RxA5nO578fZ94VVXb9tn
-         2rRJJ1HurGORS0uiVWwrGHiJ/iHgQJZOgAVPAKclCZ9S9/ET34pKGdIumYG15GKuf97Z
-         Ri00o0rQIzny/mpX1kenN/GsL8fZTympMXo8ziMi6V4RGW7bBoxYZzIWUMJoQi9FwvxS
-         Jm30LesOXdh+zutkF7aTkNvhW3wGTvzkwas9h11F+d6JTI89xOMJkzV/WdrwbYlsX2hS
-         CJOJvvZwAiY6OSzIn4V/93skduJcOUIIQFoiz6gAdh01czOAZM66GtY2wpqkrplf8OqE
-         PvmQ==
+        b=RMrpJDMqB3i0Hc6Lyg3OaRX22YiVTNdLvX6/rJWWWOiEwKco6duSGqhymE3U48yKS4
+         R1gEKrhMAgzqOKirPkEUdyffH6kxczXuyAoPFD1Dp367s1W0BEzRLQTyT9JkgdxmP85R
+         fwqo2v/aEsHN0xyUwmogqro1UhuPsPnjBradj5x89TdBv2k6f0O+oGvTlkx4crMhimbF
+         5254ulX9S1x5Z2e9gRPGN+//fRnMaQ47QMRCp7q/3Jr+QBeRAUDvUsX/pCFUluNmgbb6
+         tvHfPAnfe+rvgOXHaefvg/NemoBAVa/Xx2zuTuZ8+vXyMeiuId50vvRNvniwkqXqOSwT
+         r4tQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
-        b=SrSSki+C7NSU4lAy+jTRTeXCVlab9M31++nIyhcUUxgq1nU62LI5aNfzRqbyZ0qAi+
-         WvwTtSpu4lRV6EaJp7OzPhLkWTQ8ABPUmGdsIBqlQt5jZfjUm0iDrda1F6rhY/cDf5y+
-         rl3jVBuikuuYhLuSXr7EOlAMokuaHwtslDQw0CFKETCoe9+EYGO6mdtCXrpXVFSW6QoR
-         adHQBVQVnVTi7qzfjD0v9oC5QBtHHhxJ+nTGlr9iu/dOONRyU82GbD+t7knF8Q/KTKWg
-         kd/QnNhY1DPM3znDkrBpvgE5GJ0WSuoIudnI8mdvsV/HX0VYdlgxpGJYD5KEjNJF2kgJ
-         sUUw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=+67s+k+pvedEzDIh8ULcxnC93V9BDsvieDjsFaqYTX4=;
+        b=OUEFaiWL7zrSIP1T2U5hyS37+eEPQEeIrrgcXau/vlwcdjEPuFwIdpQJHSECeirZtG
+         wZGjo/t8+O/hwi5UXEKXALl+D3oEMab7ZxeaUoG3Nsnh/OeJmULrLc2tKpFlkjCBHd8o
+         CV0nv6pujtJTHF1uziSg5DRmTaUGwqVK1Z74hUxgl0ijkBFzZIGpQUdQySxsz27DneS2
+         xwkkPtFL5DhCIc/B0HU53b5c1u8pVVh3jmmhqZ3uEq/bM/6vtz407SVWB5RnoXfQoxLW
+         kx5Bj8MGYaDDGJQp/ZZgl9vYR3DRB0ZMahhWyAPk1jKPLAJ2TbzsaDFNiNE/bqMWWbrh
+         CZkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=N+pgtVmh;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t5sor28828766wri.42.2019.04.11.08.23.40
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t25si2645276ejt.52.2019.04.11.08.24.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Apr 2019 08:23:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Apr 2019 08:24:16 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=N+pgtVmh;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
-        b=N+pgtVmhqKFzCkgQ+NY4CTMsa+qfnV2llqsdEts0dZ49XpahHdcZjDbuywdWAiUwp0
-         bxGtoUBTlW88P34cI+k2sYlqKdP2zMbDFU5QuddKPWq4F43cN2YZKqOKATf40XBaACaG
-         sb+4w9EISfkDwqaUnfqMmXoRonkpShSebn2utnaDuKXl8FDt7WVNznpJWeGiBYYMIbcx
-         WpejjMAc3qSBevJyrL2sc0tKkHQFUsFxNmE9q388pW/cW5hKGs1X6xqBSwgnTjtZ5W39
-         1BB9ondFNjx6k5lwl/A+dJ7aIRpsb/ZdXEj+kHxSyuk5f/BNoz8M6bByuRBCVzwsDWqk
-         fBVw==
-X-Google-Smtp-Source: APXvYqzv5fKa/1fVt70Uc3uWHfs/zc9TZtSJE3adSPfZvxXwtlcjTNmgcIHp8X0855lSXfifaDAaDI1qYVda6yVIeys=
-X-Received: by 2002:adf:cf0c:: with SMTP id o12mr12493109wrj.16.1554996219464;
- Thu, 11 Apr 2019 08:23:39 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 10A4CAD4C;
+	Thu, 11 Apr 2019 15:24:16 +0000 (UTC)
+Date: Thu, 11 Apr 2019 17:24:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>, Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [RFC PATCH 0/2] mm/memcontrol: Finer-grained memory control
+Message-ID: <20190411152415.GA10383@dhcp22.suse.cz>
+References: <20190410191321.9527-1-longman@redhat.com>
+ <20190410195443.GL10383@dhcp22.suse.cz>
+ <daef5f22-0bc2-a637-fa3d-833205623fb6@redhat.com>
+ <20190411151911.GZ10383@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
- <20190411103018.tcsinifuj7klh6rp@brauner.io> <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
-In-Reply-To: <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Thu, 11 Apr 2019 08:23:28 -0700
-Message-ID: <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
-Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
- process killing
-To: Christian Brauner <christian@brauner.io>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, 
-	David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
-	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, ebiederm@xmission.com, 
-	Shakeel Butt <shakeelb@google.com>, Minchan Kim <minchan@kernel.org>, 
-	Tim Murray <timmurray@google.com>, Daniel Colascione <dancol@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>, 
-	lsf-pc@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, 
-	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190411151911.GZ10383@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 8:18 AM Suren Baghdasaryan <surenb@google.com> wrote:
->
-> Thanks for the feedback!
-> Just to be clear, this implementation is used in this RFC as a
-> reference to explain the intent. To be honest I don't think it will be
-> adopted as is even if the idea survives scrutiny.
->
-> On Thu, Apr 11, 2019 at 3:30 AM Christian Brauner <christian@brauner.io> wrote:
-> >
-> > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
-> > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
-> > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
-> > > victim process. The usage of this flag is currently limited to SIGKILL
-> > > signal and only to privileged users.
-> > >
-> > > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
-> > > ---
-> > >  include/linux/sched/signal.h |  3 ++-
-> > >  include/linux/signal.h       | 11 ++++++++++-
-> > >  ipc/mqueue.c                 |  2 +-
-> > >  kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
-> > >  kernel/time/itimer.c         |  2 +-
-> > >  5 files changed, 43 insertions(+), 12 deletions(-)
-> > >
-> > > diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
-> > > index e412c092c1e8..8a227633a058 100644
-> > > --- a/include/linux/sched/signal.h
-> > > +++ b/include/linux/sched/signal.h
-> > > @@ -327,7 +327,8 @@ extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
-> > >  extern void force_sigsegv(int sig, struct task_struct *p);
-> > >  extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
-> > >  extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
-> > > -extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
-> > > +extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
-> > > +                             bool expedite);
-> > >  extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
-> > >                               const struct cred *);
-> > >  extern int kill_pgrp(struct pid *pid, int sig, int priv);
-> > > diff --git a/include/linux/signal.h b/include/linux/signal.h
-> > > index 9702016734b1..34b7852aa4a0 100644
-> > > --- a/include/linux/signal.h
-> > > +++ b/include/linux/signal.h
-> > > @@ -446,8 +446,17 @@ int __save_altstack(stack_t __user *, unsigned long);
-> > >  } while (0);
-> > >
-> > >  #ifdef CONFIG_PROC_FS
-> > > +
-> > > +/*
-> > > + * SS_FLAGS values used in pidfd_send_signal:
-> > > + *
-> > > + * SS_EXPEDITE indicates desire to expedite the operation.
-> > > + */
-> > > +#define SS_EXPEDITE  0x00000001
-> >
-> > Does this make sense as an SS_* flag?
-> > How does this relate to the signal stack?
->
-> It doesn't, so I agree that the name should be changed.
-> PIDFD_SIGNAL_EXPEDITE_MM_RECLAIM would seem appropriate.
->
-> > Is there any intention to ever use this flag with stack_t?
-> >
-> > New flags should be PIDFD_SIGNAL_*. (E.g. the thread flag will be
-> > PIDFD_SIGNAL_THREAD.)
-> > And since this is exposed to userspace in contrast to the mm internal
-> > naming it should be something more easily understandable like
-> > PIDFD_SIGNAL_MM_RECLAIM{_FASTER} or something.
-> >
-> > > +
-> > >  struct seq_file;
-> > >  extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
-> > > -#endif
-> > > +
-> > > +#endif /* CONFIG_PROC_FS */
-> > >
-> > >  #endif /* _LINUX_SIGNAL_H */
-> > > diff --git a/ipc/mqueue.c b/ipc/mqueue.c
-> > > index aea30530c472..27c66296e08e 100644
-> > > --- a/ipc/mqueue.c
-> > > +++ b/ipc/mqueue.c
-> > > @@ -720,7 +720,7 @@ static void __do_notify(struct mqueue_inode_info *info)
-> > >                       rcu_read_unlock();
-> > >
-> > >                       kill_pid_info(info->notify.sigev_signo,
-> > > -                                   &sig_i, info->notify_owner);
-> > > +                                   &sig_i, info->notify_owner, false);
-> > >                       break;
-> > >               case SIGEV_THREAD:
-> > >                       set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
-> > > diff --git a/kernel/signal.c b/kernel/signal.c
-> > > index f98448cf2def..02ed4332d17c 100644
-> > > --- a/kernel/signal.c
-> > > +++ b/kernel/signal.c
-> > > @@ -43,6 +43,7 @@
-> > >  #include <linux/compiler.h>
-> > >  #include <linux/posix-timers.h>
-> > >  #include <linux/livepatch.h>
-> > > +#include <linux/oom.h>
-> > >
-> > >  #define CREATE_TRACE_POINTS
-> > >  #include <trace/events/signal.h>
-> > > @@ -1394,7 +1395,8 @@ int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
-> > >       return success ? 0 : retval;
-> > >  }
-> > >
-> > > -int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
-> > > +int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
-> > > +                               bool expedite)
-> > >  {
-> > >       int error = -ESRCH;
-> > >       struct task_struct *p;
-> > > @@ -1402,8 +1404,17 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
-> > >       for (;;) {
-> > >               rcu_read_lock();
-> > >               p = pid_task(pid, PIDTYPE_PID);
-> > > -             if (p)
-> > > +             if (p) {
-> > >                       error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
-> > > +
-> > > +                     /*
-> > > +                      * Ignore expedite_reclaim return value, it is best
-> > > +                      * effort only.
-> > > +                      */
-> > > +                     if (!error && expedite)
-> > > +                             expedite_reclaim(p);
-> >
-> > SIGKILL will take the whole thread group down so the reclaim should make
-> > sense here.
-> >
->
-> This sounds like confirmation. I hope I'm not missing some flaw that
-> you are trying to point out.
->
-> > > +             }
-> > > +
-> > >               rcu_read_unlock();
-> > >               if (likely(!p || error != -ESRCH))
-> > >                       return error;
-> > > @@ -1420,7 +1431,7 @@ static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
-> > >  {
-> > >       int error;
-> > >       rcu_read_lock();
-> > > -     error = kill_pid_info(sig, info, find_vpid(pid));
-> > > +     error = kill_pid_info(sig, info, find_vpid(pid), false);
-> > >       rcu_read_unlock();
-> > >       return error;
-> > >  }
-> > > @@ -1487,7 +1498,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
-> > >
-> > >       if (pid > 0) {
-> > >               rcu_read_lock();
-> > > -             ret = kill_pid_info(sig, info, find_vpid(pid));
-> > > +             ret = kill_pid_info(sig, info, find_vpid(pid), false);
-> > >               rcu_read_unlock();
-> > >               return ret;
-> > >       }
-> > > @@ -1704,7 +1715,7 @@ EXPORT_SYMBOL(kill_pgrp);
-> > >
-> > >  int kill_pid(struct pid *pid, int sig, int priv)
-> > >  {
-> > > -     return kill_pid_info(sig, __si_special(priv), pid);
-> > > +     return kill_pid_info(sig, __si_special(priv), pid, false);
-> > >  }
-> > >  EXPORT_SYMBOL(kill_pid);
-> > >
-> > > @@ -3577,10 +3588,20 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
-> > >       struct pid *pid;
-> > >       kernel_siginfo_t kinfo;
-> > >
-> > > -     /* Enforce flags be set to 0 until we add an extension. */
-> > > -     if (flags)
-> > > +     /* Enforce no unknown flags. */
-> > > +     if (flags & ~SS_EXPEDITE)
-> > >               return -EINVAL;
-> > >
-> > > +     if (flags & SS_EXPEDITE) {
-> > > +             /* Enforce SS_EXPEDITE to be used with SIGKILL only. */
-> > > +             if (sig != SIGKILL)
-> > > +                     return -EINVAL;
-> >
-> > Not super fond of this being a SIGKILL specific flag but I get why.
->
-> Understood. I was thinking that EXPEDITE flag might make sense for
-> other signals in the future but from internal feedback sounds like if
-> we go this way the flag name should be more specific.
->
-> > > +
-> > > +             /* Limit expedited killing to privileged users only. */
-> > > +             if (!capable(CAP_SYS_NICE))
-> > > +                     return -EPERM;
-> >
-> > Do you have a specific (DOS or other) attack vector in mind that renders
-> > ns_capable unsuitable?
-> >
+On Thu 11-04-19 17:19:11, Michal Hocko wrote:
+> On Thu 11-04-19 10:02:16, Waiman Long wrote:
+> > On 04/10/2019 03:54 PM, Michal Hocko wrote:
+> > > On Wed 10-04-19 15:13:19, Waiman Long wrote:
+> > >> The current control mechanism for memory cgroup v2 lumps all the memory
+> > >> together irrespective of the type of memory objects. However, there
+> > >> are cases where users may have more concern about one type of memory
+> > >> usage than the others.
+> > >>
+> > >> We have customer request to limit memory consumption on anonymous memory
+> > >> only as they said the feature was available in other OSes like Solaris.
+> > > Please be more specific about a usecase.
+> > 
+> > From that customer's point of view, page cache is more like common goods
+> > that can typically be shared by a number of different groups. Depending
+> > on which groups touch the pages first, it is possible that most of those
+> > pages can be disproportionately attributed to one group than the others.
+> > Anonymous memory, on the other hand, are not shared and so can more
+> > correctly represent the memory footprint of an application. Of course,
+> > there are certainly cases where an application can have large private
+> > files that can consume a lot of cache pages. These are probably not the
+> > case for the applications used by that customer.
+> 
+> So you are essentially interested in the page cache limiting, right?
+> This has been proposed several times already and always rejected because
+> this is not a good idea.
 
-Missed this one. I was thinking of oom-reaper thread as a limited
-system resource (one thread which maintains a kill list and reaps
-process mms one at a time) and therefore should be protected from
-abuse.
+OK, so after reading other responses I've realized that I've
+misunderstood your intention. You are really interested in the anon
+memory limiting. But my objection still holds! I would like to hear much
+more specific usecases. Is the page cache such a precious resource it
+cannot be refaulted? With the storage speed these days I am quite not
+sure. Also there is always way to delegate page cache pre-faulting to a
+dedicated cgroup with a low limit protection if _some_ pagecache is
+really important.
 
-> > > +     }
-> > > +
-> > >       f = fdget_raw(pidfd);
-> > >       if (!f.file)
-> > >               return -EBADF;
-> > > @@ -3614,7 +3635,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
-> > >               prepare_kill_siginfo(sig, &kinfo);
-> > >       }
-> > >
-> > > -     ret = kill_pid_info(sig, &kinfo, pid);
-> > > +     ret = kill_pid_info(sig, &kinfo, pid, (flags & SS_EXPEDITE) != 0);
-> > >
-> > >  err:
-> > >       fdput(f);
-> > > diff --git a/kernel/time/itimer.c b/kernel/time/itimer.c
-> > > index 02068b2d5862..c926483cdb53 100644
-> > > --- a/kernel/time/itimer.c
-> > > +++ b/kernel/time/itimer.c
-> > > @@ -140,7 +140,7 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
-> > >       struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
-> > >
-> > >       trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
-> > > -     kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
-> > > +     kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid, false);
-> > >
-> > >       return HRTIMER_NORESTART;
-> > >  }
-> > > --
-> > > 2.21.0.392.gf8f6787159e-goog
-> > >
+-- 
+Michal Hocko
+SUSE Labs
 
