@@ -2,227 +2,352 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88FCAC10F13
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:21:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08395C10F13
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:23:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F8692083E
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:21:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F8692083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 97A782083E
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 15:23:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="N+pgtVmh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97A782083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D51926B0005; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
+	id 2A2866B0005; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFF686B000D; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
+	id 250A66B000D; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B7BC06B000E; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
+	id 13F656B000E; Thu, 11 Apr 2019 11:23:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 76BD16B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:21:13 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id f14so4589316pgf.12
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:21:13 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B5AE46B000D
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 11:23:41 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id k4so4084891wrw.11
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 08:23:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=mDfoE6wE+iHLLf4Ng64SszcGcnad8zY7Z2JToZcJlWM=;
-        b=E+lOMrwqiW2XKu6Vho8uMWrpdq2MaNng/4qQKN3YkmTzCLGBzxUWbtVEMrcIL5Kc73
-         3eWX4KEMAV27LnVC1sUpGkdL66QApoXRz00UBDKMW3oq6M8twL9UgQoAgORZGzqycFZk
-         pCvSFXVJC4+zldq/HcYzlOCJRcLYwFDxy4bBHiIldIZ177HdTR413iIS8QSBe9M2pZy1
-         rGIUQWAQUEuOPr6o+wLhH8g5BcrIbZ1LLheLRp5dES9EgYfYxF9rI/rfq8WOym1zECHn
-         VOn4I5GiN7IO8jTrV9x4xVhOW7jCWt5JOZ8qZX/17qc5ttCuOQh/hJPtmUeSAzId6oZM
-         CRHA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUfGSJ+cgfv/SL49C3dkItjJAOkaiDVvjl6b9Jm1MujhFUuHOlG
-	3PUFkm5+D+LTs29BGRXEhXOBsjC1gxoDkieC06pufbCYef+jMvQ9J0pZSSI0MdIAHZxQ/Fg+aPJ
-	HuGQo1I5k34m9IEwsEcwoHJ8gUotWoA1sbZ/9RsGbdM8SQl4rITbZSKsv3tp8SWo5Gg==
-X-Received: by 2002:a65:5106:: with SMTP id f6mr46838617pgq.253.1554996073020;
-        Thu, 11 Apr 2019 08:21:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzmULY2G5tMQchJQGWA5UGu7+ZgAcir5h1wlwQF7hQIa8BDGyhbBgZlUfK7wrBv3pE9xd9X
-X-Received: by 2002:a65:5106:: with SMTP id f6mr46838524pgq.253.1554996072057;
-        Thu, 11 Apr 2019 08:21:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554996072; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
+        b=qncDSK/SctypNO9xedvGJH+nCGMcOOXnwylpcbJ8pUQXbtd/0qbmsxbcHm/V9LnivF
+         w+GU8ghVfUxP8gqLt4MLpyU1HRLADHmXEl4Pr1vPyQO92rku4jV+QGDhM3KGqcqnC9HZ
+         wjdv0IrJpNUH4HnMYwlcBjn0WeqJZ56gRb7i2jCiFwQ21APX4ePO9RljX5nZDWP5OYax
+         2ycvsPypVlkLMmVY+jG0NKPkbWC0sd0P9dzkcMIW2/LxHFImYKBxgbgbgO6mS6gc91m+
+         rq2i4Wc1aaSSxvJMVsnDLiXtf+dNFUdRHObOKd+jIEG93WFn+ZqoaaB2XCL2trwjxChR
+         2dXw==
+X-Gm-Message-State: APjAAAVDj+O+GV8xSpOBiK7f3F9FfTDEulObtPNIsG1v+8Kvqd3uytO/
+	c4oRr73ZRMuBNKZkVAt6soACBNlZnAaN9gGgudX9iL4e2FzEBjCDDbxuotbZmbY/uKWPUlqYdhl
+	HbFRyLGcyEJqtVju+vpv+cs3E3RgjsZ74xJra/HeGa75zwBiQeA0t/RJv0gVSCMVs5Q==
+X-Received: by 2002:a5d:4987:: with SMTP id r7mr14028789wrq.280.1554996221236;
+        Thu, 11 Apr 2019 08:23:41 -0700 (PDT)
+X-Received: by 2002:a5d:4987:: with SMTP id r7mr14028734wrq.280.1554996220229;
+        Thu, 11 Apr 2019 08:23:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554996220; cv=none;
         d=google.com; s=arc-20160816;
-        b=n4zm68Z7M98xmyMdl3WbM2bj8uAH9N8+gzXIW4an7V3UcQJJhWqDhM1xE2+yLZIDJO
-         hY46xqmRwpzr1uITmOkyJ98oe5Z5PvmMZ+B5y5uHWoBWZSCs452s5eJiOqMWpfzAQMiJ
-         AwxMT+LSYW3QNZzRrCIQUXbbfR1nR3C8IzpnXIvw7uCDsFF3ykfj01I039wuAlx+Z9lJ
-         wel5V8Ao8uX+IchWBEkjfNizNN4v2gPrNUPs1vlrfBjmHtVAX77UHqfMfGNmlYXdQ9Oq
-         8VXqEWZEd7EjRZusly55FNRduRu4+rH0xYvJt7IsWZ6dwh/GEdZXWPuEvEDj/aoA7a0x
-         jhcA==
+        b=xZBN7VyY2ZeisBxWq+k4c7FaU4/Ce4lyGLWMGKI8vDblc7RxA5nO578fZ94VVXb9tn
+         2rRJJ1HurGORS0uiVWwrGHiJ/iHgQJZOgAVPAKclCZ9S9/ET34pKGdIumYG15GKuf97Z
+         Ri00o0rQIzny/mpX1kenN/GsL8fZTympMXo8ziMi6V4RGW7bBoxYZzIWUMJoQi9FwvxS
+         Jm30LesOXdh+zutkF7aTkNvhW3wGTvzkwas9h11F+d6JTI89xOMJkzV/WdrwbYlsX2hS
+         CJOJvvZwAiY6OSzIn4V/93skduJcOUIIQFoiz6gAdh01czOAZM66GtY2wpqkrplf8OqE
+         PvmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=mDfoE6wE+iHLLf4Ng64SszcGcnad8zY7Z2JToZcJlWM=;
-        b=H4bVTOg+PCHWI/if0ZaXDqLY53D1ahYAWniKapQra3fTGnydpMeNgg+0qX15FGzANC
-         6dkVhZjW2bIUxijVGydOtwJWOrkVD/YAto9hQNxlFa9rHYZM/uIsg8M4XvccI4vr3q9A
-         hYoe/BLY5y3Rht0a7iBTJjFBquHD5NrH/q9TWA9j8NQ6ekmd1fRCwVyWcHVPWI0Fdlkt
-         7rhFus12dHUH30FUHKhXP9fjtxCYyYSfKc7jAB0jCXOs2UHltiapb2hh2vX/lglqo2mZ
-         2Ot0V5feA5WVjTfFMpO6S9ffXiyaslWxBsje5FTSZDBYr2I7H/wTHBzIH1nGeCfWio9y
-         jtMg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
+        b=SrSSki+C7NSU4lAy+jTRTeXCVlab9M31++nIyhcUUxgq1nU62LI5aNfzRqbyZ0qAi+
+         WvwTtSpu4lRV6EaJp7OzPhLkWTQ8ABPUmGdsIBqlQt5jZfjUm0iDrda1F6rhY/cDf5y+
+         rl3jVBuikuuYhLuSXr7EOlAMokuaHwtslDQw0CFKETCoe9+EYGO6mdtCXrpXVFSW6QoR
+         adHQBVQVnVTi7qzfjD0v9oC5QBtHHhxJ+nTGlr9iu/dOONRyU82GbD+t7knF8Q/KTKWg
+         kd/QnNhY1DPM3znDkrBpvgE5GJ0WSuoIudnI8mdvsV/HX0VYdlgxpGJYD5KEjNJF2kgJ
+         sUUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id cn16si36719923plb.174.2019.04.11.08.21.11
+       dkim=pass header.i=@google.com header.s=20161025 header.b=N+pgtVmh;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t5sor28828766wri.42.2019.04.11.08.23.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 08:21:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 08:23:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Apr 2019 08:21:11 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,337,1549958400"; 
-   d="scan'208";a="150001000"
-Received: from fmsmsx108.amr.corp.intel.com ([10.18.124.206])
-  by orsmga002.jf.intel.com with ESMTP; 11 Apr 2019 08:21:10 -0700
-Received: from fmsmsx102.amr.corp.intel.com (10.18.124.200) by
- FMSMSX108.amr.corp.intel.com (10.18.124.206) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 11 Apr 2019 08:21:10 -0700
-Received: from crsmsx152.amr.corp.intel.com (172.18.7.35) by
- FMSMSX102.amr.corp.intel.com (10.18.124.200) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 11 Apr 2019 08:21:10 -0700
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.94]) by
- CRSMSX152.amr.corp.intel.com ([169.254.5.30]) with mapi id 14.03.0415.000;
- Thu, 11 Apr 2019 09:21:08 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: Jerome Glisse <jglisse@redhat.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Andrew
- Morton" <akpm@linux-foundation.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, =?utf-8?B?Q2hyaXN0aWFuIEvDtm5pZw==?=
-	<christian.koenig@amd.com>, Joonas Lahtinen
-	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
-	"Vivi, Rodrigo" <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, "Andrea
- Arcangeli" <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, "Felix
- Kuehling" <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross
- Zwisler <zwisler@kernel.org>, "Williams, Dan J" <dan.j.williams@intel.com>,
-	Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?UmFkaW0gS3JjbcOhcg==?=
-	<rkrcmar@redhat.com>, Michal Hocko <mhocko@kernel.org>, Ralph Campbell
-	<rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>,
-	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Arnd Bergmann
-	<arnd@arndb.de>
-Subject: RE: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
- mmu notifier is happening v2
-Thread-Topic: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
- mmu notifier is happening v2
-Thread-Index: AQHU4/PFtHRclNkri06P8CLyl5padqY2FSUAgAFwOYD//6KRwA==
-Date: Thu, 11 Apr 2019 15:21:08 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79CAEBED@CRSMSX101.amr.corp.intel.com>
-References: <20190326164747.24405-1-jglisse@redhat.com>
- <20190326164747.24405-8-jglisse@redhat.com>
- <20190410234124.GE22989@iweiny-DESK2.sc.intel.com>
- <20190411143918.GA4266@redhat.com>
-In-Reply-To: <20190411143918.GA4266@redhat.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiZTIzYTJjZWEtN2Y0Ny00ODRjLWI0NzMtN2NlZWUzYTMwMTkwIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiMlZwYlpvSEpNQUFhMktBbHZjV2hEcFFMUXEzNXF6K1RWUGRpeHRqNDZ3WUl3V2ZxM3lKSUp3YlZtZjI0eVBDYiJ9
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@google.com header.s=20161025 header.b=N+pgtVmh;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=UdAJkMy+tyPKO1fF8jH2yE0+CVFYEsqq0+7BzXN+Frs=;
+        b=N+pgtVmhqKFzCkgQ+NY4CTMsa+qfnV2llqsdEts0dZ49XpahHdcZjDbuywdWAiUwp0
+         bxGtoUBTlW88P34cI+k2sYlqKdP2zMbDFU5QuddKPWq4F43cN2YZKqOKATf40XBaACaG
+         sb+4w9EISfkDwqaUnfqMmXoRonkpShSebn2utnaDuKXl8FDt7WVNznpJWeGiBYYMIbcx
+         WpejjMAc3qSBevJyrL2sc0tKkHQFUsFxNmE9q388pW/cW5hKGs1X6xqBSwgnTjtZ5W39
+         1BB9ondFNjx6k5lwl/A+dJ7aIRpsb/ZdXEj+kHxSyuk5f/BNoz8M6bByuRBCVzwsDWqk
+         fBVw==
+X-Google-Smtp-Source: APXvYqzv5fKa/1fVt70Uc3uWHfs/zc9TZtSJE3adSPfZvxXwtlcjTNmgcIHp8X0855lSXfifaDAaDI1qYVda6yVIeys=
+X-Received: by 2002:adf:cf0c:: with SMTP id o12mr12493109wrj.16.1554996219464;
+ Thu, 11 Apr 2019 08:23:39 -0700 (PDT)
 MIME-Version: 1.0
+References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
+ <20190411103018.tcsinifuj7klh6rp@brauner.io> <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
+In-Reply-To: <CAJuCfpE4BsUHUZp_5XzSYrXbampFwOZoJ-XYp2iZtT6vqSEruQ@mail.gmail.com>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Thu, 11 Apr 2019 08:23:28 -0700
+Message-ID: <CAJuCfpFb-PtqdxbGeMLwycL1TvQs6q++M=Re1Yrw=J38y8qo1w@mail.gmail.com>
+Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
+ process killing
+To: Christian Brauner <christian@brauner.io>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, 
+	David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
+	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, ebiederm@xmission.com, 
+	Shakeel Butt <shakeelb@google.com>, Minchan Kim <minchan@kernel.org>, 
+	Tim Murray <timmurray@google.com>, Daniel Colascione <dancol@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>, 
+	lsf-pc@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, 
+	kernel-team <kernel-team@android.com>, Oleg Nesterov <oleg@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBXZWQsIEFwciAxMCwgMjAxOSBhdCAwNDo0MTo1N1BNIC0wNzAwLCBJcmEgV2Vpbnkgd3Jv
-dGU6DQo+ID4gT24gVHVlLCBNYXIgMjYsIDIwMTkgYXQgMTI6NDc6NDZQTSAtMDQwMCwgSmVyb21l
-IEdsaXNzZSB3cm90ZToNCj4gPiA+IEZyb206IErDqXLDtG1lIEdsaXNzZSA8amdsaXNzZUByZWRo
-YXQuY29tPg0KPiA+ID4NCj4gPiA+IENQVSBwYWdlIHRhYmxlIHVwZGF0ZSBjYW4gaGFwcGVucyBm
-b3IgbWFueSByZWFzb25zLCBub3Qgb25seSBhcyBhDQo+ID4gPiByZXN1bHQgb2YgYSBzeXNjYWxs
-IChtdW5tYXAoKSwgbXByb3RlY3QoKSwgbXJlbWFwKCksIG1hZHZpc2UoKSwgLi4uKQ0KPiA+ID4g
-YnV0IGFsc28gYXMgYSByZXN1bHQgb2Yga2VybmVsIGFjdGl2aXRpZXMgKG1lbW9yeSBjb21wcmVz
-c2lvbiwNCj4gPiA+IHJlY2xhaW0sIG1pZ3JhdGlvbiwgLi4uKS4NCj4gPiA+DQo+ID4gPiBVc2Vy
-cyBvZiBtbXUgbm90aWZpZXIgQVBJIHRyYWNrIGNoYW5nZXMgdG8gdGhlIENQVSBwYWdlIHRhYmxl
-IGFuZA0KPiA+ID4gdGFrZSBzcGVjaWZpYyBhY3Rpb24gZm9yIHRoZW0uIFdoaWxlIGN1cnJlbnQg
-QVBJIG9ubHkgcHJvdmlkZSByYW5nZQ0KPiA+ID4gb2YgdmlydHVhbCBhZGRyZXNzIGFmZmVjdGVk
-IGJ5IHRoZSBjaGFuZ2UsIG5vdCB3aHkgdGhlIGNoYW5nZXMgaXMNCj4gPiA+IGhhcHBlbmluZw0K
-PiA+ID4NCj4gPiA+IFRoaXMgcGF0Y2ggaXMganVzdCBwYXNzaW5nIGRvd24gdGhlIG5ldyBpbmZv
-cm1hdGlvbnMgYnkgYWRkaW5nIGl0IHRvDQo+ID4gPiB0aGUgbW11X25vdGlmaWVyX3JhbmdlIHN0
-cnVjdHVyZS4NCj4gPiA+DQo+ID4gPiBDaGFuZ2VzIHNpbmNlIHYxOg0KPiA+ID4gICAgIC0gSW5p
-dGlhbGl6ZSBmbGFncyBmaWVsZCBmcm9tIG1tdV9ub3RpZmllcl9yYW5nZV9pbml0KCkNCj4gPiA+
-IGFyZ3VtZW50cw0KPiA+ID4NCj4gPiA+IFNpZ25lZC1vZmYtYnk6IErDqXLDtG1lIEdsaXNzZSA8
-amdsaXNzZUByZWRoYXQuY29tPg0KPiA+ID4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgt
-Zm91bmRhdGlvbi5vcmc+DQo+ID4gPiBDYzogbGludXgtbW1Aa3ZhY2sub3JnDQo+ID4gPiBDYzog
-Q2hyaXN0aWFuIEvDtm5pZyA8Y2hyaXN0aWFuLmtvZW5pZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IEpv
-b25hcyBMYWh0aW5lbiA8am9vbmFzLmxhaHRpbmVuQGxpbnV4LmludGVsLmNvbT4NCj4gPiA+IENj
-OiBKYW5pIE5pa3VsYSA8amFuaS5uaWt1bGFAbGludXguaW50ZWwuY29tPg0KPiA+ID4gQ2M6IFJv
-ZHJpZ28gVml2aSA8cm9kcmlnby52aXZpQGludGVsLmNvbT4NCj4gPiA+IENjOiBKYW4gS2FyYSA8
-amFja0BzdXNlLmN6Pg0KPiA+ID4gQ2M6IEFuZHJlYSBBcmNhbmdlbGkgPGFhcmNhbmdlQHJlZGhh
-dC5jb20+DQo+ID4gPiBDYzogUGV0ZXIgWHUgPHBldGVyeEByZWRoYXQuY29tPg0KPiA+ID4gQ2M6
-IEZlbGl4IEt1ZWhsaW5nIDxGZWxpeC5LdWVobGluZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IEphc29u
-IEd1bnRob3JwZSA8amdnQG1lbGxhbm94LmNvbT4NCj4gPiA+IENjOiBSb3NzIFp3aXNsZXIgPHp3
-aXNsZXJAa2VybmVsLm9yZz4NCj4gPiA+IENjOiBEYW4gV2lsbGlhbXMgPGRhbi5qLndpbGxpYW1z
-QGludGVsLmNvbT4NCj4gPiA+IENjOiBQYW9sbyBCb256aW5pIDxwYm9uemluaUByZWRoYXQuY29t
-Pg0KPiA+ID4gQ2M6IFJhZGltIEtyxI1tw6HFmSA8cmtyY21hckByZWRoYXQuY29tPg0KPiA+ID4g
-Q2M6IE1pY2hhbCBIb2NrbyA8bWhvY2tvQGtlcm5lbC5vcmc+DQo+ID4gPiBDYzogQ2hyaXN0aWFu
-IEtvZW5pZyA8Y2hyaXN0aWFuLmtvZW5pZ0BhbWQuY29tPg0KPiA+ID4gQ2M6IFJhbHBoIENhbXBi
-ZWxsIDxyY2FtcGJlbGxAbnZpZGlhLmNvbT4NCj4gPiA+IENjOiBKb2huIEh1YmJhcmQgPGpodWJi
-YXJkQG52aWRpYS5jb20+DQo+ID4gPiBDYzoga3ZtQHZnZXIua2VybmVsLm9yZw0KPiA+ID4gQ2M6
-IGRyaS1kZXZlbEBsaXN0cy5mcmVlZGVza3RvcC5vcmcNCj4gPiA+IENjOiBsaW51eC1yZG1hQHZn
-ZXIua2VybmVsLm9yZw0KPiA+ID4gQ2M6IEFybmQgQmVyZ21hbm4gPGFybmRAYXJuZGIuZGU+DQo+
-ID4gPiAtLS0NCj4gPiA+ICBpbmNsdWRlL2xpbnV4L21tdV9ub3RpZmllci5oIHwgNiArKysrKy0N
-Cj4gPiA+ICAxIGZpbGUgY2hhbmdlZCwgNSBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+
-ID4gPg0KPiA+ID4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvbW11X25vdGlmaWVyLmgNCj4g
-PiA+IGIvaW5jbHVkZS9saW51eC9tbXVfbm90aWZpZXIuaCBpbmRleCA2MmY5NGNkODU0NTUuLjAz
-Nzk5NTZmZmYyMw0KPiA+ID4gMTAwNjQ0DQo+ID4gPiAtLS0gYS9pbmNsdWRlL2xpbnV4L21tdV9u
-b3RpZmllci5oDQo+ID4gPiArKysgYi9pbmNsdWRlL2xpbnV4L21tdV9ub3RpZmllci5oDQo+ID4g
-PiBAQCAtNTgsMTAgKzU4LDEyIEBAIHN0cnVjdCBtbXVfbm90aWZpZXJfbW0geyAgI2RlZmluZQ0K
-PiA+ID4gTU1VX05PVElGSUVSX1JBTkdFX0JMT0NLQUJMRSAoMSA8PCAwKQ0KPiA+ID4NCj4gPiA+
-ICBzdHJ1Y3QgbW11X25vdGlmaWVyX3JhbmdlIHsNCj4gPiA+ICsJc3RydWN0IHZtX2FyZWFfc3Ry
-dWN0ICp2bWE7DQo+ID4gPiAgCXN0cnVjdCBtbV9zdHJ1Y3QgKm1tOw0KPiA+ID4gIAl1bnNpZ25l
-ZCBsb25nIHN0YXJ0Ow0KPiA+ID4gIAl1bnNpZ25lZCBsb25nIGVuZDsNCj4gPiA+ICAJdW5zaWdu
-ZWQgZmxhZ3M7DQo+ID4gPiArCWVudW0gbW11X25vdGlmaWVyX2V2ZW50IGV2ZW50Ow0KPiA+ID4g
-IH07DQo+ID4gPg0KPiA+ID4gIHN0cnVjdCBtbXVfbm90aWZpZXJfb3BzIHsNCj4gPiA+IEBAIC0z
-NjMsMTAgKzM2NSwxMiBAQCBzdGF0aWMgaW5saW5lIHZvaWQNCj4gbW11X25vdGlmaWVyX3Jhbmdl
-X2luaXQgKHN0cnVjdCBtbXVfbm90aWZpZXJfcmFuZ2UgKnJhbmdlLA0KPiA+ID4gIAkJCQkJICAg
-dW5zaWduZWQgbG9uZyBzdGFydCwNCj4gPiA+ICAJCQkJCSAgIHVuc2lnbmVkIGxvbmcgZW5kKQ0K
-PiA+ID4gIHsNCj4gPiA+ICsJcmFuZ2UtPnZtYSA9IHZtYTsNCj4gPiA+ICsJcmFuZ2UtPmV2ZW50
-ID0gZXZlbnQ7DQo+ID4gPiAgCXJhbmdlLT5tbSA9IG1tOw0KPiA+ID4gIAlyYW5nZS0+c3RhcnQg
-PSBzdGFydDsNCj4gPiA+ICAJcmFuZ2UtPmVuZCA9IGVuZDsNCj4gPiA+IC0JcmFuZ2UtPmZsYWdz
-ID0gMDsNCj4gPiA+ICsJcmFuZ2UtPmZsYWdzID0gZmxhZ3M7DQo+ID4NCj4gPiBXaGljaCBvZiB0
-aGUgInVzZXIgcGF0Y2ggc2V0cyIgdXNlcyB0aGUgbmV3IGZsYWdzPw0KPiA+DQo+ID4gSSdtIG5v
-dCBzZWVpbmcgdGhhdCB1c2VyIHlldC4gIEluIGdlbmVyYWwgSSBkb24ndCBzZWUgYW55dGhpbmcg
-d3JvbmcNCj4gPiB3aXRoIHRoZSBzZXJpZXMgYW5kIEkgbGlrZSB0aGUgaWRlYSBvZiB0ZWxsaW5n
-IGRyaXZlcnMgd2h5IHRoZSBpbnZhbGlkYXRlIGhhcw0KPiBmaXJlZC4NCj4gPg0KPiA+IEJ1dCBp
-cyB0aGUgZmxhZ3MgYSBmdXR1cmUgZmVhdHVyZT8NCj4gPg0KPiANCj4gSSBiZWxpZXZlIHRoZSBs
-aW5rIHdlcmUgaW4gdGhlIGNvdmVyOg0KPiANCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTkv
-MS8yMy84MzMNCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTkvMS8yMy84MzQNCj4gaHR0cHM6
-Ly9sa21sLm9yZy9sa21sLzIwMTkvMS8yMy84MzINCj4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIw
-MTkvMS8yMy84MzENCj4gDQo+IEkgaGF2ZSBtb3JlIGNvbWluZyBmb3IgSE1NIGJ1dCBpIGFtIHdh
-aXRpbmcgYWZ0ZXIgNS4yIG9uY2UgYW1kZ3B1IEhNTQ0KPiBwYXRjaCBhcmUgbWVyZ2UgdXBzdHJl
-YW0gYXMgaXQgd2lsbCBjaGFuZ2Ugd2hhdCBpcyBwYXNzZWQgZG93biB0byBkcml2ZXINCj4gYW5k
-IGl0IHdvdWxkIGNvbmZsaWN0IHdpdGggbm9uIG1lcmdlZCBITU0gZHJpdmVyIChsaWtlIGFtZGdw
-dSB0b2RheSkuDQo+IA0KDQpVbmZvcnR1bmF0ZWx5IHRoaXMgZG9lcyBub3QgYW5zd2VyIG15IHF1
-ZXN0aW9uLiAgWWVzIEkgc2F3IHRoZSBsaW5rcyB0byB0aGUgcGF0Y2hlcyB3aGljaCB1c2UgdGhp
-cyBpbiB0aGUgaGVhZGVyLiAgRnVydGhlcm1vcmUsIEkgY2hlY2tlZCB0aGUgbGlua3MgYWdhaW4s
-IEkgc3RpbGwgZG8gbm90IHNlZSBhIHVzZSBvZiByYW5nZS0+ZmxhZ3Mgbm9yIGEgdXNlIG9mIHRo
-ZSBuZXcgZmxhZ3MgcGFyYW1ldGVyIHRvIG1tdV9ub3RpZmllcl9yYW5nZV9pbml0KCkuDQoNCkkg
-c3RpbGwgZ2F2ZSBhIHJldmlld2VkIGJ5IGJlY2F1c2UgSSdtIG5vdCBzYXlpbmcgaXQgaXMgd3Jv
-bmcgSSdtIGp1c3QgdHJ5aW5nIHRvIHVuZGVyc3RhbmQgd2hhdCB1c2UgZHJpdmVycyBoYXZlIG9m
-IHRoaXMgZmxhZy4NCg0KU28gYWdhaW4gSSdtIGN1cmlvdXMgd2hhdCBpcyB0aGUgdXNlIGNhc2Ug
-b2YgdGhlc2UgZmxhZ3MgYW5kIHRoZSB1c2UgY2FzZSBvZiBleHBvc2luZyBpdCB0byB0aGUgdXNl
-cnMgb2YgTU1VIG5vdGlmaWVycz8NCg0KSXJhDQoNCj4gQ2hlZXJzLA0KPiBKw6lyw7RtZQ0K
+On Thu, Apr 11, 2019 at 8:18 AM Suren Baghdasaryan <surenb@google.com> wrote:
+>
+> Thanks for the feedback!
+> Just to be clear, this implementation is used in this RFC as a
+> reference to explain the intent. To be honest I don't think it will be
+> adopted as is even if the idea survives scrutiny.
+>
+> On Thu, Apr 11, 2019 at 3:30 AM Christian Brauner <christian@brauner.io> wrote:
+> >
+> > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
+> > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
+> > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
+> > > victim process. The usage of this flag is currently limited to SIGKILL
+> > > signal and only to privileged users.
+> > >
+> > > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> > > ---
+> > >  include/linux/sched/signal.h |  3 ++-
+> > >  include/linux/signal.h       | 11 ++++++++++-
+> > >  ipc/mqueue.c                 |  2 +-
+> > >  kernel/signal.c              | 37 ++++++++++++++++++++++++++++--------
+> > >  kernel/time/itimer.c         |  2 +-
+> > >  5 files changed, 43 insertions(+), 12 deletions(-)
+> > >
+> > > diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
+> > > index e412c092c1e8..8a227633a058 100644
+> > > --- a/include/linux/sched/signal.h
+> > > +++ b/include/linux/sched/signal.h
+> > > @@ -327,7 +327,8 @@ extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+> > >  extern void force_sigsegv(int sig, struct task_struct *p);
+> > >  extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+> > >  extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
+> > > -extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
+> > > +extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
+> > > +                             bool expedite);
+> > >  extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
+> > >                               const struct cred *);
+> > >  extern int kill_pgrp(struct pid *pid, int sig, int priv);
+> > > diff --git a/include/linux/signal.h b/include/linux/signal.h
+> > > index 9702016734b1..34b7852aa4a0 100644
+> > > --- a/include/linux/signal.h
+> > > +++ b/include/linux/signal.h
+> > > @@ -446,8 +446,17 @@ int __save_altstack(stack_t __user *, unsigned long);
+> > >  } while (0);
+> > >
+> > >  #ifdef CONFIG_PROC_FS
+> > > +
+> > > +/*
+> > > + * SS_FLAGS values used in pidfd_send_signal:
+> > > + *
+> > > + * SS_EXPEDITE indicates desire to expedite the operation.
+> > > + */
+> > > +#define SS_EXPEDITE  0x00000001
+> >
+> > Does this make sense as an SS_* flag?
+> > How does this relate to the signal stack?
+>
+> It doesn't, so I agree that the name should be changed.
+> PIDFD_SIGNAL_EXPEDITE_MM_RECLAIM would seem appropriate.
+>
+> > Is there any intention to ever use this flag with stack_t?
+> >
+> > New flags should be PIDFD_SIGNAL_*. (E.g. the thread flag will be
+> > PIDFD_SIGNAL_THREAD.)
+> > And since this is exposed to userspace in contrast to the mm internal
+> > naming it should be something more easily understandable like
+> > PIDFD_SIGNAL_MM_RECLAIM{_FASTER} or something.
+> >
+> > > +
+> > >  struct seq_file;
+> > >  extern void render_sigset_t(struct seq_file *, const char *, sigset_t *);
+> > > -#endif
+> > > +
+> > > +#endif /* CONFIG_PROC_FS */
+> > >
+> > >  #endif /* _LINUX_SIGNAL_H */
+> > > diff --git a/ipc/mqueue.c b/ipc/mqueue.c
+> > > index aea30530c472..27c66296e08e 100644
+> > > --- a/ipc/mqueue.c
+> > > +++ b/ipc/mqueue.c
+> > > @@ -720,7 +720,7 @@ static void __do_notify(struct mqueue_inode_info *info)
+> > >                       rcu_read_unlock();
+> > >
+> > >                       kill_pid_info(info->notify.sigev_signo,
+> > > -                                   &sig_i, info->notify_owner);
+> > > +                                   &sig_i, info->notify_owner, false);
+> > >                       break;
+> > >               case SIGEV_THREAD:
+> > >                       set_cookie(info->notify_cookie, NOTIFY_WOKENUP);
+> > > diff --git a/kernel/signal.c b/kernel/signal.c
+> > > index f98448cf2def..02ed4332d17c 100644
+> > > --- a/kernel/signal.c
+> > > +++ b/kernel/signal.c
+> > > @@ -43,6 +43,7 @@
+> > >  #include <linux/compiler.h>
+> > >  #include <linux/posix-timers.h>
+> > >  #include <linux/livepatch.h>
+> > > +#include <linux/oom.h>
+> > >
+> > >  #define CREATE_TRACE_POINTS
+> > >  #include <trace/events/signal.h>
+> > > @@ -1394,7 +1395,8 @@ int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
+> > >       return success ? 0 : retval;
+> > >  }
+> > >
+> > > -int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
+> > > +int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid,
+> > > +                               bool expedite)
+> > >  {
+> > >       int error = -ESRCH;
+> > >       struct task_struct *p;
+> > > @@ -1402,8 +1404,17 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
+> > >       for (;;) {
+> > >               rcu_read_lock();
+> > >               p = pid_task(pid, PIDTYPE_PID);
+> > > -             if (p)
+> > > +             if (p) {
+> > >                       error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
+> > > +
+> > > +                     /*
+> > > +                      * Ignore expedite_reclaim return value, it is best
+> > > +                      * effort only.
+> > > +                      */
+> > > +                     if (!error && expedite)
+> > > +                             expedite_reclaim(p);
+> >
+> > SIGKILL will take the whole thread group down so the reclaim should make
+> > sense here.
+> >
+>
+> This sounds like confirmation. I hope I'm not missing some flaw that
+> you are trying to point out.
+>
+> > > +             }
+> > > +
+> > >               rcu_read_unlock();
+> > >               if (likely(!p || error != -ESRCH))
+> > >                       return error;
+> > > @@ -1420,7 +1431,7 @@ static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
+> > >  {
+> > >       int error;
+> > >       rcu_read_lock();
+> > > -     error = kill_pid_info(sig, info, find_vpid(pid));
+> > > +     error = kill_pid_info(sig, info, find_vpid(pid), false);
+> > >       rcu_read_unlock();
+> > >       return error;
+> > >  }
+> > > @@ -1487,7 +1498,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
+> > >
+> > >       if (pid > 0) {
+> > >               rcu_read_lock();
+> > > -             ret = kill_pid_info(sig, info, find_vpid(pid));
+> > > +             ret = kill_pid_info(sig, info, find_vpid(pid), false);
+> > >               rcu_read_unlock();
+> > >               return ret;
+> > >       }
+> > > @@ -1704,7 +1715,7 @@ EXPORT_SYMBOL(kill_pgrp);
+> > >
+> > >  int kill_pid(struct pid *pid, int sig, int priv)
+> > >  {
+> > > -     return kill_pid_info(sig, __si_special(priv), pid);
+> > > +     return kill_pid_info(sig, __si_special(priv), pid, false);
+> > >  }
+> > >  EXPORT_SYMBOL(kill_pid);
+> > >
+> > > @@ -3577,10 +3588,20 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
+> > >       struct pid *pid;
+> > >       kernel_siginfo_t kinfo;
+> > >
+> > > -     /* Enforce flags be set to 0 until we add an extension. */
+> > > -     if (flags)
+> > > +     /* Enforce no unknown flags. */
+> > > +     if (flags & ~SS_EXPEDITE)
+> > >               return -EINVAL;
+> > >
+> > > +     if (flags & SS_EXPEDITE) {
+> > > +             /* Enforce SS_EXPEDITE to be used with SIGKILL only. */
+> > > +             if (sig != SIGKILL)
+> > > +                     return -EINVAL;
+> >
+> > Not super fond of this being a SIGKILL specific flag but I get why.
+>
+> Understood. I was thinking that EXPEDITE flag might make sense for
+> other signals in the future but from internal feedback sounds like if
+> we go this way the flag name should be more specific.
+>
+> > > +
+> > > +             /* Limit expedited killing to privileged users only. */
+> > > +             if (!capable(CAP_SYS_NICE))
+> > > +                     return -EPERM;
+> >
+> > Do you have a specific (DOS or other) attack vector in mind that renders
+> > ns_capable unsuitable?
+> >
+
+Missed this one. I was thinking of oom-reaper thread as a limited
+system resource (one thread which maintains a kill list and reaps
+process mms one at a time) and therefore should be protected from
+abuse.
+
+> > > +     }
+> > > +
+> > >       f = fdget_raw(pidfd);
+> > >       if (!f.file)
+> > >               return -EBADF;
+> > > @@ -3614,7 +3635,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
+> > >               prepare_kill_siginfo(sig, &kinfo);
+> > >       }
+> > >
+> > > -     ret = kill_pid_info(sig, &kinfo, pid);
+> > > +     ret = kill_pid_info(sig, &kinfo, pid, (flags & SS_EXPEDITE) != 0);
+> > >
+> > >  err:
+> > >       fdput(f);
+> > > diff --git a/kernel/time/itimer.c b/kernel/time/itimer.c
+> > > index 02068b2d5862..c926483cdb53 100644
+> > > --- a/kernel/time/itimer.c
+> > > +++ b/kernel/time/itimer.c
+> > > @@ -140,7 +140,7 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
+> > >       struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
+> > >
+> > >       trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
+> > > -     kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
+> > > +     kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid, false);
+> > >
+> > >       return HRTIMER_NORESTART;
+> > >  }
+> > > --
+> > > 2.21.0.392.gf8f6787159e-goog
+> > >
 
