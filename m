@@ -2,203 +2,167 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8AB1C282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:50:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3E7CC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 22:00:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92E202184B
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 21:50:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92E202184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5FD5A2184B
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 22:00:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="MqphQP92"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FD5A2184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32F5C6B026B; Thu, 11 Apr 2019 17:50:38 -0400 (EDT)
+	id EA0986B026B; Thu, 11 Apr 2019 18:00:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2DEEA6B026E; Thu, 11 Apr 2019 17:50:38 -0400 (EDT)
+	id DFD4D6B026E; Thu, 11 Apr 2019 18:00:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A55B6B0271; Thu, 11 Apr 2019 17:50:38 -0400 (EDT)
+	id C75726B0271; Thu, 11 Apr 2019 18:00:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D45626B026B
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:50:37 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id e20so5058656pfn.8
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 14:50:37 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 719AB6B026B
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 18:00:06 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id c8so4936490wru.13
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 15:00:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=VtQniyTaWjnyVv9AmcP6kZ9G1PeQJJ0NeZwu9AyPhjU=;
-        b=nz6UXRpXXNxS5r6ew23ixbJMCwf2/GnR5TUsaSvUtNVtCk+1eR8sYNGKtIuCR2zPwM
-         jyc2GRSvLUa3h8xjjfwh8f4m4T59VVqCy+j1fnayVPpyt7q4h8hkIIBkrgN48HyxBZ0s
-         9Smh+PovEJM8a+q32x3OiQKzYXF+/WQlD7LnLCmZb1MIUcKmuP/zQ7ko04tu6g6r+Nvj
-         X/3bISOYfo6WUvCFedP1k/wAb9v4m+BjfiS1AwblUhZDaTr8DADC7zF1/tNv1luX/TdO
-         uvTLgiEwuh+ZDlWpRz1e8iFXe1JsTHNjm3hM7qI7n9DphghUiV1odlruW5y9jMQmfNuD
-         zeMA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXrAxxPp7VeL3mN2Xp08axYUW64HBh4mDY8y0TgueGnmfk3dfHd
-	tLWCJ6xvb9AJPEMnH0PFOzzZok3tvhbJNu+Qv7At2/DE/PZd5fnnd7k551+ehkbJ1VGPr8iK+wp
-	wjOx7LNYxmnfdGcdP5cm5UfErtvv/RkcQRMbOJvT3QAHInUSW+yX1UZ+fSCW0r022RA==
-X-Received: by 2002:a65:4589:: with SMTP id o9mr32438147pgq.381.1555019437447;
-        Thu, 11 Apr 2019 14:50:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxipsKQ/FsaDkmMEknN9IyVmbsFPu1MoAjjpDT7cmX3v9jCLR8utL03qnq+XT+ndyWcoP1f
-X-Received: by 2002:a65:4589:: with SMTP id o9mr32438096pgq.381.1555019436605;
-        Thu, 11 Apr 2019 14:50:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555019436; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=NawObyE9Zp16eLwFu5OPgzzdF2i4lMyPHI2QyUPOlK0=;
+        b=ctNxT0dYeRIVXLOZHyagnwx9fJStjUY9tcQ+IfFzKC0jdwp4lhWWR3aV+EZto2UBzL
+         vcuLVy8xJGO3/ZYxF/QyL7n5RODHmvc9a7REKcsK6ioKlnChoI4sKXtyZhwiqYNiFyaP
+         56JUaoXO0j4g09VSaEz+hFyVuvn8LRZpDQaOzCR4qA6T2ff9G3UFGBEMhMIOX/nfX85O
+         XidFMh5fw1zwFo6m3yats6qHu6ratUkB5V/qBXcYqABlydGTkJZhs6dW04oocaeghwt6
+         Zy2tWffYVqwDhhPfr0+vaiNGU//+XpU3xPGOGwYmY627UEHXVSyBIjE9zZzVFkYpP0p1
+         fk/Q==
+X-Gm-Message-State: APjAAAXHTFF4UWqctV4t876iVhnNS8bW5pipR3r38qYw+pZ8sNzAwXEm
+	7HufRH1EwzaUbkXV3AXB/8hp8drvRIr3LKSIuH6u+W6vYejiLguesFFH3eqWLbJEXOhT2ukT0qJ
+	pnByplt9wB1ow0mxNU7R5+MZASbGfg61yLs2FADzwIfQg8E+BAMeYVC9/1BJZpQVmXQ==
+X-Received: by 2002:a1c:7e10:: with SMTP id z16mr7812961wmc.117.1555020005919;
+        Thu, 11 Apr 2019 15:00:05 -0700 (PDT)
+X-Received: by 2002:a1c:7e10:: with SMTP id z16mr7812864wmc.117.1555020004218;
+        Thu, 11 Apr 2019 15:00:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555020004; cv=none;
         d=google.com; s=arc-20160816;
-        b=Fqtky3zKKUr4OizQSZVtMqUeYDswE9Y4IHLo4Mgk1rAvcJym4WDpTdjKNTKex84EpU
-         KflU/YXDcSohb1/nBQ8u0O1AOyLq6UhA5cmj0Hv28tc4r9JFnlllWlMWko7jOe1L2Du+
-         sjPnjRUv6grXdXPSBTDJM0+8nSuT8twaHIzxsSQgsaKICTg3jMrWk/CWNIQPamB3ydFh
-         MYL+wPglVHCfv4n7Ol0WY8YwOpJ2ZzmXTtbCMeiXnE1Jui2cGdxlhSN0UOG8N+q9bpJb
-         xOHrpjktFhaCW17mhLAqcYpcGXxNE2hV5MyQg36b8b3CDe1iCSYN/FfnuWIJXsvVxdg0
-         dWOA==
+        b=dnHf9ACT+y63T5GxSe1LZurGfHtU1cSMnP9Ceu7j7dUbDiryyjdYRNLX2OVyPs8pvF
+         p3WTgGpBpFj5F1Xia3usCDWuXL2BRkIWEA/nTWBE56B6V5OaIS2zP776CEzajDvzUo2F
+         ZW3OHaUXSPmbXV4PVtEAcw0ie4Ty4e6TJTtdZaUIfQzn/3NYn9ECYkvFfVIbIg/qZep3
+         XMoLBWvfhtR/Fli6NTMCo8ufu/IXbD+MvXhifD/v2zknnhPS6kkax9Ssqg+mHnSVasFV
+         B1UsEoT/REgKZyTUmpCwmwXzEweCtMZEf0VVBzhCiGp3lnwzo6U3ayMERvcPIIfdH2gv
+         67UQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=VtQniyTaWjnyVv9AmcP6kZ9G1PeQJJ0NeZwu9AyPhjU=;
-        b=km6lnEaagrreu/Jh/rc9KKr1iVmkjCev6zB+AlkDkePKh7W6A/Kiif+DzJ8B7lwH6S
-         FFdrOAW6XJlgw7yx8b4hWL4scHDQ1dq13R7epWmTk2dBQl7AUlsRglqVC3PSfufmw2wv
-         4uouVw6SpYP/XNT8XfmXag+I/KHe21CU5r7VpzyCZQSRzxkT3OWkuwVAeDa4noLraMSo
-         JZ22kr1t5HKSgRziedYUFabG+RzPkBUNK8IJ/feze4JU49/IZsPLJCCyiS00uY+bHswo
-         k36WENjeAK0XH0hAmg5JsogNzh7Sj8qkHKUQrCWduGvkJ0fH3DhJtnrm+JVi3sBTCIti
-         /7vw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=NawObyE9Zp16eLwFu5OPgzzdF2i4lMyPHI2QyUPOlK0=;
+        b=X/OLgmuMsc5C9rgQjeOI5+8gT9FkiAx9M6GiRGcskLggFb1v/HxK6iBXbWKPh71u7U
+         lx3t/Ufvw7POLxi3mVYVlzVaWqnb/Ls4VV4YugzIjlgFAma4eSqNXZnRHyQDPbouPolE
+         IpggtV0VpCtR/A7aLMadXJ+xTdp+RkqkwKn+ISMH1XEz4woEqVzjKdw2jWu2VLvU4RZf
+         5AnoQ0YtzB+Ut/JFbDvKuhDrHKwk8qp8SlwDGbc04bctLfu90t9nkIriXsAlV3G4N2n0
+         1Pe5PxbK1ajFeOFz3WRN/Z/wlnRIm9hhy1XeVZGdJE+j8myGJKyJrJPa31Ck6mtfDTaA
+         O4Ug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y13si26951868pgf.252.2019.04.11.14.50.36
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MqphQP92;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w2sor29240479wrm.19.2019.04.11.15.00.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 14:50:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 15:00:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Apr 2019 14:50:36 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,338,1549958400"; 
-   d="scan'208";a="335989192"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga006.fm.intel.com with ESMTP; 11 Apr 2019 14:50:35 -0700
-Date: Thu, 11 Apr 2019 14:50:33 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Leon Romanovsky <leon@kernel.org>
-Cc: jglisse@redhat.com, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v6 7/8] mm/mmu_notifier: pass down vma and reasons why
- mmu notifier is happening v2
-Message-ID: <20190411215033.GH22989@iweiny-DESK2.sc.intel.com>
-References: <20190326164747.24405-1-jglisse@redhat.com>
- <20190326164747.24405-8-jglisse@redhat.com>
- <20190410234124.GE22989@iweiny-DESK2.sc.intel.com>
- <20190411054130.GY3201@mtr-leonro.mtl.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MqphQP92;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=NawObyE9Zp16eLwFu5OPgzzdF2i4lMyPHI2QyUPOlK0=;
+        b=MqphQP92OgsvRoMbbmbXn3lXPPv7JgQOj3uXy35tv7nQiYjdSaAyYZaXa/Q7P7wDXE
+         kGDHBRN5P2Lxpgtg6vv9KELeDa+b3yyz+BtJsKyHo48XdAlE2kKFtC1jZgiuMjPMBn/9
+         OjTpxGIvco4tQgJzkGyFaNaRFQw9jCg2YL9qyPEAMG5OlnctCup4J4BXFYZ/5M2VYQr0
+         Xz7YQh086MWcG/jvWQkMTlzO9JW1GGWdNOTMp5I2/2LKJbdmYK+RLRhBva2DzlJdqhdP
+         JiesYrjhOGVLwWT6cGkmVZ6UZseKXfSVFLy30lBl+Ts4/WKG4lrSxQ+OyS3G12/Y4EFk
+         KCOQ==
+X-Google-Smtp-Source: APXvYqywLXFZ26VMEzhbK5mzgQdSEa7/h59iSNw606UZ4yYmpRG6kaPD22As4lJ8uuB9GyxIbnLHPOuNGB/AzmlW7dI=
+X-Received: by 2002:adf:cf0c:: with SMTP id o12mr13689115wrj.16.1555020003406;
+ Thu, 11 Apr 2019 15:00:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190411054130.GY3201@mtr-leonro.mtl.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-3-surenb@google.com>
+ <20190411153313.GE22763@bombadil.infradead.org> <CAJuCfpGQ8c-OCws-zxZyqKGy1CfZpjxDKMH__qAm5FFXBcnWOw@mail.gmail.com>
+ <20190411214458.GB31565@tower.DHCP.thefacebook.com>
+In-Reply-To: <20190411214458.GB31565@tower.DHCP.thefacebook.com>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Thu, 11 Apr 2019 14:59:51 -0700
+Message-ID: <CAJuCfpFjwv7SFEYZ9gbZXYdiPSPpnKHaXfsbEJorN8Y55QAjVg@mail.gmail.com>
+Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
+ process killing
+To: Roman Gushchin <guro@fb.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	"mhocko@suse.com" <mhocko@suse.com>, David Rientjes <rientjes@google.com>, 
+	"yuzhoujian@didichuxing.com" <yuzhoujian@didichuxing.com>, Souptick Joarder <jrdr.linux@gmail.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, 
+	"ebiederm@xmission.com" <ebiederm@xmission.com>, Shakeel Butt <shakeelb@google.com>, 
+	Christian Brauner <christian@brauner.io>, Minchan Kim <minchan@kernel.org>, 
+	Tim Murray <timmurray@google.com>, Daniel Colascione <dancol@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>, 
+	"lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
+	kernel-team <kernel-team@android.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 08:41:30AM +0300, Leon Romanovsky wrote:
-> On Wed, Apr 10, 2019 at 04:41:57PM -0700, Ira Weiny wrote:
-> > On Tue, Mar 26, 2019 at 12:47:46PM -0400, Jerome Glisse wrote:
-> > > From: Jérôme Glisse <jglisse@redhat.com>
+On Thu, Apr 11, 2019 at 2:45 PM Roman Gushchin <guro@fb.com> wrote:
+>
+> On Thu, Apr 11, 2019 at 10:09:06AM -0700, Suren Baghdasaryan wrote:
+> > On Thu, Apr 11, 2019 at 8:33 AM Matthew Wilcox <willy@infradead.org> wrote:
 > > >
-
-[snip]
-
-> > > diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> > > index 62f94cd85455..0379956fff23 100644
-> > > --- a/include/linux/mmu_notifier.h
-> > > +++ b/include/linux/mmu_notifier.h
-> > > @@ -58,10 +58,12 @@ struct mmu_notifier_mm {
-> > >  #define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
+> > > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
+> > > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
+> > > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
+> > > > victim process. The usage of this flag is currently limited to SIGKILL
+> > > > signal and only to privileged users.
 > > >
-> > >  struct mmu_notifier_range {
-> > > +	struct vm_area_struct *vma;
-> > >  	struct mm_struct *mm;
-> > >  	unsigned long start;
-> > >  	unsigned long end;
-> > >  	unsigned flags;
-> > > +	enum mmu_notifier_event event;
-> > >  };
-> > >
-> > >  struct mmu_notifier_ops {
-> > > @@ -363,10 +365,12 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
-> > >  					   unsigned long start,
-> > >  					   unsigned long end)
-> > >  {
-> > > +	range->vma = vma;
-> > > +	range->event = event;
-> > >  	range->mm = mm;
-> > >  	range->start = start;
-> > >  	range->end = end;
-> > > -	range->flags = 0;
-> > > +	range->flags = flags;
-> >
-> > Which of the "user patch sets" uses the new flags?
-> >
-> > I'm not seeing that user yet.  In general I don't see anything wrong with the
-> > series and I like the idea of telling drivers why the invalidate has fired.
-> >
-> > But is the flags a future feature?
-> 
-> It seems that it is used in HMM ODP patch.
-> https://patchwork.kernel.org/patch/10894281/
+> > > What is the downside of doing expedited memory reclaim?  ie why not do it
+> > > every time a process is going to die?
+>
+> Hello, Suren!
+>
+> I also like the idea to reap always.
+>
+> > I think with an implementation that does not use/abuse oom-reaper
+> > thread this could be done for any kill. As I mentioned oom-reaper is a
+> > limited resource which has access to memory reserves and should not be
+> > abused in the way I do in this reference implementation.
+>
+> In most OOM cases it doesn't matter that much which task to reap,
+> so I don't think that reusing the oom-reaper thread is bad.
+> It should be relatively easy to tweak in a way, that it won't
+> wait for mmap_sem if there are other tasks waiting to be reaped.
+> Also, the oom code add to the head of the list, and the expedited
+> killing to the end, or something like this.
+>
+> The only think, if we're going to reap all tasks, we probably
+> want to have a per-node oom_reaper thread.
 
-AFAICT the flags in that patch are "hmm_range->flags"  not
-"mmu_notifier_range->flags"
+Thanks for the ideas Roman. I'll take some time to digest the input
+from everybody. What I heard from everyone is that we want this to be
+a part of generic kill functionality which does not require a change
+in userspace API.
 
-They are not the same.
-
-Ira
-
-> 
-> Thanks
-> 
-> >
-> > For the series:
-> >
-> > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> >
-> > Ira
-> >
-> > >  }
-> > >
-> > >  #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
-> > > --
-> > > 2.20.1
-> > >
-
+> Thanks!
+>
+> --
+> You received this message because you are subscribed to the Google Groups "kernel-team" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
+>
 
