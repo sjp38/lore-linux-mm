@@ -2,239 +2,159 @@ Return-Path: <SRS0=QIji=SN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FE4EC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72C0DC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:55:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAC9F217F4
-	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:48:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="CczKK/Up";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Nij/jYo7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAC9F217F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	by mail.kernel.org (Postfix) with ESMTP id 2F3F3217D9
+	for <linux-mm@archiver.kernel.org>; Thu, 11 Apr 2019 02:55:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F3F3217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A13D6B0005; Wed, 10 Apr 2019 22:48:59 -0400 (EDT)
+	id BDA8D6B0005; Wed, 10 Apr 2019 22:55:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3312E6B0006; Wed, 10 Apr 2019 22:48:59 -0400 (EDT)
+	id B88016B0006; Wed, 10 Apr 2019 22:55:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CB0D6B0007; Wed, 10 Apr 2019 22:48:59 -0400 (EDT)
+	id A9D746B0007; Wed, 10 Apr 2019 22:55:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EC6B66B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:48:58 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id g25so3781979qkm.22
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 19:48:58 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A24E6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2019 22:55:14 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id f89so4302714qtb.4
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2019 19:55:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=Ztcvo5tzwaFClMvheLNTkVLAOO9IWg4XzDUHACT0MIk=;
-        b=YLF81aAu4JQ3Y1v66wgmDa00RbS1xDo6FKIzfWeXxpDs474kUN26lKPO4i0ehLruGL
-         nUhLPwnnBdLVvKRF+gJxVciD9AUHdv81YlF+Th8A8z2Lytns2QMqpd6UXLD8jWms1VD2
-         9BNBtzAXc4yzz3IyZKsifoVi6Kqtc7FKG4AY2G42PJbBKtb12eUnlyGK6DXO9/9+IPI/
-         BbJDxPAnVs5EXG5fgGhnX1C5HU/bjojV+9t8YbR3rPf/WY1+tIoEeXKsUgiJG8lO8LFq
-         ELQvg5QZbHzERHd1iHrZaNel1nxRzz8Iok9G8iXSTSTCNGNGhh5yW0wilmH8sWc92smx
-         ZGBw==
-X-Gm-Message-State: APjAAAXPLRhb7QZi4oqBRrYc6qEoeiGw/Z61t0xnlTNbLuvROS/WRa+r
-	/IdS7XguOf1oNQvtb0D6+kuxQSo1WPvkoyD4IyaEwww/21ZNJMyhMPoBZQjZEKWBVmf5OETJynA
-	zqBuh8rxrJTY6dcvdXOsiCkxD60tnw7o8KdBQhTDOprwZbDK3f5ZyV40ZN13iWQlZtQ==
-X-Received: by 2002:ac8:3202:: with SMTP id x2mr41065776qta.56.1554950938680;
-        Wed, 10 Apr 2019 19:48:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwelyecPLHn28ry+iD4KKBgGbqwb8QHZGdkfYMHOXiNF/4i2QpEZbxNKEzFIoOE+fMFRMmc
-X-Received: by 2002:ac8:3202:: with SMTP id x2mr41065740qta.56.1554950937837;
-        Wed, 10 Apr 2019 19:48:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1554950937; cv=none;
+        bh=xPlQ4aeVgEs/ey25shTPswUOAaW0D4x7SvGqd6go+ps=;
+        b=sBvTK8cBM0RkHlfzR09qSMBbhV7PURW/r6OlJx82d5J+suGsXhaGeTE1SPJ3SESV0O
+         WHZgTE5jin293i/64TbJdJRSX57Md/rADS/PtbxflumgBKD+niHdnsTcPDQSr4Wv/RxK
+         Jxjl0KbzTHWFYwaWvfLCu9DIZ17OdELxDixL4UAEB4ARvUjAC7nL25lUxUSsp2tXZdNJ
+         dPaPQA9gdU08yXnDGnEBFhImbLLkuxEPH8is0GqJ8+pnE6y4vB54nIyp67j5wU8PNCm4
+         +mwYXFNXejb2FKWQd7R+1arM6fFZMGiMFEPQZfOSkjQa2a5A8AxhD1BVYcWgPjiIFbwC
+         7wKw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVdLlwGZIoQ2rhw0qHJxFGqS+IMPRi4V8OiI5sTx0MXGECnmBqw
+	vS5zz80VkA6EfYLLQLsknYQ+EY+AVJR5LEhpo+0hv+6LITPd+lkXx6ESKMrqe/zKDavCNXu1zm+
+	SKElk4XkFtwmri0ylUFWCrPO3T0lzuKER2Yq7ML+qWRcZkPqsew783pXWLUi3HH3pYA==
+X-Received: by 2002:a37:9acd:: with SMTP id c196mr34907828qke.273.1554951314330;
+        Wed, 10 Apr 2019 19:55:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0Ey5Ux5JQ6HATcLHjDZDJBx7oIYCqUUlWNhgzGTNH6H6crFeZAMiOYfFNKuZ1n5gXtMDI
+X-Received: by 2002:a37:9acd:: with SMTP id c196mr34907804qke.273.1554951313822;
+        Wed, 10 Apr 2019 19:55:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1554951313; cv=none;
         d=google.com; s=arc-20160816;
-        b=wX74mm7RtiGSDwSBOOqwNp8aHCDkdfjTa+RKgD3aEyrk/Is2/JVhaDmKuMZ2FWf+DV
-         vv6AXuY8D5QS2QlJm80wUgyWgYAQuLUKMSk1OKEiJYNbRTzwozOGF8cnuX0E0eVqDdid
-         q6cfx7+l0d5+GyK6jNquyojFZespFsGYNf6lzKQ93L3BicrbIdE3TodiTug0euZG5kU8
-         TuGtb1O7xaQ7JwdCWQrB9Tdoh+/pPJQxRCjSqCita1PTAxbSVhwHasOvn1etTCe4E26/
-         KgGJLM4WsNzuDhRAyuoui7Hl0ylldFSHbr/S3uQGZ1RFrTomR2KaZwKSJQPWYtJ+2yYL
-         9WPA==
+        b=rd+9sfAF60takFUnQRvcqSWDeQ7gakVFNqiO6aS+8bvRIj32+YV2i2z3GYzc1I4tOX
+         Mh9XK/A4pygbuFom6v55tFXs7PcJFFa+rpVtvsOyER9vtr7Df1E5Ps5f0nQYPgf+x57Y
+         6TB7i/803NZoaoXHDnK+Gh3BxCgVlQKWiy1zrQ4w1F2TT97ZBBppnbntimyD3GmWiAtS
+         vmRPNN64RCkrweOkX8t7orlN7S3ddrzHFC9DsTesW+2rkqEqyNThrYdB0UEwBp6td1Oy
+         zDj+WAgB+FGnDKvoDuCvF5YoXYIRPtoeFzCxQdmC9LLvs4fsmMn+JYWkpR8vvixFj/kI
+         tjVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=Ztcvo5tzwaFClMvheLNTkVLAOO9IWg4XzDUHACT0MIk=;
-        b=NJtw13G+WonVLSVwlg/9B6VCAdV4jwtGs9dJdPzXK60YUg7tvZHls2rC1xgxttQB/z
-         LfU5ek8S80pc04PQrh5/r63wvxy3jcdEzsofaMoAbvZgFKtoVHHrU3YzQvPzwJ1I575i
-         Xgiv+Q2ozJZ7zKMKXqewjH8E0K4bfSSoC6LiK8K30oKpRXPnRsKzLcWcuJiEPNu4BddE
-         GiK82/S8jMz77fOYMvZDnk/ESw9M3s7XrD/QAPQWyG4h9H/zajFzD7TEAquQfzhoxA99
-         iKjILZkvaNDt2odQImZx8+H9mlsqbSW7nOd3uK8Vv1qJDGpg0MuEyo7E8nvg7iDPfa/Y
-         4Rrg==
+         :message-id:subject:cc:to:from:date;
+        bh=xPlQ4aeVgEs/ey25shTPswUOAaW0D4x7SvGqd6go+ps=;
+        b=oqs+gYKpoHoicBChQV+88B0WC+NTLKjRJag4MDnDiOLKHc4BL1NwVFtSAzlC3yqx8+
+         8N2vWYNdaLrid8lpSp/NjLBvhsPc+hxwBMQU5VTN/jLR83ahhlctMahofGsPeBEYAiIg
+         FkCQeLN3SJUuNqxXI6cAXuU0/S3YUPmBzMYrRQmVUzAoRCLpC7aZersKucy0mhTrR739
+         EnD88xWR8yRCNyxzUMnyhyV01zEIHhYfCtmY/gF1WMNkPRvua5XKmUi4Z23hmDT7nha9
+         mLkLbIJ6vaNZdB6KI7vbMBnyQu4S7GbFW5kXVJJ+vOzk4iG0ugAoMyXiwe//+QRwWvWF
+         14vg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b="CczKK/Up";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="Nij/jYo7";
-       spf=neutral (google.com: 66.111.4.230 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id n36si12114307qtc.149.2019.04.10.19.48.57
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o70si31626qka.91.2019.04.10.19.55.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Apr 2019 19:48:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.230 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.230;
+        Wed, 10 Apr 2019 19:55:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b="CczKK/Up";
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="Nij/jYo7";
-       spf=neutral (google.com: 66.111.4.230 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 649D2113D7;
-	Wed, 10 Apr 2019 22:48:57 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute5.internal (MEProxy); Wed, 10 Apr 2019 22:48:57 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=Ztcvo5tzwaFClMvheLNTkVLAOO9
-	IWg4XzDUHACT0MIk=; b=CczKK/UpqlaE8ij9ODtsMzCN51UGs5BaN3vhxw+QzQN
-	QiBxrC9EhyYD/YSP1PLlyh5jckFIkvJo2dGY22ABQBz4ROJaLJ7NMVoZDhBW0cGf
-	7r32PoV8+ClgincFaKBqpEVZYYBOzSB9rRBbDSrDH+Rhr8mZs645XaJx5XaEuyOL
-	vrosurzjoQYAg2WzwHJcSyuP2R+qBhbnETWUTZLyfrngzqPc9qcdQbokMP+xmy0g
-	rWdCNnuXvC+k8nYe3aHDTaeFunsgx9UOKoKGV9nQjOXycahk5cVlWHY4nx5kZnje
-	sa2caR+gXKt3FZ+6Zq4sJppDEL0HEPZGBtFJpvMirYQ==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=Ztcvo5
-	tzwaFClMvheLNTkVLAOO9IWg4XzDUHACT0MIk=; b=Nij/jYo73SXKw9F3WTL7v7
-	2LKISPZawvwkYwwBjJ8fnt/37bdO75Gpsx1rqZhhPf633E8j63zNYoVFkLI831+N
-	q++a5LJDjOnBzPtUiqAmb9m1x9nm9/XkUEAER6H/XQWc0E0iaVZ5PTMG0Z7cyb+J
-	PYeJ2kTRPwAjI6xVOkUSb0HSkE67m8bMt4Jph72HQEajl+Cj7OXiBBUnpqkAP7pZ
-	LGD0T31Kw6OL6wmy5bleLqJYmjnMOwyhcV6wZutAXbNVJVi/2k0+uUnaSxum3Zap
-	e40lS2AaiWEzE7/k5EqEW6VfYxfMc8kOBet9Q3Yds9NgKizb14e4FfZB9EtjRvmA
-	==
-X-ME-Sender: <xms:FquuXCD__WHgfLF1IgUJ_mZLRxvFpv_PDh5i36exKA95qOKgSmo4Og>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudekgdehjecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
-    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
-    hrlhcuvffnffculdeftddmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
-    redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
-    hinhdrtggtqeenucfkphepuddvgedrudejuddrudelrdduleegnecurfgrrhgrmhepmhgr
-    ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:FquuXI1Nh58jOHfjG361yQauKiJS0oO07wMS4ycnqLIVs5jyuXUNmw>
-    <xmx:FquuXIW8Q0__Zv7zpyWgw-n8Hfi5KXsTSYMxpbFWFsPz3uj1hNAtSw>
-    <xmx:FquuXCliZpS2tGZzv9ewDpxic2VCl_h1kvHrKz6782qS8NTlE3TSbw>
-    <xmx:GauuXD1FhZA59VGtRmR7cFmcKrurXFHxl-UoOjiv5xYGOT5YMrOBOw>
-Received: from localhost (124-171-19-194.dyn.iinet.net.au [124.171.19.194])
-	by mail.messagingengine.com (Postfix) with ESMTPA id E902FE4382;
-	Wed, 10 Apr 2019 22:48:52 -0400 (EDT)
-Date: Thu, 11 Apr 2019 12:48:21 +1000
-From: "Tobin C. Harding" <me@tobin.cc>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>,
-	Alexander Viro <viro@ftp.linux.org.uk>,
-	Christoph Hellwig <hch@infradead.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Andreas Dilger <adilger@dilger.ca>,
-	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
-	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
-	David Chinner <david@fromorbit.com>,
-	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>,
-	linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH v3 14/15] dcache: Implement partial shrink via Slab
- Movable Objects
-Message-ID: <20190411024821.GB6941@eros.localdomain>
-References: <20190411013441.5415-1-tobin@kernel.org>
- <20190411013441.5415-15-tobin@kernel.org>
- <20190411023322.GD2217@ZenIV.linux.org.uk>
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 042E831676AD;
+	Thu, 11 Apr 2019 02:55:13 +0000 (UTC)
+Received: from treble (ovpn-120-231.rdu2.redhat.com [10.10.120.231])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 067C85D704;
+	Thu, 11 Apr 2019 02:55:10 +0000 (UTC)
+Date: Wed, 10 Apr 2019 21:55:09 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org,
+	Andy Lutomirski <luto@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Alexander Potapenko <glider@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com,
+	linux-mm@kvack.org
+Subject: Re: [RFC patch 25/41] mm/kasan: Simplify stacktrace handling
+Message-ID: <20190411025509.cslu3nq27g7ww6qu@treble>
+References: <20190410102754.387743324@linutronix.de>
+ <20190410103645.862294081@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190411023322.GD2217@ZenIV.linux.org.uk>
-X-Mailer: Mutt 1.11.4 (2019-03-13)
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190410103645.862294081@linutronix.de>
+User-Agent: NeoMutt/20180716
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 11 Apr 2019 02:55:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 03:33:22AM +0100, Al Viro wrote:
-> On Thu, Apr 11, 2019 at 11:34:40AM +1000, Tobin C. Harding wrote:
-> > +/*
-> > + * d_isolate() - Dentry isolation callback function.
-> > + * @s: The dentry cache.
-> > + * @v: Vector of pointers to the objects to isolate.
-> > + * @nr: Number of objects in @v.
-> > + *
-> > + * The slab allocator is holding off frees. We can safely examine
-> > + * the object without the danger of it vanishing from under us.
-> > + */
-> > +static void *d_isolate(struct kmem_cache *s, void **v, int nr)
-> > +{
-> > +	struct dentry *dentry;
-> > +	int i;
-> > +
-> > +	for (i = 0; i < nr; i++) {
-> > +		dentry = v[i];
-> > +		__dget(dentry);
-> > +	}
-> > +
-> > +	return NULL;		/* No need for private data */
-> > +}
+On Wed, Apr 10, 2019 at 12:28:19PM +0200, Thomas Gleixner wrote:
+> Replace the indirection through struct stack_trace by using the storage
+> array based interfaces.
 > 
-> Huh?  This is compeletely wrong; what you need is collecting the ones
-> with zero refcount (and not on shrink lists) into a private list.
-> *NOT* bumping the refcounts at all.  And do it in your isolate thing.
-
-Oh, so putting entries on a shrink list is enough to pin them?
-
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: kasan-dev@googlegroups.com
+> Cc: linux-mm@kvack.org
+> ---
+>  mm/kasan/common.c |   30 ++++++++++++------------------
+>  mm/kasan/report.c |    7 ++++---
+>  2 files changed, 16 insertions(+), 21 deletions(-)
 > 
-> > +static void d_partial_shrink(struct kmem_cache *s, void **v, int nr,
-> > +		      int node, void *_unused)
-> > +{
-> > +	struct dentry *dentry;
-> > +	LIST_HEAD(dispose);
-> > +	int i;
-> > +
-> > +	for (i = 0; i < nr; i++) {
-> > +		dentry = v[i];
-> > +		spin_lock(&dentry->d_lock);
-> > +		dentry->d_lockref.count--;
-> > +
-> > +		if (dentry->d_lockref.count > 0 ||
-> > +		    dentry->d_flags & DCACHE_SHRINK_LIST) {
-> > +			spin_unlock(&dentry->d_lock);
-> > +			continue;
-> > +		}
-> > +
-> > +		if (dentry->d_flags & DCACHE_LRU_LIST)
-> > +			d_lru_del(dentry);
-> > +
-> > +		d_shrink_add(dentry, &dispose);
-> > +
-> > +		spin_unlock(&dentry->d_lock);
-> > +	}
-> 
-> Basically, that loop (sans jerking the refcount up and down) should
-> get moved into d_isolate().
-> > +
-> > +	if (!list_empty(&dispose))
-> > +		shrink_dentry_list(&dispose);
-> > +}
-> 
-> ... with this left in d_partial_shrink().  And you obviously need some way
-> to pass the list from the former to the latter...
+> --- a/mm/kasan/common.c
+> +++ b/mm/kasan/common.c
+> @@ -48,34 +48,28 @@ static inline int in_irqentry_text(unsig
+>  		 ptr < (unsigned long)&__softirqentry_text_end);
+>  }
+>  
+> -static inline void filter_irq_stacks(struct stack_trace *trace)
+> +static inline unsigned int filter_irq_stacks(unsigned long *entries,
+> +					     unsigned int nr_entries)
+>  {
+> -	int i;
+> +	unsigned int i;
+>  
+> -	if (!trace->nr_entries)
+> -		return;
+> -	for (i = 0; i < trace->nr_entries; i++)
+> -		if (in_irqentry_text(trace->entries[i])) {
+> +	for (i = 0; i < nr_entries; i++) {
+> +		if (in_irqentry_text(entries[i])) {
+>  			/* Include the irqentry function into the stack. */
+> -			trace->nr_entries = i + 1;
+> -			break;
+> +			return i + 1;
 
-Easy enough, we have a void * return value from the isolate function
-just for this purpose.
+Isn't this an off-by-one error if "i" points to the last entry of the
+array?
 
-Thanks Al, hackety hack ...
-
-
-	Tobin
-	
+-- 
+Josh
 
