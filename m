@@ -2,84 +2,85 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 827FDC282CE
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:02:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 504C8C10F14
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:02:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C04E20818
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:02:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C04E20818
+	by mail.kernel.org (Postfix) with ESMTP id 0E26020818
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:02:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E26020818
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D2F936B000C; Fri, 12 Apr 2019 15:02:06 -0400 (EDT)
+	id A999A6B000D; Fri, 12 Apr 2019 15:02:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE6476B000D; Fri, 12 Apr 2019 15:02:06 -0400 (EDT)
+	id A4C546B0010; Fri, 12 Apr 2019 15:02:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BCD566B0010; Fri, 12 Apr 2019 15:02:06 -0400 (EDT)
+	id 8C22B6B026A; Fri, 12 Apr 2019 15:02:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3B76B000C
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 15:02:06 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f7so5490125edi.3
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 12:02:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 40A6F6B000D
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 15:02:08 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w27so5479794edb.13
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 12:02:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=F7Cv9el9g/ZJ9E6s2DQXpeg6eDbbzVxRpHlfCN7fnKY=;
-        b=nBcxl7HhUJPTbMBHbuaF8Ihb9WaVw2WgXFgwPk40PYnSLVcbHrFYLe6j3Ec5pznsoC
-         M2C9fK1S9Nd4qgvBB2uSsGJAMZmUQ41iDCbppoxcfTkvrjfecwPXe3vd4Kq4uTThfmuk
-         d3pljUUDuEUfsrVQKvMpDGEoR1MKjTCpoG7woB9p174GnFh3qwhu9zfsE9r5tbJxN1wR
-         K+2NBSg4pnGA+WfdbRqqz+ZhXhBwnJwfBgQkXpvIByCQ/sMPIsBjpsSFoohpMJHhWqtS
-         aL071DC3an17uuGSMIZIglpUj0PHTLR5qocBeciKCmcEkiTNvubL4uhuU/u4uwuHNc6F
-         FZbA==
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=W8RImTT5/NuqjLVEjUkkWwa/kQ7S5eOStSkQSRaZDsM=;
+        b=iSByGN93MVsBneLezYCaElAt/hoRNPx04SrWnp2aOHiwha5uqpZWKj8EWVyXkQRWF+
+         0W2bwu/e+X0iplVlD712C8HBAMK8EAZ5HhkkifEz5N8sD1wxuKMU5/bIm5Fws9h5YVtr
+         ANneyndUWf2tJt3YJOIuC3xQSQ8vgt9qLVyd2H5qfwH79dPkhvF/V18Tc6Jk3j86c+g/
+         R2mfDiyZ1JBtGoSDp9rEN1MrrjTMxuzgrpNGH8XFL+2ZfPIXOZcaIQHk7QQOPQ7jvB+U
+         W5xclpLiblqq590a0K/QP31t6QQqx5dRX8FVnCwTUqlxiKjOmM1e7tBDLvnt+g0AgRkS
+         OqQg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
-X-Gm-Message-State: APjAAAWqeeTrZjWm7ZpCpYDF4ef4ZyKe3bk6tQ1te1GyX6+C0O9/Skiw
-	2O4L/04fEiHnTUPdi0Y+RZzEekcJbdNwP547p+2JaM2FDU7iju+4Z8YRrhaKJ/xrzW+gNIexhj0
-	ClTbAkKURF9xoh51QsntCq2Q20VWpqiR21VjYO3cw5BLguRxolOXOKZB/CDwVRUEo/w==
-X-Received: by 2002:a50:e61a:: with SMTP id y26mr23069305edm.157.1555095725998;
-        Fri, 12 Apr 2019 12:02:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOUolFGbLlSyuZsuhgds/EwjZGkgveR/HBGB1WrZmX0QreMz+WJu7bHQ3+rKtThAFGVaCs
-X-Received: by 2002:a50:e61a:: with SMTP id y26mr23069261edm.157.1555095725193;
-        Fri, 12 Apr 2019 12:02:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555095725; cv=none;
+X-Gm-Message-State: APjAAAXSsdtpsXRBPvr+Prrz27j5GMxQQVOoST3P06LGoJWoMV14Z67U
+	uPyc/OaRC5nRMpt536dM84WCs+WIf+QzxqPcsTP3kj6E3DA1qsqaCr2mkmMJ49VmGoO20qmrfG+
+	QEA3ZgCdpElS8edhxLBbBjlPG0BWvIQmbyXB6FavNHf/XvN6Lh9nGurhlsOV2XBc9QA==
+X-Received: by 2002:a50:b618:: with SMTP id b24mr37252509ede.9.1555095727836;
+        Fri, 12 Apr 2019 12:02:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxPynpM3dC3uYjPr8jY2zJcMYfSYkNScqx+BaevKD4Efky99U+2HCHLWulUlDUASXiNW6fs
+X-Received: by 2002:a50:b618:: with SMTP id b24mr37252466ede.9.1555095727026;
+        Fri, 12 Apr 2019 12:02:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555095727; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xu/WgFxbMINvFDLgDmC6yvF+Nc+hslQSwSwFM5NY0dXejXJLctAs7ps4W01cbArbKq
-         HYISoHjuzeTIAtzDCo8YYQLX3JvkU4rc8pxhf2w+VD4/15fwdwi9Q4NMWNGmjxhXZNhX
-         qOAp+wBJuRXZ4GVAhhWOObtjamQSGs57J6nkFgdYTIi8YVdk9f0bCS+BCQk/4rW3VJuL
-         tL0Z+yPFOGd48txen7hKDY5atO5NEohcP9y0PUk/Rrj2f7DnU1JCUhsohT+amYYDK9sI
-         IBANrOfU8M0qCjMdJ3X0FRaRutkjDPPaOvpnOwUlt45KDcYcIBbOMLs3CFamvbrxZDkC
-         BfPQ==
+        b=0ZYvXFa21gZ5K7ERXiaXbrcimqW9p61U7dew/gdSK1Msqop6YKHRJBzrC30uukalcJ
+         RQ1y8CxMih2FdjRWm0hbUwIKIgEr1B+RWpLGTJU4Q2Qy7ymsHjmJTT03VLTWVv/MTiEs
+         gWkfGEoPKK6PiD/DXACUDG0omn1nJl6DM5QuXbqOsbKRjAvcjY242uUul/i79WRdqsqd
+         nXjL4L75RRDd8yCnuk6C3dAJOIK1TDJW2Eh2SwUjr+kmKCQ7s/MvIo65bJdkZPlPAFcc
+         FQuulotwsWyGdtfiKyc/lh4D0/7t5tGCQ1Hh7JdKTikKv10xHPbBBWz9HPpuIJTqA40W
+         eFiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=F7Cv9el9g/ZJ9E6s2DQXpeg6eDbbzVxRpHlfCN7fnKY=;
-        b=mqqzk+twyMC+oC38vFwl/zv87Q+VmNQm1kz7cWG8EVZgGejcQXSEkgP/3Eb9jG6ast
-         IDQ/0jyieBUgkNktKngF3tmRzxebHLdSwM/EfMnXtIL8WzEcQu8QfDuWteIJlEGgJcqe
-         /zn8s2PCwgIDepaxHp6hH4vfnQD4KUevlRwhxSOyb1SVe9vvEgDsdNTEw+Hl7XuBdAMo
-         PRjwSAZZ63fUH5DgDrct5tsnJy1QIGXpocm9p34l4VQOsGz/EVprytjiljYf64CjR8Na
-         4xLnmlqas1aKtg5zxO8m77mZJfWmqTtINeCzpteu4lclQXmDf8WxTKKXS4QRPZHN4UED
-         +yNA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=W8RImTT5/NuqjLVEjUkkWwa/kQ7S5eOStSkQSRaZDsM=;
+        b=vG0VQDkW6yj1j3X17H62JuZV08iH7Dt1/1Obe83e3CsxA6Vw+Coynx7OacXADURqZC
+         P5Ojq3FDyjAt9vK1E75GcF2MnEHRSwoZO+2L9q5fC25OnNtlNDnST0AM31ZcPuZ3FIp+
+         Gf1tQHYUj3RCICWAJT7wO8VPqSb1K9quloH6Yr9GP5Kyv3F8m0pvNhcXzQOGPvkE6jZE
+         6hDcoRT4VrTfuGehwMtgAlBtFe1GF+0+ay2bMV+pmPOciAVim72vZRs9BbPzb97Kc7IA
+         UoaKBQS/WMt2RYZ+yIqhYnLChTsReVYnS0QAqFzjpDraDkXcWKQn3Dad0UrGKsgDY2G5
+         5jfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y24si4557834ejo.327.2019.04.12.12.02.04
+        by mx.google.com with ESMTP id me22si2194843ejb.21.2019.04.12.12.02.06
         for <linux-mm@kvack.org>;
-        Fri, 12 Apr 2019 12:02:05 -0700 (PDT)
+        Fri, 12 Apr 2019 12:02:07 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EE618374;
-	Fri, 12 Apr 2019 12:02:03 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D6D9115AD;
+	Fri, 12 Apr 2019 12:02:05 -0700 (PDT)
 Received: from e110467-lin.cambridge.arm.com (e110467-lin.cambridge.arm.com [10.1.196.75])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 4F8043F718;
-	Fri, 12 Apr 2019 12:02:02 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 3843C3F718;
+	Fri, 12 Apr 2019 12:02:04 -0700 (PDT)
 From: Robin Murphy <robin.murphy@arm.com>
 To: linux-mm@kvack.org
 Cc: dan.j.williams@intel.com,
@@ -90,10 +91,13 @@ Cc: dan.j.williams@intel.com,
 	linuxppc-dev@lists.ozlabs.org,
 	anshuman.khandual@arm.com,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH RESEND 0/3] Device-memory-related cleanups
-Date: Fri, 12 Apr 2019 20:01:55 +0100
-Message-Id: <cover.1555093412.git.robin.murphy@arm.com>
+Subject: [PATCH RESEND 1/3] mm/memremap: Rename and consolidate SECTION_SIZE
+Date: Fri, 12 Apr 2019 20:01:56 +0100
+Message-Id:
+ <029d4af64642019a6d73c804d362d840f4eb0941.1555093412.git.robin.murphy@arm.com>
 X-Mailer: git-send-email 2.21.0.dirty
+In-Reply-To: <cover.1555093412.git.robin.murphy@arm.com>
+References: <cover.1555093412.git.robin.murphy@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -102,45 +106,90 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190412190155.kci2l3S-CQx2M0GZ-555dnlNtJMN0GaxAkZ4efe74mE@z>
+Message-ID: <20190412190156.P8bruvQ_4BSXjkksO_UJie66_DzfqIenT_nUsj5O8nc@z>
 
-[This time hopefully without botching Oliver's address.. sorry for the spam]
+Trying to activatee ZONE_DEVICE for arm64 reveals that memremap's
+internal helpers for sparsemem sections conflict with and arm64's
+definitions for hugepages, which inherit the name of "sections" from
+earlier versions of the ARM architecture.
 
-Hi,
+Disambiguate memremap (and now HMM too) by propagating sparsemem's PA_
+prefix, to clarify that these values are in terms of addresses rather
+than PFNs (and because it's a heck of a lot easier than changing all the
+arch code). SECTION_MASK is unused, so it can just go.
 
-As promised, these are my preparatory cleanup patches that have so far
-fallen out of pmem DAX work for arm64. Patch #1 has already been out for
-a ride in Anshuman's hot-remove series, so I've collected the acks
-already given.
+[anshuman: Consolidated mm/hmm.c instance and updated the commit message]
 
-Since we have various things in flight at the moment touching arm64
-pagetable code, I'm wary of conflicts and cross-tree dependencies for
-our actual ARCH_HAS_PTE_DEVMAP implementation. Thus it would be nice if
-these could be picked up for 5.2 via mm or nvdimm as appropriate, such
-that we can then handle the devmap patch itself via arm64 next cycle.
+Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+---
+ include/linux/mmzone.h |  1 +
+ kernel/memremap.c      | 10 ++++------
+ mm/hmm.c               |  2 --
+ 3 files changed, 5 insertions(+), 8 deletions(-)
 
-Robin.
-
-
-Robin Murphy (3):
-  mm/memremap: Rename and consolidate SECTION_SIZE
-  mm: clean up is_device_*_page() definitions
-  mm: introduce ARCH_HAS_PTE_DEVMAP
-
- arch/powerpc/Kconfig                         |  2 +-
- arch/powerpc/include/asm/book3s/64/pgtable.h |  1 -
- arch/x86/Kconfig                             |  2 +-
- arch/x86/include/asm/pgtable.h               |  4 +-
- arch/x86/include/asm/pgtable_types.h         |  1 -
- include/linux/mm.h                           | 47 +++++++-------------
- include/linux/mmzone.h                       |  1 +
- include/linux/pfn_t.h                        |  4 +-
- kernel/memremap.c                            | 10 ++---
- mm/Kconfig                                   |  5 +--
- mm/gup.c                                     |  2 +-
- mm/hmm.c                                     |  2 -
- 12 files changed, 29 insertions(+), 52 deletions(-)
-
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index fba7741533be..ed7dd27ee94a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1081,6 +1081,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+  * PFN_SECTION_SHIFT		pfn to/from section number
+  */
+ #define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
++#define PA_SECTION_SIZE		(1UL << PA_SECTION_SHIFT)
+ #define PFN_SECTION_SHIFT	(SECTION_SIZE_BITS - PAGE_SHIFT)
+ 
+ #define NR_MEM_SECTIONS		(1UL << SECTIONS_SHIFT)
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index a856cb5ff192..dda1367b385d 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -14,8 +14,6 @@
+ #include <linux/hmm.h>
+ 
+ static DEFINE_XARRAY(pgmap_array);
+-#define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+-#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
+ 
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+ vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
+@@ -98,8 +96,8 @@ static void devm_memremap_pages_release(void *data)
+ 		put_page(pfn_to_page(pfn));
+ 
+ 	/* pages are dead and unused, undo the arch mapping */
+-	align_start = res->start & ~(SECTION_SIZE - 1);
+-	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
++	align_start = res->start & ~(PA_SECTION_SIZE - 1);
++	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
+ 		- align_start;
+ 
+ 	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
+@@ -154,8 +152,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ 	if (!pgmap->ref || !pgmap->kill)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	align_start = res->start & ~(SECTION_SIZE - 1);
+-	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
++	align_start = res->start & ~(PA_SECTION_SIZE - 1);
++	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
+ 		- align_start;
+ 	align_end = align_start + align_size - 1;
+ 
+diff --git a/mm/hmm.c b/mm/hmm.c
+index fe1cd87e49ac..ef9e4e6c9f92 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -33,8 +33,6 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/memory_hotplug.h>
+ 
+-#define PA_SECTION_SIZE (1UL << PA_SECTION_SHIFT)
+-
+ #if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
 -- 
 2.21.0.dirty
 
