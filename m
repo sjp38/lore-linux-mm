@@ -2,98 +2,102 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E716EC10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 11:59:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DCDEC10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 12:05:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86B022082E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 11:59:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86B022082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id BBA4120652
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 12:05:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBA4120652
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0E396B0010; Fri, 12 Apr 2019 07:59:38 -0400 (EDT)
+	id 58F466B0010; Fri, 12 Apr 2019 08:05:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C965E6B026A; Fri, 12 Apr 2019 07:59:38 -0400 (EDT)
+	id 53EDD6B026A; Fri, 12 Apr 2019 08:05:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B36C06B026B; Fri, 12 Apr 2019 07:59:38 -0400 (EDT)
+	id 42E836B026B; Fri, 12 Apr 2019 08:05:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6084C6B0010
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 07:59:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p88so4743702edd.17
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 04:59:38 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E8B9B6B0010
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:05:07 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id e6so4809438edi.20
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 05:05:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=t5TYhZmnd5L+AXUdP/jm/jEk3u8WIGaRjpSweCd/7YQ=;
-        b=WWBBu4G5C9zotSysByuM8DcKWmNCqHlI1SzOyDbYmLmMuWIg6FGKeOW0mAR9DW85cs
-         sV9L4o+wAbz8iF3IJL71nlP+MMZn0MAj9kGfp/noeYyj8Of2IPzOSVzt5F5d/UpSquzk
-         F6+fvvO5WUJxbY2tFKRq49MDGeRgmtR6bnuv9jAQom+wmSw4QuqbxvyUm8eYp+pD1x2P
-         j7bj/8ikycmR2kETDJFrct5RsI475qAzywx3bZKDus6YQoyAOBG1PSk+Wbgpi3+pcO73
-         hZPJnf16VdaC8V8jyFoidGwwliYg/EEs8bIP1Au4P24ndS60qq0aDKkObKHhf53sniPR
-         Ayhw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWJx9fH8wf1epKnXadHY0RKHh1mg841PavjC+wUvdoCe4Y6Ft/s
-	17oQ6jLDJvp9abIcY2tXKYqHMXLdQcdfcSiOK2oeKOaHlPmvtdlGxGVW4bhlPS+5MR9HFa3DsFa
-	mw5zfMyHCNLEJKlCYatW5zQy/SzBVRuI8Q83ZOm+s0Wgo6dzEqFeSMPl5F/LgtWA=
-X-Received: by 2002:a17:906:a4b:: with SMTP id x11mr31066060ejf.200.1555070377796;
-        Fri, 12 Apr 2019 04:59:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjNmkcJsxg2AKGhkU9w3TIJsHs4IuP3jfeBHdyw3SUKmng146etIp8uKNKNsvISJcyuzPV
-X-Received: by 2002:a17:906:a4b:: with SMTP id x11mr31066006ejf.200.1555070376633;
-        Fri, 12 Apr 2019 04:59:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555070376; cv=none;
+        bh=tnlxznqfsNJaL8OX6t6A7tNjfke803rK2SM0fxijTLE=;
+        b=a9q2ni+6Fg140gnSwvtw48RbgZnJ2JTEtf/KYdsfGgKOljWju9DtT7jrSm6IpXJI8a
+         DNtxhKcXIiYhOa1sLdGGkfHZApIWGXRnsgExKOJ/eseWazA/Um3PUZt5ebM7a7ZF+TTP
+         kU1wxweq31Xsi5S1io5aK0A4bJPklYyvPSnA9iP6OhO85CAOAxk+HT3yW/4MYS7W6G8u
+         m0T4lACmNzO2kXYYc+BVnA47xdMeVgVhHtleKVL90AlRpzL+j9U+9+mUVgOyY9613+lp
+         hx9LmKFSloMafA34ug7nsjvkdmQFaTT0FQugMXFfCN7s2Yq+MwgY7J93mHA0nQnmZYM7
+         4L8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAXIZ9SA/rnJlo+UbHENLaR5dasVG1zXn+SYVqdPPHNd93jjKjgO
+	FcdnTdtZxv0D76bM4f1s2k0bP4ZXmZhtOWh/v2yy7ZIk7FUw5yU9JDCAd+dla9Vix6sqaalZhmL
+	fDafaoYCfW6XWuwlkSkk6+392Hi1W7iHm2hhxJzcJuqDPsP6h+byMcaCmBPr41q89QQ==
+X-Received: by 2002:a17:906:828b:: with SMTP id h11mr30265202ejx.1.1555070707485;
+        Fri, 12 Apr 2019 05:05:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnxoS61IjhqgVVlVTg08l2rAynytUZh3D1ZKNUWB5q+XsD1yxZFFZb4btvnbL4er/sEs1d
+X-Received: by 2002:a17:906:828b:: with SMTP id h11mr30265150ejx.1.1555070706529;
+        Fri, 12 Apr 2019 05:05:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555070706; cv=none;
         d=google.com; s=arc-20160816;
-        b=vZxVhrWgUxTP5UbiwWAyGPQ8anqGfK2zQWG+9LjLysfAoZ1li34FNps6CsCVOeEaA3
-         rRHXZfsWyRSWcfrjzfbr0abhY3dibl4rLQ9hJCixaLnP6dkR9nGK02eq2CKkxImDP8HM
-         sgMh4awvNcuxxNxiDHE9xMq54vrk5h0magInXT2D6QhL3PDMUWkGqro5Ne8Xk54MS3Gj
-         B+ytjQ5zLhxmyejgZ1R2qzImKq3bAEqpjhV++f8MDEy4A+sw+g4MFSSxt7tM22h2NH7e
-         y4s8wLpkfKMDGC7RufT3ru6WW7HtqDz3cKu7FNdCKSboOyxz+1LxCeuIyQz1Ux0FII6a
-         eCNA==
+        b=LXiuvofg5e7VFN7kjn/yvyRNoVURvu7xrxymG2FzAg7rLs3iY9gzt5D7DlhLravSs/
+         v11QmOvvhHG1DEOTQcVzK3ozxuC1xFMRyBuRGNKDQQHow/A0oo1aCk7OFVGiF51WZo/t
+         7gcCGn0rbIVNiCouBdjr2A5tie7z+V60bxiClY8sGheidLTVmNG221g9O+vl87UIGFbf
+         o2i5myZSx8ox6/Zu/qMi4CUHrtKNe1rhkma4sCZRTyATI+X+xGWcget+4EcITXO+xEEi
+         e8yXVHarW5fLUjUtmE72eZlRJNb0K78wcTHQ0b+7WO7T2ULtlQNzUHJX+7i+qMKCBapM
+         IR0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=t5TYhZmnd5L+AXUdP/jm/jEk3u8WIGaRjpSweCd/7YQ=;
-        b=Z7jAaryitM28I64RIc5hTii5Q7dhWiPlkSvQfYDS1pqqUtSbL90o050NyftDXQRHdJ
-         Z8JBhHkQP7lQietFYVZXj4dJ3ek7T61mg7lxqI6NLPcbA53AHJhHCAxwlSkEHhMpM7Rd
-         BRYbt04u0n7phOKoNkmInqtDAxbkBatA/X2LcwRvJB1Z71/HPlJXoq7t13NnVp52Zz2b
-         m/Ix+q/k06Hj55gg2DdkM1W5AopX3xXuAIaItbYgFi6rncCIxeur75nYr0UUMQb8/7+f
-         TpejXCPpnB3eb8Znd+tlkunxyWeQ8CHYIzlake2vBl4SENNNXrQNKwpeeDvZTAxaUhYH
-         CjFw==
+        bh=tnlxznqfsNJaL8OX6t6A7tNjfke803rK2SM0fxijTLE=;
+        b=QJPEzpVjKE0tozlEjs6bYQnWrNUHSOqlEDnIzKaq86pc3qa7NSAWOnk+UBQc/Czh/C
+         MvdHP8zcFGNcHbCM5MPeNCtesweVHkw64R+32UFJR3mCs2R+mPyrHhGmQ9yx04WrwS00
+         KqIayCUVl93EOGeUrDUJPKiVOngEkHQTJPtbsOv+XcuV71NAAvP1A69lWdQn0ezduxQx
+         JRXN9+KfGww1EO70T1ysm4w2ra3nMl0gNK0QhFSKjqaws7/q/pCjLU0gq9QiZd3Yyms5
+         CozCxYhLy8i6heBugo2Esc+XR0aFkWP9ilwBKyobyPs5M6FbEeZz5UqXPWhnH7IgxKDA
+         5GmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f7si2214874edn.259.2019.04.12.04.59.36
+        by mx.google.com with ESMTPS id h10si4896997edv.8.2019.04.12.05.05.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Apr 2019 04:59:36 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 12 Apr 2019 05:05:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0577EAA85;
-	Fri, 12 Apr 2019 11:59:35 +0000 (UTC)
-Date: Fri, 12 Apr 2019 13:59:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, osalvador@suse.de, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/hotplug: treat CMA pages as unmovable
-Message-ID: <20190412115934.GC5223@dhcp22.suse.cz>
-References: <20190411213124.8254-1-cai@lca.pw>
+	by mx1.suse.de (Postfix) with ESMTP id 98CCAAC89;
+	Fri, 12 Apr 2019 12:05:05 +0000 (UTC)
+Date: Fri, 12 Apr 2019 14:05:04 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Baoquan He <bhe@redhat.com>, Daniel Jordan <daniel.m.jordan@oracle.com>,
+	akpm@linux-foundation.org, hannes@cmpxchg.org, dave@stgolabs.net,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v2] mm: Simplify shrink_inactive_list()
+Message-ID: <20190412120504.GD5223@dhcp22.suse.cz>
+References: <155490878845.17489.11907324308110282086.stgit@localhost.localdomain>
+ <20190411221310.sz5jtsb563wlaj3v@ca-dmjordan1.us.oracle.com>
+ <20190412000547.GB3856@localhost.localdomain>
+ <26e570cd-dbee-575c-3a23-ff8798de77dc@virtuozzo.com>
+ <20190412113131.GB5223@dhcp22.suse.cz>
+ <4ac7242c-54d3-cd44-2cd9-5d5c746e2690@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190411213124.8254-1-cai@lca.pw>
+In-Reply-To: <4ac7242c-54d3-cd44-2cd9-5d5c746e2690@virtuozzo.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -101,116 +105,92 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 11-04-19 17:31:24, Qian Cai wrote:
-> When offlining a memory block that contains reserved CMA areas, it will
-> set those page blocks migration type as MIGRATE_ISOLATE. Then, onlining
-> will set them as MIGRATE_MOVABLE. As the results, those page blocks lose
-> their original types, i.e., MIGRATE_CMA, and then it causes troubles
-> like accounting for CMA areas becomes inconsist,
-
-Yes migrate type based accounting sucks. Joonsoo had a patch to use a
-(movable) zone for that purpose. Anyway the above description is not
-really easy to grasp. At least it was not for me. Because there are
-mutlitple things going on here. I would suggest something like the
-following:
-
-: has_unmovable_pages is used by both CMA allocator and the memory
-: hotplug. The later doesn't know how to offline CMA pool properly
-: now but if an unused (free) CMA page is encountered then
-: has_unmovable_pages happily considers it as a free memory and propagates
-: this up the call chain. Memory offlining code then frees the page
-: without a proper CMA tear down which leads to an accounting issues.
-: Moreover if the same memory range is onlined again then the memory never
-: gets back to the CMA pool.
-: 
-: State after memory offline
-:  # grep cma /proc/vmstat
-:  nr_free_cma 205824
-: 
-:  # cat /sys/kernel/debug/cma/cma-kvm_cma/count
-:  209920
-: 
-And continue with the following kmemleak splat
-
-> Also, kmemleak still think those memory address are reserved but have
-> already been used by the buddy allocator after onlining.
+On Fri 12-04-19 14:33:27, Kirill Tkhai wrote:
+> On 12.04.2019 14:31, Michal Hocko wrote:
+> > On Fri 12-04-19 13:55:59, Kirill Tkhai wrote:
+> >> This merges together duplicating patterns of code.
+> > 
+> > OK, this looks better than the previous version
+> > 
+> >> Also, replace count_memcg_events() with its
+> >> irq-careless namesake.
+> > 
+> > Why?
 > 
-> Offlined Pages 4096
-> kmemleak: Cannot insert 0xc000201f7d040008 into the object search tree
-> (overlaps existing)
-> Call Trace:
-> [c00000003dc2faf0] [c000000000884b2c] dump_stack+0xb0/0xf4 (unreliable)
-> [c00000003dc2fb30] [c000000000424fb4] create_object+0x344/0x380
-> [c00000003dc2fbf0] [c0000000003d178c] __kmalloc_node+0x3ec/0x860
-> [c00000003dc2fc90] [c000000000319078] kvmalloc_node+0x58/0x110
-> [c00000003dc2fcd0] [c000000000484d9c] seq_read+0x41c/0x620
-> [c00000003dc2fd60] [c0000000004472bc] __vfs_read+0x3c/0x70
-> [c00000003dc2fd80] [c0000000004473ac] vfs_read+0xbc/0x1a0
-> [c00000003dc2fdd0] [c00000000044783c] ksys_read+0x7c/0x140
-> [c00000003dc2fe20] [c00000000000b108] system_call+0x5c/0x70
-> kmemleak: Kernel memory leak detector disabled
-> kmemleak: Object 0xc000201cc8000000 (size 13757317120):
-> kmemleak:   comm "swapper/0", pid 0, jiffies 4294937297
-> kmemleak:   min_count = -1
-> kmemleak:   count = 0
-> kmemleak:   flags = 0x5
-> kmemleak:   checksum = 0
-> kmemleak:   backtrace:
->      cma_declare_contiguous+0x2a4/0x3b0
->      kvm_cma_reserve+0x11c/0x134
->      setup_arch+0x300/0x3f8
->      start_kernel+0x9c/0x6e8
->      start_here_common+0x1c/0x4b0
-> kmemleak: Automatic memory scanning thread ended
+> Since interrupts are already disabled, and there is
+> no a sense to disable them twice.
+
+right and changelog could have mentioned that...
+
+> >> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+
+Anyway, forgot to add
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> >>
+> >> v2: Introduce local variable.
+> >> ---
+> >>  mm/vmscan.c |   31 +++++++++----------------------
+> >>  1 file changed, 9 insertions(+), 22 deletions(-)
+> >>
+> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >> index 836b28913bd7..d96efff59a11 100644
+> >> --- a/mm/vmscan.c
+> >> +++ b/mm/vmscan.c
+> >> @@ -1907,6 +1907,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> >>  	unsigned long nr_taken;
+> >>  	struct reclaim_stat stat;
+> >>  	int file = is_file_lru(lru);
+> >> +	enum vm_event_item item;
+> >>  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> >>  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> >>  	bool stalled = false;
+> >> @@ -1934,17 +1935,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> >>  	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
+> >>  	reclaim_stat->recent_scanned[file] += nr_taken;
+> >>  
+> >> -	if (current_is_kswapd()) {
+> >> -		if (global_reclaim(sc))
+> >> -			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
+> >> -		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
+> >> -				   nr_scanned);
+> >> -	} else {
+> >> -		if (global_reclaim(sc))
+> >> -			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
+> >> -		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
+> >> -				   nr_scanned);
+> >> -	}
+> >> +	item = current_is_kswapd() ? PGSCAN_KSWAPD : PGSCAN_DIRECT;
+> >> +	if (global_reclaim(sc))
+> >> +		__count_vm_events(item, nr_scanned);
+> >> +	__count_memcg_events(lruvec_memcg(lruvec), item, nr_scanned);
+> >>  	spin_unlock_irq(&pgdat->lru_lock);
+> >>  
+> >>  	if (nr_taken == 0)
+> >> @@ -1955,17 +1949,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> >>  
+> >>  	spin_lock_irq(&pgdat->lru_lock);
+> >>  
+> >> -	if (current_is_kswapd()) {
+> >> -		if (global_reclaim(sc))
+> >> -			__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
+> >> -		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD,
+> >> -				   nr_reclaimed);
+> >> -	} else {
+> >> -		if (global_reclaim(sc))
+> >> -			__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
+> >> -		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_DIRECT,
+> >> -				   nr_reclaimed);
+> >> -	}
+> >> +	item = current_is_kswapd() ? PGSTEAL_KSWAPD : PGSTEAL_DIRECT;
+> >> +	if (global_reclaim(sc))
+> >> +		__count_vm_events(item, nr_reclaimed);
+> >> +	__count_memcg_events(lruvec_memcg(lruvec), item, nr_reclaimed);
+> >>  	reclaim_stat->recent_rotated[0] = stat.nr_activate[0];
+> >>  	reclaim_stat->recent_rotated[1] = stat.nr_activate[1];
+> >>  
+> > 
 > 
-> Signed-off-by: Qian Cai <cai@lca.pw>
-> ---
->  mm/page_alloc.c | 20 ++++++++++++--------
->  1 file changed, 12 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d96ca5bc555b..896db9241fa6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -8015,14 +8015,18 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  	 * can still lead to having bootmem allocations in zone_movable.
->  	 */
->  
-> -	/*
-> -	 * CMA allocations (alloc_contig_range) really need to mark isolate
-> -	 * CMA pageblocks even when they are not movable in fact so consider
-> -	 * them movable here.
-> -	 */
-> -	if (is_migrate_cma(migratetype) &&
-> -			is_migrate_cma(get_pageblock_migratetype(page)))
-> -		return false;
-> +	if (is_migrate_cma(get_pageblock_migratetype(page))) {
-> +		/*
-> +		 * CMA allocations (alloc_contig_range) really need to mark
-> +		 * isolate CMA pageblocks even when they are not movable in fact
-> +		 * so consider them movable here.
-> +		 */
-> +		if (is_migrate_cma(migratetype))
-> +			return false;
-> +
-> +		pr_warn("page: %px is in CMA", page);
-> +		return true;
-
-you want goto unmovable here. dum_page doesn't print the migrate type so
-we will need to make the dump reason conditional defaulting to "unmovable page"
-and overriding it to "CMA page" in this path.
-
-Other than that the patch looks reasonable to me. I hate this special
-casing here but this falls into the same bucket with 4da2ce250f986.
-
-Thanks!
-
-> +	}
->  
->  	pfn = page_to_pfn(page);
->  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
-> -- 
-> 2.20.1 (Apple Git-117)
 
 -- 
 Michal Hocko
