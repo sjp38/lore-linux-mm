@@ -2,179 +2,176 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23F9AC10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 08:11:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6BF9C282CE
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 08:47:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBD1120818
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 08:11:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Q1gEUhdP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBD1120818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 92FE4218FD
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 08:47:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92FE4218FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5EFF06B0008; Fri, 12 Apr 2019 04:11:07 -0400 (EDT)
+	id 735A56B000C; Fri, 12 Apr 2019 04:47:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5796F6B000A; Fri, 12 Apr 2019 04:11:07 -0400 (EDT)
+	id 6BE3A6B0010; Fri, 12 Apr 2019 04:47:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 41AAD6B000C; Fri, 12 Apr 2019 04:11:07 -0400 (EDT)
+	id 585F96B0266; Fri, 12 Apr 2019 04:47:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9716B0008
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 04:11:07 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id v193so7943598itv.9
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 01:11:07 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EF96B000C
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 04:47:06 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id s6so4536183edr.21
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 01:47:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ZHfN9HC9KjO69uoWFU8xq3oAmqPFxlHUhLDi5aTBC/o=;
-        b=S05KwjOKTwMmyWVgYlsFFbO3pW6O8xWCyg2WwhVvdA01B3NTwgBQ8m0zjJtxPycz0r
-         M+EW6l4cD2ljIA/ksC5G/wyXpORvwFQHYq/jzXealva5F14U99FV0WsQLYs39VDPeUZ4
-         SpYREovvklT5irYqYUD/Da1NfxEhwT8BImYZ0NbGLRBcUP475HYyFe9VyPnXWsH1n3yR
-         xqnLmgCshHcn/qMqJRxExGTNCGSbd6tOPowGTJc8PSMwcFRilW4KKhdlycNhoavZJlqs
-         Te0cIef0GHYN6MCb3rbCOIQwmz6pNDQUYGIBjZ6yfAdJdAFRnyzhFVMPy7C2SaXGPM4F
-         w28g==
-X-Gm-Message-State: APjAAAWb6802AC4mF9WuQ/vz0uAUyvcpHU6fwRwBNCEX5OZ5AzSVGv3v
-	LvJZ44msXXks6z1oWj0gNAkfMXiE8RwcZKepXFezenHzeN6zu/9BQLTaOmavZ426VqTB7bd6WBi
-	HuFdqWm51iDo9RWTL/kjxTmfPBOhd0XnDyu2KKpJlKAwJhNL4bsKqu7HfDJjRUOKLsw==
-X-Received: by 2002:a02:2949:: with SMTP id p70mr28185597jap.48.1555056666853;
-        Fri, 12 Apr 2019 01:11:06 -0700 (PDT)
-X-Received: by 2002:a02:2949:: with SMTP id p70mr28185553jap.48.1555056666118;
-        Fri, 12 Apr 2019 01:11:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555056666; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=QeacHHO6pSVIiOKGtWInU8tLD8Z+aqfJEnWSEGwai1c=;
+        b=cJQnFisAhchnrfQVJbVenYhkb0u3+U7a06pq0C7hqttVR/f+oFUE7isB+Dng3OsPrH
+         ykaOUAwNotgWmX1C3tMkXwZmAuw4eshI6c5p7ZJFY7XWen66u+WkRsqpH4qjqImtfh1C
+         wB5auVbdoZjInm+CwuqZg7eJ//oNSMksgo7lwLMUZyeDRP8v223unKnhQ/Jt+WtW+XFh
+         uZnFd0jD4PYzWWE9MzxDy4gtwsJowyhaIkyVns99ig1p0sdeuWCbwb3LtvwK79QhGTsC
+         7alI/P9dc/ldUUKJ2ldzhHpvllpLSbi/AC/bDZLgAdIyOl2sAvfpRKyG+ns/GyesNBLN
+         Kn1A==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUvIoFgfpW882pXMJvDvrznDTGoKkNOn8gSovalRyMNaZXSMUj3
+	5+yKPjualsLztTPpTHbz58TJ6bhIJ6ASLpw9k/XveRMtVyRYQff5w7F4LWAoxGtAfwkuUlYLo12
+	q8wWtns8Lx5yl95MkxgIbS9H2GNmgWkQcgrPlcCNGH2AbwSZCRFzU8KJ5W/jRXyE=
+X-Received: by 2002:aa7:da51:: with SMTP id w17mr34460916eds.71.1555058825546;
+        Fri, 12 Apr 2019 01:47:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxfaVurFnakiHO04kswSR0oIRtf0D4Q8r9XHP+NOzOX04EgWnWN3JFcG/tF5+H6cpDe1pmR
+X-Received: by 2002:aa7:da51:: with SMTP id w17mr34460853eds.71.1555058824379;
+        Fri, 12 Apr 2019 01:47:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555058824; cv=none;
         d=google.com; s=arc-20160816;
-        b=YIRbspU1gawprVi2bnkwnC731xHk1q9B0nZMBKm3UcBym05z/nwERK8SpMpiXzrFUi
-         e8BV9M6BayAuDhnTLq6epHFl6s8lRqWCzxxa9yS1AxzoGh1IrMqg6fAVSG1GUjSYKPYt
-         sul+3iuyC33HqX++cadgXeUqyEGNuwJ8xwtzp4PHFuSzI084dVq/NwJJ+u/SXzSiyGzw
-         fyaM2IYI3a+qpo3p48ebCc1q9fDir2/rXZodQWgQvNY/6iRbFQHMebq3YSWdoS92Q6JF
-         2STfuyLfrKpL+JSTbM9eyFVqdeads0jPCZQBJJVS+xfQfup98PDQ4KMXHZprCOsGSf9j
-         bCKg==
+        b=wq1jgelRlLo/ItbX+nizg/Z7bW1WpaYa3ZLgmTlhGdv/Ymdu0VJikPdw1l01ZhOMRB
+         FWwh8mYn3wCeLp8lhX9laIgqTblkBLNWd9NpEgaPZS2a8PkDHNe4oX/mNaU45ZQkijPs
+         5H0doJw9CDLZ8Lpgt4u1IEf6WuG9ommSDy6EIR2INLBWJYJOMNKURzrRcOD7lPacVws3
+         Yqo/8rhMkeryb5WJXEQWJ7xDQtdqr0zTYIlSIVe7VuIyciz+1rB+cS4nwycfvfa8czhf
+         1LsRQcuNgjUTpu++WSEVgBzWsQcXoaaIolGKeL9NgKzz/OIGFe8CM2pthdTg1F5+CL3A
+         cklw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ZHfN9HC9KjO69uoWFU8xq3oAmqPFxlHUhLDi5aTBC/o=;
-        b=F3hc7v+4gs8dmZH+qVJCdyN6R/oLF1fpwMTS0HN2yFtnhZz1lh5/cA1s61NOAcNTPE
-         O25O03HwtDFuTuEp0x/DYo1+B0UBwiggCi7hvz88qyCdry34fIn8bhXc7HngV1RC2YG2
-         NGMxNYVqbLUwNYAs/S88JOQjpfjCxQ41K0uPIBqDmEwKrUpXtCQxL4Q1Hy3lrUbAesXz
-         1kAWDJPujZs6zzju8rYyyGjDySdTwizcBAwmYtadVEp1aErumK42wKJIVPWQcVi75oaT
-         3n11aKEXt1uEubDfUVYP3o5SCFQ/d7HvvdHsHLDJathp53jkAKRx6bS167jscU0cXl9V
-         rkCw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=QeacHHO6pSVIiOKGtWInU8tLD8Z+aqfJEnWSEGwai1c=;
+        b=XP2g/6rk3BU+99qwBs4+F+Q8JodrNFRqV/eq2wDF4UUxEMDYqedCtoKWgas2r3ApIl
+         fGDwLsGf6VL+VKAdUoKTbo8S6P5tBluXHryV2B2AcgFwsYQs9R3XcxsXbX+cBfkciLzM
+         9bu1BvdWfaOoXhVsFysrxnYe15juTsj2GhHLDm/0KYV3IC1Vl2ngRqTf0Ys7D6bT/Zmq
+         MsryFeVXfvku8jRBrYZzoqL5Y6e2UD7rHj3EgcIg9K7INVQSQp0EDSnvEa+ODLQIYewl
+         XgjQp3I5xq44do+DLskMUp3m6woffWM/HCgxj6mCOCMbWA2Wavj0fYaz2bIcEC4W009X
+         r/zQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Q1gEUhdP;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j192sor11757965itj.28.2019.04.12.01.11.06
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s17si4276320eja.89.2019.04.12.01.47.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Apr 2019 01:11:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Apr 2019 01:47:04 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Q1gEUhdP;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=ZHfN9HC9KjO69uoWFU8xq3oAmqPFxlHUhLDi5aTBC/o=;
-        b=Q1gEUhdPktabF84Zr34eCuqua2XyGAzusJ/GSPPFPWZ43YfAg+86TID91GE6vN0mYC
-         g0r9Gs+Wj7Sy7BJUIMoX0DySH+EumhBvN0hmaZuBU8zBOJYh221oXsQYLrgKZm77dNlj
-         tIqLrFX9LxfjSBr3ypPi5q9nR0EXRJGdbUcxQDNdAW2p5dnXHuNV3SNic6dreGCBKbhb
-         v0SreAk1EBClzHZdzm5tyeBKpggS+STzC0LcE6Suy5Au5DnWYqz0hTiICP95pOkGX6Xd
-         SfqV+Rj+tmbAGx/8ckvBDdv0kjrPz+Ju/nvZ8Fy4xH3otpIGUe0W7Wr+YC0zi379+Mn+
-         /O2A==
-X-Google-Smtp-Source: APXvYqxuavWGmBIa7fuWdaqqo8q5jLiydV2mlSWytS+t6ZwCQjB9ya7RWgHAQGn+NC3zbLz47GWsLGPkZJklFWX3nk0=
-X-Received: by 2002:a24:ba15:: with SMTP id p21mr10413200itf.66.1555056665796;
- Fri, 12 Apr 2019 01:11:05 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9CBE5ACBA;
+	Fri, 12 Apr 2019 08:47:03 +0000 (UTC)
+Date: Fri, 12 Apr 2019 10:47:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
+	akpm@linux-foundation.org, dave.hansen@intel.com,
+	keith.busch@intel.com, dan.j.williams@intel.com,
+	fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
+	ziy@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190412084702.GD13373@dhcp22.suse.cz>
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-References: <1554983991-16769-1-git-send-email-laoar.shao@gmail.com>
- <20190411122659.GW10383@dhcp22.suse.cz> <CALOAHbD7PwABb+OX=2JHzcTTLhv_-o8Wxk7hX-0+M5ZNUtokhA@mail.gmail.com>
- <20190411133300.GX10383@dhcp22.suse.cz> <CALOAHbBq8p63rxr5wGuZx5fv5bZ689A=wbioRn8RXfLYvbxCdw@mail.gmail.com>
- <20190411151039.GY10383@dhcp22.suse.cz> <CALOAHbBCGx-d-=Z0CdL+tzWRCCQ7Hd9CFqjMhLKbEofDfFpoMw@mail.gmail.com>
- <20190412063417.GA13373@dhcp22.suse.cz>
-In-Reply-To: <20190412063417.GA13373@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Fri, 12 Apr 2019 16:10:29 +0800
-Message-ID: <CALOAHbBKkznCUG39se2wcGt9PZYiGFhCm9t2t-X+CL5yipT8cQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/memcg: add allocstall to memory.stat
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, 
-	Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, shaoyafang@didiglobal.com
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 12, 2019 at 2:34 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 12-04-19 09:32:55, Yafang Shao wrote:
-> > On Thu, Apr 11, 2019 at 11:10 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Thu 11-04-19 21:54:22, Yafang Shao wrote:
-> > > > On Thu, Apr 11, 2019 at 9:39 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > >
-> > > > > On Thu 11-04-19 20:41:32, Yafang Shao wrote:
-> > > > > > On Thu, Apr 11, 2019 at 8:27 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > > >
-> > > > > > > On Thu 11-04-19 19:59:51, Yafang Shao wrote:
-> > > > > > > > The current item 'pgscan' is for pages in the memcg,
-> > > > > > > > which indicates how many pages owned by this memcg are scanned.
-> > > > > > > > While these pages may not scanned by the taskes in this memcg, even for
-> > > > > > > > PGSCAN_DIRECT.
-> > > > > > > >
-> > > > > > > > Sometimes we need an item to indicate whehter the tasks in this memcg
-> > > > > > > > under memory pressure or not.
-> > > > > > > > So this new item allocstall is added into memory.stat.
-> > > > > > >
-> > > > > > > We do have memcg events for that purpose and those can even tell whether
-> > > > > > > the pressure is a result of high or hard limit. Why is this not
-> > > > > > > sufficient?
-> > > > > > >
-> > > > > >
-> > > > > > The MEMCG_HIGH and MEMCG_LOW may not be tiggered by the tasks in this
-> > > > > > memcg neither.
-> > > > > > They all reflect the memory status of a memcg, rather than tasks
-> > > > > > activity in this memcg.
-> > > > >
-> > > > > I do not follow. Can you give me an example when does this matter? I
-> > > >
-> > > > For example, the tasks in this memcg may encounter direct page reclaim
-> > > > due to system memory pressure,
-> > > > meaning it is stalling in page alloc slow path.
-> > > > At the same time, maybe there's no memory pressure in this memcg, I
-> > > > mean, it could succussfully charge memcg.
-> > >
-> > > And that is exactly what those events aim for. They are measuring
-> > > _where_ the memory pressure comes from.
-> > >
-> > > Can you please try to explain what do you want to achieve again?
-> >
-> > To know the impact of this memory pressure.
-> > The current events can tell us the source of this pressure, but can't
-> > tell us the impact of this pressure.
->
-> Can you give me a more specific example how you are going to use this
-> counter in a real life please?
+On Thu 11-04-19 11:56:50, Yang Shi wrote:
+[...]
+> Design
+> ======
+> Basically, the approach is aimed to spread data from DRAM (closest to local
+> CPU) down further to PMEM and disk (typically assume the lower tier storage
+> is slower, larger and cheaper than the upper tier) by their hotness.  The
+> patchset tries to achieve this goal by doing memory promotion/demotion via
+> NUMA balancing and memory reclaim as what the below diagram shows:
+> 
+>     DRAM <--> PMEM <--> Disk
+>       ^                   ^
+>       |-------------------|
+>                swap
+> 
+> When DRAM has memory pressure, demote pages to PMEM via page reclaim path.
+> Then NUMA balancing will promote pages to DRAM as long as the page is referenced
+> again.  The memory pressure on PMEM node would push the inactive pages of PMEM 
+> to disk via swap.
+> 
+> The promotion/demotion happens only between "primary" nodes (the nodes have
+> both CPU and memory) and PMEM nodes.  No promotion/demotion between PMEM nodes
+> and promotion from DRAM to PMEM and demotion from PMEM to DRAM.
+> 
+> The HMAT is effectively going to enforce "cpu-less" nodes for any memory range
+> that has differentiated performance from the conventional memory pool, or
+> differentiated performance for a specific initiator, per Dan Williams.  So,
+> assuming PMEM nodes are cpuless nodes sounds reasonable.
+> 
+> However, cpuless nodes might be not PMEM nodes.  But, actually, memory
+> promotion/demotion doesn't care what kind of memory will be the target nodes,
+> it could be DRAM, PMEM or something else, as long as they are the second tier
+> memory (slower, larger and cheaper than regular DRAM), otherwise it sounds
+> pointless to do such demotion.
+> 
+> Defined "N_CPU_MEM" nodemask for the nodes which have both CPU and memory in
+> order to distinguish with cpuless nodes (memory only, i.e. PMEM nodes) and
+> memoryless nodes (some architectures, i.e. Power, may have memoryless nodes).
+> Typically, memory allocation would happen on such nodes by default unless
+> cpuless nodes are specified explicitly, cpuless nodes would be just fallback
+> nodes, so they are also as known as "primary" nodes in this patchset.  With
+> two tier memory system (i.e. DRAM + PMEM), this sounds good enough to
+> demonstrate the promotion/demotion approach for now, and this looks more
+> architecture-independent.  But it may be better to construct such node mask
+> by reading hardware information (i.e. HMAT), particularly for more complex
+> memory hierarchy.
 
-When we find this counter is higher, we know that the applications in
-this memcg is suffering memory pressure.
-Then we can do some trace for this memcg, i.e. to trace how long the
-applicatons may stall via tracepoint.
-(but current tracepoints can't trace a specified cgroup only, that's
-another point to be improved.)
-I'm not sure whether it is a good practice, but it can help us.
+I still believe you are overcomplicating this without a strong reason.
+Why cannot we start simple and build from there? In other words I do not
+think we really need anything like N_CPU_MEM at all.
 
-Thanks
-Yafang
+I would expect that the very first attempt wouldn't do much more than
+migrate to-be-reclaimed pages (without an explicit binding) with a
+very optimistic allocation strategy (effectivelly GFP_NOWAIT) and if
+that fails then simply give up. All that hooked essentially to the
+node_reclaim path with a new node_reclaim mode so that the behavior
+would be opt-in. This should be the most simplistic way to start AFAICS
+and something people can play with without risking regressions.
+
+Once we see how that behaves in the real world and what kind of corner
+case user are able to trigger then we can build on top. E.g. do we want
+to migrate from cpuless nodes as well? I am not really sure TBH. On one
+hand why not if other nodes are free to hold that memory? Swap out is
+more expensive. Anyway this is kind of decision which would rather be
+shaped on an existing experience rather than ad-hoc decistion right now.
+
+I would also not touch the numa balancing logic at this stage and rather
+see how the current implementation behaves.
+-- 
+Michal Hocko
+SUSE Labs
 
