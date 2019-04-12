@@ -2,162 +2,113 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F4B0C282CE
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 14:44:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60328C10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 14:44:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C10420850
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 14:44:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C10420850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0BB1620850
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 14:44:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="dhjIGj9G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BB1620850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 714DF6B000C; Fri, 12 Apr 2019 10:44:44 -0400 (EDT)
+	id A1FD66B000D; Fri, 12 Apr 2019 10:44:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69D306B000D; Fri, 12 Apr 2019 10:44:44 -0400 (EDT)
+	id 9D10F6B026B; Fri, 12 Apr 2019 10:44:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5175B6B026B; Fri, 12 Apr 2019 10:44:44 -0400 (EDT)
+	id 84D0E6B026C; Fri, 12 Apr 2019 10:44:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A546B000C
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 10:44:44 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id p13so6384224pll.20
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 07:44:44 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 617EB6B000D
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 10:44:47 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id e31so9037259qtb.0
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 07:44:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=bP4Fwd2yVFH5P84nqqsHQ9FNx5Djc027pg5lP9xvbz0=;
-        b=EBALn7BMWwTNnGrSWThitk/iQfC40xQKwGBXqga+2/5aVHleVgSL0fsyw4xSFFe4y4
-         IpNiDU++xe7hwrzbhvE7BpMQH2LRFquRQqidto2rkVGepykpCL005CsDEafXpWj/h/cW
-         bDY6D56lB7crd4qtL3m8AJLzejtatVHkbqTxWVK2fl6ncwXy3c2vzjomSRTHhoBcMwBB
-         GNFNQWNIimjw8EZHAjwEqL8vxfc8sQaOb5iM2LyM+E8kOXs7hEcXe7HLpHJ2P2TneJc9
-         78tymTcCwHUYTSNaLHyg85pHRiXeXwftVH70hD4SvgL5/t6i8j6S4T4bvG6XtYwqa+fO
-         gNSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW8nlAh8q+mf//WwcnF97NhcmyMsU02hh6t3++VbBtZUiMCfAzA
-	/QCPHb0qGmntgFwG41PGc/A63qKhhp3ML6Rz/RzQp4saNtp6DmbQmyvdURdczp/n7Ge9arl3BEG
-	EWLEbAGXtYHyUEoNBboBCngEOe8BN4KMJSli7VeaKGmSDoX93Qq95bwHe3dCoE6snnA==
-X-Received: by 2002:a17:902:2aa6:: with SMTP id j35mr1565493plb.236.1555080283549;
-        Fri, 12 Apr 2019 07:44:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywYh2CjUqE6NtVlS1oiBAHkTPk87/6r8ej16OHXDhCZgD5WX80HFoM87pxB2T10Pa/ZCG+
-X-Received: by 2002:a17:902:2aa6:: with SMTP id j35mr1565434plb.236.1555080282761;
-        Fri, 12 Apr 2019 07:44:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555080282; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=TpJORoHWMkN029iMtW7/72pORwZc7P01cwdjOx9UylM=;
+        b=B1+quOCoSIgEj4uexnFHZpR7AYmaTy/ynI9+Qc/7Ig9EEy4TL3MCqfVz800vEwoIdb
+         j3i+at+U20PrYs043/f5VUcc4n7R89SW53lNxZ34cAQHajqdzoSWDWAqt/9wtOLqZn8p
+         gzu57Tw/HC/LSZqaBYKNQPH3FxvyU1RjQCHpJ/dBg1q4Bh8AzlsNdcz8actxSmtBQH63
+         PLwEAiE2hE7Tg7CfV2zG3RcW0f+AAWMn5Mm0cbld2bREDvpZMqbIdZA5g0Tu/9/rvWBR
+         qMsPBucQNsKYq1KTJRMbYkG4F/VVplMXWUPBtO9PO4OdhPuXYuc5LM4889x3YccejbjS
+         AEyQ==
+X-Gm-Message-State: APjAAAUjVhEgUKj7nSMPDPOz0Jdr2uF6NFxwTH3Wi52hgEMjP+taFYlJ
+	O7Eoj9rdEdShXd59n4E0i/DZ4baN7ug+RaTHvZf9PNqYHUj9i2cyNa/xiGhuV2Fiiuy2+3d5xW9
+	K11R1ngbD/rqDr9x+2J+jiwEWLwT7BG8I3LHLWKn0HujCDCg5/60/KOWB5paDtkKZAQ==
+X-Received: by 2002:ac8:32f2:: with SMTP id a47mr46699558qtb.251.1555080287078;
+        Fri, 12 Apr 2019 07:44:47 -0700 (PDT)
+X-Received: by 2002:ac8:32f2:: with SMTP id a47mr46699468qtb.251.1555080285758;
+        Fri, 12 Apr 2019 07:44:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555080285; cv=none;
         d=google.com; s=arc-20160816;
-        b=GJNJlaLgWMh0cnz8xhAJXYaa5bbTDAQ1OmfqKQj5UaL/jNCpFt7RAkqdjtJDGAJKoC
-         Gk3AjRXXMjkq8vuo8k0GkoL7v1HYabAjhc2TI67ujGH4+1xvMSQGfMy8LFXrUbX/Hm0i
-         bsQ23FgDg0AoH9RxFrYNFI0sHuGUopgSu9rKyFT3ONwv+VLmIdQy1pIeG9OSBFK2jipk
-         giZsy5CDz1qSkRS0jzLtL97xhW8NiD0y9XkEqcxS2AGySSJ/qF4hh1S845icnlWhzgzu
-         bI/um5sSdNZ4tVUKTfr/gsxdE0LVkOomMTkdSqqnDIAsL9U5oQBk4HWS6xNMgdCdHWf4
-         fjJA==
+        b=I2aR2E3RR2jC0Dzvco0D9NRB+EREWY0IYyuksUXB8ARojsbPiglBNDCtjk18MQgrh3
+         jnlAQYyipGN89EXejLDIbGwgqmc4OJV1WTLjwEw8MwK4bNBIjXcAj1ViXDPsDrr4S8D2
+         /aUG0dzRA3ZxDogeaH1fvOIiBVFzPEPv5hekXH5fRYyWKaeOhHk7C2BTRFyQxA0AqVDU
+         ILJFccoNF2DqprGy54gvDwfBuwWws594FM5jLP9T3IfKH2LrwRaBXWFwDYbyVAwBsTuJ
+         42nEgJAmm3UUfWoJNSBQX7sNlUTZJRBeCpSuwId/04jUxyJPGE+B95XfU4dDYeia1I5e
+         +4+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=bP4Fwd2yVFH5P84nqqsHQ9FNx5Djc027pg5lP9xvbz0=;
-        b=GVYCGlHjYp9y7zTIEKc5HfHEFPt7wPX0F+sE/UVh9W9p4E/nVLjtx/aL0IGpjJyBU/
-         I0injmfpwNNARnT0+/S6UArAuLzxOynaIYsBdmJ8lbTcNxdo3zvCxT5GMLee3mM4XPdW
-         vCM+yGNW9jWmNs7L/6jQnB1MRvkv1/DNmrux48ZLcl8egvW2Aqchjn6M+v2uv1ChegsO
-         afcbwSEDbFnhoFw6fDZVVAUWGP8g/u2S4cz7DqnbjWpYQrhi+i1/7wIFrwJPqhgfe+Sx
-         uaPcaIcAkd/CGVuv09pITyhb6ZQJc3i5/hKjOXhGCDPUavTx3OqhprEsqMtgEZxkGlyC
-         X0/Q==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=TpJORoHWMkN029iMtW7/72pORwZc7P01cwdjOx9UylM=;
+        b=uTTw0iaicXcdXAfxLGQSCFpjE9TMxRz7GaxZ9Isca+3kmc3oc7teLmI6Ux7YElfyJ9
+         i/SGgyoW3d+R1hYlriVkvOVm2D498LXKQHuLPe7i+Cf2K2gXgQa+jwi/SVYzkXsd3kzR
+         ROGOnsUC6SfHPwxmwGVuTMWRkXP3ahhBUwQWmCNEDmqUS9G0/TUv/OP6rk6vGXqmd5rb
+         QurgSbU5Jo+/Z2CQRt0d7u9SOA4YTs+47OTwgrkLKM/map1I1gB/wGpLsvfpXvimfUIP
+         PpyYA2pYZ+pok2X1T3H/PDP+jUvZIG0RW0EKnbF1wA8jwmoGZTXwuh/KayrVe4hlxdZg
+         GnBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id j5si21919780plk.328.2019.04.12.07.44.42
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=dhjIGj9G;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t24sor42046145qvc.44.2019.04.12.07.44.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Apr 2019 07:44:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        (Google Transport Security);
+        Fri, 12 Apr 2019 07:44:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Apr 2019 07:44:42 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,341,1549958400"; 
-   d="scan'208";a="336804153"
-Received: from jeburk-mobl4.amr.corp.intel.com (HELO [10.251.16.160]) ([10.251.16.160])
-  by fmsmga005.fm.intel.com with ESMTP; 12 Apr 2019 07:44:40 -0700
-Subject: Re: [PATCH v8 00/20] Convert x86 & arm64 to use generic page walk
-To: Steven Price <steven.price@arm.com>, linux-mm@kvack.org,
- Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
- James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- Andrew Morton <akpm@linux-foundation.org>,
- linux-arm-kernel@lists.infradead.org, "Liang, Kan"
- <kan.liang@linux.intel.com>
-References: <20190403141627.11664-1-steven.price@arm.com>
- <4e804c87-1788-8903-ccc9-55953aa6da36@arm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <3b9561d0-3bde-ef7a-0313-c2cc6216f94d@intel.com>
-Date: Fri, 12 Apr 2019 07:44:37 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=dhjIGj9G;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=TpJORoHWMkN029iMtW7/72pORwZc7P01cwdjOx9UylM=;
+        b=dhjIGj9GhnlUIw42QmSp6MHvSVLlCu6/A72GkymhOJ1S3wjd/dN17urp2QV0SAlwlo
+         AwQwr86bgAy87FPEIYjdQBUK90nHPVdms2Gsk6G7qUOKpg5wj/jo9lb46sDapoIRzvwy
+         T3V0zNZJl4I74l4wDv0wZicEmFF35/pHAAqUhE8cCGRCM/IZMlaAdCcZyhksBfUb6m1q
+         c0JUuQBx88GqBraoMu0W8Ps11nbd9Wce4xNlJ+8FLUc0fIDBcEc3ZXGBcfboAbIzE/R/
+         bOizgsBKHYr3nkBRJj6gTO+8CbjiYSwUGajlKPLOdBLIoJF5An0UZdvQyj+G1meD2gI6
+         2bwg==
+X-Google-Smtp-Source: APXvYqy/JiV+mpq/lmqwaiYygCKW/w5T4iyoMKlKxGVcJ2MxHcoeWNRNkraAqnesgfBoBPLaRH1TUg==
+X-Received: by 2002:a0c:b050:: with SMTP id l16mr46942814qvc.82.1555080280635;
+        Fri, 12 Apr 2019 07:44:40 -0700 (PDT)
+Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
+        by smtp.gmail.com with ESMTPSA id r31sm24841599qtj.17.2019.04.12.07.44.39
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 12 Apr 2019 07:44:39 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	cgroups@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: [PATCH] mm: fix inactive list balancing between NUMA nodes and cgroups
+Date: Fri, 12 Apr 2019 10:44:38 -0400
+Message-Id: <20190412144438.2645-1-hannes@cmpxchg.org>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <4e804c87-1788-8903-ccc9-55953aa6da36@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -165,15 +116,130 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/10/19 7:56 AM, Steven Price wrote:
-> Gentle ping: who can take this? Is there anything blocking this series?
+During !CONFIG_CGROUP reclaim, we expand the inactive list size if
+it's thrashing on the node that is about to be reclaimed. But when
+cgroups are enabled, we suddenly ignore the node scope and use the
+cgroup scope only. The result is that pressure bleeds between NUMA
+nodes depending on whether cgroups are merely compiled into Linux.
+This behavioral difference is unexpected and undesirable.
 
-First of all, I really appreciate that you tried this.  Every open-coded
-page walk has a set of common pitfalls, but is pretty unbounded in what
-kinds of bugs it can contain.  I think this at least gets us to the
-point where some of those pitfalls won't happen.  That's cool, but I'm a
-worried that it hasn't gotten easier in the end.
+When the refault adaptivity of the inactive list was first introduced,
+there were no statistics at the lruvec level - the intersection of
+node and memcg - so it was better than nothing.
 
-Linus also had some strong opinions in the past on how page walks should
-be written.  He needs to have a look before we go much further.
+But now that we have that infrastructure, use lruvec_page_state() to
+make the list balancing decision always NUMA aware.
+
+Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 347c9b3b29ac..c9f8afe61ae3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2138,7 +2138,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+  *   10TB     320        32GB
+  */
+ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+-				 struct mem_cgroup *memcg,
+ 				 struct scan_control *sc, bool actual_reclaim)
+ {
+ 	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
+@@ -2159,16 +2158,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
+ 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
+ 
+-	if (memcg)
+-		refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+-	else
+-		refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+-
+ 	/*
+ 	 * When refaults are being observed, it means a new workingset
+ 	 * is being established. Disable active list protection to get
+ 	 * rid of the stale workingset quickly.
+ 	 */
++	refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
+ 	if (file && actual_reclaim && lruvec->refaults != refaults) {
+ 		inactive_ratio = 0;
+ 	} else {
+@@ -2189,12 +2184,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ }
+ 
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+-				 struct lruvec *lruvec, struct mem_cgroup *memcg,
+-				 struct scan_control *sc)
++				 struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	if (is_active_lru(lru)) {
+-		if (inactive_list_is_low(lruvec, is_file_lru(lru),
+-					 memcg, sc, true))
++		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
+ 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 		return 0;
+ 	}
+@@ -2293,7 +2286,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			 * anonymous pages on the LRU in eligible zones.
+ 			 * Otherwise, the small LRU gets thrashed.
+ 			 */
+-			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
++			if (!inactive_list_is_low(lruvec, false, sc, false) &&
+ 			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+ 					>> sc->priority) {
+ 				scan_balance = SCAN_ANON;
+@@ -2311,7 +2304,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * lruvec even if it has plenty of old anonymous pages unless the
+ 	 * system is under heavy pressure.
+ 	 */
+-	if (!inactive_list_is_low(lruvec, true, memcg, sc, false) &&
++	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+ 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+@@ -2515,7 +2508,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 				nr[lru] -= nr_to_scan;
+ 
+ 				nr_reclaimed += shrink_list(lru, nr_to_scan,
+-							    lruvec, memcg, sc);
++							    lruvec, sc);
+ 			}
+ 		}
+ 
+@@ -2582,7 +2575,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_list_is_low(lruvec, false, memcg, sc, true))
++	if (inactive_list_is_low(lruvec, false, sc, true))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 				   sc, LRU_ACTIVE_ANON);
+ }
+@@ -2985,12 +2978,8 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+ 		unsigned long refaults;
+ 		struct lruvec *lruvec;
+ 
+-		if (memcg)
+-			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+-		else
+-			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+-
+ 		lruvec = mem_cgroup_lruvec(pgdat, memcg);
++		refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
+ 		lruvec->refaults = refaults;
+ 	} while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
+ }
+@@ -3346,7 +3335,7 @@ static void age_active_anon(struct pglist_data *pgdat,
+ 	do {
+ 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+ 
+-		if (inactive_list_is_low(lruvec, false, memcg, sc, true))
++		if (inactive_list_is_low(lruvec, false, sc, true))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 					   sc, LRU_ACTIVE_ANON);
+ 
+-- 
+2.21.0
 
