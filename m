@@ -4,110 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AA6FC282DE
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D154FC282CE
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30023218A3
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 86A642084D
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="ILqDJJHk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30023218A3
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="FpWx+tFi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86A642084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8336E6B026B; Fri, 12 Apr 2019 11:15:25 -0400 (EDT)
+	id 8AC4A6B026A; Fri, 12 Apr 2019 11:15:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E7B26B026C; Fri, 12 Apr 2019 11:15:25 -0400 (EDT)
+	id 85CD06B026B; Fri, 12 Apr 2019 11:15:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 63AB96B026D; Fri, 12 Apr 2019 11:15:25 -0400 (EDT)
+	id 5C1066B026C; Fri, 12 Apr 2019 11:15:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 39E176B026B
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 11:15:25 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id z24so8992295qto.7
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:15:25 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C6A6B026A
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 11:15:24 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id k13so8973507qtc.23
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:15:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=PRTUaF678C5HIzdBjBIPSEr+aHrXt+S0IRBXo9MeAws=;
-        b=tH1VaIsWfd20kC4otvaAJRRqMPzp1KBuWC1BPL+0WAra/Bpm9q3iCPx3TJWuZQWAYP
-         BvZG/2R8Pqm0owb4xGtPMO/3tW0YN7MROpX+6ahUdMWWrWcUvWQE9sH1CVrp1khLhWys
-         ORNjTSRZbpq8ZC8Y5+YAdpQlg7gaC9OhLRbVAt3LCZkDHzneQFaqJnTibYJcXfmgyEqx
-         GMjKALhHjct+SBW2f8EZS+zQEnwGRHYWXe6lZdm1xu0EoxfPVw8LjqVsSQIuvwkrlgJp
-         Q313zenrwvRUqKU9f7n/vKJ6YgPaj/TQ4s0xH4MZomfXxIq2uXkKMLRVmpjBnBUuwxiM
-         b7wg==
-X-Gm-Message-State: APjAAAWPCPP8D0MfVWac5D5P58Kt6qMtqksLwEo2uDN/siXIKiCSCCMB
-	t3PQD6a+pj2XX3LHdXLKnYEkcwMr75ajJJHlJuch9Wwtt93mczA1gOfBohaURDWLkk5FI4IZ0YL
-	XfnsfaobvqBaRxYSf6qPFeSm/u1SPal/giGXZ9PajcYWY6PR0aAg9GNXxePXAKDRO2Q==
-X-Received: by 2002:ac8:72c4:: with SMTP id o4mr47680823qtp.88.1555082124930;
-        Fri, 12 Apr 2019 08:15:24 -0700 (PDT)
-X-Received: by 2002:ac8:72c4:: with SMTP id o4mr47680708qtp.88.1555082123645;
+        bh=Os4Omut1si9dZUtk8xlS/9PlA4SUJZFOM37ndbDq3oI=;
+        b=dD70gIWm1OBBV99+lCO9Sl1dV3mJQiB69+DDt0Er8gqHO9MVPaa/JpoA103gzHwwDD
+         C/8hiUlAFAXdI0xWieMpakKAhlied4e73mrQjPVWhW7zDh4KcZzPUcj3Z0vOQrMK+UGp
+         l8o/udXBmtvbz4pqXgANydZn6RwrG6pXdqL9lZo4uYLX7xXahtrqRAtpY96xYkYz1qfw
+         LFT7n7Ny9HD9JgQXjQt9Mx5FaA/eridJquED/tFvU3w5XupEVecn1yM6pdSmo8LrBSMF
+         TSdYvkaITsJUtyprW5Ynx7p8U9u/zHr+o7l5DUZ1sYHO97as+f47rBSVN8RcWYPnbdvI
+         +OdQ==
+X-Gm-Message-State: APjAAAWZn8MMnBmyhbdRPa2+G0ygGFOevk2ch1RW+yFi4uaYYOGsIzIx
+	wXur0cA/XDyxO6KWRPr8WuRAoRouKcH76xJ22Icn+jlPjRBaQPFS0yvGw6HGzISZWXfK1+VPybc
+	/61JEUMyak810Vuy+yJ1dnEna2MR3+NgnOaPUgDvRKB3YU5/8FC9IbOQz9xHrm9e8oQ==
+X-Received: by 2002:a0c:ba0f:: with SMTP id w15mr46923083qvf.20.1555082123898;
         Fri, 12 Apr 2019 08:15:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555082123; cv=none;
+X-Received: by 2002:a0c:ba0f:: with SMTP id w15mr46922979qvf.20.1555082122728;
+        Fri, 12 Apr 2019 08:15:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555082122; cv=none;
         d=google.com; s=arc-20160816;
-        b=gkT1D5dMqCZp/bSyL9kLGSsd/I35rTVbJud5Qy5zoAy4gOg+LRvPxsYamdou6Kje18
-         yHEOkM3cIV9IuyyFJGiGHRd/vu0B87hdTK2Xkl+jdgslcGnq0w7kizWS5fUsQx/eGHnQ
-         lX5c1bBGrLiaHRto0FMnS/nh9vq0xlWdbxc4+ab7qiBWoE4h6XkQGSTotcd0R/y+uv32
-         ZNsWWtZOaiddRNnhUcXjuZk1aACKLXOMCI7RPQfZDCaTwOa0hDv6NQ/xzEuCwVqcP/FR
-         L5+WqMAn2mOg6R164E4Lw0oCi69UXw8mrPpNZy9hkFDndFNyoOnEoPcRCJ+gIfRhjtjU
-         ug9Q==
+        b=D+OlfOxdafoC6jocXUtq0Gdsk/ZkHbqTf9KKywzPh+X1Vt/esiCW/OdhLvaou7/UUG
+         tdIroJ66VY2ktctLLEHfuu0tHLkB+zeSR/+POI3oI3Xu1IswW8HOkp4zvJY+5LJA8Nb1
+         2N2r+K9IDVI4j87cdsPHlRK7E1Cl7WNRciFtfIivy9rj+7uAtXCdpYvwtNTDL451uZ3B
+         78hwzSd9s5So3cDZVqGVBCnc/OMKJqiALYLjPIYQhZtatgpwwb+Gpkeq/s/Wni9Mqi8n
+         8kluPMWQaGjjSkDUPnQampv5NbP6erQBvX0A0xVDwwvemWI0zpyIKu/50tDbVolSl8PV
+         WcUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=PRTUaF678C5HIzdBjBIPSEr+aHrXt+S0IRBXo9MeAws=;
-        b=G0ND7KzKA8KxrCXpmqiE5+eB5+7oTY1MTjGSvBhamBiy3dX7tK2XqSGjh8uFmSsdfk
-         BeUBiQ+xG2RemFnF/Eexk1MDKP2IxIBxAaAUrEcN1Gp6cscWSjtn9MktlHaTRsj8Su6I
-         tMhjd9F4novqBAC+b5X+6ABr+PuI0YzkNw9wzZ5+YsgoLh6HMr3xjAc/hNo1u58FHfjB
-         7NDAhhWPafzyMs1O0fnz90ms8aYmtH4ed/CEzdu610o0BtKdkvP5dHLY+rg6GAHtjpSV
-         sVFDeVoTv9C55VH36EpoWjNZ1wbGhxO7xAMF+zfoCdpRnkdYqMGWx5nkH434p59moiw0
-         5rvA==
+        bh=Os4Omut1si9dZUtk8xlS/9PlA4SUJZFOM37ndbDq3oI=;
+        b=v6DvshjhoG/5f8O0LkAU4X2EojIb44A0YawP6RpnwXBVUD2pI6b14qlzwYHPfQ1Zem
+         gSZQZyCSMpjBrlnvC+HfF/ETSGPWnU6dXrr5A0AgV7qglHlWZTHPROqFI6B43lQEf6e1
+         Ru6NBCr5mss/oO8do+kDDUCg378cWLcvCCMMxnu5fdtKoBZNn1oY9ECZNSwZKan2mQyH
+         HU2/OnhpFWrpiWpmatHbsNYhoYTnbIKf4t4Ud4toiLBYaXiWJFKbs0+QyEtGH8kJajwp
+         cQnCf6imfeQrtd4jO1CYlkGpYuCkK4Y1SKHbp9xCEqvcLoIV64wK0qHL784RvDVF1edr
+         PT8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=ILqDJJHk;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=FpWx+tFi;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d7sor25525040qki.7.2019.04.12.08.15.19
+        by mx.google.com with SMTPS id o56sor41702310qvc.71.2019.04.12.08.15.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Apr 2019 08:15:19 -0700 (PDT)
+        Fri, 12 Apr 2019 08:15:22 -0700 (PDT)
 Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=ILqDJJHk;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=FpWx+tFi;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=PRTUaF678C5HIzdBjBIPSEr+aHrXt+S0IRBXo9MeAws=;
-        b=ILqDJJHkPZz+eoKOvEr4x0/kgN/IBd0kCMfXy7rPlSfiWsGSmDI6DjyrVYmzgB/KgJ
-         o/a/0Y1afe7RfkMShz9vwu+3rR2TVnT91QuwBCSOdI5Q13s8C0dbu9xj3PjV4IRsSngj
-         +xYSZhSKjRK1gaqwdDvmiaOzBR7OeV2vcxlhnLdTeOQSTfrRfivBEbyYNTxVKLSnp+CB
-         zjIsSHe6XO4EZuIEVpRXex1t0Chpz6YqKKdL/mvxmkyCEQpYZDkvyznHQ6p01d47B6DJ
-         dw6CszzzPqXfI2qk2mij7G5QVuKJIXQGJm+0/35AP73eRIX1DEbeAooXRbZCZUFLrkSP
-         7iKg==
-X-Google-Smtp-Source: APXvYqysIlg0nPC2TAIyhyZGpUry9fm9BHzZ/cusQuSfW34/ihXJ8nq+qmczg5uW0MTGOcK5jfgKsQ==
-X-Received: by 2002:a37:4f95:: with SMTP id d143mr45617065qkb.253.1555082119044;
-        Fri, 12 Apr 2019 08:15:19 -0700 (PDT)
+        bh=Os4Omut1si9dZUtk8xlS/9PlA4SUJZFOM37ndbDq3oI=;
+        b=FpWx+tFikqrZdAqHy8DuhFwSzGznleXRgjxZNDwl8fFECEghu5j8q1+uwliecftUar
+         L0qovs/uw2w7CgfnMoQx78Dk2YOOBJoP4QTDOWlGJbl0O6GIUQ59VmwlLyyT2oHnuPB9
+         8hmvZJ247fTWRB9ZF+7KVq8xvyJanOTGCHhUTW0AmBAPBRC57t2u1Dj8wD9npYit59ja
+         SWtjvgC6wCEuHSXwHDt8NxymIdh+HFjimb6yjHjLjhhk9NO03kJFznmagrp8qtPf2wJn
+         CBD2GaKz8nvXzLO0rYOHzvsSx3udCXhFRsoJhxmSHMjI/slxgUGy30JqhrRYaSYZtXU6
+         8JdQ==
+X-Google-Smtp-Source: APXvYqzVDhpq/REyjk2jbBHCrlfGWJ514qWQfxe7lwASD2ybrledPl2eTVl5f7Jl8CXIIUISZgnShw==
+X-Received: by 2002:a0c:92d5:: with SMTP id c21mr48389189qvc.215.1555082122539;
+        Fri, 12 Apr 2019 08:15:22 -0700 (PDT)
 Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id x24sm13094296qtm.65.2019.04.12.08.15.18
+        by smtp.gmail.com with ESMTPSA id m189sm25217643qkf.2.2019.04.12.08.15.21
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Apr 2019 08:15:18 -0700 (PDT)
+        Fri, 12 Apr 2019 08:15:21 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org,
 	cgroups@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	kernel-team@fb.com
-Subject: [PATCH 2/4] mm: memcontrol: move stat/event counting functions out-of-line
-Date: Fri, 12 Apr 2019 11:15:05 -0400
-Message-Id: <20190412151507.2769-3-hannes@cmpxchg.org>
+Subject: [PATCH 4/4] mm: memcontrol: fix NUMA round-robin reclaim at intermediate level
+Date: Fri, 12 Apr 2019 11:15:07 -0400
+Message-Id: <20190412151507.2769-5-hannes@cmpxchg.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190412151507.2769-1-hannes@cmpxchg.org>
 References: <20190412151507.2769-1-hannes@cmpxchg.org>
@@ -119,197 +119,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-These are getting too big to be inlined in every callsite. They were
-stolen from vmstat.c, which already out-of-lines them, and they have
-only been growing since. The callsites aren't that hot, either.
+When a cgroup is reclaimed on behalf of a configured limit, reclaim
+needs to round-robin through all NUMA nodes that hold pages of the
+memcg in question. However, when assembling the mask of candidate NUMA
+nodes, the code only consults the *local* cgroup LRU counters, not the
+recursive counters for the entire subtree. Cgroup limits are
+frequently configured against intermediate cgroups that do not have
+memory on their own LRUs. In this case, the node mask will always come
+up empty and reclaim falls back to scanning only the current node.
 
-Move __mod_memcg_state()
-     __mod_lruvec_state() and
-     __count_memcg_events() out of line and add kerneldoc comments.
+If a cgroup subtree has some memory on one node but the processes are
+bound to another node afterwards, the limit reclaim will never age or
+reclaim that memory anymore.
+
+To fix this, use the recursive LRU counts for a cgroup subtree to
+determine which nodes hold memory of that cgroup.
+
+The code has been broken like this forever, so it doesn't seem to be a
+problem in practice. I just noticed it while reviewing the way the LRU
+counters are used in general.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h | 62 +++---------------------------
- mm/memcontrol.c            | 79 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 84 insertions(+), 57 deletions(-)
+ mm/memcontrol.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 139be7d44c29..cae7d1b11eea 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -580,22 +580,7 @@ static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
- 	return x;
- }
- 
--/* idx can be of type enum memcg_stat_item or node_stat_item */
--static inline void __mod_memcg_state(struct mem_cgroup *memcg,
--				     int idx, int val)
--{
--	long x;
--
--	if (mem_cgroup_disabled())
--		return;
--
--	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
--	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->vmstats[idx]);
--		x = 0;
--	}
--	__this_cpu_write(memcg->vmstats_percpu->stat[idx], x);
--}
-+void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val);
- 
- /* idx can be of type enum memcg_stat_item or node_stat_item */
- static inline void mod_memcg_state(struct mem_cgroup *memcg,
-@@ -657,31 +642,8 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
- 	return x;
- }
- 
--static inline void __mod_lruvec_state(struct lruvec *lruvec,
--				      enum node_stat_item idx, int val)
--{
--	struct mem_cgroup_per_node *pn;
--	long x;
--
--	/* Update node */
--	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
--
--	if (mem_cgroup_disabled())
--		return;
--
--	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
--
--	/* Update memcg */
--	__mod_memcg_state(pn->memcg, idx, val);
--
--	/* Update lruvec */
--	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
--	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &pn->lruvec_stat[idx]);
--		x = 0;
--	}
--	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
--}
-+void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
-+			int val);
- 
- static inline void mod_lruvec_state(struct lruvec *lruvec,
- 				    enum node_stat_item idx, int val)
-@@ -723,22 +685,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
- 						gfp_t gfp_mask,
- 						unsigned long *total_scanned);
- 
--static inline void __count_memcg_events(struct mem_cgroup *memcg,
--					enum vm_event_item idx,
--					unsigned long count)
--{
--	unsigned long x;
--
--	if (mem_cgroup_disabled())
--		return;
--
--	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
--	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
--		atomic_long_add(x, &memcg->vmevents[idx]);
--		x = 0;
--	}
--	__this_cpu_write(memcg->vmstats_percpu->events[idx], x);
--}
-+void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
-+			  unsigned long count);
- 
- static inline void count_memcg_events(struct mem_cgroup *memcg,
- 				      enum vm_event_item idx,
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 109608b8091f..3535270ebeec 100644
+index 2eb2d4ef9b34..2535e54e7989 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -687,6 +687,85 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
- 	return mz;
- }
- 
-+/**
-+ * __mod_memcg_state - update cgroup memory statistics
-+ * @memcg: the memory cgroup
-+ * @idx: the stat item - can be enum memcg_stat_item or enum node_stat_item
-+ * @val: delta to add to the counter, can be negative
-+ */
-+void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
-+{
-+	long x;
-+
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
-+	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-+		atomic_long_add(x, &memcg->vmstats[idx]);
-+		x = 0;
-+	}
-+	__this_cpu_write(memcg->vmstats_percpu->stat[idx], x);
-+}
-+
-+/**
-+ * __mod_lruvec_state - update lruvec memory statistics
-+ * @lruvec: the lruvec
-+ * @idx: the stat item
-+ * @val: delta to add to the counter, can be negative
-+ *
-+ * The lruvec is the intersection of the NUMA node and a cgroup. This
-+ * function updates the all three counters that are affected by a
-+ * change of state at this level: per-node, per-cgroup, per-lruvec.
-+ */
-+void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
-+			int val)
-+{
-+	struct mem_cgroup_per_node *pn;
-+	long x;
-+
-+	/* Update node */
-+	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
-+
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
-+
-+	/* Update memcg */
-+	__mod_memcg_state(pn->memcg, idx, val);
-+
-+	/* Update lruvec */
-+	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
-+	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
-+		atomic_long_add(x, &pn->lruvec_stat[idx]);
-+		x = 0;
-+	}
-+	__this_cpu_write(pn->lruvec_stat_cpu->count[idx], x);
-+}
-+
-+/**
-+ * __count_memcg_events - account VM events in a cgroup
-+ * @memcg: the memory cgroup
-+ * @idx: the event item
-+ * @count: the number of events that occured
-+ */
-+void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
-+			  unsigned long count)
-+{
-+	unsigned long x;
-+
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
-+	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
-+		atomic_long_add(x, &memcg->vmevents[idx]);
-+		x = 0;
-+	}
-+	__this_cpu_write(memcg->vmstats_percpu->events[idx], x);
-+}
-+
- static unsigned long memcg_events_local(struct mem_cgroup *memcg,
- 					int event)
+@@ -1512,13 +1512,13 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
  {
+ 	struct lruvec *lruvec = mem_cgroup_lruvec(NODE_DATA(nid), memcg);
+ 
+-	if (lruvec_page_state_local(lruvec, NR_INACTIVE_FILE) ||
+-	    lruvec_page_state_local(lruvec, NR_ACTIVE_FILE))
++	if (lruvec_page_state(lruvec, NR_INACTIVE_FILE) ||
++	    lruvec_page_state(lruvec, NR_ACTIVE_FILE))
+ 		return true;
+ 	if (noswap || !total_swap_pages)
+ 		return false;
+-	if (lruvec_page_state_local(lruvec, NR_INACTIVE_ANON) ||
+-	    lruvec_page_state_local(lruvec, NR_ACTIVE_ANON))
++	if (lruvec_page_state(lruvec, NR_INACTIVE_ANON) ||
++	    lruvec_page_state(lruvec, NR_ACTIVE_ANON))
+ 		return true;
+ 	return false;
+ 
 -- 
 2.21.0
 
