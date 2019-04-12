@@ -2,111 +2,115 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31969C10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2B3AC282CE
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E60972171F
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 65C4A2084D
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:15:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="otZiKvwB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E60972171F
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="PLL+ZIOo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65C4A2084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 798A86B000C; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
+	id B3F776B000D; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 746216B000D; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
+	id AFDBA6B0010; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 636B06B0010; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
+	id A05DB6B026A; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 430996B000C
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9236B0010
 	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 11:15:22 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 18so9032446qtw.20
+Received: by mail-qt1-f199.google.com with SMTP id k13so8973421qtc.23
         for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:15:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=ExcVMXKMLAIGNf5KmSqXrW5PdcB9ts4NWl7/RwgO/jI=;
-        b=AY4+h6AEX+ttHUOFCbqFJQMOqXslDAxM8hEgSpHEXvUFVrzMXvz07X27UJfSHEc3af
-         W5chwgkzo2MXbGt1cag2OzMOXfg1tP35d/Q2gn+t1GEQMbopfuKfZPJPVd7GEx43jp5z
-         AE+iZ+xrl/B+pTeSqLcw/rm5Zv8di0K1obePvwH8vriTKIEA0LITAd9kpwviN1owq8PR
-         MR4ymJkMjKEpLqhriPJ4Z+0PSzWHObdD69P/der46ZaNX9SH+Hk66uaEuiB1q5PnPuWh
-         q75ZDTKwZi/CyAG1wqMl9K8Xyx1NjL67w6T+kL3AGW5xSVAREKTWliw5DlLeePdSpFcn
-         cdEw==
-X-Gm-Message-State: APjAAAWyQDmMop+cz4eUbKaTKpjJZ/k1kVOHEfkdwYrLk1yjqj/AhxFJ
-	y6M7/q2IwpZw/KHj0WJXAsrVymCKeQyHC9n2tYmBFkS8B3cshcMXdYT6xdTEJWURVpdA5IiKHKh
-	fE/ScWnbvrGQXwWalpRL+VciA65J63cv/qniY6PvYCAboOL5fDN9vMd8og6BUJSifKw==
-X-Received: by 2002:ac8:3f6f:: with SMTP id w44mr45673832qtk.59.1555082121982;
-        Fri, 12 Apr 2019 08:15:21 -0700 (PDT)
-X-Received: by 2002:ac8:3f6f:: with SMTP id w44mr45673727qtk.59.1555082120931;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=vYujH9ql2WWkJyoNj4zC7fKkltAGztxNOgJanRlBf/k=;
+        b=IXRYW1TTQcaMTM/XLKPH4aLMZitRIjmzF5uBEp96qd3wKm2UDsns+Wa6O6nKouizGz
+         nRKurN4Uh+6VJlHjVA/+GJHcZUsQ4Ur2CI/eKqdETPppiIpJi8+WoY97/5Rfc5aEc8YC
+         0MppP28ci1iMeNLECNIrRakAOgJEEpXaMt+CB6JR/bDQ/UzSnM9/opxsWJIlzBJ6gNVQ
+         +/zuVYHgp2WQv8Jur+NCZFIiF6KuYYW8XMdgnIPnQZDm+5CeWKgyG2Zg3T3i6c7U4AiU
+         snc0pXG8HehKjw+KT8nps5p6fey+6kyOP1r8M8xwkI1ox400mFRi7q7ENpqgisfzohdt
+         W/Iw==
+X-Gm-Message-State: APjAAAXbbt1wMFnspp/bRhqOVk1qDjc5hX2ZteZA0CIFEGRSj51JfzzU
+	xs20fMfz9C+jFQeFDo0Hr+KMM5TJ6+X1ylR6X8CkOGUd2yZVs7uTlwVUayZsHEvSU78cpTAIVzF
+	7XK5vwjvFae9hjGAvyOaNVCQ1iaT9JLBDED6LOosJUjKlZCA7BXd+/xoknPq1Po5HOg==
+X-Received: by 2002:a05:620a:1438:: with SMTP id k24mr3904276qkj.165.1555082122248;
+        Fri, 12 Apr 2019 08:15:22 -0700 (PDT)
+X-Received: by 2002:a05:620a:1438:: with SMTP id k24mr3904162qkj.165.1555082120929;
         Fri, 12 Apr 2019 08:15:20 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555082120; cv=none;
         d=google.com; s=arc-20160816;
-        b=BZwlSAHRUe4HY+902qTDP/7CWGRb/YO6g1a2mWoDscBwo3AAve172gj02wD4E9X6bn
-         apNeAbh3AlXiPWShfnzxwhxpZI449z/gnV/4pF62RSURUBbwkwapDQGk64ysoclFeZ4t
-         qsanmBJGBA4roY48x6vwOyrD+gas+GY8hLg25vdfTGuFF45gddIPhb1+tBAmaURD4rZW
-         4IL0zVUpH1LsEj6X2UlbJvB392zTkbnte8EUcpxaVBxwWgaPcPAtTcwlXriZipmSRmOE
-         Qe6GnUvSLR/ZAvHv+mKBpLbeWyY6wmi6LkVdV659+vT8YH28kg639lpRCaTZGfYHJbjr
-         Ubng==
+        b=Eg8mGCNYiHKBDx8Y5IY9KlxniPJLLqyS2iOmPuaBZhEcWqKKHKR59+x8jahU8pu5tr
+         nUS26NgFkDDq6HvuHbvfLRQ8hrh5VTynmgAXRTK/gU5v1Epj4OxFFTBGlC+G5IA1r7+t
+         aIQx/uybWEjVSvIO4tQjneq1sq8iLGuG0ZL62KHW/02t45HYGOedtkn6xKZT2LVFre1c
+         5+T4A5EAQw6CcHL32n0KqYrlGsJTed7MxNfaXDncMtn4acZBKBvBRELzoaW8etqeIETn
+         mpwI8Srq0rIYBuPNEc0iXgXh11YkLdq44RGdMPEYKzYC2o9HKepAIpQfoIjnDTkXXvKw
+         Nclw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=ExcVMXKMLAIGNf5KmSqXrW5PdcB9ts4NWl7/RwgO/jI=;
-        b=o4i1y0IN5hKFRo8xIk0rIfp6RXzyW3pLIRK35gqBm8KpZViNJP1ADqBCPQn173fPPX
-         qGdSkiCI27iZul1BlUY1S+19QHMyDiiMl0QSRv5PVFwMJ85TuS9V4QEsAvxzjEKfD8Sr
-         N5UqecFn4uNGRDPVhz0sxRpBbiL2aHHu40rUU7xuHkfWwIOgOA04vmIkLJB+rjDaNLnz
-         Da+0bNPrsE8+Pie3gZEjTLfXhnYU9SGDrmyKSbrVaYH0lrafAPHkwIHN+4fcS8XuuCw0
-         bsfaAD1jJkeci5NdFjqZ+BJpFEItIK5YlAdLqu1nk0Cofh13ibK9ouysj2Gh8KKZhGAj
-         4Axg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=vYujH9ql2WWkJyoNj4zC7fKkltAGztxNOgJanRlBf/k=;
+        b=N6VA15+9KQpxc0k/dq3dSsaUU4KPTlL5dbExv43GEx6WEI7DEudIyV/XNO0bwk9la3
+         k32xAQsqaFvGH3eJKnTYuV0SPZFs7L6lTpaEXKTYFF7BYajeEOspRXy2LHjwvfTFXjY1
+         +vextGLEsNUS3+bZ27xG9A3wngFYopW13PR1FonaQIQMy4kbXIXqgmIMTvra9xIyIFD5
+         FhuZJby8I/ykxXL7Hd+2gNA0ITMeA4zGgu8yWxwiaZ/PQtAr8sQYmfrscu9Kai+wvdCw
+         qbxLVe8p8Jf2lhvu3IA7qMl45/tGI1zB7eLA6A/D0esvB5Y2oScoJHBJnJVqkvYhi9Tx
+         GvFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=otZiKvwB;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=PLL+ZIOo;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p92sor41415821qvp.7.2019.04.12.08.15.16
+        by mx.google.com with SMTPS id f9sor41871962qvr.51.2019.04.12.08.15.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Apr 2019 08:15:16 -0700 (PDT)
+        Fri, 12 Apr 2019 08:15:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=otZiKvwB;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=PLL+ZIOo;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=ExcVMXKMLAIGNf5KmSqXrW5PdcB9ts4NWl7/RwgO/jI=;
-        b=otZiKvwBqdW+yp5E+sxlXMkmP/ZdX7vWtbD/mtd0dHs4PrW2KX3YuzFsZUDMkuJgc/
-         w0UCkKwKdoYReI/dgPptzYV3khKBw7sj2riOqQ8G6vyQd6uSAtjgisNqVmD8di5ZiEqs
-         Zw4BXpu40szBooKU5UTvQRGYhF7Gg+ic4rFebiZ5bv3sypeI/TiR625hnOx3fhnSWwzk
-         aY9eyFzrLAiiyGiQYzvyO9HFpdX3PZ4wj/lfwRflCHJJUwNEBFWwL7sZvDIJ31Owagc4
-         4KHAfGjPzWg9oqhFZ0KqE8gwCnV8C7jmrR+57NKQuzD6XBgU9SRxPlt99lPgk9K2KgXl
-         JEUg==
-X-Google-Smtp-Source: APXvYqzWgvKc4Fr5gRxDaJ6QTk0PaB7XEaAOjXMkq0vmcXUP6Zld9Yt2kxhFXms6m0K7drFhzvTUhQ==
-X-Received: by 2002:a0c:89b5:: with SMTP id 50mr46177023qvr.156.1555082115847;
-        Fri, 12 Apr 2019 08:15:15 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=vYujH9ql2WWkJyoNj4zC7fKkltAGztxNOgJanRlBf/k=;
+        b=PLL+ZIOovXrfX1wJ1YTZ6L+zDg1hjgBGzySqLyYncg5msMIkS5Ic2UAIQ46BtEetQO
+         2XD1BaVaNpjylQD6A7WTKHPwz6kWz7EDemV/kgcnsT0tUXbK1G+pfy9D8VfT9BS1p66X
+         FD+ZaoDb3EuL6yBgT+YGLTA0U/Ix4bUhu75FAuHncIA6p8Zn7C5w7sBs31iQR+VHOBh3
+         6w3Nwx/SWTeMwaWvCyes6vQT3oV2sIvvzepgVFgTQxMwwXnTSq5V0ZUiEk5u5KTl6H/y
+         AWYf4x/nbpo3NE1CAMpnujWd0d+NTo5PGRlmnVbBOXIc518OwHEjkW4S5aGtFyhlxoM3
+         tNfA==
+X-Google-Smtp-Source: APXvYqxULIHF7gHec2iqEMR9IBNg7HbcJMq/Fq+YT6crJISDP6QO1qnolhGkKP+j0EvGTftVvC70YQ==
+X-Received: by 2002:a0c:d483:: with SMTP id u3mr46384167qvh.54.1555082117403;
+        Fri, 12 Apr 2019 08:15:17 -0700 (PDT)
 Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id b7sm23214436qkc.47.2019.04.12.08.15.14
+        by smtp.gmail.com with ESMTPSA id e6sm21040344qtr.56.2019.04.12.08.15.16
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Apr 2019 08:15:15 -0700 (PDT)
+        Fri, 12 Apr 2019 08:15:16 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org,
 	cgroups@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	kernel-team@fb.com
-Subject: [PATCH 0/4] mm: memcontrol: memory.stat cost & correctness
-Date: Fri, 12 Apr 2019 11:15:03 -0400
-Message-Id: <20190412151507.2769-1-hannes@cmpxchg.org>
+Subject: [PATCH 1/4] mm: memcontrol: make cgroup stats and events query API explicitly local
+Date: Fri, 12 Apr 2019 11:15:04 -0400
+Message-Id: <20190412151507.2769-2-hannes@cmpxchg.org>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190412151507.2769-1-hannes@cmpxchg.org>
+References: <20190412151507.2769-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -115,37 +119,240 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The cgroup memory.stat file holds recursive statistics for the entire
-subtree. The current implementation does this tree walk on-demand
-whenever the file is read. This is giving us problems in production.
+memcg_page_state(), lruvec_page_state(), memcg_sum_events() are
+currently returning the state of the local memcg or lruvec, not the
+recursive state.
 
-1. The cost of aggregating the statistics on-demand is high. A lot of
-system service cgroups are mostly idle and their stats don't change
-between reads, yet we always have to check them. There are also always
-some lazily-dying cgroups sitting around that are pinned by a handful
-of remaining page cache; the same applies to them.
+In practice there is a demand for both versions, although the callers
+that want the recursive counts currently sum them up by hand.
 
-In an application that periodically monitors memory.stat in our fleet,
-we have seen the aggregation consume up to 5% CPU time.
+Per default, cgroups are considered recursive entities and generally
+we expect more users of the recursive counters, with the local counts
+being special cases. To reflect that in the name, add a _local suffix
+to the current implementations.
 
-2. When cgroups die and disappear from the cgroup tree, so do their
-accumulated vm events. The result is that the event counters at
-higher-level cgroups can go backwards and confuse some of our
-automation, let alone people looking at the graphs over time.
+The following patch will re-incarnate these functions with recursive
+semantics, but with an O(1) implementation.
 
-To address both issues, this patch series changes the stat
-implementation to spill counts upwards when the counters change.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/memcontrol.h | 16 +++++++--------
+ mm/memcontrol.c            | 40 ++++++++++++++++++++------------------
+ mm/vmscan.c                |  4 ++--
+ mm/workingset.c            |  7 ++++---
+ 4 files changed, 35 insertions(+), 32 deletions(-)
 
-The upward spilling is batched using the existing per-cpu cache. In a
-sparse file stress test with 5 level cgroup nesting, the additional
-cost of the flushing was negligible (a little under 1% of CPU at 100%
-CPU utilization, compared to the 5% of reading memory.stat during
-regular operation).
-
- include/linux/memcontrol.h |  96 +++++++-------
- mm/memcontrol.c            | 290 +++++++++++++++++++++++++++----------------
- mm/vmscan.c                |   4 +-
- mm/workingset.c            |   7 +-
- 4 files changed, 234 insertions(+), 163 deletions(-)
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3823cb335b60..139be7d44c29 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -569,8 +569,8 @@ void unlock_page_memcg(struct page *page);
+  * idx can be of type enum memcg_stat_item or node_stat_item.
+  * Keep in sync with memcg_exact_page_state().
+  */
+-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     int idx)
++static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
++						   int idx)
+ {
+ 	long x = atomic_long_read(&memcg->vmstats[idx]);
+ #ifdef CONFIG_SMP
+@@ -639,8 +639,8 @@ static inline void mod_memcg_page_state(struct page *page,
+ 		mod_memcg_state(page->mem_cgroup, idx, val);
+ }
+ 
+-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
+-					      enum node_stat_item idx)
++static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
++						    enum node_stat_item idx)
+ {
+ 	struct mem_cgroup_per_node *pn;
+ 	long x;
+@@ -1043,8 +1043,8 @@ static inline void mem_cgroup_print_oom_group(struct mem_cgroup *memcg)
+ {
+ }
+ 
+-static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
+-					     int idx)
++static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
++						   int idx)
+ {
+ 	return 0;
+ }
+@@ -1073,8 +1073,8 @@ static inline void mod_memcg_page_state(struct page *page,
+ {
+ }
+ 
+-static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
+-					      enum node_stat_item idx)
++static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
++						    enum node_stat_item idx)
+ {
+ 	return node_page_state(lruvec_pgdat(lruvec), idx);
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cd03b1181f7f..109608b8091f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -687,8 +687,8 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
+ 	return mz;
+ }
+ 
+-static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
+-				      int event)
++static unsigned long memcg_events_local(struct mem_cgroup *memcg,
++					int event)
+ {
+ 	return atomic_long_read(&memcg->vmevents[event]);
+ }
+@@ -1325,12 +1325,14 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
+ 			if (memcg1_stats[i] == MEMCG_SWAP && !do_swap_account)
+ 				continue;
+ 			pr_cont(" %s:%luKB", memcg1_stat_names[i],
+-				K(memcg_page_state(iter, memcg1_stats[i])));
++				K(memcg_page_state_local(iter,
++							 memcg1_stats[i])));
+ 		}
+ 
+ 		for (i = 0; i < NR_LRU_LISTS; i++)
+ 			pr_cont(" %s:%luKB", mem_cgroup_lru_names[i],
+-				K(memcg_page_state(iter, NR_LRU_BASE + i)));
++				K(memcg_page_state_local(iter,
++							 NR_LRU_BASE + i)));
+ 
+ 		pr_cont("\n");
+ 	}
+@@ -1401,13 +1403,13 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+ {
+ 	struct lruvec *lruvec = mem_cgroup_lruvec(NODE_DATA(nid), memcg);
+ 
+-	if (lruvec_page_state(lruvec, NR_INACTIVE_FILE) ||
+-	    lruvec_page_state(lruvec, NR_ACTIVE_FILE))
++	if (lruvec_page_state_local(lruvec, NR_INACTIVE_FILE) ||
++	    lruvec_page_state_local(lruvec, NR_ACTIVE_FILE))
+ 		return true;
+ 	if (noswap || !total_swap_pages)
+ 		return false;
+-	if (lruvec_page_state(lruvec, NR_INACTIVE_ANON) ||
+-	    lruvec_page_state(lruvec, NR_ACTIVE_ANON))
++	if (lruvec_page_state_local(lruvec, NR_INACTIVE_ANON) ||
++	    lruvec_page_state_local(lruvec, NR_ACTIVE_ANON))
+ 		return true;
+ 	return false;
+ 
+@@ -2976,16 +2978,16 @@ static void accumulate_vmstats(struct mem_cgroup *memcg,
+ 
+ 	for_each_mem_cgroup_tree(mi, memcg) {
+ 		for (i = 0; i < acc->vmstats_size; i++)
+-			acc->vmstats[i] += memcg_page_state(mi,
++			acc->vmstats[i] += memcg_page_state_local(mi,
+ 				acc->vmstats_array ? acc->vmstats_array[i] : i);
+ 
+ 		for (i = 0; i < acc->vmevents_size; i++)
+-			acc->vmevents[i] += memcg_sum_events(mi,
++			acc->vmevents[i] += memcg_events_local(mi,
+ 				acc->vmevents_array
+ 				? acc->vmevents_array[i] : i);
+ 
+ 		for (i = 0; i < NR_LRU_LISTS; i++)
+-			acc->lru_pages[i] += memcg_page_state(mi,
++			acc->lru_pages[i] += memcg_page_state_local(mi,
+ 							      NR_LRU_BASE + i);
+ 	}
+ }
+@@ -2998,10 +3000,10 @@ static unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+ 		struct mem_cgroup *iter;
+ 
+ 		for_each_mem_cgroup_tree(iter, memcg) {
+-			val += memcg_page_state(iter, MEMCG_CACHE);
+-			val += memcg_page_state(iter, MEMCG_RSS);
++			val += memcg_page_state_local(iter, MEMCG_CACHE);
++			val += memcg_page_state_local(iter, MEMCG_RSS);
+ 			if (swap)
+-				val += memcg_page_state(iter, MEMCG_SWAP);
++				val += memcg_page_state_local(iter, MEMCG_SWAP);
+ 		}
+ 	} else {
+ 		if (!swap)
+@@ -3343,7 +3345,7 @@ static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+ 	for_each_lru(lru) {
+ 		if (!(BIT(lru) & lru_mask))
+ 			continue;
+-		nr += lruvec_page_state(lruvec, NR_LRU_BASE + lru);
++		nr += lruvec_page_state_local(lruvec, NR_LRU_BASE + lru);
+ 	}
+ 	return nr;
+ }
+@@ -3357,7 +3359,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
+ 	for_each_lru(lru) {
+ 		if (!(BIT(lru) & lru_mask))
+ 			continue;
+-		nr += memcg_page_state(memcg, NR_LRU_BASE + lru);
++		nr += memcg_page_state_local(memcg, NR_LRU_BASE + lru);
+ 	}
+ 	return nr;
+ }
+@@ -3442,17 +3444,17 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+ 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
+ 			continue;
+ 		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
+-			   memcg_page_state(memcg, memcg1_stats[i]) *
++			   memcg_page_state_local(memcg, memcg1_stats[i]) *
+ 			   PAGE_SIZE);
+ 	}
+ 
+ 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
+ 		seq_printf(m, "%s %lu\n", memcg1_event_names[i],
+-			   memcg_sum_events(memcg, memcg1_events[i]));
++			   memcg_events_local(memcg, memcg1_events[i]));
+ 
+ 	for (i = 0; i < NR_LRU_LISTS; i++)
+ 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
+-			   memcg_page_state(memcg, NR_LRU_BASE + i) *
++			   memcg_page_state_local(memcg, NR_LRU_BASE + i) *
+ 			   PAGE_SIZE);
+ 
+ 	/* Hierarchical information */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c9f8afe61ae3..6e99a8b9b2ad 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -346,7 +346,7 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
+ 	int zid;
+ 
+ 	if (!mem_cgroup_disabled())
+-		lru_size = lruvec_page_state(lruvec, NR_LRU_BASE + lru);
++		lru_size = lruvec_page_state_local(lruvec, NR_LRU_BASE + lru);
+ 	else
+ 		lru_size = node_page_state(lruvec_pgdat(lruvec), NR_LRU_BASE + lru);
+ 
+@@ -2163,7 +2163,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	 * is being established. Disable active list protection to get
+ 	 * rid of the stale workingset quickly.
+ 	 */
+-	refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
++	refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
+ 	if (file && actual_reclaim && lruvec->refaults != refaults) {
+ 		inactive_ratio = 0;
+ 	} else {
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 6419baebd306..e0b4edcb88c8 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -430,9 +430,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 
+ 		lruvec = mem_cgroup_lruvec(NODE_DATA(sc->nid), sc->memcg);
+ 		for (pages = 0, i = 0; i < NR_LRU_LISTS; i++)
+-			pages += lruvec_page_state(lruvec, NR_LRU_BASE + i);
+-		pages += lruvec_page_state(lruvec, NR_SLAB_RECLAIMABLE);
+-		pages += lruvec_page_state(lruvec, NR_SLAB_UNRECLAIMABLE);
++			pages += lruvec_page_state_local(lruvec,
++							 NR_LRU_BASE + i);
++		pages += lruvec_page_state_local(lruvec, NR_SLAB_RECLAIMABLE);
++		pages += lruvec_page_state_local(lruvec, NR_SLAB_UNRECLAIMABLE);
+ 	} else
+ #endif
+ 		pages = node_present_pages(sc->nid);
+-- 
+2.21.0
 
