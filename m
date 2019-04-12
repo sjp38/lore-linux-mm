@@ -2,162 +2,167 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B71EEC282CE
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 00:08:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21869C10F13
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 01:33:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 736B72184B
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 00:08:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 736B72184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F72121721
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 01:33:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uFVBzBn/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F72121721
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 204036B0010; Thu, 11 Apr 2019 20:08:56 -0400 (EDT)
+	id 0666A6B0010; Thu, 11 Apr 2019 21:33:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B38B6B026A; Thu, 11 Apr 2019 20:08:56 -0400 (EDT)
+	id 015E16B026A; Thu, 11 Apr 2019 21:33:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A37A6B026B; Thu, 11 Apr 2019 20:08:56 -0400 (EDT)
+	id E47146B026B; Thu, 11 Apr 2019 21:33:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DF14C6B0010
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 20:08:55 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id l26so7217741qtk.18
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 17:08:55 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C60D26B0010
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2019 21:33:50 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id s24so6472391ioe.17
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 18:33:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=x0izde7z5CrpjcjAKzlk30eJH24IS1NgTs8hJgtpSJ8=;
-        b=tO7sx3oiJywWqK0V0lvdsKWsmiCHqNL8UVG3ZyUsy+7N69v0mK1sEP1PKMLOPQ013Z
-         2NFvJjtz2e1C1o3f+z3nnQn8v8dnDhV/fhRAcOfxxI5Qlv53U0WAlBKMcDAekX9HWtdv
-         RTJ8yBddZIZ3uQUy3Qf4U9mX/ZtzHF1/ULPTDNnZQxZ20b3878ZY9cduvqZQZrWOk8VB
-         PAcvlGYlJ/SxOCIDgoxTw6YRQIFd2ZBzG6NXvIxqMZ+Q4dFVztQuY7l3nmNjMO9Y5myY
-         pq4gbW8C9zfGpsolncQsW4MTOSzUx7W/TTHrVOK0sR1rEk/M82uNRoZxHXvglPquhLmK
-         n+MA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVFDATgnWtybA314IkPk0JcCGdPV5cHFbdlhIy5/qlBqfHmxv+0
-	XzA4yTW9rh8TTwKyGatkdb4Go17DPeuFH6ZkExcykkgdHZ9wiQZ9h1Tg3msiHUkBuQ2r0+/8MrB
-	cJ/X28vh4QGve4AfsI4zcFUBWqM0RCf3UfXhB+XkT1heI4poltbLOpuaqZ+WGz3Wd5g==
-X-Received: by 2002:ac8:2d13:: with SMTP id n19mr41010499qta.31.1555027735700;
-        Thu, 11 Apr 2019 17:08:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwepxQCJsbYMiUj2QgmRxWzjfrSSps/9ow4bSR50v6O001mbQmEgoX8flg+XMg10PfuBY6o
-X-Received: by 2002:ac8:2d13:: with SMTP id n19mr41010452qta.31.1555027734969;
-        Thu, 11 Apr 2019 17:08:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555027734; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=afm2gQKQ9IeGQx2pSJdzpkAY9emExLqLGJxnADAziCM=;
+        b=NVSZ1fkEzYGNdxFsMmtrHjzBeLDvniQt+xlweEJuaKjRNQyXK4x1aKT2zNNULzBc53
+         jlKdEavvuzbdB0wC+V+KSD2Tb44+yYCF0CmBA7cqEQVINrIiQsB2+L7sQRNzVhKN4gIw
+         bQtLrjERklRkUBbI9w2UWjusrIs/QYcB1/uYVkmox0+4lYUVG5p9bkBdlB/cthTpeGbp
+         4a5WNW9/MJ2iH7v/Spx3+Eh1N0duC70wHQSmCevPNEH2Iiuu3KrLMEeAJPtgwGCUknOy
+         QNTRi9hvrMa3B4DrLylueIW0oaUXynwJ5ATTEMG9b25DXy01Qfw6w4yMVjX01aKPoQLM
+         9Lqg==
+X-Gm-Message-State: APjAAAU83dEK+Or++lYlAOaWa6Ncb/+PA6UXNTnTOZD5fZNCJ9fnRwMS
+	L8XEo32iPEXfLtR1iADbf7+NkhqB+AFGB+YbPH+fZe+yTK26vRsHSIz8MeiKTTgbLK2RSfDlvbC
+	SWmhVaYbijEH3XtOQppmwULLRGade5mn9mAgDYsR8CpqaLv5f1obpdiB/yO92pYYZEg==
+X-Received: by 2002:a05:660c:20e:: with SMTP id y14mr10996141itj.17.1555032830490;
+        Thu, 11 Apr 2019 18:33:50 -0700 (PDT)
+X-Received: by 2002:a05:660c:20e:: with SMTP id y14mr10995895itj.17.1555032823865;
+        Thu, 11 Apr 2019 18:33:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555032823; cv=none;
         d=google.com; s=arc-20160816;
-        b=DBManSm8HOlt3JtDvH3rjXXRteh8mk2I959yqVvB4wFGh21cUAavy1yLSqdJwUO3v3
-         2Boe00G59cYTwctaDJq5e7RNQ9Td/Jqfhb6rtATpVoLG3F/8tHLkdb4GfIO8ldwjl5Kh
-         n0+bj2LuUbI2gQxUvkkE2RaJkB4/KAoaHJHpmuEMX61K1L5IxYBz9URSLZNmXPE0SQH6
-         5PcwfaEllrQ1/pBRxorHlkRJHePp5aZeulwPanNJyt/rGa3iUjzONvcx0YGpV2McgsRZ
-         zV0XL8DFaPPwB+oBEG+yf3bogEMlo9YHre9WFuQFhoZLfUpQ4QadBdreD7B6dsxnGOEI
-         P3MA==
+        b=mm0lkWr4bVNIlI43ayb/txp28i+nYQRG5MIjLOibFFc08ugCpBMG0uB942I4v0bg3V
+         /Y+OQWYXLdUPliyA+gTD/3S3k73Go2qCpjw3OYgbI1GtSR2eVBQBR9O/WEaFhPWwHWGO
+         sU/pcoj1Kcm5FAeGqxzbhrQdkq/PNGnkO7211dkQ9bPLTadOCVtOex5e7+BH7DwvFsmc
+         6P2kuek7kB2VYIxziRJ5exA5t63ob5h6aubawgixqSQPc01DWfx21ezCT2LExahEhp1s
+         oiN17qheUkoixei1f2rampjaW9ER8ZI+gOnHxgpjW7frfu6fdkUWe/3Ilgq8vl9f41Or
+         6xaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=x0izde7z5CrpjcjAKzlk30eJH24IS1NgTs8hJgtpSJ8=;
-        b=h0PqczxnvWApMHUjm4LT88KJPKiqwBTOSh0DA9TmwR8UUXDelrPkF/l/KGkoOQD9It
-         EccscjZXRqNwUNDHT9O6GqJAfQPlna1AVV/JU+4CYJb3nczVWL7k0TdAlRMc5Ht+HOhY
-         Q4UdNJ9j60IxFj9H2Fq5NNEyMmTQARLGnVj9qMnTgyjsBNuiEpIbhadkho4E/16psO0u
-         iyD04yr8ObLdbfEXKLeC2EGkXvVl0ArM84btAc9Qa3I93rnxOR7ZFWDxoeKbiwvB0JKq
-         wpJNVmCpFFaW0FNkCPvphq2uKQdtp3tB8Ej+NySen4+ChEeOG6Gy9TAyMwDg/5+4a+8j
-         moqA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=afm2gQKQ9IeGQx2pSJdzpkAY9emExLqLGJxnADAziCM=;
+        b=u7HlcgRfmQCUyx+20oEGnf8Ep9EPsQcBkNf00RWG+Q0CzEKo7Rsk1wc9p72t3tRY9t
+         vvdnxQz96llT2UztbuowGb5xGDvKG8xw8IdJVUyxDZ0yn/WCxNRUP2wiLzZNACrvG+3u
+         ZhF5yp7XbuIlP2W96r3HJdOa/y5+VQxS50W7mZP4xtf2EQpbTLZaBNk0OtpWpNHwvOwy
+         x7fgt9pa+Vouyf+3Y/h+AHKO9KDqvwMbLIXdo8WojfCMreQBDdnO/jsKMnwhbRMIGSRF
+         0S4AiARTKPsAY48MGZfgisngOlh0LfovAVeuzRuJ3c2BJ9ZwpTIxabonXGcHKbc+pTxl
+         14lg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 11si247682qvl.102.2019.04.11.17.08.54
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uFVBzBn/";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h76sor11952325ith.32.2019.04.11.18.33.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 17:08:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 11 Apr 2019 18:33:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BA22B19D2BD;
-	Fri, 12 Apr 2019 00:08:53 +0000 (UTC)
-Received: from redhat.com (ovpn-120-97.rdu2.redhat.com [10.10.120.97])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6EE7C5D9C8;
-	Fri, 12 Apr 2019 00:08:48 +0000 (UTC)
-Date: Thu, 11 Apr 2019 20:08:46 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
-	Ming Lei <ming.lei@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Ernesto A =?iso-8859-1?Q?=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v1 12/15] fs/direct-io: keep track of wether a page is
- coming from GUP or not
-Message-ID: <20190412000846.GB13369@redhat.com>
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <20190411210834.4105-13-jglisse@redhat.com>
- <20190411231443.GD1695@dread.disaster.area>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="uFVBzBn/";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=afm2gQKQ9IeGQx2pSJdzpkAY9emExLqLGJxnADAziCM=;
+        b=uFVBzBn/XKsdSbFAr75R43re28oYkar9/dySYhidvvklad41ZAe6tINRSBE012k4Vi
+         1Mo/faG0MOcHQdGY0KozwvZnsAp4IRqA9mUcwYc7cJ0z1BAi3hj5bN6x5yueg+8Bk0FF
+         LHMzPWH4T4fC4j0wd5cHOAs937wk84PSrBp+qUgA9tscPdwWmTT0Yqfj6ro5pFnd8Gzs
+         zNYDLNm4458mtYb6uKMxe8fXqKmw/sMYenDjpKkn9WZlJXJ7SLCNpQqpMnStN6xK94Gz
+         KVBiEH5/VyD0C5ogMll20JGaiSiEjZNqfFVysaXTgWUVQVIaZYQEGPjJxK+yP0hRPqlh
+         xq7A==
+X-Google-Smtp-Source: APXvYqyM4TgUZuTHtz73x16s4ARd2g2xo8LP0SurIYdjBfzQc+moaQUywpruP697lVgxAfiXB7x7RIy5xcbwXet0Bi8=
+X-Received: by 2002:a24:ba15:: with SMTP id p21mr9579383itf.66.1555032812298;
+ Thu, 11 Apr 2019 18:33:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190411231443.GD1695@dread.disaster.area>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Fri, 12 Apr 2019 00:08:54 +0000 (UTC)
+References: <1554983991-16769-1-git-send-email-laoar.shao@gmail.com>
+ <20190411122659.GW10383@dhcp22.suse.cz> <CALOAHbD7PwABb+OX=2JHzcTTLhv_-o8Wxk7hX-0+M5ZNUtokhA@mail.gmail.com>
+ <20190411133300.GX10383@dhcp22.suse.cz> <CALOAHbBq8p63rxr5wGuZx5fv5bZ689A=wbioRn8RXfLYvbxCdw@mail.gmail.com>
+ <20190411151039.GY10383@dhcp22.suse.cz>
+In-Reply-To: <20190411151039.GY10383@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Fri, 12 Apr 2019 09:32:55 +0800
+Message-ID: <CALOAHbBCGx-d-=Z0CdL+tzWRCCQ7Hd9CFqjMhLKbEofDfFpoMw@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcg: add allocstall to memory.stat
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, 
+	Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>, shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 12, 2019 at 09:14:43AM +1000, Dave Chinner wrote:
-> On Thu, Apr 11, 2019 at 05:08:31PM -0400, jglisse@redhat.com wrote:
-> > From: Jérôme Glisse <jglisse@redhat.com>
-> > 
-> > We want to keep track of how we got a reference on page when doing DIO,
-> > ie wether the page was reference through GUP (get_user_page*) or not.
-> > For that this patch rework the way page reference is taken and handed
-> > over between DIO code and BIO. Instead of taking a reference for page
-> > that have been successfuly added to a BIO we just steal the reference
-> > we have when we lookup the page (either through GUP or for ZERO_PAGE).
-> > 
-> > So this patch keep track of wether the reference has been stolen by the
-> > BIO or not. This avoids a bunch of get_page()/put_page() so this limit
-> > the number of atomic operations.
-> 
-> Is the asme set of changes appropriate for the fs/iomap.c direct IO
-> path (i.e. XFS)?
+On Thu, Apr 11, 2019 at 11:10 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 11-04-19 21:54:22, Yafang Shao wrote:
+> > On Thu, Apr 11, 2019 at 9:39 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Thu 11-04-19 20:41:32, Yafang Shao wrote:
+> > > > On Thu, Apr 11, 2019 at 8:27 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > >
+> > > > > On Thu 11-04-19 19:59:51, Yafang Shao wrote:
+> > > > > > The current item 'pgscan' is for pages in the memcg,
+> > > > > > which indicates how many pages owned by this memcg are scanned.
+> > > > > > While these pages may not scanned by the taskes in this memcg, even for
+> > > > > > PGSCAN_DIRECT.
+> > > > > >
+> > > > > > Sometimes we need an item to indicate whehter the tasks in this memcg
+> > > > > > under memory pressure or not.
+> > > > > > So this new item allocstall is added into memory.stat.
+> > > > >
+> > > > > We do have memcg events for that purpose and those can even tell whether
+> > > > > the pressure is a result of high or hard limit. Why is this not
+> > > > > sufficient?
+> > > > >
+> > > >
+> > > > The MEMCG_HIGH and MEMCG_LOW may not be tiggered by the tasks in this
+> > > > memcg neither.
+> > > > They all reflect the memory status of a memcg, rather than tasks
+> > > > activity in this memcg.
+> > >
+> > > I do not follow. Can you give me an example when does this matter? I
+> >
+> > For example, the tasks in this memcg may encounter direct page reclaim
+> > due to system memory pressure,
+> > meaning it is stalling in page alloc slow path.
+> > At the same time, maybe there's no memory pressure in this memcg, I
+> > mean, it could succussfully charge memcg.
+>
+> And that is exactly what those events aim for. They are measuring
+> _where_ the memory pressure comes from.
+>
+> Can you please try to explain what do you want to achieve again?
 
-Yes and it is part of this patchset AFAICT iomap use bio_iov_iter_get_pages()
-which is updated to pass down wether page are coming from GUP or not. The
-bio you get out of that is then release through iomap_dio_bio_end_io() which
-calls bvec_put_page() which will use put_user_page() for GUPed page.
+To know the impact of this memory pressure.
+The current events can tell us the source of this pressure, but can't
+tell us the impact of this pressure.
+The tracepoints are always off until we meet some issue and then turn it on;
+while the event counter is more lightweight, and with it we can know
+which memcg is suffering this pressure.
 
-I may have miss a case and review are welcome.
-
-Note that while the convertion is happening put_user_page is exactly the same
-as put_page() in fact the implementation just call put_page() with nothing
-else.
-
-The tricky part is making sure that before we diverge with a put_user_page()
-that does something else that put_page() we will need to be sure that we did
-not left a path that do GUP but does call put_page() and not put_user_page().
-We have some plan to catch that in debug build.
-
-In any case i believe we will be very careful when the times come to change
-put_user_page() to something different.
-
-Cheers,
-Jérôme
+Thanks
+Yafang
 
