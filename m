@@ -2,223 +2,399 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40A1DC10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 16:52:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFB3CC10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 17:05:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAEF720850
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 16:52:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAEF720850
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
+	by mail.kernel.org (Postfix) with ESMTP id 73CF2218AF
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 17:05:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="FPND4+jR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73CF2218AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 998886B000C; Fri, 12 Apr 2019 12:52:47 -0400 (EDT)
+	id 041C16B000C; Fri, 12 Apr 2019 13:05:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9475D6B000D; Fri, 12 Apr 2019 12:52:47 -0400 (EDT)
+	id F310B6B000D; Fri, 12 Apr 2019 13:05:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 838216B0010; Fri, 12 Apr 2019 12:52:47 -0400 (EDT)
+	id E20A76B0010; Fri, 12 Apr 2019 13:05:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 339616B000C
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 12:52:47 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r6so5144352edp.18
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 09:52:47 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A33216B000C
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 13:05:58 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f67so6808733pfh.9
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 10:05:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=J8+nMcLsizTcpYafwM3rJgVhGUXw3HvEEw2X1EXjaUg=;
-        b=i7AoBMljUAsZ5hIAVTgH3M8yiBlqvfdgq9e3NwpX4mGB0PVvTM3ezmBjAB5f703gsz
-         WfifLybR+iXqX7jZxB2abJAJRXJdlBQrzd81vl4fPF4odAo6T9aU85B+yZuDqr3hXjO7
-         4GwkqoSBNU3nXoBYkj6UoiQ+fynliFHOtg2wHiJcI7VuhneufK4rqFq5GTzxjqqEHl4U
-         H+OJZnpf0e8jFjYYq+a0JSRY70oDEApN+bxad9gqngOzMl7n890GHg0bMHpgh6yUkEiy
-         yqbF7lXCJGgDHjNGsUp2mPt2visGfvsIcEgfaGmSbiOqes5DMs6iFUkQLBml9fg1IN1G
-         xLnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Gm-Message-State: APjAAAX3rEfQetsiHB9oJiv+jM8dnA71Jx/T2Ye3BJ/4JuXGrwNY1LMX
-	aev2YIZFahyvNN3kxYQ//ccCpwOxJHdqvQUa19f3OQFQcdJvZMZQACeP2mnn2dUp6RPI/QYipfz
-	lYuMOsu4ORZndJAlYOvVfN/kvu86ZjhAXaK8iA3kBvQSse/pLXBniymNVN/BV3KA=
-X-Received: by 2002:a17:906:b291:: with SMTP id q17mr31839936ejz.56.1555087966686;
-        Fri, 12 Apr 2019 09:52:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzdVe4BS1TkwdabilJFG1JYJiIlvw1vrc09ndkp2fcVgTMmd5cLLSm0lGMHYx0uXAdm75To
-X-Received: by 2002:a17:906:b291:: with SMTP id q17mr31839896ejz.56.1555087965736;
-        Fri, 12 Apr 2019 09:52:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555087965; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=tri8CThGeI0Fog54JNhqIGeKjLdF19xBZHs5GfnqGqY=;
+        b=lUL/kW/H/Z72guvkoTDKGacEuYGOaBuj4o0tZkF2cJe68/POlX41Gd/eR51b96H4S9
+         95n+oYZjgYTfQ6DfAjWnLU01aVa5mYP9BIv7pWTSFbt8blNxkgxnBB1ACbzrwn9kRAl1
+         T2r8k8XoPc1DF9kjhwJ04tSBZw9e/SQtqZe+bgMLEyjevmmrZSecUMwuhfI7wzFO+MgH
+         PU3AWAog5YCB3UHEsPEQ1iWBc/sS0RKCvqw9nluA4K1JqGbJUgviRk0rDOmg9f87sJsF
+         irvMF8XowAY/qfgP3DVsPe0heonbI/mn5DEbvzYaSg6+a35sk9M/sSIf3QOPgP5xR3mZ
+         z1Ug==
+X-Gm-Message-State: APjAAAWn3/1y5CU+JFc19s/fvRtx/iRpiaQ5+FA8wSgfkgdvIlTdqI4U
+	69OzhA/6SIV1roabDsojuu4063CzCzTNgODOW5fy21dMoktMHJj60cPaZAxm5VzMW6R97p2pD/T
+	YuB7bttQEGXSmvl57UmM5Bp7Ug23AEBdi1aTGXauC54w52ZIIWmm55UCyRU23erTF1Q==
+X-Received: by 2002:a63:c34c:: with SMTP id e12mr55292598pgd.279.1555088758093;
+        Fri, 12 Apr 2019 10:05:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzw1G7f5GYXzJKoDC+K14tGUZ8v6U11Im38YWZ2GAEOMaszZ+GD/WfONxWLfHY9fxxGC/cV
+X-Received: by 2002:a63:c34c:: with SMTP id e12mr55292495pgd.279.1555088756962;
+        Fri, 12 Apr 2019 10:05:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555088756; cv=none;
         d=google.com; s=arc-20160816;
-        b=AVB0WPOlBvb/hUCp4L/edTq1Q/L2Hs534jBDMlHQS+5u9rvwB2f6Xpug6LpmoaOFwo
-         BmTVbL4GnXWzRBbIVXeJfuQWt7QODMJFkmc+Jm4Bkh2pYXzyY5xmqiaNnoYz5Ubn3x39
-         GagpAtORHj7GLVVcoO2NVCvC8WFDzl0uFJVReDUU/2iodiuOH2roX6PP6IaGMMoYmooE
-         8ukhvcjbhNxKEilA0Q0ysSQGfH02M5p3Yz3+ImfaaJDTN+YAWjGrI+Qpug/D8y2ewKHE
-         V9ueKYQF4pLdTcaLR9l9+r3pcCNRkMTnVy2409xImGCELFzm4eF28gAvi5mp0ewyQysS
-         GhGA==
+        b=v44E25LF36fxEugbvZObRluLj/y2bOsy68ydRbg4WBtLMFyQJozKYqHYMKna7RBfXV
+         m836HfDQtJ2tRwOlVJGMRSRSZF3fV6WIJdug9ui3WdKbcM2BTX+zAg/6ckXxCsTNUhIp
+         yi0uJb/GsALMlnAelBuvGrTcXcGrvBHNzwb/gUeNBgrNhGaDAJ+GnshE8pKKcNvPswv0
+         RQty/7WTx/z3o+mbYWCvqJOsUCy7KPFIDHtsCXcI9Ysq0eJfKTMQXwXUaPORmI59bq6i
+         +SB9cVJPK+n6Fm5VPVHeuSjTJJcFt2+8OCvjRxsJb6qQgKI5i5QOWN9/qHdfgRoio+ML
+         GrJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:message-id:subject:cc:to:from:date;
-        bh=J8+nMcLsizTcpYafwM3rJgVhGUXw3HvEEw2X1EXjaUg=;
-        b=SOkuGaYfKqOPMiIx0CnH7oJ9Z1ZDbnL/W2vBnyoheyoJd5rZwb6spdalMOTA61dtN3
-         GKy9wQ3gS7nWszLrnzas2AFbqCpsZ311IkMM4RjX8xBd1duekRTIN1n/rKRA1d61mLcg
-         /EWBvSv47MPrkXELlddWyMX4mnFt0n0QyLde3GVM/2PWFL2dcFqpWhR2zzftZYNXPeHW
-         iqICnhKk1/IVCmmozS5Q76zkqsl9lLmDMXmKNWk0M0UQnEk88uyyHC9oaxuvbowbk0+W
-         sZeMp1DpvlhHNRP70/8AOLVcNaDvPEkSrnp8u4vL3FFhadj3R3h0yfojHVBPI7nmCbFk
-         QahQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=tri8CThGeI0Fog54JNhqIGeKjLdF19xBZHs5GfnqGqY=;
+        b=e1VOT+4Cd6LLcRli/0T5ha6RD6FIsI/7MD9iCmLfLXpdbh1uNKqpMNU0sZTdk3W+kc
+         +Mm/bpJf/DNlBoaTo77w+pLyPWNpil5aPr8s1/V2/UbNjY/8+ranlIHl3vMFV8uWO19x
+         IVFs7hR7MyBTfEQqFiYNY1lf/JArhYjqh8v30cwNlIe69dMNOy6/fyBqM9zzROWytuXH
+         CX+CKM/bI5XKK7sBaiVo6F3ApApvKDM282vkLc3UAQz73r7OSQLLhGbWM/45cUXpLxq2
+         jTB8IDkzFYp6Cnzf7dURiQpSMRkSsHAiq4duWMgLjDJfyDUY+jsBU6A/d6niZQ7fOjfj
+         819w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x26si879792edr.378.2019.04.12.09.52.45
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=FPND4+jR;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.79.43 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-eopbgr790043.outbound.protection.outlook.com. [40.107.79.43])
+        by mx.google.com with ESMTPS id z2si36372856pgp.239.2019.04.12.10.05.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Apr 2019 09:52:45 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 12 Apr 2019 10:05:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.79.43 as permitted sender) client-ip=40.107.79.43;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AEC46AE28;
-	Fri, 12 Apr 2019 16:52:44 +0000 (UTC)
-Date: Fri, 12 Apr 2019 09:52:35 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v2 2/2] hugetlb: use same fault hash key for shared and
- private mappings
-Message-ID: <20190412165235.t4sscoujczfhuiyt@linux-r8p5>
-Mail-Followup-To: Mike Kravetz <mike.kravetz@oracle.com>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-References: <20190328234704.27083-1-mike.kravetz@oracle.com>
- <20190328234704.27083-3-mike.kravetz@oracle.com>
- <0b1d1faf-ff72-a51f-b48a-175c9c5cab53@oracle.com>
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=FPND4+jR;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.79.43 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=tri8CThGeI0Fog54JNhqIGeKjLdF19xBZHs5GfnqGqY=;
+ b=FPND4+jRC0vauLwqeGFTEBG6O8NeBQmmIn9DcLZlz0nel+3bTTdewhdJjkfWHl9EcN3Bx18BM9vTJH8kt+v/SOJijnbiJ1fY+vebYIndkDVQQFVREI6yCUbe2enfiolf7MhrkXYuFcXblKnq3VvQylqB9xwtftM5720stTwRxTk=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB5974.namprd05.prod.outlook.com (20.178.53.11) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1792.10; Fri, 12 Apr 2019 17:05:53 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd%4]) with mapi id 15.20.1792.009; Fri, 12 Apr 2019
+ 17:05:53 +0000
+From: Nadav Amit <namit@vmware.com>
+To: Peter Zijlstra <peterz@infradead.org>
+CC: kernel test robot <lkp@intel.com>, LKP <lkp@01.org>, Linux List Kernel
+ Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+	linux-arch <linux-arch@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will.deacon@arm.com>, Andy
+ Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: 1808d65b55 ("asm-generic/tlb: Remove arch_tlb*_mmu()"):  BUG:
+ KASAN: stack-out-of-bounds in __change_page_attr_set_clr
+Thread-Topic: 1808d65b55 ("asm-generic/tlb: Remove arch_tlb*_mmu()"):  BUG:
+ KASAN: stack-out-of-bounds in __change_page_attr_set_clr
+Thread-Index: AQHU8R5sUhi0mJ9uO0aA/EiVew3tvaY4YIQAgABBN4CAAB//AA==
+Date: Fri, 12 Apr 2019 17:05:53 +0000
+Message-ID: <E33FDED8-8B95-431D-9AC7-71D45AB49011@vmware.com>
+References: <5cae03c4.iIPk2cWlfmzP0Zgy%lkp@intel.com>
+ <20190411193906.GA12232@hirez.programming.kicks-ass.net>
+ <20190411195424.GL14281@hirez.programming.kicks-ass.net>
+ <20190411211348.GA8451@worktop.programming.kicks-ass.net>
+ <20190412105633.GM14281@hirez.programming.kicks-ass.net>
+ <20190412111756.GO14281@hirez.programming.kicks-ass.net>
+ <F18AF0D5-D8B4-4F4B-8469-F9DEC49683C7@vmware.com>
+In-Reply-To: <F18AF0D5-D8B4-4F4B-8469-F9DEC49683C7@vmware.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 5ac12229-7c4a-4300-23ab-08d6bf691f48
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB5974;
+x-ms-traffictypediagnostic: BYAPR05MB5974:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <BYAPR05MB5974D5A0DBE5BBE0DEFFD961D0280@BYAPR05MB5974.namprd05.prod.outlook.com>
+x-forefront-prvs: 0005B05917
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(396003)(366004)(376002)(136003)(346002)(189003)(199004)(45080400002)(81156014)(97736004)(4001150100001)(53936002)(82746002)(68736007)(6246003)(966005)(6436002)(478600001)(6486002)(36756003)(316002)(2906002)(54906003)(6116002)(71190400001)(83716004)(256004)(86362001)(229853002)(99286004)(26005)(105586002)(6512007)(486006)(25786009)(561944003)(33656002)(8936002)(6306002)(81166006)(71200400001)(3846002)(14444005)(5660300002)(11346002)(2616005)(446003)(476003)(106356001)(76176011)(93886005)(7736002)(4326008)(14454004)(305945005)(6506007)(102836004)(186003)(6916009)(53546011)(8676002)(7416002)(66066001)(41533002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5974;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ FAN6SMk7t7LidEc6KPpNJbyS7CdSLeJ8OVx0DFEGJV3NDug5iCAKY9gdV83n4AbHAyWIq+OKpAyOYRGHe/hmjek4c+joy008kNEaH4O2xr/iOkuAtB8UGGVLClKaauIIMCbpIkls6hdoG3ZrlaIIR7lDakGSCByzLpiapPDA5iF1/xdwE0HMplRGO3hWQxkEznlGMXPwbFBnclKfT1EjEq8MJjPI9027hQdRJH+rg8/EqZuUjjzt9LZ74oJfHScjm7jqVqlRQTO89ES/vGlKiU1ZHejWO3BpGJz5nFyQeUkhbvfc35OIVOJ5aUJMwTMZO30cRuR12GwSpTry/rZHvYE0fSSogBslG17zGJ99NZ5PyCkTKwBbAXe7PFHQB697bFDBE4Ij9sLBJgrMDINidW0gKtgpA7r7hGDHnnsczdA=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <77F1797517EF464CA320EE9FAAD0EAB3@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <0b1d1faf-ff72-a51f-b48a-175c9c5cab53@oracle.com>
-User-Agent: NeoMutt/20180323
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 5ac12229-7c4a-4300-23ab-08d6bf691f48
+X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Apr 2019 17:05:53.4174
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5974
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Apr 2019, Mike Kravetz wrote:
+> On Apr 12, 2019, at 8:11 AM, Nadav Amit <namit@vmware.com> wrote:
+>=20
+>> On Apr 12, 2019, at 4:17 AM, Peter Zijlstra <peterz@infradead.org> wrote=
+:
+>>=20
+>> On Fri, Apr 12, 2019 at 12:56:33PM +0200, Peter Zijlstra wrote:
+>>> On Thu, Apr 11, 2019 at 11:13:48PM +0200, Peter Zijlstra wrote:
+>>>> On Thu, Apr 11, 2019 at 09:54:24PM +0200, Peter Zijlstra wrote:
+>>>>> On Thu, Apr 11, 2019 at 09:39:06PM +0200, Peter Zijlstra wrote:
+>>>>>> I think this bisect is bad. If you look at your own logs this patch
+>>>>>> merely changes the failure, but doesn't make it go away.
+>>>>>>=20
+>>>>>> Before this patch (in fact, before tip/core/mm entirely) the errror
+>>>>>> reads like the below, which suggests there is memory corruption
+>>>>>> somewhere, and the fingered patch just makes it trigger differently.
+>>>>>>=20
+>>>>>> It would be very good to find the source of this corruption, but I'm
+>>>>>> fairly certain it is not here.
+>>>>>=20
+>>>>> I went back to v4.20 to try and find a time when the below error did =
+not
+>>>>> occur, but even that reliably triggers the warning.
+>>>>=20
+>>>> So I also tested v4.19 and found that that was good, which made me
+>>>> bisect v4.19..v4.20
+>>>>=20
+>>>> # bad: [8fe28cb58bcb235034b64cbbb7550a8a43fd88be] Linux 4.20
+>>>> # good: [84df9525b0c27f3ebc2ebb1864fa62a97fdedb7d] Linux 4.19
+>>>> git bisect start 'v4.20' 'v4.19'
+>>>> # bad: [ec9c166434595382be3babf266febf876327774d] Merge tag 'mips_fixe=
+s_4.20_1' of git://git.kernel.org/pub/scm/linux/kernel/git/mips/linux
+>>>> git bisect bad ec9c166434595382be3babf266febf876327774d
+>>>> # bad: [50b825d7e87f4cff7070df6eb26390152bb29537] Merge git://git.kern=
+el.org/pub/scm/linux/kernel/git/davem/net-next
+>>>> git bisect bad 50b825d7e87f4cff7070df6eb26390152bb29537
+>>>> # good: [99e9acd85ccbdc8f5785f9e961d4956e96bd6aa5] Merge tag 'mlx5-upd=
+ates-2018-10-17' of git://git.kernel.org/pub/scm/linux/kernel/git/saeed/lin=
+ux
+>>>> git bisect good 99e9acd85ccbdc8f5785f9e961d4956e96bd6aa5
+>>>> # good: [c403993a41d50db1e7d9bc2d43c3c8498162312f] Merge tag 'for-linu=
+s-4.20' of https://nam04.safelinks.protection.outlook.com/?url=3Dhttps%3A%2=
+F%2Fgithub.com%2Fcminyard%2Flinux-ipmi&amp;data=3D02%7C01%7Cnamit%40vmware.=
+com%7Ca1c3ea5d4bc34cfc785508d6bf388ff3%7Cb39138ca3cee4b4aa4d6cd83d9dd62f0%7=
+C0%7C0%7C636906647013777573&amp;sdata=3D3VSR3VdE5rxOitAdkqFNPpAnAtLgDmYLzJt=
+oUrs5v9Y%3D&amp;reserved=3D0
+>>>> git bisect good c403993a41d50db1e7d9bc2d43c3c8498162312f
+>>>> # good: [c05f3642f4304dd081876e77a68555b6aba4483f] Merge branch 'perf-=
+core-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect good c05f3642f4304dd081876e77a68555b6aba4483f
+>>>> # bad: [44786880df196a4200c178945c4d41675faf9fb7] Merge branch 'parisc=
+-4.20-1' of git://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-lin=
+ux
+>>>> git bisect bad 44786880df196a4200c178945c4d41675faf9fb7
+>>>> # bad: [99792e0cea1ed733cdc8d0758677981e0cbebfed] Merge branch 'x86-mm=
+-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect bad 99792e0cea1ed733cdc8d0758677981e0cbebfed
+>>>> # good: [fec98069fb72fb656304a3e52265e0c2fc9adf87] Merge branch 'x86-c=
+pu-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect good fec98069fb72fb656304a3e52265e0c2fc9adf87
+>>>> # bad: [a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542] x86/mm: Page size aw=
+are flush_tlb_mm_range()
+>>>> git bisect bad a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542
+>>>> # good: [a7295fd53c39ce781a9792c9dd2c8747bf274160] x86/mm/cpa: Use flu=
+sh_tlb_kernel_range()
+>>>> git bisect good a7295fd53c39ce781a9792c9dd2c8747bf274160
+>>>> # good: [9cf38d5559e813cccdba8b44c82cc46ba48d0896] kexec: Allocate dec=
+rypted control pages for kdump if SME is enabled
+>>>> git bisect good 9cf38d5559e813cccdba8b44c82cc46ba48d0896
+>>>> # good: [5b12904065798fee8b153a506ac7b72d5ebbe26c] x86/mm/doc: Clean u=
+p the x86-64 virtual memory layout descriptions
+>>>> git bisect good 5b12904065798fee8b153a506ac7b72d5ebbe26c
+>>>> # good: [cf089611f4c446285046fcd426d90c18f37d2905] proc/vmcore: Fix i3=
+86 build error of missing copy_oldmem_page_encrypted()
+>>>> git bisect good cf089611f4c446285046fcd426d90c18f37d2905
+>>>> # good: [a5b966ae42a70b194b03eaa5eaea70d8b3790c40] Merge branch 'tlb/a=
+sm-generic' of git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux in=
+to x86/mm
+>>>> git bisect good a5b966ae42a70b194b03eaa5eaea70d8b3790c40
+>>>> # first bad commit: [a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542] x86/mm:=
+ Page size aware flush_tlb_mm_range()
+>>>>=20
+>>>> And 'funnily' the bad patch is one of mine too :/
+>>>>=20
+>>>> I'll go have a look at that tomorrow, because currrently I'm way past
+>>>> tired.
+>>>=20
+>>> OK, so the below patchlet makes it all good. It turns out that the
+>>> provided config has:
+>>>=20
+>>> CONFIG_X86_L1_CACHE_SHIFT=3D7
+>>>=20
+>>> which then, for some obscure raisin, results in flush_tlb_mm_range()
+>>> compiling to use 320 bytes of stack:
+>>>=20
+>>> sub    $0x140,%rsp
+>>>=20
+>>> Where a 'defconfig' build results in:
+>>>=20
+>>> sub    $0x58,%rsp
+>>>=20
+>>> The thing that pushes it over the edge in the above fingered patch is
+>>> the addition of a field to struct flush_tlb_info, which grows if from 3=
+2
+>>> to 36 bytes.
+>>>=20
+>>> So my proposal is to basically revert that, unless we can come up with
+>>> something that GCC can't screw up.
+>>=20
+>> To clarify, 'that' is Nadav's patch:
+>>=20
+>> 515ab7c41306 ("x86/mm: Align TLB invalidation info")
+>>=20
+>> which turns out to be the real problem.
+>=20
+> Sorry for that. I still think it should be aligned, especially with all t=
+he
+> effort the Intel puts around to avoid bus-locking on unaligned atomic
+> operations.
+>=20
+> So the right solution seems to me as putting this data structure off stac=
+k.
+> It would prevent flush_tlb_mm_range() from being reentrant, so we can kee=
+p a
+> few entries for this matter and atomically increase the entry number ever=
+y
+> time we enter flush_tlb_mm_range().
+>=20
+> But my question is - should flush_tlb_mm_range() be reentrant, or can we
+> assume no TLB shootdowns are initiated in interrupt handlers and #MC
+> handlers?
 
->On 3/28/19 4:47 PM, Mike Kravetz wrote:
->> hugetlb uses a fault mutex hash table to prevent page faults of the
->> same pages concurrently.  The key for shared and private mappings is
->> different.  Shared keys off address_space and file index.  Private
->> keys off mm and virtual address.  Consider a private mappings of a
->> populated hugetlbfs file.  A write fault will first map the page from
->> the file and then do a COW to map a writable page.
->
->Davidlohr suggested adding the stack trace to the commit log.  When I
->originally 'discovered' this issue I was debugging something else.  The
->routine remove_inode_hugepages() contains the following:
->
->			 * ...
->			 * This race can only happen in the hole punch case.
->			 * Getting here in a truncate operation is a bug.
->			 */
->			if (unlikely(page_mapped(page))) {
->				BUG_ON(truncate_op);
->
->				i_mmap_lock_write(mapping);
->				hugetlb_vmdelete_list(&mapping->i_mmap,
->					index * pages_per_huge_page(h),
->					(index + 1) * pages_per_huge_page(h));
->				i_mmap_unlock_write(mapping);
->			}
->
->			lock_page(page);
->			/*
->			 * We must free the huge page and remove from page
->			 * ...
->			 */
->			VM_BUG_ON(PagePrivate(page));
->			remove_huge_page(page);
->			freed++;
->
->I observed that the page could be mapped (again) before the call to lock_page
->if we raced with a private write fault.  However, for COW faults the faulting
->code is holding the page lock until it unmaps the file page.  Hence, we will
->not call remove_huge_page() with the page mapped.  That is good.  However, for
->simple read faults the page remains mapped after releasing the page lock and
->we can call remove_huge_page with a mapped page and BUG.
->
->Sorry, the original commit message was not completely accurate in describing
->the issue.  I was basing the change on behavior experienced during debug of
->a another issue.  Actually, it is MUCH easier to BUG by making private read
->faults race with hole punch.  As a result, I now think this should go to
->stable.
->
->Andrew, below is an updated commit message.  No changes to code.  Would you
->like me to send an updated patch?  Also, need to add stable.
->
->hugetlb uses a fault mutex hash table to prevent page faults of the
->same pages concurrently.  The key for shared and private mappings is
->different.  Shared keys off address_space and file index.  Private
->keys off mm and virtual address.  Consider a private mappings of a
->populated hugetlbfs file.  A fault will map the page from the file
->and if needed do a COW to map a writable page.
->
->Hugetlbfs hole punch uses the fault mutex to prevent mappings of file
->pages.  It uses the address_space file index key.  However, private
->mappings will use a different key and could race with this code to map
->the file page.  This causes problems (BUG) for the page cache remove
->code as it expects the page to be unmapped.  A sample stack is:
->
->page dumped because: VM_BUG_ON_PAGE(page_mapped(page))
->kernel BUG at mm/filemap.c:169!
->...
->RIP: 0010:unaccount_page_cache_page+0x1b8/0x200
->...
->Call Trace:
->__delete_from_page_cache+0x39/0x220
->delete_from_page_cache+0x45/0x70
->remove_inode_hugepages+0x13c/0x380
->? __add_to_page_cache_locked+0x162/0x380
->hugetlbfs_fallocate+0x403/0x540
->? _cond_resched+0x15/0x30
->? __inode_security_revalidate+0x5d/0x70
->? selinux_file_permission+0x100/0x130
->vfs_fallocate+0x13f/0x270
->ksys_fallocate+0x3c/0x80
->__x64_sys_fallocate+0x1a/0x20
->do_syscall_64+0x5b/0x180
->entry_SYSCALL_64_after_hwframe+0x44/0xa9
->
->There seems to be another potential COW issue/race with this approach
->of different private and shared keys as noted in commit 8382d914ebf7
->("mm, hugetlb: improve page-fault scalability").
->
->Since every hugetlb mapping (even anon and private) is actually a file
->mapping, just use the address_space index key for all mappings.  This
->results in potentially more hash collisions.  However, this should not
->be the common case.
+Peter, what do you say about this one? I assume there are no nested TLB
+flushes, but the code can easily be adapted (assuming there is a limit on
+the nesting level).
 
-This is fair enough as most mappings will be shared anyway (it would be
-lovely to have some machinery to measure collisions in kernel hash tables,
-in general).
+-- >8 --
 
->Fixes: b5cec28d36f5 ("hugetlbfs: truncate_hugepages() takes a range of pages")
+Subject: [PATCH] x86: Move flush_tlb_info off the stack
+---
+ arch/x86/mm/tlb.c | 49 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 14 deletions(-)
 
-Ok the issue was introduced after we had the mutex table.
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index bc4bc7b2f075..15fe90d4e3e1 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -14,6 +14,7 @@
+ #include <asm/cache.h>
+ #include <asm/apic.h>
+ #include <asm/uv/uv.h>
++#include <asm/local.h>
+=20
+ #include "mm_internal.h"
+=20
+@@ -722,43 +723,63 @@ void native_flush_tlb_others(const struct cpumask *cp=
+umask,
+  */
+ unsigned long tlb_single_page_flush_ceiling __read_mostly =3D 33;
+=20
++static DEFINE_PER_CPU_SHARED_ALIGNED(struct flush_tlb_info, flush_tlb_info=
+);
++#ifdef CONFIG_DEBUG_VM
++static DEFINE_PER_CPU(local_t, flush_tlb_info_idx);
++#endif
++
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned int stride_shift,
+ 				bool freed_tables)
+ {
++	struct flush_tlb_info *info;
+ 	int cpu;
+=20
+-	struct flush_tlb_info info __aligned(SMP_CACHE_BYTES) =3D {
+-		.mm =3D mm,
+-		.stride_shift =3D stride_shift,
+-		.freed_tables =3D freed_tables,
+-	};
+-
+ 	cpu =3D get_cpu();
+=20
++	info =3D this_cpu_ptr(&flush_tlb_info);
++
++#ifdef CONFIG_DEBUG_VM
++	/*
++	 * Ensure that the following code is non-reentrant and flush_tlb_info
++	 * is not overwritten. This means no TLB flushing is initiated by
++	 * interrupt handlers and machine-check exception handlers. If needed,
++	 * we can add additional flush_tlb_info entries.
++	 */
++	BUG_ON(local_inc_return(this_cpu_ptr(&flush_tlb_info_idx)) !=3D 1);
++#endif
++
++	info->mm =3D mm;
++	info->stride_shift =3D stride_shift;
++	info->freed_tables =3D freed_tables;
++
+ 	/* This is also a barrier that synchronizes with switch_mm(). */
+-	info.new_tlb_gen =3D inc_mm_tlb_gen(mm);
++	info->new_tlb_gen =3D inc_mm_tlb_gen(mm);
+=20
+ 	/* Should we flush just the requested range? */
+ 	if ((end !=3D TLB_FLUSH_ALL) &&
+ 	    ((end - start) >> stride_shift) <=3D tlb_single_page_flush_ceiling) {
+-		info.start =3D start;
+-		info.end =3D end;
++		info->start =3D start;
++		info->end =3D end;
+ 	} else {
+-		info.start =3D 0UL;
+-		info.end =3D TLB_FLUSH_ALL;
++		info->start =3D 0UL;
++		info->end =3D TLB_FLUSH_ALL;
+ 	}
+=20
+ 	if (mm =3D=3D this_cpu_read(cpu_tlbstate.loaded_mm)) {
+-		VM_WARN_ON(irqs_disabled());
++		lockdep_assert_irqs_enabled();
+ 		local_irq_disable();
+-		flush_tlb_func_local(&info, TLB_LOCAL_MM_SHOOTDOWN);
++		flush_tlb_func_local(info, TLB_LOCAL_MM_SHOOTDOWN);
+ 		local_irq_enable();
+ 	}
+=20
+ 	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), &info);
++		flush_tlb_others(mm_cpumask(mm), info);
+=20
++#ifdef CONFIG_DEBUG_VM
++	barrier();
++	local_dec(this_cpu_ptr(&flush_tlb_info_idx));
++#endif
+ 	put_cpu();
+ }
+=20
+--=20
+2.17.1
 
->Cc: <stable@vger.kernel.org>
-
-Thanks for the details, I'm definitely seeing the idx mismatch issue now.
-
-Reviewed-by: Davidlohr Bueso <dbueso@suse.de>
 
