@@ -2,139 +2,154 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B141C10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 09:40:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DDB2C10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 09:48:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F1A862082E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 09:40:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1A862082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 1CE5920850
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 09:48:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jyT0I88f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CE5920850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C16CD6B0266; Fri, 12 Apr 2019 05:40:12 -0400 (EDT)
+	id AD71D6B0266; Fri, 12 Apr 2019 05:48:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC6926B026A; Fri, 12 Apr 2019 05:40:12 -0400 (EDT)
+	id A60606B026A; Fri, 12 Apr 2019 05:48:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB6F36B026B; Fri, 12 Apr 2019 05:40:12 -0400 (EDT)
+	id 9507D6B026B; Fri, 12 Apr 2019 05:48:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 711AD6B0266
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 05:40:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 132so6213348pgc.18
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 02:40:12 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C4C6B0266
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 05:48:44 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id j8so8134681ita.5
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 02:48:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=e5UOhWPs4vYyBzZ91K9WNi7wJmosoxJwyaTqEjIunrQ=;
-        b=PtYK21k3uvlhFGPZzeMuUmtOVOb/E/+qLjBTyB2SWdJtI4Uf9vSApEllwyzGxJ8YN9
-         0KAPisPSRpuAOj7zgr9cqGSwcLk6o8Vm1iU+OT2W+n1DIkfrp9rAsITkJGSTcRCQA3D9
-         GPGl7WbWKM5st+DPldNfWzuqzDNEbCMexrYR9SkTPPnMtGTNhhOhMjitLSWffPQ0CljQ
-         AZJhBDXaQozJpiKY07wf1O+owC0LZL0NuaGmMm+U0pV9NOOEagvHOEEXbI94G72V/536
-         AgdmiUYPu+UtVE/bOROmwVMoQYfjeiIDJj1NrV+OZlQMxvKOoQsLuiViLVpnuQv0saUx
-         pUSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUBMWKYAqtVqbup6Em27iFYShdzZ+Q3DTsYw2cB8pQPbzQuFCst
-	GZb6/JguRQdZZn87BjC/FB47eeR9bLUtm1OkA1IMEznsnOtSkAgVZa87QCkOL4QWsUNjFibWQ6o
-	TWRd0g1FomnO4KRbOJdHAn4paDrwGjuFsqAh1B/m2z90fFpP41uGgSYL2mGkzyzR7dg==
-X-Received: by 2002:a17:902:2c83:: with SMTP id n3mr54178172plb.281.1555062011676;
-        Fri, 12 Apr 2019 02:40:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwkEXiXyypq5BS8ycXwk7Yo4LiKhIIJ13WZy8fJVd6QVGDNq6+F21Ct884yRNpt9cZDIS1w
-X-Received: by 2002:a17:902:2c83:: with SMTP id n3mr54178086plb.281.1555062010723;
-        Fri, 12 Apr 2019 02:40:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555062010; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=idRrgLQbh43uv5SWzcGBZ8Bw6NnS0EFw56f1NhH2bmU=;
+        b=FVOUcaD3TBf0tYR6U0v8aWtJd8oa5V6xGIbjcJT65sPoq7U0a71Gi73EfA5GffrQDw
+         mdDwzLd8mqThmQ789fKUS1ojrQCQnQFUKX+970jkoEfvoCXCQgKTsX1LYS+K5gS9Fo1X
+         6anl6+r8AMsHk4OGPEBpny3UL2Z9JlEOTedvhx7uKlAXBx6C4PtxLpERkWaGue/H4zRC
+         mH2WRapo98DiFn0ME8mMKQSpm6DYdxIFMqcttj5Nhbb+gbJTbZzae+V3YUFdseUlLgfL
+         jv7e3Qo0kK+0j8yzYDTbLE+M1UxQTelFLucNdDSB/62Hjx0wTgOBM5pKtcpKX9G9cDUd
+         nglg==
+X-Gm-Message-State: APjAAAV/ZXi55sZylt9IYmQd5OHAZTW0/cNHnNhmkXeuINmwSlkUJGtC
+	Dx7Ad4pCt0QmJtBqjj8JSGLWu6vgOvkmv8ETKdVJf5aa875pT4zoXYpKXnt/b7Cc2ZYV15IwpIZ
+	pMTEiwe5Dcmg6l3zG51PEyq6amAqozN+XNCMWOq9mQ71tUwMMt8EqoFMjVDSmDfG7yQ==
+X-Received: by 2002:a6b:c3c3:: with SMTP id t186mr37083851iof.19.1555062524223;
+        Fri, 12 Apr 2019 02:48:44 -0700 (PDT)
+X-Received: by 2002:a6b:c3c3:: with SMTP id t186mr37083828iof.19.1555062523552;
+        Fri, 12 Apr 2019 02:48:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555062523; cv=none;
         d=google.com; s=arc-20160816;
-        b=VxRbVbUnr9GtNV/UX44HjaO2CxBmRQyb/ClOJw/2EaLWeKJAC9nJo2+OIUykCiYLyM
-         CSe4+1zsz4UyydbMXQvDpx/LKEgKzFKaFST0+E2knfPBiXz0DWuoCfoRMcM5sEUkuI81
-         uHr+QRebUdl6jvugFXSMbpYKy4dkjbkS+vcvVGH40RDF4opISau9IfssA4++jMufUGMr
-         9DN/EZTJZ5auIDxeIZiiY5wiTngcOHsBQ5HoZQwGjaIM/PpAQL2LUvEzbgTCOa2Ma/h2
-         TKG5I4puv67GaBuSZyokxzkJz5HqUSDDGVir+2dGXW8YwOpZTjvo5sQtMvdxHslP6I0m
-         ctkw==
+        b=xUh8Q+o4uD/TurObELzZMB0i/iK688rfbwPoR3F8ZtrlbkuvHGmwvvglRexm9jSXRn
+         8TiZ9w2iDqDnZ9VmgMCq9l2D2laIZ1UkOB0O16fTjx2CBXi1Qir53oq1Nd5ddJGleNga
+         YiBXyTkKkl5greQJQvToGjSTuy2cPchNNWWuSZZHiFDvQUIN1YN8omBZMyZahwSXyL1o
+         QoXP9NyH5FCWvnZHXRvfWfTM8gJX6/ZiY91hR82FMaOb7VHvLGpcYuKHHRT6LZRePriF
+         U8bJid35bBAEjYAIQe+Jux+5mISgQaL2pAdm18IeKf4kB9QHvaVT/NGWhRq9QwBIyebI
+         fpmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=e5UOhWPs4vYyBzZ91K9WNi7wJmosoxJwyaTqEjIunrQ=;
-        b=F+f9KAqVGhTxA4AzrbNaOLsyR9IdZg536YJa6MiOufJGt5xgMDp4QFg/mjSfD08Qej
-         gGcF4Jfg48zWCq7B0irVmlJRtQ9QhBTTztURr7eMK2evHtGsjLuVW6bG+hB+kPMBt0y3
-         G4u2HAQky2fAYD04ZUv4NFOb1YbyBiw++Awsu2EbdRMBL5k4M+LIvuniMH/mqSg60pfG
-         5pzErOECf3AzKsLOc/G5RM5FRLMp9yLFByX7NaBJDpd20uKs0lvDmU4o2eYGZiOA5NWi
-         DxzyvynCQnam4tCGqsvYIPOMq33Fdi0LALEblenzYdXmqyeWUGbsMPjltfes+5gt5aYR
-         pRXQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=idRrgLQbh43uv5SWzcGBZ8Bw6NnS0EFw56f1NhH2bmU=;
+        b=fsJLv67UStmJqnciBEWM0UQ9hQYJXqsqVZeZmD6ye5ewYb1hsN6/sAleoGGYKHfjV3
+         mSkTUSMJspJsbGp6TfXiWqVMJDuQ3RJImR5S+ZRekr5T9TY5lp6VYnTtOmXd39AA8NEW
+         bWFI4GYS1SjcxXGiFdBb7ahSGzOB8HF98ARBlnIci6CWY/qlYvoGIu9nutIiwfjREROt
+         ETo41Up5R9cxiLSUNoIP1v9UQbBsSI2i4o4AHpj0fJEFlaAXOXzhAhsmmSARqHzatXg8
+         jPrW9JKTQoGuaens1BGzLzcAuJrhuTDcRoLZMb5VBUkLIpHepkc9MR6pjAAxEiO0MIyv
+         J04g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
-        by mx.google.com with ESMTPS id c18si36347117pfi.198.2019.04.12.02.40.10
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jyT0I88f;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t79sor13366197itb.25.2019.04.12.02.48.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Apr 2019 02:40:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
+        (Google Transport Security);
+        Fri, 12 Apr 2019 02:48:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R801e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=jiufei.xue@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TP6Ws3Y_1555062008;
-Received: from localhost(mailfrom:jiufei.xue@linux.alibaba.com fp:SMTPD_---0TP6Ws3Y_1555062008)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 12 Apr 2019 17:40:08 +0800
-From: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-To: cgroups@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: tj@kernel.org,
-	akpm@linux-foundation.org,
-	joseph.qi@linux.alibaba.com
-Subject: [PATCH] fs/fs-writeback: wait isw_nr_in_flight to be zero when umount
-Date: Fri, 12 Apr 2019 17:40:08 +0800
-Message-Id: <20190412094008.97859-1-jiufei.xue@linux.alibaba.com>
-X-Mailer: git-send-email 2.19.1.856.g8858448bb
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jyT0I88f;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=idRrgLQbh43uv5SWzcGBZ8Bw6NnS0EFw56f1NhH2bmU=;
+        b=jyT0I88fbQsWDDkcpAHsTB4dPiS8GXwBOaA7w1gX7CjhR5ckSeSU3vVufWyzwg+S1N
+         UN2mADQzD8sYoaoJ9PMXtIZvU9Pq2QtBBnB0TjjHxTRBT00PI/PoAMEGY4qfBOZCpVey
+         rLyvgs2FNrUjDQLKpuUJpv20nwwQj6pptaATym9VKQXuRRcTXltdZLhyvxT48v9rGNzq
+         DEWcgU1eskhuQUdnKN/S+IC6lyTtrL4mwnD92XJFh4F2kMZ+E3dFBS8xyKggTLVezoye
+         tOPShNTuGAvY1GLsvlrCmhKwxxrzan7jyRZndfVAt7BdldLN3kkCRji2xVSctdnLvzvq
+         i0EQ==
+X-Google-Smtp-Source: APXvYqxjGJJ/A6mt8SH18qyn0SuldDTOBgOjI9JM7PPodXcwvazbhCWq4k7iNxWIIZuEny97Xt+vxPg9cRU74KaHymM=
+X-Received: by 2002:a24:5751:: with SMTP id u78mr12491332ita.135.1555062523330;
+ Fri, 12 Apr 2019 02:48:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190411122659.GW10383@dhcp22.suse.cz> <CALOAHbD7PwABb+OX=2JHzcTTLhv_-o8Wxk7hX-0+M5ZNUtokhA@mail.gmail.com>
+ <20190411133300.GX10383@dhcp22.suse.cz> <CALOAHbBq8p63rxr5wGuZx5fv5bZ689A=wbioRn8RXfLYvbxCdw@mail.gmail.com>
+ <20190411151039.GY10383@dhcp22.suse.cz> <CALOAHbBCGx-d-=Z0CdL+tzWRCCQ7Hd9CFqjMhLKbEofDfFpoMw@mail.gmail.com>
+ <20190412063417.GA13373@dhcp22.suse.cz> <CALOAHbBKkznCUG39se2wcGt9PZYiGFhCm9t2t-X+CL5yipT8cQ@mail.gmail.com>
+ <20190412090929.GE13373@dhcp22.suse.cz> <CALOAHbAcXDDdq_XO+hvwTq6PMNjFFgHAY2OPmkAReKV8-wR6sg@mail.gmail.com>
+ <20190412093641.GG13373@dhcp22.suse.cz>
+In-Reply-To: <20190412093641.GG13373@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Fri, 12 Apr 2019 17:48:07 +0800
+Message-ID: <CALOAHbCh6NoL6w3KQ+a=i1JhqnYKK5sgspQeUaCV_iPdEu5X9A@mail.gmail.com>
+Subject: Re: [PATCH] mm/memcg: add allocstall to memory.stat
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>, 
+	Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>, shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000033, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
-switch may not go to the workqueue after synchronize_rcu(). Thus
-previous scheduled switches was not finished even flushing the
-workqueue, which will cause a NULL pointer dereferenced followed below.
+On Fri, Apr 12, 2019 at 5:36 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Fri 12-04-19 17:29:04, Yafang Shao wrote:
+> > On Fri, Apr 12, 2019 at 5:09 PM Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+> > > > Then we can do some trace for this memcg, i.e. to trace how long the
+> > > > applicatons may stall via tracepoint.
+> > > > (but current tracepoints can't trace a specified cgroup only, that's
+> > > > another point to be improved.)
+> > >
+> > > It is a task that is stalled, not a cgroup.
+> >
+> > But these tracepoints can't filter a speficied task neither.
+>
+> each trace line output should cotain a pid, no?
 
-VFS: Busy inodes after unmount of vdd. Self-destruct in 5 seconds.
-Have a nice day...
-BUG: unable to handle kernel NULL pointer dereference at
-0000000000000278
-[<ffffffff8126a303>] evict+0xb3/0x180
-[<ffffffff8126a760>] iput+0x1b0/0x230
-[<ffffffff8127c690>] inode_switch_wbs_work_fn+0x3c0/0x6a0
-[<ffffffff810a5b2e>] worker_thread+0x4e/0x490
-[<ffffffff810a5ae0>] ? process_one_work+0x410/0x410
-[<ffffffff810ac056>] kthread+0xe6/0x100
-[<ffffffff8173c199>] ret_from_fork+0x39/0x50
+But that's not  enough.
 
-Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-Cc: stable@kernel.org
----
- fs/fs-writeback.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Some drawbacks,
+- the PID is variable, and it is not so conveninet to get the tasks
+from this PID.
+  i.e. when you use pidof to get the tasks, it may already exit and
+you get nothing.
+- the traceline don't always contain the task names.
+- if we don't filter the tasks with tracepoint filter, there may be
+lots of output.
+  i.e. we always deploy lots of cgroup on a single host, but only some
+of them are important,
+  while the others are not import. So we limit the not important
+cgroup to a low memory limit,
+  and then the tasks in it may do frequent memcg reclaim, but we don't care.
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 36855c1f8daf..6b4136bf1788 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -900,7 +900,7 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
-  */
- void cgroup_writeback_umount(void)
- {
--	if (atomic_read(&isw_nr_in_flight)) {
-+	while (atomic_read(&isw_nr_in_flight)) {
- 		synchronize_rcu();
- 		flush_workqueue(isw_wq);
- 	}
--- 
-2.19.1.856.g8858448bb
+Thanks
+
+Yafang
 
