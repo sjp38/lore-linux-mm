@@ -3,104 +3,117 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F3C4C10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 06:34:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AF82C10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 06:49:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3397920643
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 06:34:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3397920643
+	by mail.kernel.org (Postfix) with ESMTP id 44FA120651
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 06:49:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44FA120651
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96BE26B0005; Fri, 12 Apr 2019 02:34:21 -0400 (EDT)
+	id C47BD6B000C; Fri, 12 Apr 2019 02:49:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 91CB46B000A; Fri, 12 Apr 2019 02:34:21 -0400 (EDT)
+	id BF71C6B0010; Fri, 12 Apr 2019 02:49:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80CE96B000C; Fri, 12 Apr 2019 02:34:21 -0400 (EDT)
+	id ABF536B0266; Fri, 12 Apr 2019 02:49:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 33B6F6B0005
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 02:34:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h22so3028240edh.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 23:34:21 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C3266B000C
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 02:49:30 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w27so4396808edb.13
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2019 23:49:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=BFF9UjgncrSMB2s0VVNx5QE68aR3aSdM3dRD1d+GqnQ=;
-        b=LHaUp7tuiZJakQtvwV35pbJlZKNTBTZW9YmXq6hSLXEYKinV7iCVJ3vs3JVXJfXElz
-         VI5iMNttbsRH13ZBpa9KC3sZJbts4+iiHPpBwGZF3HbiWKA1h+Xk92ob+Yo0nxirIqLN
-         Gz5iKIDWb3yMpX9tU5F4/yBWvHpOLlUyHKEpCHwfX994cV0gnrYSAU8FcO/96U9iHfS3
-         ax72qEiETdn44XtvBafV1m8gHD5tw669iMp6ZaE8rKKFuN4XTa1dOBqsfSDFEheKsKrE
-         7ELbRcoIHSXWLjKKDRo3Pnvg290qO6VojiZgsxS+3AO+S53gSddPLdrAsgyK5aoYZbtX
-         LNfQ==
+        bh=vcC0p1eYOkRoPCvdhVvwcnSkYONL/aPAGugJOllM2GU=;
+        b=fJ0bNisKZjW9a7pxK/Xm6PbMs94svHRJPzo5gDh61ZUBAdPIu8T1Zu+8GlRQvC6IYK
+         GRi89Itho3EaaWs2UaoxY34bdlK9+HEGIwFYDGksxj9oSlWkaT29ubSTwgJqh6WhNnfv
+         +yaotx5kkoQabwuCCOqm73N1xNRhR845IQI7IUO8g67dvlepbq6ccvI04HamVBVspvWv
+         WV418KbqY4406Wc/wJmzIFX0fepBD4VZSdndKtYkbu5+7UKLHrkQ4eUk2qT+Pn74SKIL
+         gMwIT/N2Mt0svKhSNkyKk/zsOlDebomxnJmAMa1JOd3QbxvnsH3aDZcGrOdu3tHmuHMg
+         XM7w==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWtLml263t+LvwRNjxdY6QvwaCN7oZfgK1XrguInSHvoWbOJEtB
-	knemAJs2U1Xu+T8TaLPUgNCMxw2OVuC68/EgjIx1bZMypXCik9uhBTXRPd2JDNS3TmHEubQe6jB
-	xEHH9MUwrXjwva9geK3NhwgxTEuBC5kvsh6y32Kk0/Kad4HdVcdWfSqlNySW1gBk=
-X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr8844296ejb.5.1555050860642;
-        Thu, 11 Apr 2019 23:34:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQchHb/pCQ5QBmLZx3BXwJsB+s1sOdwvTeTCuCbo6fwEBEMK2lkzyM71IDg0LOrbhk4ovd
-X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr8844245ejb.5.1555050859389;
-        Thu, 11 Apr 2019 23:34:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555050859; cv=none;
+X-Gm-Message-State: APjAAAUR/f954fyf0HeSlaHRY+MTh0Ef1uRCf/f0UGSgtLCXknWfeTHj
+	L5q9Z1IIi05rWQGukmrV+4OD4vvNwjzETr3uyCl4MKb1CentyNR5qU6v16Q2XALiPmHwTBhV9lU
+	xCdCum739gc0uzk+E8Gf7bNFlYXFhK1aH1nKIEJRQeTovVKZs80O9B3syfdagwn0=
+X-Received: by 2002:a17:906:e202:: with SMTP id gf2mr29256040ejb.55.1555051769880;
+        Thu, 11 Apr 2019 23:49:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxiK4e/t8XWmI9wAuYCny3wuevgZdH+Dypwfgo9HU6KXiyvc9lnmLbLqg/oLBgI0fgftCBH
+X-Received: by 2002:a17:906:e202:: with SMTP id gf2mr29255993ejb.55.1555051768882;
+        Thu, 11 Apr 2019 23:49:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555051768; cv=none;
         d=google.com; s=arc-20160816;
-        b=vwj5FXwyyUbBNYJtJK0MI2LZmYjMfeurew9wbkbTTa+W0pJGJYvsQ0AQgAbx9hNzE/
-         jONYI/cSU0M7XrofQURsZErTNj7U1iFGLpiA0L9rm3nEC5EdjORv+ngMx+Fhaw2Vi4BX
-         oCIZRY+IktAzHNORrPOMTyNpb48jJoGnwzvO2hdCjKjCuzvXMoBwG3b/pG0apZyeeFEE
-         I6GayZkorEA5VqmV9HAtUnarwSwGnXismS+XV54rxdHds8+X6d7hIA/IfORkGHBaU2OR
-         k/i/RdaCGXxZ8bQMMYlF8LoolVPUPQlFFLtdMAZK1+rresKCvBcvrPHSd9JmS2Xy/8C4
-         kVFg==
+        b=s1FS8opjrYfPL8yRT74TryksCr2t6MJa25YJriwSHXtwq1gkLviBtlnRnwGH6nkfqC
+         +OKnV/x+5CLD/aL+c9xESzBw3f2wBJTeE7yxHnwd5bfBedJl0/gmSX/XyN3PH//0YH9d
+         5qdl4LMIn+a4LT0k7kH/3EQ4cQHhdxqG446hj5DUg7rzosTe29EQsmSmcRHi0cSjftAD
+         DxiWFFYKg8GU8q74WY3I6u93I7FeY2C4B6z0Fk8ZRCM0YcMCG6lKXU945qiRTQ/l6A4D
+         G/C4gnFhMuuXnLxx9G1pK+uWaeh14qB0VAZ6IUWhUIsklyQHPBMZ43L9pv8sLM17SxJw
+         Ysew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=BFF9UjgncrSMB2s0VVNx5QE68aR3aSdM3dRD1d+GqnQ=;
-        b=PGdvV6AvxG0OG5bASvVC3nLppnFrqvyl0iALs4yoI0QY/oJVtCOPgI91bUe7BtvITP
-         /H2G6yc69ildfDkragPu5zoadNZcguqtlqoRwKZTScUh37E/9m+njmFCiezqbFElL7Il
-         ZJGEkLdgxxi7/02+xvg3KmP4vrtQuMDOxo2TyBbbnd/kgtvxxeyYcj8DpkK4aIIV3lJ1
-         ROfszaaY1aSAdGij9uYvdhVyTgFSzHgtQFZ0EBc0GLLqfwA0A6y6MQfzYjvM+jDPsPHj
-         AhoBJ8qavApRHmd/jxVjNgVE7Lm1cLp8BDSFVJyLm77OfCjYprH1sSqakLLJu4sdWWJd
-         3/qg==
+        bh=vcC0p1eYOkRoPCvdhVvwcnSkYONL/aPAGugJOllM2GU=;
+        b=mi8qJ2C0YodnUX5ENCR5U9MpNRCXTh8xJwBpvMFDfHlyQAbxyDhoCCJ4R03xbDbS2w
+         8hCVFB1/KBbOpcWH4GJAJ6OrQxeGduhVW7R6NW9DJnziDm42aKDYPP4BhlMNlf7jRsOJ
+         2rVpdigpGygwzR5sLmzDyGvKgGGNep6Ez8m5L04IASmki+ygxoJ5iL5DNReFYqQgJ55o
+         yB3Yd6DPCfIELgFNdgiEnZZ479mXpmwigvxwsixanOyUaj6KnjMbI4xRBq1796UjMqnt
+         OLMgFhx04wgBE387I0tKWg8QdLPybHbK9Epttdap2zOOOmfA01by0gCCFwl1q8LtDqH5
+         e6ag==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a22si268835edt.230.2019.04.11.23.34.19
+        by mx.google.com with ESMTPS id y23si5890712ejo.107.2019.04.11.23.49.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Apr 2019 23:34:19 -0700 (PDT)
+        Thu, 11 Apr 2019 23:49:28 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 56C92ACBA;
-	Fri, 12 Apr 2019 06:34:18 +0000 (UTC)
-Date: Fri, 12 Apr 2019 08:34:17 +0200
+	by mx1.suse.de (Postfix) with ESMTP id BB344ADD9;
+	Fri, 12 Apr 2019 06:49:27 +0000 (UTC)
+Date: Fri, 12 Apr 2019 08:49:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
+To: Daniel Colascione <dancol@google.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Suren Baghdasaryan <surenb@google.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	shaoyafang@didiglobal.com
-Subject: Re: [PATCH] mm/memcg: add allocstall to memory.stat
-Message-ID: <20190412063417.GA13373@dhcp22.suse.cz>
-References: <1554983991-16769-1-git-send-email-laoar.shao@gmail.com>
- <20190411122659.GW10383@dhcp22.suse.cz>
- <CALOAHbD7PwABb+OX=2JHzcTTLhv_-o8Wxk7hX-0+M5ZNUtokhA@mail.gmail.com>
- <20190411133300.GX10383@dhcp22.suse.cz>
- <CALOAHbBq8p63rxr5wGuZx5fv5bZ689A=wbioRn8RXfLYvbxCdw@mail.gmail.com>
- <20190411151039.GY10383@dhcp22.suse.cz>
- <CALOAHbBCGx-d-=Z0CdL+tzWRCCQ7Hd9CFqjMhLKbEofDfFpoMw@mail.gmail.com>
+	David Rientjes <rientjes@google.com>, yuzhoujian@didichuxing.com,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	"Eric W. Biederman" <ebiederm@xmission.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Christian Brauner <christian@brauner.io>,
+	Minchan Kim <minchan@kernel.org>, Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>,
+	lsf-pc@lists.linux-foundation.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	kernel-team <kernel-team@android.com>
+Subject: Re: [RFC 2/2] signal: extend pidfd_send_signal() to allow expedited
+ process killing
+Message-ID: <20190412064925.GB13373@dhcp22.suse.cz>
+References: <20190411014353.113252-1-surenb@google.com>
+ <20190411014353.113252-3-surenb@google.com>
+ <20190411153313.GE22763@bombadil.infradead.org>
+ <CAJuCfpGQ8c-OCws-zxZyqKGy1CfZpjxDKMH__qAm5FFXBcnWOw@mail.gmail.com>
+ <CAKOZuetFU4tXE27bxA86zzDfNSCbw83p8fPxfkQ_d_Em0C04Sg@mail.gmail.com>
+ <20190411173649.GF22763@bombadil.infradead.org>
+ <CAKOZuet8-en+tMYu_QqVCxmkak44T7MnmRgfJBot0+P_A+Qzkw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALOAHbBCGx-d-=Z0CdL+tzWRCCQ7Hd9CFqjMhLKbEofDfFpoMw@mail.gmail.com>
+In-Reply-To: <CAKOZuet8-en+tMYu_QqVCxmkak44T7MnmRgfJBot0+P_A+Qzkw@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,54 +121,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 12-04-19 09:32:55, Yafang Shao wrote:
-> On Thu, Apr 11, 2019 at 11:10 PM Michal Hocko <mhocko@kernel.org> wrote:
+On Thu 11-04-19 10:47:50, Daniel Colascione wrote:
+> On Thu, Apr 11, 2019 at 10:36 AM Matthew Wilcox <willy@infradead.org> wrote:
 > >
-> > On Thu 11-04-19 21:54:22, Yafang Shao wrote:
-> > > On Thu, Apr 11, 2019 at 9:39 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > On Thu 11-04-19 20:41:32, Yafang Shao wrote:
-> > > > > On Thu, Apr 11, 2019 at 8:27 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > >
-> > > > > > On Thu 11-04-19 19:59:51, Yafang Shao wrote:
-> > > > > > > The current item 'pgscan' is for pages in the memcg,
-> > > > > > > which indicates how many pages owned by this memcg are scanned.
-> > > > > > > While these pages may not scanned by the taskes in this memcg, even for
-> > > > > > > PGSCAN_DIRECT.
-> > > > > > >
-> > > > > > > Sometimes we need an item to indicate whehter the tasks in this memcg
-> > > > > > > under memory pressure or not.
-> > > > > > > So this new item allocstall is added into memory.stat.
-> > > > > >
-> > > > > > We do have memcg events for that purpose and those can even tell whether
-> > > > > > the pressure is a result of high or hard limit. Why is this not
-> > > > > > sufficient?
-> > > > > >
+> > On Thu, Apr 11, 2019 at 10:33:32AM -0700, Daniel Colascione wrote:
+> > > On Thu, Apr 11, 2019 at 10:09 AM Suren Baghdasaryan <surenb@google.com> wrote:
+> > > > On Thu, Apr 11, 2019 at 8:33 AM Matthew Wilcox <willy@infradead.org> wrote:
 > > > > >
-> > > > > The MEMCG_HIGH and MEMCG_LOW may not be tiggered by the tasks in this
-> > > > > memcg neither.
-> > > > > They all reflect the memory status of a memcg, rather than tasks
-> > > > > activity in this memcg.
+> > > > > On Wed, Apr 10, 2019 at 06:43:53PM -0700, Suren Baghdasaryan wrote:
+> > > > > > Add new SS_EXPEDITE flag to be used when sending SIGKILL via
+> > > > > > pidfd_send_signal() syscall to allow expedited memory reclaim of the
+> > > > > > victim process. The usage of this flag is currently limited to SIGKILL
+> > > > > > signal and only to privileged users.
+> > > > >
+> > > > > What is the downside of doing expedited memory reclaim?  ie why not do it
+> > > > > every time a process is going to die?
 > > > >
-> > > > I do not follow. Can you give me an example when does this matter? I
+> > > > I think with an implementation that does not use/abuse oom-reaper
+> > > > thread this could be done for any kill. As I mentioned oom-reaper is a
+> > > > limited resource which has access to memory reserves and should not be
+> > > > abused in the way I do in this reference implementation.
+> > > > While there might be downsides that I don't know of, I'm not sure it's
+> > > > required to hurry every kill's memory reclaim. I think there are cases
+> > > > when resource deallocation is critical, for example when we kill to
+> > > > relieve resource shortage and there are kills when reclaim speed is
+> > > > not essential. It would be great if we can identify urgent cases
+> > > > without userspace hints, so I'm open to suggestions that do not
+> > > > involve additional flags.
 > > >
-> > > For example, the tasks in this memcg may encounter direct page reclaim
-> > > due to system memory pressure,
-> > > meaning it is stalling in page alloc slow path.
-> > > At the same time, maybe there's no memory pressure in this memcg, I
-> > > mean, it could succussfully charge memcg.
+> > > I was imagining a PI-ish approach where we'd reap in case an RT
+> > > process was waiting on the death of some other process. I'd still
+> > > prefer the API I proposed in the other message because it gets the
+> > > kernel out of the business of deciding what the right signal is. I'm a
+> > > huge believer in "mechanism, not policy".
 > >
-> > And that is exactly what those events aim for. They are measuring
-> > _where_ the memory pressure comes from.
-> >
-> > Can you please try to explain what do you want to achieve again?
+> > It's not a question of the kernel deciding what the right signal is.
+> > The kernel knows whether a signal is fatal to a particular process or not.
+> > The question is whether the killing process should do the work of reaping
+> > the dying process's resources sometimes, always or never.  Currently,
+> > that is never (the process reaps its own resources); Suren is suggesting
+> > sometimes, and I'm asking "Why not always?"
 > 
-> To know the impact of this memory pressure.
-> The current events can tell us the source of this pressure, but can't
-> tell us the impact of this pressure.
+> FWIW, Suren's initial proposal is that the oom_reaper kthread do the
+> reaping, not the process sending the kill. Are you suggesting that
+> sending SIGKILL should spend a while in signal delivery reaping pages
+> before returning? I thought about just doing it this way, but I didn't
+> like the idea: it'd slow down mass-killing programs like killall(1).
+> Programs expect sending SIGKILL to be a fast operation that returns
+> immediately.
 
-Can you give me a more specific example how you are going to use this
-counter in a real life please?
+I was thinking about this as well. And SYNC_SIGKILL would workaround the
+current expectations of how quick the current implementation is. The
+harder part would what is the actual semantic. Does the kill wait until
+the target task is TASK_DEAD or is there an intermediate step that would
+we could call it end of the day and still have a reasonable semantic
+(e.g. the original pid is really not alive anymore).
 -- 
 Michal Hocko
 SUSE Labs
