@@ -2,243 +2,131 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AFAC3C10F14
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:14:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9FEEC10F14
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:37:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B5AD20663
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:14:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7C647218C3
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 19:37:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="iCH1ACl4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B5AD20663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="jwIaWv78"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C647218C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B035F6B000C; Fri, 12 Apr 2019 15:14:25 -0400 (EDT)
+	id 154E86B000C; Fri, 12 Apr 2019 15:37:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8BAE6B000D; Fri, 12 Apr 2019 15:14:25 -0400 (EDT)
+	id 1051B6B000D; Fri, 12 Apr 2019 15:37:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92E206B0010; Fri, 12 Apr 2019 15:14:25 -0400 (EDT)
+	id F35556B0010; Fri, 12 Apr 2019 15:37:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C28B6B000C
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 15:14:25 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id n1so9646330qte.12
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 12:14:25 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C87336B000C
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 15:37:29 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id t66so5104674oie.3
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 12:37:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=jk3IJK+uxHlhLyrLET/ST/TNlQnf1/FQ3O8nqOSpEFI=;
-        b=t0WpGjZqSuOYr+aSi3/naTa0iXnptOvna7UOpaeNRVmKqSMW7msQ3Vni3pwVb+gBBR
-         yRVT7+YF9tYPmhDe0fazV8OEk8E0LPiwHNgQIm0qZmaKp0Mkxj32OR1/+gFcZfTPtpAI
-         tx+B/4Tc/tNAIQUct0nhatjeMTOLjKjEvwxlWcbrQZ+6AxwLvqP5hV3GTsW4BOysZWHu
-         cnDLyhfCZRVPckogKF/SwwWeLIYnFVBlpUFjokopgpyGY4aiDFUdOr8GH8eLREvWQPrE
-         duPYWufKr4O6lYDBdjc4baTBNgkMuvKWZz08uKIWg4GnR+xQ3+lIy9T8eWNz+nRT0oIu
-         a8JA==
-X-Gm-Message-State: APjAAAUGeXoaP2BYmqkQczwxmfkrxHh1LxPB6Bf5yzvWuzbMJDODigjY
-	fDM0N/lhC3y5egrgB7ilv/3FMwPHVEjZSUJrYNDv07vadMJT5x2Wg9M7677RxQGwJT9WTT47gTW
-	XPKmcQn0+gBuHFpiNp39BjOBXewNs4ACsa5Z71omNxh8m5mZsGJvoU1Z+9Hv7XnuRLw==
-X-Received: by 2002:ae9:f809:: with SMTP id x9mr46340597qkh.215.1555096465096;
-        Fri, 12 Apr 2019 12:14:25 -0700 (PDT)
-X-Received: by 2002:ae9:f809:: with SMTP id x9mr46340447qkh.215.1555096463396;
-        Fri, 12 Apr 2019 12:14:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555096463; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=tZfBY8D1WgXooJQRUiHKhSamR6kz9YpYQFKQ9Eq/1hU=;
+        b=oUsLV+ksBi5ZUGXHMdRz5lXwMMRuhH/2ESDuAjt/TTfdNPJq+StXQXpd8iU5OjB/rH
+         weN0Zh6WT8dDbeEJaWrI/glRq47rG4FJUnG7OhKw6XNDoda4zW0XIzDGUeOCGrCYOtcS
+         jUAU2v5LfXgOAbQ+kgrHYEJPKVbLYDHJQ1mLh7noVk0lR+N5ajDzBea8r0HxlOBQLfBy
+         FkjC6pbfleuB7h31QEhcUnuYrAKFxe3IMCJPOhmkloYTv89XqwGcIwd64ttz23pczqe0
+         AB+CFM+WYgyieHRHc8akmSbOo/b8ZWOEn20rZxv7v20ekoDDumdAh33eJg0XQqEx1Ke/
+         cacw==
+X-Gm-Message-State: APjAAAW56EMu1gVCo54/E71LV+f/UyyTOk/8k0xYGHarnEnowMeEkh2f
+	8dm2PiYwxgUIoJx91vqaQ5zO2MwqHTyWxJFwGfZB7zuMnhZNMPV0QWB6jQVGLkZ7Rq/Fk3tf8cO
+	EY+E1LujaJoYIP18ewI5iYBCkJoc0lK5hPytMwb/nPlk0AmB3b5ZtoldKYY7Ba6pRnw==
+X-Received: by 2002:aca:b607:: with SMTP id g7mr11199865oif.6.1555097849288;
+        Fri, 12 Apr 2019 12:37:29 -0700 (PDT)
+X-Received: by 2002:aca:b607:: with SMTP id g7mr11199827oif.6.1555097848613;
+        Fri, 12 Apr 2019 12:37:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555097848; cv=none;
         d=google.com; s=arc-20160816;
-        b=f/1XGDDbxYEjruDKDdkV1WQ872ZBOpReb91oqv5Z0FLQYSxP8NEmmwibyNjNdtxEYJ
-         WBUwTgTjmyEErU2p5dXrRwTciiFHSKOo/DPsKYI+r+tLWVtwzyFkQPVlEMCarswlUZXl
-         Z+W0p10vyAZwth5dXxyMQd+bZLRo6R9DpL1KEJyKfZkpY8hYut38dkKLwJQcACfXVDbz
-         Ux46GX6xWQuf7nW2NnKTUtSgIvnu9C00hNtk16LqgboveWnbxcX/+UpIGFcFaLkxx2sa
-         K56UWjujaVTHr8msiIZyj7B1CowYwDRckBD4AvRXtYnloyb/H0StugS3nJm0jxAYHBMO
-         /mOg==
+        b=UrhNpm1exJzR/nFD8Xxav2og0p0u2mPpoQwcVxuxtIL8TfnnQrMT6TABQwTSGwyTmv
+         ScIXb9sOsUJ6R90669lgGn1aObT/bY3d2bzvJXdJHaD+gnOeU65Y3fj+zY+p/uDGdzBi
+         xV/cqd+w+2RlgpVw7VEDg2cEJdQyPt9wqjEwzIcB9miYQBilBujsFfDXysI4bfYzNArD
+         nPCuAvUq24tDUBCz22K4GLKr90nKg2I4f1GHLgTTogPcuvT3uB+j0zMkMII45V0H2MNx
+         8JwRtmOYgPW3rUdSaFOhOv1tj5VTXOfwY+qD1tMIxY/QcY3sBwC8xHEMb1GnLR8cjEb2
+         7RpQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=jk3IJK+uxHlhLyrLET/ST/TNlQnf1/FQ3O8nqOSpEFI=;
-        b=i6iZZLNSyn1lV2UppXkbKXzrTgNWIa5fg1gnZgt26eYY1GK8k88XUhCSF7cNiJl7CD
-         RKvYFHI0St5+SJRwxzmwW7vtQ90vv56m/RE94yED0yVize49DZ8Uy12xTtiWjpAqvjpr
-         BnKqWlbuKjPN8W/Jv+Uf2neKQ9oEN08y3g5jmvNGKlzMc4mKzmIkDUTNV75vqLPCpIKX
-         krNA1B0cgt2kkehQ3mDQO0BdvxC06Tl32YBQaCOaG8oqIOFFF6NX0Usw8TjTgkiLUH7R
-         w9Tzf3+ydkavJRZ4V/M/qhOjKUOYbUorcVZ7dr7EI/7MjnW2knaCD15PR98GaxiuCFJM
-         bdwA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=tZfBY8D1WgXooJQRUiHKhSamR6kz9YpYQFKQ9Eq/1hU=;
+        b=sPu7gHRZS97717LJm3J8Wr1GOaW//4zdT3g5RubchK2oxe+xJRDNynkJi0vsSQK4kc
+         51Rsf9EY3QY/IfnN8o46ZytVsYF7tBVjZI072n5d6UbR2m4gC/9QfsJ3AxXXRrlpM9jv
+         qL7+/TncBk25q2Y4B4wPWVLU2b+zx81e7DtmY8ilPptJcU/82/6ATJlzBmqAVIA3H9zy
+         f28n2ZbWXJBn1YwfQfuDqxF2UdWf9l6+GxXfQyuLH8ZdEc1rxm9qjhbo5b58ARlXy8Td
+         v/F4Z9EQH4LKgdZYucPP5oQSBWpHNk/+kBzGN1RfsnHmPHzF1yL8AVOwT/nsIicWORNT
+         GY/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iCH1ACl4;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=jwIaWv78;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n17sor58246671qta.70.2019.04.12.12.14.20
+        by mx.google.com with SMTPS id f32sor23874266otb.171.2019.04.12.12.37.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Apr 2019 12:14:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 12 Apr 2019 12:37:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=iCH1ACl4;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=jwIaWv78;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=jk3IJK+uxHlhLyrLET/ST/TNlQnf1/FQ3O8nqOSpEFI=;
-        b=iCH1ACl4Hdu/o0ka6oGZ8Np8tyxSsP4SGRofKiyvr9IVJaT2nHST1I2XmSqIemkWDN
-         ap0nMLW5C6RMWwpsla7uNhFS9v7xsD7YJNOVcL7Ygk2HE5+wTy+keL7nWBwPrlgMuZT7
-         EeTNpGZgL3L685aoebvERv/i0ioLq9J70k63XGmUiwUCwmHaLr3Bfa83E4UnTqiFNpHz
-         2j5cz2e/FLX5CCNXj3ylqpVo+LHIESL0jQsNq4YMaLobX8W06mbPEVBRecwCmBJl+mEM
-         ciSL75XMEc9UmnNY0p2rBJ+PI2vzWkJuzQhPhY5bsQ0Eh+SDGGwkeEd5KIac4W0pG5PN
-         ITZw==
-X-Google-Smtp-Source: APXvYqyq9m+9i3ZW5k79jf7gkbdIwV2ZR0Pd/jS51R7EpZ/dKoI/BFsiDH4JSZThJ3QHwWWtbpTbYg==
-X-Received: by 2002:ac8:72c4:: with SMTP id o4mr48777855qtp.88.1555096460622;
-        Fri, 12 Apr 2019 12:14:20 -0700 (PDT)
-Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id u16sm34952720qtc.84.2019.04.12.12.14.19
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Apr 2019 12:14:19 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: [PATCH] mm: fix false-positive OVERCOMMIT_GUESS failures
-Date: Fri, 12 Apr 2019 15:14:18 -0400
-Message-Id: <20190412191418.26333-1-hannes@cmpxchg.org>
-X-Mailer: git-send-email 2.21.0
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=tZfBY8D1WgXooJQRUiHKhSamR6kz9YpYQFKQ9Eq/1hU=;
+        b=jwIaWv78fvkEa5rZbx+eP0fzYbqceSlvTJoR1XduCWAb2gsh8C3klYYgy/UEWlbg3W
+         e1k5DE58xsWFRpnox+gDv2pxsyPeGd1VliXQdTqN/wjEe39t7A1LfOBY1Xw2oNp4IQFa
+         izdMri970aizgvHVP7AGfoEDXy7apK6am+qaX0cHHnfXzrXeGMBd7PM/5URUlSE3Tjvv
+         MU4YS4qovjxjhFGDBxrgmeU0ePJ2LKUa0pGMb+O0e+GfIn77BxF9oo+BRyxvHhW9LjqB
+         xR/YJIrdWsl3PIAR/xzmCiHnNkkJXfmydSV2tKK7P3Oie3UkqJ0LeJfKW/5ZfXPUrnvS
+         /+8A==
+X-Google-Smtp-Source: APXvYqzhThKbq5GHetTkjSO5HdGMCT2FjO95YYhE57pp/4fhw00RFxMp33Lhq/TjtVDDMqbk9Vdgq3NV9eBZbTTkHEY=
+X-Received: by 2002:a9d:3f4b:: with SMTP id m69mr37976108otc.246.1555097847859;
+ Fri, 12 Apr 2019 12:37:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <cover.1555093412.git.robin.murphy@arm.com> <25525e4dab6ebc49e233f21f7c29821223431647.1555093412.git.robin.murphy@arm.com>
+In-Reply-To: <25525e4dab6ebc49e233f21f7c29821223431647.1555093412.git.robin.murphy@arm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 12 Apr 2019 12:37:16 -0700
+Message-ID: <CAPcyv4heZ7+2QuS2YXYsZcU9EOb87MDymfO8-+bLhbPgYQAYJw@mail.gmail.com>
+Subject: Re: [PATCH RESEND 3/3] mm: introduce ARCH_HAS_PTE_DEVMAP
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Linux MM <linux-mm@kvack.org>, "Weiny, Ira" <ira.weiny@intel.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	"Oliver O'Halloran" <oohall@gmail.com>, X86 ML <x86@kernel.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
+	Anshuman Khandual <anshuman.khandual@arm.com>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With the default overcommit==guess we occasionally run into mmap
-rejections despite plenty of memory that would get dropped under
-pressure but just isn't accounted reclaimable. One example of this is
-dying cgroups pinned by some page cache. A previous case was auxiliary
-path name memory associated with dentries; we have since annotated
-those allocations to avoid overcommit failures (see d79f7aa496fc ("mm:
-treat indirectly reclaimable memory as free in overcommit logic")).
+On Fri, Apr 12, 2019 at 12:02 PM Robin Murphy <robin.murphy@arm.com> wrote:
+>
+> ARCH_HAS_ZONE_DEVICE is somewhat meaningless in itself, and combined
+> with the long-out-of-date comment can lead to the impression than an
+> architecture may just enable it (since __add_pages() now "comprehends
+> device memory" for itself) and expect things to work.
+>
+> In practice, however, ZONE_DEVICE users have little chance of
+> functioning correctly without __HAVE_ARCH_PTE_DEVMAP, so let's clean
+> that up the same way as ARCH_HAS_PTE_SPECIAL and make it the proper
+> dependency so the real situation is clearer.
 
-But trying to classify all allocated memory reliably as reclaimable
-and unreclaimable is a bit of a fool's errand. There could be a myriad
-of dependencies that constantly change with kernel versions.
+Looks good to me.
 
-It becomes even more questionable of an effort when considering how
-this estimate of available memory is used: it's not compared to the
-system-wide allocated virtual memory in any way. It's not even
-compared to the allocating process's address space. It's compared to
-the single allocation request at hand!
-
-So we have an elaborate left-hand side of the equation that tries to
-assess the exact breathing room the system has available down to a
-page - and then compare it to an isolated allocation request with no
-additional context. We could fail an allocation of N bytes, but for
-two allocations of N/2 bytes we'd do this elaborate dance twice in a
-row and then still let N bytes of virtual memory through. This doesn't
-make a whole lot of sense.
-
-Let's take a step back and look at the actual goal of the
-heuristic. From the documentation:
-
-   Heuristic overcommit handling. Obvious overcommits of address
-   space are refused. Used for a typical system. It ensures a
-   seriously wild allocation fails while allowing overcommit to
-   reduce swap usage.  root is allowed to allocate slightly more
-   memory in this mode. This is the default.
-
-If all we want to do is catch clearly bogus allocation requests
-irrespective of the general virtual memory situation, the physical
-memory counter-part doesn't need to be that complicated, either.
-
-When in GUESS mode, catch wild allocations by comparing their request
-size to total amount of ram and swap in the system.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/util.c | 51 +++++----------------------------------------------
- 1 file changed, 5 insertions(+), 46 deletions(-)
-
-diff --git a/mm/util.c b/mm/util.c
-index 05a464929b3e..e2e4f8c3fa12 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -652,7 +652,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
-  */
- int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- {
--	long free, allowed, reserve;
-+	long allowed;
- 
- 	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
- 			-(s64)vm_committed_as_batch * num_online_cpus(),
-@@ -667,51 +667,9 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		return 0;
- 
- 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
--		free = global_zone_page_state(NR_FREE_PAGES);
--		free += global_node_page_state(NR_FILE_PAGES);
--
--		/*
--		 * shmem pages shouldn't be counted as free in this
--		 * case, they can't be purged, only swapped out, and
--		 * that won't affect the overall amount of available
--		 * memory in the system.
--		 */
--		free -= global_node_page_state(NR_SHMEM);
--
--		free += get_nr_swap_pages();
--
--		/*
--		 * Any slabs which are created with the
--		 * SLAB_RECLAIM_ACCOUNT flag claim to have contents
--		 * which are reclaimable, under pressure.  The dentry
--		 * cache and most inode caches should fall into this
--		 */
--		free += global_node_page_state(NR_SLAB_RECLAIMABLE);
--
--		/*
--		 * Part of the kernel memory, which can be released
--		 * under memory pressure.
--		 */
--		free += global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
--
--		/*
--		 * Leave reserved pages. The pages are not for anonymous pages.
--		 */
--		if (free <= totalreserve_pages)
-+		if (pages > totalram_pages() + total_swap_pages)
- 			goto error;
--		else
--			free -= totalreserve_pages;
--
--		/*
--		 * Reserve some for root
--		 */
--		if (!cap_sys_admin)
--			free -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
--
--		if (free > pages)
--			return 0;
--
--		goto error;
-+		return 0;
- 	}
- 
- 	allowed = vm_commit_limit();
-@@ -725,7 +683,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 	 * Don't let a single process grow so big a user can't recover
- 	 */
- 	if (mm) {
--		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
-+		long reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
-+
- 		allowed -= min_t(long, mm->total_vm / 32, reserve);
- 	}
- 
--- 
-2.21.0
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
