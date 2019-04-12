@@ -2,141 +2,294 @@ Return-Path: <SRS0=IQlH=SO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADECCC10F0E
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:17:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0BA4C10F0E
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:18:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A38C2171F
-	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:17:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4E80721872
+	for <linux-mm@archiver.kernel.org>; Fri, 12 Apr 2019 15:18:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="yNuKOmHf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A38C2171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="cJh4UC16"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E80721872
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B71F6B0271; Fri, 12 Apr 2019 11:17:02 -0400 (EDT)
+	id E9C246B0272; Fri, 12 Apr 2019 11:18:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06BE26B0272; Fri, 12 Apr 2019 11:17:02 -0400 (EDT)
+	id E227F6B0274; Fri, 12 Apr 2019 11:18:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC1816B0273; Fri, 12 Apr 2019 11:17:01 -0400 (EDT)
+	id CC3966B0275; Fri, 12 Apr 2019 11:18:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6916B0271
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 11:17:01 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id l26so8992338qtk.18
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:17:01 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A56226B0272
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2019 11:18:55 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id n10so9090539qtk.9
+        for <linux-mm@kvack.org>; Fri, 12 Apr 2019 08:18:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=DBVwMeaUDBJkycGKDayUqBJF7IF5Fkb1UBmd6vl/3EA=;
-        b=eoUu2U1zdB39ODGELUVJpOHMWKerumJMb4U9Q/IgOP8+CCpE0r/sef0hdUMjpRdZyg
-         mh6ZBkqP+DvU/tTXIkVwlfWnIlTrCXhh8xdlSX8tE2fc/9vkzwX0GkLhBWNNrOeK43Xi
-         Did8BptWz3KUoozu68L8HSWiKkHCtFHlFifyOoB2LPXdoL2qv1EUvVkVoT2xpgJkm51z
-         hRLv30H4qv2KVlgjHtudoymvX3KNPV+AUqBYVbhJt3MwkBPTLBLo/FNbFcQ5hF8BluF5
-         7RzRsBUKGQk5N9b6v9mPSO+acAq+yUqTAg86I4UBy5VTuN4uN0qN+vifPBHNu9hKbwZt
-         cMMg==
-X-Gm-Message-State: APjAAAUE8ZqODAFN9oFNINjCXY2+HZLmSv+l23wwJZiJ1zUcnJtrpBpR
-	fzL+zUPoB3kWqnLn7TX8yixm3FpAHaC6fyv1tf9tDQMYTc/IXaTIXyZE6sXPNuqYIpL4lK+7PBV
-	h82T9kHkI7yuWpllW801oE9MxPOAfX8/gra5H5FS0fDY8WBc++IL7nJuiGQRtMN1n0Q==
-X-Received: by 2002:a37:aa8c:: with SMTP id t134mr45323330qke.93.1555082221631;
-        Fri, 12 Apr 2019 08:17:01 -0700 (PDT)
-X-Received: by 2002:a37:aa8c:: with SMTP id t134mr45323286qke.93.1555082221223;
-        Fri, 12 Apr 2019 08:17:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555082221; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=M5+l/XjtcLR9zfmXm9UeCUJ7B/3VDbE716x95KNxBdM=;
+        b=CvNopXwwLCCtaeD6Uj8swLgoX8SjSzT0m6rYqL7r4xj/T9l7dgz6Ff0iqOikN/IYcJ
+         mAxlTW5YO+icUQeZmgGZiE09YBqw2ybasBitZSI7u/H/hO7j02v2whjP3bxwBX77FWjS
+         YNpXRRZ88cLpsZaAokErtgm4kInai7BxpiyKq2zuvAMuKPLNxp/JunDX8i8hVwefJYD+
+         UtLl7nGKWaJgM9TV9sTXZRFria6NqyjQWWzlMWAVWqUQcWdbW5vMVll+moJ0OKPGois1
+         niO2dFj3q+W5oFEIE6Lc1HM3UFsN3cl1BdVB+iePOUtiElD9a1tIquqZfC6dIy/KzdT5
+         6ffQ==
+X-Gm-Message-State: APjAAAVy829HZU0lhTUEEy0ikhIop1fh50WENYrZA42O78+wjAV+UWhh
+	IplIAcop2RhVMBiWFLdaMaGeg2e5XV7V7j8laJKzTTbwsiKZQ9JmZ0jqucg1ajwEe8SxSDvJCJf
+	0pBUjFTediSp5UnbuqpcxJLpC9mufj5531QCoVfBvsA1FMoNeHJ9ogzlQbmbvUZEUww==
+X-Received: by 2002:a0c:9e0f:: with SMTP id p15mr47335919qve.178.1555082335416;
+        Fri, 12 Apr 2019 08:18:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx/8iTYJ4ytC4PUkB4/vIDMzkY6GXigfXDmtsv0l9UNu5ifbeUm1gtawliCyBs7dMu+KIhV
+X-Received: by 2002:a0c:9e0f:: with SMTP id p15mr47335866qve.178.1555082334674;
+        Fri, 12 Apr 2019 08:18:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555082334; cv=none;
         d=google.com; s=arc-20160816;
-        b=IK6pa+oQQbBABDcQOmQaYFf0HJGXQhozdbq2Q8RdK4cl+hvIaNm4zZDeUJRdMNRvzb
-         4nhu/BDdOKgVv3bIcN+FfQpGhd3q4+Mu0dd78tWWqiLnicSFeHAQTNe1k88wacKZyqgU
-         I52Nk587T3QIlrmR+uo6uvux+VN75XwcECQ2HZJRb9+Cyw/hSXWxVfPYt5ACDOTIqjk4
-         jf4k21iO0rZA4oEqZW7geLj075qhralrIfFCneeWd+kv6PrR9mXYgZSso8ObjBIxF4iv
-         o+gyl+Mvyd5yWAK19D7N2Lj9mbWZwU3Z2fo2gDLWEQzrObymgz/6M3rHUGPh9V3zx2Sz
-         vkTg==
+        b=xgRN0m5Vj1EUUSFgUiNCFO/J/xEUA4GsofTJZWtq+fZwER/d3P2eMMhPvkruqWeDhg
+         IeLO2scwQwH63Z3ZBJtMJoA0dGfpXLYx4HgsmwhTZiEOBwGXUeq5kKaSDvu5QXzdWwNl
+         KaNGbiSVqGn1bPjGhcLPHmFtsCDDxOmUt46S7ikY0k9xOu03EBKTObtPfU/40T4xHkWm
+         /V3FAb0Mb0iFSNzJSnLqeIPOUWd2uJE6EK1qfB4til64x0LMoiU1fP4YNnd4VfY40oYL
+         ypuWjIA73l9aHbq93dyoqu9LX93tEnGWCDooTCjdG3a9oA7azPuSWVKW9SjOLPH3Oo5Y
+         rn8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=DBVwMeaUDBJkycGKDayUqBJF7IF5Fkb1UBmd6vl/3EA=;
-        b=Ue62o0GHhStle3O8gOyq8SN3aDPoNhG4A5/GfNqYfD0s51m5oPzX7DFowkffXENH3S
-         XAZIbeCqmrWZ+PEKpctc7gAWnltOE8fiUU08el5Cwstyw0VoXXv7EaKJ3p3u9RxYtjCO
-         S8zKSUhPXoJveHXdhcLQetbZJa7NHip4P9l6qKQF9lJ7a62S3/NL9hquMH+n/bQnn5Mw
-         ptFWCdX4vNNjSkLpzs4OAxe1ltzjXOUU8ln+GN7SqMHp46zuMaUArlbgILP/i03gsLMJ
-         ZGLdBo3sMLRohoTCOai4BeuQ1enEJHMNAF7Fd8rXnuHOHJXUN0WuQISNse/VVVz+Carh
-         wi7Q==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=M5+l/XjtcLR9zfmXm9UeCUJ7B/3VDbE716x95KNxBdM=;
+        b=zj44DtV38xOEmGrHVasbsfnUm96KuUcLjIzTCAEeBmiXGoK07Sgn2hueW87UZEloWL
+         KroBNise2bHFw9K4UuOFsKjAMOJxwbIoekgOykEJ5glplF3yDBKacQqHRFz+OpOLGoZ2
+         q5EW2mCfgr2MwtaWsE0puEY45zI4d/0v39lQZs5CG0KXh7T8J7ri6CzXMzgT/YH8r/MG
+         6s5mTpqkDhG5gkldiSi+J7Mf+Se1qSe34P1D+Eq6sgSaxBFX81E2DYbyUf58ByCEGDwa
+         lGOBDALUJi4XtW723HS7PSil5t9wT1Aa44Z1x6Lu8+gNe7l+7/M+LA7QH5l5EDRTKsrz
+         Gvag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=yNuKOmHf;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m27sor57453437qtk.2.2019.04.12.08.17.01
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=cJh4UC16;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.74.77 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740077.outbound.protection.outlook.com. [40.107.74.77])
+        by mx.google.com with ESMTPS id z29si455979qtj.309.2019.04.12.08.18.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Apr 2019 08:17:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 12 Apr 2019 08:18:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.74.77 as permitted sender) client-ip=40.107.74.77;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=yNuKOmHf;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=DBVwMeaUDBJkycGKDayUqBJF7IF5Fkb1UBmd6vl/3EA=;
-        b=yNuKOmHfWBMAN0fxLIFo2SqWFxv7D1j/yAq/MomXxFQXcbYKWH4DLyTDrnuxoMFFlL
-         KZVm2GYrY8/IbFxHTJjMXM76xYThjsKZmnNzdYvftfSXlOtGO5h4r1j8LkL5fCIeU2j+
-         CeCnCzTPLQvAFGOcExI8ewWI1Zv7k3KBZBLvrnYfSUAYhtLotbz5yGzJnUQXvxUE87cc
-         6yvfK7PWARPnal4GdxD97M/YQ/5VZh38O9sPDEeygDG3ld+kdlhaN4MgYpNpI9Qsk9Lw
-         pIsHc41MYkvZ0kEq7INzEYInABbVczSb38wtsFzD4mD9ULnnLFHmGLZpI6h3J8Jqf341
-         cBcQ==
-X-Google-Smtp-Source: APXvYqzF3HpyxGuUjVItHMAG8rnGhhMbkkLtnGlmeZc7OEbn9JgFb/hgLHiC590ZbvDMkcFsk/ioEw==
-X-Received: by 2002:ac8:7653:: with SMTP id i19mr47366814qtr.177.1555082221000;
-        Fri, 12 Apr 2019 08:17:01 -0700 (PDT)
-Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
-        by smtp.gmail.com with ESMTPSA id j25sm28952761qtc.24.2019.04.12.08.16.59
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Apr 2019 08:16:59 -0700 (PDT)
-Date: Fri, 12 Apr 2019 11:16:58 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Michal Hocko <mhocko@suse.com>, Baoquan He <bhe@redhat.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	akpm@linux-foundation.org, dave@stgolabs.net, linux-mm@kvack.org
-Subject: Re: [PATCH v3] mm: Simplify shrink_inactive_list()
-Message-ID: <20190412151658.GA3173@cmpxchg.org>
-References: <155490878845.17489.11907324308110282086.stgit@localhost.localdomain>
- <20190411221310.sz5jtsb563wlaj3v@ca-dmjordan1.us.oracle.com>
- <20190412000547.GB3856@localhost.localdomain>
- <26e570cd-dbee-575c-3a23-ff8798de77dc@virtuozzo.com>
- <20190412113131.GB5223@dhcp22.suse.cz>
- <4ac7242c-54d3-cd44-2cd9-5d5c746e2690@virtuozzo.com>
- <20190412120504.GD5223@dhcp22.suse.cz>
- <2ece1df4-2989-bc9b-6172-61e9fdde5bfd@virtuozzo.com>
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=cJh4UC16;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.74.77 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=M5+l/XjtcLR9zfmXm9UeCUJ7B/3VDbE716x95KNxBdM=;
+ b=cJh4UC16dAwZ22ioGen9J/tV3bCzBtPj5Dg3GUuEHVFIQ6SUWOqB+rIbX27UecbHLidseMkBfoAPs3iJvnmCfZidMxSxK3Up4TaKsZrxDl9q3qrBzcFIP0XI9gAyDwflVLJdoObvc+898PloQ2C/LpwuJe5ywbOjTQuEfhhgfYM=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB5958.namprd05.prod.outlook.com (20.178.52.207) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1792.11; Fri, 12 Apr 2019 15:18:50 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd%4]) with mapi id 15.20.1792.009; Fri, 12 Apr 2019
+ 15:18:50 +0000
+From: Nadav Amit <namit@vmware.com>
+To: Nadav Amit <namit@vmware.com>
+CC: Peter Zijlstra <peterz@infradead.org>, kernel test robot <lkp@intel.com>,
+	LKP <lkp@01.org>, Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, Ingo
+ Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon
+	<will.deacon@arm.com>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds
+	<torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+Subject: Re: 1808d65b55 ("asm-generic/tlb: Remove arch_tlb*_mmu()"):  BUG:
+ KASAN: stack-out-of-bounds in __change_page_attr_set_clr
+Thread-Topic: 1808d65b55 ("asm-generic/tlb: Remove arch_tlb*_mmu()"):  BUG:
+ KASAN: stack-out-of-bounds in __change_page_attr_set_clr
+Thread-Index: AQHU8R5sUhi0mJ9uO0aA/EiVew3tvaY4YIQAgABBN4CAAAIWgA==
+Date: Fri, 12 Apr 2019 15:18:50 +0000
+Message-ID: <EA0B97AF-D046-4EE8-9897-F90254085724@vmware.com>
+References: <5cae03c4.iIPk2cWlfmzP0Zgy%lkp@intel.com>
+ <20190411193906.GA12232@hirez.programming.kicks-ass.net>
+ <20190411195424.GL14281@hirez.programming.kicks-ass.net>
+ <20190411211348.GA8451@worktop.programming.kicks-ass.net>
+ <20190412105633.GM14281@hirez.programming.kicks-ass.net>
+ <20190412111756.GO14281@hirez.programming.kicks-ass.net>
+ <F18AF0D5-D8B4-4F4B-8469-F9DEC49683C7@vmware.com>
+In-Reply-To: <F18AF0D5-D8B4-4F4B-8469-F9DEC49683C7@vmware.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 5193581f-08bc-4945-8a0e-08d6bf5a2b06
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB5958;
+x-ms-traffictypediagnostic: BYAPR05MB5958:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <BYAPR05MB59585D207EDC72A9EB3636B4D0280@BYAPR05MB5958.namprd05.prod.outlook.com>
+x-forefront-prvs: 0005B05917
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(366004)(346002)(396003)(39860400002)(136003)(376002)(189003)(199004)(105586002)(81166006)(6246003)(7416002)(186003)(25786009)(6862004)(11346002)(36756003)(486006)(446003)(8936002)(6306002)(5660300002)(99286004)(68736007)(6512007)(4326008)(305945005)(93886005)(2616005)(7736002)(6436002)(6506007)(33656002)(6486002)(66066001)(14444005)(76176011)(476003)(53546011)(256004)(3846002)(26005)(71200400001)(14454004)(71190400001)(966005)(8676002)(6116002)(6200100001)(106356001)(102836004)(86362001)(53936002)(478600001)(97736004)(83716004)(316002)(54906003)(82746002)(37006003)(2906002)(4001150100001)(81156014)(229853002)(561944003)(45080400002)(41533002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5958;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 6+S7ezK5Pq7/7I+FrfwbGofBilVuFuxLikmoZiik24LtJACMvNKADFK0HJPg7uaRaaelG5AqblywggA3M8v+UX4jOHyql3ph5gmi+c03dMWE0All5/46OTMxznREyvmB5DsA1RfYOI1+yS8Bm3FO0k3Fmdx3jxQCs2ECNeNLA/LsidpNoQzUW2+jgpDIryMtkSdBBcvxVyP22wszHvM9m4EuAeznZiqZIZtT20MpDwhr10BoRdmWVvaxW7I5EM24WESmaKCkAWJTrQ6l60mgaIKR9N+oVKtyheev9VAlbdCmu7UNm+erixzLyeNeUQKh0SEM0Bby381+d9F8ofc0hNDWiueBG5oWUXrJoVwxzs6V+a/Xxby+yDF/GRtARMpV/vhwRDa4AHu5/n4Ere0lUARSrjQntmBKzMPM0VxbRz8=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4D374FA26FC0D54A8F36E822321AB309@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2ece1df4-2989-bc9b-6172-61e9fdde5bfd@virtuozzo.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 5193581f-08bc-4945-8a0e-08d6bf5a2b06
+X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Apr 2019 15:18:50.3720
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5958
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 12, 2019 at 03:10:01PM +0300, Kirill Tkhai wrote:
-> This merges together duplicating patterns of code.
-> Also, replace count_memcg_events() with its
-> irq-careless namesake, because they are already
-> called in interrupts disabled context.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> v3: Advance changelog.
-> v2: Introduce local variable.
+> On Apr 12, 2019, at 8:11 AM, Nadav Amit <namit@vmware.com> wrote:
+>=20
+>> On Apr 12, 2019, at 4:17 AM, Peter Zijlstra <peterz@infradead.org> wrote=
+:
+>>=20
+>> On Fri, Apr 12, 2019 at 12:56:33PM +0200, Peter Zijlstra wrote:
+>>> On Thu, Apr 11, 2019 at 11:13:48PM +0200, Peter Zijlstra wrote:
+>>>> On Thu, Apr 11, 2019 at 09:54:24PM +0200, Peter Zijlstra wrote:
+>>>>> On Thu, Apr 11, 2019 at 09:39:06PM +0200, Peter Zijlstra wrote:
+>>>>>> I think this bisect is bad. If you look at your own logs this patch
+>>>>>> merely changes the failure, but doesn't make it go away.
+>>>>>>=20
+>>>>>> Before this patch (in fact, before tip/core/mm entirely) the errror
+>>>>>> reads like the below, which suggests there is memory corruption
+>>>>>> somewhere, and the fingered patch just makes it trigger differently.
+>>>>>>=20
+>>>>>> It would be very good to find the source of this corruption, but I'm
+>>>>>> fairly certain it is not here.
+>>>>>=20
+>>>>> I went back to v4.20 to try and find a time when the below error did =
+not
+>>>>> occur, but even that reliably triggers the warning.
+>>>>=20
+>>>> So I also tested v4.19 and found that that was good, which made me
+>>>> bisect v4.19..v4.20
+>>>>=20
+>>>> # bad: [8fe28cb58bcb235034b64cbbb7550a8a43fd88be] Linux 4.20
+>>>> # good: [84df9525b0c27f3ebc2ebb1864fa62a97fdedb7d] Linux 4.19
+>>>> git bisect start 'v4.20' 'v4.19'
+>>>> # bad: [ec9c166434595382be3babf266febf876327774d] Merge tag 'mips_fixe=
+s_4.20_1' of git://git.kernel.org/pub/scm/linux/kernel/git/mips/linux
+>>>> git bisect bad ec9c166434595382be3babf266febf876327774d
+>>>> # bad: [50b825d7e87f4cff7070df6eb26390152bb29537] Merge git://git.kern=
+el.org/pub/scm/linux/kernel/git/davem/net-next
+>>>> git bisect bad 50b825d7e87f4cff7070df6eb26390152bb29537
+>>>> # good: [99e9acd85ccbdc8f5785f9e961d4956e96bd6aa5] Merge tag 'mlx5-upd=
+ates-2018-10-17' of git://git.kernel.org/pub/scm/linux/kernel/git/saeed/lin=
+ux
+>>>> git bisect good 99e9acd85ccbdc8f5785f9e961d4956e96bd6aa5
+>>>> # good: [c403993a41d50db1e7d9bc2d43c3c8498162312f] Merge tag 'for-linu=
+s-4.20' of https://nam04.safelinks.protection.outlook.com/?url=3Dhttps%3A%2=
+F%2Fgithub.com%2Fcminyard%2Flinux-ipmi&amp;data=3D02%7C01%7Cnamit%40vmware.=
+com%7Ca1c3ea5d4bc34cfc785508d6bf388ff3%7Cb39138ca3cee4b4aa4d6cd83d9dd62f0%7=
+C0%7C0%7C636906647013777573&amp;sdata=3D3VSR3VdE5rxOitAdkqFNPpAnAtLgDmYLzJt=
+oUrs5v9Y%3D&amp;reserved=3D0
+>>>> git bisect good c403993a41d50db1e7d9bc2d43c3c8498162312f
+>>>> # good: [c05f3642f4304dd081876e77a68555b6aba4483f] Merge branch 'perf-=
+core-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect good c05f3642f4304dd081876e77a68555b6aba4483f
+>>>> # bad: [44786880df196a4200c178945c4d41675faf9fb7] Merge branch 'parisc=
+-4.20-1' of git://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-lin=
+ux
+>>>> git bisect bad 44786880df196a4200c178945c4d41675faf9fb7
+>>>> # bad: [99792e0cea1ed733cdc8d0758677981e0cbebfed] Merge branch 'x86-mm=
+-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect bad 99792e0cea1ed733cdc8d0758677981e0cbebfed
+>>>> # good: [fec98069fb72fb656304a3e52265e0c2fc9adf87] Merge branch 'x86-c=
+pu-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip
+>>>> git bisect good fec98069fb72fb656304a3e52265e0c2fc9adf87
+>>>> # bad: [a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542] x86/mm: Page size aw=
+are flush_tlb_mm_range()
+>>>> git bisect bad a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542
+>>>> # good: [a7295fd53c39ce781a9792c9dd2c8747bf274160] x86/mm/cpa: Use flu=
+sh_tlb_kernel_range()
+>>>> git bisect good a7295fd53c39ce781a9792c9dd2c8747bf274160
+>>>> # good: [9cf38d5559e813cccdba8b44c82cc46ba48d0896] kexec: Allocate dec=
+rypted control pages for kdump if SME is enabled
+>>>> git bisect good 9cf38d5559e813cccdba8b44c82cc46ba48d0896
+>>>> # good: [5b12904065798fee8b153a506ac7b72d5ebbe26c] x86/mm/doc: Clean u=
+p the x86-64 virtual memory layout descriptions
+>>>> git bisect good 5b12904065798fee8b153a506ac7b72d5ebbe26c
+>>>> # good: [cf089611f4c446285046fcd426d90c18f37d2905] proc/vmcore: Fix i3=
+86 build error of missing copy_oldmem_page_encrypted()
+>>>> git bisect good cf089611f4c446285046fcd426d90c18f37d2905
+>>>> # good: [a5b966ae42a70b194b03eaa5eaea70d8b3790c40] Merge branch 'tlb/a=
+sm-generic' of git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux in=
+to x86/mm
+>>>> git bisect good a5b966ae42a70b194b03eaa5eaea70d8b3790c40
+>>>> # first bad commit: [a31acd3ee8f7dbc0370bdf4a4bfef7a8c13c7542] x86/mm:=
+ Page size aware flush_tlb_mm_range()
+>>>>=20
+>>>> And 'funnily' the bad patch is one of mine too :/
+>>>>=20
+>>>> I'll go have a look at that tomorrow, because currrently I'm way past
+>>>> tired.
+>>>=20
+>>> OK, so the below patchlet makes it all good. It turns out that the
+>>> provided config has:
+>>>=20
+>>> CONFIG_X86_L1_CACHE_SHIFT=3D7
+>>>=20
+>>> which then, for some obscure raisin, results in flush_tlb_mm_range()
+>>> compiling to use 320 bytes of stack:
+>>>=20
+>>> sub    $0x140,%rsp
+>>>=20
+>>> Where a 'defconfig' build results in:
+>>>=20
+>>> sub    $0x58,%rsp
+>>>=20
+>>> The thing that pushes it over the edge in the above fingered patch is
+>>> the addition of a field to struct flush_tlb_info, which grows if from 3=
+2
+>>> to 36 bytes.
+>>>=20
+>>> So my proposal is to basically revert that, unless we can come up with
+>>> something that GCC can't screw up.
+>>=20
+>> To clarify, 'that' is Nadav's patch:
+>>=20
+>> 515ab7c41306 ("x86/mm: Align TLB invalidation info")
+>>=20
+>> which turns out to be the real problem.
+>=20
+> Sorry for that. I still think it should be aligned, especially with all t=
+he
+> effort the Intel puts around to avoid bus-locking on unaligned atomic
+> operations.
+>=20
+> So the right solution seems to me as putting this data structure off stac=
+k.
+> It would prevent flush_tlb_mm_range() from being reentrant, so we can kee=
+p a
+> few entries for this matter and atomically increase the entry number ever=
+y
+> time we enter flush_tlb_mm_range().
+>=20
+> But my question is - should flush_tlb_mm_range() be reentrant, or can we
+> assume no TLB shootdowns are initiated in interrupt handlers and #MC
+> handlers?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Just to clarify - I obviously suggest a per-cpu structure. The question
+is about one core reentering flush_tlb_mm_range().
 
