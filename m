@@ -2,121 +2,152 @@ Return-Path: <SRS0=+oA7=SQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4032FC10F11
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 02:55:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC567C10F13
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 05:59:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8A6D2147A
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 02:55:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8A6D2147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 66E7620693
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 05:59:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E7620693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 374536B0003; Sat, 13 Apr 2019 22:55:02 -0400 (EDT)
+	id 9CAD66B0003; Sun, 14 Apr 2019 01:59:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34DF46B0005; Sat, 13 Apr 2019 22:55:02 -0400 (EDT)
+	id 9790B6B0005; Sun, 14 Apr 2019 01:59:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23C216B0006; Sat, 13 Apr 2019 22:55:02 -0400 (EDT)
+	id 868BE6B0006; Sun, 14 Apr 2019 01:59:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EABF6B0003
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2019 22:55:02 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id w11so11266861iom.20
-        for <linux-mm@kvack.org>; Sat, 13 Apr 2019 19:55:02 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 388D76B0003
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 01:59:32 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e6so7222259edi.20
+        for <linux-mm@kvack.org>; Sat, 13 Apr 2019 22:59:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=EpmA7tOPMeXxvHBfABlmb8FTDps5VZ6P9Hzfo+3xEOc=;
-        b=PPj1hWnZiCSINCg/+2PxH8dGSg/V4jUsOn1qwnvglUInps6orlhUt/EU0U2LEUDM1j
-         zL1ffZ/FNiU++urR+51gVezpoD4JwgP6vhXiBctz6Fa8fJ2uo8a6XemvOSw9OeYnm8wX
-         IIo5dxc5wpEPKCs+rihoxVHG8689AM7VXxD10KOZqETmw/0kmmCoi9reZFO9GzO7d4Qc
-         b/fVhmjRtWYO+KlipSmeSm/rY08eKlAYMZzi0fGmHZ/fcboBgEY48+4vQNQpXqLbBw/L
-         TComr9cw1x7XuHeq9p35zB9NQrNhT4diNTIKDacwJeSWUQwqStSsUndsaY11LCGKxR3u
-         9Erg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3bkgyxakbapsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3BKGyXAkbAPsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAULlsI70NNLivvlzcN3ruz0ZkZi4b+hnK5aDvFpkAiFpDbxy3Ox
-	zaK/Q8sVkAiFndv/xdKXzD18PDUdbc4iLnMey+sOFShqb1Ej9T4u7PtGMu+GwazqEuloRnPYlwp
-	6uRGL+VFIXIufRtwrlff6X7H2Vux04o/37Weo3volzwiprobHQxvLedakP1jiJao=
-X-Received: by 2002:a24:4614:: with SMTP id j20mr20766187itb.72.1555210501867;
-        Sat, 13 Apr 2019 19:55:01 -0700 (PDT)
-X-Received: by 2002:a24:4614:: with SMTP id j20mr20766170itb.72.1555210501214;
-        Sat, 13 Apr 2019 19:55:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555210501; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=CtjaAIMATaZT301FHWwKASq1I6bbrjO78ZHKTxU4VEU=;
+        b=aMtlmkj7sWeWA5/DIx1Tq5+nb4gYI4qTecsxuvVDDvY15pXIOeH8Ib+QKNpDHd+VYg
+         NNJyZ3Vxs3mbAzQTCCb1qVStYVJJl+Q7D/nqd5dV//iU+st2C0zJqZPc13JzdCF6N/to
+         A3rlQ4vtr6dAgJG1WUBYCJmXJOk+O0LiZSnbA8dSi5DaDg5ALHJGvxAm61dMYkASr2iG
+         ylPx2MSTy+Eb9kLnsVv/UtPAvZjvmpFKe1wYtkZJIuApNF0mdHuJ6HVsH1ydx6rWUgZ1
+         rhOzvFhug17pmg6a1J/awxJpz+PY4h2/RRFiSvJwvMOYsmSHIIXxAY+BzYUms7qxS91X
+         8+dw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXhmNRVNc6IoG1qmSwOhFC8wLkwsSi1GbQb2DfQzhRUgOp8XRkG
+	8cblIFJjvPRCKe5nntHnt/cPOOmDU8Wd0KFLmG4Ap275s+EN+kBxAsfvawumt9NJXynUGiGwBI/
+	LoZm7rUidQHHFc2SkQboKjK2QzzX/IA1663UivVTC172+l12c5ihifngkQ6YESdGdOw==
+X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr27701810ejb.143.1555221571577;
+        Sat, 13 Apr 2019 22:59:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyq8bhBEFp2PSyyvkcX1sOBtUh6CQkmxF4nyFXcnp4LnLOqQIZNtEOzDWfTs6iugW1EFl+J
+X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr27701772ejb.143.1555221570518;
+        Sat, 13 Apr 2019 22:59:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555221570; cv=none;
         d=google.com; s=arc-20160816;
-        b=sqXKoqKeKsUSP8DPBErgDrp1DPddoNMRWHhQ58M+DtEBIXyfEo0DvAKrcYfWqB5RLi
-         NQFNE7cQU3obkVYIg2ebZ1DC1RwRQ/99L9H4evIRQvUeKtH9ptsTnWtucfHRgcOaxO3S
-         jL0OQBOjuyBxwk+Ifilj2+djx6fJaFSws+5V0B3xASJQAaCbm6L+HNxef27+hGZ2Ssji
-         rePkY7KNIBtBJmY+7psVOcCnoMx1+Fa+i1ZqVxNcXECqYFaSMUvYEDzBXTTkOnMhaY1z
-         s9udNsTXAPrx3lUX1jVCQLhOwsQKjFoxA7ShBo45TWYh40ieAo4mlH2HAkrnqYaAO3u6
-         o7gw==
+        b=UblG+uMB6HnYIDaWvvXuptsI3eQ3wdU6Kf+PXKMQvExEEX1p4QuwGxnAmSGz6iNna9
+         qoZWDB8u0YFfz1knpKr3EeEU3KmobI9m/sxjeqKo0zvvBRqTv1RKmM8PNAKaWmK8PkTi
+         +Bt6V+wdMn9zm3QmievTHqiaZY+GL2U/40OdiPG6ghshCQS1WJCLuLrgDi8RzxAu2gVZ
+         isxRB22L2AMZgi2Wza1OHXtA14mpfe44jyUReUbbermC6vrhdnOKHeVHwuvrUTtTBMPV
+         HTt8YEa2LF4HdHfNi4n1W71BZayNsU7XmC2BTAvdtd+FOueSM+B6VJOy3K0A3KwfbJgG
+         ZFOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=EpmA7tOPMeXxvHBfABlmb8FTDps5VZ6P9Hzfo+3xEOc=;
-        b=N00oUjMCWbsk3oUNtvHvecFa3YrQUu9LVXAIpfnLfi/kxINq1b17Ps1CsG80dZifga
-         lH6J2reIfBhEot5qYRRtgZBbyZo/8pRvQ3Yq5q7OASS7Ls656zVoj0WsazhO5w1IVJXd
-         FehG+mogOsnVSFeLbeARQdmakY9se653Js9JGuqgI4gPUqF51wgz9gtKI5Udh4tuZmfr
-         kFylRjfDoDO1u36VDwxOZ33g1dFkyCP1Wg8OCertoQm9LC9AFwOn29Bt7qP9VWNavpcr
-         UOpoDWZQBAkbXmgSWsNKnKrjYLgasoS3G0tqKLrj9zaR3KhjYQb2kZ6gAIMqkRhngWaZ
-         pULQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=CtjaAIMATaZT301FHWwKASq1I6bbrjO78ZHKTxU4VEU=;
+        b=Fy6Hotxqx1EIMt8UZiCoe0ff6EewFUcyT7A4Y3K6wAIo90KfVz+MFYrUEUxX7/q9pR
+         5TaV9yxSlFlbcHu+Cx+qfZl5HSsUCBG2WFeUIaYhrlotMRVi3jBM8dsEYjjiwkr7KRK9
+         akHXw40jIRxtPR/hyq9GJ0CDdIQIjJAgmcN1jHs9KAwTjxEKhrPvZCKrvFIFHsxRCpK2
+         rCYrp64dEVB4j8IvMY0aW4Cvmusf7O4l/WaFwhNCJElug9s6UL3tB0drwK0+xhxY8Gu8
+         hLoOahdSKzkgRcSFlv+l1n2ZFycNuivJCx7kWxS0fbIAmWjZB9H2FRwG4wa4/PT7bwfr
+         u8Gg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3bkgyxakbapsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3BKGyXAkbAPsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id q140sor20814511itb.26.2019.04.13.19.55.01
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 13 Apr 2019 19:55:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3bkgyxakbapsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ge8si2097104ejb.304.2019.04.13.22.59.28
+        for <linux-mm@kvack.org>;
+        Sat, 13 Apr 2019 22:59:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3bkgyxakbapsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3BKGyXAkbAPsv12ndoohudsslg.jrrjohxvhufrqwhqw.frp@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqzxNqYArsgazGGOVEkorCoGxLAaBWKxHsEiTFGk8Oo2mZx5TvxIT9Dm+TrXC2QKEJLPhy/K+Offgzn9+L2tgZqNzDaG9X15
-MIME-Version: 1.0
-X-Received: by 2002:a24:6f81:: with SMTP id x123mr4742934itb.29.1555210500891;
- Sat, 13 Apr 2019 19:55:00 -0700 (PDT)
-Date: Sat, 13 Apr 2019 19:55:00 -0700
-In-Reply-To: <000000000000e02bf505866414ae@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <00000000000074e9d5058674a94f@google.com>
-Subject: Re: INFO: task hung in do_exit
-From: syzbot <syzbot+9880e421ec82313d6527@syzkaller.appspotmail.com>
-To: amitoj1606@gmail.com, ap420073@gmail.com, avagin@gmail.com, dbueso@suse.de, 
-	ebiederm@xmission.com, jacek.anaszewski@gmail.com, 
-	linux-kernel@vger.kernel.org, linux-leds@vger.kernel.org, linux-mm@kvack.org, 
-	oleg@redhat.com, pavel@ucw.cz, prsood@codeaurora.org, rpurdie@rpsys.net, 
-	syzkaller-bugs@googlegroups.com, tj@kernel.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.002950, version=1.2.4
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D872280D;
+	Sat, 13 Apr 2019 22:59:27 -0700 (PDT)
+Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.41.123])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 7EC783F557;
+	Sat, 13 Apr 2019 22:59:22 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-kernel@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux-mm@kvack.org,
+	akpm@linux-foundation.org,
+	will.deacon@arm.com,
+	catalin.marinas@arm.com
+Cc: mhocko@suse.com,
+	mgorman@techsingularity.net,
+	james.morse@arm.com,
+	mark.rutland@arm.com,
+	robin.murphy@arm.com,
+	cpandya@codeaurora.org,
+	arunks@codeaurora.org,
+	dan.j.williams@intel.com,
+	osalvador@suse.de,
+	david@redhat.com,
+	cai@lca.pw,
+	logang@deltatee.com,
+	ira.weiny@intel.com
+Subject: [PATCH V2 0/2] arm64/mm: Enable memory hot remove
+Date: Sun, 14 Apr 2019 11:29:11 +0530
+Message-Id: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+This series enables memory hot remove on arm64 after fixing a memblock
+removal ordering problem in generic __remove_memory(). This is based
+on the following arm64 working tree.
 
-commit 430e48ecf31f4f897047f22e02abdfa75730cad8
-Author: Amitoj Kaur Chawla <amitoj1606@gmail.com>
-Date:   Thu Aug 10 16:28:09 2017 +0000
+git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
 
-     leds: lm3533: constify attribute_group structure
+Testing:
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=15f4cee3200000
-start commit:   8ee15f32 Merge tag 'dma-mapping-5.1-1' of git://git.infrad..
-git tree:       upstream
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=17f4cee3200000
-console output: https://syzkaller.appspot.com/x/log.txt?x=13f4cee3200000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=4fb64439e07a1ec0
-dashboard link: https://syzkaller.appspot.com/bug?extid=9880e421ec82313d6527
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=149b89af200000
+Tested hot remove on arm64 for all 4K, 16K, 64K page config options with
+all possible VA_BITS and PGTABLE_LEVELS combinations. Build tested on non
+arm64 platforms.
 
-Reported-by: syzbot+9880e421ec82313d6527@syzkaller.appspotmail.com
-Fixes: 430e48ecf31f ("leds: lm3533: constify attribute_group structure")
+Changes in V2:
 
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+- Added all received review and ack tags
+- Split the series from ZONE_DEVICE enablement for better review
+
+- Moved memblock re-order patch to the front as per Robin Murphy
+- Updated commit message on memblock re-order patch per Michal Hocko
+
+- Dropped [pmd|pud]_large() definitions
+- Used existing [pmd|pud]_sect() instead of earlier [pmd|pud]_large()
+- Removed __meminit and __ref tags as per Oscar Salvador
+- Dropped unnecessary 'ret' init in arch_add_memory() per Robin Murphy
+- Skipped calling into pgtable_page_dtor() for linear mapping page table
+  pages and updated all relevant functions
+
+Changes in V1: (https://lkml.org/lkml/2019/4/3/28)
+
+Anshuman Khandual (2):
+  mm/hotplug: Reorder arch_remove_memory() call in __remove_memory()
+  arm64/mm: Enable memory hot remove
+
+ arch/arm64/Kconfig               |   3 +
+ arch/arm64/include/asm/pgtable.h |   2 +
+ arch/arm64/mm/mmu.c              | 221 ++++++++++++++++++++++++++++++++++++++-
+ mm/memory_hotplug.c              |   3 +-
+ 4 files changed, 225 insertions(+), 4 deletions(-)
+
+-- 
+2.7.4
 
