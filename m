@@ -2,434 +2,185 @@ Return-Path: <SRS0=+oA7=SQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33056C282CE
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 05:59:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3701AC10F13
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 06:57:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E008D21928
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 05:59:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E008D21928
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id BEDED20850
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 06:57:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="JkxzeHl1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEDED20850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F7126B0006; Sun, 14 Apr 2019 01:59:42 -0400 (EDT)
+	id 44B896B0003; Sun, 14 Apr 2019 02:57:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 77F686B0008; Sun, 14 Apr 2019 01:59:42 -0400 (EDT)
+	id 3FAA46B0005; Sun, 14 Apr 2019 02:57:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D1876B000A; Sun, 14 Apr 2019 01:59:42 -0400 (EDT)
+	id 2C2C96B0006; Sun, 14 Apr 2019 02:57:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0216B0006
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 01:59:42 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f42so1976311edd.0
-        for <linux-mm@kvack.org>; Sat, 13 Apr 2019 22:59:42 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C9D6B0003
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 02:57:16 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d2so7062097edo.23
+        for <linux-mm@kvack.org>; Sat, 13 Apr 2019 23:57:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=xYveJDlNs6Ar5aDVGhX69HkAwPho/6qZ2uHfL5yg948=;
-        b=LwqN+jDlnn88fbSj0dZDiDu57iIfo8pXXkXftsAzAPtI7qnevJfMxFfKWciyQUHDlu
-         11thh/mdPIqjw13QosAuVUUS5r2EjbM8BvMIhYvmSK4aRGFFXJhtvNcmyMFmk0Rf7MUr
-         8bX8cpLnvPkd8hwO/EVs37IhsFJhrS8xXKcGONR8Wo4c8qj8AOF0OrdsGhxOBc7/6+SK
-         JZGle3chwW0E/hVS5LQ11l9SJrTCR2Q0acDnzonC1d/VNovAr7+nmc0+cf4aSNsbZ/jl
-         38NpFGXBOgVn2a5UcVa05GJMcXiCKNyy7jM9L2ugXaz6g76rnfkfdPmAjUFJKxLy4HFI
-         TAig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAXr9KfjE90Vp1GjARmdg7WYqOX+4svII8FauaSwaog6bUiozUx/
-	TZ9wJwowbNUT0iqLmuIUGqPxV25HWxceYYVmF3jI2IXzrVB0Ka3+7AnK9l1JVwT/pOHkdseF0Nr
-	jq4a84FURJg2qD67xkDuKjbYGLZ7avfPgLaUwdeJ96mHBy3w0JiUOkfILleH3LrZWLA==
-X-Received: by 2002:a50:85c5:: with SMTP id q5mr25642988edh.110.1555221581536;
-        Sat, 13 Apr 2019 22:59:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFH9+GF8R/4yAGJgj7hfxn7hSPYwgIWCnWeAPsWdsy2d7skIsWQm7LRPEvY13iZjP2g2r9
-X-Received: by 2002:a50:85c5:: with SMTP id q5mr25642948edh.110.1555221580608;
-        Sat, 13 Apr 2019 22:59:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555221580; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=lhqNQ+1Z1kahGIO+uyaV8/ry/9Z5ItZXH4kcRtyofX4=;
+        b=q5ma260tICEWiF+JO+GP1bisnGitmLp2BIdfF5I4Vyd9o4hEAUTEjnqHJeCdeoqBiJ
+         q35rFimT3EfooHVBRkzuAdFgb/5e1TEjHXXpKDMr4Low5skTgoLwjP9da4P331xann0o
+         NkySB0TROdMMIhIt1nUG0qBJNqJOvEvVZChR21R3faqQp49DMiDbXGkOKJfR+4BA8u0s
+         o+tyJahc2fHL+ilXN5nfQHDZM1wLAAX0+KAvDg3xkrQUP/0JDME6f6GAGez3YHWixo79
+         LxLHXTVQohJLV4Mwu2oi7749/RQ2ROoi9KmPZ1PnxNc9SRHhvEhEJVyFi39CWdqr/NME
+         /uIA==
+X-Gm-Message-State: APjAAAU3PEQ3MbwApdBl/pDwkwSVdOEsN/nh1PEVFSlHPIYowpl3mQV6
+	AKuQdlWLGonpHgBrm3OQQwwH5xLZx//ggmypzCTp6JIhL9njbWU7iJIjPAbPOaFbNcLwD2txJwV
+	zhkp3EQXfsKKOV7D6MSWZTdPBvKmr3oP0fq9N5TLyn/azW/46RXkMoffThFMnjpH3Ew==
+X-Received: by 2002:a05:6402:7da:: with SMTP id u26mr29303664edy.127.1555225036335;
+        Sat, 13 Apr 2019 23:57:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhUlytzMU1DrpJdGZ9FlCTeXfx1+d88k19u+7aaqDkyPytrN/zIJoa9vGGQyDZuktH2gaF
+X-Received: by 2002:a05:6402:7da:: with SMTP id u26mr29303628edy.127.1555225035541;
+        Sat, 13 Apr 2019 23:57:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555225035; cv=none;
         d=google.com; s=arc-20160816;
-        b=WOlXhpfcRkH0uvDnSrCaBDg02CDMrxSCZmFZBAcRcfi4yUIGT8jq4r0yDNeRMcB2wd
-         nrFPYrM1l6jxxUwXF3/0iZgzDuRI9jy6MZm1jw5zBIuxsiq4gdF0AE/pr9x6GuHlu+5l
-         Gu9LVbV4FRN2lLnPttcOXXqKK9dRBMcwY02II0oDSac3A6KdLuJ/7y0ykfKxRqZCKo6p
-         RFw+sO8RpIKaSrJqcRRuAqOmPRWllFOL2bxr4eABeoffHOeA/h7k0lUg1EkVIhyvKlrn
-         1QwbWkmL5GyJuGgtoO6mr3hKz4+pXQBX+sWip63q6MjuUnZx32Z2hd5HW+wO751H1SMw
-         ljVA==
+        b=umzCXG0ul/l/wFpQAYcWyNh+GrDXeDz1oI/nZgmPEL3PKFrnwLVFchsXVltUTbZIxb
+         u0X3fBOxt8A4NXUzcR6bOLWwT70zemw3xQEaxmjY7Zt/RRdN+PurVu3vn9Dv5MNQfcz+
+         satpOhwX6BineE+nBIcoTx2o9eyRdLAMCBMnS4FbJx5X9/9Ff4+aFWmQcaigyCpR8/90
+         X/H+0bKbjBGZHfscOwuTpMSsr0yz7YLAaOfzQjw/gdBV5dcSz+vVMpaC4ZFt6lEs0D1y
+         VGGd2b1QWaRgv6Jlr4IU/KDkt0pU+cdeoJl1+oyySCAr2dXTC1+D8SvCrkJaDPkJ6q7P
+         CePg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=xYveJDlNs6Ar5aDVGhX69HkAwPho/6qZ2uHfL5yg948=;
-        b=yPv8RpOZAIfiGHqmD9uwoNuwOMo4H71gTR3a8rfkF14V4mE4z6TZbT7LFMT+W0XgbE
-         cjfp5tk9sTvmqnGCA8a/otBwJJL9p0mnVv3XMtfIpcBOUS1v1pDi9Xqip5RoKZVxrGNr
-         OrlBKk9imO+5liCmsOGAcRc+BpWMguai3XZeXrJ9eJxLvVaeF42KYu1dFnvVyPuJviqY
-         8CQwY0ICzRKJtlxtRwn0NJexzAXSYn8Z/OxZRYSg8aVA3tDjtdYA6Xr8Ydl2JB2+E3eI
-         jy+oAd5YKc5q4E3bgJf1WlX0BPtI9iuRn36hL886H2IWoiy/hcAmDch8Dq9jDbeRs4q3
-         rBcw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=lhqNQ+1Z1kahGIO+uyaV8/ry/9Z5ItZXH4kcRtyofX4=;
+        b=NH+4Z/8E5kakP6vexUuUO6lRuehdqf+UxPOQlmadaTn/h7J8NA9YKi1upG/0gvXOX0
+         o6zM3L/zFT1YtivjIldnaUVo00U+5mpiln+OSIZlaeTpwSKe2RO+UEVcihL/Cipwpd8f
+         soqKRolOcv5IFF8rjZNfDQt86r+xp2CVzTBGPiTqvfRFzv2LipdeXog3IeUHiS0Ci/Lr
+         XU9bUErwbSavqblTmlE7Q9aCl6pz76vQg4ZLSFV1Gforfd05yz8tjpkfZKfRRbaZYUYk
+         5KILq2Eks9NejqGcthyKV6Qc5D/8wqcjfEWzHf3HiPmGqa4836aE8UOALJzgaU11bli5
+         cCWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g9si2321232eje.367.2019.04.13.22.59.40
-        for <linux-mm@kvack.org>;
-        Sat, 13 Apr 2019 22:59:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=JkxzeHl1;
+       spf=pass (google.com: domain of leonro@mellanox.com designates 40.107.7.81 as permitted sender) smtp.mailfrom=leonro@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70081.outbound.protection.outlook.com. [40.107.7.81])
+        by mx.google.com with ESMTPS id ay21si5387019ejb.92.2019.04.13.23.57.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 13 Apr 2019 23:57:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of leonro@mellanox.com designates 40.107.7.81 as permitted sender) client-ip=40.107.7.81;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8110615AD;
-	Sat, 13 Apr 2019 22:59:39 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.41.123])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 2A6343F557;
-	Sat, 13 Apr 2019 22:59:33 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org,
-	akpm@linux-foundation.org,
-	will.deacon@arm.com,
-	catalin.marinas@arm.com
-Cc: mhocko@suse.com,
-	mgorman@techsingularity.net,
-	james.morse@arm.com,
-	mark.rutland@arm.com,
-	robin.murphy@arm.com,
-	cpandya@codeaurora.org,
-	arunks@codeaurora.org,
-	dan.j.williams@intel.com,
-	osalvador@suse.de,
-	david@redhat.com,
-	cai@lca.pw,
-	logang@deltatee.com,
-	ira.weiny@intel.com
-Subject: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
-Date: Sun, 14 Apr 2019 11:29:13 +0530
-Message-Id: <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=JkxzeHl1;
+       spf=pass (google.com: domain of leonro@mellanox.com designates 40.107.7.81 as permitted sender) smtp.mailfrom=leonro@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=lhqNQ+1Z1kahGIO+uyaV8/ry/9Z5ItZXH4kcRtyofX4=;
+ b=JkxzeHl1nzpwPZizacrOXtC5oMsyqd5/cfH8lYZFmC5LTJrzxEHeXiLNXgC9FkS15j4d2f6QenG/vGvi+hFQ7O9S0t46JVv2fgMnudFz5Wmnl+X+oDqaSQKG91oMQ+3A9PiQXYQqQZPDO0fda1pYs0WXH0suOQ9aUX0egBFOwys=
+Received: from DB6PR0501MB2694.eurprd05.prod.outlook.com (10.172.226.9) by
+ DB6PR0501MB2584.eurprd05.prod.outlook.com (10.168.74.135) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1792.17; Sun, 14 Apr 2019 06:57:12 +0000
+Received: from DB6PR0501MB2694.eurprd05.prod.outlook.com
+ ([fe80::6ca8:55cc:a7c3:e214]) by DB6PR0501MB2694.eurprd05.prod.outlook.com
+ ([fe80::6ca8:55cc:a7c3:e214%11]) with mapi id 15.20.1771.021; Sun, 14 Apr
+ 2019 06:57:12 +0000
+From: Leon Romanovsky <leonro@mellanox.com>
+To: "jglisse@redhat.com" <jglisse@redhat.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Jason Gunthorpe <jgg@mellanox.com>, Andrew
+ Morton <akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH] mm/hmm: kconfig split HMM address space mirroring from
+ device memory
+Thread-Topic: [PATCH] mm/hmm: kconfig split HMM address space mirroring from
+ device memory
+Thread-Index: AQHU8JDkrzI6G0Gpw0yAwni5wA6t66Y7PWyA
+Date: Sun, 14 Apr 2019 06:57:12 +0000
+Message-ID: <20190414065709.GH3201@mtr-leonro.mtl.com>
+References: <20190411180326.18958-1-jglisse@redhat.com>
+In-Reply-To: <20190411180326.18958-1-jglisse@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: AM6P192CA0057.EURP192.PROD.OUTLOOK.COM
+ (2603:10a6:209:82::34) To DB6PR0501MB2694.eurprd05.prod.outlook.com
+ (2603:10a6:4:82::9)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=leonro@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [193.47.165.251]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 5d850f72-b763-42e9-7e05-08d6c0a66b94
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600139)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:DB6PR0501MB2584;
+x-ms-traffictypediagnostic: DB6PR0501MB2584:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <DB6PR0501MB2584F6D3A48A2D41769D88ECB02A0@DB6PR0501MB2584.eurprd05.prod.outlook.com>
+x-forefront-prvs: 00073DB75F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(396003)(366004)(39850400004)(136003)(376002)(199004)(189003)(6916009)(54906003)(186003)(229853002)(26005)(1076003)(2351001)(476003)(8676002)(99286004)(966005)(97736004)(71200400001)(71190400001)(486006)(8936002)(316002)(81166006)(86362001)(446003)(105586002)(1730700003)(4326008)(6116002)(33656002)(106356001)(66066001)(305945005)(81156014)(256004)(6246003)(5660300002)(5640700003)(3846002)(102836004)(52116002)(6506007)(386003)(2501003)(9686003)(478600001)(6512007)(7736002)(11346002)(53936002)(76176011)(4744005)(2906002)(14454004)(6486002)(6306002)(6436002)(68736007)(25786009);DIR:OUT;SFP:1101;SCL:1;SRVR:DB6PR0501MB2584;H:DB6PR0501MB2694.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ ggm67+okBOKDBVNC8n3ekiLvs8SHaI2cKQ4FnIebO81391dbej6wB05PZI0qmWFDBbAoM8yKUFYoCYrWZP1fkxCXx2JgWokypALopkrS06fPTxZYe/gAF2VupPZiZf4m6Zu2hp0HZiI5LzOs9qwn2UdZM1YA6gkNPSfpjTjwhkdvnWKyf2tjZpnF1itpGO4FE7yXXzn/CXfI7KakMHiR6676PIaHy16jqHGyQtfFYvBvsBJHfrDtvG/7BUviZVmEuVvOW0EcNKv9byfiDQ6IFOKBdiqwaR6jzxsnmuUy12v39ajfCQ6pv+3jnHUmxHRa8nvGjkelEOKYGT+1TG6zDvlb6BRNaPbd6b/dnbxlnnZG7Z8WZKsRj+4cBLEuTeKlG6fOow2vuIcaHjmYoKe4ID/LUOdDTL7E+0MF/VhNYPY=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <E8288B126A81F146A172D7ABA61B34D6@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 5d850f72-b763-42e9-7e05-08d6c0a66b94
+X-MS-Exchange-CrossTenant-originalarrivaltime: 14 Apr 2019 06:57:12.8277
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB6PR0501MB2584
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Memory removal from an arch perspective involves tearing down two different
-kernel based mappings i.e vmemmap and linear while releasing related page
-table pages allocated for the physical memory range to be removed.
+On Thu, Apr 11, 2019 at 02:03:26PM -0400, jglisse@redhat.com wrote:
+> From: J=E9r=F4me Glisse <jglisse@redhat.com>
+>
+> To allow building device driver that only care about address space
+> mirroring (like RDMA ODP) on platform that do not have all the pre-
+> requisite for HMM device memory (like ZONE_DEVICE on ARM) split the
+> HMM_MIRROR option dependency from the HMM_DEVICE dependency.
+>
+> Signed-off-by: J=E9r=F4me Glisse <jglisse@redhat.com>
+> Cc: Leon Romanovsky <leonro@mellanox.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  mm/Kconfig | 17 ++++++++++-------
+>  1 file changed, 10 insertions(+), 7 deletions(-)
+>
 
-Define a common kernel page table tear down helper remove_pagetable() which
-can be used to unmap given kernel virtual address range. In effect it can
-tear down both vmemap or kernel linear mappings. This new helper is called
-from both vmemamp_free() and ___remove_pgd_mapping() during memory removal.
-The argument 'direct' here identifies kernel linear mappings.
+Thanks,
 
-Vmemmap mappings page table pages are allocated through sparse mem helper
-functions like vmemmap_alloc_block() which does not cycle the pages through
-pgtable_page_ctor() constructs. Hence while removing it skips corresponding
-destructor construct pgtable_page_dtor().
+It gave me an option simply enable HMM_MIRROR without too much hassle as
+it was before and compile your v3 [1].
 
-While here update arch_add_mempory() to handle __add_pages() failures by
-just unmapping recently added kernel linear mapping. Now enable memory hot
-remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
+Tested-by: Leon Romanovsky <leonro@mellanox.com>
 
-This implementation is overall inspired from kernel page table tear down
-procedure on X86 architecture.
-
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
- arch/arm64/Kconfig               |   3 +
- arch/arm64/include/asm/pgtable.h |   2 +
- arch/arm64/mm/mmu.c              | 221 ++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 224 insertions(+), 2 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index c383625..a870eb2 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -267,6 +267,9 @@ config HAVE_GENERIC_GUP
- config ARCH_ENABLE_MEMORY_HOTPLUG
- 	def_bool y
- 
-+config ARCH_ENABLE_MEMORY_HOTREMOVE
-+	def_bool y
-+
- config SMP
- 	def_bool y
- 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index de70c1e..1ee22ff 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -555,6 +555,7 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
- 
- #else
- 
-+#define pmd_index(addr) 0
- #define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
- 
- /* Match pmd_offset folding in <asm/generic/pgtable-nopmd.h> */
-@@ -612,6 +613,7 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
- 
- #else
- 
-+#define pud_index(adrr)	0
- #define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
- 
- /* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index ef82312..a4750fe 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -733,6 +733,194 @@ int kern_addr_valid(unsigned long addr)
- 
- 	return pfn_valid(pte_pfn(pte));
- }
-+
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+static void free_pagetable(struct page *page, int order)
-+{
-+	unsigned long magic;
-+	unsigned int nr_pages = 1 << order;
-+
-+	if (PageReserved(page)) {
-+		__ClearPageReserved(page);
-+
-+		magic = (unsigned long)page->freelist;
-+		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
-+			while (nr_pages--)
-+				put_page_bootmem(page++);
-+		} else {
-+			while (nr_pages--)
-+				free_reserved_page(page++);
-+		}
-+	} else {
-+		free_pages((unsigned long)page_address(page), order);
-+	}
-+}
-+
-+#if (CONFIG_PGTABLE_LEVELS > 2)
-+static void free_pte_table(pte_t *pte_start, pmd_t *pmd)
-+{
-+	pte_t *pte;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		pte = pte_start + i;
-+		if (!pte_none(*pte))
-+			return;
-+	}
-+
-+	free_pagetable(pmd_page(*pmd), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pmd_clear(pmd);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+#else
-+static void free_pte_table(pte_t *pte_start, pmd_t *pmd)
-+{
-+}
-+#endif
-+
-+#if (CONFIG_PGTABLE_LEVELS > 3)
-+static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
-+{
-+	pmd_t *pmd;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd = pmd_start + i;
-+		if (!pmd_none(*pmd))
-+			return;
-+	}
-+
-+	free_pagetable(pud_page(*pud), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pud_clear(pud);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+
-+static void free_pud_table(pud_t *pud_start, pgd_t *pgd)
-+{
-+	pud_t *pud;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		pud = pud_start + i;
-+		if (!pud_none(*pud))
-+			return;
-+	}
-+
-+	free_pagetable(pgd_page(*pgd), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pgd_clear(pgd);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+#else
-+static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
-+{
-+}
-+
-+static void free_pud_table(pud_t *pud_start, pgd_t *pgd)
-+{
-+}
-+#endif
-+
-+static void
-+remove_pte_table(pte_t *pte_start, unsigned long addr,
-+			unsigned long end, bool direct)
-+{
-+	pte_t *pte;
-+
-+	pte = pte_start + pte_index(addr);
-+	for (; addr < end; addr += PAGE_SIZE, pte++) {
-+		if (!pte_present(*pte))
-+			continue;
-+
-+		if (!direct)
-+			free_pagetable(pte_page(*pte), 0);
-+		spin_lock(&init_mm.page_table_lock);
-+		pte_clear(&init_mm, addr, pte);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+}
-+
-+static void
-+remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
-+			unsigned long end, bool direct)
-+{
-+	unsigned long next;
-+	pte_t *pte_base;
-+	pmd_t *pmd;
-+
-+	pmd = pmd_start + pmd_index(addr);
-+	for (; addr < end; addr = next, pmd++) {
-+		next = pmd_addr_end(addr, end);
-+		if (!pmd_present(*pmd))
-+			continue;
-+
-+		if (pmd_sect(*pmd)) {
-+			if (!direct)
-+				free_pagetable(pmd_page(*pmd),
-+						get_order(PMD_SIZE));
-+			spin_lock(&init_mm.page_table_lock);
-+			pmd_clear(pmd);
-+			spin_unlock(&init_mm.page_table_lock);
-+			continue;
-+		}
-+		pte_base = pte_offset_kernel(pmd, 0UL);
-+		remove_pte_table(pte_base, addr, next, direct);
-+		free_pte_table(pte_base, pmd);
-+	}
-+}
-+
-+static void
-+remove_pud_table(pud_t *pud_start, unsigned long addr,
-+			unsigned long end, bool direct)
-+{
-+	unsigned long next;
-+	pmd_t *pmd_base;
-+	pud_t *pud;
-+
-+	pud = pud_start + pud_index(addr);
-+	for (; addr < end; addr = next, pud++) {
-+		next = pud_addr_end(addr, end);
-+		if (!pud_present(*pud))
-+			continue;
-+
-+		if (pud_sect(*pud)) {
-+			if (!direct)
-+				free_pagetable(pud_page(*pud),
-+						get_order(PUD_SIZE));
-+			spin_lock(&init_mm.page_table_lock);
-+			pud_clear(pud);
-+			spin_unlock(&init_mm.page_table_lock);
-+			continue;
-+		}
-+		pmd_base = pmd_offset(pud, 0UL);
-+		remove_pmd_table(pmd_base, addr, next, direct);
-+		free_pmd_table(pmd_base, pud);
-+	}
-+}
-+
-+static void
-+remove_pagetable(unsigned long start, unsigned long end, bool direct)
-+{
-+	unsigned long addr, next;
-+	pud_t *pud_base;
-+	pgd_t *pgd;
-+
-+	for (addr = start; addr < end; addr = next) {
-+		next = pgd_addr_end(addr, end);
-+		pgd = pgd_offset_k(addr);
-+		if (!pgd_present(*pgd))
-+			continue;
-+
-+		pud_base = pud_offset(pgd, 0UL);
-+		remove_pud_table(pud_base, addr, next, direct);
-+		free_pud_table(pud_base, pgd);
-+	}
-+	flush_tlb_kernel_range(start, end);
-+}
-+#endif
-+
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- #if !ARM64_SWAPPER_USES_SECTION_MAPS
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-@@ -780,6 +968,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
- void vmemmap_free(unsigned long start, unsigned long end,
- 		struct vmem_altmap *altmap)
- {
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	remove_pagetable(start, end, false);
-+#endif
- }
- #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
- 
-@@ -1065,10 +1256,16 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
-+static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
-+{
-+	WARN_ON(pgdir != init_mm.pgd);
-+	remove_pagetable(start, start + size, true);
-+}
-+
- int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- 		    bool want_memblock)
- {
--	int flags = 0;
-+	int ret, flags = 0;
- 
- 	if (rodata_full || debug_pagealloc_enabled())
- 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-@@ -1076,7 +1273,27 @@ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
- 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
- 			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
- 
--	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
-+	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
- 			   altmap, want_memblock);
-+	if (ret)
-+		__remove_pgd_mapping(swapper_pg_dir,
-+					__phys_to_virt(start), size);
-+	return ret;
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
-+{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	struct zone *zone = page_zone(pfn_to_page(start_pfn));
-+	int ret;
-+
-+	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
-+	if (!ret)
-+		__remove_pgd_mapping(swapper_pg_dir,
-+					__phys_to_virt(start), size);
-+	return ret;
-+}
-+#endif
- #endif
--- 
-2.7.4
+[1] https://patchwork.kernel.org/patch/10894281/
 
