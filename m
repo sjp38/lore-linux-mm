@@ -2,161 +2,168 @@ Return-Path: <SRS0=+oA7=SQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 191E8C10F13
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 17:00:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C19E8C10F13
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 18:21:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D617820880
-	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 17:00:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D617820880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 4ACA3206B7
+	for <linux-mm@archiver.kernel.org>; Sun, 14 Apr 2019 18:21:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=colorfullife-com.20150623.gappssmtp.com header.i=@colorfullife-com.20150623.gappssmtp.com header.b="FvLguiWQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ACA3206B7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=colorfullife.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 763866B0003; Sun, 14 Apr 2019 13:00:52 -0400 (EDT)
+	id 9C0F16B0003; Sun, 14 Apr 2019 14:21:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 712CA6B0006; Sun, 14 Apr 2019 13:00:52 -0400 (EDT)
+	id 948796B0006; Sun, 14 Apr 2019 14:21:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 628F16B0007; Sun, 14 Apr 2019 13:00:52 -0400 (EDT)
+	id 838456B0007; Sun, 14 Apr 2019 14:21:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 159B06B0003
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 13:00:52 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id q3so12805195wmc.0
-        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 10:00:52 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33CFC6B0003
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 14:21:34 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id a206so12431739wmh.2
+        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 11:21:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=/f43oPQ9tdnfUN30pUlmaJB8+1vU0+oCCPIn+6xYknc=;
-        b=sNU4qMZNJbKqhg3fwbtnDFfA6CN9Ak/PakmIIuAwN1ohK0UT9RC9jtcH3/W5zZZ3CX
-         ZAd+/6++RTK16iekjlmlM68pepU/WhPATE8Ee/FhAtALp3aSPk8s8f4IFeaV0Xheh4A8
-         qSNUE1r7YfR0WhMr72w2R5UiD5GfBFbmzeUVljcVL60Dw0UrkG+p4DL+1S0toahIbWhm
-         NTN9nGakQEItUM5c2rvsI5o/9AXxxMQnBXAnec+OKAUIjEoxwfoyVkJ0KdM/4eVt0OrU
-         xFKMhd4b2QBQTemaCtnqQdF4NNgNmjgoa5+S6/izQk29eW4FD8brvAud1MBpXWb4kvAV
-         A9ZA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAWZ9BbJAy2p6O+8mUwCJnPb5qTm/lukUIe3EfwS9fqTA3l+FDf4
-	Tp+GwH6I3SkYpgGUJovIFVTcVKwuMhQqG9YMvjXz2GlNkarb9pJscsHZZ+2tf2pgs/mAU2MMGIO
-	fkxDWa6Js28ykIOJS8bKnnR6ceOyDKahnUVa6rGUUHeiF+72nrP01LASMRrgMiVjLOw==
-X-Received: by 2002:adf:f70e:: with SMTP id r14mr44078344wrp.37.1555261251635;
-        Sun, 14 Apr 2019 10:00:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBMtlGmCnbsRx+Nrcg9lBkt/eHqv0Iq0Xiz2Xh+KdW0wlivqGhKqbjKxQ84z+12tR9Z8s/
-X-Received: by 2002:adf:f70e:: with SMTP id r14mr44078312wrp.37.1555261250894;
-        Sun, 14 Apr 2019 10:00:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555261250; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=vaqsB7LJneSNZZid9H90AUoXXCygYQad8u6hQPYJOos=;
+        b=HyeRZGQAVNZ0kyMMKS6fw5lZrs4nrSGuAerg+RMNyXgmR+240Td3b+r+DAEnx02rnQ
+         veMIX1vrCYEx/2OVtKar+MgXsiuTh3telUvYLLqA7Pwg0fW121IlonFXeufUq9rl6iKI
+         ci9BoktckLfmz+2aQxXeL4ZUytzb5RcOjaTa4Vg+xspLh+fsG5SzlRVb4iVNgClkmwof
+         lfb10MMRHS3loF0kpNzsYu73QkYqhrpWaK6HfrHuwXob7oEOQioFxCsCsmKike2FG5LW
+         idRsbpExS+M8scrcfIbnH4TIvHB7ULgLqTpeFEzP28AgH79/hHqUg7UkDnAJtSNrxMDk
+         pEkQ==
+X-Gm-Message-State: APjAAAWEKikpoMphmNwy0oLXX4ALtUfngBJti1vxbc1NXycNZ+1i3yqn
+	x7uUPiz8VOr3efCl/TCMleFI99NsXUETLNeqXFLkq1w57LffvU0ayoKEtqqsiL/zA4OTwuirsqY
+	Ll3ClrEwMBms9fmab1t3NWdUT+zVaUHknnyROR0QbJ2M2EIZ18owjB9R6NUCGUPi3hQ==
+X-Received: by 2002:a5d:62c4:: with SMTP id o4mr24263651wrv.282.1555266093536;
+        Sun, 14 Apr 2019 11:21:33 -0700 (PDT)
+X-Received: by 2002:a5d:62c4:: with SMTP id o4mr24263622wrv.282.1555266092487;
+        Sun, 14 Apr 2019 11:21:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555266092; cv=none;
         d=google.com; s=arc-20160816;
-        b=WfBQaeGV+RWsBZLUd0ScQ0p68Q/QgwTimb6ZvHKHxHlBn8PD6r9sQEJu6Ij07JU6bY
-         Vt75rSAliOpUHVMm8fNqAaPDXoxYyv26uZdSc0OYBli5BFEIHgrenrmJHrntnIS4heWJ
-         pi+of87mkL5fIpwxpgs1ii70TdCfzf97xyFFlfLDQ2VtJNjEgphd8wfI8wPAgLBOSyOw
-         eOZuOzKAFK52x8QziO90/T6AdZ5e/litP1Ka+EoyGt7DPbDru4Q9d+toBorQbyIKFMxP
-         EfxCEhXXM435Zv4R1ihCBvy2G/s0wUodiitIYfN424VXdPqzRjr6OR6uaRd/bwQ9c/od
-         VXzQ==
+        b=vBoOoEzH1gxgrsy8Q2CbuhYujo4fiJXd68MR2XQhTCal5zPcxDFL9cJbg85b3wajh0
+         sLsnXqlq8kKYtCnTJswigvo3LR+UzwbQrf/X9/tk4A67SIvl6g20322rEDaJ72NdD8fs
+         MPjs4MfZ50i5c0lkAYxCxX6FGd4RmkzM6YFrqbO871kJrCoEGvn4MM4v3kH45VE1103Q
+         uNKl1le3XTb4WbIbSkHdZWjIh5VSZDImW81/CsyVhTdYtmVtT0SqDtOQ4D5mTqPolrAo
+         YPnoXvlxvIdE5hLLCo3tTGKst8MJbl1l1uX2HUtoWmWX/HQecLd77WmGjSLI+cJy1WQl
+         8IkQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=/f43oPQ9tdnfUN30pUlmaJB8+1vU0+oCCPIn+6xYknc=;
-        b=HuK4olxSfITxixnQwSgiIxrwP8yT2YmYij2DnaoSgTJYbvneowV0ybbLGd4/tBXLei
-         1JZz5VhbBNenyio5q5+TMjfif5IYKfRH5YssxcxqfF+FEQ+TPXa9WO2Oyr/9iY9f7hCL
-         FNtDs7QmniS3U2rR3+7odmRVQmrX8GmvlMiowR9hHGu9KGy1ALFDbIBb0JvnKPGjwIK7
-         pI43yOhNLQ1h1sMs0gfhQAJKHfV8fZs65DXumdajI49SjzZQaOO6oFZzLL+COnv98vMH
-         nVq6Oh9eqieQin+Zp8JZ6m+SCwi4vF59HvAE2nDFK2wdJVQswzUwmVapxRErtARhhEWJ
-         0aHA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=vaqsB7LJneSNZZid9H90AUoXXCygYQad8u6hQPYJOos=;
+        b=q6/ejgcjX/Dnn64U2ZjkCeSB+Fai2I56iIqjAE+j0Bqo5SRuXO8jz1l7yiltIywV+g
+         AQ0j1Inhl2ao5uuKj6cWM6wJODJllus+hz83NhiSh8Lm4tGMlbIVdcTJagtYFfiOJQkO
+         RNsdHQFyvtx+tKxAkY1ouRqv0jQudWfS5Q9PLlhtMUBRtEgOIbQmR1sipS/BOpdaTg3K
+         42AuCSGtokQOfZQAFJ0aEn/sotZ/NGVUFRAHKWT73cFqo39qu+jhqlMXAnwFVetrd3mc
+         3WSZOPeXT6dypwfW8qVbY28W9ko/UF0HualRCfp5xt33Cy4buTnFsciLOEuWcwnq12f8
+         imDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id x6si9124725wmk.43.2019.04.14.10.00.50
+       dkim=pass header.i=@colorfullife-com.20150623.gappssmtp.com header.s=20150623 header.b=FvLguiWQ;
+       spf=pass (google.com: domain of manfred@colorfullife.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=manfred@colorfullife.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q1sor18091224wrj.21.2019.04.14.11.21.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 14 Apr 2019 10:00:50 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (Google Transport Security);
+        Sun, 14 Apr 2019 11:21:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of manfred@colorfullife.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hFiUg-0004Ov-JP; Sun, 14 Apr 2019 19:00:38 +0200
-Date: Sun, 14 Apr 2019 19:00:37 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, 
-    Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, 
-    Alexander Potapenko <glider@google.com>, 
-    Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-    Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, 
-    linux-mm@kvack.org
-Subject: Re: [RFC patch 25/41] mm/kasan: Simplify stacktrace handling
-In-Reply-To: <alpine.DEB.2.21.1904141853530.4917@nanos.tec.linutronix.de>
-Message-ID: <alpine.DEB.2.21.1904141858300.4917@nanos.tec.linutronix.de>
-References: <20190410102754.387743324@linutronix.de> <20190410103645.862294081@linutronix.de> <20190411025509.cslu3nq27g7ww6qu@treble> <alpine.DEB.2.21.1904141853530.4917@nanos.tec.linutronix.de>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@colorfullife-com.20150623.gappssmtp.com header.s=20150623 header.b=FvLguiWQ;
+       spf=pass (google.com: domain of manfred@colorfullife.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=manfred@colorfullife.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=colorfullife-com.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=vaqsB7LJneSNZZid9H90AUoXXCygYQad8u6hQPYJOos=;
+        b=FvLguiWQWYCt8V2f3omIwfu9l6z8zYOkTKg79UMuq/o62P5k8ija/vSyyISId2bIwL
+         6D//lkQMwPDS758u2ZSiQHFfArE7b/KcfB8KwKsdZIaFOXh8heQSaMr4SlH7WJ0jTzvv
+         vEM7H82fa/aVeTbOoPaMKV8QjYmdSCdU6DTZ2ryT/EGxGFjG6kn7JpBeTiSuaWYUYRfp
+         +OUAGkZmva5c7XXbyaby3vreFgXYrTOCf81xNLw95IN4MqI1ky/du+PUpmA2cj0eKY4q
+         C7nLskS6tA/Mjd1sX3rtzRLcs+kZtlHSrvbeFZrs/sS4YVw3z2Xo7IwljhBryU5l2UWK
+         fvGw==
+X-Google-Smtp-Source: APXvYqw4VEtgUbwO/asKFfIT5XFnQbZvtHTl2a71alRWF9uNDk+JXgTVWtFC4c4a60oivtPWRmAEBg==
+X-Received: by 2002:adf:dc88:: with SMTP id r8mr22132559wrj.28.1555266091915;
+        Sun, 14 Apr 2019 11:21:31 -0700 (PDT)
+Received: from linux.fritz.box (p200300D993FEBC00B053C56B24DFEA2F.dip0.t-ipconnect.de. [2003:d9:93fe:bc00:b053:c56b:24df:ea2f])
+        by smtp.googlemail.com with ESMTPSA id 61sm158169712wre.50.2019.04.14.11.21.30
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Sun, 14 Apr 2019 11:21:31 -0700 (PDT)
+Subject: Re: [linux-next:master 6345/7161] ipc/util.c:226:13: note: in
+ expansion of macro 'max'
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>,
+ Linux Memory Management List <linux-mm@kvack.org>,
+ Waiman Long <longman@redhat.com>, Davidlohr Bueso <dbueso@suse.de>
+References: <201904130252.Ws2iLv7w%lkp@intel.com>
+From: Manfred Spraul <manfred@colorfullife.com>
+Message-ID: <e9dc2a8a-6e57-c57a-df1f-678794542d09@colorfullife.com>
+Date: Sun, 14 Apr 2019 20:21:30 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+In-Reply-To: <201904130252.Ws2iLv7w%lkp@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 14 Apr 2019, Thomas Gleixner wrote:
-> On Wed, 10 Apr 2019, Josh Poimboeuf wrote:
-> > On Wed, Apr 10, 2019 at 12:28:19PM +0200, Thomas Gleixner wrote:
-> > > Replace the indirection through struct stack_trace by using the storage
-> > > array based interfaces.
-> > > 
-> > > Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> > > Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> > > Cc: Alexander Potapenko <glider@google.com>
-> > > Cc: Dmitry Vyukov <dvyukov@google.com>
-> > > Cc: kasan-dev@googlegroups.com
-> > > Cc: linux-mm@kvack.org
-> > > ---
-> > >  mm/kasan/common.c |   30 ++++++++++++------------------
-> > >  mm/kasan/report.c |    7 ++++---
-> > >  2 files changed, 16 insertions(+), 21 deletions(-)
-> > > 
-> > > --- a/mm/kasan/common.c
-> > > +++ b/mm/kasan/common.c
-> > > @@ -48,34 +48,28 @@ static inline int in_irqentry_text(unsig
-> > >  		 ptr < (unsigned long)&__softirqentry_text_end);
-> > >  }
-> > >  
-> > > -static inline void filter_irq_stacks(struct stack_trace *trace)
-> > > +static inline unsigned int filter_irq_stacks(unsigned long *entries,
-> > > +					     unsigned int nr_entries)
-> > >  {
-> > > -	int i;
-> > > +	unsigned int i;
-> > >  
-> > > -	if (!trace->nr_entries)
-> > > -		return;
-> > > -	for (i = 0; i < trace->nr_entries; i++)
-> > > -		if (in_irqentry_text(trace->entries[i])) {
-> > > +	for (i = 0; i < nr_entries; i++) {
-> > > +		if (in_irqentry_text(entries[i])) {
-> > >  			/* Include the irqentry function into the stack. */
-> > > -			trace->nr_entries = i + 1;
-> > > -			break;
-> > > +			return i + 1;
-> > 
-> > Isn't this an off-by-one error if "i" points to the last entry of the
-> > array?
-> 
-> Yes, copied one ...
+Hi,
 
-Oh, no. The point is that it returns the number of stack entries to
-store. So if i == nr_entries - 1, then it returns nr_entries, i.e. all
-entries are stored.
+Sorry - it seem that I forgot to retest the patch without sysctl() after 
+converting from direct if/else to max().
 
-Thanks,
+On 4/12/19 8:43 PM, kbuild test robot wrote:
+> [...]
+>     ipc/util.c: In function 'ipc_idr_alloc':
+>     include/linux/kernel.h:828:29: warning: comparison of distinct pointer types lacks a cast
+>        (!!(sizeof((typeof(x) *)1 == (typeof(y) *)1)))
+>                                  ^
+>     include/linux/kernel.h:842:4: note: in expansion of macro '__typecheck'
+>        (__typecheck(x, y) && __no_side_effects(x, y))
+>         ^~~~~~~~~~~
+>     include/linux/kernel.h:852:24: note: in expansion of macro '__safe_cmp'
+>       __builtin_choose_expr(__safe_cmp(x, y), \
+>                             ^~~~~~~~~~
+>     include/linux/kernel.h:868:19: note: in expansion of macro '__careful_cmp'
+>      #define max(x, y) __careful_cmp(x, y, >)
+>                        ^~~~~~~~~~~~~
+>>> ipc/util.c:226:13: note: in expansion of macro 'max'
+>        max_idx = max(ids->in_use*3/2, ipc_min_cycle);
+>                  ^~~
+>
+>     223		if (next_id < 0) { /* !CHECKPOINT_RESTORE or next_id is unset */
+>     224			int max_idx;
+>     225	
+>   > 226			max_idx = max(ids->in_use*3/2, ipc_min_cycle);
 
-	tglx
+With sysctl disabled, ipc_min_cycle is RADIX_TREE_MAP_SIZE, and this is
+
+ > include/linux/radix-tree.h:#define RADIX_TREE_MAP_SIZE  (1UL << 
+RADIX_TREE_MAP_SHIFT)
+
+The checker behind max() is not smart enough to notice that 
+RADIX_TREE_MAP_SIZE can be represented as int without an overflow.
+
+
+What is the right approach?
+
+ > #define ipc_min_cycle    ({    int tmp; tmp = RADIX_TREE_MAP_SIZE; tmp;})
+
+
+--
+
+     Manfred
 
