@@ -2,142 +2,153 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72E37C10F0E
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:21:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2451EC10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:58:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B3822075B
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:21:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BA3FC2075B
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:58:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DblUgg0M"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B3822075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZW0bL8k3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA3FC2075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD53B6B0007; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
+	id 37ECE6B0003; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B84656B0008; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
+	id 32BAE6B0006; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4E496B000A; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
+	id 1F3DC6B0007; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 557216B0007
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id f15so16170465wrq.0
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:21:54 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DBFCA6B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 12:58:18 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e20so12216985pfn.8
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:58:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=;
-        b=Se1ksL8VqsLAi0ewzDczJEaD2qSP8Q068pHQrq1SGCytH3M2uy+JoQugmG6aAvQ7+g
-         gdUSrY5QCCuZXGU2lLT94e2lME2tNmM0sQ5j24LzHYq5jkaN2fyMdr8BtFGj38ZhUJY+
-         X/JR1CAhUl+ztZTy1uZbzXzMB93Job+sncKyqaQ6yAFgq/TUwqwQYU06g5hV+k2fPkRs
-         iog9sG8bpaxzid6akjRyhbboHqeC4G6cuVnp1gsbFKXh3IRQIDsR5CUrXULYJTHoN6eZ
-         jacW9ZZSamkQu/h3pL437VIztC7/40OK7jKtVsMYK6K0IY+vy7+EnroiGa7lDl8XgGIR
-         HpuQ==
-X-Gm-Message-State: APjAAAVk7zhxvre5czmxxLXKqUou5i7FCHj/2kbEvlhxrXZGCjuOWkuK
-	Ld2YTk5/nmXMxXzoTzEHzsY5mrvP5H8mBQWZIgfuo46oL/W6/5ireW9z91GHQ4uPo/8SOsOZgO1
-	Pb3ldPpK0VpG/qdItfg+s0lVOhI1KW4A56v0ZR5ZT6ddB8vyfACsE7auupXsbuWkL2w==
-X-Received: by 2002:adf:f285:: with SMTP id k5mr34300668wro.110.1555345313853;
-        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxGKHeCIrqv2kNElXL5g9gZUKnrLH7WF6NxS/k67xN62x3D18wjVE7zF03c/W7w21hDUyZ
-X-Received: by 2002:adf:f285:: with SMTP id k5mr34300624wro.110.1555345313237;
-        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555345313; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=xoGvw0KP/qcN7+pEhAyZEUhWdqz/Hw7+wj7bzbRJTtM=;
+        b=IQF3+NOruKbAqk13L1ggYF13NP18wsQVTCVZRuhnLJM4yLTrEcgguOBqZ8dRM1VLzY
+         2qcNOIlcfrfgYjvMqvaFrPTn1G3l5scOqz83KQ2CCcnxsaptfXfxxGmjXRFbQMzL7nMF
+         rT4/HHMWuUewyagAtf7ah2MqCsMTYUrGiSLklyIdIq6VMaa1Fm7kR1+QDpBt0iOJdwal
+         eTy6Z9zz4mdHmtgQOHuvG8KaymwqUW+dyGsSIl0sLp8nne52+DIfs/GwMZDPdUkB+P2y
+         6doP2v6UDKnnWAdSL7BEH2AFGWL3inZYTCFOcS3aHEhfPGYILyr7c5MqZKJzCxYzKr2x
+         gLZQ==
+X-Gm-Message-State: APjAAAVZU+nVRrD8+fgyH1s3q05EHH3wjDRKlrhyUp/70oour24A+YJ+
+	zYfENcDR3pROFSc8Iv1PWahtTNG5OcbMoO1y2LRqpH75szyUrUbM8+KKz2qZ3BaGl8rmjN7MTx4
+	HE4cQEOC4j6vyiYqFWXLxiAFC9kFdqnmeDl9gwzPxQauo5wFWL2uQL83620pX5Vpvtw==
+X-Received: by 2002:a63:360e:: with SMTP id d14mr70276873pga.188.1555347498575;
+        Mon, 15 Apr 2019 09:58:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4oS+8cZfmpgAZ3rL1Ei8jS+NkKO0OwztL58C5XGs3/PsONSiISlTn4Vlqaa4ZJiQiaUg8
+X-Received: by 2002:a63:360e:: with SMTP id d14mr70276795pga.188.1555347497621;
+        Mon, 15 Apr 2019 09:58:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555347497; cv=none;
         d=google.com; s=arc-20160816;
-        b=c2vHnpwHzF7mVDFig0kZhaknwZNAi8XgIMhV93lOaeYm8gUJZkBKsLMCNMzoVgqriO
-         KoyfEzEv038aRKQJHKe6NLW67wjMHnzXgMvKhvmpXHc7H4W7FEVGY++pQWeVIAEKwf6C
-         s6bDoqRDt/ow09mkVsrkAceZAfYVkV3xLi2qgJVcv+nCOSTSaXSZCbUGKothCUYEi/H+
-         h88p/FsU0lbf41VDmKdn11XLnnOXCvYxMLI+TjafzP8aK4cLstc0+HTDS2V6A5FtYY6K
-         BMpAJRmzUzG+SLt+cdhXb1kkct2rmizXuYj4C2G3084RwmL/EngktkfaLN5LcCM1r1dN
-         6SWw==
+        b=iHASFlbHhA6DICnKj5jlqNi5EClIi3ItEHnl/PUayUMthJLUj7UEHJcOKDHvBv5xVr
+         J4g9SlQvxpQvPdPrzc/7DfarJ0aQfy33XIRzxPObnfWHtLsYanqCLzVte1f2JZ4lbwsf
+         +N+te1U0xnSDvhzL2ofzI3s5IotQsV6h5upjEMLCA6lO5lfFCzQRRw63KN4JDFX8cagD
+         nyDEuzMnP2MCgICz7rBVUZgyWuxtJsa8Zxxx9lq6citPiDRCdgEMaU7+ZlcIpAnv8J4c
+         9I3OfChEeRS2LR7vPhmKQrR0IYOa5kr3Oo5KUNripCFov7e6zn7LlBdW6AnKp0ziQf13
+         h8Zw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=;
-        b=qhJFTCkTRojhRzktnshk222VNVq106cpUKEUabl6QrY2eyvGmrVlVxPaTiUu2KV8Qj
-         fJhbyMp4Qn+hup0KGWdAjjnUwXpb8HdvCB7E/HAWHmzs3zWvNwaY2MOaicUGy7D0jMQ0
-         3X9Qf9GA3o+PBjBjXFVtP07UDBziUZGE252unVHYunaFBSp2SOMLu/+MSUPjL12yv3cW
-         RbMJidUuPm6WBKbZJAy5VUVzyZyP/nIaW9pxNlx51NSLyi9BRuDNHvOXpSafsVqMs9aE
-         uH22VMtS2QxjE6MxO5SXvDtBjmj2nWnp3C+GnULloJ23UL/F2gr9qycZo3ygjR1fXsI2
-         Kb5Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=xoGvw0KP/qcN7+pEhAyZEUhWdqz/Hw7+wj7bzbRJTtM=;
+        b=EMx5V6UL5i5nshWF8/Y5E3m/MntC5xfZ4boY23YGjlWluDoRnr4FGcIc/D5cfvdfqV
+         2ZX8tQeXgjzNI9zA+1q5iX3aYeyIp1KXqgTBlWUJctaeGuGwj/4sOFGs5srdbvEGEMiF
+         M0spFIFXJrP7JfYt5HEhaSFfDqWl/MQGXe5ro2IDT/OH2QCkofOfsfmHFqFY7U0SvtPG
+         KfLl2D3yhi/glKp3pkDc2KggyiIO7voXiVeDFSbrwKZrtPpdyNCSn9xor6Ygf7Oj/xoy
+         lOa6dRjklhkDbGO8TMzcdpKtS8R4gLc9p2ZbhN5yliOev+IjjFGlX4cSKVhfZn8SVHXF
+         Zx7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DblUgg0M;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id f136si11620528wmf.198.2019.04.15.09.21.53
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZW0bL8k3;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u1si21385603pfa.222.2019.04.15.09.58.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Apr 2019 09:58:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DblUgg0M;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=; b=DblUgg0MVlMFn4rxcAawPMN+F
-	TTxfsfdlN/NB9IQmbQ+z7EYh3FUkUMjyfaEr4KBvUmjxvJV4AEeqdJ1Ww94IEJWE9TDhfntSUaN//
-	yhCEq2IHFDqVtkuDmwIOo+0tn5uXKe3W17J8mOr6NqEFaJXJXS7pY9KiQ7MGRzSIz+/ijlmsfzced
-	OoTxgxlivoKoLopk1LpuNi9hqFFjOJOniWxryojabFVtvaZyKpRBq3urR6vxaslOC+7cL1ik+tTYi
-	Gyf8rcyznvXlJnBxpyPDQI6t3VK1j/OqZfzjOZAPb2z0Myimzi80omeqcGv/vXige5WVA5K41Nxkr
-	ZQGodA+0w==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hG4Mf-0002yi-Rj; Mon, 15 Apr 2019 16:21:50 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 9B5FA29AD7C3D; Mon, 15 Apr 2019 18:21:48 +0200 (CEST)
-Date: Mon, 15 Apr 2019 18:21:48 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>,
-	Sean Christopherson <sean.j.christopherson@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pekka Enberg <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>
-Subject: Re: [patch V4 01/32] mm/slab: Fix broken stack trace storage
-Message-ID: <20190415162148.GM4038@hirez.programming.kicks-ass.net>
-References: <20190414155936.679808307@linutronix.de>
- <20190414160143.591255977@linutronix.de>
- <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com>
- <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
- <alpine.DEB.2.21.1904151101100.1729@nanos.tec.linutronix.de>
- <20190415132339.wiqyzygqklliyml7@treble>
- <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZW0bL8k3;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CEFE7218FE
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 16:58:16 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1555347497;
+	bh=GYACN0p2wjGAv+jMcwdNtW95WFzRSOnlWbGcMv4b6po=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=ZW0bL8k3pZz3YEAIBJW65uPnMTFTzlmZeddbs0gxoFBms70VDJYWNkQWw/Qd95WXc
+	 EKK8oaeIbAxDL2TvmhHswkHHX61RM2EKW9GXEOTLF4NtO6UPAtOj1V87Rs94ME8GJF
+	 xd4VS6cXkg+Axq63gVkPr5PbnndKJrNrmT+0c1Hw=
+Received: by mail-wr1-f51.google.com with SMTP id j9so22883664wrn.6
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:58:16 -0700 (PDT)
+X-Received: by 2002:adf:c788:: with SMTP id l8mr47503243wrg.143.1555347495330;
+ Mon, 15 Apr 2019 09:58:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190414155936.679808307@linutronix.de> <20190414160143.591255977@linutronix.de>
+ <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com> <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+In-Reply-To: <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 15 Apr 2019 09:58:04 -0700
+X-Gmail-Original-Message-ID: <CALCETrXpmj=wp7Uq5r3kUE9iLEg2w6V=zsEL3sMHfc0HF1Yc+Q@mail.gmail.com>
+Message-ID: <CALCETrXpmj=wp7Uq5r3kUE9iLEg2w6V=zsEL3sMHfc0HF1Yc+Q@mail.gmail.com>
+Subject: Re: [patch V3 01/32] mm/slab: Fix broken stack trace storage
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	X86 ML <x86@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, 
+	Sean Christopherson <sean.j.christopherson@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Pekka Enberg <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 15, 2019 at 06:07:44PM +0200, Thomas Gleixner wrote:
-> On Mon, 15 Apr 2019, Josh Poimboeuf wrote:
-> > > +		struct stack_trace trace = {
-> > > +			/* Leave one for the end marker below */
-> > > +			.max_entries	= size - 1,
-> > > +			.entries	= addr,
-> > > +			.skip		= 3,
-> > > +		};
+On Sun, Apr 14, 2019 at 9:34 AM Thomas Gleixner <tglx@linutronix.de> wrote:
+>
+> On Sun, 14 Apr 2019, Andy Lutomirski wrote:
+> > > +               struct stack_trace trace = {
+> > > +                       .max_entries    = size - 4;
+> > > +                       .entries        = addr;
+> > > +                       .skip           = 3;
+> > > +               };
+> >
+> > This looks correct, but I think that it would have been clearer if you
+> > left the size -= 3 above.  You're still incrementing addr, but you're
+> > not decrementing size, so they're out of sync and the resulting code
+> > is hard to follow.
+>
+> What about the below?
+>
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1480,10 +1480,12 @@ static void store_stackinfo(struct kmem_
+>         *addr++ = 0x12345678;
+>         *addr++ = caller;
+>         *addr++ = smp_processor_id();
+> +       size -= 3;
+>  #ifdef CONFIG_STACKTRACE
+>         {
+>                 struct stack_trace trace = {
+> -                       .max_entries    = size - 4;
+> +                       /* Leave one for the end marker below */
+> +                       .max_entries    = size - 1;
+>                         .entries        = addr;
+>                         .skip           = 3;
+>                 };
 
-> > Looks like stack_trace.nr_entries isn't initialized?  (though this code
-> > gets eventually replaced by a later patch)
-> 
-> struct initializer initialized the non mentioned fields to 0, if I'm not
-> totally mistaken.
-
-Correct.
+Looks good to me.
 
