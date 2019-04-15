@@ -2,307 +2,145 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FFACC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:27:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8759BC10F13
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:46:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D1935206B6
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:27:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1935206B6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 501AF2084E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:46:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 501AF2084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gondor.apana.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CE296B0007; Sun, 14 Apr 2019 22:27:47 -0400 (EDT)
+	id D4E186B0003; Sun, 14 Apr 2019 22:46:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67CC86B0008; Sun, 14 Apr 2019 22:27:47 -0400 (EDT)
+	id CFDF26B0006; Sun, 14 Apr 2019 22:46:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 56B556B000A; Sun, 14 Apr 2019 22:27:47 -0400 (EDT)
+	id C137C6B0007; Sun, 14 Apr 2019 22:46:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 348FE6B0007
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 22:27:47 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id g67so2844253vsd.18
-        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 19:27:47 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B4426B0003
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 22:46:46 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f67so11004169pfh.9
+        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 19:46:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=Ud4QlAGwOrCcyiVs7B472eC6PFbxpec59lVyhKL8IO4=;
-        b=OeqcGfa/JxRlwbnuxPM0GcmG7GiP5g8oiClShxb3XWa1zZkqxtfteCYAVL8GP5dq4o
-         pWDRgE4dm3P1PT4eCGjFP92CQiDlQ/phllbbZc01H7cU0amIRKEmmLTtie6XLBhFwqiV
-         kcukItVX+BaFFs/sN98WXZm97AbDnbet3j9AIFJ1K1XKMQ3lHn3xA/LSPdO5lPkvbysR
-         TgzbDKfylvhFhQV79yuyzUZ3AEcWmVf5/BaMXebPTCn2IovJsWrJ8lF2HCwjqqJRIJOy
-         29im3cGS9KEl+rg9BIU5FgyfGVC6pVhBUuYGTc1Aqyhf7Sbek0BVGaNdZ9yGOIRiPKwY
-         dAvw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAVXLTNRf3VUa36APFEq9KYxR8xNYXznczTOB1KcroREQjD2ieHa
-	BAz1g94ZPVtM/MNdflBA+n00myovFkfs0m0X3naBCzqOZWPcTOoEhY0cLYFLISkhAaXa/CRAp9U
-	9U8voJB0ZiSRR/92tmQz3Vehg+A8ftZoExnMtGoubtVtFHJFIledKvHrPRFvWN3VL3g==
-X-Received: by 2002:ab0:278b:: with SMTP id t11mr8685321uap.88.1555295266807;
-        Sun, 14 Apr 2019 19:27:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyG9p/ZQi4BHmykJTWQ/uGasu9xVyfs5+LW74B0hCFnUto6DexgXIbi35hGTZmAzN9P1hs
-X-Received: by 2002:ab0:278b:: with SMTP id t11mr8685306uap.88.1555295266038;
-        Sun, 14 Apr 2019 19:27:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555295266; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ToA02dx3ht25pJHA8PBT/UuVIrfdjx8CtVztKUcUUQY=;
+        b=BtLZkTpu/PQd/oSxQb3vhV93/uXat7H2+rqHRBLhmF4gNwHskxW21JLSKenKCxZRIQ
+         Sw5E8HpEH018K7oAq5x/zIlugaJ7YxugEmvntf4TsNS30fSddCuWZLLdReGOVDE2pZ1a
+         fPmL4q0iJML+Jeg8npkQuGTsGvSa1Gjl5kecN/HBrlC6sgCP+/YOSRAsj5quT2coi92d
+         u+Fh+CuyuART4f1BDV3WgXFKj46z7zG/SKibT3yJXdy4xTkOMC4uJvQ5OGJqDKxlQI/S
+         fBLdvnw2aiiqr24OsUuA1+c0OoTrhYzYRrPMvvvT9JIQCNrr4MTub2mdSMf0+PQma4D2
+         Yoag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of herbert@gondor.apana.org.au designates 104.223.48.154 as permitted sender) smtp.mailfrom=herbert@gondor.apana.org.au
+X-Gm-Message-State: APjAAAVvIToQY+0W5NNQfppf5PNQZ7UIhKK9BmpTlALokU3WwUJupc1m
+	T57hxpzEB0U7la+KBCRrlgmTGYgaspV9K8nfiV36pHsqD/rtb+KHQ1lqb+GFrJ7/2mQODLzowsg
+	1eLFNmijbAYZbu9Mfb6CYSmdObtxe88ovwJjCIcfHF3trN2qlpFeBUXAPTD66PjX3YA==
+X-Received: by 2002:aa7:800e:: with SMTP id j14mr11301735pfi.157.1555296406209;
+        Sun, 14 Apr 2019 19:46:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwElhnqnqBwL0dyvEBNsxnSPOXTzvoZzE64FwM2AA8H5Zi2sKwJdpxUnPLhk76P5t7MyPcL
+X-Received: by 2002:aa7:800e:: with SMTP id j14mr11301674pfi.157.1555296405195;
+        Sun, 14 Apr 2019 19:46:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555296405; cv=none;
         d=google.com; s=arc-20160816;
-        b=DHb6HhtJz2m/ayR7ofAkcvQkEXCt06ZU0RcOvsYMKNHcmttiBGRiI1Og/tqbGbEcWc
-         6Nm/VryHGunVRqFTXWnIxJM/a1+vP3v5qQbOuVeLIxhrum/4yZYBC1XK6EC0+8eKHNuZ
-         aw9W7vdjZbaQJe9RF46WQl5prVym03iYbE5nUDZ1qFy5CFncZdRYZMfn4h6hRw9wNbbY
-         w6gsiFPEJAOfl5WONP0i7dk7LBmg/+UhmIrvHvEhkYNuvUH5zuIzQ9s3/WR2m/gykR1a
-         IU0T/WHJ2+Xu4CnpBHnowz+Jwo7+CHLDhmSfFFi+MaJxt9ipB5yQ3bDvD9oKGpn49VH5
-         9oqw==
+        b=OIGgSzneDWZTzS0B66wCcotPZNuiymzUS/u35RMX2+CvXz8EKayOdkG4/3fUHrCq4t
+         V3vLniU4Eq8EmnYSTAQ7PZB4JYTIk2ZDmQ1s9gsQrUwjqhnf/dRS26iTAb9nm2Q1yYya
+         1dZIM32a87BC2ucBkunEhVZO7SPim52MeAee2MVjz9h0E35MUn00YY7IQ5hKO2WXB5Un
+         4R59xMfMiXQ2Us3g7+105ay9JN8do47cUa/7boJbXlskQujWZ6JVJSDWySEtF0A/TeLM
+         wysP0JxFxykRV0CHxxCkbwgPVQUocZu85IUSB6VCevQSj64loI6gdz/80Eg8kU3qisX0
+         73Bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject;
-        bh=Ud4QlAGwOrCcyiVs7B472eC6PFbxpec59lVyhKL8IO4=;
-        b=SFH34jclxk966Xiy75Xwyfac+k773HQ81hMzzrp2meYZMhinDfAYOnW2ktLt7Oljct
-         d591IW+0Qv0ZPeNcEPjwLR84BC0THoLbsSB9HVIRqyiANbHN5aCjsTWp9HgewX5N4rkD
-         lT7gj8AvzbZeKh8GmJIX5h/+cx5AWFgCBEF5+xHdRpTNb8j7EEgZyNOH9t9S0VHMXhUj
-         oZ6733lYwUUjW84HGLAct99diKJLTk8XP1HAkJDDAXrVOdFASL7wu2jQzLzD8pfX6cio
-         TqW5nZmF/PQvjIMSSMAcaUHzN7p3J7PTmM8leUAzv6/qZsOVie9VwaOL83qBwGan8Ndj
-         ZvTw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ToA02dx3ht25pJHA8PBT/UuVIrfdjx8CtVztKUcUUQY=;
+        b=MXZH9eqDHO7ltTIxMc9AmkdtLEr4c0Ulv1JKM4j2o37mNdFmnlaSQ+MRdDN7TqxwnX
+         w5W1qOxHGjSkd0fRm4dKSePbu5jYGjqm8RCeVRuZsrLs7rL0iZBwYwyM+87wpKKXrabB
+         DAPf4ln+s8y1EN6Idy1QtqeSTsPXenGadptEgp8GFUv1sfL9Tu3QChqot85mxINpPbZ4
+         OXhAzzt4tlaWh39+rxD8A0Ks7ntQxH7cFSIVeBVaR+4G7X597DuPYZee3PK1ILMB9gcb
+         UzDn7y+PVVwNQHgzKtUeUpDalKk6lTw7YigoQO66dFjwk9C2+4S+d2GaIFX59Vhx0bUK
+         m2nA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id k19si7177606vsq.209.2019.04.14.19.27.45
+       spf=pass (google.com: domain of herbert@gondor.apana.org.au designates 104.223.48.154 as permitted sender) smtp.mailfrom=herbert@gondor.apana.org.au
+Received: from deadmen.hmeau.com (orcrist.hmeau.com. [104.223.48.154])
+        by mx.google.com with ESMTPS id ba5si13888034plb.24.2019.04.14.19.46.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 14 Apr 2019 19:27:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 14 Apr 2019 19:46:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of herbert@gondor.apana.org.au designates 104.223.48.154 as permitted sender) client-ip=104.223.48.154;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id 470ACB05A20EA7ED8FC5;
-	Mon, 15 Apr 2019 10:27:40 +0800 (CST)
-Received: from [127.0.0.1] (10.177.131.64) by DGGEMS401-HUB.china.huawei.com
- (10.3.19.201) with Microsoft SMTP Server id 14.3.408.0; Mon, 15 Apr 2019
- 10:27:33 +0800
-Subject: Re: [PATCH v3 3/4] arm64: kdump: support more than one crash kernel
- regions
-To: Mike Rapoport <rppt@linux.ibm.com>
-References: <20190409102819.121335-1-chenzhou10@huawei.com>
- <20190409102819.121335-4-chenzhou10@huawei.com>
- <20190414121315.GD20947@rapoport-lnx>
-CC: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
-	<ebiederm@xmission.com>, <catalin.marinas@arm.com>, <will.deacon@arm.com>,
-	<akpm@linux-foundation.org>, <ard.biesheuvel@linaro.org>,
-	<horms@verge.net.au>, <takahiro.akashi@linaro.org>,
-	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
-	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
-	<wangkefeng.wang@huawei.com>
-From: Chen Zhou <chenzhou10@huawei.com>
-Message-ID: <b43e586c-219c-2911-c8c8-ba66ff7ce926@huawei.com>
-Date: Mon, 15 Apr 2019 10:27:30 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
- Thunderbird/45.7.1
+       spf=pass (google.com: domain of herbert@gondor.apana.org.au designates 104.223.48.154 as permitted sender) smtp.mailfrom=herbert@gondor.apana.org.au
+Received: from gondobar.mordor.me.apana.org.au ([192.168.128.4] helo=gondobar)
+	by deadmen.hmeau.com with esmtps (Exim 4.89 #2 (Debian))
+	id 1hFrdU-0001NG-T0; Mon, 15 Apr 2019 10:46:21 +0800
+Received: from herbert by gondobar with local (Exim 4.89)
+	(envelope-from <herbert@gondor.apana.org.au>)
+	id 1hFrdP-0003On-6f; Mon, 15 Apr 2019 10:46:15 +0800
+Date: Mon, 15 Apr 2019 10:46:15 +0800
+From: Herbert Xu <herbert@gondor.apana.org.au>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kees Cook <keescook@chromium.org>, Eric Biggers <ebiggers@kernel.org>,
+	Rik van Riel <riel@surriel.com>,
+	linux-crypto <linux-crypto@vger.kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	linux-security-module <linux-security-module@vger.kernel.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org
+Subject: Re: [PATCH] crypto: testmgr - allocate buffers with __GFP_COMP
+Message-ID: <20190415024615.f765e7oagw26ezam@gondor.apana.org.au>
+References: <20190411192607.GD225654@gmail.com>
+ <20190411192827.72551-1-ebiggers@kernel.org>
+ <CAGXu5jJ8k7fP5Vb=ygmQ0B45GfrK2PeaV04bPWmcZ6Vb+swgyA@mail.gmail.com>
+ <20190415022412.GA29714@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20190414121315.GD20947@rapoport-lnx>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.131.64]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190415022412.GA29714@bombadil.infradead.org>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mike,
-
-On 2019/4/14 20:13, Mike Rapoport wrote:
-> Hi,
+On Sun, Apr 14, 2019 at 07:24:12PM -0700, Matthew Wilcox wrote:
+> On Thu, Apr 11, 2019 at 01:32:32PM -0700, Kees Cook wrote:
+> > > @@ -156,7 +156,8 @@ static int __testmgr_alloc_buf(char *buf[XBUFSIZE], int order)
+> > >         int i;
+> > >
+> > >         for (i = 0; i < XBUFSIZE; i++) {
+> > > -               buf[i] = (char *)__get_free_pages(GFP_KERNEL, order);
+> > > +               buf[i] = (char *)__get_free_pages(GFP_KERNEL | __GFP_COMP,
+> > > +                                                 order);
+> > 
+> > Is there a reason __GFP_COMP isn't automatically included in all page
+> > allocations? (Or rather, it seems like the exception is when things
+> > should NOT be considered part of the same allocation, so something
+> > like __GFP_SINGLE should exist?.)
 > 
-> On Tue, Apr 09, 2019 at 06:28:18PM +0800, Chen Zhou wrote:
->> After commit (arm64: kdump: support reserving crashkernel above 4G),
->> there may be two crash kernel regions, one is below 4G, the other is
->> above 4G.
->>
->> Crash dump kernel reads more than one crash kernel regions via a dtb
->> property under node /chosen,
->> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>
-> 
-> Somehow I've missed that previously, but how is this supposed to work on
-> EFI systems?
+> The question is not whether or not things should be considered part of the
+> same allocation.  The question is whether the allocation is of a compound
+> page or of N consecutive pages.  Now you're asking what the difference is,
+> and it's whether you need to be able to be able to call compound_head(),
+> compound_order(), PageTail() or use a compound_dtor.  If you don't, then
+> you can save some time at allocation & free by not specifying __GFP_COMP.
 
-Whatever the way in which the systems work, there is FDT pointer(__fdt_pointer)
-in arm64 kernel and file /sys/firmware/fdt will be created in late_initcall.
+Thanks for clarifying Matthew.
 
-Kexec-tools read and update file /sys/firmware/fdt in EFI systems to support kdump to
-boot capture kernel.
+Eric, this means that we should not use __GFP_COMP here just to
+silent what is clearly a broken warning.
 
-For supporting more than one crash kernel regions, kexec-tools make changes accordingly.
-Details are in below:
-http://lists.infradead.org/pipermail/kexec/2019-April/022792.html
-
-Thanks,
-Chen Zhou
-
->  
->> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
->> ---
->>  arch/arm64/mm/init.c     | 66 ++++++++++++++++++++++++++++++++++++++++--------
->>  include/linux/memblock.h |  6 +++++
->>  mm/memblock.c            |  7 ++---
->>  3 files changed, 66 insertions(+), 13 deletions(-)
->>
->> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
->> index 3bebddf..0f18665 100644
->> --- a/arch/arm64/mm/init.c
->> +++ b/arch/arm64/mm/init.c
->> @@ -65,6 +65,11 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
->>  
->>  #ifdef CONFIG_KEXEC_CORE
->>  
->> +/* at most two crash kernel regions, low_region and high_region */
->> +#define CRASH_MAX_USABLE_RANGES	2
->> +#define LOW_REGION_IDX			0
->> +#define HIGH_REGION_IDX			1
->> +
->>  /*
->>   * reserve_crashkernel() - reserves memory for crash kernel
->>   *
->> @@ -297,8 +302,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
->>  		const char *uname, int depth, void *data)
->>  {
->>  	struct memblock_region *usablemem = data;
->> -	const __be32 *reg;
->> -	int len;
->> +	const __be32 *reg, *endp;
->> +	int len, nr = 0;
->>  
->>  	if (depth != 1 || strcmp(uname, "chosen") != 0)
->>  		return 0;
->> @@ -307,22 +312,63 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
->>  	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
->>  		return 1;
->>  
->> -	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
->> -	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
->> +	endp = reg + (len / sizeof(__be32));
->> +	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
->> +		usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
->> +		usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
->> +
->> +		if (++nr >= CRASH_MAX_USABLE_RANGES)
->> +			break;
->> +	}
->>  
->>  	return 1;
->>  }
->>  
->>  static void __init fdt_enforce_memory_region(void)
->>  {
->> -	struct memblock_region reg = {
->> -		.size = 0,
->> -	};
->> +	int i, cnt = 0;
->> +	struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
->> +
->> +	memset(regs, 0, sizeof(regs));
->> +	of_scan_flat_dt(early_init_dt_scan_usablemem, regs);
->> +
->> +	for (i = 0; i < CRASH_MAX_USABLE_RANGES; i++)
->> +		if (regs[i].size)
->> +			cnt++;
->> +		else
->> +			break;
->> +
->> +	if (cnt - 1 == LOW_REGION_IDX)
->> +		memblock_cap_memory_range(regs[LOW_REGION_IDX].base,
->> +				regs[LOW_REGION_IDX].size);
->> +	else if (cnt - 1 == HIGH_REGION_IDX) {
->> +		/*
->> +		 * Two crash kernel regions, cap the memory range
->> +		 * [regs[LOW_REGION_IDX].base, regs[HIGH_REGION_IDX].end]
->> +		 * and then remove the memory range in the middle.
->> +		 */
->> +		int start_rgn, end_rgn, i, ret;
->> +		phys_addr_t mid_base, mid_size;
->> +
->> +		mid_base = regs[LOW_REGION_IDX].base + regs[LOW_REGION_IDX].size;
->> +		mid_size = regs[HIGH_REGION_IDX].base - mid_base;
->> +		ret = memblock_isolate_range(&memblock.memory, mid_base,
->> +				mid_size, &start_rgn, &end_rgn);
->>  
->> -	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
->> +		if (ret)
->> +			return;
->>  
->> -	if (reg.size)
->> -		memblock_cap_memory_range(reg.base, reg.size);
->> +		memblock_cap_memory_range(regs[LOW_REGION_IDX].base,
->> +				regs[HIGH_REGION_IDX].base -
->> +				regs[LOW_REGION_IDX].base +
->> +				regs[HIGH_REGION_IDX].size);
->> +		for (i = end_rgn - 1; i >= start_rgn; i--) {
->> +			if (!memblock_is_nomap(&memblock.memory.regions[i]))
->> +				memblock_remove_region(&memblock.memory, i);
->> +		}
->> +		memblock_remove_range(&memblock.reserved, mid_base,
->> +				mid_base + mid_size);
->> +	}
->>  }
->>  
->>  void __init arm64_memblock_init(void)
->> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->> index 294d5d8..787d252 100644
->> --- a/include/linux/memblock.h
->> +++ b/include/linux/memblock.h
->> @@ -110,9 +110,15 @@ void memblock_discard(void);
->>  
->>  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
->>  				   phys_addr_t size, phys_addr_t align);
->> +void memblock_remove_region(struct memblock_type *type, unsigned long r);
->>  void memblock_allow_resize(void);
->>  int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
->>  int memblock_add(phys_addr_t base, phys_addr_t size);
->> +int memblock_isolate_range(struct memblock_type *type,
->> +					phys_addr_t base, phys_addr_t size,
->> +					int *start_rgn, int *end_rgn);
->> +int memblock_remove_range(struct memblock_type *type,
->> +					phys_addr_t base, phys_addr_t size);
->>  int memblock_remove(phys_addr_t base, phys_addr_t size);
->>  int memblock_free(phys_addr_t base, phys_addr_t size);
->>  int memblock_reserve(phys_addr_t base, phys_addr_t size);
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index e7665cf..1846e2d 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -357,7 +357,8 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
->>  	return ret;
->>  }
->>  
->> -static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
->> +void __init_memblock memblock_remove_region(struct memblock_type *type,
->> +					unsigned long r)
->>  {
->>  	type->total_size -= type->regions[r].size;
->>  	memmove(&type->regions[r], &type->regions[r + 1],
->> @@ -724,7 +725,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
->>   * Return:
->>   * 0 on success, -errno on failure.
->>   */
->> -static int __init_memblock memblock_isolate_range(struct memblock_type *type,
->> +int __init_memblock memblock_isolate_range(struct memblock_type *type,
->>  					phys_addr_t base, phys_addr_t size,
->>  					int *start_rgn, int *end_rgn)
->>  {
->> @@ -784,7 +785,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
->>  	return 0;
->>  }
->>  
->> -static int __init_memblock memblock_remove_range(struct memblock_type *type,
->> +int __init_memblock memblock_remove_range(struct memblock_type *type,
->>  					  phys_addr_t base, phys_addr_t size)
->>  {
->>  	int start_rgn, end_rgn;
->> -- 
->> 2.7.4
->>
-> 
+Cheers,
+-- 
+Email: Herbert Xu <herbert@gondor.apana.org.au>
+Home Page: http://gondor.apana.org.au/~herbert/
+PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
 
