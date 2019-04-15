@@ -6,108 +6,112 @@ X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2451EC10F0E
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:58:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E39CC10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:06:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA3FC2075B
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:58:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C3FC42183F
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:06:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZW0bL8k3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA3FC2075B
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="kQC3glXM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3FC42183F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37ECE6B0003; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
+	id 611486B0003; Mon, 15 Apr 2019 13:06:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32BAE6B0006; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
+	id 5BE936B0006; Mon, 15 Apr 2019 13:06:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F3DC6B0007; Mon, 15 Apr 2019 12:58:19 -0400 (EDT)
+	id 4B07C6B0007; Mon, 15 Apr 2019 13:06:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBFCA6B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 12:58:18 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id e20so12216985pfn.8
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:58:18 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 123496B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 13:06:10 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f7so11642441plr.10
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:06:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=xoGvw0KP/qcN7+pEhAyZEUhWdqz/Hw7+wj7bzbRJTtM=;
-        b=IQF3+NOruKbAqk13L1ggYF13NP18wsQVTCVZRuhnLJM4yLTrEcgguOBqZ8dRM1VLzY
-         2qcNOIlcfrfgYjvMqvaFrPTn1G3l5scOqz83KQ2CCcnxsaptfXfxxGmjXRFbQMzL7nMF
-         rT4/HHMWuUewyagAtf7ah2MqCsMTYUrGiSLklyIdIq6VMaa1Fm7kR1+QDpBt0iOJdwal
-         eTy6Z9zz4mdHmtgQOHuvG8KaymwqUW+dyGsSIl0sLp8nne52+DIfs/GwMZDPdUkB+P2y
-         6doP2v6UDKnnWAdSL7BEH2AFGWL3inZYTCFOcS3aHEhfPGYILyr7c5MqZKJzCxYzKr2x
-         gLZQ==
-X-Gm-Message-State: APjAAAVZU+nVRrD8+fgyH1s3q05EHH3wjDRKlrhyUp/70oour24A+YJ+
-	zYfENcDR3pROFSc8Iv1PWahtTNG5OcbMoO1y2LRqpH75szyUrUbM8+KKz2qZ3BaGl8rmjN7MTx4
-	HE4cQEOC4j6vyiYqFWXLxiAFC9kFdqnmeDl9gwzPxQauo5wFWL2uQL83620pX5Vpvtw==
-X-Received: by 2002:a63:360e:: with SMTP id d14mr70276873pga.188.1555347498575;
-        Mon, 15 Apr 2019 09:58:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz4oS+8cZfmpgAZ3rL1Ei8jS+NkKO0OwztL58C5XGs3/PsONSiISlTn4Vlqaa4ZJiQiaUg8
-X-Received: by 2002:a63:360e:: with SMTP id d14mr70276795pga.188.1555347497621;
-        Mon, 15 Apr 2019 09:58:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555347497; cv=none;
+        bh=BBzizg8bd/kFfxZxKYEBe2OceA+/lU/4tk1HQvVsa/M=;
+        b=Jiq35GOVpmvSRRUg5hZPiw6s6VVjQGdMZEQ3B/4Q9GrAJX1KNz9Q7YOEYb+MUtDF/n
+         kgfmQ3DwHCyoPy6q/7hcW5T77+z1qjnaD15pAJoEjDg6uftpcT+ahVahHUvMaHJFsq23
+         MyVRFxg3TETyaf5t86nGc46coDE+2lekVqFEEjAP42sJmCUxwqE7qaVmPCPbx1KApVvQ
+         l9+QF7RDh7Uwgbz/+V9u4+yyVmj1mzKphDKJ19KjimZH4gz9vZZTJosHyJUQIH7gFAnl
+         gPNMEuIHItJhvUAinpAlhpkRgufKUrCfVpykS4zZhEsvngUS8SJ+vr4dsm3K2LM0e6cr
+         iOgw==
+X-Gm-Message-State: APjAAAUVAtXsS3Vxxt9RDfqy87vltR+4sNXbW22/gRjQFl5991UeV9AZ
+	RWyfUonkzWgVYfasM3HlvPPSGoKfVCJU7vr9gl1LqFdXMpJSJ4WmAy41PLhz9Drs/TZ4INuYyt1
+	qbfS8aR5W0WdzUZsAm3bM8AmJvsh4kjEY7EyuoCJSDg357RgqgJsg3Wh0/oKJ5XhgTw==
+X-Received: by 2002:a17:902:e002:: with SMTP id ca2mr76907471plb.131.1555347969653;
+        Mon, 15 Apr 2019 10:06:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqworQvUiUB79yfvtpT5R11FGEpjuv7Hxmb0/ZEVRzm5StH5ty3LNswJx83Shoi181mAM1y+
+X-Received: by 2002:a17:902:e002:: with SMTP id ca2mr76907408plb.131.1555347968949;
+        Mon, 15 Apr 2019 10:06:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555347968; cv=none;
         d=google.com; s=arc-20160816;
-        b=iHASFlbHhA6DICnKj5jlqNi5EClIi3ItEHnl/PUayUMthJLUj7UEHJcOKDHvBv5xVr
-         J4g9SlQvxpQvPdPrzc/7DfarJ0aQfy33XIRzxPObnfWHtLsYanqCLzVte1f2JZ4lbwsf
-         +N+te1U0xnSDvhzL2ofzI3s5IotQsV6h5upjEMLCA6lO5lfFCzQRRw63KN4JDFX8cagD
-         nyDEuzMnP2MCgICz7rBVUZgyWuxtJsa8Zxxx9lq6citPiDRCdgEMaU7+ZlcIpAnv8J4c
-         9I3OfChEeRS2LR7vPhmKQrR0IYOa5kr3Oo5KUNripCFov7e6zn7LlBdW6AnKp0ziQf13
-         h8Zw==
+        b=qIPYLPaHP46mkLd3/hSOg1Mo3Qv5frXLMSG0DCdmvAfrLfL56UyxY1sUNluOrS5AgX
+         FhvXgKAr2X7lAXqZZiEvA2z99+FIh5F4lPcAuWiHPxv0tQKUkOoOiNZou+qAgOmf1yxQ
+         sv3F8x327S0f0DQfCW4j2Ne2Dh4bhLujDegmSMwtIsbeXleWLWxvVIgIsnWVcTL4Dqvb
+         04/0cckUKRP5x/HTFnAVrzv9qFCovFouXAws/KtbBRwDe0q7A11+lpvSZ/QChCI6jNYl
+         lNa+9ANYZ8M3rDlsH8pHHEiUM0rttXsQ6ESyThf4D9OVtr9Xno0bzwBwDXUsGd0/xcZd
+         pYuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=xoGvw0KP/qcN7+pEhAyZEUhWdqz/Hw7+wj7bzbRJTtM=;
-        b=EMx5V6UL5i5nshWF8/Y5E3m/MntC5xfZ4boY23YGjlWluDoRnr4FGcIc/D5cfvdfqV
-         2ZX8tQeXgjzNI9zA+1q5iX3aYeyIp1KXqgTBlWUJctaeGuGwj/4sOFGs5srdbvEGEMiF
-         M0spFIFXJrP7JfYt5HEhaSFfDqWl/MQGXe5ro2IDT/OH2QCkofOfsfmHFqFY7U0SvtPG
-         KfLl2D3yhi/glKp3pkDc2KggyiIO7voXiVeDFSbrwKZrtPpdyNCSn9xor6Ygf7Oj/xoy
-         lOa6dRjklhkDbGO8TMzcdpKtS8R4gLc9p2ZbhN5yliOev+IjjFGlX4cSKVhfZn8SVHXF
-         Zx7w==
+        bh=BBzizg8bd/kFfxZxKYEBe2OceA+/lU/4tk1HQvVsa/M=;
+        b=HZVoCLrKB0H2tGwNLoQcu9N/7lgW8RyOPcuDCkpjK0KuAF/PHXXU2TAGMAt9YyHl2G
+         xB6aDoNieSUNv6oGI8ufox831TUUsbHVMHe8qgA9AXtRLixcAkjCx7xSEPCADkSThE3C
+         ZNkgT3baJJEJ2IV1vXYTNaPF4yEOfl5x22CAh5gxLsNPospMM/0R3SP2m96GV2GU7XW9
+         coIFqTDgK1QKq5sIUukDMDb7H5Pzp3nbOzbeBCHMrmmgZUx3vUlCIKVzpTMK9byZf64U
+         RCAgKFWxST2D209Qd0I8pkcQqNhjS425hiU95nry7GagoxMQp0itgd7DnZBEGBY43LBu
+         tiEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ZW0bL8k3;
+       dkim=pass header.i=@kernel.org header.s=default header.b=kQC3glXM;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u1si21385603pfa.222.2019.04.15.09.58.17
+        by mx.google.com with ESMTPS id j5si46390393pfi.166.2019.04.15.10.06.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 09:58:17 -0700 (PDT)
+        Mon, 15 Apr 2019 10:06:08 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ZW0bL8k3;
+       dkim=pass header.i=@kernel.org header.s=default header.b=kQC3glXM;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
+Received: from mail-wm1-f45.google.com (mail-wm1-f45.google.com [209.85.128.45])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CEFE7218FE
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 16:58:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 5885A218FC
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 17:06:08 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1555347497;
-	bh=GYACN0p2wjGAv+jMcwdNtW95WFzRSOnlWbGcMv4b6po=;
+	s=default; t=1555347968;
+	bh=8AmWko7T1LjNiFsryfxCZUOlHYcmwEq5GAJP/6U+Kz0=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=ZW0bL8k3pZz3YEAIBJW65uPnMTFTzlmZeddbs0gxoFBms70VDJYWNkQWw/Qd95WXc
-	 EKK8oaeIbAxDL2TvmhHswkHHX61RM2EKW9GXEOTLF4NtO6UPAtOj1V87Rs94ME8GJF
-	 xd4VS6cXkg+Axq63gVkPr5PbnndKJrNrmT+0c1Hw=
-Received: by mail-wr1-f51.google.com with SMTP id j9so22883664wrn.6
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:58:16 -0700 (PDT)
-X-Received: by 2002:adf:c788:: with SMTP id l8mr47503243wrg.143.1555347495330;
- Mon, 15 Apr 2019 09:58:15 -0700 (PDT)
+	b=kQC3glXMim2s7wvWuoydokEwkg+lQbkink0wDxiIvInS4YEe6aPRUg85exchxBD0Y
+	 vHtzSbEugrj8DGcg2SMRXGdxZ0hylUm7iohIIAXok3irFaUIhFFHGgCR8v/2qXSJgR
+	 wsNB1X/BPhnapBDmemqR48LxQ+IFE3hCTSjVPDWs=
+Received: by mail-wm1-f45.google.com with SMTP id n25so21413589wmk.4
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:06:08 -0700 (PDT)
+X-Received: by 2002:a1c:99d5:: with SMTP id b204mr22454485wme.95.1555347966888;
+ Mon, 15 Apr 2019 10:06:06 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190414155936.679808307@linutronix.de> <20190414160143.591255977@linutronix.de>
- <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com> <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+ <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com>
+ <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+ <alpine.DEB.2.21.1904151101100.1729@nanos.tec.linutronix.de>
+ <20190415132339.wiqyzygqklliyml7@treble> <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
+ <20190415161657.2zwboghblj5ducux@treble>
+In-Reply-To: <20190415161657.2zwboghblj5ducux@treble>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 15 Apr 2019 09:58:04 -0700
-X-Gmail-Original-Message-ID: <CALCETrXpmj=wp7Uq5r3kUE9iLEg2w6V=zsEL3sMHfc0HF1Yc+Q@mail.gmail.com>
-Message-ID: <CALCETrXpmj=wp7Uq5r3kUE9iLEg2w6V=zsEL3sMHfc0HF1Yc+Q@mail.gmail.com>
-Subject: Re: [patch V3 01/32] mm/slab: Fix broken stack trace storage
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	X86 ML <x86@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, 
+Date: Mon, 15 Apr 2019 10:05:55 -0700
+X-Gmail-Original-Message-ID: <CALCETrXLa9ec8Lcz2WPML8qQiStpTtDSAGkW=Rv9bMSiunNNMw@mail.gmail.com>
+Message-ID: <CALCETrXLa9ec8Lcz2WPML8qQiStpTtDSAGkW=Rv9bMSiunNNMw@mail.gmail.com>
+Subject: Re: [patch V4 01/32] mm/slab: Fix broken stack trace storage
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, 
 	Sean Christopherson <sean.j.christopherson@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
 	Pekka Enberg <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
@@ -117,38 +121,72 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 14, 2019 at 9:34 AM Thomas Gleixner <tglx@linutronix.de> wrote:
+On Mon, Apr 15, 2019 at 9:17 AM Josh Poimboeuf <jpoimboe@redhat.com> wrote:
 >
-> On Sun, 14 Apr 2019, Andy Lutomirski wrote:
-> > > +               struct stack_trace trace = {
-> > > +                       .max_entries    = size - 4;
-> > > +                       .entries        = addr;
-> > > +                       .skip           = 3;
-> > > +               };
+> On Mon, Apr 15, 2019 at 06:07:44PM +0200, Thomas Gleixner wrote:
+> > On Mon, 15 Apr 2019, Josh Poimboeuf wrote:
+> > > On Mon, Apr 15, 2019 at 11:02:58AM +0200, Thomas Gleixner wrote:
+> > > >   addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
+> > > >
+> > > > - if (size < 5 * sizeof(unsigned long))
+> > > > + if (size < 5)
+> > > >           return;
+> > > >
+> > > >   *addr++ = 0x12345678;
+> > > >   *addr++ = caller;
+> > > >   *addr++ = smp_processor_id();
+> > > > - size -= 3 * sizeof(unsigned long);
+> > > > + size -= 3;
+> > > > +#ifdef CONFIG_STACKTRACE
+> > > >   {
+> > > > -         unsigned long *sptr = &caller;
+> > > > -         unsigned long svalue;
+> > > > -
+> > > > -         while (!kstack_end(sptr)) {
+> > > > -                 svalue = *sptr++;
+> > > > -                 if (kernel_text_address(svalue)) {
+> > > > -                         *addr++ = svalue;
+> > > > -                         size -= sizeof(unsigned long);
+> > > > -                         if (size <= sizeof(unsigned long))
+> > > > -                                 break;
+> > > > -                 }
+> > > > -         }
+> > > > +         struct stack_trace trace = {
+> > > > +                 /* Leave one for the end marker below */
+> > > > +                 .max_entries    = size - 1,
+> > > > +                 .entries        = addr,
+> > > > +                 .skip           = 3,
+> > > > +         };
+> > > >
+> > > > +         save_stack_trace(&trace);
+> > > > +         addr += trace.nr_entries;
+> > > >   }
+> > > > - *addr++ = 0x87654321;
+> > > > +#endif
+> > > > + *addr = 0x87654321;
+> > >
+> > > Looks like stack_trace.nr_entries isn't initialized?  (though this code
+> > > gets eventually replaced by a later patch)
 > >
-> > This looks correct, but I think that it would have been clearer if you
-> > left the size -= 3 above.  You're still incrementing addr, but you're
-> > not decrementing size, so they're out of sync and the resulting code
-> > is hard to follow.
+> > struct initializer initialized the non mentioned fields to 0, if I'm not
+> > totally mistaken.
 >
-> What about the below?
+> Hm, it seems you are correct.  And I thought I knew C.
 >
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1480,10 +1480,12 @@ static void store_stackinfo(struct kmem_
->         *addr++ = 0x12345678;
->         *addr++ = caller;
->         *addr++ = smp_processor_id();
-> +       size -= 3;
->  #ifdef CONFIG_STACKTRACE
->         {
->                 struct stack_trace trace = {
-> -                       .max_entries    = size - 4;
-> +                       /* Leave one for the end marker below */
-> +                       .max_entries    = size - 1;
->                         .entries        = addr;
->                         .skip           = 3;
->                 };
+> > > Who actually reads this stack trace?  I couldn't find a consumer.
+> >
+> > It's stored directly in the memory pointed to by @addr and that's the freed
+> > cache memory. If that is used later (UAF) then the stack trace can be
+> > printed to see where it was freed.
+>
+> Right... but who reads it?
 
-Looks good to me.
+That seems like a reasonable question.  After some grepping and some
+git searching, it looks like there might not be any users.  I found
+SLAB_STORE_USER, but that seems to be independent.
+
+So maybe the whole mess should just be deleted.  If anyone ever
+notices, they can re-add it better.
+
+--Andy
 
