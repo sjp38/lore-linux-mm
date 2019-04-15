@@ -2,100 +2,110 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0405C282DA
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:17:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72E37C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:21:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9ED66206B6
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:17:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9ED66206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2B3822075B
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 16:21:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DblUgg0M"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B3822075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C6666B0007; Mon, 15 Apr 2019 12:17:04 -0400 (EDT)
+	id BD53B6B0007; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 175B76B0008; Mon, 15 Apr 2019 12:17:04 -0400 (EDT)
+	id B84656B0008; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0652D6B000A; Mon, 15 Apr 2019 12:17:04 -0400 (EDT)
+	id A4E496B000A; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB5926B0007
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 12:17:03 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id o34so16563142qte.5
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:17:03 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 557216B0007
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 12:21:54 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id f15so16170465wrq.0
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 09:21:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=jIWyX6gemaKwK7U5Iih6Rno5jYZVIugOJ3QQ9v7pcBc=;
-        b=FWPsaoxtzLriNc6l/hrAYj15mM/HIYl5hIkzxYHcyK4ysZgSSuKXbI5/e8V4Qv8O+e
-         S5YannjJzE0eGLXXgiez4HW8TobQdyYK29Wtj5Ab+rgmf5pP1X2ypyRfWjb11vzXwtQ0
-         COxmfcWNLNFECU1OY9EZqWftea3sKqAA3X8bPVjLuIfOlbFjzpBaWb0UI09BY6qHLjXV
-         adfboVLY0l8gp32vHL26Zbmb+Vlzj3lqz28YgBZqS9dgw8/8VhC9cEynawc2IfuMh14v
-         8hQbz7ze7aYgJe6MtAypcRmrF4Xvgy2Iwznf88lz9K10ogcfQT1xe0ykGqpf1byaw4LK
-         ZR4w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV254BvxuNjLa5jv0yZgQaU4+qkzSzGnDDloEr9s6tty/JXqI7r
-	p9vT3OILVDK95iIamneYAyH559WPYWLta7kKfKvem29Wkjqh7rtLf5s2QGcFyDY1/YQ8VjHQndq
-	/tKfATfDo/v5p7oOl8mxYyDsm7H06Pzca/CqKueQVLM6gfppcqf67ousrcesnoOmAjQ==
-X-Received: by 2002:ac8:91b:: with SMTP id t27mr59929143qth.107.1555345023633;
-        Mon, 15 Apr 2019 09:17:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydSqhsyN+6UoXPmp4b+sybNRfgyun+d0cciuDKYsb6gznzWwTGzeYlHl/CvhJnyOsIgJeX
-X-Received: by 2002:ac8:91b:: with SMTP id t27mr59929083qth.107.1555345022936;
-        Mon, 15 Apr 2019 09:17:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555345022; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=;
+        b=Se1ksL8VqsLAi0ewzDczJEaD2qSP8Q068pHQrq1SGCytH3M2uy+JoQugmG6aAvQ7+g
+         gdUSrY5QCCuZXGU2lLT94e2lME2tNmM0sQ5j24LzHYq5jkaN2fyMdr8BtFGj38ZhUJY+
+         X/JR1CAhUl+ztZTy1uZbzXzMB93Job+sncKyqaQ6yAFgq/TUwqwQYU06g5hV+k2fPkRs
+         iog9sG8bpaxzid6akjRyhbboHqeC4G6cuVnp1gsbFKXh3IRQIDsR5CUrXULYJTHoN6eZ
+         jacW9ZZSamkQu/h3pL437VIztC7/40OK7jKtVsMYK6K0IY+vy7+EnroiGa7lDl8XgGIR
+         HpuQ==
+X-Gm-Message-State: APjAAAVk7zhxvre5czmxxLXKqUou5i7FCHj/2kbEvlhxrXZGCjuOWkuK
+	Ld2YTk5/nmXMxXzoTzEHzsY5mrvP5H8mBQWZIgfuo46oL/W6/5ireW9z91GHQ4uPo/8SOsOZgO1
+	Pb3ldPpK0VpG/qdItfg+s0lVOhI1KW4A56v0ZR5ZT6ddB8vyfACsE7auupXsbuWkL2w==
+X-Received: by 2002:adf:f285:: with SMTP id k5mr34300668wro.110.1555345313853;
+        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxGKHeCIrqv2kNElXL5g9gZUKnrLH7WF6NxS/k67xN62x3D18wjVE7zF03c/W7w21hDUyZ
+X-Received: by 2002:adf:f285:: with SMTP id k5mr34300624wro.110.1555345313237;
+        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555345313; cv=none;
         d=google.com; s=arc-20160816;
-        b=r+wMy7Jjyu2kuGJacFC+oLwJHEypAX+ZpTKWh3das/ROGwvL78BpGk3NLFt92yJy37
-         +RqBGDv1ABY0BE9gewub/m7ARevWm9dn2CObZpyYpkPlVB23FJI2jglfHPMIkVHOeOzl
-         KKOJz/NKmySXDaBVwkIqKmOVflxFzLPPk2w9LNEeh7JUQH8ok16NoaS+6S4Qtx4tZzF4
-         rjGsTUuYhZ7xQYnhKqvBboOhmase+KsQFEbUDmjUbXe8xK5vvqgk163rOaVAKuQ+m3Rx
-         Chxbhiv3Wbc7hcIZ26sDxFVD3bBcM1yuJcNzqSMtqgrVcpN7Cdr5b1WrDhGGjv2gJi7G
-         XvBg==
+        b=c2vHnpwHzF7mVDFig0kZhaknwZNAi8XgIMhV93lOaeYm8gUJZkBKsLMCNMzoVgqriO
+         KoyfEzEv038aRKQJHKe6NLW67wjMHnzXgMvKhvmpXHc7H4W7FEVGY++pQWeVIAEKwf6C
+         s6bDoqRDt/ow09mkVsrkAceZAfYVkV3xLi2qgJVcv+nCOSTSaXSZCbUGKothCUYEi/H+
+         h88p/FsU0lbf41VDmKdn11XLnnOXCvYxMLI+TjafzP8aK4cLstc0+HTDS2V6A5FtYY6K
+         BMpAJRmzUzG+SLt+cdhXb1kkct2rmizXuYj4C2G3084RwmL/EngktkfaLN5LcCM1r1dN
+         6SWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=jIWyX6gemaKwK7U5Iih6Rno5jYZVIugOJ3QQ9v7pcBc=;
-        b=IhgCrfR9hEkSIOP6onNLJBD2aCoPB5rYA9GMdX5QFRBa+Sdsa+kBkuCuMzhmrC7uXh
-         AXTwKSnwxxrOghMo4l6xB/RJeRH79BU7MZJ0FLW3Zb8TeS3luxw9pcvqRSteP0tnpdzi
-         gLGf4V+o/XbcA7807+5nPEOB37tNTyeZMqO8MvumNgOB6dUcCbfX9cVY4TiRlDQUIQZK
-         q0lbttIV7ZcNrVeTz8ciUfz2aHtiskQkryzPBqYFDQXxVlgNfWV22wBgC5qSFt5ngu66
-         JzRWafiJOoCIOv7tuCAk+jmuAFZzo9qIEGLXcpbHTU09VzMoYJdmQ1cjFp0Pb6MnLYZL
-         FQNQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=;
+        b=qhJFTCkTRojhRzktnshk222VNVq106cpUKEUabl6QrY2eyvGmrVlVxPaTiUu2KV8Qj
+         fJhbyMp4Qn+hup0KGWdAjjnUwXpb8HdvCB7E/HAWHmzs3zWvNwaY2MOaicUGy7D0jMQ0
+         3X9Qf9GA3o+PBjBjXFVtP07UDBziUZGE252unVHYunaFBSp2SOMLu/+MSUPjL12yv3cW
+         RbMJidUuPm6WBKbZJAy5VUVzyZyP/nIaW9pxNlx51NSLyi9BRuDNHvOXpSafsVqMs9aE
+         uH22VMtS2QxjE6MxO5SXvDtBjmj2nWnp3C+GnULloJ23UL/F2gr9qycZo3ygjR1fXsI2
+         Kb5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s57si2714741qtj.86.2019.04.15.09.17.02
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DblUgg0M;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f136si11620528wmf.198.2019.04.15.09.21.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 09:17:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 15 Apr 2019 09:21:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9970C30B27AE;
-	Mon, 15 Apr 2019 16:17:01 +0000 (UTC)
-Received: from treble (ovpn-120-105.rdu2.redhat.com [10.10.120.105])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8B65A19C77;
-	Mon, 15 Apr 2019 16:16:59 +0000 (UTC)
-Date: Mon, 15 Apr 2019 11:16:57 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=DblUgg0M;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=dqrr3CkKLNtBh20lOnWpTx6Xh80kM8mkgkJB9rxuKGI=; b=DblUgg0MVlMFn4rxcAawPMN+F
+	TTxfsfdlN/NB9IQmbQ+z7EYh3FUkUMjyfaEr4KBvUmjxvJV4AEeqdJ1Ww94IEJWE9TDhfntSUaN//
+	yhCEq2IHFDqVtkuDmwIOo+0tn5uXKe3W17J8mOr6NqEFaJXJXS7pY9KiQ7MGRzSIz+/ijlmsfzced
+	OoTxgxlivoKoLopk1LpuNi9hqFFjOJOniWxryojabFVtvaZyKpRBq3urR6vxaslOC+7cL1ik+tTYi
+	Gyf8rcyznvXlJnBxpyPDQI6t3VK1j/OqZfzjOZAPb2z0Myimzi80omeqcGv/vXige5WVA5K41Nxkr
+	ZQGodA+0w==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hG4Mf-0002yi-Rj; Mon, 15 Apr 2019 16:21:50 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 9B5FA29AD7C3D; Mon, 15 Apr 2019 18:21:48 +0200 (CEST)
+Date: Mon, 15 Apr 2019 18:21:48 +0200
+From: Peter Zijlstra <peterz@infradead.org>
 To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
-	X86 ML <x86@kernel.org>,
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>,
 	Sean Christopherson <sean.j.christopherson@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Pekka Enberg <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>
 Subject: Re: [patch V4 01/32] mm/slab: Fix broken stack trace storage
-Message-ID: <20190415161657.2zwboghblj5ducux@treble>
+Message-ID: <20190415162148.GM4038@hirez.programming.kicks-ass.net>
 References: <20190414155936.679808307@linutronix.de>
  <20190414160143.591255977@linutronix.de>
  <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com>
@@ -104,12 +114,10 @@ References: <20190414155936.679808307@linutronix.de>
  <20190415132339.wiqyzygqklliyml7@treble>
  <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
-User-Agent: NeoMutt/20180716
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 15 Apr 2019 16:17:02 +0000 (UTC)
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -118,62 +126,18 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, Apr 15, 2019 at 06:07:44PM +0200, Thomas Gleixner wrote:
 > On Mon, 15 Apr 2019, Josh Poimboeuf wrote:
-> > On Mon, Apr 15, 2019 at 11:02:58AM +0200, Thomas Gleixner wrote:
-> > >  	addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
-> > >  
-> > > -	if (size < 5 * sizeof(unsigned long))
-> > > +	if (size < 5)
-> > >  		return;
-> > >  
-> > >  	*addr++ = 0x12345678;
-> > >  	*addr++ = caller;
-> > >  	*addr++ = smp_processor_id();
-> > > -	size -= 3 * sizeof(unsigned long);
-> > > +	size -= 3;
-> > > +#ifdef CONFIG_STACKTRACE
-> > >  	{
-> > > -		unsigned long *sptr = &caller;
-> > > -		unsigned long svalue;
-> > > -
-> > > -		while (!kstack_end(sptr)) {
-> > > -			svalue = *sptr++;
-> > > -			if (kernel_text_address(svalue)) {
-> > > -				*addr++ = svalue;
-> > > -				size -= sizeof(unsigned long);
-> > > -				if (size <= sizeof(unsigned long))
-> > > -					break;
-> > > -			}
-> > > -		}
 > > > +		struct stack_trace trace = {
 > > > +			/* Leave one for the end marker below */
 > > > +			.max_entries	= size - 1,
 > > > +			.entries	= addr,
 > > > +			.skip		= 3,
 > > > +		};
-> > >  
-> > > +		save_stack_trace(&trace);
-> > > +		addr += trace.nr_entries;
-> > >  	}
-> > > -	*addr++ = 0x87654321;
-> > > +#endif
-> > > +	*addr = 0x87654321;
-> > 
+
 > > Looks like stack_trace.nr_entries isn't initialized?  (though this code
 > > gets eventually replaced by a later patch)
 > 
 > struct initializer initialized the non mentioned fields to 0, if I'm not
 > totally mistaken.
 
-Hm, it seems you are correct.  And I thought I knew C.
-
-> > Who actually reads this stack trace?  I couldn't find a consumer.
-> 
-> It's stored directly in the memory pointed to by @addr and that's the freed
-> cache memory. If that is used later (UAF) then the stack trace can be
-> printed to see where it was freed.
-
-Right... but who reads it?
-
--- 
-Josh
+Correct.
 
