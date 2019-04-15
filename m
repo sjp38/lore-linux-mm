@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DB35C10F12
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61FF4C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5DB32087C
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5DB32087C
+	by mail.kernel.org (Postfix) with ESMTP id 1D07E20684
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D07E20684
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 647716B0008; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
+	id E83BC6B000A; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 580C36B000A; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
+	id DE0436B000C; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 494D76B000C; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
+	id CABE86B000D; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 21E856B0008
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A446B000A
 	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 06:47:10 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id w10so7734396oie.1
+Received: by mail-ot1-f72.google.com with SMTP id q25so8831083otf.6
         for <linux-mm@kvack.org>; Mon, 15 Apr 2019 03:47:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=xXTptsneB+kP0gcjLWhElHF2YJCjnVugAtGJoCyGJpk=;
-        b=PZVfrKuOO+bzzGp1sPTvv3aPAtQ1EXX5FmHqeYQAdeIwWeLR/+wBFDmvAH3ZJd9BRy
-         HBaK6EakDhSqsB2sONgWI/CGcZjx79ol7LB3OSYTydc9QEEYNlr4C1vpLQM4vtryANxL
-         yTz783AOP+M4YEG9A7bm6M3sJ4YTAb7qqS7uHeAo3FMFFOyae7F987DB1rInYcsEbPN4
-         1+1E8n06E6Md3vBxOz2+JkY6dTQrPhGpiuXLfJY/1LcyIlMSlP4nPSEB32usi1XsDPVx
-         tBREfkkmLNPD01QZokkdZgHIvrx5KVgtLVrqSANzZ+754fN0pLfpZSsO730URH46NLcY
-         EUKA==
+        bh=2HfS5mdi6OnZ8KWKOdyFVgV0F97qjf8nFM8nzbKXexw=;
+        b=gwS2zp6RkyJQ0gcCgWxMeRgRE6KQYXonwMCKcavgo5jf+T4oQORo4iRxxpjlFEQ59o
+         ub/slyv1xV0hM9oeLcvDFH6wxsjoSR1NiqvLCXXl4X+3CdtTc8Fl3HezxN9pSki9Xstn
+         oLnpWaBqSee8xczDtao4kEChUUGQd87t1Qs1sa4FCETFXuaqdU9UULlt9BPF7O+UjLWN
+         u+rgU1rSmPJ70v7a2ILUzAUTZP2k13uVfyjKXVCcZXtI95n7J4sJpQht1y8HM0PFikFq
+         ANfEdPESnKMhpc9kDNZF2YEleESZOwSIaifcLg/U7ht/Rs0pp7uLfV3Vv0dRjgIK8yxC
+         Gv5g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAUjCd+yDakZVkEVWH2i8qO+cVpoJSSz5hs6FC6qwRHXcx6IFu8a
-	cssy/UcHyRDwfRhFdxcIVxsoBsfMG3cvZwSL6grhF5RJSK14K1LxiIsq7HsiWSJa7lG7jaNrunu
-	ZJh+GI/e43gsjpP2ebP7Mibk3ZJt6xzjj2lgMOi2AQ02cOnoCbJrEim1y5gIYrAPHcA==
-X-Received: by 2002:aca:5842:: with SMTP id m63mr19791607oib.10.1555325229802;
+X-Gm-Message-State: APjAAAW5nZ3PN/hT7g908SUnnhksR4U4GifQs9dJDLqn/QBj646aXA0b
+	dLBbyVDboPr6KBGeKFR41cqBvEjRDGXt2bmvg1a9neT8SHvtrz9N4Rlx20vxSkNqcdBMa/IZy8N
+	oQaToRS+9vHvngHk/oY4de8GDJUr4poEweAwPWboTuO1iUq3rNgxIDgfT28dP478uvA==
+X-Received: by 2002:a9d:6d05:: with SMTP id o5mr13951344otp.175.1555325230294;
+        Mon, 15 Apr 2019 03:47:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTp6ZI+MrjcpruX1aZsKVlI8EwAeAUXw538rEENqNsGjiJRBrtR3Ec3/vC3/h4sA0hbMSt
+X-Received: by 2002:a9d:6d05:: with SMTP id o5mr13951287otp.175.1555325229011;
         Mon, 15 Apr 2019 03:47:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybcYWBEcZFJbNWrGqUHxbeobWuM1IjEhz2pHhr/OGMjIXegvxvFJN4iOFL7rv5RaF2RF8J
-X-Received: by 2002:aca:5842:: with SMTP id m63mr19791576oib.10.1555325228949;
-        Mon, 15 Apr 2019 03:47:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555325228; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1555325229; cv=none;
         d=google.com; s=arc-20160816;
-        b=oBK5k1ct24LwdaOLvu6nzTHQt9h9lg4ujvEb5/ACeLLWDpSGuQ7OJYDBAHHylgKLex
-         HbQW0JOp8a/sjqoezy/bTvjdTlSnwDdPsC2KUGSRJpivFR59GPeROmaEscpeMQpaZqPB
-         g+iFr3GEiftN/dLeTDZu9utNO2CW68qEuO0ZVlbVSLUPnHonQ1GBV1CJlX2GyZOS3Agv
-         P6WHL8Sb7u7+CSde0DDpHfBFqAOo7inWDa7nQLfbKjLHGwFxxpT7HUCuGjccN5HxJDkw
-         dmlTYiN4lObBSb4cGheagbW0hv0hZORjCOuEuMxItwg98jirlZIo2W97oR0+A3hHBbyR
-         bopA==
+        b=FB2QGNcw8mB8yCTPxwzZQrAtbH5g/7vJxcLvS5jPtVyDHRLccOTFgL3VKdpI1QxrHf
+         nRVs0v00OBtfLk3zWg8aoNZ8obWDD0EFNfDAZzl7/dKbSev3YbW+2JOhIZIWDlQPp9mM
+         /mOilFqCMnxCwcSI4G6phTROd851Rf/3A/F36HyAaO6vxfK3SyPptM1b7fUjGRl2ebKg
+         D+87IvLTdYKyQj5rc0xjmXrI7Pxhyzbl2PAZvmIMcK9uoP2DLGPurIac+/XilUmoRLHv
+         4uDEVm1p5PgGRyaY0ILlIpw+GgqDWix7DZ3jT8PjqTDNDj5A3ZOYgynSFTOLcvLEiNrJ
+         wEkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=xXTptsneB+kP0gcjLWhElHF2YJCjnVugAtGJoCyGJpk=;
-        b=kijTT6YYm1Am7xDebV4W2Jis8VEuuxw9Bm32k90G6nlH5PM0lrKDbKqQTvMhqNlQu0
-         8kx9Kxreez4WkvbWcQ8dqwnnaC4JnjzA59lBJ9uA8manKH1DHwzKA7ZtKizNVptA4Jx2
-         0mqCm/vj95e7S2UcyQcb9tOZl+U0IpY4SfuuXacMyHFfpMEq3UOIyWlExIFaaTIUF+mc
-         WIl3h6FmT8TPKx+TawG/gnrj98xAUcEUFfwZVKUaBx2SdqQ/rspM31mzDKhTocK6JfKY
-         vvlvD/L1drQ0AYGceLESlErbePt1jffSIhCmm8mKqzLhk7zojJS9TwE/LrqdFesGKOKV
-         xW4A==
+        bh=2HfS5mdi6OnZ8KWKOdyFVgV0F97qjf8nFM8nzbKXexw=;
+        b=1Iv/z6mrsBMLXt1rtbl6vb1uYejnuyCHv1SEUD3Vx+LQSZZhWwMCkjqP2EPKiizIVw
+         p1G1MGmgIBT6qKbVZrpu8Fky3xZ4T4+tB5aZr2qrnzA87nFzhg7Jsv2RxPrxeRwWwUDR
+         j/pe6axKs/1HtuwQEDCQ3Yo+Je54zs6RkVnVrwcqJxRkL3AulL2BiVC+qe/rk/hT0e6F
+         HcN1aJ+R4t5JclFSzVmSa9vaDqqH9AfOR7CpdOoAtrpX/EGvdEcDiwlHpn0NWEkKC+dn
+         8YVXW8HFfXz4MxoA+igR/Mgd40tdBC3kkgmGGepc8yxgnjd3Eong5oU+634ugzEswGdy
+         NJYw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
 Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id z6si22469128oto.251.2019.04.15.03.47.08
+        by mx.google.com with ESMTPS id t145si23361876oih.106.2019.04.15.03.47.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 03:47:08 -0700 (PDT)
+        Mon, 15 Apr 2019 03:47:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
 Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 75C8BB19C81F804D5FBC;
+	by Forcepoint Email with ESMTP id 8035E95E669BD9B289C4;
 	Mon, 15 Apr 2019 18:47:03 +0800 (CST)
 Received: from localhost.localdomain.localdomain (10.175.113.25) by
  DGGEMS408-HUB.china.huawei.com (10.3.19.208) with Microsoft SMTP Server id
- 14.3.408.0; Mon, 15 Apr 2019 18:46:53 +0800
+ 14.3.408.0; Mon, 15 Apr 2019 18:46:55 +0800
 From: Chen Zhou <chenzhou10@huawei.com>
 To: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
 	<ebiederm@xmission.com>, <rppt@linux.ibm.com>, <catalin.marinas@arm.com>,
@@ -91,9 +91,9 @@ CC: <horms@verge.net.au>, <takahiro.akashi@linaro.org>,
 	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
 	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
 	<wangkefeng.wang@huawei.com>, Chen Zhou <chenzhou10@huawei.com>
-Subject: [PATCH v4 3/5] memblock: add memblock_cap_memory_ranges for multiple ranges
-Date: Mon, 15 Apr 2019 18:57:23 +0800
-Message-ID: <20190415105725.22088-4-chenzhou10@huawei.com>
+Subject: [PATCH v4 4/5] arm64: kdump: support more than one crash kernel regions
+Date: Mon, 15 Apr 2019 18:57:24 +0800
+Message-ID: <20190415105725.22088-5-chenzhou10@huawei.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190415105725.22088-1-chenzhou10@huawei.com>
 References: <20190415105725.22088-1-chenzhou10@huawei.com>
@@ -108,88 +108,172 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The memblock_cap_memory_range() removes all the memory except the
-range passed to it. Extend this function to receive memblock_type
-with the regions that should be kept.
+After commit (arm64: kdump: support reserving crashkernel above 4G),
+there may be two crash kernel regions, one is below 4G, the other is
+above 4G. Use memblock_cap_memory_ranges() to support multiple crash
+kernel regions.
 
-Enable this function in arm64 for reservation of multiple regions
-for the crash kernel.
+Crash dump kernel reads more than one crash kernel regions via a dtb
+property under node /chosen,
+linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>.
+
+Besides, replace memblock_cap_memory_range() with
+memblock_cap_memory_ranges().
 
 Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 46 insertions(+)
+ arch/arm64/mm/init.c     | 34 ++++++++++++++++++++++++----------
+ include/linux/memblock.h |  1 -
+ mm/memblock.c            | 41 ++++++++++++-----------------------------
+ 3 files changed, 36 insertions(+), 40 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 47e3c06..180877c 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -446,6 +446,7 @@ phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
- void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
-+void memblock_cap_memory_ranges(struct memblock_type *regions_to_keep);
- void memblock_mem_limit_remove_map(phys_addr_t limit);
- bool memblock_is_memory(phys_addr_t addr);
- bool memblock_is_map_memory(phys_addr_t addr);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index f315eca..9661807 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1697,6 +1697,51 @@ void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
- 			base + size, PHYS_ADDR_MAX);
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index f5dde73..921953d 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -52,6 +52,9 @@
+ #include <asm/tlb.h>
+ #include <asm/alternative.h>
+ 
++/* at most two crash kernel regions, low_region and high_region */
++#define CRASH_MAX_USABLE_RANGES	2
++
+ /*
+  * We need to be able to catch inadvertent references to memstart_addr
+  * that occur (potentially in generic code) before arm64_memblock_init()
+@@ -295,9 +298,9 @@ early_param("mem", early_mem);
+ static int __init early_init_dt_scan_usablemem(unsigned long node,
+ 		const char *uname, int depth, void *data)
+ {
+-	struct memblock_region *usablemem = data;
+-	const __be32 *reg;
+-	int len;
++	struct memblock_type *usablemem = data;
++	const __be32 *reg, *endp;
++	int len, nr = 0;
+ 
+ 	if (depth != 1 || strcmp(uname, "chosen") != 0)
+ 		return 0;
+@@ -306,22 +309,33 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
+ 	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
+ 		return 1;
+ 
+-	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+-	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
++	endp = reg + (len / sizeof(__be32));
++	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
++		unsigned long base = dt_mem_next_cell(dt_root_addr_cells, &reg);
++		unsigned long size = dt_mem_next_cell(dt_root_size_cells, &reg);
++
++		if (memblock_add_range(usablemem, base, size, NUMA_NO_NODE,
++				       MEMBLOCK_NONE))
++			return 0;
++		if (++nr >= CRASH_MAX_USABLE_RANGES)
++			break;
++	}
+ 
+ 	return 1;
  }
  
-+void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
-+{
-+	int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
-+	int i, j, ret, nr = 0;
-+	struct memblock_region *regs = regions_to_keep->regions;
-+
-+	for (i = 0; i < regions_to_keep->cnt; i++) {
-+		ret = memblock_isolate_range(&memblock.memory, regs[i].base,
-+				regs[i].size, &start_rgn[i], &end_rgn[i]);
-+		if (ret)
-+			break;
-+		nr++;
-+	}
-+	if (!nr)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn[nr - 1]; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = nr - 1; i > 0; i--)
-+		for (j = start_rgn[i] - 1; j >= end_rgn[i - 1]; j--)
-+			if (!memblock_is_nomap(&memblock.memory.regions[j]))
-+				memblock_remove_region(&memblock.memory, j);
-+
-+	for (i = start_rgn[0] - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, regs[0].base);
-+
-+	for (i = nr - 1; i > 0; i--) {
-+		phys_addr_t remove_base = regs[i - 1].base + regs[i - 1].size;
-+		phys_addr_t remove_size = regs[i].base - remove_base;
-+
-+		memblock_remove_range(&memblock.reserved, remove_base,
-+				remove_size);
-+	}
-+
-+	memblock_remove_range(&memblock.reserved,
-+			regs[nr - 1].base + regs[nr - 1].size, PHYS_ADDR_MAX);
-+}
-+
+ static void __init fdt_enforce_memory_region(void)
+ {
+-	struct memblock_region reg = {
+-		.size = 0,
++	struct memblock_region usable_regions[CRASH_MAX_USABLE_RANGES];
++	struct memblock_type usablemem = {
++		.max = CRASH_MAX_USABLE_RANGES,
++		.regions = usable_regions,
+ 	};
+ 
+-	of_scan_flat_dt(early_init_dt_scan_usablemem, &reg);
++	of_scan_flat_dt(early_init_dt_scan_usablemem, &usablemem);
+ 
+-	if (reg.size)
+-		memblock_cap_memory_range(reg.base, reg.size);
++	if (usablemem.cnt)
++		memblock_cap_memory_ranges(&usablemem);
+ }
+ 
+ void __init arm64_memblock_init(void)
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 180877c..f04dfc1 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -445,7 +445,6 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+ phys_addr_t memblock_start_of_DRAM(void);
+ phys_addr_t memblock_end_of_DRAM(void);
+ void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+-void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
+ void memblock_cap_memory_ranges(struct memblock_type *regions_to_keep);
+ void memblock_mem_limit_remove_map(phys_addr_t limit);
+ bool memblock_is_memory(phys_addr_t addr);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 9661807..9b5cef4 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1669,34 +1669,6 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+ 			      PHYS_ADDR_MAX);
+ }
+ 
+-void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+-{
+-	int start_rgn, end_rgn;
+-	int i, ret;
+-
+-	if (!size)
+-		return;
+-
+-	ret = memblock_isolate_range(&memblock.memory, base, size,
+-						&start_rgn, &end_rgn);
+-	if (ret)
+-		return;
+-
+-	/* remove all the MAP regions */
+-	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+-		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+-			memblock_remove_region(&memblock.memory, i);
+-
+-	for (i = start_rgn - 1; i >= 0; i--)
+-		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+-			memblock_remove_region(&memblock.memory, i);
+-
+-	/* truncate the reserved regions */
+-	memblock_remove_range(&memblock.reserved, 0, base);
+-	memblock_remove_range(&memblock.reserved,
+-			base + size, PHYS_ADDR_MAX);
+-}
+-
+ void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
+ {
+ 	int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
+@@ -1744,6 +1716,16 @@ void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
+ 
  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
  {
++	struct memblock_region rgn = {
++		.base = 0,
++	};
++
++	struct memblock_type region_to_keep = {
++		.cnt = 1,
++		.max = 1,
++		.regions = &rgn,
++	};
++
  	phys_addr_t max_addr;
+ 
+ 	if (!limit)
+@@ -1755,7 +1737,8 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+ 	if (max_addr == PHYS_ADDR_MAX)
+ 		return;
+ 
+-	memblock_cap_memory_range(0, max_addr);
++	region_to_keep.regions[0].size = max_addr;
++	memblock_cap_memory_ranges(&region_to_keep);
+ }
+ 
+ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
 -- 
 2.7.4
 
