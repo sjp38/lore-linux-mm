@@ -3,85 +3,85 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BDA8C10F12
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AE98C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C153020848
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C153020848
+	by mail.kernel.org (Postfix) with ESMTP id 60FBD20848
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60FBD20848
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A89C26B000A; Mon, 15 Apr 2019 13:49:52 -0400 (EDT)
+	id F40D96B0010; Mon, 15 Apr 2019 13:49:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94C166B000C; Mon, 15 Apr 2019 13:49:52 -0400 (EDT)
+	id ED3086B0266; Mon, 15 Apr 2019 13:49:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 814256B000D; Mon, 15 Apr 2019 13:49:52 -0400 (EDT)
+	id D1C856B0269; Mon, 15 Apr 2019 13:49:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6926B000A
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 13:49:52 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id q25so9489211otf.6
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:49:52 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CA5A6B0010
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 13:49:56 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id r84so8430080oia.9
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:49:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=c8Oa8if3Ah0YDZHoU72RxzlhFP90iXNpwesyngeW7fE=;
-        b=RFsq2AdcuVCSR2KKgSlurFt2EN+ta3AFRlQoI/1zeMT87tPxgoemLWAc+CtTswWWzC
-         kc/XqlXfpiPMVMB/fIIMW+tSOG9M7Njy4Nk2pN9HxzT4UXLy4azy4bkNu7+mkiWMq7XW
-         wy77FlW6uwDk4V0FM5I4GhP4VUwdasDr7OA7CO11oRh8j5uk9P8870H1gEtug1/M1Uul
-         wYiGw56cl+Bs6VU7A7AqoZvRHHSnmhwXC7LSXhHMxn1EDPFYLmDmw9R0iQWQF7Tjp6UR
-         Ly1g83PQK+6bFgKRbuZECIwVS/YaMaZa60s1MrmyITO6HodJyW7OhcozMhQFOjracPT4
-         87Yw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: APjAAAVC6T0ypv9E3E1quxCC2hHCkPbwe7Tok8RVFOJYa/51iI/VJ/GJ
-	oV6VRsABbrillUBMqTbYn+IVhvgR5Twy9z83k1RqAvwhmx0wQM6fIo8f1FLd6SNNJmrWAArtgFE
-	cBgDe7DfpW+fS5Eh8YfnhPpnxtzacAiTHObDfqB7uj0vkhduBWsg37ezla/TT6dYTyw==
-X-Received: by 2002:a9d:63c9:: with SMTP id e9mr48493187otl.76.1555350591965;
-        Mon, 15 Apr 2019 10:49:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzEVVWoAbj3JROSFoQ4O5TLPgUnwu2zOrmjoReI1dG0L6cIWeAWP8QEPN1Jdlf/RFdBUswZ
-X-Received: by 2002:a9d:63c9:: with SMTP id e9mr48493116otl.76.1555350590395;
-        Mon, 15 Apr 2019 10:49:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555350590; cv=none;
+        bh=/ctch9BIG/gBXs/UumXXhUGfeedoBTKJpXlhlTSkdIA=;
+        b=IFjtM3+yIubz8k+gSsUHmCSI9U1WxP/r9XxHZaWrUlwj9OwboNlJNrPJtfsFd/K2dg
+         X6HDQn3FHK7/HP61orkEHEXJHPzCOAM22Zk3dA36g7ud3oH9OUSsQYvoWD3qr34ym0Cm
+         b7KvplycWt2rL2m/0P2EQXmqS5uxzRN/0wDOBl23GXyUuzai4VcSFhr56SVHz9PjrM3F
+         I9RbWmc56EbAPNO4cQiAIu6+AtLgzOLWzTETzDOSqTSSOon7gfuc9O1vQz3M/bz2V0wB
+         IGM0BznWlRjErbT/0ZVtstUVfoBhdSC+ZcuZEF7rdKTh0bF81pdzxzEgxq+QPP4jMrPi
+         OkKw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: APjAAAX3DZhviMpj442ojxTChHW2+fxd1PiflentzUh4n1+SucKzPof9
+	AlkQRLiuGFogoodWlNsh+HSGnHJBm0q9Gh5bwpbLQRFlBBQdt8FkDa+zdS1VkNxoWUFomyASy/0
+	BPj655bQRUYyd3HaVWquZvcXgsZ8ApIoWwzjqYkNhcWN7ib7CI/Bg0tJKSB2953pDxw==
+X-Received: by 2002:aca:c4cc:: with SMTP id u195mr20452269oif.40.1555350596312;
+        Mon, 15 Apr 2019 10:49:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwco1GY5DB3Ex9PbIYdNImS6/r8UepslI1A/mQVYe4nLnOkxt5H5BnsQaRW7aPFfdSSWa7A
+X-Received: by 2002:aca:c4cc:: with SMTP id u195mr20452229oif.40.1555350595552;
+        Mon, 15 Apr 2019 10:49:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555350595; cv=none;
         d=google.com; s=arc-20160816;
-        b=je7CAsI7enwKbvhzYq/1VCFlw0Cy+iZseCgEbIFq3bdKL7uTZHP+RRjYsp2P61I2Ud
-         aHU7n1CjMWFpERZiJK8pSmfE8p1+ixvpHoPhH3Kr31yxUyZ+fhTv6jlpnw9S9x7hbTWf
-         iEzTTmN+Ab0E/GA86B/uyqqMyIxHYPbplG9lGpeJ7EWmvI3ZuRPWxyg6kUpEf7Yxzpg6
-         1kSoIQ0CcvyY+cXsj9YwJDrziAXdYiO+rTYHsTU4GROfls0dEKX1LshnILBMs3Uph+7J
-         5NMOXijYesLGY5y8UxANZxD0uYzkPPKHrW5mVaThCYx9WJXaJ8v1pqfo4F3af83IwVjO
-         VO5A==
+        b=mqgW4h4WA0H9nSAWuLH5KjrnuKgnPq+szsy/p0yj45aWq7A9S0evPXKUCuBmL6BrJW
+         qRb1EoUOkNZ3wvN2B7lFqdCPt/r0SQP/IMRVFBP2Dy3nFur/rpkY2s0kTMxHORM08uy2
+         DaanQMNLWdwMJom7n3v6BDHyCkU1EdTY5S0yBfNQxxEfmt9PpJZmYXGfZ1phtx52JpO5
+         FM1Dg2xtMke1VwWF6WWftAZl7gPpp/r/JpiBBA1n9HrU+jzXkmkEy+h1vAQ13n2NXk6j
+         MIPORvJW6KFnhpHZF7ubJCC9Iv+J8JdKKwRWdbBkvcE+xbCgqzSQcJXrkny0at130/pZ
+         ppjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=c8Oa8if3Ah0YDZHoU72RxzlhFP90iXNpwesyngeW7fE=;
-        b=a1Wi5szgsURLxq+ax9mlWpULGBuUJBXb/UhT5BuNvYnWkpe3aTvpnS75kse5xcnEA+
-         +/TL+DdABc2wh9lkqLsv6Lug5mo2IKwjQ1nYtHWHU2STRTr0O4TAtdhSksAOBjtRNVEl
-         j7vf7JWkwRTQuuu+t5U4BTDl50qfXhm2/RBwm9H3HhfUy3uvGW3VFXCvOipncB9xi1j8
-         NV14SdCuYhNo8xAk0+tn/JzC9Bp3ZzKf12GgMr1Q7Q6MdKjdeCPnmfSEfKsGn8Qe7ltO
-         3mIOnMydPQYZTDxQUsFFrBgeHLRTrc07KIbAZZAg55Ff5uSuohloS0wKCguQint2UmP4
-         NF7g==
+        bh=/ctch9BIG/gBXs/UumXXhUGfeedoBTKJpXlhlTSkdIA=;
+        b=rp+IfqwIcn8WfGHvp8CuZjumfBBhHXWnJSUtSinQbvzydAvzm7jkghF5h3oa0HrgG0
+         6YujTbCvFkRFnQlETWHs6yims0bOPpNDNfEOTjBV0/IuWA0a1slLs9bmPNg9rSdwB03c
+         rwrWjyP9+jxlzd1tsoRpUhHyooa5Fo1JHaetWfaKpDwjz5CVawmvxhQWMnJHwbwstYAg
+         UQ4no/UxLGZagERaOJdTzqJYcFhkj0aG72QKYqgDl3d+meKX3OJt8WGnbcilV8yo/oi4
+         7Cs2kQiYJEqAuEutxmvEOTSl+kTmU0/2vVsKQnyhjTr/fzzWF57fIom+RRYt2GpYeBF0
+         3AbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id g9si14922636oib.37.2019.04.15.10.49.50
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id 5si18298242oii.252.2019.04.15.10.49.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 10:49:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+        Mon, 15 Apr 2019 10:49:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
 Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id E4BA485083B4B38C348A;
-	Tue, 16 Apr 2019 01:49:46 +0800 (CST)
+	by Forcepoint Email with ESMTP id 02E473ED7A4E7FCD7631;
+	Tue, 16 Apr 2019 01:49:52 +0800 (CST)
 Received: from FRA1000014316.huawei.com (100.126.230.97) by
  DGGEMS401-HUB.china.huawei.com (10.3.19.201) with Microsoft SMTP Server id
- 14.3.408.0; Tue, 16 Apr 2019 01:49:37 +0800
+ 14.3.408.0; Tue, 16 Apr 2019 01:49:42 +0800
 From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
 To: <linux-mm@kvack.org>, <linux-acpi@vger.kernel.org>,
 	<linux-kernel@vger.kernel.org>, <linux-arm-kernel@lists.infradead.org>
@@ -89,9 +89,9 @@ CC: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Keith Busch
 	<keith.busch@intel.com>, "Rafael J . Wysocki" <rjw@rjwysocki.net>,
 	<linuxarm@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "Jonathan
  Cameron" <Jonathan.Cameron@huawei.com>
-Subject: [PATCH 2/4 V3] arm64: Support Generic Initiator only domains
-Date: Tue, 16 Apr 2019 01:49:05 +0800
-Message-ID: <20190415174907.102307-3-Jonathan.Cameron@huawei.com>
+Subject: [PATCH 4/4 V3] ACPI: Let ACPI know we support Generic Initiator Affinity Structures
+Date: Tue, 16 Apr 2019 01:49:07 +0800
+Message-ID: <20190415174907.102307-5-Jonathan.Cameron@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190415174907.102307-1-Jonathan.Cameron@huawei.com>
 References: <20190415174907.102307-1-Jonathan.Cameron@huawei.com>
@@ -106,46 +106,46 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The one thing that currently needs doing from an architecture
-point of view is associating the GI domain with its nearest
-memory domain.  This allows all the standard NUMA aware code
-to get a 'reasonable' answer.
+Until we tell ACPI that we support generic initiators, it will have
+to operate in fall back domain mode and all _PXM entries should
+be on existing non GI domains.
 
-A clever driver might elect to do load balancing etc
-if there are multiple host / memory domains nearby, but
-that's a decision for the driver.
+This patch sets the relevant OSC bit to make that happen.
+
+Note that this currently doesn't take into account whether we have the relevant
+setup code for a given architecture.  Do we want to make this optional, or
+should the initial patch set just enable it for all ACPI supporting architectures?
 
 Signed-off-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
 ---
- arch/arm64/kernel/smp.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ drivers/acpi/bus.c   | 1 +
+ include/linux/acpi.h | 1 +
+ 2 files changed, 2 insertions(+)
 
-diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index 824de7038967..7c419bf92374 100644
---- a/arch/arm64/kernel/smp.c
-+++ b/arch/arm64/kernel/smp.c
-@@ -731,6 +731,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
- {
- 	int err;
- 	unsigned int cpu;
-+	unsigned int node;
- 	unsigned int this_cpu;
+diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
+index eec263c9019e..ef251f454a5b 100644
+--- a/drivers/acpi/bus.c
++++ b/drivers/acpi/bus.c
+@@ -315,6 +315,7 @@ static void acpi_bus_osc_support(void)
  
- 	init_cpu_topology();
-@@ -769,6 +770,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
- 		set_cpu_present(cpu, true);
- 		numa_store_cpu_info(cpu);
- 	}
-+
-+	/*
-+	 * Walk the numa domains and set the node to numa memory reference
-+	 * for any that are Generic Initiator Only.
-+	 */
-+	for_each_node_state(node, N_GENERIC_INITIATOR)
-+		set_gi_numa_mem(node, local_memory_node(node));
- }
+ 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
+ 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
++	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
  
- void (*__smp_cross_call)(const struct cpumask *, unsigned int);
+ #ifdef CONFIG_X86
+ 	if (boot_cpu_has(X86_FEATURE_HWP)) {
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index d5dcebd7aad3..cc68b2ad0630 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -503,6 +503,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
+ #define OSC_SB_PCLPI_SUPPORT			0x00000080
+ #define OSC_SB_OSLPI_SUPPORT			0x00000100
+ #define OSC_SB_CPC_DIVERSE_HIGH_SUPPORT		0x00001000
++#define OSC_SB_GENERIC_INITIATOR_SUPPORT	0x00002000
+ 
+ extern bool osc_sb_apei_support_acked;
+ extern bool osc_pc_lpi_support_confirmed;
 -- 
 2.19.1
 
