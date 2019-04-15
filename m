@@ -2,172 +2,170 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51248C10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:13:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48FFDC282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:47:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DFA620693
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:13:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JrwGDgB5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DFA620693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id DBBEF20825
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:47:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBBEF20825
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 904AF6B0003; Mon, 15 Apr 2019 03:13:52 -0400 (EDT)
+	id 47CFC6B0003; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B6046B0006; Mon, 15 Apr 2019 03:13:52 -0400 (EDT)
+	id 42F966B0006; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7CBBF6B0007; Mon, 15 Apr 2019 03:13:52 -0400 (EDT)
+	id 31CD06B0007; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B30C6B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 03:13:52 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id d49so15276062qtk.8
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 00:13:52 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 117D76B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id q12so15441303qtr.3
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 00:47:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=j3kbi0uMsvxuG8GVHcYa0jx5Oj3tt+hVtJy5E3Znkxk=;
-        b=a1e4XFowkFOoe1nshwdp2EjKIUqxEmDtD6mHzlIQugHPF4GSOpvO8M7Gxz57BlBTpl
-         jOK+MRvpgXYb+LWeejXN1Tf/pAUgFXMtT7Nk6LA6c6As11cJSfTstHRQguitUMZw889f
-         4uk53PFTBGOHfO58PaKwn4UEDwF5WfFIJZ6iHTl7fxb5hyRMT5C+WT/mCsx32xShuvR0
-         CGr/Whki5CH6Pke66Zu5HvZJj8lyxoBu13/BBSknAL4NopIs6yaRJwqsITapNH+Y0bmF
-         cqzZco2v5XNS/GqyHEyb0NurAFj9RWMD4Feoj/0M67m29y47j9V6TJU3O8OUeH5dI0yH
-         8H0Q==
-X-Gm-Message-State: APjAAAWHxXzN2spJ/ScayM4m4idZyyJiSd44f/vHMYLDHcAcGWQ61SJn
-	Q67MPIa3nVXZoR8jmESOQfY0Q0EOUg34VqF2EsxSdv+t3Al4VLq8ULXF6V/rHMtcWsiMVJd/xih
-	UD5+94ChsoMGINRDVLYE+0WkSqRRhSvc/KQG6xgpSHxDyVdCS41W6dELNjjMni1cXzg==
-X-Received: by 2002:aed:3641:: with SMTP id e59mr58652550qtb.235.1555312432004;
-        Mon, 15 Apr 2019 00:13:52 -0700 (PDT)
-X-Received: by 2002:aed:3641:: with SMTP id e59mr58652511qtb.235.1555312431270;
-        Mon, 15 Apr 2019 00:13:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555312431; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1sqwRDPqv8TM7xLyzVhPqsTZ9uL3Z2stWknu4TNhD7g=;
+        b=T3qVAv33IT4o+8/69Z/uuipySE0b600X/VcjkhVIPuViDScmGJqc5WWd2Z4wvIrwgK
+         53zzmS8uJwpeL20XivFnu0w06h7Jaf/gAm6UMxLLQwNBjXfsbn7BSLj51Q5kz5qBX1rG
+         zzX8U7CrMnSMLW9zBnnKLZaU2sEyfwKMBm6ulTNc+Q6cbAY+xvyigyrreqyZ+aaRVyGn
+         7ZTpE7exZ3egSS2+lHMPCEtlcYtY/MfqCtVRh6DRj5f38aJlNI0yTIkYN0cWNrlIy2FH
+         96vnoaIoNRNCz9pdhseHr4IiRJGFjiGNIevgXChzsdO/qvELyQA7XzNE2Jg662INa9x7
+         HcQQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVFCtzGhJE1UkhwoKnX9kVA3J1zU8pbUwKvae8obQb/vAyAZOBu
+	0aI/Dwa2pq/zEcL7Ft4zw9iGz2DCWzmkI965g+2c6ik9yOiqJJfh8tXt6QmPx/WbIqQfQ3PhiAs
+	f6E7pDxIyNYKHbtABzJ6DRzJjrHJvSbN3uHCT2fgGqh7wBr+Tx7zR/W/QLCvTadDLPA==
+X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr58356415qvf.132.1555314434843;
+        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJwlb0AfY7fLqUcs4tbkx2pV119BljR1qYebnp5fT7AablWEMIumtS0gZOs4MD9Ha/b6ZV
+X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr58356395qvf.132.1555314434252;
+        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555314434; cv=none;
         d=google.com; s=arc-20160816;
-        b=yGuRMmiwkPWSQR3RXSaAzRDvsASFpQ5jSpzLOGn9xFFE05n+M6BkCgUvzgIXGifspE
-         vpbD9ohbRANZc1n2M2R/0ui/7TJmjRMeVDW9XhTC3M81NKjsNtXhC+qva+cM5+IW3Icx
-         jjHanpC/XGoJOGiQ/tJaPNWSybh/ruqHPjMmayE+2dR6IGhH9n9IRuNHTYwC6PYQXEoP
-         YgPxjAEQol+I/cHElDEmeiw4zZ7NCbynmj2C4vg/AIH7FSpwIB35x+4yZe66mbkqcJ+N
-         i2Wjs/SFwnyNLUpCIJNmCMnEEFCjYEYGUkiX1Yidsjg8HSLglRQ4gnwwweGNpMDCDmS0
-         /gHA==
+        b=kH0elLgEkcCTb1z5enBE9rIRP4+9mA2oQEerewG5YN4NhhnneDI84/FrSZLCvfFRpw
+         huJzvonuIsdaJQXXblOke3YYbGgJWzHVxeOJ9JDeU2V6F8ZDH9CyhUTTz2D6Jc1E2+nV
+         0ieWLJ95PMODmDoXyC8/sUbi2/ybBTwTUNluVx6lpnyiZY7q422BD9sfZ0giEvISCdDN
+         LtuU1CeATXyPI44tZX9dFJZEEHplWHS54Z7ks+VSAqpS+s2dAPCAd3p5ZKTYiP+7NsLB
+         88WO5rSyW2VF46i9jfMwseCvZRDGuZcP6/E3NrJTZzYLboizjqBe4BtR+MIXE8QMPUlF
+         KYuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=j3kbi0uMsvxuG8GVHcYa0jx5Oj3tt+hVtJy5E3Znkxk=;
-        b=CQU54+r+bykVbNi3L4b7dLZWEZl6OxKCKG0A8QETdEAv252ks5b9xBolw4PtbjrNpz
-         lZQxvgDvd9WQEkm2A55q78MXC1Gc1sSIMNqmdPBmjOSx0YErUxWI29HOy1PeXnX7Kryh
-         h5yu2/tq1NRY+zgiqdOdnfEYdCiQ1pXykmnqHHpCh/MqQJgmB/UmFvo53JMDTOD0cTBW
-         HSMw/4xThBbbc5h7aOftRHeQqDSI89wKgcClZT6efm2bfr5C3NPCc/sXx3Fg8A6cT6AC
-         rDRSxBLZ5x4zblofBm8l06KbDXtyYI0hHbhG3ZuD1HmwIjlFNkWemFgftzFDCoEB3EUY
-         2sFw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1sqwRDPqv8TM7xLyzVhPqsTZ9uL3Z2stWknu4TNhD7g=;
+        b=Jd3uzGpNvqfa7NfPQ0htJM9O68UrpAq6WcUrs6KM94pvy1RU8msdAfKbGAeREHMPgY
+         w6pFdvOZwtO2A7TRSVtz2hJUHB3OKyJoAg19QYnqL7rKn9zG3tE3KZg1CsWNTnKZzaMq
+         QU6G9kQbRt1UfG3uFm2ISGpMaC596RbOheczOrJAby9N5oKSBmkoDBJjBxxMOXT1h+oO
+         QPCp9VCHKNYLwG22CHm4fLLmY9JcHbtDMeVum0EowQsuW4eK+3SBFl4uNmCLZcJwuO0n
+         oc/ogkOfbh8KJ9QaHPrzjVfcipx4d/JUppHK8yTOS2vFNE8TBVqmXMuwd7xBK4rGisN3
+         FAlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JrwGDgB5;
-       spf=pass (google.com: domain of mayhs11saini@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mayhs11saini@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m184sor311601qkb.95.2019.04.15.00.13.51
+       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i5si2068609qvg.95.2019.04.15.00.47.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 15 Apr 2019 00:13:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mayhs11saini@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JrwGDgB5;
-       spf=pass (google.com: domain of mayhs11saini@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mayhs11saini@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=j3kbi0uMsvxuG8GVHcYa0jx5Oj3tt+hVtJy5E3Znkxk=;
-        b=JrwGDgB5paFkpvAjGR+HpKqcels7xSMDLHDkKHKBTJAoS/z6H9fgmh3RNxZqzc3Mbm
-         QqSqZhVlA9zZVYfzKoS2GakuhjjZtcmjdzIMdIlu0qNsfmJX1jziQcZhLbENNuRRuB0U
-         LHuvdr+q6ZqkE4bfgrFNqV2eswVxaVeO6uNJevx033Hh/Rd+UoimJ7G+gYtHuIeYPMWD
-         X5VMK38WMr6pT61Rl5cUQWfx7lNFGQPHPF+tQM99t/6d8XLQkopXcinifQM05fzvN5bG
-         Rj4dnQxCOvY7n+f5zJtyj3G9LiHzyXy1mZL7LeIKSbHI3hryRq3UU6NxFxyXvuohYpgZ
-         GDPw==
-X-Google-Smtp-Source: APXvYqy7BiJy6sUxQsLMNeqGjVsNKTqXYv8xm887nUujgxsP1xwvfSah5gmuWcJIRxcv3C225rHZNDuC/Qf7KE3MLFo=
-X-Received: by 2002:a37:4e4d:: with SMTP id c74mr56333890qkb.230.1555312430704;
- Mon, 15 Apr 2019 00:13:50 -0700 (PDT)
+       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CB9F6821C3;
+	Mon, 15 Apr 2019 07:47:12 +0000 (UTC)
+Received: from [10.72.12.206] (ovpn-12-206.pek2.redhat.com [10.72.12.206])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 19B3E5D9CA;
+	Mon, 15 Apr 2019 07:47:00 +0000 (UTC)
+Subject: Re: [PATCH v1 15/15] ceph: use put_user_pages() instead of
+ ceph_put_page_vector()
+To: jglisse@redhat.com, linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
+ linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>,
+ Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>,
+ Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
+ Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
+ Dave Chinner <david@fromorbit.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Matthew Wilcox <willy@infradead.org>, Sage Weil <sage@redhat.com>,
+ Ilya Dryomov <idryomov@gmail.com>, ceph-devel@vger.kernel.org
+References: <20190411210834.4105-1-jglisse@redhat.com>
+ <20190411210834.4105-16-jglisse@redhat.com>
+From: "Yan, Zheng" <zyan@redhat.com>
+Message-ID: <df4da184-fe8b-c189-43e5-fac58adb3ed9@redhat.com>
+Date: Mon, 15 Apr 2019 15:46:59 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190414091452.22275-1-shyam.saini@amarulasolutions.com> <CAADnVQKx5WrUYxr_gSc5ai=fJh2cM9e26NZL1mRPkoSVQxAd0Q@mail.gmail.com>
-In-Reply-To: <CAADnVQKx5WrUYxr_gSc5ai=fJh2cM9e26NZL1mRPkoSVQxAd0Q@mail.gmail.com>
-From: Shyam Saini <mayhs11saini@gmail.com>
-Date: Mon, 15 Apr 2019 12:43:39 +0530
-Message-ID: <CAOfkYf5FZdN3v9pkcdNmyJM5O=789bKwFmFsMTp20RE=gVgwqQ@mail.gmail.com>
-Subject: Re: [PATCH 1/2] include: linux: Regularise the use of FIELD_SIZEOF macro
-To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Cc: Shyam Saini <shyam.saini@amarulasolutions.com>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, 
-	linux-arm-kernel@lists.infradead.org, linux-mips@vger.kernel.org, 
-	intel-gvt-dev@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, 
-	dri-devel <dri-devel@lists.freedesktop.org>, 
-	Network Development <netdev@vger.kernel.org>, linux-ext4@vger.kernel.org, 
-	devel@lists.orangefs.org, linux-mm <linux-mm@kvack.org>, linux-sctp@vger.kernel.org, 
-	bpf <bpf@vger.kernel.org>, kvm@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190411210834.4105-16-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 15 Apr 2019 07:47:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 4/12/19 5:08 AM, jglisse@redhat.com wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
+> 
+> When page reference were taken through GUP (get_user_page*()) we need
+> to drop them with put_user_pages().
+> 
+> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: linux-block@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Johannes Thumshirn <jthumshirn@suse.de>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Ming Lei <ming.lei@redhat.com>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Yan Zheng <zyan@redhat.com>
+> Cc: Sage Weil <sage@redhat.com>
+> Cc: Ilya Dryomov <idryomov@gmail.com>
+> Cc: ceph-devel@vger.kernel.org
+> ---
+>   fs/ceph/file.c | 3 ++-
+>   1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/ceph/file.c b/fs/ceph/file.c
+> index 6c5b85f01721..5842ad3a4218 100644
+> --- a/fs/ceph/file.c
+> +++ b/fs/ceph/file.c
+> @@ -667,7 +667,8 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
+>   			} else {
+>   				iov_iter_advance(to, 0);
+>   			}
+> -			ceph_put_page_vector(pages, num_pages, false);
+> +			/* iov_iter_get_pages_alloc() did call GUP */
+> +			put_user_pages(pages, num_pages);
 
-On Mon, Apr 15, 2019 at 11:13 AM Alexei Starovoitov
-<alexei.starovoitov@gmail.com> wrote:
->
-> On Sun, Apr 14, 2019 at 2:15 AM Shyam Saini
-> <shyam.saini@amarulasolutions.com> wrote:
-> >
-> > Currently, there are 3 different macros, namely sizeof_field, SIZEOF_FIELD
-> > and FIELD_SIZEOF which are used to calculate the size of a member of
-> > structure, so to bring uniformity in entire kernel source tree lets use
-> > FIELD_SIZEOF and replace all occurrences of other two macros with this.
-> >
-> > For this purpose, redefine FIELD_SIZEOF in include/linux/stddef.h and
-> > tools/testing/selftests/bpf/bpf_util.h and remove its defination from
-> > include/linux/kernel.h
-> >
-> > Signed-off-by: Shyam Saini <shyam.saini@amarulasolutions.com>
-> > ---
-> >  arch/arm64/include/asm/processor.h                 | 10 +++++-----
-> >  arch/mips/cavium-octeon/executive/cvmx-bootmem.c   |  2 +-
-> >  drivers/gpu/drm/i915/gvt/scheduler.c               |  2 +-
-> >  drivers/net/ethernet/mellanox/mlxsw/spectrum_fid.c |  4 ++--
-> >  fs/befs/linuxvfs.c                                 |  2 +-
-> >  fs/ext2/super.c                                    |  2 +-
-> >  fs/ext4/super.c                                    |  2 +-
-> >  fs/freevxfs/vxfs_super.c                           |  2 +-
-> >  fs/orangefs/super.c                                |  2 +-
-> >  fs/ufs/super.c                                     |  2 +-
-> >  include/linux/kernel.h                             |  9 ---------
-> >  include/linux/slab.h                               |  2 +-
-> >  include/linux/stddef.h                             | 11 ++++++++++-
-> >  kernel/fork.c                                      |  2 +-
-> >  kernel/utsname.c                                   |  2 +-
-> >  net/caif/caif_socket.c                             |  2 +-
-> >  net/core/skbuff.c                                  |  2 +-
-> >  net/ipv4/raw.c                                     |  2 +-
-> >  net/ipv6/raw.c                                     |  2 +-
-> >  net/sctp/socket.c                                  |  4 ++--
-> >  tools/testing/selftests/bpf/bpf_util.h             | 11 ++++++++++-
->
-> tools/ directory is for user space pieces that don't include kernel's include.
-> I bet your pathes break the user space builds.
+pages in pipe were not from get_user_pages(). Am I missing anything?
 
-I think it shouldn't because I haven't included any kernel header in
-tool/ files, instead
-I have introduced definition of macro in tool/ , so this patch doesn't
-create any dependency
-on kernel headers.
+Regards
+Yan, Zheng
 
-Thanks a lot,
-Shyam
+>   		} else {
+>   			int idx = 0;
+>   			size_t left = ret > 0 ? ret : 0;
+> 
 
