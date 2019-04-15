@@ -2,165 +2,174 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6812C282DA
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 15:24:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ECA92C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 15:43:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 377EB20818
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 15:24:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 377EB20818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A6D0720880
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 15:43:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6D0720880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B64196B0003; Mon, 15 Apr 2019 11:24:45 -0400 (EDT)
+	id 38CD46B0003; Mon, 15 Apr 2019 11:43:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B11A26B0006; Mon, 15 Apr 2019 11:24:45 -0400 (EDT)
+	id 33C316B0006; Mon, 15 Apr 2019 11:43:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A004F6B0007; Mon, 15 Apr 2019 11:24:45 -0400 (EDT)
+	id 22B506B0007; Mon, 15 Apr 2019 11:43:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FF986B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 11:24:45 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id f89so16479585qtb.4
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 08:24:45 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DED5F6B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 11:43:25 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id cs14so11541379plb.5
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 08:43:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=uFR+BZCufjH1A36gcMRkjwnccFNgSbXdmrPRGNlfa7g=;
-        b=FvFLytCsGi+yVSzuQGB29g5zKqfh9YAgACpuj3021PZPyGZXq4onTnXWRgAicWLw0U
-         6gTr+RdDIw1xN1e79wExB04NZFlcl0UjTBgtIgcoBY0+cJeIuaQrk0wXGcWEzIkr0ciY
-         YFXL4KD3mhS2OTfREmBsH52NB5lo7jV/ur4EZUDrHsjgSMFRcUg+sy+SXWZgR75gXFAO
-         +8wyEdbpb6bmI4QgDvj35dAiFzX8mo7lLBY5bTMQantmQjGR7t7IBkprLP0oj60qx7Nn
-         iX3Pp5aUS9Y3+uZyDPzqOm+sMRax9Y0ur2IclTN5lCnu5edWPatOijokh+u7LcPhmXLa
-         5O9w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWaJkxxEXu1XZvHz6xGo8EEXa+g5co85TzEAcwPW9PJAj5RpOSl
-	GWXU+9kN9kqUjpR9EsUEb3E3EXpB4u/brO/n3bFD+kjE5fH9JzzWuSa7dgSv3zNr4T2ua2bPQB/
-	YNNvpKMrQnpM9jUPz6CAv1qksPP0CvOQ/71XmnpQorh4FsBqYUtGtJ20o/I3t3+Ad6A==
-X-Received: by 2002:a0c:9246:: with SMTP id 6mr60707225qvz.194.1555341885252;
-        Mon, 15 Apr 2019 08:24:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFAK86b1Jz0KBzhBxS0Gx4V6w+sY2+OHicXvROzL6D1b7MSKeTDzW7x58HmA016txBBe6x
-X-Received: by 2002:a0c:9246:: with SMTP id 6mr60707169qvz.194.1555341884670;
-        Mon, 15 Apr 2019 08:24:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555341884; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=1C/AdOFPt5lhx19izKJU0NHngsr1Eym1PiCRsgBHoTQ=;
+        b=fGZqo92NHTUCYSwtCYFkaO48EHpI48meYIJC/L82fM1aRedFTY5Zd/dyqOm/Nx9W/T
+         ZFo06bHVMmLUh4fdYVigE6u4Yn1huGhmGhffVA5e5QbGIKoFOCUawwWFI/iRK/zSx0v8
+         LGBXTLeXqGZXWTA+CI2fsI8dVAgCTQ2UKASt+1HLVQ6t6nSgvr6nAOx3DvE9kgFcyp6e
+         rJNPgmIMn01I7jLAUy/ADNF1STycsQrMef3akDsLIukQpEU7jGb7Fz4lKprY92OwRHlV
+         Jga3PdTTy/wGp3Cyl56FA0wE0PUQJjKUwPP9DmtBdVz5JJX9F9CgB19P2L9V9p1jHS4h
+         T/UA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUXQf4ORXFsq38MXG1TDuoNaDZxAQGHfxzBUwkMpmSBk20G740i
+	cfK8Ydh8wniuAymC8FyuF8Sbt9zyx60juJEPzminHbnhXCGaOdNekV//f70abCVbOy7QwIjXIED
+	krTNOcQ+urqvwXE8tDUACWUjMHvd+etunlluTgxuir32VRYnWp08jPkrwt/IeqM6wOA==
+X-Received: by 2002:a63:1749:: with SMTP id 9mr68160504pgx.94.1555343004372;
+        Mon, 15 Apr 2019 08:43:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz/40ONZF3vFbbiGYe8Y3cQEgI1hnsaQ0H9ZpGklC9nQCJCW+31D9VVeY+E6MGVJRd3RxR+
+X-Received: by 2002:a63:1749:: with SMTP id 9mr68160114pgx.94.1555342999810;
+        Mon, 15 Apr 2019 08:43:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555342999; cv=none;
         d=google.com; s=arc-20160816;
-        b=ox3+BxlErSqYZg8iYto/F0di8ZxpNNfd3LQAulChAqJanrsu9qAwT54ZPf1a9uN2+D
-         j6iVUapUx/KRZaAtkP5dMsBmuUVldcbvJIJPyrIUiplr4etS0RsF91jwmpAHZcvz6rcL
-         csgPM1YzazBjVoBlTNsIEOLeD739cZAiMECwRcGm/LehhlldIgzjg5D8CIsWViSdFYag
-         Kh6U9M9WPZ8fGtTfPdy4WwO86+GKZj8RC+uEL5ysvrTEG7+ivX5XLtOShmhTYbdOP93p
-         QrTDfVfAbMKjFgxEgYLoZXvczO3q+2WGcNkZ3ZjJ1AtveIsx+23IOSMVr/KBw3jrH9Q3
-         AvFA==
+        b=04S4K4zilfDBYZ8XfAoXT2KxcnY9OyFGUsYyU2AXsZi+DptVMdcdD4Gl3rm8QrqQvQ
+         tYoixnqisUAgimaVRu+/qqkJ+/AJ3IApfZeI2k4oimp/2COdBTzqYa6AoRIU+Qe+4ITt
+         qF4HJv+HbF+F3C0UTNZvhIGOV7zgEnbq48NraGWHJqOaj0cgX/NiSm2gvsNwxN3sig7G
+         AJ6CkzXLABKPSMA5gH2E7ttdoS/cZeTVCx+NBgbaQabB9HB+Bn1NYBNVT7/GecCNLUW7
+         H8g8n//Fu9SnzNiFWCLAu9dJiZKFUDbVWjFOfUL3eQBFPB7yOp1EXK8aGUQR9d5vnwaI
+         Q1zg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=uFR+BZCufjH1A36gcMRkjwnccFNgSbXdmrPRGNlfa7g=;
-        b=qvI5VkaqqB+J9y5SlZzYpyRpvU7/ljeLRybFbRInUBA2g28jtlYQNn0uaLRIAdglwW
-         L/FtoPcvnlt/YVC2UW/t4tofgmM+Lui0J3L5D5LT6HN7cH3Koz3CxBV9Yj7P0E3/QXXd
-         GvjbCjMPNIzWhW7gbxMBBhykp42T52OcC8ZbrlwXxj7bNDY0Li7BEzy6wvr4mEPI+sUT
-         f4zdHQN4taQ6w0UU3Jxo8YZaRmypIoeIPXOp/4qt2ZxbpCheiavyQWDA/3LHzmcnpGUZ
-         5Vj/yTAIZFrixI/K8Bcmm4M7570TixdnfxlcbnSZIHIFWrm4MA17G/KLG1ldG+zAA5p5
-         IMsg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=1C/AdOFPt5lhx19izKJU0NHngsr1Eym1PiCRsgBHoTQ=;
+        b=cVA4wb6fpIkVDO7An7w/kFKgw6OiysR8LaCqZBcr4VDrVg0DEAyeUYh5GOPuXuJJU5
+         SZCAQQ/9HCY/CGZPlk5ZfGYdJK3t/lwUsTHgtLdlXknQUX/HJa7dEuKozeygmAhFQgBz
+         lgda8dxbK+BPLk8/+BtjYgReGOV1gvwjnNVAfFVG9H6Pbn3qcYCffqIYv+zXD2vL3B9p
+         3rBkx2gWKXubUCz99d24WyEkzrWoIMvAB83QX+qn0w3hOrPjVuoLJ9ya8IaSMdJJiyHX
+         Nn2tUcHDhYDnUN+aN1ASMp3Y/y5bUnK9AhkKaorH0D/G7vZY75U7VVIJfjciH0Hd75GB
+         E19w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a30si2329574qvb.13.2019.04.15.08.24.44
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id o8si15915200pll.391.2019.04.15.08.43.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 08:24:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 15 Apr 2019 08:43:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BBDC330BC67C;
-	Mon, 15 Apr 2019 15:24:38 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 350F9608C0;
-	Mon, 15 Apr 2019 15:24:35 +0000 (UTC)
-Date: Mon, 15 Apr 2019 11:24:33 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
-	Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v1 10/15] block: add gup flag to
- bio_add_page()/bio_add_pc_page()/__bio_add_page()
-Message-ID: <20190415152433.GB3436@redhat.com>
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <20190411210834.4105-11-jglisse@redhat.com>
- <20190415145952.GE13684@quack2.suse.cz>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Apr 2019 08:43:19 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,354,1549958400"; 
+   d="scan'208";a="142906558"
+Received: from unknown (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga003.jf.intel.com with ESMTP; 15 Apr 2019 08:43:18 -0700
+Subject: Re: [PATCH 0/2] x86, numa: always initialize all possible nodes
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, Peter Zijlstra
+ <peterz@infradead.org>, x86@kernel.org,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>,
+ linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org,
+ LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+References: <20190212095343.23315-1-mhocko@kernel.org>
+ <20190226131201.GA10588@dhcp22.suse.cz>
+ <20190415114209.GJ3366@dhcp22.suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
+ oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
+ 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
+ ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
+ VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
+ iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
+ c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
+ pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
+ ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
+ QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
+ c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
+ LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
+ lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
+ MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
+ IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
+ aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
+ I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
+ E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
+ F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
+ CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
+ P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
+ 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
+ GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
+ MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
+ Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
+ lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
+ 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
+ qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
+ BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
+ 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
+ vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
+ FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
+ l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
+ yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
+ +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
+ asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
+ WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
+ sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
+ KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
+ MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
+ hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
+ vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
+Message-ID: <77b364e5-a30c-964a-6985-00b759dac128@intel.com>
+Date: Mon, 15 Apr 2019 08:43:18 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <20190415114209.GJ3366@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190415145952.GE13684@quack2.suse.cz>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 15 Apr 2019 15:24:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 15, 2019 at 04:59:52PM +0200, Jan Kara wrote:
-> Hi Jerome!
-> 
-> On Thu 11-04-19 17:08:29, jglisse@redhat.com wrote:
-> > From: Jérôme Glisse <jglisse@redhat.com>
-> > 
-> > We want to keep track of how we got a reference on page added to bio_vec
-> > ie wether the page was reference through GUP (get_user_page*) or not. So
-> > add a flag to bio_add_page()/bio_add_pc_page()/__bio_add_page() to that
-> > effect.
-> 
-> Thanks for writing this patch set! Looking through patches like this one,
-> I'm a bit concerned. With so many bio_add_page() callers it's difficult to
-> get things right and not regress in the future. I'm wondering whether the
-> things won't be less error-prone if we required that all page reference
-> from bio are gup-like (not necessarily taken by GUP, if creator of the bio
-> gets to struct page he needs via some other means (e.g. page cache lookup),
-> he could just use get_gup_pin() helper we'd provide).  After all, a page
-> reference in bio means that the page is pinned for the duration of IO and
-> can be DMAed to/from so it even makes some sense to track the reference
-> like that. Then bio_put() would just unconditionally do put_user_page() and
-> we won't have to propagate the information in the bio.
-> 
-> Do you think this would be workable and easier?
+On 4/15/19 4:42 AM, Michal Hocko wrote:
+>> Friendly ping. I haven't heard any complains so can we route this via
+>> tip/x86/mm or should we go via mmotm.
+> It seems that Dave is busy. Let's add Andrew. Can we get this [1] merged
+> finally, please?
 
-It might be workable but i am not sure it is any simpler. bio_add_page*()
-does not take page reference it is up to the caller to take the proper
-page reference so the complexity would be push there (just in a different
-place) so i don't think it would be any simpler. This means that we would
-have to update more code than this patchset does.
+Sorry these slipped through the cracks.
 
-This present patch is just a coccinelle semantic patch and even if it
-is scary to see that many call site, they are not that many that need
-to worry about the GUP parameter and they all are in patch 11, 12, 13
-and 14.
+These look sane to me.  Because it pokes around mm/page_alloc.c a bit,
+and could impact other architectures, my preference would be for Andrew
+to pick these up for -mm.  But, I don't feel that strongly about it.
 
-So i believe this patchset is simpler than converting everyone to take
-a GUP like page reference. Also doing so means we loose the information
-about GUP kind of defeat the purpose. So i believe it would be better
-to limit special reference to GUP only pages.
-
-Cheers,
-Jérôme
+Reviewed-by: Dave Hansen <dave.hansen@intel.com>
 
