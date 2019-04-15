@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97755C282E0
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36327C10F0E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5302C2146E
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5302C2146E
+	by mail.kernel.org (Postfix) with ESMTP id D9B7F20684
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 10:47:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9B7F20684
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EAEAF6B0007; Mon, 15 Apr 2019 06:47:05 -0400 (EDT)
+	id 249ED6B0006; Mon, 15 Apr 2019 06:47:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2F326B0008; Mon, 15 Apr 2019 06:47:05 -0400 (EDT)
+	id 222A86B000A; Mon, 15 Apr 2019 06:47:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF68C6B000A; Mon, 15 Apr 2019 06:47:05 -0400 (EDT)
+	id EA7DE6B0006; Mon, 15 Apr 2019 06:47:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A67136B0006
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C063B6B0007
 	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 06:47:05 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id i203so7710382oih.16
+Received: by mail-ot1-f70.google.com with SMTP id k28so8873252otf.3
         for <linux-mm@kvack.org>; Mon, 15 Apr 2019 03:47:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=msW/DfQw6RLXEJV1GdO6xcS+vBgdX+OmDHFBMpqAuDk=;
-        b=RR49gJU1UQeXUY7yKkGxmEPR4zS463B5u5zu/3OAXDFuhCF+uq1xizj0Mw23Dbr/F8
-         ajXWxUlm8SlgUV4scZowkrQGjhzGQgQIGww+19rn2ijCuufS/tNjJBcktx/L6H4GdA+q
-         v99I8eecQA9lEqkdsJ5yDIgoN71pmgvKYVryrGHlenVTvhWjycKifDrjz0GHSpF+smAV
-         ml5s8l3/44zTH9zeu/VdUnR8YAJJqr5FV2Zb5c6s5nevPYAZEMxS4vHuBLWUUoImaqhg
-         psLWE8pdT+Ks+xxx7C4I8WIFyOnJf4Pnh739hOodu9zkyD70OGV/+QdUVxkNWFFyop/w
-         QW0w==
+        bh=uq4YXG/fd4i9tMfjG1TF9685MevsjIg/lcHigJ5WLOE=;
+        b=qx8nyjI0m92sk9/dKmi8l0FiHuwwWmDIMbK8SzojMAlqkIYqUx6891Lc7plPHWSWsn
+         qLiU3nihudl5/hw5GQWcjhdrI+js7yZzLQ9BE9GxV/Zf4jRkErxCpacGb5j37zBN5dHv
+         i255g8OeANX42vQeawTLz/XT7HTA5n0w2FMzjA7yOh9L+lR4oDe6qCxlLT0WlbzFCWeO
+         YByJcaFpwVAQ/ixGif1iXE06C+woId/Xasfdjtg37H0Jw5YipQHn13xlcfNQ1wUMCBHn
+         9kMwsqIEYMEUuxcptNDofivpRKYR4u3iwfDyyvISD3/a2vJhqJzCymw64IoaCNY7aduo
+         h8hg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAUtVPSALorH8qLm7Md1MO2BVEHAXyHlg1e56M62gn4DUhoEVfso
-	vZLrKSnH2VJAS0ViKxcjCzcKtToVwrGb39/3naOMhUIvRHXGkLFF1i0HWFwoNE19EoPKNwRRx2S
-	E1qX3NrDxRahTMj4n/a02AVfPJMqZqmElDa2Blenz1k6LI2EzJpW6PxfR4t3cKcf5ZA==
-X-Received: by 2002:aca:d614:: with SMTP id n20mr19178922oig.46.1555325225328;
+X-Gm-Message-State: APjAAAXGDfkvH1tqJ/EdVbGOyuFmoUT6awefusGnljcnCXBXhCzP66rL
+	qnJPY7ug9/rXY/I/a+nAHt60njDd+KPTzTtgdHw2imcVsgH1D6Eklgj0LnWDhwoiuhVZv7mbKz2
+	bh6uj1ESyeFrMHQDvxcz8O0n/2Tubt26MFrrXLCBVNDnl+27DNE4utGV0LImiZcxbcQ==
+X-Received: by 2002:a9d:dc4:: with SMTP id 62mr46672720ots.211.1555325225464;
         Mon, 15 Apr 2019 03:47:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1TR9dtcmRqRHI15xTf/bOnEAzpZOov58dx7UqgwtHovHINB8NXHiY4j5z++IryTmXNg6N
-X-Received: by 2002:aca:d614:: with SMTP id n20mr19178879oig.46.1555325224038;
+X-Google-Smtp-Source: APXvYqzLv4ZsJEveyG74N+iKqEMaW1wrWzaR6rJvEBy7dN03EkKNV+WMEwoIPPidleEhk8gZw0Nq
+X-Received: by 2002:a9d:dc4:: with SMTP id 62mr46672691ots.211.1555325224469;
         Mon, 15 Apr 2019 03:47:04 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555325224; cv=none;
         d=google.com; s=arc-20160816;
-        b=tWLeu4ks5SUrX3sKwC2YPBvWmfpHla0Oiv86NMbsMndhkUeY5Sn3yYnw+yLWsYJsbh
-         X/v+aV6JXo4TZwQDQODTIHf9EfrcxBD2aWQGZnilCIoSksUKFBRIDioSIP6FVYdGKeAj
-         ftKj+dNPCxhtO7SBaO+7v808ehR5/9K6/ed238+J6VCPBvzI3pT8yKX2618g5/prkVC9
-         LCwTEN0SX25j63ZxIgTqcNpR4arN3LS6kxZYwB5x8VQiMJoo+NbJB6rm64xsPzneWzx5
-         xJPeTKXKPp897kHXxgQc4TNqSETLYlleNDTRjnNVEV61xV0lS4n5TCASDl6Bwe/Wo9t9
-         FF7A==
+        b=Pqrot4lfbghRAbzcM+Uez3/y4za1ElakJx+FF7AUIHNYDKX+hY5B8mhoYOIsbvfTAT
+         y9kZ7KRiuVDadzmKowjzD9H+wVYltyL0lAmRfRUYIGFPo19bPNzkiNhSJwqvH6GXj2ht
+         S6o1hjP7Z1oVGXGct7DRBz/blQaVTCEgKU+wrFGTpEVwLtfFITyQoA3sRn91wpcC2U/q
+         wuKvjc7Twkl1Xb6YKwTId6DeazF+XRxDg7RRHiOQokjf/DgSCEQFunfrQVxilaf3Ts0B
+         aLxbawrNTuI1N3HvLqKyEattp+eeucIdYh0zPIOa7zMeUEL10lgHEpTOByae4Lr5k+0/
+         ZhIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=msW/DfQw6RLXEJV1GdO6xcS+vBgdX+OmDHFBMpqAuDk=;
-        b=NNSk7O+vD5Yhkp62WVrZV64wRqJSJfdLWTHPXHj+CCQMPsOLpA/IaBQRZz598sBoMT
-         Jk6RXM/SeXYyiIHgZ3EEn7quLYWk0FvqUtRACiZv3dJLur4fR8uVTxTzFyHVd+ILNHB3
-         /chRPkC/55jjP3S/+2Rc9vX/lk0PGFMaQfthFOG+ivWGeHCCFZkTnZkGHYLIjUWqFieO
-         GQsL7mLtRMJ5uUcyTEePTnt1aVFQ+CPLgX3W2MLQ9W77Fxn9Qs8FGXs0nRGH2znkHrbC
-         mt6nY17tt8cY4A+BgWwJ9jzETyd7l5dqpQspEYgwmey5aKFa6+I1ZIXTuR3IxgVkPwJH
-         cCpA==
+        bh=uq4YXG/fd4i9tMfjG1TF9685MevsjIg/lcHigJ5WLOE=;
+        b=w4UMTYOCojtcBjj29lS6sDfBo+eFr800VnOefbMbALSDd5aLq8np2jI/12Q9wy3u7o
+         K2lbpRCX4jWyKMyQly2ClHO1m8wm6DcjWlU4UgUQdqeVbFyPFV4m4P+KuqEV73MfEVwo
+         OFq/kbB2etZC/TT+HnOBBXVKLTDdT8XQoeNZCWF3gK4ca+gDFpZhDkoZ+RLVZeLvcU2l
+         NT12s7Z7etJ0Lrelm7nbq6eCHejTe9MREdTVz6YF5e4MKIzlSJLGAl3zdpyaN9hcG/JR
+         rZP110YNNTUyYRRRGsjp36jAQVq6AZX6Wr27BMExtQyKaxcGBVKS1OHfFxAKIv7jhykv
+         0bRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
 Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id w6si22313972oiw.197.2019.04.15.03.47.03
+        by mx.google.com with ESMTPS id b13si21792871oti.57.2019.04.15.03.47.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 15 Apr 2019 03:47:04 -0700 (PDT)
@@ -77,11 +77,11 @@ Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.24
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
 Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id 727A8A52E617467592BB;
+	by Forcepoint Email with ESMTP id 690EA8DA76D87F47CC55;
 	Mon, 15 Apr 2019 18:46:58 +0800 (CST)
 Received: from localhost.localdomain.localdomain (10.175.113.25) by
  DGGEMS408-HUB.china.huawei.com (10.3.19.208) with Microsoft SMTP Server id
- 14.3.408.0; Mon, 15 Apr 2019 18:46:50 +0800
+ 14.3.408.0; Mon, 15 Apr 2019 18:46:48 +0800
 From: Chen Zhou <chenzhou10@huawei.com>
 To: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
 	<ebiederm@xmission.com>, <rppt@linux.ibm.com>, <catalin.marinas@arm.com>,
@@ -91,9 +91,9 @@ CC: <horms@verge.net.au>, <takahiro.akashi@linaro.org>,
 	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
 	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
 	<wangkefeng.wang@huawei.com>, Chen Zhou <chenzhou10@huawei.com>
-Subject: [PATCH v4 2/5] arm64: kdump: support reserving crashkernel above 4G
-Date: Mon, 15 Apr 2019 18:57:22 +0800
-Message-ID: <20190415105725.22088-3-chenzhou10@huawei.com>
+Subject: [PATCH v4 1/5] x86: kdump: move reserve_crashkernel_low() into kexec_core.c
+Date: Mon, 15 Apr 2019 18:57:21 +0800
+Message-ID: <20190415105725.22088-2-chenzhou10@huawei.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190415105725.22088-1-chenzhou10@huawei.com>
 References: <20190415105725.22088-1-chenzhou10@huawei.com>
@@ -108,107 +108,220 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When crashkernel is reserved above 4G in memory, kernel should
-reserve some amount of low memory for swiotlb and some DMA buffers.
-
-Kernel would try to allocate at least 256M below 4G automatically
-as x86_64 if crashkernel is above 4G. Meanwhile, support
-crashkernel=X,[high,low] in arm64.
+In preparation for supporting more than one crash kernel regions
+in arm64 as x86_64 does, move reserve_crashkernel_low() into
+kexec/kexec_core.c.
 
 Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
 ---
- arch/arm64/include/asm/kexec.h |  3 +++
- arch/arm64/kernel/setup.c      |  3 +++
- arch/arm64/mm/init.c           | 25 ++++++++++++++++++++-----
- 3 files changed, 26 insertions(+), 5 deletions(-)
+ arch/x86/include/asm/kexec.h |  3 ++
+ arch/x86/kernel/setup.c      | 66 +++++---------------------------------------
+ include/linux/kexec.h        |  5 ++++
+ kernel/kexec_core.c          | 56 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 71 insertions(+), 59 deletions(-)
 
-diff --git a/arch/arm64/include/asm/kexec.h b/arch/arm64/include/asm/kexec.h
-index 67e4cb7..32949bf 100644
---- a/arch/arm64/include/asm/kexec.h
-+++ b/arch/arm64/include/asm/kexec.h
-@@ -28,6 +28,9 @@
+diff --git a/arch/x86/include/asm/kexec.h b/arch/x86/include/asm/kexec.h
+index 003f2da..485a514 100644
+--- a/arch/x86/include/asm/kexec.h
++++ b/arch/x86/include/asm/kexec.h
+@@ -18,6 +18,9 @@
  
- #define KEXEC_ARCH KEXEC_ARCH_AARCH64
+ # define KEXEC_CONTROL_CODE_MAX_SIZE	2048
  
-+/* 2M alignment for crash kernel regions */
-+#define CRASH_ALIGN	SZ_2M
++/* 16M alignment for crash kernel regions */
++#define CRASH_ALIGN		(16 << 20)
 +
  #ifndef __ASSEMBLY__
  
- /**
-diff --git a/arch/arm64/kernel/setup.c b/arch/arm64/kernel/setup.c
-index 413d566..82cd9a0 100644
---- a/arch/arm64/kernel/setup.c
-+++ b/arch/arm64/kernel/setup.c
-@@ -243,6 +243,9 @@ static void __init request_standard_resources(void)
- 			request_resource(res, &kernel_data);
+ #include <linux/string.h>
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 3773905..4182035 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -447,9 +447,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
+ 
  #ifdef CONFIG_KEXEC_CORE
- 		/* Userspace will find "Crash kernel" region in /proc/iomem. */
-+		if (crashk_low_res.end && crashk_low_res.start >= res->start &&
-+		    crashk_low_res.end <= res->end)
-+			request_resource(res, &crashk_low_res);
- 		if (crashk_res.end && crashk_res.start >= res->start &&
- 		    crashk_res.end <= res->end)
- 			request_resource(res, &crashk_res);
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 972bf43..f5dde73 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -74,20 +74,30 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
+ 
+-/* 16M alignment for crash kernel regions */
+-#define CRASH_ALIGN		(16 << 20)
+-
+ /*
+  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
+  * would limit the kernel to the low 512 MiB due to mapping restrictions.
+@@ -463,59 +460,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
+ # define CRASH_ADDR_HIGH_MAX	MAXMEM
+ #endif
+ 
+-static int __init reserve_crashkernel_low(void)
+-{
+-#ifdef CONFIG_X86_64
+-	unsigned long long base, low_base = 0, low_size = 0;
+-	unsigned long total_low_mem;
+-	int ret;
+-
+-	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+-
+-	/* crashkernel=Y,low */
+-	ret = parse_crashkernel_low(boot_command_line, total_low_mem, &low_size, &base);
+-	if (ret) {
+-		/*
+-		 * two parts from lib/swiotlb.c:
+-		 * -swiotlb size: user-specified with swiotlb= or default.
+-		 *
+-		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+-		 * to 8M for other buffers that may need to stay low too. Also
+-		 * make sure we allocate enough extra low memory so that we
+-		 * don't run out of DMA buffers for 32-bit devices.
+-		 */
+-		low_size = max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
+-	} else {
+-		/* passed with crashkernel=0,low ? */
+-		if (!low_size)
+-			return 0;
+-	}
+-
+-	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
+-	if (!low_base) {
+-		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+-		       (unsigned long)(low_size >> 20));
+-		return -ENOMEM;
+-	}
+-
+-	ret = memblock_reserve(low_base, low_size);
+-	if (ret) {
+-		pr_err("%s: Error reserving crashkernel low memblock.\n", __func__);
+-		return ret;
+-	}
+-
+-	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
+-		(unsigned long)(low_size >> 20),
+-		(unsigned long)(low_base >> 20),
+-		(unsigned long)(total_low_mem >> 20));
+-
+-	crashk_low_res.start = low_base;
+-	crashk_low_res.end   = low_base + low_size - 1;
+-	insert_resource(&iomem_resource, &crashk_low_res);
+-#endif
+-	return 0;
+-}
+-
  static void __init reserve_crashkernel(void)
  {
- 	unsigned long long crash_base, crash_size;
-+	bool high = false;
- 	int ret;
- 
- 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
- 				&crash_size, &crash_base);
- 	/* no crashkernel= or invalid value specified */
--	if (ret || !crash_size)
--		return;
-+	if (ret || !crash_size) {
-+		/* crashkernel=X,high */
-+		ret = parse_crashkernel_high(boot_command_line,
-+				memblock_phys_mem_size(),
-+				&crash_size, &crash_base);
-+		if (ret || !crash_size)
-+			return;
-+		high = true;
-+	}
- 
- 	crash_size = PAGE_ALIGN(crash_size);
- 
- 	if (crash_base == 0) {
- 		/* Current arm64 boot protocol requires 2MB alignment */
--		crash_base = memblock_find_in_range(0, ARCH_LOW_ADDRESS_LIMIT,
--				crash_size, SZ_2M);
-+		crash_base = memblock_find_in_range(0,
-+				high ? memblock_end_of_DRAM()
-+				: ARCH_LOW_ADDRESS_LIMIT,
-+				crash_size, CRASH_ALIGN);
- 		if (crash_base == 0) {
- 			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
- 				crash_size);
-@@ -105,13 +115,18 @@ static void __init reserve_crashkernel(void)
- 			return;
- 		}
- 
--		if (!IS_ALIGNED(crash_base, SZ_2M)) {
-+		if (!IS_ALIGNED(crash_base, CRASH_ALIGN)) {
- 			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
- 			return;
- 		}
+ 	unsigned long long crash_size, crash_base, total_mem;
+@@ -573,9 +517,13 @@ static void __init reserve_crashkernel(void)
+ 		return;
  	}
- 	memblock_reserve(crash_base, crash_size);
  
-+	if (crash_base >= SZ_4G && reserve_crashkernel_low()) {
-+		memblock_free(crash_base, crash_size);
-+		return;
+-	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
+-		memblock_free(crash_base, crash_size);
+-		return;
++	if (crash_base >= (1ULL << 32)) {
++		if (reserve_crashkernel_low()) {
++			memblock_free(crash_base, crash_size);
++			return;
++		}
++
++		insert_resource(&iomem_resource, &crashk_low_res);
+ 	}
+ 
+ 	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+diff --git a/include/linux/kexec.h b/include/linux/kexec.h
+index b9b1bc5..096ad63 100644
+--- a/include/linux/kexec.h
++++ b/include/linux/kexec.h
+@@ -63,6 +63,10 @@
+ 
+ #define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
+ 
++#ifndef CRASH_ALIGN
++#define CRASH_ALIGN SZ_128M
++#endif
++
+ /*
+  * This structure is used to hold the arguments that are used when loading
+  * kernel binaries.
+@@ -281,6 +285,7 @@ extern void __crash_kexec(struct pt_regs *);
+ extern void crash_kexec(struct pt_regs *);
+ int kexec_should_crash(struct task_struct *);
+ int kexec_crash_loaded(void);
++int __init reserve_crashkernel_low(void);
+ void crash_save_cpu(struct pt_regs *regs, int cpu);
+ extern int kimage_crash_copy_vmcoreinfo(struct kimage *image);
+ 
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index d714044..3492abd 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -39,6 +39,8 @@
+ #include <linux/compiler.h>
+ #include <linux/hugetlb.h>
+ #include <linux/frame.h>
++#include <linux/memblock.h>
++#include <linux/swiotlb.h>
+ 
+ #include <asm/page.h>
+ #include <asm/sections.h>
+@@ -96,6 +98,60 @@ int kexec_crash_loaded(void)
+ }
+ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
+ 
++int __init reserve_crashkernel_low(void)
++{
++	unsigned long long base, low_base = 0, low_size = 0;
++	unsigned long total_low_mem;
++	int ret;
++
++	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
++
++	/* crashkernel=Y,low */
++	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
++			&low_size, &base);
++	if (ret) {
++		/*
++		 * two parts from lib/swiotlb.c:
++		 * -swiotlb size: user-specified with swiotlb= or default.
++		 *
++		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
++		 * to 8M for other buffers that may need to stay low too. Also
++		 * make sure we allocate enough extra low memory so that we
++		 * don't run out of DMA buffers for 32-bit devices.
++		 */
++		low_size = max(swiotlb_size_or_default() + (8UL << 20),
++				256UL << 20);
++	} else {
++		/* passed with crashkernel=0,low ? */
++		if (!low_size)
++			return 0;
 +	}
 +
- 	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
- 		crash_base, crash_base + crash_size, crash_size >> 20);
- 
++	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
++	if (!low_base) {
++		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
++		       (unsigned long)(low_size >> 20));
++		return -ENOMEM;
++	}
++
++	ret = memblock_reserve(low_base, low_size);
++	if (ret) {
++		pr_err("%s: Error reserving crashkernel low memblock.\n",
++				__func__);
++		return ret;
++	}
++
++	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
++		(unsigned long)(low_size >> 20),
++		(unsigned long)(low_base >> 20),
++		(unsigned long)(total_low_mem >> 20));
++
++	crashk_low_res.start = low_base;
++	crashk_low_res.end   = low_base + low_size - 1;
++
++	return 0;
++}
++
+ /*
+  * When kexec transitions to the new kernel there is a one-to-one
+  * mapping between physical and virtual addresses.  On processors
 -- 
 2.7.4
 
