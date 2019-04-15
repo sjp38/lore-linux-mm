@@ -2,316 +2,414 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D6EFC10F13
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 00:58:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4AC8C282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:05:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BAAA220645
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 00:58:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UQgLsXp2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAAA220645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 327B72084E
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 02:05:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 327B72084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CBF46B0003; Sun, 14 Apr 2019 20:58:35 -0400 (EDT)
+	id 8DB196B0003; Sun, 14 Apr 2019 22:05:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27A906B0006; Sun, 14 Apr 2019 20:58:35 -0400 (EDT)
+	id 8613E6B0006; Sun, 14 Apr 2019 22:05:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1933A6B0007; Sun, 14 Apr 2019 20:58:35 -0400 (EDT)
+	id 72A8C6B0007; Sun, 14 Apr 2019 22:05:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EA5796B0003
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 20:58:34 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id u22so13017356iof.4
-        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 17:58:34 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EA296B0003
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2019 22:05:34 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id w11so8366030otq.7
+        for <linux-mm@kvack.org>; Sun, 14 Apr 2019 19:05:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=PBzleQwbgYywvv0oOxferWcnDv5RsVpwwZRcwzD9EvQ=;
-        b=ky5K56kgav13JWC2tYI/jcr1l8UJBwm5jeqC14SVzHMk8elr3hdyrYYY2R+TwiVZI4
-         pqVQY7fw0MbEte3qUDAEdsrEAtOIVxVOF5iT4qcfgM2S0DRVBE3XLi47XfZMRs20+6qT
-         IJmrUlt1CF8l+Ho+fJnYulIJ8fNUpB4wM4aE2uEJaeLP0jIFFQoavUfC5PZIM3/I4LKg
-         pE+MQQSOjEUWSYe2NyZu97gdIiSkq0AQL6nSdUWb7Mm/dByDfvYgNfUntpuGHzv2F8f/
-         jDsWe6uPOuEWmTh9hAj6oGpFEnZLhd/TNDxaDBWkVUe10DA5RRc7ssRrXI7lcpcvfo26
-         ecqw==
-X-Gm-Message-State: APjAAAUzm/Kc33ZxfsqpiSeRvN+JLsXEr7gnXdd0N7uHdOBjMRYjZI8t
-	M2bGVKzo+edk7rTd/U2wLhkIYIa8cZ1+RxVwXg9u/uFf5dWoild5UvVAJTnovuc5zKNQeEZCRLO
-	UO2YfW8WstzAeLNCtXHjVApPAExCSCIQ42y+mRFHUPrtt9scz3dLSAd4Sy/BdvMvB9A==
-X-Received: by 2002:a5d:9947:: with SMTP id v7mr37209832ios.25.1555289914633;
-        Sun, 14 Apr 2019 17:58:34 -0700 (PDT)
-X-Received: by 2002:a5d:9947:: with SMTP id v7mr37209787ios.25.1555289913486;
-        Sun, 14 Apr 2019 17:58:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555289913; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=VG4iy0kN7LCiQxzI4cVJokR7b8b9Na+kC4ax7SFlVb8=;
+        b=KE3I7xFkAE4NmAau8eBrXX/BaT/I9vjP0HQsfJP4SZdU7y9NugVBXuslOmieIx5AdV
+         RPNi1mXAiR+deirhWzvNn5ZhQyescXm1khRcdYyOwAau8/ccutZ1bAwPkRCrdhqErCW9
+         gYh1q2PH9ToJfE8U4SrSgsgR5ZpNS2XHmzg9av8vCRIDr+Yfrj+XfXDVud1NwCSZaSFz
+         O3h9LUBioQMQoV++lhZoP0nTTsvzKvgh8DWebuxE/TnC/pMxHlu9Otzb2xDnFAhcpwPZ
+         5Or4GQdv8ap6RWqDfwp3tiJV6cc0LE6jKsVSOuaETrAB3/42BwjWV4AU2l67Tpzg0u+V
+         Shrg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+X-Gm-Message-State: APjAAAWFg6L/2XGO2C0s4UPz1yVsG2WWftnhzkf2AhJGboq46Vpm4qMP
+	Cl1yEIqADH973Hq/+4Mbgvfzoh2iW2kI7ulFrdu0oT8AwfUFZOfFTWkV6RKgxfTGjiatO5QnaFm
+	mY6xuIMX0NfTR7/KyCLDYmrgwXKj/leLgkRgHjSeetkyj8tmgL7WfpmbNzcGznfb31g==
+X-Received: by 2002:aca:fc8f:: with SMTP id a137mr17659417oii.141.1555293933814;
+        Sun, 14 Apr 2019 19:05:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzBFIwJiJC2ByVqcPT9jzW6y9bYuKC3xHAmVJs7e5AetQR6e/Z7HL+NUYrBN5r//YOlSr9d
+X-Received: by 2002:aca:fc8f:: with SMTP id a137mr17659387oii.141.1555293932650;
+        Sun, 14 Apr 2019 19:05:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555293932; cv=none;
         d=google.com; s=arc-20160816;
-        b=fP3RiCUP558lnQsMsFFPAL6Lr0wjWFGn5lwG6sTX8TaruzeX29JKMKegj0jzh9hM2g
-         zy4tXkOFMW3oXDw4eBKhPv7shaPX35EVw1Osu9oprAETk0+b5m5VmlUfDYBe43/ahAzc
-         XrCoSiat8EMH/VK+n9oM5wHGy3BQ7f6sM5wVo4M/UyEKxoJ9Yb1H7MFsMWxabdPlKoFi
-         6uC6KWUcpE3awP0sy/wtb8FZ0d8AFgenRdQnJRRgS2qEzDW23aqUCbiEwKpobSh+Tq3C
-         jN0us+4/d+0QNmuO0TJgX4oDJoGPKf+SucwWztAWy+mf74m59JT3hrQKE1iludeJapZA
-         d1pw==
+        b=q8XHkqCKnbMMOTCsOUBpmQr8t6osLzTfPklE5ZN7WO/dVcoEh/+SIujGJGHAW06RtW
+         P9cXhekO0R1xx9ZOceUSj/E/an9qpik4M2vK8GbMl3RSLA61c9vcqe3959krO/RIPeBC
+         XyAe5b5WeVIZ5rp2CVvB11tRPWhneS8B4DKcpwlPkQJUm6b+eMOh35+yaapHWNUrNCHK
+         F3MpiTmTJw5IYkfafs5GuXvTD3lv9yvv2ZcXlq10C/j2BMknN+DjkDRdxPGCaC3b9XKv
+         9aN/zYIYLpvvSD8ut0h07lM/GNm/RY4Zsk7MhoUUwvI4hm2qTIX9LCJBbpQbzB0rlb9M
+         Yguw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=PBzleQwbgYywvv0oOxferWcnDv5RsVpwwZRcwzD9EvQ=;
-        b=hu++9H59eTsGdmOHQwFHzra1YiCzNcE1JjAQ9TvAOd/yqMfTblPIVC+urZcHPDTtcc
-         55UUZStLp0UM0hBQ495rlmAKI6ChR0oIdq/W8h/go4u2bEbILQKa5YOXW31pvXoNxLOP
-         2tZQb1z5p7HUYawRqKUCWzkkTmxtv9Iz2vtC+Xd8hLuCCHurLAXc+YEl5d4pb7n0ZUcb
-         KwGs/rjKJZVCe90fUTTBsWIMLSTfZXaI7Qk3ss8HU/fiISFP/JpdmIh9Ixm32LoBqEqd
-         4rqQ1Q+RKgR6ZPy0XZWdme9NVVRP1Tmtprx8ENJtaGdZwfvXuJ5aS/2X4Q5WUIEASVQK
-         W5ag==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject;
+        bh=VG4iy0kN7LCiQxzI4cVJokR7b8b9Na+kC4ax7SFlVb8=;
+        b=PJFWuQUN3CA3gXxx1QECz5fpzMAmG9lHfKAqspZfCaY7XzVheV8CTlpyWIFnPnhYUJ
+         FYhHtDsDrqUXuXr5XqeAGrwS89xDckSkQzOYS+vx7dlimxUe8Gp6JAHZ6qPYmiDo5SWP
+         MYFepacTfQFdVaZYjlkKRd5Ub8APOKYwugdn47DCq5axxx6yegaPmVg0Yj56ugbW9bX4
+         YcnuaUN8miw9yYhSK1qol0rmWGXEwZOZQqpUgG9vzJFslRLYnTrBNLO0bbn2NPL5qhOH
+         wICLd64lVtTBzUhKBtz/yrFcaMxTx4VDgENjGn0itQEAAKP8d7Hnezi5LzFjEjP1IPH9
+         cVyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UQgLsXp2;
-       spf=pass (google.com: domain of oohall@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oohall@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 127sor42209468jaz.12.2019.04.14.17.58.33
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id q15si22386704ota.111.2019.04.14.19.05.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 14 Apr 2019 17:58:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oohall@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 14 Apr 2019 19:05:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UQgLsXp2;
-       spf=pass (google.com: domain of oohall@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oohall@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=PBzleQwbgYywvv0oOxferWcnDv5RsVpwwZRcwzD9EvQ=;
-        b=UQgLsXp2vnQElCNd0ICpvkldPqp5KdoZ4gm/wKLgWyNg2MS1S2DTw/U/MtU62Bjojo
-         PEUfcmw4qBn/I1VxfSxiBC83ckz026u9l1aXaNAbFWR0tscHaOuPU7lgB8RTgeroTT5h
-         kmEpejlFk5f/inth/Az59EbUL+lliUVh7yNDB61T2pmfVNrAeInROJEvncrCcvre8V50
-         Qjf8Y3bvr8D2QMqEEh1WHzrF4YUuobjpljksmAO9E4OdOb7c43iMCWXGTGJ5pw3dhXWo
-         XwsAxQbZej0o9JIGKi1+9rtkxAqdP8IUBmcDX0lYMQhAnyOq/6njDSI59YKvfnp/lkrm
-         aUDg==
-X-Google-Smtp-Source: APXvYqyK+XLDPCprZKjTg61CgSwufBWZqYK5BgfdUPP4vU73ZWTsreLx+xOr4cUSyXi/vF/E09jWd7uJ7fHk+Ref9ls=
-X-Received: by 2002:a02:b008:: with SMTP id p8mr50489608jah.90.1555289912996;
- Sun, 14 Apr 2019 17:58:32 -0700 (PDT)
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from DGGEMS411-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 2B1A3B1DC1772B0485CC;
+	Mon, 15 Apr 2019 10:05:27 +0800 (CST)
+Received: from [127.0.0.1] (10.177.131.64) by DGGEMS411-HUB.china.huawei.com
+ (10.3.19.211) with Microsoft SMTP Server id 14.3.408.0; Mon, 15 Apr 2019
+ 10:05:21 +0800
+Subject: Re: [PATCH v3 3/4] arm64: kdump: support more than one crash kernel
+ regions
+To: Mike Rapoport <rppt@linux.ibm.com>
+References: <20190409102819.121335-1-chenzhou10@huawei.com>
+ <20190409102819.121335-4-chenzhou10@huawei.com>
+ <20190410130917.GC17196@rapoport-lnx>
+ <137bef2e-8726-fd8f-1cb0-7592074f7870@huawei.com>
+ <20190414121058.GC20947@rapoport-lnx>
+CC: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
+	<ebiederm@xmission.com>, <catalin.marinas@arm.com>, <will.deacon@arm.com>,
+	<akpm@linux-foundation.org>, <ard.biesheuvel@linaro.org>,
+	<horms@verge.net.au>, <takahiro.akashi@linaro.org>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
+	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
+	<wangkefeng.wang@huawei.com>
+From: Chen Zhou <chenzhou10@huawei.com>
+Message-ID: <b5206f0c-d711-427e-256a-98b2e30c1ab0@huawei.com>
+Date: Mon, 15 Apr 2019 10:05:18 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
+ Thunderbird/45.7.1
 MIME-Version: 1.0
-References: <cover.1555093412.git.robin.murphy@arm.com> <25525e4dab6ebc49e233f21f7c29821223431647.1555093412.git.robin.murphy@arm.com>
-In-Reply-To: <25525e4dab6ebc49e233f21f7c29821223431647.1555093412.git.robin.murphy@arm.com>
-From: Oliver <oohall@gmail.com>
-Date: Mon, 15 Apr 2019 10:58:21 +1000
-Message-ID: <CAOSf1CFTvmDPBuhT25CrmUbFhh3FtLKK0M67oNHEE3Pi9eR9LA@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: introduce ARCH_HAS_PTE_DEVMAP
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Linux MM <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, ira.weiny@intel.com, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, ohall@gmail.com, 
-	x86@kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, anshuman.khandual@arm.com, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190414121058.GC20947@rapoport-lnx>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+X-Originating-IP: [10.177.131.64]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 13, 2019 at 4:57 AM Robin Murphy <robin.murphy@arm.com> wrote:
->
-> ARCH_HAS_ZONE_DEVICE is somewhat meaningless in itself, and combined
-> with the long-out-of-date comment can lead to the impression than an
-> architecture may just enable it (since __add_pages() now "comprehends
-> device memory" for itself) and expect things to work.
+Hi Mike,
 
-Good cleanup. ARCH_HAS_ZONE_DEVICE made sense at the time, but it
-probably should have been renamed after the memory hotplug rework.
+On 2019/4/14 20:10, Mike Rapoport wrote:
+> Hi,
+> 
+> On Thu, Apr 11, 2019 at 08:17:43PM +0800, Chen Zhou wrote:
+>> Hi Mike,
+>>
+>> This overall looks well.
+>> Replacing memblock_cap_memory_range() with memblock_cap_memory_ranges() was what i wanted
+>> to do in v1, sorry for don't express that clearly.
+> 
+> I didn't object to memblock_cap_memory_ranges() in general, I was worried
+> about it's complexity and I hoped that we could find a simpler solution.
+>  
+>> But there are some issues as below. After fixing this, it can work correctly.
+>>
+>> On 2019/4/10 21:09, Mike Rapoport wrote:
+>>> Hi,
+>>>
+>>> On Tue, Apr 09, 2019 at 06:28:18PM +0800, Chen Zhou wrote:
+>>>> After commit (arm64: kdump: support reserving crashkernel above 4G),
+>>>> there may be two crash kernel regions, one is below 4G, the other is
+>>>> above 4G.
+>>>>
+>>>> Crash dump kernel reads more than one crash kernel regions via a dtb
+>>>> property under node /chosen,
+>>>> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>
+>>>>
+>>>> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
+>>>> ---
+>>>>  arch/arm64/mm/init.c     | 66 ++++++++++++++++++++++++++++++++++++++++--------
+>>>>  include/linux/memblock.h |  6 +++++
+>>>>  mm/memblock.c            |  7 ++---
+>>>>  3 files changed, 66 insertions(+), 13 deletions(-)
+>>>>
+>>>> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+>>>> index 3bebddf..0f18665 100644
+>>>> --- a/arch/arm64/mm/init.c
+>>>> +++ b/arch/arm64/mm/init.c
+>>>> @@ -65,6 +65,11 @@ phys_addr_t arm64_dma_phys_limit __ro_after_init;
+>>>>  
+>>>>  #ifdef CONFIG_KEXEC_CORE
+>>>>  
+>>>> +/* at most two crash kernel regions, low_region and high_region */
+>>>> +#define CRASH_MAX_USABLE_RANGES	2
+>>>> +#define LOW_REGION_IDX			0
+>>>> +#define HIGH_REGION_IDX			1
+>>>> +
+>>>>  /*
+>>>>   * reserve_crashkernel() - reserves memory for crash kernel
+>>>>   *
+>>>> @@ -297,8 +302,8 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
+>>>>  		const char *uname, int depth, void *data)
+>>>>  {
+>>>>  	struct memblock_region *usablemem = data;
+>>>> -	const __be32 *reg;
+>>>> -	int len;
+>>>> +	const __be32 *reg, *endp;
+>>>> +	int len, nr = 0;
+>>>>  
+>>>>  	if (depth != 1 || strcmp(uname, "chosen") != 0)
+>>>>  		return 0;
+>>>> @@ -307,22 +312,63 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
+>>>>  	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
+>>>>  		return 1;
+>>>>  
+>>>> -	usablemem->base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+>>>> -	usablemem->size = dt_mem_next_cell(dt_root_size_cells, &reg);
+>>>> +	endp = reg + (len / sizeof(__be32));
+>>>> +	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+>>>> +		usablemem[nr].base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+>>>> +		usablemem[nr].size = dt_mem_next_cell(dt_root_size_cells, &reg);
+>>>> +
+>>>> +		if (++nr >= CRASH_MAX_USABLE_RANGES)
+>>>> +			break;
+>>>> +	}
+>>>>  
+>>>>  	return 1;
+>>>>  }
+>>>>  
+>>>>  static void __init fdt_enforce_memory_region(void)
+>>>>  {
+>>>> -	struct memblock_region reg = {
+>>>> -		.size = 0,
+>>>> -	};
+>>>> +	int i, cnt = 0;
+>>>> +	struct memblock_region regs[CRASH_MAX_USABLE_RANGES];
+>>>
+>>> I only now noticed that fdt_enforce_memory_region() uses memblock_region to
+>>> pass the ranges around. If we'd switch to memblock_type instead, the
+>>> implementation of memblock_cap_memory_ranges() would be really
+>>> straightforward. Can you check if the below patch works for you? 
+>>>
+>>> >From e476d584098e31273af573e1a78e308880c5cf28 Mon Sep 17 00:00:00 2001
+>>> From: Mike Rapoport <rppt@linux.ibm.com>
+>>> Date: Wed, 10 Apr 2019 16:02:32 +0300
+>>> Subject: [PATCH] memblock: extend memblock_cap_memory_range to multiple ranges
+>>>
+>>> The memblock_cap_memory_range() removes all the memory except the range
+>>> passed to it. Extend this function to recieve memblock_type with the
+>>> regions that should be kept. This allows switching to simple iteration over
+>>> memblock arrays with 'for_each_mem_range' to remove the unneeded memory.
+>>>
+>>> Enable use of this function in arm64 for reservation of multile regions for
+>>> the crash kernel.
+>>>
+>>> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+>>> ---
+>>>  arch/arm64/mm/init.c     | 34 ++++++++++++++++++++++++----------
+>>>  include/linux/memblock.h |  2 +-
+>>>  mm/memblock.c            | 45 ++++++++++++++++++++++-----------------------
+>>>  3 files changed, 47 insertions(+), 34 deletions(-)
+>>>
+>>>  
+>>> -void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
+>>> +void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
+>>>  {
+>>> -	int start_rgn, end_rgn;
+>>> -	int i, ret;
+>>> -
+>>> -	if (!size)
+>>> -		return;
+>>> -
+>>> -	ret = memblock_isolate_range(&memblock.memory, base, size,
+>>> -						&start_rgn, &end_rgn);
+>>> -	if (ret)
+>>> -		return;
+>>> -
+>>> -	/* remove all the MAP regions */
+>>> -	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
+>>> -		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+>>> -			memblock_remove_region(&memblock.memory, i);
+>>> +	phys_addr_t start, end;
+>>> +	u64 i;
+>>>  
+>>> -	for (i = start_rgn - 1; i >= 0; i--)
+>>> -		if (!memblock_is_nomap(&memblock.memory.regions[i]))
+>>> -			memblock_remove_region(&memblock.memory, i);
+>>> +	/* truncate memory while skipping NOMAP regions */
+>>> +	for_each_mem_range(i, &memblock.memory, regions_to_keep, NUMA_NO_NODE,
+>>> +			   MEMBLOCK_NONE, &start, &end, NULL)
+>>> +		memblock_remove(start, end);
+>>
+>> 1. use memblock_remove(start, size) instead of memblock_remove(start, end).
+>>
+>> 2. There is a another hidden issue. We couldn't mix __next_mem_range()(called by for_each_mem_range) operation
+>> with remove operation because __next_mem_range() records the index of last time. If we do remove between
+>> __next_mem_range(), the index may be mess.
+> 
+> Oops, I've really missed that :)
+>  
+>> Therefore, we could do remove operation after for_each_mem_range like this, solution A:
+>>  void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
+>>  {
+>> -	phys_addr_t start, end;
+>> -	u64 i;
+>> +	phys_addr_t start[INIT_MEMBLOCK_RESERVED_REGIONS * 2];
+>> +	phys_addr_t end[INIT_MEMBLOCK_RESERVED_REGIONS * 2];
+>> +	u64 i, nr = 0;
+>>
+>>  	/* truncate memory while skipping NOMAP regions */
+>>  	for_each_mem_range(i, &memblock.memory, regions_to_keep, NUMA_NO_NODE,
+>> -			   MEMBLOCK_NONE, &start, &end, NULL)
+>> -		memblock_remove(start, end);
+>> +			   MEMBLOCK_NONE, &start[nr], &end[nr], NULL)
+>> +		nr++;
+>> +	for (i = 0; i < nr; i++)
+>> +		memblock_remove(start[i], end[i] - start[i]);
+>>
+>>  	/* truncate the reserved regions */
+>> +	nr = 0;
+>>  	for_each_mem_range(i, &memblock.reserved, regions_to_keep, NUMA_NO_NODE,
+>> -			   MEMBLOCK_NONE, &start, &end, NULL)
+>> -		memblock_remove_range(&memblock.reserved, start, end);
+>> +			   MEMBLOCK_NONE, &start[nr], &end[nr], NULL)
+>> +		nr++;
+>> +	for (i = 0; i < nr; i++)
+>> +		memblock_remove_range(&memblock.reserved, start[i],
+>> +				end[i] - start[i]);
+>>  }
+>>
+>> But a warning occurs when compiling:
+>>   CALL    scripts/atomic/check-atomics.sh
+>>   CALL    scripts/checksyscalls.sh
+>>   CHK     include/generated/compile.h
+>>   CC      mm/memblock.o
+>> mm/memblock.c: In function ‘memblock_cap_memory_ranges’:
+>> mm/memblock.c:1635:1: warning: the frame size of 36912 bytes is larger than 2048 bytes [-Wframe-larger-than=]
+>>  }
+>>
+>> another solution is my implementation in v1, solution B:
+>> +void __init memblock_cap_memory_ranges(struct memblock_type *regions_to_keep)
+>> +{
+>> +   int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
+>> +   int i, j, ret, nr = 0;
+>> +   memblock_region *regs = regions_to_keep->regions;
+>> +
+>> +   nr = regions_to_keep -> cnt;
+>> +   if (!nr)
+>> +       return;
+>> +
+>> +   /* remove all the MAP regions */
+>> +   for (i = memblock.memory.cnt - 1; i >= end_rgn[nr - 1]; i--)
+>> +       if (!memblock_is_nomap(&memblock.memory.regions[i]))
+>> +           memblock_remove_region(&memblock.memory, i);
+>> +
+>> +   for (i = nr - 1; i > 0; i--)
+>> +       for (j = start_rgn[i] - 1; j >= end_rgn[i - 1]; j--)
+>> +           if (!memblock_is_nomap(&memblock.memory.regions[j]))
+>> +               memblock_remove_region(&memblock.memory, j);
+>> +
+>> +   for (i = start_rgn[0] - 1; i >= 0; i--)
+>> +       if (!memblock_is_nomap(&memblock.memory.regions[i]))
+>> +           memblock_remove_region(&memblock.memory, i);
+>> +
+>> +   /* truncate the reserved regions */
+>> +   memblock_remove_range(&memblock.reserved, 0, regs[0].base);
+>> +
+>> +   for (i = nr - 1; i > 0; i--)
+>> +       memblock_remove_range(&memblock.reserved,
+>> +               regs[i - 1].base + regs[i - 1].size,
+>> +		regs[i].base - regs[i - 1].base - regs[i - 1].size);
+>> +
+>> +   memblock_remove_range(&memblock.reserved,
+>> +           regs[nr - 1].base + regs[nr - 1].size, PHYS_ADDR_MAX);
+>> +}
+>>
+>> solution A: 	phys_addr_t start[INIT_MEMBLOCK_RESERVED_REGIONS * 2];
+>> 		phys_addr_t end[INIT_MEMBLOCK_RESERVED_REGIONS * 2];
+>> start, end is physical addr
+>>
+>> solution B: 	int start_rgn[INIT_MEMBLOCK_REGIONS], end_rgn[INIT_MEMBLOCK_REGIONS];
+>> start_rgn, end_rgn is rgn index		
+>>
+>> Solution B do less remove operations and with no warning comparing to solution A.
+>> I think solution B is better, could you give some suggestions?
+>  
+> Solution B is indeed better that solution A, but I'm still worried by
+> relatively large arrays on stack and the amount of loops :(
+> 
+> The very least we could do is to call memblock_cap_memory_range() to drop
+> the memory before and after the ranges we'd like to keep.
 
-+cc mpe since he does the merging, and
+1. relatively large arrays
+As my said above, the start_rgn, end_rgn is rgn index, we could use unsigned char type.
 
-Acked-by: Oliver O'Halloran <oohall@gmail.com>
+2. loops
+Loops always exist, and the solution with fewer loops may be just encapsulated well.
 
-> In practice, however, ZONE_DEVICE users have little chance of
-> functioning correctly without __HAVE_ARCH_PTE_DEVMAP, so let's clean
-> that up the same way as ARCH_HAS_PTE_SPECIAL and make it the proper
-> dependency so the real situation is clearer.
->
-> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
-> ---
->  arch/powerpc/Kconfig                         | 2 +-
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 1 -
->  arch/x86/Kconfig                             | 2 +-
->  arch/x86/include/asm/pgtable.h               | 4 ++--
->  arch/x86/include/asm/pgtable_types.h         | 1 -
->  include/linux/mm.h                           | 4 ++--
->  include/linux/pfn_t.h                        | 4 ++--
->  mm/Kconfig                                   | 5 ++---
->  mm/gup.c                                     | 2 +-
->  9 files changed, 11 insertions(+), 14 deletions(-)
->
-> diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-> index 5e3d0853c31d..77e1993bba80 100644
-> --- a/arch/powerpc/Kconfig
-> +++ b/arch/powerpc/Kconfig
-> @@ -135,6 +135,7 @@ config PPC
->         select ARCH_HAS_MMIOWB                  if PPC64
->         select ARCH_HAS_PHYS_TO_DMA
->         select ARCH_HAS_PMEM_API                if PPC64
-> +       select ARCH_HAS_PTE_DEVMAP              if PPC_BOOK3S_64
->         select ARCH_HAS_PTE_SPECIAL
->         select ARCH_HAS_MEMBARRIER_CALLBACKS
->         select ARCH_HAS_SCALED_CPUTIME          if VIRT_CPU_ACCOUNTING_NATIVE && PPC64
-> @@ -142,7 +143,6 @@ config PPC
->         select ARCH_HAS_TICK_BROADCAST          if GENERIC_CLOCKEVENTS_BROADCAST
->         select ARCH_HAS_UACCESS_FLUSHCACHE      if PPC64
->         select ARCH_HAS_UBSAN_SANITIZE_ALL
-> -       select ARCH_HAS_ZONE_DEVICE             if PPC_BOOK3S_64
->         select ARCH_HAVE_NMI_SAFE_CMPXCHG
->         select ARCH_MIGHT_HAVE_PC_PARPORT
->         select ARCH_MIGHT_HAVE_PC_SERIO
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index 581f91be9dd4..02c22ac8f387 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -90,7 +90,6 @@
->  #define _PAGE_SOFT_DIRTY       _RPAGE_SW3 /* software: software dirty tracking */
->  #define _PAGE_SPECIAL          _RPAGE_SW2 /* software: special page */
->  #define _PAGE_DEVMAP           _RPAGE_SW1 /* software: ZONE_DEVICE page */
-> -#define __HAVE_ARCH_PTE_DEVMAP
->
->  /*
->   * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 5ad92419be19..ffd50f27f395 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -60,6 +60,7 @@ config X86
->         select ARCH_HAS_KCOV                    if X86_64
->         select ARCH_HAS_MEMBARRIER_SYNC_CORE
->         select ARCH_HAS_PMEM_API                if X86_64
-> +       select ARCH_HAS_PTE_DEVMAP              if X86_64
->         select ARCH_HAS_PTE_SPECIAL
->         select ARCH_HAS_REFCOUNT
->         select ARCH_HAS_UACCESS_FLUSHCACHE      if X86_64
-> @@ -69,7 +70,6 @@ config X86
->         select ARCH_HAS_STRICT_MODULE_RWX
->         select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
->         select ARCH_HAS_UBSAN_SANITIZE_ALL
-> -       select ARCH_HAS_ZONE_DEVICE             if X86_64
->         select ARCH_HAVE_NMI_SAFE_CMPXCHG
->         select ARCH_MIGHT_HAVE_ACPI_PDC         if ACPI
->         select ARCH_MIGHT_HAVE_PC_PARPORT
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 2779ace16d23..89a1f6fd48bf 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -254,7 +254,7 @@ static inline int has_transparent_hugepage(void)
->         return boot_cpu_has(X86_FEATURE_PSE);
->  }
->
-> -#ifdef __HAVE_ARCH_PTE_DEVMAP
-> +#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
->  static inline int pmd_devmap(pmd_t pmd)
->  {
->         return !!(pmd_val(pmd) & _PAGE_DEVMAP);
-> @@ -715,7 +715,7 @@ static inline int pte_present(pte_t a)
->         return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
->  }
->
-> -#ifdef __HAVE_ARCH_PTE_DEVMAP
-> +#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
->  static inline int pte_devmap(pte_t a)
->  {
->         return (pte_flags(a) & _PAGE_DEVMAP) == _PAGE_DEVMAP;
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index d6ff0bbdb394..b5e49e6bac63 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -103,7 +103,6 @@
->  #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->  #define _PAGE_NX       (_AT(pteval_t, 1) << _PAGE_BIT_NX)
->  #define _PAGE_DEVMAP   (_AT(u64, 1) << _PAGE_BIT_DEVMAP)
-> -#define __HAVE_ARCH_PTE_DEVMAP
->  #else
->  #define _PAGE_NX       (_AT(pteval_t, 0))
->  #define _PAGE_DEVMAP   (_AT(pteval_t, 0))
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index d76dfb7ac617..fe05c94f23e9 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -504,7 +504,7 @@ struct inode;
->  #define page_private(page)             ((page)->private)
->  #define set_page_private(page, v)      ((page)->private = (v))
->
-> -#if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> +#if !defined(CONFIG_ARCH_HAS_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
->  static inline int pmd_devmap(pmd_t pmd)
->  {
->         return 0;
-> @@ -1698,7 +1698,7 @@ static inline void sync_mm_rss(struct mm_struct *mm)
->  }
->  #endif
->
-> -#ifndef __HAVE_ARCH_PTE_DEVMAP
-> +#ifndef CONFIG_ARCH_HAS_PTE_DEVMAP
->  static inline int pte_devmap(pte_t pte)
->  {
->         return 0;
-> diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-> index 7bb77850c65a..de8bc66b10a4 100644
-> --- a/include/linux/pfn_t.h
-> +++ b/include/linux/pfn_t.h
-> @@ -104,7 +104,7 @@ static inline pud_t pfn_t_pud(pfn_t pfn, pgprot_t pgprot)
->  #endif
->  #endif
->
-> -#ifdef __HAVE_ARCH_PTE_DEVMAP
-> +#ifdef CONFIG_ARCH_HAS_PTE_DEVMAP
->  static inline bool pfn_t_devmap(pfn_t pfn)
->  {
->         const u64 flags = PFN_DEV|PFN_MAP;
-> @@ -122,7 +122,7 @@ pmd_t pmd_mkdevmap(pmd_t pmd);
->         defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
->  pud_t pud_mkdevmap(pud_t pud);
->  #endif
-> -#endif /* __HAVE_ARCH_PTE_DEVMAP */
-> +#endif /* CONFIG_ARCH_HAS_PTE_DEVMAP */
->
->  #ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
->  static inline bool pfn_t_special(pfn_t pfn)
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 25c71eb8a7db..fcb7ab08e294 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -655,8 +655,7 @@ config IDLE_PAGE_TRACKING
->           See Documentation/admin-guide/mm/idle_page_tracking.rst for
->           more details.
->
-> -# arch_add_memory() comprehends device memory
-> -config ARCH_HAS_ZONE_DEVICE
-> +config ARCH_HAS_PTE_DEVMAP
->         bool
->
->  config ZONE_DEVICE
-> @@ -664,7 +663,7 @@ config ZONE_DEVICE
->         depends on MEMORY_HOTPLUG
->         depends on MEMORY_HOTREMOVE
->         depends on SPARSEMEM_VMEMMAP
-> -       depends on ARCH_HAS_ZONE_DEVICE
-> +       depends on ARCH_HAS_PTE_DEVMAP
->         select XARRAY_MULTI
->
->         help
-> diff --git a/mm/gup.c b/mm/gup.c
-> index f84e22685aaa..72a5c7d1e1a7 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1623,7 +1623,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->  }
->  #endif /* CONFIG_ARCH_HAS_PTE_SPECIAL */
->
-> -#if defined(__HAVE_ARCH_PTE_DEVMAP) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> +#if defined(CONFIG_ARCH_HAS_PTE_DEVMAP) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
->  static int __gup_device_huge(unsigned long pfn, unsigned long addr,
->                 unsigned long end, struct page **pages, int *nr)
->  {
-> --
-> 2.21.0.dirty
->
+Thanks,
+Chen Zhou
+
+> 
+>>>  
+>>>  	/* truncate the reserved regions */
+>>> -	memblock_remove_range(&memblock.reserved, 0, base);
+>>> -	memblock_remove_range(&memblock.reserved,
+>>> -			base + size, PHYS_ADDR_MAX);
+>>> +	for_each_mem_range(i, &memblock.reserved, regions_to_keep, NUMA_NO_NODE,
+>>> +			   MEMBLOCK_NONE, &start, &end, NULL)
+>>> +		memblock_remove_range(&memblock.reserved, start, end);
+>>
+>> There are the same issues as above.
+>>
+>>>  }
+>>>  
+>>>  void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+>>>  {
+>>> +	struct memblock_region rgn = {
+>>> +		.base = 0,
+>>> +	};
+>>> +
+>>> +	struct memblock_type region_to_keep = {
+>>> +		.cnt = 1,
+>>> +		.max = 1,
+>>> +		.regions = &rgn,
+>>> +	};
+>>> +
+>>>  	phys_addr_t max_addr;
+>>>  
+>>>  	if (!limit)
+>>> @@ -1646,7 +1644,8 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+>>>  	if (max_addr == PHYS_ADDR_MAX)
+>>>  		return;
+>>>  
+>>> -	memblock_cap_memory_range(0, max_addr);
+>>> +	region_to_keep.regions[0].size = max_addr;
+>>> +	memblock_cap_memory_ranges(&region_to_keep);
+>>>  }
+>>>  
+>>>  static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
+>>>
+>>
+>> Thanks,
+>> Chen Zhou
+>>
+> 
 
