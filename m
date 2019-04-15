@@ -2,170 +2,171 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48FFDC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:47:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8DA00C10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 09:03:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBBEF20825
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 07:47:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBBEF20825
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A8A420883
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 09:03:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A8A420883
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47CFC6B0003; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
+	id A62696B0003; Mon, 15 Apr 2019 05:03:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42F966B0006; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
+	id 9EDEA6B0006; Mon, 15 Apr 2019 05:03:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31CD06B0007; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
+	id 8B3076B0007; Mon, 15 Apr 2019 05:03:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 117D76B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 03:47:15 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q12so15441303qtr.3
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 00:47:15 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AEB26B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 05:03:06 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 7so14173837wmj.9
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 02:03:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=1sqwRDPqv8TM7xLyzVhPqsTZ9uL3Z2stWknu4TNhD7g=;
-        b=T3qVAv33IT4o+8/69Z/uuipySE0b600X/VcjkhVIPuViDScmGJqc5WWd2Z4wvIrwgK
-         53zzmS8uJwpeL20XivFnu0w06h7Jaf/gAm6UMxLLQwNBjXfsbn7BSLj51Q5kz5qBX1rG
-         zzX8U7CrMnSMLW9zBnnKLZaU2sEyfwKMBm6ulTNc+Q6cbAY+xvyigyrreqyZ+aaRVyGn
-         7ZTpE7exZ3egSS2+lHMPCEtlcYtY/MfqCtVRh6DRj5f38aJlNI0yTIkYN0cWNrlIy2FH
-         96vnoaIoNRNCz9pdhseHr4IiRJGFjiGNIevgXChzsdO/qvELyQA7XzNE2Jg662INa9x7
-         HcQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVFCtzGhJE1UkhwoKnX9kVA3J1zU8pbUwKvae8obQb/vAyAZOBu
-	0aI/Dwa2pq/zEcL7Ft4zw9iGz2DCWzmkI965g+2c6ik9yOiqJJfh8tXt6QmPx/WbIqQfQ3PhiAs
-	f6E7pDxIyNYKHbtABzJ6DRzJjrHJvSbN3uHCT2fgGqh7wBr+Tx7zR/W/QLCvTadDLPA==
-X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr58356415qvf.132.1555314434843;
-        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyJwlb0AfY7fLqUcs4tbkx2pV119BljR1qYebnp5fT7AablWEMIumtS0gZOs4MD9Ha/b6ZV
-X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr58356395qvf.132.1555314434252;
-        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555314434; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=H0Af6KOS5yo3Cqn5M3SwYoAMjmGvFzR0kAx47HyHqlc=;
+        b=YXOyeXWljqtd18itGISp1BkZ09ru0YaFK3oOIlRfjhKFd95DwWOt4bIFKA5GhHpq68
+         4csDaTaO5ctffJ1au8B0h33zAfNd3lBGzcH1JDVJZWXhSobO+m9SzWZaOkWyY0EkBrmW
+         ikxY9SNLsao4sMK7c2YIiqXSkGk/0D53JrwNuZ/goLPleqecq7l+tBHpffuIjWyGBFXr
+         +to4pWqGrVTjh3+7gGiZNhrgfIqO71W+CzLLYja1LsXx55ZPVP+qiyyPoGiQdP3b2qDR
+         J0HwYl/6erCH8eYsXVfGfL+Zca4+SmlFflZXc9wh/qmIVLwnGz2Vx77Z8CA5M+6lef57
+         A9Ag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAVrwjsm6y7OraaGTZslx0ToO2hNcjsJkSN3N+SPytQ+m4g1nEkJ
+	N304VNuqalNijEn40nsthApmcwJO0ctSrK2+v9uTcxtwoRjH3MgGYeHaLKvfgWxze4gsDrKtGuW
+	yghSBpx6epT88Zl1R0GZ8sUQli5uBpreadfXS2YDDNgBo/CJRkNV4fLEjykvuHu1AHA==
+X-Received: by 2002:a5d:6a0b:: with SMTP id m11mr45048356wru.290.1555318985627;
+        Mon, 15 Apr 2019 02:03:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzlSWTmU1+Iz4EG27nXL4Ss5H7f5g8rnEwqjoDKbqyt9zKogG87AVqjqMuwnvFshj0KHuqr
+X-Received: by 2002:a5d:6a0b:: with SMTP id m11mr45048275wru.290.1555318984638;
+        Mon, 15 Apr 2019 02:03:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555318984; cv=none;
         d=google.com; s=arc-20160816;
-        b=kH0elLgEkcCTb1z5enBE9rIRP4+9mA2oQEerewG5YN4NhhnneDI84/FrSZLCvfFRpw
-         huJzvonuIsdaJQXXblOke3YYbGgJWzHVxeOJ9JDeU2V6F8ZDH9CyhUTTz2D6Jc1E2+nV
-         0ieWLJ95PMODmDoXyC8/sUbi2/ybBTwTUNluVx6lpnyiZY7q422BD9sfZ0giEvISCdDN
-         LtuU1CeATXyPI44tZX9dFJZEEHplWHS54Z7ks+VSAqpS+s2dAPCAd3p5ZKTYiP+7NsLB
-         88WO5rSyW2VF46i9jfMwseCvZRDGuZcP6/E3NrJTZzYLboizjqBe4BtR+MIXE8QMPUlF
-         KYuQ==
+        b=sMslJxMY3jf5uJqvy15BESO57xHW50gDHgGhHxrSkvt/ZE6rvFUrhSU8n9cqv9zUB8
+         2vQ1WP1zpaAxNnu8u8J8qU0JYFXAj2J5GOeh2pZoCgCAQrg4BFYuom5BQpAVa3xGLy4J
+         B6GmqRzLmHrRuPt6917SqzcQ/lvXIuoSQrz0v6PQmX1CWp+34y1cM1TDUV/cEDuOV2RF
+         UVCm+l5YYuNctuoHgIY1nqH0PGq9rHK0eMQnZNUtysquY0D2poFc1s9PAFVaR8VNh5CL
+         bWgrA7RtdPXyfyinj1+rM9svVoa/FamRmeoobUIeUHiA36BGRq21mT47SsljymvNtTTp
+         wIUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=1sqwRDPqv8TM7xLyzVhPqsTZ9uL3Z2stWknu4TNhD7g=;
-        b=Jd3uzGpNvqfa7NfPQ0htJM9O68UrpAq6WcUrs6KM94pvy1RU8msdAfKbGAeREHMPgY
-         w6pFdvOZwtO2A7TRSVtz2hJUHB3OKyJoAg19QYnqL7rKn9zG3tE3KZg1CsWNTnKZzaMq
-         QU6G9kQbRt1UfG3uFm2ISGpMaC596RbOheczOrJAby9N5oKSBmkoDBJjBxxMOXT1h+oO
-         QPCp9VCHKNYLwG22CHm4fLLmY9JcHbtDMeVum0EowQsuW4eK+3SBFl4uNmCLZcJwuO0n
-         oc/ogkOfbh8KJ9QaHPrzjVfcipx4d/JUppHK8yTOS2vFNE8TBVqmXMuwd7xBK4rGisN3
-         FAlw==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=H0Af6KOS5yo3Cqn5M3SwYoAMjmGvFzR0kAx47HyHqlc=;
+        b=KvEdURl/vGQ86WhMch4P60GJQX4AjFXAO3g8+iLmG2tVNsXNCm1+hOFPPz6QcYG78o
+         kysK700z4uE4z9rYHbs4W7C/l+hVC/QwqBtcmsabevHpB4H+0cJy1lkuNzzowVMICcgU
+         wmQOVlKE02igCgeaBzGiSEZiJunFxKragzoPjzBlBCRYJt6qGzUtBoL2PD/Ryid/SZ2s
+         UGd8NVqyEsSXmm9rCsUEJtXoFGQILLTp3TATBMBSFQN/RwmpWhbjLFikEmL8EVBEVz8b
+         KzK79BfDe0Hg7NHMY6sRorh2LZ8tS2u475OQdYBBo7hk09wso7OJXG0lYdBP2znxkKJ9
+         r0kA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i5si2068609qvg.95.2019.04.15.00.47.14
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id a7si27174960wrv.49.2019.04.15.02.03.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 00:47:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Apr 2019 02:03:04 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zyan@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=zyan@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CB9F6821C3;
-	Mon, 15 Apr 2019 07:47:12 +0000 (UTC)
-Received: from [10.72.12.206] (ovpn-12-206.pek2.redhat.com [10.72.12.206])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 19B3E5D9CA;
-	Mon, 15 Apr 2019 07:47:00 +0000 (UTC)
-Subject: Re: [PATCH v1 15/15] ceph: use put_user_pages() instead of
- ceph_put_page_vector()
-To: jglisse@redhat.com, linux-kernel@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
- linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>,
- Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
- Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
- Dave Chinner <david@fromorbit.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Matthew Wilcox <willy@infradead.org>, Sage Weil <sage@redhat.com>,
- Ilya Dryomov <idryomov@gmail.com>, ceph-devel@vger.kernel.org
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <20190411210834.4105-16-jglisse@redhat.com>
-From: "Yan, Zheng" <zyan@redhat.com>
-Message-ID: <df4da184-fe8b-c189-43e5-fac58adb3ed9@redhat.com>
-Date: Mon, 15 Apr 2019 15:46:59 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from [5.158.153.52] (helo=nanos.tec.linutronix.de)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hFxVy-0002zp-IB; Mon, 15 Apr 2019 11:02:58 +0200
+Date: Mon, 15 Apr 2019 11:02:58 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Andy Lutomirski <luto@kernel.org>
+cc: LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, 
+    Josh Poimboeuf <jpoimboe@redhat.com>, 
+    Sean Christopherson <sean.j.christopherson@intel.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Pekka Enberg <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>
+Subject: [patch V4 01/32] mm/slab: Fix broken stack trace storage
+In-Reply-To: <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+Message-ID: <alpine.DEB.2.21.1904151101100.1729@nanos.tec.linutronix.de>
+References: <20190414155936.679808307@linutronix.de> <20190414160143.591255977@linutronix.de> <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com> <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-In-Reply-To: <20190411210834.4105-16-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 15 Apr 2019 07:47:13 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/12/19 5:08 AM, jglisse@redhat.com wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
-> 
-> When page reference were taken through GUP (get_user_page*()) we need
-> to drop them with put_user_pages().
-> 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: linux-block@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Johannes Thumshirn <jthumshirn@suse.de>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Ming Lei <ming.lei@redhat.com>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Yan Zheng <zyan@redhat.com>
-> Cc: Sage Weil <sage@redhat.com>
-> Cc: Ilya Dryomov <idryomov@gmail.com>
-> Cc: ceph-devel@vger.kernel.org
-> ---
->   fs/ceph/file.c | 3 ++-
->   1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/fs/ceph/file.c b/fs/ceph/file.c
-> index 6c5b85f01721..5842ad3a4218 100644
-> --- a/fs/ceph/file.c
-> +++ b/fs/ceph/file.c
-> @@ -667,7 +667,8 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
->   			} else {
->   				iov_iter_advance(to, 0);
->   			}
-> -			ceph_put_page_vector(pages, num_pages, false);
-> +			/* iov_iter_get_pages_alloc() did call GUP */
-> +			put_user_pages(pages, num_pages);
+kstack_end() is broken on interrupt stacks as they are not guaranteed to be
+sized THREAD_SIZE and THREAD_SIZE aligned.
 
-pages in pipe were not from get_user_pages(). Am I missing anything?
+Use the stack tracer instead. Remove the pointless pointer increment at the
+end of the function while at it.
 
-Regards
-Yan, Zheng
+Fixes: 98eb235b7feb ("[PATCH] page unmapping debug") - History tree
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: linux-mm@kvack.org
+---
+V4: Made the code simpler to understand (Andy) and make it actually compile
+---
+ mm/slab.c |   30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)
 
->   		} else {
->   			int idx = 0;
->   			size_t left = ret > 0 ? ret : 0;
-> 
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1470,33 +1470,31 @@ static bool is_debug_pagealloc_cache(str
+ static void store_stackinfo(struct kmem_cache *cachep, unsigned long *addr,
+ 			    unsigned long caller)
+ {
+-	int size = cachep->object_size;
++	int size = cachep->object_size / sizeof(unsigned long);
+ 
+ 	addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
+ 
+-	if (size < 5 * sizeof(unsigned long))
++	if (size < 5)
+ 		return;
+ 
+ 	*addr++ = 0x12345678;
+ 	*addr++ = caller;
+ 	*addr++ = smp_processor_id();
+-	size -= 3 * sizeof(unsigned long);
++	size -= 3;
++#ifdef CONFIG_STACKTRACE
+ 	{
+-		unsigned long *sptr = &caller;
+-		unsigned long svalue;
+-
+-		while (!kstack_end(sptr)) {
+-			svalue = *sptr++;
+-			if (kernel_text_address(svalue)) {
+-				*addr++ = svalue;
+-				size -= sizeof(unsigned long);
+-				if (size <= sizeof(unsigned long))
+-					break;
+-			}
+-		}
++		struct stack_trace trace = {
++			/* Leave one for the end marker below */
++			.max_entries	= size - 1,
++			.entries	= addr,
++			.skip		= 3,
++		};
+ 
++		save_stack_trace(&trace);
++		addr += trace.nr_entries;
+ 	}
+-	*addr++ = 0x87654321;
++#endif
++	*addr = 0x87654321;
+ }
+ 
+ static void slab_kernel_map(struct kmem_cache *cachep, void *objp,
 
