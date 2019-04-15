@@ -2,209 +2,195 @@ Return-Path: <SRS0=aXoD=SR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91075C10F0E
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:11:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86317C10F12
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 438D42075B
-	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:11:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="gWOWE6C0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 438D42075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 4227320848
+	for <linux-mm@archiver.kernel.org>; Mon, 15 Apr 2019 17:49:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4227320848
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE7C36B0003; Mon, 15 Apr 2019 13:11:55 -0400 (EDT)
+	id B46636B0003; Mon, 15 Apr 2019 13:49:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C721A6B0006; Mon, 15 Apr 2019 13:11:55 -0400 (EDT)
+	id AF5216B0006; Mon, 15 Apr 2019 13:49:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B133D6B0007; Mon, 15 Apr 2019 13:11:55 -0400 (EDT)
+	id 9E3C66B0007; Mon, 15 Apr 2019 13:49:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 761266B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 13:11:55 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id p11so11694983plr.3
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:11:55 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 735856B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 13:49:47 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id o132so8396252oib.5
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 10:49:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=UJEsUTCNFfIyBbbnOrDE7pUwegFdTm9ebJcWsc3y794=;
-        b=gTjbQBvrk2dAYiZy6n1eDAtzQqujNRt4cSOfeBpsjan3/hd8+OCFFYMswUF6Kl9nf+
-         eS+4IajuVahvF98lffxWMwP6hJnRgnp0n5lhzIUjzWrLTT0dGH0giUKDF3uD6L2qrh/B
-         V5slZjsGeZ+yA2FShg9P3Zu08alP9Jiy3eAFMQrzFYU2AotpSY1fOQiKEdWCH/WD5xW6
-         hw2SjJx1vK7wH6qDWtUitne2BLAUuFHZOgMnHWKVdMgafRIY4L99tXL/lkwN2W8yKNG5
-         fYzVFgx0CimjbAdx/0d+K5ZRuQh1Wi5PUTBN+JQfJs8m5BF+8RrLVeaBL0XLCqkt8bSY
-         Olmw==
-X-Gm-Message-State: APjAAAXGkd1y5g3gkE9omSz1VskLWWQvJiguQrBP0fC6wr2F0jb+r12q
-	E1e+kNlY+NqLG9fMbGmHucd5GsSDIvvvXAZA95LQzHxzn2x/ayrwqZG3Z8qfOnfL/UrN3qGYqmv
-	rovrNywT8J14oZL/UxsGr3oKhiBwIczLKwuBlKCXkMn4Sw7Ckann83WUo93j5gQr7oA==
-X-Received: by 2002:a17:902:7206:: with SMTP id ba6mr77596556plb.301.1555348315127;
-        Mon, 15 Apr 2019 10:11:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzogxVDfDfVM4PcXBqDPAZRScAO75/qf9Cp9C0VvZ4m05yZISOotkRWRXOdz0f+wWyAJw0
-X-Received: by 2002:a17:902:7206:: with SMTP id ba6mr77596452plb.301.1555348314139;
-        Mon, 15 Apr 2019 10:11:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555348314; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=hpJJrtptawVwMK73QYYab4QOYTrmhmgQtOoFEoFHBZ4=;
+        b=caD6d4ykEmSQ3W6POC28thf4opFMx1QH0wVVUEP0gOafV7tqx9c6SC7scovzj50+JW
+         HWbtOU3wfth8jmZ62RrFb5dGflB0nEIUgpebGi9rXuL35V6IBqeNhBgwJJEr3DWOhk4+
+         V8/dO1c45Mrd+rKcdngAka6zXNGryX5yxHSU5xnMvzjNnPljAGMBa+C0SHXMBREq6AyX
+         8z3Ws218rWIsQPtcRQR03Vul2rCeZnXht3RTQPdJYgsL/KyZdp9t3og4Ze952AIMPG9N
+         iT5muNoVXFTiD576oau7h95AcMrsuJUOEOEEu6PZUcR2I37fs/XGDv/JSctk49zg5GQV
+         DupA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: APjAAAWOtXSrPEqbwWP4iS1YbhDJnXdvRchRDCv5T0WQTfrxI8HgoThY
+	1Y+jX1UZlx96YiQ3tnM62uV0hjgwBLKrtI9pRrRvp1ZeqoQjcQs0+ZxI+HAESIOYCzG8yRCJCeb
+	4ov5IsV2YNRwUgz7UoamdEDZ9Ym2e7XfuTcGxTA4TDfSIwptJpJsBdDNxoADVJYeY9Q==
+X-Received: by 2002:a9d:6ace:: with SMTP id m14mr47275416otq.296.1555350587108;
+        Mon, 15 Apr 2019 10:49:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKyuAmKOF5IKiz324OLSVBgGFK4jkcKAcfTzowdflMMqQH9Aw3VQKZIXFk0YFQBpzJ0CGA
+X-Received: by 2002:a9d:6ace:: with SMTP id m14mr47275363otq.296.1555350585811;
+        Mon, 15 Apr 2019 10:49:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555350585; cv=none;
         d=google.com; s=arc-20160816;
-        b=00Zhh/LeSMROOqaip650I/tLe6RTCzj19Gc9SQNOzk1e0t5NnLUwOW2v8CkNFbQsNQ
-         RhnaYEJ9ibXjzOklfH/fmQcLP96nyCufoeVrMLs82EU6H98sPM3SO3SDNDr4gVYqeFae
-         001I2goGbl9jpWVIOzy8/itfteeZ7wTOFho05fiHrGr8nvpUF6WLYvxh6EYmfS5vm4a7
-         +JrRPoNA441He4eXbE/cG/2KF8BB0LkclPOSFKHvIt924desTjS7Qc7ehpICVFPJbhyj
-         Q395pmFlYFiN9YIEGDjRPAna6Ury8EcmyhfTUJKMsHlbBS0jTmpxALAigbK4ybWc8HsL
-         mAqw==
+        b=HPZZlveDA22vAVCPcLD1lsyobb52ACRpihBfTCEnmo/OAx2g+xxw+nk00j7JyXFPhY
+         Z9CDA6gAklljdftm9Ix/KSOB3Gpfh9yYAZZFW9h7sOzIkbU70zeS6NErNSQREXDxYs3j
+         3DGA/ETiGjJWW5rVMg+tWOKQ129chjOrE6i8ttzuTzCVeFWe9rGZp0X3UvQ7GrJlt/LD
+         dvVhem7u8VM+V4kJRm4NoO8GEIIPh71ZRPgw39MD8aJrciVA8BDcRtFuGyYyFfbRJ9GG
+         QVn2J7LB/FJ0h5dpw/HlNlh3dGqb1GckFj0rHQo02IO4XDm9XuZ1vM39JsJ59e3WZLxv
+         Y6Sw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=UJEsUTCNFfIyBbbnOrDE7pUwegFdTm9ebJcWsc3y794=;
-        b=YRnWj5ofg1Mhxz5A1VXvLH/q+K0bU1UnMUdEzq7LhgndKfNbyqExg8H9rYFtIsFTPY
-         kL47Z1NqFkow53KxfaoGsIoYEJvRZSefuDAaBt/GJ7rqq1R3P35nzyVK8QS989Nl9ofM
-         CE3nIoIJdrUE3aGSRF2DwJ5zmv6kKqXBVGH+07vdYkUPxm3/o/sdT0GFuJ+hBFP8pP2p
-         tegc+dPkPCO28UcpDu3CXvd79QxtScLk448rnl0cQGtKyhbQbJv74n2Ebc2GZU8m9WAN
-         wXayedD4iwM+hm5HzkJtijtb48V82BhTL2WlPEhN6iy40OsP5C7J36PlU4Kyyt7OYAkj
-         GJSg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=hpJJrtptawVwMK73QYYab4QOYTrmhmgQtOoFEoFHBZ4=;
+        b=uPNb1RKpKWKqCeJnZ7pL4fst3theUK1yJvco/29jXH9kIregWY17Thj+tBcJb8OO/H
+         97AZYbyawFHO0IwcjEOJhzmNfV0nl9ZOCwnl183xPjQ8vbZaPO1ExoXhPRrmuLpr5kjq
+         6FQ4wUhaMbuF/zvJfzTdP7hSjryDtZGW6DHAs5nzW8VTTf4lgva/cTHltcIYAa6v9QFr
+         b3E16+1sGpKIQE82cVtKZweDuXMkgj8TjDRjWVLi7Q7AghKD9MjRWFVnnaOBqDWY622J
+         i45vF3/u1YbK4ESFlMCfYTTI5AJva+Q0wBjFo8mXqj2vfv0cV0RCl3rf9VSoXWTAb7q/
+         HcNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gWOWE6C0;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id a33si25398365pld.123.2019.04.15.10.11.53
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id o22si23222436otl.0.2019.04.15.10.49.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 10:11:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 15 Apr 2019 10:49:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gWOWE6C0;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3FH5B4Y107700;
-	Mon, 15 Apr 2019 17:11:43 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=UJEsUTCNFfIyBbbnOrDE7pUwegFdTm9ebJcWsc3y794=;
- b=gWOWE6C04Iu8A35nw9FzfbFeYvpzrLpWwcmL3myzCq+US1Ag7hG0yQj4zoF950Jnwqns
- KEa4Wyuxg78p6PMIIqwKoD6Lfgw136Le28AkAeb5lQ/z7EytBaviVXmUyUeowvQ+/IZd
- maVe2UDewwq0CjTnCTxbEFFZYVx7HBmDykXSb9tgYUMy4aCZmFwM/ka/LEkONoYzutqn
- w/5oMyBDUqo+CvxlypDWcN+64+NJ+JWJzvUVqjjo6K4gD8XfCPS/ila5bjr3eM6e4uGg
- pmF1v3o1ft/Ydg7O+NWhfaSbLw37rT4aAbZmZW8z2Fc7cAL9vJ7e9FrA14AbcI5Vl2xn iw== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2130.oracle.com with ESMTP id 2ru59d0433-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 15 Apr 2019 17:11:43 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3FHA5pS085829;
-	Mon, 15 Apr 2019 17:11:42 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3020.oracle.com with ESMTP id 2rv2tua2ur-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 15 Apr 2019 17:11:42 +0000
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3FHBePI014024;
-	Mon, 15 Apr 2019 17:11:40 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 15 Apr 2019 10:11:40 -0700
-Subject: Re: [PATCH] hugetlbfs: move resv_map to hugetlbfs_inode_info
-To: Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Yufen Yu <yuyufen@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
-References: <20190412040240.29861-1-yuyufen@huawei.com>
- <83a4e275-405f-f1d8-2245-d597bef2ec69@oracle.com>
- <20190415061618.GA16061@hori.linux.bs1.fc.nec.co.jp>
- <20190415091500.GG3366@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <f063c3e7-1b37-7592-14c2-78b494dbd825@oracle.com>
-Date: Mon, 15 Apr 2019 10:11:39 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id DB9D932B0FF3B7868F30;
+	Tue, 16 Apr 2019 01:49:41 +0800 (CST)
+Received: from FRA1000014316.huawei.com (100.126.230.97) by
+ DGGEMS401-HUB.china.huawei.com (10.3.19.201) with Microsoft SMTP Server id
+ 14.3.408.0; Tue, 16 Apr 2019 01:49:31 +0800
+From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+To: <linux-mm@kvack.org>, <linux-acpi@vger.kernel.org>,
+	<linux-kernel@vger.kernel.org>, <linux-arm-kernel@lists.infradead.org>
+CC: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Keith Busch
+	<keith.busch@intel.com>, "Rafael J . Wysocki" <rjw@rjwysocki.net>,
+	<linuxarm@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, "Jonathan
+ Cameron" <Jonathan.Cameron@huawei.com>
+Subject: [PATCH 0/4 V3] ACPI: Support generic initiator proximity domains
+Date: Tue, 16 Apr 2019 01:49:03 +0800
+Message-ID: <20190415174907.102307-1-Jonathan.Cameron@huawei.com>
+X-Mailer: git-send-email 2.19.1
 MIME-Version: 1.0
-In-Reply-To: <20190415091500.GG3366@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9228 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904150118
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9228 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904150118
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+X-Originating-IP: [100.126.230.97]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/15/19 2:15 AM, Michal Hocko wrote:
-> On Mon 15-04-19 06:16:15, Naoya Horiguchi wrote:
->> On Fri, Apr 12, 2019 at 04:40:01PM -0700, Mike Kravetz wrote:
->>> On 4/11/19 9:02 PM, Yufen Yu wrote:
->>>> Commit 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
->>> ...
->>>> However, for inode mode that is 'S_ISBLK', hugetlbfs_evict_inode() may
->>>> free or modify i_mapping->private_data that is owned by bdev inode,
->>>> which is not expected!
->>> ...
->>>> We fix the problem by moving resv_map to hugetlbfs_inode_info. It may
->>>> be more reasonable.
->>>
->>> Your patches force me to consider these potential issues.  Thank you!
->>>
->>> The root of all these problems (including the original leak) is that the
->>> open of a block special inode will result in bd_acquire() overwriting the
->>> value of inode->i_mapping.  Since hugetlbfs inodes normally contain a
->>> resv_map at inode->i_mapping->private_data, a memory leak occurs if we do
->>> not free the initially allocated resv_map.  In addition, when the
->>> inode is evicted/destroyed inode->i_mapping may point to an address space
->>> not associated with the hugetlbfs inode.  If code assumes inode->i_mapping
->>> points to hugetlbfs inode address space at evict time, there may be bad
->>> data references or worse.
->>
->> Let me ask a kind of elementary question: is there any good reason/purpose
->> to create and use block special files on hugetlbfs?  I never heard about
->> such usecases.
+Changes since RFC V2.
+* RFC dropped as now we have x86 support, so the lack of guards in in the
+ACPI code etc should now be fine.
+* Added x86 support.  Note this has only been tested on QEMU as I don't have
+a convenient x86 NUMA machine to play with.  Note that this fitted together
+rather differently form arm64 so I'm particularly interested in feedback
+on the two solutions.
 
-I am not aware of this as a common use case.  Yufen Yu may be able to provide
-more details about how the issue was discovered.  My guess is that it was
-discovered via code inspection.
+Since RFC V1.
+* Fix incorrect interpretation of the ACPI entry noted by Keith Busch
+* Use the acpica headers definitions that are now in mmotm.
 
->>                 I guess that the conflict of the usage of ->i_mapping is
->> discovered recently and that's because block special files on hugetlbfs are
->> just not considered until recently or well defined.  So I think that we might
->> be better to begin with defining it first.
+It's worth noting that, to safely put a given device in a GI node, may
+require changes to the existing drivers as it's not unusual to assume
+you have local memory or processor core. There may be futher constraints
+not yet covered by this patch.
 
-Unless I am mistaken, this is just like creating a device special file
-in any other filesystem.  Correct?  hugetlbfs is just some place for the
-inode/file to reside.  What happens when you open/ioctl/close/etc the file
-is really dependent on the vfs layer and underlying driver.
+Original cover letter...
 
-> A absolutely agree. Hugetlbfs is overly complicated even without that.
-> So if this is merely "we have tried it and it has blown up" kinda thing
-> then just refuse the create blockdev files or document it as undefined.
-> You need a root to do so anyway.
+ACPI 6.3 introduced a new entity that can be part of a NUMA proximity domain.
+It may share such a domain with the existing options (memory, cpu etc) but it
+may also exist on it's own.
 
-Can we just refuse to create device special files in hugetlbfs?  Do we need
-to worry about breaking any potential users?  I honestly do not know if anyone
-does this today.  However, if they did I believe things would "just work".
-The only known issue is leaking a resv_map structure when the inode is
-destroyed.  I doubt anyone would notice that leak today.
+The intent is to allow the description of the NUMA properties (particulary
+via HMAT) of accelerators and other initiators of memory activity that are not
+the host processor running the operating system.
 
-Let me do a little more research.  I think this can all be cleaned up by
-making hugetlbfs always operate on the address space embedded in the inode.
-If nothing else, a change or explanation should be added as to why most code
-operates on inode->mapping and one place operates on &inode->i_data.
+This patch set introduces 'just enough' to make them work for arm64 and x86.
+It should be trivial to support other architectures, I just don't suitable
+NUMA systems readily available to test.
+
+There are a few quirks that need to be considered.
+
+1. Fall back nodes
+******************
+
+As pre ACPI 6.3 supporting operating systems do not have Generic Initiator
+Proximity Domains it is possible to specify, via _PXM in DSDT that another
+device is part of such a GI only node.  This currently blows up spectacularly.
+
+Whilst we can obviously 'now' protect against such a situation (see the related
+thread on PCI _PXM support and the  threadripper board identified there as
+also falling into the  problem of using non existent nodes
+https://patchwork.kernel.org/patch/10723311/ ), there is no way to  be sure
+we will never have legacy OSes that are not protected  against this.  It would
+also be 'non ideal' to fallback to  a default node as there may be a better
+(non GI) node to pick  if GI nodes aren't available.
+
+The work around is that we also have a new system wide OSC bit that allows
+an operating system to 'annouce' that it supports Generic Initiators.  This
+allows, the firmware to us DSDT magic to 'move' devices between the nodes
+dependent on whether our new nodes are there or not.
+
+2. New ways of assigning a proximity domain for devices
+*******************************************************
+
+Until now, the only way firmware could indicate that a particular device
+(outside the 'special' set of cpus etc) was to be found in a particular
+Proximity Domain by the use of _PXM in DSDT.
+
+That is equally valid with GI domains, but we have new options. The SRAT
+affinity structure includes a handle (ACPI or PCI) to identify devices
+with the system and specify their proximity domain that way.  If both _PXM
+and this are provided, they should give the same answer.
+
+For now this patch set completely ignores that feature as we don't need
+it to start the discussion.  It will form a follow up set at some point
+(if no one else fancies doing it).
+
+Jonathan Cameron (4):
+  ACPI: Support Generic Initiator only domains
+  arm64: Support Generic Initiator only domains
+  x86: Support Generic Initiator only proximity domains
+  ACPI: Let ACPI know we support Generic Initiator Affinity Structures
+
+ arch/arm64/kernel/smp.c        |  8 +++++
+ arch/x86/include/asm/numa.h    |  2 ++
+ arch/x86/kernel/setup.c        |  1 +
+ arch/x86/mm/numa.c             | 14 ++++++++
+ drivers/acpi/bus.c             |  1 +
+ drivers/acpi/numa.c            | 62 +++++++++++++++++++++++++++++++++-
+ drivers/base/node.c            |  3 ++
+ include/asm-generic/topology.h |  3 ++
+ include/linux/acpi.h           |  1 +
+ include/linux/nodemask.h       |  1 +
+ include/linux/topology.h       |  7 ++++
+ 11 files changed, 102 insertions(+), 1 deletion(-)
+
 -- 
-Mike Kravetz
+2.19.1
 
