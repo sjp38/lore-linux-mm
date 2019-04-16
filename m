@@ -6,106 +6,106 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 780CDC10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8EBDC10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C1592229F
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C1592229F
+	by mail.kernel.org (Postfix) with ESMTP id 9142D21B68
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9142D21B68
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 504916B0269; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
+	id 70EAF6B0266; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B57B6B0266; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
+	id 68FAF6B026C; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E4756B026B; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
+	id 43EDC6B026A; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9946B0266
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:54 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p90so10846365edp.11
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:54 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B2A96B0269
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:55 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id j62so15657861ywe.3
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=OckpsbzGyYbhhd2ScW+lfhM+L5+Xl4cLJVeT4TNmxBw=;
-        b=FY7PexDUud8eGryDyZHwgwIOEJIEVMrE9wIrtWHssfCj94Eb89avkMi+kkr7OgJ66E
-         iico7d26ZswN/fpG/Qd5UyNGppL7VutTS3ysSn1jKspj3QhfshekQ6vuXShRRuWwDtKx
-         wXg7+NLKyXUlNLNq25tkDAl2A/zcMLFY5gllK9+2JxkVWUgiP3+3Vq2OolCxfEIV6hMy
-         hBtAdrkKBuh+Ge8gKoOtp+o0wykgDntB1BekFKUElo2ogRgSC9yELTvatPj3732iM+yW
-         3+5OJ87JRF3Q1jLHnyjUwucCYbE68H/LinC2gu5JayoKEo2xdTrHq/ZZQRWs8cRcsomt
-         pk/w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAV2BMGAZ5G7165O4duhhNB3FJU6cXeJBrD5VwiUtO4QDUNIOgD7
-	hm4c3k5UCJJc6YMkIv7QUgwsma0NB+FznpliEtd3cco2GnP4F5MspCJFE1rUDoS1KSfVRAoD5qB
-	LVk+9oCJ+A5YbPQ87lF3XzNgE6vqI18X9KZ5LGpEORCGtM4bJAytM64FSYvpH5sj83g==
-X-Received: by 2002:a17:906:1906:: with SMTP id a6mr44062901eje.236.1555422414277;
+        bh=WKVMnBgOI6B/J82OoWTSlIuYM7akWgmuMADBH08y4RQ=;
+        b=ZuPwkU0aCMaZ7NVWQoAQRHRyJ8TSjIL5tv/m5KTVNZJiQ6Ul69rCCf+VRPHXBvMn9w
+         Lx4ZCxxEUhwVTSV5/satKUgXo4CfzOLKUO62TEBZKxVa6ebjUD0ru2cIZwfp00JHutVx
+         e48Mp+hrggvY5CuhkQXqEfVbEvWEPm0X6VFUeJ/xskeweFJ2bNEB1FvIMzn2jGSa7F7l
+         klwxoEYjKOHK0SxQiqOq7VGqa+F3NE8aAk0NaSxrwROTzHciskyjZkW5VRzKl2rm2dv/
+         beaOBQk1xGlKprZpCMQBBvLDzXPwWF7gAMoLtNtemIcy/Gzwh2uOqsCNhxB4uvoKb7bl
+         AKHg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWeTMMCkek/4ojzwBhuABSLhaivuIbUf5YMWagEZVPJUQC0m3S3
+	5W5gGyAi/jNoQxQFBo2zhb8Mgqv8hRLbZdkTTCKzR9YEzs/niXH8bFtoFosU2sjroWUTSHhhbdC
+	0hTU9I5VlSo/xfxkjsZs3/Sp46W43HDpnDClRNw6XPGbI1kHVJXeFmFNMLFdQ+scpjA==
+X-Received: by 2002:a81:3253:: with SMTP id y80mr64586434ywy.63.1555422414777;
         Tue, 16 Apr 2019 06:46:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyk7Se6H0w8KDC+hSPywKPsg2QItz2UqrS82mCEStbXzqe/mna0yk2NjrXTAg/I3alhUEUZ
-X-Received: by 2002:a17:906:1906:: with SMTP id a6mr44062798eje.236.1555422412408;
-        Tue, 16 Apr 2019 06:46:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555422412; cv=none;
+X-Google-Smtp-Source: APXvYqy6DtSnNAjMahPxwsTjFVQpJ0APoWsyYH6afLqcxOEBZX5Hs9GQaP1oUOznnfgc68+Y6vNH
+X-Received: by 2002:a81:3253:: with SMTP id y80mr64586308ywy.63.1555422413186;
+        Tue, 16 Apr 2019 06:46:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555422413; cv=none;
         d=google.com; s=arc-20160816;
-        b=cdTH9/xKMIoTV1ATXODXs9KZGadtWM0+9v4z4TgQMlDDzMY8/mIuglH/cgPvDtpoZ9
-         S5Y7v+ClbtFHLIedR5m1A8iQASPHMbvNL5MDUT5Sx+TCh8EBs0LQDJ+lgaPBBbdTUf4M
-         4+OYrAnhw7pYdgQiq5UJLh7oE6OxPrgamNuYvv7SSeai4vsng0cFCImvE6ERbAr5w68G
-         ESF4ZMCZjLPnTX6+ERBcdBf2IumI4AklOxBJScNMokETm8UuhJ2GvZRf23jr/n3LSfSr
-         2NNUcBjZO7K4r7Qa7DzZqRucF2glUaEXSAd8oWbT4ygISmPtnS/Ovx08F5SatTC21qJl
-         IkfQ==
+        b=hbI8D6FXCNbzKHF1lHKZIjwP99RzyHfJHkd3qoFMOzyYTX3ALP8I9pncHN8oioNewR
+         EqavznOWMYQQKQyqkbipyvsh1TQhpEWaPIht29IGkYACVgaSd+rIyLnqGPGekgVh/B3Q
+         qh8AEurTi03LmSzulesL9xLvaOIEMCp2wJc6HRQXLu2hWsEwOwX3UPIQfoU/J9C4eZH1
+         OPv92KeEZI1vhKCr2QCjEPNjGboUuaubCvUnfwEZcxeo509mnajevOv9/qssI1Dpv5QM
+         s3e0zoaUpW7oyRMKOCNwrEvwesUN7ZKAOeKZL2Ot1dUSizwMWO9sATlAystbiB3L66KM
+         /zww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=OckpsbzGyYbhhd2ScW+lfhM+L5+Xl4cLJVeT4TNmxBw=;
-        b=OGPMjsVwktL4IyO/RRqLZbUpkbBcxMkZVIrSsMiyGWP1AqaGUf5djS4tNBiaxRCov4
-         zAnoACepXXb0PHfy1IUWGcAHM0e8cWs7cFAF8tl+LfspavvaBtQvBOHWlJ0TXaMNOHNi
-         eMh8VJSAm3JVub/3MRe7URORJHbKsvUypebqqVr4iRuwpok667yhdJ0cuWp040dMUjoz
-         ZSVxRrKgbqQu5L+nalMM34oBObBHy8tKAoDZAP8mDEDVLk+hSyx3fsKYZkfuDtK3Zgi4
-         oybThLTWLgtE58QN2Eb5PTWT5ox9XWuRk4eDkyP3GWgfXtllfrrLGEMQjPdQCLWcF/5h
-         60/Q==
+        bh=WKVMnBgOI6B/J82OoWTSlIuYM7akWgmuMADBH08y4RQ=;
+        b=ZlICak8N4g/nHX5ocpz3hHLr2mEdrB2Ug+KLLQCfWvFY8ssDqC7HyE9/I0taComoHq
+         4BWSXJ4BIDiFjNsEjjsji2u23WMD3YHPq657Immxt5x8ZYCdpK0DuOXLn1EGRA7zT+Pv
+         wA8X6yIbW+p3Xg81r1nD51lZxpVAvU8dw6UxJDUMwmDEiDLqgPpUczRzea6Z0QYft8rN
+         sxveXI2TWYvd4U3hmiHHi3jYmzpMcRXw5uC/84khEu7b/btG3IsjsubCi3pQvFpYLm6v
+         Grvcbq8+meyPCK7mdqPCGqlTY2F5dXQqYh57ib07bREZ9TnJDqKmc1KmS0hwgYU+OQs4
+         RdRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c15si1855425edy.208.2019.04.16.06.46.51
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w5si34891547yww.420.2019.04.16.06.46.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 06:46:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 16 Apr 2019 06:46:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkRJx100074
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:51 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rwdvq6yv5-1
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkmvl059220
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:52 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwe36nymw-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:48 -0400
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:50 -0400
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Tue, 16 Apr 2019 14:46:36 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 16 Apr 2019 14:46:46 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 16 Apr 2019 14:46:26 +0100
+	Tue, 16 Apr 2019 14:46:36 +0100
 Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDkPQA33620156
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDkYua30736478
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 13:46:25 GMT
+	Tue, 16 Apr 2019 13:46:34 GMT
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 19B424C040;
-	Tue, 16 Apr 2019 13:46:25 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 623894C040;
+	Tue, 16 Apr 2019 13:46:34 +0000 (GMT)
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A7D134C046;
-	Tue, 16 Apr 2019 13:46:23 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 8FE474C04A;
+	Tue, 16 Apr 2019 13:46:32 +0000 (GMT)
 Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
 	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 16 Apr 2019 13:46:23 +0000 (GMT)
+	Tue, 16 Apr 2019 13:46:32 +0000 (GMT)
 From: Laurent Dufour <ldufour@linux.ibm.com>
 To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
         kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
@@ -135,24 +135,24 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com,
         npiggin@gmail.com, paulmck@linux.vnet.ibm.com,
         Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org,
         x86@kernel.org
-Subject: [PATCH v12 21/31] mm: Introduce find_vma_rcu()
-Date: Tue, 16 Apr 2019 15:45:12 +0200
+Subject: [PATCH v12 24/31] mm: adding speculative page fault failure trace events
+Date: Tue, 16 Apr 2019 15:45:15 +0200
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
 References: <20190416134522.17540-1-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19041613-4275-0000-0000-000003287656
+x-cbid: 19041613-0008-0000-0000-000002DA6FB7
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19041613-4276-0000-0000-00003837A75D
-Message-Id: <20190416134522.17540-22-ldufour@linux.ibm.com>
+x-cbparentid: 19041613-0009-0000-0000-00002246A840
+Message-Id: <20190416134522.17540-25-ldufour@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=958 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1904160093
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -160,199 +160,292 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This allows to search for a VMA structure without holding the mmap_sem.
-
-The search is repeated while the mm seqlock is changing and until we found
-a valid VMA.
-
-While under the RCU protection, a reference is taken on the VMA, so the
-caller must call put_vma() once it not more need the VMA structure.
-
-At the time a VMA is inserted in the MM RB tree, in vma_rb_insert(), a
-reference is taken to the VMA by calling get_vma().
-
-When removing a VMA from the MM RB tree, the VMA is not release immediately
-but at the end of the RCU grace period through vm_rcu_put(). This ensures
-that the VMA remains allocated until the end the RCU grace period.
-
-Since the vm_file pointer, if valid, is released in put_vma(), there is no
-guarantee that the file pointer will be valid on the returned VMA.
+This patch a set of new trace events to collect the speculative page fault
+event failures.
 
 Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 ---
- include/linux/mm_types.h |  1 +
- mm/internal.h            |  5 ++-
- mm/mmap.c                | 76 ++++++++++++++++++++++++++++++++++++++--
- 3 files changed, 78 insertions(+), 4 deletions(-)
+ include/trace/events/pagefault.h | 80 ++++++++++++++++++++++++++++++++
+ mm/memory.c                      | 57 ++++++++++++++++++-----
+ 2 files changed, 125 insertions(+), 12 deletions(-)
+ create mode 100644 include/trace/events/pagefault.h
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6a6159e11a3f..9af6694cb95d 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -287,6 +287,7 @@ struct vm_area_struct {
+diff --git a/include/trace/events/pagefault.h b/include/trace/events/pagefault.h
+new file mode 100644
+index 000000000000..d9438f3e6bad
+--- /dev/null
++++ b/include/trace/events/pagefault.h
+@@ -0,0 +1,80 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM pagefault
++
++#if !defined(_TRACE_PAGEFAULT_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_PAGEFAULT_H
++
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++
++DECLARE_EVENT_CLASS(spf,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, caller)
++		__field(unsigned long, vm_start)
++		__field(unsigned long, vm_end)
++		__field(unsigned long, address)
++	),
++
++	TP_fast_assign(
++		__entry->caller		= caller;
++		__entry->vm_start	= vma->vm_start;
++		__entry->vm_end		= vma->vm_end;
++		__entry->address	= address;
++	),
++
++	TP_printk("ip:%lx vma:%lx-%lx address:%lx",
++		  __entry->caller, __entry->vm_start, __entry->vm_end,
++		  __entry->address)
++);
++
++DEFINE_EVENT(spf, spf_vma_changed,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_noanon,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_notsup,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_access,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_pmd_changed,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++#endif /* _TRACE_PAGEFAULT_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/memory.c b/mm/memory.c
+index 1991da97e2db..509851ad7c95 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -81,6 +81,9 @@
  
- #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
- 	atomic_t vm_ref_count;
-+	struct rcu_head vm_rcu;
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/pagefault.h>
++
+ #if defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS) && !defined(CONFIG_COMPILE_TEST)
+ #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
  #endif
- 	struct rb_node vm_rb;
+@@ -2100,8 +2103,10 @@ static bool pte_spinlock(struct vm_fault *vmf)
  
-diff --git a/mm/internal.h b/mm/internal.h
-index 302382bed406..1e368e4afe3c 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -55,7 +55,10 @@ static inline void put_vma(struct vm_area_struct *vma)
- 		__free_vma(vma);
- }
- 
--#else
-+extern struct vm_area_struct *find_vma_rcu(struct mm_struct *mm,
-+					   unsigned long addr);
-+
-+#else /* CONFIG_SPECULATIVE_PAGE_FAULT */
- 
- static inline void get_vma(struct vm_area_struct *vma)
- {
-diff --git a/mm/mmap.c b/mm/mmap.c
-index c106440dcae7..34bf261dc2c8 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -179,6 +179,18 @@ static inline void mm_write_sequnlock(struct mm_struct *mm)
- {
- 	write_sequnlock(&mm->mm_seq);
- }
-+
-+static void __vm_rcu_put(struct rcu_head *head)
-+{
-+	struct vm_area_struct *vma = container_of(head, struct vm_area_struct,
-+						  vm_rcu);
-+	put_vma(vma);
-+}
-+static void vm_rcu_put(struct vm_area_struct *vma)
-+{
-+	VM_BUG_ON_VMA(!RB_EMPTY_NODE(&vma->vm_rb), vma);
-+	call_rcu(&vma->vm_rcu, __vm_rcu_put);
-+}
- #else
- static inline void mm_write_seqlock(struct mm_struct *mm)
- {
-@@ -190,6 +202,8 @@ static inline void mm_write_sequnlock(struct mm_struct *mm)
- 
- void __free_vma(struct vm_area_struct *vma)
- {
-+	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT))
-+		VM_BUG_ON_VMA(!RB_EMPTY_NODE(&vma->vm_rb), vma);
- 	mpol_put(vma_policy(vma));
- 	vm_area_free(vma);
- }
-@@ -197,11 +211,24 @@ void __free_vma(struct vm_area_struct *vma)
- /*
-  * Close a vm structure and free it, returning the next.
-  */
--static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
-+static struct vm_area_struct *__remove_vma(struct vm_area_struct *vma)
- {
- 	struct vm_area_struct *next = vma->vm_next;
- 
- 	might_sleep();
-+	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT) &&
-+	    !RB_EMPTY_NODE(&vma->vm_rb)) {
-+		/*
-+		 * If the VMA is still linked in the RB tree, we must release
-+		 * that reference by calling put_vma().
-+		 * This should only happen when called from exit_mmap().
-+		 * We forcely clear the node to satisfy the chec in
-+		 * __free_vma(). This is safe since the RB tree is not walked
-+		 * anymore.
-+		 */
-+		RB_CLEAR_NODE(&vma->vm_rb);
-+		put_vma(vma);
+ again:
+ 	local_irq_disable();
+-	if (vma_has_changed(vmf))
++	if (vma_has_changed(vmf)) {
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
 +	}
- 	if (vma->vm_ops && vma->vm_ops->close)
- 		vma->vm_ops->close(vma);
- 	if (vma->vm_file)
-@@ -211,6 +238,13 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
- 	return next;
- }
  
-+static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
-+{
-+	if (IS_ENABLED(CONFIG_SPECULATIVE_PAGE_FAULT))
-+		VM_BUG_ON_VMA(!RB_EMPTY_NODE(&vma->vm_rb), vma);
-+	return __remove_vma(vma);
-+}
-+
- static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags,
- 		struct list_head *uf);
- SYSCALL_DEFINE1(brk, unsigned long, brk)
-@@ -475,7 +509,7 @@ static inline void vma_rb_insert(struct vm_area_struct *vma,
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	/*
+@@ -2109,8 +2114,10 @@ static bool pte_spinlock(struct vm_fault *vmf)
+ 	 * is not a huge collapse operation in progress in our back.
+ 	 */
+ 	pmdval = READ_ONCE(*vmf->pmd);
+-	if (!pmd_same(pmdval, vmf->orig_pmd))
++	if (!pmd_same(pmdval, vmf->orig_pmd)) {
++		trace_spf_pmd_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
++	}
+ #endif
  
- 	/* All rb_subtree_gap values must be consistent prior to insertion */
- 	validate_mm_rb(root, NULL);
--
-+	get_vma(vma);
- 	rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
- }
+ 	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
+@@ -2121,6 +2128,7 @@ static bool pte_spinlock(struct vm_fault *vmf)
  
-@@ -491,6 +525,14 @@ static void __vma_rb_erase(struct vm_area_struct *vma, struct mm_struct *mm)
- 	mm_write_seqlock(mm);
- 	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
- 	mm_write_sequnlock(mm);	/* wmb */
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+	/*
-+	 * Ensure the removal is complete before clearing the node.
-+	 * Matched by vma_has_changed()/handle_speculative_fault().
-+	 */
-+	RB_CLEAR_NODE(&vma->vm_rb);
-+	vm_rcu_put(vma);
-+#endif
- }
- 
- static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
-@@ -2331,6 +2373,34 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
- 
- EXPORT_SYMBOL(find_vma);
- 
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+/*
-+ * Like find_vma() but under the protection of RCU and the mm sequence counter.
-+ * The vma returned has to be relaesed by the caller through the call to
-+ * put_vma()
-+ */
-+struct vm_area_struct *find_vma_rcu(struct mm_struct *mm, unsigned long addr)
-+{
-+	struct vm_area_struct *vma = NULL;
-+	unsigned int seq;
-+
-+	do {
-+		if (vma)
-+			put_vma(vma);
-+
-+		seq = read_seqbegin(&mm->mm_seq);
-+
-+		rcu_read_lock();
-+		vma = find_vma(mm, addr);
-+		if (vma)
-+			get_vma(vma);
-+		rcu_read_unlock();
-+	} while (read_seqretry(&mm->mm_seq, seq));
-+
-+	return vma;
-+}
-+#endif
-+
- /*
-  * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
-  */
-@@ -3231,7 +3301,7 @@ void exit_mmap(struct mm_struct *mm)
- 	while (vma) {
- 		if (vma->vm_flags & VM_ACCOUNT)
- 			nr_accounted += vma_pages(vma);
--		vma = remove_vma(vma);
-+		vma = __remove_vma(vma);
+ 	if (vma_has_changed(vmf)) {
+ 		spin_unlock(vmf->ptl);
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
  	}
- 	vm_unacct_memory(nr_accounted);
- }
+ 
+@@ -2154,8 +2162,10 @@ static bool pte_map_lock(struct vm_fault *vmf)
+ 	 */
+ again:
+ 	local_irq_disable();
+-	if (vma_has_changed(vmf))
++	if (vma_has_changed(vmf)) {
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
++	}
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	/*
+@@ -2163,8 +2173,10 @@ static bool pte_map_lock(struct vm_fault *vmf)
+ 	 * is not a huge collapse operation in progress in our back.
+ 	 */
+ 	pmdval = READ_ONCE(*vmf->pmd);
+-	if (!pmd_same(pmdval, vmf->orig_pmd))
++	if (!pmd_same(pmdval, vmf->orig_pmd)) {
++		trace_spf_pmd_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
++	}
+ #endif
+ 
+ 	/*
+@@ -2184,6 +2196,7 @@ static bool pte_map_lock(struct vm_fault *vmf)
+ 
+ 	if (vma_has_changed(vmf)) {
+ 		pte_unmap_unlock(pte, ptl);
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
+ 	}
+ 
+@@ -4187,47 +4200,60 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+ 
+ 	/* rmb <-> seqlock,vma_rb_erase() */
+ 	seq = raw_read_seqcount(&vma->vm_sequence);
+-	if (seq & 1)
++	if (seq & 1) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	/*
+ 	 * Can't call vm_ops service has we don't know what they would do
+ 	 * with the VMA.
+ 	 * This include huge page from hugetlbfs.
+ 	 */
+-	if (vma->vm_ops && vma->vm_ops->fault)
++	if (vma->vm_ops && vma->vm_ops->fault) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	/*
+ 	 * __anon_vma_prepare() requires the mmap_sem to be held
+ 	 * because vm_next and vm_prev must be safe. This can't be guaranteed
+ 	 * in the speculative path.
+ 	 */
+-	if (unlikely(!vma->anon_vma))
++	if (unlikely(!vma->anon_vma)) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	vmf.vma_flags = READ_ONCE(vma->vm_flags);
+ 	vmf.vma_page_prot = READ_ONCE(vma->vm_page_prot);
+ 
+ 	/* Can't call userland page fault handler in the speculative path */
+-	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING))
++	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING)) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+-	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP)
++	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP) {
+ 		/*
+ 		 * This could be detected by the check address against VMA's
+ 		 * boundaries but we want to trace it as not supported instead
+ 		 * of changed.
+ 		 */
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	if (address < READ_ONCE(vma->vm_start)
+-	    || READ_ONCE(vma->vm_end) <= address)
++	    || READ_ONCE(vma->vm_end) <= address) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
+ 				       flags & FAULT_FLAG_INSTRUCTION,
+ 				       flags & FAULT_FLAG_REMOTE)) {
++		trace_spf_vma_access(_RET_IP_, vma, address);
+ 		ret = VM_FAULT_SIGSEGV;
+ 		goto out_put;
+ 	}
+@@ -4235,10 +4261,12 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+ 	/* This is one is required to check that the VMA has write access set */
+ 	if (flags & FAULT_FLAG_WRITE) {
+ 		if (unlikely(!(vmf.vma_flags & VM_WRITE))) {
++			trace_spf_vma_access(_RET_IP_, vma, address);
+ 			ret = VM_FAULT_SIGSEGV;
+ 			goto out_put;
+ 		}
+ 	} else if (unlikely(!(vmf.vma_flags & (VM_READ|VM_EXEC|VM_WRITE)))) {
++		trace_spf_vma_access(_RET_IP_, vma, address);
+ 		ret = VM_FAULT_SIGSEGV;
+ 		goto out_put;
+ 	}
+@@ -4252,8 +4280,10 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+ 	pol = __get_vma_policy(vma, address);
+ 	if (!pol)
+ 		pol = get_task_policy(current);
+-	if (pol && pol->mode == MPOL_INTERLEAVE)
++	if (pol && pol->mode == MPOL_INTERLEAVE) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ #endif
+ 
+ 	/*
+@@ -4326,8 +4356,10 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+ 	 * We need to re-validate the VMA after checking the bounds, otherwise
+ 	 * we might have a false positive on the bounds.
+ 	 */
+-	if (read_seqcount_retry(&vma->vm_sequence, seq))
++	if (read_seqcount_retry(&vma->vm_sequence, seq)) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto out_put;
++	}
+ 
+ 	mem_cgroup_enter_user_fault();
+ 	ret = handle_pte_fault(&vmf);
+@@ -4346,6 +4378,7 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+ 	return ret;
+ 
+ out_walk:
++	trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 	local_irq_enable();
+ out_put:
+ 	put_vma(vma);
 -- 
 2.21.0
 
