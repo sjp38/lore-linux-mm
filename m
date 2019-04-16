@@ -2,204 +2,151 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1CE8C282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:22:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ABBE8C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:31:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9E0E420868
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:22:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="JBRSf+Ji"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E0E420868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 56D74206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:31:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56D74206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3988A6B0003; Tue, 16 Apr 2019 08:22:12 -0400 (EDT)
+	id D7E1E6B0003; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 347BD6B0006; Tue, 16 Apr 2019 08:22:12 -0400 (EDT)
+	id CDDF76B0006; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 238206B0007; Tue, 16 Apr 2019 08:22:12 -0400 (EDT)
+	id BA4FD6B0007; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 015F96B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:22:12 -0400 (EDT)
-Received: by mail-vs1-f70.google.com with SMTP id j193so4060431vsd.2
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 05:22:11 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 69C356B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id b12so2017349wmj.0
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 05:31:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=bdEs7uYsw1GOSiu24cA7C0KHfg2lyObuKuQzd3OIlyk=;
-        b=V3uNOGnShyO17wHOcSXJmLa4XzH+yBJ6xMrSjfppdGR+ltoCyEg/hfIdQu1FsZDlgq
-         srPpHQlPeQbMMfts8D8RDDlTwGl4OG7y9k4t8tsnFkyx1NzgntgiZmxaK8eKpJ/wFSfd
-         PifAlPj8s/hBDrf5P87n71S+rhtMP2Xj98DIC28Mdk5NnAXhBqPfBGSqHUumXX7BWOjX
-         /nmiZMuMP3lEJh7XGJ6nmm+SwyJXPM1SqYrt+gvdWXZFydxWm5jDKu5PoiKjuX8obwHh
-         xxnwvKRzkEymKy/D9BsiVp0De5pgs4065IqvC++l5ly7vYr4Dm785Oa8TbCRLk5aF9md
-         JDug==
-X-Gm-Message-State: APjAAAUzpJyavEP1EC48PbouTu2phQgM0PLYOnEBj79QSHWjtVfu4ANo
-	afLWmanbqTlxlrtoeAL06ZYOl5JHzJ1k25ZY0cBJkfBnoKz2XBrzE7hdfIyl45ZAjdIoAZy3PIO
-	NFRv60NXDPU8nG824O2rzsFFi3NgTXwqcWmRF+4hw+sGrO8cBfoMFWxoFWixQoGGgGg==
-X-Received: by 2002:ab0:6193:: with SMTP id h19mr42502501uan.47.1555417331650;
-        Tue, 16 Apr 2019 05:22:11 -0700 (PDT)
-X-Received: by 2002:ab0:6193:: with SMTP id h19mr42502461uan.47.1555417330974;
-        Tue, 16 Apr 2019 05:22:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555417330; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=Y/CYgzso0fI3Ij7lzAxNt+qvKgVSgCplQDjlKsz768I=;
+        b=VuGnzWLM84cjnK//FLroRgbvAVTZEMDLWTAZP/nEfZFZx5EraO4WAy9CMPfxCYM/vT
+         eZzuRbNizya8xad+0aWhOV52R2X/yWlj3jbehGJOg46CwQ8waWvzbiaXmmVaZwATrOuv
+         PG7Mr0jNKU75iYfbNWj/uIblfVOMMXOLRivpwLJCGtJAp/Z8WtKEZZ44HaZDhieokca8
+         SWBKB624EoTQZx0orvibm6NDuFRMLaS+iPuksptrdIt07PC3QO7wB4QUSNgT6p8HKsIR
+         xWE0JOl+vLQWPoYcQDY/1RLdrrxfpOnkbO1wUtoebM9ui89wt5auiL43N/ZD5aVjc2MR
+         wW+A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+X-Gm-Message-State: APjAAAUWv8QihPXstXI2V/zG4q6ZhaJD8fZ9WlK5QB4PjNRxd4PviB9s
+	p2g6AqQ0t/YKxwLEER0rMYvb1vboHB64Q3RQH5Y2jguhjG63qbh3grQd/x9SGY/+8sYB8fNtLlk
+	TAx4ByVrILrpgZobMVV/TVrXUjXdD6qSTbJMA3y6M0f9rlvGCYsem27CgyxNWrQk=
+X-Received: by 2002:adf:f488:: with SMTP id l8mr50124563wro.213.1555417912765;
+        Tue, 16 Apr 2019 05:31:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQoUTOv4hGfdyy03nMhjF40LicKVuWQyQ9e7Fm+c3fl7hRnIBj0nYKfa1a3bs/ywNS0UPU
+X-Received: by 2002:adf:f488:: with SMTP id l8mr50124508wro.213.1555417911826;
+        Tue, 16 Apr 2019 05:31:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555417911; cv=none;
         d=google.com; s=arc-20160816;
-        b=M6S8GRFwb2YTlnUq6g937NOuBaeP1JY8I/+pY1jXQgBgVolIDCtVvfpHqoJT4IuDT7
-         3+hiyddjbbL4LiinfO8FkzVPI/5iuQdTxHOJ+w6SfoUQvb6OhcJCV285RpjBOE99KQR6
-         7arM3DdiS5IcbuP8dTXBpSK4C2rs9D8kxjNlY+Ssix0sJzwsHzmw5boHjvbPt/FV6tIS
-         ze/jzUHXW5SRucnjhccutH91k0vMYd/NHT0RAi6DgRw+uDwqKHBvK31aGj932o6i2i87
-         e8oJ3brJqt2o0Wbjh6oquzRT3tvYAd6ZnG2CT+KcWUjq1sNB0A5uijRV1JfL2ey8Cgs8
-         Rkpg==
+        b=kw3/fXnvlXJu9pPQI1VNoItz8H5Barcx2i19sLXDKkunAWr7ubY/8drxvH6cTXnSsT
+         2TNLIUCX1LaNgPLwwcLjEktb/RTSHraxyhFqq4m8I6L9FZv/MXBUDEk/6gb2SyI8EKju
+         ZnXvKu3TzpDfYmYojYvytHEtKdgn7xnQE8dshdvdPuhP55UCwERZlyHatAVcYjpzDMKj
+         mvkwlFN566r/fWNWrZaFKCYhxHG3Pxms7iQBf2+qlpTJpV8/PzCDLCIUhsfCOF2lAehv
+         NymbY2aSUJ3mvy+GU+/YFR9lIwAFod6KzTsPOc9zi4bH51MGKnJbFnE7bCjiSXcvv77s
+         obJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=bdEs7uYsw1GOSiu24cA7C0KHfg2lyObuKuQzd3OIlyk=;
-        b=JTRJMHeMm0G2JKvSVUF2lpqr0T96X/C2NNoZfrmSu3Tf9QNwCnjyScPY1OtkeGE4L0
-         SvUfoCVmMdKne8/kE76UBanJO3yd2+JD7aX0Ykg7BHZiJUdC5qngJx5q3V3ebgnT5AyP
-         0yazjH7NU1KeItZQNdA0tedzX+ord0X7KzIK3vDjBaA6IXRHf7sbDjILEgs+e6jDM6J0
-         JqfTFJIb2FnS1xENK2bxLnaYf/cz53vwrC1FSZpkf/uXdMrHtA2bhOX5UEZjr1gPO2od
-         n8TeDyYBqs8YPhBBoJH3kD9CROs3uj4jEBFyAtA4C0B+IqpsbJAbul+fQ7xEHV47ofSW
-         oDdA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=Y/CYgzso0fI3Ij7lzAxNt+qvKgVSgCplQDjlKsz768I=;
+        b=FpdlNDebLs9FVPd2OOVsbUT4k8zqekzjS6owq+EwRiGpuSQSY/i9KKHrz+AouhHwbf
+         99PBXxi6Ac1WdkRkyX5za4A/oTiKZ3+LePAsUNK4Z0hXyN/jbkosTwnKPV0/KmzUBJvD
+         uhhbAFUkoH8+sYJ1mOL2VtN4YizbtembNWaZKCnqD0hPjrk+6FzYsUgFHNJB/6zBRlrl
+         Alcta7IoT3NqI7T6rXiEz1AdbrdwRrPQqivbfunYd5NakXEi9+18c5n+RlAHr/iG5tkP
+         0nwOYl2Q1WPgYsK/BV5a9KG5bX72UG5Nrz2kIubj5tNsH8EVnJTDP8/I/djzV1+afqME
+         4zmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JBRSf+Ji;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e15sor17535091uaf.9.2019.04.16.05.22.10
+       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.74])
+        by mx.google.com with ESMTPS id q1si35905821wrs.148.2019.04.16.05.31.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Apr 2019 05:22:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 05:31:51 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=217.72.192.74;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=JBRSf+Ji;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=bdEs7uYsw1GOSiu24cA7C0KHfg2lyObuKuQzd3OIlyk=;
-        b=JBRSf+Ji0s54jJi+6Lpqy370y89sX7kIKPg+sfBOKk/mLimssDnGKH9zXMjCE89lG8
-         IR9sjMMTs0rwQvkaDLSe+ZlHEyt04Ur3x6it1Aap2kZbQTwEF/NGXRkpdGM8Ee5TyTSC
-         V8JPndQF+f3TsfWTcvRmz4nrDY21rpmgij5TXJC4858ZL+uPIbOHFERn9EFJhHg7INSK
-         +Jj0taGaG4Xcjde402fKSp89nZ1FQT2lWuZsGMBDQid4apwhl8SZZ/7UNsmS2CwSufrn
-         umDsHypZ4yKWxONLl1Bie35QqbmJhGecQXHhxKRAviEKuDaJOyJhNZSMb70zy3F1evwS
-         w/YA==
-X-Google-Smtp-Source: APXvYqyVe76DswO88r/webO5iCtniBizYS3WbdFa5kvuIF7qLTsDqkoZD1+jZ+BupMeU3+8JZRVAi/HGBcaW150CI1U=
-X-Received: by 2002:ab0:2495:: with SMTP id i21mr41234515uan.49.1555417330235;
- Tue, 16 Apr 2019 05:22:10 -0700 (PDT)
+       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
+Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
+ (mreue106 [212.227.15.145]) with ESMTPA (Nemesis) id
+ 1Mj831-1gbHjU3m3p-00fCGB; Tue, 16 Apr 2019 14:31:50 +0200
+From: Arnd Bergmann <arnd@arndb.de>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Catalin Marinas <catalin.marinas@arm.com>
+Cc: Arnd Bergmann <arnd@arndb.de>,
+	Vincent Whitchurch <vincent.whitchurch@axis.com>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] kmemleak: fix unused-function warning
+Date: Tue, 16 Apr 2019 14:31:24 +0200
+Message-Id: <20190416123148.3502045-1-arnd@arndb.de>
+X-Mailer: git-send-email 2.20.0
 MIME-Version: 1.0
-References: <20190412124501.132678-1-glider@google.com> <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
-In-Reply-To: <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 16 Apr 2019 14:21:59 +0200
-Message-ID: <CAG_fn=W1rELLO4mx1RoM01shFVkyQjT3eU5wyqMRjprzVD5oMQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-security-module <linux-security-module@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Dmitriy Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, 
-	Sandeep Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+X-Provags-ID: V03:K1:1EvAL0ojU2Frr4q+8XD0ubRvQzid0tVwlNCSoNZpPcdhs4cXgDa
+ er9JnhpiZ6+hzDmyNo90eKhBWtxDpCdIn6jqy4JCU9DrGMckNRieIrMfro3+wbktoidofOa
+ 2tVttJbXVZWG//pdNS5j3Y633M1A+mZTSjYVaRthJnUD7c0O1yizfkfnXNRSg4ujEr9MH4x
+ AyUceR85JAEo3Yda+Rw5Q==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:yJV3e/orw2s=:nbtkNbl92Oed8LdUTP7aNQ
+ 8K1IijsNIuBoy5Titcdi7g2zqv5QUY9rX8tRXQdW8aqtnn15cD1G01zd7WNx3TfDL9xvhfIFG
+ 1ItPv7GKidKCQgzBFk1xM3iBuN5nIyNOTzla1ypOnT5yGAqFwo2y88e0ZE21QSHMTTuKprRha
+ ys0NCnA/4V9Q4fAq0Gdg7oBKDNIvx6FuWon6Zi/XmwyIElCZCoG4DJiEiATKCJB8GzOtgN34m
+ r6j48PcG6ZM5h+Xk95gtJhBgOBO/TOsBYZXWH79pFS9v9SWRNHAvCYu26GdxorKhy31maOvff
+ 954yn9NwEFJfsY1WYLJhfc9YvHYSDT+tidCsA0Z/ZNXVEfR5BGxuZCxzG8sBFdkKhdxDLaHo9
+ sW+I/CRJMPxfZmXxYMmvDxNzeNTfnenr+P5xnRYKskXx6f/cdzplWjDgSExfUMqgtcgiYAh1J
+ gBTzsKsuuHXqjpcxXOm+yOTP1IZjeL4ZGY2nLzwjztRU5Ywp6PaSc5iql7ZH2l9EKV+olJ7/6
+ 2b4Iw/mWze/q9s1nJMhy1SBE270oK4ErvsMcyfabDRW/2nN0l8rEom5HVHJ+05QIxKrjCAaux
+ qJH6kaXBYfiYJ1DvZIhcprrl+V8ulpOm2ESXBwiFzydWz1Fx0O0Re0wr22N1d6Wq+9zGsYOQP
+ 7/PyT2MvXJ68UXl+/kCsbT2AYesGM637PGllo2Af6HowfEH6kwoBlchorWR3rD9byv/nWt7Un
+ QpjQ4Ok9B5p1irYvm6AhvABLFng+3ZJ9Tn3SFg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 4:02 AM Andrew Morton <akpm@linux-foundation.org> w=
-rote:
->
-> On Fri, 12 Apr 2019 14:45:01 +0200 Alexander Potapenko <glider@google.com=
-> wrote:
->
-> > This config option adds the possibility to initialize newly allocated
-> > pages and heap objects with zeroes.
->
-> At what cost?  Some performance test results would help this along.
-I'll make more measurements for the new implementation, but the
-preliminary results are:
-~0.17% sys time slowdown (~0% wall time slowdown) on hackbench (1 CPU);
-1.3% sys time slowdown (0.2% wall time slowdown) when building Linux with -=
-j12;
-4% sys time slowdown (2.6% wall time slowdown) on af_inet_loopback benchmar=
-k;
-up to 100% slowdown on netperf (caused by sk buffers being initialized
-multiple times; also netperf is too fast to perform any precise
-measurements)
+The only references outside of the #ifdef have been removed,
+so now we get a warning in non-SMP configurations:
 
-Are there any benchmarks you can recommend?
-> > This is needed to prevent possible
-> > information leaks and make the control-flow bugs that depend on
-> > uninitialized values more deterministic.
-> >
-> > Initialization is done at allocation time at the places where checks fo=
-r
-> > __GFP_ZERO are performed. We don't initialize slab caches with
-> > constructors or SLAB_TYPESAFE_BY_RCU to preserve their semantics.
-> >
-> > For kernel testing purposes filling allocations with a nonzero pattern
-> > would be more suitable, but may require platform-specific code. To have
-> > a simple baseline we've decided to start with zero-initialization.
-> >
-> > No performance optimizations are done at the moment to reduce double
-> > initialization of memory regions.
->
-> Requiring a kernel rebuild is rather user-hostile.
-This is intended to be used together with other hardening measures,
-like CONFIG_INIT_STACK_ALL (see a patchset by Kees).
-All of those require a kernel rebuild, but we assume users don't push
-and pull that lever back and forth often.
+mm/kmemleak.c:1404:13: error: unused function 'scan_large_block' [-Werror,-Wunused-function]
 
-> A boot option
-> (early_param()) would be much more useful and I expect that the loss in
-> coverage would be small and acceptable?  Could possibly use the
-> static_branch infrastructure.
-I'll try that out and see if there's a notable performance difference.
+Add a new #ifdef around it.
 
-> > --- a/mm/slab.h
-> > +++ b/mm/slab.h
-> > @@ -167,6 +167,16 @@ static inline slab_flags_t kmem_cache_flags(unsign=
-ed int object_size,
-> >                             SLAB_TEMPORARY | \
-> >                             SLAB_ACCOUNT)
-> >
-> > +/*
-> > + * Do we need to initialize this allocation?
-> > + * Always true for __GFP_ZERO, CONFIG_INIT_HEAP_ALL enforces initializ=
-ation
-> > + * of caches without constructors and RCU.
-> > + */
-> > +#define SLAB_WANT_INIT(cache, gfp_flags) \
-> > +     ((GFP_INIT_ALWAYS_ON && !(cache)->ctor && \
-> > +       !((cache)->flags & SLAB_TYPESAFE_BY_RCU)) || \
-> > +      (gfp_flags & __GFP_ZERO))
->
-> Is there any reason why this *must* be implemented as a macro?  If not,
-> it should be written in C please.
-Agreed. Even in the case we want GFP_INIT_ALWAYS_ON to be known at
-compile time there's no reason for this to be a macro.
->
+Fixes: 298a32b13208 ("kmemleak: powerpc: skip scanning holes in the .bss section")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/kmemleak.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 6c318f5ac234..2e435b8142e5 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1401,6 +1401,7 @@ static void scan_block(void *_start, void *_end,
+ /*
+  * Scan a large memory block in MAX_SCAN_SIZE chunks to reduce the latency.
+  */
++#ifdef CONFIG_SMP
+ static void scan_large_block(void *start, void *end)
+ {
+ 	void *next;
+@@ -1412,6 +1413,7 @@ static void scan_large_block(void *start, void *end)
+ 		cond_resched();
+ 	}
+ }
++#endif
+ 
+ /*
+  * Scan a memory block corresponding to a kmemleak_object. A condition is
+-- 
+2.20.0
 
