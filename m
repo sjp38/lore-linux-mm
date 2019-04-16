@@ -6,86 +6,101 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0515C10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 15:16:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A15AC10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 15:19:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5A02C20656
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 15:16:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A02C20656
+	by mail.kernel.org (Postfix) with ESMTP id F2CF220656
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 15:19:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2CF220656
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D22BD6B02B5; Tue, 16 Apr 2019 11:16:08 -0400 (EDT)
+	id 8DC1D6B02B6; Tue, 16 Apr 2019 11:19:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD2496B02B6; Tue, 16 Apr 2019 11:16:08 -0400 (EDT)
+	id 863FD6B02B8; Tue, 16 Apr 2019 11:19:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC2C66B02B7; Tue, 16 Apr 2019 11:16:08 -0400 (EDT)
+	id 704686B02B9; Tue, 16 Apr 2019 11:19:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D35E6B02B5
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:16:08 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k56so5300374edb.2
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:16:08 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 199996B02B6
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:19:35 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f7so11157659edi.3
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:19:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=eZpaZXKsWEj4BbCRQbjjtTp+Nx1toosw/2jqTit5u5o=;
-        b=mqW6fhLmxiZs/WslHiivXSWzqg8lAyHoRwbuuzgICqYI19gDWLdXDLn1FEhm/PofTb
-         gWyYc89e0Ym6Kd8xy/tR0BHaa0ZBHo6wG524s4ZGWPRzRoH9Jbt1fFGRgibTdNlTeWwz
-         1xdt2UmBBWH4TY64aR82Bdhc0o67LV9oEQ2HQIsnfORXngCEWjipVvz65ZlkV5uf7E/I
-         wjxk1rtPS8rkZYqNyfNJBbnXCanJn/0oi56sUauzPVELxnZ+z1UB5ZgOuPKLPj4L0Ki5
-         QuMBucRuuUOBihAXN50MQxpnsIJ5Pc6awiF8EfefBjSup+1QvFbKUczP52zDUzElgdTO
-         yVDQ==
+        bh=jSvblVTgD9PZC+8zXsx7UqN9RF1fxq6fFo6XUrEpZjg=;
+        b=A1lwGn6m6/Bss2wUH3lL+Yy5KPKTfM6Z7UzXM5dkWT6SHfnevAaOCi/jlPK3JqYKCf
+         m25K6DzTCvTI+FZLr+ENNOijtLwqp1viIgJj8azPJi6ZU7nNMrIBr5zZ5ThKNOua+o85
+         4Ub5wIGnqnLYi0NsiZzUo6BR8PiRJtcX4J9bcecd5t+IhCUWnEZEoQlXxWTipF5gGwyA
+         YPGeLekNDpvAwGZ/lQ5UOOtYwSjLVUG20zSWJU1lg/kLZlexuSDtHSRr+OwNOatQZ3/u
+         DftOqS0W7FuKC8HYWQo8Mj+8XqAcwQlcRnfKqintgkGhmeeV1IS3EabpREfQ4DIGUHX9
+         AkcA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWtQW1h6NUsKWcj2kdZuZo7SbSE8Psp1S4s1W4XRjMxU/2HfKut
-	DumL8lCXd4jwXpxEHfSikltgEyvZwxS70dhRBwgsQHA9kq8Ju0FZHmE6lWZkzkZgZlCl+oM3HKA
-	OrduBIPUvfmHpdSssTHaHJd0u4INVBr2GZklf6NOCuBlm7NkONJ9QoorOeJSRSsvhRA==
-X-Received: by 2002:a17:906:6050:: with SMTP id p16mr43723314ejj.173.1555427767840;
-        Tue, 16 Apr 2019 08:16:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyz/S26atmmVqHMOZGKOLN5kiWEHrhnjY++3oytVc7/R0UNrFTW9km4hVZaa03nSUqburzz
-X-Received: by 2002:a17:906:6050:: with SMTP id p16mr43723257ejj.173.1555427766834;
-        Tue, 16 Apr 2019 08:16:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555427766; cv=none;
+X-Gm-Message-State: APjAAAV6+qVGNCbCrj34SlrhY5VSaaqH4Z2yaByb2rkC4VdVeUhS7eKg
+	K8qD5uSNzROP53irjT+cx1Jn8k4cEfRi6eHgIdGWXcuUuXaGyRqzuLaASzdEU3KsUmiOqfq943B
+	sCPUJgnHowTfyQEGrQOmap+Fsi/tvijoE8x/KC569uSDqeR+1NN6XoZSlp4A0D3Syzw==
+X-Received: by 2002:a50:a3b1:: with SMTP id s46mr49441993edb.99.1555427974583;
+        Tue, 16 Apr 2019 08:19:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBljArd//BvoP0cBGMw2y2vq5fY/5hC23Db76/lxeceBFWybH77YdW5m2KxepJMhptWItD
+X-Received: by 2002:a50:a3b1:: with SMTP id s46mr49441950edb.99.1555427973685;
+        Tue, 16 Apr 2019 08:19:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555427973; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ot4XTW9cCXWisWRvzjOv1i7AOO2IcrGYMesFZHI2nn3ddwZR/GVPuQKn1Hh+Mntmod
-         LzTbZ4dx5QkuBnZQX8jmPUggexSJzXOgD1EN8sbhfF1TSddbG1Y6jcwFT7FSeuW63nEG
-         iqrXLeDrvKFRplWusoOBqgpAvZkoxyU3YYXtg8HsUC9/uUBMT5A/w1PXHpItYWLVI0J2
-         KGsfsdA/1wsi3fGVb3Kz9u5B7m+4CtQ+aQ0dxY/g2g9pfM/puMEH2hauuAZJFKMsHxTL
-         W62WJ9+EmGyyR5MmDwWvsCd9LGbHfcOjkev/xYBVYofAu7WRdkUTuuAzR38kfLxcbYGA
-         o9BA==
+        b=a0l62AqP8eyqU3G/CczOyJRF4NNn9q5l3lORCwCV0L1F9PyGI3VXtIl1z7pRRZzwyX
+         a8Mlc4QCviV0/TwKaY+gT2usn8sy2dbikGbkJpmZ6kXI2ankPmNMQyoxHNbWLqGNKR6H
+         ouq+jvyb3rWisUaVedrD9P8XTigM+xwA9zfvZu9hESSgF8HYZSqMrckeCUvexbtLaZhX
+         6gSdRi3vHmQfk8zgq2c2UchAZoj52MJxVd7uTkc19CC6hFpkvaLhizDb9SXZp6TYlseU
+         X3lbctm3effLbDjXdByZC7IqyNnzuLxDdgcMu7L92u9HJrjrxvvK/awl9BeKh9gpSxRP
+         Qa4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=eZpaZXKsWEj4BbCRQbjjtTp+Nx1toosw/2jqTit5u5o=;
-        b=A20RSj0fDlbxjCZ74kQsYvTFy/i1zYONZPNd8DUikPkQ3MtnEOo1UD9GhnuGvif11C
-         qfLYOmcXWuPjmyjVQXhpRJwOatauwcyGYl2XZzL58PvFd9Ne6VL4zreJk6bOrtHcLmrY
-         SsPV0N2Kru8iooKmFMbjAhiSZksdmS4VYzOxIOmcNbK3PE/T/7ki8X0RSy+E9OzMP9nC
-         9u2s1HvJgkjnj/VY5W+qjxwBWkVLJe9wypkddcJg6tWfvSojwVlcJ39ZKqkNfwhhrpMP
-         B586CiRua/imIOxU9pQaUakNt8aWyLRnaC5JYnDoQuLi+itHSl3VFHDrgrpnNsKLCkzW
-         lj2w==
+        bh=jSvblVTgD9PZC+8zXsx7UqN9RF1fxq6fFo6XUrEpZjg=;
+        b=knsnmMhRBW+DoZe4mK57279wQNKDiuY1s+xZ0c2qHPH+taUXdRzbbiGPGBz1mbSuK9
+         lZ7Hlt7NY2h59O243iuiWevmj2Ng1EQI+tq6A179+TQg8taJiBM0mUirfSrdeGXoG0Wr
+         FOYDEr7tbfv/P6sUahIpHp6CiJh8JXNhIjKLwHryIo2Ub5j+Zxv3lIIDPQKISucWZY2u
+         LmYfcj4lFUkQh6FPvs4UdfsbLn62WNAMJ4ceNYJWmezlxXZ5Ln125CyQAJfU2wff/1WI
+         gX3JBMj+3FyvsjezedX4qndtRfVirnpb8cUe/XZy5ndGRBNwVld61rxBPejC+Rwwx9un
+         1BMA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e13si2450062edq.50.2019.04.16.08.16.06
+        by mx.google.com with ESMTPS id l11si784952ejr.43.2019.04.16.08.19.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 08:16:06 -0700 (PDT)
+        Tue, 16 Apr 2019 08:19:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 25F3BAD70;
-	Tue, 16 Apr 2019 15:16:06 +0000 (UTC)
-Subject: Re: [PATCH v3] mm/hotplug: treat CMA pages as unmovable
-To: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org
-Cc: mhocko@suse.com, osalvador@suse.de, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190413002623.8967-1-cai@lca.pw>
+	by mx1.suse.de (Postfix) with ESMTP id 92646AE5D;
+	Tue, 16 Apr 2019 15:19:32 +0000 (UTC)
+Subject: Re: [patch V5 01/32] mm/slab: Remove broken stack trace storage
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>,
+ LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>,
+ Sean Christopherson <sean.j.christopherson@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg
+ <penberg@kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ David Rientjes <rientjes@google.com>
+References: <20190414155936.679808307@linutronix.de>
+ <20190414160143.591255977@linutronix.de>
+ <CALCETrUhVc_u3HL-x7wMnk9ukEbwQPvc9N5Na-Q55se0VwcCpw@mail.gmail.com>
+ <alpine.DEB.2.21.1904141832400.4917@nanos.tec.linutronix.de>
+ <alpine.DEB.2.21.1904151101100.1729@nanos.tec.linutronix.de>
+ <20190415132339.wiqyzygqklliyml7@treble>
+ <alpine.DEB.2.21.1904151804460.1895@nanos.tec.linutronix.de>
+ <20190415161657.2zwboghblj5ducux@treble>
+ <CALCETrXLa9ec8Lcz2WPML8qQiStpTtDSAGkW=Rv9bMSiunNNMw@mail.gmail.com>
+ <alpine.DEB.2.21.1904152320540.1806@nanos.tec.linutronix.de>
+ <612f9b99-a75b-6aeb-cf92-7dc5421cd950@suse.cz>
+ <alpine.DEB.2.21.1904161608570.1685@nanos.tec.linutronix.de>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -148,94 +163,88 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <7b00e0ab-4d57-843a-df08-5f5b2162f7bf@suse.cz>
-Date: Tue, 16 Apr 2019 17:12:47 +0200
+Message-ID: <20effcc8-6d4d-bdd8-379e-8eed5624542c@suse.cz>
+Date: Tue, 16 Apr 2019 17:16:14 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190413002623.8967-1-cai@lca.pw>
+In-Reply-To: <alpine.DEB.2.21.1904161608570.1685@nanos.tec.linutronix.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/13/19 2:26 AM, Qian Cai wrote:
-> has_unmovable_pages() is used by allocating CMA and gigantic pages as
-> well as the memory hotplug. The later doesn't know how to offline CMA
-> pool properly now, but if an unused (free) CMA page is encountered, then
-> has_unmovable_pages() happily considers it as a free memory and
-> propagates this up the call chain. Memory offlining code then frees the
-> page without a proper CMA tear down which leads to an accounting issues.
-> Moreover if the same memory range is onlined again then the memory never
-> gets back to the CMA pool.
+On 4/16/19 4:10 PM, Thomas Gleixner wrote:
+> kstack_end() is broken on interrupt stacks as they are not guaranteed to be
+> sized THREAD_SIZE and THREAD_SIZE aligned.
 > 
-> State after memory offline:
->  # grep cma /proc/vmstat
->  nr_free_cma 205824
+> As SLAB seems not to be used much with debugging enabled and might just go
+> away completely according to:
 > 
->  # cat /sys/kernel/debug/cma/cma-kvm_cma/count
->  209920
+>   https://lkml.kernel.org/r/612f9b99-a75b-6aeb-cf92-7dc5421cd950@suse.cz
 > 
-> Also, kmemleak still think those memory address are reserved but have
-> already been used by the buddy allocator after onlining.
+> just remove the bogus code instead of trying to fix it.
 > 
-> Offlined Pages 4096
-> kmemleak: Cannot insert 0xc000201f7d040008 into the object search tree
-> (overlaps existing)
-> Call Trace:
-> [c00000003dc2faf0] [c000000000884b2c] dump_stack+0xb0/0xf4 (unreliable)
-> [c00000003dc2fb30] [c000000000424fb4] create_object+0x344/0x380
-> [c00000003dc2fbf0] [c0000000003d178c] __kmalloc_node+0x3ec/0x860
-> [c00000003dc2fc90] [c000000000319078] kvmalloc_node+0x58/0x110
-> [c00000003dc2fcd0] [c000000000484d9c] seq_read+0x41c/0x620
-> [c00000003dc2fd60] [c0000000004472bc] __vfs_read+0x3c/0x70
-> [c00000003dc2fd80] [c0000000004473ac] vfs_read+0xbc/0x1a0
-> [c00000003dc2fdd0] [c00000000044783c] ksys_read+0x7c/0x140
-> [c00000003dc2fe20] [c00000000000b108] system_call+0x5c/0x70
-> kmemleak: Kernel memory leak detector disabled
-> kmemleak: Object 0xc000201cc8000000 (size 13757317120):
-> kmemleak:   comm "swapper/0", pid 0, jiffies 4294937297
-> kmemleak:   min_count = -1
-> kmemleak:   count = 0
-> kmemleak:   flags = 0x5
-> kmemleak:   checksum = 0
-> kmemleak:   backtrace:
->      cma_declare_contiguous+0x2a4/0x3b0
->      kvm_cma_reserve+0x11c/0x134
->      setup_arch+0x300/0x3f8
->      start_kernel+0x9c/0x6e8
->      start_here_common+0x1c/0x4b0
-> kmemleak: Automatic memory scanning thread ended
-
-There's nothing about what the patch does, except subject, which is long
-forgotten when reading up to here. What about something like:
-
-This patch fixes the situation by treating CMA pageblocks as unmovable,
-except when has_unmovable_pages() is called as part of CMA allocation.
-
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> Fixes: 98eb235b7feb ("[PATCH] page unmapping debug") - History tree
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: linux-mm@kvack.org
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> @@ -8015,17 +8018,20 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  	 * can still lead to having bootmem allocations in zone_movable.
->  	 */
->  
-> -	/*
-> -	 * CMA allocations (alloc_contig_range) really need to mark isolate
-> -	 * CMA pageblocks even when they are not movable in fact so consider
-> -	 * them movable here.
-> -	 */
-> -	if (is_migrate_cma(migratetype) &&
-> -			is_migrate_cma(get_pageblock_migratetype(page)))
-> -		return false;
-> +	if (is_migrate_cma(get_pageblock_migratetype(page))) {
+Thanks.
 
-Nit, since you were already refactoring a bit as part of the patch:
-this could use is_migrate_cma_page(page)
+> ---
+> V5: Remove the cruft.
+> V4: Make it actually work
+> V2: Made the code simpler to understand (Andy)
+> ---
+>  mm/slab.c |   22 +++-------------------
+>  1 file changed, 3 insertions(+), 19 deletions(-)
+> 
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1470,33 +1470,17 @@ static bool is_debug_pagealloc_cache(str
+>  static void store_stackinfo(struct kmem_cache *cachep, unsigned long *addr,
+>  			    unsigned long caller)
+>  {
+> -	int size = cachep->object_size;
+> +	int size = cachep->object_size / sizeof(unsigned long);
+>  
+>  	addr = (unsigned long *)&((char *)addr)[obj_offset(cachep)];
+>  
+> -	if (size < 5 * sizeof(unsigned long))
+> +	if (size < 4)
+>  		return;
+>  
+>  	*addr++ = 0x12345678;
+>  	*addr++ = caller;
+>  	*addr++ = smp_processor_id();
+> -	size -= 3 * sizeof(unsigned long);
+> -	{
+> -		unsigned long *sptr = &caller;
+> -		unsigned long svalue;
+> -
+> -		while (!kstack_end(sptr)) {
+> -			svalue = *sptr++;
+> -			if (kernel_text_address(svalue)) {
+> -				*addr++ = svalue;
+> -				size -= sizeof(unsigned long);
+> -				if (size <= sizeof(unsigned long))
+> -					break;
+> -			}
+> -		}
+> -
+> -	}
+> -	*addr++ = 0x87654321;
+> +	*addr = 0x87654321;
+>  }
+>  
+>  static void slab_kernel_map(struct kmem_cache *cachep, void *objp,
+> 
 
