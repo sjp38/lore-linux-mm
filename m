@@ -5,88 +5,90 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D19ECC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:33:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8E95C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:36:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 71AD120868
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:33:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71AD120868
+	by mail.kernel.org (Postfix) with ESMTP id A45572073F
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:36:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A45572073F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D45166B0003; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
+	id 3CDCF6B0003; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF39A6B0006; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
+	id 353AA6B0006; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBB286B0007; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
+	id 1CF176B0007; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CE726B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e6so10521552edi.20
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 01:33:43 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0F16B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 04:36:53 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h10so2471784edn.22
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 01:36:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=p/TVmVUdIZtom2oetxJ9J//xOZz3HB9HiccaO8bSXsw=;
-        b=GB4ochUiqfBYBCOhB6wFhYZBisXEdCfW/fpM32/fafXQcQ2GUldEnUeacz8Rni5lqG
-         56VOseZH2rE/Rn06kaAVT2XMZPQ/zxkrEmJ1f/i9opTqn5Auc84NJHOMu/wW6EDAwB7d
-         LazoGbGlItygfCIQCmrCNLOK8wLSBe1LLGtFInDUHVanmzAHQKPejcRl/s8g+j1T5Uwh
-         jkqJnHly1g9o9sXUHnCqapOxrPqje9GwSLQyuhMzRMCYAanUuoie3NnA1KiAgELY+nXC
-         e1ID+/qnxef2hyhZDnyR+wDz2w4b1Uf7WJ2Gk82TWdEadzrvkMvXRrmEH/eDFSCKq4oe
-         hynA==
+        bh=RAl7C5fGXE9bMhCbgn/Dt/KvCaiJjuTzK1qxDQIJICo=;
+        b=JFxNwaW0EGVaL+jH+UeTd8O81110NNMKgbVLeNvj1SwIYeHp/PbFlNuj1apYVA0uV9
+         g/XtG4j2EYXt8UrxhejegC6XM7oV3ioyFwc6mLUzNTpbq0dssCnZXBUWzFh+7OpDv0d+
+         Xt0+wTX9vJeRjYXj4T6vYCmMLDLK3QAXfdnJdsGV+CmppsPE+D/F75NPyf9bQcLndKOo
+         2IqAcitRo2YwDJvyQedO6Xa5pGhCHXn+QkZLKifqzFx0NksdR/5/m34//WkYQeu06BqP
+         lsjRb5wmCjxpoGg+pvkWtqh0mknJquEutfY9mGY5vf12enDUQQJSiincJPAzdFiflCYq
+         3qzg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAX4xb6cb38f3zmxhxaUXwV4Yejl0f1cxAWVGGUvjcxgd9bbbhKZ
-	srj7ULVo6C9zzBA2esBRCDCXo1+5KqA7b3qP0COvmFAgqiIijcESIRmj4Bt6iMDMB2TrtJp8FpD
-	zxr8RVftGKsjRTmYdzJz7u+kcgOifjLmL/Te1Ka0FVcYxYA2mA9HVdOQhCMpAUxcAvw==
-X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr34519404ejb.143.1555403622866;
-        Tue, 16 Apr 2019 01:33:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9xJVnOtF++ECSnrnfWOlSxjhGEsVmDJ3KzkaW3ea26y9e75C1xvzdvT1AtrSAWyaoB0Ht
-X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr34519354ejb.143.1555403621738;
-        Tue, 16 Apr 2019 01:33:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555403621; cv=none;
+X-Gm-Message-State: APjAAAWfbc1d1iFTGfDdFFnWKUt3edtHmQFEC+vlqD9ajSoAKBtRGbjL
+	MrZHbb9TVMtog/ohoAfZdYuuQje7w2veZ5+/YuxOUuuK+kz4sf84TDuK/99/vsXKdpY90Wj9g+5
+	0QdCxzE94NC1/kDwjVNNM+dTyr46a3fTB4MX5bk1SNQsP83XUkEy0smqP9LlIITPTww==
+X-Received: by 2002:a50:9ee8:: with SMTP id a95mr50729728edf.142.1555403813326;
+        Tue, 16 Apr 2019 01:36:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhJIRiD+ZQko0nW+Mf5B84NOpNH/E4CiI7Ib2bK5Nx7ot3wSB2+5cyTqDWD0L4KYUuohq+
+X-Received: by 2002:a50:9ee8:: with SMTP id a95mr50729693edf.142.1555403812716;
+        Tue, 16 Apr 2019 01:36:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555403812; cv=none;
         d=google.com; s=arc-20160816;
-        b=kRKPb9nIb8YV5ryhDyYkQA1xifYW9V5VFax9uhDPN7tOmr157tgqkOiD1c5IUBuBT0
-         uwXEwgiB78m1Qntc3RopV1JuU78BriYJdGJCfq/1d2YzKeL2eMV2oweWPxQq0NMRyiLp
-         OKyH6wKS7qZARiJU0fOTD6NwOf4YL1WgvnhEkG2+wE9P0/Sap05VwB66YjNeckmjZPO8
-         F1Fvx1cSxvSoKTfvqSaV1fWeb0EaX9iJRPPbSNPZjhav0G4rQELBe9q+9qtOI/AqtNG5
-         6ITcXpu92BzUZ23Wr/E9/ksBVR0Jnd4QxgvjiHxAwo5wPoZY6ghl2uTQwEVyeW1gPJa9
-         LQ3g==
+        b=C/+5w0t0y/5G9Q7wknixZv/tAm302kW5uLknpxLU3Ja/+DCMFHsZJa0PZ93/mPf7EU
+         HdaZ9gsFquM+DYEh4h11zchNGCUyaANMIlQdQxsdtZxeVMt1QqN2xatR5C6OKTeBgZNJ
+         Kd54cdwqvbobDjUXB7iPhcchgJRr2FRLdH2c+W02iBszLedER+mbFBQY7qvYEhVhGUeh
+         2UxdNZLdwR4yGnOm/VVhK/0te7aQpMXRIPmVtqvur+vAZS/72KAu/m4qr2Cls4A9ddDZ
+         ctdvHREX+b/RL+ZQtAgy8BWhsiuGbv58pwoq/7Qe379k7U5zzwju9OTvREfRI3kDxRG4
+         3Otg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=p/TVmVUdIZtom2oetxJ9J//xOZz3HB9HiccaO8bSXsw=;
-        b=x21qG6SYLuQe047aS+NvjykNUg7G5gvtbOL4hKuNDuwYS6+SZF6X3V7p+4QCqN92V1
-         F5sQCYRqXPIXh7DPWdxOWenxYdhtvwMsqrliFw4spObUheHW53Fz0zemrwD4lqvrDvAG
-         r4aNavgTQEr1xhzyYKfCIas7qYJq2KFh3Nn4vCxz9Go7VURFyLNnCINhJBEIAvH0cGu4
-         3v/FukqyOYaJZSFMov304yUIc7jUdLDwvQ0UWYw2rhMi7OHqp+VVeSlcqGxbkj0lyWPo
-         n58nmDucos+LvOlC8n9hf0yWV/t7gFqQbkiFQl6DhoyhLs/iTp2aDGXieSxbAxx8WZcj
-         pIeg==
+        bh=RAl7C5fGXE9bMhCbgn/Dt/KvCaiJjuTzK1qxDQIJICo=;
+        b=nbWhwxyMTR1TJzjTY1zx2uQlswT/Ll0i/n/wZgkuDjrpzO/QJ6nPeOi+9rkpzRYq3j
+         vsx9mqx+VbUpcW4wCYAaKc2Z9zEtwngPNm2P0tVPIZkx5G/IrJfC3xOQHaHSXlgB9vf3
+         UcuzxoM4IikW0plUIDTZyoxiTyZnfaJMjTFxStCjWqyVEDF3qjEesA9voa/2bY4IDMiY
+         g5kJw16ycTHwgEg8tWs59n+TBtfPEv4RO4TESWahqISF6FAwHad0uXD/ne4cFKsJPguR
+         QZiln45Gz0T378zJSQfP9j2gNmIS9WbfO39M8Wznacl6hJtOOq2B7/PkdhA33BNXLb+I
+         r3Ug==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g19si3283755ejt.326.2019.04.16.01.33.41
+        by mx.google.com with ESMTPS id d33si678943edc.66.2019.04.16.01.36.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 01:33:41 -0700 (PDT)
+        Tue, 16 Apr 2019 01:36:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F04BBAF2F;
-	Tue, 16 Apr 2019 08:33:40 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 0A042ADAA;
+	Tue, 16 Apr 2019 08:36:52 +0000 (UTC)
 Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
-To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>,
+ Alexander Potapenko <glider@google.com>
 Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org,
  ndesaulniers@google.com, kcc@google.com, dvyukov@google.com,
  keescook@chromium.org, sspatil@android.com, labbott@redhat.com,
  kernel-hardening@lists.openwall.com
 References: <20190412124501.132678-1-glider@google.com>
+ <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -149,12 +151,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <35935775-1c0d-6016-5bb3-0abee65a7492@suse.cz>
-Date: Tue, 16 Apr 2019 10:30:20 +0200
+Message-ID: <f4071ce4-3744-35c9-df22-cb0a9d8db8ba@suse.cz>
+Date: Tue, 16 Apr 2019 10:33:32 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190412124501.132678-1-glider@google.com>
+In-Reply-To: <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -164,23 +166,14 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/12/19 2:45 PM, Alexander Potapenko wrote:
-> +config INIT_HEAP_ALL
-> +	bool "Initialize kernel heap allocations"
+On 4/16/19 4:02 AM, Andrew Morton wrote:
+> Requiring a kernel rebuild is rather user-hostile.  A boot option
+> (early_param()) would be much more useful and I expect that the loss in
+> coverage would be small and acceptable?  Could possibly use the
+> static_branch infrastructure.
 
-Calling slab and page allocations together as "heap" is rather uncommon
-in the kernel I think. But I don't have a better word right now.
-
-> +	default n
-> +	help
-> +	  Enforce initialization of pages allocated from page allocator
-> +	  and objects returned by kmalloc and friends.
-> +	  Allocated memory is initialized with zeroes, preventing possible
-> +	  information leaks and making the control-flow bugs that depend
-> +	  on uninitialized values more deterministic.
-> +
->  config GCC_PLUGIN_STRUCTLEAK_VERBOSE
->  	bool "Report forcefully initialized variables"
->  	depends on GCC_PLUGIN_STRUCTLEAK
-> 
+Agreed. There could be a config option to make it default on if no param
+given. Then a config option to (not) compile this in at all would be
+probably superfluous, although small systems/architectures without
+effective static keys might care.
 
