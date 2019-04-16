@@ -2,105 +2,101 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CCC7AC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 21:07:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39639C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 21:19:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 896A720880
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 21:07:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 896A720880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0043521773
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 21:19:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0043521773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D0A66B0007; Tue, 16 Apr 2019 17:07:53 -0400 (EDT)
+	id 8BB356B0007; Tue, 16 Apr 2019 17:19:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 280AD6B0008; Tue, 16 Apr 2019 17:07:53 -0400 (EDT)
+	id 86A2B6B0008; Tue, 16 Apr 2019 17:19:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 122756B000A; Tue, 16 Apr 2019 17:07:53 -0400 (EDT)
+	id 781126B000A; Tue, 16 Apr 2019 17:19:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0176B0007
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 17:07:52 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a8so334057pgq.22
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:07:52 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 269F96B0007
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 17:19:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e6so11630587edi.20
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:19:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=n97B44f2A9Q8r7Y4SuVmn5Yal+Ru7FTSgdxu4oD2xGU=;
-        b=f+/igJ9D8f+1tINxwbUCBZhOAcIh3sZP6BbUlfMOcyraI4ks5KK7hqyuq/Z73mq6a6
-         r6RrkCLbJZt2gDPLnvEyC4mP6wkxeahFyoPQyEAQ4zx2c9ALMdOnTNk8DuJx75rBukW7
-         F5bAPH3mVX/wHFerZQS6pPttmCi4OEgjqUT9et5JI3xxLGPNwm3HgBCrGQP76UJ0V6ZX
-         bPhmjL8D/M3BK17dg+Pty7ebp1cHMe8IsDEWmOGGUqtdVbQbPkxOPjR0Fg5TZsQMBpsb
-         MDrwImHoOxdipnTZHW49OmPJCU3SHxO8ROD/JJHgLyja8aFis2Bn6bnscbnnElJQivRX
-         IE+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUXRelO0aYp1HBGVY2/erMKmed465pfQrbg7zyFUJgFzndEDWUO
-	gn1A0h5eOmBshGUSI6+XeGbu308AzDxUWm+TPfOccOA9hv5JEC2aoU/8Vv5j/YpPFAen6H5Ams1
-	2x3kfFkAxtvaLu9tuw5YTDbZ5B3nn51c595Pgybvu/JPnfgFcItbgP8GzxV8UxvamJw==
-X-Received: by 2002:aa7:943b:: with SMTP id y27mr60893879pfo.59.1555448872233;
-        Tue, 16 Apr 2019 14:07:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwjaFQaiyuHSXw3jd5VV4vppaTSwkH0R300nG5ZhIMAiUFpvhmejiDWqd9HFumZpbzXAIFp
-X-Received: by 2002:aa7:943b:: with SMTP id y27mr60893793pfo.59.1555448871384;
-        Tue, 16 Apr 2019 14:07:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555448871; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=BqbwlkcwKKq8GrJuUU/dA/6IkLCXIIR81ALNcKggwJ4=;
+        b=IX616N8yj8jPVRjNJOXdX9HJw58RJf1GvHReaKjOQuE8mNzmcN5+fL12UGsiEcy0ro
+         3n1eiRvW2Em0IjBhjmq1VDbFpZaSGhdqiefLELZpmHfJnr9neAuIGx5DcYqN25SLn6bv
+         Rz626BrOYiJFDvgqqKLSYvmFMSAOC+a4VHCiq9+Uqn8eJdeDRT92QogIx/l71YIIOu3s
+         pUdRSd9dO7JY+RBa/5iNK1LHMxad4H10lL1uIBzjxqlRPgYgC3wUNbnkoDrd17NVcDOi
+         eKDQks3TN+7eEUcGZdqUCqdOwDk6L846/3zk87ERFpuN0dRD3Xcg29cznPH7rcfYateT
+         VUUw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAXkiMjo8rBSXCnMJ8d5C71SEy2aLzgYvEzHIw+HGxVyKzT5wnBZ
+	OCDF89FwdGRf3tR4Sqi9NfUYPLWfkiuOXuk67H1CUs6rANtLdtATqXkqp4giTNnHUeHJ3Arfzi4
+	KQq6NNlrbElNB40w0mj9XweJOL1He9EgM/CGTDZrQjUN9TR0oqCwDICgBYgQDrd/Nvg==
+X-Received: by 2002:aa7:c88b:: with SMTP id p11mr45073418eds.79.1555449569695;
+        Tue, 16 Apr 2019 14:19:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwzuu4WOayC14WGG7+XlEvYhFnjEWdtEZFO3up6KV/bSuxo2cbEb4Ul+1nAKw6YxQsLdzE
+X-Received: by 2002:aa7:c88b:: with SMTP id p11mr45073375eds.79.1555449568906;
+        Tue, 16 Apr 2019 14:19:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555449568; cv=none;
         d=google.com; s=arc-20160816;
-        b=1Cm+jVzPZxZWpbxX9FHiRa6m+HoslLvKZkaLnBtinllvD++flNcoWZw72hj4UHucia
-         pgNbvDWGFv68wql/RGo3X3EDx05akrfTWLALvuTBdD06ISvMpBsniVyZTeJ7v1sdGgtm
-         UWFPlDfVoh9PjTsD4q6Aalh7hexx5F170Mt8zVYwubfILv7ZTSeiFxz6YS3assCtduyk
-         v8Om7k9ILqZXP1TxhEXFdLiBZBcmGkbXmGtEREWNW2gxqypQOxbXknzTRkA/8XhB7Rjy
-         EuucfnIHNJghTRHmlDiFaODdpKN8BiybIdN4uwgw+RRvTWa/GXsL+I9MpiHF6mHTIM1i
-         f3Mg==
+        b=o/NQcvaPBEo9jc+Sa3r6IqXG+mpzIr1No09f/dK1J6nMqT6reHYZki7wh9WvpeSoJA
+         Ku1Jeafyqae6GnXEeS8mLPPWZQvYR9tQIym2eU8bI4nRIgLjtXYkE7ehryDWDOQvG7e+
+         HQTkK93ryQQs1QdYYYgcAr7icDCz2ieOPctLgayhUc54sAGn7kMFBHH+OUML1yffdG0W
+         uy4+w8bsBaUZRQGXeLi5Q9zqyTFaeATQBxHQhfjR2Am30Grlfc2tNv310NjsFjO6weBP
+         ZSOJy2v6XtxHvLLHJElOwYttpdIAp7GxWfm2WET3Osn94R+qkFjvBw+KLxmqmQ7agpqv
+         rqbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :cc:to:from:subject;
-        bh=n97B44f2A9Q8r7Y4SuVmn5Yal+Ru7FTSgdxu4oD2xGU=;
-        b=wKHXKvVx9HOhRU6fy42GdyHfeAo+NRS+pLLNhBaZdpnUSpWnHkJbDWKWVfWiQ4X1V6
-         QT0xbA+32+Qtsw46Apw3jGaEzerJxuPeKCwx7AbRq2TWOxyB2B6NdPZ3NkVYMGN8FAaz
-         +BJ9WRICvFxBZpRU/YXzuy9w5xkmDI1sn4Uv4l2hux15HAwDHptqAvsCzqlwRcpleUMI
-         lkpIzjXtmlynqCr9JKjj6I1LomXiEV0Y3gcU+oaVX5E1pFMVTswQqc9jC+ZUFk/qVggv
-         YgSgzR88bAK+tVas8SjmaWXICbCJU8/DZd8Ruq0BP4cx2MoehiSWcPv0dukq+HdByVIE
-         P8iA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=BqbwlkcwKKq8GrJuUU/dA/6IkLCXIIR81ALNcKggwJ4=;
+        b=zPV6TPspGSU3g++hzcRpNEDTVetcoiAVWo1ctL+W5XF5l+tv0iPoZ5AmnVLNzqCtce
+         le8L7wljzrLtrAl0ThMJQkMFLsl9oVrpIev8z+wO1o6C/UXFGl9A9Jo1feXT76iifoK9
+         dhDZIJtifjRQe0h0Lxowx8k6KOkBrQSmiE6tiOvDDCDFU/9v1JtOCX3wu/0tnlW13W6v
+         WSHvi9T24Rla1G2C0OcvpflLzFLaR5Lx/3ZoWW8ItCNuKGwklzKwwtL5K5cb5dmAkrO+
+         nZ2DdqugOOGD1Zgixt3rJpQ1PE8ba37deLLpsMcUuZGE/Qx7COTccaS2bEKvLn1Xcj+9
+         04uQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id y6si53344344pfb.269.2019.04.16.14.07.51
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fx19si2401482ejb.350.2019.04.16.14.19.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 14:07:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Tue, 16 Apr 2019 14:19:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Apr 2019 14:07:50 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,359,1549958400"; 
-   d="scan'208";a="143496351"
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga007.fm.intel.com with ESMTP; 16 Apr 2019 14:07:50 -0700
-Subject: [PATCH] init: Initialize jump labels before command line option
- parsing
-From: Dan Williams <dan.j.williams@intel.com>
-To: linux-kernel@vger.kernel.org
-Cc: Guenter Roeck <groeck@google.com>,
- Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Thomas Gleixner <tglx@linutronix.de>, Mike Rapoport <rppt@linux.ibm.com>,
- linux-mm@kvack.org
-Date: Tue, 16 Apr 2019 13:54:04 -0700
-Message-ID: <155544804466.1032396.13418949511615676665.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id DE1EAAC1B;
+	Tue, 16 Apr 2019 21:19:27 +0000 (UTC)
+Subject: Re: [PATCH] slab: remove store_stackinfo()
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, luto@kernel.org,
+ jpoimboe@redhat.com, sean.j.christopherson@intel.com, penberg@kernel.org,
+ rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190416142258.18694-1-cai@lca.pw>
+ <902fed9c-9655-a241-677d-5fa11b6c95a1@suse.cz>
+ <alpine.DEB.2.21.1904162040570.1780@nanos.tec.linutronix.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <235d7500-8235-c7d4-0d6f-4d069133bd8d@suse.cz>
+Date: Tue, 16 Apr 2019 23:19:11 +0200
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <alpine.DEB.2.21.1904162040570.1780@nanos.tec.linutronix.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,66 +104,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a module option, or core kernel argument, toggles a static-key it
-requires jump labels to be initialized early. While x86, PowerPC, and
-ARM64 arrange for jump_label_init() to be called before parse_args(),
-ARM does not.
+On 4/16/2019 8:50 PM, Thomas Gleixner wrote:
+> On Tue, 16 Apr 2019, Vlastimil Babka wrote:
+> 
+>> On 4/16/19 4:22 PM, Qian Cai wrote:
+>>> store_stackinfo() does not seem used in actual SLAB debugging.
+>>> Potentially, it could be added to check_poison_obj() to provide more
+>>> information, but this seems like an overkill due to the declining
+>>> popularity of the SLAB, so just remove it instead.
+>>>
+>>> Signed-off-by: Qian Cai <cai@lca.pw>
+>>
+>> I've acked Thomas' version already which was narrower, but no objection
+>> to remove more stuff on top of that. Linus (and I later in another
+>> thread) already pointed out /proc/slab_allocators. It only takes a look
+>> at add_caller() there to not regret removing that one.
+> 
+> The issue why I was looking at this was a krobot complaint about the kernel
+> crashing in that stack store function with my stackguard series applied. It
+> was broken before the stackguard pages already, it just went unnoticed.
+> 
+> As you explained, nobody is caring about DEBUG_SLAB + DEBUG_PAGEALLOC
+> anyway, so I'm happy to not care about krobot tripping over it either.
+> 
+> So we have 3 options:
+> 
+>    1) I ignore it and merge the stack guard series w/o it
+> 
+>    2) I can carry the minimal fix or Qian's version in the stackguard
+>       branch
+> 
+>    3) We ship that minimal fix to Linus right now and then everyone can
+>       base their stuff on top independently.
 
-  Kernel command line: rdinit=/sbin/init page_alloc.shuffle=1 panic=-1 console=ttyAMA0,115200 page_alloc.shuffle=1
-  ------------[ cut here ]------------
-  WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:303
-  page_alloc_shuffle+0x12c/0x1ac
-  static_key_enable(): static key 'page_alloc_shuffle_key+0x0/0x4' used
-  before call to jump_label_init()
-  Modules linked in:
-  CPU: 0 PID: 0 Comm: swapper Not tainted
-  5.1.0-rc4-next-20190410-00003-g3367c36ce744 #1
-  Hardware name: ARM Integrator/CP (Device Tree)
-  [<c0011c68>] (unwind_backtrace) from [<c000ec48>] (show_stack+0x10/0x18)
-  [<c000ec48>] (show_stack) from [<c07e9710>] (dump_stack+0x18/0x24)
-  [<c07e9710>] (dump_stack) from [<c001bb1c>] (__warn+0xe0/0x108)
-  [<c001bb1c>] (__warn) from [<c001bb88>] (warn_slowpath_fmt+0x44/0x6c)
-  [<c001bb88>] (warn_slowpath_fmt) from [<c0b0c4a8>]
-  (page_alloc_shuffle+0x12c/0x1ac)
-  [<c0b0c4a8>] (page_alloc_shuffle) from [<c0b0c550>] (shuffle_store+0x28/0x48)
-  [<c0b0c550>] (shuffle_store) from [<c003e6a0>] (parse_args+0x1f4/0x350)
-  [<c003e6a0>] (parse_args) from [<c0ac3c00>] (start_kernel+0x1c0/0x488)
+I think #3 is overkill for something that was broken for who knows how long and
+nobody noticed. I'd go with 2) and perhaps Qian's version as nobody AFAIK uses
+the caller+cpu as well as the stack trace.
 
-Move the fallback call to jump_label_init() to occur before
-parse_args(). The redundant calls to jump_label_init() in other archs
-are left intact in case they have static key toggling use cases that are
-even earlier than option parsing.
+For Qian's version also:
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Reported-by: Guenter Roeck <groeck@google.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- init/main.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/init/main.c b/init/main.c
-index 598e278b46f7..7d4025d665eb 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -582,6 +582,8 @@ asmlinkage __visible void __init start_kernel(void)
- 	page_alloc_init();
- 
- 	pr_notice("Kernel command line: %s\n", boot_command_line);
-+	/* parameters may set static keys */
-+	jump_label_init();
- 	parse_early_param();
- 	after_dashes = parse_args("Booting kernel",
- 				  static_command_line, __start___param,
-@@ -591,8 +593,6 @@ asmlinkage __visible void __init start_kernel(void)
- 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
- 			   NULL, set_init_arg);
- 
--	jump_label_init();
--
- 	/*
- 	 * These use large bootmem allocations and must precede
- 	 * kmem_cache_init()
+> #3 is probably the right thing to do.
+> 
+> Thanks,
+> 
+> 	tglx
+> 
 
