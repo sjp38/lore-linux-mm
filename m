@@ -2,188 +2,192 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F97AC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:01:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4830C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:12:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E559206B6
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:01:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D8252087C
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:12:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="p9bIzPtX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E559206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Jytk2YQA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D8252087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CCA96B027E; Tue, 16 Apr 2019 12:01:52 -0400 (EDT)
+	id CFA346B027E; Tue, 16 Apr 2019 12:12:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9540D6B0287; Tue, 16 Apr 2019 12:01:52 -0400 (EDT)
+	id CA79C6B0287; Tue, 16 Apr 2019 12:12:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81E566B02A8; Tue, 16 Apr 2019 12:01:52 -0400 (EDT)
+	id B70DC6B02A8; Tue, 16 Apr 2019 12:12:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BFC26B027E
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:01:52 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id j193so4347347vsd.2
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:01:52 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 79D1B6B027E
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:12:39 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id w9so13655569plz.11
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:12:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=hDWSZCo4hVwn0SqOh/8+4ITIl6IlceobuY8Gd3+R1MM=;
-        b=rbxelfAaD04i2s+BHzGemKGO5W2D7AroxiVt4GH7xs3NMw9ma8a3+WWM2ukU0Cv6lP
-         4Ugvg+W9DkvwFiXn2QpvOOwBR4HfbwxhrbB3G6CQsmAptO6JTSK+U5cFjqnbP6TIULdU
-         6yLgBAhADut1Q1J6/MKE8YhIqUVDON5zdyAVgFTLkFPLH2LyXmDr7je/5GCyKOCzlRwP
-         SuVQbEVRgBlpvEiHTgl4RInD7jKvRm+Z/SvBDu5NL5ZRq+Ji2ra9//Vrs0C4fBnfiOni
-         52ELooeVQvNR0EZPBxhCzCueI4npg7CpI8HMqUCmD5loRA4oEG0tIyFlqiNih8OdSz84
-         DJWQ==
-X-Gm-Message-State: APjAAAW64lh0p3g78dq6NkTA7HlM2HMzg7rlWvwxHQjxg0wCOw7aakid
-	abGyy0qMHFs6mxc0Uv3q0U5/zz0Z2oByfc2tLiRWD1z+APRt8pAcASbJlkBaq0VlS5aQc9UaSN1
-	07KO4KuovHWKJIMElQYy/TTU14Sm7Z+TG4p/E7unYnZxDz9nP3w7i2DNAwVh5gs2Exw==
-X-Received: by 2002:a67:ea0a:: with SMTP id g10mr4121229vso.77.1555430511967;
-        Tue, 16 Apr 2019 09:01:51 -0700 (PDT)
-X-Received: by 2002:a67:ea0a:: with SMTP id g10mr4121114vso.77.1555430510643;
-        Tue, 16 Apr 2019 09:01:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555430510; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=0qG+gTlRQll235954BIuhS7cER94zkwgbFGR8CUs9fc=;
+        b=KIpFtF6EfePN1aRZRgVLHsSzAOZY0D4tFhFgqC/KYt4/7SYC5R2z3UyYDm6Qg5EQlb
+         EHNWFzhCsahenWUMGMP3NUDoCeItNxBH10Fc1ks0BJYhsRPwX/32boiWWdNw75pJnNtt
+         LUkjlhKQ17IkOs3DOALovSRWQGYVtbNESV6Badx9MeWVXIYaivzE2He1RoK99ckXgrk0
+         9Yz4wFgm+NxuzU3XOj7HnPlYSgyGXqeuN7GahsnNwkqq31wYaZw1v2wbW0fxHBJnx8aV
+         x/QEr+igS5xYecq8kLjLcRAxauuc3taR8K4T/v+lnShYUxAyAqk/KeF3zmFy5qdji/6T
+         pqrg==
+X-Gm-Message-State: APjAAAVo6LL+OFsmmiAqtgFdjoSC6oA5YCpZDOJ/QCBr8zMFaLWfNsz/
+	STYxmq5zyrsNY/O0q6WaXuxX7p37Rcl7fKzEhf0b81g41NI9TssjEOoGa/RA1LD1tBo7C0ET+av
+	7duIodPSdK2wyG6ewQ8UPj7DaYLxpHcNNVpxKmcVla2V+8eGa2zlDSr3uigPIVMvcDg==
+X-Received: by 2002:a63:c54a:: with SMTP id g10mr77023717pgd.71.1555431159062;
+        Tue, 16 Apr 2019 09:12:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxA4+fq4w0EKUiyXj7TW8QN09IExJ98s5oLL+YmgqZAC0tria6K0sz7DhbZCxgqnzMq6btM
+X-Received: by 2002:a63:c54a:: with SMTP id g10mr77023660pgd.71.1555431158391;
+        Tue, 16 Apr 2019 09:12:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555431158; cv=none;
         d=google.com; s=arc-20160816;
-        b=ORYoDTi+oXj+pXgOSBgVjN1TvHaX++xlT9HKajr92HtHmp1A54iv9BOLUDJLAWFzgE
-         MtHEdNLCf0ifNXaOd0UH5M3iHrkUjoVP+egkLxuOfx14WJpFPtTXHpJdRzPLZxe9AN7R
-         tJGBqLn3Eq9E945f4lVbd2fCr114COX6DDuBS2MHeBa9OQvaPHW6KrHLKGGM83zep0SR
-         AWvvyznhnTFfrynA6rSz7QRKvcFKJrtmdSv7WS9jQqxCoNaNBsKM/68PfAEMNWBADt/F
-         W4NInf+idYf+RhK1j39ovGhgE7TWXkcFoJJ/4RYDpceftwPtp4qtocqTfiOtwERHg7JQ
-         N6yg==
+        b=GX0hVQ0a7P1o37HDgladxNq2yasCjeFCOjPs2iJT6fs16xUnvG6wSYwUpVllezUcEV
+         hu7yOkMJcqFavd3TbKy9i8zlcDJjRoQOKUi5MQavfoJdDTXesIbcz3GWeL0dDEDmumqx
+         mAMpV9TBhJ5vCPSN9eQqRq7VcGhra9TGn3Wzbb10XO5sc3D5LYeIGRNQEHShhzZnjXU8
+         tZGEnDFOR3mSGJujdMudXOJZdY4uIGVZzBJhU/cKSIXOOMxxc2Nxcilt/oSJ9Stbqv3Q
+         L+SHCjDrGqU8JhOPBpkCK4Mzsx7nxnTm91MQ/UUSRRetnsId8Q1sDOeITRUkZlZTMxnY
+         3VFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=hDWSZCo4hVwn0SqOh/8+4ITIl6IlceobuY8Gd3+R1MM=;
-        b=m2xQPdmRxqvmoqxHxPgTLf1q+SbeIne967RkrBI2Xg2UK02YxlXae1gyZjZ0DVJSYB
-         vDf4axxKLTHSbTU2hPVLvUJOmJVqxlQJ7T2ivTR2CXgV+6HSriPGC82KcJUTR6XENIuX
-         aYeQAwmG7NLTX6T9wly+IkqQ9MdxE51iAXNKPMM9iJVSwGma+1F3Ygo4/ZXhwjb/7iJF
-         99NJbVEKjU5tcfA2AyIlccEyOJFnPLbAgMD3TvvfvEr++fdQdfHiyk8Tv0hfhFDVevy6
-         SCdlpbEXLrap8R7ZKUBYTM5PZmFbdadxGMRBHfg02zT4ZvcasMZhLmgeqLpabHezUn0i
-         bSEg==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=0qG+gTlRQll235954BIuhS7cER94zkwgbFGR8CUs9fc=;
+        b=dMwD535TYn7JJrVCeyysh1Qdl0fgIpBfGwKc63mKelqvHbmf/aDWtmpsDwm+MSUy1P
+         lxmAK+by/i8sAdVv0x/sReYEapgTeXqf8e1Z/GQdXp4n3Mk1DwRWb+2o4iu1OKYyCTzX
+         c5RbX/REGWdVQumFAB91BR5gxk6wHYRs4D1rUutaEq24bZ2szh7FVCR6uqCGLfWXW5n1
+         ai9II6nsi8HDU6LKSmA7SUOZGjJHmKVNZWt9Zf1z3p8mOzL0SN3Y66VlAEAyCZpWAi0v
+         iHCbDtRKQLfnfk5mK9DpJMP8yjzgY+I9jddObAkyf7xCtcNWjxY7pb1k9nb8n4vQ3up9
+         gW5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=p9bIzPtX;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p65sor31732228vsd.31.2019.04.16.09.01.50
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Jytk2YQA;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id n7si48833057pff.190.2019.04.16.09.12.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Apr 2019 09:01:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 09:12:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=p9bIzPtX;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=hDWSZCo4hVwn0SqOh/8+4ITIl6IlceobuY8Gd3+R1MM=;
-        b=p9bIzPtXET3z3NKbYtfuYI/FpJ0dQe2rd3zFiSfIhvO8wFtb/pzduy0icSsdsDeim3
-         XZiUih1isGFN/ytxANL7PCBufLt2s8MaFfrsOfMDULwb52QuP6jPLc3TtAuz5TYTKd7h
-         vFbGjVudiJEYDtMCZcon7GBoHeRTryNZ1CTCvSEyAM/2xdm+ZjD1kc5tB3Ed45RkxeT7
-         usXU4xhbqR0c9h43yBeD1bP4/jUv1e5r/BTu38LoulNEylk5TkzylLeMAGgo+BYv8q0W
-         Y82yavUJH1gkP1LAB5r3qxwf9NB54Vz5M03aM3Vh/7T804FTvFSaQUD+BD3NMRSQNFqt
-         sg+w==
-X-Google-Smtp-Source: APXvYqxtPZ9GG8J2wfnElBD5nZyQxKYstxWVNCMBJDV4JIhuFNQQyhgaxJwl5fIqzjHj2WlsYdNxT25/g2x5M7SWwwU=
-X-Received: by 2002:a67:ba03:: with SMTP id l3mr26668886vsn.96.1555430509891;
- Tue, 16 Apr 2019 09:01:49 -0700 (PDT)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Jytk2YQA;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cb5fee20000>; Tue, 16 Apr 2019 09:12:18 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 16 Apr 2019 09:12:37 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 16 Apr 2019 09:12:37 -0700
+Received: from [10.2.164.200] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 16 Apr
+ 2019 16:12:35 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: Dave Hansen <dave.hansen@intel.com>
+CC: Michal Hocko <mhocko@kernel.org>, Yang Shi <yang.shi@linux.alibaba.com>,
+	<mgorman@techsingularity.net>, <riel@surriel.com>, <hannes@cmpxchg.org>,
+	<akpm@linux-foundation.org>, <keith.busch@intel.com>,
+	<dan.j.williams@intel.com>, <fengguang.wu@intel.com>, <fan.du@intel.com>,
+	<ying.huang@intel.com>, <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Date: Tue, 16 Apr 2019 12:12:33 -0400
+X-Mailer: MailMate (1.12.4r5622)
+Message-ID: <027AE219-8C81-47DC-A241-4209C3F656A0@nvidia.com>
+In-Reply-To: <63514bdd-313b-d42f-e582-f8cb350d0b35@intel.com>
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190412084702.GD13373@dhcp22.suse.cz>
+ <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+ <20190416074714.GD11561@dhcp22.suse.cz>
+ <b9b40585-cb59-3d42-bcf8-e59bff77c663@intel.com>
+ <960F3918-7D2C-463C-A911-9B62CD7E5D83@nvidia.com>
+ <63514bdd-313b-d42f-e582-f8cb350d0b35@intel.com>
 MIME-Version: 1.0
-References: <20190412124501.132678-1-glider@google.com> <0100016a26c711be-b99971ca-49f5-482c-9028-962ee471f733-000000@email.amazonses.com>
-In-Reply-To: <0100016a26c711be-b99971ca-49f5-482c-9028-962ee471f733-000000@email.amazonses.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 16 Apr 2019 18:01:38 +0200
-Message-ID: <CAG_fn=U6aWfBXdkcWs0_1pqggAC16Yg8Q6rxLiVeiO83q1hOCw@mail.gmail.com>
-Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
-To: Christopher Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Dmitriy Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, 
-	Sandeep Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_D57647AE-4DA1-4C9B-AEDB-C24F26D9FE9B_=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1555431138; bh=0qG+gTlRQll235954BIuhS7cER94zkwgbFGR8CUs9fc=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=Jytk2YQA8nNJaUP8MgkVSmxdjPUeN9yqd1byaO9hk5gSDhMap8lTMNVOHtgdc1t4A
+	 tdw0Ew8E0ETmE3zhpdhDUURSrICP3fjpQnG+16DTk75JmSVaUMlrgKFXdpbRMPo6fu
+	 JxU3y7l9J3B8fFCNUgzpHhHUIg3oWhWwmmncSpoStJUmfg87NzfyByFXbbPMG1qJNy
+	 2/JtTWTVQrpqC/6vbuArQjJX4nl2VCGdILF8gjxMdqzEoQBPLkIHfbW0MsbN7tqzp9
+	 YS52pK3hp/dC5Cs8PTS2pnVOuGfmzhZCcsVRg5aV35F/qYhCrNy0apuKbAvguz24wV
+	 CFrezbmidOTcw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 5:32 PM Christopher Lameter <cl@linux.com> wrote:
->
-> On Fri, 12 Apr 2019, Alexander Potapenko wrote:
->
-> > diff --git a/mm/slab.h b/mm/slab.h
-> > index 43ac818b8592..4bb10af0031b 100644
-> > --- a/mm/slab.h
-> > +++ b/mm/slab.h
-> > @@ -167,6 +167,16 @@ static inline slab_flags_t kmem_cache_flags(unsign=
-ed int object_size,
-> >                             SLAB_TEMPORARY | \
-> >                             SLAB_ACCOUNT)
-> >
-> > +/*
-> > + * Do we need to initialize this allocation?
-> > + * Always true for __GFP_ZERO, CONFIG_INIT_HEAP_ALL enforces initializ=
-ation
-> > + * of caches without constructors and RCU.
-> > + */
-> > +#define SLAB_WANT_INIT(cache, gfp_flags) \
-> > +     ((GFP_INIT_ALWAYS_ON && !(cache)->ctor && \
-> > +       !((cache)->flags & SLAB_TYPESAFE_BY_RCU)) || \
-> > +      (gfp_flags & __GFP_ZERO))
->
-> This is another complex thing to maintain when adding flags to the slab
-> allocator.
->
-> > +config INIT_HEAP_ALL
-> > +     bool "Initialize kernel heap allocations"
->
-> "Zero pages and objects allocated in the kernel"
->
-> > +     default n
-> > +     help
-> > +       Enforce initialization of pages allocated from page allocator
-> > +       and objects returned by kmalloc and friends.
-> > +       Allocated memory is initialized with zeroes, preventing possibl=
-e
-> > +       information leaks and making the control-flow bugs that depend
-> > +       on uninitialized values more deterministic.
->
-> Hmmm... But we already have debugging options that poison objects and
-> pages?
-Laura Abbott mentioned in one of the previous threads
-(https://marc.info/?l=3Dkernel-hardening&m=3D155474181528491&w=3D2) that:
+--=_MailMate_D57647AE-4DA1-4C9B-AEDB-C24F26D9FE9B_=
+Content-Type: text/plain; markup=markdown
 
-"""
-I've looked at doing something similar in the past (failing to find
-the thread this morning...) and while this will work, it has pretty
-serious performance issues. It's not actually the poisoning which
-is expensive but that turning on debugging removes the cpu slab
-which has significant performance penalties.
+On 16 Apr 2019, at 11:55, Dave Hansen wrote:
 
-I'd rather go back to the proposal of just poisoning the slab
-at alloc/free without using SLAB_POISON.
-"""
-, so slab poisoning is probably off the table.
+> On 4/16/19 8:33 AM, Zi Yan wrote:
+>>> We have a reasonable argument that demotion is better than
+>>> swapping. So, we could say that even if a VMA has a strict NUMA
+>>> policy, demoting pages mapped there pages still beats swapping
+>>> them or tossing the page cache.  It's doing them a favor to
+>>> demote them.
+>> I just wonder whether page migration is always better than
+>> swapping, since SSD write throughput keeps improving but page
+>> migration throughput is still low. For example, my machine has a
+>> SSD with 2GB/s writing throughput but the throughput of 4KB page
+>> migration is less than 1GB/s, why do we want to use page migration
+>> for demotion instead of swapping?
+>
+> Just because we observe that page migration apparently has lower
+> throughput today doesn't mean that we should consider it a dead end.
 
---=20
-Alexander Potapenko
-Software Engineer
+I definitely agree. I also want to make the point that we might
+want to improve page migration as well to show that demotion via
+page migration will work. Since most of proposed demotion approaches
+use the same page replacement policy as swapping, if we do not have
+high-throughput page migration, we might draw false conclusions that
+demotion is no better than swapping but demotion can actually do
+much better. :)
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+--
+Best Regards,
+Yan Zi
 
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+--=_MailMate_D57647AE-4DA1-4C9B-AEDB-C24F26D9FE9B_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAly1/vEPHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqKz9gP/13w9KgpJ81vf8ZHTOonc/BRsQrT+aFB48qF
+eFtTeeHBW7Rr5NWBjbAzFb9SkQyWCCRHMjf6wv0qqy0NWAzAGZISf5nQDfz/++vh
+j9hC7Auj8moROyrh2uXoyUGfYiRQozS2xP0idz+EGGT5G2UKRdSFLLEW4KxrAqYO
+rXezQTPLeHv4exlslF/eXuod6miV1Sq6NOSy/FbrgV6CHDPwM4NL6mBeQZHfM3Xa
+mF0CtvRhYjDR+dO/SRQkpJYs1+GbADzH23BT0wx7nUQ3mUciO2rgdizHePQllx9I
+AmDxgjjkiFjWObnkWHx5hKZ3i1Uiu9nislABm7oPsAK5qa4TvXsjHthuet5l4vc6
+s4m9aMI0ehz0yI4hGKUUYnRoWTPcbfvni8NuFfdmBxmpIgAmaBd6LS7WSbIF9Df2
+V/w0aVSI8mDHVl/9Fa+pVZQ4HJTymPD7BkNphTF692VukYVMDMaQCne3rmXotEe3
+T4Bs1MYY13ezs3VuXKymzXjjiGpML+nGBzvzj9s/Itwhk2jQXIUw2sJDaTlD6fL3
+/kbavQFu/jmpi6BF76CVSMbScnGO0hGZ+Gxhp/L55BO35cbLI/eBzbaNDNqe0z2O
+Cm4PhLlV7cOVUdaVGkkWmJ/t/NEfPtuXP85m8Suww6hfSmGBT/G/idOFIDylWBqs
+YORU6ksO
+=Car9
+-----END PGP SIGNATURE-----
+
+--=_MailMate_D57647AE-4DA1-4C9B-AEDB-C24F26D9FE9B_=--
 
