@@ -2,151 +2,186 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ABBE8C10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:31:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86611C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:57:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 56D74206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:31:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56D74206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arndb.de
+	by mail.kernel.org (Postfix) with ESMTP id 4D92220693
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 12:57:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D92220693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7E1E6B0003; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
+	id BB9C66B0003; Tue, 16 Apr 2019 08:57:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDDF76B0006; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
+	id B6BE16B0006; Tue, 16 Apr 2019 08:57:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA4FD6B0007; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
+	id A32E26B0007; Tue, 16 Apr 2019 08:57:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C356B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:31:53 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id b12so2017349wmj.0
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 05:31:53 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B9AC6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 08:57:17 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id v10so9798660oie.4
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 05:57:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=Y/CYgzso0fI3Ij7lzAxNt+qvKgVSgCplQDjlKsz768I=;
-        b=VuGnzWLM84cjnK//FLroRgbvAVTZEMDLWTAZP/nEfZFZx5EraO4WAy9CMPfxCYM/vT
-         eZzuRbNizya8xad+0aWhOV52R2X/yWlj3jbehGJOg46CwQ8waWvzbiaXmmVaZwATrOuv
-         PG7Mr0jNKU75iYfbNWj/uIblfVOMMXOLRivpwLJCGtJAp/Z8WtKEZZ44HaZDhieokca8
-         SWBKB624EoTQZx0orvibm6NDuFRMLaS+iPuksptrdIt07PC3QO7wB4QUSNgT6p8HKsIR
-         xWE0JOl+vLQWPoYcQDY/1RLdrrxfpOnkbO1wUtoebM9ui89wt5auiL43N/ZD5aVjc2MR
-         wW+A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-X-Gm-Message-State: APjAAAUWv8QihPXstXI2V/zG4q6ZhaJD8fZ9WlK5QB4PjNRxd4PviB9s
-	p2g6AqQ0t/YKxwLEER0rMYvb1vboHB64Q3RQH5Y2jguhjG63qbh3grQd/x9SGY/+8sYB8fNtLlk
-	TAx4ByVrILrpgZobMVV/TVrXUjXdD6qSTbJMA3y6M0f9rlvGCYsem27CgyxNWrQk=
-X-Received: by 2002:adf:f488:: with SMTP id l8mr50124563wro.213.1555417912765;
-        Tue, 16 Apr 2019 05:31:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQoUTOv4hGfdyy03nMhjF40LicKVuWQyQ9e7Fm+c3fl7hRnIBj0nYKfa1a3bs/ywNS0UPU
-X-Received: by 2002:adf:f488:: with SMTP id l8mr50124508wro.213.1555417911826;
-        Tue, 16 Apr 2019 05:31:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555417911; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=r4FAAc165g+WsCZKbB8bO8geNANYXmPPZMDe3iqdbFs=;
+        b=J4OOD1oRS0O+TU+upBAQMGtXaV3TsdyTnevF9RhCU+Xy9jhjcBycX0Reh5Htpfa8Uw
+         JjNemt/QJWEco8JhBgtZroeTOq6gdNg7kXSlqbhh5qC/GDG+Li8GHOoxVvfpW3jqwfoU
+         G3h6ethRmpIdvQecSyNMrZdc1cth0whXB8cQ69Lk2XIO50WpL5Pth88WlX8EGJl1Zioe
+         SYcZYoyjCqZhd2oZS2DZVNMTkHKwYFvqOu2JtMAuz/GpxZZsh75Ui4AAQ0/8lF1iQigy
+         gRz+DU+D0/V9fvCM5L47camEmgWn38MGBDHpw+A2VwD5KzpgKHU8+c7xSwmMcZ36fUbK
+         9NSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+X-Gm-Message-State: APjAAAW7wKXnCF0LgJDekpfnl4pnIM9ndDtnfYJ4Aof5sgWZxYfE7K4n
+	Fcfg4xipAT0tFsuQCnKZSVX5zMecB45aV+UUy5/9z1dYh0Ib7pOzcsz/kmW+sKyglrQVW/aRwCG
+	G9+3pC9HJouLmwGBkd7j7I77fcdT7CO2pfV2rla0kqCW+XQqkpbF9fSbiYGT6V6krPQ==
+X-Received: by 2002:a05:6830:16d3:: with SMTP id l19mr48633627otr.92.1555419437174;
+        Tue, 16 Apr 2019 05:57:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzRDRPPsN4WrWvwsio/BMbd8lNYpLIgz062HCAgseClBKkthwx4FYdoIaCuRg/mIiGhCBKQ
+X-Received: by 2002:a05:6830:16d3:: with SMTP id l19mr48633587otr.92.1555419436145;
+        Tue, 16 Apr 2019 05:57:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555419436; cv=none;
         d=google.com; s=arc-20160816;
-        b=kw3/fXnvlXJu9pPQI1VNoItz8H5Barcx2i19sLXDKkunAWr7ubY/8drxvH6cTXnSsT
-         2TNLIUCX1LaNgPLwwcLjEktb/RTSHraxyhFqq4m8I6L9FZv/MXBUDEk/6gb2SyI8EKju
-         ZnXvKu3TzpDfYmYojYvytHEtKdgn7xnQE8dshdvdPuhP55UCwERZlyHatAVcYjpzDMKj
-         mvkwlFN566r/fWNWrZaFKCYhxHG3Pxms7iQBf2+qlpTJpV8/PzCDLCIUhsfCOF2lAehv
-         NymbY2aSUJ3mvy+GU+/YFR9lIwAFod6KzTsPOc9zi4bH51MGKnJbFnE7bCjiSXcvv77s
-         obJA==
+        b=XJMM/XuKUGEfM95Nrs/zLAp6NlZj4n0ClusImfbt4ZdEd5Qay2REIj1gu6KnotW+RE
+         Et6UArnvedmwrq+xrANhi+dYC4JVttJaDEUEMA6qnyBcWf8CEIDYSwDzWPs8yq5G/3vw
+         z79IGOOQd4jlXGA1OuScPzBICXEvYISoFg2IHXR4S4GRTiSFbLpA4FUGCZJLVijd7kjS
+         5D5GWAEiPfT5+EpXiu16dSr9o+EOU8P16F0KfB+Ws3kZ+NVAosD4LX8K85EAihwqm0do
+         j9sjCuEJ3+qv1QlbmfulrIiiCOXRXK69S9YoxtyImn9/+2PUFQ20aXcMNlOxlMReLAaO
+         TLiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=Y/CYgzso0fI3Ij7lzAxNt+qvKgVSgCplQDjlKsz768I=;
-        b=FpdlNDebLs9FVPd2OOVsbUT4k8zqekzjS6owq+EwRiGpuSQSY/i9KKHrz+AouhHwbf
-         99PBXxi6Ac1WdkRkyX5za4A/oTiKZ3+LePAsUNK4Z0hXyN/jbkosTwnKPV0/KmzUBJvD
-         uhhbAFUkoH8+sYJ1mOL2VtN4YizbtembNWaZKCnqD0hPjrk+6FzYsUgFHNJB/6zBRlrl
-         Alcta7IoT3NqI7T6rXiEz1AdbrdwRrPQqivbfunYd5NakXEi9+18c5n+RlAHr/iG5tkP
-         0nwOYl2Q1WPgYsK/BV5a9KG5bX72UG5Nrz2kIubj5tNsH8EVnJTDP8/I/djzV1+afqME
-         4zmw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=r4FAAc165g+WsCZKbB8bO8geNANYXmPPZMDe3iqdbFs=;
+        b=SRhFuCxtQUm9txqa80UCiTXB/DQf2CzFOeqWWyn5RuDRu8NHgiM8S6xxVkCLjzQDbt
+         vn/zldFVwb8Zaaue2piHJG5uiEhqRiALosSj9LQH+muOMh/l4wEUndY+u75hzzFe5eDD
+         mrXiAQGuhvDlt8jzZwHQ/jK7XeO3QoHIeJQK2yj31IYUJrlDyKpSRmAiSzshCZAVT69M
+         Eh6k1MLQKVpM8t+B6OpJTRuUrEb7C+Ll7UYjVhB4TG4pyTRlGHA3a8ZVmxk1mnO6jYwn
+         urefJ7ZKSQ1t6RzxAc2tQPTRKJVs2fiwI/vQ1AUz3sVREvHxWz8aH1J56zZk1QBGLIRM
+         ELmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.74])
-        by mx.google.com with ESMTPS id q1si35905821wrs.148.2019.04.16.05.31.51
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id f70si25139960oib.264.2019.04.16.05.57.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 05:31:51 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) client-ip=217.72.192.74;
+        Tue, 16 Apr 2019 05:57:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.72.192.74 is neither permitted nor denied by best guess record for domain of arnd@arndb.de) smtp.mailfrom=arnd@arndb.de
-Received: from threadripper.lan ([149.172.19.189]) by mrelayeu.kundenserver.de
- (mreue106 [212.227.15.145]) with ESMTPA (Nemesis) id
- 1Mj831-1gbHjU3m3p-00fCGB; Tue, 16 Apr 2019 14:31:50 +0200
-From: Arnd Bergmann <arnd@arndb.de>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	Catalin Marinas <catalin.marinas@arm.com>
-Cc: Arnd Bergmann <arnd@arndb.de>,
-	Vincent Whitchurch <vincent.whitchurch@axis.com>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] kmemleak: fix unused-function warning
-Date: Tue, 16 Apr 2019 14:31:24 +0200
-Message-Id: <20190416123148.3502045-1-arnd@arndb.de>
-X-Mailer: git-send-email 2.20.0
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id A5C95F7F2C2FD5AC0BC7;
+	Tue, 16 Apr 2019 20:57:10 +0800 (CST)
+Received: from [127.0.0.1] (10.177.219.49) by DGGEMS405-HUB.china.huawei.com
+ (10.3.19.205) with Microsoft SMTP Server id 14.3.408.0; Tue, 16 Apr 2019
+ 20:57:09 +0800
+Subject: Re: [PATCH] hugetlbfs: move resv_map to hugetlbfs_inode_info
+To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+References: <20190412040240.29861-1-yuyufen@huawei.com>
+ <83a4e275-405f-f1d8-2245-d597bef2ec69@oracle.com>
+ <20190415061618.GA16061@hori.linux.bs1.fc.nec.co.jp>
+ <20190415091500.GG3366@dhcp22.suse.cz>
+ <f063c3e7-1b37-7592-14c2-78b494dbd825@oracle.com>
+From: yuyufen <yuyufen@huawei.com>
+Message-ID: <a08b3f2a-e7a6-6f1a-7800-1939ad3316c3@huawei.com>
+Date: Tue, 16 Apr 2019 20:57:08 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Gecko/20100101
+ Thunderbird/52.2.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Provags-ID: V03:K1:1EvAL0ojU2Frr4q+8XD0ubRvQzid0tVwlNCSoNZpPcdhs4cXgDa
- er9JnhpiZ6+hzDmyNo90eKhBWtxDpCdIn6jqy4JCU9DrGMckNRieIrMfro3+wbktoidofOa
- 2tVttJbXVZWG//pdNS5j3Y633M1A+mZTSjYVaRthJnUD7c0O1yizfkfnXNRSg4ujEr9MH4x
- AyUceR85JAEo3Yda+Rw5Q==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:yJV3e/orw2s=:nbtkNbl92Oed8LdUTP7aNQ
- 8K1IijsNIuBoy5Titcdi7g2zqv5QUY9rX8tRXQdW8aqtnn15cD1G01zd7WNx3TfDL9xvhfIFG
- 1ItPv7GKidKCQgzBFk1xM3iBuN5nIyNOTzla1ypOnT5yGAqFwo2y88e0ZE21QSHMTTuKprRha
- ys0NCnA/4V9Q4fAq0Gdg7oBKDNIvx6FuWon6Zi/XmwyIElCZCoG4DJiEiATKCJB8GzOtgN34m
- r6j48PcG6ZM5h+Xk95gtJhBgOBO/TOsBYZXWH79pFS9v9SWRNHAvCYu26GdxorKhy31maOvff
- 954yn9NwEFJfsY1WYLJhfc9YvHYSDT+tidCsA0Z/ZNXVEfR5BGxuZCxzG8sBFdkKhdxDLaHo9
- sW+I/CRJMPxfZmXxYMmvDxNzeNTfnenr+P5xnRYKskXx6f/cdzplWjDgSExfUMqgtcgiYAh1J
- gBTzsKsuuHXqjpcxXOm+yOTP1IZjeL4ZGY2nLzwjztRU5Ywp6PaSc5iql7ZH2l9EKV+olJ7/6
- 2b4Iw/mWze/q9s1nJMhy1SBE270oK4ErvsMcyfabDRW/2nN0l8rEom5HVHJ+05QIxKrjCAaux
- qJH6kaXBYfiYJ1DvZIhcprrl+V8ulpOm2ESXBwiFzydWz1Fx0O0Re0wr22N1d6Wq+9zGsYOQP
- 7/PyT2MvXJ68UXl+/kCsbT2AYesGM637PGllo2Af6HowfEH6kwoBlchorWR3rD9byv/nWt7Un
- QpjQ4Ok9B5p1irYvm6AhvABLFng+3ZJ9Tn3SFg==
+In-Reply-To: <f063c3e7-1b37-7592-14c2-78b494dbd825@oracle.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Originating-IP: [10.177.219.49]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The only references outside of the #ifdef have been removed,
-so now we get a warning in non-SMP configurations:
 
-mm/kmemleak.c:1404:13: error: unused function 'scan_large_block' [-Werror,-Wunused-function]
 
-Add a new #ifdef around it.
+On 2019/4/16 1:11, Mike Kravetz wrote:
+> On 4/15/19 2:15 AM, Michal Hocko wrote:
+>> On Mon 15-04-19 06:16:15, Naoya Horiguchi wrote:
+>>> On Fri, Apr 12, 2019 at 04:40:01PM -0700, Mike Kravetz wrote:
+>>>> On 4/11/19 9:02 PM, Yufen Yu wrote:
+>>>>> Commit 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
+>>>> ...
+>>>>> However, for inode mode that is 'S_ISBLK', hugetlbfs_evict_inode() may
+>>>>> free or modify i_mapping->private_data that is owned by bdev inode,
+>>>>> which is not expected!
+>>>> ...
+>>>>> We fix the problem by moving resv_map to hugetlbfs_inode_info. It may
+>>>>> be more reasonable.
+>>>> Your patches force me to consider these potential issues.  Thank you!
+>>>>
+>>>> The root of all these problems (including the original leak) is that the
+>>>> open of a block special inode will result in bd_acquire() overwriting the
+>>>> value of inode->i_mapping.  Since hugetlbfs inodes normally contain a
+>>>> resv_map at inode->i_mapping->private_data, a memory leak occurs if we do
+>>>> not free the initially allocated resv_map.  In addition, when the
+>>>> inode is evicted/destroyed inode->i_mapping may point to an address space
+>>>> not associated with the hugetlbfs inode.  If code assumes inode->i_mapping
+>>>> points to hugetlbfs inode address space at evict time, there may be bad
+>>>> data references or worse.
+>>> Let me ask a kind of elementary question: is there any good reason/purpose
+>>> to create and use block special files on hugetlbfs?  I never heard about
+>>> such usecases.
+> I am not aware of this as a common use case.  Yufen Yu may be able to provide
+> more details about how the issue was discovered.  My guess is that it was
+> discovered via code inspection.
 
-Fixes: 298a32b13208 ("kmemleak: powerpc: skip scanning holes in the .bss section")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
- mm/kmemleak.c | 2 ++
- 1 file changed, 2 insertions(+)
+In fact, we discover the issue by running syzkaller. The program like:
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 6c318f5ac234..2e435b8142e5 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1401,6 +1401,7 @@ static void scan_block(void *_start, void *_end,
- /*
-  * Scan a large memory block in MAX_SCAN_SIZE chunks to reduce the latency.
-  */
-+#ifdef CONFIG_SMP
- static void scan_large_block(void *start, void *end)
- {
- 	void *next;
-@@ -1412,6 +1413,7 @@ static void scan_large_block(void *start, void *end)
- 		cond_resched();
- 	}
- }
-+#endif
- 
- /*
-  * Scan a memory block corresponding to a kmemleak_object. A condition is
--- 
-2.20.0
+15:39:59 executing program 0:
+r0 = openat(0xffffffffffffff9c, &(0x7f0000000040)='./file0/file0\x00', 
+0x44000, 0x1)
+r1 = syz_open_dev$vcsn(&(0x7f00000000c0)='/dev/vcs#\x00', 0x3f, 0x202000)
+renameat2(r0, &(0x7f0000000140)='./file0\x00', r0, 
+&(0x7f0000000180)='./file0/file0/file0\x00', 0x4)
+mkdir(&(0x7f0000000300)='./file0\x00', 0x0)
+mount(0x0, &(0x7f0000000200)='./file0\x00', 
+&(0x7f0000000240)='hugetlbfs\x00', 0x0, 0x0)
+mknod$loop(&(0x7f0000000000)='./file0/file0\x00', 0x6000, 
+0xffffffffffffffff)
+
+Yufen
+Thanks
+
+>
+>>>                  I guess that the conflict of the usage of ->i_mapping is
+>>> discovered recently and that's because block special files on hugetlbfs are
+>>> just not considered until recently or well defined.  So I think that we might
+>>> be better to begin with defining it first.
+> Unless I am mistaken, this is just like creating a device special file
+> in any other filesystem.  Correct?  hugetlbfs is just some place for the
+> inode/file to reside.  What happens when you open/ioctl/close/etc the file
+> is really dependent on the vfs layer and underlying driver.
+>
+>> A absolutely agree. Hugetlbfs is overly complicated even without that.
+>> So if this is merely "we have tried it and it has blown up" kinda thing
+>> then just refuse the create blockdev files or document it as undefined.
+>> You need a root to do so anyway.
+> Can we just refuse to create device special files in hugetlbfs?  Do we need
+> to worry about breaking any potential users?  I honestly do not know if anyone
+> does this today.  However, if they did I believe things would "just work".
+> The only known issue is leaking a resv_map structure when the inode is
+> destroyed.  I doubt anyone would notice that leak today.
+>
+> Let me do a little more research.  I think this can all be cleaned up by
+> making hugetlbfs always operate on the address space embedded in the inode.
+> If nothing else, a change or explanation should be added as to why most code
+> operates on inode->mapping and one place operates on &inode->i_data.
+
 
