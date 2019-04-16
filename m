@@ -2,270 +2,182 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D63FC10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:25:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38E63C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:28:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15FC6206B6
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:25:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DD9E6206B6
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:28:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=efficios.com header.i=@efficios.com header.b="QUJABhXu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15FC6206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=efficios.com
+	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="fc+bCfx3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD9E6206B6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9624D6B0003; Tue, 16 Apr 2019 15:25:14 -0400 (EDT)
+	id 69E006B0003; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 90FB36B0006; Tue, 16 Apr 2019 15:25:14 -0400 (EDT)
+	id 67F436B0006; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B0236B0007; Tue, 16 Apr 2019 15:25:14 -0400 (EDT)
+	id 58B156B0007; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E436B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 15:25:14 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id n13so20300454qtn.6
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:25:14 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AD6D6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id 7so240097wmj.9
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:28:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-filter:dkim-signature:date:from:to:cc
-         :message-id:in-reply-to:references:subject:mime-version
-         :content-transfer-encoding:thread-topic:thread-index;
-        bh=dBAHxV+5AMeW0yIbrFxTc9ZyYkcIIhy/PrmkHPHr6wE=;
-        b=foaUvsXn24DgnXo9XCBbEjKY/c6FHTaNqs6ao2O+KTYrJyihWIKWtvKGP5Adw/amds
-         6VSSqtcWawG7AZ9qg3yzppUpZKMexUmOw6dY/ecgiqBIoxTTSnVIGMRu+mJi9OOAAr2v
-         +Q0GcUZKcJU77w2ExjgaqhV9TBPVZnu1Piw736iAzPvkKvSnFfEfGxZRbFotQs9V/8rZ
-         CgZBkLKxCr8E4veoHpmOIjNbxCacGSTY98XmT2b9DiIPxg9hFr8ZJJJeSI4h5n7tFVt2
-         P0neiy3sJAyiBG2YvPjyzSfPPCtQOCYJqQ7ujoib3TGY4sagrNHy44wfZCKDtx6rYamm
-         m/FQ==
-X-Gm-Message-State: APjAAAV87n8UZIfi61UmjnoOGPOnqVuidh+UqLraZKFb1hS9qfVNX1Ho
-	tPFUFNHGj/KOFp4RRSGz3RqEosVGNiThfwN0FUn6tC8Sefn8qeNa7Xfo8wVsfNgedzTIE5Cex6y
-	lz94w8dOpFVo2o6Xheoncx32eRdEOqcNglWduskW0etHpZjGGUZQZqWI4rGwShqn32w==
-X-Received: by 2002:a05:620a:1008:: with SMTP id z8mr63256692qkj.264.1555442714004;
-        Tue, 16 Apr 2019 12:25:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzr2phsxXnVal4LeynULaROeHbZXrtKC/VWYlHo+LYx7bS7GdsusSk/L2/8zBfM6p3EV27k
-X-Received: by 2002:a05:620a:1008:: with SMTP id z8mr63256625qkj.264.1555442713195;
-        Tue, 16 Apr 2019 12:25:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555442713; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:cc:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding;
+        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
+        b=UWJq2WaYC152FAHHIx06TNWsAVzCp1vT8JicgPv/znjPDBJXcztVs33Drop36FaOTP
+         ro0I4GYchPZhA3x2tFH8i5QJDqlTBlfFDh9mzDhpjx5ZWAgjgZcq2cuU7FpIWITW9SSl
+         Vv+cq/7dWmHD0TI0mO9Cz5RIlzqwGANpebGByZ8sx+qJgfT8Y32HaqMsPWiDQy2kk3aQ
+         TNzVgDGUnZaIJ8tuVDgI4z2vznoVOcKr5tcJJrGNB+4izranllIU5+YtAPIIg02Hj7M0
+         6uhe6pWALutQYUFu0v7o5encadFGWEgwqtKJvaIm+MTa6AAGcUzwCvxsWzzm62uMRZR0
+         QSLw==
+X-Gm-Message-State: APjAAAXxWyykl8gkBzoZDfEN6Q9fSQmeCtEyzszTlpl2dFfsJvEhHv7q
+	miu4m8PMDjlWAVgv3qreecPPyi81/RH6X/9IKegyFIpkmsdGv9+r8y1KImH+LcgNS9evt9i0+Zr
+	bUoKj+ewchkuN5nn/sj7dcPQOdxhqc0+P/qhk2IXyVCRSFJv83EuFLIkjv4jt4GYEqQ==
+X-Received: by 2002:a1c:4602:: with SMTP id t2mr29422055wma.120.1555442925579;
+        Tue, 16 Apr 2019 12:28:45 -0700 (PDT)
+X-Received: by 2002:a1c:4602:: with SMTP id t2mr29422015wma.120.1555442924857;
+        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555442924; cv=none;
         d=google.com; s=arc-20160816;
-        b=M6NyWQHXzZcfr/Umzj663R5ji5P9N4aM4obUGK2l8eqc2v46hKCd6jZhjW20PeU+tK
-         xV00BiuN1LE1vwLobVbaz8w0gtCIIovGFsyny/856v/NFFlY0BBa3GEjn6o+KjSs5p2P
-         1A030s65WeHjbTTwrEAASYw4PB+6bE3oqINag1AS6jOk0sJ7d6CsrAmqGydzU5klxQhM
-         gsU41kXZHUO0iSVnA8UuwanWPEZo4YMAvxr0VhTvqteY1Z/NEtX0q4QJEPr8DLwoVbAQ
-         M+dRl31iJyDvlTqLp4fcGyw7KLWnq0Fy9pr5wSeu+8bOIn4qOfdU9AE6XvHN4ll8IY1t
-         EEzw==
+        b=tputf2oEvqKrpm6uqmXy6gR7H9k1LATYEi5biXZx9AzpN7qXMjSn48VFa1x4YCAYpK
+         E91ygR4tI2rQXh3woz8lwAvhTdkY8L9iVICPlAl+r7J4dggSaIYDWfWp5HMGHySh2ZDw
+         6enK/aJiW7U9NtBi9SRsc0mNqfYznUewPew3RwqC3cVNSf+qUKXrViZPR/LPcNgKH8XV
+         H3jv1wBbTjpbMWPlt3XmypVrXry4turBo3rPikygan4IrJcUYeP3d6eqbf6Rk+y10acp
+         8DPNWCQWcxXZvIciOK94/iMY/cWiZ9tIGXz1fjLKPl3/qfHMjK3cnLFAGstY40ibSomJ
+         Kzmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:thread-topic:content-transfer-encoding:mime-version
-         :subject:references:in-reply-to:message-id:cc:to:from:date
-         :dkim-signature:dkim-filter;
-        bh=dBAHxV+5AMeW0yIbrFxTc9ZyYkcIIhy/PrmkHPHr6wE=;
-        b=dWCpkaIeqdMyYS+Ctbwdq/iAiHsPlmk0cY41ELeouD6HrVaU8k+1XJ3+yvhAmRtUhX
-         HYhkwlUZOTdp9vzGvmMVhL5lMfZGiT6c4jSaX1/gez2/GI1UYg62+Pn0/7Hy+/D6VKKs
-         mVE45E/zmEIpJLlz6xiXjvNh/kCm1F99b9/dXTeYrFWxzCVFVxOjJSXZ+D7UbxJfm4A3
-         Csy6eLLcyOaOw01MRbov1EupmrY9l0tTjR4yVGbieTx4jMTAJ0+0mxcRbLOUdHOVLBKZ
-         uL2Wb+4vcFMD7x+diBhXP9bmLmUgR0kWn1z73qNyT+toQwhrWMvYu2b2HWu/YlYAFVkA
-         YTRg==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject:dkim-signature;
+        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
+        b=isTIQnSNuLetXy9Gs8RLpAAgCvd834piw1VUhguW2z844+9enIJZuvvgM95CijaRyL
+         Xeq8CV/iCMaLTEeNQSgFC7K4dcJ6OweyP+Lqs2u9Fcm7AWD2MRoRGWiAJhAbq8ceAqDa
+         P1oqtg6J64YmSOh2cAoENM5tkP1gEM/nfyV55v1/YhwQG/HPXGBU5t8piKBLerHVi8zb
+         z+GjbIDMUqGFfTWbAqWDwF8h7XpR10rbm3P8qWDMaRTojNphtHBU/P5/9JAi29s/ycRa
+         YZjzkmnh9c5Rr/A5QhsYFa3aWzbFG+qbXEPuAg5jRVX0lxKobpGGb1yIJl4gFUzBfpqp
+         xE8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@efficios.com header.s=default header.b=QUJABhXu;
-       spf=pass (google.com: domain of compudj@efficios.com designates 2607:5300:60:7898::beef as permitted sender) smtp.mailfrom=compudj@efficios.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=efficios.com
-Received: from mail.efficios.com (mail.efficios.com. [2607:5300:60:7898::beef])
-        by mx.google.com with ESMTPS id g189si1302144qkd.235.2019.04.16.12.25.13
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=fc+bCfx3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b4sor37447068wrt.16.2019.04.16.12.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 12:25:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of compudj@efficios.com designates 2607:5300:60:7898::beef as permitted sender) client-ip=2607:5300:60:7898::beef;
+        (Google Transport Security);
+        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@efficios.com header.s=default header.b=QUJABhXu;
-       spf=pass (google.com: domain of compudj@efficios.com designates 2607:5300:60:7898::beef as permitted sender) smtp.mailfrom=compudj@efficios.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=efficios.com
-Received: from localhost (ip6-localhost [IPv6:::1])
-	by mail.efficios.com (Postfix) with ESMTP id 9D68A1D645E;
-	Tue, 16 Apr 2019 15:25:12 -0400 (EDT)
-Received: from mail.efficios.com ([IPv6:::1])
-	by localhost (mail02.efficios.com [IPv6:::1]) (amavisd-new, port 10032)
-	with ESMTP id mx16-Xo3oWEX; Tue, 16 Apr 2019 15:25:12 -0400 (EDT)
-Received: from localhost (ip6-localhost [IPv6:::1])
-	by mail.efficios.com (Postfix) with ESMTP id 037CE1D6454;
-	Tue, 16 Apr 2019 15:25:12 -0400 (EDT)
-DKIM-Filter: OpenDKIM Filter v2.10.3 mail.efficios.com 037CE1D6454
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=efficios.com;
-	s=default; t=1555442712;
-	bh=dBAHxV+5AMeW0yIbrFxTc9ZyYkcIIhy/PrmkHPHr6wE=;
-	h=Date:From:To:Message-ID:MIME-Version;
-	b=QUJABhXu/WNVZ7zNbafJdZ7I78dLNA53TOuoh05mrHWGIFzEAxzioMOGQSGLnvUU8
-	 VVz+4Y8GHSkXGAiG205Hp5mdM0OlQk0f4mkP4q1FdkWiD8bqED3ffXQ71Ueo9lbnVe
-	 Vfn3BxKwAsaNV5mEDCWli7PpI1lmZ+q71tVuJs24yAHrPrRr8/WyNw2Mls/AyWnIxT
-	 uS0dU9VFKZOag3fkYtRml29JIiQb2rs951nodm4mAEzHlXkL3CIWf0VPHaszf6GpQ9
-	 wizmnVmiFXTYenblJJ1JCmn5gHzeBdwmuHIwKeO3KVrTNHbYL0J5gpmoZM1lFmFS1j
-	 oHqy41bvVmK+A==
-X-Virus-Scanned: amavisd-new at efficios.com
-Received: from mail.efficios.com ([IPv6:::1])
-	by localhost (mail02.efficios.com [IPv6:::1]) (amavisd-new, port 10026)
-	with ESMTP id VWNPj0DABGiH; Tue, 16 Apr 2019 15:25:11 -0400 (EDT)
-Received: from mail02.efficios.com (mail02.efficios.com [167.114.142.138])
-	by mail.efficios.com (Postfix) with ESMTP id C6EBE1D644A;
-	Tue, 16 Apr 2019 15:25:11 -0400 (EDT)
-Date: Tue, 16 Apr 2019 15:25:11 -0400 (EDT)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Guenter Roeck <groeck@google.com>, Kees Cook <keescook@chromium.org>, 
-	kernelci <kernelci@groups.io>, 
-	Guillaume Tucker <guillaume.tucker@collabora.com>, 
-	Mike Rapoport <rppt@linux.ibm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Mark Brown <broonie@kernel.org>, 
-	Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
-	Matt Hart <matthew.hart@linaro.org>, 
-	Stephen Rothwell <sfr@canb.auug.org.au>, 
-	Kevin Hilman <khilman@baylibre.com>, 
-	Enric Balletbo i Serra <enric.balletbo@collabora.com>, 
-	Nicholas Piggin <npiggin@gmail.com>, 
-	linux <linux@dominikbrodowski.net>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, 
-	Adrian Reber <adrian@lisas.de>, 
-	linux-kernel <linux-kernel@vger.kernel.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, 
-	Richard Guy Briggs <rgb@redhat.com>, 
-	Peter Zijlstra <peterz@infradead.org>, info <info@kernelci.org>, 
-	rostedt <rostedt@goodmis.org>, Jason Baron <jbaron@redhat.com>, 
-	Rabin Vincent <rabin@rab.in>, 
-	Russell King <rmk+kernel@arm.linux.org.uk>
-Message-ID: <2030770457.2767.1555442711654.JavaMail.zimbra@efficios.com>
-In-Reply-To: <1444448267.2739.1555442221738.JavaMail.zimbra@efficios.com>
-References: <20190215185151.GG7897@sirena.org.uk> <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com> <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com> <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com> <CAPcyv4i8xhA6B5e=YBq2Z5kooyUpYZ8Bv9qov-mvqm4Uz=KLWQ@mail.gmail.com> <CABXOdTc5=J7ZFgbiwahVind-SNt7+G_-TVO=v-Y5SBVPLdUFog@mail.gmail.com> <CAPcyv4gxk9xbsP3YSKzxu5Yp9FTefyxHc6xC33GwZ3Zf9_eeKA@mail.gmail.com> <1444448267.2739.1555442221738.JavaMail.zimbra@efficios.com>
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=fc+bCfx3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:references:cc:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding;
+        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
+        b=fc+bCfx3WHpqwjPk/QUAHmhBbP17mvJ8cg3f6uOZYuUMnpHOiPGD7Gw1Lzqf/9Nzpu
+         8XYVQXEK9qHBh+cuWifmwX2mpgX2zvs/LJT4wlnO+R0bGUqFJrFT/abQl2osdYOTiD5Z
+         +X0AKX7Mj1LvVxHAq6+eqlRQIepZrA9Vp0vlHw0exiR7ePIwSrlNE2iBI4LFbEl1Pq1y
+         X1AqbNgPGgKOx0VVrLmAS5UBuUpBZPSH6LFWVnLBkjeGk804KCwQ/yESj9g8cW1IAaJl
+         eLQXu0oi/5s+y9xl34TvkCNsifrdBrhyZpe+OpncOuV9VUGpn+3ap2eYEtCtkgsr5i6a
+         R2YQ==
+X-Google-Smtp-Source: APXvYqxZ+hb6o3Fqbpe0NkIQFQExFmffv8jB/fQNUtwEn37w5HEvHoCv1lNfqe/2TtODSW2anznicA==
+X-Received: by 2002:adf:f088:: with SMTP id n8mr55276227wro.112.1555442924580;
+        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
+Received: from [10.0.0.5] (bzq-84-110-213-170.static-ip.bezeqint.net. [84.110.213.170])
+        by smtp.googlemail.com with ESMTPSA id k9sm78041147wru.55.2019.04.16.12.28.41
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
+Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
+To: Dan Williams <dan.j.williams@intel.com>,
+ Kent Overstreet <kent.overstreet@gmail.com>
+References: <20190411210834.4105-1-jglisse@redhat.com>
+ <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
+ <20190416185922.GA12818@kmo-pixel>
+ <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org,
+ Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>,
+ Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>,
+ Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
+ Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>,
+ Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
+ Yan Zheng <zyan@redhat.com>, Sage Weil <sage@redhat.com>,
+ Ilya Dryomov <idryomov@gmail.com>, Alex Elder <elder@kernel.org>,
+ ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>,
+ Latchesar Ionkov <lucho@ionkov.net>, Mike Marshall <hubcap@omnibond.com>,
+ Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org,
+ Dominique Martinet <asmadeus@codewreck.org>,
+ v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
+ linux-bcache@vger.kernel.org,
+ =?UTF-8?Q?Ernesto_A._Fern=c3=a1ndez?= <ernesto.mnd.fernandez@gmail.com>
+From: Boaz Harrosh <boaz@plexistor.com>
+Message-ID: <ccac6c5a-7120-0455-88de-ca321b01e825@plexistor.com>
+Date: Tue, 16 Apr 2019 22:28:40 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
+ Thunderbird/45.4.0
 MIME-Version: 1.0
+In-Reply-To: <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-X-Originating-IP: [167.114.142.138]
-X-Mailer: Zimbra 8.8.12_GA_3794 (ZimbraWebClient - FF66 (Linux)/8.8.12_GA_3794)
-Thread-Topic: next/master boot bisection: next-20190215 on beaglebone-black
-Thread-Index: o2XfqTzgA9kPUT1d7tzJPHm/yG+fqP8/3aj6
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------ On Apr 16, 2019, at 3:17 PM, Mathieu Desnoyers mathieu.desnoyers@efficios.com wrote:
+On 16/04/19 22:12, Dan Williams wrote:
+> On Tue, Apr 16, 2019 at 11:59 AM Kent Overstreet
+> <kent.overstreet@gmail.com> wrote:
+<>
+> This all reminds of the failed attempt to teach the block layer to
+> operate without pages:
+> 
+> https://lore.kernel.org/lkml/20150316201640.33102.33761.stgit@dwillia2-desk3.amr.corp.intel.com/
+> 
 
-> ----- On Apr 16, 2019, at 2:54 PM, Dan Williams dan.j.williams@intel.com wrote:
-> 
->> On Thu, Apr 11, 2019 at 1:54 PM Guenter Roeck <groeck@google.com> wrote:
->> [..]
->>> > > Boot tests report
->>> > >
->>> > > Qemu test results:
->>> > >     total: 345 pass: 345 fail: 0
->>> > >
->>> > > This is on top of next-20190410 with CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
->>> > > and the known crashes fixed.
->>> >
->>> > In addition to CONFIG_SHUFFLE_PAGE_ALLOCATOR=y you also need the
->>> > kernel command line option "page_alloc.shuffle=1"
->>> >
->>> > ...so I doubt you are running with shuffling enabled. Another way to
->>> > double check is:
->>> >
->>> >    cat /sys/module/page_alloc/parameters/shuffle
->>>
->>> Yes, you are right. Because, with it enabled, I see:
->>>
->>> Kernel command line: rdinit=/sbin/init page_alloc.shuffle=1 panic=-1
->>> console=ttyAMA0,115200 page_alloc.shuffle=1
->>> ------------[ cut here ]------------
->>> WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:303
->>> page_alloc_shuffle+0x12c/0x1ac
->>> static_key_enable(): static key 'page_alloc_shuffle_key+0x0/0x4' used
->>> before call to jump_label_init()
->> 
->> This looks to be specific to ARM never having had to deal with
->> DEFINE_STATIC_KEY_TRUE in the past.
->> 
->> I am able to avoid this warning by simply not enabling JUMP_LABEL
->> support in my build.
-> 
-> How large is your kernel image in memory ? Is it larger than 32MB
-> by any chance ?
-> 
-> On arm, the arch_static_branch() uses a "nop" instruction, which seems
-> fine. However, I have a concern wrt arch_static_branch_jump():
-> 
-> arch/arm/include/asm/jump_label.h defines:
-> 
-> static __always_inline bool arch_static_branch_jump(struct static_key *key, bool
-> branch)
-> {
->        asm_volatile_goto("1:\n\t"
->                 WASM(b) " %l[l_yes]\n\t"
->                 ".pushsection __jump_table,  \"aw\"\n\t"
->                 ".word 1b, %l[l_yes], %c0\n\t"
->                 ".popsection\n\t"
->                 : :  "i" (&((char *)key)[branch]) :  : l_yes);
-> 
->        return false;
-> l_yes:
->        return true;
-> }
-> 
-> Which should work fine as long as the branch target is within +/-32MB range of
-> the branch instruction. However, based on
-> http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/Cihfddaf.html
-> :
-> 
-> "Extending branch ranges
-> 
-> Machine-level B and BL instructions have restricted ranges from the address of
-> the current instruction. However, you can use these instructions even if label
-> is out of range. Often you do not know where the linker places label. When
-> necessary, the linker adds code to enable longer branches. The added code is
-> called a veneer."
-> 
-> So if by an odd chance this branch is turned into a longer branch by the linker,
-> then
-> the code pattern would be completely unexpected by arch/arm/kernel/jump_label.c.
-> 
-> Can you try with the following (untested) patch ?
+Exactly why I want to make sure it is just a [pointer | flag] and not any kind of pfn
+type. Let us please not go there again?
 
-The logic in my previous patch was bogus. Here is an updated version (untested):
+>>
+>> Question though - why do we need a flag for whether a page is a GUP page or not?
+>> Couldn't the needed information just be determined by what range the pfn is not
+>> (i.e. whether or not it has a struct page associated with it)?
+> 
+> That amounts to a pfn_valid() check which is a bit heavier than if we
+> can store a flag in the bv_pfn entry directly.
+> 
+> I'd say create a new PFN_* flag, and make bv_pfn a 'pfn_t' rather than
+> an 'unsigned long'.
+> 
 
-diff --git a/arch/arm/include/asm/jump_label.h b/arch/arm/include/asm/jump_label.h
-index e12d7d096fc0..7c35f57b72c5 100644
---- a/arch/arm/include/asm/jump_label.h
-+++ b/arch/arm/include/asm/jump_label.h
-@@ -23,12 +23,21 @@ static __always_inline bool arch_static_branch(struct static_key *key, bool bran
-        return true;
- }
- 
-+/*
-+ * The linker adds veneer code if target of the branch is beyond +/-32MB
-+ * range, so ensure we never patch a branch instruction which target is
-+ * outside of the inline asm.
-+ */
- static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
- {
-        asm_volatile_goto("1:\n\t"
-+                WASM(nop) "\n\t"
-+                WASM(b) "2f\n\t"
-+               "3:\n\t"
-                 WASM(b) " %l[l_yes]\n\t"
-+               "2:\n\t"
-                 ".pushsection __jump_table,  \"aw\"\n\t"
--                ".word 1b, %l[l_yes], %c0\n\t"
-+                ".word 1b, 3b, %c0\n\t"
-                 ".popsection\n\t"
-                 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+No, please please not. This is not a pfn and not a pfn_t. It is a page-ptr
+and a flag that says where/how to put_page it. IE I did a GUP on this page
+please do a PUP on this page instead of regular put_page. So no where do I mean
+pfn or pfn_t in this code. Then why?
 
-Thanks,
+> That said, I'm still in favor of Jan's proposal to just make the
+> bv_page semantics uniform. Otherwise we're complicating this core
+> infrastructure for some yet to be implemented GPU memory management
+> capabilities with yet to be determined value. Circle back when that
+> value is clear, but in the meantime fix the GUP bug.
+> 
 
-Mathieu
+I agree there are simpler ways to solve the bugs at hand then
+to system wide separate get_user_page from get_page and force all put_user
+callers to remember what to do. Is there some Document explaining the
+all design of where this is going?
 
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+Thanks
+Boaz
 
