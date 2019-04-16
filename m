@@ -2,182 +2,265 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38E63C10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:28:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F32D8C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:34:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD9E6206B6
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:28:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72E5D206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:34:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="fc+bCfx3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD9E6206B6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="MzP4vtEY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72E5D206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 69E006B0003; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
+	id 0A6ED6B0003; Tue, 16 Apr 2019 15:34:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67F436B0006; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
+	id 056D46B0006; Tue, 16 Apr 2019 15:34:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 58B156B0007; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
+	id E87746B0007; Tue, 16 Apr 2019 15:34:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AD6D6B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 15:28:46 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id 7so240097wmj.9
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:28:45 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C054D6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 15:34:04 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id x9so16348291ybj.7
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:34:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:cc:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding;
-        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
-        b=UWJq2WaYC152FAHHIx06TNWsAVzCp1vT8JicgPv/znjPDBJXcztVs33Drop36FaOTP
-         ro0I4GYchPZhA3x2tFH8i5QJDqlTBlfFDh9mzDhpjx5ZWAgjgZcq2cuU7FpIWITW9SSl
-         Vv+cq/7dWmHD0TI0mO9Cz5RIlzqwGANpebGByZ8sx+qJgfT8Y32HaqMsPWiDQy2kk3aQ
-         TNzVgDGUnZaIJ8tuVDgI4z2vznoVOcKr5tcJJrGNB+4izranllIU5+YtAPIIg02Hj7M0
-         6uhe6pWALutQYUFu0v7o5encadFGWEgwqtKJvaIm+MTa6AAGcUzwCvxsWzzm62uMRZR0
-         QSLw==
-X-Gm-Message-State: APjAAAXxWyykl8gkBzoZDfEN6Q9fSQmeCtEyzszTlpl2dFfsJvEhHv7q
-	miu4m8PMDjlWAVgv3qreecPPyi81/RH6X/9IKegyFIpkmsdGv9+r8y1KImH+LcgNS9evt9i0+Zr
-	bUoKj+ewchkuN5nn/sj7dcPQOdxhqc0+P/qhk2IXyVCRSFJv83EuFLIkjv4jt4GYEqQ==
-X-Received: by 2002:a1c:4602:: with SMTP id t2mr29422055wma.120.1555442925579;
-        Tue, 16 Apr 2019 12:28:45 -0700 (PDT)
-X-Received: by 2002:a1c:4602:: with SMTP id t2mr29422015wma.120.1555442924857;
-        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555442924; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=2pcrWK7hCpkY/y4maWmP20jsXAzKSTIpeBj4ebY6vg8=;
+        b=uGPBrDviHo77RZrfYy5si0O1UjmI9Rxc/BuKicjbVytriuP0wcnplHv115Po3g2WIs
+         eCwd6N3Zt2nDBFgMt/lzWMEJHuYxeXhZbHZW6eClQa9VVsJyv1dhztdd3OAFv7DOcyYt
+         HOqHV6l8h717YeC+o1mBvUxMQJ1xHRRINxmrYH2vEZBGs2/PZV9uEXKEVKXZUWkNEYbO
+         P9C5m159Lmvc8u2Hnb2azTJRvdULmH20pprZHKJLXt0xQ7WTIw+8fQdTGefgGWBPJzdo
+         NSisIa83iO1gxBRXcZb4MjGQzf0HadQOFHx+2sKmo6hp7QU/HBrOyN0YexekQFzm+sry
+         VKcA==
+X-Gm-Message-State: APjAAAXVKl43hc7F1uAlnBAORw6eWx8hHAMSypvT5y7CaRQmysRJ0Q6s
+	an6TY4bNpzMDouF2DX//5fifIhpmfrQXOKL+s+6gLDBF/d7TmE1tUEBfOfVXJ1aWcHsMlKkE5d/
+	gMdS6rFaUgK8gDJj8cNhg+Upvs3Ju/exAzYDubVRiczhGfd94DBf8vQq1Vxi0PZe/kA==
+X-Received: by 2002:a81:34c:: with SMTP id 73mr66055664ywd.231.1555443244407;
+        Tue, 16 Apr 2019 12:34:04 -0700 (PDT)
+X-Received: by 2002:a81:34c:: with SMTP id 73mr66055598ywd.231.1555443243656;
+        Tue, 16 Apr 2019 12:34:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555443243; cv=none;
         d=google.com; s=arc-20160816;
-        b=tputf2oEvqKrpm6uqmXy6gR7H9k1LATYEi5biXZx9AzpN7qXMjSn48VFa1x4YCAYpK
-         E91ygR4tI2rQXh3woz8lwAvhTdkY8L9iVICPlAl+r7J4dggSaIYDWfWp5HMGHySh2ZDw
-         6enK/aJiW7U9NtBi9SRsc0mNqfYznUewPew3RwqC3cVNSf+qUKXrViZPR/LPcNgKH8XV
-         H3jv1wBbTjpbMWPlt3XmypVrXry4turBo3rPikygan4IrJcUYeP3d6eqbf6Rk+y10acp
-         8DPNWCQWcxXZvIciOK94/iMY/cWiZ9tIGXz1fjLKPl3/qfHMjK3cnLFAGstY40ibSomJ
-         Kzmg==
+        b=EZa14FkJFn4lB7MGFk2Xe5x07J+Vqw2lZMTu6DJg13vqFLkzZHZtJoIJ8iPAYrE9Wg
+         /1BP47p2QzTtBUQ0WoJ2+jdfPHV2xtdEcdH2z1AB9HyJjWqmkvqfqQkMlm9L/p+bvOXn
+         BSxIhe8lnS/LPtqnKO7qJw8wAwfo3bmVMw1duetItszrtV9WhnuJkVN6jCOzvqLUJoTb
+         sML2o/WXsfiBT2fc8SOvWnh/ryeagOpeA4aB60ji9W82dmKzO2WiU4YjI6og+vdtTG4h
+         Z9Fc7q/h0g9klgIUxY4xe7lhuhkMbIqSqMtR2/Mp9NN8ac8LeObDN4ULjnoo7vcXwjF4
+         aIaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject:dkim-signature;
-        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
-        b=isTIQnSNuLetXy9Gs8RLpAAgCvd834piw1VUhguW2z844+9enIJZuvvgM95CijaRyL
-         Xeq8CV/iCMaLTEeNQSgFC7K4dcJ6OweyP+Lqs2u9Fcm7AWD2MRoRGWiAJhAbq8ceAqDa
-         P1oqtg6J64YmSOh2cAoENM5tkP1gEM/nfyV55v1/YhwQG/HPXGBU5t8piKBLerHVi8zb
-         z+GjbIDMUqGFfTWbAqWDwF8h7XpR10rbm3P8qWDMaRTojNphtHBU/P5/9JAi29s/ycRa
-         YZjzkmnh9c5Rr/A5QhsYFa3aWzbFG+qbXEPuAg5jRVX0lxKobpGGb1yIJl4gFUzBfpqp
-         xE8w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=2pcrWK7hCpkY/y4maWmP20jsXAzKSTIpeBj4ebY6vg8=;
+        b=sc0kxcBrk1uUdJQp1ovC9yCii+ElbBjn4iW7am4hD6wtipMRalkBi8kZ+oU5IgYFGq
+         PNVmn7t0WflkVwS3xm94AORkA9o3KsBzdbWsx/Ukk2IRfMOPhK2jUV4trh972UFtztSW
+         EFHQWO9GbFmDeqho5Pi7id/XAQwlGT6RUVnIBMaGNkOwy8OUbvSWLJGlKnbH4LMLal73
+         /5kzPw0K++upU/QM7yTK9a/dIzQEZc8l0iD2qzD0kr03XL8MZfkb6rFJAa+kre//owou
+         I9CEnogh2ajxL04wZPUrLaAMho1B3sGXzl+go3j0K0dIWSiVBFdAtE/5QoEkG3UuY49i
+         ty/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=fc+bCfx3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MzP4vtEY;
+       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b4sor37447068wrt.16.2019.04.16.12.28.44
+        by mx.google.com with SMTPS id i203sor19766339ywa.146.2019.04.16.12.34.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
+        Tue, 16 Apr 2019 12:34:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=fc+bCfx3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=MzP4vtEY;
+       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:references:cc:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding;
-        bh=TK0tNNQsPXC2rP0n4i852ZF/PbXASmAnqjad3jaHiRA=;
-        b=fc+bCfx3WHpqwjPk/QUAHmhBbP17mvJ8cg3f6uOZYuUMnpHOiPGD7Gw1Lzqf/9Nzpu
-         8XYVQXEK9qHBh+cuWifmwX2mpgX2zvs/LJT4wlnO+R0bGUqFJrFT/abQl2osdYOTiD5Z
-         +X0AKX7Mj1LvVxHAq6+eqlRQIepZrA9Vp0vlHw0exiR7ePIwSrlNE2iBI4LFbEl1Pq1y
-         X1AqbNgPGgKOx0VVrLmAS5UBuUpBZPSH6LFWVnLBkjeGk804KCwQ/yESj9g8cW1IAaJl
-         eLQXu0oi/5s+y9xl34TvkCNsifrdBrhyZpe+OpncOuV9VUGpn+3ap2eYEtCtkgsr5i6a
-         R2YQ==
-X-Google-Smtp-Source: APXvYqxZ+hb6o3Fqbpe0NkIQFQExFmffv8jB/fQNUtwEn37w5HEvHoCv1lNfqe/2TtODSW2anznicA==
-X-Received: by 2002:adf:f088:: with SMTP id n8mr55276227wro.112.1555442924580;
-        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
-Received: from [10.0.0.5] (bzq-84-110-213-170.static-ip.bezeqint.net. [84.110.213.170])
-        by smtp.googlemail.com with ESMTPSA id k9sm78041147wru.55.2019.04.16.12.28.41
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 12:28:44 -0700 (PDT)
-Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
-To: Dan Williams <dan.j.williams@intel.com>,
- Kent Overstreet <kent.overstreet@gmail.com>
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
- <20190416185922.GA12818@kmo-pixel>
- <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org,
- Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>,
- Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>,
- Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
- Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>,
- Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
- Yan Zheng <zyan@redhat.com>, Sage Weil <sage@redhat.com>,
- Ilya Dryomov <idryomov@gmail.com>, Alex Elder <elder@kernel.org>,
- ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>,
- Latchesar Ionkov <lucho@ionkov.net>, Mike Marshall <hubcap@omnibond.com>,
- Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org,
- Dominique Martinet <asmadeus@codewreck.org>,
- v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
- linux-bcache@vger.kernel.org,
- =?UTF-8?Q?Ernesto_A._Fern=c3=a1ndez?= <ernesto.mnd.fernandez@gmail.com>
-From: Boaz Harrosh <boaz@plexistor.com>
-Message-ID: <ccac6c5a-7120-0455-88de-ca321b01e825@plexistor.com>
-Date: Tue, 16 Apr 2019 22:28:40 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
- Thunderbird/45.4.0
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=2pcrWK7hCpkY/y4maWmP20jsXAzKSTIpeBj4ebY6vg8=;
+        b=MzP4vtEY4aNAYMlO1dqgSCu8GyyvIWJL/MdR0YHpQaZfCAfz6Q8K0BtCBMGIcKAlu/
+         haijVwv4XhteRRR+Nc/SUc7SLdmaLxEPfbwF0H2USDIQZ9ZgCzS4NmG3Om9+EduKt9EQ
+         M5iL+4p8OubZAnwhnXf9axXFlLTvlc2f8QTUz4sSlunAP2af+iFWvka3s4rJnFvuI8bO
+         7CEkS5GwzHLehLh0fGnRuVSBsiZAq0jb+xomqitM8p/9eIz/rCMtQ3oMQqqXZaYGzvyY
+         MmjzMvqO0Twb4I3ZBJeLUIQlBtyNVDSQKpy0WwgpkAEvr+fmCYHEP4h4FDcNkJciQMp5
+         JmpQ==
+X-Google-Smtp-Source: APXvYqxy3IhU/rOjP2fyBjRPZUkaZUbky9eDqfe6MtHtfDwZF6hRPVx7wnGZGKhTXQzlwxe+tVvEAxBZD4iiJfiEfs4=
+X-Received: by 2002:a0d:dd4c:: with SMTP id g73mr63071918ywe.145.1555443243096;
+ Tue, 16 Apr 2019 12:34:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+References: <20190215185151.GG7897@sirena.org.uk> <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+ <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+ <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+ <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com> <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+ <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com> <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+ <36faea07-139c-b97d-3585-f7d6d362abc3@collabora.com> <20190306140529.GG3549@rapoport-lnx>
+ <21d138a5-13e4-9e83-d7fe-e0639a8d180a@collabora.com> <CAPcyv4jBjUScKExK09VkL8XKibNcbw11ET4WNUWUWbPXeT9DFQ@mail.gmail.com>
+ <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com>
+ <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com>
+ <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com>
+ <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com>
+ <CAPcyv4i8xhA6B5e=YBq2Z5kooyUpYZ8Bv9qov-mvqm4Uz=KLWQ@mail.gmail.com>
+ <CABXOdTc5=J7ZFgbiwahVind-SNt7+G_-TVO=v-Y5SBVPLdUFog@mail.gmail.com> <CAPcyv4gxk9xbsP3YSKzxu5Yp9FTefyxHc6xC33GwZ3Zf9_eeKA@mail.gmail.com>
+In-Reply-To: <CAPcyv4gxk9xbsP3YSKzxu5Yp9FTefyxHc6xC33GwZ3Zf9_eeKA@mail.gmail.com>
+From: Guenter Roeck <groeck@google.com>
+Date: Tue, 16 Apr 2019 12:33:51 -0700
+Message-ID: <CABXOdTd-cqHM_feAO1tvwn4Z=kM6WHKYAbDJ7LGfMvRPRPG7GA@mail.gmail.com>
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Kees Cook <keescook@chromium.org>, kernelci@groups.io, 
+	Guillaume Tucker <guillaume.tucker@collabora.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
+	Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell <sfr@canb.auug.org.au>, 
+	Kevin Hilman <khilman@baylibre.com>, 
+	Enric Balletbo i Serra <enric.balletbo@collabora.com>, Nicholas Piggin <npiggin@gmail.com>, 
+	Dominik Brodowski <linux@dominikbrodowski.net>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Adrian Reber <adrian@lisas.de>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Linux MM <linux-mm@kvack.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, 
+	Richard Guy Briggs <rgb@redhat.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16/04/19 22:12, Dan Williams wrote:
-> On Tue, Apr 16, 2019 at 11:59 AM Kent Overstreet
-> <kent.overstreet@gmail.com> wrote:
-<>
-> This all reminds of the failed attempt to teach the block layer to
-> operate without pages:
-> 
-> https://lore.kernel.org/lkml/20150316201640.33102.33761.stgit@dwillia2-desk3.amr.corp.intel.com/
-> 
+On Tue, Apr 16, 2019 at 11:54 AM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Thu, Apr 11, 2019 at 1:54 PM Guenter Roeck <groeck@google.com> wrote:
+> [..]
+> > > > Boot tests report
+> > > >
+> > > > Qemu test results:
+> > > >     total: 345 pass: 345 fail: 0
+> > > >
+> > > > This is on top of next-20190410 with CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
+> > > > and the known crashes fixed.
+> > >
+> > > In addition to CONFIG_SHUFFLE_PAGE_ALLOCATOR=y you also need the
+> > > kernel command line option "page_alloc.shuffle=1"
+> > >
+> > > ...so I doubt you are running with shuffling enabled. Another way to
+> > > double check is:
+> > >
+> > >    cat /sys/module/page_alloc/parameters/shuffle
+> >
+> > Yes, you are right. Because, with it enabled, I see:
+> >
+> > Kernel command line: rdinit=/sbin/init page_alloc.shuffle=1 panic=-1
+> > console=ttyAMA0,115200 page_alloc.shuffle=1
+> > ------------[ cut here ]------------
+> > WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:303
+> > page_alloc_shuffle+0x12c/0x1ac
+> > static_key_enable(): static key 'page_alloc_shuffle_key+0x0/0x4' used
+> > before call to jump_label_init()
+>
+> This looks to be specific to ARM never having had to deal with
+> DEFINE_STATIC_KEY_TRUE in the past.
+>
 
-Exactly why I want to make sure it is just a [pointer | flag] and not any kind of pfn
-type. Let us please not go there again?
+This affects almost all architectures, not just arm, presumably
+because parse_args() is called before jump_label_init() in
+start_kernel(). I did not bother to report back with further details
+after someone stated that qemu doesn't support omap2, and the context
+seemed to suggest that running any other tests would not add any
+value.
 
->>
->> Question though - why do we need a flag for whether a page is a GUP page or not?
->> Couldn't the needed information just be determined by what range the pfn is not
->> (i.e. whether or not it has a struct page associated with it)?
-> 
-> That amounts to a pfn_valid() check which is a bit heavier than if we
-> can store a flag in the bv_pfn entry directly.
-> 
-> I'd say create a new PFN_* flag, and make bv_pfn a 'pfn_t' rather than
-> an 'unsigned long'.
-> 
+> I am able to avoid this warning by simply not enabling JUMP_LABEL
+> support in my build.
+>
 
-No, please please not. This is not a pfn and not a pfn_t. It is a page-ptr
-and a flag that says where/how to put_page it. IE I did a GUP on this page
-please do a PUP on this page instead of regular put_page. So no where do I mean
-pfn or pfn_t in this code. Then why?
+Fine with me, as long as CONFIG_SHUFFLE_PAGE_ALLOCATOR=y is not
+enabled by default, or if it is made dependent on !JUMP_LABEL.
 
-> That said, I'm still in favor of Jan's proposal to just make the
-> bv_page semantics uniform. Otherwise we're complicating this core
-> infrastructure for some yet to be implemented GPU memory management
-> capabilities with yet to be determined value. Circle back when that
-> value is clear, but in the meantime fix the GUP bug.
-> 
+Guenter
 
-I agree there are simpler ways to solve the bugs at hand then
-to system wide separate get_user_page from get_page and force all put_user
-callers to remember what to do. Is there some Document explaining the
-all design of where this is going?
-
-Thanks
-Boaz
+> > Modules linked in:
+> > CPU: 0 PID: 0 Comm: swapper Not tainted
+> > 5.1.0-rc4-next-20190410-00003-g3367c36ce744 #1
+> > Hardware name: ARM Integrator/CP (Device Tree)
+> > [<c0011c68>] (unwind_backtrace) from [<c000ec48>] (show_stack+0x10/0x18)
+> > [<c000ec48>] (show_stack) from [<c07e9710>] (dump_stack+0x18/0x24)
+> > [<c07e9710>] (dump_stack) from [<c001bb1c>] (__warn+0xe0/0x108)
+> > [<c001bb1c>] (__warn) from [<c001bb88>] (warn_slowpath_fmt+0x44/0x6c)
+> > [<c001bb88>] (warn_slowpath_fmt) from [<c0b0c4a8>]
+> > (page_alloc_shuffle+0x12c/0x1ac)
+> > [<c0b0c4a8>] (page_alloc_shuffle) from [<c0b0c550>] (shuffle_store+0x28/0x48)
+> > [<c0b0c550>] (shuffle_store) from [<c003e6a0>] (parse_args+0x1f4/0x350)
+> > [<c003e6a0>] (parse_args) from [<c0ac3c00>] (start_kernel+0x1c0/0x488)
+> > [<c0ac3c00>] (start_kernel) from [<00000000>] (  (null))
+> >
+> > I'll re-run the test, but I suspect it will drown in warnings.
+>
+> I slogged through getting a Beagle Bone Black up and running with a
+> Yocto build and it is not failing. I have tried apply the patches on
+> top of v5.1-rc5 as well as re-testing next-20190215 label, no
+> reproduction. The shuffle appears to avoid anything sensitive by
+> default, below are the shuffle actions that were taken relative to
+> iomem. Can someone with a failure reproduction please send me more
+> details about their configuration? It would also help to get a failing
+> boot log with the pr_debug() statements in mm/shuffle.c enabled to see
+> if the failure is correlated with any unexpected shuffle actions.
+>
+> 80000000-9fffffff : System RAM
+>   80008000-809fffff : Kernel code
+>   80b00000-812be523 : Kernel data
+>
+> [    0.086469] __shuffle_zone: swap: 0x81800 -> 0x99800
+> [    0.086558] __shuffle_zone: swap: 0x82000 -> 0x88800
+> [    0.086575] __shuffle_zone: swap: 0x82800 -> 0x89800
+> [    0.086591] __shuffle_zone: swap: 0x83000 -> 0x89000
+> [    0.086606] __shuffle_zone: swap: 0x83800 -> 0x8a800
+> [    0.086621] __shuffle_zone: swap: 0x84000 -> 0x93800
+> [    0.086636] __shuffle_zone: swap: 0x84800 -> 0x83000
+> [    0.086651] __shuffle_zone: swap: 0x85000 -> 0x8f000
+> [    0.086666] __shuffle_zone: swap: 0x85800 -> 0x88000
+> [    0.086689] __shuffle_zone: swap: 0x86000 -> 0x84000
+> [    0.086704] __shuffle_zone: swap: 0x86800 -> 0x8c800
+> [    0.086719] __shuffle_zone: swap: 0x87000 -> 0x93000
+> [    0.086735] __shuffle_zone: swap: 0x87800 -> 0x94000
+> [    0.086751] __shuffle_zone: swap: 0x88000 -> 0x90800
+> [    0.086766] __shuffle_zone: swap: 0x88800 -> 0x9d000
+> [    0.086781] __shuffle_zone: swap: 0x89000 -> 0x82800
+> [    0.086796] __shuffle_zone: swap: 0x89800 -> 0x95800
+> [    0.086811] __shuffle_zone: swap: 0x8a000 -> 0x98000
+> [    0.086826] __shuffle_zone: swap: 0x8a800 -> 0x89000
+> [    0.086842] __shuffle_zone: swap: 0x8b000 -> 0x81800
+> [    0.086857] __shuffle_zone: swap: 0x8b800 -> 0x88800
+> [    0.086872] __shuffle_zone: swap: 0x8c000 -> 0x8a000
+> [    0.086891] __shuffle_zone: swap: 0x8c800 -> 0x84800
+> [    0.086906] __shuffle_zone: swap: 0x8d000 -> 0x95000
+> [    0.086921] __shuffle_zone: swap: 0x8d800 -> 0x8d000
+> [    0.086935] __shuffle_zone: swap: 0x8e000 -> 0x8e800
+> [    0.086950] __shuffle_zone: swap: 0x8e800 -> 0x99000
+> [    0.086964] __shuffle_zone: swap: 0x8f000 -> 0x8d000
+> [    0.086979] __shuffle_zone: swap: 0x90000 -> 0x91000
+> [    0.086994] __shuffle_zone: swap: 0x90800 -> 0x83000
+> [    0.087009] __shuffle_zone: swap: 0x91000 -> 0x91800
+> [    0.087025] __shuffle_zone: swap: 0x91800 -> 0x8d800
+> [    0.087040] __shuffle_zone: swap: 0x92000 -> 0x86800
+> [    0.087054] __shuffle_zone: swap: 0x92800 -> 0x92000
+> [    0.087070] __shuffle_zone: swap: 0x93000 -> 0x91000
+> [    0.087088] __shuffle_zone: swap: 0x93800 -> 0x85000
+> [    0.087103] __shuffle_zone: swap: 0x94000 -> 0x8b800
+> [    0.087117] __shuffle_zone: swap: 0x94800 -> 0x96000
+> [    0.087132] __shuffle_zone: swap: 0x95000 -> 0x91000
+> [    0.087147] __shuffle_zone: swap: 0x95800 -> 0x8e000
+> [    0.087161] __shuffle_zone: swap: 0x96000 -> 0x95800
+> [    0.087179] __shuffle_zone: swap: 0x96800 -> 0x8c800
+> [    0.087193] __shuffle_zone: swap: 0x97000 -> 0x89000
+> [    0.087208] __shuffle_zone: swap: 0x97800 -> 0x85000
+> [    0.087224] __shuffle_zone: swap: 0x98000 -> 0x85000
+> [    0.087239] __shuffle_zone: swap: 0x98800 -> 0x93000
+> [    0.087255] __shuffle_zone: swap: 0x99000 -> 0x94800
+> [    0.087269] __shuffle_zone: swap: 0x99800 -> 0x94000
 
