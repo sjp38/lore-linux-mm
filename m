@@ -2,185 +2,246 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62E2FC10F0E
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 00:37:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F3C4C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 01:57:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13D362075B
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 00:37:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 00C1F20825
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 01:57:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="PdDvC6RX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13D362075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="YHW3wCZM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00C1F20825
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 817B76B0003; Mon, 15 Apr 2019 20:37:26 -0400 (EDT)
+	id 591B76B0003; Mon, 15 Apr 2019 21:57:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 79EAE6B0006; Mon, 15 Apr 2019 20:37:26 -0400 (EDT)
+	id 53F7F6B0006; Mon, 15 Apr 2019 21:57:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6185E6B0007; Mon, 15 Apr 2019 20:37:26 -0400 (EDT)
+	id 42E586B0007; Mon, 15 Apr 2019 21:57:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2292F6B0003
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 20:37:26 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d1so11373775pgk.21
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 17:37:26 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CC086B0003
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2019 21:57:55 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id z130so14541397ywb.14
+        for <linux-mm@kvack.org>; Mon, 15 Apr 2019 18:57:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=8C2rpUhcM1NERLTBIRjCXSFvKzZ6vS+vOSLrZwh5lMg=;
-        b=j5uNkqNAA1yYJ4TuD1NyHkDHRtfSZ/ISCPyy9m2yeeMTYPECav4+1K6ACms3ogcB7m
-         yMcfBAwcIKI4O/4nLczQKl4MaG2lACyI5sX0m623nUG4qqlVZMJbkE1sDXoCUbNeB8tz
-         73f2NCyHof+kUUNdsgcmcUGr+Pwon6KMH0kwNX7M4hsCQ8y+Ixjn2N5OW52oGrlONlv+
-         ZttK+J2j9r9nKwZmh2nll62DfwzSU1J30mzi7j63m76T/CiB6vqW8SH96s+zDlT8AcQ0
-         cVKjooj94wkJC47L42mepFFDpJYxYXdjGpFwzC3tduBnWCGjcUNk8S7OBZKRXy55GSb3
-         +SRw==
-X-Gm-Message-State: APjAAAWOQc8noQZpTyF4jGYjmIfrhqLnuNU5lGjEQV6ThNEifg5mSFAm
-	RA9v1XLlO0CtTc2WXJhLKrmOd5wE1tImwOEX57z+BalPkPLb4wtKzsbyAEn6rzYuBlMRlVNN76s
-	q5/UMEVn+VrW8UUmRJ3W3sHkh0Etl9mevEiq/pNVWtWJwCkiYbzqUzP+rNks/1/LQMA==
-X-Received: by 2002:a63:8142:: with SMTP id t63mr69675668pgd.63.1555375045730;
-        Mon, 15 Apr 2019 17:37:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzr1jVwud2qKwIYjYCXY/DCvb41D2CipFYR8wBoSpsCq9yxzwDuF2lmDh//tJJdUNQVJ69
-X-Received: by 2002:a63:8142:: with SMTP id t63mr69675589pgd.63.1555375044676;
-        Mon, 15 Apr 2019 17:37:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555375044; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=9Z6Efxstusl8bv0MPNQb6LsZw7PMuW4dqsK1aSDA8tk=;
+        b=CtCpm1Xq0cIBLmW+L/WQ/tk/gApn2xiSu+jBgggLei+s60UP9FMvC3rPSDR9vr7hPe
+         +jVio5ZCSenRO1t+foo39vpdWHJ1G8DberP8MtqbNzcCmFxuwHt+eFmlyrZvTqSaG9Cr
+         p5xtINCPzPUErQZpMNRH3/zbpgGua1rPmbQNzEt1aW+H9aU8FT6ha4DTcIqF4HkCci2w
+         ft/gWhIOCgIoUVGsCBrobO1DHgzYHomi5ELzlAju5SlLmCJkjLJ5tPRCpKgBi6HK3yn6
+         7MrJeEd2qznTdiemcTWraPBLxmdqTuCVeVOUehfc44J5d5F117XVY+NB705Gj09ZzXW9
+         oEZw==
+X-Gm-Message-State: APjAAAUTu40uBtF5dYCZ3ljWLeLzZfBvXr8A9pAD1Wz/jD38U5LVlMar
+	rcdlEJA8MgxGks1ACK1zpqZGeuOUJMiizWaoPZocoH6EevXZvUPwDR6uc+Mq+O3tHD+a45qPZ2l
+	jhxCfWX+FkEMhny/VB+5r15vy5x4jCKl65VoKXPb8gwQ0Uj/n5106d+QaboWg9Irxjw==
+X-Received: by 2002:a81:9249:: with SMTP id j70mr61982345ywg.371.1555379874768;
+        Mon, 15 Apr 2019 18:57:54 -0700 (PDT)
+X-Received: by 2002:a81:9249:: with SMTP id j70mr61982298ywg.371.1555379873248;
+        Mon, 15 Apr 2019 18:57:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555379873; cv=none;
         d=google.com; s=arc-20160816;
-        b=maz/rt1o4oz8ZGSoFT5tg9aXykZF14/tMGrJrK4wzli+hVnGaSCcjxR7CPhuFqGJEk
-         /bdS4EuDaDenyl1rrq5jhwzfpy4S4j+DSKBuR9jkfrMRYkK5N9drXymvzCGM71RN7rIq
-         +1zOgl5aL7AjcX9qslAQxJZahZvRQJrTjiGRhPUCJt3pZ+dzkBTbm/jZSK+hk6WpRvSs
-         3C3BoSu0Tbm+rYl7zzNqcmCG1p2a+lSyI68NJlw5Bd1pNZyE+3CMvkc6YpykCVjT6LWD
-         V/VHP+BmnNVUJwyXiqTSZziFSiUCVNpW6787nAv0BmR3rIWB6sbgMRVdVyBjQJznTMUk
-         TIXg==
+        b=LGmYIwVaSupk3yCb/jrVJYWmiRew7Q+F3TrhVCzI1O7lu4FE712taXmbI725t51owJ
+         nxlyThnslSeWz92xIBsv0Go64dtXqQvfa044Li4QAoP7ECZ2iXiYfR4TLNKcm3qpthtu
+         Ab4Q9Va/20uZ8zqJoPLpv68oMoJEBozSXs2RCsRG26GMoDjnxrrGctU7TszSv8S8oPdx
+         KZsqPA//rk1onDRqj7JH7cuI3vf82cMzSQrPCaYedfGbT7SgFJ1uGF4Kgc3PK7cjaU0Z
+         zyborbZLRcINL1S0exWEfCMBxPVVT7G6cSqtY7CgIE+AGuttWYUeD67deyHxWRcERX0U
+         BdXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=8C2rpUhcM1NERLTBIRjCXSFvKzZ6vS+vOSLrZwh5lMg=;
-        b=So0/xBAAesDCWgij0950aK35KH+8yEKppII2XeCkhiBnmfoKy85msAwCWiaIh76R21
-         +VFzGWxZoTeR21BqLOx40zslGyAvrFCFApbkcJXvf7E47+bWMxtSUB/GaCYe9yn8USdf
-         NnRqQ6NzSI7EMfjkPPJz+Vzs3Klue7/pPTN4Pq8/G01CzaM9Sc0vw8if+Kl8GEsUP8Mg
-         i9puy6XAv32j7tGoW1TXtl93D5Cql6VEdfy0M50xnL7JqQMeznPwPNZBANPRvLTchuSx
-         dJYHPriVZzZ15QDLlSKWQtXqepZ/xt6MGFXalgg1ViNMshLNJAJV+1+rCdDvHkZwJvHL
-         rUOw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=9Z6Efxstusl8bv0MPNQb6LsZw7PMuW4dqsK1aSDA8tk=;
+        b=U5siw3NRSb6pUu1yY3I7sWyaKLpmahTl5xey6NYKnoFhJHtFa7qZCU1/4eSM1xe5/s
+         KavJDtKDa6M6QjppzU7o5FTAwZLo3h2W4WIxrdC1RKwQdYLP5qj86zUWKNtlxeOcSlLb
+         iJvUVtg8yuTlfLh8jQxTbnLme1XaulczBIMb3dRah7b5AXaSG0rlgvRBr/AfCVagKbGO
+         NUEJ8CUKSMvIvalwaWUkxCWrHOQY/YCS3W6LQd51IcLnBGZMITRu77l5dwxJ/ypMTF3k
+         ZwaRmoWDHER0ySVETN9v1BW6lFvkD1DETlE9PWB2RhQzHphz2/l31vUnYBlGM4xGMlGL
+         /HZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PdDvC6RX;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id m88si34647347pfi.280.2019.04.15.17.37.24
+       dkim=pass header.i=@google.com header.s=20161025 header.b=YHW3wCZM;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 132sor27608058ybp.15.2019.04.15.18.57.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Apr 2019 17:37:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Mon, 15 Apr 2019 18:57:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=PdDvC6RX;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3G0YE3P057340;
-	Tue, 16 Apr 2019 00:37:16 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=8C2rpUhcM1NERLTBIRjCXSFvKzZ6vS+vOSLrZwh5lMg=;
- b=PdDvC6RXn6AIqwrQwBR7h+jtsDWp+zVR8aSsYwxdwd779eG/XXdD/Amx3FXdZvGYAxMD
- I7RgwjeiUdWG0xJLuFVgJCBELIzwrTpmhPw9ehFGdo4uxCbX33tQLMjUsv8ZXPCknl/K
- +da27Nmy1zcpsmdPv5PKMSaT3E84xq4B3WTBoc/0y+8rn2PlGUq9KM0Txcu2GkAdES9S
- jy2DhFQR4If27+znBL8O/3VpKJ3U7WuOGj95etglRmnQ9Cus1ik9n5Q9pQayclzy1pRP
- wNWRzTljPfZMqIym8j+UIMO6cDGhdG06xSkE0SwVx5oWonciYXt4JoD1MqRXOOIotuJR 0g== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2ru59d1qej-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 00:37:16 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3G0aLum161037;
-	Tue, 16 Apr 2019 00:37:15 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3020.oracle.com with ESMTP id 2rubq61f90-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 00:37:15 +0000
-Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3G0bDFx013255;
-	Tue, 16 Apr 2019 00:37:14 GMT
-Received: from [192.168.1.222] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 15 Apr 2019 17:37:13 -0700
-Subject: Re: [PATCH] hugetlbfs: move resv_map to hugetlbfs_inode_info
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Yufen Yu <yuyufen@huawei.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
-References: <20190412040240.29861-1-yuyufen@huawei.com>
- <83a4e275-405f-f1d8-2245-d597bef2ec69@oracle.com>
- <20190415061618.GA16061@hori.linux.bs1.fc.nec.co.jp>
- <20190415091500.GG3366@dhcp22.suse.cz>
- <f063c3e7-1b37-7592-14c2-78b494dbd825@oracle.com>
- <20190415235946.GA4465@hori.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <134e8b96-1345-04cc-371e-2d340b374fd1@oracle.com>
-Date: Mon, 15 Apr 2019 17:37:12 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=YHW3wCZM;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=9Z6Efxstusl8bv0MPNQb6LsZw7PMuW4dqsK1aSDA8tk=;
+        b=YHW3wCZMxdYPK+4h1+oUGGxChwMSC5UqBLlitvvx0/DbVrle74k8U2OlBXa+KWJ1cW
+         DvGK3mm6RyFUnDwHlC6h2kn81UGUFXJ8dUnGKfGwhWg30UbuBoXBjC/KLKsqD/OXKq42
+         vj98QNVSYVGWXlk6kcQIIjzsKVdfhlPGSRimNgCWS/3P8mmmA3xlcEYzDMKENzzZur61
+         4b8Q3K8aPOEDxVMrY+cxSX666388la0JfJjHtJHUTh/WGNXa8mUXjkHOz5f//qMP1Jcz
+         xSmb/lGZhTLgR96/d7ZIlxXJGWX2QM8wJgX600T2u9mwbYm1QWdpJdOw63ty7ilRJ79q
+         YxWQ==
+X-Google-Smtp-Source: APXvYqxamoszhEeZGFDQbhqdlQRL8JyJroe+oY3XpgUvhB35g65vyOOePJr+S+/dNXsiyFXyg+ZAlb+Ftx4QmRfgS00=
+X-Received: by 2002:a25:1e57:: with SMTP id e84mr64070144ybe.184.1555379872551;
+ Mon, 15 Apr 2019 18:57:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190415235946.GA4465@hori.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9228 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904160001
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9228 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904160002
+References: <20190412144438.2645-1-hannes@cmpxchg.org>
+In-Reply-To: <20190412144438.2645-1-hannes@cmpxchg.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Mon, 15 Apr 2019 18:57:41 -0700
+Message-ID: <CALvZod57YYGJHBvMpbdmysuDPzdEAsv+JM5tK8Qfxgrsb=T-pw@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix inactive list balancing between NUMA nodes and cgroups
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Kernel Team <kernel-team@fb.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/15/19 4:59 PM, Naoya Horiguchi wrote:
-> On Mon, Apr 15, 2019 at 10:11:39AM -0700, Mike Kravetz wrote:
->> Let me do a little more research.  I think this can all be cleaned up by
->> making hugetlbfs always operate on the address space embedded in the inode.
->> If nothing else, a change or explanation should be added as to why most code
->> operates on inode->mapping and one place operates on &inode->i_data.
-> 
-> Sounds nice, thank you.
-> 
-> (Just for sharing point, not intending to block the fix ...)
-> My remaining concern is that this problem might not be hugetlbfs specific,
-> because what triggers the issue seems to be the usage of inode->i_mapping.
-> bd_acquire() are callable from any filesystem, so I'm wondering whether we
-> have something to generally prevent this kind of issue?
+On Fri, Apr 12, 2019 at 7:44 AM Johannes Weiner <hannes@cmpxchg.org> wrote:
+>
+> During !CONFIG_CGROUP reclaim, we expand the inactive list size if
+> it's thrashing on the node that is about to be reclaimed. But when
+> cgroups are enabled, we suddenly ignore the node scope and use the
+> cgroup scope only. The result is that pressure bleeds between NUMA
+> nodes depending on whether cgroups are merely compiled into Linux.
+> This behavioral difference is unexpected and undesirable.
+>
+> When the refault adaptivity of the inactive list was first introduced,
+> there were no statistics at the lruvec level - the intersection of
+> node and memcg - so it was better than nothing.
+>
+> But now that we have that infrastructure, use lruvec_page_state() to
+> make the list balancing decision always NUMA aware.
+>
+> Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I have gone through most of the filesystems and have not found any others
-where this may be an issue.  From what I have seen, it is fairly common in
-filesystem evict_inode routines to explicitly use &inode->i_data to get at
-the address space passed to the truncate routine.  As mentioned, even
-hugetlbfs does this in remove_inode_hugepages() which was previously part
-of the evict_inode routine.  In tmpfs, the evict_inode routuine cleverly
-checks the address space ops to determine if the address space is associated
-with tmpfs.  If not, it does not call the truncate routine.
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-One of things different for hugetlbfs is that the resv_map structure hangs
-off the address space within the inode.  Yufen Yu's approach was to move the
-resv_map pointer into the hugetlbfs inode extenstion hugetlbfs_inode_info.
-With that change, we could make the hugetlbfs evict_inode routine look more
-like the tmpfs routine.  I do not really like the idea of increasing the size
-of hugetlbfs inodes as we already have a place to store the pointer.  In
-addition, the reserv_map is used with the mappings within the address space
-so one could argue that it makes sense for them to be together.
--- 
-Mike Kravetz
+> ---
+>  mm/vmscan.c | 29 +++++++++--------------------
+>  1 file changed, 9 insertions(+), 20 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 347c9b3b29ac..c9f8afe61ae3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2138,7 +2138,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>   *   10TB     320        32GB
+>   */
+>  static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+> -                                struct mem_cgroup *memcg,
+>                                  struct scan_control *sc, bool actual_reclaim)
+>  {
+>         enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
+> @@ -2159,16 +2158,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+>         inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
+>         active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
+>
+> -       if (memcg)
+> -               refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+> -       else
+> -               refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+> -
+>         /*
+>          * When refaults are being observed, it means a new workingset
+>          * is being established. Disable active list protection to get
+>          * rid of the stale workingset quickly.
+>          */
+> +       refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
+>         if (file && actual_reclaim && lruvec->refaults != refaults) {
+>                 inactive_ratio = 0;
+>         } else {
+> @@ -2189,12 +2184,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+>  }
+>
+>  static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+> -                                struct lruvec *lruvec, struct mem_cgroup *memcg,
+> -                                struct scan_control *sc)
+> +                                struct lruvec *lruvec, struct scan_control *sc)
+>  {
+>         if (is_active_lru(lru)) {
+> -               if (inactive_list_is_low(lruvec, is_file_lru(lru),
+> -                                        memcg, sc, true))
+> +               if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
+>                         shrink_active_list(nr_to_scan, lruvec, sc, lru);
+>                 return 0;
+>         }
+> @@ -2293,7 +2286,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>                          * anonymous pages on the LRU in eligible zones.
+>                          * Otherwise, the small LRU gets thrashed.
+>                          */
+> -                       if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
+> +                       if (!inactive_list_is_low(lruvec, false, sc, false) &&
+>                             lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+>                                         >> sc->priority) {
+>                                 scan_balance = SCAN_ANON;
+> @@ -2311,7 +2304,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+>          * lruvec even if it has plenty of old anonymous pages unless the
+>          * system is under heavy pressure.
+>          */
+> -       if (!inactive_list_is_low(lruvec, true, memcg, sc, false) &&
+> +       if (!inactive_list_is_low(lruvec, true, sc, false) &&
+>             lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+>                 scan_balance = SCAN_FILE;
+>                 goto out;
+> @@ -2515,7 +2508,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+>                                 nr[lru] -= nr_to_scan;
+>
+>                                 nr_reclaimed += shrink_list(lru, nr_to_scan,
+> -                                                           lruvec, memcg, sc);
+> +                                                           lruvec, sc);
+>                         }
+>                 }
+>
+> @@ -2582,7 +2575,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+>          * Even if we did not try to evict anon pages at all, we want to
+>          * rebalance the anon lru active/inactive ratio.
+>          */
+> -       if (inactive_list_is_low(lruvec, false, memcg, sc, true))
+> +       if (inactive_list_is_low(lruvec, false, sc, true))
+>                 shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+>                                    sc, LRU_ACTIVE_ANON);
+>  }
+> @@ -2985,12 +2978,8 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+>                 unsigned long refaults;
+>                 struct lruvec *lruvec;
+>
+> -               if (memcg)
+> -                       refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+> -               else
+> -                       refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+> -
+>                 lruvec = mem_cgroup_lruvec(pgdat, memcg);
+> +               refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
+>                 lruvec->refaults = refaults;
+>         } while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
+>  }
+> @@ -3346,7 +3335,7 @@ static void age_active_anon(struct pglist_data *pgdat,
+>         do {
+>                 struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+>
+> -               if (inactive_list_is_low(lruvec, false, memcg, sc, true))
+> +               if (inactive_list_is_low(lruvec, false, sc, true))
+>                         shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+>                                            sc, LRU_ACTIVE_ANON);
+>
+> --
+> 2.21.0
+>
 
