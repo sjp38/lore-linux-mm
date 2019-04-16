@@ -6,84 +6,84 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05417C282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:47:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55CA1C282DC
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:52:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E4DA206B6
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:47:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E4DA206B6
+	by mail.kernel.org (Postfix) with ESMTP id 12042206B6
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 16:52:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12042206B6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16F846B0007; Tue, 16 Apr 2019 12:47:02 -0400 (EDT)
+	id A45A86B000C; Tue, 16 Apr 2019 12:52:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F6C36B0008; Tue, 16 Apr 2019 12:47:02 -0400 (EDT)
+	id 9F2436B000D; Tue, 16 Apr 2019 12:52:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED9A36B000A; Tue, 16 Apr 2019 12:47:01 -0400 (EDT)
+	id 8E14A6B000E; Tue, 16 Apr 2019 12:52:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BABB6B0007
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:47:01 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e22so9635631edd.9
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:01 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBFD6B000C
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:52:09 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n25so1313459edd.5
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:52:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=OquYvDAVNcaD19ZiuLo0WwiU698DJ7uwfFYxisr8j+E=;
-        b=BFK1qR0b1wDZ9Xp7Vig1lpmQIw+EHbBImoUo5D8Jz4NzsSJm2WXM6qYiudLLeObCz8
-         1HJH1n50XP30ViH/4CLFA9kq7iJGfmznab0i7jiQTxz31erOumghFiBn0VdLhe/gdlhI
-         LyYlSBmuhsWpfu891G7cAkwDehkaMDWFVUN8QR3cQ7yi71i+HB4BFkUUigLl6LiIvG1x
-         LsL/n6bWS6B8TV4m78eS0jTb0dvBvIZIZyagq1Z5qVkY2zclkM4tyNMrng/mBTeb4JlC
-         YejMPNPaKyWvlSoA8S/lRQ/MrgaKNHtJJXydqHfdA09a90UjpKOdGHS0Le49v4ZH7jI6
-         P9MA==
+        bh=qcQyrF0CKUvg8j3w1/E3L1zRT1Ucmr+al8/eDGYg3fo=;
+        b=gxQjcvBaKOnX1IhbbEj8GHfFYo00AhRAODr84lcM+OUJhNCY/3x6cWd1zEf3TIvIJx
+         ybJ+XAqjpJjtb+8HMWVpUVd34iJ+VNzqd9wtY6magZFqpHHkpTZqE8iJX37ETLBl1oVE
+         qJTjIC8qhiCr0GG3uxAiWvhxer9RE9g1u4EjMIfKN7xeQ0ND4kOk/xy0yOGGfYCdceNQ
+         Be1gw2z8ABxAx2/EK1biIPOVCKtrsk5iOMybgA8HqLnAJOt6vKLc/eTkPDHMohoR3mLV
+         y90G9CH98mryNWzqia71vNLOPCaj04R9FoEy55DEDgjV92HxL6EBJenlOEjupipm8PIp
+         MQow==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAVklkJ67WU4Hmre4OxqEeGkmYHugApQaRyKdwFEjgyqZ6aDjdk0
-	LbUjuC47Kx5kKyOYkwWQdxuWsI4yCoAQKfUaCvmcsnf6JiQIxn6xDE7c69IMaEcl7/kKeech7MG
-	BDR3Lj9O0Sym2kcalYI1XHJUh3LtXoTioIYI8UWuzE+w66tGMPAz4LdyKUbXuTkVSAA==
-X-Received: by 2002:aa7:c5ca:: with SMTP id h10mr39355886eds.140.1555433221150;
-        Tue, 16 Apr 2019 09:47:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwi+AD1/aBb8dKX3+zRHl0aVjKPinwZz6Db5VT6/JCeoWfsdGS5M2wmOJtfxw2sDRrn9GeQ
-X-Received: by 2002:aa7:c5ca:: with SMTP id h10mr39355811eds.140.1555433220062;
-        Tue, 16 Apr 2019 09:47:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555433220; cv=none;
+X-Gm-Message-State: APjAAAXu1hh2sdQdqzNH/iKt9Fz5nfmqnV59rsRvhfJ+5cAoWUyX5PrO
+	LnNljakCRtJvCjopSKze/wooTSwsn1FgNVMspAdKjyiVRz45DCDsBhIxp/+wjbpQ5vCjufXifO6
+	1QYUInP0gCoZE1Z2mBOSFzG3jSJL5/6b7pC/rgk6SzLMIsyLZocqbjchr672r87Co6A==
+X-Received: by 2002:a50:b18e:: with SMTP id m14mr17858475edd.209.1555433528794;
+        Tue, 16 Apr 2019 09:52:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9ZuA+yoDO6ZUxnJ0NekjXGUhiFLxZpgQriGWZuFF4k+7Atgq0PSKuuZelr6GqtieWoonx
+X-Received: by 2002:a50:b18e:: with SMTP id m14mr17858405edd.209.1555433527870;
+        Tue, 16 Apr 2019 09:52:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555433527; cv=none;
         d=google.com; s=arc-20160816;
-        b=LTt5y5/JcAshIu1YuBKhzEpm6s6/VUrfsnbhFq/BbIs01zvJJvzSj8areSDtR0vjrA
-         sHKbgev2LNnn+2bTp7b0IXw1JIVkaHHMRzjdPXs78K0rPW1Q/zpdNS+UjUZkH/ZVwpPJ
-         CERhlTQNcEeyM/uP9kBDcBjT2Yerfe2qc9FcE0yAfbkzcx94PA2tfT/wmTDxtj6NDSXF
-         Hl41sszEaH9o3RcbrU/gKKhJvGX/OuEunS+pZ/X+dQc8lj2Uig2zT0GUbUw55SCRCu9m
-         nN0fSiysmFdDRurOIpscc9aF1Yw+jiiiq0NtODC4DZ/EYc/5MF+QGy0a2FnqTvh7GviD
-         aCPQ==
+        b=bulGIyVIM9co0tn0RO9ZG90gDPx5ovLHpw3RCH9JwRU5ag3CH+uuvCseJCiRYlhBea
+         j1x10PZcLcDYb/bkXoeHXJAn0o0w9GsUuyfuF1c3aZkzEg2fbgOJ1usLAiUY2J9S12Kf
+         JdDkCQDRrDhLPlAvS6sUOF8LQgAnO+5wb1LKv4kf6l8J69b4PfASIPRnVzmJ78uCwjzo
+         kQJL0HBh6VFablr5Jf+WNNSs3rS88sz8a0BXd9LF5V/yfuXFMThgdkDmS6sa1Kstnm0Z
+         RQRa3ThR27NtEUXll3qLSTf8n+cOMPVBxjgvcKNJlpJ7fmoYhnmIEBgCCejZ3CjbhXwl
+         Cstg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=OquYvDAVNcaD19ZiuLo0WwiU698DJ7uwfFYxisr8j+E=;
-        b=y9QWpAE0oiD/Y/gI+LaOAVpG0pifF+SoLf9H3LQ34+Z4v/5tKxnPFNS2ivBvAbglbP
-         qBerCul7ARNu5ciidpVPqSiT/NzWuULOm0VKK1we0pYIixOdGvz+q/7eeIivSH4+zb+E
-         Uk6FM7D83UtJW42DLZ/sQCxO7zV/tEWpVMnYp742tVA8/HrilqXKBjs2vPLeiNq64xZE
-         8SdAAek1aHb4rh3EQlMR0+/T0/VLIHKhUejqqbuGkzQqBQgZ4ujfjzRjfjkiQ0firogp
-         mcNogPEZLKcxwzfLMMNLaF/rjPSe82hVHerUMb6kU3QXtJ1z7vMAw9ZWVlZLCmPDX+pS
-         aKFg==
+        bh=qcQyrF0CKUvg8j3w1/E3L1zRT1Ucmr+al8/eDGYg3fo=;
+        b=FFw/Qyn4RfDj9VAuRRIMbJjKvaB7j23NZeXBK2jYCJjKV8BMlIK0646cDcDbwgmSr4
+         L7vI8eyOA6dvk693QKI9CZEV/dM59zaCsVBfFwdOmfawUNUGuEDsz9PTvcyAOeVfRLKx
+         cma/FLeuVt7woBUD6FFdjqd50IbxtZamKB06x/DWEBnTM1cGU2egVL6II7gmDf6iPCZ+
+         RtsqgpOwQY+5IrIyNVTN/R/eRhj6Eo1XnGAVSyBZYbekyc8BIDfA4qL3/xom0qEhVtU7
+         eQW8RTEecGcDZBQe7F4KKM1RE9kESs3I0X86Ab8hzXtKDhyoEBs3n3iz40IdHI/yaeQE
+         6IFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lw19si5952277ejb.187.2019.04.16.09.46.59
+        by mx.google.com with ESMTPS id ck14si8605381ejb.191.2019.04.16.09.52.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 09:46:59 -0700 (PDT)
+        Tue, 16 Apr 2019 09:52:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3126AAAC3;
-	Tue, 16 Apr 2019 16:46:59 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 3D821B077;
+	Tue, 16 Apr 2019 16:52:07 +0000 (UTC)
 Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id A0DBB1E15B4; Tue, 16 Apr 2019 18:46:58 +0200 (CEST)
-Date: Tue, 16 Apr 2019 18:46:58 +0200
+	id D663A1E15B4; Tue, 16 Apr 2019 18:52:06 +0200 (CEST)
+Date: Tue, 16 Apr 2019 18:52:06 +0200
 From: Jan Kara <jack@suse.cz>
 To: Jerome Glisse <jglisse@redhat.com>
 Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org,
@@ -98,16 +98,16 @@ Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org,
 	Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH v1 10/15] block: add gup flag to
  bio_add_page()/bio_add_pc_page()/__bio_add_page()
-Message-ID: <20190416164658.GB17148@quack2.suse.cz>
+Message-ID: <20190416165206.GC17148@quack2.suse.cz>
 References: <20190411210834.4105-1-jglisse@redhat.com>
  <20190411210834.4105-11-jglisse@redhat.com>
  <20190415145952.GE13684@quack2.suse.cz>
- <20190415152433.GB3436@redhat.com>
+ <20190416002203.GA3158@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190415152433.GB3436@redhat.com>
+In-Reply-To: <20190416002203.GA3158@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -115,7 +115,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 15-04-19 11:24:33, Jerome Glisse wrote:
+On Mon 15-04-19 20:22:04, Jerome Glisse wrote:
 > On Mon, Apr 15, 2019 at 04:59:52PM +0200, Jan Kara wrote:
 > > Hi Jerome!
 > > 
@@ -141,42 +141,29 @@ On Mon 15-04-19 11:24:33, Jerome Glisse wrote:
 > > 
 > > Do you think this would be workable and easier?
 > 
-> It might be workable but i am not sure it is any simpler. bio_add_page*()
-> does not take page reference it is up to the caller to take the proper
-> page reference so the complexity would be push there (just in a different
-> place) so i don't think it would be any simpler. This means that we would
-> have to update more code than this patchset does.
+> Thinking again on this, i can drop that patch and just add a new
+> bio_add_page_from_gup() and then it would be much more obvious that
+> only very few places need to use that new version and they are mostly
+> obvious places. It is usualy GUP then right away add the pages to bio
+> or bvec.
 
-I agree that the amount of work in this patch set is about the same
-(although you don't have to pass the information about reference type in
-the biovec so you save the complexities there). But for the future the
-rule that "bio references must be gup-pins" is IMO easier to grasp for
-developers and you can reasonably assert it in bio_add_page().
+Yes, that's another option. Probably second preferred by me after my own
+proposal ;)
 
-> This present patch is just a coccinelle semantic patch and even if it
-> is scary to see that many call site, they are not that many that need
-> to worry about the GUP parameter and they all are in patch 11, 12, 13
-> and 14.
-> 
-> So i believe this patchset is simpler than converting everyone to take
-> a GUP like page reference. Also doing so means we loose the information
-> about GUP kind of defeat the purpose. So i believe it would be better
-> to limit special reference to GUP only pages.
+> We can probably add documentation around GUP explaining that if you
+> want to build a bio or bvec from GUP you must pay attention to which
+> function you use.
 
-So what's the difference whether the page reference has been acquired via
-GUP or via some other means? I don't think that really matters. If say
-infiniband introduced new ioctl() that takes file descriptor, offset, and
-length and just takes pages from page cache and attaches them to their RDMA
-scatter-gather lists, then they'd need to use 'pin' references anyway...
+Yes, although we both know how careful people are in reading
+documentation...
 
-Then why do we work on differentiating between GUP pins and other page
-references?  Because it matters what the reference is going to be used for
-and what is it's lifetime. And generally GUP references are used to do IO
-to/from page and may even be controlled by userspace so that's why we need
-to make them different. But in principle the 'gup-pin' reference is not about
-the fact that the reference has been obtained from GUP but about the fact
-that it is used to do IO. Hence I think that the rule "bio references must
-be gup-pins" makes some sense.
+> Also pages going in a bio are not necessarily written too, they can
+> be use as source (writting to block) or as destination (reading from
+> block). So having all of them with refcount bias as GUP would muddy
+> the water somemore between pages we can no longer clean (ie GUPed)
+> and those that are just being use in regular read or write operation.
+
+Why would the difference matter here?
 
 								Honza
 -- 
