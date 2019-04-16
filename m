@@ -2,190 +2,142 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 923D5C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:47:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E9D2C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:50:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55148206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:47:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55148206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B9A9206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:50:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B9A9206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D75256B0007; Tue, 16 Apr 2019 14:47:23 -0400 (EDT)
+	id AB40E6B0007; Tue, 16 Apr 2019 14:50:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFC586B0008; Tue, 16 Apr 2019 14:47:23 -0400 (EDT)
+	id A60EE6B0008; Tue, 16 Apr 2019 14:50:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC4976B000D; Tue, 16 Apr 2019 14:47:23 -0400 (EDT)
+	id 92A986B000D; Tue, 16 Apr 2019 14:50:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 969846B0007
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:47:23 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id p26so20144496qtq.21
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:47:23 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4136D6B0007
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:50:35 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id j63so174781wmj.7
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:50:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=nhOpCh1Z2yOuVdIymfpNl7vwYG+fRuKsXFW8OT5mbtg=;
-        b=k+N3NUShgq3sZH/YH9k+nXiRoquE4lJchOCFkb1fDDYTj9rdID1rD1NrRW53PElLs/
-         nPaNTujC/PYU5tmB1UKWECDNXQsiImRIYlWtuk0KncZuVd1ATGykl3tiyaHDsS06l9uo
-         nE9DkytvaP/2g07VevXTgQWH3pnfiun+yNfLv0DKgvY6ZWUdIUVZR6jLi8MsRmIvsH3Q
-         bTTxtBOOo3ZofUjZRi/E3u+RAxPDtg3+7VmitHV1ZigoA/YUfw51Uj4+J0bd4BboUANB
-         Wqx9yoGaZ8SX/ICiL1B3HhyUXV7QarPtjzvtDF7bM+pjNEEhWWgSg5XLak4/ntW8xmT5
-         23Xg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUAAysjsGsheZEbzB0okoT9rgkFyuS2RsGr9m/9quByS9pUnm3l
-	GBD32pB4L5gvcjEwct+CDLtdhLj4KSchxM5r69MNhpzzWMBzFkiWybI1k/Ozhvx7A8UKu8X0AhB
-	IrqJsCxZHsR9mWFVGra+diXmassCpz5Y08zAiMGtCdE8bm2xKNw/5kXQtvjxd9Urruw==
-X-Received: by 2002:a37:a951:: with SMTP id s78mr65230201qke.156.1555440443367;
-        Tue, 16 Apr 2019 11:47:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwToGvwZ7fOhu/3MnhUirTRfZ7JcS4SNFVHvxQm4hbym014vEhA+7aRYYO5K+hozaEmiyaT
-X-Received: by 2002:a37:a951:: with SMTP id s78mr65230151qke.156.1555440442472;
-        Tue, 16 Apr 2019 11:47:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555440442; cv=none;
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=MyRbhT6cWo0MY+NTkHm7WtzZ5R2icMPX+X0NaOBAORQ=;
+        b=EMcHgUel8tT3C+iDrGY3+f5wL92MM+3z/KB64g8z8BskjSvEV6EI7VhcphPnL89gkG
+         kuaDZ2ANeNE6CBwpj0Zt1hBD8LkzCdXNK7NA6bTxopvkIOwrCMauKR3HGStL51wqAU94
+         yY2+CNLI83jrI4QOrQIQzbJXQynwnb1g+atA/fYea7jZuqOtDGSVr7Cxyfjgy7mNRd/w
+         wAvPZPSk1FHL5QbrljnmLeK32oq7hGYf4DkGerHgPi/liCTnwTWcOm9YiQWDO/UGYEma
+         4nXVKfHrQGQt8T/Mg1FbVS8ksJ77ai25gmG2ArT8DBBBoRtAYwPwqWsDkzCdACAsQDF8
+         EaLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAXxl8vPJbPpJQzIKfHN8IK/C+R2DqromqwxiW3m0WSmwBGfRZ59
+	M24PghI2JBZ6R2r5+VJYV+E7dR+JWGxCathx/mjAtcDm3xTuyAk3yavb6ROGglokWIaKbYdDuS3
+	yl44GqzguoIlGaT5CJUBf28CHXS+7vykLAYdFyfoVY12WlttC13E+9p03b4MeuZiaLg==
+X-Received: by 2002:a7b:cb04:: with SMTP id u4mr29447837wmj.0.1555440634825;
+        Tue, 16 Apr 2019 11:50:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNEUjf2qL8as68FPu7NjIfEO1x5ngVKprkAEADK6gpxggg6sRXt6M62+h5hAj5K1zrc9Ic
+X-Received: by 2002:a7b:cb04:: with SMTP id u4mr29447786wmj.0.1555440633970;
+        Tue, 16 Apr 2019 11:50:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555440633; cv=none;
         d=google.com; s=arc-20160816;
-        b=W813zfQ2wzbsVRDnXKFziE7bl6G9/nw74AYzzqq+oYTgxHZF5GaOv3CkFSu6XNFRYy
-         RJCUfm4/BeEiUc0r9IpXJPkDV+9VEbT/p+sdRUzZ20yD0qNdq0JXbHs+EFPVgnA1MfdM
-         9TYsdrFuPdh0FWXNEH8iZOwoRlh5RzPU5kMnbaDgAp5i9u1VkWJ77KYMYfbVJpAwClMa
-         FEvaZviYTAz32BcB4HHQ9EhtIT5tEUBqG0bfb6xosmq5UteCgsgSxmEDtk+l+6cfDeMf
-         axjxwxyEuYnjNgk05hzTKDdYeF6OIv0lVhcoY6iVyu73HAhEEkFI9Sln5VJ/ZRgjZ41c
-         Rvqg==
+        b=BwpVoznoIdLywKGlf7xlhHz4wIyg2WEKCM9M7FxJeKHwqPWmWPlVPMbDKRNTYOZQHo
+         aKEDlXGMuyYyfh4OpLcyRyFSu3W9Rmi+Y6xY7HuX2/AM3NNo7swY3ftxIcuA7en7ulyH
+         RHVDbUm7HalQWMQzTo84PDXtDy8/T/mLkecB0MAkr3iVDKpA9uuKEBDvPNy7hcKzSb+i
+         7DDY4xLNMJdBLnBPPdeWxvxPFJYqrAz2H5a7rGxXayMAML28EJaCAsw4pOomd2guu3OH
+         EbOQTj43j6G7crcx1MLfJOUvI1+3YKfXx/y4r7VsHasr612GIvL2/3wCEgLD2DmorqhH
+         7QnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=nhOpCh1Z2yOuVdIymfpNl7vwYG+fRuKsXFW8OT5mbtg=;
-        b=fv9NXzwvkbt99NtrjxlKC/JJJl7HgwUNOapJgQhv+QmB58cs99j7eaQ4Nn9mVk2g/j
-         ANamoCQqgjszTTXd2nB6P7eNzI50ifKj78OARNoZIN6AUYQNxg+zJOP5SCXbo990qY3s
-         FdWusMyuf2WjcaTmbrrDq8CQtBIPkuEysRshdsJLaInquFgjh3rjtBFvUPq72X7G9Gkg
-         ngQRoS64BT2q3/zjntXFxznrNT2Bffrk5f9dtFBiqkxeGJSQNe6hgIo0kX5J1WFh316g
-         aiiyjUMmmzEBs4er27RVUEzW4oBIwHFuL/7UWiR5AI8SG/jvMbNzfSa54ecCMo2iAP4y
-         7bxw==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=MyRbhT6cWo0MY+NTkHm7WtzZ5R2icMPX+X0NaOBAORQ=;
+        b=kkaQbkdFj0dgaK5y6CqFUDKZN/ZvfIpL2smhNwo7yi9H9eTi6C4s8M7Aalb4CmThFk
+         /gTFxflt5W8B2jZH0gsmfiL4zHL9qsuyyB0Rb9gqxygMNkAIjQepk1JYCngLslFqgn7G
+         YrIYw0YsvKiqsLJy8BodXqyVBk3xYsR/pf6QPbIvysO+h3hT72uPoDVro+s3EmSD9RMM
+         cAsoFeoDlTNdfpGM0RA6oy40FHS9JypSjWNLD/GejQD76Pgqzj7zZl8i7qsftoUjmEy9
+         PHItDb/U8hRcyOkYkRIExfk/pfK5nAtY3qLKE3PfhpZ9MedxlUlYx7TmH9N8vgq/TKsR
+         RhuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w73si2553175qka.41.2019.04.16.11.47.22
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id t17si139789wmi.174.2019.04.16.11.50.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 11:47:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Apr 2019 11:50:33 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C3CA1307D846;
-	Tue, 16 Apr 2019 18:47:20 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 2644C6013D;
-	Tue, 16 Apr 2019 18:47:13 +0000 (UTC)
-Date: Tue, 16 Apr 2019 14:47:11 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-mm@kvack.org,
-	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
-	Ming Lei <ming.lei@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
-	samba-technical@lists.samba.org, Yan Zheng <zyan@redhat.com>,
-	Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>,
-	Alex Elder <elder@kernel.org>, ceph-devel@vger.kernel.org,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	linux-bcache@vger.kernel.org,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>
-Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
-Message-ID: <20190416184711.GB21526@redhat.com>
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos.glx-home)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hGT9z-0001fF-2f; Tue, 16 Apr 2019 20:50:23 +0200
+Date: Tue, 16 Apr 2019 20:50:22 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Vlastimil Babka <vbabka@suse.cz>
+cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, luto@kernel.org, 
+    jpoimboe@redhat.com, sean.j.christopherson@intel.com, penberg@kernel.org, 
+    rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] slab: remove store_stackinfo()
+In-Reply-To: <902fed9c-9655-a241-677d-5fa11b6c95a1@suse.cz>
+Message-ID: <alpine.DEB.2.21.1904162040570.1780@nanos.tec.linutronix.de>
+References: <20190416142258.18694-1-cai@lca.pw> <902fed9c-9655-a241-677d-5fa11b6c95a1@suse.cz>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Tue, 16 Apr 2019 18:47:21 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 09:35:04PM +0300, Boaz Harrosh wrote:
-> On Thu, Apr 11, 2019 at 05:08:19PM -0400, jglisse@redhat.com wrote:
-> > From: Jérôme Glisse <jglisse@redhat.com>
+On Tue, 16 Apr 2019, Vlastimil Babka wrote:
+
+> On 4/16/19 4:22 PM, Qian Cai wrote:
+> > store_stackinfo() does not seem used in actual SLAB debugging.
+> > Potentially, it could be added to check_poison_obj() to provide more
+> > information, but this seems like an overkill due to the declining
+> > popularity of the SLAB, so just remove it instead.
 > > 
-> > This patchset depends on various small fixes [1] and also on patchset
-> > which introduce put_user_page*() [2] and thus is 5.3 material as those
-> > pre-requisite will get in 5.2 at best. Nonetheless i am posting it now
-> > so that it can get review and comments on how and what should be done
-> > to test things.
-> > 
-> > For various reasons [2] [3] we want to track page reference through GUP
-> > differently than "regular" page reference. Thus we need to keep track
-> > of how we got a page within the block and fs layer. To do so this patch-
-> > set change the bio_bvec struct to store a pfn and flags instead of a
-> > direct pointer to a page. This way we can flag page that are coming from
-> > GUP.
-> > 
-> > This patchset is divided as follow:
-> >     - First part of the patchset is just small cleanup i believe they
-> >       can go in as his assuming people are ok with them.
+> > Signed-off-by: Qian Cai <cai@lca.pw>
 > 
-> 
-> >     - Second part convert bio_vec->bv_page to bio_vec->bv_pfn this is
-> >       done in multi-step, first we replace all direct dereference of
-> >       the field by call to inline helper, then we introduce macro for
-> >       bio_bvec that are initialized on the stack. Finaly we change the
-> >       bv_page field to bv_pfn.
-> 
-> Why do we need a bv_pfn. Why not just use the lowest bit of the page-ptr
-> as a flag (pointer always aligned to 64 bytes in our case).
-> 
-> So yes we need an inline helper for reference of the page but is it not clearer
-> that we assume a page* and not any kind of pfn ?
-> It will not be the first place using low bits of a pointer for flags.
+> I've acked Thomas' version already which was narrower, but no objection
+> to remove more stuff on top of that. Linus (and I later in another
+> thread) already pointed out /proc/slab_allocators. It only takes a look
+> at add_caller() there to not regret removing that one.
 
-Yes i can use the lower bit of struct page * pointer it should be safe on
-all architecture. I wanted to change the bv_page field name to make sure
-that we catch anyone doing any direct dereference. Do you prefer keeping a
-page pointer there ?
+The issue why I was looking at this was a krobot complaint about the kernel
+crashing in that stack store function with my stackguard series applied. It
+was broken before the stackguard pages already, it just went unnoticed.
 
-> 
-> That said. Why we need it at all? I mean why not have it as a bio flag. If it exist
-> at all that a user has a GUP and none-GUP pages to IO at the same request he/she
-> can just submit them as two separate BIOs (chained at the block layer).
-> 
-> Many users just submit one page bios and let elevator merge them any way.
+As you explained, nobody is caring about DEBUG_SLAB + DEBUG_PAGEALLOC
+anyway, so I'm happy to not care about krobot tripping over it either.
 
-The issue is that bio_vec is use, on its own, outside of bios and for
-those use cases i need to track the GUP status within the bio_vec. Thus
-it is easier to use the same mechanisms for bio too as adding a flag to
-bio would mean that i also have to audit all code path that could merge
-bios. While i believe it should be restrictred to block/blk-merge.c it
-seems some block and some fs have spawn some custom bio manipulation
-(md comes to mind). So using same mechanism for bio_vec and bio seems
-like a safer and easier course of action.
+So we have 3 options:
 
-Cheers,
-Jérôme
+   1) I ignore it and merge the stack guard series w/o it
+
+   2) I can carry the minimal fix or Qian's version in the stackguard
+      branch
+
+   3) We ship that minimal fix to Linus right now and then everyone can
+      base their stuff on top independently.
+
+#3 is probably the right thing to do.
+
+Thanks,
+
+	tglx
 
