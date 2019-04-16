@@ -2,203 +2,185 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 890C0C10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 07:47:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D19ECC10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:33:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 516A62086A
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 07:47:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 516A62086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 71AD120868
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:33:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71AD120868
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C30436B0003; Tue, 16 Apr 2019 03:47:20 -0400 (EDT)
+	id D45166B0003; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDE4D6B0006; Tue, 16 Apr 2019 03:47:20 -0400 (EDT)
+	id CF39A6B0006; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACCA36B0007; Tue, 16 Apr 2019 03:47:20 -0400 (EDT)
+	id BBB286B0007; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59B166B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 03:47:20 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o8so9730337edh.12
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 00:47:20 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE726B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 04:33:43 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e6so10521552edi.20
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 01:33:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=6DI/tZqtW3uimUoOXNYYEoSTaNBApBDa658DR1lUb6E=;
-        b=I3pIUDS1G8yN3T0yRjH55KLfkECIODl4SfYs7b/r2tGRml9QuH5w1Ahqy//RNIdA8Z
-         JCqTFiE6ch8Hv46hNWKueDXAvX5JYuvWogywrnrBPUEFEOnCLLyovHILNHZ4csdrRIX+
-         qLyOF7ReWK9B2/CUlkK8zKdpxDaq81txbze+250OcEbOwg2DoyfAHCEDNRhipesUgNE6
-         7yrbRSwpVxPTgnjs2JYP8V19+fV2DG17ydg0KrNn8RRon3lM/aptvfCw/Rsx557mqq0v
-         6JivK6IjIGPQMDaeayHbquAGYW3L9RYlU0EYFju4Eb2UbY5FmGPqOi5CPX58YX2EE8Zv
-         n+Jg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXvElbPSGn8J+EqVKaOFP+G9qpXXL9F8gzNCEAaHdtyGczWTjaW
-	pdOpUa/2Nvg70PjBCCOmEJOmx/q+apVIrxOFCu57JEemviMRh3PP60TsRCsmObEzPu2s+wsSCF/
-	OLNulX7nNJL2rGgkXYktWu2WSAabgiose9sdIBdw9WMRtEY0TI/eUsS5ivD0Diw4=
-X-Received: by 2002:a17:906:1343:: with SMTP id x3mr39053770ejb.218.1555400839848;
-        Tue, 16 Apr 2019 00:47:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwks18krnDpHC03qLzl1sCdVX4P84VBGcnlq8WVbJbM4ODvwJvIdaZn7gT2M8ux9PG1nE41
-X-Received: by 2002:a17:906:1343:: with SMTP id x3mr39053724ejb.218.1555400838800;
-        Tue, 16 Apr 2019 00:47:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555400838; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=p/TVmVUdIZtom2oetxJ9J//xOZz3HB9HiccaO8bSXsw=;
+        b=GB4ochUiqfBYBCOhB6wFhYZBisXEdCfW/fpM32/fafXQcQ2GUldEnUeacz8Rni5lqG
+         56VOseZH2rE/Rn06kaAVT2XMZPQ/zxkrEmJ1f/i9opTqn5Auc84NJHOMu/wW6EDAwB7d
+         LazoGbGlItygfCIQCmrCNLOK8wLSBe1LLGtFInDUHVanmzAHQKPejcRl/s8g+j1T5Uwh
+         jkqJnHly1g9o9sXUHnCqapOxrPqje9GwSLQyuhMzRMCYAanUuoie3NnA1KiAgELY+nXC
+         e1ID+/qnxef2hyhZDnyR+wDz2w4b1Uf7WJ2Gk82TWdEadzrvkMvXRrmEH/eDFSCKq4oe
+         hynA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAX4xb6cb38f3zmxhxaUXwV4Yejl0f1cxAWVGGUvjcxgd9bbbhKZ
+	srj7ULVo6C9zzBA2esBRCDCXo1+5KqA7b3qP0COvmFAgqiIijcESIRmj4Bt6iMDMB2TrtJp8FpD
+	zxr8RVftGKsjRTmYdzJz7u+kcgOifjLmL/Te1Ka0FVcYxYA2mA9HVdOQhCMpAUxcAvw==
+X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr34519404ejb.143.1555403622866;
+        Tue, 16 Apr 2019 01:33:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9xJVnOtF++ECSnrnfWOlSxjhGEsVmDJ3KzkaW3ea26y9e75C1xvzdvT1AtrSAWyaoB0Ht
+X-Received: by 2002:a17:906:c7ce:: with SMTP id dc14mr34519354ejb.143.1555403621738;
+        Tue, 16 Apr 2019 01:33:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555403621; cv=none;
         d=google.com; s=arc-20160816;
-        b=hHlpr4JQfq5qo7orZFkSNZ8OZHJ1/4h+YJEdAf3O7ORblvHM5K6nhfeUAOrToCr5MO
-         +fIBaxJy0RFjPDATjAZSOqX4jH3FWF/9Ouj8QuhuX7elLgELkTNxUJp7coLcFzfjnvQl
-         ywM2wp/dg1OCltS3Hdtvxjm9kww0n+XuADhjm2mazfpDThvBQ2uodVs7uruNkBdhUF/K
-         e02PkFeepmZckZyZeNvQyS6/ML++G6LyGDtieAMqykNci14ywcOxp0hoJ/eTTnooaCSx
-         3fvsFz1GPqZ5nUaFLuX6CzIZR8vWfvFRhMZqw//PArkCjnsjCkOkHQbD/zvzIVDpVLQO
-         aj5w==
+        b=kRKPb9nIb8YV5ryhDyYkQA1xifYW9V5VFax9uhDPN7tOmr157tgqkOiD1c5IUBuBT0
+         uwXEwgiB78m1Qntc3RopV1JuU78BriYJdGJCfq/1d2YzKeL2eMV2oweWPxQq0NMRyiLp
+         OKyH6wKS7qZARiJU0fOTD6NwOf4YL1WgvnhEkG2+wE9P0/Sap05VwB66YjNeckmjZPO8
+         F1Fvx1cSxvSoKTfvqSaV1fWeb0EaX9iJRPPbSNPZjhav0G4rQELBe9q+9qtOI/AqtNG5
+         6ITcXpu92BzUZ23Wr/E9/ksBVR0Jnd4QxgvjiHxAwo5wPoZY6ghl2uTQwEVyeW1gPJa9
+         LQ3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=6DI/tZqtW3uimUoOXNYYEoSTaNBApBDa658DR1lUb6E=;
-        b=yueKpnEnO083UJE9wth/RQbpf6yb+j7t0rn9tV0+9JRvIYEj9/QzTwlk3l9kx7Qqhl
-         2m1sr81FtK/FRpxSHEmdx1Ro1Y1E0BSkQYKoGWEz4PWixz4nBcaepPuBlf4mnhJMUXyL
-         VZsPV8it+l6rAs/qj52gC4JjOvD7OjBdSoG0cr2lC2wwojacdwVjpwbJPmtSEzzXUIyk
-         AK6mnWD5ltx1eOOGayVrF1HFezm8sJL/0tpqznlmN0/1UJsmlWVGsQ40UAJscoD3g8jC
-         O1Um8qTFQAqhdde+UuN4r+USB0AVeNwhNu1mx/u+BmSAQRslZdJoFxVh9W6+HozaPHn8
-         ruGw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=p/TVmVUdIZtom2oetxJ9J//xOZz3HB9HiccaO8bSXsw=;
+        b=x21qG6SYLuQe047aS+NvjykNUg7G5gvtbOL4hKuNDuwYS6+SZF6X3V7p+4QCqN92V1
+         F5sQCYRqXPIXh7DPWdxOWenxYdhtvwMsqrliFw4spObUheHW53Fz0zemrwD4lqvrDvAG
+         r4aNavgTQEr1xhzyYKfCIas7qYJq2KFh3Nn4vCxz9Go7VURFyLNnCINhJBEIAvH0cGu4
+         3v/FukqyOYaJZSFMov304yUIc7jUdLDwvQ0UWYw2rhMi7OHqp+VVeSlcqGxbkj0lyWPo
+         n58nmDucos+LvOlC8n9hf0yWV/t7gFqQbkiFQl6DhoyhLs/iTp2aDGXieSxbAxx8WZcj
+         pIeg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w47si1310395edw.19.2019.04.16.00.47.18
+        by mx.google.com with ESMTPS id g19si3283755ejt.326.2019.04.16.01.33.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 00:47:18 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 16 Apr 2019 01:33:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6F696AEEA;
-	Tue, 16 Apr 2019 07:47:17 +0000 (UTC)
-Date: Tue, 16 Apr 2019 09:47:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
-	akpm@linux-foundation.org, dave.hansen@intel.com,
-	keith.busch@intel.com, dan.j.williams@intel.com,
-	fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
-	ziy@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
-Message-ID: <20190416074714.GD11561@dhcp22.suse.cz>
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190412084702.GD13373@dhcp22.suse.cz>
- <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+	by mx1.suse.de (Postfix) with ESMTP id F04BBAF2F;
+	Tue, 16 Apr 2019 08:33:40 +0000 (UTC)
+Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
+To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org
+Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org,
+ ndesaulniers@google.com, kcc@google.com, dvyukov@google.com,
+ keescook@chromium.org, sspatil@android.com, labbott@redhat.com,
+ kernel-hardening@lists.openwall.com
+References: <20190412124501.132678-1-glider@google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <35935775-1c0d-6016-5bb3-0abee65a7492@suse.cz>
+Date: Tue, 16 Apr 2019 10:30:20 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190412124501.132678-1-glider@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 15-04-19 17:09:07, Yang Shi wrote:
-> 
-> 
-> On 4/12/19 1:47 AM, Michal Hocko wrote:
-> > On Thu 11-04-19 11:56:50, Yang Shi wrote:
-> > [...]
-> > > Design
-> > > ======
-> > > Basically, the approach is aimed to spread data from DRAM (closest to local
-> > > CPU) down further to PMEM and disk (typically assume the lower tier storage
-> > > is slower, larger and cheaper than the upper tier) by their hotness.  The
-> > > patchset tries to achieve this goal by doing memory promotion/demotion via
-> > > NUMA balancing and memory reclaim as what the below diagram shows:
-> > > 
-> > >      DRAM <--> PMEM <--> Disk
-> > >        ^                   ^
-> > >        |-------------------|
-> > >                 swap
-> > > 
-> > > When DRAM has memory pressure, demote pages to PMEM via page reclaim path.
-> > > Then NUMA balancing will promote pages to DRAM as long as the page is referenced
-> > > again.  The memory pressure on PMEM node would push the inactive pages of PMEM
-> > > to disk via swap.
-> > > 
-> > > The promotion/demotion happens only between "primary" nodes (the nodes have
-> > > both CPU and memory) and PMEM nodes.  No promotion/demotion between PMEM nodes
-> > > and promotion from DRAM to PMEM and demotion from PMEM to DRAM.
-> > > 
-> > > The HMAT is effectively going to enforce "cpu-less" nodes for any memory range
-> > > that has differentiated performance from the conventional memory pool, or
-> > > differentiated performance for a specific initiator, per Dan Williams.  So,
-> > > assuming PMEM nodes are cpuless nodes sounds reasonable.
-> > > 
-> > > However, cpuless nodes might be not PMEM nodes.  But, actually, memory
-> > > promotion/demotion doesn't care what kind of memory will be the target nodes,
-> > > it could be DRAM, PMEM or something else, as long as they are the second tier
-> > > memory (slower, larger and cheaper than regular DRAM), otherwise it sounds
-> > > pointless to do such demotion.
-> > > 
-> > > Defined "N_CPU_MEM" nodemask for the nodes which have both CPU and memory in
-> > > order to distinguish with cpuless nodes (memory only, i.e. PMEM nodes) and
-> > > memoryless nodes (some architectures, i.e. Power, may have memoryless nodes).
-> > > Typically, memory allocation would happen on such nodes by default unless
-> > > cpuless nodes are specified explicitly, cpuless nodes would be just fallback
-> > > nodes, so they are also as known as "primary" nodes in this patchset.  With
-> > > two tier memory system (i.e. DRAM + PMEM), this sounds good enough to
-> > > demonstrate the promotion/demotion approach for now, and this looks more
-> > > architecture-independent.  But it may be better to construct such node mask
-> > > by reading hardware information (i.e. HMAT), particularly for more complex
-> > > memory hierarchy.
-> > I still believe you are overcomplicating this without a strong reason.
-> > Why cannot we start simple and build from there? In other words I do not
-> > think we really need anything like N_CPU_MEM at all.
-> 
-> In this patchset N_CPU_MEM is used to tell us what nodes are cpuless nodes.
-> They would be the preferred demotion target.  Of course, we could rely on
-> firmware to just demote to the next best node, but it may be a "preferred"
-> node, if so I don't see too much benefit achieved by demotion. Am I missing
-> anything?
+On 4/12/19 2:45 PM, Alexander Potapenko wrote:
+> +config INIT_HEAP_ALL
+> +	bool "Initialize kernel heap allocations"
 
-Why cannot we simply demote in the proximity order? Why do you make
-cpuless nodes so special? If other close nodes are vacant then just use
-them.
- 
-> > I would expect that the very first attempt wouldn't do much more than
-> > migrate to-be-reclaimed pages (without an explicit binding) with a
-> 
-> Do you mean respect mempolicy or cpuset when doing demotion? I was wondering
-> this, but I didn't do so in the current implementation since it may need
-> walk the rmap to retrieve the mempolicy in the reclaim path. Is there any
-> easier way to do so?
+Calling slab and page allocations together as "heap" is rather uncommon
+in the kernel I think. But I don't have a better word right now.
 
-You definitely have to follow policy. You cannot demote to a node which
-is outside of the cpuset/mempolicy because you are breaking contract
-expected by the userspace. That implies doing a rmap walk.
-
-> > I would also not touch the numa balancing logic at this stage and rather
-> > see how the current implementation behaves.
+> +	default n
+> +	help
+> +	  Enforce initialization of pages allocated from page allocator
+> +	  and objects returned by kmalloc and friends.
+> +	  Allocated memory is initialized with zeroes, preventing possible
+> +	  information leaks and making the control-flow bugs that depend
+> +	  on uninitialized values more deterministic.
+> +
+>  config GCC_PLUGIN_STRUCTLEAK_VERBOSE
+>  	bool "Report forcefully initialized variables"
+>  	depends on GCC_PLUGIN_STRUCTLEAK
 > 
-> I agree we would prefer start from something simpler and see how it works.
-> 
-> The "twice access" optimization is aimed to reduce the PMEM bandwidth burden
-> since the bandwidth of PMEM is scarce resource. I did compare "twice access"
-> to "no twice access", it does save a lot bandwidth for some once-off access
-> pattern. For example, when running stress test with mmtest's
-> usemem-stress-numa-compact. The kernel would promote ~600,000 pages with
-> "twice access" in 4 hours, but it would promote ~80,000,000 pages without
-> "twice access".
-
-I pressume this is a result of a synthetic workload, right? Or do you
-have any numbers for a real life usecase?
--- 
-Michal Hocko
-SUSE Labs
 
