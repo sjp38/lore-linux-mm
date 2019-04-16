@@ -2,110 +2,109 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CDB9C282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 410F7C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F20BE222AE
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F20BE222AE
+	by mail.kernel.org (Postfix) with ESMTP id D5EA9222BB
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5EA9222BB
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A5DC36B000A; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
+	id CFAF76B000C; Tue, 16 Apr 2019 09:46:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A33356B000C; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
+	id C7E026B000D; Tue, 16 Apr 2019 09:46:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 921BE6B000D; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
+	id AFB4A6B000E; Tue, 16 Apr 2019 09:46:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EA246B000A
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h10so2910308edn.22
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:48 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 492686B000C
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:50 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y7so10835073eds.7
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:mime-version
-         :content-transfer-encoding:message-id;
-        bh=VpgllxzPc37sNU/qdZLcQd5VeTMUV+mWthl8cxM+qN0=;
-        b=bWvd6+NhapisvdyBw7oRux20ShGt7wymfBGHvSThZvPeOz/e4sxQaSmGkp98kTz69S
-         o87JqhotmSenwtAI834l7OWBngvGDza+8oxtzm52sp3Dz0ATxm4KSyyAkm1URechz61v
-         jdApBZk9B16hp02/sqsGl5tKYRbo92lhqr/xslYFriI03HswdsFvmzFAlGKjqc8jnBtg
-         i+wAnNEsqqC+kIShJW5egHPmYQX/J1qq1RZ3N2NMr1TAghl9Ku6Nv7BSibjNwzR7sUPa
-         YRBg5ffkrkcSETaobXQf3yLdxSznkhp63vSObjIP8LcBJWixDq9Gu2kup1ei00i093Yf
-         +kcQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAU4TcwPyOyyKHUSWeBhClSBaeS3MrJ2HPfo37lP9xiZJVHAAjd5
-	ISN2eDsqClkz+IpMhdIIJsigCNzpcDNfiSXOqo78cayT3uHXFlkT7zCUzJYtR0lMZ49ePAQXUFM
-	cPEiw4XEYbZAQu34di1J8KoqatymqQykTqiIkot8MatCrd86Uxs+d8+T4ZlAa5gUqsA==
-X-Received: by 2002:aa7:c38c:: with SMTP id k12mr6079446edq.33.1555422407718;
+         :subject:date:mime-version:content-transfer-encoding:message-id;
+        bh=GWnuH1OvDI1fN489KlWK+kmbkHWaLOGzSOeYXBCsuhY=;
+        b=YqirV5/4ubjumOlARWGxecuJhgM/HGBAmir6jawExMJD9ZVc/50QXFn/wz5N+t9FZ/
+         O2lAusKqElI2w8+YHdLwT0qW4nv1zhl1BDQfZfGevLVBC8aH4Y50b5GvvuUJMDrzF3r8
+         pEo8GdTmxCv38BP2/zCzMbOe0RZanW0kMUvDsu/dS/tjphgOVokt7POYhOco7T/8bNbf
+         TG6PEqUX+I4BnAjSdUtN7ScY3n/9gJQB/6zBFn+TsrvHf3UhnZ2I8PjbcfFOx15OCPiB
+         k+13qaPtnsycg7gQNXWhTUH3toIZQRZciVuDSyqNIPax6PPcbNR2fRymLlFaUAL64/1+
+         fa7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWkZB16yq6sc1nGSaVEaasRyV8KT/po0VbhOxpxNCmyXNn+jdJ/
+	01mXiuM/80gr6b0JELWvLIZoKJ7mdxIxRLo4zltqzksm2V32qFC1qpJEr7yCqjF3f1u+bfnm//q
+	+YCgLfQoCLI9L3fckjA6uD0asIfhqLI8DIgyiiegsgKQTUQ3SRtf37sadd4tsf0JRqg==
+X-Received: by 2002:a50:a3b1:: with SMTP id s46mr49108017edb.99.1555422409710;
+        Tue, 16 Apr 2019 06:46:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzEpLc2BRs3d+R11X93Jb5B0A4Vmtjqg9YLlTYVH1G/BElybPqCvOZhs99G4+R3FZDeuG9
+X-Received: by 2002:a50:a3b1:: with SMTP id s46mr49107906edb.99.1555422407718;
         Tue, 16 Apr 2019 06:46:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwwyRlBeKA/f7fGRXUEQGuKi1QuzZLqer1ProhCj9xyHk3+Zuk7JxqQEsfLh6uSP4XKZmpK
-X-Received: by 2002:aa7:c38c:: with SMTP id k12mr6079370edq.33.1555422406406;
-        Tue, 16 Apr 2019 06:46:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555422406; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1555422407; cv=none;
         d=google.com; s=arc-20160816;
-        b=rpZp3+4lzHot1jyTb7lf4dzYiTskbNbOLLUehX8eLj3n8GxVxKmDQgLgqWL/vg5Bas
-         IfgpujExMcG58In+Q9WESlo/Kge/gpdLn6ysKxAQ2gzdFPrPQlEnvJXMf681C3PMOJhz
-         3LI4Ws015MWnS5hj+LgOiDp21p60DT5NQJo9sMJ+D7FcwAcIqeK+iQWemjW/7XJ0wpKh
-         5nY/cy5pKHJq5tWOx5jGFVGQigecyxx31K61pvhiuG63nd2ZXzBOwoIK3xO67I7xkpHj
-         V2rjdaOGpOMDy37lVqb6+mu8em4mLwOtZZwi8kNVnAFUm+c60m3HKPmXmoSBrw/LXXI/
-         /ENA==
+        b=yNXRgeV0AXP77piDimSWm/yTa0DQoluzEA5KITb1iPJZgRkQ+wYQscfXTLuYRvy0eb
+         9NWWzYknJGTNKX877P39lQ2bfO8RrVZcbPxGvAHKGCKf6UZPOz5TVDwvaN+6j4l3Us1x
+         gvW5tIuSeVC4S7RoeogPlzByTnL0dZpu6v3p2cw3rPesMIIqJFpWISCSRWqalVf5HMoC
+         lE14o0w0mTKoSZgu76QMr2a9gbCusxEJXphVFRXD9yYYJZLwsY6vsnV/FihgDW0TEWC6
+         SIGbHcXotgUG4VP/SgX518D91W511oGXiytzJPFLL1W0t+BJ8PSkfNpl0LR5Ir6O5qpU
+         xWIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:references
-         :in-reply-to:date:subject:cc:to:from;
-        bh=VpgllxzPc37sNU/qdZLcQd5VeTMUV+mWthl8cxM+qN0=;
-        b=B4LZlp8UHYy+iKgS6xc5Nb8rWaWGH5JpwwTHpSEFWxblwt1FQkiNWC3WiG8LM+amoG
-         jXbuyGXzcG75NV5QZxQ8xEmnT4Q7ZF3ErX3iKf0sXwjW9cm4hjHyD3HTlO6zYejuPxXs
-         VQNX0tt0af1gkhBMRb0gf8WozyM3ki7xC4W9HLZ0OuJwshJQz9/rPuwDlKHR1+/CVrMH
-         gdvxSLtMOArT00ZlRB6XNMpH2ZjWV5jvBmVEgTYrJ/obvwMLt7GgqCRvFtast20svktH
-         CYXHK+l4930a+xVxwk/6UymLMzetvh7xAprA/gZ4X2XiNlDgbn9xtgATAuJ12O9qcnyD
-         T8+A==
+        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
+         :to:from;
+        bh=GWnuH1OvDI1fN489KlWK+kmbkHWaLOGzSOeYXBCsuhY=;
+        b=LNo1r56fvn19R8gUFilUrYKeDY4reJdf22oJO7vDCUrH27B0hh8q7zrzoZ8/mlxaiz
+         bCkDyQNxPj8TUqQuxuzf1nX5BpHPFkoIhuqI6XOqVhBfBh382sf2BObupUOXH49dFhNZ
+         W5BabMYZEl19fm2lay+UO6U0MbfPu2ps+iiupeIfOW/ga55+q/imbPgJpN5xOH97Tkgi
+         Loyn0Rw8Ta0Z+mvFazTf4Fccqu4tq1hnFC+ptN/JB/ziFza1V1k9sqdi4CPs8KQKCm9+
+         kXNxUsRJ1eWGfgG/RgnO+y/DJgzx7xhwAl7N8xyKCjCguTLU4MKR0AYY5/9q4Sl3+jo0
+         x41g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id jp19si248245ejb.116.2019.04.16.06.46.45
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u51si27256edm.51.2019.04.16.06.46.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 06:46:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 16 Apr 2019 06:46:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkd9T178780
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkLQ2129886
 	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:45 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rwfpusewg-1
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwe6cnnfa-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:42 -0400
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:36 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Tue, 16 Apr 2019 14:45:56 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 16 Apr 2019 14:45:38 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 16 Apr 2019 14:45:46 +0100
+	Tue, 16 Apr 2019 14:45:27 +0100
 Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDjiab16646206
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDjPGb56099060
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 13:45:44 GMT
+	Tue, 16 Apr 2019 13:45:25 GMT
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5066E4C052;
-	Tue, 16 Apr 2019 13:45:44 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 3386F4C046;
+	Tue, 16 Apr 2019 13:45:25 +0000 (GMT)
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D71B34C062;
-	Tue, 16 Apr 2019 13:45:42 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 25CF34C050;
+	Tue, 16 Apr 2019 13:45:23 +0000 (GMT)
 Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
 	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 16 Apr 2019 13:45:42 +0000 (GMT)
+	Tue, 16 Apr 2019 13:45:23 +0000 (GMT)
 From: Laurent Dufour <ldufour@linux.ibm.com>
 To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
         kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
@@ -135,18 +134,16 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com,
         npiggin@gmail.com, paulmck@linux.vnet.ibm.com,
         Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org,
         x86@kernel.org
-Subject: [PATCH v12 07/31] mm: make pte_unmap_same compatible with SPF
-Date: Tue, 16 Apr 2019 15:44:58 +0200
+Subject: [PATCH v12 00/31] Speculative page faults
+Date: Tue, 16 Apr 2019 15:44:51 +0200
 X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19041613-0016-0000-0000-0000026F7268
+x-cbid: 19041613-0012-0000-0000-0000030F6EEC
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19041613-0017-0000-0000-000032CBBD7B
-Message-Id: <20190416134522.17540-8-ldufour@linux.ibm.com>
+x-cbparentid: 19041613-0013-0000-0000-00002147A847
+Message-Id: <20190416134522.17540-1-ldufour@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
@@ -160,130 +157,381 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-pte_unmap_same() is making the assumption that the page table are still
-around because the mmap_sem is held.
-This is no more the case when running a speculative page fault and
-additional check must be made to ensure that the final page table are still
-there.
+This is a port on kernel 5.1 of the work done by Peter Zijlstra to handle
+page fault without holding the mm semaphore [1].
 
-This is now done by calling pte_spinlock() to check for the VMA's
-consistency while locking for the page tables.
+The idea is to try to handle user space page faults without holding the
+mmap_sem. This should allow better concurrency for massively threaded
+process since the page fault handler will not wait for other threads memory
+layout change to be done, assuming that this change is done in another part
+of the process's memory space. This type of page fault is named speculative
+page fault. If the speculative page fault fails because a concurrency has
+been detected or because underlying PMD or PTE tables are not yet
+allocating, it is failing its processing and a regular page fault is then
+tried.
 
-This is requiring passing a vm_fault structure to pte_unmap_same() which is
-containing all the needed parameters.
+The speculative page fault (SPF) has to look for the VMA matching the fault
+address without holding the mmap_sem, this is done by protecting the MM RB
+tree with RCU and by using a reference counter on each VMA. When fetching a
+VMA under the RCU protection, the VMA's reference counter is incremented to
+ensure that the VMA will not freed in our back during the SPF
+processing. Once that processing is done the VMA's reference counter is
+decremented. To ensure that a VMA is still present when walking the RB tree
+locklessly, the VMA's reference counter is incremented when that VMA is
+linked in the RB tree. When the VMA is unlinked from the RB tree, its
+reference counter will be decremented at the end of the RCU grace period,
+ensuring it will be available during this time. This means that the VMA
+freeing could be delayed and could delay the file closing for file
+mapping. Since the SPF handler is not able to manage file mapping, file is
+closed synchronously and not during the RCU cleaning. This is safe since
+the page fault handler is aborting if a file pointer is associated to the
+VMA.
 
-As pte_spinlock() may fail in the case of a speculative page fault, if the
-VMA has been touched in our back, pte_unmap_same() should now return 3
-cases :
-	1. pte are the same (0)
-	2. pte are different (VM_FAULT_PTNOTSAME)
-	3. a VMA's changes has been detected (VM_FAULT_RETRY)
+Using RCU fixes the overhead seen by Haiyan Song using the will-it-scale
+benchmark [2].
 
-The case 2 is handled by the introduction of a new VM_FAULT flag named
-VM_FAULT_PTNOTSAME which is then trapped in cow_user_page().
-If VM_FAULT_RETRY is returned, it is passed up to the callers to retry the
-page fault while holding the mmap_sem.
+The VMA's attributes checked during the speculative page fault processing
+have to be protected against parallel changes. This is done by using a per
+VMA sequence lock. This sequence lock allows the speculative page fault
+handler to fast check for parallel changes in progress and to abort the
+speculative page fault in that case.
 
-Acked-by: David Rientjes <rientjes@google.com>
-Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
----
- include/linux/mm_types.h |  6 +++++-
- mm/memory.c              | 37 +++++++++++++++++++++++++++----------
- 2 files changed, 32 insertions(+), 11 deletions(-)
+Once the VMA has been found, the speculative page fault handler would check
+for the VMA's attributes to verify that the page fault has to be handled
+correctly or not. Thus, the VMA is protected through a sequence lock which
+allows fast detection of concurrent VMA changes. If such a change is
+detected, the speculative page fault is aborted and a *classic* page fault
+is tried.  VMA sequence lockings are added when VMA attributes which are
+checked during the page fault are modified.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 8ec38b11b361..fd7d38ee2e33 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -652,6 +652,8 @@ typedef __bitwise unsigned int vm_fault_t;
-  * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
-  *				fsync() to complete (for synchronous page faults
-  *				in DAX)
-+ * @VM_FAULT_PTNOTSAME		Page table entries have changed during a
-+ *				speculative page fault handling.
-  * @VM_FAULT_HINDEX_MASK:	mask HINDEX value
-  *
-  */
-@@ -669,6 +671,7 @@ enum vm_fault_reason {
- 	VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
- 	VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
- 	VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
-+	VM_FAULT_PTNOTSAME	= (__force vm_fault_t)0x004000,
- 	VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
- };
- 
-@@ -693,7 +696,8 @@ enum vm_fault_reason {
- 	{ VM_FAULT_RETRY,               "RETRY" },	\
- 	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
- 	{ VM_FAULT_DONE_COW,            "DONE_COW" },	\
--	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
-+	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" },	\
-+	{ VM_FAULT_PTNOTSAME,		"PTNOTSAME" }
- 
- struct vm_special_mapping {
- 	const char *name;	/* The name, e.g. "[vdso]". */
-diff --git a/mm/memory.c b/mm/memory.c
-index 221ccdf34991..d5bebca47d98 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2094,21 +2094,29 @@ static inline bool pte_map_lock(struct vm_fault *vmf)
-  * parts, do_swap_page must check under lock before unmapping the pte and
-  * proceeding (but do_wp_page is only called after already making such a check;
-  * and do_anonymous_page can safely check later on).
-+ *
-+ * pte_unmap_same() returns:
-+ *	0			if the PTE are the same
-+ *	VM_FAULT_PTNOTSAME	if the PTE are different
-+ *	VM_FAULT_RETRY		if the VMA has changed in our back during
-+ *				a speculative page fault handling.
-  */
--static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
--				pte_t *page_table, pte_t orig_pte)
-+static inline vm_fault_t pte_unmap_same(struct vm_fault *vmf)
- {
--	int same = 1;
-+	int ret = 0;
-+
- #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
- 	if (sizeof(pte_t) > sizeof(unsigned long)) {
--		spinlock_t *ptl = pte_lockptr(mm, pmd);
--		spin_lock(ptl);
--		same = pte_same(*page_table, orig_pte);
--		spin_unlock(ptl);
-+		if (pte_spinlock(vmf)) {
-+			if (!pte_same(*vmf->pte, vmf->orig_pte))
-+				ret = VM_FAULT_PTNOTSAME;
-+			spin_unlock(vmf->ptl);
-+		} else
-+			ret = VM_FAULT_RETRY;
- 	}
- #endif
--	pte_unmap(page_table);
--	return same;
-+	pte_unmap(vmf->pte);
-+	return ret;
- }
- 
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
-@@ -2714,8 +2722,17 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 	int exclusive = 0;
- 	vm_fault_t ret = 0;
- 
--	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
-+	ret = pte_unmap_same(vmf);
-+	if (ret) {
-+		/*
-+		 * If pte != orig_pte, this means another thread did the
-+		 * swap operation in our back.
-+		 * So nothing else to do.
-+		 */
-+		if (ret == VM_FAULT_PTNOTSAME)
-+			ret = 0;
- 		goto out;
-+	}
- 
- 	entry = pte_to_swp_entry(vmf->orig_pte);
- 	if (unlikely(non_swap_entry(entry))) {
+When the PTE is fetched, the VMA is checked to see if it has been changed,
+so once the page table is locked, the VMA is valid, so any other changes
+leading to touching this PTE will need to lock the page table, so no
+parallel change is possible at this time.
+
+The locking of the PTE is done with interrupts disabled, this allows
+checking for the PMD to ensure that there is not an ongoing collapsing
+operation. Since khugepaged is firstly set the PMD to pmd_none and then is
+waiting for the other CPU to have caught the IPI interrupt, if the pmd is
+valid at the time the PTE is locked, we have the guarantee that the
+collapsing operation will have to wait on the PTE lock to move
+forward. This allows the SPF handler to map the PTE safely. If the PMD
+value is different from the one recorded at the beginning of the SPF
+operation, the classic page fault handler will be called to handle the
+operation while holding the mmap_sem. As the PTE lock is done with the
+interrupts disabled, the lock is done using spin_trylock() to avoid dead
+lock when handling a page fault while a TLB invalidate is requested by
+another CPU holding the PTE.
+
+In pseudo code, this could be seen as:
+    speculative_page_fault()
+    {
+	    vma = find_vma_rcu()
+	    check vma sequence count
+	    check vma's support
+	    disable interrupt
+		  check pgd,p4d,...,pte
+		  save pmd and pte in vmf
+		  save vma sequence counter in vmf
+	    enable interrupt
+	    check vma sequence count
+	    handle_pte_fault(vma)
+		    ..
+		    page = alloc_page()
+		    pte_map_lock()
+			    disable interrupt
+				    abort if sequence counter has changed
+				    abort if pmd or pte has changed
+				    pte map and lock
+			    enable interrupt
+		    if abort
+		       free page
+		       abort
+		    ...
+	    put_vma(vma)
+    }
+    
+    arch_fault_handler()
+    {
+	    if (speculative_page_fault(&vma))
+	       goto done
+    again:
+	    lock(mmap_sem)
+	    vma = find_vma();
+	    handle_pte_fault(vma);
+	    if retry
+	       unlock(mmap_sem)
+	       goto again;
+    done:
+	    handle fault error
+    }
+
+Support for THP is not done because when checking for the PMD, we can be
+confused by an in progress collapsing operation done by khugepaged. The
+issue is that pmd_none() could be true either if the PMD is not already
+populated or if the underlying PTE are in the way to be collapsed. So we
+cannot safely allocate a PMD if pmd_none() is true.
+
+This series add a new software performance event named 'speculative-faults'
+or 'spf'. It counts the number of successful page fault event handled
+speculatively. When recording 'faults,spf' events, the faults one is
+counting the total number of page fault events while 'spf' is only counting
+the part of the faults processed speculatively.
+
+There are some trace events introduced by this series. They allow
+identifying why the page faults were not processed speculatively. This
+doesn't take in account the faults generated by a monothreaded process
+which directly processed while holding the mmap_sem. This trace events are
+grouped in a system named 'pagefault', they are:
+
+ - pagefault:spf_vma_changed : if the VMA has been changed in our back
+ - pagefault:spf_vma_noanon : the vma->anon_vma field was not yet set.
+ - pagefault:spf_vma_notsup : the VMA's type is not supported
+ - pagefault:spf_vma_access : the VMA's access right are not respected
+ - pagefault:spf_pmd_changed : the upper PMD pointer has changed in our
+ back.
+
+To record all the related events, the easier is to run perf with the
+following arguments :
+$ perf stat -e 'faults,spf,pagefault:*' <command>
+
+There is also a dedicated vmstat counter showing the number of successful
+page fault handled speculatively. I can be seen this way:
+$ grep speculative_pgfault /proc/vmstat
+
+It is possible to deactivate the speculative page fault handler by echoing
+0 in /proc/sys/vm/speculative_page_fault.
+
+This series builds on top of v5.1-rc4-mmotm-2019-04-09-17-51 and is
+functional on x86, PowerPC. I cross built it on arm64 but I was not able to
+test it.
+
+This series is also available on github [4].
+
+---------------------
+Real Workload results
+
+Test using a "popular in memory multithreaded database product" on 128cores
+SMT8 Power system are in progress and I will come back with performance
+mesurement as soon as possible. With the previous series we seen up to 30%
+improvements in the number of transaction processed per second, and we hope
+this will be the case with this series too.
+
+------------------
+Benchmarks results
+
+Base kernel is v5.1-rc4-mmotm-2019-04-09-17-51
+SPF is BASE + this series
+
+Kernbench:
+----------
+Here are the results on a 48 CPUs X86 system using kernbench on a 5.0
+kernel (kernel is build 5 times):
+
+Average	Half load -j 24
+		 Run	(std deviation)
+		 BASE			SPF
+Elapsed	Time	 56.52   (1.39185)      56.256  (1.15106)       0.47% 
+User	Time	 980.018 (2.94734)      984.958 (1.98518)       -0.50%
+System	Time	 130.744 (1.19148)      133.616 (0.873573)      -2.20%
+Percent	CPU	 1965.6  (49.682)       1988.4  (40.035)        -1.16%
+Context	Switches 29926.6 (272.789)      30472.4 (109.569)       -1.82%
+Sleeps		 124793  (415.87)       125003  (591.008)       -0.17%
+						
+Average	Optimal	load -j	48
+		 Run	(std deviation)
+		 BASE			SPF
+Elapsed	Time	 46.354  (0.917949)     45.968 (1.42786)        0.83% 
+User	Time	 1193.42 (224.96)       1196.78 (223.28)        -0.28%
+System	Time	 143.306 (13.2726)      146.177 (13.2659)       -2.00%
+Percent	CPU	 2668.6  (743.157)      2699.9 (753.767)        -1.17%
+Context	Switches 62268.3 (34097.1)      62721.7 (33999.1)       -0.73%
+Sleeps		 132556  (8222.99)      132607 (8077.6)         -0.04%
+
+During a run on the SPF, perf events were captured:
+ Performance counter stats for '../kernbench -M':
+       525,873,132      faults
+               242      spf
+                 0      pagefault:spf_vma_changed
+                 0      pagefault:spf_vma_noanon
+               441      pagefault:spf_vma_notsup
+                 0      pagefault:spf_vma_access
+                 0      pagefault:spf_pmd_changed
+
+Very few speculative page faults were recorded as most of the processes
+involved are monothreaded (sounds that on this architecture some threads
+were created during the kernel build processing).
+
+Here are the kerbench results on a 1024 CPUs Power8 VM:
+
+5.1.0-rc4-mm1+				5.1.0-rc4-mm1-spf-rcu+
+Average Half load -j 512 Run (std deviation):
+Elapsed Time 	 52.52   (0.906697)	52.778  (0.510069)	-0.49%
+User Time 	 3855.43 (76.378)	3890.44 (73.0466)	-0.91%
+System Time 	 1977.24 (182.316)	1974.56 (166.097)	0.14% 
+Percent CPU 	 11111.6 (540.461)	11115.2 (458.907)	-0.03%
+Context Switches 83245.6 (3061.44)	83651.8 (1202.31)	-0.49%
+Sleeps 		 613459  (23091.8)	628378  (27485.2) 	-2.43%
+
+Average Optimal load -j 1024 Run (std deviation):
+Elapsed Time 	 52.964  (0.572346)	53.132 (0.825694)	-0.32%
+User Time 	 4058.22 (222.034)	4070.2 (201.646) 	-0.30%
+System Time 	 2672.81 (759.207)	2712.13 (797.292)	-1.47%
+Percent CPU 	 12756.7 (1786.35)	12806.5 (1858.89)	-0.39% 
+Context Switches 88818.5 (6772)		87890.6 (5567.72)	1.04% 
+Sleeps 		 618658  (20842.2)	636297 (25044) 		-2.85%
+
+During a run on the SPF, perf events were captured:
+ Performance counter stats for '../kernbench -M':
+       149 375 832      faults
+                 1      spf
+                 0      pagefault:spf_vma_changed
+                 0      pagefault:spf_vma_noanon
+               561      pagefault:spf_vma_notsup
+                 0      pagefault:spf_vma_access
+                 0      pagefault:spf_pmd_changed
+
+Most of the processes involved are monothreaded so SPF is not activated but
+there is no impact on the performance.
+
+Ebizzy:
+-------
+The test is counting the number of records per second it can manage, the
+higher is the best. I run it like this 'ebizzy -mTt <nrcpus>'. To get
+consistent result I repeated the test 100 times and measure the average
+result. The number is the record processes per second, the higher is the best.
+
+  		BASE		SPF		delta	
+24 CPUs x86	5492.69		9383.07		70.83%
+1024 CPUS P8 VM 8476.74		17144.38	102%
+
+Here are the performance counter read during a run on a 48 CPUs x86 node:
+ Performance counter stats for './ebizzy -mTt 48':
+        11,846,569      faults
+        10,886,706      spf
+           957,702      pagefault:spf_vma_changed
+                 0      pagefault:spf_vma_noanon
+               815      pagefault:spf_vma_notsup
+                 0      pagefault:spf_vma_access
+                 0      pagefault:spf_pmd_changed
+
+And the ones captured during a run on a 1024 CPUs Power VM:
+ Performance counter stats for './ebizzy -mTt 1024':
+         1 359 789      faults
+         1 284 910      spf
+            72 085      pagefault:spf_vma_changed
+                 0      pagefault:spf_vma_noanon
+             2 669      pagefault:spf_vma_notsup
+                 0      pagefault:spf_vma_access
+                 0      pagefault:spf_pmd_changed
+		 
+In ebizzy's case most of the page fault were handled in a speculative way,
+leading the ebizzy performance boost.
+
+------------------
+Changes since v11 [3]
+- Check vm_ops.fault instead of vm_ops since now all the VMA as a vm_ops.
+ - Abort speculative page fault when doing swap readhead because VMA's
+   boundaries are not protected at this time. Doing this the first swap in
+   is doing a readhead, the next fault should be handled in a speculative
+   way as the page is present in the swap read page.
+ - Handle a race between copy_pte_range() and the wp_page_copy called by
+   the speculative page fault handler.
+ - Ported to Kernel v5.0
+ - Moved VM_FAULT_PTNOTSAME define in mm_types.h
+ - Use RCU to protect the MM RB tree instead of a rwlock.
+ - Add a toggle interface: /proc/sys/vm/speculative_page_fault
+
+[1] https://lore.kernel.org/linux-mm/20141020215633.717315139@infradead.org/
+[2] https://lore.kernel.org/linux-mm/9FE19350E8A7EE45B64D8D63D368C8966B847F54@SHSMSX101.ccr.corp.intel.com/
+[3] https://lore.kernel.org/linux-mm/1526555193-7242-1-git-send-email-ldufour@linux.vnet.ibm.com/
+[4] https://github.com/ldu4/linux/tree/spf-v12
+
+Laurent Dufour (25):
+  mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
+  x86/mm: define ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+  powerpc/mm: set ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+  mm: introduce pte_spinlock for FAULT_FLAG_SPECULATIVE
+  mm: make pte_unmap_same compatible with SPF
+  mm: introduce INIT_VMA()
+  mm: protect VMA modifications using VMA sequence count
+  mm: protect mremap() against SPF hanlder
+  mm: protect SPF handler against anon_vma changes
+  mm: cache some VMA fields in the vm_fault structure
+  mm/migrate: Pass vm_fault pointer to migrate_misplaced_page()
+  mm: introduce __lru_cache_add_active_or_unevictable
+  mm: introduce __vm_normal_page()
+  mm: introduce __page_add_new_anon_rmap()
+  mm: protect against PTE changes done by dup_mmap()
+  mm: protect the RB tree with a sequence lock
+  mm: introduce vma reference counter
+  mm: Introduce find_vma_rcu()
+  mm: don't do swap readahead during speculative page fault
+  mm: adding speculative page fault failure trace events
+  perf: add a speculative page fault sw event
+  perf tools: add support for the SPF perf event
+  mm: add speculative page fault vmstats
+  powerpc/mm: add speculative page fault
+  mm: Add a speculative page fault switch in sysctl
+
+Mahendran Ganesh (2):
+  arm64/mm: define ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+  arm64/mm: add speculative page fault
+
+Peter Zijlstra (4):
+  mm: prepare for FAULT_FLAG_SPECULATIVE
+  mm: VMA sequence count
+  mm: provide speculative fault infrastructure
+  x86/mm: add speculative pagefault handling
+
+ arch/arm64/Kconfig                    |   1 +
+ arch/arm64/mm/fault.c                 |  12 +
+ arch/powerpc/Kconfig                  |   1 +
+ arch/powerpc/mm/fault.c               |  16 +
+ arch/x86/Kconfig                      |   1 +
+ arch/x86/mm/fault.c                   |  14 +
+ fs/exec.c                             |   1 +
+ fs/proc/task_mmu.c                    |   5 +-
+ fs/userfaultfd.c                      |  17 +-
+ include/linux/hugetlb_inline.h        |   2 +-
+ include/linux/migrate.h               |   4 +-
+ include/linux/mm.h                    | 138 +++++-
+ include/linux/mm_types.h              |  16 +-
+ include/linux/pagemap.h               |   4 +-
+ include/linux/rmap.h                  |  12 +-
+ include/linux/swap.h                  |  10 +-
+ include/linux/vm_event_item.h         |   3 +
+ include/trace/events/pagefault.h      |  80 ++++
+ include/uapi/linux/perf_event.h       |   1 +
+ kernel/fork.c                         |  35 +-
+ kernel/sysctl.c                       |   9 +
+ mm/Kconfig                            |  22 +
+ mm/huge_memory.c                      |   6 +-
+ mm/hugetlb.c                          |   2 +
+ mm/init-mm.c                          |   3 +
+ mm/internal.h                         |  45 ++
+ mm/khugepaged.c                       |   5 +
+ mm/madvise.c                          |   6 +-
+ mm/memory.c                           | 631 ++++++++++++++++++++++----
+ mm/mempolicy.c                        |  51 ++-
+ mm/migrate.c                          |   6 +-
+ mm/mlock.c                            |  13 +-
+ mm/mmap.c                             | 249 ++++++++--
+ mm/mprotect.c                         |   4 +-
+ mm/mremap.c                           |  13 +
+ mm/nommu.c                            |   1 +
+ mm/rmap.c                             |   5 +-
+ mm/swap.c                             |   6 +-
+ mm/swap_state.c                       |  10 +-
+ mm/vmstat.c                           |   5 +-
+ tools/include/uapi/linux/perf_event.h |   1 +
+ tools/perf/util/evsel.c               |   1 +
+ tools/perf/util/parse-events.c        |   4 +
+ tools/perf/util/parse-events.l        |   1 +
+ tools/perf/util/python.c              |   1 +
+ 45 files changed, 1277 insertions(+), 196 deletions(-)
+ create mode 100644 include/trace/events/pagefault.h
+
 -- 
 2.21.0
 
