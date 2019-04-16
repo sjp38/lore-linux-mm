@@ -6,106 +6,106 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F59CC10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:48:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D002C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:48:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D9AC222DF
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:48:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D9AC222DF
+	by mail.kernel.org (Postfix) with ESMTP id 4BD8A222DF
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:48:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BD8A222DF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CC066B0296; Tue, 16 Apr 2019 09:47:52 -0400 (EDT)
+	id 4927F6B0298; Tue, 16 Apr 2019 09:48:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 380376B0298; Tue, 16 Apr 2019 09:47:52 -0400 (EDT)
+	id 418356B029A; Tue, 16 Apr 2019 09:48:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 26C136B0299; Tue, 16 Apr 2019 09:47:52 -0400 (EDT)
+	id 2E43F6B029C; Tue, 16 Apr 2019 09:48:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0697E6B0296
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:52 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id g186so15674158ybg.16
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:47:52 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 007DA6B0298
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:48:03 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id v123so15583162ywf.16
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:48:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=h+dSz3dIugqGQM4BNY4sysZNpxbYjrXmKmAZ5NCn5zQ=;
-        b=QyP5WRPSHJAqyKLfyKhADlXtBO2aXIFZBi0LmloNa8c3mHyMF9XUoqJKrzPOrKMmQz
-         YBTRl6ZZHGT7pm1BmVJ0nhLF99WdU8qAy8o/GoAvwgVtppn/REaGQ0vAuJYStqtxQANb
-         ipGsg1YtqUv6689tim1mTg0vAsOF6no+4ACEvL05Kxsx6Huq0H2spEdzZsC00apasr7W
-         0lHqHp4kc3cVSnUrn4E/htcKXopthj38Eg2D8v96n7fTVTSdo2rH10rlP9CmP0aSjBJL
-         GSv9rV/OqDtVAA5p58FQYfOzivEJIDeHkOX2qRRIZ6Fqb48/BYG/8Oj/jGdi43ib3hxf
-         0MYA==
+        bh=3IPoxrf+6+tcIsdMy7SAxB3smSVYv9hSJsTrPSmFiK0=;
+        b=iF/K2QaFd7uNBKkCrRXJd1IzQBm5j481ldDS9Kmm7Q64Ou0aqOi0w86QKmSU6iobru
+         VZCl5G2mYspqEof2PXctprDd0OcNNRTE0ijBoqOPOqJQ74QVsKMUeW3S1yxvDSp+w4Do
+         w7fIew3CzKMhQUJkiIgXoYZEwrRXyDZMotFMIJ+e4naGYxJXowG6QEwNb4akFVXBkFuR
+         1yrIyHGIxb4ZdS2pGzB5l7xbzMErrRNKBLJU9TdoaVZer9V2P+pL115Zh7Q4c+rgwX63
+         pq9xh3Hcs8YkDkFZQ39OZyQLbd5+0GwZtTSi5eofd16KDncRVFIxZgErcMoQ85d7wHQo
+         2dVQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVsBJv7SvYxr2b+5QOOc01bQzI54nmLV/F+6n7sbAfZMxuq/Y17
-	TCUrr4XT4ViOFCNXRXwW264JgKNBXyam/z8vN/GS0AqA8YILUSgVRA+tQhunZn9uhtTWQm12lp8
-	uBcyZK9OMrEea9lluXORMdN5t4wB4KhjE3HFm22ZS1N0W4OL0MksBSeuKBtT/o2eO4A==
-X-Received: by 2002:a25:c8c7:: with SMTP id y190mr15979914ybf.285.1555422471763;
-        Tue, 16 Apr 2019 06:47:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQchnBrhhdSDL7Yz6aZZYHC/sMs+WJPhfCvMh+VmTFKElfBus83ypuJmvlxtgMXpXJo+jV
-X-Received: by 2002:a25:c8c7:: with SMTP id y190mr15979820ybf.285.1555422470624;
-        Tue, 16 Apr 2019 06:47:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555422470; cv=none;
+X-Gm-Message-State: APjAAAWgotX5BZ10wJgN+WRMcAsfQ8DjQuWJnnelQrcZOqQypxGC09LP
+	u1uZmeY6faMCWQLzYG7S+BO9ob8uWdtjFIG8kQr01TeE+gxA36FasciKBpvYXr+ddGu+xPJFJlU
+	SycVhiSKboGx6x7/S5n/9b1xSAWEPY9tZViJA7GpWJDaq/9NExytTDLrAUUr4AXW12A==
+X-Received: by 2002:a81:2849:: with SMTP id o70mr65690896ywo.180.1555422482684;
+        Tue, 16 Apr 2019 06:48:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw00QYIBluyT61NpLFJhGzZttDdEPvqvAVvCkFS8ESKNlrby4kM3MrCIZhXYEgV6Ez8wGWl
+X-Received: by 2002:a81:2849:: with SMTP id o70mr65690688ywo.180.1555422480392;
+        Tue, 16 Apr 2019 06:48:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555422480; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q5puU3BDxlWUj/iMSi1ozBSEKVkHsGphwA5YmmMtikVepjZ6F4QXOeTpDJ+U9gyQ1g
-         qloBEhxGjBniNhDXL7lZ2cigSxYPN8y4y6opczwyK2RWxFKvxGUWtS+Rzi00n1jZzjX8
-         mf+5H3ur7nO6ye6c7O4o+BhGQ8RwVNLE0pN9OTrlVhy+JzliBw4n1QtMktgP5bxinE8F
-         Bu054hCSNUocGCkKslJ/7UIBdIL6W9HM+TnzDYN7TxmXFFLnDEqGCEkOsS14aV6AQHhr
-         to7p3d4GSOY/OQuLxZQR1r6n88fFn1gdAYe8iyJe3+mozZsueF258LwriXOhJky0jhb9
-         9WfA==
+        b=Lu6niWPC7BBnvp1js7r8BZgSpCWFelhQ1wZ+EIZJYdezfs7NFbLhcvMY8uQonal7xO
+         nOKqfh+zyP5mJY/35llJPgJodXI8ZPKCMfj0wc1/hwnWxFOyPCMssi6mXnugsZ252I8U
+         qpIxrnWe/Qbu28eo085XmlmnbGq9fxSO74Z78wnfRBWsQcrMr/N/xlojgEobLZ16XVwA
+         xxiQJiGeS+gjwb/oiFl2iIyvZX2tBeapSu6CXMHeo2AMRPIalnSBlrnR+wj6kweEq2wN
+         MX/Taggy4YUIX2ugaYEXyTOTJ8PcNDwVk2lGf6GzJsxzLG7NRVe3VFwyHxpRixxQwJV3
+         IMMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=h+dSz3dIugqGQM4BNY4sysZNpxbYjrXmKmAZ5NCn5zQ=;
-        b=Q3RM39NP6IYYdI0jGv0WiXYTJfh8hD4gaCWVfs+iS6ZEXi3hdczmYO2JGrC5Dmjnza
-         uWNuvoN+A7fR94UP/o9zdK2o/wIqPn6+Hhx3MkC6olKFhg6dUyWd0YWlOamvFJwoxrCF
-         wMZopx8bRpiwbEK/+Ow4ppMnjSttczWfyBC0K/REd3rilYlOo+PFZwMLff6rHTMsz8KW
-         pJJyZ3P2rAaazSOfZkU7LOB4Uw3NVaaP44u/f+aPJrRi+w3m9dS0d86Lnz3m5cEe/yxg
-         lJH35pKpNrG7wY/BoDzncDbRYaV7JWREENqHvZ6qegar1MP8aPlR4XFIGgj6OYY2Sgf/
-         Whsg==
+        bh=3IPoxrf+6+tcIsdMy7SAxB3smSVYv9hSJsTrPSmFiK0=;
+        b=MlRWzpxdVj5A2odgjxwwp3uPClRjv8CAaG7d5dOZ3svDB3+0HZ+8gzngjrpzldEe1I
+         vRszwoj37RvEghe9mWTJDKRCJcrdCGLtngJnKHpGhNJCvLpafecO/fSzYN9q9fD5P5Vl
+         2S/FqPQTW/xOjgPgHSu/ofZJbiaWUIn1SjQByjYX7ghrFGfaZ5vam9J5z4u2rwf7xAU3
+         4xi+OO4da30GVFeSmnOCYWyC2GAS07zgGp+v3NLtw23L6Izm5UAJHaKYqaa40zx5KfR5
+         QITuNKkjO7QgXnsZRpZ+VDvD4v9jZmY9Td/V4RzwKxniQ12HPryXQKZPve0iWWASN4oi
+         HuEw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x17si10550696ybj.198.2019.04.16.06.47.50
+        by mx.google.com with ESMTPS id j185si30165534ywf.80.2019.04.16.06.48.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 06:47:50 -0700 (PDT)
+        Tue, 16 Apr 2019 06:48:00 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDlT6E093889
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:49 -0400
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDlTue093894
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:59 -0400
 Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwe1t6d9k-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwe1t6dqp-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:41 -0400
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:45 -0400
 Received: from localhost
 	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Tue, 16 Apr 2019 14:45:53 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	Tue, 16 Apr 2019 14:46:20 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
 	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 16 Apr 2019 14:45:43 +0100
+	Tue, 16 Apr 2019 14:46:11 +0100
 Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDjfqs27262988
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDk9qK37617726
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 13:45:41 GMT
+	Tue, 16 Apr 2019 13:46:09 GMT
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id C7A184C062;
-	Tue, 16 Apr 2019 13:45:41 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 978DD4C040;
+	Tue, 16 Apr 2019 13:46:09 +0000 (GMT)
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5A8EA4C058;
-	Tue, 16 Apr 2019 13:45:40 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 9DF8D4C04A;
+	Tue, 16 Apr 2019 13:46:06 +0000 (GMT)
 Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
 	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 16 Apr 2019 13:45:40 +0000 (GMT)
+	Tue, 16 Apr 2019 13:46:06 +0000 (GMT)
 From: Laurent Dufour <ldufour@linux.ibm.com>
 To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
         kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
@@ -135,18 +135,18 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com,
         npiggin@gmail.com, paulmck@linux.vnet.ibm.com,
         Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org,
         x86@kernel.org
-Subject: [PATCH v12 06/31] mm: introduce pte_spinlock for FAULT_FLAG_SPECULATIVE
-Date: Tue, 16 Apr 2019 15:44:57 +0200
+Subject: [PATCH v12 15/31] mm: introduce __lru_cache_add_active_or_unevictable
+Date: Tue, 16 Apr 2019 15:45:06 +0200
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
 References: <20190416134522.17540-1-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19041613-0016-0000-0000-0000026F7267
+x-cbid: 19041613-0016-0000-0000-0000026F7275
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19041613-0017-0000-0000-000032CBBD77
-Message-Id: <20190416134522.17540-7-ldufour@linux.ibm.com>
+x-cbparentid: 19041613-0017-0000-0000-000032CBBD8C
+Message-Id: <20190416134522.17540-16-ldufour@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
@@ -160,57 +160,101 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When handling page fault without holding the mmap_sem the fetch of the
-pte lock pointer and the locking will have to be done while ensuring
-that the VMA is not touched in our back.
+The speculative page fault handler which is run without holding the
+mmap_sem is calling lru_cache_add_active_or_unevictable() but the vm_flags
+is not guaranteed to remain constant.
+Introducing __lru_cache_add_active_or_unevictable() which has the vma flags
+value parameter instead of the vma pointer.
 
-So move the fetch and locking operations in a dedicated function.
-
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 ---
- mm/memory.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
+ include/linux/swap.h | 10 ++++++++--
+ mm/memory.c          |  8 ++++----
+ mm/swap.c            |  6 +++---
+ 3 files changed, 15 insertions(+), 9 deletions(-)
 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4bfb5c4ac108..d33b94eb3c69 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -343,8 +343,14 @@ extern void deactivate_file_page(struct page *page);
+ extern void mark_page_lazyfree(struct page *page);
+ extern void swap_setup(void);
+ 
+-extern void lru_cache_add_active_or_unevictable(struct page *page,
+-						struct vm_area_struct *vma);
++extern void __lru_cache_add_active_or_unevictable(struct page *page,
++						unsigned long vma_flags);
++
++static inline void lru_cache_add_active_or_unevictable(struct page *page,
++						struct vm_area_struct *vma)
++{
++	return __lru_cache_add_active_or_unevictable(page, vma->vm_flags);
++}
+ 
+ /* linux/mm/vmscan.c */
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
 diff --git a/mm/memory.c b/mm/memory.c
-index fc3698d13cb5..221ccdf34991 100644
+index 56802850e72c..85ec5ce5c0a8 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2073,6 +2073,13 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- }
- EXPORT_SYMBOL_GPL(apply_to_page_range);
+@@ -2347,7 +2347,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+ 		ptep_clear_flush_notify(vma, vmf->address, vmf->pte);
+ 		page_add_new_anon_rmap(new_page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(new_page, vma);
++		__lru_cache_add_active_or_unevictable(new_page, vmf->vma_flags);
+ 		/*
+ 		 * We call the notify macro here because, when using secondary
+ 		 * mmu page tables (such as kvm shadow page tables), we want the
+@@ -2896,7 +2896,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+ 	if (unlikely(page != swapcache && swapcache)) {
+ 		page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(page, vma);
++		__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ 	} else {
+ 		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
+ 		mem_cgroup_commit_charge(page, memcg, true, false);
+@@ -3048,7 +3048,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
+ 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 	page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 	mem_cgroup_commit_charge(page, memcg, false, false);
+-	lru_cache_add_active_or_unevictable(page, vma);
++	__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ setpte:
+ 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
  
-+static inline bool pte_spinlock(struct vm_fault *vmf)
-+{
-+	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
-+	spin_lock(vmf->ptl);
-+	return true;
-+}
-+
- static inline bool pte_map_lock(struct vm_fault *vmf)
+@@ -3327,7 +3327,7 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
+ 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 		page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(page, vma);
++		__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+ 		page_add_file_rmap(page, false);
+diff --git a/mm/swap.c b/mm/swap.c
+index 3a75722e68a9..a55f0505b563 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -450,12 +450,12 @@ void lru_cache_add(struct page *page)
+  * directly back onto it's zone's unevictable list, it does NOT use a
+  * per cpu pagevec.
+  */
+-void lru_cache_add_active_or_unevictable(struct page *page,
+-					 struct vm_area_struct *vma)
++void __lru_cache_add_active_or_unevictable(struct page *page,
++					   unsigned long vma_flags)
  {
- 	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
-@@ -3656,8 +3663,8 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
- 	 * validation through pte_unmap_same(). It's of NUMA type but
- 	 * the pfn may be screwed if the read is non atomic.
- 	 */
--	vmf->ptl = pte_lockptr(vma->vm_mm, vmf->pmd);
--	spin_lock(vmf->ptl);
-+	if (!pte_spinlock(vmf))
-+		return VM_FAULT_RETRY;
- 	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte))) {
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
- 		goto out;
-@@ -3850,8 +3857,8 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
- 	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
- 		return do_numa_page(vmf);
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
  
--	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
--	spin_lock(vmf->ptl);
-+	if (!pte_spinlock(vmf))
-+		return VM_FAULT_RETRY;
- 	entry = vmf->orig_pte;
- 	if (unlikely(!pte_same(*vmf->pte, entry)))
- 		goto unlock;
+-	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
++	if (likely((vma_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
+ 		SetPageActive(page);
+ 	else if (!TestSetPageMlocked(page)) {
+ 		/*
 -- 
 2.21.0
 
