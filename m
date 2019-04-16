@@ -3,109 +3,109 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DE4BC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CDB9C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EF3121B68
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EF3121B68
+	by mail.kernel.org (Postfix) with ESMTP id F20BE222AE
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:46:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F20BE222AE
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2DB16B0008; Tue, 16 Apr 2019 09:46:43 -0400 (EDT)
+	id A5DC36B000A; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDCEA6B000A; Tue, 16 Apr 2019 09:46:43 -0400 (EDT)
+	id A33356B000C; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CAF196B000C; Tue, 16 Apr 2019 09:46:43 -0400 (EDT)
+	id 921BE6B000D; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7763A6B0008
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id j3so10977001edb.14
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:43 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EA246B000A
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:48 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h10so2910308edn.22
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:46:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=9jZTtITuVwuX3A0pUuEay1zff/oOC++asy4NappICdo=;
-        b=m/4fMsH2rHXVH95ncpPhbxGochB9R306CnBIw+3RXHjbBI4GINu6WIBrWPJiwqaTU/
-         wVfDBC2nEJtRcsE5wlRKGCCE0/l4DPjcgQLors4VrQ2rqOn/spd2CvIzEjjF++bgc8KU
-         yiXhHzJrZsuJCh8c+YXK8E5v48amHhOYeQdmLlwZU7aByL8+jX3o/cXIsp2prrah3vil
-         xsbR8eLZo/QmQJx5QyINUtXG13wrEsLdyObJkzZ5spnUA64D2LyvFO9Pfoax78RNuxCs
-         MfTUJMTCpJp53IoUNifx6YJv23VdNuTuY6swBpMInmApJpXdNUAxymFXvhvAlLzwl7Tt
-         8wYA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVp8ljD5nbX0NdiKAyUO+KlYRAMVPpa+MRdZpOXna43ldyfb5jO
-	DPPR0bNqOHLhq5Oybwxc0JG8b82uloHu2Sj9AfGk7h9rhJTrbW7rQQ7BG+UmbFBEhhICmhXunNq
-	1plkxFoB3P07F6MPOELq8iyQSLG7+cUzC4DcsSIvY2SVxrh6/rkNJyk+0cw68Ddg5aA==
-X-Received: by 2002:a17:906:4c4e:: with SMTP id d14mr35794765ejw.127.1555422402612;
-        Tue, 16 Apr 2019 06:46:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjpPyvahpXWSfwo8OAK+mWHzC8mXTh/UzTebasX1s2ZUP0WjcC0O02IuWiNOPE6BaC3duf
-X-Received: by 2002:a17:906:4c4e:: with SMTP id d14mr35794688ejw.127.1555422400770;
-        Tue, 16 Apr 2019 06:46:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555422400; cv=none;
+        bh=VpgllxzPc37sNU/qdZLcQd5VeTMUV+mWthl8cxM+qN0=;
+        b=bWvd6+NhapisvdyBw7oRux20ShGt7wymfBGHvSThZvPeOz/e4sxQaSmGkp98kTz69S
+         o87JqhotmSenwtAI834l7OWBngvGDza+8oxtzm52sp3Dz0ATxm4KSyyAkm1URechz61v
+         jdApBZk9B16hp02/sqsGl5tKYRbo92lhqr/xslYFriI03HswdsFvmzFAlGKjqc8jnBtg
+         i+wAnNEsqqC+kIShJW5egHPmYQX/J1qq1RZ3N2NMr1TAghl9Ku6Nv7BSibjNwzR7sUPa
+         YRBg5ffkrkcSETaobXQf3yLdxSznkhp63vSObjIP8LcBJWixDq9Gu2kup1ei00i093Yf
+         +kcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAU4TcwPyOyyKHUSWeBhClSBaeS3MrJ2HPfo37lP9xiZJVHAAjd5
+	ISN2eDsqClkz+IpMhdIIJsigCNzpcDNfiSXOqo78cayT3uHXFlkT7zCUzJYtR0lMZ49ePAQXUFM
+	cPEiw4XEYbZAQu34di1J8KoqatymqQykTqiIkot8MatCrd86Uxs+d8+T4ZlAa5gUqsA==
+X-Received: by 2002:aa7:c38c:: with SMTP id k12mr6079446edq.33.1555422407718;
+        Tue, 16 Apr 2019 06:46:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwyRlBeKA/f7fGRXUEQGuKi1QuzZLqer1ProhCj9xyHk3+Zuk7JxqQEsfLh6uSP4XKZmpK
+X-Received: by 2002:aa7:c38c:: with SMTP id k12mr6079370edq.33.1555422406406;
+        Tue, 16 Apr 2019 06:46:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555422406; cv=none;
         d=google.com; s=arc-20160816;
-        b=HVOXx7BoST8T8XkEJQQrX360wRxB9+ErqGT/1aEu1S7iN2MzcIgusWfhWVxg4ImxDT
-         I1nyllnOYhWC6BDq0U/j9KDlLAPO+BabjAiHVOlRG+YFBS154eZ6IMPJ/XIjvXBHdlza
-         XfSaazzT3Ws4tA0YUMJwUH6zsxIJN2fdzP/K/z+E7JFYXmwSgrwWiTJt2Fx9qG+uI+nI
-         qALr9v0dQIi/LkZLcf1H79srbxakxM+vzVjvxd/ahBh1WqW5uYTqzJYHvKcMISbyLwDb
-         EFaJR8wTJV8cK91iBdnDhfowkYrjhMx/Z75dhFRl/Bsc5LpW4TUYZRzkTMsA14NYXoqY
-         hJLQ==
+        b=rpZp3+4lzHot1jyTb7lf4dzYiTskbNbOLLUehX8eLj3n8GxVxKmDQgLgqWL/vg5Bas
+         IfgpujExMcG58In+Q9WESlo/Kge/gpdLn6ysKxAQ2gzdFPrPQlEnvJXMf681C3PMOJhz
+         3LI4Ws015MWnS5hj+LgOiDp21p60DT5NQJo9sMJ+D7FcwAcIqeK+iQWemjW/7XJ0wpKh
+         5nY/cy5pKHJq5tWOx5jGFVGQigecyxx31K61pvhiuG63nd2ZXzBOwoIK3xO67I7xkpHj
+         V2rjdaOGpOMDy37lVqb6+mu8em4mLwOtZZwi8kNVnAFUm+c60m3HKPmXmoSBrw/LXXI/
+         /ENA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=9jZTtITuVwuX3A0pUuEay1zff/oOC++asy4NappICdo=;
-        b=nTZresSQ1CqW7oJIrWT12VROmd5ithdyKAP2OY2mwUHNWYRSwgRWlEzvYy4wyfi3JY
-         Ktc+//qofOOneE5S4F+4wHhwbkUKIyJv7w82oyzZSAuNTZiT6xyhSvdrwJq+ZMgwHviT
-         lzRUTptUV54VZeGFbczYin4xYzm06yku22tvvT6vW6u1fa7ZW58GZ7NznfgadAzQp8Tm
-         w+8FeC4+K61TOzQO7onU73pXX7I1Uh5wg+a1G1m7GwkaDOtkI89a6zLTWWHBJsQmJwgI
-         sVAZzG/bbHtaciXht2Nt7vtqlSd+T+RsqciY8nHcPlZlNnocw/dqC6t2cAC38QRP0inN
-         JwYg==
+        bh=VpgllxzPc37sNU/qdZLcQd5VeTMUV+mWthl8cxM+qN0=;
+        b=B4LZlp8UHYy+iKgS6xc5Nb8rWaWGH5JpwwTHpSEFWxblwt1FQkiNWC3WiG8LM+amoG
+         jXbuyGXzcG75NV5QZxQ8xEmnT4Q7ZF3ErX3iKf0sXwjW9cm4hjHyD3HTlO6zYejuPxXs
+         VQNX0tt0af1gkhBMRb0gf8WozyM3ki7xC4W9HLZ0OuJwshJQz9/rPuwDlKHR1+/CVrMH
+         gdvxSLtMOArT00ZlRB6XNMpH2ZjWV5jvBmVEgTYrJ/obvwMLt7GgqCRvFtast20svktH
+         CYXHK+l4930a+xVxwk/6UymLMzetvh7xAprA/gZ4X2XiNlDgbn9xtgATAuJ12O9qcnyD
+         T8+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l3si2135818edn.275.2019.04.16.06.46.40
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id jp19si248245ejb.116.2019.04.16.06.46.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 06:46:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 16 Apr 2019 06:46:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkVcp113139
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:38 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwentmtj3-1
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkd9T178780
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:45 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2rwfpusewg-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:36 -0400
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:42 -0400
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Tue, 16 Apr 2019 14:45:50 +0100
+	Tue, 16 Apr 2019 14:45:56 +0100
 Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 16 Apr 2019 14:45:41 +0100
+	Tue, 16 Apr 2019 14:45:46 +0100
 Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDjdqX46661836
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDjiab16646206
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 13:45:39 GMT
+	Tue, 16 Apr 2019 13:45:44 GMT
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 4BA094C052;
-	Tue, 16 Apr 2019 13:45:39 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 5066E4C052;
+	Tue, 16 Apr 2019 13:45:44 +0000 (GMT)
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D1B344C046;
-	Tue, 16 Apr 2019 13:45:37 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id D71B34C062;
+	Tue, 16 Apr 2019 13:45:42 +0000 (GMT)
 Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
 	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 16 Apr 2019 13:45:37 +0000 (GMT)
+	Tue, 16 Apr 2019 13:45:42 +0000 (GMT)
 From: Laurent Dufour <ldufour@linux.ibm.com>
 To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
         kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
@@ -135,22 +135,22 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com,
         npiggin@gmail.com, paulmck@linux.vnet.ibm.com,
         Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org,
         x86@kernel.org
-Subject: [PATCH v12 05/31] mm: prepare for FAULT_FLAG_SPECULATIVE
-Date: Tue, 16 Apr 2019 15:44:56 +0200
+Subject: [PATCH v12 07/31] mm: make pte_unmap_same compatible with SPF
+Date: Tue, 16 Apr 2019 15:44:58 +0200
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
 References: <20190416134522.17540-1-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19041613-4275-0000-0000-00000328764E
+x-cbid: 19041613-0016-0000-0000-0000026F7268
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19041613-4276-0000-0000-00003837A74F
-Message-Id: <20190416134522.17540-6-ldufour@linux.ibm.com>
+x-cbparentid: 19041613-0017-0000-0000-000032CBBD7B
+Message-Id: <20190416134522.17540-8-ldufour@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1904160093
@@ -160,240 +160,130 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Peter Zijlstra <peterz@infradead.org>
+pte_unmap_same() is making the assumption that the page table are still
+around because the mmap_sem is held.
+This is no more the case when running a speculative page fault and
+additional check must be made to ensure that the final page table are still
+there.
 
-When speculating faults (without holding mmap_sem) we need to validate
-that the vma against which we loaded pages is still valid when we're
-ready to install the new PTE.
+This is now done by calling pte_spinlock() to check for the VMA's
+consistency while locking for the page tables.
 
-Therefore, replace the pte_offset_map_lock() calls that (re)take the
-PTL with pte_map_lock() which can fail in case we find the VMA changed
-since we started the fault.
+This is requiring passing a vm_fault structure to pte_unmap_same() which is
+containing all the needed parameters.
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+As pte_spinlock() may fail in the case of a speculative page fault, if the
+VMA has been touched in our back, pte_unmap_same() should now return 3
+cases :
+	1. pte are the same (0)
+	2. pte are different (VM_FAULT_PTNOTSAME)
+	3. a VMA's changes has been detected (VM_FAULT_RETRY)
 
-[Port to 4.12 kernel]
-[Remove the comment about the fault_env structure which has been
- implemented as the vm_fault structure in the kernel]
-[move pte_map_lock()'s definition upper in the file]
-[move the define of FAULT_FLAG_SPECULATIVE later in the series]
-[review error path in do_swap_page(), do_anonymous_page() and
- wp_page_copy()]
+The case 2 is handled by the introduction of a new VM_FAULT flag named
+VM_FAULT_PTNOTSAME which is then trapped in cow_user_page().
+If VM_FAULT_RETRY is returned, it is passed up to the callers to retry the
+page fault while holding the mmap_sem.
+
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 ---
- mm/memory.c | 87 +++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 58 insertions(+), 29 deletions(-)
+ include/linux/mm_types.h |  6 +++++-
+ mm/memory.c              | 37 +++++++++++++++++++++++++++----------
+ 2 files changed, 32 insertions(+), 11 deletions(-)
 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 8ec38b11b361..fd7d38ee2e33 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -652,6 +652,8 @@ typedef __bitwise unsigned int vm_fault_t;
+  * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
+  *				fsync() to complete (for synchronous page faults
+  *				in DAX)
++ * @VM_FAULT_PTNOTSAME		Page table entries have changed during a
++ *				speculative page fault handling.
+  * @VM_FAULT_HINDEX_MASK:	mask HINDEX value
+  *
+  */
+@@ -669,6 +671,7 @@ enum vm_fault_reason {
+ 	VM_FAULT_FALLBACK       = (__force vm_fault_t)0x000800,
+ 	VM_FAULT_DONE_COW       = (__force vm_fault_t)0x001000,
+ 	VM_FAULT_NEEDDSYNC      = (__force vm_fault_t)0x002000,
++	VM_FAULT_PTNOTSAME	= (__force vm_fault_t)0x004000,
+ 	VM_FAULT_HINDEX_MASK    = (__force vm_fault_t)0x0f0000,
+ };
+ 
+@@ -693,7 +696,8 @@ enum vm_fault_reason {
+ 	{ VM_FAULT_RETRY,               "RETRY" },	\
+ 	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
+ 	{ VM_FAULT_DONE_COW,            "DONE_COW" },	\
+-	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" }
++	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" },	\
++	{ VM_FAULT_PTNOTSAME,		"PTNOTSAME" }
+ 
+ struct vm_special_mapping {
+ 	const char *name;	/* The name, e.g. "[vdso]". */
 diff --git a/mm/memory.c b/mm/memory.c
-index c6ddadd9d2b7..fc3698d13cb5 100644
+index 221ccdf34991..d5bebca47d98 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2073,6 +2073,13 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- }
- EXPORT_SYMBOL_GPL(apply_to_page_range);
- 
-+static inline bool pte_map_lock(struct vm_fault *vmf)
-+{
-+	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
-+				       vmf->address, &vmf->ptl);
-+	return true;
-+}
-+
- /*
-  * handle_pte_fault chooses page fault handler according to an entry which was
-  * read non-atomically.  Before making any commitment, on those architectures
-@@ -2261,25 +2268,26 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 	int page_copied = 0;
- 	struct mem_cgroup *memcg;
- 	struct mmu_notifier_range range;
-+	int ret = VM_FAULT_OOM;
- 
- 	if (unlikely(anon_vma_prepare(vma)))
--		goto oom;
-+		goto out;
- 
- 	if (is_zero_pfn(pte_pfn(vmf->orig_pte))) {
- 		new_page = alloc_zeroed_user_highpage_movable(vma,
- 							      vmf->address);
- 		if (!new_page)
--			goto oom;
-+			goto out;
- 	} else {
- 		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
- 				vmf->address);
- 		if (!new_page)
--			goto oom;
-+			goto out;
- 		cow_user_page(new_page, old_page, vmf->address, vma);
- 	}
- 
- 	if (mem_cgroup_try_charge_delay(new_page, mm, GFP_KERNEL, &memcg, false))
--		goto oom_free_new;
-+		goto out_free_new;
- 
- 	__SetPageUptodate(new_page);
- 
-@@ -2291,7 +2299,10 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 	/*
- 	 * Re-check the pte - we dropped the lock
- 	 */
--	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
-+	if (!pte_map_lock(vmf)) {
-+		ret = VM_FAULT_RETRY;
-+		goto out_uncharge;
-+	}
- 	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
- 		if (old_page) {
- 			if (!PageAnon(old_page)) {
-@@ -2378,12 +2389,14 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 		put_page(old_page);
- 	}
- 	return page_copied ? VM_FAULT_WRITE : 0;
--oom_free_new:
-+out_uncharge:
-+	mem_cgroup_cancel_charge(new_page, memcg, false);
-+out_free_new:
- 	put_page(new_page);
--oom:
-+out:
- 	if (old_page)
- 		put_page(old_page);
--	return VM_FAULT_OOM;
-+	return ret;
- }
- 
- /**
-@@ -2405,8 +2418,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- vm_fault_t finish_mkwrite_fault(struct vm_fault *vmf)
+@@ -2094,21 +2094,29 @@ static inline bool pte_map_lock(struct vm_fault *vmf)
+  * parts, do_swap_page must check under lock before unmapping the pte and
+  * proceeding (but do_wp_page is only called after already making such a check;
+  * and do_anonymous_page can safely check later on).
++ *
++ * pte_unmap_same() returns:
++ *	0			if the PTE are the same
++ *	VM_FAULT_PTNOTSAME	if the PTE are different
++ *	VM_FAULT_RETRY		if the VMA has changed in our back during
++ *				a speculative page fault handling.
+  */
+-static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+-				pte_t *page_table, pte_t orig_pte)
++static inline vm_fault_t pte_unmap_same(struct vm_fault *vmf)
  {
- 	WARN_ON_ONCE(!(vmf->vma->vm_flags & VM_SHARED));
--	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address,
--				       &vmf->ptl);
-+	if (!pte_map_lock(vmf))
-+		return VM_FAULT_RETRY;
- 	/*
- 	 * We might have raced with another page fault while we released the
- 	 * pte_offset_map_lock.
-@@ -2527,8 +2540,11 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
- 			get_page(vmf->page);
- 			pte_unmap_unlock(vmf->pte, vmf->ptl);
- 			lock_page(vmf->page);
--			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
--					vmf->address, &vmf->ptl);
-+			if (!pte_map_lock(vmf)) {
-+				unlock_page(vmf->page);
-+				put_page(vmf->page);
-+				return VM_FAULT_RETRY;
-+			}
- 			if (!pte_same(*vmf->pte, vmf->orig_pte)) {
- 				unlock_page(vmf->page);
- 				pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2744,11 +2760,15 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 
- 		if (!page) {
- 			/*
--			 * Back out if somebody else faulted in this pte
--			 * while we released the pte lock.
-+			 * Back out if the VMA has changed in our back during
-+			 * a speculative page fault or if somebody else
-+			 * faulted in this pte while we released the pte lock.
- 			 */
--			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
--					vmf->address, &vmf->ptl);
-+			if (!pte_map_lock(vmf)) {
-+				delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-+				ret = VM_FAULT_RETRY;
-+				goto out;
-+			}
- 			if (likely(pte_same(*vmf->pte, vmf->orig_pte)))
- 				ret = VM_FAULT_OOM;
- 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-@@ -2801,10 +2821,13 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 	}
- 
- 	/*
--	 * Back out if somebody else already faulted in this pte.
-+	 * Back out if the VMA has changed in our back during a speculative
-+	 * page fault or if somebody else already faulted in this pte.
- 	 */
--	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
--			&vmf->ptl);
-+	if (!pte_map_lock(vmf)) {
-+		ret = VM_FAULT_RETRY;
-+		goto out_cancel_cgroup;
-+	}
- 	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte)))
- 		goto out_nomap;
- 
-@@ -2882,8 +2905,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- out:
- 	return ret;
- out_nomap:
--	mem_cgroup_cancel_charge(page, memcg, false);
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-+out_cancel_cgroup:
-+	mem_cgroup_cancel_charge(page, memcg, false);
- out_page:
- 	unlock_page(page);
- out_release:
-@@ -2934,8 +2958,8 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 			!mm_forbids_zeropage(vma->vm_mm)) {
- 		entry = pte_mkspecial(pfn_pte(my_zero_pfn(vmf->address),
- 						vma->vm_page_prot));
--		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
--				vmf->address, &vmf->ptl);
-+		if (!pte_map_lock(vmf))
-+			return VM_FAULT_RETRY;
- 		if (!pte_none(*vmf->pte))
- 			goto unlock;
- 		ret = check_stable_address_space(vma->vm_mm);
-@@ -2971,14 +2995,16 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	if (vma->vm_flags & VM_WRITE)
- 		entry = pte_mkwrite(pte_mkdirty(entry));
- 
--	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
--			&vmf->ptl);
--	if (!pte_none(*vmf->pte))
-+	if (!pte_map_lock(vmf)) {
-+		ret = VM_FAULT_RETRY;
- 		goto release;
-+	}
-+	if (!pte_none(*vmf->pte))
-+		goto unlock_and_release;
- 
- 	ret = check_stable_address_space(vma->vm_mm);
- 	if (ret)
--		goto release;
-+		goto unlock_and_release;
- 
- 	/* Deliver the page fault to userland, check inside PT lock */
- 	if (userfaultfd_missing(vma)) {
-@@ -3000,10 +3026,12 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- unlock:
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
- 	return ret;
-+unlock_and_release:
-+	pte_unmap_unlock(vmf->pte, vmf->ptl);
- release:
- 	mem_cgroup_cancel_charge(page, memcg, false);
- 	put_page(page);
--	goto unlock;
-+	return ret;
- oom_free_page:
- 	put_page(page);
- oom:
-@@ -3118,8 +3146,9 @@ static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
- 	 * pte_none() under vmf->ptl protection when we return to
- 	 * alloc_set_pte().
- 	 */
--	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
--			&vmf->ptl);
-+	if (!pte_map_lock(vmf))
-+		return VM_FAULT_RETRY;
+-	int same = 1;
++	int ret = 0;
 +
- 	return 0;
+ #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
+ 	if (sizeof(pte_t) > sizeof(unsigned long)) {
+-		spinlock_t *ptl = pte_lockptr(mm, pmd);
+-		spin_lock(ptl);
+-		same = pte_same(*page_table, orig_pte);
+-		spin_unlock(ptl);
++		if (pte_spinlock(vmf)) {
++			if (!pte_same(*vmf->pte, vmf->orig_pte))
++				ret = VM_FAULT_PTNOTSAME;
++			spin_unlock(vmf->ptl);
++		} else
++			ret = VM_FAULT_RETRY;
+ 	}
+ #endif
+-	pte_unmap(page_table);
+-	return same;
++	pte_unmap(vmf->pte);
++	return ret;
  }
  
+ static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
+@@ -2714,8 +2722,17 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+ 	int exclusive = 0;
+ 	vm_fault_t ret = 0;
+ 
+-	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
++	ret = pte_unmap_same(vmf);
++	if (ret) {
++		/*
++		 * If pte != orig_pte, this means another thread did the
++		 * swap operation in our back.
++		 * So nothing else to do.
++		 */
++		if (ret == VM_FAULT_PTNOTSAME)
++			ret = 0;
+ 		goto out;
++	}
+ 
+ 	entry = pte_to_swp_entry(vmf->orig_pte);
+ 	if (unlikely(non_swap_entry(entry))) {
 -- 
 2.21.0
 
