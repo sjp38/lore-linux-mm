@@ -2,186 +2,218 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74AE9C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 14:30:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CF96C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 14:31:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34A8320693
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 14:30:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34A8320693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id EC08920821
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 14:31:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC08920821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D20286B02A4; Tue, 16 Apr 2019 10:30:23 -0400 (EDT)
+	id 8645C6B02A6; Tue, 16 Apr 2019 10:31:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CCF5F6B02A6; Tue, 16 Apr 2019 10:30:23 -0400 (EDT)
+	id 812916B02A8; Tue, 16 Apr 2019 10:31:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B97C96B02A7; Tue, 16 Apr 2019 10:30:23 -0400 (EDT)
+	id 702716B02A9; Tue, 16 Apr 2019 10:31:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F4B56B02A4
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 10:30:23 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id c64so14188661pfb.6
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 07:30:23 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A9026B02A6
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 10:31:46 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id x9so15709854ybj.7
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 07:31:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=8VNp8YsDiSPNj7tJbxX+JH3o+stEDUqAgKEN5HW9ZU8=;
-        b=X4JKicCOwz3iDh3rzxTYn2oAbDKDwa44jJpkvUZPUZADhfilbFUru0O6/2xg2XRA+w
-         SBiJ4gBHKxg2awEDQEEVmToG9fxFf62x/ep35IUDcnZoyejrybpWdYKaSVEmuQF6VBPy
-         w8fH3r25tuoa8d7Dg/EsKMq0AKu+76tNR9s9Ll3CtDoKoMDvA1CjAsOX+wmrz/bvbHqa
-         EVu/KtoBHWgRMNhLtPoL1M7Z1T2i1+bBmwCv4C0jTazLQ2cY/m5t3TcDAZeBumO2FD5V
-         ahfk3i0ao7KmPhHHaRE8MPNnJ3f3tECrkkZOrFRQCNsN+Lvb0pnMn8WWVsXikNa20JJf
-         kV+Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUQxlQ4VBSPdo+vy62BtThRKxKh+mbBMAmrJLGfXvsPxdyornq0
-	bAQbwCN4QZ94p6trxvxaDxMMEg6OxI4FV6bWbYZx9SWs8adW+1tWwV2dP0y6pR4jJjr/sEbVVEc
-	FlWlRlZMUyvGYl18hqBzn8MARlilz2QeCaDrhPHEHy0ey8pNvUAFdcWz50RqwlDYfaQ==
-X-Received: by 2002:a63:6e0e:: with SMTP id j14mr75850866pgc.203.1555425022964;
-        Tue, 16 Apr 2019 07:30:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxkNHEPt5LGU0DuLjx6fgemF4pU0ekaEM4BDRAudTstVEli2FOjJlt8klYKkN7NSdv+vgX
-X-Received: by 2002:a63:6e0e:: with SMTP id j14mr75850767pgc.203.1555425022073;
-        Tue, 16 Apr 2019 07:30:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555425022; cv=none;
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=u9A+Ec0h8JaWP7cKtSbHVFDbY3vwvh4jzXpWikOupHg=;
+        b=o4fD9pgCsDfgACExHK37J4OdiY8ZePS/PPu+XsS6M4q/0qHm6LcV0cOmXgQg4x736f
+         /QZuJIU4ipKKvIf6Z3yAasC3EzoHjiDd16I7XeXZbinTh7j5ROZEie6c6E8Mo7Iej/DG
+         6C/XZ86uy9d9LsbxBBIeGtNfLbhwa5D3uzNVOYPYBl1I9hr/FkaycTi9+xENm+ZNmsFN
+         IvdWBDWX1WGqi9daR05ve6zGImoYF980gmQFnkJPAOb881Qmk3wucdJrt8zXgrkj/lvd
+         rWVBw9nKH9uhFOi0unBzu+4piNCLVn/ngou1qKsJTTOsjYQoE07NkcNcRwdruxysLj1b
+         fyWQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXOxdN7/TzrzxSkmH1LA8gtZ3+EQF7rpMPzmlvCxsGNyuIaJSp0
+	lhFCr98SxLJEP1KjIq8DD3TwlyfrAMC5huQ1TgDZ8aaZUDvz8yJVubD+FnLuZHAAfQTwd3NxeF4
+	cmJE/HZOU5eZRO+9KfRineWtVmopBb+NKflVgbsoHYo67TrGUjkKaBZA4eCOdCMSK1Q==
+X-Received: by 2002:a0d:d58d:: with SMTP id x135mr66193079ywd.396.1555425106038;
+        Tue, 16 Apr 2019 07:31:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw16uTBwBf9KlODrGGdUMDKNt3rykKjDkN4paAQjYUZgtkFktrSw5tkvslUJUV+LLywD1cK
+X-Received: by 2002:a0d:d58d:: with SMTP id x135mr66193019ywd.396.1555425105273;
+        Tue, 16 Apr 2019 07:31:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555425105; cv=none;
         d=google.com; s=arc-20160816;
-        b=bAuEVID38m5aU1mdNGKCUdU+dSgdVS2klvRX3qiMaWESVGvos1+PfQXHjZ3APQiJFi
-         22WLVDmZ6Qmhhc0TPvSe31sJSlDOqu5f9Pn1rV2PKuFwjHFsHHInOj3Mg044CgQ9KSmU
-         Cckb8WTIn3BH/h7tSy5kNAYXSFIT/ZRWJMVyAnY4ThGeE/gKQQX0SwZ9izGuABQX9AfK
-         WUVbiNU4a04u38yZov4sJk3gUyle6BHmpR5xxwwscnF183AffXGomcAqpE1YYcEAqc4+
-         H3NnxD0a03ygHVdXle+lTnJuYovBMZR0XI3HfeeNqZq00VH7ojHNgDBkRv9LvDyplUFq
-         Ogxw==
+        b=OlRwtNW/103XqVeVEXBXW0dszTUC+vK0U9p8rV8vcqM8m/J91vubv7t2EBJjdwBhZ6
+         B1zQ4IpYVnd6yvLOiqa6SL/wAaWC00SiogNlOVf9NKdslV/ovMTFG64hvrYB4f6puJ8g
+         mMFAg/7/nDU1FMuAU4oIY0JER2OpTfwy8YPHtAUJpUXMkaup1msAvOEpZopRHlJlzlna
+         PY3dSUoF5GmHZIEzDfhZsNArCJ7CGi042jhEAssvlxsas1Vtv0nB9ImDwxcu+o/0d45m
+         qiZP4oRJHigJXa4xDqrAJz/8fqNIj/xhnbLfUKl5nUsK73uEwHVNVaW3roEtjVYBnReB
+         gZdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=8VNp8YsDiSPNj7tJbxX+JH3o+stEDUqAgKEN5HW9ZU8=;
-        b=fnTc1++fPUGdgO5CwmBL7jIDZobxKXrNFQbZ/KIIAKIS8w4yinkM3xSZ+IebcoEuEV
-         AjOr3er8ffeptwIi6xsaz+oGNRvX7qCE9cHmS6PnXoo9bq5hwZZvSr+3MEFQSSiqlI4y
-         581o/wpjxsuaHh/1MrT3cnI6tlGgCAim/LwLrNZzdlqmR2/BUhMFhE7sQb10ytWGFFRA
-         CZ/9YKQWFfao0P2FAf6N+5OJQ+vvwb8dzeSCXK9ok0hSp7sfXRs6uYvnP/lYi/DIDrqg
-         +oZWGqq69Scgob7P1tWDZSolpIbBffZYAOI+A50Ir3xSLL0O0Rfp3q++mn/+i/cq2RdP
-         lDbg==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=u9A+Ec0h8JaWP7cKtSbHVFDbY3vwvh4jzXpWikOupHg=;
+        b=LROy9dWqbJu6RngwSDWYnNkRGrJDk4dTJ5fVgHOtHn384MVIjfeuYEwJXVQQfEMGzN
+         XuD29iAvt+4goD7fz7EMxq5jLts/NxHGwFuSylWfx96u07oesH4ozLJPEWywDQFmIN0z
+         FccQsFTB4bTsA9G02vbthj2XpMDN8s1kgKOcuyUmkfCSFoR77/fHydum5LvMo5wEPDY2
+         f1rafCEdUve3JMks8XprFXVbMk8OSlc+fkn/ydMeG9x/OzgOBzXqEjHarQvnGi8gVuMC
+         H1Y10398cMPnbJ6bMwWLxa707RI1YzO2xealnJpgXXjESItWN20V/ZcvsYUtiWYKM7Sy
+         JtMw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id i63si47509996pge.151.2019.04.16.07.30.21
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y184si36285359yba.312.2019.04.16.07.31.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 07:30:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Tue, 16 Apr 2019 07:31:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 16 Apr 2019 07:30:21 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,358,1549958400"; 
-   d="scan'208";a="131861703"
-Received: from jssmit2-mobl3.amr.corp.intel.com (HELO [10.254.83.57]) ([10.254.83.57])
-  by orsmga007.jf.intel.com with ESMTP; 16 Apr 2019 07:30:21 -0700
-Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
-To: Michal Hocko <mhocko@kernel.org>, Yang Shi <yang.shi@linux.alibaba.com>
-Cc: mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
- akpm@linux-foundation.org, keith.busch@intel.com, dan.j.williams@intel.com,
- fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
- ziy@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190412084702.GD13373@dhcp22.suse.cz>
- <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
- <20190416074714.GD11561@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <b9b40585-cb59-3d42-bcf8-e59bff77c663@intel.com>
-Date: Tue, 16 Apr 2019 07:30:20 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GEQpWn129714
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 10:31:45 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2rwfbaw45t-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 10:31:44 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
+	Tue, 16 Apr 2019 15:31:41 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 16 Apr 2019 15:31:32 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GEVU7X61407244
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 16 Apr 2019 14:31:30 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 72875A4062;
+	Tue, 16 Apr 2019 14:31:30 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CF977A405B;
+	Tue, 16 Apr 2019 14:31:27 +0000 (GMT)
+Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue, 16 Apr 2019 14:31:27 +0000 (GMT)
+Subject: Re: [PATCH v12 04/31] arm64/mm: define
+ ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
+        kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
+        jack@suse.cz, Matthew Wilcox <willy@infradead.org>,
+        aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
+        mpe@ellerman.id.au, paulus@samba.org,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        hpa@zytor.com, Will Deacon <will.deacon@arm.com>,
+        Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+        sergey.senozhatsky.work@gmail.com,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com,
+        Daniel Jordan <daniel.m.jordan@oracle.com>,
+        David Rientjes <rientjes@google.com>,
+        Jerome Glisse <jglisse@redhat.com>,
+        Ganesh Mahendran <opensource.ganesh@gmail.com>,
+        Minchan Kim <minchan@kernel.org>,
+        Punit Agrawal <punitagrawal@gmail.com>,
+        vinayak menon <vinayakm.list@gmail.com>,
+        Yang Shi <yang.shi@linux.alibaba.com>,
+        zhong jiang <zhongjiang@huawei.com>,
+        Haiyan Song <haiyanx.song@intel.com>,
+        Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
+        Michel Lespinasse <walken@google.com>,
+        Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
+        paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
+        linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+References: <20190416134522.17540-1-ldufour@linux.ibm.com>
+ <20190416134522.17540-5-ldufour@linux.ibm.com>
+ <20190416142710.GA54515@lakrids.cambridge.arm.com>
+From: Laurent Dufour <ldufour@linux.ibm.com>
+Date: Tue, 16 Apr 2019 16:31:27 +0200
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190416074714.GD11561@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190416142710.GA54515@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19041614-0008-0000-0000-000002DA7437
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19041614-0009-0000-0000-00002246AD08
+Message-Id: <4ef9ff4b-2230-0644-2254-c1de22d41e6c@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904160097
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/16/19 12:47 AM, Michal Hocko wrote:
-> You definitely have to follow policy. You cannot demote to a node which
-> is outside of the cpuset/mempolicy because you are breaking contract
-> expected by the userspace. That implies doing a rmap walk.
+Le 16/04/2019 à 16:27, Mark Rutland a écrit :
+> On Tue, Apr 16, 2019 at 03:44:55PM +0200, Laurent Dufour wrote:
+>> From: Mahendran Ganesh <opensource.ganesh@gmail.com>
+>>
+>> Set ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT for arm64. This
+>> enables Speculative Page Fault handler.
+>>
+>> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+> 
+> This is missing your S-o-B.
 
-What *is* the contract with userspace, anyway? :)
+You're right, I missed that...
 
-Obviously, the preferred policy doesn't have any strict contract.
+> 
+> The first patch noted that the ARCH_SUPPORTS_* option was there because
+> the arch code had to make an explicit call to try to handle the fault
+> speculatively, but that isn't addeed until patch 30.
+> 
+> Why is this separate from that code?
 
-The strict binding has a bit more of a contract, but it doesn't prevent
-swapping.  Strict binding also doesn't keep another app from moving the
-memory.
+Andrew was recommended this a long time ago for bisection purpose. This 
+allows to build the code with CONFIG_SPECULATIVE_PAGE_FAULT before the 
+code that trigger the spf handler is added to the per architecture's code.
 
-We have a reasonable argument that demotion is better than swapping.
-So, we could say that even if a VMA has a strict NUMA policy, demoting
-pages mapped there pages still beats swapping them or tossing the page
-cache.  It's doing them a favor to demote them.
+Thanks,
+Laurent.
 
-Or, maybe we just need a swap hybrid where demotion moves the page but
-keeps it unmapped and in the swap cache.  That way an access gets a
-fault and we can promote the page back to where it should be.  That
-would be faster than I/O-based swap for sure.
-
-Anyway, I agree that the kernel probably shouldn't be moving pages
-around willy-nilly with no consideration for memory policies, but users
-might give us some wiggle room too.
+> Thanks,
+> Mark.
+> 
+>> ---
+>>   arch/arm64/Kconfig | 1 +
+>>   1 file changed, 1 insertion(+)
+>>
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index 870ef86a64ed..8e86934d598b 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -174,6 +174,7 @@ config ARM64
+>>   	select SWIOTLB
+>>   	select SYSCTL_EXCEPTION_TRACE
+>>   	select THREAD_INFO_IN_TASK
+>> +	select ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+>>   	help
+>>   	  ARM 64-bit (AArch64) Linux support.
+>>   
+>> -- 
+>> 2.21.0
+>>
+> 
 
