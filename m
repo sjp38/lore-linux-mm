@@ -5,158 +5,99 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E8E95C282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:36:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08C96C282DA
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 09:52:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A45572073F
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 08:36:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A45572073F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id A943D20693
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 09:52:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A943D20693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CDCF6B0003; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
+	id 120276B0003; Tue, 16 Apr 2019 05:52:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 353AA6B0006; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
+	id 0D04B6B0006; Tue, 16 Apr 2019 05:52:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CF176B0007; Tue, 16 Apr 2019 04:36:54 -0400 (EDT)
+	id F00806B0007; Tue, 16 Apr 2019 05:52:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0F16B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 04:36:53 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h10so2471784edn.22
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 01:36:53 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2B116B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 05:52:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id o8so9897689edh.12
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 02:52:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=RAl7C5fGXE9bMhCbgn/Dt/KvCaiJjuTzK1qxDQIJICo=;
-        b=JFxNwaW0EGVaL+jH+UeTd8O81110NNMKgbVLeNvj1SwIYeHp/PbFlNuj1apYVA0uV9
-         g/XtG4j2EYXt8UrxhejegC6XM7oV3ioyFwc6mLUzNTpbq0dssCnZXBUWzFh+7OpDv0d+
-         Xt0+wTX9vJeRjYXj4T6vYCmMLDLK3QAXfdnJdsGV+CmppsPE+D/F75NPyf9bQcLndKOo
-         2IqAcitRo2YwDJvyQedO6Xa5pGhCHXn+QkZLKifqzFx0NksdR/5/m34//WkYQeu06BqP
-         lsjRb5wmCjxpoGg+pvkWtqh0mknJquEutfY9mGY5vf12enDUQQJSiincJPAzdFiflCYq
-         3qzg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWfbc1d1iFTGfDdFFnWKUt3edtHmQFEC+vlqD9ajSoAKBtRGbjL
-	MrZHbb9TVMtog/ohoAfZdYuuQje7w2veZ5+/YuxOUuuK+kz4sf84TDuK/99/vsXKdpY90Wj9g+5
-	0QdCxzE94NC1/kDwjVNNM+dTyr46a3fTB4MX5bk1SNQsP83XUkEy0smqP9LlIITPTww==
-X-Received: by 2002:a50:9ee8:: with SMTP id a95mr50729728edf.142.1555403813326;
-        Tue, 16 Apr 2019 01:36:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhJIRiD+ZQko0nW+Mf5B84NOpNH/E4CiI7Ib2bK5Nx7ot3wSB2+5cyTqDWD0L4KYUuohq+
-X-Received: by 2002:a50:9ee8:: with SMTP id a95mr50729693edf.142.1555403812716;
-        Tue, 16 Apr 2019 01:36:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555403812; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=g8kViWFSq5Y/vSV8L39pAVnVoiuAhp+dDTmn/QmEpgw=;
+        b=B4UWtNxF4YzvVkOwv9bpEu0Qo8csE6HBTGe3N1A8mDpbJNLZ5R6OWikSbd/JQgbo90
+         WXBCYln/awgE9ykhDUN0DdubZiaUpnMKAAtpXYbWK3di+DlZJj8B1baUteqrEnYfM4yR
+         BD0J1I7u63Zo0I6k9VRe93/TQyEOm1fKrUHWk1kX7rAfYzMp+NSFQKKnWP10NExAXlMm
+         J4F1Kbf81Q9oUwiJ2N22I2wi3E+tjxezI+CFBCGhG1QG52HB+F9G0hGqSUznNjwZ3RsX
+         K/unSoSXIwUNhLuLDdzLti8uJoj+jMAcQ5UwwyESgTgb7yGHQZye3wKz+wDDF/344v/P
+         UOpw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVbnjSuByNd1t+T0GT3cw/QrCkrOxbVDzo6wgIkF0WAgE2KNTWE
+	zFmos2bGubiMsHL1ULQLfH92s+SsIrSIE3642qcTRcIc9CJSuvhTFHyeC+6eaCydISRPAmeJ0t6
+	BBe8XHxyPZHJMskIadFUeo7oYVvVHhMw9byc6gcnqjvH4wMPJU8VEINJX61wWn27ACQ==
+X-Received: by 2002:a50:978e:: with SMTP id e14mr15501252edb.91.1555408358109;
+        Tue, 16 Apr 2019 02:52:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0L4IAOyLbi1U6e4z+99kFvHcLQRod/yPrTsHP6u703KX1atcpadro7zSkVwOeFvlIUV95
+X-Received: by 2002:a50:978e:: with SMTP id e14mr15501197edb.91.1555408356994;
+        Tue, 16 Apr 2019 02:52:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555408356; cv=none;
         d=google.com; s=arc-20160816;
-        b=C/+5w0t0y/5G9Q7wknixZv/tAm302kW5uLknpxLU3Ja/+DCMFHsZJa0PZ93/mPf7EU
-         HdaZ9gsFquM+DYEh4h11zchNGCUyaANMIlQdQxsdtZxeVMt1QqN2xatR5C6OKTeBgZNJ
-         Kd54cdwqvbobDjUXB7iPhcchgJRr2FRLdH2c+W02iBszLedER+mbFBQY7qvYEhVhGUeh
-         2UxdNZLdwR4yGnOm/VVhK/0te7aQpMXRIPmVtqvur+vAZS/72KAu/m4qr2Cls4A9ddDZ
-         ctdvHREX+b/RL+ZQtAgy8BWhsiuGbv58pwoq/7Qe379k7U5zzwju9OTvREfRI3kDxRG4
-         3Otg==
+        b=GrnSwpVMbCNIDtYI2ta/M8GCiCGNbMj/XUxaoaR0SZvdiZUI/VeenDrN648BnMPyQW
+         fLXxWSri1qvX69qDxgMXoreaW5iEsae/iv667gf+yuuhORyf5c6ymrirgMojqPrTAMka
+         hHPSvShhIiorLbgKDWcmJWKKSj8vGSwysE5zVqebv82gDyrifE1SA04LsrIU8+NFXOwa
+         h2LEjfthwpysn8+4t1nJtjyl76cBq83t1Q14szkCESPi2P/rxrtLNYLhAm37Dr4fus9O
+         a1bx/cMu/bmSdla/05lbjzuonqqJr7vOmCPGOckBu+zm97AoBldqa8VaiOALI7D80XHT
+         VkjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=RAl7C5fGXE9bMhCbgn/Dt/KvCaiJjuTzK1qxDQIJICo=;
-        b=nbWhwxyMTR1TJzjTY1zx2uQlswT/Ll0i/n/wZgkuDjrpzO/QJ6nPeOi+9rkpzRYq3j
-         vsx9mqx+VbUpcW4wCYAaKc2Z9zEtwngPNm2P0tVPIZkx5G/IrJfC3xOQHaHSXlgB9vf3
-         UcuzxoM4IikW0plUIDTZyoxiTyZnfaJMjTFxStCjWqyVEDF3qjEesA9voa/2bY4IDMiY
-         g5kJw16ycTHwgEg8tWs59n+TBtfPEv4RO4TESWahqISF6FAwHad0uXD/ne4cFKsJPguR
-         QZiln45Gz0T378zJSQfP9j2gNmIS9WbfO39M8Wznacl6hJtOOq2B7/PkdhA33BNXLb+I
-         r3Ug==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=g8kViWFSq5Y/vSV8L39pAVnVoiuAhp+dDTmn/QmEpgw=;
+        b=rszxM+1+dQ0eiy+uHc+Eu6TBedAkVM86rlItoQylJ6ufu5opR0+R3CbKy7NEBD8dSS
+         LOqmNwuMpiK9c2C4ji6ZWzAKockRlqzX2rC/DdT2th9rWFmruytZLtUAiLqRNc5GScIf
+         VQxc8BJZsSdg2LoK6u8KycCbfjg0RqT5W4xE60ARigU8OmmVJFhz4GnI634skqv5snza
+         GAy3nrQYnf6nsFOtDJMT7wGh6m++maa4BEFYjueaNi1V23bpxyD0Wo1MBRr9eMwAd56d
+         k9R7Vh5g06kyTa1NQru4atOJ4uyXc3h574q1+FptwoDRwdsUFPIJHET2wemHjRgMDCrC
+         pshg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d33si678943edc.66.2019.04.16.01.36.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 01:36:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z3si9958031edp.192.2019.04.16.02.52.36
+        for <linux-mm@kvack.org>;
+        Tue, 16 Apr 2019 02:52:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0A042ADAA;
-	Tue, 16 Apr 2019 08:36:52 +0000 (UTC)
-Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
-To: Andrew Morton <akpm@linux-foundation.org>,
- Alexander Potapenko <glider@google.com>
-Cc: linux-security-module@vger.kernel.org, linux-mm@kvack.org,
- ndesaulniers@google.com, kcc@google.com, dvyukov@google.com,
- keescook@chromium.org, sspatil@android.com, labbott@redhat.com,
- kernel-hardening@lists.openwall.com
-References: <20190412124501.132678-1-glider@google.com>
- <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <f4071ce4-3744-35c9-df22-cb0a9d8db8ba@suse.cz>
-Date: Tue, 16 Apr 2019 10:33:32 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DEEE380D;
+	Tue, 16 Apr 2019 02:52:35 -0700 (PDT)
+Received: from [10.162.42.238] (p8cg001049571a15.blr.arm.com [10.162.42.238])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BA29A3F68F;
+	Tue, 16 Apr 2019 02:52:29 -0700 (PDT)
+Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
+To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+ akpm@linux-foundation.org, will.deacon@arm.com, catalin.marinas@arm.com
+Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
+ mark.rutland@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
+ cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
+References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+ <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
+ <614fe7d2-cc5d-61a2-6894-026e30498269@redhat.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <eeff6d30-f6c9-733b-5a27-76d2a80c649d@arm.com>
+Date: Tue, 16 Apr 2019 15:22:28 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190415190213.5831bbc17e5073690713b001@linux-foundation.org>
+In-Reply-To: <614fe7d2-cc5d-61a2-6894-026e30498269@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -166,14 +107,37 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/16/19 4:02 AM, Andrew Morton wrote:
-> Requiring a kernel rebuild is rather user-hostile.  A boot option
-> (early_param()) would be much more useful and I expect that the loss in
-> coverage would be small and acceptable?  Could possibly use the
-> static_branch infrastructure.
 
-Agreed. There could be a config option to make it default on if no param
-given. Then a config option to (not) compile this in at all would be
-probably superfluous, although small systems/architectures without
-effective static keys might care.
+
+On 04/15/2019 07:25 PM, David Hildenbrand wrote:
+>> +
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +int arch_remove_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap)
+>> +{
+>> +	unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +	unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +	struct zone *zone = page_zone(pfn_to_page(start_pfn));
+>> +	int ret;
+>> +
+>> +	ret = __remove_pages(zone, start_pfn, nr_pages, altmap);
+>> +	if (!ret)
+> Please note that I posted patches that remove all error handling
+> from arch_remove_memory and __remove_pages(). They are already in next/master
+> 
+> So this gets a lot simpler and more predictable.
+> 
+> 
+> Author: David Hildenbrand <david@redhat.com>
+> Date:   Wed Apr 10 11:02:27 2019 +1000
+> 
+>     mm/memory_hotplug: make __remove_pages() and arch_remove_memory() never fail
+>     
+>     All callers of arch_remove_memory() ignore errors.  And we should really
+>     try to remove any errors from the memory removal path.  No more errors are
+>     reported from __remove_pages().  BUG() in s390x code in case
+>     arch_remove_memory() is triggered.  We may implement that properly later.
+>     WARN in case powerpc code failed to remove the section mapping, which is
+>     better than ignoring the error completely right now
+
+Sure will follow suit next time around.
 
