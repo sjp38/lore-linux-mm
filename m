@@ -2,187 +2,129 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EA67C10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA740C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9ACF20880
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="pEiXT8K3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9ACF20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
+	by mail.kernel.org (Postfix) with ESMTP id 8B87620449
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B87620449
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6EC226B0269; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
+	id 405046B026B; Tue, 16 Apr 2019 14:35:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69CBA6B026B; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
+	id 3B4C96B026D; Tue, 16 Apr 2019 14:35:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5644A6B026D; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
+	id 2A45C6B026E; Tue, 16 Apr 2019 14:35:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 067AF6B0269
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id f15so19841151wrq.0
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:35:19 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D47DC6B026B
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:35:50 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id t9so19778570wrs.16
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:35:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:subject:to:references:cc
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding;
-        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
-        b=DzJp0xV64RSSIP07D9P50Q5ds0ZGofXJg7tDWglztBjWjCTdrOzxxq6m/UYwJlC1OJ
-         xH2wTrSD+sUil7VsmPcOoB+bgatdFw9tkrKyIqLFogOmgbQABr97b1eVl0xNMChxc99U
-         3K1n0C7B7khONzCnfrbViiyfhSA2ngn/rb5UAc2NjJq48iqqlzjS3tYPG9/YWy97R5ey
-         aswVw2PDGuI/hW1gKnIAfrU91bcAFdNQlVgSVYSxARhWXjfRmvtDCpqwJi06mYgN2W+8
-         kiRYburGTlDD1gsi7nFiQ0f4twINiCw9WqYni1ZHBkfILfHUgu2YOk3xf2YZ/hCHeZ44
-         E2wQ==
-X-Gm-Message-State: APjAAAVnO9/zy5IReL5Yl3OvEgPWFRo8vfK+DWYO8zIABcYd2yCCE4Fk
-	aNQ7eo0Y+/gg9z5p2GtHF9JPMwgOMjCVXssDss9M5dIBj85GHROynVSzWgHJvM/g4HOWMldqMLL
-	iBRy2ta5FRxtDWfz7JpXz/BoEvRge81OQbsbkw/xz1PUHlVRKYOb/T/RiSZeMdKqXMw==
-X-Received: by 2002:adf:efc1:: with SMTP id i1mr52950371wrp.199.1555439719594;
-        Tue, 16 Apr 2019 11:35:19 -0700 (PDT)
-X-Received: by 2002:adf:efc1:: with SMTP id i1mr52950335wrp.199.1555439718875;
-        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555439718; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=WQe8M43LEf3D6dp9Ny7bhpUVRfoW7k8zR+S9BDyhw7s=;
+        b=rfY+i+cclLzOx4zKU26Dang6VxYOUqUJQAqSt9RLY8+mD5P5FFVJ7Wkj0y0MAm+rIz
+         6u1LZ0Y8OQMWrN4g2mbeihbq/x7pgbfUZAcpH98UtfSnh0I0JELvBGn4J7Fdp8Ok/Ofq
+         vE+yfPJfdeEi+1VUjeBtOQAjzBTfVP9SkQJ6R4rKN62VHLgxeApzSPVkRdEppxIFG5XW
+         RzV7PSrqKoN9o0e5Ztye6/E78GCpbe748EglT0REgAzBd8k1g1ZfrTnkkz7i5DYj+BN7
+         yb07tKMZ0xNH0KfV0g/AFS3CAgi2i2BI8S/2KfLH2SEbz4VYmzHNmm/AKBYsD3g2+DlL
+         2KIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAW4OVDgg7kYvEInkp72fjC5iPy+E30EVdQxVl3rF1v2VSiOrbXL
+	v/uM0fCLi0P5RZeCf+zn7j543WqKznKIihlEsjkb4R4OJvAPRHoqEANNR2liMvdlZK7wp14WyyG
+	3Ea0DEw+R1shM2U5xdf730WIS7beHk2P5YOJxEQvOM7wI6Txo1K2FMg5U37vVsmqGJg==
+X-Received: by 2002:adf:ee07:: with SMTP id y7mr14730798wrn.219.1555439750477;
+        Tue, 16 Apr 2019 11:35:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDeKFTUK4cCU7ZmccFHyFPbSxyjo3etCACsocPwFp8TAqxxnZ/ceq7fGpZTSkNxhB3QeCV
+X-Received: by 2002:adf:ee07:: with SMTP id y7mr14730759wrn.219.1555439749838;
+        Tue, 16 Apr 2019 11:35:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555439749; cv=none;
         d=google.com; s=arc-20160816;
-        b=SfFyy79h92ljx9OGXv+0skAlRIRa1nFe2ZmUjNnsd31jeI20NRbBxW3X9MrWmBO6CZ
-         uJWrBGjkdE/0jnKlvxRappTAJZszoul0hDiC6BVN7z0RMp4SYcM3n+KgZNZ2rwWdeZax
-         8H9GPITh5/oj6fLymSb5m4eECUyJTDz14SzIiDOG+YZ9tRqW2E2abmiBtSoaMYySLrtx
-         VnosimYE6dDgSBTF2T43kbkwKyvzqzrucYd5yNKSST6lSXSNKgyBXWXB+QJsIs7hPDGa
-         6J3EIgw6ajIyth36vy5+6pDmewejryBf9JO5vws9W9RShLf1pr20oUWJ1aiRsPAFCegy
-         l62w==
+        b=FLbpHNnNktKDXcG1bxDoFEICuotErbvPyMQsp7VFLR1EuC70MvsAaCsxpWM3oU1F03
+         7DXS2MYi5pv1cLndkRcA4H9p2JHF96dZnpgXmq/+bHsTRkOYJ05JKM46cNp9X0RRimFz
+         bhjwJ/BlHohdhpS693B7aBpWcbo0V99PdjnhS5sQJF4BV9kSGkcC1TWK2HUouAAsRSzi
+         9r6+kl/JWm5g8hqUrg6xJ/ImNSwqCTZ4j03qbmIstIz0f6ZLmc4KQ3v361t98uj6t8Ar
+         Wwd56xvN86mgZyf8FLquZ0KNVduYmaobocqe6rvQ9yr3Sdf4Ia2HkWvHFzClAgMs7cmR
+         0QqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:cc:references:to:subject:from:dkim-signature;
-        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
-        b=mtxILaiAockFvVPtbecU99NbFecKF+04Wy6bNfRrtbslW2CN68+r0M+c7j93G7TSEL
-         aknQZVTLCKXb4zoTY6AA5v1vxzpaWG0QylS+S4gCKMR6PVmvVUE0qRNNH14WMYJ2MbCB
-         /8fslRpoljJrs4uBMGZnQAae6eZ988Ia7qHZ3+VrvNPe5JZVack9228x9pzMjzIvqefd
-         NgWpJOv4HdywP4+fOGTLlV0Aiy8ALPK9zeui1Mk6e5yaK5QKauT55HRBZ5le4q+zLUUP
-         gn2mR1Ac9zhlLvtXPlg/aV3MJNh0ldIB/7aJd/nw2tYDgzqUAXwCB9Qoc0Ps1FNA6fcp
-         hcbg==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=WQe8M43LEf3D6dp9Ny7bhpUVRfoW7k8zR+S9BDyhw7s=;
+        b=Z5sDj96DBRcuiPmYDAIdNaSt7ITCrb8C+LAKa9XTu+xujplLaFq5G0w7jtl4Khmfrb
+         NUdYo+GDpaWTwSvt+YejRcLBvddAHqolA1g22oSdcQI3ZeqVMJr6I9geHMMoX7SgKPbI
+         zTRf9eHXnb9A7VPsG1fJfWQUsYMll5IzzCwPoyMsZiyaoC0ftGnG8oQUXU6v8abz0eE/
+         Q6zEJVHSt8ViEXEzroBGiaXOBgOsm2dFfvQMbhS5sXpo01qsr31gsONqWhOGb0wf1lId
+         310J8U1mnfeqMq2Zk/kvbHN6rM44pP0yS6kMBV8Bv0AGNVDh3go+EKmpkBE5npi5Emp8
+         nhTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=pEiXT8K3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h187sor151720wmf.6.2019.04.16.11.35.18
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id z75si117111wmc.151.2019.04.16.11.35.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Apr 2019 11:35:49 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=pEiXT8K3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
-        h=from:subject:to:references:cc:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding;
-        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
-        b=pEiXT8K3FkXb708qyAnd50wNFcy2vun2MP+TowzcADOfGsdzaDkZm+Z2W3YYiiyPBx
-         /i0cqaD5GKrDE3+fT07IThNc2+oq7fzIhXpNNdGF3utypwg0l23VOeTeSDdJVgGR/IGU
-         f6cPyrWAO8utqa9FivqFwd/7ZEgOx0IVbnArHlXAjaxyXbHNGYh7VxyELg3BRGOpfywO
-         fAvv2akX88AHkqLijjx5GMp59TSk8BRbl0tpq29nLGCdvd4dnxlEbs9lgDzNct5UiEMH
-         JF47xRidohMvpl2d1nE6CYxbhKK4OA4j3JU1w6qgJ5U+TDCaPBmgi0m6oKaNv05XLTSK
-         1HYQ==
-X-Google-Smtp-Source: APXvYqzElk8Bwv9PNk1zXzEbAVnyrCQluryqDkFg71tdlsIqJy7aqVfhGldpLqEFzWF5iB8YabHIug==
-X-Received: by 2002:a7b:cb16:: with SMTP id u22mr27831487wmj.60.1555439718379;
-        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
-Received: from [10.0.0.5] (bzq-84-110-213-170.static-ip.bezeqint.net. [84.110.213.170])
-        by smtp.googlemail.com with ESMTPSA id u189sm453146wme.25.2019.04.16.11.35.14
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 11:35:17 -0700 (PDT)
-From: Boaz Harrosh <boaz@plexistor.com>
-Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
-To: jglisse@redhat.com
-References: <20190411210834.4105-1-jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-block@vger.kernel.org, linux-mm@kvack.org,
- John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
- Dan Williams <dan.j.williams@intel.com>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
- Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
- Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>,
- Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
- samba-technical@lists.samba.org, Yan Zheng <zyan@redhat.com>,
- Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>,
- Alex Elder <elder@kernel.org>, ceph-devel@vger.kernel.org,
- Eric Van Hensbergen <ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net>,
- Mike Marshall <hubcap@omnibond.com>, Martin Brandenburg
- <martin@omnibond.com>, devel@lists.orangefs.org,
- Dominique Martinet <asmadeus@codewreck.org>,
- v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
- Kent Overstreet <kent.overstreet@gmail.com>, linux-bcache@vger.kernel.org,
- =?UTF-8?Q?Ernesto_A._Fern=c3=a1ndez?= <ernesto.mnd.fernandez@gmail.com>
-Message-ID: <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
-Date: Tue, 16 Apr 2019 21:35:04 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
- Thunderbird/45.4.0
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos.glx-home)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hGSvi-0001D1-V8; Tue, 16 Apr 2019 20:35:39 +0200
+Date: Tue, 16 Apr 2019 20:35:38 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Nishad Kamdar <nishadkamdar@gmail.com>
+cc: Greentime Hu <green.hu@gmail.com>, Vincent Chen <deanbo422@gmail.com>, 
+    Oleg Nesterov <oleg@redhat.com>, Will Deacon <will.deacon@arm.com>, 
+    "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>, 
+    Peter Zijlstra <peterz@infradead.org>, 
+    Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+    Joe Perches <joe@perches.com>, 
+    =?ISO-8859-15?Q?Uwe_Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>, 
+    linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, 
+    linux-mm@kvack.org
+Subject: Re: [PATCH v3 2/5] nds32: Use the correct style for SPDX License
+ Identifier
+In-Reply-To: <f6a7c31f4e8b743a2877875ac3fc49ecb8b9eb0c.1555427419.git.nishadkamdar@gmail.com>
+Message-ID: <alpine.DEB.2.21.1904162034260.1780@nanos.tec.linutronix.de>
+References: <cover.1555427418.git.nishadkamdar@gmail.com> <f6a7c31f4e8b743a2877875ac3fc49ecb8b9eb0c.1555427419.git.nishadkamdar@gmail.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-In-Reply-To: <20190411210834.4105-1-jglisse@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 05:08:19PM -0400, jglisse@redhat.com wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+On Tue, 16 Apr 2019, Nishad Kamdar wrote:
+
+> This patch corrects the SPDX License Identifier style
+> in the nds32 Hardware Architecture related files.
 > 
-> This patchset depends on various small fixes [1] and also on patchset
-> which introduce put_user_page*() [2] and thus is 5.3 material as those
-> pre-requisite will get in 5.2 at best. Nonetheless i am posting it now
-> so that it can get review and comments on how and what should be done
-> to test things.
-> 
-> For various reasons [2] [3] we want to track page reference through GUP
-> differently than "regular" page reference. Thus we need to keep track
-> of how we got a page within the block and fs layer. To do so this patch-
-> set change the bio_bvec struct to store a pfn and flags instead of a
-> direct pointer to a page. This way we can flag page that are coming from
-> GUP.
-> 
-> This patchset is divided as follow:
->     - First part of the patchset is just small cleanup i believe they
->       can go in as his assuming people are ok with them.
+> Suggested-by: Joe Perches <joe@perches.com>
+> Signed-off-by: Nishad Kamdar <nishadkamdar@gmail.com>
 
+Actually instead of doing that we should fix the documentation. The
+requirement came from older binutils because they barfed on // style
+comments in ASM files. That's history as we upped the minimal binutil
+requirement.
 
->     - Second part convert bio_vec->bv_page to bio_vec->bv_pfn this is
->       done in multi-step, first we replace all direct dereference of
->       the field by call to inline helper, then we introduce macro for
->       bio_bvec that are initialized on the stack. Finaly we change the
->       bv_page field to bv_pfn.
+Thanks,
 
-Why do we need a bv_pfn. Why not just use the lowest bit of the page-ptr
-as a flag (pointer always aligned to 64 bytes in our case).
-
-So yes we need an inline helper for reference of the page but is it not clearer
-that we assume a page* and not any kind of pfn ?
-It will not be the first place using low bits of a pointer for flags.
-
-That said. Why we need it at all? I mean why not have it as a bio flag. If it exist
-at all that a user has a GUP and none-GUP pages to IO at the same request he/she
-can just submit them as two separate BIOs (chained at the block layer).
-
-Many users just submit one page bios and let elevator merge them any way.
-
-Cheers
-Boaz
-
->     - Third part replace put_page(bv_page(bio_vec)) with a new helper
->       which will use put_user_page() when the page in the bio_vec is
->       coming from GUP.
->     - Fourth part update BIO to use bv_set_user_page() for page that
->       are coming from GUP this means updating bio_add_page*() to pass
->       down the origin of the page (GUP or not).
->     - Fith part convert few more places that directly use bvec_io or
->       BIO.
-> 
+	tglx
 
