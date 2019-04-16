@@ -6,106 +6,106 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8B1EC282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 340FAC10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62B8322310
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62B8322310
+	by mail.kernel.org (Postfix) with ESMTP id E5CFA222BC
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 13:47:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E5CFA222BC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AABD46B026F; Tue, 16 Apr 2019 09:47:03 -0400 (EDT)
+	id EA51C6B0270; Tue, 16 Apr 2019 09:47:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A5A1C6B0270; Tue, 16 Apr 2019 09:47:03 -0400 (EDT)
+	id E29EB6B0272; Tue, 16 Apr 2019 09:47:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 948096B0272; Tue, 16 Apr 2019 09:47:03 -0400 (EDT)
+	id CF5CB6B0273; Tue, 16 Apr 2019 09:47:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8256B026F
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:03 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p26so2657705edy.19
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:47:03 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A742E6B0270
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:04 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id 204so15703212ybf.5
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:47:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=G5RcpMbs5Qpi7XAuTIhInlGH2eGdEH42UsKUzadUQCU=;
-        b=iCbTpXfCr5SslcjWm9bhs5AQi6orJuGDw9+zg0z8/9jUvdm1b5wISoDaplfg5659RJ
-         SWXqkkR0LCoxfIvE5v2vlEO+c1klfWmmfHHUkcmrZRHZ1HP2fd5AWgEEhMibFjtMJ0Ww
-         A5ZUYVG87OR9ZKBrzd0ZWZWJMtGeCR2mfKe8jK6vWazIpZWi4D84CAegs2ncRI5MXc6d
-         g0s3wT9THBib5gUyE6Ltr+svrBFCx0OXYpyP5WHFXH+fxgKZbBGW98qtp/Rj3op62FC6
-         MxUVdjZRizBKja+UXqq6K6cqZAQ7TX9sXs7aS/aeaxcMfvE4TMLiFVPB/2w1EyuSfZRO
-         nk1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVNvlfDoIvfv7UG8upC51oL6bwIutqoRFC0luclA91W3BK8kv88
-	1nH6PJ0npQJz5Z0fzFasS3+tPFVBKCIphdvse215cZgkzdx8Q1TOfwDgfUzhC7wEqoFMWlXWScz
-	v/NuBmVCxcK0xzixAHxoWmYf7VwPe7VXUlAYaNKiTTxL4wwvI1uAl0qUhXvwh4/MNlg==
-X-Received: by 2002:a17:906:46d1:: with SMTP id k17mr16143396ejs.104.1555422422668;
-        Tue, 16 Apr 2019 06:47:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyMou6fTPXL5/Lx5d4W4cNctLAxMysGQwSlVt+aRHQlEbqcdCCT+WE1w9t5QxsyUP7+y2Ru
-X-Received: by 2002:a17:906:46d1:: with SMTP id k17mr16143317ejs.104.1555422421148;
-        Tue, 16 Apr 2019 06:47:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555422421; cv=none;
+        bh=tfdZgFh2HKDjltbc+4Gn/jcI1gLnMp7/QqrTaygkNoI=;
+        b=RaeVjWKigX6Zn2MvxlOlWtyBe4kaBujpqvGREHoKwBNUqE3MEa99P2TZmj9kor+Auu
+         eyunKrIZudz/cYFNhknqKBLsTT/mFZ13cPIOCHAWwXsgi2CFWWUlODe/t3TLNA82tVHm
+         c82KV2eimzw5ZpMPqdCqKFEll0j9a8d1XTCRJuvTjlqYiTItT0Zu8pC+1ueUUthsf6M9
+         ttrOqO6vKwgdVK9O5Trb5dfOe/q/LEw2F6NDOrc1HSQN294MsHdq2a8d2DHQgPfIfWS6
+         p7ogwVIJnMrTrYLTU6CCqIWj52oHxvIbSMVMgcnlKriXZan55ajkSPUL+7c8T8rV+TdS
+         hkQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWE55ah8b8utyPwHZ2edAqIPVUywdS7c/HfPX47fTHe7Yl/J26k
+	1gmuKNI+ymRnNFROt+2/VBBqO9xLNaeEIstWkAckUivW8EtZP7oJq0d+Uga9uNbTDDPl6k7RYxc
+	5tzWJhXvP6W9BuJBHY2KVlduDC1Bl0dDK56hrgSY2DvTt8p37deYPflvvNE6TOjLkjA==
+X-Received: by 2002:a81:1390:: with SMTP id 138mr63912526ywt.230.1555422424366;
+        Tue, 16 Apr 2019 06:47:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4cSNjRsO9WT0/7KmlcO9K+5yvbnoJi+ham/ICSpPpxXsyRa/GzOL+KV5ycDV3obFGOfiM
+X-Received: by 2002:a81:1390:: with SMTP id 138mr63912449ywt.230.1555422423450;
+        Tue, 16 Apr 2019 06:47:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555422423; cv=none;
         d=google.com; s=arc-20160816;
-        b=0+74KHkmxCqE4/RIF1ZnH+gJCQRYj+BXoszlVlLBsiLg5xjom9U94BJ03y3noNSjxZ
-         UsSumxYorbF4wONWEYC3zjAY9raN4RfY+FiDPWNcJxlWrSMaOxrobAgRZ0WQOaiRhXH+
-         VZYBRBNXLmZ7OyjJWFN77uiRlvCDkTqv6AM1mQP0300+lr3RBsD88GGkNUJ965zE8JSl
-         +LzTYE+pNuHGeoJaKtb5aLinbNwTXuOxIbFLdD11tL7tb5gdWIGHEjdvuvY9HHk0d6+A
-         +s9HxXCXhtmcjCGdRz+V5GGMwrtPH2Gc5GMd9BnJ7esP58XqQtrwjmq1c2fFE5X1ywgO
-         2l4g==
+        b=EpUYyTVVFzHz9OviQFXVTaHDOz4tpLpH2FJDnDUSmzxQgwGWgQ86Wh0F63HL6mkqi8
+         43gPjOeqPBSMO6gV2ZgW+Cz/3LuVpfvZnE2fVwEVOqSGN2UDnF2S5e9Q38kkfGbJ+CZL
+         W+lw8FLmpeaZCqtDexIkE+bjCUAzBmcBY0ZFXjC6ycpBdvbrSZ7fhCaWmYMzZXnMHLJG
+         NxqxchVtkimoGyGkC/TA3t5LQ/bWXd7ebPPHZA+kQxZeuP81D9sMILSRGhb7Sj7R/GaD
+         Ss64BQd0ItVV/luti2u6wVItOVLZ9Y8SFQuOEGL09dHk2xjPMr3B9udlTV2rzx2+/op/
+         NzfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=G5RcpMbs5Qpi7XAuTIhInlGH2eGdEH42UsKUzadUQCU=;
-        b=lrYnYey/u+RJx1uHA1aclZcaKtFBGJRnrlQjXdGbvMeM+Lgfa3bgStNztbzdnupNMO
-         4dZpQMWc4qOl07lLApzCR2c8XrSwdcSBIXmcLj4njClXCmBq+mJLCgdRQg7VD0SDP+ai
-         9iyPiwNjPta7oF7Jn+cXEUPbNRL3K5/P/bwrp8CshR1mVR+jfNbAPqqKhufyMA6Q5omU
-         xTmKaAdF1CYuvBTFYEVW61VqQ/tKHGj3ZBDYgVfinGBhEka2789QkxJnFQMAmDgdEm3z
-         d0z5aLIo+9VjSv8jTu7DapcZBsSu4nCOw89SPwxDF6cgd54w2kqlNUaZXnSgfWoaleo8
-         Gm4A==
+        bh=tfdZgFh2HKDjltbc+4Gn/jcI1gLnMp7/QqrTaygkNoI=;
+        b=uS4c7rtHmvP55Nv9+Y/PEBlFVPCbKk2WHQM84Rkn/yoJUXRzuYKgrVJEEpYEVqaegN
+         FWst8mM4Oi5gZbs65qgpYkcMa+cnnzdGvtxq4OeiwcQPbifhzGBjmP4Qb2lgn6n+4J+j
+         is5jlBDKFuURLdv5iUSkW/zYYAIPPinIkpHI2rWYWVCx1QrYv6cwUjBdF3XV8jeiM312
+         e6InvdTsB2qRzOKXH7aR2M64DRe8OkuYKo6t9/8ivIWFmziyJC1xf5xyb7XaQv0T4mQp
+         QT9wMDzEAsY0XyPKPUF3jO+YYzJGWNnVRq4rM/BvA81YEeLlBfebe00YwI16AkOzpmj5
+         rvCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d7si244793edx.319.2019.04.16.06.47.00
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 198si33407466ywh.53.2019.04.16.06.47.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 06:47:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 16 Apr 2019 06:47:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
+       spf=pass (google.com: domain of ldufour@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=ldufour@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkS1b100127
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:59 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2rwdvq70e7-1
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3GDkUZ3022324
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:47:02 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2rwe8rwcf4-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:59 -0400
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 09:46:57 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.ibm.com>;
-	Tue, 16 Apr 2019 14:46:55 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 16 Apr 2019 14:46:52 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 16 Apr 2019 14:46:43 +0100
+	Tue, 16 Apr 2019 14:46:42 +0100
 Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDkgCs32833784
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3GDkeG417104934
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 16 Apr 2019 13:46:42 GMT
+	Tue, 16 Apr 2019 13:46:41 GMT
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5135C4C04E;
-	Tue, 16 Apr 2019 13:46:42 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id CF1644C05C;
+	Tue, 16 Apr 2019 13:46:39 +0000 (GMT)
 Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id DDCD34C05A;
-	Tue, 16 Apr 2019 13:46:40 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 60C684C058;
+	Tue, 16 Apr 2019 13:46:38 +0000 (GMT)
 Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.101.4.33])
 	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Tue, 16 Apr 2019 13:46:40 +0000 (GMT)
+	Tue, 16 Apr 2019 13:46:38 +0000 (GMT)
 From: Laurent Dufour <ldufour@linux.ibm.com>
 To: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
         kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
@@ -135,18 +135,18 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com,
         npiggin@gmail.com, paulmck@linux.vnet.ibm.com,
         Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org,
         x86@kernel.org
-Subject: [PATCH v12 27/31] mm: add speculative page fault vmstats
-Date: Tue, 16 Apr 2019 15:45:18 +0200
+Subject: [PATCH v12 26/31] perf tools: add support for the SPF perf event
+Date: Tue, 16 Apr 2019 15:45:17 +0200
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
 References: <20190416134522.17540-1-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19041613-0016-0000-0000-0000026F7280
+x-cbid: 19041613-0020-0000-0000-00000330705D
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19041613-0017-0000-0000-000032CBBD97
-Message-Id: <20190416134522.17540-28-ldufour@linux.ibm.com>
+x-cbparentid: 19041613-0021-0000-0000-00002182B50A
+Message-Id: <20190416134522.17540-27-ldufour@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-16_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
@@ -160,62 +160,81 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add speculative_pgfault vmstat counter to count successful speculative page
-fault handling.
+Add support for the new speculative faults event.
 
-Also fixing a minor typo in include/linux/vm_event_item.h.
-
+Acked-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 ---
- include/linux/vm_event_item.h | 3 +++
- mm/memory.c                   | 3 +++
- mm/vmstat.c                   | 5 ++++-
- 3 files changed, 10 insertions(+), 1 deletion(-)
+ tools/include/uapi/linux/perf_event.h | 1 +
+ tools/perf/util/evsel.c               | 1 +
+ tools/perf/util/parse-events.c        | 4 ++++
+ tools/perf/util/parse-events.l        | 1 +
+ tools/perf/util/python.c              | 1 +
+ 5 files changed, 8 insertions(+)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 47a3441cf4c4..137666e91074 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -109,6 +109,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #ifdef CONFIG_SWAP
- 		SWAP_RA,
- 		SWAP_RA_HIT,
-+#endif
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+		SPECULATIVE_PGFAULT,
- #endif
- 		NR_VM_EVENT_ITEMS
+diff --git a/tools/include/uapi/linux/perf_event.h b/tools/include/uapi/linux/perf_event.h
+index 7198ddd0c6b1..3b4356c55caa 100644
+--- a/tools/include/uapi/linux/perf_event.h
++++ b/tools/include/uapi/linux/perf_event.h
+@@ -112,6 +112,7 @@ enum perf_sw_ids {
+ 	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
+ 	PERF_COUNT_SW_DUMMY			= 9,
+ 	PERF_COUNT_SW_BPF_OUTPUT		= 10,
++	PERF_COUNT_SW_SPF			= 11,
+ 
+ 	PERF_COUNT_SW_MAX,			/* non-ABI */
  };
-diff --git a/mm/memory.c b/mm/memory.c
-index 509851ad7c95..c65e8011d285 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4367,6 +4367,9 @@ vm_fault_t __handle_speculative_fault(struct mm_struct *mm,
+diff --git a/tools/perf/util/evsel.c b/tools/perf/util/evsel.c
+index 66d066f18b5b..1f3bea4379b2 100644
+--- a/tools/perf/util/evsel.c
++++ b/tools/perf/util/evsel.c
+@@ -435,6 +435,7 @@ const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
+ 	"alignment-faults",
+ 	"emulation-faults",
+ 	"dummy",
++	"speculative-faults",
+ };
  
- 	put_vma(vma);
+ static const char *__perf_evsel__sw_name(u64 config)
+diff --git a/tools/perf/util/parse-events.c b/tools/perf/util/parse-events.c
+index 5ef4939408f2..effa8929cc90 100644
+--- a/tools/perf/util/parse-events.c
++++ b/tools/perf/util/parse-events.c
+@@ -140,6 +140,10 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
+ 		.symbol = "bpf-output",
+ 		.alias  = "",
+ 	},
++	[PERF_COUNT_SW_SPF] = {
++		.symbol = "speculative-faults",
++		.alias	= "spf",
++	},
+ };
  
-+	if (ret != VM_FAULT_RETRY)
-+		count_vm_event(SPECULATIVE_PGFAULT);
-+
+ #define __PERF_EVENT_FIELD(config, name) \
+diff --git a/tools/perf/util/parse-events.l b/tools/perf/util/parse-events.l
+index 7805c71aaae2..d28a6edd0a95 100644
+--- a/tools/perf/util/parse-events.l
++++ b/tools/perf/util/parse-events.l
+@@ -324,6 +324,7 @@ emulation-faults				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_EM
+ dummy						{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_DUMMY); }
+ duration_time					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_DUMMY); }
+ bpf-output					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_BPF_OUTPUT); }
++speculative-faults|spf				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_SPF); }
+ 
  	/*
- 	 * The task may have entered a memcg OOM situation but
- 	 * if the allocation error was handled gracefully (no
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index a7d493366a65..93f54b31e150 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1288,7 +1288,10 @@ const char * const vmstat_text[] = {
- 	"swap_ra",
- 	"swap_ra_hit",
- #endif
--#endif /* CONFIG_VM_EVENTS_COUNTERS */
-+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-+	"speculative_pgfault",
-+#endif
-+#endif /* CONFIG_VM_EVENT_COUNTERS */
- };
- #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
+ 	 * We have to handle the kernel PMU event cycles-ct/cycles-t/mem-loads/mem-stores separately.
+diff --git a/tools/perf/util/python.c b/tools/perf/util/python.c
+index dda0ac978b1e..c617a4751549 100644
+--- a/tools/perf/util/python.c
++++ b/tools/perf/util/python.c
+@@ -1200,6 +1200,7 @@ static struct {
+ 	PERF_CONST(COUNT_SW_ALIGNMENT_FAULTS),
+ 	PERF_CONST(COUNT_SW_EMULATION_FAULTS),
+ 	PERF_CONST(COUNT_SW_DUMMY),
++	PERF_CONST(COUNT_SW_SPF),
  
+ 	PERF_CONST(SAMPLE_IP),
+ 	PERF_CONST(SAMPLE_TID),
 -- 
 2.21.0
 
