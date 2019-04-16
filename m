@@ -2,129 +2,187 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A939BC10F13
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:34:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EA67C10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7629320449
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:34:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7629320449
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id C9ACF20880
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 18:35:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="pEiXT8K3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9ACF20880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0848B6B0269; Tue, 16 Apr 2019 14:34:09 -0400 (EDT)
+	id 6EC226B0269; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 033E56B026B; Tue, 16 Apr 2019 14:34:08 -0400 (EDT)
+	id 69CBA6B026B; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8D696B026D; Tue, 16 Apr 2019 14:34:08 -0400 (EDT)
+	id 5644A6B026D; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B1BF6B0269
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:34:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o3so4544530edr.6
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:34:08 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 067AF6B0269
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 14:35:20 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id f15so19841151wrq.0
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 11:35:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=NVleg4vxC5EidiKXiZI47idHwsmkAicZ+TYiKEWyOHg=;
-        b=cNkk1PhnhYqkPxUTvTvA0AXvG5Ntg5Sn0lk4ks16Ps/eGklJI0TxqBjIkd0ZQvAaLM
-         oHPkyPwPu2TDvDFIyaMn7/EMUuKA/yvAGyzTTLzoKu1UYamShpOAMfF/+xT09XLCcePn
-         h2LSgH7KAdpruS+LYslyD+M49/BTZ6er27isYGjqTy5tTY1zQO3/bBgAy780MY/gej9y
-         W19NtmCI3FEOu9Rrh+IdKiQw50Jjw29zOfbFF0W/Lrf0FMEqvdkAh6lnxM2B6kdJK+6o
-         6IXVnPFIQL/QWvSXgGVGu99UO4sihRAoaaoaD83x+1RG3R5+MYqCIxLsPLxrFh2FKpAi
-         3Zpw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUUJ5YzTrHocGuX5/aNELMol5BpiRLR8tgueSveS8Bqe3n/FgYD
-	z14hYl1pDJzMiZy3ypUpIz+LWi9gpa1NlAU/qMJmlIwJedguCgYwPVdVcLYhJt/sH7HW9kZW42z
-	GQylK4HEENAyM8BmFAHcDJeC+U/nLDZ4FvFPClNg8ZRJTQyBYueT6SZxPoxf2rK8=
-X-Received: by 2002:a50:deca:: with SMTP id d10mr9162183edl.25.1555439648212;
-        Tue, 16 Apr 2019 11:34:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxKnz99ZQg9SoYj6PEXrM2ikaWhNaOqBZMtFTs9Y6f/MbyPPcIewPqRios+T3XvcXn6vwiO
-X-Received: by 2002:a50:deca:: with SMTP id d10mr9162120edl.25.1555439647408;
-        Tue, 16 Apr 2019 11:34:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555439647; cv=none;
+        h=x-gm-message-state:dkim-signature:from:subject:to:references:cc
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding;
+        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
+        b=DzJp0xV64RSSIP07D9P50Q5ds0ZGofXJg7tDWglztBjWjCTdrOzxxq6m/UYwJlC1OJ
+         xH2wTrSD+sUil7VsmPcOoB+bgatdFw9tkrKyIqLFogOmgbQABr97b1eVl0xNMChxc99U
+         3K1n0C7B7khONzCnfrbViiyfhSA2ngn/rb5UAc2NjJq48iqqlzjS3tYPG9/YWy97R5ey
+         aswVw2PDGuI/hW1gKnIAfrU91bcAFdNQlVgSVYSxARhWXjfRmvtDCpqwJi06mYgN2W+8
+         kiRYburGTlDD1gsi7nFiQ0f4twINiCw9WqYni1ZHBkfILfHUgu2YOk3xf2YZ/hCHeZ44
+         E2wQ==
+X-Gm-Message-State: APjAAAVnO9/zy5IReL5Yl3OvEgPWFRo8vfK+DWYO8zIABcYd2yCCE4Fk
+	aNQ7eo0Y+/gg9z5p2GtHF9JPMwgOMjCVXssDss9M5dIBj85GHROynVSzWgHJvM/g4HOWMldqMLL
+	iBRy2ta5FRxtDWfz7JpXz/BoEvRge81OQbsbkw/xz1PUHlVRKYOb/T/RiSZeMdKqXMw==
+X-Received: by 2002:adf:efc1:: with SMTP id i1mr52950371wrp.199.1555439719594;
+        Tue, 16 Apr 2019 11:35:19 -0700 (PDT)
+X-Received: by 2002:adf:efc1:: with SMTP id i1mr52950335wrp.199.1555439718875;
+        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555439718; cv=none;
         d=google.com; s=arc-20160816;
-        b=0QO/yzjozQcsvMLaHbXeErY0WCcT+xAGSq7ai372V99uaCAWYCcY+TjyMqdT4WX+TG
-         Smvx50Jl7RhsqxNXo5HAtdZ/9aScoGJCgp8a1jko2Qj61O5KkxGMMdu0B+JVjMWEZ1+T
-         wmD14GUXAFb42AyZxbxrwbWJ6Cmt9jPaYPCQDLx5TRp6X/iW1fUmUI4hm0w1VNCrYokP
-         ZOWEs8uI9KLgEn5A8MVVmOhWqURVgJANMZ1uR+pZk0w652hfKDiNf+e25cg23sAs4VN1
-         EJHpDVQUpf1oDgmq2Q6IwPIeDe+q4TRfev5ib9ruNP6ZMUfzlrhnfTwDf2bGgu0rquPh
-         qFVA==
+        b=SfFyy79h92ljx9OGXv+0skAlRIRa1nFe2ZmUjNnsd31jeI20NRbBxW3X9MrWmBO6CZ
+         uJWrBGjkdE/0jnKlvxRappTAJZszoul0hDiC6BVN7z0RMp4SYcM3n+KgZNZ2rwWdeZax
+         8H9GPITh5/oj6fLymSb5m4eECUyJTDz14SzIiDOG+YZ9tRqW2E2abmiBtSoaMYySLrtx
+         VnosimYE6dDgSBTF2T43kbkwKyvzqzrucYd5yNKSST6lSXSNKgyBXWXB+QJsIs7hPDGa
+         6J3EIgw6ajIyth36vy5+6pDmewejryBf9JO5vws9W9RShLf1pr20oUWJ1aiRsPAFCegy
+         l62w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=NVleg4vxC5EidiKXiZI47idHwsmkAicZ+TYiKEWyOHg=;
-        b=kp9YuqoomKjI13Ga8J3uVmVw3W9eEgu4Hvt5kkI+kbCRjjfWLEF9X0ktUsqmqE4jt8
-         mQIvrIM0ANsYt9qUrjiJH1Dek7OepglNttILyNTjHvh8+1UNGK7VopxQf91BuiOJH5WT
-         ftgUzdRYZbr4vAo5P9pfmwcbRdY+52FC2t2gFTRbKQzp589xqPdHbd0bjOygD65XbjNP
-         XApl/1P0mtInHJyaCiNaAgp794T9bIffA6R44R6cMfmkn8DzsRyNl0my9G7sL+07WdR5
-         emnTdg4K6BeX7P26y/YBhdotKcxjVS7w4HtQbKylsDnqjOI+lK9u83VG9KJyqj7hhL0k
-         GfFg==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:cc:references:to:subject:from:dkim-signature;
+        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
+        b=mtxILaiAockFvVPtbecU99NbFecKF+04Wy6bNfRrtbslW2CN68+r0M+c7j93G7TSEL
+         aknQZVTLCKXb4zoTY6AA5v1vxzpaWG0QylS+S4gCKMR6PVmvVUE0qRNNH14WMYJ2MbCB
+         /8fslRpoljJrs4uBMGZnQAae6eZ988Ia7qHZ3+VrvNPe5JZVack9228x9pzMjzIvqefd
+         NgWpJOv4HdywP4+fOGTLlV0Aiy8ALPK9zeui1Mk6e5yaK5QKauT55HRBZ5le4q+zLUUP
+         gn2mR1Ac9zhlLvtXPlg/aV3MJNh0ldIB/7aJd/nw2tYDgzqUAXwCB9Qoc0Ps1FNA6fcp
+         hcbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n44si668786edn.69.2019.04.16.11.34.07
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=pEiXT8K3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h187sor151720wmf.6.2019.04.16.11.35.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 11:34:07 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 919C9AC58;
-	Tue, 16 Apr 2019 18:34:06 +0000 (UTC)
-Date: Tue, 16 Apr 2019 20:34:04 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, mgorman@techsingularity.net,
-	riel@surriel.com, hannes@cmpxchg.org, akpm@linux-foundation.org,
-	keith.busch@intel.com, dan.j.williams@intel.com,
-	fengguang.wu@intel.com, fan.du@intel.com, ying.huang@intel.com,
-	ziy@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
-Message-ID: <20190416183404.GA655@dhcp22.suse.cz>
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190412084702.GD13373@dhcp22.suse.cz>
- <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
- <20190416074714.GD11561@dhcp22.suse.cz>
- <b9b40585-cb59-3d42-bcf8-e59bff77c663@intel.com>
- <20190416143958.GI11561@dhcp22.suse.cz>
- <bddc3469-2984-2d32-f2cf-e1d0cc64f1e8@intel.com>
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=pEiXT8K3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
+        h=from:subject:to:references:cc:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding;
+        bh=8y5Z+JdanBBceyEZm22eMmkZF2xMmUpSUQ+GyqeIDOI=;
+        b=pEiXT8K3FkXb708qyAnd50wNFcy2vun2MP+TowzcADOfGsdzaDkZm+Z2W3YYiiyPBx
+         /i0cqaD5GKrDE3+fT07IThNc2+oq7fzIhXpNNdGF3utypwg0l23VOeTeSDdJVgGR/IGU
+         f6cPyrWAO8utqa9FivqFwd/7ZEgOx0IVbnArHlXAjaxyXbHNGYh7VxyELg3BRGOpfywO
+         fAvv2akX88AHkqLijjx5GMp59TSk8BRbl0tpq29nLGCdvd4dnxlEbs9lgDzNct5UiEMH
+         JF47xRidohMvpl2d1nE6CYxbhKK4OA4j3JU1w6qgJ5U+TDCaPBmgi0m6oKaNv05XLTSK
+         1HYQ==
+X-Google-Smtp-Source: APXvYqzElk8Bwv9PNk1zXzEbAVnyrCQluryqDkFg71tdlsIqJy7aqVfhGldpLqEFzWF5iB8YabHIug==
+X-Received: by 2002:a7b:cb16:: with SMTP id u22mr27831487wmj.60.1555439718379;
+        Tue, 16 Apr 2019 11:35:18 -0700 (PDT)
+Received: from [10.0.0.5] (bzq-84-110-213-170.static-ip.bezeqint.net. [84.110.213.170])
+        by smtp.googlemail.com with ESMTPSA id u189sm453146wme.25.2019.04.16.11.35.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 11:35:17 -0700 (PDT)
+From: Boaz Harrosh <boaz@plexistor.com>
+Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
+To: jglisse@redhat.com
+References: <20190411210834.4105-1-jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-block@vger.kernel.org, linux-mm@kvack.org,
+ John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
+ Dan Williams <dan.j.williams@intel.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>,
+ Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
+ Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>,
+ Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
+ samba-technical@lists.samba.org, Yan Zheng <zyan@redhat.com>,
+ Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>,
+ Alex Elder <elder@kernel.org>, ceph-devel@vger.kernel.org,
+ Eric Van Hensbergen <ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net>,
+ Mike Marshall <hubcap@omnibond.com>, Martin Brandenburg
+ <martin@omnibond.com>, devel@lists.orangefs.org,
+ Dominique Martinet <asmadeus@codewreck.org>,
+ v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
+ Kent Overstreet <kent.overstreet@gmail.com>, linux-bcache@vger.kernel.org,
+ =?UTF-8?Q?Ernesto_A._Fern=c3=a1ndez?= <ernesto.mnd.fernandez@gmail.com>
+Message-ID: <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
+Date: Tue, 16 Apr 2019 21:35:04 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
+ Thunderbird/45.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bddc3469-2984-2d32-f2cf-e1d0cc64f1e8@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190411210834.4105-1-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 16-04-19 08:46:56, Dave Hansen wrote:
-> On 4/16/19 7:39 AM, Michal Hocko wrote:
-> >> Strict binding also doesn't keep another app from moving the
-> >> memory.
-> > I would consider that a bug.
+On Thu, Apr 11, 2019 at 05:08:19PM -0400, jglisse@redhat.com wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
 > 
-> A bug where, though?  Certainly not in the kernel.
+> This patchset depends on various small fixes [1] and also on patchset
+> which introduce put_user_page*() [2] and thus is 5.3 material as those
+> pre-requisite will get in 5.2 at best. Nonetheless i am posting it now
+> so that it can get review and comments on how and what should be done
+> to test things.
+> 
+> For various reasons [2] [3] we want to track page reference through GUP
+> differently than "regular" page reference. Thus we need to keep track
+> of how we got a page within the block and fs layer. To do so this patch-
+> set change the bio_bvec struct to store a pfn and flags instead of a
+> direct pointer to a page. This way we can flag page that are coming from
+> GUP.
+> 
+> This patchset is divided as follow:
+>     - First part of the patchset is just small cleanup i believe they
+>       can go in as his assuming people are ok with them.
 
-Kernel should refrain from moving explicitly bound memory nilly willy. I
-certainly agree that there are corner cases. E.g. memory hotplug. We do
-break CPU affinity for CPU offline as well. So this is something user
-should expect. But the kernel shouldn't move explicitly bound pages to a
-different node implicitly. I am not sure whether we even do that during
-compaction if we do then I would consider _this_ to be a bug. And NUMA
-rebalancing under memory pressure falls into the same category IMO.
--- 
-Michal Hocko
-SUSE Labs
+
+>     - Second part convert bio_vec->bv_page to bio_vec->bv_pfn this is
+>       done in multi-step, first we replace all direct dereference of
+>       the field by call to inline helper, then we introduce macro for
+>       bio_bvec that are initialized on the stack. Finaly we change the
+>       bv_page field to bv_pfn.
+
+Why do we need a bv_pfn. Why not just use the lowest bit of the page-ptr
+as a flag (pointer always aligned to 64 bytes in our case).
+
+So yes we need an inline helper for reference of the page but is it not clearer
+that we assume a page* and not any kind of pfn ?
+It will not be the first place using low bits of a pointer for flags.
+
+That said. Why we need it at all? I mean why not have it as a bio flag. If it exist
+at all that a user has a GUP and none-GUP pages to IO at the same request he/she
+can just submit them as two separate BIOs (chained at the block layer).
+
+Many users just submit one page bios and let elevator merge them any way.
+
+Cheers
+Boaz
+
+>     - Third part replace put_page(bv_page(bio_vec)) with a new helper
+>       which will use put_user_page() when the page in the bio_vec is
+>       coming from GUP.
+>     - Fourth part update BIO to use bv_set_user_page() for page that
+>       are coming from GUP this means updating bio_add_page*() to pass
+>       down the origin of the page (GUP or not).
+>     - Fith part convert few more places that directly use bvec_io or
+>       BIO.
+> 
 
