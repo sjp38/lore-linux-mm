@@ -2,224 +2,169 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECA94C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 10:12:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84043C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 11:24:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A7032206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 10:12:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7032206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2701A2075B
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 11:24:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2701A2075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 333296B0003; Tue, 16 Apr 2019 06:12:50 -0400 (EDT)
+	id 856B76B0003; Tue, 16 Apr 2019 07:24:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BEF66B0006; Tue, 16 Apr 2019 06:12:50 -0400 (EDT)
+	id 808436B0006; Tue, 16 Apr 2019 07:24:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1AC3E6B0007; Tue, 16 Apr 2019 06:12:50 -0400 (EDT)
+	id 6CCC96B0007; Tue, 16 Apr 2019 07:24:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8CE6B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 06:12:49 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o3so3795391edr.6
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 03:12:49 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C9AD6B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 07:24:56 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id n15so9608600oig.11
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 04:24:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=oCE1xoQqbrmaP4N1dyiQ/MVIEEAO7dzGhADbisxHvoc=;
-        b=dq4F5AyMBcU6BfCgaoJX6p0CgPXCKdNeU81u3H3sHzUylwZiY29aVAMmvP3+yd0B6Q
-         UYXGI7WvukR2BQiQp7qej47nkfu5wkmbK2q1wYe1J3UU7ZSH2H8SKD8m7vvk0dt/saqE
-         QPPf0zuxks/XyLxDfRxPzY3AsDExs+sg3BSvkWSChDf0yVVP6qmD+lwldhVAr+8fwWV8
-         6ujwvfeJJ7oGTd0hb+S48skHo4hQv79LHowm63jzKXz75lc+SmHv6Plrs4QRGkXDg+YJ
-         qYItgF1vLYAc1orsAvMIpcGPeIhwXsY6Hf4F5+QLqMP6gajGnYD06PU3m2iIxM4HCIHd
-         DY6Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUn7ahBOoaxcs7uhwxVF7NvGBhEuNtUjDVHVulh8VhHUD5pcZwz
-	4dYt/EFRZdn3qku44a7TMdBfznkA1+WH1qD4cjknNTOIKj6+AhfOzh2qtCw5Hd0ZVS9cc0annkl
-	hMXaRuv/ac9fR6902VU73Y2FGSCdP4QnbAWk+ZC0n/gF04xMyXqhm8ODP/BmxPMEgug==
-X-Received: by 2002:a17:906:c9c6:: with SMTP id hk6mr43986966ejb.113.1555409569223;
-        Tue, 16 Apr 2019 03:12:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRelgUrxhg9IZCRkFba74LiZ23/ul4eEXQRFJ5JCmlM573vpj2dsMNE0ylHaGJl9zR9nhZ
-X-Received: by 2002:a17:906:c9c6:: with SMTP id hk6mr43986889ejb.113.1555409567432;
-        Tue, 16 Apr 2019 03:12:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555409567; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=+0MSFSzpqmNFd0LZDe9YPp+oCVJ0dVTJnp9rx3oex2Y=;
+        b=YhnxFgwYT3zsnOuM2fwHpuShegfzP8eHenSv04Vd1k6KBVKCjuuDRH5A9pz+7ZTldd
+         OA7nK9L/MhxxOqKTDDFh6Hhy4BbkjMVTuQQ1dEotZEL1BVEgMceegMd1B3qcWUzp0hBj
+         E3G3jLNxB7ysRzn6OzLavtNVla0A5EmK5EYkWf/t36EaryEwgexZOWixgNhQbncd9l0v
+         4aWu+D6kJdAwLpXRb/iMG/qAdjRnmlZ7rZPQOzwaD8OknykWTEaOEhqRMjxb7sRJ7dbI
+         E35tHm03Qze5T7kY1HSPzXGFPZsdtlpLAHFg9rAaSSAcao3V3MUney3zIPaDNS1e5nzo
+         3vGA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+X-Gm-Message-State: APjAAAVT0C+byR6QXy/3ncIw8ISAX+Wdy87T2JRtJ93zh/Oc09n6GxBC
+	D1kMLtXNqxqoL2Yeog2XAPAmPMvbgnlqUhRSwYJhoYCzdPMRJS7FO0J/Ngqk8VTQHdzXml59sfo
+	iqRbZI/7KtXvtQFYCgd8oVxnhewkMH+7M7a3mMZtCdkO0w7JUpYohKdS9TuoHN+Tvcg==
+X-Received: by 2002:a9d:70cc:: with SMTP id w12mr45277232otj.167.1555413895798;
+        Tue, 16 Apr 2019 04:24:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyxJOD11RBIgywX7im20c+AkkwLyAoAgwNJIbIxcnLaMEbtaCnZFl0deuyoG1UeQSwn0/JU
+X-Received: by 2002:a9d:70cc:: with SMTP id w12mr45277206otj.167.1555413894826;
+        Tue, 16 Apr 2019 04:24:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555413894; cv=none;
         d=google.com; s=arc-20160816;
-        b=YhLz3EgRSlaYzcwQY2nIWoKggCa74ZOzsDXLT+b65/S3Nsio/+DGJQ06CudylUqgZz
-         CruqprDvmMhgPffX85OEIRy7NDcL00DEaqM2QYQ6n/EzLqyLOMtHVkzqY77uhu+sjQW3
-         UwDOOFF+7UQQaLpbHXU1R3a1ZqIHcFL9szB7VytAKQhcO+hqK00L11whxtpJa/FpcSyE
-         /yKf+pPlyTh56lGXJ7xdHeNu60mWT6noPmOQEmBT1sPY1bAfMfm/DR2+hm+DXjY7ID1O
-         QGKyrmbwaJbpz8jmVx3pWS/uizls6iRYbQeyo10rCqdBpxJ5z4c8wSH/QvNGdhc8ZkeO
-         q1wA==
+        b=SJsOPVO6Ph3ahDhz51EAlhe7ynr+spxpOX2Q7mxh7f8PJBKQzGTc8RDhjekzmtBDms
+         uPwf/WjcxHs5tBLuo6wl7r/bXzsPnR7yunUOP4k3UVi/5aEFWhZVgK0ob1H2uEa3RkiH
+         RO8aIeAZOe8VctEk3jZt+XYyrnAK1dH015pgWK3cKdLXZ68DxMBvO7L6cwjSQ8OksMXZ
+         1ZnjjRp6BWxJa+AwH2YKHVBWCVAcnPGy/T5KTEMHaA9Aehq8MYVWXHV3ZtYNlhcBD3fI
+         VOELd9Kq0Yi7ceSRAOe4z5G61CLei1JFGKx91yXMU3ybva+9JaiGLG98MpnQsgbHxvd7
+         UWJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=oCE1xoQqbrmaP4N1dyiQ/MVIEEAO7dzGhADbisxHvoc=;
-        b=RCz4EBGU9Lyzfg8zZcU8uR1I/uQAsj3fhw/okaAxrktIKGkKiCFdpAs06azcTnXXK/
-         /HT8zCK501no7jO3DG3RdMlH4NsHk0Bxy1f6wUCikdZYmzMhby+PtjpONtBw+cGZSV4i
-         dNW8RZsxjaWAFqhyrMmHTyiiiOAZyJ0CzqSZS26S5KSwzV6B+QWuUmfelEZV2XbszUBC
-         zAjMU4Gru2DdjJlt/rKwzfBWrg1/Yv3TTYYUS9bd53HTimBXLawhy0l14WlfiSazzl3g
-         OBR5AK6b0ovce3ncCiDlyji+YOLdMLfN1NzefRS6FTfjHTl/TPYsLEd6S+Yjj0uAyuEv
-         fUQQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=+0MSFSzpqmNFd0LZDe9YPp+oCVJ0dVTJnp9rx3oex2Y=;
+        b=srkW92J+FD1EEx6PuakolWkSe3+StdY6PXVnyUHApVxpMrtMSvqvumVoCvE2g6xdOu
+         4TKc8niiElWBvWKJgz8E0m+lPbevQejMpdC6Z+J1bLM58lBbxEEsR5JrqXvWsLzCk2QD
+         gl7njhCG1JoWXRR9l4U0BXKY4wbCLgBgg1RGRhhFkssyAw76RtWibpVNZ45uJk+Zei+k
+         IaDJ0g8mxb4Rr+eMpiDrHdqnePWfSXJVhMjzOk8lsi0R+xc9BqfwuBFX+UlJiR0PAwVC
+         9v6yhVSLqitTgxTZwvTBjTEKXRRpOB2CLEItUkmT8A/M4DzCLdu/z3mK6/2QtzK0X/U0
+         9gmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b12si8476480ejq.331.2019.04.16.03.12.46
-        for <linux-mm@kvack.org>;
-        Tue, 16 Apr 2019 03:12:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id l125si24711372oif.107.2019.04.16.04.24.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 04:24:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6A49E80D;
-	Tue, 16 Apr 2019 03:12:45 -0700 (PDT)
-Received: from [10.162.42.238] (p8cg001049571a15.blr.arm.com [10.162.42.238])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1DE703F68F;
-	Tue, 16 Apr 2019 03:12:38 -0700 (PDT)
-Subject: Re: [PATCH V2 1/2] mm/hotplug: Reorder arch_remove_memory() call in
- __remove_memory()
-To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- akpm@linux-foundation.org, will.deacon@arm.com, catalin.marinas@arm.com
-Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
- mark.rutland@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
- cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
- <1555221553-18845-2-git-send-email-anshuman.khandual@arm.com>
- <bbca320f-efc6-0872-b4f3-5e1d49fdc239@redhat.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <ade861f9-d421-0d56-517c-d5c024870a1f@arm.com>
-Date: Tue, 16 Apr 2019 15:42:38 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from DGGEMS413-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 3EB6F6BD1735FA38CE48;
+	Tue, 16 Apr 2019 19:24:49 +0800 (CST)
+Received: from localhost.localdomain.localdomain (10.175.113.25) by
+ DGGEMS413-HUB.china.huawei.com (10.3.19.213) with Microsoft SMTP Server id
+ 14.3.408.0; Tue, 16 Apr 2019 19:24:40 +0800
+From: Chen Zhou <chenzhou10@huawei.com>
+To: <tglx@linutronix.de>, <mingo@redhat.com>, <bp@alien8.de>,
+	<ebiederm@xmission.com>, <rppt@linux.ibm.com>, <catalin.marinas@arm.com>,
+	<will.deacon@arm.com>, <akpm@linux-foundation.org>,
+	<ard.biesheuvel@linaro.org>
+CC: <horms@verge.net.au>, <takahiro.akashi@linaro.org>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
+	<kexec@lists.infradead.org>, <linux-mm@kvack.org>,
+	<wangkefeng.wang@huawei.com>, Chen Zhou <chenzhou10@huawei.com>
+Subject: [RESEND PATCH v5 0/4] support reserving crashkernel above 4G on arm64 kdump 
+Date: Tue, 16 Apr 2019 19:35:15 +0800
+Message-ID: <20190416113519.90507-1-chenzhou10@huawei.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <bbca320f-efc6-0872-b4f3-5e1d49fdc239@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+X-Originating-IP: [10.175.113.25]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+When crashkernel is reserved above 4G in memory, kernel should reserve
+some amount of low memory for swiotlb and some DMA buffers. So there may
+be two crash kernel regions, one is below 4G, the other is above 4G.
 
+Crash dump kernel reads more than one crash kernel regions via a dtb
+property under node /chosen,
+linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>.
 
-On 04/15/2019 07:28 PM, David Hildenbrand wrote:
-> On 14.04.19 07:59, Anshuman Khandual wrote:
->> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
->> entries between memory block and node. It first checks pfn validity with
->> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
->> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
->>
->> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
->> which scans all mapped memblock regions with memblock_is_map_memory(). This
->> creates a problem in memory hot remove path which has already removed given
->> memory range from memory block with memblock_[remove|free] before arriving
->> at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
->> skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
->> sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
->> of existing sysfs entries.
->>
->> [   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
->> [   62.052517] ------------[ cut here ]------------
->> [   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
->> [   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
->> [   62.054589] Modules linked in:
->> [   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
->> [   62.056274] Hardware name: linux,dummy-virt (DT)
->> [   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
->> [   62.058083] pc : add_memory_resource+0x1cc/0x1d8
->> [   62.058961] lr : add_memory_resource+0x10c/0x1d8
->> [   62.059842] sp : ffff0000168b3ce0
->> [   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
->> [   62.061501] x27: 0000000000000000 x26: 0000000000000000
->> [   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
->> [   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
->> [   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
->> [   62.065558] x19: 0000000000680000 x18: 0000000000000024
->> [   62.066566] x17: 0000000000000000 x16: 0000000000000000
->> [   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
->> [   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
->> [   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
->> [   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
->> [   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
->> [   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
->> [   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
->> [   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
->> [   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
->> [   62.076930] Call trace:
->> [   62.077411]  add_memory_resource+0x1cc/0x1d8
->> [   62.078227]  __add_memory+0x70/0xa8
->> [   62.078901]  probe_store+0xa4/0xc8
->> [   62.079561]  dev_attr_store+0x18/0x28
->> [   62.080270]  sysfs_kf_write+0x40/0x58
->> [   62.080992]  kernfs_fop_write+0xcc/0x1d8
->> [   62.081744]  __vfs_write+0x18/0x40
->> [   62.082400]  vfs_write+0xa4/0x1b0
->> [   62.083037]  ksys_write+0x5c/0xc0
->> [   62.083681]  __arm64_sys_write+0x18/0x20
->> [   62.084432]  el0_svc_handler+0x88/0x100
->> [   62.085177]  el0_svc+0x8/0xc
->>
->> Re-ordering arch_remove_memory() with memblock_[free|remove] solves the
->> problem on arm64 as pfn_valid() behaves correctly and returns positive
->> as memblock for the address range still exists. arch_remove_memory()
->> removes applicable memory sections from zone with __remove_pages() and
->> tears down kernel linear mapping. Removing memblock regions afterwards
->> is safe because there is no other memblock (bootmem) allocator user that
->> late. So nobody is going to allocate from the removed range just to blow
->> up later. Also nobody should be using the bootmem allocated range else
->> we wouldn't allow to remove it. So reordering is indeed safe.
->>
->> Acked-by: Michal Hocko <mhocko@suse.com>
->> Reviewed-by: David Hildenbrand <david@redhat.com>
->> Reviewed-by: Oscar Salvador <osalvador@suse.de>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->>  mm/memory_hotplug.c | 3 +--
->>  1 file changed, 1 insertion(+), 2 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 0082d69..71d0d79 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1872,11 +1872,10 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
->>  
->>  	/* remove memmap entry */
->>  	firmware_map_remove(start, start + size, "System RAM");
->> +	arch_remove_memory(nid, start, size, NULL);
->>  	memblock_free(start, size);
->>  	memblock_remove(start, size);
->>  
->> -	arch_remove_memory(nid, start, size, NULL);
->> -
->>  	try_offline_node(nid);
->>  
->>  	mem_hotplug_done();
->>
-> 
-> This will conflict with a patch I posted, but should be easy
-> to fix. We should stick to the reverse order in which things are added,
-> which is what you are doing here.
-> 
-> commit 5af92d15e179557143d54bde477f7e45fc5c0fca
-> Author: David Hildenbrand <david@redhat.com>
-> Date:   Wed Apr 10 11:02:26 2019 +1000
-> 
->     mm/memory_hotplug: release memory resource after arch_remove_memory()
-> 
+Besides, we need to modify kexec-tools:
+  arm64: support more than one crash kernel regions(see [1])
 
-Got it. My current WIP branch is on the following. We should be able to fix
-it during merge.
+Changes since [v4]
+- reimplement memblock_cap_memory_ranges for multiple ranges by Mike.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
+Changes since [v3]
+- Add memblock_cap_memory_ranges for multiple ranges.
+- Split patch "arm64: kdump: support more than one crash kernel regions"
+as two. One is above "Add memblock_cap_memory_ranges", the other is using
+memblock_cap_memory_ranges to support multiple crash kernel regions.
+- Fix some compiling warnings.
 
+Changes since [v2]
+- Split patch "arm64: kdump: support reserving crashkernel above 4G" as
+  two. Put "move reserve_crashkernel_low() into kexec_core.c" in a separate
+  patch.
+
+Changes since [v1]:
+- Move common reserve_crashkernel_low() code into kernel/kexec_core.c.
+- Remove memblock_cap_memory_ranges() i added in v1 and implement that
+  in fdt_enforce_memory_region().
+  There are at most two crash kernel regions, for two crash kernel regions
+  case, we cap the memory range [min(regs[*].start), max(regs[*].end)]
+  and then remove the memory range in the middle.
+
+[1]: http://lists.infradead.org/pipermail/kexec/2019-April/022792.html
+[v1]: https://lkml.org/lkml/2019/4/8/628
+[v2]: https://lkml.org/lkml/2019/4/9/86
+[v3]: https://lkml.org/lkml/2019/4/15/6
+[v4]: https://lkml.org/lkml/2019/4/15/273
+
+Chen Zhou (3):
+  x86: kdump: move reserve_crashkernel_low() into kexec_core.c
+  arm64: kdump: support reserving crashkernel above 4G
+  kdump: update Documentation about crashkernel on arm64
+
+Mike Rapoport (1):
+  memblock: extend memblock_cap_memory_range to multiple ranges
+
+ Documentation/admin-guide/kernel-parameters.txt |  4 +-
+ arch/arm64/include/asm/kexec.h                  |  3 ++
+ arch/arm64/kernel/setup.c                       |  3 ++
+ arch/arm64/mm/init.c                            | 59 ++++++++++++++++------
+ arch/x86/include/asm/kexec.h                    |  3 ++
+ arch/x86/kernel/setup.c                         | 66 +++----------------------
+ include/linux/kexec.h                           |  5 ++
+ include/linux/memblock.h                        |  2 +-
+ kernel/kexec_core.c                             | 56 +++++++++++++++++++++
+ mm/memblock.c                                   | 44 ++++++++---------
+ 10 files changed, 144 insertions(+), 101 deletions(-)
+
+-- 
+2.7.4
 
