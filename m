@@ -2,192 +2,201 @@ Return-Path: <SRS0=AiS9=SS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17F79C282DA
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:57:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CC4AC10F13
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 20:05:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D884A2073F
-	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 19:57:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D884A2073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 006C020821
+	for <linux-mm@archiver.kernel.org>; Tue, 16 Apr 2019 20:05:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=efficios.com header.i=@efficios.com header.b="MKVHhXkf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 006C020821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=efficios.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DD956B0003; Tue, 16 Apr 2019 15:57:52 -0400 (EDT)
+	id 943726B0003; Tue, 16 Apr 2019 16:05:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 463A46B0006; Tue, 16 Apr 2019 15:57:52 -0400 (EDT)
+	id 8CAE56B0006; Tue, 16 Apr 2019 16:05:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DEAF6B0007; Tue, 16 Apr 2019 15:57:52 -0400 (EDT)
+	id 76C596B0007; Tue, 16 Apr 2019 16:05:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C4EA6B0003
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 15:57:52 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id n1so20335762qte.12
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 12:57:52 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F8366B0003
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 16:05:55 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id w124so18740706qkb.12
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 13:05:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=4YC/SWjxlOdzRIslZGV/FKUSalJ5ZPrGgKiaRY/Pnlo=;
-        b=N2Hex1hVnpFXGrJQGp8jJ35iyTjxiiavMUwoM+1jwyPxJNKujxPLPKPEjQVTD+KMmJ
-         FlrY7KRNNrrEqkaFuDRGu/T0oHy0Z/kjbf8l7ZlikiAUhx67w2DWx8wWLOcqbTjCRUby
-         v80T7Jdvxt2yYzpPZGG8eQkp0uRyIF4Dds2nunPLCLntV26RlnLSb/fK71jqTX8oc+aG
-         lwNgx3RCrUUjqNuWbrWBQwVbA1hyruc3kzeahHeJ03/qg+1sl92PfJ5WI8XencCJpF5N
-         p1NyrxKbFj4HeiUSK8wIMOJFBHsfj8Tb/QRy+ea+ecV3J07BWKmRqUWvjaHF3RAmIAWR
-         PjDQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWIEd1KDg/jFChzQdSo35snLpCt0BRH+crkhxXluZ2Q4XoZK19w
-	DsPIJR9gD9uIR2+1Ec2d5cldDwH1pNC/RbYxycpcB0eRGRneQxXIXZuIq7ajAhRAAP8AOg5nxHF
-	D6eAQougkunz8DXfNFKRHejHhnYnQRVl6zTXYGiHtVnnUbqkAgDXWFkbpD5qx1Q1X1g==
-X-Received: by 2002:a0c:bd89:: with SMTP id n9mr67891944qvg.200.1555444671813;
-        Tue, 16 Apr 2019 12:57:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzIRjnpMT5OV0R3J9WeCJvbq/+NjTzl3wH0RVxom6EXddITtO4LT1kKZEaQgooNGw5KZXx
-X-Received: by 2002:a0c:bd89:: with SMTP id n9mr67891893qvg.200.1555444671122;
-        Tue, 16 Apr 2019 12:57:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555444671; cv=none;
+        h=x-gm-message-state:dkim-filter:dkim-signature:date:from:to:cc
+         :message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding:thread-topic:thread-index;
+        bh=xCXfm0GksTeOQ3vNasxSWI3L+tslb07JX35RdVENb28=;
+        b=Vhf+8AWGS54wlKFVJlisqxqsASzkJxOleUkj+dnndX2OkpX00qJWM9n90sscXDngmq
+         TLa+Ft9wjgdiPJLFZP6pdjRRje8VPuKq5EGDTJNwCZdJ0Kcj0XL+CihhnoU96UX67Yl9
+         57MnCHPZiOLS4YytLfb/AFiB1QS3shX8qlMUNBxCXtJ1cL1U4hLmORMvNSmK803edHzZ
+         hPPyOdSt2wPgSS1Mn7frQ9FrbfFtD3GPlr2+oToCUUeVRo7zBdnmZj0IzixAwI8PrNSO
+         7QP3W0iMEK8z5kroXhfeTFq5eznxzQwTabf9EdwUI0O3ac6VLvFNVyW/W4fjD6GEwM6r
+         jxHw==
+X-Gm-Message-State: APjAAAXI36r9HP1SFOJdH8+upgh4AKSIBiACg4w1sCx5XILDrapFWbSq
+	ZE3LbJvgOyXXdOzi2JhkLhQ9BOkdZW7fMiESuQk3OzzjeJnZMQtgUD8NgyQeIpXL9cn5YFt8wwD
+	Hs1deg+hgmAXSM8HHdo6J+Hn/zEaNRbqf6xdxaHLz7pAALw27nr4K1hwskxpKs5RNMw==
+X-Received: by 2002:aed:35e4:: with SMTP id d33mr67053281qte.58.1555445155033;
+        Tue, 16 Apr 2019 13:05:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx0+VZVGrlLhen//p7Bv+KJ53tBIwzH0/jsRodA9ssXTPt/NEBQBDG2fYnM8lVRgrMLKnTH
+X-Received: by 2002:aed:35e4:: with SMTP id d33mr67053220qte.58.1555445154360;
+        Tue, 16 Apr 2019 13:05:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555445154; cv=none;
         d=google.com; s=arc-20160816;
-        b=F6+YAh4HqSgwrwXHXn0B0r8cheBf+mcyxmywJMtFfmBYDwzEI1eqOsbYOlv9kZ44eI
-         Ug0OVrVY6LsjzV6J9qK8J1JRZvNHRAS6i14kQ/lIMUA/G1wLpzUkeVz/vusu149OT0UU
-         yaGdQ3PHQ7et+RY4cHQWn7BNE6vHIcoNs5i47VzREerIv14gDkMDDfh6laJ0LLtGN+4m
-         er6eoKqlgYaFbnkTSOX5OGrinF7nvwvuEuJPqfIOZNB/oPWUeEFc+6vCXC5/nAX7ir3F
-         hG82TMM2XTvJaByWQhfrw2YS9kTqtMWNOR2w3OEAJaUNDrubGQ/W2nbfq38TIYPDNsf+
-         pQ7Q==
+        b=u9GeamtM8SlFkGYmrblxr8GC7gpc6TCaiikePnt4mr37ZLlGOcgS+XWOX+3qV4n56Q
+         soA6htGyRWIEzCTVuIEngTgN02IYhExZdcq2COgEVBCDFmS2y8te1Wg8QhrLRqBNmqnj
+         LpD7MqjnfC/jpAlLO4h3gY9VPiO+UowBBOKz/vlmmeocL7JQ/TGV7LVtiR1a+hKF66dh
+         xyCmvXiVCnv3qJCPq452txwS3Jow/OYi8IgUl5jE1sM6imeI3qI1NgGIW5KLn/DvxUHt
+         mGT1zEJUBkUePg3SFE7ccSulYTUFnqgd9y39I8bNMZrIZGIfVUkmFdO9ECOQgkFjeE1y
+         aY2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=4YC/SWjxlOdzRIslZGV/FKUSalJ5ZPrGgKiaRY/Pnlo=;
-        b=KzyxnLCUhnLT908EO2fCasa4m/DUzoPR0dLgqkQNqQ5SqjpDxF4laCB17R0IQLc8DA
-         7ycSus3JGlsoNvaduMTiHG0Ls5rocwduoqA7tSU/Pifkyek7kCxdfiPHHuJXEcmUaG/P
-         FccEdz2WAw5Chf3FOBEhWrZsZUZ3ZV04CZjLgaqYCCqIjgXt26v6yNrgdAzcfxjIAy6R
-         mS/G6hx2W8yHkTQCAFvaMnCdR4mZf4Bt0SUKRsPn8gzb6z3NRgLiSSl96Y+dgd7BG6T1
-         N960aJ8q+3Gj9h/d1Y2f/dV6Tjf7nM1TH03wpKn9VdFGFR6x6XIpKOOMkNlbxG9rp1uh
-         oH+Q==
+        h=thread-index:thread-topic:content-transfer-encoding:mime-version
+         :subject:references:in-reply-to:message-id:cc:to:from:date
+         :dkim-signature:dkim-filter;
+        bh=xCXfm0GksTeOQ3vNasxSWI3L+tslb07JX35RdVENb28=;
+        b=RXUD8IrqRKVCDOD5O3+T1a6w6MboUVnwNBr+44dXZ+7VAKONLyL2/ys/2fFParLQ3v
+         oxag6SO4PrTOMb12dvkOHFAg+GmlePDsCGXTHla1/vnAD23sQ6IbXKrZwOx+aVj+N4Gb
+         Kzhm805hal9+WzdMi5gKKZ1f/bYp9ZAz747RQN9ONYOUwMGoQ1ckjJrkj2AzZiw/LRJX
+         7h8qOI8QvUnP7KYJWBJmSdZ+9j+xxClpkUDeY0Oji7dywVgmLBaYu1z3an3mBkXCZfNa
+         gyxKBSsIfHMif/aV6/WmZ9Ui0Tno2NLTQhvnRpyeoXuTO0s8Sgf1Co5HNRfo0l0aDrab
+         u+8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t33si355983qtt.399.2019.04.16.12.57.50
+       dkim=pass header.i=@efficios.com header.s=default header.b=MKVHhXkf;
+       spf=pass (google.com: domain of compudj@efficios.com designates 167.114.142.138 as permitted sender) smtp.mailfrom=compudj@efficios.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=efficios.com
+Received: from mail.efficios.com (mail.efficios.com. [167.114.142.138])
+        by mx.google.com with ESMTPS id 1si2963967qvy.164.2019.04.16.13.05.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Apr 2019 12:57:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 16 Apr 2019 13:05:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of compudj@efficios.com designates 167.114.142.138 as permitted sender) client-ip=167.114.142.138;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D6EA7F74CE;
-	Tue, 16 Apr 2019 19:57:49 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 883AF608C7;
-	Tue, 16 Apr 2019 19:57:38 +0000 (UTC)
-Date: Tue, 16 Apr 2019 15:57:35 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>,
-	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>,
-	Ming Lei <ming.lei@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
-	Yan Zheng <zyan@redhat.com>, Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>, Alex Elder <elder@kernel.org>,
-	ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
-	linux-bcache@vger.kernel.org,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>
-Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
-Message-ID: <20190416195735.GE21526@redhat.com>
-References: <20190411210834.4105-1-jglisse@redhat.com>
- <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
- <20190416185922.GA12818@kmo-pixel>
- <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
- <ccac6c5a-7120-0455-88de-ca321b01e825@plexistor.com>
+       dkim=pass header.i=@efficios.com header.s=default header.b=MKVHhXkf;
+       spf=pass (google.com: domain of compudj@efficios.com designates 167.114.142.138 as permitted sender) smtp.mailfrom=compudj@efficios.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=efficios.com
+Received: from localhost (ip6-localhost [IPv6:::1])
+	by mail.efficios.com (Postfix) with ESMTP id 8DBFB1D6FC9;
+	Tue, 16 Apr 2019 16:05:53 -0400 (EDT)
+Received: from mail.efficios.com ([IPv6:::1])
+	by localhost (mail02.efficios.com [IPv6:::1]) (amavisd-new, port 10032)
+	with ESMTP id PmFNGrHV7vYt; Tue, 16 Apr 2019 16:05:53 -0400 (EDT)
+Received: from localhost (ip6-localhost [IPv6:::1])
+	by mail.efficios.com (Postfix) with ESMTP id ECBFA1D6FC5;
+	Tue, 16 Apr 2019 16:05:52 -0400 (EDT)
+DKIM-Filter: OpenDKIM Filter v2.10.3 mail.efficios.com ECBFA1D6FC5
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=efficios.com;
+	s=default; t=1555445153;
+	bh=xCXfm0GksTeOQ3vNasxSWI3L+tslb07JX35RdVENb28=;
+	h=Date:From:To:Message-ID:MIME-Version;
+	b=MKVHhXkfHjSoUDb6xhbZ+yFqnXUzKYUqifa2yA0Norh+/6gh6AJjB6/R/EzziLjVN
+	 UTXLzaRDWBNOxwXGjmLlQT+hIuuNG4Pw39V2YttYfmfrVtLNt3p0ko72/nb+DUchQF
+	 Hr5b3vR41lhTaB/bQkSmDj6tmMdSfXzSj8Im+8GGMVgty1WFlRgNAesyTEOvl6qya0
+	 DJi1s8XLC/YLf9kHRTzhoSzYDdNYogpCqVdbil4j1PPzaQ5JUozlqeX592lkPfdTlu
+	 3/FlNsmnXMW4KVeBjNPgWwc4Ib6mPrtiAdXsxXNEf0br/1hcfA8r3CZfMKfuK9Q6xs
+	 kihNtGVNx6/SA==
+X-Virus-Scanned: amavisd-new at efficios.com
+Received: from mail.efficios.com ([IPv6:::1])
+	by localhost (mail02.efficios.com [IPv6:::1]) (amavisd-new, port 10026)
+	with ESMTP id 33vRis1AVO1a; Tue, 16 Apr 2019 16:05:52 -0400 (EDT)
+Received: from mail02.efficios.com (mail02.efficios.com [167.114.142.138])
+	by mail.efficios.com (Postfix) with ESMTP id C74241D6FB7;
+	Tue, 16 Apr 2019 16:05:52 -0400 (EDT)
+Date: Tue, 16 Apr 2019 16:05:52 -0400 (EDT)
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Guenter Roeck <groeck@google.com>, Kees Cook <keescook@chromium.org>, 
+	kernelci <kernelci@groups.io>, 
+	Guillaume Tucker <guillaume.tucker@collabora.com>, 
+	Mike Rapoport <rppt@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Mark Brown <broonie@kernel.org>, 
+	Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
+	Matt Hart <matthew.hart@linaro.org>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, 
+	Kevin Hilman <khilman@baylibre.com>, 
+	Enric Balletbo i Serra <enric.balletbo@collabora.com>, 
+	Nicholas Piggin <npiggin@gmail.com>, 
+	linux <linux@dominikbrodowski.net>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	Adrian Reber <adrian@lisas.de>, 
+	linux-kernel <linux-kernel@vger.kernel.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, 
+	Richard Guy Briggs <rgb@redhat.com>, 
+	Peter Zijlstra <peterz@infradead.org>, info <info@kernelci.org>
+Message-ID: <2054840174.2796.1555445152616.JavaMail.zimbra@efficios.com>
+In-Reply-To: <CAPcyv4gxk9xbsP3YSKzxu5Yp9FTefyxHc6xC33GwZ3Zf9_eeKA@mail.gmail.com>
+References: <20190215185151.GG7897@sirena.org.uk> <CAGXu5jLAPKBE-EdfXkg2AK5P=qZktW6ow4kN5Yzc0WU2rtG8LQ@mail.gmail.com> <CABXOdTdVvFn=Nbd_Anhz7zR1H-9QeGByF3HFg4ZFt58R8=H6zA@mail.gmail.com> <CAGXu5j+Sw2FyMc8L+8hTpEKbOsySFGrCmFtVP5gt9y2pJhYVUw@mail.gmail.com> <CABXOdTcXWf9iReoocaj9rZ7z17zt-62iPDuvQQSrQRtMeeZNiA@mail.gmail.com> <CAPcyv4i8xhA6B5e=YBq2Z5kooyUpYZ8Bv9qov-mvqm4Uz=KLWQ@mail.gmail.com> <CABXOdTc5=J7ZFgbiwahVind-SNt7+G_-TVO=v-Y5SBVPLdUFog@mail.gmail.com> <CAPcyv4gxk9xbsP3YSKzxu5Yp9FTefyxHc6xC33GwZ3Zf9_eeKA@mail.gmail.com>
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <ccac6c5a-7120-0455-88de-ca321b01e825@plexistor.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Tue, 16 Apr 2019 19:57:50 +0000 (UTC)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [167.114.142.138]
+X-Mailer: Zimbra 8.8.12_GA_3794 (ZimbraWebClient - FF66 (Linux)/8.8.12_GA_3794)
+Thread-Topic: next/master boot bisection: next-20190215 on beaglebone-black
+Thread-Index: 6c8jdHB53tUcYvEQYLkcXDa+eqcbdA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 10:28:40PM +0300, Boaz Harrosh wrote:
-> On 16/04/19 22:12, Dan Williams wrote:
-> > On Tue, Apr 16, 2019 at 11:59 AM Kent Overstreet
-> > <kent.overstreet@gmail.com> wrote:
-> <>
-> > This all reminds of the failed attempt to teach the block layer to
-> > operate without pages:
-> > 
-> > https://lore.kernel.org/lkml/20150316201640.33102.33761.stgit@dwillia2-desk3.amr.corp.intel.com/
-> > 
-> 
-> Exactly why I want to make sure it is just a [pointer | flag] and not any kind of pfn
-> type. Let us please not go there again?
-> 
-> >>
-> >> Question though - why do we need a flag for whether a page is a GUP page or not?
-> >> Couldn't the needed information just be determined by what range the pfn is not
-> >> (i.e. whether or not it has a struct page associated with it)?
-> > 
-> > That amounts to a pfn_valid() check which is a bit heavier than if we
-> > can store a flag in the bv_pfn entry directly.
-> > 
-> > I'd say create a new PFN_* flag, and make bv_pfn a 'pfn_t' rather than
-> > an 'unsigned long'.
-> > 
-> 
-> No, please please not. This is not a pfn and not a pfn_t. It is a page-ptr
-> and a flag that says where/how to put_page it. IE I did a GUP on this page
-> please do a PUP on this page instead of regular put_page. So no where do I mean
-> pfn or pfn_t in this code. Then why?
-> 
-> > That said, I'm still in favor of Jan's proposal to just make the
-> > bv_page semantics uniform. Otherwise we're complicating this core
-> > infrastructure for some yet to be implemented GPU memory management
-> > capabilities with yet to be determined value. Circle back when that
-> > value is clear, but in the meantime fix the GUP bug.
-> > 
-> 
-> I agree there are simpler ways to solve the bugs at hand then
-> to system wide separate get_user_page from get_page and force all put_user
-> callers to remember what to do. Is there some Document explaining the
-> all design of where this is going?
-> 
+----- On Apr 16, 2019, at 2:54 PM, Dan Williams dan.j.williams@intel.com wrote:
 
-A very long thread on this:
+> On Thu, Apr 11, 2019 at 1:54 PM Guenter Roeck <groeck@google.com> wrote:
+> [..]
+>> > > Boot tests report
+>> > >
+>> > > Qemu test results:
+>> > >     total: 345 pass: 345 fail: 0
+>> > >
+>> > > This is on top of next-20190410 with CONFIG_SHUFFLE_PAGE_ALLOCATOR=y
+>> > > and the known crashes fixed.
+>> >
+>> > In addition to CONFIG_SHUFFLE_PAGE_ALLOCATOR=y you also need the
+>> > kernel command line option "page_alloc.shuffle=1"
+>> >
+>> > ...so I doubt you are running with shuffling enabled. Another way to
+>> > double check is:
+>> >
+>> >    cat /sys/module/page_alloc/parameters/shuffle
+>>
+>> Yes, you are right. Because, with it enabled, I see:
+>>
+>> Kernel command line: rdinit=/sbin/init page_alloc.shuffle=1 panic=-1
+>> console=ttyAMA0,115200 page_alloc.shuffle=1
+>> ------------[ cut here ]------------
+>> WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:303
+>> page_alloc_shuffle+0x12c/0x1ac
+>> static_key_enable(): static key 'page_alloc_shuffle_key+0x0/0x4' used
+>> before call to jump_label_init()
+> 
+> This looks to be specific to ARM never having had to deal with
+> DEFINE_STATIC_KEY_TRUE in the past.
+> 
+> I am able to avoid this warning by simply not enabling JUMP_LABEL
+> support in my build.
 
-https://lkml.org/lkml/2018/12/3/1128
+Looking into this some more, it looks like I was on the wrong track
+with my large branch offset theory. Is it just possible that
+page_alloc_shuffle() ends up using jump labels before they are
+initialized ? Perhaps this has something to do with how early
+the page_alloc.shuffle=1 kernel parameter is handled.
 
-especialy all the reply to this first one
+Thanks,
 
-There is also:
+Mathieu
 
-https://lkml.org/lkml/2019/3/26/1395
-https://lwn.net/Articles/753027/
 
-Cheers,
-Jérôme
+-- 
+Mathieu Desnoyers
+EfficiOS Inc.
+http://www.efficios.com
 
