@@ -2,187 +2,153 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 848F5C282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:39:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B171AC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:41:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FEB7204EC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:39:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FEB7204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 7D84E204EC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:41:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D84E204EC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8EC46B0006; Wed, 17 Apr 2019 09:39:22 -0400 (EDT)
+	id 16BF66B0005; Wed, 17 Apr 2019 09:41:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3F216B0007; Wed, 17 Apr 2019 09:39:22 -0400 (EDT)
+	id 0F3736B0006; Wed, 17 Apr 2019 09:41:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B2E886B0008; Wed, 17 Apr 2019 09:39:22 -0400 (EDT)
+	id F24AE6B0007; Wed, 17 Apr 2019 09:41:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 66AC46B0006
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:39:22 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id p26so4492022edy.19
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 06:39:22 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A06BE6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:41:55 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id n25so2857366edd.5
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 06:41:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=owqG/iMgZJN+3Xp18sBZae3t4QaNGrDBMo69ShPD1HQ=;
-        b=V5uc8o8oCIeCSTn25HJjPmXY1c6dscfKWJq8NwwHZqNUr7WF+0MrYvSfPRldzlawn3
-         vc2j/WF43l2LPs8xb+amj0C2rHhZ/eQb6z4vKg02zhmeOD+I0naOymWtGwddSKYC1P0e
-         hkyKBcJlN2MOIRdHOe1TJ/Z+6DbwLhEA7yKWkW3AxGDLdAh5OUMHXnzqtndggA4Eg4J4
-         PX8tmfMDE0R4gTSwbImOsoH/qbbq1N6j/uuVLZpuCmevPsj9x2Vnk76jcMFEVOssDGDR
-         eWDGVcbZBGmaLtYLMvgpNhvgw+r/jVYSBmYeNUe3625awVqSSFQ7Ru4QpYpoM53mqXhU
-         afEw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVqvuPO3BSZpXL4rOWQzKo0zeW+E3j/LVsFnu/hdJu0rG+xl6oJ
-	g1pYr9eMHtFevo0tMzrIdPU8VnZIP9gOhG2Z1zjeYWdPIuWWT+PPosFh6GCPMHH30WmK7CcydjW
-	YFq34trES2A9JKkB3nJjyeuJBWF/9BOu1lXeD1CONr9VLYZqO1G34X/WJlmGq/YNvqw==
-X-Received: by 2002:a17:906:960a:: with SMTP id s10mr46316237ejx.141.1555508361928;
-        Wed, 17 Apr 2019 06:39:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwmh7pgNotX2G4PgX3FS21pdNQUaMoXHCtd5sZhDdwQdnPAts67aiG85Pleqkuq0Bf3LUgz
-X-Received: by 2002:a17:906:960a:: with SMTP id s10mr46316195ejx.141.1555508361155;
-        Wed, 17 Apr 2019 06:39:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555508361; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=jzICcgedi+s9LIZxaX5EHYwDuMiVUohGNkzjSLI0MOw=;
+        b=qwwj+ex8JVVbxxhGyz4lzILHFMp1ivmWVC3bgWWd7yZkEVXPHzTg5w65U6lI/OHOnS
+         3zrvY6/AlxVYi7qeZcxuFrc/L9ssZHIm0cDBsOVP0uPPUf1IsmPZ+hNXHytuYGxXIyyO
+         GEzyav+vhpJy7xrbTgIngrlE+WvWJ8JqOAA6Mt+QM7UQDyIhMTYRaQV86Xf8CXW+EEzU
+         p/4ss0aKwjfC3c0gH218cJclIkbxFkgQiT5y+Yz6wEtGFMWErgFOaLhe9uazKR9fCYJf
+         WRWkZVfrVAy9lmQpMpVubkmym0lCVfpk9bGePWvKLm1fr3i7byJkLOCo5jqZkz315Yk8
+         KHfA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV6K+Xko68+sldwD53peOZtdblfM7FCsBu5nMdP+2CCe1+yr5mC
+	v1gZdspGyZWe0BhuYD2UnEsDfCTWuJOVAHqZ7ugC8DYsak/mwMXyzZ7OMmYxkP53OJoXV0N98Nv
+	4cz4ne6fBqZ1o6ynyRqFu/2m7b8t4ZahJV6+/OW/MR2a9tZicYjHjatVWTnbI5G0=
+X-Received: by 2002:a50:8908:: with SMTP id e8mr17128605ede.205.1555508515210;
+        Wed, 17 Apr 2019 06:41:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzE1V/gCwgH/FvEwOygNj3Up/Ox/ThxfF/LJ1KIW39DlHD5mHL8z22WdpEGQ3oOOdgy3BP
+X-Received: by 2002:a50:8908:: with SMTP id e8mr17128559ede.205.1555508514393;
+        Wed, 17 Apr 2019 06:41:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555508514; cv=none;
         d=google.com; s=arc-20160816;
-        b=ESwYzJK0cY+wrPIZZrIAegmpeQDefNcllybBPqYs5+a2ZvpWGB9WZTULNGgqBeLQUA
-         jfI/xowtjcaD14ew5GNRQJKw1dVoJT6C3oMAK/DZIMARN/49kxc7hsi97F3TKgTJTltA
-         BwSUjbpc3qfQwwb7JPiv84TpZDz6DQCZfKqcAbmAV14N3LW1DAyHOSNqXpr5mRQD9i4j
-         ddQBbOtsfTs4if7X1HFTQWYvpBMMwqQY98KgMJp6zk187Ua8xyXNdZEugMuBWAqC9TrK
-         SEx1u3mXyhEcpEofjbQVS6XP3wpA8j4bbGcYYMkKxvIa8gr2kAMgYsqkz65D8yXq+k5n
-         REhA==
+        b=033bYTFjdFZ59Hzl0PgjbZ+uPPypihp/WFnLZuYDJnY9RhBjQgnELQWA/FRmlJJ6Ju
+         w/7BUYDItu87z+Aanf4qOdPuxX2ZO6qVXKAsWoWs1QnvHQ2Nw4QAhRSrVc2qM7/UpA5R
+         bGl5HT8ltPJ+0AQdLpLLat6iZL2wJTjrGP+zgWu685vOY+bI18l2PNKrMHiebEH1qQzL
+         OEo5UMl9eWQ7nOfz13oGWO4xNkNwKq084zwN48MbxMtMmao0brqUetK5OzpekdFWdywj
+         6ffalwUXBezB88fIVdEkIQFt/t59sC6P/e2MOJN9knNKFySKIAgEfn0ut3ycluJj+Cqd
+         Rrng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=owqG/iMgZJN+3Xp18sBZae3t4QaNGrDBMo69ShPD1HQ=;
-        b=dfEBDC+e7swvgnc8/rWsgKSe1eFKjt4EoFTHT3Bv8PsRGZjDC/7o2FqnSkkZJMnXMI
-         DOKaHdZn2hlG9Sg/ZurvY9AKOV8DFIv/iosNpl33JQcWvAsd9I4jLmWho+4R88r9cfqp
-         JBB0gOcHgA/jqLuFD8sngA8IuItoqs6yBkoyw/xE2mOH9F2/w+tLZeTde+JvEYip6BGN
-         3dPBVqbsA87WTA1uoaTGn2a18HH4OQlYfn3NIN+zMQGIjuEzNtYqxrGS2qYfYdaA+PQJ
-         RrPlxJiWhJrP9UxJd9JLziHIdYqXOj+W2eVAlN9sFWGevTBnf4xIFt0sPOxMEa8DROMd
-         7lSA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=jzICcgedi+s9LIZxaX5EHYwDuMiVUohGNkzjSLI0MOw=;
+        b=LaJnrGUHJdh0Df+iDYD/6WELGmAAmD2vxyNwQhz4cGNWzQ+5XUDZGVNekbuU3kpsjE
+         xOpSK+UjK26qJ2KlbYegYzKYBUN9w3aBzVQ2A5FihfJSCUZnJacOd7fNSyj7xfDxOdzN
+         RbY4/0tjU7K9rnwAv26laYEDVgPbKiVABnudMjowc7xWpA6Ka2VhG9CbsZvo7TgOIObw
+         2Bvg4l27XJw1l3rGkGCKIezxQb04ePdy41yTH+rnJTS+fgWuFcqEp4kjUwvsAnfkNQF9
+         pjbhEiZghVNDs5FUyqepz77CFU1aEbngeUobqyxQexzDTlwcsz4EAZ+20dntiDFb/OkO
+         yF2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p15si630612ejj.312.2019.04.17.06.39.21
+        by mx.google.com with ESMTPS id gu5si2876913ejb.282.2019.04.17.06.41.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 06:39:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 17 Apr 2019 06:41:54 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BDA13B174;
-	Wed, 17 Apr 2019 13:39:20 +0000 (UTC)
-Subject: Re: [PATCH 0/3] vmalloc enhancements
-To: Roman Gushchin <guro@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Matthew Wilcox <willy@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>,
- Kernel Team <Kernel-team@fb.com>
-References: <20190225203037.1317-1-guro@fb.com>
- <20190329220742.GA5804@tower.DHCP.thefacebook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <86454fa7-6523-70d7-ce36-8c6874d04523@suse.cz>
-Date: Wed, 17 Apr 2019 15:36:02 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+	by mx1.suse.de (Postfix) with ESMTP id 8A131B175;
+	Wed, 17 Apr 2019 13:41:53 +0000 (UTC)
+Date: Wed, 17 Apr 2019 15:41:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Mateusz Guzik <mguzik@redhat.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Geert Uytterhoeven <geert+renesas@glider.be>,
+	Arun KS <arunks@codeaurora.org>,
+	Bartosz Golaszewski <brgl@bgdev.pl>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: get_cmdline use arg_lock instead of mmap_sem
+Message-ID: <20190417134152.GM5878@dhcp22.suse.cz>
+References: <20190417120347.15397-1-mkoutny@suse.com>
 MIME-Version: 1.0
-In-Reply-To: <20190329220742.GA5804@tower.DHCP.thefacebook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190417120347.15397-1-mkoutny@suse.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/29/19 11:07 PM, Roman Gushchin wrote:
->> Roman Gushchin (3):
->>   mm: refactor __vunmap() to avoid duplicated call to find_vm_area()
->>   mm: separate memory allocation and actual work in alloc_vmap_area()
->>   mm: show number of vmalloc pages in /proc/meminfo
->>
->>  fs/proc/meminfo.c       |   2 +-
->>  include/linux/vmalloc.h |   2 +
->>  mm/vmalloc.c            | 107 ++++++++++++++++++++++++++--------------
->>  3 files changed, 73 insertions(+), 38 deletions(-)
->>
->> -- 
->> 2.20.1
->>
+On Wed 17-04-19 14:03:47, Michal Koutny wrote:
+> The commit a3b609ef9f8b ("proc read mm's {arg,env}_{start,end} with mmap
+> semaphore taken.") added synchronization of reading argument/environment
+> boundaries under mmap_sem. Later commit 88aa7cc688d4 ("mm: introduce
+> arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> avoided the coarse use of mmap_sem in similar situations.
 > 
-> Ping. Any comments/suggestions/objections?
+> get_cmdline can also use arg_lock instead of mmap_sem when it reads the
+> boundaries.
 
-I suspect my questions for 3/3 effectively blocked this, so now it
-should be unblocked. Haven't checked how this is affected by the
-"improve vmap allocation" series, but you were following it closely and
-thus should know better.
+Don't we need to use the lock in prctl_set_mm as well then?
+
+> Signed-off-by: Michal Koutný <mkoutny@suse.com>
+> ---
+>  mm/util.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/util.c b/mm/util.c
+> index d559bde497a9..568575cceefc 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -758,12 +758,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+>  	if (!mm->arg_end)
+>  		goto out_mm;	/* Shh! No looking before we're done */
+>  
+> -	down_read(&mm->mmap_sem);
+> +	spin_lock(&mm->arg_lock);
+>  	arg_start = mm->arg_start;
+>  	arg_end = mm->arg_end;
+>  	env_start = mm->env_start;
+>  	env_end = mm->env_end;
+> -	up_read(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	len = arg_end - arg_start;
+>  
+> -- 
+> 2.16.4
+
+-- 
+Michal Hocko
+SUSE Labs
 
