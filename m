@@ -6,97 +6,97 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 618CDC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:52:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CBD99C282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:53:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D6DE20663
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:52:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D6DE20663
+	by mail.kernel.org (Postfix) with ESMTP id 7F3B720663
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:53:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F3B720663
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCF676B0008; Wed, 17 Apr 2019 14:52:58 -0400 (EDT)
+	id 2806A6B000A; Wed, 17 Apr 2019 14:53:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA6176B000A; Wed, 17 Apr 2019 14:52:58 -0400 (EDT)
+	id 230296B000C; Wed, 17 Apr 2019 14:53:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A958A6B000C; Wed, 17 Apr 2019 14:52:58 -0400 (EDT)
+	id 146216B000D; Wed, 17 Apr 2019 14:53:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 740F66B0008
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:52:58 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id z12so15186594pgs.4
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 11:52:58 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D166F6B000A
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:53:03 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e20so16793447pfn.8
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 11:53:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=X4wbSxsH5/0V3f1ZPczRFAr4k1ojDCrVDY/qEO4VDNY=;
-        b=jY/T5+LvexVCWGzUmbUBj12Ors+zhXKTX8NsOSq8oNW+Q4ckbDIcJ7xDxoA4buvd25
-         dR+xvgf3R3BUxwfU8KfgSkFnmMmSHrRrBBSa7yKkv9Q6cyP08rkOSzOWBz+dDRuGotc8
-         pMg9R2nNPh4QDsbE1i+FQkQB2/LCbNc6dnQCdGpjeiHJ8LvPxXZJ7Ej5xkmC/sgwquG6
-         0hwNGQKKshb59tl0yzlaT0inTs8IL38PwsfCebEA0FF8XfqISqCcvICQ/GIkcQAXDV6s
-         jMYIx1EH76T+k4A6ECwH79DqdGF8wHsox0uz/5pb0ShPjZMSiLlkLidgdQENmoT672Jl
-         1D0g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXWwNFrc1Ad/FMxgWr6s6n1aR5VyUFAqJu8vp6ZCgDBv81uCGs3
-	ulIEKjU39ZWL9F3KYW+DBeW1X0K3rgJgh+ZP6LXU7Uq5q9ZCi4YjKAhqn3Fif8TTrN1fFQcpyCO
-	LK31Q6xCNo4leP6vt+ktHO525EKrV43wBQ5k480G6ewQIbSFgX1kMtuIjxP0a/gEJiQ==
-X-Received: by 2002:a17:902:20c9:: with SMTP id v9mr69515576plg.239.1555527178137;
-        Wed, 17 Apr 2019 11:52:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUJpzwfVgmnMuEvLtKDbYjJSCNm83YKHReOz28LEKDMoeMHV7G/QazInba4y2fWon1BGUv
-X-Received: by 2002:a17:902:20c9:: with SMTP id v9mr69515535plg.239.1555527177422;
-        Wed, 17 Apr 2019 11:52:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555527177; cv=none;
+        bh=0zgvBeX32KFY/f5kA6MPIacaljL+CBotozBqVDmlEME=;
+        b=AowUG6ugTvTvAtlX2nnm6TLL1GXnGlUbvBr5txH60Hc1ThFj5y5VmfLXKBPODCQSgu
+         XNGSPXohAfIjhvSPO309w1sCKYO7NO26kGplCDdpzXVSoKDTdZGYSw8YYibQBlkp9tNy
+         rto89hVomlihhxYrTCSK2dKY/mbwbO0LDRMHhnUNC9h3jrkgHDicFIlBKbyW5Xx3qG3J
+         HN9Sqrt53E/zhY6qs65Q+W5rISWka2Ivjiryhz4hEbAjmWDRWlrHboRCUmZdIZunYteV
+         RgiC+fwMJNYLJoYddZPcu9FAaH/axMBnNlpDJmnR1/Hh60h0IcBZGwSKZZvZdz4WkS5A
+         3/LQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAW7ECDZboBNfzz+VP29Rpp/xzMBG8dCMsQhWr+l44PKS55N2Hme
+	UcJVJQHavC0YpF60p5WROUQ/+kpZiQwEvpW4YY2APWeMoC7GFXAvDdeuks6jvvOytTQYVgZk4IJ
+	uxLnIGF8hd8IcZONiFzzxUjszLWBC3I6ex8CyHWnCfOpfDTwVgyg/DsyLpeSMLFf9FA==
+X-Received: by 2002:a65:64c8:: with SMTP id t8mr83487360pgv.248.1555527183526;
+        Wed, 17 Apr 2019 11:53:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzArcXfbcZqC3ssm8nK24mmlg5A09bxU+9bRcNvMLG1AgiaPPslBBLrUwwBS+o9V29tg0Ac
+X-Received: by 2002:a65:64c8:: with SMTP id t8mr83487322pgv.248.1555527182857;
+        Wed, 17 Apr 2019 11:53:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555527182; cv=none;
         d=google.com; s=arc-20160816;
-        b=HLP61Su+JwwzQjajKVvCbvkaZokgMoRNtmGqD1QmufuG/qrXr1lpB7KTYdUWD2i11X
-         SWKJe2tlfpEzdjVpTtn1Md//bK9kIVjOcKy/LsRRdH+u6bpoLb1sCBTECsaxne4ExNfo
-         SDI3rYKvBm2inBLqz8FcapMIZ2Lm0ZpJVRTj9UCeAayktGH7CgqdQ3Ba+BQPV7ONrw/B
-         HbSwu5x1g5+Zs5zqkFfuo1fgFcJA09h3+UMWM8tn94779Jy28La+U49AR7oRy58UV3qQ
-         ZFa+2QHkQ2ZfjFmNRV8JBXKUmC2knxGs/Nye1OG8LGBQWOWTezIhp9+aoXYVUraGAStR
-         uBcQ==
+        b=fMa3pQPMtYXACQgATtrHWDFTIviB5ZhCUUs9jcHSXRUdy7je/frF/t7galzoDRq8EZ
+         lvrFUshHWj4z0QGoPwWSKM+z91ZeaEU73sriCermJceS3agOzdxuOo4CVMO8uY64gfL5
+         n6XCo/B3JiycLSj9B67dp38aQjnAjeUHDWJTR/hDkqVKo2sFS0tfV7K+1JDm5qyOsTmB
+         w7dz12DBshDRhP6lIRWbI5pdwrfYbS+d1Sf/nJTU8hnri6l7EOdKeA+NlASyZgRxBzQz
+         GBuqmQLMBixONplJui+LXq/zK3nQPEvZSZcLFkpwk6lYbBrhhx/EmgIZ1D85rt7CK/Ta
+         Rb2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=X4wbSxsH5/0V3f1ZPczRFAr4k1ojDCrVDY/qEO4VDNY=;
-        b=TuEbrn174PcJZiJcY/26BSA2UaAgh/JOPL/Owzfi8KsdUydOpXl7LGTQQluS/Sjyt8
-         agS48llgzRyKuDuFsz2g8r6L/00fUrrqJhvxhDs8XZ8h75JUX9L/fKxM2vwx4MzlufrW
-         fz20TmByQAdx/Q5+5jhBCsdYN5QJZhuyxfnotyUpc1MlJCAt4Of2kyQY9Pnco+cBj84B
-         m4C8qaoBiiuWzTRmR+Jw6XshNwMg3B7znSZvrk49fxwYFih0dR3qoKZsd2hp4Ed/EB2u
-         +NytzhFKJ+v4kOGzsbfHUbjfOskaDygXP22EwLQ1AKpZ2gekeskhGk9Mw+wWDeGQLdRq
-         HwzA==
+        bh=0zgvBeX32KFY/f5kA6MPIacaljL+CBotozBqVDmlEME=;
+        b=gInyUhDsJwK7LRPl2AnCIG/aKE5BvA/kQHSx5bIdL2UVfoATcSaDc5/mu7vAB90Vi6
+         /isr0zPfh61ILrle/v9KA/QJub4BcPihF5IvQsvY7GyZ91yKlV1CVb+pnB3GIucPvtnI
+         Xvpcwg5BkSsy5MaAGvEv3C7F2QjUT7qeq/hbduJb6rin9HxgJCb4OCTzbje0N8Jkpyxk
+         z8YkPRcaHi0wjGYjLVfZxBxsOKglEhvifwzdo1su/M3OYh919DvCCPz9UvupPb+fvpP3
+         a7BBWcMzptq19u+rHgFJCTyd23iFOzvrbzXjqIIlfg3xgwMJ/6JVVwIv4oCwErj/1jOr
+         m00A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id g189si49051674pfb.289.2019.04.17.11.52.57
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id h2si21340726pfk.277.2019.04.17.11.53.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 11:52:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Wed, 17 Apr 2019 11:53:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Apr 2019 11:52:56 -0700
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Apr 2019 11:53:02 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,362,1549958400"; 
-   d="scan'208";a="132232290"
+   d="scan'208";a="143759198"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga007.jf.intel.com with ESMTP; 17 Apr 2019 11:52:56 -0700
-Subject: [PATCH v6 03/12] mm/sparsemem: Add helpers track active portions of
- a section at boot
+  by fmsmga007.fm.intel.com with ESMTP; 17 Apr 2019 11:53:01 -0700
+Subject: [PATCH v6 04/12] mm/hotplug: Prepare shrink_{zone,
+ pgdat}_span for sub-section removal
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
 Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
  Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
  linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, mhocko@suse.com,
  david@redhat.com
-Date: Wed, 17 Apr 2019 11:39:11 -0700
-Message-ID: <155552635098.2015392.5460028594173939000.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 17 Apr 2019 11:39:16 -0700
+Message-ID: <155552635609.2015392.6246305135559796835.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -109,160 +109,88 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
-section active bitmask, each bit representing 2MB (SECTION_SIZE (128M) /
-map_active bitmask length (64)). If it turns out that 2MB is too large
-of an active tracking granularity it is trivial to increase the size of
-the map_active bitmap.
-
-The implications of a partially populated section is that pfn_valid()
-needs to go beyond a valid_section() check and read the sub-section
-active ranges from the bitmask.
+Sub-section hotplug support reduces the unit of operation of hotplug
+from section-sized-units (PAGES_PER_SECTION) to sub-section-sized units
+(PAGES_PER_SUBSECTION). Teach shrink_{zone,pgdat}_span() to consider
+PAGES_PER_SUBSECTION boundaries as the points where pfn_valid(), not
+valid_section(), can toggle.
 
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/mmzone.h |   29 ++++++++++++++++++++++++++++-
- mm/page_alloc.c        |    4 +++-
- mm/sparse.c            |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 79 insertions(+), 2 deletions(-)
+ include/linux/mmzone.h |    2 ++
+ mm/memory_hotplug.c    |   16 ++++++++--------
+ 2 files changed, 10 insertions(+), 8 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 6726fc175b51..cffde898e345 100644
+index cffde898e345..b13f0cddf75e 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -1175,6 +1175,8 @@ struct mem_section_usage {
- 	unsigned long pageblock_flags[0];
- };
+@@ -1164,6 +1164,8 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
  
-+void section_active_init(unsigned long pfn, unsigned long nr_pages);
-+
- struct page;
- struct page_ext;
- struct mem_section {
-@@ -1312,12 +1314,36 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+ #define SECTION_ACTIVE_SIZE ((1UL << SECTION_SIZE_BITS) / BITS_PER_LONG)
+ #define SECTION_ACTIVE_MASK (~(SECTION_ACTIVE_SIZE - 1))
++#define PAGES_PER_SUB_SECTION (SECTION_ACTIVE_SIZE / PAGE_SIZE)
++#define PAGE_SUB_SECTION_MASK (~(PAGES_PER_SUB_SECTION-1))
  
- extern int __highest_present_section_nr;
- 
-+static inline int section_active_index(phys_addr_t phys)
-+{
-+	return (phys & ~(PA_SECTION_MASK)) / SECTION_ACTIVE_SIZE;
-+}
-+
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
-+{
-+	int idx = section_active_index(PFN_PHYS(pfn));
-+
-+	return !!(ms->usage->map_active & (1UL << idx));
-+}
-+#else
-+static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
-+{
-+	return 1;
-+}
-+#endif
-+
- #ifndef CONFIG_HAVE_ARCH_PFN_VALID
- static inline int pfn_valid(unsigned long pfn)
+ struct mem_section_usage {
+ 	/*
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 8b7415736d21..d5874f9d4043 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -327,10 +327,10 @@ static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
  {
-+	struct mem_section *ms;
-+
- 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
- 		return 0;
--	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
-+	ms = __nr_to_section(pfn_to_section_nr(pfn));
-+	if (!valid_section(ms))
-+		return 0;
-+	return pfn_section_valid(ms, pfn);
- }
- #endif
+ 	struct mem_section *ms;
  
-@@ -1349,6 +1375,7 @@ void sparse_init(void);
- #define sparse_init()	do {} while (0)
- #define sparse_index_init(_sec, _nid)  do {} while (0)
- #define pfn_present pfn_valid
-+#define section_active_init(_pfn, _nr_pages) do {} while (0)
- #endif /* CONFIG_SPARSEMEM */
+-	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SECTION) {
++	for (; start_pfn < end_pfn; start_pfn += PAGES_PER_SUB_SECTION) {
+ 		ms = __pfn_to_section(start_pfn);
  
- /*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f671401a7c0b..c9ad28a78018 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7273,10 +7273,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!pfn_valid(start_pfn)))
+ 			continue;
  
- 	/* Print out the early node map */
- 	pr_info("Early memory node ranges\n");
--	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
-+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
- 		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
- 			(u64)start_pfn << PAGE_SHIFT,
- 			((u64)end_pfn << PAGE_SHIFT) - 1);
-+		section_active_init(start_pfn, end_pfn - start_pfn);
-+	}
+ 		if (unlikely(pfn_to_nid(start_pfn) != nid))
+@@ -355,10 +355,10 @@ static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
  
- 	/* Initialise every node */
- 	mminit_verify_pageflags_layout();
-diff --git a/mm/sparse.c b/mm/sparse.c
-index f87de7ad32c8..5ef2f884c4e1 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -210,6 +210,54 @@ static inline unsigned long first_present_section_nr(void)
- 	return next_present_section_nr(-1);
- }
+ 	/* pfn is the end pfn of a memory section. */
+ 	pfn = end_pfn - 1;
+-	for (; pfn >= start_pfn; pfn -= PAGES_PER_SECTION) {
++	for (; pfn >= start_pfn; pfn -= PAGES_PER_SUB_SECTION) {
+ 		ms = __pfn_to_section(pfn);
  
-+static unsigned long section_active_mask(unsigned long pfn,
-+		unsigned long nr_pages)
-+{
-+	int idx_start, idx_size;
-+	phys_addr_t start, size;
-+
-+	if (!nr_pages)
-+		return 0;
-+
-+	start = PFN_PHYS(pfn);
-+	size = PFN_PHYS(min(nr_pages, PAGES_PER_SECTION
-+				- (pfn & ~PAGE_SECTION_MASK)));
-+	size = ALIGN(size, SECTION_ACTIVE_SIZE);
-+
-+	idx_start = section_active_index(start);
-+	idx_size = section_active_index(size);
-+
-+	if (idx_size == 0)
-+		return -1;
-+	return ((1UL << idx_size) - 1) << idx_start;
-+}
-+
-+void section_active_init(unsigned long pfn, unsigned long nr_pages)
-+{
-+	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-+	int i, start_sec = pfn_to_section_nr(pfn);
-+
-+	if (!nr_pages)
-+		return;
-+
-+	for (i = start_sec; i <= end_sec; i++) {
-+		struct mem_section *ms;
-+		unsigned long mask;
-+		unsigned long pfns;
-+
-+		pfns = min(nr_pages, PAGES_PER_SECTION
-+				- (pfn & ~PAGE_SECTION_MASK));
-+		mask = section_active_mask(pfn, pfns);
-+
-+		ms = __nr_to_section(i);
-+		pr_debug("%s: sec: %d mask: %#018lx\n", __func__, i, mask);
-+		ms->usage->map_active = mask;
-+
-+		pfn += pfns;
-+		nr_pages -= pfns;
-+	}
-+}
-+
- /* Record a memory area against a node. */
- void __init memory_present(int nid, unsigned long start, unsigned long end)
- {
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+ 
+ 		if (unlikely(pfn_to_nid(pfn) != nid))
+@@ -417,10 +417,10 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+ 	 * it check the zone has only hole or not.
+ 	 */
+ 	pfn = zone_start_pfn;
+-	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
++	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SUB_SECTION) {
+ 		ms = __pfn_to_section(pfn);
+ 
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+ 
+ 		if (page_zone(pfn_to_page(pfn)) != zone)
+@@ -485,10 +485,10 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+ 	 * has only hole or not.
+ 	 */
+ 	pfn = pgdat_start_pfn;
+-	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
++	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SUB_SECTION) {
+ 		ms = __pfn_to_section(pfn);
+ 
+-		if (unlikely(!valid_section(ms)))
++		if (unlikely(!pfn_valid(pfn)))
+ 			continue;
+ 
+ 		if (pfn_to_nid(pfn) != nid)
 
