@@ -2,262 +2,143 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07DB4C282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:28:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77A42C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:33:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A67A2206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:28:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A67A2206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 426AD206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:33:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 426AD206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 568676B0005; Wed, 17 Apr 2019 10:28:41 -0400 (EDT)
+	id BA4BE6B0005; Wed, 17 Apr 2019 10:33:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 53D7B6B0006; Wed, 17 Apr 2019 10:28:41 -0400 (EDT)
+	id B546A6B0006; Wed, 17 Apr 2019 10:33:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42E266B0007; Wed, 17 Apr 2019 10:28:41 -0400 (EDT)
+	id A69D26B0007; Wed, 17 Apr 2019 10:33:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE196B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:28:41 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q12so22820008qtr.3
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 07:28:41 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 573E46B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:33:31 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id p26so4599627edy.19
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 07:33:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=flH8G2kvccqQjbLPHHX2h2oD0w9/DFxOb7Lx4/igmLk=;
-        b=t1WfispKh45aji/IfTKqLTSCmtZUir3swDTDUuX9Ov/flduFbVKzaTNQIYTkfIJVha
-         jpokz/KM1GVf6GNnQ48roL9lB+ELyLC6aE1MW3B/ctx3Kf4i5z6qhDajsQrI5SwrAwB3
-         aRESeQiF6RWmne6t3t6nX+OSToPfz8BzrR3QJSRN2dagBjIfZxRXwIbsx/m9DOpF0EjO
-         10mVjX/O5rjovWlGqc3F5YXfvmg+XW/5c7yMyeb4RLlU8Xv7PZyi1WGldvFEPYrJwTRJ
-         i92rYZeJjApc4XBLuQtNpdVKmNKhCN395vsxecisbyy+v5g/7iC+7AYt+hV5+y5WjsV2
-         u5gQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV8uvsp0sfsnXsuSCl+UUPRVMiqdEwUJQ/OGhEGWHhKYWias3KQ
-	g5cuOzSE8dOcU7F8u0YHS6/FWzdfFUfgvzxYVGIFcckxUO5Er3B8bXKTqTDXFBigK7hZOzy1Zo5
-	avD/OKU0oT82KXZQ3kqWwpi2IDRTim/+zn3rXcmhHXUcBqZTamCXr9Dn7ccs5MWUA/Q==
-X-Received: by 2002:ac8:70d6:: with SMTP id g22mr71280403qtp.216.1555511320758;
-        Wed, 17 Apr 2019 07:28:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxUPiZmJ76EAvuY1qzPN4zye5Laq80z8WS1etB7nQnjud4P3i+8wuarcUqfYuw9y5ZTS+nm
-X-Received: by 2002:ac8:70d6:: with SMTP id g22mr71280349qtp.216.1555511320049;
-        Wed, 17 Apr 2019 07:28:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555511320; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UDi1VBi3Er+JacX8csYXUb+XVOVabealOpPN8Cz72S4=;
+        b=Y0kuKjSbrgyj/tZeelIBIm8yw1Rkq96ZUF+SGRMPDYz3bXfrUr+woaqdBS0OJOgzQ1
+         SiF5cXrnfZm3yW62Cqy1qYrSrBluDrsd95/OM52XlO0X5w/erD1dScwN2bB7BPlxgRye
+         Iy3kGoss/LCEM3fdFl89w+3MlfWZqtpGMO2+P4TF1TNdpf3lvX7IAL0WO69kHynQu8eb
+         hs5WhHT1epo9grOpzXzSxzHgmp/g2O5QmpRnyx0G/5vzvP1B39Pjs3nbb1qsSA0+f6bG
+         OKNTqx91OgKKStxtsuIMtrmbcmRXxj3ajQE8OPgN7QITgyz+LZw9upnZrsrcX0yPL5Om
+         o3Ig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAXgIYAt3xXqnXqsq/oaGj6rk9vCKTJvz5Xwh1CDsTCJmaikYovS
+	3FuEjuS1dKOTNtTlV4M1xMDZcbwbCb9mP/Ixx6XjcqugtMeAOxL+5ZfJswcmBG/INOsbDXMSiKw
+	u1fxb/7oPvVFCSxHDzjKmpVSjUqaXim50wXLCNF1j9+aeXkwM4k8VDlj1h/KUwEF3/A==
+X-Received: by 2002:a50:b1b0:: with SMTP id m45mr24372296edd.82.1555511610836;
+        Wed, 17 Apr 2019 07:33:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+jUMubtlNbs2xNDJTTQ+Np5LXCKTnyjgSQf7vsMeahtqU26hNjrr5uTmw4h/fjl++LbXU
+X-Received: by 2002:a50:b1b0:: with SMTP id m45mr24372248edd.82.1555511609901;
+        Wed, 17 Apr 2019 07:33:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555511609; cv=none;
         d=google.com; s=arc-20160816;
-        b=W/DRW8gJMdFDxt2uEg9JvLZuQ9lE9gewvp8Wo/i/BpqWg8m6TvzvmjIg4zxNNb4bUJ
-         /NUWFk8wzgrBiCmVlkQ2U+wlb+WV08tZIeYk/mMr81Lhq0EeX+1rmIq/ed2x55pxgNwk
-         FNH2HwJkQpntWmnmbuawkqbt8JabiSwKV92zwAAFZZ1FO5y7ccoFawTon2W8b56EktoY
-         4QmSICy20E4bbYOUdjGN4xaIzoQvopbnovn5nw8wkubUvJAH1H2LKR0FS/CDySP95tru
-         9kmU2ZS7RuW2ZrcBCnwUvIwSXExb5w5hXXGw/bDEdshQ1RNDt6hBZ3l2mYyNWuTY/Sgz
-         /Qsw==
+        b=ALaCihubE12QhJEO7rnW1juKkEp0nvqRjzi831MNFH061O7ucPzUeSPGitljD2cyGf
+         oY7PKP9Sk8JYGutfw73f+9ln07oFyRGqHT4zHkLzOutgAgOrretmp77xM35THopVnxew
+         Ft4RSfskPdlgE/DlT8NV40OxILp9ERz3Gs5DEiTQEcRGMyVh7EmK1eN/jT8TotO80Y8/
+         bNkpAmsRLjsX+BcGo679bkiHIpQniunIdk4PD5OvjOL6hG9135usTVq6L7u3DxNkK+Zb
+         tw41uFjpVW3BeJkwKIpzKPZto1lcu4n0s3vpTUfrNUX5Z+EBjvNLBTKMxnbMLsNwv0Zr
+         r+lg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=flH8G2kvccqQjbLPHHX2h2oD0w9/DFxOb7Lx4/igmLk=;
-        b=HvbflKo6YV8DjcnR8Rd6vtnSDIvuPSzybP96ZJMC+euWzmTp43/NZrLVZ1Pxfd4L34
-         1RHYuL9OblPIoyCl/UvgbXxiID/uvtKc3jDrKLpz9LfIapNzXwE9m9gYAEnelDSj0ubj
-         JqhTAKt+wFUd12gCv+ACII4uvdUxbeoFDqI3n7j6Un0wQ6FZIkYYbK/jyeXiUk4sgqVU
-         EDb57PwFEVuC2yLgSbceeqTyiHI7TUBQUDxmL5g+5s6F0XkcaF5P61ZzOX6zmTe9Sfz5
-         CnGAb3R4vf6aNs7bVbCVNtOLB7pKmVDKTpYtAj9kglQuwADpFIQ9WhYB1aa6uS82gRHJ
-         nvug==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=UDi1VBi3Er+JacX8csYXUb+XVOVabealOpPN8Cz72S4=;
+        b=ultjtGsTPhNrQiycWQYvfxWA4AHVf+/bgZ8qI+QVx2+MNFSiJ0+stK9/7Omnu9EYAI
+         JJW9hG0wXwXLfdtFGdFMtvQZqAYf2STylRVHrfIunaZ42VhV5u/yalg6GRIQLZZr/kyY
+         iITGa0dtHo8RTe35ojdG3Npv4p9+D/3I5Lh59JGNZ4VsrBRuvvZDo1zr47o/uE6YFLJv
+         TXfgHaynI6pLObBx6HOaBnLz/fzRW/wyPVl3XU/uraqOXGT8LLo+6H21mnsu7Cw+VPjE
+         /m0uH1SjGpsTA44Dlvsjcwmqn73FcaTGpYA88EKqkUIvHrSG6Pwn7r9fqm3psuxCnR/X
+         xjXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u56si6836218qtb.161.2019.04.17.07.28.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 07:28:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id y8si5629198edv.117.2019.04.17.07.33.29
+        for <linux-mm@kvack.org>;
+        Wed, 17 Apr 2019 07:33:29 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0BD6130842AC;
-	Wed, 17 Apr 2019 14:28:39 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 878585DA38;
-	Wed, 17 Apr 2019 14:28:37 +0000 (UTC)
-Date: Wed, 17 Apr 2019 10:28:35 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Thomas Hellstrom <thellstrom@vmware.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>,
-	"willy@infradead.org" <willy@infradead.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"jrdr.linux@gmail.com" <jrdr.linux@gmail.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"minchan@kernel.org" <minchan@kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"will.deacon@arm.com" <will.deacon@arm.com>,
-	"mhocko@suse.com" <mhocko@suse.com>,
-	Linux-graphics-maintainer <Linux-graphics-maintainer@vmware.com>,
-	"ying.huang@intel.com" <ying.huang@intel.com>,
-	"riel@surriel.com" <riel@surriel.com>
-Subject: Re: [PATCH 2/9] mm: Add an apply_to_pfn_range interface
-Message-ID: <20190417142835.GB3229@redhat.com>
-References: <20190412160338.64994-1-thellstrom@vmware.com>
- <20190412160338.64994-3-thellstrom@vmware.com>
- <20190412210743.GA19252@redhat.com>
- <ba1f1f97259e09cd3cc6377cad89b036285c0272.camel@vmware.com>
- <20190416144657.GA3254@redhat.com>
- <2dd9b36444dc92f409b44c74667b6d63dc1713a8.camel@vmware.com>
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 96F8BA78;
+	Wed, 17 Apr 2019 07:33:28 -0700 (PDT)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E33E03F557;
+	Wed, 17 Apr 2019 07:33:24 -0700 (PDT)
+Subject: Re: [PATCH v8 00/20] Convert x86 & arm64 to use generic page walk
+To: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org,
+ Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mark Rutland <Mark.Rutland@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>, x86@kernel.org,
+ Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ linux-arm-kernel@lists.infradead.org, "Liang, Kan"
+ <kan.liang@linux.intel.com>
+References: <20190403141627.11664-1-steven.price@arm.com>
+ <4e804c87-1788-8903-ccc9-55953aa6da36@arm.com>
+ <3b9561d0-3bde-ef7a-0313-c2cc6216f94d@intel.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <3acbf061-8c97-55eb-f4b6-163a33ea4d73@arm.com>
+Date: Wed, 17 Apr 2019 15:28:54 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2dd9b36444dc92f409b44c74667b6d63dc1713a8.camel@vmware.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 17 Apr 2019 14:28:39 +0000 (UTC)
+In-Reply-To: <3b9561d0-3bde-ef7a-0313-c2cc6216f94d@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 09:15:52AM +0000, Thomas Hellstrom wrote:
-> On Tue, 2019-04-16 at 10:46 -0400, Jerome Glisse wrote:
-> > On Sat, Apr 13, 2019 at 08:34:02AM +0000, Thomas Hellstrom wrote:
-> > > Hi, Jérôme
-> > > 
-> > > On Fri, 2019-04-12 at 17:07 -0400, Jerome Glisse wrote:
-> > > > On Fri, Apr 12, 2019 at 04:04:18PM +0000, Thomas Hellstrom wrote:
-
-[...]
-
-> > > > > -/*
-> > > > > - * Scan a region of virtual memory, filling in page tables as
-> > > > > necessary
-> > > > > - * and calling a provided function on each leaf page table.
-> > > > > +/**
-> > > > > + * apply_to_pfn_range - Scan a region of virtual memory,
-> > > > > calling a
-> > > > > provided
-> > > > > + * function on each leaf page table entry
-> > > > > + * @closure: Details about how to scan and what function to
-> > > > > apply
-> > > > > + * @addr: Start virtual address
-> > > > > + * @size: Size of the region
-> > > > > + *
-> > > > > + * If @closure->alloc is set to 1, the function will fill in
-> > > > > the
-> > > > > page table
-> > > > > + * as necessary. Otherwise it will skip non-present parts.
-> > > > > + * Note: The caller must ensure that the range does not
-> > > > > contain
-> > > > > huge pages.
-> > > > > + * The caller must also assure that the proper mmu_notifier
-> > > > > functions are
-> > > > > + * called. Either in the pte leaf function or before and after
-> > > > > the
-> > > > > call to
-> > > > > + * apply_to_pfn_range.
-> > > > 
-> > > > This is wrong there should be a big FAT warning that this can
-> > > > only be
-> > > > use
-> > > > against mmap of device file. The page table walking above is
-> > > > broken
-> > > > for
-> > > > various thing you might find in any other vma like THP, device
-> > > > pte,
-> > > > hugetlbfs,
-> > > 
-> > > I was figuring since we didn't export the function anymore, the
-> > > warning
-> > > and checks could be left to its users, assuming that any other
-> > > future
-> > > usage of this function would require mm people audit anyway. But I
-> > > can
-> > > of course add that warning also to this function if you still want
-> > > that?
-> > 
-> > Yeah more warning are better, people might start using this, i know
-> > some poeple use unexported symbol and then report bugs while they
-> > just were doing something illegal.
-> > 
-> > > > ...
-> > > > 
-> > > > Also the mmu notifier can not be call from the pfn callback as
-> > > > that
-> > > > callback
-> > > > happens under page table lock (the change_pte notifier callback
-> > > > is
-> > > > useless
-> > > > and not enough). So it _must_ happen around the call to
-> > > > apply_to_pfn_range
-> > > 
-> > > In the comments I was having in mind usage of, for example
-> > > ptep_clear_flush_notify(). But you're the mmu_notifier expert here.
-> > > Are
-> > > you saying that function by itself would not be sufficient?
-> > > In that case, should I just scratch the text mentioning the pte
-> > > leaf
-> > > function?
-> > 
-> > ptep_clear_flush_notify() is useless ... i have posted patches to
-> > either
-> > restore it or remove it. In any case you must call mmu notifier range
-> > and
-> > they can not happen under lock. You usage looked fine (in the next
-> > patch)
-> > but i would rather have a bit of comment here to make sure people are
-> > also
-> > aware of that.
-> > 
-> > While we can hope that people would cc mm when using mm function, it
-> > is
-> > not always the case. So i rather be cautious and warn in comment as
-> > much
-> > as possible.
-> > 
+On 12/04/2019 15:44, Dave Hansen wrote:
+> On 4/10/19 7:56 AM, Steven Price wrote:
+>> Gentle ping: who can take this? Is there anything blocking this series?
 > 
-> OK. Understood. All this actually makes me tend to want to try a bit
-> harder using a slight modification to the pagewalk code instead. Don't
-> really want to encourage two parallel code paths doing essentially the
-> same thing; one good and one bad.
-> 
-> One thing that confuses me a bit with the pagewalk code is that callers
-> (for example softdirty) typically call
-> mmu_notifier_invalidate_range_start() around the pagewalk, but then if
-> it ends up splitting a pmd, mmu_notifier_invalidate_range is called
-> again, within the first range. Docs aren't really clear whether that's
-> permitted or not. Is it?
+> First of all, I really appreciate that you tried this.  Every open-coded
+> page walk has a set of common pitfalls, but is pretty unbounded in what
+> kinds of bugs it can contain.  I think this at least gets us to the
+> point where some of those pitfalls won't happen.  That's cool, but I'm a
+> worried that it hasn't gotten easier in the end.
 
-It is mandatory ie you have to call mmu_notifier_invalidate_range()
-in some cases. This is all documented in mmu_notifier.h see struct
-mmu_notifier_ops comments and also Documentation/vm/mmu_notifier.rst
+My plan was to implement the generic infrastructure and then work to
+remove the per-arch code for ptdump debugfs where possible. This patch
+series doesn't actually get that far because I wanted to get some
+confidence that the general approach would be accepted.
 
-Roughly anytime you go from one valid pte (pmd/pud/p4d) to another
-valid pte (pmd/pud/p4d) with a different page then you have to call
-after clearing pte (pmd/pud/p4d) and before replacing it with its
-new value. Changing permission on same page ie going from read and
-write to read only, or read only to read and write, does not require
-any extra call to mmu_notifier_invalidate_range()
+> Linus also had some strong opinions in the past on how page walks should
+> be written.  He needs to have a look before we go much further.
 
-The mmu_notifier_invalidate_range() is important for IOMMU with ATS/
-PASID as it is when the flush the TLB and remote device TLB. So you
-must flush those secondary TLB after clearing entry so that it can
-not race to repopulate the TLB and before setting the new entry so
-that at no point in time any hardware can wrongly access old page
-while a new page is just now active.
+Fair enough. I'll post the initial work I've done on unifying the
+x86/arm64 ptdump code - the diffstat is a bit nicer on that - but
+there's still work to be done so I'm posting just as an RFC.
 
-Hopes that clarify it, between if you see any improvement to mmu-
-notifier doc it would be more than welcome. I try to put comments
-in enough places that people should see at least one of them but
-maybe i miss a place where i should have put a comments to point
-to the doc :)
+Thanks,
 
-Cheers,
-Jérôme
+Steve
 
