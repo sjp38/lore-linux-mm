@@ -2,580 +2,368 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3869C10F12
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:39:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1B50C10F12
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:45:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75B8020835
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:39:28 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="oTc9RzZo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75B8020835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7DD662073F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:45:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DD662073F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1DC946B0008; Wed, 17 Apr 2019 04:39:28 -0400 (EDT)
+	id 2C1EB6B0003; Wed, 17 Apr 2019 04:45:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 189906B000A; Wed, 17 Apr 2019 04:39:28 -0400 (EDT)
+	id 24CD36B0006; Wed, 17 Apr 2019 04:45:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 031646B000D; Wed, 17 Apr 2019 04:39:27 -0400 (EDT)
+	id 114DC6B0007; Wed, 17 Apr 2019 04:45:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85AA36B0008
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 04:39:27 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id p13so3368701lfc.4
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 01:39:27 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ACD346B0003
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 04:45:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k56so6559899edb.2
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 01:45:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=cSOQ7Gs++diSHQm1M9fFoOA1/dE9XvDkWRHKalGstic=;
-        b=ZeAwlMQhOJ1qJFCB/4f2WjHk/sIE705jItL42oB0b1RLEOmEFohPQtRPkKt/7XKC20
-         uZCgDUBVkybL+PltLtu14QVVctEx1Uc6G1nmJFtQxxNL93GmVOk50WIZtCd5aTSqfd4k
-         ZYDnbY0xixQgPTbTuMs9SXTePz1XX7FIT9WFzUklnX5R+oR9oaMh7aLTwXZ4jd2FCvtO
-         N+qRtI6dxanrYNw9XKNbRUqwqlLqxjklVSYFRUsEYRvnDZiEX0BNQAS2hOWVDDOwwdJk
-         lFrBQ8frUvY9F2hli3C+909S1nL/ioAuNhFFh1zd8UMh3qdFnCB9F3k4joJKoGsJzVrk
-         wN+g==
-X-Gm-Message-State: APjAAAWQYOCyT2IHYrZQwAnQA3d/QaMxV3q/6LHQKTpjP9nn6D96eCNy
-	p3eSVXt0njeb2HwJ97jhFCuuRAvWb/3bn+mgTQpde0smZWbn4ECIEg37gXuUisSyCLCHzx0oSTt
-	RwOCfL3I2BBU5XmNsNMLN8vEy2+72sz7EMUxLzRW9QQDw3CbRR2hwhp14szo1EliayA==
-X-Received: by 2002:a2e:8089:: with SMTP id i9mr46629944ljg.137.1555490366933;
-        Wed, 17 Apr 2019 01:39:26 -0700 (PDT)
-X-Received: by 2002:a2e:8089:: with SMTP id i9mr46629873ljg.137.1555490365153;
-        Wed, 17 Apr 2019 01:39:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555490365; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=dCrhRTdF0TpnqBqvPQKWMnJHmwIFF89c1I/Yqm2jEm0=;
+        b=iKrWxSmN8U1CWlPEvMDdHlorlZPDMnqzU+fF0gSiDH/laKl5xyyTzJikDmA5koB4xb
+         2ikiP36HwqMQ4ndzjUTCOTOqcJO4dkCjG36fmkwPR+ps0vItyyDOfcTOi/Kde9Lz40we
+         fjfncdTbuypjfjOllmp3VcmwBOvtsxpYDMjg9K3RQX8qm0+K7JD3fb1gwfnLtlD7v843
+         BFx0YheY/aZN1gD8bxWB3orWYe0ZvaqwShnbEoPMM9Lc9F2FYvlykw4nRuw1VjDVuCWv
+         MqHki3B//ZLjhH1qhLr/Kgi9LUlyWVLeIXhTQ6KFY1+ojC6JcDEYfb8DeVk58uylmpil
+         2CLw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXyf+OTnuSc5ARLntkRRKeSAfEz+iEMWdwNzJIiJgaY6+S1cb3D
+	tTKQZh9C47B5ouode9J5EgkUBwckY5xEQvo1NUJtIgJeTwS3yn+esO5dTErx1Kkm/jmPimkwqLP
+	YIJCXjz5SM3ELQEAkTZRx1fXBYZHfR6QUGEYftL0CGiJJQpWQfXUIer2sy+1z5Rs=
+X-Received: by 2002:aa7:d908:: with SMTP id a8mr10430743edr.68.1555490705216;
+        Wed, 17 Apr 2019 01:45:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/EJbnAIqviPnzRySpRuEjsc5CA5yOM0pMI2pfLHfUjod2XivPnwPApejy7hrSZtDJ65FU
+X-Received: by 2002:aa7:d908:: with SMTP id a8mr10430692edr.68.1555490704235;
+        Wed, 17 Apr 2019 01:45:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555490704; cv=none;
         d=google.com; s=arc-20160816;
-        b=NQfmto7fIzIY91SzpX5sRYu+3MK6XpMo427T9e3gfgPV6MZcjJ4cssPIDYcSkZpMWz
-         b4m2MKPtT5rbnoVTUl2wllCCR+8gGE2P5jOiVPaiikeYDNnnjJrr3FP0QrEnf9KkZLps
-         cBf2obx1SJDNsSYjm59RxES5CnAucfP3gSKEr+04VJDbx9EEBPR3zi2gv6pJJ4KBLSuB
-         P0GoFLWGJAuA/jemyDMWdy/S7IYsrCR/aKcc5TMIWYP+boxp8092VZ6rnjsvXOPUOgYl
-         sbWM04lUOHvVy2XweXCYOXylx6YDI0BLBiMDffteyp4hbRdNgrm/bIa5t3QyoV4UeR4I
-         DgsA==
+        b=DjLsjD3vV6v8qoO95kgZV433HNdRERv5W05XFhPwwxklT8K+M68srJ685+h/qsAgFs
+         C4d0/q01Us0SZzG6gDzu/KRNke0ZscYuAnDeLwGF86KGYOhCPIAFzMFMKRtT4KXfsUKO
+         2RVk+2rBzoWCcl5YU8d1jV0aahnDftZp73ncQI2vPBolMy+G6Du7wf0sMKaxvedXTJRv
+         9zbpOIybRuA+zDqZ2VayBABxV8JH0YuObolpxKbs+R4n2JQKNcOsF6wBhpDbKaA8kfIa
+         JHaZ8eQ+HwWh0jh4XzhGSAMzJ94a4ijK7Q3Gnz6DIwmY7z1YVL1z04iPumc8dLmFQwn0
+         WMjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cSOQ7Gs++diSHQm1M9fFoOA1/dE9XvDkWRHKalGstic=;
-        b=s+rsV2MHu0JVEccVj+S084kit0az8VpSin+l3f8Smr1SmoDRNdRnbeuIkmQ7JVCc7p
-         XYmOGzuUjqm5XTiJaGeTWRB1c0DFsE3slBRSPmpR39Xc7Dhgz2FIKXuOD28WV2+vJA7p
-         0Dak+TZMnLNgLjIc+Aa7XvPGI6ap8la2UAlkdpg0YVlH3kAKs8FhHEWAaEsfePe/vVJW
-         ElHucCKN7znV61ixKUkAH/BW37Ofr5+AdfmggJMmzQUGCCci5ym9mDfDXou2vNrVZiG0
-         xpLgPFq4jWGsMhJHLtp5dGQHywe+/CSShih+ljnCSEx5aVZIrEuSaOkzIzRCfCZINtFk
-         e2oQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=dCrhRTdF0TpnqBqvPQKWMnJHmwIFF89c1I/Yqm2jEm0=;
+        b=XCb22L2/l2g9AhJC/at/OQ5D6yaFpGvJ5ON2TL6D+LyimmE1iC0kW74FIO/QdACMSV
+         rcfBpWN+7ArToesmytKiGRTo+0mvZF6cVnZ9trFWAqQrq2eNCW0y2Ds0IHbdU15ecd5R
+         413FulloaaFcJuQZ1W/nvOThKDwzQLngzkgV5MMhxWV0z+6t8WtcH0eiCtmnMnSp4Dut
+         sqvfwQN+uE9Jw15W3aUZSKmTa5xyl1eiAh472crGaB6ovPNrj9LLeb7jrgdrD50mwY0c
+         XnzgYoKS1H7xmUq8fyT2MionC6HFSbE/bJH+JaGffhwL5Z/i1uXgpnOoL0XSSHil7rON
+         gfgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oTc9RzZo;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x26sor33039240ljb.16.2019.04.17.01.39.24
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l9si995545ejr.336.2019.04.17.01.45.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 01:39:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oTc9RzZo;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=cSOQ7Gs++diSHQm1M9fFoOA1/dE9XvDkWRHKalGstic=;
-        b=oTc9RzZo7AUyk5pj0tyHVttfdubvOnhHrx8eT0xZ8PbaQ+9PQTmqxjnWl3gpCFV7Xt
-         Q9nvfRZF638cx7LG8/fw2Cu+kvndUtty56kC6eQreNhBp35P1pyZrgQipcLegyg+0lt+
-         tfjjOVmJGuw5WSwVnpV3vbFVuJF8P5oPV3fJBpolwtd2ta08rxW1AXoACAHV6A8pWdrx
-         WSrB1Kr5rBx4J8VDZKJs6CW+suqL/dbD0x5uOklokgLAkv+u4PPU7I/o2JALZ7JcJhZv
-         N3vpwdgSu22zSApgonIrJpjJuaxd75k8xc3HVAMtZVodC/luQ1FmSazWENtVgAoMeLpZ
-         RZFA==
-X-Google-Smtp-Source: APXvYqwYJI2wYRIH1GvgDtpYP4W7t6wF+RkdlbsImDBBofg3hY0tgObM1O0O0TVDefCRoecArie5LA==
-X-Received: by 2002:a2e:8e96:: with SMTP id z22mr46203924ljk.123.1555490363999;
-        Wed, 17 Apr 2019 01:39:23 -0700 (PDT)
-Received: from seldlx21914.corpusers.net ([37.139.156.40])
-        by smtp.gmail.com with ESMTPSA id t23sm10820473ljc.13.2019.04.17.01.39.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 01:39:23 -0700 (PDT)
-Date: Wed, 17 Apr 2019 10:39:22 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton
- <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com, Bartlomiej
- Zolnierkiewicz <b.zolnierkie@samsung.com>, Krzysztof Kozlowski
- <k.kozlowski@samsung.com>
-Subject: [PATCHv2 4/4] z3fold: support page migration
-Message-Id: <20190417103922.31253da5c366c4ebe0419cfc@gmail.com>
-In-Reply-To: <20190417103510.36b055f3314e0e32b916b30a@gmail.com>
-References: <20190417103510.36b055f3314e0e32b916b30a@gmail.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.30; x86_64-unknown-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 17 Apr 2019 01:45:04 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 87F9CB11E;
+	Wed, 17 Apr 2019 08:45:03 +0000 (UTC)
+Date: Wed, 17 Apr 2019 10:45:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Pavel Tatashin <pasha.tatashin@oracle.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	David Rientjes <rientjes@google.com>,
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
+	Roman Gushchin <guro@fb.com>, Jeff Layton <jlayton@redhat.com>,
+	Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH] mm/workingset : judge file page activity via
+ timestamp
+Message-ID: <20190417084501.GE655@dhcp22.suse.cz>
+References: <1555487246-15764-1-git-send-email-huangzhaoyang@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1555487246-15764-1-git-send-email-huangzhaoyang@gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now that we are not using page address in handles directly, we
-can make z3fold pages movable to decrease the memory fragmentation
-z3fold may create over time.
+Hi,
+I do not see http://lkml.kernel.org/r/1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com
+discussion reaching a conlusion to change the current workingset
+implementation. Therefore is there any reason to post a new version of
+the patch? If yes it would be really great to see a short summary about
+how this version is different from the previous one and how all the
+review feedback has been addressed.
 
-This patch starts advertising non-headless z3fold pages as movable
-and uses the existing kernel infrastructure to implement moving of
-such pages per memory management subsystem's request. It thus
-implements 3 required callbacks for page migration:
+On Wed 17-04-19 15:47:26, Zhaoyang Huang wrote:
+> From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+> 
+> This patch introduce timestamp into workingset's entry and judge if the page
+> is active or inactive via active_file/refault_ratio instead of refault distance.
+> 
+> The original thought is coming from the logs we got from trace_printk in this
+> patch, we can find about 1/5 of the file pages' refault are under the
+> scenario[1],which will be counted as inactive as they have a long refault distance
+> in between access. However, we can also know from the time information that the
+> page refault quickly as comparing to the average refault time which is calculated
+> by the number of active file and refault ratio. We want to save these kinds of
+> pages from evicted earlier as it used to be. The refault ratio is the value
+> which can reflect lru's average file access frequency and also can be deemed as a
+> prediction of future.
+> 
+> The patch is tested on an android system and reduce 30% of page faults, while
+> 60% of the pages remain the original status as (refault_distance < active_file)
+> indicates. Pages status got from ftrace during the test can refer to [2].
+> 
+> [1]
+> system_server workingset_refault: WKST_ACT[0]:rft_dis 265976, act_file 34268 rft_ratio 3047 rft_time 0 avg_rft_time 11 refault 295592 eviction 29616 secs 97 pre_secs 97
+> HwBinder:922  workingset_refault: WKST_ACT[0]:rft_dis 264478, act_file 35037 rft_ratio 3070 rft_time 2 avg_rft_time 11 refault 310078 eviction 45600 secs 101 pre_secs 99
+> 
+> [2]
+> WKST_ACT[0]:   original--INACTIVE  commit--ACTIVE
+> WKST_ACT[1]:   original--ACTIVE    commit--ACTIVE
+> WKST_INACT[0]: original--INACTIVE  commit--INACTIVE
+> WKST_INACT[1]: original--ACTIVE    commit--INACTIVE
+> 
+> Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+> ---
+>  include/linux/mmzone.h |   1 +
+>  mm/workingset.c        | 120 +++++++++++++++++++++++++++++++++++++++++++++----
+>  2 files changed, 112 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 32699b2..6f30673 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -240,6 +240,7 @@ struct lruvec {
+>  	atomic_long_t			inactive_age;
+>  	/* Refaults at the time of last reclaim cycle */
+>  	unsigned long			refaults;
+> +	atomic_long_t			refaults_ratio;
+>  #ifdef CONFIG_MEMCG
+>  	struct pglist_data *pgdat;
+>  #endif
+> diff --git a/mm/workingset.c b/mm/workingset.c
+> index 40ee02c..66c177b 100644
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -160,6 +160,21 @@
+>  			 MEM_CGROUP_ID_SHIFT)
+>  #define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
+>  
+> +#ifdef CONFIG_64BIT
+> +#define EVICTION_SECS_POS_SHIFT 20
+> +#define EVICTION_SECS_SHRINK_SHIFT 4
+> +#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
+> +#else
+> +#ifndef CONFIG_MEMCG
+> +#define EVICTION_SECS_POS_SHIFT 12
+> +#define EVICTION_SECS_SHRINK_SHIFT 4
+> +#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
+> +#else
+> +#define EVICTION_SECS_POS_SHIFT 0
+> +#define EVICTION_SECS_SHRINK_SHIFT 0
+> +#define NO_SECS_IN_WORKINGSET
+> +#endif
+> +#endif
+>  /*
+>   * Eviction timestamps need to be able to cover the full range of
+>   * actionable refaults. However, bits are tight in the radix tree
+> @@ -169,10 +184,54 @@
+>   * evictions into coarser buckets by shaving off lower timestamp bits.
+>   */
+>  static unsigned int bucket_order __read_mostly;
+> -
+> +#ifdef NO_SECS_IN_WORKINGSET
+> +static void pack_secs(unsigned long *peviction) { }
+> +static unsigned int unpack_secs(unsigned long entry) {return 0; }
+> +#else
+> +/*
+> + * Shrink the timestamp according to its value and store it together
+> + * with the shrink size in the entry.
+> + */
+> +static void pack_secs(unsigned long *peviction)
+> +{
+> +	unsigned int secs;
+> +	unsigned long eviction;
+> +	int order;
+> +	int secs_shrink_size;
+> +	struct timespec ts;
+> +
+> +	get_monotonic_boottime(&ts);
+> +	secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
+> +	order = get_count_order(secs);
+> +	secs_shrink_size = (order <= EVICTION_SECS_POS_SHIFT)
+> +			? 0 : (order - EVICTION_SECS_POS_SHIFT);
+> +
+> +	eviction = *peviction;
+> +	eviction = (eviction << EVICTION_SECS_POS_SHIFT)
+> +			| ((secs >> secs_shrink_size) & EVICTION_SECS_POS_MASK);
+> +	eviction = (eviction << EVICTION_SECS_SHRINK_SHIFT) | (secs_shrink_size & 0xf);
+> +	*peviction = eviction;
+> +}
+> +/*
+> + * Unpack the second from the entry and restore the value according to the
+> + * shrink size.
+> + */
+> +static unsigned int unpack_secs(unsigned long entry)
+> +{
+> +	unsigned int secs;
+> +	int secs_shrink_size;
+> +
+> +	secs_shrink_size = entry & ((1 << EVICTION_SECS_SHRINK_SHIFT) - 1);
+> +	entry >>= EVICTION_SECS_SHRINK_SHIFT;
+> +	secs = entry & EVICTION_SECS_POS_MASK;
+> +	secs = secs << secs_shrink_size;
+> +	return secs;
+> +}
+> +#endif
+>  static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+>  {
+>  	eviction >>= bucket_order;
+> +	pack_secs(&eviction);
+>  	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+>  	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+>  	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
+> @@ -181,20 +240,24 @@ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+>  }
+>  
+>  static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+> -			  unsigned long *evictionp)
+> +			  unsigned long *evictionp, unsigned int *prev_secs)
+>  {
+>  	unsigned long entry = (unsigned long)shadow;
+>  	int memcgid, nid;
+> +	unsigned int secs;
+>  
+>  	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
+>  	nid = entry & ((1UL << NODES_SHIFT) - 1);
+>  	entry >>= NODES_SHIFT;
+>  	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+>  	entry >>= MEM_CGROUP_ID_SHIFT;
+> +	secs = unpack_secs(entry);
+> +	entry >>= (EVICTION_SECS_POS_SHIFT + EVICTION_SECS_SHRINK_SHIFT);
+>  
+>  	*memcgidp = memcgid;
+>  	*pgdat = NODE_DATA(nid);
+>  	*evictionp = entry << bucket_order;
+> +	*prev_secs = secs;
+>  }
+>  
+>  /**
+> @@ -242,9 +305,22 @@ bool workingset_refault(void *shadow)
+>  	unsigned long refault;
+>  	struct pglist_data *pgdat;
+>  	int memcgid;
+> +#ifndef NO_SECS_IN_WORKINGSET
+> +	unsigned long avg_refault_time;
+> +	unsigned long refault_time;
+> +	int tradition;
+> +	unsigned int prev_secs;
+> +	unsigned int secs;
+> +	unsigned long refaults_ratio;
+> +#endif
+> +	struct timespec ts;
+> +	/*
+> +	convert jiffies to second
+> +	*/
+> +	get_monotonic_boottime(&ts);
+> +	secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
+>  
+> -	unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
+> -
+> +	unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &prev_secs);
+>  	rcu_read_lock();
+>  	/*
+>  	 * Look up the memcg associated with the stored ID. It might
+> @@ -288,14 +364,37 @@ bool workingset_refault(void *shadow)
+>  	 * list is not a problem.
+>  	 */
+>  	refault_distance = (refault - eviction) & EVICTION_MASK;
+> -
+>  	inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
+> -
+> -	if (refault_distance <= active_file) {
+> +#ifndef NO_SECS_IN_WORKINGSET
+> +	refaults_ratio = (atomic_long_read(&lruvec->inactive_age) + 1) / secs;
+> +	atomic_long_set(&lruvec->refaults_ratio, refaults_ratio);
+> +	refault_time = secs - prev_secs;
+> +	avg_refault_time = active_file / refaults_ratio;
+> +	tradition = !!(refault_distance < active_file);
+> +	if (refault_time <= avg_refault_time) {
+> +#else
+> +	if (refault_distance < active_file) {
+> +#endif
+>  		inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
+> +#ifndef NO_SECS_IN_WORKINGSET
+> +		trace_printk("WKST_ACT[%d]:rft_dis %ld, act_file %ld \
+> +				rft_ratio %ld rft_time %ld avg_rft_time %ld \
+> +				refault %ld eviction %ld secs %d pre_secs %d\n",
+> +				tradition, refault_distance, active_file,
+> +				refaults_ratio, refault_time, avg_refault_time,
+> +				refault, eviction, secs, prev_secs);
+> +#endif
+>  		rcu_read_unlock();
+>  		return true;
+>  	}
+> +#ifndef NO_SECS_IN_WORKINGSET
+> +	trace_printk("WKST_INACT[%d]:rft_dis %ld, act_file %ld \
+> +			rft_ratio %ld rft_time %ld avg_rft_time %ld \
+> +			refault %ld eviction %ld secs %d pre_secs %d\n",
+> +			tradition, refault_distance, active_file,
+> +			refaults_ratio, refault_time, avg_refault_time,
+> +			refault, eviction, secs, prev_secs);
+> +#endif
+>  	rcu_read_unlock();
+>  	return false;
+>  }
+> @@ -513,7 +612,9 @@ static int __init workingset_init(void)
+>  	unsigned int max_order;
+>  	int ret;
+>  
+> -	BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
+> +	BUILD_BUG_ON(BITS_PER_LONG < (EVICTION_SHIFT
+> +				+ EVICTION_SECS_POS_SHIFT
+> +				+ EVICTION_SECS_SHRINK_SHIFT));
+>  	/*
+>  	 * Calculate the eviction bucket size to cover the longest
+>  	 * actionable refault distance, which is currently half of
+> @@ -521,7 +622,8 @@ static int __init workingset_init(void)
+>  	 * some more pages at runtime, so keep working with up to
+>  	 * double the initial memory by using totalram_pages as-is.
+>  	 */
+> -	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
+> +	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT
+> +			- EVICTION_SECS_POS_SHIFT - EVICTION_SECS_SHRINK_SHIFT;
+>  	max_order = fls_long(totalram_pages - 1);
+>  	if (max_order > timestamp_bits)
+>  		bucket_order = max_order - timestamp_bits;
+> -- 
+> 1.9.1
 
-* isolation callback: z3fold_page_isolate(): try to isolate the
-page by removing it from all lists. Pages scheduled for some activity
-and mapped pages will not be isolated. Return true if isolation was
-successful or false otherwise
-* migration callback: z3fold_page_migrate(): re-check critical
-conditions and migrate page contents to the new page provided by the
-memory subsystem. Returns 0 on success or negative error code
-otherwise
-* putback callback: z3fold_page_putback(): put back the page if
-z3fold_page_migrate() for it failed permanently (i. e. not with
--EAGAIN code).
-
-Signed-off-by: Vitaly Wool <vitaly.vul@sony.com>
----
- mm/z3fold.c | 241 +++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 231 insertions(+), 10 deletions(-)
-
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index bebc10083f1c..d9eabfdad0fe 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -24,10 +24,18 @@
- 
- #include <linux/atomic.h>
- #include <linux/sched.h>
-+#include <linux/cpumask.h>
-+#include <linux/dcache.h>
- #include <linux/list.h>
- #include <linux/mm.h>
- #include <linux/module.h>
-+#include <linux/page-flags.h>
-+#include <linux/migrate.h>
-+#include <linux/node.h>
-+#include <linux/compaction.h>
- #include <linux/percpu.h>
-+#include <linux/mount.h>
-+#include <linux/fs.h>
- #include <linux/preempt.h>
- #include <linux/workqueue.h>
- #include <linux/slab.h>
-@@ -97,6 +105,7 @@ struct z3fold_buddy_slots {
-  * @middle_chunks:	the size of the middle buddy in chunks, 0 if free
-  * @last_chunks:	the size of the last buddy in chunks, 0 if free
-  * @first_num:		the starting number (for the first handle)
-+ * @mapped_count:	the number of objects currently mapped
-  */
- struct z3fold_header {
- 	struct list_head buddy;
-@@ -110,6 +119,7 @@ struct z3fold_header {
- 	unsigned short last_chunks;
- 	unsigned short start_middle;
- 	unsigned short first_num:2;
-+	unsigned short mapped_count:2;
- };
- 
- /**
-@@ -130,6 +140,7 @@ struct z3fold_header {
-  * @compact_wq:	workqueue for page layout background optimization
-  * @release_wq:	workqueue for safe page release
-  * @work:	work_struct for safe page release
-+ * @inode:	inode for z3fold pseudo filesystem
-  *
-  * This structure is allocated at pool creation time and maintains metadata
-  * pertaining to a particular z3fold pool.
-@@ -149,6 +160,7 @@ struct z3fold_pool {
- 	struct workqueue_struct *compact_wq;
- 	struct workqueue_struct *release_wq;
- 	struct work_struct work;
-+	struct inode *inode;
- };
- 
- /*
-@@ -227,6 +239,59 @@ static inline void free_handle(unsigned long handle)
- 	}
- }
- 
-+static struct dentry *z3fold_do_mount(struct file_system_type *fs_type,
-+				int flags, const char *dev_name, void *data)
-+{
-+	static const struct dentry_operations ops = {
-+		.d_dname = simple_dname,
-+	};
-+
-+	return mount_pseudo(fs_type, "z3fold:", NULL, &ops, 0x33);
-+}
-+
-+static struct file_system_type z3fold_fs = {
-+	.name		= "z3fold",
-+	.mount		= z3fold_do_mount,
-+	.kill_sb	= kill_anon_super,
-+};
-+
-+static struct vfsmount *z3fold_mnt;
-+static int z3fold_mount(void)
-+{
-+	int ret = 0;
-+
-+	z3fold_mnt = kern_mount(&z3fold_fs);
-+	if (IS_ERR(z3fold_mnt))
-+		ret = PTR_ERR(z3fold_mnt);
-+
-+	return ret;
-+}
-+
-+static void z3fold_unmount(void)
-+{
-+	kern_unmount(z3fold_mnt);
-+}
-+
-+static const struct address_space_operations z3fold_aops;
-+static int z3fold_register_migration(struct z3fold_pool *pool)
-+{
-+	pool->inode = alloc_anon_inode(z3fold_mnt->mnt_sb);
-+	if (IS_ERR(pool->inode)) {
-+		pool->inode = NULL;
-+		return 1;
-+	}
-+
-+	pool->inode->i_mapping->private_data = pool;
-+	pool->inode->i_mapping->a_ops = &z3fold_aops;
-+	return 0;
-+}
-+
-+static void z3fold_unregister_migration(struct z3fold_pool *pool)
-+{
-+	if (pool->inode)
-+		iput(pool->inode);
-+ }
-+
- /* Initializes the z3fold header of a newly allocated z3fold page */
- static struct z3fold_header *init_z3fold_page(struct page *page,
- 					struct z3fold_pool *pool)
-@@ -259,8 +324,14 @@ static struct z3fold_header *init_z3fold_page(struct page *page,
- }
- 
- /* Resets the struct page fields and frees the page */
--static void free_z3fold_page(struct page *page)
-+static void free_z3fold_page(struct page *page, bool headless)
- {
-+	if (!headless) {
-+		lock_page(page);
-+		__ClearPageMovable(page);
-+		unlock_page(page);
-+	}
-+	ClearPagePrivate(page);
- 	__free_page(page);
- }
- 
-@@ -317,12 +388,12 @@ static unsigned long encode_handle(struct z3fold_header *zhdr, enum buddy bud)
- }
- 
- /* Returns the z3fold page where a given handle is stored */
--static inline struct z3fold_header *handle_to_z3fold_header(unsigned long handle)
-+static inline struct z3fold_header *handle_to_z3fold_header(unsigned long h)
- {
--	unsigned long addr = handle;
-+	unsigned long addr = h;
- 
- 	if (!(addr & (1 << PAGE_HEADLESS)))
--		addr = *(unsigned long *)handle;
-+		addr = *(unsigned long *)h;
- 
- 	return (struct z3fold_header *)(addr & PAGE_MASK);
- }
-@@ -366,7 +437,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
- 	clear_bit(NEEDS_COMPACTING, &page->private);
- 	spin_lock(&pool->lock);
- 	if (!list_empty(&page->lru))
--		list_del(&page->lru);
-+		list_del_init(&page->lru);
- 	spin_unlock(&pool->lock);
- 	if (locked)
- 		z3fold_page_unlock(zhdr);
-@@ -420,7 +491,7 @@ static void free_pages_work(struct work_struct *w)
- 			continue;
- 		spin_unlock(&pool->stale_lock);
- 		cancel_work_sync(&zhdr->work);
--		free_z3fold_page(page);
-+		free_z3fold_page(page, false);
- 		cond_resched();
- 		spin_lock(&pool->stale_lock);
- 	}
-@@ -486,6 +557,9 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
- 	if (test_bit(MIDDLE_CHUNK_MAPPED, &page->private))
- 		return 0; /* can't move middle chunk, it's used */
- 
-+	if (unlikely(PageIsolated(page)))
-+		return 0;
-+
- 	if (zhdr->middle_chunks == 0)
- 		return 0; /* nothing to compact */
- 
-@@ -546,6 +620,12 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
- 		return;
- 	}
- 
-+	if (unlikely(PageIsolated(page) ||
-+		     test_bit(PAGE_STALE, &page->private))) {
-+		z3fold_page_unlock(zhdr);
-+		return;
-+	}
-+
- 	z3fold_compact_page(zhdr);
- 	add_to_unbuddied(pool, zhdr);
- 	z3fold_page_unlock(zhdr);
-@@ -705,10 +785,14 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
- 	pool->release_wq = create_singlethread_workqueue(pool->name);
- 	if (!pool->release_wq)
- 		goto out_wq;
-+	if (z3fold_register_migration(pool))
-+		goto out_rwq;
- 	INIT_WORK(&pool->work, free_pages_work);
- 	pool->ops = ops;
- 	return pool;
- 
-+out_rwq:
-+	destroy_workqueue(pool->release_wq);
- out_wq:
- 	destroy_workqueue(pool->compact_wq);
- out_unbuddied:
-@@ -730,6 +814,7 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
- static void z3fold_destroy_pool(struct z3fold_pool *pool)
- {
- 	kmem_cache_destroy(pool->c_handle);
-+	z3fold_unregister_migration(pool);
- 	destroy_workqueue(pool->release_wq);
- 	destroy_workqueue(pool->compact_wq);
- 	kfree(pool);
-@@ -837,6 +922,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 		set_bit(PAGE_HEADLESS, &page->private);
- 		goto headless;
- 	}
-+	__SetPageMovable(page, pool->inode->i_mapping);
- 	z3fold_page_lock(zhdr);
- 
- found:
-@@ -895,7 +981,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 			spin_lock(&pool->lock);
- 			list_del(&page->lru);
- 			spin_unlock(&pool->lock);
--			free_z3fold_page(page);
-+			free_z3fold_page(page, true);
- 			atomic64_dec(&pool->pages_nr);
- 		}
- 		return;
-@@ -931,7 +1017,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		z3fold_page_unlock(zhdr);
- 		return;
- 	}
--	if (test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
-+	if (unlikely(PageIsolated(page)) ||
-+	    test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
- 		z3fold_page_unlock(zhdr);
- 		return;
- 	}
-@@ -1012,10 +1099,12 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 			if (test_and_set_bit(PAGE_CLAIMED, &page->private))
- 				continue;
- 
--			zhdr = page_address(page);
-+			if (unlikely(PageIsolated(page)))
-+				continue;
- 			if (test_bit(PAGE_HEADLESS, &page->private))
- 				break;
- 
-+			zhdr = page_address(page);
- 			if (!z3fold_page_trylock(zhdr)) {
- 				zhdr = NULL;
- 				continue; /* can't evict at this point */
-@@ -1076,7 +1165,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- next:
- 		if (test_bit(PAGE_HEADLESS, &page->private)) {
- 			if (ret == 0) {
--				free_z3fold_page(page);
-+				free_z3fold_page(page, true);
- 				atomic64_dec(&pool->pages_nr);
- 				return 0;
- 			}
-@@ -1153,6 +1242,8 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
- 		break;
- 	}
- 
-+	if (addr)
-+		zhdr->mapped_count++;
- 	z3fold_page_unlock(zhdr);
- out:
- 	return addr;
-@@ -1179,6 +1270,7 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
- 	buddy = handle_to_buddy(handle);
- 	if (buddy == MIDDLE)
- 		clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
-+	zhdr->mapped_count--;
- 	z3fold_page_unlock(zhdr);
- }
- 
-@@ -1193,6 +1285,128 @@ static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
- 	return atomic64_read(&pool->pages_nr);
- }
- 
-+bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
-+{
-+	struct z3fold_header *zhdr;
-+	struct z3fold_pool *pool;
-+
-+	VM_BUG_ON_PAGE(!PageMovable(page), page);
-+	VM_BUG_ON_PAGE(PageIsolated(page), page);
-+
-+	if (test_bit(PAGE_HEADLESS, &page->private))
-+		return false;
-+
-+	zhdr = page_address(page);
-+	z3fold_page_lock(zhdr);
-+	if (test_bit(NEEDS_COMPACTING, &page->private) ||
-+	    test_bit(PAGE_STALE, &page->private))
-+		goto out;
-+
-+	pool = zhdr_to_pool(zhdr);
-+
-+	if (zhdr->mapped_count == 0) {
-+		kref_get(&zhdr->refcount);
-+		if (!list_empty(&zhdr->buddy))
-+			list_del_init(&zhdr->buddy);
-+		spin_lock(&pool->lock);
-+		if (!list_empty(&page->lru))
-+			list_del(&page->lru);
-+		spin_unlock(&pool->lock);
-+		z3fold_page_unlock(zhdr);
-+		return true;
-+	}
-+out:
-+	z3fold_page_unlock(zhdr);
-+	return false;
-+}
-+
-+int z3fold_page_migrate(struct address_space *mapping, struct page *newpage,
-+			struct page *page, enum migrate_mode mode)
-+{
-+	struct z3fold_header *zhdr, *new_zhdr;
-+	struct z3fold_pool *pool;
-+	struct address_space *new_mapping;
-+
-+	VM_BUG_ON_PAGE(!PageMovable(page), page);
-+	VM_BUG_ON_PAGE(!PageIsolated(page), page);
-+
-+	zhdr = page_address(page);
-+	pool = zhdr_to_pool(zhdr);
-+
-+	if (!trylock_page(page))
-+		return -EAGAIN;
-+
-+	if (!z3fold_page_trylock(zhdr)) {
-+		unlock_page(page);
-+		return -EAGAIN;
-+	}
-+	if (zhdr->mapped_count != 0) {
-+		z3fold_page_unlock(zhdr);
-+		unlock_page(page);
-+		return -EBUSY;
-+	}
-+	new_zhdr = page_address(newpage);
-+	memcpy(new_zhdr, zhdr, PAGE_SIZE);
-+	newpage->private = page->private;
-+	page->private = 0;
-+	z3fold_page_unlock(zhdr);
-+	spin_lock_init(&new_zhdr->page_lock);
-+	new_mapping = page_mapping(page);
-+	__ClearPageMovable(page);
-+	ClearPagePrivate(page);
-+
-+	get_page(newpage);
-+	z3fold_page_lock(new_zhdr);
-+	if (new_zhdr->first_chunks)
-+		encode_handle(new_zhdr, FIRST);
-+	if (new_zhdr->last_chunks)
-+		encode_handle(new_zhdr, LAST);
-+	if (new_zhdr->middle_chunks)
-+		encode_handle(new_zhdr, MIDDLE);
-+	set_bit(NEEDS_COMPACTING, &newpage->private);
-+	new_zhdr->cpu = smp_processor_id();
-+	spin_lock(&pool->lock);
-+	list_add(&newpage->lru, &pool->lru);
-+	spin_unlock(&pool->lock);
-+	__SetPageMovable(newpage, new_mapping);
-+	z3fold_page_unlock(new_zhdr);
-+
-+	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
-+
-+	page_mapcount_reset(page);
-+	unlock_page(page);
-+	put_page(page);
-+	return 0;
-+}
-+
-+void z3fold_page_putback(struct page *page)
-+{
-+	struct z3fold_header *zhdr;
-+	struct z3fold_pool *pool;
-+
-+	zhdr = page_address(page);
-+	pool = zhdr_to_pool(zhdr);
-+
-+	z3fold_page_lock(zhdr);
-+	if (!list_empty(&zhdr->buddy))
-+		list_del_init(&zhdr->buddy);
-+	INIT_LIST_HEAD(&page->lru);
-+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
-+		atomic64_dec(&pool->pages_nr);
-+		return;
-+	}
-+	spin_lock(&pool->lock);
-+	list_add(&page->lru, &pool->lru);
-+	spin_unlock(&pool->lock);
-+	z3fold_page_unlock(zhdr);
-+}
-+
-+static const struct address_space_operations z3fold_aops = {
-+	.isolate_page = z3fold_page_isolate,
-+	.migratepage = z3fold_page_migrate,
-+	.putback_page = z3fold_page_putback,
-+};
-+
- /*****************
-  * zpool
-  ****************/
-@@ -1290,8 +1504,14 @@ MODULE_ALIAS("zpool-z3fold");
- 
- static int __init init_z3fold(void)
- {
-+	int ret;
-+
- 	/* Make sure the z3fold header is not larger than the page size */
- 	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE);
-+	ret = z3fold_mount();
-+	if (ret)
-+		return ret;
-+
- 	zpool_register_driver(&z3fold_zpool_driver);
- 
- 	return 0;
-@@ -1299,6 +1519,7 @@ static int __init init_z3fold(void)
- 
- static void __exit exit_z3fold(void)
- {
-+	z3fold_unmount();
- 	zpool_unregister_driver(&z3fold_zpool_driver);
- }
- 
 -- 
-2.17.1
+Michal Hocko
+SUSE Labs
 
