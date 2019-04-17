@@ -2,167 +2,260 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 025C3C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:39:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4401C282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:45:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B3612073F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:39:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B3612073F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 573572073F
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:45:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OT1Icl5u"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 573572073F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA1596B0005; Wed, 17 Apr 2019 13:39:56 -0400 (EDT)
+	id 043296B0005; Wed, 17 Apr 2019 13:45:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E27686B0006; Wed, 17 Apr 2019 13:39:56 -0400 (EDT)
+	id F34776B0006; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEF666B0007; Wed, 17 Apr 2019 13:39:56 -0400 (EDT)
+	id E49BA6B0007; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C5D36B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:39:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id e22so11583907edd.9
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:39:56 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B14786B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id m35so15052020pgl.6
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:45:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=0Bjj66UgYfd9aJhB7K12bDsdK/ykgg2ctUzSpYhYKZU=;
-        b=P1988AafS9hEARYIZpkHyQ/lV8ssG67sRxXVyi/lNP02fUxc0SHN5QWt9ph+1+nRhK
-         VOu6SEjVsd5WG43aB+W/SxIOjDwKdEpJSWzN3mylObXrykyk/FGmK1eDNcW8MCgXIddU
-         EYFCC+CD3NSBqbj3xmZPDLWjbiXnmCkpoZsnH+AvEQBaXRYDlhPW/Rbce9N/Lsc2KENA
-         Lpu6lAbXLnpGmUQVQFKGfOpnCvaOytIU7xez+Lfjk0D8kToSvzCxv6MYdmoCR5v4ewp/
-         Eie93FwthPBW84V/5c5A40tkp5n2x06dSCrlkbRqaOVKQoFNGPStNA8gjrkVeHvbUY18
-         mKJw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAVEWweayPRxXaZf/mLEO7CKMuxIykm3n2Qtx1dYnCAp9Yybhpos
-	8zdq7pYYhAismMC+BcKiuma3yjNDrBrbhsIYX9bL7MTJraR/2y/vUxX+1BOrloe+K3k6++Ae6j9
-	xps6hKc1bNmuQHHNWGjy4JqMjvvO30boBsnf8nObr49YFsDUCEcFVImrHdXEK6ohHRA==
-X-Received: by 2002:a50:ad11:: with SMTP id y17mr17453142edc.184.1555522795974;
-        Wed, 17 Apr 2019 10:39:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyw63QChPvvIith/EAUctNa6II/W9wQqvvCURa0qAQ4vVEZhCSy+J9yhCgSninHcaupvyjV
-X-Received: by 2002:a50:ad11:: with SMTP id y17mr17453096edc.184.1555522794994;
-        Wed, 17 Apr 2019 10:39:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555522794; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
+        b=dsi9RIog+0vB59bZblD/ym76J61alwXJNo/+QqwlHNRR1ELguH2dNAyuJbUboTh3jN
+         MamcYElFLxCyFIQVEbFt7t4jV+WPc792JWdVAxOO4qrqrmRFjHY0IjubSPdzp4yu8uDU
+         zURcaAUcnL+Hg+y/qOgGhJejOKuOzj6W2IPUl3vjBpQXGlNuJxg9Gkqp24P9kA17PBV9
+         bBde6r1rrGFMgjbfDh4QyJ3jO4pObjViOxipu1WhEYMaTXNQjKX+D59vjTU1OM+Z+91h
+         MhC6Zv/eJKL2mx/98oD3209JF+WbknubTVvJcBnoapXTsJlu2xa3MnrskEGidJztdDZm
+         Agpg==
+X-Gm-Message-State: APjAAAUnKoQ12E4TbLUhL0r634nP8DT7ts2LsG23M/3KG+3WKdlNWF/T
+	I3T+nczRYlG05+9wRQR9awVpiYoIZBWIyVWob/BGoWzQS0RAiv8Abj5wHiorpKR53hefur6MePF
+	GTjssjheYOa3V9K1G1TMP1wykUuOVEF5cK5AMci9Uk7n1HHcmDOr/CMN9GGgHSS76RQ==
+X-Received: by 2002:aa7:8096:: with SMTP id v22mr62373913pff.94.1555523103324;
+        Wed, 17 Apr 2019 10:45:03 -0700 (PDT)
+X-Received: by 2002:aa7:8096:: with SMTP id v22mr62373837pff.94.1555523102545;
+        Wed, 17 Apr 2019 10:45:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555523102; cv=none;
         d=google.com; s=arc-20160816;
-        b=JCdb7kP6mXHRO1FK3f16ewPmsJ7RkEeJ4gOv8EugJgllrEGPev/eT+vnedoOQWIzHH
-         BY+cEGAcst2NHvpWi+EjajBzvlHg648rfxNC5Oz1nIBxJWrosEHfeb+wlj/vlOGudo/+
-         v+bRNOzuQa9by5ZJcGobnj8x7plqdUt84rbs70wRvktk7LYhD+SxvWEx2mhB/b4rCAIm
-         /Xr7OkgC91t9WvuplKXZG2TXE0alGFdTPv4D1zYhVD3XhOQlpU+mvhEl7kpVeZloHzAa
-         7fTjTN6PYrUgD81QDMHZ9dRgG5zu8llo5O11JOzuE8VA0qfTXCvDXpM0zMb+6i92aGXc
-         F7rA==
+        b=mgk5NyL6Z2UoDY3goLzVzsAdsx67+A0woC0feQijp+bXi3LzZkgFGqxs8XMHzsL010
+         0Y6iA/iA9BEMLsb16uL9h+wgRkoOSRQD5KMBdmZHkjXyajPC3I4oNwGdENukENtf/Qfb
+         JjiTFkS+KPEn+sATWobKjHR+7rfSJCTzIgNqDiHgoZ1cJ0xeirtGqGZ4XVuQwcBLdn0K
+         X16o02NdSg3sE9rVkLvvOHdVhKjFhEW0id+EHNHArks7i/jt5bDEzWZbaunK6Ajb5Zlq
+         CpS+zja+kxdkQ/eMwnmXTZJuQK78/gW8xm291bMTm3fNvDCDL3vPD3PBd6MPbLkhiJsk
+         SyDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=0Bjj66UgYfd9aJhB7K12bDsdK/ykgg2ctUzSpYhYKZU=;
-        b=GzCOlovOuwN4cSMNRRhRv7dPVdjqQC63VibRzJreNzczrMEYCUK4nRVLl/QL1D1WFY
-         8EmHfKjtMAlenOQ9IZBYdmCJZZPT86ZWsrCGYeyPzYQjSCi2GPzYl563Gv4CseBCYyHO
-         sWF8swmTLbqgyUqQAkC3etQj/hJutBdT7f1EvEizFfg6PDuACsnt96R9J+uAGkvPjalV
-         4ZateF6jBc7bZ+Oz6b7oXxN1x6IikPyLlrx80YLt3ieJbyCqAwgH7FMLw/P+p8ZEmMzk
-         gyyXvTabc3x5QVhzePfVkWqeF1luSS3wvkTXzFlfnI+ymCKf6iv7AGzmg442CZJnOaJi
-         kCuQ==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
+        b=OytcsDZCCMUOoyaY8m845D4qQ1/+32G5sOwfJRC5b4iu1WeTG3Xgko0QXj23bCFhM6
+         YBf4xyBJhNS0a+CYAeSH2VULCFBxiyDxOAsQRIOPdwNoYOHllgKwryKR9VcROmbzqua2
+         lpMbFuI5I6vGqaXECSGxTTX3YOlSg6Dp3tJUL+4VqmfH8pg9RrnwHAQeb+iRHeIJB5+d
+         tLLq6+ukOBE+CgFMfm6ZitnCnYUPMdvPSezj29I765wA9ySoGZSS6T5RQx5ln5KV6Qz8
+         mF1uYNEL2FYBA/7VOUvHjTBs6lf2daemkIKJR+WwaagYGHGT4BkSrpULaqwXBgAgagGG
+         ihIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f9si410702ejk.68.2019.04.17.10.39.54
-        for <linux-mm@kvack.org>;
-        Wed, 17 Apr 2019 10:39:54 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT1Icl5u;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z18sor73556331plo.58.2019.04.17.10.45.02
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 17 Apr 2019 10:45:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DB00C15AB;
-	Wed, 17 Apr 2019 10:39:53 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C0CFD3F59C;
-	Wed, 17 Apr 2019 10:39:50 -0700 (PDT)
-Date: Wed, 17 Apr 2019 18:39:48 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
-	catalin.marinas@arm.com, mhocko@suse.com,
-	mgorman@techsingularity.net, james.morse@arm.com,
-	robin.murphy@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
-	dan.j.williams@intel.com, osalvador@suse.de, david@redhat.com,
-	cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
-Message-ID: <20190417173948.GB15589@lakrids.cambridge.arm.com>
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
- <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
- <20190415134841.GC13990@lakrids.cambridge.arm.com>
- <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
- <20190417142154.GA393@lakrids.cambridge.arm.com>
- <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT1Icl5u;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
+        b=OT1Icl5ug+NAclWFwwjy4encfGqF8h6cQ+Sluh8LzmcZ7PDJwN1EgFXlFIUgiOWhv3
+         CdyxbET3pK6vk3eVE6CuZMYXEDZBkDGGS0j/EPXB7PkGD/NOQuXKFupb6p+NcuweE25U
+         zSQgwg5NjcZJ6sJtwNWHBhcXJCP2pmcgCP9PRguBY4GjSzejO9PQXa/vMmQ7Pc7yKdS6
+         tduovyaAMGBZQaLuQngghondFXL+EQQVleQZ++7KcWxjU8TgbrwM37zs5xY/S5QIMxhe
+         58nzwPq5oTgFA4zTqspejrXFnGO1J+TMkYisCWw26t7w22hh5emAce2dBtovssrt//Df
+         d0Ow==
+X-Google-Smtp-Source: APXvYqzfMmBcNUH3fJFzGd3r9yH7kGevsQ52l1TqCRzwV4eMJos/uHwMz4Wl+hkhnB1q+aRwaHSPBg==
+X-Received: by 2002:a17:902:6bc7:: with SMTP id m7mr42510170plt.146.1555523101228;
+        Wed, 17 Apr 2019 10:45:01 -0700 (PDT)
+Received: from [10.33.115.113] ([66.170.99.2])
+        by smtp.gmail.com with ESMTPSA id v188sm81987353pgb.7.2019.04.17.10.44.57
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 10:44:58 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190417172632.GA95485@gmail.com>
+Date: Wed, 17 Apr 2019 10:44:56 -0700
+Cc: Khalid Aziz <khalid.aziz@oracle.com>,
+ juergh@gmail.com,
+ Tycho Andersen <tycho@tycho.ws>,
+ jsteckli@amazon.de,
+ keescook@google.com,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Juerg Haefliger <juerg.haefliger@canonical.com>,
+ deepa.srinivasan@oracle.com,
+ chris.hyser@oracle.com,
+ tyhicks@canonical.com,
+ David Woodhouse <dwmw@amazon.co.uk>,
+ Andrew Cooper <andrew.cooper3@citrix.com>,
+ jcm@redhat.com,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+ iommu <iommu@lists.linux-foundation.org>,
+ X86 ML <x86@kernel.org>,
+ linux-arm-kernel@lists.infradead.org,
+ "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Khalid Aziz <khalid@gonehiking.org>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Andy Lutomirski <luto@kernel.org>,
+ Peter Zijlstra <a.p.zijlstra@chello.nl>,
+ Dave Hansen <dave@sr71.net>,
+ Borislav Petkov <bp@alien8.de>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Arjan van de Ven <arjan@infradead.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <063753CC-5D83-4789-B594-019048DE22D9@gmail.com>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com>
+ <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+ <20190417170918.GA68678@gmail.com>
+ <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
+ <20190417172632.GA95485@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 10:15:35PM +0530, Anshuman Khandual wrote:
-> On 04/17/2019 07:51 PM, Mark Rutland wrote:
-> > On Wed, Apr 17, 2019 at 03:28:18PM +0530, Anshuman Khandual wrote:
-> >> On 04/15/2019 07:18 PM, Mark Rutland wrote:
-> >>> On Sun, Apr 14, 2019 at 11:29:13AM +0530, Anshuman Khandual wrote:
+> On Apr 17, 2019, at 10:26 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>=20
+>=20
+> * Nadav Amit <nadav.amit@gmail.com> wrote:
+>=20
+>>> On Apr 17, 2019, at 10:09 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>>>=20
+>>>=20
+>>> * Khalid Aziz <khalid.aziz@oracle.com> wrote:
+>>>=20
+>>>>> I.e. the original motivation of the XPFO patches was to prevent =
+execution=20
+>>>>> of direct kernel mappings. Is this motivation still present if =
+those=20
+>>>>> mappings are non-executable?
+>>>>>=20
+>>>>> (Sorry if this has been asked and answered in previous =
+discussions.)
+>>>>=20
+>>>> Hi Ingo,
+>>>>=20
+>>>> That is a good question. Because of the cost of XPFO, we have to be =
+very
+>>>> sure we need this protection. The paper from Vasileios, Michalis =
+and
+>>>> Angelos - =
+<http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf>,
+>>>> does go into how ret2dir attacks can bypass SMAP/SMEP in sections =
+6.1
+>>>> and 6.2.
+>>>=20
+>>> So it would be nice if you could generally summarize external =
+arguments=20
+>>> when defending a patchset, instead of me having to dig through a PDF=20=
 
-> >>>> +	spin_unlock(&init_mm.page_table_lock);
-> >>>
-> >>> What precisely is the page_table_lock intended to protect?
-> >>
-> >> Concurrent modification to kernel page table (init_mm) while clearing entries.
-> > 
-> > Concurrent modification by what code?
-> > 
-> > If something else can *modify* the portion of the table that we're
-> > manipulating, then I don't see how we can safely walk the table up to
-> > this point without holding the lock, nor how we can safely add memory.
-> > 
-> > Even if this is to protect something else which *reads* the tables,
-> > other code in arm64 which modifies the kernel page tables doesn't take
-> > the lock.
-> > 
-> > Usually, if you can do a lockless walk you have to verify that things
-> > didn't change once you've taken the lock, but we don't follow that
-> > pattern here.
-> > 
-> > As things stand it's not clear to me whether this is necessary or
-> > sufficient.
-> 
-> Hence lets take more conservative approach and wrap the entire process of
-> remove_pagetable() under init_mm.page_table_lock which looks safe unless
-> in the worst case when free_pages() gets stuck for some reason in which
-> case we have bigger memory problem to deal with than a soft lock up.
+>>> which not only causes me to spend time that you probably already =
+spent=20
+>>> reading that PDF, but I might also interpret it incorrectly. ;-)
+>>>=20
+>>> The PDF you cited says this:
+>>>=20
+>>> "Unfortunately, as shown in Table 1, the W^X prop-erty is not =
+enforced=20
+>>>  in many platforms, including x86-64.  In our example, the content =
+of=20
+>>>  user address 0xBEEF000 is also accessible through kernel address=20
+>>>  0xFFFF87FF9F080000 as plain, executable code."
+>>>=20
+>>> Is this actually true of modern x86-64 kernels? We've locked down =
+W^X=20
+>>> protections in general.
+>>=20
+>> As I was curious, I looked at the paper. Here is a quote from it:
+>>=20
+>> "In x86-64, however, the permissions of physmap are not in sane =
+state.
+>> Kernels up to v3.8.13 violate the W^X property by mapping the entire =
+region
+>> as =E2=80=9Creadable, writeable, and executable=E2=80=9D (RWX)=E2=80=94=
+only very recent kernels
+>> (=E2=89=A5v3.9) use the more conservative RW mapping.=E2=80=9D
+>=20
+> But v3.8.13 is a 5+ years old kernel, it doesn't count as a "modern"=20=
 
-Sorry, but I'm not happy with _any_ solution until we understand where
-and why we need to take the init_mm ptl, and have made some effort to
-ensure that the kernel correctly does so elsewhere. It is not sufficient
-to consider this code in isolation.
+> kernel in any sense of the word. For any proposed patchset with=20
+> significant complexity and non-trivial costs the benchmark version=20
+> threshold is the "current upstream kernel".
+>=20
+> So does that quote address my followup questions:
+>=20
+>> Is this actually true of modern x86-64 kernels? We've locked down W^X
+>> protections in general.
+>>=20
+>> I.e. this conclusion:
+>>=20
+>>  "Therefore, by simply overwriting kfptr with 0xFFFF87FF9F080000 and
+>>   triggering the kernel to dereference it, an attacker can directly
+>>   execute shell code with kernel privileges."
+>>=20
+>> ... appears to be predicated on imperfect W^X protections on the =
+x86-64
+>> kernel.
+>>=20
+>> Do such holes exist on the latest x86-64 kernel? If yes, is there a
+>> reason to believe that these W^X holes cannot be fixed, or that any =
+fix
+>> would be more expensive than XPFO?
+>=20
+> ?
+>=20
+> What you are proposing here is a XPFO patch-set against recent kernels=20=
 
-IIUC, before this patch we never clear non-leaf entries in the kernel
-page tables, so readers don't presently need to take the ptl in order to
-safely walk down to a leaf entry.
+> with significant runtime overhead, so my questions about the W^X holes=20=
 
-For example, the arm64 ptdump code never takes the ptl, and as of this
-patch it will blow up if it races with a hot-remove, regardless of
-whether the hot-remove code itself holds the ptl.
+> are warranted.
+>=20
 
-Note that the same applies to the x86 ptdump code; we cannot assume that
-just because x86 does something that it happens to be correct.
-
-I strongly suspect there are other cases that would fall afoul of this,
-in both arm64 and generic code.
-
-Thanks,
-Mark.
+Just to clarify - I am an innocent bystander and have no part in this =
+work.
+I was just looking (again) at the paper, as I was curious due to the =
+recent
+patches that I sent that improve W^X protection.
 
