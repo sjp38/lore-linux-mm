@@ -2,190 +2,364 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DEDBC282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:44:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02879C282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:48:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC3862177B
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:44:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC3862177B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8355B21773
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:48:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="VmpcECcu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8355B21773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CD196B0003; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
+	id EAB846B0007; Wed, 17 Apr 2019 03:48:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 955996B0006; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
+	id E5B4A6B0008; Wed, 17 Apr 2019 03:48:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D0436B0007; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
+	id CFE746B000A; Wed, 17 Apr 2019 03:48:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 593196B0003
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id 23so19962680qkl.16
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 00:44:18 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FBF86B0007
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:48:07 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id n5so14204984pgk.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 00:48:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=69Lqa26kYa78KfrZSaMjCsliWq99zpsIqyF/oIji2to=;
-        b=WyjylqTww0D1oIqm+hjei/RVCXEqpocACCx9L+bB+cLwF7Q9kYK4m5LAZP1bL3AKbX
-         /zL7CS3/IEN4CRGWyB3U6UJvRGP37C5PR+bIFuJ2XSEDcUCbDfNanQXYf5ZpCbpBefmX
-         h7L4x1VgHcVIa39ios1YgqlZM5cgOiyXGv9K9LFiJMPEodiojTr76gIzHh/SPnx/vJnP
-         rP4dQRGKAaYlFlrgYt1zj5HVMzVXktOY+ek6dDMJI0nAEGNV5f2DaMBBkbQrXLGx3uh6
-         dMUUndCb2J7zbTirtFxLHQodWQyr8kAzDX0IRNmoSKKP2mgej45LX2MHDThQdtJ/V0t+
-         lclw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVo4eJkk43C5+PFagCrZM2H0UNBnHw5diEkk2I13wsGWc6qpz2y
-	soFExm7xxxuOz2ZtbUKpeefbYi83ikmewAxAnm111driqSrx6175Ce/37tEsF1yN5KZFPNsuA10
-	B4mkrwhhwOpactersTAbCBKBKJKGcsx1KeKPIOnv/Zh0IwSkgg7b+/ujkbDvn+sTFEA==
-X-Received: by 2002:a37:a650:: with SMTP id p77mr66269247qke.256.1555487058110;
-        Wed, 17 Apr 2019 00:44:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyykJ6jXS/ESorbNrcQLvRU2+VvhsshDjs0703UgfZ7E1Og8/2b6PltdHrlMlrJ3YEPZoQM
-X-Received: by 2002:a37:a650:: with SMTP id p77mr66269224qke.256.1555487057367;
-        Wed, 17 Apr 2019 00:44:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555487057; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id;
+        bh=LfsYQs+r2tnN2nPN5NZItQW9ZKUgXqJ0T9e/uFdLPiY=;
+        b=Olb8u3XFbV2y+TYvblFCey9Wn3FMFjA+kkol4cMFM/lksRDJndvyyFvZxeCeTJuJ7L
+         jk1BhC2VCbW4q6z6lPZfuwoHhFKuCXVlJ/s6WgSun63Qip3eO7zrPhG7XVqwGg/IRii2
+         Fzwd4DR6eyymu3sLdt0AMdUmYwpMOlcoKR9m2XDuhYyIU8MPCemBMBw/NHP7QvyhDHxj
+         l/be5YL/37S34iFTPKjTbJCakqmnFXvFM0NwTHlsInOe9qHLZSB+ZjJlUQ8fmhpm4G+n
+         Si9O9gorui2FRXt24yFh7q4u7hUrTM+GAVSnvGOJnKKjNf7ONmVYYQInEOtLZxgUX3ah
+         qcRw==
+X-Gm-Message-State: APjAAAV4Gsme5qpBZyh2ULibWY+Hg0O/vMzMvH8E7oQbhS0YV3Fl1Q/n
+	KPGpHA0/IP8ff70ELSP2kLmS4y+8LvwPPfMV5hoK1R0T3aDkRLpMgxsEQzGKSdEUXOhuxcjWphQ
+	xA+4IhErTkpYDP/7F17t5Bs23dbjE7uPYfl1+PJFebWV26ilsfhDnvyEnjGBTyX+tsA==
+X-Received: by 2002:aa7:8212:: with SMTP id k18mr87065870pfi.50.1555487287092;
+        Wed, 17 Apr 2019 00:48:07 -0700 (PDT)
+X-Received: by 2002:aa7:8212:: with SMTP id k18mr87065759pfi.50.1555487285582;
+        Wed, 17 Apr 2019 00:48:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555487285; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jv5R1AVE56OpOspj4aABT2m2Eo4gHHtBD3t8jkgeFmsY9MY0UZSqaA2NW7bpAwnyi+
-         5vcZb4bK71SXysN6oaFU17dsVOjrJ+b12n9xycFc/VvBi+uvLWIN5nHsKRAN0BSPetb7
-         spOMMcIekhDhD8olYMo/ySV8PZBgJCzdu9PVFoAtCqUcMzxZSQ4MR09tlpi0OiMmlAQd
-         dQN9jcysbHZdDvoD0WmpbbBybrpMToLPVYvAk5UNq62ttyzFspoxUEmAf3I+blU9RzhE
-         IlLKAClVwxEJVkvzRArRIhOSIU5qv2qtKimqvGjXIq17QFNAY2WImOFchXI0MitsAO3J
-         ZAwQ==
+        b=FKAwINtC/OWfrQDSXJZRspyNkpLJCusKSxwTwOX8Cb+oRUQyLZXWyb8QKEnmCSfHs4
+         o2QsSC8jb6Q2RcekSZvwEbBFfgn9EAqLXhtRTv6A94DOseZjbVt+dMUtdZRtD5190KIn
+         L4vQN95XXYCqItrke0DjbO6IAppBYUJ93PYieszuI/qZPDI7ptHqBvN5lP2WVbLBiQP7
+         z2yS/MuJDDxyDbvhI4gtnnDzKY+b7aiT+ys71PKPcLQ0LAw1Krcm88lrw7Ho4DnKBTxE
+         5BZxdqdk5XokKah+6vjekryRZyaLqqmmouuInlHFEPh0ciSaTU+nFwHlQlpzlaflS6iu
+         9p2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=69Lqa26kYa78KfrZSaMjCsliWq99zpsIqyF/oIji2to=;
-        b=kiPvLKSdL1smfzNvFQmQbiuuQgVuqe8cXkjQP/OYvyYlB0LPFAjoDV77J/SkJexw4t
-         uHaPXVWXdd/cmZM+LbiYoDmvK5RHJEYbKGAvg15VXGwS4wbqsjKlOgTa3ZUA73teg/nv
-         TBqa4jxJmv08MWJEpHnVwMtk45KZGjN6x6uxwoJrLfIOCAyxSdEVtoQum6xgu3gkelqH
-         R6FxYdPxeFAhRQRxVG2AWvwEtAMzhyQ3J4nqwhHs5aDBqDJV1bn93rWJNA6yhAJx8kIw
-         6Jo2bmrBUTMEAAhvRjGLoeTVSGMjR9NlItEtne7dL//2d0Qmf0Dwh8KSxJd8f2XRzoK9
-         wDHw==
+        h=message-id:date:subject:to:from:dkim-signature;
+        bh=LfsYQs+r2tnN2nPN5NZItQW9ZKUgXqJ0T9e/uFdLPiY=;
+        b=SqL70oHXSVl9klIn5+IMquobs/KM8/J4oMOTdi7ly6EETjHt/r1gFArUaRz5SJKy5c
+         jk9XhuxPy1BLYzy+bGWpAgWcE0UP6HZXiZcMaw++22JwQhRFcKWLLgjuy+5SEnZl7vLC
+         7Rp6QfitvsNbnslHdf2+dszYjjdNHHmrfedDih+q+X2dMgcTkrbpKYhMJ4ECI/o7A2MU
+         AOQRi6KRBZ59RCj89Q3DMDgcPHWNYXyeV5bnEdh3VJYkqWbyu+5XXbMgeWGaD06voFL4
+         vT5nQiO8bF+mDwTvC0R3Uxvny5ajtX75RQ51C9ARNi8MwSbD2JVIHVc0sWO/XXeaiN+m
+         FACQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g9si4893963qkb.8.2019.04.17.00.44.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VmpcECcu;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a23sor52250049pgm.45.2019.04.17.00.48.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 00:44:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 17 Apr 2019 00:48:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 639C93091755;
-	Wed, 17 Apr 2019 07:44:16 +0000 (UTC)
-Received: from [10.36.117.29] (ovpn-117-29.ams2.redhat.com [10.36.117.29])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 1D6B05C226;
-	Wed, 17 Apr 2019 07:44:13 +0000 (UTC)
-Subject: Re: [PATCH v1 1/4] mm/memory_hotplug: Release memory resource after
- arch_remove_memory()
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
- Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-References: <20190409100148.24703-1-david@redhat.com>
- <20190409100148.24703-2-david@redhat.com>
- <20190409154115.0e94499072e93947a9c1e54e@linux-foundation.org>
- <7cbea607-284c-4e20-fee8-128dae33b143@redhat.com>
- <20190416203732.eec38cecd35d4242a59ca19a@linux-foundation.org>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <908a906c-b2db-ce02-8432-649dcfd8d6a4@redhat.com>
-Date: Wed, 17 Apr 2019 09:44:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190416203732.eec38cecd35d4242a59ca19a@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 17 Apr 2019 07:44:16 +0000 (UTC)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VmpcECcu;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:subject:date:message-id;
+        bh=LfsYQs+r2tnN2nPN5NZItQW9ZKUgXqJ0T9e/uFdLPiY=;
+        b=VmpcECcu4C5T2Rnde10C8wLlIAYxhtSqmj2T2hV0ePtGGpv82fdb1wTE2ol530YYzA
+         WjGl2LfoXI5a2jh+XaXGwAFTdJS9RENa59RQIU5lb1llPsCyXH3FFbmgdg2dIobiRR3T
+         nFQOljo0HfWK7pymJb5KyK7ULIGnS02hNjeta0GcS3rYr+Ry9199HFVk+qZv3Bcqpa6R
+         HNzOLcJuphRFu+ARQvclXmTk5uN7mlEAgiEXJL4ag2NKsAhvD1lGsXJAMEPtAVj0JsDG
+         vkYGb/hWtc8hJFfNA90gcR98eMEt9/NKbB3iC9R24uTMRAupuRdwPS7evcmsV6wk4iEr
+         0qYg==
+X-Google-Smtp-Source: APXvYqz8y7B5nZnJ9khyT03/ezgoBpuG7zDcrpzde5cNla5TubiA+8UgyaCXRAsEkAyQyU47l62xuw==
+X-Received: by 2002:a63:4847:: with SMTP id x7mr82038251pgk.233.1555487285046;
+        Wed, 17 Apr 2019 00:48:05 -0700 (PDT)
+Received: from bj03382pcu.spreadtrum.com ([117.18.48.82])
+        by smtp.gmail.com with ESMTPSA id m8sm62714444pgn.59.2019.04.17.00.47.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 17 Apr 2019 00:48:04 -0700 (PDT)
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Pavel Tatashin <pasha.tatashin@oracle.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	David Rientjes <rientjes@google.com>,
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
+	Roman Gushchin <guro@fb.com>,
+	Jeff Layton <jlayton@redhat.com>,
+	Matthew Wilcox <mawilcox@microsoft.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [RFC PATCH] mm/workingset : judge file page activity via timestamp
+Date: Wed, 17 Apr 2019 15:47:26 +0800
+Message-Id: <1555487246-15764-1-git-send-email-huangzhaoyang@gmail.com>
+X-Mailer: git-send-email 1.7.9.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17.04.19 05:37, Andrew Morton wrote:
-> On Wed, 10 Apr 2019 10:07:24 +0200 David Hildenbrand <david@redhat.com> wrote:
-> 
->> Care to fixup both u64 to resource_size_t? Or should I send a patch?
->> Whatever you prefer.
-> 
-> Please send along a fixup.
+From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 
-Will do!
+This patch introduce timestamp into workingset's entry and judge if the page
+is active or inactive via active_file/refault_ratio instead of refault distance.
 
-> 
-> This patch series has no evidence of having been reviewed :(.  Can you
-> suggest who could help us out here?
+The original thought is coming from the logs we got from trace_printk in this
+patch, we can find about 1/5 of the file pages' refault are under the
+scenario[1],which will be counted as inactive as they have a long refault distance
+in between access. However, we can also know from the time information that the
+page refault quickly as comparing to the average refault time which is calculated
+by the number of active file and refault ratio. We want to save these kinds of
+pages from evicted earlier as it used to be. The refault ratio is the value
+which can reflect lru's average file access frequency and also can be deemed as a
+prediction of future.
 
-Usually I would say Oscar and Michal, but they seem to be fairly busy. I
-guess only the first patch is a real change, the other three patches are
-mostly function prototype changes, handling errors in a nicer way.
+The patch is tested on an android system and reduce 30% of page faults, while
+60% of the pages remain the original status as (refault_distance < active_file)
+indicates. Pages status got from ftrace during the test can refer to [2].
 
-Thanks!
+[1]
+system_server workingset_refault: WKST_ACT[0]:rft_dis 265976, act_file 34268 rft_ratio 3047 rft_time 0 avg_rft_time 11 refault 295592 eviction 29616 secs 97 pre_secs 97
+HwBinder:922  workingset_refault: WKST_ACT[0]:rft_dis 264478, act_file 35037 rft_ratio 3070 rft_time 2 avg_rft_time 11 refault 310078 eviction 45600 secs 101 pre_secs 99
 
+[2]
+WKST_ACT[0]:   original--INACTIVE  commit--ACTIVE
+WKST_ACT[1]:   original--ACTIVE    commit--ACTIVE
+WKST_INACT[0]: original--INACTIVE  commit--INACTIVE
+WKST_INACT[1]: original--ACTIVE    commit--INACTIVE
+
+Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+---
+ include/linux/mmzone.h |   1 +
+ mm/workingset.c        | 120 +++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 112 insertions(+), 9 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 32699b2..6f30673 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -240,6 +240,7 @@ struct lruvec {
+ 	atomic_long_t			inactive_age;
+ 	/* Refaults at the time of last reclaim cycle */
+ 	unsigned long			refaults;
++	atomic_long_t			refaults_ratio;
+ #ifdef CONFIG_MEMCG
+ 	struct pglist_data *pgdat;
+ #endif
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 40ee02c..66c177b 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -160,6 +160,21 @@
+ 			 MEM_CGROUP_ID_SHIFT)
+ #define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
+ 
++#ifdef CONFIG_64BIT
++#define EVICTION_SECS_POS_SHIFT 20
++#define EVICTION_SECS_SHRINK_SHIFT 4
++#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
++#else
++#ifndef CONFIG_MEMCG
++#define EVICTION_SECS_POS_SHIFT 12
++#define EVICTION_SECS_SHRINK_SHIFT 4
++#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
++#else
++#define EVICTION_SECS_POS_SHIFT 0
++#define EVICTION_SECS_SHRINK_SHIFT 0
++#define NO_SECS_IN_WORKINGSET
++#endif
++#endif
+ /*
+  * Eviction timestamps need to be able to cover the full range of
+  * actionable refaults. However, bits are tight in the radix tree
+@@ -169,10 +184,54 @@
+  * evictions into coarser buckets by shaving off lower timestamp bits.
+  */
+ static unsigned int bucket_order __read_mostly;
+-
++#ifdef NO_SECS_IN_WORKINGSET
++static void pack_secs(unsigned long *peviction) { }
++static unsigned int unpack_secs(unsigned long entry) {return 0; }
++#else
++/*
++ * Shrink the timestamp according to its value and store it together
++ * with the shrink size in the entry.
++ */
++static void pack_secs(unsigned long *peviction)
++{
++	unsigned int secs;
++	unsigned long eviction;
++	int order;
++	int secs_shrink_size;
++	struct timespec ts;
++
++	get_monotonic_boottime(&ts);
++	secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
++	order = get_count_order(secs);
++	secs_shrink_size = (order <= EVICTION_SECS_POS_SHIFT)
++			? 0 : (order - EVICTION_SECS_POS_SHIFT);
++
++	eviction = *peviction;
++	eviction = (eviction << EVICTION_SECS_POS_SHIFT)
++			| ((secs >> secs_shrink_size) & EVICTION_SECS_POS_MASK);
++	eviction = (eviction << EVICTION_SECS_SHRINK_SHIFT) | (secs_shrink_size & 0xf);
++	*peviction = eviction;
++}
++/*
++ * Unpack the second from the entry and restore the value according to the
++ * shrink size.
++ */
++static unsigned int unpack_secs(unsigned long entry)
++{
++	unsigned int secs;
++	int secs_shrink_size;
++
++	secs_shrink_size = entry & ((1 << EVICTION_SECS_SHRINK_SHIFT) - 1);
++	entry >>= EVICTION_SECS_SHRINK_SHIFT;
++	secs = entry & EVICTION_SECS_POS_MASK;
++	secs = secs << secs_shrink_size;
++	return secs;
++}
++#endif
+ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+ {
+ 	eviction >>= bucket_order;
++	pack_secs(&eviction);
+ 	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+ 	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+ 	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
+@@ -181,20 +240,24 @@ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+ }
+ 
+ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+-			  unsigned long *evictionp)
++			  unsigned long *evictionp, unsigned int *prev_secs)
+ {
+ 	unsigned long entry = (unsigned long)shadow;
+ 	int memcgid, nid;
++	unsigned int secs;
+ 
+ 	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
+ 	nid = entry & ((1UL << NODES_SHIFT) - 1);
+ 	entry >>= NODES_SHIFT;
+ 	memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+ 	entry >>= MEM_CGROUP_ID_SHIFT;
++	secs = unpack_secs(entry);
++	entry >>= (EVICTION_SECS_POS_SHIFT + EVICTION_SECS_SHRINK_SHIFT);
+ 
+ 	*memcgidp = memcgid;
+ 	*pgdat = NODE_DATA(nid);
+ 	*evictionp = entry << bucket_order;
++	*prev_secs = secs;
+ }
+ 
+ /**
+@@ -242,9 +305,22 @@ bool workingset_refault(void *shadow)
+ 	unsigned long refault;
+ 	struct pglist_data *pgdat;
+ 	int memcgid;
++#ifndef NO_SECS_IN_WORKINGSET
++	unsigned long avg_refault_time;
++	unsigned long refault_time;
++	int tradition;
++	unsigned int prev_secs;
++	unsigned int secs;
++	unsigned long refaults_ratio;
++#endif
++	struct timespec ts;
++	/*
++	convert jiffies to second
++	*/
++	get_monotonic_boottime(&ts);
++	secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
+ 
+-	unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
+-
++	unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &prev_secs);
+ 	rcu_read_lock();
+ 	/*
+ 	 * Look up the memcg associated with the stored ID. It might
+@@ -288,14 +364,37 @@ bool workingset_refault(void *shadow)
+ 	 * list is not a problem.
+ 	 */
+ 	refault_distance = (refault - eviction) & EVICTION_MASK;
+-
+ 	inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
+-
+-	if (refault_distance <= active_file) {
++#ifndef NO_SECS_IN_WORKINGSET
++	refaults_ratio = (atomic_long_read(&lruvec->inactive_age) + 1) / secs;
++	atomic_long_set(&lruvec->refaults_ratio, refaults_ratio);
++	refault_time = secs - prev_secs;
++	avg_refault_time = active_file / refaults_ratio;
++	tradition = !!(refault_distance < active_file);
++	if (refault_time <= avg_refault_time) {
++#else
++	if (refault_distance < active_file) {
++#endif
+ 		inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
++#ifndef NO_SECS_IN_WORKINGSET
++		trace_printk("WKST_ACT[%d]:rft_dis %ld, act_file %ld \
++				rft_ratio %ld rft_time %ld avg_rft_time %ld \
++				refault %ld eviction %ld secs %d pre_secs %d\n",
++				tradition, refault_distance, active_file,
++				refaults_ratio, refault_time, avg_refault_time,
++				refault, eviction, secs, prev_secs);
++#endif
+ 		rcu_read_unlock();
+ 		return true;
+ 	}
++#ifndef NO_SECS_IN_WORKINGSET
++	trace_printk("WKST_INACT[%d]:rft_dis %ld, act_file %ld \
++			rft_ratio %ld rft_time %ld avg_rft_time %ld \
++			refault %ld eviction %ld secs %d pre_secs %d\n",
++			tradition, refault_distance, active_file,
++			refaults_ratio, refault_time, avg_refault_time,
++			refault, eviction, secs, prev_secs);
++#endif
+ 	rcu_read_unlock();
+ 	return false;
+ }
+@@ -513,7 +612,9 @@ static int __init workingset_init(void)
+ 	unsigned int max_order;
+ 	int ret;
+ 
+-	BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
++	BUILD_BUG_ON(BITS_PER_LONG < (EVICTION_SHIFT
++				+ EVICTION_SECS_POS_SHIFT
++				+ EVICTION_SECS_SHRINK_SHIFT));
+ 	/*
+ 	 * Calculate the eviction bucket size to cover the longest
+ 	 * actionable refault distance, which is currently half of
+@@ -521,7 +622,8 @@ static int __init workingset_init(void)
+ 	 * some more pages at runtime, so keep working with up to
+ 	 * double the initial memory by using totalram_pages as-is.
+ 	 */
+-	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
++	timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT
++			- EVICTION_SECS_POS_SHIFT - EVICTION_SECS_SHRINK_SHIFT;
+ 	max_order = fls_long(totalram_pages - 1);
+ 	if (max_order > timestamp_bits)
+ 		bucket_order = max_order - timestamp_bits;
 -- 
-
-Thanks,
-
-David / dhildenb
+1.9.1
 
