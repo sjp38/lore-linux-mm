@@ -2,315 +2,273 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1EAEC282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:53:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5B19C282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:01:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A062620663
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:53:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A062620663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 50523206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:01:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="fRbASVPt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50523206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4EF8C6B0005; Wed, 17 Apr 2019 14:53:49 -0400 (EDT)
+	id D77D56B000C; Wed, 17 Apr 2019 15:01:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C7526B026C; Wed, 17 Apr 2019 14:53:49 -0400 (EDT)
+	id D25F46B0266; Wed, 17 Apr 2019 15:01:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3B78D6B026D; Wed, 17 Apr 2019 14:53:49 -0400 (EDT)
+	id C15596B026D; Wed, 17 Apr 2019 15:01:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 03AFA6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:53:49 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id p13so15979466pll.20
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 11:53:48 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BAAF6B000C
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 15:01:32 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id b1so23388762qtk.11
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:01:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=0Eiev16VluPo/Ft1mi41KIG+c9eC0uF0PiWNIa4cMlE=;
-        b=nS28BB5Fwx/eXpYDJ1nt/kNo+SCIdkzxZ958RN6RbXBrwt94rv6l6j4uZ/Xc+sF2/U
-         m8VOEy4v6m3zL1PbwxxCSGAf4zHyk9bSATEILRC89s4HklYH21rCqeCIKtw+pgkYt/QH
-         Wt1Slr3+YpgukCN3hRAnw9dwFljejtH+hCrlMSVx2xjcEKN04mP17jBZQmlE6MUbQNoj
-         Juw6ZSEXokJx9irkq9mRW3eMeWgOG8Wbk8i5mPxLdPed5CpniY1Im8sUZCO4b5Z/iUHI
-         pFCAG0CLxfWDlfhbg3OkhN7TmyJekG3vcE5TZ7XXxNNlItTW/w1t0hQkBmB98m2lmZVK
-         gZFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXS3GrqzD+ogmorzMMmZF3emKlH7pN/BYeB++CNkwGiodbeHZ5w
-	2oX60EYc8CAGI/lu573wmUYNDG2kkSc4AxhaIJikC7Vb+1oqi2JLS1bkRT+sJMSdaGJASFaZdIp
-	TTnZZPN9tIbZrP18hxL+XvE+T9wj6VnemMQ5FESWijJEJ35T1TBsw7rg1CHUpzrJbyw==
-X-Received: by 2002:a63:1f61:: with SMTP id q33mr78288760pgm.325.1555527228652;
-        Wed, 17 Apr 2019 11:53:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyF4eAtzTM5ogXYK3Gu7dFZtuUGYIuLT3XaxqkRqVmfrR2IAis0E+VgREnEkcIP7TgRO6zd
-X-Received: by 2002:a63:1f61:: with SMTP id q33mr78288686pgm.325.1555527227650;
-        Wed, 17 Apr 2019 11:53:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555527227; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=+/GWh713FqL/H8PmEw9TPiD/zMFMSIkms3hrEPjGldk=;
+        b=HLFS1pMkVW1TFNKD6xaK69kDDahsf0oSxTphXHy+jxBCyJaiw12yR0mMnmZP12X5eq
+         6IglRwcVOdCOa3JAiIGqasDmEXmMgUzOwDLLP1UmKij2hHMPG4p+KWYfSNeBw/PaM4TQ
+         Gviwtkc+GU9AG1z8Me+38b8maruo6ucIBVbVTFh41RDirrjI2yPfApUMoYdbLelM9rlR
+         hB2UUg5pYN4oXN2XrWxD0EfqNyxefxtgV/TNINlpuHu+Umg13ba0oAen4CQ/QN2vKd9s
+         3OOB+Yw8AuLg+176+xZMoDeBle1qQvHUWTQ9jL39D9nfLAP2fuWmwyDNR109bEra+A1J
+         ullw==
+X-Gm-Message-State: APjAAAUPZEWI7oDR1pIKipuV5FvfxeuOnAe8u5DIgRkEiqbn+geV+CzU
+	+ZH/qoNvA5uynz4IWXzFsvHddWuWs8I5Jipg9O8P4dv2VHK9qospxv1JIHW+OeZ0Ef+dbrus/6O
+	YizdZjF0q9WEZ6FBc/qJs59HxjT6ZRNvR1TsTXXNoO/7ftily4xEarbPCC8xjr1BrEA==
+X-Received: by 2002:ac8:3258:: with SMTP id y24mr74399790qta.0.1555527692279;
+        Wed, 17 Apr 2019 12:01:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+7qdZk9LUsnmDI3I40GJ4JdPA7vmtYnUaJtEDjm3EX2GmY2lwy9s+vzPLCuTPVQELUVEi
+X-Received: by 2002:ac8:3258:: with SMTP id y24mr74399692qta.0.1555527691229;
+        Wed, 17 Apr 2019 12:01:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555527691; cv=none;
         d=google.com; s=arc-20160816;
-        b=LgwUDR8jhSH6vHaBPfu0kDd2ZlG5BR14AlJeleBkU+kEVg0N8MruVOSzPi6koPEH+w
-         EZG46V/yhTidVkOqlcfOc3Lyrl6YjLv4MUWw46NjiraqfTKvS7wntfVvl27B6xLM+Bmt
-         h48LMX9OrjQSADWKvnj4eqhmr0pbPr7QeUVczDERzaNy2PSV6F7ZPfcsRvTzflaiLbae
-         jc3umigIVKF3TD0tFf1nPMSf+1p5gDcNJdGvSCm5HhI8MG2e5ogUbWzXbqvOBjLF8wsd
-         UmOuVMK7aLuZpa8dnILcIXG/VT6C7uiKPorO0aWZFG4LjqgU2TKt71u3WHzJD0+CFwmh
-         qTiQ==
+        b=h3gJmhoNRyifGk6+NPGTS6V/jKCOgbjZgxlvsZs1eOcF/OlgPPMy9yuXcAJLpfwKNB
+         GjkKERRrY9fwmWZxUYOs6SW9HTnnC8RO4f2GH5KRiD/Ta84jYN7MMNS3BsCt7otZeJXn
+         im78upAyGUcsBBucVToTW5vZric0f3/HIS6BwmHPIE/W/ls8UdJgY/tXqrBxb73QeAhD
+         duOtpbgt0Eq4MPrRDhmqYCm1fncG8YnCwVsyfsTsbqAKiiyEEEDX034mV2epcmxdD6sc
+         Ef5toawCs6rT3/ImyxEjDcBApgWniOi8pjCO6vNLfR4lw6zBXCI23xEYbpGEmnrNPOw8
+         CODw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=0Eiev16VluPo/Ft1mi41KIG+c9eC0uF0PiWNIa4cMlE=;
-        b=tjDc/9CQC+HwE9A6VNDJ3ckat79lSr38YDzIOdQQIbBhFwQOZvpuLkrRIs08FTU9/R
-         hSwc6y5G7YUD47mpbeY0ItkBf+ewDhJqYAoSUrfx2u0dYfDaig4KouP5vizGfla0zkjl
-         qRKqycJcOgympFQERtQinjv6PyP3LtChSufPAOhaGPhr0vw9ISN/jSXdWdMdaeUwjCtQ
-         eho46KO5efpiUjJkOeJqPeKouq6pVT8zYXlRcSw+wdb7mtSNssjUfMq6cbsvM99443kG
-         DeOfxkHzags7uEDzq2lsPxOtMbYraI8mJzWUbXRN/8btWNURp86vQZASL+tJc6L23fP/
-         kA7w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=+/GWh713FqL/H8PmEw9TPiD/zMFMSIkms3hrEPjGldk=;
+        b=vu5gbGSd00D1cBxtoy8tcVoK5hIYshVh40gDOqlHfD/kxQcHIpMF6zTnSEU7My+w3m
+         yT/wjIWqOd4M/6Q3KVQYnm2zMu5Mrv3TIsdF1lNj9VWdMPkKE4KRpobWWNpRg4JenEoR
+         HEk8gegN2zXUa3yAKWsWMgSKmkIQi6pp71ZktwguqzAjvFXPzx70jP1S5IzizpjkYCEu
+         3YWx9k+zPVlrjksWcD4/w7xdj5F/NQJSEbM16TMKOPSWI1NXzC/GkF/5n+S9rgPAf4Ns
+         C0JoFmsw7hTXkHe7Gxgn/kgzKlqTYTykQ8kl5KixLraftLZZ6SXnsE9U4LsN30/lErwh
+         DK7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id d6si48144276pls.402.2019.04.17.11.53.47
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=fRbASVPt;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id q3si1294770qtq.31.2019.04.17.12.01.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 11:53:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Wed, 17 Apr 2019 12:01:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Apr 2019 11:53:47 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,362,1549958400"; 
-   d="scan'208";a="143759353"
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga007.fm.intel.com with ESMTP; 17 Apr 2019 11:53:44 -0700
-Subject: [PATCH v6 12/12] libnvdimm/pfn: Stop padding pmem namespaces to
- section alignment
-From: Dan Williams <dan.j.williams@intel.com>
-To: akpm@linux-foundation.org
-Cc: Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org,
- linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, mhocko@suse.com,
- david@redhat.com
-Date: Wed, 17 Apr 2019 11:39:58 -0700
-Message-ID: <155552639846.2015392.14832585852837457293.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=fRbASVPt;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3HIwpEr168706;
+	Wed, 17 Apr 2019 19:01:28 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=+/GWh713FqL/H8PmEw9TPiD/zMFMSIkms3hrEPjGldk=;
+ b=fRbASVPtQ9uLksXzKdT7BQAbrdWxsanhAYsV/iNnFjPzJkzcsbIUVtK0f3snud4PKQcY
+ aAvrPxHLjFjnYSXXe7gv2i8/14Ho+J1rHXtpyrOz+PNd8c9kUR+iKXgQ9enCCDvX5ZV4
+ YOIx4dQvgPaAYBex0fv/SoxMx9UUPhZliNOa+GdTupxoj/KD6jPoZ3Lmp8BM0JPemH6Y
+ XIXg08rneLwnvKKhllhmX8kd9JbQVRMh1wvVJLWrEGjk52n5gTfDr8dk3fGAr9DyquN2
+ 3xCZWmU1Fi/Ocm7mocv6qGokowbj75XYrLzUwWe9jkYAqX6S4TnqAVhW3j08drQMCPck Yw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2rvwk3vys7-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 17 Apr 2019 19:01:27 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3HJ116Y076328;
+	Wed, 17 Apr 2019 19:01:27 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2ru4vtyvxy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 17 Apr 2019 19:01:27 +0000
+Received: from abhmp0020.oracle.com (abhmp0020.oracle.com [141.146.116.26])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3HJ1QKq007212;
+	Wed, 17 Apr 2019 19:01:26 GMT
+Received: from localhost (/67.169.218.210)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 17 Apr 2019 12:01:26 -0700
+Date: Wed, 17 Apr 2019 12:01:24 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-xfs <linux-xfs@vger.kernel.org>,
+        Linux MM <linux-mm@kvack.org>,
+        linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+        Ext4 <linux-ext4@vger.kernel.org>,
+        Linux Btrfs <linux-btrfs@vger.kernel.org>
+Subject: Re: [PATCH v2 4/4] xfs: don't allow most setxattr to immutable files
+Message-ID: <20190417190124.GA5057@magnolia>
+References: <155466882175.633834.15261194784129614735.stgit@magnolia>
+ <155466884962.633834.14320700092446721044.stgit@magnolia>
+ <20190409031929.GE5147@magnolia>
+ <CAOQ4uxgDQHJntoO6EZ1fn-iBVo8gshsSpHd_UB1cnXUJ3CXOTg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOQ4uxgDQHJntoO6EZ1fn-iBVo8gshsSpHd_UB1cnXUJ3CXOTg@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9230 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904170125
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9230 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904170125
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Now that the mm core supports section-unaligned hotplug of ZONE_DEVICE
-memory, we no longer need to add padding at pfn/dax device creation
-time. The kernel will still honor padding established by older kernels.
+On Tue, Apr 09, 2019 at 11:24:10AM +0300, Amir Goldstein wrote:
+> On Tue, Apr 9, 2019 at 6:19 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> >
+> > From: Darrick J. Wong <darrick.wong@oracle.com>
+> >
+> > The chattr manpage has this to say about immutable files:
+> >
+> > "A file with the 'i' attribute cannot be modified: it cannot be deleted
+> > or renamed, no link can be created to this file, most of the file's
+> > metadata can not be modified, and the file can not be opened in write
+> > mode."
+> >
+> > However, we don't actually check the immutable flag in the setattr code,
+> > which means that we can update project ids and extent size hints on
+> > supposedly immutable files.  Therefore, reject a setattr call on an
+> > immutable file except for the case where we're trying to unset
+> > IMMUTABLE.
+> >
+> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > ---
+> >  fs/xfs/xfs_ioctl.c |   46 ++++++++++++++++++++++++++++++++++++++++++++--
+> >  1 file changed, 44 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
+> > index 5a1b96dad901..67d12027f563 100644
+> > --- a/fs/xfs/xfs_ioctl.c
+> > +++ b/fs/xfs/xfs_ioctl.c
+> > @@ -1023,6 +1023,40 @@ xfs_ioctl_setattr_flush(
+> >         return filemap_write_and_wait(inode->i_mapping);
+> >  }
+> >
+> > +/*
+> > + * If immutable is set and we are not clearing it, we're not allowed to change
+> > + * anything else in the inode.
+> 
+> This looks correct, but FYI, neither xfs_io nor chattr clears 'immutable'
+> and sets projid/*extsize in one ioctl/xfsctl, so there is no justification to
+> making an extra effort to support that use case. You could do with
+> checking 'immutable' inside xfs_ioctl_setattr_check_projid/*extsize()
+> and leave only the di_flags check here.
 
-Reported-by: Jeff Moyer <jmoyer@redhat.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/nvdimm/pfn.h      |   11 ++-----
- drivers/nvdimm/pfn_devs.c |   75 +++++++--------------------------------------
- include/linux/mmzone.h    |    4 ++
- 3 files changed, 19 insertions(+), 71 deletions(-)
+However, the API does allow callers to clear immutable and set other
+fields in one go, so just because xfs_io won't do it doesn't mean we can
+ignore it.
 
-diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-index e901e3a3b04c..ae589cc528f2 100644
---- a/drivers/nvdimm/pfn.h
-+++ b/drivers/nvdimm/pfn.h
-@@ -41,18 +41,13 @@ struct nd_pfn_sb {
- 	__le64 checksum;
- };
- 
--#ifdef CONFIG_SPARSEMEM
--#define PFN_SECTION_ALIGN_DOWN(x) SECTION_ALIGN_DOWN(x)
--#define PFN_SECTION_ALIGN_UP(x) SECTION_ALIGN_UP(x)
--#else
- /*
-  * In this case ZONE_DEVICE=n and we will disable 'pfn' device support,
-  * but we still want pmem to compile.
-  */
--#define PFN_SECTION_ALIGN_DOWN(x) (x)
--#define PFN_SECTION_ALIGN_UP(x) (x)
-+#ifndef SUB_SECTION_ALIGN_DOWN
-+#define SUB_SECTION_ALIGN_DOWN(x) (x)
-+#define SUB_SECTION_ALIGN_UP(x) (x)
- #endif
- 
--#define PHYS_SECTION_ALIGN_DOWN(x) PFN_PHYS(PFN_SECTION_ALIGN_DOWN(PHYS_PFN(x)))
--#define PHYS_SECTION_ALIGN_UP(x) PFN_PHYS(PFN_SECTION_ALIGN_UP(PHYS_PFN(x)))
- #endif /* __NVDIMM_PFN_H */
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index a2406253eb70..7bdaaf3dc77e 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -595,14 +595,14 @@ static u32 info_block_reserve(void)
- }
- 
- /*
-- * We hotplug memory at section granularity, pad the reserved area from
-- * the previous section base to the namespace base address.
-+ * We hotplug memory at sub-section granularity, pad the reserved area
-+ * from the previous section base to the namespace base address.
-  */
- static unsigned long init_altmap_base(resource_size_t base)
- {
- 	unsigned long base_pfn = PHYS_PFN(base);
- 
--	return PFN_SECTION_ALIGN_DOWN(base_pfn);
-+	return SUB_SECTION_ALIGN_DOWN(base_pfn);
- }
- 
- static unsigned long init_altmap_reserve(resource_size_t base)
-@@ -610,7 +610,7 @@ static unsigned long init_altmap_reserve(resource_size_t base)
- 	unsigned long reserve = info_block_reserve() >> PAGE_SHIFT;
- 	unsigned long base_pfn = PHYS_PFN(base);
- 
--	reserve += base_pfn - PFN_SECTION_ALIGN_DOWN(base_pfn);
-+	reserve += base_pfn - SUB_SECTION_ALIGN_DOWN(base_pfn);
- 	return reserve;
- }
- 
-@@ -641,8 +641,7 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
- 		pgmap->altmap_valid = false;
- 	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
--		nd_pfn->npfns = PFN_SECTION_ALIGN_UP((resource_size(res)
--					- offset) / PAGE_SIZE);
-+		nd_pfn->npfns = PHYS_PFN((resource_size(res) - offset));
- 		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
- 			dev_info(&nd_pfn->dev,
- 					"number of pfns truncated from %lld to %ld\n",
-@@ -658,50 +657,10 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 	return 0;
- }
- 
--static u64 phys_pmem_align_down(struct nd_pfn *nd_pfn, u64 phys)
--{
--	return min_t(u64, PHYS_SECTION_ALIGN_DOWN(phys),
--			ALIGN_DOWN(phys, nd_pfn->align));
--}
--
--/*
-- * Check if pmem collides with 'System RAM', or other regions when
-- * section aligned.  Trim it accordingly.
-- */
--static void trim_pfn_device(struct nd_pfn *nd_pfn, u32 *start_pad, u32 *end_trunc)
--{
--	struct nd_namespace_common *ndns = nd_pfn->ndns;
--	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
--	struct nd_region *nd_region = to_nd_region(nd_pfn->dev.parent);
--	const resource_size_t start = nsio->res.start;
--	const resource_size_t end = start + resource_size(&nsio->res);
--	resource_size_t adjust, size;
--
--	*start_pad = 0;
--	*end_trunc = 0;
--
--	adjust = start - PHYS_SECTION_ALIGN_DOWN(start);
--	size = resource_size(&nsio->res) + adjust;
--	if (region_intersects(start - adjust, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED
--			|| nd_region_conflict(nd_region, start - adjust, size))
--		*start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
--
--	/* Now check that end of the range does not collide. */
--	adjust = PHYS_SECTION_ALIGN_UP(end) - end;
--	size = resource_size(&nsio->res) + adjust;
--	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
--				IORES_DESC_NONE) == REGION_MIXED
--			|| !IS_ALIGNED(end, nd_pfn->align)
--			|| nd_region_conflict(nd_region, start, size))
--		*end_trunc = end - phys_pmem_align_down(nd_pfn, end);
--}
--
- static int nd_pfn_init(struct nd_pfn *nd_pfn)
- {
- 	struct nd_namespace_common *ndns = nd_pfn->ndns;
- 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
--	u32 start_pad, end_trunc, reserve = info_block_reserve();
- 	resource_size_t start, size;
- 	struct nd_region *nd_region;
- 	struct nd_pfn_sb *pfn_sb;
-@@ -736,43 +695,35 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 		return -ENXIO;
- 	}
- 
--	memset(pfn_sb, 0, sizeof(*pfn_sb));
--
--	trim_pfn_device(nd_pfn, &start_pad, &end_trunc);
--	if (start_pad + end_trunc)
--		dev_info(&nd_pfn->dev, "%s alignment collision, truncate %d bytes\n",
--				dev_name(&ndns->dev), start_pad + end_trunc);
--
- 	/*
- 	 * Note, we use 64 here for the standard size of struct page,
- 	 * debugging options may cause it to be larger in which case the
- 	 * implementation will limit the pfns advertised through
- 	 * ->direct_access() to those that are included in the memmap.
- 	 */
--	start = nsio->res.start + start_pad;
-+	start = nsio->res.start;
- 	size = resource_size(&nsio->res);
--	npfns = PFN_SECTION_ALIGN_UP((size - start_pad - end_trunc - reserve)
--			/ PAGE_SIZE);
-+	npfns = PHYS_PFN(size - SZ_8K);
- 	if (nd_pfn->mode == PFN_MODE_PMEM) {
- 		/*
- 		 * The altmap should be padded out to the block size used
- 		 * when populating the vmemmap. This *should* be equal to
- 		 * PMD_SIZE for most architectures.
- 		 */
--		offset = ALIGN(start + reserve + 64 * npfns,
--				max(nd_pfn->align, PMD_SIZE)) - start;
-+		offset = ALIGN(start + SZ_8K + 64 * npfns,
-+				max(nd_pfn->align, SECTION_ACTIVE_SIZE)) - start;
- 	} else if (nd_pfn->mode == PFN_MODE_RAM)
--		offset = ALIGN(start + reserve, nd_pfn->align) - start;
-+		offset = ALIGN(start + SZ_8K, nd_pfn->align) - start;
- 	else
- 		return -ENXIO;
- 
--	if (offset + start_pad + end_trunc >= size) {
-+	if (offset >= size) {
- 		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
- 				dev_name(&ndns->dev));
- 		return -ENXIO;
- 	}
- 
--	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
-+	npfns = PHYS_PFN(size - offset);
- 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
- 	pfn_sb->dataoff = cpu_to_le64(offset);
- 	pfn_sb->npfns = cpu_to_le64(npfns);
-@@ -781,8 +732,6 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
- 	pfn_sb->version_minor = cpu_to_le16(3);
--	pfn_sb->start_pad = cpu_to_le32(start_pad);
--	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
- 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
- 	pfn_sb->checksum = cpu_to_le64(checksum);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3237c5e456df..d2445c483ad4 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1155,6 +1155,10 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
- #define PAGES_PER_SUB_SECTION (SECTION_ACTIVE_SIZE / PAGE_SIZE)
- #define PAGE_SUB_SECTION_MASK (~(PAGES_PER_SUB_SECTION-1))
- 
-+#define SUB_SECTION_ALIGN_UP(pfn) (((pfn) + PAGES_PER_SUB_SECTION - 1) \
-+		& PAGE_SUB_SECTION_MASK)
-+#define SUB_SECTION_ALIGN_DOWN(pfn) ((pfn) & PAGE_SUB_SECTION_MASK)
-+
- struct mem_section_usage {
- 	/*
- 	 * SECTION_ACTIVE_SIZE portions of the section that are populated in
+Then again I guess the manpage doesn't explicitly say what the behavior
+is supposed to be, so I guess we'll just ... argh, fine I'll go fix the
+manpage to document the behavior.
+
+--D
+
+> Some would say that will be cleaner code.
+> Its a matter of taste and its your subsystem, so feel free to dismiss
+> this comments.
+> 
+> Thanks,
+> Amir.
+> 
+> > Don't error out if we're only trying to set
+> > + * immutable on an immutable file.
+> > + */
+> > +static int
+> > +xfs_ioctl_setattr_immutable(
+> > +       struct xfs_inode        *ip,
+> > +       struct fsxattr          *fa,
+> > +       uint16_t                di_flags,
+> > +       uint64_t                di_flags2)
+> > +{
+> > +       struct xfs_mount        *mp = ip->i_mount;
+> > +
+> > +       if (!(ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE) ||
+> > +           !(fa->fsx_xflags & FS_XFLAG_IMMUTABLE))
+> > +               return 0;
+> > +
+> > +       if ((ip->i_d.di_flags & ~XFS_DIFLAG_IMMUTABLE) !=
+> > +           (di_flags & ~XFS_DIFLAG_IMMUTABLE))
+> > +               return -EPERM;
+> > +       if (ip->i_d.di_version >= 3 && ip->i_d.di_flags2 != di_flags2)
+> > +               return -EPERM;
+> > +       if (xfs_get_projid(ip) != fa->fsx_projid)
+> > +               return -EPERM;
+> > +       if (ip->i_d.di_extsize != fa->fsx_extsize >> mp->m_sb.sb_blocklog)
+> > +               return -EPERM;
+> > +       if (ip->i_d.di_version >= 3 && (di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
+> > +           ip->i_d.di_cowextsize != fa->fsx_cowextsize >> mp->m_sb.sb_blocklog)
+> > +               return -EPERM;
+> > +
+> > +       return 0;
+> > +}
+> > +
+> >  static int
+> >  xfs_ioctl_setattr_xflags(
+> >         struct xfs_trans        *tp,
+> > @@ -1030,7 +1064,9 @@ xfs_ioctl_setattr_xflags(
+> >         struct fsxattr          *fa)
+> >  {
+> >         struct xfs_mount        *mp = ip->i_mount;
+> > +       uint16_t                di_flags;
+> >         uint64_t                di_flags2;
+> > +       int                     error;
+> >
+> >         /* Can't change realtime flag if any extents are allocated. */
+> >         if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
+> > @@ -1061,12 +1097,18 @@ xfs_ioctl_setattr_xflags(
+> >             !capable(CAP_LINUX_IMMUTABLE))
+> >                 return -EPERM;
+> >
+> > -       /* diflags2 only valid for v3 inodes. */
+> > +       /* Don't allow changes to an immutable inode. */
+> > +       di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
+> >         di_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
+> > +       error = xfs_ioctl_setattr_immutable(ip, fa, di_flags, di_flags2);
+> > +       if (error)
+> > +               return error;
+> > +
+> > +       /* diflags2 only valid for v3 inodes. */
+> >         if (di_flags2 && ip->i_d.di_version < 3)
+> >                 return -EINVAL;
+> >
+> > -       ip->i_d.di_flags = xfs_flags2diflags(ip, fa->fsx_xflags);
+> > +       ip->i_d.di_flags = di_flags;
+> >         ip->i_d.di_flags2 = di_flags2;
+> >
+> >         xfs_diflags_to_linux(ip);
 
