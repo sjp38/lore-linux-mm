@@ -2,157 +2,173 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 328A8C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:04:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4DFAC282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:15:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9D5C206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:03:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5130420674
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:15:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="eDsDWskl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9D5C206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=cmpxchg.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nyS/WVic"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5130420674
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BF526B0005; Wed, 17 Apr 2019 12:03:59 -0400 (EDT)
+	id D07896B0005; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56C406B0006; Wed, 17 Apr 2019 12:03:59 -0400 (EDT)
+	id CDE806B0006; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40FDA6B0007; Wed, 17 Apr 2019 12:03:59 -0400 (EDT)
+	id BA5F66B0007; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DB6D6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:03:59 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id y1so18596788ybg.1
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:03:59 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 69B9B6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id b16so22633946wrq.10
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:15:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=VRTGHEZ2P8IOenNpGB+9Wp9aVSXnSjOQvSDcZRVNsO8=;
-        b=s5ootZCF5LWq9R15ZaAXfFHLsakjsza6kc7Mm+lc2WIR/8N4mQX6XPqblPQrbFw/Yy
-         Pm8ObHlUVzhgJJ+pyhwMSiGdPsw4530a5b2FDGTs8Ag9zZTujNKHX9xbjOiLtJjnpGB6
-         4Xiwme6wEcCrCPnvtM1N0sL3aPj5zCPwDLm2j8gJvYy/UvM7m+MXke056C4KWIgviWYB
-         DHqJ3ogPBJ8nETzR9Dv7siPAE8g3dGVAfjAV+EVS8HYuwDz2XEgANwfp7cv9Lflg3jkh
-         NJSHQjlEkNetQaExDtH2RruSSPTD5Gzr3Q2Fnoox3fIVV+zW51dfBJQ70p7AoQKI/+BV
-         Cu8A==
-X-Gm-Message-State: APjAAAWtVmjT5yj2RiEvwQK62kbl+UmcVDDdNd+a8ZhnFYG+pfgoHbsm
-	9O/xhOwtI7GLu0rftAtrgm7JZY7HjfeeX7xA41iWdE02XuVW0+iHJEqOndoRmAJ2c1sU4obfKRe
-	CBVIfG9g588QPmtqV8Vs7cp+2D06JxSrd2MXSzGe72w8RDTiouO4IxQKwHFr+UAZTaQ==
-X-Received: by 2002:a25:abca:: with SMTP id v68mr53010307ybi.287.1555517038831;
-        Wed, 17 Apr 2019 09:03:58 -0700 (PDT)
-X-Received: by 2002:a25:abca:: with SMTP id v68mr53010151ybi.287.1555517037426;
-        Wed, 17 Apr 2019 09:03:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555517037; cv=none;
+        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
+        b=KyyYUYOf5bgW2W2QrqqvB1RKjF7cgcV9OXu0wR0ZjVASqh49jQCQoOJDo8x1vivhfN
+         oK40PGoU8z3d5NnbRjFUMt6Y19uECrgijLTb9K62j/Uk3XDqh5NaEMJ7EV6lIB6JoG4q
+         2kKf6uTGEBEw34SA1Pi4d06e5BFoyscQuKE+fqKogVmcDmuo4CPEXQrBYBDp8fFuBGoa
+         kJSP+VgB2px5Blz9Yv5QTMlEVkKrwk8MrDs5qtz4GjZEPgVKfFEw+8qPU/702NTm1rM4
+         m4RFyLrH5AVBoKM+QzOP1ZsbuS9q3D0EN0JZkcPB1Mtua0qqfrlb/nkimkqNX/C5pB69
+         DjIQ==
+X-Gm-Message-State: APjAAAWeeT30whkYlQKP98RLBzM1zTWybQ26lIeBDYPe4HLCDRdGbHh6
+	4tOU3pQO9v0HQa76BNVEWY6k+lft51l7hY6nvqdP+EA3fNo1HxN21/uPT3JyOJpUqwwyjKwP0+n
+	s9euvTNi6DOrveGHbYg5fcTXThsQdtjSlBaNVCP8G6Q5VanFsm6enrP6W1jggyeg=
+X-Received: by 2002:a5d:4751:: with SMTP id o17mr57808297wrs.121.1555517727995;
+        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
+X-Received: by 2002:a5d:4751:: with SMTP id o17mr57808249wrs.121.1555517727170;
+        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555517727; cv=none;
         d=google.com; s=arc-20160816;
-        b=k5+2pnlZcnBK0u72oRf/OyJmwGlwc/eDRbdH4sxCU6o/xxCbXCQQKXTjmJm6cMigY2
-         J/EfYQuinOZWxyFZBOKG332LlmnmCNveDxcjIB0LVTjAjtd+2aBUMmbEkT6FToi7SJuM
-         D/bBJdvBRDQIPwSBC6TpUiF4JWtwBDLx5TokV68felft3rhvBPbVpDwGXMzwcOjuJhIa
-         rdg5TiHxX9TB7oP+NH/IbJHIAjse3mxa+P2Do3QWX7+OYqu5eQe3feZaieyuybH4U0aN
-         RQm3k2qN01pdlntd67GKoPLhJU8cleEflN9RU2x/tTUy82dVrHjgFmdnwdUM6D5f6oOy
-         QH9w==
+        b=e9qgb6F4UXZddPZzJHahcrVpFQrSYkfLjX387mni+Rr/01enyq2GdM8n4aLfzA4z1A
+         Vf/OxUmfm0/JnjgKl8vN74SbrUG+6cMWnt3OqqEvtGoZr9kMK7xQezZuVis0PTPW9pBG
+         3HDwXWVc+c2eAOe4CqUHP6OoQblqfSiKsrGWYaC8TxDJr08fmzoC5shG/TdHmNWUJFT1
+         xiAcmJga6moGkR8x25uSpDIldNDzFUdFtsLPR6ucO8O9DfvaoQ+XLUfkvWil7hTe01qI
+         S1nLlONRguyS38ZakelNe4ccs3OH9wWLumqjub/1PpF79YbxIMSmaymfxCLD3Yec4bV+
+         N3gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=VRTGHEZ2P8IOenNpGB+9Wp9aVSXnSjOQvSDcZRVNsO8=;
-        b=wmIDcCjEWy9nwtbk7hOshaeW2AvoJIihQMgcvNDUveF+khZUZWClYalHm+gk90BamU
-         Ddm987vLTbXmrSdPa3LBnv++CNUZINDg70bgdiSbU19Adb4CwwG69AP+jvBbiiexxRaH
-         Mys/xsgJezuCx3uJtVO5Ws29Cuvq4+NYPSnpR2/NCpbsIIFtPqMyuXtE/Tg0ffdosoy7
-         QNEcrF1/SXskM1OlHdkJpNVUn/k8atnuaru4j2lZFgTSi9x6RorLpkThP2XU68wTBylL
-         X3foqsKmhqm8Q5aXO0P1V1D60vhXhJRKusOvp2dnA+zcHpOPHoeAuJqDpj8bBVUBwXvg
-         0q0w==
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
+        b=fVxGDE6+DHflEmayxiY4FTkZ9ULkcMj2RLtq71fK/XImgb95m0nSWpXKmRKMd3TBgm
+         x3befKM83+dyjyAu/bW9y+8hWZINjBbrMnvMmErVheZDEgBBDnCuDLAFOjssEOb/tVbf
+         l19mKa8GcddmeXlqMK9tBKL6168j3gk5TaSs/EPxcbgYv8O55uXZRoqeuvy9RNXzlAqa
+         OZsb6Xlz7DABSnpCTGAMGNqHzKUttHQdkdTWUNLgsv7p6vFpFXo7+wB3CJlDnbfPyT3E
+         gtN3av1zzflBbqYPz3ZD8l9CXRSCOxHEKbS2QR/HbRV050+4tPa6jsXnegAOPmxDyPGt
+         kMiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=eDsDWskl;
-       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nyS/WVic";
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z186sor3726144ybz.71.2019.04.17.09.03.49
+        by mx.google.com with SMTPS id a4sor95475wrp.14.2019.04.17.09.15.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 09:03:49 -0700 (PDT)
-Received-SPF: temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) client-ip=209.85.220.65;
+        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=eDsDWskl;
-       spf=temperror (google.com: error in processing during lookup of hannes@cmpxchg.org: DNS error) smtp.mailfrom=hannes@cmpxchg.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nyS/WVic";
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=VRTGHEZ2P8IOenNpGB+9Wp9aVSXnSjOQvSDcZRVNsO8=;
-        b=eDsDWsklfWOL2hK7nDALTNMMlTlJIAJEonP3lzTed+JBPFsy1zrHu5SfdLbRcQudn3
-         vvGH2YGnaYPplAORrscyf+5TkmpiilGWvS6Xzld53D1WN94AVV5fvBJ6FvzmtW7K1V2u
-         eF2EgewWaoAURpfkJiITXWwUHrro3eMOkD1XVDiIryzdAAsDFpq6JyqqhNHCrSzEXNXm
-         fKx6TXJ1tE8HLk9w8ij1TqxuHD7QqxHT6ySUFCsKnTzXOat6L48ifdDVtD2KWNwqkzye
-         4jUMSvyYPhGDH4gX5dSJDL1H4PZdCtqaoYYVamJqrOZL4vNQbUp/mj3z1qlY3U3vzZEU
-         /Lgw==
-X-Google-Smtp-Source: APXvYqyB4+2uikIAtAhDit0gTTnf/Zwxa7aFIrGyV05hh5hG7sgu2yY9yunwx34n0IGmVamXTC5MwA==
-X-Received: by 2002:a25:9784:: with SMTP id i4mr59451217ybo.394.1555517029056;
-        Wed, 17 Apr 2019 09:03:49 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:200::2:fc54])
-        by smtp.gmail.com with ESMTPSA id l82sm19329426ywl.6.2019.04.17.09.03.47
+        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
+        b=nyS/WViclzZJjR30HVMMB/ma7fcLYSTWP9QxF2Fshf4EJq6uRarq3jSaxiVNfV92fh
+         zEZfmA69o8F7gNO5JT6uv0zE0OJeE7BWbIRv09fAQTN2l+N2dnFwJ9Lfuiiy6+74FoDp
+         uGRo9f5/Goa9H9R9Ca2oLvyjv31O0I5e5WLdLO3tmvoyjg1wNvw+8b2zxVEfd9gJSTwJ
+         +SSg2n/omewPli8xLPnvSElOhwgHU9I/P33Tw7RfhZ2LRLr+x5PTn04fXGfMHG1ZHR4/
+         XB7f4UjQbIdtenugCUJSD8W8ywk7H6JVByBN8MjE8ZURVuqLb51s1gVwQaBsfh/AY/u/
+         6ICw==
+X-Google-Smtp-Source: APXvYqy35ID2kalnRZopmGnEWCBLThqKczYiLY/rC35gAIxUEa+THgEb4y2voVmHavCnFbNEpnRFQQ==
+X-Received: by 2002:adf:dbce:: with SMTP id e14mr59140093wrj.249.1555517726742;
+        Wed, 17 Apr 2019 09:15:26 -0700 (PDT)
+Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
+        by smtp.gmail.com with ESMTPSA id y1sm154976060wrd.34.2019.04.17.09.15.24
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Apr 2019 09:03:48 -0700 (PDT)
-Date: Wed, 17 Apr 2019 12:03:47 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: akpm@linux-foundation.org
-Cc: guro@fb.com, mhocko@kernel.org, mm-commits@vger.kernel.org,
-	shakeelb@google.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: +
- mm-memcontrol-make-cgroup-stats-and-events-query-api-explicitly-local.patch
- added to -mm tree
-Message-ID: <20190417160347.GC23013@cmpxchg.org>
-References: <20190416015132.yxxUAu8Rx%akpm@linux-foundation.org>
+        Wed, 17 Apr 2019 09:15:25 -0700 (PDT)
+Date: Wed, 17 Apr 2019 18:15:22 +0200
+From: Ingo Molnar <mingo@kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+	keescook@google.com, konrad.wilk@oracle.com,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+	jcm@redhat.com, boris.ostrovsky@oracle.com,
+	iommu@lists.linux-foundation.org, x86@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org,
+	Khalid Aziz <khalid@gonehiking.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <a.p.zijlstra@chello.nl>,
+	Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Arjan van de Ven <arjan@infradead.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190417161042.GA43453@gmail.com>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190416015132.yxxUAu8Rx%akpm@linux-foundation.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 15, 2019 at 06:51:32PM -0700, akpm@linux-foundation.org wrote:
+
+[ Sorry, had to trim the Cc: list from hell. Tried to keep all the 
+  mailing lists and all x86 developers. ]
+
+* Khalid Aziz <khalid.aziz@oracle.com> wrote:
+
+> From: Juerg Haefliger <juerg.haefliger@canonical.com>
 > 
-> The patch titled
->      Subject: mm: memcontrol: make cgroup stats and events query API explicitly local
-> has been added to the -mm tree.  Its filename is
->      mm-memcontrol-make-cgroup-stats-and-events-query-api-explicitly-local.patch
+> This patch adds basic support infrastructure for XPFO which protects 
+> against 'ret2dir' kernel attacks. The basic idea is to enforce 
+> exclusive ownership of page frames by either the kernel or userspace, 
+> unless explicitly requested by the kernel. Whenever a page destined for 
+> userspace is allocated, it is unmapped from physmap (the kernel's page 
+> table). When such a page is reclaimed from userspace, it is mapped back 
+> to physmap. Individual architectures can enable full XPFO support using 
+> this infrastructure by supplying architecture specific pieces.
 
-From 65f026fe5481f8dc32b3dc3b97994f8cdc82dd17 Mon Sep 17 00:00:00 2001
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Wed, 17 Apr 2019 11:08:47 -0400
-Subject: [PATCH] mm: memcontrol: make cgroup stats and events query API
- explicitly local fix
+I have a higher level, meta question:
 
-The lruvec_page_state() -> lruvec_page_state_local() rename should
-have been part of this patch, not the previous one.
+Is there any updated analysis outlining why this XPFO overhead would be 
+required on x86-64 kernels running on SMAP/SMEP CPUs which should be all 
+recent Intel and AMD CPUs, and with kernel that mark all direct kernel 
+mappings as non-executable - which should be all reasonably modern 
+kernels later than v4.0 or so?
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I.e. the original motivation of the XPFO patches was to prevent execution 
+of direct kernel mappings. Is this motivation still present if those 
+mappings are non-executable?
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 871c661ca8be..6e99a8b9b2ad 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2979,7 +2979,7 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
- 		struct lruvec *lruvec;
- 
- 		lruvec = mem_cgroup_lruvec(pgdat, memcg);
--		refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
-+		refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
- 		lruvec->refaults = refaults;
- 	} while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
- }
--- 
-2.21.0
+(Sorry if this has been asked and answered in previous discussions.)
+
+Thanks,
+
+	Ingo
 
