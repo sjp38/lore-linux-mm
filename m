@@ -2,221 +2,202 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99C9DC282DF
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:40:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D5ABC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:49:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C10320651
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:40:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 10B56205C9
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 19:49:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RuXpETwf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C10320651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="bkgqQKeu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10B56205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 60BD46B000E; Wed, 17 Apr 2019 15:40:11 -0400 (EDT)
+	id A6DAD6B000A; Wed, 17 Apr 2019 15:49:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 592536B0010; Wed, 17 Apr 2019 15:40:11 -0400 (EDT)
+	id 9F4516B000D; Wed, 17 Apr 2019 15:49:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 377416B0266; Wed, 17 Apr 2019 15:40:11 -0400 (EDT)
+	id 8BDDF6B000E; Wed, 17 Apr 2019 15:49:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E046B000E
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 15:40:10 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x2so15213019pge.16
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:40:10 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF226B000A
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 15:49:21 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 18so15239093pgx.11
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:49:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=UyR+E+QP9/YBgUof0HLUBtIXg8lauiwUZnv+8kGnwi0=;
-        b=XcbKuH1dlKLyRrY+yl87iR1PrARb1OjY9MuHHBqhcnft6NDAHvkCexsZznbzHBvrUs
-         hogNocp5RWWn55vfhyTJ+F5+puphnzLCw0edSD/MgbUy/eenJMQFJ+jNvjQBgqXKrUGx
-         0VMRXgFiWv6S+deOLKPCk1NVUj36AD0ZRoXDKDgOXiqWbNTOPxaGa5v+wN3348vRt9uW
-         T9KYqwzF4CJ/Fps91FZL9sRYSBYfB/1JH+UwVDr/s7G7oaAZM9vn+b7/0X8ziMYrDW5F
-         qaqfgybZMjN36LwPWN6Q5U5fQB2bkGQYEu/4qpmvL3lg3hYtXYj7fWS+NL4ygEct91ND
-         kvVg==
-X-Gm-Message-State: APjAAAXTneTWiXzDACBqpgiIsGaHEzWCcKq5p4sMTQRbErp9UuO30Unk
-	8siIPqWZM2PFnc8uw4L1xn4vheKA32ft2ehmyuuHuMDOZAEhXkeb0edomQ37X6ETVXbEHOQAUK+
-	SWPZWdZvGMJ7VH2d0AoauFLHpijUc9UZy9Up/KlAuD/IUXSW+zzpQGomgRHsWXihUoA==
-X-Received: by 2002:a17:902:848d:: with SMTP id c13mr90658561plo.279.1555530010603;
-        Wed, 17 Apr 2019 12:40:10 -0700 (PDT)
-X-Received: by 2002:a17:902:848d:: with SMTP id c13mr90658474plo.279.1555530009302;
-        Wed, 17 Apr 2019 12:40:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555530009; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=iE6ZxezbsAnxY7b8623590Y49+KIRCSBYNr9ucJ9cPI=;
+        b=JWeI9Z4AFHMBU4+GvdEe1XMP4O3EFIIVaS3qgZeyDBzWaTJREfr12QhzRODlgKwlOA
+         DB8K50LDskt43duwEFC0irA9kGsM8AYjXeHGpJ9u6cNZljjJ48C+hi49zbNWUNWwCf15
+         5eeFvMNdUpRpY3emSYaMgdyDaM3QxPlth3+u5lHI/BirdJDe4KLFgNQKzkoSpgoRaWgY
+         +kq+dV4q/UQumklrujIR5j2Zkcb6+3UKbv2R18IXVkd3D2IqNEA99zudIe1QY5juvqNl
+         Pet1V+oUDaJhvBnzwP+5Wp2XzpZQLVFlPuDVt1mqq0R+GJXqST4AkjgA1cwy0P7gC+mx
+         Y0Zw==
+X-Gm-Message-State: APjAAAVgGKBSblPywXBk5R6Hzf3/pDCam7A4K0i6SxkB6SWvxxhrNeD3
+	1cb9rb3Egkjh/LCzax92JeuQ4dkgHo5h06qw9C9VTvhg0pNs5NO4Yjhgt7ZozDIb1Ne75UxQkys
+	izeJdbWxewAWYWxqCBsxLg+xeRHivthKlFwFCe94jYWZX8xjQSvQBs24XMbR5Hh+HMg==
+X-Received: by 2002:a62:305:: with SMTP id 5mr90806413pfd.65.1555530560952;
+        Wed, 17 Apr 2019 12:49:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw35cJkmC4dy1dusnotoXhM/nXt5HZbfvQKmkBaAi+wYRt68CvEudd+da16gjQuIUGagpyH
+X-Received: by 2002:a62:305:: with SMTP id 5mr90806360pfd.65.1555530559995;
+        Wed, 17 Apr 2019 12:49:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555530559; cv=none;
         d=google.com; s=arc-20160816;
-        b=Mn9tjZhSo5ZTx1qw66wd3N6E3WM+WEg//i5zrsbqXVaZodgGUGIzmOAcp4EBYZ7k5l
-         emBkF3G6IF5DliwU9FVkfrbSE8sG1A3LJpACvdJYWurFG5xSRWD06DlzoHqHBumT6XVw
-         KMH2I+AhST8GxPNfYHO+ZHYVGaDzu9Xz9M4CUa2N814k0GpLely4k69o7BpVVUMwEfpF
-         Z2IfkRs11h/peASAxs7Y0f32R8dYaUU25Xlb1L62hEW+afZH9YreXYzyUgbm4EQF8QEF
-         VwOzrugoDNCcmagI3Vb3SLrMNTgNUnt8A/ghabvnQjtAgBv1jQttOP9UcviVq29N3pZD
-         kUIw==
+        b=MvvYQnBRYSMv2rxLomlkXiCyVdGOUxvp7zQtuOrKK1h66y67aYxJfouMMhOU4eSVDS
+         Ta0Xzsn0dtvtEadkzuiFZoh8RdpF8yEH3T1OrjDXodjcArS9rA0uYZuer8+Fd0bcBr0q
+         eeaI+1cdwXGjCSTFMXNiAdBJ69uXna7yulkRVks3tdXHLY9AHbLDcfJ1wJPdoyN4vEN5
+         bxeVtGs8KKObeiKtRMHY6ZqGvYtWhR/RQjXeGV8NI5qd5hBRWqtuwGE3QF8Twck/0B+X
+         nSIxQ9SNbChBk8oDQQ6oGrK43opi6n5UnA7Xl72A+h1sv2b8L8l/C5JVeDfCgHkn4Tsw
+         M3Rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=UyR+E+QP9/YBgUof0HLUBtIXg8lauiwUZnv+8kGnwi0=;
-        b=jMfEiKadQhpoUawP+iEPYKGnqlZS+c3Hp/1+qEkiz66gDK8b/Q2nYod5VgJoWrkZb8
-         KRpMdveroA2GFBfA5ev2Jo6SkVGCXF7FyKLbTy/QqE8W40I8JZ67Eahs+zA/U3nWGkzT
-         9xtEglR5i9dYMtyqJhLKihLrJHyNsQLC5Bv31RGI74JpbRQKKuyYsZ33itInu+VMO457
-         o+CFvEfq7DVEqLdZlPjX3IzgbLHueifyYN1CfrQf8rtOIvkMRdlK5kToo6NWhTXSRKDT
-         Y63nWNy9zAwnkzNTjWCGFEJRhuVJqHJIDUXtL7cge+e2HXAVBh0UQUctaRHzeWZzXHRm
-         4aGQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=iE6ZxezbsAnxY7b8623590Y49+KIRCSBYNr9ucJ9cPI=;
+        b=CTnVIjuvZanADo5wgtHPhEzib0Qi+vmpefSUW1Ebo7gOoLaToUzYEY8PHsqn1pjU2g
+         f7jegv1EsjdN1wtOhvRlgSmrqVSOIinNajQIld++smCcRgnY5bZXB7wZARSsHKyt6W1r
+         XioDI6bT0YfyrYZVWL9YJ8TaCuedcTqx/wOYN5zMNzv/bHm1mus0SCBI64+oicTlRtEy
+         Pb1Z4OyIinlADCgxsLh8uNC593IkpmN+7zg1miePH00H0tOXqwHB/64nc8S/7VocBByy
+         6D5SzNBrAdXEWnBzVwjP4rBZYqmDufq0yu4gWrkaVp55EZL4vFjN0ZbvOPZzQ1utpIgY
+         BsdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RuXpETwf;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 62sor44241557pla.43.2019.04.17.12.40.09
+       dkim=pass header.i=@kernel.org header.s=default header.b=bkgqQKeu;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 34si24825830plf.288.2019.04.17.12.49.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 12:40:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 12:49:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RuXpETwf;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=UyR+E+QP9/YBgUof0HLUBtIXg8lauiwUZnv+8kGnwi0=;
-        b=RuXpETwf6J+1aIICtr0LjFkcyuGTYqyudqgt8yJ0XbVu5l9h3Ww0nVugPD7GI8Rr/O
-         nyHCGDf0oIDjpyXnYFM+rPSnWyp+MJJWqscIXrYy+4hNH36PEN21GXxpa4E29tB8P8O6
-         JCR9uMaGPtqyYKFHdXpPUYHStJ2s53LHFn1Rfrvxvshx9dwNmkUrr9mK3EQ1NXLeUveS
-         AifpuUIvSYIIj7shDDsB6cHmB9Af2Z/85i6xCMIZQwxBhib8hszXwgSfOFQEv6Jy/lMF
-         53TCRBDNby1eH9QncyfSnPcZMVoiQEGeq7rxabL9YeEeMYaZhuPLnmM2pBybElmXhPAd
-         uU3A==
-X-Google-Smtp-Source: APXvYqzML/UNV8wJQff9+LzTiwC5spXfqD2Mqzdl4tmtOaS9M0PSAFTJ3kptuFcifq4SMlxYvWkbug==
-X-Received: by 2002:a17:902:988e:: with SMTP id s14mr87750846plp.167.1555530009021;
-        Wed, 17 Apr 2019 12:40:09 -0700 (PDT)
-Received: from tower.thefacebook.com ([2620:10d:c090:200::3:856])
-        by smtp.gmail.com with ESMTPSA id v9sm8625949pgf.73.2019.04.17.12.40.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Apr 2019 12:40:08 -0700 (PDT)
-From: Roman Gushchin <guroan@gmail.com>
-X-Google-Original-From: Roman Gushchin <guro@fb.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	kernel-team@fb.com,
-	Matthew Wilcox <willy@infradead.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH v4 2/2] mm: show number of vmalloc pages in /proc/meminfo
-Date: Wed, 17 Apr 2019 12:40:02 -0700
-Message-Id: <20190417194002.12369-3-guro@fb.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190417194002.12369-1-guro@fb.com>
-References: <20190417194002.12369-1-guro@fb.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=bkgqQKeu;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 61D20205C9
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 19:49:19 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1555530559;
+	bh=un9JngdqTRaqtIrvykfJj/MFL9SGLhvcacMgNjMe4H4=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=bkgqQKeudwW/ql7cXAWlWd7+w2wYtPSx6J91uUy4ZcxjeDA+8lal1Pkj/qr69xaG/
+	 WaXdLduXEkACl++4dtx/SX7Zph9S7Ix/sxHMbDFm88OskSxAWn3IEKh+NRXMidwD3K
+	 9T8r8nGq3B3hHgBGtMaf10n4GQfaCrB4rbSIaRJ0=
+Received: by mail-wr1-f51.google.com with SMTP id k11so33517336wro.5
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:49:19 -0700 (PDT)
+X-Received: by 2002:adf:f344:: with SMTP id e4mr23917370wrp.77.1555530556240;
+ Wed, 17 Apr 2019 12:49:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <cover.1554248001.git.khalid.aziz@oracle.com> <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com> <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+ <20190417170918.GA68678@gmail.com> <8d314750-251c-7e6a-7002-5df2462ada6b@oracle.com>
+In-Reply-To: <8d314750-251c-7e6a-7002-5df2462ada6b@oracle.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 17 Apr 2019 12:49:04 -0700
+X-Gmail-Original-Message-ID: <CALCETrXFzWFMrV-zDa4QFjB=4WnC9RZmorBko65dLGhymDpeQw@mail.gmail.com>
+Message-ID: <CALCETrXFzWFMrV-zDa4QFjB=4WnC9RZmorBko65dLGhymDpeQw@mail.gmail.com>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, 
+	jsteckli@amazon.de, Kees Cook <keescook@google.com>, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, 
+	deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>, 
+	Tyler Hicks <tyhicks@canonical.com>, "Woodhouse, David" <dwmw@amazon.co.uk>, 
+	Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>, 
+	Boris Ostrovsky <boris.ostrovsky@oracle.com>, iommu@lists.linux-foundation.org, 
+	X86 ML <x86@kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, LSM List <linux-security-module@vger.kernel.org>, 
+	Khalid Aziz <khalid@gonehiking.org>, Linus Torvalds <torvalds@linux-foundation.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, 
+	Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave@sr71.net>, 
+	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Arjan van de Ven <arjan@infradead.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Vmalloc() is getting more and more used these days (kernel stacks,
-bpf and percpu allocator are new top users), and the total %
-of memory consumed by vmalloc() can be pretty significant
-and changes dynamically.
+On Wed, Apr 17, 2019 at 10:33 AM Khalid Aziz <khalid.aziz@oracle.com> wrote:
+>
+> On 4/17/19 11:09 AM, Ingo Molnar wrote:
+> >
+> > * Khalid Aziz <khalid.aziz@oracle.com> wrote:
+> >
+> >>> I.e. the original motivation of the XPFO patches was to prevent execution
+> >>> of direct kernel mappings. Is this motivation still present if those
+> >>> mappings are non-executable?
+> >>>
+> >>> (Sorry if this has been asked and answered in previous discussions.)
+> >>
+> >> Hi Ingo,
+> >>
+> >> That is a good question. Because of the cost of XPFO, we have to be very
+> >> sure we need this protection. The paper from Vasileios, Michalis and
+> >> Angelos - <http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf>,
+> >> does go into how ret2dir attacks can bypass SMAP/SMEP in sections 6.1
+> >> and 6.2.
+> >
+> > So it would be nice if you could generally summarize external arguments
+> > when defending a patchset, instead of me having to dig through a PDF
+> > which not only causes me to spend time that you probably already spent
+> > reading that PDF, but I might also interpret it incorrectly. ;-)
+>
+> Sorry, you are right. Even though that paper explains it well, a summary
+> is always useful.
+>
+> >
+> > The PDF you cited says this:
+> >
+> >   "Unfortunately, as shown in Table 1, the W^X prop-erty is not enforced
+> >    in many platforms, including x86-64.  In our example, the content of
+> >    user address 0xBEEF000 is also accessible through kernel address
+> >    0xFFFF87FF9F080000 as plain, executable code."
+> >
+> > Is this actually true of modern x86-64 kernels? We've locked down W^X
+> > protections in general.
+> >
+> > I.e. this conclusion:
+> >
+> >   "Therefore, by simply overwriting kfptr with 0xFFFF87FF9F080000 and
+> >    triggering the kernel to dereference it, an attacker can directly
+> >    execute shell code with kernel privileges."
+> >
+> > ... appears to be predicated on imperfect W^X protections on the x86-64
+> > kernel.
+> >
+> > Do such holes exist on the latest x86-64 kernel? If yes, is there a
+> > reason to believe that these W^X holes cannot be fixed, or that any fix
+> > would be more expensive than XPFO?
+>
+> Even if physmap is not executable, return-oriented programming (ROP) can
+> still be used to launch an attack. Instead of placing executable code at
+> user address 0xBEEF000, attacker can place an ROP payload there. kfptr
+> is then overwritten to point to a stack-pivoting gadget. Using the
+> physmap address aliasing, the ROP payload becomes kernel-mode stack. The
+> execution can then be hijacked upon execution of ret instruction. This
+> is a gist of the subsection titled "Non-executable physmap" under
+> section 6.2 and it looked convincing enough to me. If you have a
+> different take on this, I am very interested in your point of view.
 
-/proc/meminfo is the best place to display this information:
-its top goal is to show top consumers of the memory.
-
-Since the VmallocUsed field in /proc/meminfo is not in use
-for quite a long time (it has been defined to 0 by the
-commit a5ad88ce8c7f ("mm: get rid of 'vmalloc_info' from
-/proc/meminfo")), let's reuse it for showing the actual
-physical memory consumption of vmalloc().
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
----
- fs/proc/meminfo.c       |  2 +-
- include/linux/vmalloc.h |  2 ++
- mm/vmalloc.c            | 10 ++++++++++
- 3 files changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 568d90e17c17..465ea0153b2a 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -120,7 +120,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	show_val_kb(m, "Committed_AS:   ", committed);
- 	seq_printf(m, "VmallocTotal:   %8lu kB\n",
- 		   (unsigned long)VMALLOC_TOTAL >> 10);
--	show_val_kb(m, "VmallocUsed:    ", 0ul);
-+	show_val_kb(m, "VmallocUsed:    ", vmalloc_nr_pages());
- 	show_val_kb(m, "VmallocChunk:   ", 0ul);
- 	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
- 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index ad483378fdd1..316efa31c8b8 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -67,10 +67,12 @@ extern void vm_unmap_aliases(void);
- 
- #ifdef CONFIG_MMU
- extern void __init vmalloc_init(void);
-+extern unsigned long vmalloc_nr_pages(void);
- #else
- static inline void vmalloc_init(void)
- {
- }
-+static inline unsigned long vmalloc_nr_pages(void) { return 0; }
- #endif
- 
- extern void *vmalloc(unsigned long size);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 8ad8e8464e55..69a5673c4cd3 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -397,6 +397,13 @@ static void purge_vmap_area_lazy(void);
- static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
- static unsigned long lazy_max_pages(void);
- 
-+static atomic_long_t nr_vmalloc_pages;
-+
-+unsigned long vmalloc_nr_pages(void)
-+{
-+	return atomic_long_read(&nr_vmalloc_pages);
-+}
-+
- static struct vmap_area *__find_vmap_area(unsigned long addr)
- {
- 	struct rb_node *n = vmap_area_root.rb_node;
-@@ -2141,6 +2148,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 			BUG_ON(!page);
- 			__free_pages(page, 0);
- 		}
-+		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
- 
- 		kvfree(area->pages);
- 	}
-@@ -2317,12 +2325,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		if (unlikely(!page)) {
- 			/* Successfully allocated i pages, free them in __vunmap() */
- 			area->nr_pages = i;
-+			atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
- 			goto fail;
- 		}
- 		area->pages[i] = page;
- 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
- 			cond_resched();
- 	}
-+	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
- 
- 	if (map_vm_area(area, prot, pages))
- 		goto fail;
--- 
-2.20.1
+My issue with all this is that XPFO is really very expensive.  I think
+that, if we're going to seriously consider upstreaming expensive
+exploit mitigations like this, we should consider others first, in
+particular CFI techniques.  grsecurity's RAP would be a great start.
+I also proposed using a gcc plugin (or upstream gcc feature) to add
+some instrumentation to any code that pops RSP to verify that the
+resulting (unsigned) change in RSP is between 0 and THREAD_SIZE bytes.
+This will make ROP quite a bit harder.
 
