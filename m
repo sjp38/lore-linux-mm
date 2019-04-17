@@ -2,94 +2,94 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5B99C282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 21:58:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D8EDC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 22:02:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 86CA6217FA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 21:58:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86CA6217FA
+	by mail.kernel.org (Postfix) with ESMTP id 55F45217FA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 22:02:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55F45217FA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC4B16B0005; Wed, 17 Apr 2019 17:58:30 -0400 (EDT)
+	id F38666B0005; Wed, 17 Apr 2019 18:02:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E74426B0006; Wed, 17 Apr 2019 17:58:30 -0400 (EDT)
+	id EE6DD6B0006; Wed, 17 Apr 2019 18:02:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8A966B0007; Wed, 17 Apr 2019 17:58:30 -0400 (EDT)
+	id D96686B0007; Wed, 17 Apr 2019 18:02:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A439E6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 17:58:30 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 65so170353plf.22
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:58:30 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A100F6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 18:02:04 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v9so9242pgg.8
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 15:02:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=JCM5S0gkR2qqqtfgO9v0jRrej0U2QzvhxpvwqW2iiZE=;
-        b=Ssv+BoxKMXi0ugi7zTgbW3v6zN2cRqinyTEtyZ8moYpMEgUm99Xwcid8wgqf4dJTby
-         ZinJfQY2ScUetLNGP+Fsl/KLGfsi497sX5YIiUFOXEtSqwUeaFoFvpJVn+UfuwL6++ur
-         5tU8dGd/nap8NSjKNH7jQil5KUST7gCBSRH5aFnc0Q67xyXj7t21bNP8U0u+vrDR+fPp
-         LgaA+utMOBDwUJCq9NiNK8kxgBV8+bH+4L4Zglli9SxbZTTRFbNsrrdTYNNeG75OZDXh
-         ZWvIDkI1Ow0MfuW4Z6mo641uuqcdpDBWQ7ETc4CRSHexD2XQXu6V5+szaz/5LgpvIAf+
-         HNcw==
+        bh=gUpncewlGFYhGyrpxZN0ms6nXrEVeQp6D9ZBVG4nf58=;
+        b=mEChQtRk10No5VeE59iAU++icmb1t7IlPkNcfolZZo28s0YZjmpPlDJVVnOavpuhNs
+         4dxIZqaQLDMs2TDMiR2rI/AnFSl1z4TQCcNVE0oJaK9ilkPt1gsUo2ywxpYBu9qWAbzG
+         ctAmozk0kqo0368zBqPIJ5yet6wGZk74+SOUcrKZxe0Ri61/RCWmFvfHK8/IPKfDu+MC
+         ubQF4Z3Uci5DqP5O1rQKoJUywKUVArWRvmy1nsp7sheRGj9ceWZIp15hWXVUSiQQfC1s
+         wzfD0hy+ghdbas6/UzkFzxHyrI0FOYIqHrUMDcXwoJlfzH+ywpNhtbl401h82oJLju0u
+         m+gQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUd58SsPzeSePQqSf9V5EwB/bUuZtn7CNn8aWjufrLzQPuF1HGm
-	/egiUUHxuFJYa0f5ubJs9TGy9f1rW0FnudTuKuQIFJni6Ggr2Ihqy5yvuzHBhRMyLs8aaUT2Y6F
-	IEtf70seU6aHmwFm5ihOFmtBnKOiGX/RiLEXoJONqL4dfP7pyYpplj+wsG0sJU+S03w==
-X-Received: by 2002:a63:575e:: with SMTP id h30mr24165598pgm.54.1555538310339;
-        Wed, 17 Apr 2019 14:58:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwpqfHQoPbdMTCzU2dwuIRP4X1mu5U0zsQw1wnKRZzCNnNEYC6Q1BftbhiHmr/l4CgHVE28
-X-Received: by 2002:a63:575e:: with SMTP id h30mr24165565pgm.54.1555538309617;
-        Wed, 17 Apr 2019 14:58:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555538309; cv=none;
+X-Gm-Message-State: APjAAAWzc2nsbJYc6b0vBmvzq/TpzeMS2JqMOWll9Mrb8rtUKUZ5auSL
+	oVBMs7m9M2qD/R01yeoWNKIUNujLYrNGYyClDCr/XPQKNlMJvJ/83tAbqMWJgZpP7Te749G9pDG
+	+EXM4sjdEnK2Ctt+pPRgxVvSfd9Zw7DT9qWjflOT8QmpcFFHc1+3886k0lyuaexrpxg==
+X-Received: by 2002:a17:902:22f:: with SMTP id 44mr88278777plc.175.1555538524319;
+        Wed, 17 Apr 2019 15:02:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzYUfECT3F3XsOU3Eh2XwTP9kDU/DZEwjVoYRU45b2X2hJd8fnSFwzpjsc5jKlTsgZgpaFI
+X-Received: by 2002:a17:902:22f:: with SMTP id 44mr88278701plc.175.1555538523637;
+        Wed, 17 Apr 2019 15:02:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555538523; cv=none;
         d=google.com; s=arc-20160816;
-        b=iTowEfrTTOrCBti2joO6AsE1U7n1McsULsDoCLVpr9LRbQ0T8ga9naNzkkIQRinQiP
-         auYpQlUVMC2DQlPjYM6TdRZDu0UqFz6e6jbtn0oCpavMVenrWtHO/eWLcr9P6/QDdwkU
-         RVvTvvRYpCP+AADEl7Npzmbc2OX8amJK39wZ3i09dsi61UmoW6vM2S98hcFUFlqdJdmX
-         P+5b33uwVa1+7L1FkdG13kmZrFIZ6uZyvl5MrwczJULR6b/QHV54FCV0Ugk9jBJlfB8v
-         DKd+3JqoUszOu8y5sRKBFqVIJV9f0Ppidw3QHno9eQJ1Tb8nIV5AqzOk9v0O1c7LlgK5
-         od0g==
+        b=BqS5n1BzDVO8cOYr5O+zY5c98UbdJrHh4bfocuj5lbSK+6o7Q+zGkbDMUaLsCHrlDb
+         eZykEzghOf2ofnkVbkYM31oIwUvK+rEJOSJ0CRVvauVcwlHH0y0gDythbMcd7qAgUzaN
+         zMeg7Qa6aAJaAPLQ2ccONMd0yqQlAz3NFB/kkkUaU0CYpmnBAZH1VGk5F9++TvRaBsg6
+         jmUoKLiz4eP1I6+104LBRwCcOu4Y3gD7lMrwpMwbkxm0ZrxGpzJdhH0fdCQbUCa144hX
+         3nnQ+H+EBEj8iYH392Wwp4y2ltkhi/5DvF0mFHlMnkHoxOIctRPpsrUHpQbzkRBfZrHV
+         O+mg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=JCM5S0gkR2qqqtfgO9v0jRrej0U2QzvhxpvwqW2iiZE=;
-        b=vHMDygr+MuglcUl4cna7ZBlQUcgwQ+yxkFinmCJqQMEvR11CG/KDiCgJGKb9k3Nebo
-         sg9CVspFoFLxk1ra+whzXcl9nz+SQshGLn0iun9tmMHfyTgllJ1Ji4GEgY4y7ijPB27E
-         r4vX8Ktkga8/eK6QEAgHg42jnACqSyerT3w41LeOKSsmdMaOMf0uXvzb1eqekdWsV7hv
-         lnN9/zXKsPP+so3gLS7ELJRkUPo02HiOQOas8McBW0kxCNH5jWF6t0v0QC9m/2mc2ljB
-         FhIDwnQBEp9yFO2tHSXMgM1wibzyuzG0U6Mi8pE6rXWRBflKenwyabE54AowtsgBqIpk
-         KiVw==
+        bh=gUpncewlGFYhGyrpxZN0ms6nXrEVeQp6D9ZBVG4nf58=;
+        b=QVXfm0JmeY6qGi3hoftyZIHQU3blJlT/pxzVfkH9jqKWignN3CPtSlE7GWQ9XvDmIl
+         MFC5NntE+bfa+h4VnJP1sDMBQHBUB+h+ZwrspmSBfqHZkUrYDyaW1UvHMjoMl//5HCm7
+         8fmVNAfj4HgdbZ0elMprD95ewXNr4AyiNURPygMTeGg2h6y5OPjFN+0VF7U0k3Tm+iFT
+         pHukw/wUWnTnUWQILO4MQW9pXuE8AHUcBTDGD0mwq5va2ltwZXcV30MKmpbO3EqGiLVW
+         ccitaAL6+TF2+feuRX/HmUkeCf4dEWG/V2nL3vMxEEnfPqnXO6qSOUagFWaSAU8ay7rm
+         iTQw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n15si10238pgg.308.2019.04.17.14.58.29
+        by mx.google.com with ESMTPS id t17si5051pgv.493.2019.04.17.15.02.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 14:58:29 -0700 (PDT)
+        Wed, 17 Apr 2019 15:02:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id C52E2A95;
-	Wed, 17 Apr 2019 21:58:28 +0000 (UTC)
-Date: Wed, 17 Apr 2019 14:58:27 -0700
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 18633C2A;
+	Wed, 17 Apr 2019 22:02:03 +0000 (UTC)
+Date: Wed, 17 Apr 2019 15:02:02 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Roman Gushchin <guroan@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com,
- Matthew Wilcox <willy@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>,
- Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH v4 1/2] mm: refactor __vunmap() to avoid duplicated call
- to find_vm_area()
-Message-Id: <20190417145827.8b1c83bf22de8ba514f157e3@linux-foundation.org>
-In-Reply-To: <20190417194002.12369-2-guro@fb.com>
-References: <20190417194002.12369-1-guro@fb.com>
-	<20190417194002.12369-2-guro@fb.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: stable@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org,
+ linux-kernel@vger.kernel.org, mhocko@suse.com, david@redhat.com
+Subject: Re: [PATCH v6 11/12] libnvdimm/pfn: Fix fsdax-mode namespace
+ info-block zero-fields
+Message-Id: <20190417150202.b7cec444cf81ed44a150ea9d@linux-foundation.org>
+In-Reply-To: <155552639290.2015392.17304211251966796338.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<155552639290.2015392.17304211251966796338.stgit@dwillia2-desk3.amr.corp.intel.com>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -100,77 +100,27 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Apr 2019 12:40:01 -0700 Roman Gushchin <guroan@gmail.com> wrote:
+On Wed, 17 Apr 2019 11:39:52 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
 
-> __vunmap() calls find_vm_area() twice without an obvious reason:
-> first directly to get the area pointer, second indirectly by calling
-> remove_vm_area(), which is again searching for the area.
+> At namespace creation time there is the potential for the "expected to
+> be zero" fields of a 'pfn' info-block to be filled with indeterminate
+> data. While the kernel buffer is zeroed on allocation it is immediately
+> overwritten by nd_pfn_validate() filling it with the current contents of
+> the on-media info-block location. For fields like, 'flags' and the
+> 'padding' it potentially means that future implementations can not rely
+> on those fields being zero.
 > 
-> To remove this redundancy, let's split remove_vm_area() into
-> __remove_vm_area(struct vmap_area *), which performs the actual area
-> removal, and remove_vm_area(const void *addr) wrapper, which can
-> be used everywhere, where it has been used before.
+> In preparation to stop using the 'start_pad' and 'end_trunc' fields for
+> section alignment, arrange for fields that are not explicitly
+> initialized to be guaranteed zero. Bump the minor version to indicate it
+> is safe to assume the 'padding' and 'flags' are zero. Otherwise, this
+> corruption is expected to benign since all other critical fields are
+> explicitly initialized.
 > 
-> On my test setup, I've got 5-10% speed up on vfree()'ing 1000000
-> of 4-pages vmalloc blocks.
-> 
-> Perf report before:
->   22.64%  cat      [kernel.vmlinux]  [k] free_pcppages_bulk
->   10.30%  cat      [kernel.vmlinux]  [k] __vunmap
->    9.80%  cat      [kernel.vmlinux]  [k] find_vmap_area
->    8.11%  cat      [kernel.vmlinux]  [k] vunmap_page_range
->    4.20%  cat      [kernel.vmlinux]  [k] __slab_free
->    3.56%  cat      [kernel.vmlinux]  [k] __list_del_entry_valid
->    3.46%  cat      [kernel.vmlinux]  [k] smp_call_function_many
->    3.33%  cat      [kernel.vmlinux]  [k] kfree
->    3.32%  cat      [kernel.vmlinux]  [k] free_unref_page
-> 
-> Perf report after:
->   23.01%  cat      [kernel.kallsyms]  [k] free_pcppages_bulk
->    9.46%  cat      [kernel.kallsyms]  [k] __vunmap
->    9.15%  cat      [kernel.kallsyms]  [k] vunmap_page_range
->    6.17%  cat      [kernel.kallsyms]  [k] __slab_free
->    5.61%  cat      [kernel.kallsyms]  [k] kfree
->    4.86%  cat      [kernel.kallsyms]  [k] bad_range
->    4.67%  cat      [kernel.kallsyms]  [k] free_unref_page_commit
->    4.24%  cat      [kernel.kallsyms]  [k] __list_del_entry_valid
->    3.68%  cat      [kernel.kallsyms]  [k] free_unref_page
->    3.65%  cat      [kernel.kallsyms]  [k] __list_add_valid
->    3.19%  cat      [kernel.kallsyms]  [k] __purge_vmap_area_lazy
->    3.10%  cat      [kernel.kallsyms]  [k] find_vmap_area
->    3.05%  cat      [kernel.kallsyms]  [k] rcu_cblist_dequeue
-> 
-> ...
->
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2068,6 +2068,24 @@ struct vm_struct *find_vm_area(const void *addr)
->  	return NULL;
->  }
->  
-> +static struct vm_struct *__remove_vm_area(struct vmap_area *va)
-> +{
-> +	struct vm_struct *vm = va->vm;
-> +
-> +	might_sleep();
+> Fixes: 32ab0a3f5170 ("libnvdimm, pmem: 'struct page' for pmem")
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Where might __remove_vm_area() sleep?
-
-From a quick scan I'm only seeing vfree(), and that has the
-might_sleep_if(!in_interrupt()).
-
-So perhaps we can remove this...
-
-> +	spin_lock(&vmap_area_lock);
-> +	va->vm = NULL;
-> +	va->flags &= ~VM_VM_AREA;
-> +	va->flags |= VM_LAZY_FREE;
-> +	spin_unlock(&vmap_area_lock);
-> +
-> +	kasan_free_shadow(vm);
-> +	free_unmap_vmap_area(va);
-> +
-> +	return vm;
-> +}
-> +
+Buried at the end of a 12 patch series.  Should this be a standalone
+patch, suitable for a prompt merge?
 
