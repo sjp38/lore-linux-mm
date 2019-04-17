@@ -2,138 +2,190 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E00AAC282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:41:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DEDBC282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:44:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FD922073F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:41:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fMgW8PzH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FD922073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id EC3862177B
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 07:44:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC3862177B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C9A86B0003; Wed, 17 Apr 2019 03:41:46 -0400 (EDT)
+	id 9CD196B0003; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 278856B0006; Wed, 17 Apr 2019 03:41:46 -0400 (EDT)
+	id 955996B0006; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1902D6B0007; Wed, 17 Apr 2019 03:41:46 -0400 (EDT)
+	id 7D0436B0007; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7306B0003
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:41:45 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id g26so4725685ljd.20
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 00:41:45 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 593196B0003
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:44:18 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id 23so19962680qkl.16
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 00:44:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=TsZQ54Mb58ojmhd4luSv5Cy/zFTCqmtd7c8rf02fwtI=;
-        b=HIeJTtqXlIKFGIHz+AEyo1DnM+Gb2okziSOMe2tNNsqNgo+LPIoJWq/od5B9M9sWWg
-         zQqC05WN3zVDdcsTQnxNUTqm4x8Z2VqepKrPywjO6sZ1eQ5eWhlY3LOQLrgebDwLJzsE
-         Mk/JaJ074M08xHGNXrWpJvfTa7CdWQJGM5IBCSNUsvWx1jwoPOI/SVNwxugAhxHHhfsf
-         MZFxTB4U2+9q87ZDIbzP/XQQcYBawh/30i2u60bS93czUhewfIhD5KsB1pzWLvGJzjvE
-         dAPcU+Oc8tVBmj456Xv3p+evwilIvVccPbBdxGwoYhMWf5nEVYjap+hwmmFVmPD1IvkP
-         b9Iw==
-X-Gm-Message-State: APjAAAXOe/3oh4DCrDkPJSt53BBD8YH2LzHyA24qc43zzFZm9XZs3pN/
-	empqiqc+ABFkUd95HQom1Sa1bWs+NfSfkH8fLHfrbiKG9c6dx7ZDIjjL0dXi5AOD5/+xptHVnZF
-	LAxJDeOA7FvZVfcaEPfQhajTw4m54Exp/RLkKoIEp96vwN3b+WNz7N0PUPQsPckWjpA==
-X-Received: by 2002:ac2:51d9:: with SMTP id u25mr18902007lfm.91.1555486904728;
-        Wed, 17 Apr 2019 00:41:44 -0700 (PDT)
-X-Received: by 2002:ac2:51d9:: with SMTP id u25mr18901933lfm.91.1555486903313;
-        Wed, 17 Apr 2019 00:41:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555486903; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=69Lqa26kYa78KfrZSaMjCsliWq99zpsIqyF/oIji2to=;
+        b=WyjylqTww0D1oIqm+hjei/RVCXEqpocACCx9L+bB+cLwF7Q9kYK4m5LAZP1bL3AKbX
+         /zL7CS3/IEN4CRGWyB3U6UJvRGP37C5PR+bIFuJ2XSEDcUCbDfNanQXYf5ZpCbpBefmX
+         h7L4x1VgHcVIa39ios1YgqlZM5cgOiyXGv9K9LFiJMPEodiojTr76gIzHh/SPnx/vJnP
+         rP4dQRGKAaYlFlrgYt1zj5HVMzVXktOY+ek6dDMJI0nAEGNV5f2DaMBBkbQrXLGx3uh6
+         dMUUndCb2J7zbTirtFxLHQodWQyr8kAzDX0IRNmoSKKP2mgej45LX2MHDThQdtJ/V0t+
+         lclw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVo4eJkk43C5+PFagCrZM2H0UNBnHw5diEkk2I13wsGWc6qpz2y
+	soFExm7xxxuOz2ZtbUKpeefbYi83ikmewAxAnm111driqSrx6175Ce/37tEsF1yN5KZFPNsuA10
+	B4mkrwhhwOpactersTAbCBKBKJKGcsx1KeKPIOnv/Zh0IwSkgg7b+/ujkbDvn+sTFEA==
+X-Received: by 2002:a37:a650:: with SMTP id p77mr66269247qke.256.1555487058110;
+        Wed, 17 Apr 2019 00:44:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyykJ6jXS/ESorbNrcQLvRU2+VvhsshDjs0703UgfZ7E1Og8/2b6PltdHrlMlrJ3YEPZoQM
+X-Received: by 2002:a37:a650:: with SMTP id p77mr66269224qke.256.1555487057367;
+        Wed, 17 Apr 2019 00:44:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555487057; cv=none;
         d=google.com; s=arc-20160816;
-        b=tJDffdVyLsAb1+gUVEoPno0DyOD36bbRM+N/nrvhVJ03HO1Z4T0qlCV02EBpfejiFU
-         5E614JgAoBYjeeHhzr/B/iXcZcM0nboNXpM92+pukwLT7MtOvEduDJ3V4GPGPBPJNdw4
-         VUSg6TMjUoa4KTWQ+wnGQ5svKkYEkLY31TRWxsBioOomNBOB11uMKkPmcJrxyrIk6S5l
-         b33mxqZKnzoDPPkn5zeAKL8yaQcsztQaGCRBjKf2cffk1iYkSg6/3Qnf8mA9CtdjZY1Y
-         WQFLuZCxVbtxJ1F/l2q1wXmEZ4mgmlLSVh681RdBQB4w8W+Q0FrwND3DenRTQ8TjA0tG
-         7Arw==
+        b=Jv5R1AVE56OpOspj4aABT2m2Eo4gHHtBD3t8jkgeFmsY9MY0UZSqaA2NW7bpAwnyi+
+         5vcZb4bK71SXysN6oaFU17dsVOjrJ+b12n9xycFc/VvBi+uvLWIN5nHsKRAN0BSPetb7
+         spOMMcIekhDhD8olYMo/ySV8PZBgJCzdu9PVFoAtCqUcMzxZSQ4MR09tlpi0OiMmlAQd
+         dQN9jcysbHZdDvoD0WmpbbBybrpMToLPVYvAk5UNq62ttyzFspoxUEmAf3I+blU9RzhE
+         IlLKAClVwxEJVkvzRArRIhOSIU5qv2qtKimqvGjXIq17QFNAY2WImOFchXI0MitsAO3J
+         ZAwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=TsZQ54Mb58ojmhd4luSv5Cy/zFTCqmtd7c8rf02fwtI=;
-        b=gomdGwrTSm2zaruczDRLitTAvF/NuxVodV7stGhAuTLFeX1wsk5wju2PCWmoRsosrS
-         hj5f6ozyFbJHzUDJ6Sx5UoPFz2FRFP8wroYZcIsR2wcqhIeKyA9Xk9wbF8oN/EhjqMmf
-         1rx+dAQZ5jT1cnF75Qean4TRWMq0YJTNLxF5EQ2iIlTpOiAyH3YHtGeJnja4nsMnFV4a
-         wKTaHS8mmdK4leiP3VpDBSFs8aTDHdIDmvS7fsSoTwilZvnhoZBF3jlkW3iqk7dEWKEh
-         1AxOW3NCHus9wXdQCbKYXla/lysJK+0ykP33zSvDuomRl3/qqGBr39hJE0KIbJhuDUs2
-         mZ1Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=69Lqa26kYa78KfrZSaMjCsliWq99zpsIqyF/oIji2to=;
+        b=kiPvLKSdL1smfzNvFQmQbiuuQgVuqe8cXkjQP/OYvyYlB0LPFAjoDV77J/SkJexw4t
+         uHaPXVWXdd/cmZM+LbiYoDmvK5RHJEYbKGAvg15VXGwS4wbqsjKlOgTa3ZUA73teg/nv
+         TBqa4jxJmv08MWJEpHnVwMtk45KZGjN6x6uxwoJrLfIOCAyxSdEVtoQum6xgu3gkelqH
+         R6FxYdPxeFAhRQRxVG2AWvwEtAMzhyQ3J4nqwhHs5aDBqDJV1bn93rWJNA6yhAJx8kIw
+         6Jo2bmrBUTMEAAhvRjGLoeTVSGMjR9NlItEtne7dL//2d0Qmf0Dwh8KSxJd8f2XRzoK9
+         wDHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fMgW8PzH;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m14sor1896057lfc.12.2019.04.17.00.41.43
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g9si4893963qkb.8.2019.04.17.00.44.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 00:41:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 00:44:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fMgW8PzH;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=TsZQ54Mb58ojmhd4luSv5Cy/zFTCqmtd7c8rf02fwtI=;
-        b=fMgW8PzH9WCt/OmE/UBhZ+VVupVzHD99xmsYUq73sxK68TNLBa7xsVQrDq6jqVUl+W
-         pGyZy0cP7/bqLnGOqXvipQ0gK5MzD6wC2btKnabHBTaAibd6fO5C/HLvxpMDkeNWBO4/
-         6vnbloCy/Fbm4TNmYVDmWPcXd2FuVSJ87ztWqJen1j01Bl1j+WJ9CnfIkNU+Wt5c+LWu
-         BzDEREygS9BrT0UDbL2zzlpu2BLrS0VCpyozocAHVR7uv0vqt37rw0sDA5cunIvWvvn4
-         OJM0mtQIeLEJSBQrHuuklBa1mvB6RreAGA+qRH5AeYpdDUI8dpJx/K1uQZsK6QBaVRmo
-         KGZg==
-X-Google-Smtp-Source: APXvYqw5ECPwxD37+hTt5ipw7RkA1Q3i7SdFpRyl3rgucmQGPVxJgB4cvMcM9QT7bHIs0228e2yjmAmb0L5MHMZt5pg=
-X-Received: by 2002:a19:f001:: with SMTP id p1mr4731539lfc.27.1555486902459;
- Wed, 17 Apr 2019 00:41:42 -0700 (PDT)
-MIME-Version: 1.0
-References: <b86e6a5e-44d6-2c1b-879e-54a1bc671ad3@gmail.com> <20190416161840.c54f8fce7557e24fe0922338@linux-foundation.org>
-In-Reply-To: <20190416161840.c54f8fce7557e24fe0922338@linux-foundation.org>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Wed, 17 Apr 2019 09:41:31 +0200
-Message-ID: <CAMJBoFOz41qyxwnQaJbDuv3n0Nzbzmwdx=Kyv=1wV51jr0ivKg@mail.gmail.com>
-Subject: Re: [PATCH 0/4] z3fold: support page migration
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 639C93091755;
+	Wed, 17 Apr 2019 07:44:16 +0000 (UTC)
+Received: from [10.36.117.29] (ovpn-117-29.ams2.redhat.com [10.36.117.29])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1D6B05C226;
+	Wed, 17 Apr 2019 07:44:13 +0000 (UTC)
+Subject: Re: [PATCH v1 1/4] mm/memory_hotplug: Release memory resource after
+ arch_remove_memory()
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Oleksiy.Avramchenko@sony.com, Dan Streetman <ddstreet@ieee.org>
-Content-Type: text/plain; charset="UTF-8"
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Wei Yang <richard.weiyang@gmail.com>, Qian Cai <cai@lca.pw>,
+ Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
+References: <20190409100148.24703-1-david@redhat.com>
+ <20190409100148.24703-2-david@redhat.com>
+ <20190409154115.0e94499072e93947a9c1e54e@linux-foundation.org>
+ <7cbea607-284c-4e20-fee8-128dae33b143@redhat.com>
+ <20190416203732.eec38cecd35d4242a59ca19a@linux-foundation.org>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <908a906c-b2db-ce02-8432-649dcfd8d6a4@redhat.com>
+Date: Wed, 17 Apr 2019 09:44:13 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190416203732.eec38cecd35d4242a59ca19a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 17 Apr 2019 07:44:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Den ons 17 apr. 2019 kl 01:18 skrev Andrew Morton <akpm@linux-foundation.org>:
->
-> On Thu, 11 Apr 2019 17:32:12 +0200 Vitaly Wool <vitalywool@gmail.com> wrote:
->
-> > This patchset implements page migration support and slightly better
-> > buddy search. To implement page migration support, z3fold has to move
-> > away from the current scheme of handle encoding. i. e. stop encoding
-> > page address in handles. Instead, a small per-page structure is created
-> > which will contain actual addresses for z3fold objects, while pointers
-> > to fields of that structure will be used as handles.
->
-> Can you please help find a reviewer for this work?
->
-> For some reason I'm seeing a massive number of rejects when trying to
-> apply these.  It looks like your mail client performed some sort of
-> selective space-stuffing.  I suggest you email a patch to yourself,
-> check that the result applies properly.
+On 17.04.19 05:37, Andrew Morton wrote:
+> On Wed, 10 Apr 2019 10:07:24 +0200 David Hildenbrand <david@redhat.com> wrote:
+> 
+>> Care to fixup both u64 to resource_size_t? Or should I send a patch?
+>> Whatever you prefer.
+> 
+> Please send along a fixup.
 
+Will do!
 
-Sorry about that. You can never be sure when you work with
-Thunderbird. I checked the tabs were not converted to spaces but
-Thunderbird managed to add extra space in the beginning of each
-unchanged line of the patch.
+> 
+> This patch series has no evidence of having been reviewed :(.  Can you
+> suggest who could help us out here?
 
-I'll just to a v2 patchset today.
+Usually I would say Oscar and Michal, but they seem to be fairly busy. I
+guess only the first patch is a real change, the other three patches are
+mostly function prototype changes, handling errors in a nicer way.
+
+Thanks!
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
