@@ -2,215 +2,189 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B695C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:04:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 668BAC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:09:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8F4B2173C
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:04:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 189D820675
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:09:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rJV/eGTF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8F4B2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="vQKDMpKZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 189D820675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5915F6B000A; Wed, 17 Apr 2019 13:04:47 -0400 (EDT)
+	id A70AE6B000A; Wed, 17 Apr 2019 13:09:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 540BE6B000C; Wed, 17 Apr 2019 13:04:47 -0400 (EDT)
+	id A1FA16B000C; Wed, 17 Apr 2019 13:09:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42FA26B000D; Wed, 17 Apr 2019 13:04:47 -0400 (EDT)
+	id 8E6616B000D; Wed, 17 Apr 2019 13:09:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7F66B000A
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:04:47 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id v4so10733808vka.10
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:04:47 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 432016B000A
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:09:24 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id 7so2731441wmj.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:09:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=ZebXcbPeVNYkkX9yJaiZl3S9wzSgvNBK3FgGu78AaCE=;
-        b=evuRjhTKjeWiRhAZ9pAWHwOHfag6yQfikfD0C13tLotNIdjilmeJWDDZJy0868jitN
-         zxEF+2z6Up5gydmfGaEn2n/ShdjT73dewN9U+zDooc1keJjVLCxbxgSx6/abksbh/gRO
-         Iz0wkwuTYdz/9ClANUrId/mrpqC9a9vSgJ7C9D6Nf17B8YetCHboPTaxBnsPYPwE4ilf
-         0Peh7+2kxwVvDMgGVvO7VY6reMRfAG9lps6bOigedD+narIJisKKPIehdpzBjHghLjyJ
-         Bv6ToIJlg/xW5pfz20BFGL0ynrRzpRYhUOkE6E6HAX5l5mAYmFtOSFOUVFSypdwEXGX0
-         oRjg==
-X-Gm-Message-State: APjAAAWvboAd9/OFD9CiCqcUbCp48vZitGTFiqu1LNZRjiTVGT6Z+vsn
-	pY+LAvHQ0DW4IRSdof6lbkrS9PC/2Pl4niB3yr2ylIoUpsRqsy+2yCOkFLRKx3h7I84o95M3zHM
-	nglKgNNHHLsA0MniZxiuqWVV6AlIpLYVbWqGKY7dKYbnCvAP8RYU00tQq+mPRYCWSGg==
-X-Received: by 2002:ab0:b90:: with SMTP id c16mr1704971uak.55.1555520686728;
-        Wed, 17 Apr 2019 10:04:46 -0700 (PDT)
-X-Received: by 2002:ab0:b90:: with SMTP id c16mr1704929uak.55.1555520685955;
-        Wed, 17 Apr 2019 10:04:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555520685; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=uI0ONQRkWQ/et5lZr2E50Xppi+adE17aj2er9uc38Ro=;
+        b=J9uDkKORe/5J0CmubvChPSg/o9adyHKIMOKobQSrfWYr6ZNiYF8TM96rKxYrZqt7a6
+         ixbJsrFjEA6vE/I79lEnLC550ldHtYhiSz8WG/fzYadInI8fKHeYNxOVj8kz+fxOYbkR
+         r0l+aQHechY+CkQrns5YXwRKlv41sx8XD1yFEWuyVAJOsswKU+l6gvRSE17brJ61KIYA
+         n+pyT6rS15Rb9p023Xaaq/YGM7ENdc0usY3BvI9CT4W6p4jb2AoZYQpLzcTO2afPhwEV
+         kzb3jeaOewXYnGRaAxu9+km1tA3/Iwx5QHTqC7LqIIdbNTmyPzrGsQH6pe9SPns2ddq6
+         hv7Q==
+X-Gm-Message-State: APjAAAXTZyLSXjbDm26Zv6bz2/yvTLHrQ3t98iznRKdV9/LzgzAWUx0l
+	vIOpgf1H9j3dR8w3pqsMtx3DSn2ipjAO8CASO13w0WjAXQTSaaShGhxR29S5DnmEb1wPi91WkXi
+	pn4Pxyozg4rm53xupmsdgh0bAF1g2UWf6rRHoDVoe1LkAzHQGVX0Nc4hbTH5K1iI=
+X-Received: by 2002:a1c:ed12:: with SMTP id l18mr557018wmh.13.1555520963699;
+        Wed, 17 Apr 2019 10:09:23 -0700 (PDT)
+X-Received: by 2002:a1c:ed12:: with SMTP id l18mr556969wmh.13.1555520962877;
+        Wed, 17 Apr 2019 10:09:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555520962; cv=none;
         d=google.com; s=arc-20160816;
-        b=sLpEuzbPpHBsdSpZK2vhc6/CTUveYvlMo6gepJznHOSXCi8m48SV/RKlCC/CUULlW4
-         tRSzkq+nCjcmMCbP0eeeFyTP4Z9D6K7IkdVTusUho1/1L+2qwyM7aj27wAVHC/BF3AjR
-         5XMq6E18REVf0tNAoaOKJiuMJiDxaFt9QFlZHPeKc50QumXJ4o4zbz/tC6nukVNSRUHq
-         Q4PtHFwfcC68SMpcFZ5j0wGXCBJTaR1CuPxSxJQvgq0QSYdhd+IuYeKzc5kI8AMQkLjz
-         MHS7XEiGFe5XqURHv85fLdABLtEAupdnSVz3XW80EfeT0iLW4LZqQwk/xI12mGiFJdM/
-         Boyw==
+        b=IQuc4CDRrdSg+f+UVMqQX6gPpPewnM3gMMigy97z35PAiCNLGDewdrCyertB8EBhXU
+         E56bawgbnK0NfQoHHKpKyxQoZ7sttnvJ/XfYQ6Eu8ysUr9PDaic8OZoKEij4YzXFfdMS
+         hOt5lye7yMpm1nqf2q4Rl+BZAGxZvE1gIT4+nz1n5qD4Lolu8kDihooxpUWvp0SD+3iz
+         V79KXwCHdHbSifRP3TXJGfcoF6yxcS7DeFmEmP0QSsOEloHNIRydV5QmEavQiAlKGvQJ
+         gDkrSReYTp0uVYu/ovukdUy0OcRfknK8oBPVwvo6XxZz8WgJ9R4Oac54Lge7D341PJUG
+         z7tA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=ZebXcbPeVNYkkX9yJaiZl3S9wzSgvNBK3FgGu78AaCE=;
-        b=PdkQ/2xbIc7Zc9S05aliweNpUHALgGJsSRx5nwIpamHCEj9BG0Bano65Ma5qFGQL0A
-         9H73dQVj/9OgowwOLeRC9slxhFN33Z1IC6tgtazWebKgCb4Dg3RelW2wXI5ixBCbSh8I
-         E9QuyTNk/ft+SHZppukPHktGgM814Ld6jwjMzIxULBPJUhgLHOwIcDdK97i6bLlcqS0C
-         LIWjCOq9HXyQPy7h+S673f67d98oiUOJey64l6GHsdEw1xUAUIHILrXHff/Exji3aF5m
-         jTTpFDRrGYybJJf9OaNMMy6CrhJtq8nVv89WmU4wL3s+PDBHn27uxWiiI+PJBSSA5/hk
-         VqlA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=uI0ONQRkWQ/et5lZr2E50Xppi+adE17aj2er9uc38Ro=;
+        b=GG6lTmOT9jw8EVxz0cqJ3/mn492JO/jsubYq1swSiJ0+h0AB3yzhlCZ6X4GyisYmVv
+         z3cfMhneJNsVy+A+eLNUvQcJOTOBzgPhpBievW1g84F7Irs+0JFezD5ypn7ju9GaveC1
+         nG0gUuu/ZsHx4CAye8squ1KfDB1/NNfgYYWlyjEyMG++qauA3DR625yLLnLHbC8n0yld
+         d47JQCpo47Bs2i/mMBMnXeYfKR6bLvE9LtmZfPY69pZ2FwnWs/h+zlPld4uCrAYczb0i
+         h1dpA9YOljElJnok0U53z4bFhm/+KeQ07yVYKuLlbzrS/mLuVSdZDSrgtn1CaMRHGt5p
+         0Xew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="rJV/eGTF";
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vQKDMpKZ;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t13sor33736084vsm.11.2019.04.17.10.04.45
+        by mx.google.com with SMTPS id w6sor202515wrr.0.2019.04.17.10.09.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 10:04:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 17 Apr 2019 10:09:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="rJV/eGTF";
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vQKDMpKZ;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=ZebXcbPeVNYkkX9yJaiZl3S9wzSgvNBK3FgGu78AaCE=;
-        b=rJV/eGTFo1+fnGJmSyo4+xil5449L1OKBtDHkZ9nA3qiNq/Tt3wAMSZVVB2nvWiZly
-         gp6+0PW2FCUXoi8rhrIoooa6Gv2tuBOp5vJ3EeO5HTRgD5zLxGJlidxN20m6vAG/WN7s
-         1Jqi0odOTjHP2OvlaqMWHYrRB6shoWrFgistYzQvOgnAkd6ZgNZgzuJDRKuIT7pCmPtj
-         QkNL4g+/YKQiqP/8Uqp3SswOGp2RMhvDLv84OI+RHJdYNZ9UoFZf/5JrFQ7QlXwYo9VS
-         tFYKa9K/W2pUyIcO3JQeJz++dnP9W5+hKQz+vP7wwi/BIowHFzXS8ZDW8Lcwm5WzjSBT
-         czSQ==
-X-Google-Smtp-Source: APXvYqyth700R2P9Z5YeZllE6N3/x5jl7uGJWDZ5uk7e3eN4YreSXsUzJgfEggRBiI07XM09qPD6JHxtPpvj0M/RPNs=
-X-Received: by 2002:a67:eeda:: with SMTP id o26mr50920891vsp.209.1555520685261;
- Wed, 17 Apr 2019 10:04:45 -0700 (PDT)
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=uI0ONQRkWQ/et5lZr2E50Xppi+adE17aj2er9uc38Ro=;
+        b=vQKDMpKZs+jpCV0AtFjtb+IzANhqz3dew5Sd4gG7ITDXSrt8OYeyxzo5885noBmd/k
+         M7Y511AnmRuFNpPrRUcL0fx4VCDHC5HbpoQL157ReLzEY+ATmvDFca5O27ddKmW8+E5U
+         SWwgB4fqBVviw9oEx6R3qe3lIZgRJYJXc6M3U+vQZTc8SCcbn5I1BqHYSYodcHy/K7y2
+         owHfWC5l9Z1dd3sc9ZHcDGWk/J7z+eM+/y7DQCfdM2D1aY4WwXTWnRz28CERITWBN3RI
+         OdgGC3tyQYESSIRNzNO6ctsaUz9bT+jioxPBGx1xhp3GL49llo+vdJv4lTzb9yvWN35X
+         0F5A==
+X-Google-Smtp-Source: APXvYqwzLRhrBX+v0nCWIiRZo+Ww+BhgVCQVN/Z3qzTyGEskFIzDNjOb+l7u4co7KExCIwSw9l38CA==
+X-Received: by 2002:adf:f8d0:: with SMTP id f16mr2701431wrq.198.1555520962630;
+        Wed, 17 Apr 2019 10:09:22 -0700 (PDT)
+Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
+        by smtp.gmail.com with ESMTPSA id 67sm2676425wmz.41.2019.04.17.10.09.19
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Apr 2019 10:09:21 -0700 (PDT)
+Date: Wed, 17 Apr 2019 19:09:18 +0200
+From: Ingo Molnar <mingo@kernel.org>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+	keescook@google.com, konrad.wilk@oracle.com,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+	jcm@redhat.com, boris.ostrovsky@oracle.com,
+	iommu@lists.linux-foundation.org, x86@kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org,
+	Khalid Aziz <khalid@gonehiking.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <a.p.zijlstra@chello.nl>,
+	Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Arjan van de Ven <arjan@infradead.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190417170918.GA68678@gmail.com>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com>
+ <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
 MIME-Version: 1.0
-References: <20190412124501.132678-1-glider@google.com> <0100016a26c711be-b99971ca-49f5-482c-9028-962ee471f733-000000@email.amazonses.com>
- <CAG_fn=U6aWfBXdkcWs0_1pqggAC16Yg8Q6rxLiVeiO83q1hOCw@mail.gmail.com>
- <0100016a26fc7605-a9c76ac4-387c-47a3-8c53-a8d208eb0925-000000@email.amazonses.com>
- <CAG_fn=XW=-=SiAjToBNGDBdr1iZFA-9Ri_a4tF40448yPTbU4w@mail.gmail.com>
-In-Reply-To: <CAG_fn=XW=-=SiAjToBNGDBdr1iZFA-9Ri_a4tF40448yPTbU4w@mail.gmail.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Wed, 17 Apr 2019 19:04:33 +0200
-Message-ID: <CAG_fn=UMww4b8+NuBZ82pq4DS19tQx=h_3E6C2s3fkLLGD7fMg@mail.gmail.com>
-Subject: Re: [PATCH] mm: security: introduce CONFIG_INIT_HEAP_ALL
-To: Christopher Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Dmitriy Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, 
-	Sandeep Patil <sspatil@android.com>, Laura Abbott <labbott@redhat.com>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 1:03 PM Alexander Potapenko <glider@google.com> wro=
-te:
->
-> On Tue, Apr 16, 2019 at 6:30 PM Christopher Lameter <cl@linux.com> wrote:
-> >
-> > On Tue, 16 Apr 2019, Alexander Potapenko wrote:
-> >
-> > > > Hmmm... But we already have debugging options that poison objects a=
-nd
-> > > > pages?
-> > > Laura Abbott mentioned in one of the previous threads
-> > > (https://marc.info/?l=3Dkernel-hardening&m=3D155474181528491&w=3D2) t=
-hat:
-> > >
-> > > """
-> > > I've looked at doing something similar in the past (failing to find
-> > > the thread this morning...) and while this will work, it has pretty
-> > > serious performance issues. It's not actually the poisoning which
-> > > is expensive but that turning on debugging removes the cpu slab
-> > > which has significant performance penalties.
-> >
-> > Ok you could rework that logic to be able to keep the per cpu slabs?
-> I'll look into that. There's a lot going on with checking those
-> poisoned bytes, although we don't need that for hardening.
->
-> What do you think about the proposed approach to page initialization?
-> We could separate that part from slab poisoning.
->
-> > Also if you do the zeroing then you need to do it in the hotpath. And t=
-his
-> > patch introduces new instructions to that hotpath for checking and
-> > executing the zeroing.
-> Right now the patch doesn't slow down the default case when
-> CONFIG_INIT_HEAP_ALL=3Dn, as GFP_INIT_ALWAYS_ON is 0.
-> In the case heap initialization is enabled we could probably omit the
-> gfp_flags check, as it'll be always zero in the case there's a
-> constructor or RCU flag is set.
-> So we'll have two branches instead of one in the case CONFIG_INIT_HEAP_AL=
-L=3Dy.
->
-Ok, I think we could do the same without extra branches.
-Right now I'm working on a patch that uses static branches in the
-function that checks GFP flags:
 
-static inline bool want_init_memory(gfp_t flags)
-{
-        if (static_branch_unlikely(&init_allocations))
-                return true;
-        return flags & __GFP_ZERO;
-}
+* Khalid Aziz <khalid.aziz@oracle.com> wrote:
 
-and does the following in slab_alloc_node():
+> > I.e. the original motivation of the XPFO patches was to prevent execution 
+> > of direct kernel mappings. Is this motivation still present if those 
+> > mappings are non-executable?
+> > 
+> > (Sorry if this has been asked and answered in previous discussions.)
+> 
+> Hi Ingo,
+> 
+> That is a good question. Because of the cost of XPFO, we have to be very
+> sure we need this protection. The paper from Vasileios, Michalis and
+> Angelos - <http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf>,
+> does go into how ret2dir attacks can bypass SMAP/SMEP in sections 6.1
+> and 6.2.
 
-        if (unlikely(want_init_memory(gfpflags)) && object)
-                s->poison_fn(s, object);
-, where s->poison_fn is either memset(object, 0, s->object_size) for
-normal SLAB caches or a no-op for SLAB caches that have ctors
-(I _think_ I don't have to special-case SLAB_TYPESAFE_BY_RCU).
+So it would be nice if you could generally summarize external arguments 
+when defending a patchset, instead of me having to dig through a PDF 
+which not only causes me to spend time that you probably already spent 
+reading that PDF, but I might also interpret it incorrectly. ;-)
 
-With init_allocations disabled this doesn't affect the kernel
-performance (hackbench shows negative slowdown within the standard
-deviation). Most certainly the indirect call is performed not too
-often.
-With init_allocations enabled this yields ~7% slowdown on hackbench. I
-believe most of that is caused by double initialization, which we can
-eliminate by passing an extra GFP flag to the page allocator.
+The PDF you cited says this:
 
->
-> --
-> Alexander Potapenko
-> Software Engineer
->
-> Google Germany GmbH
-> Erika-Mann-Stra=C3=9Fe, 33
-> 80636 M=C3=BCnchen
->
-> Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-> Registergericht und -nummer: Hamburg, HRB 86891
-> Sitz der Gesellschaft: Hamburg
+  "Unfortunately, as shown in Table 1, the W^X prop-erty is not enforced 
+   in many platforms, including x86-64.  In our example, the content of 
+   user address 0xBEEF000 is also accessible through kernel address 
+   0xFFFF87FF9F080000 as plain, executable code."
 
+Is this actually true of modern x86-64 kernels? We've locked down W^X 
+protections in general.
 
+I.e. this conclusion:
 
---=20
-Alexander Potapenko
-Software Engineer
+  "Therefore, by simply overwriting kfptr with 0xFFFF87FF9F080000 and 
+   triggering the kernel to dereference it, an attacker can directly 
+   execute shell code with kernel privileges."
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+... appears to be predicated on imperfect W^X protections on the x86-64 
+kernel.
 
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Do such holes exist on the latest x86-64 kernel? If yes, is there a 
+reason to believe that these W^X holes cannot be fixed, or that any fix 
+would be more expensive than XPFO?
+
+Thanks,
+
+	Ingo
 
