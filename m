@@ -3,84 +3,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AEF68C282DD
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:34:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 858A2C282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:34:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5B694217F4
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:34:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B694217F4
+	by mail.kernel.org (Postfix) with ESMTP id 2FE9D206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 14:34:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FE9D206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F4446B0005; Wed, 17 Apr 2019 10:34:41 -0400 (EDT)
+	id DA79A6B0007; Wed, 17 Apr 2019 10:34:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07E286B0007; Wed, 17 Apr 2019 10:34:41 -0400 (EDT)
+	id D2CD26B0008; Wed, 17 Apr 2019 10:34:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E88606B0008; Wed, 17 Apr 2019 10:34:40 -0400 (EDT)
+	id BCA176B000A; Wed, 17 Apr 2019 10:34:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 95BE66B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:34:40 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d2so12570888edo.23
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 07:34:40 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 631DB6B0007
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:34:44 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id e22so11288630edd.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 07:34:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=P43hjsRFfbkkRybYuiqXe56a6GTahtQ7JYKITTlCoxQ=;
-        b=cV/T3aGs4Ppsr3koD6gjKugcxf1AP1I5dTCGGew9nt/pVWUjDxEPvcvL3q8smuLD+X
-         hnNxyeP987xAsYBBBYvXg43q0AJ7YEFCn3VHj8lcvWcsWpBbHwQkkvWd/Lu/JXosGsr6
-         J/Ro5LmRyT1cbWMAYZnmx8YQm4R3dLfB83oTPqb+tpV241Nyv4vnxinlbdBq7pRP46rk
-         OczyyRDSuCIrHDxdZtGEijqzn4xNf3JmUnkWEASETmB3Yb5JbRW/nQtFhm3LP6eJwZJM
-         PpujYgqsvNZNqkrWK3q04Xzl7v2ev3K2bk8igP2koT0N3FVEeU4tOS5b+173Tzej9kYi
-         aXhQ==
+        bh=iP5Fk+kk715v+0mqvcL48B6aSaM3nllkLc6DHE5jkIs=;
+        b=s9w/xx+jGWxal0esvnP27yJuafeRm4y9k+TyUaomaQXc6KZl7L+xso0lEItuqPOv05
+         0USN5FIwQZCrQ49LFxuQn8mGX+7MZQHlmX0AWrPpchKLukioe4Y0uYerW86hSKdHmW5C
+         +WFuS/NqI5boJNnj9C7qomXpMr1FexX+WztCHbI3+CxbUV2JcwZqu7uSoLnhMXBVAVO9
+         /td0IMoHeXasWuIVCGyCam7GV3B8PoZ+jxUcBkheg6Ww/IpVpEfaYGLIeILBMpEv66/1
+         RCjgqUbJve9fvQrphCyu2xkEv+ZA+B3oP99G1ziKPsTHqnAqZWkAMK0WUvwYD/TH6Ryh
+         LGkQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWKoCu6xd2+r+AylaJUFYzARw81+6I4EEJH+MT7CmrmdQrL/OAO
-	h/E2XYzt2x01sMbQwalkmshVar8XdyFIC/gl/kd0pQKLOhepu7DKC+idYPcjzlA3zJ6lOxP6Qi/
-	Ctr7Etf30FNlOuocKS8GHW3Po+GnITciw3Urd2LK/rocpO6zLEjJEJoDzUPl5+i1c9Q==
-X-Received: by 2002:a17:906:d512:: with SMTP id ge18mr47452001ejb.232.1555511680056;
-        Wed, 17 Apr 2019 07:34:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTPlSobSp+XSpKl9nBUfpzf6yeewVIG2Cz1etWtC2cWttdeMHKJ7969RsphI0ZglWePCey
-X-Received: by 2002:a17:906:d512:: with SMTP id ge18mr47451925ejb.232.1555511678530;
-        Wed, 17 Apr 2019 07:34:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555511678; cv=none;
+X-Gm-Message-State: APjAAAWGCcinM02qCOzvHiqMp6qsaeXvEtOBhW8U6yWNTLzm8OAa5GLH
+	WZk0hx1mWaL3+C5m6Et3G7rHQpyc9f2HYsowL243JNtR0PxrkJOlCpWmmCUxTwy8MEY+XDdO0ri
+	XzcXJRusNbQtdbHXTfzuW9UskONUFEN6w8bV1O4mdq/L8iVJnEtmiEsGgdXjsh9vyfQ==
+X-Received: by 2002:a50:b6e4:: with SMTP id f33mr26539773ede.2.1555511683783;
+        Wed, 17 Apr 2019 07:34:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyerhXEWKUNWZhjucsaumU/+jRrZGIHZFXp2TnpOxPNN7ltinkA0Xrqo5F6Xs/Xc4uRDY7O
+X-Received: by 2002:a50:b6e4:: with SMTP id f33mr26539698ede.2.1555511682277;
+        Wed, 17 Apr 2019 07:34:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555511682; cv=none;
         d=google.com; s=arc-20160816;
-        b=kpRn2+P6fVgO3U6gFEwuzVYvsH6DizoqmeXOz4bG2n0SoNzEzDK+JqR62Io6ryMBhE
-         M637ctVhlWzRAnclbGmWcYERyHbvzfU9Ve21/NsUqwHi/8HzbwaHmMa6G55ct3FGqyjZ
-         p8iWhHYq2qa7nBTIy66nxt0K9u8nOtC1VbgOAML4VJl7IuAaJP9DhO+rk0YL9OzLG/Gg
-         MnSuuxoUHKMrDHTyC0/h3S+ANZXL2vEihYlvWTEPNf13iVVrsYBbSjC6/8LhTaUwlGGf
-         wGqa2PG9adrHPUhdMsb6VC2FjWLB+PnqJhteRepahLbGB/PebKdd9nb5I4SqUbqrVFWD
-         RRSg==
+        b=mdv5+EGbYxfBA2NZIQanH+iIV2Lbiz1ido4D2Aa5v2BQv1qne9Rj1ISJqK5TTLWNHe
+         VQL2bdVhzivSdOjk314HuyQaN7rgulAuEtT48aRNrnZhHMFOCiaYglC6KKOuuVNJezFO
+         DIdXdxmyyYibDjhIgLDMT9pQoG/KHLRAsysml0M/7fTQouFVs8AOU3hy1S6yZrqP2HPY
+         R0M00jhatJYORw7Hf8LM6eh8+mOb6vbrD13rr0CzTAOs14cJiy1IrilVQTq9uALWnO6n
+         0Xfex/OzJNSjffDDbXdn+PoyOMzybQFSrFArwFc4MKsHDFaVtBjxp0V9i4bbsELRjWMo
+         t/qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=P43hjsRFfbkkRybYuiqXe56a6GTahtQ7JYKITTlCoxQ=;
-        b=Hg7061x4GT3b5HwntRXZK2hddVj6nK06Y03IfpiQc0SE6eolHjDnrh8z3OpaYTxi8X
-         pywDnAfM7T7mfpTAIzpncI7L0E7gGzkVij+Urz1REGkMEleYlGLohS8RGG0te4wC588G
-         wO474iaEs8mPnSQ3Y7mReJTGnlRGlKbqxIobsvpJnow9V7r6UIuIqYnJcy8G7sfVQmvT
-         eReURJMHR4jNJZrCCOh56Lv3tRETjvAKDbq1cR1u6JkGaXW0HOssgwK861ol5C49bRAe
-         06jQE/czCXgGcscdTqbUtokanXn9vcw1FfX2ixsU820VJUxM8GzPHxavrv2wMB/mkHX/
-         uVLA==
+        bh=iP5Fk+kk715v+0mqvcL48B6aSaM3nllkLc6DHE5jkIs=;
+        b=ifsdWuYC8VcM4VTUPqbOuY7mUK+aJGUfzEHwMaPKWCIJSB8Qg3W/eVP9U3DYng9zur
+         c2VF7cPNjsZQmGbcMYOlj8D2OkWgqDgsQKNFESn4TB3q58OKEwThXXgWoPSK3LuQAag2
+         BirhiCzOPu1Y8/wNjfuFLqIK1wM6IzFclj2UgRt/XgMPYOeBgnEsHY4EzwCz2PcJ9Miv
+         7uIVfJEwDsMcksEBrgQPNSo8g1EhsvInx7VbIZJtQ/qXblkA23BFXCBy1TDHGDsNRf6M
+         c574lIo8iQLZo03gd4gp0+hbusQ/pA0ls3GNUeQt9dYiTiVmQzBsiy5XG8p0H93FBunO
+         kYIg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k31si952944eda.393.2019.04.17.07.34.38
+        by mx.google.com with ESMTP id d49si5170330ede.363.2019.04.17.07.34.41
         for <linux-mm@kvack.org>;
-        Wed, 17 Apr 2019 07:34:38 -0700 (PDT)
+        Wed, 17 Apr 2019 07:34:42 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6141B15A2;
-	Wed, 17 Apr 2019 07:34:37 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2ECD3A78;
+	Wed, 17 Apr 2019 07:34:41 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B02433F557;
-	Wed, 17 Apr 2019 07:34:33 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A10363F557;
+	Wed, 17 Apr 2019 07:34:37 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: Dave Hansen <dave.hansen@intel.com>,
 	linux-mm@kvack.org,
@@ -104,9 +104,9 @@ Cc: Mark Rutland <Mark.Rutland@arm.com>,
 	linux-arm-kernel@lists.infradead.org,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
 	Steven Price <steven.price@arm.com>
-Subject: [RFC PATCH 2/3] arm64: mm: Switch to using generic pt_dump
-Date: Wed, 17 Apr 2019 15:34:22 +0100
-Message-Id: <20190417143423.26665-2-steven.price@arm.com>
+Subject: [RFC PATCH 3/3] x86: mm: Switch to using generic pt_dump
+Date: Wed, 17 Apr 2019 15:34:23 +0100
+Message-Id: <20190417143423.26665-3-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190417143423.26665-1-steven.price@arm.com>
 References: <3acbf061-8c97-55eb-f4b6-163a33ea4d73@arm.com>
@@ -124,279 +124,495 @@ switch to using the generic version instead.
 
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/arm64/Kconfig              |   1 +
- arch/arm64/Kconfig.debug        |  19 +-----
- arch/arm64/include/asm/ptdump.h |   8 +--
- arch/arm64/mm/Makefile          |   4 +-
- arch/arm64/mm/dump.c            | 104 +++++++++-----------------------
- arch/arm64/mm/ptdump_debugfs.c  |   2 +-
- 6 files changed, 37 insertions(+), 101 deletions(-)
+ arch/x86/Kconfig              |   1 +
+ arch/x86/Kconfig.debug        |  20 +--
+ arch/x86/mm/Makefile          |   4 +-
+ arch/x86/mm/dump_pagetables.c | 297 +++++++---------------------------
+ 4 files changed, 62 insertions(+), 260 deletions(-)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 117b2541ef3d..4ff55b3ce8dc 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -97,6 +97,7 @@ config ARM64
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index c1f9b3cf437c..122c24055f02 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -106,6 +106,7 @@ config X86
+ 	select GENERIC_IRQ_RESERVATION_MODE
  	select GENERIC_IRQ_SHOW
- 	select GENERIC_IRQ_SHOW_LEVEL
- 	select GENERIC_PCI_IOMAP
+ 	select GENERIC_PENDING_IRQ		if SMP
 +	select GENERIC_PTDUMP
- 	select GENERIC_SCHED_CLOCK
  	select GENERIC_SMP_IDLE_THREAD
  	select GENERIC_STRNCPY_FROM_USER
-diff --git a/arch/arm64/Kconfig.debug b/arch/arm64/Kconfig.debug
-index 69c9170bdd24..570dba4d4a0e 100644
---- a/arch/arm64/Kconfig.debug
-+++ b/arch/arm64/Kconfig.debug
-@@ -1,21 +1,4 @@
+ 	select GENERIC_STRNLEN_USER
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 15d0fbe27872..dc1dfe213657 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -62,26 +62,10 @@ config EARLY_PRINTK_USB_XDBC
+ config MCSAFE_TEST
+ 	def_bool n
  
--config ARM64_PTDUMP_CORE
+-config X86_PTDUMP_CORE
 -	def_bool n
 -
--config ARM64_PTDUMP_DEBUGFS
--	bool "Export kernel pagetable layout to userspace via debugfs"
+-config X86_PTDUMP
+-	tristate "Export kernel pagetable layout to userspace via debugfs"
 -	depends on DEBUG_KERNEL
--	select ARM64_PTDUMP_CORE
 -	select DEBUG_FS
--        help
+-	select X86_PTDUMP_CORE
+-	---help---
 -	  Say Y here if you want to show the kernel pagetable layout in a
 -	  debugfs file. This information is only useful for kernel developers
 -	  who are working in architecture specific areas of the kernel.
 -	  It is probably not a good idea to enable this feature in a production
 -	  kernel.
+-	  If in doubt, say "N"
 -
--	  If in doubt, say N.
--
- config PID_IN_CONTEXTIDR
- 	bool "Write the current PID to the CONTEXTIDR register"
- 	help
-@@ -41,7 +24,7 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
+ config EFI_PGT_DUMP
+ 	bool "Dump the EFI pagetable"
+ 	depends on EFI
+-	select X86_PTDUMP_CORE
++	select PTDUMP_CORE
+ 	---help---
+ 	  Enable this if you want to dump the EFI page table before
+ 	  enabling virtual mode. This can be used to debug miscellaneous
+@@ -90,7 +74,7 @@ config EFI_PGT_DUMP
  
  config DEBUG_WX
  	bool "Warn on W+X mappings at boot"
--	select ARM64_PTDUMP_CORE
+-	select X86_PTDUMP_CORE
 +	select PTDUMP_CORE
  	---help---
  	  Generate a warning if any W+X mappings are found at boot.
  
-diff --git a/arch/arm64/include/asm/ptdump.h b/arch/arm64/include/asm/ptdump.h
-index 9e948a93d26c..f8fecda7b61d 100644
---- a/arch/arm64/include/asm/ptdump.h
-+++ b/arch/arm64/include/asm/ptdump.h
-@@ -16,7 +16,7 @@
- #ifndef __ASM_PTDUMP_H
- #define __ASM_PTDUMP_H
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 4b101dd6e52f..5233190fc6bf 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -28,8 +28,8 @@ obj-$(CONFIG_X86_PAT)		+= pat_rbtree.o
+ obj-$(CONFIG_X86_32)		+= pgtable_32.o iomap_32.o
  
--#ifdef CONFIG_ARM64_PTDUMP_CORE
-+#ifdef CONFIG_PTDUMP_CORE
- 
- #include <linux/mm_types.h>
- #include <linux/seq_file.h>
-@@ -32,15 +32,15 @@ struct ptdump_info {
- 	unsigned long			base_addr;
- };
- 
--void ptdump_walk_pgd(struct seq_file *s, struct ptdump_info *info);
--#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
-+void ptdump_walk(struct seq_file *s, struct ptdump_info *info);
-+#ifdef CONFIG_PTDUMP_DEBUGFS
- void ptdump_debugfs_register(struct ptdump_info *info, const char *name);
- #else
- static inline void ptdump_debugfs_register(struct ptdump_info *info,
- 					   const char *name) { }
- #endif
- void ptdump_check_wx(void);
--#endif /* CONFIG_ARM64_PTDUMP_CORE */
-+#endif /* CONFIG_PTDUMP_CORE */
- 
- #ifdef CONFIG_DEBUG_WX
- #define debug_checkwx()	ptdump_check_wx()
-diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-index 849c1df3d214..d91030f0ffee 100644
---- a/arch/arm64/mm/Makefile
-+++ b/arch/arm64/mm/Makefile
-@@ -4,8 +4,8 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
- 				   ioremap.o mmap.o pgd.o mmu.o \
- 				   context.o proc.o pageattr.o
  obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
--obj-$(CONFIG_ARM64_PTDUMP_CORE)	+= dump.o
--obj-$(CONFIG_ARM64_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
-+obj-$(CONFIG_PTDUMP_CORE)	+= dump.o
-+obj-$(CONFIG_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
- obj-$(CONFIG_NUMA)		+= numa.o
- obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
- KASAN_SANITIZE_physaddr.o	+= n
-diff --git a/arch/arm64/mm/dump.c b/arch/arm64/mm/dump.c
-index ea20c1213498..e68df2ad8863 100644
---- a/arch/arm64/mm/dump.c
-+++ b/arch/arm64/mm/dump.c
-@@ -19,6 +19,7 @@
- #include <linux/io.h>
- #include <linux/init.h>
- #include <linux/mm.h>
-+#include <linux/ptdump.h>
- #include <linux/sched.h>
- #include <linux/seq_file.h>
+-obj-$(CONFIG_X86_PTDUMP_CORE)	+= dump_pagetables.o
+-obj-$(CONFIG_X86_PTDUMP)	+= debug_pagetables.o
++obj-$(CONFIG_PTDUMP_CORE)	+= dump_pagetables.o
++obj-$(CONFIG_PTDUMP_DEBUGFS)	+= debug_pagetables.o
  
-@@ -69,6 +70,7 @@ static const struct addr_marker address_markers[] = {
-  * dumps out a description of the range.
+ obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
+ 
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index f6b814aaddf7..955824c7cddb 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -20,6 +20,7 @@
+ #include <linux/seq_file.h>
+ #include <linux/highmem.h>
+ #include <linux/pci.h>
++#include <linux/ptdump.h>
+ 
+ #include <asm/e820/types.h>
+ #include <asm/pgtable.h>
+@@ -30,15 +31,12 @@
+  * when a "break" in the continuity is found.
   */
  struct pg_state {
 +	struct ptdump_state ptdump;
- 	struct seq_file *seq;
- 	const struct addr_marker *marker;
+ 	int level;
+-	pgprot_t current_prot;
++	pgprotval_t current_prot;
+ 	pgprotval_t effective_prot;
+-	pgprotval_t effective_prot_pgd;
+-	pgprotval_t effective_prot_p4d;
+-	pgprotval_t effective_prot_pud;
+-	pgprotval_t effective_prot_pmd;
++	pgprotval_t prot_levels[5];
  	unsigned long start_address;
-@@ -172,6 +174,10 @@ static struct pg_level pg_level[] = {
- 		.name	= "PGD",
- 		.bits	= pte_bits,
- 		.num	= ARRAY_SIZE(pte_bits),
-+	}, { /* p4d */
-+		.name	= "P4D",
-+		.bits	= pte_bits,
-+		.num	= ARRAY_SIZE(pte_bits),
- 	}, { /* pud */
- 		.name	= (CONFIG_PGTABLE_LEVELS > 3) ? "PUD" : "PGD",
- 		.bits	= pte_bits,
-@@ -234,9 +240,10 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
- 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
- }
- 
--static void note_page(struct pg_state *st, unsigned long addr, int level,
--				u64 val)
-+static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
-+				unsigned long val)
+-	unsigned long current_address;
+ 	const struct addr_marker *marker;
+ 	unsigned long lines;
+ 	bool to_dmesg;
+@@ -179,9 +177,8 @@ static struct addr_marker address_markers[] = {
+ /*
+  * Print a readable form of a pgprot_t to the seq_file
+  */
+-static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
++static void printk_prot(struct seq_file *m, pgprotval_t pr, int level, bool dmsg)
  {
-+	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
- 	static const char units[] = "KMGTPE";
- 	u64 prot = 0;
+-	pgprotval_t pr = pgprot_val(prot);
+ 	static const char * const level_name[] =
+ 		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
  
-@@ -289,83 +296,21 @@ static void note_page(struct pg_state *st, unsigned long addr, int level,
- 
+@@ -228,24 +225,11 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
+ 	pt_dump_cont_printf(m, dmsg, "%s\n", level_name[level]);
  }
  
--static int pud_entry(pud_t *pud, unsigned long addr,
--		unsigned long next, struct mm_walk *walk)
+-/*
+- * On 64 bits, sign-extend the 48 bit address to 64 bit
+- */
+-static unsigned long normalize_addr(unsigned long u)
 -{
--	struct pg_state *st = walk->private;
--	pud_t val = READ_ONCE(*pud);
+-	int shift;
+-	if (!IS_ENABLED(CONFIG_X86_64))
+-		return u;
 -
--	if (pud_table(val))
--		return 0;
--
--	note_page(st, addr, 2, pud_val(val));
--
--	return 0;
+-	shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
+-	return (signed long)(u << shift) >> shift;
 -}
 -
--static int pmd_entry(pmd_t *pmd, unsigned long addr,
--		unsigned long next, struct mm_walk *walk)
--{
--	struct pg_state *st = walk->private;
--	pmd_t val = READ_ONCE(*pmd);
--
--	if (pmd_table(val))
--		return 0;
--
--	note_page(st, addr, 3, pmd_val(val));
--
--	return 0;
--}
--
--static int pte_entry(pte_t *pte, unsigned long addr,
--		unsigned long next, struct mm_walk *walk)
--{
--	struct pg_state *st = walk->private;
--	pte_t val = READ_ONCE(*pte);
--
--	note_page(st, addr, 4, pte_val(val));
--
--	return 0;
--}
--
--static int pte_hole(unsigned long addr, unsigned long next,
--		struct mm_walk *walk)
--{
--	struct pg_state *st = walk->private;
--
--	note_page(st, addr, -1, 0);
--
--	return 0;
--}
--
--static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
--		unsigned long start)
--{
--	struct mm_walk walk = {
--		.mm = mm,
--		.private = st,
--		.pud_entry = pud_entry,
--		.pmd_entry = pmd_entry,
--		.pte_entry = pte_entry,
--		.pte_hole = pte_hole
--	};
--	down_read(&mm->mmap_sem);
--	walk_page_range(start, start | (((unsigned long)PTRS_PER_PGD <<
--					 PGDIR_SHIFT) - 1),
--			&walk);
--	up_read(&mm->mmap_sem);
--}
--
--void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
-+void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
+-static void note_wx(struct pg_state *st)
++static void note_wx(struct pg_state *st, unsigned long addr)
  {
- 	struct pg_state st = {
--		.seq = m,
-+		.seq = s,
- 		.marker = info->markers,
-+		.ptdump = {
-+			.note_page = note_page,
-+			.range = (struct ptdump_range[]){
-+				{info->base_addr, ~0UL},
-+				{0, 0}
-+			}
-+		}
- 	};
+ 	unsigned long npages;
  
--	walk_pgd(&st, info->mm, info->base_addr);
--
--	note_page(&st, 0, 0, 0);
-+	ptdump_walk_pgd(&st.ptdump, info->mm);
+-	npages = (st->current_address - st->start_address) / PAGE_SIZE;
++	npages = (addr - st->start_address) / PAGE_SIZE;
+ 
+ #ifdef CONFIG_PCI_BIOS
+ 	/*
+@@ -253,7 +237,7 @@ static void note_wx(struct pg_state *st)
+ 	 * Inform about it, but avoid the warning.
+ 	 */
+ 	if (pcibios_enabled && st->start_address >= PAGE_OFFSET + BIOS_BEGIN &&
+-	    st->current_address <= PAGE_OFFSET + BIOS_END) {
++	    addr <= PAGE_OFFSET + BIOS_END) {
+ 		pr_warn_once("x86/mm: PCI BIOS W+X mapping %lu pages\n", npages);
+ 		return;
+ 	}
+@@ -264,25 +248,44 @@ static void note_wx(struct pg_state *st)
+ 		  (void *)st->start_address);
  }
  
- static void ptdump_initialize(void)
-@@ -393,10 +338,17 @@ void ptdump_check_wx(void)
- 			{ -1, NULL},
- 		},
- 		.check_wx = true,
-+		.ptdump = {
-+			.note_page = note_page,
-+			.range = (struct ptdump_range[]) {
-+				{VA_START, ~0UL},
-+				{0, 0}
-+			}
-+		}
- 	};
- 
--	walk_pgd(&st, &init_mm, VA_START);
--	note_page(&st, 0, 0, 0);
-+	ptdump_walk_pgd(&st.ptdump, &init_mm);
++static inline pgprotval_t effective_prot(pgprotval_t prot1, pgprotval_t prot2)
++{
++	return (prot1 & prot2 & (_PAGE_USER | _PAGE_RW)) |
++	       ((prot1 | prot2) & _PAGE_NX);
++}
 +
- 	if (st.wx_pages || st.uxn_pages)
- 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
- 			st.wx_pages, st.uxn_pages);
-diff --git a/arch/arm64/mm/ptdump_debugfs.c b/arch/arm64/mm/ptdump_debugfs.c
-index 064163f25592..1f2eae3e988b 100644
---- a/arch/arm64/mm/ptdump_debugfs.c
-+++ b/arch/arm64/mm/ptdump_debugfs.c
-@@ -7,7 +7,7 @@
- static int ptdump_show(struct seq_file *m, void *v)
+ /*
+  * This function gets called on a break in a continuous series
+  * of PTE entries; the next one is different so we need to
+  * print what we collected so far.
+  */
+-static void note_page(struct pg_state *st, pgprot_t new_prot,
+-		      pgprotval_t new_eff, int level)
++static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
++		      unsigned long val)
  {
- 	struct ptdump_info *info = m->private;
--	ptdump_walk_pgd(m, info);
-+	ptdump_walk(m, info);
- 	return 0;
+-	pgprotval_t prot, cur, eff;
++	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
++	pgprotval_t new_prot, new_eff;
++	pgprotval_t cur, eff;
+ 	static const char units[] = "BKMGTPE";
+ 	struct seq_file *m = st->seq;
+ 
++	new_prot = val & PTE_FLAGS_MASK;
++
++	if (level > 1) {
++		new_eff = effective_prot(st->prot_levels[level - 2],
++					 new_prot);
++	} else {
++		new_eff = new_prot;
++	}
++
++	if (level > 0)
++		st->prot_levels[level-1] = new_eff;
++
+ 	/*
+ 	 * If we have a "break" in the series, we need to flush the state that
+ 	 * we have now. "break" is either changing perms, levels or
+ 	 * address space marker.
+ 	 */
+-	prot = pgprot_val(new_prot);
+-	cur = pgprot_val(st->current_prot);
++	cur = st->current_prot;
+ 	eff = st->effective_prot;
+ 
+ 	if (!st->level) {
+@@ -294,14 +297,14 @@ static void note_page(struct pg_state *st, pgprot_t new_prot,
+ 		st->lines = 0;
+ 		pt_dump_seq_printf(m, st->to_dmesg, "---[ %s ]---\n",
+ 				   st->marker->name);
+-	} else if (prot != cur || new_eff != eff || level != st->level ||
+-		   st->current_address >= st->marker[1].start_address) {
++	} else if (new_prot != cur || new_eff != eff || level != st->level ||
++		   addr >= st->marker[1].start_address) {
+ 		const char *unit = units;
+ 		unsigned long delta;
+ 		int width = sizeof(unsigned long) * 2;
+ 
+ 		if (st->check_wx && (eff & _PAGE_RW) && !(eff & _PAGE_NX))
+-			note_wx(st);
++			note_wx(st, addr);
+ 
+ 		/*
+ 		 * Now print the actual finished series
+@@ -311,9 +314,9 @@ static void note_page(struct pg_state *st, pgprot_t new_prot,
+ 			pt_dump_seq_printf(m, st->to_dmesg,
+ 					   "0x%0*lx-0x%0*lx   ",
+ 					   width, st->start_address,
+-					   width, st->current_address);
++					   width, addr);
+ 
+-			delta = st->current_address - st->start_address;
++			delta = addr - st->start_address;
+ 			while (!(delta & 1023) && unit[1]) {
+ 				delta >>= 10;
+ 				unit++;
+@@ -331,7 +334,7 @@ static void note_page(struct pg_state *st, pgprot_t new_prot,
+ 		 * such as the start of vmalloc space etc.
+ 		 * This helps in the interpretation.
+ 		 */
+-		if (st->current_address >= st->marker[1].start_address) {
++		if (addr >= st->marker[1].start_address) {
+ 			if (st->marker->max_lines &&
+ 			    st->lines > st->marker->max_lines) {
+ 				unsigned long nskip =
+@@ -347,228 +350,42 @@ static void note_page(struct pg_state *st, pgprot_t new_prot,
+ 					   st->marker->name);
+ 		}
+ 
+-		st->start_address = st->current_address;
++		st->start_address = addr;
+ 		st->current_prot = new_prot;
+ 		st->effective_prot = new_eff;
+ 		st->level = level;
+ 	}
  }
- DEFINE_SHOW_ATTRIBUTE(ptdump);
+ 
+-static inline pgprotval_t effective_prot(pgprotval_t prot1, pgprotval_t prot2)
+-{
+-	return (prot1 & prot2 & (_PAGE_USER | _PAGE_RW)) |
+-	       ((prot1 | prot2) & _PAGE_NX);
+-}
+-
+-static int ptdump_pte_entry(pte_t *pte, unsigned long addr,
+-			    unsigned long next, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-	pgprotval_t eff, prot;
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	prot = pte_flags(*pte);
+-	eff = effective_prot(st->effective_prot_pmd, prot);
+-	note_page(st, __pgprot(prot), eff, 5);
+-
+-	return 0;
+-}
+-
+-#ifdef CONFIG_KASAN
+-
+-/*
+- * This is an optimization for KASAN=y case. Since all kasan page tables
+- * eventually point to the kasan_early_shadow_page we could call note_page()
+- * right away without walking through lower level page tables. This saves
+- * us dozens of seconds (minutes for 5-level config) while checking for
+- * W+X mapping or reading kernel_page_tables debugfs file.
+- */
+-static inline bool kasan_page_table(struct pg_state *st, void *pt)
+-{
+-	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
+-	    (pgtable_l5_enabled() &&
+-			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
+-	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
+-		pgprotval_t prot = pte_flags(kasan_early_shadow_pte[0]);
+-		note_page(st, __pgprot(prot), 0, 5);
+-		return true;
+-	}
+-	return false;
+-}
+-#else
+-static inline bool kasan_page_table(struct pg_state *st, void *pt)
+-{
+-	return false;
+-}
+-#endif
+-
+-static int ptdump_test_pmd(unsigned long addr, unsigned long next,
+-			   pmd_t *pmd, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (kasan_page_table(st, pmd))
+-		return 1;
+-	return 0;
+-}
+-
+-static int ptdump_pmd_entry(pmd_t *pmd, unsigned long addr,
+-			    unsigned long next, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-	pgprotval_t eff, prot;
+-
+-	prot = pmd_flags(*pmd);
+-	eff = effective_prot(st->effective_prot_pud, prot);
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (pmd_large(*pmd))
+-		note_page(st, __pgprot(prot), eff, 4);
+-
+-	st->effective_prot_pmd = eff;
+-
+-	return 0;
+-}
+-
+-static int ptdump_test_pud(unsigned long addr, unsigned long next,
+-			   pud_t *pud, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (kasan_page_table(st, pud))
+-		return 1;
+-	return 0;
+-}
+-
+-static int ptdump_pud_entry(pud_t *pud, unsigned long addr,
+-			    unsigned long next, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-	pgprotval_t eff, prot;
+-
+-	prot = pud_flags(*pud);
+-	eff = effective_prot(st->effective_prot_p4d, prot);
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (pud_large(*pud))
+-		note_page(st, __pgprot(prot), eff, 3);
+-
+-	st->effective_prot_pud = eff;
+-
+-	return 0;
+-}
+-
+-static int ptdump_test_p4d(unsigned long addr, unsigned long next,
+-			   p4d_t *p4d, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (kasan_page_table(st, p4d))
+-		return 1;
+-	return 0;
+-}
+-
+-static int ptdump_p4d_entry(p4d_t *p4d, unsigned long addr,
+-			    unsigned long next, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-	pgprotval_t eff, prot;
+-
+-	prot = p4d_flags(*p4d);
+-	eff = effective_prot(st->effective_prot_pgd, prot);
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (p4d_large(*p4d))
+-		note_page(st, __pgprot(prot), eff, 2);
+-
+-	st->effective_prot_p4d = eff;
+-
+-	return 0;
+-}
+-
+-static int ptdump_pgd_entry(pgd_t *pgd, unsigned long addr,
+-			    unsigned long next, struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-	pgprotval_t eff, prot;
++static const struct ptdump_range ptdump_ranges[] = {
++#ifdef CONFIG_X86_64
+ 
+-	prot = pgd_flags(*pgd);
++#define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
++#define normalize_addr(u) ((signed long)(u << normalize_addr_shift) >> normalize_addr_shift)
+ 
+-#ifdef CONFIG_X86_PAE
+-	eff = _PAGE_USER | _PAGE_RW;
++	{0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
++	{normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
+ #else
+-	eff = prot;
++	{0, ~0UL},
+ #endif
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	if (pgd_large(*pgd))
+-		note_page(st, __pgprot(prot), eff, 1);
+-
+-	st->effective_prot_pgd = eff;
+-
+-	return 0;
+-}
+-
+-static int ptdump_hole(unsigned long addr, unsigned long next,
+-		       struct mm_walk *walk)
+-{
+-	struct pg_state *st = walk->private;
+-
+-	st->current_address = normalize_addr(addr);
+-
+-	note_page(st, __pgprot(0), 0, -1);
+-
+-	return 0;
+-}
++	{0, 0}
++};
+ 
+ static void ptdump_walk_pgd_level_core(struct seq_file *m, struct mm_struct *mm,
+ 				       bool checkwx, bool dmesg)
+ {
+-	struct pg_state st = {};
+-	struct mm_walk walk = {
+-		.mm		= mm,
+-		.pgd_entry	= ptdump_pgd_entry,
+-		.p4d_entry	= ptdump_p4d_entry,
+-		.pud_entry	= ptdump_pud_entry,
+-		.pmd_entry	= ptdump_pmd_entry,
+-		.pte_entry	= ptdump_pte_entry,
+-		.test_p4d	= ptdump_test_p4d,
+-		.test_pud	= ptdump_test_pud,
+-		.test_pmd	= ptdump_test_pmd,
+-		.pte_hole	= ptdump_hole,
+-		.private	= &st
++	struct pg_state st = {
++		.ptdump = {
++			.note_page	= note_page,
++			.range		= ptdump_ranges
++		},
++		.to_dmesg	= dmesg,
++		.check_wx	= checkwx,
++		.seq		= m
+ 	};
+ 
+-	st.to_dmesg = dmesg;
+-	st.check_wx = checkwx;
+-	st.seq = m;
+-	if (checkwx)
+-		st.wx_pages = 0;
+-
+-	down_read(&mm->mmap_sem);
+-#ifdef CONFIG_X86_64
+-	walk_page_range(0, PTRS_PER_PGD*PGD_LEVEL_MULT/2, &walk);
+-	walk_page_range(normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT/2), ~0,
+-			&walk);
+-#else
+-	walk_page_range(0, ~0, &walk);
+-#endif
+-	up_read(&mm->mmap_sem);
++	ptdump_walk_pgd(&st.ptdump, mm);
+ 
+-	/* Flush out the last page */
+-	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
+-	note_page(&st, __pgprot(0), 0, 0);
+ 	if (!checkwx)
+ 		return;
+ 	if (st.wx_pages)
 -- 
 2.20.1
 
