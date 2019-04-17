@@ -2,158 +2,265 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	HTML_MESSAGE,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29BF9C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:35:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF7C5C10F12
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:36:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC9C820835
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:35:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="K6OCI8g8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC9C820835
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8EC6F21773
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 08:36:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EC6F21773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FBE36B0007; Wed, 17 Apr 2019 04:35:16 -0400 (EDT)
+	id 27A0B6B0008; Wed, 17 Apr 2019 04:36:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5ABD06B0008; Wed, 17 Apr 2019 04:35:16 -0400 (EDT)
+	id 1DB5B6B000A; Wed, 17 Apr 2019 04:36:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C2916B000A; Wed, 17 Apr 2019 04:35:16 -0400 (EDT)
+	id 0C94B6B000D; Wed, 17 Apr 2019 04:36:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F5E6B0007
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 04:35:15 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id m7so3366884lfb.2
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 01:35:15 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F6E6B0008
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 04:36:08 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id z5so4876305vsq.6
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 01:36:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-transfer-encoding;
-        bh=HE9AdSyj6Xu+M4CDNxaUyXeYyEky8JqgeK1vrcackXY=;
-        b=fxFHdbLQuDoEgIYa02Mglg72ma3ilQf+lrzsI+EiHH6hZBk84pevEl27Uw16kqdvJH
-         lQU3PKBCjEJjB/9MUnlCTIqR9M2AoAV71AyRXanmvxuSv11IyWuOtL3XyoCewDu8XPbL
-         gdb9XC1U1rcUODCyO6xVsvrc/3jeZOvHcPxqZFY1SJz9go0ciO+d2LJW07u6SGJYA3cp
-         Mw6BV+L/Krcpw1krh26zgqVLyQxIKulFYZgGw1C1rs0KL31uoWWvFqczQUsILErQqgIO
-         svMoQoSffYM5sAJ2UCLL6qsdU/duzaMD8QpsbV2uqb19Q6OGLbYioxmy9yEyZX2lHRu4
-         4OJw==
-X-Gm-Message-State: APjAAAXHLqbBQ2Oybw7/46JWrnMcFNBBQ7poDFybxU0ptGSJUiE6sLrn
-	hhV5RO6+gOE2eIhjwpqGIcDAGQvZV+244Opq51VykrAkQb8C0RnIda6Tbli1sYne6rttwu7LrUW
-	dEMsZOmnBuatnYSHC+ttvg3dY7uqPPZMf9S2OWjBun0PFlmkc9mFZAKALnQuNLVkDgw==
-X-Received: by 2002:a2e:5d94:: with SMTP id v20mr46261732lje.138.1555490114983;
-        Wed, 17 Apr 2019 01:35:14 -0700 (PDT)
-X-Received: by 2002:a2e:5d94:: with SMTP id v20mr46261664lje.138.1555490113630;
-        Wed, 17 Apr 2019 01:35:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555490113; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :from:date:message-id:subject:to:cc;
+        bh=YXb3tuOBC3WhISII3/sOzazk0QCm5WN4iE4HfshQ49Q=;
+        b=HeDC84xMq/Nhvl6c+HxgoMFb+KXWL+tJMJJkI3Vu6u3bcpghY9TOEO9W498XvzAAHg
+         kjOFcZfix4ncjc9EkNMOkNlgyMAQ2C/r++vFGNHAQbpwwgAWv+q011EmGj2sanKAzOWC
+         hxI+yRgA2F6TClURQEoa8WDnBkG4ffY7z61hnQ0fEYOOf5wvItKafWpvNAXQQUWxYc1N
+         YcmM1Hp3vXmLXOEB9mSlINrOPKkAQZNLYKJAqIlDKLdX2ES+lU3i4CNaL6q0ziIvD4kp
+         +vhk/tM8soD3+RJuD+NQ8Pb68b17g9+nOGpJQv5UgGb2Lp5ToZ7yMNvJVS+mc6toZ9oz
+         ZF1w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=liwan@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXD7mfXUciZ26CpHKS2FX7gjtr5oLoAwR6CKS57/jTqIMpc6hLh
+	r/ZvJSpChbiO0BoKKgatJzjzckfVXCvc4Z9rKCMPcpuvRuuKAN6o2QGspTR28y9n1WTZgkB6yBP
+	Hu55nSbYFyf6HHuhgTiQIuEPNEVICU38Id9zwgN5QMcjPjjuuAsCwl1MI+gPmBe0GJA==
+X-Received: by 2002:ac5:c2cb:: with SMTP id i11mr46191782vkk.51.1555490168508;
+        Wed, 17 Apr 2019 01:36:08 -0700 (PDT)
+X-Received: by 2002:ac5:c2cb:: with SMTP id i11mr46191763vkk.51.1555490167726;
+        Wed, 17 Apr 2019 01:36:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555490167; cv=none;
         d=google.com; s=arc-20160816;
-        b=GKwKj2PyQjtdLfx7/psQ/UrAJx9JlWCCyaKPlozKkwrTBmD6B2B8pV30HVTX0ROWQZ
-         RRXP5rSt4gabgf5hBy0YvHjQ/2NC/FkjUqC23uImu7hkuW/WeJJcfgFZ+hfrFQBl95Sw
-         m+7TIhIKJ8VJ3xrnDypppyrAtjOoxJS1P6C9OWmL/c7skvJWBFNcHAmWPlnEpVj122on
-         5x9NgAG9RVcr4KvqwMq8+JpSYQ1rHlZgLawwSDgvsscsYVV/ICIgLJ28gm63tufuEMB/
-         7gZ3+TyUMm1YsYbIXmYk6GwmnqJWME7PoQocrq2jeiY2NQ0veDNsH0h4Oyv7+WushtAm
-         L6EA==
+        b=EHhWKbjjrgQaVMh51wJD8P1mpmZqSYJMSycZLXczHW7Hk9vkUdLCJSxkVoovD30iU9
+         N0STn+Yp1/gBxkBv9KIdaXAq/4SXl/UtADsOx1poUltGHwxVfU4pIRnTmfjI9pp8uHxt
+         QyALLFrClJaO5PGqTnqf11mjiUmedpbparPdOmwyKjSKz5d7binHeqxx4kkDQNKHwyq4
+         miz8RGuFZqbZWQEzqvrpiHHNsjCcFFABX8mVDY12jguVjIcBjvaQgmXbIitGeoApqz9W
+         IHCE16Dd9CUMiT2I9t4fzOMXML9X6cATFA1a0lLlYbZTpOlY7LFfaqJGqp/Penq6y7us
+         q+0g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:subject:cc:to
-         :from:date:dkim-signature;
-        bh=HE9AdSyj6Xu+M4CDNxaUyXeYyEky8JqgeK1vrcackXY=;
-        b=M7NMrocyKN6keUI0W/8wzZe0wBEviWmZdwSxS6lk+zzX3NjSqmHBwV4LDTy5X/cf/5
-         a6UoHmNSxsT0vtf3PDcVlb+GC+VsC4o4Gh9s+cO3rhvHU9kbegbDFbRs6snqa4IBKLxQ
-         1SGNk9raZdxcT1afOJezeJPMM8hJhBbkoV/j8yIce7vBrKNLmuLKM3SDKYb94VI0XoxW
-         soqI2paZpwtth9Lb3RsayGlBTWevBLK2NKNuMpPHWczk2XhhPEdQUfpDsSkmUtnK8Pr5
-         OZhEuWOdJARTRvuduSpZwywdaJbesuwpCyHdfxghdE9llVK/LEcUgugAwmznqBegl0WU
-         5qWQ==
+        h=cc:to:subject:message-id:date:from:mime-version;
+        bh=YXb3tuOBC3WhISII3/sOzazk0QCm5WN4iE4HfshQ49Q=;
+        b=ix+RAzRRpzfkkOIN5hip8mCv/QPgKqiootMylu0em0/boxOftMDT/+ScszgG7srC1g
+         3RhRkhoJNmAvyRnX7qHhz+ofmNYB4bzGfxW1In/Z+RWqFxQ1gVZroEU0rYTQIMkrJzOV
+         jnoO8tVgVcbk3VW0rbwdC12Fgs0Kbw55d7ZiVrBymYomXNa+KdFWRcHYQeKc/SxxU0H5
+         fX6LXKZ43mWGPo6PevSaJ/HE9K8PMF2jfpTFxRSEwyFEFP/Cv22pQOVtf4oxtP4P7xki
+         /boJv2G40Gfc/9hHXPVUTwItLFY0SARXXoaBCIIePtcWbWARMFYwd4JDRtYZrn5D9K46
+         gx1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K6OCI8g8;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x26sor33033156ljb.16.2019.04.17.01.35.13
+       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=liwan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j2sor22513328vkd.36.2019.04.17.01.36.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 01:35:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 17 Apr 2019 01:36:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of liwan@redhat.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K6OCI8g8;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version
-         :content-transfer-encoding;
-        bh=HE9AdSyj6Xu+M4CDNxaUyXeYyEky8JqgeK1vrcackXY=;
-        b=K6OCI8g8E1m2UF7ZmFB5XQHjq7lCGpCRt5EP3S/RYWBTjDZKQy+vkRJ1YLzJxdAMO2
-         gFgiZwLZDo0nGfIFeLDqho1yCZok4AnOwB8xj5U+jQqzyCYIwSvCgblhUytiX7r+qzlm
-         9NUw4uBpzm/BQKaupHy+yN3dPC8wcMyAu5l3UlFcKhQH306tKiICIHF+AkKmwnou09F4
-         eCx2zUPWQQx0/K76ybi2GlZA7tAvQ4fEyj19duwnU7fw/WV4fDGMnskt6ttdZ9gL2n7y
-         jNszH93UPC20ttfkS/w8OnUVC285KZeEef5ITr26Nu97XAyZOnkT8ifH9+FFf8mbAl4h
-         Z0mA==
-X-Google-Smtp-Source: APXvYqx/1W7r5BcBsBGdz4XhIoiPlTwQRfInV4VnPM6C+id0DSBq01qwWcbQQtDXgXTEOKmRO/N7Cg==
-X-Received: by 2002:a2e:9811:: with SMTP id a17mr35692132ljj.96.1555490112620;
-        Wed, 17 Apr 2019 01:35:12 -0700 (PDT)
-Received: from seldlx21914.corpusers.net ([37.139.156.40])
-        by smtp.gmail.com with ESMTPSA id s24sm10762311ljs.30.2019.04.17.01.35.11
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 01:35:11 -0700 (PDT)
-Date: Wed, 17 Apr 2019 10:35:10 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton
- <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com, Bartlomiej
- Zolnierkiewicz <b.zolnierkie@samsung.com>, Krzysztof Kozlowski
- <k.kozlowski@samsung.com>
-Subject: [PATCHv2 0/4] z3fold: support page migration
-Message-Id: <20190417103510.36b055f3314e0e32b916b30a@gmail.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.30; x86_64-unknown-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=liwan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxFKNOLin2z8+f4TeJcA7EBlvvOpYwLzBF7zlkpdodN37BhXVt6/6WOgLrAI3D7UOhoWKQTRFNsumgH/ZWcEbA=
+X-Received: by 2002:a1f:860c:: with SMTP id i12mr48286196vkd.46.1555490167322;
+ Wed, 17 Apr 2019 01:36:07 -0700 (PDT)
+MIME-Version: 1.0
+From: Li Wang <liwang@redhat.com>
+Date: Wed, 17 Apr 2019 16:35:56 +0800
+Message-ID: <CAEemH2fh2goOS7WuRUaVBEN2SSBX0LOv=+LGZwkpjAebS6MFuQ@mail.gmail.com>
+Subject: v5.1-rc5 s390x WARNING
+To: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, 
+	Minchan Kim <minchan@kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
+Content-Type: multipart/alternative; boundary="000000000000e01d8a0586b5c69d"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patchset implements page migration support and slightly better
-buddy search. To implement page migration support, z3fold has to move
-away from the current scheme of handle encoding. i. e. stop encoding
-page address in handles. Instead, a small per-page structure is created
-which will contain actual addresses for z3fold objects, while pointers
-to fields of that structure will be used as handles.
+--000000000000e01d8a0586b5c69d
+Content-Type: text/plain; charset="UTF-8"
 
-Thus, it will be possible to change the underlying addresses to reflect
-page migration.
+Hi there,
 
-To support migration itself, 3 callbacks will be implemented:
-    1: isolation callback: z3fold_page_isolate(): try to isolate
-the page by removing it from all lists. Pages scheduled for some
-activity and mapped pages will not be isolated. Return true if
-isolation was successful or false otherwise
-    2: migration callback: z3fold_page_migrate(): re-check critical
-conditions and migrate page contents to the new page provided by the
-system. Returns 0 on success or negative error code otherwise
-    3: putback callback: z3fold_page_putback(): put back the page
-if z3fold_page_migrate() for it failed permanently (i. e. not with
--EAGAIN code).
+I catched this warning on v5.1-rc5(s390x). It was trggiered in fork &
+malloc & memset stress test, but the reproduced rate is very low. I'm
+working on find a stable reproducer for it.
 
-To make sure an isolated page doesn't get freed, its kref is incremented
-in z3fold_page_isolate() and decremented during post-migration
-compaction, if migration was successful, or by z3fold_page_putback() in
-the other case.
+Anyone can have a look first?
 
-Since the new handle encoding scheme implies slight memory consumption
-increase, better buddy search (which decreases memory consumption) is
-included in this patchset.
+[ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777
+__alloc_pages_irect_compact+0x182/0x190
+[ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4
+dns_resolver
+ nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390
+des_s390 des_g
+eneric sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs
+libcrc32c d
+asd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm ccwgroup
+fsm dm_mi
+rror dm_region_hash dm_log dm_mod
+[ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not
+tainted 5.1.0-rc 5 #1
+[ 1422.124089] Hardware name: IBM 2827 H43 400 (z/VM 6.4.0)
+[ 1422.124092] Krnl PSW : 0704e00180000000 00000000002779ba
+(__alloc_pages_direct_compact+0x182/0x190)
+[ 1422.124096]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3
+CC:2 PM:0 RI: 0 EA:3
+[ 1422.124100] Krnl GPRS: 0000000000000000 000003e00226fc24
+000003d081bdf200 000 0000000000001
+[ 1422.124103]            000000000027789a 0000000000000000
+0000000000000001 000 000000006ee03
+[ 1422.124107]            000003e00226fc28 0000000000000cc0
+0000000000000240 000 0000000000002
+[ 1422.124156]            0000000000400000 0000000000753cb0
+000000000027789a 000 003e00226fa28
+[ 1422.124163] Krnl Code: 00000000002779ac: e320f0a80002        ltg
+ %r2,168( %r15)
+[ 1422.124163]            00000000002779b2: a784fff4            brc
+ 8,27799a
+[ 1422.124163]           #00000000002779b6: a7f40001            brc
+ 15,2779b 8
+[ 1422.124163]           >00000000002779ba: a7290000            lghi
+ %r2,0
+[ 1422.124163]            00000000002779be: a7f4fff0            brc
+ 15,27799 e
+[ 1422.124163]            00000000002779c2: 0707                bcr
+ 0,%r7
+[ 1422.124163]            00000000002779c4: 0707                bcr
+ 0,%r7
+[ 1422.124163]            00000000002779c6: 0707                bcr
+ 0,%r7
+[ 1422.124194] Call Trace:
+[ 1422.124196] ([<000000000027789a>]
+__alloc_pages_direct_compact+0x62/0x190)
+[ 1422.124198]  [<0000000000278618>]
+__alloc_pages_nodemask+0x728/0x1148
+[ 1422.124201]  [<0000000000126bb2>] crst_table_alloc+0x32/0x68
+[ 1422.124203]  [<0000000000135888>] mm_init+0x118/0x308
+[ 1422.124204]  [<0000000000137e60>]
+copy_process.part.49+0x1820/0x1d90
+[ 1422.124205]  [<000000000013865c>] _do_fork+0x114/0x3b8
+[ 1422.124206]  [<0000000000138aa4>] __s390x_sys_clone+0x44/0x58
+[ 1422.124210]  [<0000000000739a90>] system_call+0x288/0x2a8
+[ 1422.124210] Last Breaking-Event-Address:
+[ 1422.124212]  [<00000000002779b6>]
+__alloc_pages_direct_compact+0x17e/0x190
+[ 1422.124213] ---[ end trace 36649eaa36968eaa ]---
 
-Vitaly Wool (4):
-  z3fold: introduce helper functions
-  z3fold: improve compression by extending search
-  z3fold: add structure for buddy handles
-  z3fold: support page migration
+-- 
+Regards,
+Li Wang
 
- mm/z3fold.c |  638 ++++++++++++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 508 insertions(+), 130 deletions(-)
+--000000000000e01d8a0586b5c69d
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div class=3D"gmail_defa=
+ult" style=3D"font-size:small"><pre style=3D"color:rgb(0,0,0);white-space:p=
+re-wrap">Hi there,</pre><pre style=3D"color:rgb(0,0,0);white-space:pre-wrap=
+">I catched this warning on v5.1-rc5(s390x). It was trggiered in fork &amp;=
+ malloc &amp; memset stress test, but the reproduced rate is very low. I&#3=
+9;m working on find a stable reproducer for it. </pre><pre style=3D"color:r=
+gb(0,0,0);white-space:pre-wrap">Anyone can have a look first?</pre><pre sty=
+le=3D"color:rgb(0,0,0);white-space:pre-wrap">[ 1422.124060] WARNING: CPU: 0=
+ PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190 =
+                                                      =20
+[ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_res=
+olver=20
+ nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390 des_s390 =
+des_g=20
+eneric sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs libcrc=
+32c d=20
+asd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm ccwgroup fsm =
+dm_mi=20
+rror dm_region_hash dm_log dm_mod                                          =
+     =20
+[ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not tainted 5.1=
+.0-rc 5 #1                                                                 =
+           =20
+[ 1422.124089] Hardware name: IBM 2827 H43 400 (z/VM 6.4.0)                =
+     =20
+[ 1422.124092] Krnl PSW : 0704e00180000000 00000000002779ba (__alloc_pages_=
+direct_compact+0x182/0x190)                                                =
+          =20
+[ 1422.124096]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:2 PM:=
+0 RI: 0 EA:3                                                               =
+           =20
+[ 1422.124100] Krnl GPRS: 0000000000000000 000003e00226fc24 000003d081bdf20=
+0 000 0000000000001                                                        =
+           =20
+[ 1422.124103]            000000000027789a 0000000000000000 000000000000000=
+1 000 000000006ee03                                                        =
+           =20
+[ 1422.124107]            000003e00226fc28 0000000000000cc0 000000000000024=
+0 000 0000000000002                                                        =
+           =20
+[ 1422.124156]            0000000000400000 0000000000753cb0 000000000027789=
+a 000 003e00226fa28                                                        =
+           =20
+[ 1422.124163] Krnl Code: 00000000002779ac: e320f0a80002        ltg     %r2=
+,168( %r15)                                                                =
+           =20
+[ 1422.124163]            00000000002779b2: a784fff4            brc     8,2=
+7799a                                                                      =
+           =20
+[ 1422.124163]           #00000000002779b6: a7f40001            brc     15,=
+2779b 8                                                                    =
+           =20
+[ 1422.124163]           &gt;00000000002779ba: a7290000            lghi    =
+%r2,0   =20
+[ 1422.124163]            00000000002779be: a7f4fff0            brc     15,=
+27799 e                                                                    =
+           =20
+[ 1422.124163]            00000000002779c2: 0707                bcr     0,%=
+r7   =20
+[ 1422.124163]            00000000002779c4: 0707                bcr     0,%=
+r7   =20
+[ 1422.124163]            00000000002779c6: 0707                bcr     0,%=
+r7   =20
+[ 1422.124194] Call Trace:                                                 =
+     =20
+[ 1422.124196] ([&lt;000000000027789a&gt;] __alloc_pages_direct_compact+0x6=
+2/0x190)   =20
+[ 1422.124198]  [&lt;0000000000278618&gt;] __alloc_pages_nodemask+0x728/0x1=
+148        =20
+[ 1422.124201]  [&lt;0000000000126bb2&gt;] crst_table_alloc+0x32/0x68      =
+           =20
+[ 1422.124203]  [&lt;0000000000135888&gt;] mm_init+0x118/0x308             =
+           =20
+[ 1422.124204]  [&lt;0000000000137e60&gt;] copy_process.part.49+0x1820/0x1d=
+90         =20
+[ 1422.124205]  [&lt;000000000013865c&gt;] _do_fork+0x114/0x3b8            =
+           =20
+[ 1422.124206]  [&lt;0000000000138aa4&gt;] __s390x_sys_clone+0x44/0x58     =
+           =20
+[ 1422.124210]  [&lt;0000000000739a90&gt;] system_call+0x288/0x2a8         =
+           =20
+[ 1422.124210] Last Breaking-Event-Address:                                =
+     =20
+[ 1422.124212]  [&lt;00000000002779b6&gt;] __alloc_pages_direct_compact+0x1=
+7e/0x190   =20
+[ 1422.124213] ---[ end trace 36649eaa36968eaa ]---                        =
+      </pre></div>-- <br><div dir=3D"ltr" class=3D"gmail-m_-385576432560707=
+8863m_-8588808027537372373m_-5863484564193501364gmail_signature"><div dir=
+=3D"ltr"><div>Regards,<br></div><div>Li Wang<br></div></div></div></div></d=
+iv></div>
+
+--000000000000e01d8a0586b5c69d--
 
