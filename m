@@ -2,126 +2,234 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85E9BC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 12:58:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5AD4C282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:00:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4556F20821
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 12:58:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4556F20821
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 519832173C
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 13:00:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BjZsvhO3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 519832173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2B626B0005; Wed, 17 Apr 2019 08:58:37 -0400 (EDT)
+	id E0E0D6B0005; Wed, 17 Apr 2019 09:00:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB07D6B0006; Wed, 17 Apr 2019 08:58:37 -0400 (EDT)
+	id DBB7D6B0006; Wed, 17 Apr 2019 09:00:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 97A456B0007; Wed, 17 Apr 2019 08:58:37 -0400 (EDT)
+	id C5CF06B0007; Wed, 17 Apr 2019 09:00:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8736B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 08:58:37 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i17so613740eds.21
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 05:58:37 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C93B6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:00:57 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id x13so1200254lff.23
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 06:00:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=fg3uwc/TLSQrSwyc37dj2XrJ2sSMbt3FjrpoJ9mDShw=;
-        b=n7pIQqrGnWqFuRVaswip2VsBftEddH2RnPAFWg0gET65qll92Bo0KIoiEY31B0Xzc+
-         z2aPaNbDXdax7agqbiKchGtoxUM1q1+VkrNsjcifXH4fLm52Yv2D+WSQDnHz9zUBW/21
-         Cm67w0zr5d8qCrFHEDhgLF2fw4DwhG7kKBHZ14cnrOwBNK21cV1niz1dnWnRLkCfu/SU
-         cQ5eXGzrzpxbJJ/+qKVH83u0D63vlwAeZycR003K2zNFedCfF5g3zTrfez8wmE8pVsMr
-         ptcSnWMYGIi1HndC+p+PaaA4Kcflvv6rx5Bo0zaFNhUkqd4x0Eqg9BmnB4RpSAmNM7cC
-         G4Rg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXW17FU1lweByRljGyANJTUXZl/o4rO+5wUqI4td4aSre4DIjsq
-	Wm9HLbzRNcokl0svLu1hYpgwnv+tUCtU08uvMlzTkonxPWzGwa1cgmrN9OnovIKrcCi6sYponBi
-	TvHoj663/0Y0aGQUNhJHiXArHUU8Xy4FjCTYuBdVCbx04lHIz5E0a25fB/+3EUAA=
-X-Received: by 2002:a50:9ea5:: with SMTP id a34mr44202636edf.191.1555505916972;
-        Wed, 17 Apr 2019 05:58:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxCEPrhqCOOmPdbUKuvGgvv318sM9+FMSoarNqUs6/tBlAWfHWX0ZchWH50aMTEJ6r3abEp
-X-Received: by 2002:a50:9ea5:: with SMTP id a34mr44202602edf.191.1555505916239;
-        Wed, 17 Apr 2019 05:58:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555505916; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=nD5N/gZK0Hc9/leGn/iw1G+jz11LpAQc97DIEWLBEH0=;
+        b=b3leRsvNPY+0TDQzP+djcqbDLna/ccDCE97ufHwlegH5aiCfMhDxIaRPNko7QHmrx+
+         VRk+C4wHhG1B5+Knrrkn1PF7pNM86oehQVl21jzkYB+DeCrp1NfoCf/tcx9o0jYwfLBx
+         mDJljT3LPrJBzcEQn5q811OI//QWoTkUVNf3b+n2dmxFRM7DjOic7uJodMzRBF2GfvU3
+         elK2nWSA3euz32nXZoY/q3cqfpPfPeFDOp8BtaEiJ5/WDM/u2IDQU/P8VZjgLstThc8G
+         ge8PzJlTDaFL60lR/kszoY1+4KNCe00HxWRHVFfG3CiMf9l7dKLUoU5sstZ72Rw3gycG
+         4nIA==
+X-Gm-Message-State: APjAAAWP82/TNmCscBRy3kEPYMUrA2uPxrm5jmiQ+cAmYaKRvrgC2LO8
+	4SFXclJv3swDcrYIfXU8ca9fTfRL8P5NyKcXDOj99Jl+6Qvpy014bgN8sfs7LFHq5YxYLSVaEUi
+	Pjo/8db/rALjuPGe60+xf/WIX7TPCL81VLNT9lJWaaN81t7qOpsenltupJM2ypPtewg==
+X-Received: by 2002:a2e:97d3:: with SMTP id m19mr8469830ljj.63.1555506056405;
+        Wed, 17 Apr 2019 06:00:56 -0700 (PDT)
+X-Received: by 2002:a2e:97d3:: with SMTP id m19mr8469780ljj.63.1555506055358;
+        Wed, 17 Apr 2019 06:00:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555506055; cv=none;
         d=google.com; s=arc-20160816;
-        b=s3frCc3VNGoa9xgIt9YpwD8+/asLJ7tXChwtZBcLP/QzimzWZJ42Mvmoxmd7xr6xHd
-         17rg0nnveVzTOKoRNe7rYwjsKOCKYBP+n9HGr6L424FlYIkrihd7KddWV+oS3rM0BN1I
-         rIW72JdveAG2UcmoQU7X6d4YQvSfuspmfq4qu99KXDHbAc7jEMsYAMIKgxVrTqf9s79A
-         q9S8/GIcxxMe8OPBne+yf//Hk+q8+NVyJwvKwhTIZy/VgyNAGaA35h5ONLMIPKzfXoZj
-         ysluo7V/0xjDSZHt1i6pT8qYL5sqJZsV/JNkAROsamOSXqBflU3067zHSGq+tRVIe+jp
-         QuZw==
+        b=xFFt6BuD/k2ay0qtk2vsSMb9/bQP/ty2Z2tXqXcbyeDJaN+tk9xiU2h0qHKzRKLe+2
+         DMptP+YYI5X+3jn8UF44sKu3Zz8DFjB7WObXZzj0Ai+uIWzh2cgOv/DKSUPamtOCIZ/A
+         z7bac3N67BV9ZpFpwh+Om7ogdJkxKqcotFwbBxgx+xWJNJJa6TKhwaUZhm/XxPtTPM3k
+         ZSynavAj8AZ7Vq6tnLkiVXIy/k268RtPMUiNV4K7DBub7yBZf6K9xpunJdedI+RFEWXx
+         1d2pTOfEPHsiQP1S2UCVH6rA/J15EzsBMIds1sbkjXTX+NhVb7pyB+cVn7zTJ2D+9r6T
+         ksKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=fg3uwc/TLSQrSwyc37dj2XrJ2sSMbt3FjrpoJ9mDShw=;
-        b=l8FG7O7SEIwC6rEamE7nssck8Db4SGDngZtKlxHsLuI+unusbCqvvPORdjy/nQ7q/W
-         DaXeTe5jNzERNdToPWYtvfZvxksvgV/u0AnqbrmSG1bkP2eORgsP9OdFAByVXWc0KDSY
-         3SaPRCkf7GYAikUrXF9d5aWrvHSG3PC38opB4MoqgVMxKywmdTY2id3X/y6yZuc5A0bT
-         E1tqdaOxdJ9ZmopGivvl5JlOLsr4+o8ZLgGLLXt+pJoFquGVTu9SZzvp6UUA1yxt4Tgu
-         5nNM30yXebQCdJtnrpLtZu1K5fGJfXzfnAndN1VJcEk86a3wtJgyR8B64Kog7LY2JtGX
-         Hapw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=nD5N/gZK0Hc9/leGn/iw1G+jz11LpAQc97DIEWLBEH0=;
+        b=VIFVUYC3i9neXlgpE/pUs7HWYxG5/zxrL6uMeiqPBs3BSE7aNFOD4zi8ZwG3St1mtN
+         jthz5xt0YpNpScn8zC7zROkOboSWNv8V06KYi7CdvG1x2gWGZzwz3ao4XXhD+sIH8/qz
+         JNBP7HvEPc6p9vFhmaVSgaybsm3ORBssrpYh72llkCG1HUdbfzXzptWou9ecDZjYB8SL
+         ZHMDGvftforCY1+KPw/X3YaXgd06WXit9K7Ms6nppWK5tTqcsXu/tC7gLjHhwlg2J64B
+         eiNIxZnjya0rzOW42yBBC4844w/FJEuvBrm5oEn+nOtauaQg7u8RvgQdQKgxu1VybSSE
+         PVBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v22si560166ejw.235.2019.04.17.05.58.36
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BjZsvhO3;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 16sor2607663lfr.9.2019.04.17.06.00.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 05:58:36 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 17 Apr 2019 06:00:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AE562B163;
-	Wed, 17 Apr 2019 12:58:35 +0000 (UTC)
-Date: Wed, 17 Apr 2019 14:58:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Zhaoyang Huang <huangzhaoyang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	David Rientjes <rientjes@google.com>,
-	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
-	Roman Gushchin <guro@fb.com>, Jeff Layton <jlayton@redhat.com>,
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC PATCH] mm/workingset : judge file page activity via
- timestamp
-Message-ID: <20190417125833.GH5878@dhcp22.suse.cz>
-References: <1555487246-15764-1-git-send-email-huangzhaoyang@gmail.com>
- <CAGWkznFCy-Fm1WObEk77shPGALWhn5dWS3ZLXY77+q_4Yp6bAQ@mail.gmail.com>
- <CAGWkznEzRB2RPQEK5+4EYB73UYGMRbNNmMH-FyQqT2_en_q1+g@mail.gmail.com>
- <20190417110615.GC5878@dhcp22.suse.cz>
- <CAGWkznH6MjCkKeAO_1jJ07Ze2E3KHem0aNZ_Vwf080Yg-4Ujbw@mail.gmail.com>
- <20190417114621.GF5878@dhcp22.suse.cz>
- <CAGWkznHgc68AHOs2WNPARmwMMKazuKXL1R4VsPD_jwtzQeVK_Q@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BjZsvhO3;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=nD5N/gZK0Hc9/leGn/iw1G+jz11LpAQc97DIEWLBEH0=;
+        b=BjZsvhO3f2TtZdypKM0jxF9FMvsBQgKsjOjoxn88+v7JSDK6dBNSiffPm+ktPRILcE
+         HmWGSWZxWZHKnDwj5FtEyQyi0yj7N3sx12LtX22qusLXABFr0uNQaTgY4ME5c+GsOW5/
+         cdEURgaDBigSxdcG2kpRozIdV+yh2dtTvlQyqrQdcX1l+FHwwNxp3WKEhssRK+Dtj5ML
+         bol8BNRZ/nTq/h9U2713ozFZCt/zN6G1HMOANjAJqqVeRne08HkFoDLPlb2H/asmksvu
+         e57LwlEC/XyHZJILatdvhwGcZTcgiOGrP3JA0IsDCg6RlFrY0cwU1y9ZqEANl9d65w8L
+         IoVA==
+X-Google-Smtp-Source: APXvYqzYJsHEPZUdZi7dgUmK7iczzP/OpZWI0kCGkirNZhXZR65KeukbkI/1y7q+0vV1rRiXwgEe0vywbPgmOrs7Vcs=
+X-Received: by 2002:a19:3f09:: with SMTP id m9mr14983716lfa.36.1555506054907;
+ Wed, 17 Apr 2019 06:00:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGWkznHgc68AHOs2WNPARmwMMKazuKXL1R4VsPD_jwtzQeVK_Q@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190412160338.64994-1-thellstrom@vmware.com> <20190412160338.64994-2-thellstrom@vmware.com>
+ <CAFqt6zb4qBdrWev1KEruDzPJt5wP4ax_7hUyz+JMV9zLxd_iiw@mail.gmail.com> <e9211a5c28de521bbaabf1c2576c640f3195b0c2.camel@vmware.com>
+In-Reply-To: <e9211a5c28de521bbaabf1c2576c640f3195b0c2.camel@vmware.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Wed, 17 Apr 2019 18:30:43 +0530
+Message-ID: <CAFqt6zYw=Fj8R-18TJ-Xwdjs+AD7nW1pVO57vT8wuUK0Tv+FCQ@mail.gmail.com>
+Subject: Re: [PATCH 1/9] mm: Allow the [page|pfn]_mkwrite callbacks to drop
+ the mmap_sem
+To: Thomas Hellstrom <thellstrom@vmware.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	"peterz@infradead.org" <peterz@infradead.org>, "willy@infradead.org" <willy@infradead.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, 
+	"jglisse@redhat.com" <jglisse@redhat.com>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"will.deacon@arm.com" <will.deacon@arm.com>, 
+	Linux-graphics-maintainer <Linux-graphics-maintainer@vmware.com>, "mhocko@suse.com" <mhocko@suse.com>, 
+	"ying.huang@intel.com" <ying.huang@intel.com>, "riel@surriel.com" <riel@surriel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 17-04-19 20:26:22, Zhaoyang Huang wrote:
-> repost the feedback by under Johannes's comment
+On Wed, Apr 17, 2019 at 4:28 PM Thomas Hellstrom <thellstrom@vmware.com> wr=
+ote:
+>
+> Hi, Souptick,
+>
+> On Sat, 2019-04-13 at 20:41 +0530, Souptick Joarder wrote:
+> > On Fri, Apr 12, 2019 at 9:34 PM Thomas Hellstrom <
+> > thellstrom@vmware.com> wrote:
+> > > Driver fault callbacks are allowed to drop the mmap_sem when
+> > > expecting
+> > > long hardware waits to avoid blocking other mm users. Allow the
+> > > mkwrite
+> > > callbacks to do the same by returning early on VM_FAULT_RETRY.
+> > >
+> > > In particular we want to be able to drop the mmap_sem when waiting
+> > > for
+> > > a reservation object lock on a GPU buffer object. These locks may
+> > > be
+> > > held while waiting for the GPU.
+> > >
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > Cc: Matthew Wilcox <willy@infradead.org>
+> > > Cc: Will Deacon <will.deacon@arm.com>
+> > > Cc: Peter Zijlstra <peterz@infradead.org>
+> > > Cc: Rik van Riel <riel@surriel.com>
+> > > Cc: Minchan Kim <minchan@kernel.org>
+> > > Cc: Michal Hocko <mhocko@suse.com>
+> > > Cc: Huang Ying <ying.huang@intel.com>
+> > > Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+> > > Cc: linux-mm@kvack.org
+> > > Cc: linux-kernel@vger.kernel.org
+> > >
+> > > Signed-off-by: Thomas Hellstrom <thellstrom@vmware.com>
+> > > ---
+> > >  mm/memory.c | 10 ++++++----
+> > >  1 file changed, 6 insertions(+), 4 deletions(-)
+> > >
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index e11ca9dd823f..a95b4a3b1ae2 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -2144,7 +2144,7 @@ static vm_fault_t do_page_mkwrite(struct
+> > > vm_fault *vmf)
+> > >         ret =3D vmf->vma->vm_ops->page_mkwrite(vmf);
+> > >         /* Restore original flags so that caller is not surprised
+> > > */
+> > >         vmf->flags =3D old_flags;
+> > > -       if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+> > > +       if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_RETRY |
+> > > VM_FAULT_NOPAGE)))
+> >
+> > With this patch there will multiple instances of (VM_FAULT_ERROR |
+> > VM_FAULT_RETRY | VM_FAULT_NOPAGE)
+> > in mm/memory.c. Does it make sense to wrap it in a macro and use it ?
+>
+> Even though the code will look neater, it might be trickier to follow a
+> particular error path. Could we perhaps postpone to a follow-up patch?
 
-Please follow up in the original email thread. Fragmenting the
-discussion is exactly what I wanted...
--- 
-Michal Hocko
-SUSE Labs
+Sure. follow-up-patch is fine.
+
+>
+> Thomas
+>
+>
+>
+> >
+> > >                 return ret;
+> > >         if (unlikely(!(ret & VM_FAULT_LOCKED))) {
+> > >                 lock_page(page);
+> > > @@ -2419,7 +2419,7 @@ static vm_fault_t wp_pfn_shared(struct
+> > > vm_fault *vmf)
+> > >                 pte_unmap_unlock(vmf->pte, vmf->ptl);
+> > >                 vmf->flags |=3D FAULT_FLAG_MKWRITE;
+> > >                 ret =3D vma->vm_ops->pfn_mkwrite(vmf);
+> > > -               if (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))
+> > > +               if (ret & (VM_FAULT_ERROR | VM_FAULT_RETRY |
+> > > VM_FAULT_NOPAGE))
+> > >                         return ret;
+> > >                 return finish_mkwrite_fault(vmf);
+> > >         }
+> > > @@ -2440,7 +2440,8 @@ static vm_fault_t wp_page_shared(struct
+> > > vm_fault *vmf)
+> > >                 pte_unmap_unlock(vmf->pte, vmf->ptl);
+> > >                 tmp =3D do_page_mkwrite(vmf);
+> > >                 if (unlikely(!tmp || (tmp &
+> > > -                                     (VM_FAULT_ERROR |
+> > > VM_FAULT_NOPAGE)))) {
+> > > +                                     (VM_FAULT_ERROR |
+> > > VM_FAULT_RETRY |
+> > > +                                      VM_FAULT_NOPAGE)))) {
+> > >                         put_page(vmf->page);
+> > >                         return tmp;
+> > >                 }
+> > > @@ -3494,7 +3495,8 @@ static vm_fault_t do_shared_fault(struct
+> > > vm_fault *vmf)
+> > >                 unlock_page(vmf->page);
+> > >                 tmp =3D do_page_mkwrite(vmf);
+> > >                 if (unlikely(!tmp ||
+> > > -                               (tmp & (VM_FAULT_ERROR |
+> > > VM_FAULT_NOPAGE)))) {
+> > > +                               (tmp & (VM_FAULT_ERROR |
+> > > VM_FAULT_RETRY |
+> > > +                                       VM_FAULT_NOPAGE)))) {
+> > >                         put_page(vmf->page);
+> > >                         return tmp;
+> > >                 }
+> > > --
+> > > 2.20.1
+> > >
 
