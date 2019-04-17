@@ -2,182 +2,132 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 652CFC10F13
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 00:39:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC3C2C10F14
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 01:05:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 076C321773
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 00:39:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="oHdqJATL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 076C321773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 7C56221773
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 01:05:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C56221773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 714026B0271; Tue, 16 Apr 2019 20:39:16 -0400 (EDT)
+	id 020436B0273; Tue, 16 Apr 2019 21:05:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C1856B0272; Tue, 16 Apr 2019 20:39:16 -0400 (EDT)
+	id F117E6B0274; Tue, 16 Apr 2019 21:05:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B2316B0273; Tue, 16 Apr 2019 20:39:16 -0400 (EDT)
+	id E276D6B0275; Tue, 16 Apr 2019 21:05:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 325BD6B0271
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 20:39:16 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id u192so16948720ywf.19
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 17:39:16 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A68646B0273
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2019 21:05:05 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q18so14396438pll.16
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2019 18:05:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=7btjnZJJsVH7a05mL6N2+sPALOw8aN3snjUMwDiACKk=;
-        b=G99Lvt+46ronpZCotwFQtXTcl28M1snOwS6liZa8JM1astB84aQ/NHxwqZ2yRnEnV3
-         ziK3GQ4hKQSqYD1nbgjT5kNLLxYF9R5+fMiFan5+n0Q3I8q+yETmWiJksMU2cId/N2gn
-         BL3uR71ANT/6cOttqcsOW9/CmSgIzChBI1NnnZjcB+sW/o54MtDu6YNZOiKh6lMfQmuY
-         8jUMUjXoGYq+ayCTlJ3z886wJ1+qsr0Js8ICtuSIk421Ng4qAQGQDzX1n2YcB3Y7smA4
-         NHu+ucJOlV4jChZa8cRWCLdLJdhrbnSz8kart1mbQJ+5e4jf2p7omufKzKWsnVK+yVdr
-         FKbg==
-X-Gm-Message-State: APjAAAXXQrU39ungxrHXs/AfTRCCSCsFk7CthJ4KFEZhNMBCPQn1MvcD
-	QGiSwsXRoVz4YaOVKaX+giVT45NbDsho2qFP5d5lQgvqMe6leB/OmITsgrga1prlr9qZpDAXp7y
-	XlxUXGyqwxgS529QO/ieKTmgXidMACCjwOqpVx5KOc+wbgMZ7Wv7OQLdA5Barmv5Dtw==
-X-Received: by 2002:a0d:e856:: with SMTP id r83mr68207072ywe.123.1555461555871;
-        Tue, 16 Apr 2019 17:39:15 -0700 (PDT)
-X-Received: by 2002:a0d:e856:: with SMTP id r83mr68207029ywe.123.1555461554973;
-        Tue, 16 Apr 2019 17:39:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555461554; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=i8fswQ6Co7Q8rAuTvlt/QWn1tWxqFHVVElj+qq9qXsg=;
+        b=oNxoqs4sBgmwH8R+m5ZqzxccgyWhY73glKDZ0gOmGen2fZPrvPmWOTaQPsb2NHfC/U
+         6HrL3Uco+QBeuKrXEhtveaB1jiGo4cGv5wTK8VNfaBTZShHyUSvaGDX5OgLAA5rJ2Q4u
+         mmwb4a+9HTFcOyNKE+D/Mi6b2zT6Y2BehlFT8oMeVwIvlUt//LiN/hPBOdPN5f8QVs7G
+         gCDjFsSoSUKT0J9v7gk7/FqnYiJLxbhSKEtVCdZ3OnnOZcTvjZw9y8+EAF61oUf0O/i7
+         u4FCdJdjN7eRTt7Zec0JXdd0KNgpu5nqJRVs2ViMeOTsQccxwmL6m3hcb7QKrHlCyV7V
+         Tgpg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWpIzPIDOrVT4AxXyHnUFalr3NfSwVGVANOIrfk8qoDrWxnclGD
+	uHH5erVlKQRVc9DAgscw06r9o1sy1VMBpnBvCau+o/H/yC7QWnHoH1vxeombnDWCyCU3Vqq+oFc
+	SXmc/QEosqC6OByTefFIJ4xUCHDcmunQ+W8MneRmbPsRF7HhSUNYZzYFu+3KmhGiQHA==
+X-Received: by 2002:a17:902:8f92:: with SMTP id z18mr87710308plo.123.1555463105180;
+        Tue, 16 Apr 2019 18:05:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQC9en4cAMgSWLYOpY4rPkhNvL7UKIyF2ThqvCjlL21lfQCNZYMq1YV17mKHTxYPrMrP3H
+X-Received: by 2002:a17:902:8f92:: with SMTP id z18mr87710250plo.123.1555463104364;
+        Tue, 16 Apr 2019 18:05:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555463104; cv=none;
         d=google.com; s=arc-20160816;
-        b=WGkmxcR4mXmm26MEUnR4ztH4+idNl89FwakyWzZXd1kznCDDc9bJW7a0Pu0WPTzB0G
-         H+JRmoFtC5rdImnRO4chu9MStZFZVNsgesahQ3Scw4+AD7yco8HKGCzb31DL8x/GTZKR
-         jDBIWbeFlLuGZj0zoCqRGr6zLXTVs55NY4zxFEYDlfzaoULojQyuHSk1qz2158CPXSWb
-         KzBClf53A2OpnZJftV5xwpzXh/U4iFfECcvxHvS4dwotWN4D/l8WNPenzj5+jSEwQ6xD
-         Q7Sq+7m18QK2h01PktavwIGhsKu+6afibMe7viSteXboo0lBpu1mg1XpKK6lK9oKekbc
-         cAig==
+        b=lUYZSrvS0j5ueVTCuBnKzLgfqwyJwXp2hUUa2CEmWWJbY1mYxV9doq3nWi3zRfFY4F
+         7NVwFsooizlWTdrGb/+wdp+mTYktpDEb9aQH2IgltDgPlwF1rPtn1TCvAWc1S/lMjJ1S
+         gASqE8iAla5SRW7oZwvrrlV0Fn75YLN9Lw9qrh+IwPgNLc+abaxCAn9+Wtk131svv4mm
+         nClm897Fguuw0XM6XBKAM/Qbxxav7XLKuFrdEKMfh0rvxuKo4l4NxCKMgSZUTZR6nV0m
+         8ugcxzouDCL9LmHZjaRWFpVAm3vgV85eVIzM/b3V61NljCZ/JF1iNhoW/FEWETEBXyEG
+         +K+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=7btjnZJJsVH7a05mL6N2+sPALOw8aN3snjUMwDiACKk=;
-        b=wlLKTU3TEQHDZ3O6kwmTR73u2nufRDKz3nnUru5jRxDGInI6dD7SknuL56TqruB4IT
-         T/uzsGZagM6XUMyUXhEDEtVUoUp/JNrpJ3eYqRgEInKsp1NHAlNN882BA1feemDCnPCV
-         JHAZqfVNxBfSGO/YEYKjs6kvY6IgC9oaQiYojlvb7Zq5YboBkIhw1UkvH1z8wXi+b4+C
-         pfgFxYIeMiyoHlZt/IWnb+hm36huf16Vn03GD1cz6ln+FlpraG/liOAEXSykpixK7dzu
-         KMKPqEtfntJ6sRAQ1YsmEOp5rRsx52uWU8o7iEUuHAD8yHa9HRPPTr0ht+pJ5gAw3mra
-         8LTw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=i8fswQ6Co7Q8rAuTvlt/QWn1tWxqFHVVElj+qq9qXsg=;
+        b=OiQzsQ8GdObbBl7DrBWiaSklEu3rRIU2poc18LcDK606pnHsQaWCpG8OfBwVmKmc9C
+         Hd4T1H5SHMZ6f/MQVIuqaMrejZcEeiUzxNIMS6H79EVBc7/Y43qZjDu4I5JgUJBVIOBQ
+         g/BV9foX3nLeu52esYAfWx0lYOKUubK26EqWVBWIdvKkHG/ssdmbVWCdMSuB3Ht7upUC
+         ofR47/BdEZMb7ljlbD7dduwtpeR8olwEEv9t8mfsaw07pAzaL4bw0VrkmdrYnlxjzZAo
+         ayDPNtcB3+h9yf46SpJvVYx8naTyTjt9cUvhl0NTySjbJOwGjFsVGpKh5CRlMRhJU6qE
+         xVfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oHdqJATL;
-       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l143sor19380291ywc.88.2019.04.16.17.39.14
+       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id v35si27162266plg.187.2019.04.16.18.05.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 16 Apr 2019 17:39:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Apr 2019 18:05:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oHdqJATL;
-       spf=pass (google.com: domain of groeck@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=7btjnZJJsVH7a05mL6N2+sPALOw8aN3snjUMwDiACKk=;
-        b=oHdqJATLuyujGmQdpy6pAAy0MveEUBULsXkuuvniGSVnmwOa9ri25G42eDf0hzlQ3F
-         xX76v+cuSENRVNKT8+5BRQEBz9hfV9B70W8Rb+efasNgf50WieX903q32kvbfYF4CU46
-         ue5v+6c3f9TF9Wtf6qU3iI4ej8L7aP4P/dgW8wDa+ebC8Sq31iLngTjUarpiOhwQ/lnN
-         uEifeCRbkvOPNUPZ5tySlMW4YcpxO6rEpK0T1gbcYcfnxLvh7IaaYstb/XVsCcOmdF4J
-         r2ay+/4976s+d4vWjenT1xF4/RrpxXAv8QMUXjHhB52V3LIK2mfxOiKz4CBi2zb0PSpg
-         zWmg==
-X-Google-Smtp-Source: APXvYqx3IFpghy7cy1jpETVvvfxbT9vf+YbBghZ/XyV2Jd2vTunl3hvmSW6teNt9gMvXS3K/BXeVFrOu1n7dtKVIHsY=
-X-Received: by 2002:a81:3c14:: with SMTP id j20mr66867617ywa.367.1555461554303;
- Tue, 16 Apr 2019 17:39:14 -0700 (PDT)
+       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=jiufei.xue@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TPVWJz1_1555463088;
+Received: from ali-186590e05fa3.local(mailfrom:jiufei.xue@linux.alibaba.com fp:SMTPD_---0TPVWJz1_1555463088)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 17 Apr 2019 09:04:49 +0800
+Subject: Re: [PATCH v2] fs/fs-writeback: wait isw_nr_in_flight to be zero when
+ umount
+To: Tejun Heo <tj@kernel.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
+ joseph.qi@linux.alibaba.com
+References: <20190416120902.18616-1-jiufei.xue@linux.alibaba.com>
+ <20190416150415.GB374014@devbig004.ftw2.facebook.com>
+From: Jiufei Xue <jiufei.xue@linux.alibaba.com>
+Message-ID: <f3b2fbad-fc9e-d10d-9f81-9701bb387888@linux.alibaba.com>
+Date: Wed, 17 Apr 2019 09:04:48 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <155544804466.1032396.13418949511615676665.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190416164418.3ca1d8cef2713a1154067291@linux-foundation.org> <CAPcyv4iJxyiGWqjGKLuRgjr9UgDO9ERSghUi3k597gk=X5votQ@mail.gmail.com>
-In-Reply-To: <CAPcyv4iJxyiGWqjGKLuRgjr9UgDO9ERSghUi3k597gk=X5votQ@mail.gmail.com>
-From: Guenter Roeck <groeck@google.com>
-Date: Tue, 16 Apr 2019 17:39:03 -0700
-Message-ID: <CABXOdTdSNgEnn+mEk-X5ZWph8rCz+yW7EKiA-GHnZdsBC3rsNg@mail.gmail.com>
-Subject: Re: [PATCH] init: Initialize jump labels before command line option parsing
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Guenter Roeck <groeck@google.com>, 
-	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	Mike Rapoport <rppt@linux.ibm.com>, Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190416150415.GB374014@devbig004.ftw2.facebook.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 5:04 PM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> On Tue, Apr 16, 2019 at 4:44 PM Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > On Tue, 16 Apr 2019 13:54:04 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
-> >
-> > > When a module option, or core kernel argument, toggles a static-key it
-> > > requires jump labels to be initialized early. While x86, PowerPC, and
-> > > ARM64 arrange for jump_label_init() to be called before parse_args(),
-> > > ARM does not.
-> > >
-> > >   Kernel command line: rdinit=/sbin/init page_alloc.shuffle=1 panic=-1 console=ttyAMA0,115200 page_alloc.shuffle=1
-> > >   ------------[ cut here ]------------
-> > >   WARNING: CPU: 0 PID: 0 at ./include/linux/jump_label.h:303
-> > >   page_alloc_shuffle+0x12c/0x1ac
-> > >   static_key_enable(): static key 'page_alloc_shuffle_key+0x0/0x4' used
-> > >   before call to jump_label_init()
-> > >   Modules linked in:
-> > >   CPU: 0 PID: 0 Comm: swapper Not tainted
-> > >   5.1.0-rc4-next-20190410-00003-g3367c36ce744 #1
-> > >   Hardware name: ARM Integrator/CP (Device Tree)
-> > >   [<c0011c68>] (unwind_backtrace) from [<c000ec48>] (show_stack+0x10/0x18)
-> > >   [<c000ec48>] (show_stack) from [<c07e9710>] (dump_stack+0x18/0x24)
-> > >   [<c07e9710>] (dump_stack) from [<c001bb1c>] (__warn+0xe0/0x108)
-> > >   [<c001bb1c>] (__warn) from [<c001bb88>] (warn_slowpath_fmt+0x44/0x6c)
-> > >   [<c001bb88>] (warn_slowpath_fmt) from [<c0b0c4a8>]
-> > >   (page_alloc_shuffle+0x12c/0x1ac)
-> > >   [<c0b0c4a8>] (page_alloc_shuffle) from [<c0b0c550>] (shuffle_store+0x28/0x48)
-> > >   [<c0b0c550>] (shuffle_store) from [<c003e6a0>] (parse_args+0x1f4/0x350)
-> > >   [<c003e6a0>] (parse_args) from [<c0ac3c00>] (start_kernel+0x1c0/0x488)
-> > >
-> > > Move the fallback call to jump_label_init() to occur before
-> > > parse_args(). The redundant calls to jump_label_init() in other archs
-> > > are left intact in case they have static key toggling use cases that are
-> > > even earlier than option parsing.
-> >
-> > Has it been confirmed that this fixes
-> > mm-shuffle-initial-free-memory-to-improve-memory-side-cache-utilization.patch
-> > on beaglebone-black?
->
-> This only fixes dynamically enabling the shuffling on 32-bit ARM.
-> Guenter happened to run without the mm-only 'force-enable-always'
-> patch and when he went to use the command line option to enable it he
-> hit the jump-label warning.
+Hi Tejun,
+
+On 2019/4/16 下午11:04, Tejun Heo wrote:
+> Hello, Jiufei.
+> 
+> On Tue, Apr 16, 2019 at 08:09:02PM +0800, Jiufei Xue wrote:
+>> synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
+>> switch may not go to the workqueue after synchronize_rcu(). Thus
+>> previous scheduled switches was not finished even flushing the
+>> workqueue, which will cause a NULL pointer dereferenced followed below.
+> 
+> Isn't all that's needed replacing the synchronize_rcu() call with a
+> rcu_barrier() call?
 >
 
-For my part I have not seen the original failure; it seems that the
-kernelci logs are no longer present. As such, I neither know how it
-looks like nor how to (try to) reproduce it. I just thought it might
-be worthwhile to run the patch through my boot tests to see if
-anything pops up. From the feedback I got, though, it sounded like the
-failure is/was very omap2 specific, so I would not be able to
-reproduce it anyway.
+Yes, it can be fixed if we replace synchronize_rcu() with rcu_barrier().
+However, I'm worried that rcu_barrier() is too heavyweight and we have
+encountered some hung tasks that rcu_barrier() waiting for callbacks that
+other drivers queued but not handled correctly.
 
-Guenter
+Thanks,
+Jiufei
 
-> The original beaglebone-black failure was something different and
-> avoided this case because the jump-label was never used.
->
-> I am otherwise unable to recreate the failure on either the original
-> failing -next, nor on v5.1-rc5 plus the latest state of the patches. I
-> need from someone who is actually still seeing the failure so they can
-> compare with the configuration that is working for me. For reference
-> that's the Yocto beaglebone-black defconfig:
->
-> https://github.com/jumpnow/meta-bbb/blob/thud/recipes-kernel/linux/linux-stable-5.0/beaglebone/defconfig
+> Thanks.
+> 
 
