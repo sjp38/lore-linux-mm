@@ -2,265 +2,554 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ABEEDC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 23:32:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 257DFC282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 23:41:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3219E218CD
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 23:32:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B3D3C20821
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 23:41:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="cdeV5Co7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3219E218CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="NHp5w1Xb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3D3C20821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A392F6B0005; Wed, 17 Apr 2019 19:32:33 -0400 (EDT)
+	id 613B06B0007; Wed, 17 Apr 2019 19:41:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E8596B0006; Wed, 17 Apr 2019 19:32:33 -0400 (EDT)
+	id 5C16F6B0008; Wed, 17 Apr 2019 19:41:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8FDAA6B0007; Wed, 17 Apr 2019 19:32:33 -0400 (EDT)
+	id 4B3276B000A; Wed, 17 Apr 2019 19:41:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 66C3B6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 19:32:33 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id i203so104695oih.16
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 16:32:33 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 277886B0007
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 19:41:15 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id a75so363874ywh.8
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 16:41:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=WUa9a+RBmWkNHf5y3SQh7mLUba+umXWQDwj4aTSk0ls=;
-        b=SiYa4UV2cbmlkk+C7IypGauTyt5Tct8f1b9VOmpcrqjinxpbeVyooCJ3rrK3YxPmEz
-         9+jZeaw52CitenMNa+WefeiEVEfRz6FSLLnPBNEFduInWxKZ1v6ELx5InPuIu9RisI3v
-         h8krGKV3mW9yqpuNAgLZ9yHhKs8/x/0xZET2YtAsgYyCHhi3CYZ827qnRzi61iGPuM0A
-         C4sLrN24Fw4rWVRHqgi2wXvO3PYdaF1Ficy4CGyA1B8gIvGnaKNGcK2kGW/KxmYA+abH
-         IqnAuNfCBXa5lQaSTklbsAU0vCR06eyW0m4YvO7ooSQoiy+Kk5mx91jx8csNBI/35Wsx
-         Z3nQ==
-X-Gm-Message-State: APjAAAWwZEsOCLqrEfA4Xw7KcIPTI5v4+9yHiVi4YGl2AWIrf9sQ/+UF
-	5mCUzlpIZGUOqwerSdu9G517XZSemo8H3x9y8kNbs0UXNVo2K8Ec8npdzIq9cQumaIwhGpjEn+i
-	hwZ2jeufB+u9+IfgotQ1rIDDyUsh4SPXaTgAYattbeMorC+w4eQunfhVIUEUCzubqPQ==
-X-Received: by 2002:a05:6830:2009:: with SMTP id e9mr58712369otp.142.1555543953039;
-        Wed, 17 Apr 2019 16:32:33 -0700 (PDT)
-X-Received: by 2002:a05:6830:2009:: with SMTP id e9mr58712298otp.142.1555543951708;
-        Wed, 17 Apr 2019 16:32:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555543951; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=mJPmzxmoWhS3EDXGF7dIsedfeSHmmTux1VzuWlnaIWI=;
+        b=F30b8dxi0ga8ZB/yhU7owbI8gAaVJ0aAP9JoQnInyi56WjmoKWdt0V51t09fxrGLZd
+         oHcp3LYOH3t+4udUEiyTamMKIDYw0Au7WodPCiCTFtsL8Ww6EKIJqahqU33jVtq2Tadc
+         SM4yBL5MSbYIe/YG+bIuNCA0uPP6XotmVDvUtevUM7F4DkPgduXq7eQqX/xyOE/jEICY
+         9AHIyVqn1+ZgEW3zQ6Z3BuUrLe4hNwvFFeXnHZhXHsPAwjCyYVurHcEndYQy1heV/jZo
+         sv2amsqQFXabwCUrMhvP7z2dyGOV4DdT7qnjNWHvLjtuyH4gU7PJ3o5NZFQGFdaszYJz
+         9ERg==
+X-Gm-Message-State: APjAAAW/lLZ+skPV84PzpJRTqxs41tS1ugFB2heAz0j2dwuH0eX6ztLM
+	fVIQbdrspn1g821lJYuN89vESJo1SfUepLd2IVjNtT9vcTdLsv4cdnAi6zZrxDKv3dvSIwIT12S
+	aXqxaD8Yf8GUHzOYWJk7j+5MAhAd5Q7l1X1BI5ixYX2DIFVTWWN+f45fwOePtC0Sy3Q==
+X-Received: by 2002:a25:328d:: with SMTP id y135mr73596344yby.203.1555544474796;
+        Wed, 17 Apr 2019 16:41:14 -0700 (PDT)
+X-Received: by 2002:a25:328d:: with SMTP id y135mr73596295yby.203.1555544473819;
+        Wed, 17 Apr 2019 16:41:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555544473; cv=none;
         d=google.com; s=arc-20160816;
-        b=cGRwaPiWrQc6L2I6YWOQTdeyadlOpdCQas8X/P8SQv2uw6ObPBqrAb84VDCxTeg4xy
-         Bj739f9FeRM2kWltwkadK4aSnoQgyTU2vx2rfKsvLDa94dlyISb3XmHOAdG7RKMPwa8G
-         IyeOzBbss1tcFC72or1ERUtQQ+Z1IUa5iQpq0inWhoh1UkJ2pfvxwqALU/cun/1BtUlm
-         IDB9cGKA66ezL0frHJusSp1WfWQh2LLCK1ar+d2j6SHI5Bk/RuMdlkCNWHwuW2o4t5PU
-         OiiHIN7eGqNEEoBB3zd6syIMeLKowws8HGfwfd+Webq6Fd/pVvc4nipA1SPNRGEnJRhW
-         bfww==
+        b=rzS/FynipRxhImP+kJyDehNNdmbKxHKQg19nVG4kyTyEnWmOkk1Xr59vJg3Al7SUFB
+         Z/do5jGiKQzpgxDo8z6VQ30JSnpq4xSiDvgBcC6NwvgQFZ3uqnqgQ8mP/rMdBXVrNMlz
+         YJH673dtDrwfcfhn9hOea8CP3HgGuJakhSPLLzaJ0DJdIbLCz+yoIMnTnkZiG/+5vSSQ
+         E5R/djom3mxlG8L2hPYA0/kqBuU8B2wAK+JtwMSTH4ERsHC5SU9AEWqm/bhN1vTtL4C3
+         X6wnOlAfQYmlO+8RA5sxsLo6She3j8pYGVK/3WSy5pCt/FQhD9XVp82BcqOvf75OJKBK
+         7MvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=WUa9a+RBmWkNHf5y3SQh7mLUba+umXWQDwj4aTSk0ls=;
-        b=tWcYeyd/Rzmyi7HF0lOYWAWC5P/KVNXH3dABHR/NjcKZq8onJFvgC7wkUFPY3O1aet
-         bjGb2ypSQ3Yjhx0e2hfiwP/OAOUurou7J/NcUoEalG4lqG0nvUlQaSiXb2eMLBIFQ4hw
-         oqwOu+e2q5VpaKWyRy0foZu2QXRZkS/DruTHt3Smzvd54g1N1qy4AyadmYUygOn7jntz
-         clUSzF9Lhh7E+PBTB2S2ihAaDeEnKj2P4gqiQ/sDG/S+b4R1dXXfrr0CrU8/pf5JxwhL
-         KrKr6SqHe2GvHDi75KhuT1Sz38Nrqy9dbjprX0eFj48mdGzNFHeai8BfdnwL8VX/OW38
-         GGVA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=mJPmzxmoWhS3EDXGF7dIsedfeSHmmTux1VzuWlnaIWI=;
+        b=y6FW7/ExMZRyntBFHWkGvUQ2dEATD/xCYQcsHNBDPhy4+JPV50lWKCfz8xDwclSpC/
+         bsvQ4mUlYWERTAyiK3hBNV7rLyn/r6R5A9s+L6AGUsFuUFi4SDJ71ugZpMS6zUNEkgdN
+         Ig96JQ/EN2eEmymV7M0ySuf/uhhc/u7wL16tv2QLyW5Ic0c9pfMjzweP0nEXe5ARBaW5
+         FOoTawQHz3KnjaIDt6vqD81r4NgtcDgjNI1+EdNirUbzeFSi7jqkdYYGvQjWCtdersq5
+         Lmv4vcYNUDh7Wp85JdXxf9kINkAdgxtH95fowj2EaPLZ6yDW6r7k9f4RtvwVYjBK3Z1n
+         j0sg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cdeV5Co7;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=NHp5w1Xb;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i125sor134193oif.64.2019.04.17.16.32.31
+        by mx.google.com with SMTPS id 136sor164061ywy.27.2019.04.17.16.41.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 16:32:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 17 Apr 2019 16:41:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=cdeV5Co7;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=NHp5w1Xb;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=WUa9a+RBmWkNHf5y3SQh7mLUba+umXWQDwj4aTSk0ls=;
-        b=cdeV5Co7FAIJCJ2uthEYHgkj7jQNxGzx7ep9TxpYX5XjNACqdOXejoY266/1dBGT5M
-         HnOS3LX5PyUx96RYsO78EGPeUYXbdW74e5bDa8sZ5vVxuHLUqmrt7d1lOuoWCBHWGzy8
-         xuY1jwqv3CaVJICAqpnL8lY6WUDfMYs2rB06UznxAPbAxe/HLtMac3hWxZ5Lnpu+DD2P
-         FfSD0YdX/bwEj7E0mFYdVg825B6LZR777NjVV7BkfTHFkmP0P5WxTahHPOMEXjKUg6Ni
-         BwMDTzHGtAb9IyFMr4Qaq9rMED9Qtj8WcU2oFxPFFxXV9Yd6HzUyKqvSRbYw9OGlGYjD
-         zNcQ==
-X-Google-Smtp-Source: APXvYqxbYEcI7nDGR81hG8KpBIqWV+qkrRq7k1+Hbw9zZA5mDoWe6Sbms3neiEWQu/uX94yQ5kYig9QFQfhwENdENQ8=
-X-Received: by 2002:aca:ed88:: with SMTP id l130mr99825oih.70.1555543951170;
- Wed, 17 Apr 2019 16:32:31 -0700 (PDT)
+         :cc;
+        bh=mJPmzxmoWhS3EDXGF7dIsedfeSHmmTux1VzuWlnaIWI=;
+        b=NHp5w1XbRMVVNridXcbf1o3lFAIXDaZ71/OZu96793CLg0Ttxgi3ojuuum8XF6kZC8
+         r4IzGfxzbxrSwSOtPEEfmSqz+rx5wgLmzUJ4qh8N9JRRXsWWjjGaA9PzdxmKVmFvSSN8
+         OaI0O/bsXShj9pczchwG+EtQhUt7hHr4ZjIyZdAW2uXaPwsLeQbPKm3d9vGHT0OdqUdW
+         PswIdAA02nTYso4bD8zd9KnzZ3YmuNm/ADTtr7glvsoDhz6pJXWJablyrNNzeCAtWi82
+         fWV3Qq3HdgVuOuceY4bwB920CX+r8CHM/e9Z9HOw2qQx7DXLdJ4ucx5EJOhnSqFBuL3K
+         NE9A==
+X-Google-Smtp-Source: APXvYqz1ujsFDB6PqY0nLZsnR3+anBFD5rEIK/njuNGRa5yY37dUeNTDMCloR37xl+Z1omJvcoGFvylPYrUhXNKuRrk=
+X-Received: by 2002:a81:78c6:: with SMTP id t189mr71276104ywc.27.1555544473056;
+ Wed, 17 Apr 2019 16:41:13 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190411210834.4105-1-jglisse@redhat.com> <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
- <20190416185922.GA12818@kmo-pixel> <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
- <20190416194936.GD21526@redhat.com> <CAPcyv4i-YHH+dH8za1i1aMcHzQXfovVSrRFp_nfa-KYN-XhAvw@mail.gmail.com>
- <20190417222858.GA4146@redhat.com>
-In-Reply-To: <20190417222858.GA4146@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 17 Apr 2019 16:32:19 -0700
-Message-ID: <CAPcyv4h8Wfy_ry54NOCeFGncwDPCfizpsntbD-w+E11fuf13zQ@mail.gmail.com>
-Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Kent Overstreet <kent.overstreet@gmail.com>, Boaz Harrosh <boaz@plexistor.com>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org, 
-	Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>, 
-	Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Thumshirn <jthumshirn@suse.de>, 
-	Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>, 
-	Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>, Steve French <sfrench@samba.org>, 
-	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, 
-	Yan Zheng <zyan@redhat.com>, Sage Weil <sage@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, 
-	Alex Elder <elder@kernel.org>, ceph-devel@vger.kernel.org, 
-	Eric Van Hensbergen <ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net>, Mike Marshall <hubcap@omnibond.com>, 
-	Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org, 
-	Dominique Martinet <asmadeus@codewreck.org>, v9fs-developer@lists.sourceforge.net, 
-	Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org, 
-	=?UTF-8?Q?Ernesto_A=2E_Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>
+References: <20190417215434.25897-1-guro@fb.com> <20190417215434.25897-5-guro@fb.com>
+In-Reply-To: <20190417215434.25897-5-guro@fb.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 17 Apr 2019 16:41:01 -0700
+Message-ID: <CALvZod5K8SM2EQFH1WM9bbwWBtyXWb_PvzJGvF5dg1Z=bdR7zg@mail.gmail.com>
+Subject: Re: [PATCH 4/5] mm: rework non-root kmem_cache lifecycle management
+To: Roman Gushchin <guroan@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Kernel Team <kernel-team@fb.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>, 
+	david@fromorbit.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, 
+	Roman Gushchin <guro@fb.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 3:29 PM Jerome Glisse <jglisse@redhat.com> wrote:
+On Wed, Apr 17, 2019 at 2:55 PM Roman Gushchin <guroan@gmail.com> wrote:
 >
-> On Wed, Apr 17, 2019 at 02:53:28PM -0700, Dan Williams wrote:
-> > On Tue, Apr 16, 2019 at 12:50 PM Jerome Glisse <jglisse@redhat.com> wro=
-te:
-> > >
-> > > On Tue, Apr 16, 2019 at 12:12:27PM -0700, Dan Williams wrote:
-> > > > On Tue, Apr 16, 2019 at 11:59 AM Kent Overstreet
-> > > > <kent.overstreet@gmail.com> wrote:
-> > > > >
-> > > > > On Tue, Apr 16, 2019 at 09:35:04PM +0300, Boaz Harrosh wrote:
-> > > > > > On Thu, Apr 11, 2019 at 05:08:19PM -0400, jglisse@redhat.com wr=
-ote:
-> > > > > > > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > > > > > >
-> > > > > > > This patchset depends on various small fixes [1] and also on =
-patchset
-> > > > > > > which introduce put_user_page*() [2] and thus is 5.3 material=
- as those
-> > > > > > > pre-requisite will get in 5.2 at best. Nonetheless i am posti=
-ng it now
-> > > > > > > so that it can get review and comments on how and what should=
- be done
-> > > > > > > to test things.
-> > > > > > >
-> > > > > > > For various reasons [2] [3] we want to track page reference t=
-hrough GUP
-> > > > > > > differently than "regular" page reference. Thus we need to ke=
-ep track
-> > > > > > > of how we got a page within the block and fs layer. To do so =
-this patch-
-> > > > > > > set change the bio_bvec struct to store a pfn and flags inste=
-ad of a
-> > > > > > > direct pointer to a page. This way we can flag page that are =
-coming from
-> > > > > > > GUP.
-> > > > > > >
-> > > > > > > This patchset is divided as follow:
-> > > > > > >     - First part of the patchset is just small cleanup i beli=
-eve they
-> > > > > > >       can go in as his assuming people are ok with them.
-> > > > > >
-> > > > > >
-> > > > > > >     - Second part convert bio_vec->bv_page to bio_vec->bv_pfn=
- this is
-> > > > > > >       done in multi-step, first we replace all direct derefer=
-ence of
-> > > > > > >       the field by call to inline helper, then we introduce m=
-acro for
-> > > > > > >       bio_bvec that are initialized on the stack. Finaly we c=
-hange the
-> > > > > > >       bv_page field to bv_pfn.
-> > > > > >
-> > > > > > Why do we need a bv_pfn. Why not just use the lowest bit of the=
- page-ptr
-> > > > > > as a flag (pointer always aligned to 64 bytes in our case).
-> > > > > >
-> > > > > > So yes we need an inline helper for reference of the page but i=
-s it not clearer
-> > > > > > that we assume a page* and not any kind of pfn ?
-> > > > > > It will not be the first place using low bits of a pointer for =
-flags.
-> > > > > >
-> > > > > > That said. Why we need it at all? I mean why not have it as a b=
-io flag. If it exist
-> > > > > > at all that a user has a GUP and none-GUP pages to IO at the sa=
-me request he/she
-> > > > > > can just submit them as two separate BIOs (chained at the block=
- layer).
-> > > > > >
-> > > > > > Many users just submit one page bios and let elevator merge the=
-m any way.
-> > > > >
-> > > > > Let's please not add additional flags and weirdness to struct bio=
- - "if this
-> > > > > flag is set interpret one way, if not interpret another" - or eve=
-ntually bios
-> > > > > will be as bad as skbuffs. I would much prefer just changing bv_p=
-age to bv_pfn.
-> > > >
-> > > > This all reminds of the failed attempt to teach the block layer to
-> > > > operate without pages:
-> > > >
-> > > > https://lore.kernel.org/lkml/20150316201640.33102.33761.stgit@dwill=
-ia2-desk3.amr.corp.intel.com/
-> > > >
-> > > > >
-> > > > > Question though - why do we need a flag for whether a page is a G=
-UP page or not?
-> > > > > Couldn't the needed information just be determined by what range =
-the pfn is not
-> > > > > (i.e. whether or not it has a struct page associated with it)?
-> > > >
-> > > > That amounts to a pfn_valid() check which is a bit heavier than if =
-we
-> > > > can store a flag in the bv_pfn entry directly.
-> > > >
-> > > > I'd say create a new PFN_* flag, and make bv_pfn a 'pfn_t' rather t=
-han
-> > > > an 'unsigned long'.
-> > > >
-> > > > That said, I'm still in favor of Jan's proposal to just make the
-> > > > bv_page semantics uniform. Otherwise we're complicating this core
-> > > > infrastructure for some yet to be implemented GPU memory management
-> > > > capabilities with yet to be determined value. Circle back when that
-> > > > value is clear, but in the meantime fix the GUP bug.
-> > >
-> > > This has nothing to do with GPU, what make you think so ? Here i am
-> > > trying to solve GUP and to keep the value of knowing wether a page
-> > > has been GUP or not. I argue that if we bias every page in every bio
-> > > then we loose that information and thus the value.
-> > >
-> > > I gave the page protection mechanisms as an example that would be
-> > > impacted but it is not the only one. Knowing if a page has been GUP
-> > > can be useful for memory reclaimation, compaction, NUMA balancing,
-> >
-> > Right, this is what I was reacting to in your pushback to Jan's
-> > proposal. You're claiming value for not doing the simple thing for
-> > some future "may be useful in these contexts". To my knowledge those
-> > things are not broken today. You're asking for the complexity to be
-> > carried today for some future benefit, and I'm asking for the
-> > simplicity to be maintained as much as possible today and let the
-> > value of future changes stand on their own to push for more complexity
-> > later.
-> >
-> > Effectively don't use this bug fix to push complexity for a future
-> > agenda where the value has yet to be quantified.
+> This commit makes several important changes in the lifecycle
+> of a non-root kmem_cache, which also affect the lifecycle
+> of a memory cgroup.
 >
-> Except that this solution (biasing everyone in bio) would _more complex_
-> it is only conceptualy appealing. The changes are on the other hand much
-> deeper and much riskier but you decided to ignore that and focus on some-
-> thing i was just giving as an example.
+> Currently each charged slab page has a page->mem_cgroup pointer
+> to the memory cgroup and holds a reference to it.
+> Kmem_caches are held by the cgroup. On offlining empty kmem_caches
+> are freed, all other are freed on cgroup release.
 
-Not ignoring, asking for more clarification on the complexity it
-introduces independent of potential future uses.
+No, they are not freed (i.e. destroyed) on offlining, only
+deactivated. All memcg kmem_caches are freed/destroyed on memcg's
+css_free.
+
+>
+> So the current scheme can be illustrated as:
+> page->mem_cgroup->kmem_cache.
+>
+> To implement the slab memory reparenting we need to invert the scheme
+> into: page->kmem_cache->mem_cgroup.
+>
+> Let's make every page to hold a reference to the kmem_cache (we
+> already have a stable pointer), and make kmem_caches to hold a single
+> reference to the memory cgroup.
+
+What about memcg_kmem_get_cache()? That function assumes that by
+taking reference on memcg, it's kmem_caches will stay. I think you
+need to get reference on the kmem_cache in memcg_kmem_get_cache()
+within the rcu lock where you get the memcg through css_tryget_online.
+
+>
+> To make this possible we need to introduce a new refcounter
+> for non-root kmem_caches. It's atomic for now, but can be easily
+> converted to a percpu counter, had we any performance penalty*.
+> The initial value is set to 1, and it's decremented on deactivation,
+> so we never shutdown an active cache.
+>
+> To shutdown non-active empty kmem_caches, let's reuse the
+> infrastructure of the RCU-delayed work queue, used previously for
+> the deactivation. After the generalization, it's perfectly suited
+> for our needs.
+>
+> Since now we can release a kmem_cache at any moment after the
+> deactivation, let's call sysfs_slab_remove() only from the shutdown
+> path. It makes deactivation path simpler.
+>
+> Because we don't set the page->mem_cgroup pointer, we need to change
+> the way how memcg-level stats is working for slab pages. We can't use
+> mod_lruvec_page_state() helpers anymore, so switch over to
+> mod_lruvec_state().
+>
+> * I used the following simple approach to test the performance
+> (stolen from another patchset by T. Harding):
+>
+>     time find / -name fname-no-exist
+>     echo 2 > /proc/sys/vm/drop_caches
+>     repeat several times
+>
+> Results (I've chosen best results in several runs):
+>
+>         orig       patched
+>
+> real    0m0.712s   0m0.690s
+> user    0m0.104s   0m0.101s
+> sys     0m0.346s   0m0.340s
+>
+> real    0m0.728s   0m0.723s
+> user    0m0.114s   0m0.115s
+> sys     0m0.342s   0m0.338s
+>
+> real    0m0.685s   0m0.767s
+> user    0m0.118s   0m0.114s
+> sys     0m0.343s   0m0.336s
+>
+> So it looks like the difference is not noticeable in this test.
+>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> ---
+>  include/linux/slab.h |  2 +-
+>  mm/memcontrol.c      |  9 ++++----
+>  mm/slab.c            | 15 +-----------
+>  mm/slab.h            | 54 +++++++++++++++++++++++++++++++++++++++++---
+>  mm/slab_common.c     | 51 +++++++++++++++++------------------------
+>  mm/slub.c            | 22 +-----------------
+>  6 files changed, 79 insertions(+), 74 deletions(-)
+>
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 47923c173f30..4daaade76c63 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -152,7 +152,6 @@ int kmem_cache_shrink(struct kmem_cache *);
+>
+>  void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
+>  void memcg_deactivate_kmem_caches(struct mem_cgroup *);
+> -void memcg_destroy_kmem_caches(struct mem_cgroup *);
+>
+>  /*
+>   * Please use this macro to create slab caches. Simply specify the
+> @@ -641,6 +640,7 @@ struct memcg_cache_params {
+>                         struct mem_cgroup *memcg;
+>                         struct list_head children_node;
+>                         struct list_head kmem_caches_node;
+> +                       atomic_long_t refcnt;
+>
+>                         void (*work_fn)(struct kmem_cache *);
+>                         union {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b2c39f187cbb..87c06e342e05 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2719,9 +2719,6 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+>                 cancel_charge(memcg, nr_pages);
+>                 return -ENOMEM;
+>         }
+> -
+> -       page->mem_cgroup = memcg;
+> -
+>         return 0;
+>  }
+>
+> @@ -2744,8 +2741,10 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+>         memcg = get_mem_cgroup_from_current();
+>         if (!mem_cgroup_is_root(memcg)) {
+>                 ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+> -               if (!ret)
+> +               if (!ret) {
+> +                       page->mem_cgroup = memcg;
+>                         __SetPageKmemcg(page);
+> +               }
+>         }
+>         css_put(&memcg->css);
+>         return ret;
+> @@ -3238,7 +3237,7 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
+>                 memcg_offline_kmem(memcg);
+>
+>         if (memcg->kmem_state == KMEM_ALLOCATED) {
+> -               memcg_destroy_kmem_caches(memcg);
+> +               WARN_ON(!list_empty(&memcg->kmem_caches));
+>                 static_branch_dec(&memcg_kmem_enabled_key);
+>                 WARN_ON(page_counter_read(&memcg->kmem));
+>         }
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 14466a73d057..171b21ca617f 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1389,7 +1389,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+>                                                                 int nodeid)
+>  {
+>         struct page *page;
+> -       int nr_pages;
+>
+>         flags |= cachep->allocflags;
+>
+> @@ -1404,12 +1403,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+>                 return NULL;
+>         }
+>
+> -       nr_pages = (1 << cachep->gfporder);
+> -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+> -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
+> -       else
+> -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, nr_pages);
+> -
+>         __SetPageSlab(page);
+>         /* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+>         if (sk_memalloc_socks() && page_is_pfmemalloc(page))
+> @@ -1424,12 +1417,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+>  static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+>  {
+>         int order = cachep->gfporder;
+> -       unsigned long nr_freed = (1 << order);
+> -
+> -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+> -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, -nr_freed);
+> -       else
+> -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, -nr_freed);
+>
+>         BUG_ON(!PageSlab(page));
+>         __ClearPageSlabPfmemalloc(page);
+> @@ -1438,7 +1425,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+>         page->mapping = NULL;
+>
+>         if (current->reclaim_state)
+> -               current->reclaim_state->reclaimed_slab += nr_freed;
+> +               current->reclaim_state->reclaimed_slab += 1 << order;
+>         memcg_uncharge_slab(page, order, cachep);
+>         __free_pages(page, order);
+>  }
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 4a261c97c138..1f49945f5c1d 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -173,7 +173,9 @@ void __kmem_cache_release(struct kmem_cache *);
+>  int __kmem_cache_shrink(struct kmem_cache *);
+>  void __kmemcg_cache_deactivate(struct kmem_cache *s);
+>  void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
+> +void kmemcg_cache_shutdown(struct kmem_cache *s);
+>  void slab_kmem_cache_release(struct kmem_cache *);
+> +void kmemcg_queue_cache_shutdown(struct kmem_cache *s);
+>
+>  struct seq_file;
+>  struct file;
+> @@ -274,19 +276,65 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
+>         return s->memcg_params.root_cache;
+>  }
+>
+> +static __always_inline void kmemcg_cache_get_many(struct kmem_cache *s, long n)
+> +{
+> +       atomic_long_add(n, &s->memcg_params.refcnt);
+> +}
+> +
+> +static __always_inline void kmemcg_cache_put_many(struct kmem_cache *s, long n)
+> +{
+> +       if (atomic_long_sub_and_test(n, &s->memcg_params.refcnt))
+> +               kmemcg_queue_cache_shutdown(s);
+> +}
+> +
+>  static __always_inline int memcg_charge_slab(struct page *page,
+>                                              gfp_t gfp, int order,
+>                                              struct kmem_cache *s)
+>  {
+> -       if (is_root_cache(s))
+> +       int idx = (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+> +               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
+> +       struct mem_cgroup *memcg;
+> +       struct lruvec *lruvec;
+> +       int ret;
+> +
+> +       if (is_root_cache(s)) {
+> +               mod_node_page_state(page_pgdat(page), idx, 1 << order);
+>                 return 0;
+> -       return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
+> +       }
+> +
+> +       memcg = s->memcg_params.memcg;
+> +       ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
+> +       if (!ret) {
+> +               lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+> +               mod_lruvec_state(lruvec, idx, 1 << order);
+> +
+> +               /* transer try_charge() page references to kmem_cache */
+> +               kmemcg_cache_get_many(s, 1 << order);
+> +               css_put_many(&memcg->css, 1 << order);
+> +       }
+> +
+> +       return 0;
+>  }
+>
+>  static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+>                                                 struct kmem_cache *s)
+>  {
+> -       memcg_kmem_uncharge(page, order);
+> +       int idx = (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+> +               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
+> +       struct mem_cgroup *memcg;
+> +       struct lruvec *lruvec;
+> +
+> +       if (is_root_cache(s)) {
+> +               mod_node_page_state(page_pgdat(page), idx, -(1 << order));
+> +               return;
+> +       }
+> +
+> +       memcg = s->memcg_params.memcg;
+> +       lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+> +       mod_lruvec_state(lruvec, idx, -(1 << order));
+> +       memcg_kmem_uncharge_memcg(page, order, memcg);
+> +
+> +       kmemcg_cache_put_many(s, 1 << order);
+>  }
+>
+>  extern void slab_init_memcg_params(struct kmem_cache *);
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 4e5b4292a763..3fdd02979a1c 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -148,6 +148,7 @@ static int init_memcg_params(struct kmem_cache *s,
+>                 s->memcg_params.root_cache = root_cache;
+>                 INIT_LIST_HEAD(&s->memcg_params.children_node);
+>                 INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
+> +               atomic_long_set(&s->memcg_params.refcnt, 1);
+>                 return 0;
+>         }
+>
+> @@ -225,6 +226,7 @@ void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg)
+>         if (is_root_cache(s)) {
+>                 list_add(&s->root_caches_node, &slab_root_caches);
+>         } else {
+> +               css_get(&memcg->css);
+>                 s->memcg_params.memcg = memcg;
+>                 list_add(&s->memcg_params.children_node,
+>                          &s->memcg_params.root_cache->memcg_params.children);
+> @@ -240,6 +242,7 @@ static void memcg_unlink_cache(struct kmem_cache *s)
+>         } else {
+>                 list_del(&s->memcg_params.children_node);
+>                 list_del(&s->memcg_params.kmem_caches_node);
+> +               css_put(&s->memcg_params.memcg->css);
+>         }
+>  }
+>  #else
+> @@ -703,21 +706,19 @@ static void kmemcg_after_rcu_workfn(struct work_struct *work)
+>
+>         s->memcg_params.work_fn(s);
+>         s->memcg_params.work_fn = NULL;
+> +       kmemcg_cache_put_many(s, 1);
+>
+>         mutex_unlock(&slab_mutex);
+>
+>         put_online_mems();
+>         put_online_cpus();
+> -
+> -       /* done, put the ref from slab_deactivate_memcg_cache_rcu_sched() */
+> -       css_put(&s->memcg_params.memcg->css);
+>  }
+>
+>  /*
+>   * We need to grab blocking locks.  Bounce to ->work.  The
+>   * work item shares the space with the RCU head and can't be
+> - * initialized eariler.
+> -*/
+> + * initialized earlier.
+> + */
+>  static void kmemcg_schedule_work_after_rcu(struct rcu_head *head)
+>  {
+>         struct kmem_cache *s = container_of(head, struct kmem_cache,
+> @@ -727,6 +728,21 @@ static void kmemcg_schedule_work_after_rcu(struct rcu_head *head)
+>         queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
+>  }
+>
+> +static void kmemcg_cache_shutdown_after_rcu(struct kmem_cache *s)
+> +{
+> +       WARN_ON(shutdown_cache(s));
+> +}
+> +
+> +void kmemcg_queue_cache_shutdown(struct kmem_cache *s)
+> +{
+> +       if (s->memcg_params.root_cache->memcg_params.dying)
+> +               return;
+> +
+> +       WARN_ON(s->memcg_params.work_fn);
+> +       s->memcg_params.work_fn = kmemcg_cache_shutdown_after_rcu;
+> +       call_rcu(&s->memcg_params.rcu_head, kmemcg_schedule_work_after_rcu);
+> +}
+> +
+>  static void kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s)
+>  {
+>         __kmemcg_cache_deactivate_after_rcu(s);
+> @@ -739,9 +755,6 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
+>         if (s->memcg_params.root_cache->memcg_params.dying)
+>                 return;
+>
+> -       /* pin memcg so that @s doesn't get destroyed in the middle */
+> -       css_get(&s->memcg_params.memcg->css);
+> -
+>         WARN_ON_ONCE(s->memcg_params.work_fn);
+>         s->memcg_params.work_fn = kmemcg_cache_deactivate_after_rcu;
+>         call_rcu(&s->memcg_params.rcu_head, kmemcg_schedule_work_after_rcu);
+> @@ -775,28 +788,6 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
+>         put_online_cpus();
+>  }
+>
+> -void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
+> -{
+> -       struct kmem_cache *s, *s2;
+> -
+> -       get_online_cpus();
+> -       get_online_mems();
+> -
+> -       mutex_lock(&slab_mutex);
+> -       list_for_each_entry_safe(s, s2, &memcg->kmem_caches,
+> -                                memcg_params.kmem_caches_node) {
+> -               /*
+> -                * The cgroup is about to be freed and therefore has no charges
+> -                * left. Hence, all its caches must be empty by now.
+> -                */
+> -               BUG_ON(shutdown_cache(s));
+> -       }
+> -       mutex_unlock(&slab_mutex);
+> -
+> -       put_online_mems();
+> -       put_online_cpus();
+> -}
+> -
+>  static int shutdown_memcg_caches(struct kmem_cache *s)
+>  {
+>         struct memcg_cache_array *arr;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 195f61785c7d..a28b3b3abf29 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1692,11 +1692,6 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>         if (!page)
+>                 return NULL;
+>
+> -       mod_lruvec_page_state(page,
+> -               (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+> -               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+> -               1 << oo_order(oo));
+> -
+>         inc_slabs_node(s, page_to_nid(page), page->objects);
+>
+>         return page;
+> @@ -1730,11 +1725,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>                         check_object(s, page, p, SLUB_RED_INACTIVE);
+>         }
+>
+> -       mod_lruvec_page_state(page,
+> -               (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+> -               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+> -               -pages);
+> -
+>         __ClearPageSlabPfmemalloc(page);
+>         __ClearPageSlab(page);
+>
+> @@ -4037,18 +4027,8 @@ void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s)
+>  {
+>         /*
+>          * Called with all the locks held after a sched RCU grace period.
+> -        * Even if @s becomes empty after shrinking, we can't know that @s
+> -        * doesn't have allocations already in-flight and thus can't
+> -        * destroy @s until the associated memcg is released.
+> -        *
+> -        * However, let's remove the sysfs files for empty caches here.
+> -        * Each cache has a lot of interface files which aren't
+> -        * particularly useful for empty draining caches; otherwise, we can
+> -        * easily end up with millions of unnecessary sysfs files on
+> -        * systems which have a lot of memory and transient cgroups.
+>          */
+> -       if (!__kmem_cache_shrink(s))
+> -               sysfs_slab_remove(s);
+> +       __kmem_cache_shrink(s);
+>  }
+>
+>  void __kmemcg_cache_deactivate(struct kmem_cache *s)
+> --
+> 2.20.1
+>
 
