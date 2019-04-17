@@ -2,247 +2,385 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76118C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 10:46:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53413C10F12
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 10:55:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25FB520821
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 10:46:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C6BF4206B6
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 10:55:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=synopsys.com header.i=@synopsys.com header.b="bRbh/bvP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25FB520821
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=synopsys.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sN9XezfJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6BF4206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AC9766B0003; Wed, 17 Apr 2019 06:46:27 -0400 (EDT)
+	id 237966B0007; Wed, 17 Apr 2019 06:55:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7A276B0006; Wed, 17 Apr 2019 06:46:27 -0400 (EDT)
+	id 1E5C36B0008; Wed, 17 Apr 2019 06:55:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 969416B0007; Wed, 17 Apr 2019 06:46:27 -0400 (EDT)
+	id 0FDA76B000A; Wed, 17 Apr 2019 06:55:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 615DA6B0003
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 06:46:27 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so16039362pfn.8
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:46:27 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AF3CA6B0007
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 06:55:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d2so12214242edo.23
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 03:55:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=H5qA+xaLiKYAH0vO3rc8Zm1a1boQ6e4tpqTNh9ER2Sk=;
-        b=OtQCwywlvZam7YZi9IrE7obiEVv7qKfbOeNOY2OQDnJbOVH2QHtU6IFnLVEFyd10ah
-         TkDrZ0KobcI/cDYeFmFSFjteju3ACf+tCgNj6guyl8NzNLq0gDaD2wWK6zfaJWi+/aID
-         eIBIDmsH597uXa7ofcESmG6D6y6azI8uzQmpgrT4+lxphyCxbH+mbLlVxFbptpwIyZ/Y
-         Dp2JKSOTQ73Mkc+ByjxmYHDukWgniYCHfuT2rV+Q+lHx5FDXUcoerkocVBkUfGdRFWsb
-         NcW0CasVTUU4ceeLKimIFY9Be3G66QRAXcgeBQxoMBU8T4sZOcyQn36JyELCvQFfZajF
-         Ss4Q==
-X-Gm-Message-State: APjAAAUr1IF6RQlXERz8eELYE8lEt+1nR2JCExZ7MYJ/8S74i43g5xyk
-	AVHDE0O6Z9OgsEnmJarJKAbGsNCS8b546wDh1L6FCRqcLEieeMD67v0YmfWEQ+PJ/LFboUvDBnt
-	h4Ul05M5Daa1GkR8tkd9bQOJbLOivsQLJXpn7IWbhkZRiWe54lKGkI0uTN1tz0p3jIA==
-X-Received: by 2002:a17:902:3064:: with SMTP id u91mr66702037plb.169.1555497986510;
-        Wed, 17 Apr 2019 03:46:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3CD8Dkhw5VdbRI4EaPUZIAYKSwQFgdcS9pzz+RAKYmR5RAYAZCVHSCTe5gS7xfeFG5Pp0
-X-Received: by 2002:a17:902:3064:: with SMTP id u91mr66701924plb.169.1555497984821;
-        Wed, 17 Apr 2019 03:46:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555497984; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to;
+        bh=ywsDRnZXw0K4iHU5gOwpw1ILwLsnoHeavnwibTGmBkc=;
+        b=SGjDvSHsY4LtH60wRAgEXt54NNg0riyzIa/gNg0MZmnQaHZRqka049RcXpBJyMTLKO
+         PWJ9vBXnpDFt8zGX/G7MN0/mJ58bTNDupBZ9TA3rZAy9b6L1CAHhPWUV4YunYVX4/cyP
+         FupAhdJ/ysTf7T6CEVYpZ0dlxjx2VU5HLELZ4U+7SUzQMtXtMWxxyGeki86ceAIxegyL
+         qe8wJeEJu4TSuD6arO55UOf1x1y2iQIb4XMaFTHBE2MbEk+XTlaZ6PPJvK1algBeUHeV
+         zXprfnpVfbg1Dwi9othNn6x3NrjW08QPO2n7P/ZOpBrR+24V+iqrmU/Lcc4vYjfDkTDR
+         H9Zg==
+X-Gm-Message-State: APjAAAUfBra/tAfdJi2S9xkYT08nA9QO5zRDIcBOw/k07cE9sBRL3j+8
+	hmtQu6uL4O1S+HRjmBSW4/6cmdEB78SvcbRO0qkag3pJ9rgEjokOzLNjipEFuQLShHQnDoojEB3
+	kayy4mD6Rd/PmfzohF6Xh7+oEKCULOaFIqW/ipHdDpqGB5jZwSAtb94SQcwp3rCAAIQ==
+X-Received: by 2002:a50:b5c3:: with SMTP id a61mr50094195ede.31.1555498528114;
+        Wed, 17 Apr 2019 03:55:28 -0700 (PDT)
+X-Received: by 2002:a50:b5c3:: with SMTP id a61mr50094129ede.31.1555498527002;
+        Wed, 17 Apr 2019 03:55:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555498526; cv=none;
         d=google.com; s=arc-20160816;
-        b=KTnKO1gEF5dQbTa39SUC7LBuPOzrwIC2HA2CJbJWoyWOgTpbDtqEjFLb3UeYbvWGkJ
-         xQyI3Bi+Vq/4Uob5lzzGA4NIch4mvrpad/EHsJWkj1I/4/mkRGZbyF0dY2VLKBl5VPzl
-         U9zqJ03reeA1Vnkl/q0gsF+11ctWJkW1E32JeFTxDFd9IeWvz2qnRmegJDHgsgMvzYIM
-         xAkk6LnoWRpc/XsyqxKHkZGlKC8/Z5Btd9sypXdsUG31qEqYONiGzljRYsMkElVbvZgG
-         ztIheyjBfXkZ9oXfsrmnryI+V0lDOe8ETC0qCuulnRAVaQV4jvIHpBkjVmQNuZ3ozd9k
-         V9rg==
+        b=Cq0TPGWZwT8KmIenxSWirLH+qwecsVZBEYQytzgK/DaFYi5oSt34V5jJxVPGCrmxci
+         SO2lCFyphcRNsr6WJ7tbJMcJNLaktlP/iDWb5WIVeiHlWCBRUoQ/F3xNfgJEau9edou3
+         p+znSkK6uSVvDpIqZxmDLjEl8IzTFL17dz9KA4THRiEFGg26i0WsbFnxNxHR94qttOCf
+         FlUhIk0XmfJYZq5Tx5lytlWafBpbvKNIsATD3rlbyjy4p1JWSwrmpHCwhOZLYxAh9N6h
+         YfJPtXC728EdqGpb+9JMKw1NFUkO+wLrp9yZZ6rIdyteUnOqFT/9t/vkwRJgcfSmmlht
+         rdcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=H5qA+xaLiKYAH0vO3rc8Zm1a1boQ6e4tpqTNh9ER2Sk=;
-        b=fWHcfS7sxUN4BsroCZEtEbgHk4dXmY8nz6WcFy3ymTT8sHydDWXhz2fjnOnlgvhhI7
-         2BztMyyi6bNDfpeb5jZU6DMhk3vMKFYdxWrqOL2lBbMx+UHK+RVA/6kLDhKFhfZxy0gp
-         Fkc6zfpFMkMMob/FfJkkRMCRrrtwvGnuRwBXZjmBwq+EsXDZaGlAh4nM3ledg9hx+Drz
-         BpjYJwWvh5xC2wOZWyjRtZ3Abzbwy/WfbLiuFZoSYsgvW9mMW3Bw7+d4elXv7SbpJrvu
-         fkVg9e+zPfbL0ielHFAzq6Oypi+C2LZ31/H6BTIaBKHCVIoba5vsFoHO4fh6z/YMxcBs
-         EOrA==
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=ywsDRnZXw0K4iHU5gOwpw1ILwLsnoHeavnwibTGmBkc=;
+        b=krKvm1DnNSbOqyXi5rZPJCye1/zjNIT90JL/e2nJ5uKxZ7AlFkCOIhfW/amAHpbDcv
+         tqXxiuvEgqjti8CHalpm+wWkzOQznwdpC4Ziv7RZlfhBThWAATswvnye8RuOQi5Y5UaY
+         pWHKVq6djKI/v0Zdgw5yEBVKY3Ex5zj81PyOZF+BSKF8SiKxxq6Ne7S6p4J4v2u+pGjx
+         hyzYkIwollpfaBXyyk1YttaooHq/ke/cI8J/kL0PFgmyOhuSCKTvCIKsRSSex9RLZrAM
+         xvbpty3fpVxRES5WtBixmgViEMZBGjnOeQzwNBzC5EEr+9Z+tcH355dHe0+1uOb9Vgrz
+         Wkng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b="bRbh/bvP";
-       spf=pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=eugeniy.paltsev@synopsys.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from smtprelay.synopsys.com (smtprelay4.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id g10si50374576pll.374.2019.04.17.03.46.24
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sN9XezfJ;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l15sor6364454edv.11.2019.04.17.03.55.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 03:46:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) client-ip=198.182.47.9;
+        (Google Transport Security);
+        Wed, 17 Apr 2019 03:55:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@synopsys.com header.s=mail header.b="bRbh/bvP";
-       spf=pass (google.com: domain of eugeniy.paltsev@synopsys.com designates 198.182.47.9 as permitted sender) smtp.mailfrom=eugeniy.paltsev@synopsys.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=synopsys.com
-Received: from mailhost.synopsys.com (dc8-mailhost2.synopsys.com [10.13.135.210])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by smtprelay.synopsys.com (Postfix) with ESMTPS id 4307424E13E8;
-	Wed, 17 Apr 2019 03:46:24 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=synopsys.com; s=mail;
-	t=1555497984; bh=x/hKVd6chHWC3xqn/pWkx+5QalIJTh6awxUnqpDGkmo=;
-	h=From:To:Cc:Subject:Date:From;
-	b=bRbh/bvP2DT35ElP4JFEKjFmzkweqMx1xRpofjfif6NVh6bfDQJlmsKwu+al9Y3p1
-	 qq5wKMJlQvVUjmn7jrBFXqMyg3ILFCjW51y9xzxzHNly6a/W1Sqw6AzcJy2+W4m5CA
-	 hZAos+rgRzea69z0ntH2COcNhUbgRHvijEy8dR5WQbDhkQ44fO6CKFlB5eq1YTWnJ1
-	 68mRJL4Jt3aa25jKTn3h+7Z8nlRinaGUUNAve53LQYJG6rDvsXg9K3wK2R028T9Plz
-	 hcjR4SYst/z4Ch6dt0GaH2xX4A7G9SeJucTlUcdIvKUH8G8VvLoSnY/MSuZj3ZQBuA
-	 WF79S4g5mgBZQ==
-Received: from paltsev-e7480.internal.synopsys.com (paltsev-e7480.internal.synopsys.com [10.121.8.106])
-	by mailhost.synopsys.com (Postfix) with ESMTP id ED02EA0132;
-	Wed, 17 Apr 2019 10:46:16 +0000 (UTC)
-From: Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>
-To: linux-snps-arc@lists.infradead.org,
-	Vineet Gupta <vineet.gupta1@synopsys.com>
-Cc: linux-kernel@vger.kernel.org,
-	Alexey Brodkin <alexey.brodkin@synopsys.com>,
-	linux-arch@vger.kernel.org, linux-mm@kvack.org,
-	Eugeniy Paltsev <eugeniy.paltsev@synopsys.com>
-Subject: [PATCH v2] ARC: fix memory nodes topology in case of highmem enabled
-Date: Wed, 17 Apr 2019 13:46:11 +0300
-Message-Id: <20190417104611.13257-1-Eugeniy.Paltsev@synopsys.com>
-X-Mailer: git-send-email 2.14.5
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sN9XezfJ;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
+        bh=ywsDRnZXw0K4iHU5gOwpw1ILwLsnoHeavnwibTGmBkc=;
+        b=sN9XezfJY0PNH42t6H4czPbYwRjQATW+86vOgjPgf/vVnf8n0WV9saKa4gNRun3B0c
+         4TTo4BeVcRzq+CjyX8iAn+Qs1pDQl9MJaZchjS5PU1L1WM1ptL9Ge3c0d2FRlj5VIXcu
+         Wc7INNW6MVGOesBudlVu+nH6VYET/E17T8crD2iIBIBrHME+cdSsNpEMF+CX03N167rn
+         RGKlxjTBmwmccuuDGHXIg5ZVtRlCLd61vYnVmusHf7BV+o+Mqhd00V5fw5pS+gFQU1QY
+         F0LuQdhfbfRHhvsW8JqJzaaTds2pu28FYWzor7LIwu65BzRbOwfOAZUtz6jSoRFaBbyw
+         etrQ==
+X-Google-Smtp-Source: APXvYqwzAXcD7VW4Lx4wIv4PjS0zl4BS0AJrB9UvjJX+C6yEgSwizlZoVQQj+wo9155ANTPb5q/SqjWuDHaJY7klXXo=
+X-Received: by 2002:a50:b283:: with SMTP id p3mr7504856edd.105.1555498526638;
+ Wed, 17 Apr 2019 03:55:26 -0700 (PDT)
+MIME-Version: 1.0
+References: <1555487246-15764-1-git-send-email-huangzhaoyang@gmail.com> <CAGWkznFCy-Fm1WObEk77shPGALWhn5dWS3ZLXY77+q_4Yp6bAQ@mail.gmail.com>
+In-Reply-To: <CAGWkznFCy-Fm1WObEk77shPGALWhn5dWS3ZLXY77+q_4Yp6bAQ@mail.gmail.com>
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Date: Wed, 17 Apr 2019 18:55:15 +0800
+Message-ID: <CAGWkznEzRB2RPQEK5+4EYB73UYGMRbNNmMH-FyQqT2_en_q1+g@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm/workingset : judge file page activity via timestamp
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, 
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>, Roman Gushchin <guro@fb.com>, 
+	Jeff Layton <jlayton@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Matthew Wilcox <willy@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tweak generic node topology in case of CONFIG_HIGHMEM enabled to
-prioritize allocations from ZONE_HIGHMEM to avoid ZONE_NORMAL
-pressure.
+fix one mailbox and update for some information
 
-Here is example when we can see problems on ARC with currently
-existing topology configuration:
+Comparing to http://lkml.kernel.org/r/1554348617-12897-1-git-send-email-huangzhaoyang@gmail.com,
+this commit fix the packing order error and add trace_printk for
+reference debug information.
 
-Generic statements:
- - *NOT* every memory allocation which could be done from
-   ZONE_NORMAL also could be done from ZONE_HIGHMEM.
- - Every memory allocation which could be done from ZONE_HIGHMEM
-   also could be done from ZONE_NORMAL (In other words ZONE_NORMAL
-   is more universal than ZONE_HIGHMEM)
+For johannes's comments, please find bellowing for my feedback.
 
-ARC statements:
-In case of CONFIG_HIGHMEM enabled we have 2 memory nodes:
- - "node 0" has only ZONE_NORMAL memory.
- - "node 1" has only ZONE_HIGHMEM memory.
 
-Steps to reproduce the problem:
-1) Let's try to allocate some memory from userspace. It can be
-   allocate from anywhere (ZONE_HIGHMEM/ZONE_NORMAL).
-2) Kernel tries to allocate memory from the closest memory node
-   to this CPU. As we don't have NUMA enabled and don't override
-   any define from "include/asm-generic/topology.h" the closest
-   memory node to any CPU will be "node 0"
-3) OK, we'll allocate memory from "node 0". Let's choose ZONE
-   to allocate from. This allocation could be done from both
-   ZONE_HIGHMEM / ZONE_NORMAL in this node. The allocation
-   priority between zones is ZONE_HIGHMEM > ZONE_NORMAL.
-   This is pretty logical - we don't want waste *universal*
-   ZONE_NORMAL if we can use ZONE_HIGHMEM. But we don't have
-   ZONE_HIGHMEM in "node 0" that's why we rollback to
-   ZONE_NORMAL and allocate memory from it.
-4) Let's try to allocate a lot of memory [more than we have free
-   memory in lowmem] from userspace.
-5) Kernel allocates as much memory as it can from the closest
-   memory node ("node 0"). But there is no enough memory in
-   "node 0". So we'll rollback to another memory node ("node 1")
-   and allocate the rest of the amount from it.
 
-   In other words we have following memory lookup path:
-      (node 0, ZONE_HIGHMEM) ->
-   -> (node 0, ZONE_NORMAL)  ->
-   -> (node 1, ZONE_HIGHMEM)
-
-   Now we don't have any free memory in (node 0, ZONE_NORMAL)
-   [Actually this is a simplification, but it doesn't matter
-   in this example]
-6) Oops, some internal kernel memory allocation happen which
-   requires ZONE_NORMAL. For example "kmalloc(size, GFP_KERNEL)"
-   was called.
-   So the we have following memory lookup path:
-   (node 0, ZONE_NORMAL) -> ("node 1", ZONE_NORMAL)
-   There is no free memory in "node 0". And there is no
-   ZONE_NORMAL in "node 1". We only have some free memory in
-   (node 1, ZONE_HIGHMEM) but HIGHMEM isn't suitable in this
-   case.
-7) As we can't allocate memory OOM-Killer is invoked, even if
-   we have some free memory in (node 1, ZONE_HIGHMEM).
-
-This patch tweaks generic node topology and mark memory from
-"node 1" as the closest to any CPU.
-
-So the we'll have following memory lookup path:
-    (node 1, ZONE_HIGHMEM) ->
- -> (node 1, ZONE_NORMAL)  ->
- -> (node 0, ZONE_HIGHMEM) ->
- -> (node 0, ZONE_NORMAL)
-In case of node configuration on ARC we obtain the degenerate case
-of this path:
-(node 1, ZONE_HIGHMEM) -> (node 0, ZONE_NORMAL)
-
-In this case we don't waste *universal* ZONE_NORMAL if we can use
-ZONE_HIGHMEM so we don't face with the issue pointed in [5-7]
-
-Signed-off-by: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
----
-Changes v1->v2:
- * Changes in commit message and comments in a code. No functional
-   change intended.
-
- arch/arc/include/asm/Kbuild     |  1 -
- arch/arc/include/asm/topology.h | 24 ++++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
- create mode 100644 arch/arc/include/asm/topology.h
-
-diff --git a/arch/arc/include/asm/Kbuild b/arch/arc/include/asm/Kbuild
-index caa270261521..e64e0439baff 100644
---- a/arch/arc/include/asm/Kbuild
-+++ b/arch/arc/include/asm/Kbuild
-@@ -18,7 +18,6 @@ generic-y += msi.h
- generic-y += parport.h
- generic-y += percpu.h
- generic-y += preempt.h
--generic-y += topology.h
- generic-y += trace_clock.h
- generic-y += user.h
- generic-y += vga.h
-diff --git a/arch/arc/include/asm/topology.h b/arch/arc/include/asm/topology.h
-new file mode 100644
-index 000000000000..c3b8ab7ed011
---- /dev/null
-+++ b/arch/arc/include/asm/topology.h
-@@ -0,0 +1,24 @@
-+#ifndef _ASM_ARC_TOPOLOGY_H
-+#define _ASM_ARC_TOPOLOGY_H
-+
-+/*
-+ * On ARC (w/o PAE) HIGHMEM addresses are smaller (0x0 based) than addresses in
-+ * NORMAL aka low memory (0x8000_0000 based).
-+ * Thus HIGHMEM on ARC is implemented with DISCONTIGMEM which requires multiple
-+ * nodes. So here is memory node map on ARC:
-+ *  - node 0: ZONE_NORMAL  memory (always)
-+ *  - node 1: ZONE_HIGHMEM memory (only if CONFIG_HIGHMEM is enabled)
-+ *
-+ * In case of CONFIG_HIGHMEM enabled we tweak generic node topology and mark
-+ * node 1 as the closest to all CPUs to prioritize allocations from ZONE_HIGHMEM
-+ * where it is possible to avoid ZONE_NORMAL pressure.
-+ */
-+#ifdef CONFIG_HIGHMEM
-+#define cpu_to_node(cpu)	((void)(cpu), 1)
-+#define cpu_to_mem(cpu)		((void)(cpu), 1)
-+#define cpumask_of_node(node)	((node) == 1 ? cpu_online_mask : cpu_none_mask)
-+#endif /* CONFIG_HIGHMEM */
-+
-+#include <asm-generic/topology.h>
-+
-+#endif /* _ASM_ARC_TOPOLOGY_H */
--- 
-2.14.5
+On Wed, Apr 17, 2019 at 3:59 PM Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
+>
+> add Johannes and answer his previous question.
+>
+> @Johannes Weiner
+> Yes. I do agree with you about the original thought of sacrificing
+> long distance access pages when huge memory demands arise. The problem
+> is what is the criteria of the distance, which you can find from what
+> I comment in the patch, that is, some pages have long refault_distance
+> while having a very short access time in between. I think the latter
+> one should be take into consideration or as part of the finnal
+> decision of if the page should be active/inactive.
+>
+> On Wed, Apr 17, 2019 at 3:48 PM Zhaoyang Huang <huangzhaoyang@gmail.com> wrote:
+> >
+> > From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+> >
+> > This patch introduce timestamp into workingset's entry and judge if the page
+> > is active or inactive via active_file/refault_ratio instead of refault distance.
+> >
+> > The original thought is coming from the logs we got from trace_printk in this
+> > patch, we can find about 1/5 of the file pages' refault are under the
+> > scenario[1],which will be counted as inactive as they have a long refault distance
+> > in between access. However, we can also know from the time information that the
+> > page refault quickly as comparing to the average refault time which is calculated
+> > by the number of active file and refault ratio. We want to save these kinds of
+> > pages from evicted earlier as it used to be. The refault ratio is the value
+> > which can reflect lru's average file access frequency and also can be deemed as a
+> > prediction of future.
+> >
+> > The patch is tested on an android system and reduce 30% of page faults, while
+> > 60% of the pages remain the original status as (refault_distance < active_file)
+> > indicates. Pages status got from ftrace during the test can refer to [2].
+> >
+> > [1]
+> > system_server workingset_refault: WKST_ACT[0]:rft_dis 265976, act_file 34268 rft_ratio 3047 rft_time 0 avg_rft_time 11 refault 295592 eviction 29616 secs 97 pre_secs 97
+> > HwBinder:922  workingset_refault: WKST_ACT[0]:rft_dis 264478, act_file 35037 rft_ratio 3070 rft_time 2 avg_rft_time 11 refault 310078 eviction 45600 secs 101 pre_secs 99
+> >
+> > [2]
+> > WKST_ACT[0]:   original--INACTIVE  commit--ACTIVE
+> > WKST_ACT[1]:   original--ACTIVE    commit--ACTIVE
+> > WKST_INACT[0]: original--INACTIVE  commit--INACTIVE
+> > WKST_INACT[1]: original--ACTIVE    commit--INACTIVE
+> >
+> > Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+> > ---
+> >  include/linux/mmzone.h |   1 +
+> >  mm/workingset.c        | 120 +++++++++++++++++++++++++++++++++++++++++++++----
+> >  2 files changed, 112 insertions(+), 9 deletions(-)
+> >
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 32699b2..6f30673 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -240,6 +240,7 @@ struct lruvec {
+> >         atomic_long_t                   inactive_age;
+> >         /* Refaults at the time of last reclaim cycle */
+> >         unsigned long                   refaults;
+> > +       atomic_long_t                   refaults_ratio;
+> >  #ifdef CONFIG_MEMCG
+> >         struct pglist_data *pgdat;
+> >  #endif
+> > diff --git a/mm/workingset.c b/mm/workingset.c
+> > index 40ee02c..66c177b 100644
+> > --- a/mm/workingset.c
+> > +++ b/mm/workingset.c
+> > @@ -160,6 +160,21 @@
+> >                          MEM_CGROUP_ID_SHIFT)
+> >  #define EVICTION_MASK  (~0UL >> EVICTION_SHIFT)
+> >
+> > +#ifdef CONFIG_64BIT
+> > +#define EVICTION_SECS_POS_SHIFT 20
+> > +#define EVICTION_SECS_SHRINK_SHIFT 4
+> > +#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
+> > +#else
+> > +#ifndef CONFIG_MEMCG
+> > +#define EVICTION_SECS_POS_SHIFT 12
+> > +#define EVICTION_SECS_SHRINK_SHIFT 4
+> > +#define EVICTION_SECS_POS_MASK  ((1UL << EVICTION_SECS_POS_SHIFT) - 1)
+> > +#else
+> > +#define EVICTION_SECS_POS_SHIFT 0
+> > +#define EVICTION_SECS_SHRINK_SHIFT 0
+> > +#define NO_SECS_IN_WORKINGSET
+> > +#endif
+> > +#endif
+> >  /*
+> >   * Eviction timestamps need to be able to cover the full range of
+> >   * actionable refaults. However, bits are tight in the radix tree
+> > @@ -169,10 +184,54 @@
+> >   * evictions into coarser buckets by shaving off lower timestamp bits.
+> >   */
+> >  static unsigned int bucket_order __read_mostly;
+> > -
+> > +#ifdef NO_SECS_IN_WORKINGSET
+> > +static void pack_secs(unsigned long *peviction) { }
+> > +static unsigned int unpack_secs(unsigned long entry) {return 0; }
+> > +#else
+> > +/*
+> > + * Shrink the timestamp according to its value and store it together
+> > + * with the shrink size in the entry.
+> > + */
+> > +static void pack_secs(unsigned long *peviction)
+> > +{
+> > +       unsigned int secs;
+> > +       unsigned long eviction;
+> > +       int order;
+> > +       int secs_shrink_size;
+> > +       struct timespec ts;
+> > +
+> > +       get_monotonic_boottime(&ts);
+> > +       secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
+> > +       order = get_count_order(secs);
+> > +       secs_shrink_size = (order <= EVICTION_SECS_POS_SHIFT)
+> > +                       ? 0 : (order - EVICTION_SECS_POS_SHIFT);
+> > +
+> > +       eviction = *peviction;
+> > +       eviction = (eviction << EVICTION_SECS_POS_SHIFT)
+> > +                       | ((secs >> secs_shrink_size) & EVICTION_SECS_POS_MASK);
+> > +       eviction = (eviction << EVICTION_SECS_SHRINK_SHIFT) | (secs_shrink_size & 0xf);
+> > +       *peviction = eviction;
+> > +}
+> > +/*
+> > + * Unpack the second from the entry and restore the value according to the
+> > + * shrink size.
+> > + */
+> > +static unsigned int unpack_secs(unsigned long entry)
+> > +{
+> > +       unsigned int secs;
+> > +       int secs_shrink_size;
+> > +
+> > +       secs_shrink_size = entry & ((1 << EVICTION_SECS_SHRINK_SHIFT) - 1);
+> > +       entry >>= EVICTION_SECS_SHRINK_SHIFT;
+> > +       secs = entry & EVICTION_SECS_POS_MASK;
+> > +       secs = secs << secs_shrink_size;
+> > +       return secs;
+> > +}
+> > +#endif
+> >  static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+> >  {
+> >         eviction >>= bucket_order;
+> > +       pack_secs(&eviction);
+> >         eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
+> >         eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+> >         eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
+> > @@ -181,20 +240,24 @@ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction)
+> >  }
+> >
+> >  static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+> > -                         unsigned long *evictionp)
+> > +                         unsigned long *evictionp, unsigned int *prev_secs)
+> >  {
+> >         unsigned long entry = (unsigned long)shadow;
+> >         int memcgid, nid;
+> > +       unsigned int secs;
+> >
+> >         entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
+> >         nid = entry & ((1UL << NODES_SHIFT) - 1);
+> >         entry >>= NODES_SHIFT;
+> >         memcgid = entry & ((1UL << MEM_CGROUP_ID_SHIFT) - 1);
+> >         entry >>= MEM_CGROUP_ID_SHIFT;
+> > +       secs = unpack_secs(entry);
+> > +       entry >>= (EVICTION_SECS_POS_SHIFT + EVICTION_SECS_SHRINK_SHIFT);
+> >
+> >         *memcgidp = memcgid;
+> >         *pgdat = NODE_DATA(nid);
+> >         *evictionp = entry << bucket_order;
+> > +       *prev_secs = secs;
+> >  }
+> >
+> >  /**
+> > @@ -242,9 +305,22 @@ bool workingset_refault(void *shadow)
+> >         unsigned long refault;
+> >         struct pglist_data *pgdat;
+> >         int memcgid;
+> > +#ifndef NO_SECS_IN_WORKINGSET
+> > +       unsigned long avg_refault_time;
+> > +       unsigned long refault_time;
+> > +       int tradition;
+> > +       unsigned int prev_secs;
+> > +       unsigned int secs;
+> > +       unsigned long refaults_ratio;
+> > +#endif
+> > +       struct timespec ts;
+> > +       /*
+> > +       convert jiffies to second
+> > +       */
+> > +       get_monotonic_boottime(&ts);
+> > +       secs = (unsigned int)ts.tv_sec ? (unsigned int)ts.tv_sec : 1;
+> >
+> > -       unpack_shadow(shadow, &memcgid, &pgdat, &eviction);
+> > -
+> > +       unpack_shadow(shadow, &memcgid, &pgdat, &eviction, &prev_secs);
+> >         rcu_read_lock();
+> >         /*
+> >          * Look up the memcg associated with the stored ID. It might
+> > @@ -288,14 +364,37 @@ bool workingset_refault(void *shadow)
+> >          * list is not a problem.
+> >          */
+> >         refault_distance = (refault - eviction) & EVICTION_MASK;
+> > -
+> >         inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
+> > -
+> > -       if (refault_distance <= active_file) {
+> > +#ifndef NO_SECS_IN_WORKINGSET
+> > +       refaults_ratio = (atomic_long_read(&lruvec->inactive_age) + 1) / secs;
+> > +       atomic_long_set(&lruvec->refaults_ratio, refaults_ratio);
+> > +       refault_time = secs - prev_secs;
+> > +       avg_refault_time = active_file / refaults_ratio;
+> > +       tradition = !!(refault_distance < active_file);
+> > +       if (refault_time <= avg_refault_time) {
+> > +#else
+> > +       if (refault_distance < active_file) {
+> > +#endif
+> >                 inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
+> > +#ifndef NO_SECS_IN_WORKINGSET
+> > +               trace_printk("WKST_ACT[%d]:rft_dis %ld, act_file %ld \
+> > +                               rft_ratio %ld rft_time %ld avg_rft_time %ld \
+> > +                               refault %ld eviction %ld secs %d pre_secs %d\n",
+> > +                               tradition, refault_distance, active_file,
+> > +                               refaults_ratio, refault_time, avg_refault_time,
+> > +                               refault, eviction, secs, prev_secs);
+> > +#endif
+> >                 rcu_read_unlock();
+> >                 return true;
+> >         }
+> > +#ifndef NO_SECS_IN_WORKINGSET
+> > +       trace_printk("WKST_INACT[%d]:rft_dis %ld, act_file %ld \
+> > +                       rft_ratio %ld rft_time %ld avg_rft_time %ld \
+> > +                       refault %ld eviction %ld secs %d pre_secs %d\n",
+> > +                       tradition, refault_distance, active_file,
+> > +                       refaults_ratio, refault_time, avg_refault_time,
+> > +                       refault, eviction, secs, prev_secs);
+> > +#endif
+> >         rcu_read_unlock();
+> >         return false;
+> >  }
+> > @@ -513,7 +612,9 @@ static int __init workingset_init(void)
+> >         unsigned int max_order;
+> >         int ret;
+> >
+> > -       BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
+> > +       BUILD_BUG_ON(BITS_PER_LONG < (EVICTION_SHIFT
+> > +                               + EVICTION_SECS_POS_SHIFT
+> > +                               + EVICTION_SECS_SHRINK_SHIFT));
+> >         /*
+> >          * Calculate the eviction bucket size to cover the longest
+> >          * actionable refault distance, which is currently half of
+> > @@ -521,7 +622,8 @@ static int __init workingset_init(void)
+> >          * some more pages at runtime, so keep working with up to
+> >          * double the initial memory by using totalram_pages as-is.
+> >          */
+> > -       timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT;
+> > +       timestamp_bits = BITS_PER_LONG - EVICTION_SHIFT
+> > +                       - EVICTION_SECS_POS_SHIFT - EVICTION_SECS_SHRINK_SHIFT;
+> >         max_order = fls_long(totalram_pages - 1);
+> >         if (max_order > timestamp_bits)
+> >                 bucket_order = max_order - timestamp_bits;
+> > --
+> > 1.9.1
+> >
 
