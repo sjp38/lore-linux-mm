@@ -2,114 +2,146 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+X-Spam-Status: No, score=0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD91FC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:26:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65B1FC282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:26:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 89057206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:26:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89057206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 19058206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:26:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NcvYWJCy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19058206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A0666B0005; Wed, 17 Apr 2019 13:26:19 -0400 (EDT)
+	id BE8B26B0006; Wed, 17 Apr 2019 13:26:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 04F496B0006; Wed, 17 Apr 2019 13:26:19 -0400 (EDT)
+	id B99866B0007; Wed, 17 Apr 2019 13:26:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7F596B0007; Wed, 17 Apr 2019 13:26:18 -0400 (EDT)
+	id A62666B0008; Wed, 17 Apr 2019 13:26:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE2376B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:26:18 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id z12so15058287pgs.4
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:26:18 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CFEF6B0006
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:26:38 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id t10so22922453wrp.3
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:26:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=IKTHXir5V+OIhijl27+4UqokqUeuGrvaO0fmq8V+od8=;
-        b=lPNrwOAbpdRyp5VoIgA6g8qjxESgRCLoKj6epetTpAPzLMZX3l1GXP8Kwe2Cvs1xbh
-         GE2e6PYJx05dUs5pOzPCEHRvCzgz2hYr1Pex7opMPLhrhF5EJ2bjhX+jvck6xoUg4WPq
-         6V4sUcI14C+VxKRGi4mQ6sn6LQ6dfc03AV8ppEYflTF4hQNZ/aJyMgHPJZLC0uVBgtAO
-         Yt3M2Az3M0KXHoM/MANy3jurIXi7Ap4AOY5D1+2y8gRV3FV7LybU0I+sIvSIhg7Bn9qP
-         BZ8xyh716LJjbR+wjXbF/Om2VQSFoon+Vy+suuHJI0aCU3HMiWKxX1v14ezTZsA37/kL
-         Vn5A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWylMD7smca2Yq8XrjYc61bUD8yqOiwq5qjgUUZXk/r5CMKUq/P
-	pTTWvD+XhXieyoPpa6L+tdwOMlaTpAe2bWwK5o9/Nni6YkeuQG6x+hcbm4LRvoWnrKR/8qGF0Df
-	1NhO++krD5jIVXu/8n+KLOeg/Bw/uASjetPrlRnhXbm1rJWIDYsPLn4s15bCGqE8chg==
-X-Received: by 2002:a63:8848:: with SMTP id l69mr79653128pgd.137.1555521978125;
-        Wed, 17 Apr 2019 10:26:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx8M78ELym3VhwcgQ8E4KulIJ8arpBs4yMm9Ajr8EVWT2b47q+CEzNRez8o5sdmbFzeTx+c
-X-Received: by 2002:a63:8848:: with SMTP id l69mr79653070pgd.137.1555521977352;
-        Wed, 17 Apr 2019 10:26:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555521977; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=ns0QxnuhAfvDI+e0rO3qV1NnmRx4qtLcXwX4SEWj8w8=;
+        b=q8W/ZjnGu8ehultlHLxVWW9va19HqOcqnTO1dSON31HGFK/EfKoIRhuXtDhdRV8zKg
+         UiMhf9PNOl+9oJnHoGsIoAWQwIpZmvRErdjT9i1i1CbJFeQMoGFkDFwIbALBUNUoa3X6
+         Ri2jhGBMdCtQf8EQg9VobsrjfGeRNh9lz7lpgh9yohM2oOiuuX2zKL/vLkJxRL50nLht
+         JC6/yg517AFikSJ5aG90hm5V53SZ2B1G0nIH81UnHdeSmzbUrmMAve2mpbp7Pte2McUh
+         k66ksWfWmJQjHXMvUu4J2M+BbVQ3EVtLOhA/tVpAmC8mlTaSzxkGHAh4duRuEGAdM2nm
+         CAAQ==
+X-Gm-Message-State: APjAAAXgwsg8/qD2UeFjgbnfax5aAOYQtR3tZbZekadsHUJLhQz53YWK
+	tS91cYaJVL2SlkQ7wgFkji0KSqc5hQihSlGTlVCCcoMk2449sH/zmwSbDwcwEI4Mjso18TTudOA
+	FJNm2RVaLnW3nuMb5L72aHlUFGNbhSyvO9Yyq/gvYP10ysvq+d6lr+9mVBqXN6RY=
+X-Received: by 2002:a7b:cbd6:: with SMTP id n22mr34173761wmi.57.1555521997921;
+        Wed, 17 Apr 2019 10:26:37 -0700 (PDT)
+X-Received: by 2002:a7b:cbd6:: with SMTP id n22mr34173731wmi.57.1555521997011;
+        Wed, 17 Apr 2019 10:26:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555521997; cv=none;
         d=google.com; s=arc-20160816;
-        b=u2Rlr8QrX3ddDWsoWwMOGc8ph5kxrO3+W5Cc9W1mpM9ilRDp8/hezmaSGnDGmWxNwi
-         PpeWlNqDhHOOm7+II17F5dxP1ngkcv96GnwN53Xqo69nsP41gkoSvY6kNehAO5ky3b0O
-         jedAKtGkzD4HtYPhG2LC3b74zEe69WJsmrVAnyYJZRIHo8aVsgl9lAx0ryN2vVWfoAGA
-         5S1n4LzliCtNHxtlFO2HWxaKNrtvXijgLvj6rpM+juThP/6J81rUwf2JkoGiiWPya5PY
-         w1PZgOdCUzYzmi3dBVHQHLtJLqrjnUYYe/NLY+K7xmIJUvf6++xA+X4mW7y8Gyq5SBog
-         b4AQ==
+        b=ny8Nhu5YvsYaJuiAUUS1wO78Ubs3Kc0nGXd7ea0h81V9c7uY6a6ezqbHJMkvcsG73Q
+         irnU1Cfujwx6Ikk2MbLH+TEE2EZVugvdHD8LRXTyIRXMlcw6H9BTwXh1ddOAp0aGIJYE
+         0LO2NFiU+H/+VcEB19hWTpSTmeCf2JMaQC1hvTNsXNPpJPrE+dy30G2J7DX1aCv7Fiak
+         eCckObcQyNw7FiCX2rV1EN1asQ5GJ5gCxe/D++keTXQgKC/ibgImfN9W/wNrK2ODfA70
+         18jApOs3ZrlfOEpUhImN4yuWqIk5ChlH50v59kDhxpnkus76qTXvoFxbpgRinSVRugxx
+         U9lQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=IKTHXir5V+OIhijl27+4UqokqUeuGrvaO0fmq8V+od8=;
-        b=iEU1t7RhZnGDaa2MIj8OV1tv/9NaDWd8GmbFhKGh6lmL2kagOYbXeujrds6lTQHovz
-         gef9HlQsWlFwaJH8nLGTLhcqfAMUmiYlFF+ZiE9bWbWi/swKp1YOjEWciAquJVgpogD2
-         RvlD9QhEHjlTz5MWx+U3zVh3I1T/1R6znqJz369rEQc83NECPZPfeVTOyeDoQEaIzVf1
-         79KJyLs7sX0IcKFvLTKmSFT2peVGs7j/EXCI/PmiK8g1LCXKqzfaczflLOroeFPqBb3v
-         1eNnp2FcVTi2gJq2z/iifb4D0GREp1VpP5fNl9jInThGSqWFKrix+47S5tjLUqwGGIZl
-         +dQg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:sender:dkim-signature;
+        bh=ns0QxnuhAfvDI+e0rO3qV1NnmRx4qtLcXwX4SEWj8w8=;
+        b=DL+RnUNhKMqXqOtzXPHSxIFkb3yZ8uZiFjz995RA1J62bmpswqhprj0uHyxGaTeHc2
+         3Lv4N9SSSo90k/GOj40aC8pQm230Kg5IzNPOjsBYvLcdsfS8GsMxwA7VmK3UJ511tjRr
+         zwW2nzu34vyTwj90+jfDhtjfa2ouE8ujeqhRDPsFtEWPnP9sXwD/rTvQbUyaHfPCZDIU
+         JHq216nV0XmwK6OWOhOxqhUhINgmHIDdy9OjjG6n61xojW1zSS9wL43r4X1Cju0OGoPB
+         wZ7mssOrOhWSKImugPWlIkdzf8+L7AANj77qe7rJvtUpvg3TfkSFSgfs6KgfnjDRImu4
+         TioA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id x7si21732784plr.247.2019.04.17.10.26.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NcvYWJCy;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z14sor2234568wmk.13.2019.04.17.10.26.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 10:26:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+        (Google Transport Security);
+        Wed, 17 Apr 2019 10:26:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TPa6XZW_1555521966;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPa6XZW_1555521966)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 18 Apr 2019 01:26:12 +0800
-Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
-To: Michal Hocko <mhocko@kernel.org>, Keith Busch <keith.busch@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, mgorman@techsingularity.net,
- riel@surriel.com, hannes@cmpxchg.org, akpm@linux-foundation.org,
- dan.j.williams@intel.com, fengguang.wu@intel.com, fan.du@intel.com,
- ying.huang@intel.com, ziy@nvidia.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190412084702.GD13373@dhcp22.suse.cz>
- <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
- <20190416074714.GD11561@dhcp22.suse.cz>
- <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
- <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
- <20190417092318.GG655@dhcp22.suse.cz>
- <20190417152345.GB4786@localhost.localdomain>
- <20190417153923.GO5878@dhcp22.suse.cz>
- <20190417153739.GD4786@localhost.localdomain>
- <20190417163911.GA9523@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <fcb30853-8039-8154-7ae0-706930642576@linux.alibaba.com>
-Date: Wed, 17 Apr 2019 10:26:05 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NcvYWJCy;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=ns0QxnuhAfvDI+e0rO3qV1NnmRx4qtLcXwX4SEWj8w8=;
+        b=NcvYWJCyNfLatXmVyDRxLTR3Qx/x7JgxS8jcPHCtBtiN6MPmtGAh7sebTFiQVJAXNk
+         Sbm/GqYfFaqfvaPEXTOrurvDwkKnd5zlx2TBIC3kz2Q4om3TP0Y1KaPxiIdippBjXGPT
+         mt//zbGrEi8KAnTquF8hj0kCkKK4+MgiTjgN9U5T632osXgyVF0kyOkokSJYhpqPWU7q
+         HvdQgIN00S7lvWehKYIDllQwTC97+wEK/qsM7xgShblV1PsGd2t5GKDax19T5iQvivwv
+         QGi7KKBjclQM6KMFluz3llgRlzIQ2Zeot4lykjGh7vko0CNZ/xTAD3H/14XuvK6bERiB
+         TxyQ==
+X-Google-Smtp-Source: APXvYqx0bXa7GoJQLXDLgeOn35F7WmZUbi0CsPk0aTEStD8EU08aO6txiY/M5Pu51pv7jSUwysUxyA==
+X-Received: by 2002:a1c:495:: with SMTP id 143mr575729wme.78.1555521996663;
+        Wed, 17 Apr 2019 10:26:36 -0700 (PDT)
+Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
+        by smtp.gmail.com with ESMTPSA id x5sm65470238wrt.72.2019.04.17.10.26.34
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Apr 2019 10:26:35 -0700 (PDT)
+Date: Wed, 17 Apr 2019 19:26:32 +0200
+From: Ingo Molnar <mingo@kernel.org>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com,
+	Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de,
+	keescook@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Juerg Haefliger <juerg.haefliger@canonical.com>,
+	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+	tyhicks@canonical.com, David Woodhouse <dwmw@amazon.co.uk>,
+	Andrew Cooper <andrew.cooper3@citrix.com>, jcm@redhat.com,
+	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+	iommu <iommu@lists.linux-foundation.org>, X86 ML <x86@kernel.org>,
+	linux-arm-kernel@lists.infradead.org,
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>,
+	LSM List <linux-security-module@vger.kernel.org>,
+	Khalid Aziz <khalid@gonehiking.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <a.p.zijlstra@chello.nl>,
+	Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Arjan van de Ven <arjan@infradead.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20190417172632.GA95485@gmail.com>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com>
+ <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+ <20190417170918.GA68678@gmail.com>
+ <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190417163911.GA9523@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -117,39 +149,79 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
+* Nadav Amit <nadav.amit@gmail.com> wrote:
 
-On 4/17/19 9:39 AM, Michal Hocko wrote:
-> On Wed 17-04-19 09:37:39, Keith Busch wrote:
->> On Wed, Apr 17, 2019 at 05:39:23PM +0200, Michal Hocko wrote:
->>> On Wed 17-04-19 09:23:46, Keith Busch wrote:
->>>> On Wed, Apr 17, 2019 at 11:23:18AM +0200, Michal Hocko wrote:
->>>>> On Tue 16-04-19 14:22:33, Dave Hansen wrote:
->>>>>> Keith Busch had a set of patches to let you specify the demotion order
->>>>>> via sysfs for fun.  The rules we came up with were:
->>>>> I am not a fan of any sysfs "fun"
->>>> I'm hung up on the user facing interface, but there should be some way a
->>>> user decides if a memory node is or is not a migrate target, right?
->>> Why? Or to put it differently, why do we have to start with a user
->>> interface at this stage when we actually barely have any real usecases
->>> out there?
->> The use case is an alternative to swap, right? The user has to decide
->> which storage is the swap target, so operating in the same spirit.
-> I do not follow. If you use rebalancing you can still deplete the memory
-> and end up in a swap storage. If you want to reclaim/swap rather than
-> rebalance then you do not enable rebalancing (by node_reclaim or similar
-> mechanism).
+> > On Apr 17, 2019, at 10:09 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> > 
+> > 
+> > * Khalid Aziz <khalid.aziz@oracle.com> wrote:
+> > 
+> >>> I.e. the original motivation of the XPFO patches was to prevent execution 
+> >>> of direct kernel mappings. Is this motivation still present if those 
+> >>> mappings are non-executable?
+> >>> 
+> >>> (Sorry if this has been asked and answered in previous discussions.)
+> >> 
+> >> Hi Ingo,
+> >> 
+> >> That is a good question. Because of the cost of XPFO, we have to be very
+> >> sure we need this protection. The paper from Vasileios, Michalis and
+> >> Angelos - <http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf>,
+> >> does go into how ret2dir attacks can bypass SMAP/SMEP in sections 6.1
+> >> and 6.2.
+> > 
+> > So it would be nice if you could generally summarize external arguments 
+> > when defending a patchset, instead of me having to dig through a PDF 
+> > which not only causes me to spend time that you probably already spent 
+> > reading that PDF, but I might also interpret it incorrectly. ;-)
+> > 
+> > The PDF you cited says this:
+> > 
+> >  "Unfortunately, as shown in Table 1, the W^X prop-erty is not enforced 
+> >   in many platforms, including x86-64.  In our example, the content of 
+> >   user address 0xBEEF000 is also accessible through kernel address 
+> >   0xFFFF87FF9F080000 as plain, executable code."
+> > 
+> > Is this actually true of modern x86-64 kernels? We've locked down W^X 
+> > protections in general.
+> 
+> As I was curious, I looked at the paper. Here is a quote from it:
+> 
+> "In x86-64, however, the permissions of physmap are not in sane state.
+> Kernels up to v3.8.13 violate the W^X property by mapping the entire region
+> as “readable, writeable, and executable” (RWX)—only very recent kernels
+> (≥v3.9) use the more conservative RW mapping.”
 
-I'm a little bit confused. Do you mean just do *not* do reclaim/swap in 
-rebalancing mode? If rebalancing is on, then node_reclaim just move the 
-pages around nodes, then kswapd or direct reclaim would take care of swap?
+But v3.8.13 is a 5+ years old kernel, it doesn't count as a "modern" 
+kernel in any sense of the word. For any proposed patchset with 
+significant complexity and non-trivial costs the benchmark version 
+threshold is the "current upstream kernel".
 
-If so the node reclaim on PMEM node may rebalance the pages to DRAM 
-node? Should this be allowed?
+So does that quote address my followup questions:
 
-I think both I and Keith was supposed to treat PMEM as a tier in the 
-reclaim hierarchy. The reclaim should push inactive pages down to PMEM, 
-then swap. So, PMEM is kind of a "terminal" node. So, he introduced 
-sysfs defined target node, I introduced N_CPU_MEM.
-
+> Is this actually true of modern x86-64 kernels? We've locked down W^X
+> protections in general.
 >
+> I.e. this conclusion:
+>
+>   "Therefore, by simply overwriting kfptr with 0xFFFF87FF9F080000 and
+>    triggering the kernel to dereference it, an attacker can directly
+>    execute shell code with kernel privileges."
+>
+> ... appears to be predicated on imperfect W^X protections on the x86-64
+> kernel.
+>
+> Do such holes exist on the latest x86-64 kernel? If yes, is there a
+> reason to believe that these W^X holes cannot be fixed, or that any fix
+> would be more expensive than XPFO?
+
+?
+
+What you are proposing here is a XPFO patch-set against recent kernels 
+with significant runtime overhead, so my questions about the W^X holes 
+are warranted.
+
+Thanks,
+
+	Ingo
 
