@@ -2,134 +2,110 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=0.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4DFAC282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:15:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5295CC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:39:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5130420674
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:15:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nyS/WVic"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5130420674
+	by mail.kernel.org (Postfix) with ESMTP id F1DF42064B
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 16:39:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1DF42064B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D07896B0005; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
+	id 7539C6B0005; Wed, 17 Apr 2019 12:39:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDE806B0006; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
+	id 7014B6B0006; Wed, 17 Apr 2019 12:39:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA5F66B0007; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
+	id 5CACB6B0007; Wed, 17 Apr 2019 12:39:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 69B9B6B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:15:28 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id b16so22633946wrq.10
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:15:28 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A69A6B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 12:39:15 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h27so12786726eda.8
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 09:39:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
-        b=KyyYUYOf5bgW2W2QrqqvB1RKjF7cgcV9OXu0wR0ZjVASqh49jQCQoOJDo8x1vivhfN
-         oK40PGoU8z3d5NnbRjFUMt6Y19uECrgijLTb9K62j/Uk3XDqh5NaEMJ7EV6lIB6JoG4q
-         2kKf6uTGEBEw34SA1Pi4d06e5BFoyscQuKE+fqKogVmcDmuo4CPEXQrBYBDp8fFuBGoa
-         kJSP+VgB2px5Blz9Yv5QTMlEVkKrwk8MrDs5qtz4GjZEPgVKfFEw+8qPU/702NTm1rM4
-         m4RFyLrH5AVBoKM+QzOP1ZsbuS9q3D0EN0JZkcPB1Mtua0qqfrlb/nkimkqNX/C5pB69
-         DjIQ==
-X-Gm-Message-State: APjAAAWeeT30whkYlQKP98RLBzM1zTWybQ26lIeBDYPe4HLCDRdGbHh6
-	4tOU3pQO9v0HQa76BNVEWY6k+lft51l7hY6nvqdP+EA3fNo1HxN21/uPT3JyOJpUqwwyjKwP0+n
-	s9euvTNi6DOrveGHbYg5fcTXThsQdtjSlBaNVCP8G6Q5VanFsm6enrP6W1jggyeg=
-X-Received: by 2002:a5d:4751:: with SMTP id o17mr57808297wrs.121.1555517727995;
-        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
-X-Received: by 2002:a5d:4751:: with SMTP id o17mr57808249wrs.121.1555517727170;
-        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555517727; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=rrCf6SVtM07NH9+OMGHudPfvaV1SdrS/yUvdQP0a1Lw=;
+        b=glCDGoQ8W6GFtIMAAwn0yAai1ebVDJ0suXaUFwV6Dl8UmwE7Y1bo9jby9QMylASiu5
+         LxxspZ8YAmSLN6+oKfZMSbTyBgJ6BZN0kmSl4dDhkgBnfaQfgBudDwMViLAG0tyBZfxe
+         4fasYLOUHJyBx7gMQR+2wYjucGzX0ZPc8C6U+e6qjSRQr2MXSRkcK4TutaYodsyQ1MBr
+         dcgaE/pJGHhF8MPhctrkctZLc/yKoS/OBBAjnRbPPzZQF/9VJFsk64iDOe+iYzTs5XGM
+         4T0osjD9+4GvYbKsM4NlOby6tpIYdquikt8q8dxe9lbuBKZ3EOMfuN2jdzM6faStSgOR
+         9YRQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUgVVDk6OqYQVfYoM7CQhTnjWl6tW/n/I+eUPNKFp07PjBqEmWK
+	0UC0/RZPlUF2TsZl0X5qgKUGOTke/hG2flAiMv5QSxv+tjlAUbluCoaPk2Ba32T9f/VmB+J8FNs
+	vvlwYEW/9lnW1na+dqdn5hYrC4lbfB9q9izQROayFtvrHGNm2CK88OyKIfMWkJ6o=
+X-Received: by 2002:a17:906:69d3:: with SMTP id g19mr26914872ejs.212.1555519154495;
+        Wed, 17 Apr 2019 09:39:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+d98IRurxCg57hf9HT5in9MmwsASaTksh7CnDTNHY+QcT9AjYTceNoByjpxoRZjIJBNp4
+X-Received: by 2002:a17:906:69d3:: with SMTP id g19mr26914827ejs.212.1555519153571;
+        Wed, 17 Apr 2019 09:39:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555519153; cv=none;
         d=google.com; s=arc-20160816;
-        b=e9qgb6F4UXZddPZzJHahcrVpFQrSYkfLjX387mni+Rr/01enyq2GdM8n4aLfzA4z1A
-         Vf/OxUmfm0/JnjgKl8vN74SbrUG+6cMWnt3OqqEvtGoZr9kMK7xQezZuVis0PTPW9pBG
-         3HDwXWVc+c2eAOe4CqUHP6OoQblqfSiKsrGWYaC8TxDJr08fmzoC5shG/TdHmNWUJFT1
-         xiAcmJga6moGkR8x25uSpDIldNDzFUdFtsLPR6ucO8O9DfvaoQ+XLUfkvWil7hTe01qI
-         S1nLlONRguyS38ZakelNe4ccs3OH9wWLumqjub/1PpF79YbxIMSmaymfxCLD3Yec4bV+
-         N3gg==
+        b=qQ5lU8Ag1GPUcGDs4dYyWWVrxXt4qWUJVO2CLMBFK8FLoc+TpoDym4+/ZnTVeEAXk7
+         BXFw2e949i1d+ZiSGeYeKZRUXifCtJgfueVvTlMOM/ce8ujCDJd5faJ5c5ASsBUGIq7Y
+         vblnhjR+GNrIDeo7V3+d23jYMBgP6IS1Uypsk20AsDrtb6a1QlwZFkQF1trKDvX7u05a
+         S7rAKY4eX9uDrskb740ruGef9CC7jnwr/+bx80VpR9in7cHXeaiZNRvzg1t9wIsb7qu0
+         LYpW+G/T4nNEky1IIbcZ4GVwJmO8q4SPA4P+H/7HuXBinJiZmuBT9mq8/A/1enIme1le
+         mRFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
-        b=fVxGDE6+DHflEmayxiY4FTkZ9ULkcMj2RLtq71fK/XImgb95m0nSWpXKmRKMd3TBgm
-         x3befKM83+dyjyAu/bW9y+8hWZINjBbrMnvMmErVheZDEgBBDnCuDLAFOjssEOb/tVbf
-         l19mKa8GcddmeXlqMK9tBKL6168j3gk5TaSs/EPxcbgYv8O55uXZRoqeuvy9RNXzlAqa
-         OZsb6Xlz7DABSnpCTGAMGNqHzKUttHQdkdTWUNLgsv7p6vFpFXo7+wB3CJlDnbfPyT3E
-         gtN3av1zzflBbqYPz3ZD8l9CXRSCOxHEKbS2QR/HbRV050+4tPa6jsXnegAOPmxDyPGt
-         kMiw==
+         :message-id:subject:cc:to:from:date;
+        bh=rrCf6SVtM07NH9+OMGHudPfvaV1SdrS/yUvdQP0a1Lw=;
+        b=B6Gc9aCr8ncGuR6eMYYh0O6RmI1WETmEdaE2CPnWf+VwmgjXkh/Qe6fpVjWVs9p0iJ
+         8bWV7TApPbwFkJgwF3O/oMKZxNi7r1oR/dxeQ8MRwCJO+TNFQsAlHw1QuPMnAAGU6Jbx
+         sxJCkZAXsF+w9CBU0f28ntkmltI+V1gEq122ae4e+Vi/dasKfTI+E2jz767WKemstxYD
+         k5PnxjDuQ45UYCvqmgwFuUYbZPqjedeUTjfFjCrJtrsvZk875WSssMVkKRPH72wr7s5B
+         n7EdquaAdjB+kHGppJu/d32ahGKGCvDb/WI8HNguBvdBJwoI/sD7tNXoBKzTB7ww0trR
+         k5HQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nyS/WVic";
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a4sor95475wrp.14.2019.04.17.09.15.26
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h24si1781474edh.413.2019.04.17.09.39.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 09:15:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 09:39:13 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="nyS/WVic";
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=2E2gGWXwlEXHD0EdhjliuzLa0L4LUy3dnmNjJuBPY1M=;
-        b=nyS/WViclzZJjR30HVMMB/ma7fcLYSTWP9QxF2Fshf4EJq6uRarq3jSaxiVNfV92fh
-         zEZfmA69o8F7gNO5JT6uv0zE0OJeE7BWbIRv09fAQTN2l+N2dnFwJ9Lfuiiy6+74FoDp
-         uGRo9f5/Goa9H9R9Ca2oLvyjv31O0I5e5WLdLO3tmvoyjg1wNvw+8b2zxVEfd9gJSTwJ
-         +SSg2n/omewPli8xLPnvSElOhwgHU9I/P33Tw7RfhZ2LRLr+x5PTn04fXGfMHG1ZHR4/
-         XB7f4UjQbIdtenugCUJSD8W8ywk7H6JVByBN8MjE8ZURVuqLb51s1gVwQaBsfh/AY/u/
-         6ICw==
-X-Google-Smtp-Source: APXvYqy35ID2kalnRZopmGnEWCBLThqKczYiLY/rC35gAIxUEa+THgEb4y2voVmHavCnFbNEpnRFQQ==
-X-Received: by 2002:adf:dbce:: with SMTP id e14mr59140093wrj.249.1555517726742;
-        Wed, 17 Apr 2019 09:15:26 -0700 (PDT)
-Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
-        by smtp.gmail.com with ESMTPSA id y1sm154976060wrd.34.2019.04.17.09.15.24
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Apr 2019 09:15:25 -0700 (PDT)
-Date: Wed, 17 Apr 2019 18:15:22 +0200
-From: Ingo Molnar <mingo@kernel.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
-	keescook@google.com, konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	iommu@lists.linux-foundation.org, x86@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org,
-	Khalid Aziz <khalid@gonehiking.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Andy Lutomirski <luto@kernel.org>,
-	Peter Zijlstra <a.p.zijlstra@chello.nl>,
-	Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Arjan van de Ven <arjan@infradead.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-Message-ID: <20190417161042.GA43453@gmail.com>
-References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A99A9B113;
+	Wed, 17 Apr 2019 16:39:12 +0000 (UTC)
+Date: Wed, 17 Apr 2019 18:39:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Keith Busch <keith.busch@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>, mgorman@techsingularity.net,
+	riel@surriel.com, hannes@cmpxchg.org, akpm@linux-foundation.org,
+	dan.j.williams@intel.com, fengguang.wu@intel.com, fan.du@intel.com,
+	ying.huang@intel.com, ziy@nvidia.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190417163911.GA9523@dhcp22.suse.cz>
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190412084702.GD13373@dhcp22.suse.cz>
+ <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+ <20190416074714.GD11561@dhcp22.suse.cz>
+ <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
+ <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
+ <20190417092318.GG655@dhcp22.suse.cz>
+ <20190417152345.GB4786@localhost.localdomain>
+ <20190417153923.GO5878@dhcp22.suse.cz>
+ <20190417153739.GD4786@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+In-Reply-To: <20190417153739.GD4786@localhost.localdomain>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -137,38 +113,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-[ Sorry, had to trim the Cc: list from hell. Tried to keep all the 
-  mailing lists and all x86 developers. ]
-
-* Khalid Aziz <khalid.aziz@oracle.com> wrote:
-
-> From: Juerg Haefliger <juerg.haefliger@canonical.com>
+On Wed 17-04-19 09:37:39, Keith Busch wrote:
+> On Wed, Apr 17, 2019 at 05:39:23PM +0200, Michal Hocko wrote:
+> > On Wed 17-04-19 09:23:46, Keith Busch wrote:
+> > > On Wed, Apr 17, 2019 at 11:23:18AM +0200, Michal Hocko wrote:
+> > > > On Tue 16-04-19 14:22:33, Dave Hansen wrote:
+> > > > > Keith Busch had a set of patches to let you specify the demotion order
+> > > > > via sysfs for fun.  The rules we came up with were:
+> > > > 
+> > > > I am not a fan of any sysfs "fun"
+> > > 
+> > > I'm hung up on the user facing interface, but there should be some way a
+> > > user decides if a memory node is or is not a migrate target, right?
+> > 
+> > Why? Or to put it differently, why do we have to start with a user
+> > interface at this stage when we actually barely have any real usecases
+> > out there?
 > 
-> This patch adds basic support infrastructure for XPFO which protects 
-> against 'ret2dir' kernel attacks. The basic idea is to enforce 
-> exclusive ownership of page frames by either the kernel or userspace, 
-> unless explicitly requested by the kernel. Whenever a page destined for 
-> userspace is allocated, it is unmapped from physmap (the kernel's page 
-> table). When such a page is reclaimed from userspace, it is mapped back 
-> to physmap. Individual architectures can enable full XPFO support using 
-> this infrastructure by supplying architecture specific pieces.
+> The use case is an alternative to swap, right? The user has to decide
+> which storage is the swap target, so operating in the same spirit.
 
-I have a higher level, meta question:
+I do not follow. If you use rebalancing you can still deplete the memory
+and end up in a swap storage. If you want to reclaim/swap rather than
+rebalance then you do not enable rebalancing (by node_reclaim or similar
+mechanism).
 
-Is there any updated analysis outlining why this XPFO overhead would be 
-required on x86-64 kernels running on SMAP/SMEP CPUs which should be all 
-recent Intel and AMD CPUs, and with kernel that mark all direct kernel 
-mappings as non-executable - which should be all reasonably modern 
-kernels later than v4.0 or so?
-
-I.e. the original motivation of the XPFO patches was to prevent execution 
-of direct kernel mappings. Is this motivation still present if those 
-mappings are non-executable?
-
-(Sorry if this has been asked and answered in previous discussions.)
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
