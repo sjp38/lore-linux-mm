@@ -2,106 +2,94 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00F8BC282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:21:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B1AC282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:26:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A9D282173C
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:21:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="e4+/tJPy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9D282173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=roeck-us.net
+	by mail.kernel.org (Postfix) with ESMTP id 33D7720675
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 18:26:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33D7720675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E9456B0005; Wed, 17 Apr 2019 14:21:22 -0400 (EDT)
+	id EF2156B0005; Wed, 17 Apr 2019 14:26:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 26EBA6B0006; Wed, 17 Apr 2019 14:21:22 -0400 (EDT)
+	id EA0806B0006; Wed, 17 Apr 2019 14:26:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 111426B0007; Wed, 17 Apr 2019 14:21:22 -0400 (EDT)
+	id DB59F6B0007; Wed, 17 Apr 2019 14:26:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C53946B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:21:21 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x2so15096519pge.16
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 11:21:21 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B94D86B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 14:26:23 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x58so23478912qtc.1
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 11:26:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=vOuimekE8NbfgdHPy5nv6BcziXj9tFjoRdCDEhswAWM=;
-        b=CC3wxfbxeFCDNnRTzJd9X+6McUUeAKXUMge8MrZoqjYI6SXq9Xf/YgmLrTnOYFJLKp
-         i3hvKgWAzXrt31wpZwByzJJtY7Lwts5gzY/Q4pX6PR4y5IdCr9RSj/2y0gNqedvCV3JD
-         WNCCm+nRNJjk31uMdWC2f86RlsLu6S/LZh0badrMFxcIKfqN989qZGbhac0iaNmgURsl
-         oeBVnYKQ5/+MVYfBX7uHQICMEueFgnEINGS4J0sqfuVsGHj1JbU9xksSGBD2zJZECOJA
-         bDYi/Y5AJ9ORFMnoTHwqnBH6COH8RhTgnkD+6m1VgrZecdWvhIlnwQXJhglPBLiSPFjZ
-         Pqfw==
-X-Gm-Message-State: APjAAAXDOtSp5pkkTJ1k6TBNlWwuvEvhlPLW3wcG8rSrtFlcuKp1xE0G
-	nREKN2cu1u28/NS1LAqdDlnZ9G/KDbIZRoW8k9Cu6uQPH2Ibg+3aphRrVLV8ejd+NeSpmh4o8SM
-	HbGvLwSqjBNxhCElobeH+JUVaZ4O/2qoJJGXvZyHyNs6oC9tvLFUBH8yBNNP05Xo=
-X-Received: by 2002:a17:902:9b83:: with SMTP id y3mr87812882plp.165.1555525281115;
-        Wed, 17 Apr 2019 11:21:21 -0700 (PDT)
-X-Received: by 2002:a17:902:9b83:: with SMTP id y3mr87812805plp.165.1555525280248;
-        Wed, 17 Apr 2019 11:21:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555525280; cv=none;
+        bh=EcVQqbPsBLazfmwcePHB1XP40c+WrTsPFIhUq7aOyRc=;
+        b=anaqRcLYBuxyfisDyF2tPekwzjaWL/KRgzkFK+wMr/+JNpVBjchw4Pz8cbvdo182Lk
+         ZTImNFzWBF8gNeAHD8zdaExhhTXsbMoUrOr7nQpZHKOdp8DueE3ttRidKMY/0Q43BUNx
+         WjyAMrvnWnHiWao4T0jqP3GurrADwBEBFvM9lJTfRCUZ8DG7YcQav4JTay8PDysmdW+y
+         uE3rZ6D2ffrTGKuUX4pAarMpUCOZpLiDHLUe6gFx14CnV0IsAWXVrC+Re2sAGkoVdjIh
+         l7AgtiKENvdVeNGtp0ZFzv0zNrYJu3mjApq9XPwukrxGQQsRTANhXfhCPEs8usvh+a5i
+         ZrGw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUUilME2nS5+5XlCVHAuGeAJCGVXEq9n8ecwTW7pyCwW3P1m0FO
+	Iry8lLPzk93xKcfNa01UC1+q44cYsCnshanONgygvL20AvIKHNFByIg9acLQQHGLUW3XHlDhEP/
+	820+Uwqj/1BbC26lwgQ6urJd04yNd8+SRyyqggNqIzb5ryD5qw3c5LWhhzUvKlUZcAA==
+X-Received: by 2002:ac8:2aa4:: with SMTP id b33mr71970646qta.127.1555525583489;
+        Wed, 17 Apr 2019 11:26:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDXrJ7WtjW1MMhZ4lQIS46+TN+/+CytgzvhiDSqSuDdHKAMeZhaz0iwP0OHVKaJ0LnCzdE
+X-Received: by 2002:ac8:2aa4:: with SMTP id b33mr71970591qta.127.1555525582544;
+        Wed, 17 Apr 2019 11:26:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555525582; cv=none;
         d=google.com; s=arc-20160816;
-        b=SIInZA0CyAnzJ3jntzdpoLy+6OeX1fkghWViu6aofUggAQ+B/La8UW74UBWfv2hheB
-         5ZSHs8dvKajV0xZiewoGEAzWHlWcZn2I+fdJoChMUzreN92hBiH+BsaVpXQd39hJzL5J
-         JWSlxvMqwy2FIgvF3h6QrmEeUMtwqIZu4jnfvSLTW3WOQ3EY3+9cb/0/av4agOrIGaGu
-         ahe6movrm7uWOgn7Til81GYsvWgE6dcH4/qtXLR9scKexJEEiFr/03bVhpZIyM+fdprk
-         gDY2Q1IpxMIjfJmFZcBJLNCGBeLRQ9bIR+qQ7CZr5npfdMhJ3EeciG9o/beOeLH3V7FB
-         +0Mw==
+        b=NdpfA5jPEwjwJcCsd7fj4g7beBCuBT1C5XNLeLyFVPqRl7eiZfWB5pJopL8AeEobX0
+         odXengK0dyk3ynW+p5Gl7293PTWDNFhsu9onXUbkafuLP6qDy7L/qspWu2gONM+nedb3
+         hZAY539GhC63RoF60yaRrwREH4Hn7D+91s9g5mUrO/6IAOH6wj5BnJEyCaMQ57N20VrK
+         3NB/LTFuKwNsHMD1XCIsLJ0dVieDfgPpKo9YMBjgA84ZlrdvWUWhUdYVvmu7KDkVJQN4
+         g3omW5nnAgyq4N3GcX2WmwyD+OARKk0NsOpNHrLrre3Eg8eFR11Wc6MjsXtwKbn+xgXW
+         /kdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:sender:dkim-signature;
-        bh=vOuimekE8NbfgdHPy5nv6BcziXj9tFjoRdCDEhswAWM=;
-        b=o3sRvrzaKbctCMbEhOFu17EKIYqJGfegzrCjovOEmA9pLUZVX9xRtEV+JwmzskXdGq
-         guu26lpcClhKnzDGqPWLsIsjK9+4qF8EsXEekIfc67E6MNi3i78ilZaeGkojMWokftH4
-         yzVppJpfigwi9sxZwKPmowETOFtJO2m1EusMa6P9FhtStSzuwLAVZelaGSh8zfI9kVhc
-         jD9czlwbCw0PhdqMRAxolvtIQ61P/5ix0VkNX5oAgfeA5odFSMFQUhpoAwGpKm1CoGKP
-         Mdsz/khqHM7cvp6hKDdTcU0V4ktfNMWtYntu79lZwfPAgr4S8rcUDn8KYVdzRF3NKnuP
-         GBew==
+         :to:from:date;
+        bh=EcVQqbPsBLazfmwcePHB1XP40c+WrTsPFIhUq7aOyRc=;
+        b=kio0bEZ16rvtBrPrebQJulAMfm2EQIv2x17YeogAQprIjevP6KMK+RDnx0fnaIEPFC
+         fe9HSMNPoUY7m7OMiUgOyth2zSuGeFypL28ONEQNMYypEXtxpYrb0Mw82dnXhB86Kwwa
+         aADW8cQsrgtvftU/wPojUcEkwdWhiiOqJZI9yWtH2cOPyKd+KioLAmNxJ+qfnwXuTVc0
+         3IC0ZNgz2wzVcbf/fX045V2fTqpMHx026bZNTrIGZ+M7GTcHV1FFvSu4KfXr7ekp4toD
+         9a435TBGF8Ys1z9ci4Mad4Z+FsJPlirhrgB2CrboHNTUP7/fECy6DnHeUC9l+y7eAbFA
+         XByQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="e4+/tJPy";
-       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e18sor52383769pgm.1.2019.04.17.11.21.20
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l8si1947105qtn.217.2019.04.17.11.26.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 11:21:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="e4+/tJPy";
-       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=vOuimekE8NbfgdHPy5nv6BcziXj9tFjoRdCDEhswAWM=;
-        b=e4+/tJPy9lZwMFKr1lYS3q3eI9IoHyKSQhAgMxR+bPSmv8loX5z6dYO2v2AaBiWwQr
-         5bA094hod0B34csbEBBjE+gvUycjTRfBKflPToNuCtG0YlEM3qcLynIEErSW66mo6Cxp
-         DsrAuc1OiGEexuBiL4J8KkETdasvfZu/Eo4k/e0ZRexFY+rqeqzIPE2N1maA3jsmXA2U
-         gXLKNobxJyPtVlRcRxvmT0qJVH1SshV04HIwMuJ2p6mGGux8W9PHSV2zVfA7t0TC9SOu
-         Oo1FO5EMMrcYnb7qjkjw3BGHLk4ZRFL5urqhBUsnaPjF5uOlB9w2NII2U35LBv938aFB
-         8CPw==
-X-Google-Smtp-Source: APXvYqzx0ob/O2sv9bLyl1/8sl4QBaI1CzJIblQrJnVdq12BlB+M+ece4h5MiJ3ybKRGa8WdqTk8QQ==
-X-Received: by 2002:a63:7153:: with SMTP id b19mr81205327pgn.289.1555525279839;
-        Wed, 17 Apr 2019 11:21:19 -0700 (PDT)
-Received: from localhost ([2600:1700:e321:62f0:329c:23ff:fee3:9d7c])
-        by smtp.gmail.com with ESMTPSA id e21sm75010222pfd.177.2019.04.17.11.21.18
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 11:21:19 -0700 (PDT)
-Date: Wed, 17 Apr 2019 11:21:18 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-To: jglisse@redhat.com
+        Wed, 17 Apr 2019 11:26:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BCA6C3078AAE;
+	Wed, 17 Apr 2019 18:26:21 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C068A1001E8A;
+	Wed, 17 Apr 2019 18:26:20 +0000 (UTC)
+Date: Wed, 17 Apr 2019 14:26:18 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Guenter Roeck <linux@roeck-us.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Leon Romanovsky <leonro@mellanox.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -110,42 +98,54 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	John Hubbard <jhubbard@nvidia.com>
 Subject: Re: [PATCH] mm/hmm: kconfig split HMM address space mirroring from
  device memory
-Message-ID: <20190417182118.GA1477@roeck-us.net>
+Message-ID: <20190417182618.GA11499@redhat.com>
 References: <20190411180326.18958-1-jglisse@redhat.com>
+ <20190417182118.GA1477@roeck-us.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190411180326.18958-1-jglisse@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <20190417182118.GA1477@roeck-us.net>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Wed, 17 Apr 2019 18:26:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 11, 2019 at 02:03:26PM -0400, jglisse@redhat.com wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+On Wed, Apr 17, 2019 at 11:21:18AM -0700, Guenter Roeck wrote:
+> On Thu, Apr 11, 2019 at 02:03:26PM -0400, jglisse@redhat.com wrote:
+> > From: Jérôme Glisse <jglisse@redhat.com>
+> > 
+> > To allow building device driver that only care about address space
+> > mirroring (like RDMA ODP) on platform that do not have all the pre-
+> > requisite for HMM device memory (like ZONE_DEVICE on ARM) split the
+> > HMM_MIRROR option dependency from the HMM_DEVICE dependency.
+> > 
+> > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> > Cc: Leon Romanovsky <leonro@mellanox.com>
+> > Cc: Jason Gunthorpe <jgg@mellanox.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Ralph Campbell <rcampbell@nvidia.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Tested-by: Leon Romanovsky <leonro@mellanox.com>
 > 
-> To allow building device driver that only care about address space
-> mirroring (like RDMA ODP) on platform that do not have all the pre-
-> requisite for HMM device memory (like ZONE_DEVICE on ARM) split the
-> HMM_MIRROR option dependency from the HMM_DEVICE dependency.
+> In case it hasn't been reported already:
 > 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Leon Romanovsky <leonro@mellanox.com>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Tested-by: Leon Romanovsky <leonro@mellanox.com>
+> mm/hmm.c: In function 'hmm_vma_handle_pmd':
+> mm/hmm.c:537:8: error: implicit declaration of function 'pmd_pfn'; did you mean 'pte_pfn'?
 
-In case it hasn't been reported already:
+No it is pmd_pfn
 
-mm/hmm.c: In function 'hmm_vma_handle_pmd':
-mm/hmm.c:537:8: error: implicit declaration of function 'pmd_pfn'; did you mean 'pte_pfn'?
+> 
+> and similar errors when building alpha:allmodconfig (and maybe others).
 
-and similar errors when building alpha:allmodconfig (and maybe others).
+Does HMM_MIRROR get enabled in your config ? It should not
+does adding depends on (X86_64 || PPC64) to ARCH_HAS_HMM
+fix it ? I should just add that there for arch i do build.
 
-Guenter
+Cheers,
+Jérôme
 
