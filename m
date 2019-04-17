@@ -2,260 +2,165 @@ Return-Path: <SRS0=7cPG=ST=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4401C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:45:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B07C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:51:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 573572073F
-	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:45:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OT1Icl5u"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 573572073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 172202173C
+	for <linux-mm@archiver.kernel.org>; Wed, 17 Apr 2019 17:51:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 172202173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 043296B0005; Wed, 17 Apr 2019 13:45:04 -0400 (EDT)
+	id 8C9F26B0005; Wed, 17 Apr 2019 13:51:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F34776B0006; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
+	id 878816B0006; Wed, 17 Apr 2019 13:51:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E49BA6B0007; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
+	id 768496B0007; Wed, 17 Apr 2019 13:51:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B14786B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:45:03 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id m35so15052020pgl.6
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:45:03 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 252766B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 13:51:55 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z29so10332006edb.4
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 10:51:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
-        b=dsi9RIog+0vB59bZblD/ym76J61alwXJNo/+QqwlHNRR1ELguH2dNAyuJbUboTh3jN
-         MamcYElFLxCyFIQVEbFt7t4jV+WPc792JWdVAxOO4qrqrmRFjHY0IjubSPdzp4yu8uDU
-         zURcaAUcnL+Hg+y/qOgGhJejOKuOzj6W2IPUl3vjBpQXGlNuJxg9Gkqp24P9kA17PBV9
-         bBde6r1rrGFMgjbfDh4QyJ3jO4pObjViOxipu1WhEYMaTXNQjKX+D59vjTU1OM+Z+91h
-         MhC6Zv/eJKL2mx/98oD3209JF+WbknubTVvJcBnoapXTsJlu2xa3MnrskEGidJztdDZm
-         Agpg==
-X-Gm-Message-State: APjAAAUnKoQ12E4TbLUhL0r634nP8DT7ts2LsG23M/3KG+3WKdlNWF/T
-	I3T+nczRYlG05+9wRQR9awVpiYoIZBWIyVWob/BGoWzQS0RAiv8Abj5wHiorpKR53hefur6MePF
-	GTjssjheYOa3V9K1G1TMP1wykUuOVEF5cK5AMci9Uk7n1HHcmDOr/CMN9GGgHSS76RQ==
-X-Received: by 2002:aa7:8096:: with SMTP id v22mr62373913pff.94.1555523103324;
-        Wed, 17 Apr 2019 10:45:03 -0700 (PDT)
-X-Received: by 2002:aa7:8096:: with SMTP id v22mr62373837pff.94.1555523102545;
-        Wed, 17 Apr 2019 10:45:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555523102; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=PMkpejDmoPrVdxh9p9G7C5NFiLeig6LtXYzzCSTz5As=;
+        b=c7SA2U06F5GXevKKmS4L8GVNo+PJVT3z1na0xeWGYV0MnY21q69tGSKk77EYtCc4Eg
+         QPR6jCCwf3wXI6J6vsEtZHXdh2KQOIl0D3fk+gUc0nC574H312L3cJFJMXdMRB95Cohh
+         EKKA4oCgW5BASniIQkNoUCAaZdC/Mv+HxWbMybWAO1mhQ0+ySsPq2sfJdfpuRc8M8DLv
+         yt36upFjekLeVmSQ23lqkxteqCXq3pvB9ZLqdfYKcMIAh0ZFeu3I0Gso3AoNIXrxVLaT
+         gYZFElq6R7BDtizQWW70f/9EnIc9CWGRYSxb4Iz8LvA7N8FAPuQ3puvOEVBjmepX58HC
+         aZFw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWW6LQxFTguAIxwG5179cFJtVbQf0b11hkbPyVHY0TWIjIZuxxO
+	oOCXJlBv5Z1xzSSCyq+pI0lcaooOmnsYC1kQNIl48XCrmwxYDVflBV64RHcIx5YuRuRGCyFjnfR
+	mVNCPIC+3BPGg6eVjQl+6sCie0xiqprzzPmc/fMQ1XsGZ3XUTnV1/o+WUjt1x2gU=
+X-Received: by 2002:a50:dece:: with SMTP id d14mr14628537edl.97.1555523514588;
+        Wed, 17 Apr 2019 10:51:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzFG9Zi7rF/KETqHkj5yZoEikZULQqYtldVDmtFCQgCRDIl7WQd3226/kgF0HR47GdQ3UUu
+X-Received: by 2002:a50:dece:: with SMTP id d14mr14628493edl.97.1555523513521;
+        Wed, 17 Apr 2019 10:51:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555523513; cv=none;
         d=google.com; s=arc-20160816;
-        b=mgk5NyL6Z2UoDY3goLzVzsAdsx67+A0woC0feQijp+bXi3LzZkgFGqxs8XMHzsL010
-         0Y6iA/iA9BEMLsb16uL9h+wgRkoOSRQD5KMBdmZHkjXyajPC3I4oNwGdENukENtf/Qfb
-         JjiTFkS+KPEn+sATWobKjHR+7rfSJCTzIgNqDiHgoZ1cJ0xeirtGqGZ4XVuQwcBLdn0K
-         X16o02NdSg3sE9rVkLvvOHdVhKjFhEW0id+EHNHArks7i/jt5bDEzWZbaunK6Ajb5Zlq
-         CpS+zja+kxdkQ/eMwnmXTZJuQK78/gW8xm291bMTm3fNvDCDL3vPD3PBd6MPbLkhiJsk
-         SyDg==
+        b=iw5ZpFX2By0d4AQDemVtNHmMCl4B5MHKFSqAr9zwd5ILD09ZgHIXf8NrgNYVJIwnJe
+         REFtnUG4/FHvKAEDKf9KRhgQ9hLpXGu1aZVr4Ox2QOwViLegpuE2NqtJa2bLPnX4y8JV
+         ADAwX1li5uCD+z96AGLl5wZ3SL3tALbqWzhw2Rb3Jobc8xTjvHifBZa0c7qYHvc6sZMW
+         Qh5qH/CZuuqabQCHYQsgomKwmD5ZSdiLEO5FgpTb9M9lEmcPZsMZC2NxSE3MNNthSdcE
+         eGkeGa094RCUWXePqXMxcFJFcEmMVJ4JXGggFZGa3BicjwIeRgjdU94Zr4bq/51Nj1hq
+         xGJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
-        b=OytcsDZCCMUOoyaY8m845D4qQ1/+32G5sOwfJRC5b4iu1WeTG3Xgko0QXj23bCFhM6
-         YBf4xyBJhNS0a+CYAeSH2VULCFBxiyDxOAsQRIOPdwNoYOHllgKwryKR9VcROmbzqua2
-         lpMbFuI5I6vGqaXECSGxTTX3YOlSg6Dp3tJUL+4VqmfH8pg9RrnwHAQeb+iRHeIJB5+d
-         tLLq6+ukOBE+CgFMfm6ZitnCnYUPMdvPSezj29I765wA9ySoGZSS6T5RQx5ln5KV6Qz8
-         mF1uYNEL2FYBA/7VOUvHjTBs6lf2daemkIKJR+WwaagYGHGT4BkSrpULaqwXBgAgagGG
-         ihIA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=PMkpejDmoPrVdxh9p9G7C5NFiLeig6LtXYzzCSTz5As=;
+        b=gLTZpTF4zMVMr03Kyvz1vypsUazmYvfXFWTx0ilOYso9jl+mDCTw+oBr05DXu6umPm
+         Xs/GaZ5kwbD2KX14+FZl8FT1d4BqNcjM9e0LEY8oIDwJILxK/WizNMP4GsMrghOYHQz8
+         G0J1cBvmkZttUnO3sRsvKwdsfPb4j+156OTAzjdk7AAOvveOiKN9Mul5KGBunHg4NXI/
+         axJZE4wPbUaFyAYXuOossilO9xxf9hlX+TXNfttPVjtx6dGWK06ii7G7Qu9styGS4mug
+         upkVMrhJduokj6EbFBGAtBxb8L6kT1RVm61DmbZI+RLa8s7nMl0LM4IeYwc2UtBQz+JA
+         82Aw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT1Icl5u;
-       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z18sor73556331plo.58.2019.04.17.10.45.02
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id os14si4011597ejb.155.2019.04.17.10.51.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 10:45:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT1Icl5u;
-       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=iiKewh/rfSv9TET3jU6nkn7AWCBEz5+mb4Gwkj8mwj8=;
-        b=OT1Icl5ug+NAclWFwwjy4encfGqF8h6cQ+Sluh8LzmcZ7PDJwN1EgFXlFIUgiOWhv3
-         CdyxbET3pK6vk3eVE6CuZMYXEDZBkDGGS0j/EPXB7PkGD/NOQuXKFupb6p+NcuweE25U
-         zSQgwg5NjcZJ6sJtwNWHBhcXJCP2pmcgCP9PRguBY4GjSzejO9PQXa/vMmQ7Pc7yKdS6
-         tduovyaAMGBZQaLuQngghondFXL+EQQVleQZ++7KcWxjU8TgbrwM37zs5xY/S5QIMxhe
-         58nzwPq5oTgFA4zTqspejrXFnGO1J+TMkYisCWw26t7w22hh5emAce2dBtovssrt//Df
-         d0Ow==
-X-Google-Smtp-Source: APXvYqzfMmBcNUH3fJFzGd3r9yH7kGevsQ52l1TqCRzwV4eMJos/uHwMz4Wl+hkhnB1q+aRwaHSPBg==
-X-Received: by 2002:a17:902:6bc7:: with SMTP id m7mr42510170plt.146.1555523101228;
-        Wed, 17 Apr 2019 10:45:01 -0700 (PDT)
-Received: from [10.33.115.113] ([66.170.99.2])
-        by smtp.gmail.com with ESMTPSA id v188sm81987353pgb.7.2019.04.17.10.44.57
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 10:44:58 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20190417172632.GA95485@gmail.com>
-Date: Wed, 17 Apr 2019 10:44:56 -0700
-Cc: Khalid Aziz <khalid.aziz@oracle.com>,
- juergh@gmail.com,
- Tycho Andersen <tycho@tycho.ws>,
- jsteckli@amazon.de,
- keescook@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Juerg Haefliger <juerg.haefliger@canonical.com>,
- deepa.srinivasan@oracle.com,
- chris.hyser@oracle.com,
- tyhicks@canonical.com,
- David Woodhouse <dwmw@amazon.co.uk>,
- Andrew Cooper <andrew.cooper3@citrix.com>,
- jcm@redhat.com,
- Boris Ostrovsky <boris.ostrovsky@oracle.com>,
- iommu <iommu@lists.linux-foundation.org>,
- X86 ML <x86@kernel.org>,
- linux-arm-kernel@lists.infradead.org,
- "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
- Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>,
- LSM List <linux-security-module@vger.kernel.org>,
- Khalid Aziz <khalid@gonehiking.org>,
- Linus Torvalds <torvalds@linux-foundation.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Thomas Gleixner <tglx@linutronix.de>,
- Andy Lutomirski <luto@kernel.org>,
- Peter Zijlstra <a.p.zijlstra@chello.nl>,
- Dave Hansen <dave@sr71.net>,
- Borislav Petkov <bp@alien8.de>,
- "H. Peter Anvin" <hpa@zytor.com>,
- Arjan van de Ven <arjan@infradead.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <063753CC-5D83-4789-B594-019048DE22D9@gmail.com>
-References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190417161042.GA43453@gmail.com>
- <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
- <20190417170918.GA68678@gmail.com>
- <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
- <20190417172632.GA95485@gmail.com>
-To: Ingo Molnar <mingo@kernel.org>
-X-Mailer: Apple Mail (2.3445.102.3)
+        Wed, 17 Apr 2019 10:51:53 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id BF352AD3B;
+	Wed, 17 Apr 2019 17:51:52 +0000 (UTC)
+Date: Wed, 17 Apr 2019 19:51:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: Keith Busch <keith.busch@intel.com>,
+	Dave Hansen <dave.hansen@intel.com>, mgorman@techsingularity.net,
+	riel@surriel.com, hannes@cmpxchg.org, akpm@linux-foundation.org,
+	dan.j.williams@intel.com, fengguang.wu@intel.com, fan.du@intel.com,
+	ying.huang@intel.com, ziy@nvidia.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Message-ID: <20190417175151.GB9523@dhcp22.suse.cz>
+References: <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+ <20190416074714.GD11561@dhcp22.suse.cz>
+ <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
+ <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
+ <20190417092318.GG655@dhcp22.suse.cz>
+ <20190417152345.GB4786@localhost.localdomain>
+ <20190417153923.GO5878@dhcp22.suse.cz>
+ <20190417153739.GD4786@localhost.localdomain>
+ <20190417163911.GA9523@dhcp22.suse.cz>
+ <fcb30853-8039-8154-7ae0-706930642576@linux.alibaba.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fcb30853-8039-8154-7ae0-706930642576@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Apr 17, 2019, at 10:26 AM, Ingo Molnar <mingo@kernel.org> wrote:
->=20
->=20
-> * Nadav Amit <nadav.amit@gmail.com> wrote:
->=20
->>> On Apr 17, 2019, at 10:09 AM, Ingo Molnar <mingo@kernel.org> wrote:
->>>=20
->>>=20
->>> * Khalid Aziz <khalid.aziz@oracle.com> wrote:
->>>=20
->>>>> I.e. the original motivation of the XPFO patches was to prevent =
-execution=20
->>>>> of direct kernel mappings. Is this motivation still present if =
-those=20
->>>>> mappings are non-executable?
->>>>>=20
->>>>> (Sorry if this has been asked and answered in previous =
-discussions.)
->>>>=20
->>>> Hi Ingo,
->>>>=20
->>>> That is a good question. Because of the cost of XPFO, we have to be =
-very
->>>> sure we need this protection. The paper from Vasileios, Michalis =
-and
->>>> Angelos - =
-<http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf>,
->>>> does go into how ret2dir attacks can bypass SMAP/SMEP in sections =
-6.1
->>>> and 6.2.
->>>=20
->>> So it would be nice if you could generally summarize external =
-arguments=20
->>> when defending a patchset, instead of me having to dig through a PDF=20=
+On Wed 17-04-19 10:26:05, Yang Shi wrote:
+> 
+> 
+> On 4/17/19 9:39 AM, Michal Hocko wrote:
+> > On Wed 17-04-19 09:37:39, Keith Busch wrote:
+> > > On Wed, Apr 17, 2019 at 05:39:23PM +0200, Michal Hocko wrote:
+> > > > On Wed 17-04-19 09:23:46, Keith Busch wrote:
+> > > > > On Wed, Apr 17, 2019 at 11:23:18AM +0200, Michal Hocko wrote:
+> > > > > > On Tue 16-04-19 14:22:33, Dave Hansen wrote:
+> > > > > > > Keith Busch had a set of patches to let you specify the demotion order
+> > > > > > > via sysfs for fun.  The rules we came up with were:
+> > > > > > I am not a fan of any sysfs "fun"
+> > > > > I'm hung up on the user facing interface, but there should be some way a
+> > > > > user decides if a memory node is or is not a migrate target, right?
+> > > > Why? Or to put it differently, why do we have to start with a user
+> > > > interface at this stage when we actually barely have any real usecases
+> > > > out there?
+> > > The use case is an alternative to swap, right? The user has to decide
+> > > which storage is the swap target, so operating in the same spirit.
+> > I do not follow. If you use rebalancing you can still deplete the memory
+> > and end up in a swap storage. If you want to reclaim/swap rather than
+> > rebalance then you do not enable rebalancing (by node_reclaim or similar
+> > mechanism).
+> 
+> I'm a little bit confused. Do you mean just do *not* do reclaim/swap in
+> rebalancing mode? If rebalancing is on, then node_reclaim just move the
+> pages around nodes, then kswapd or direct reclaim would take care of swap?
 
->>> which not only causes me to spend time that you probably already =
-spent=20
->>> reading that PDF, but I might also interpret it incorrectly. ;-)
->>>=20
->>> The PDF you cited says this:
->>>=20
->>> "Unfortunately, as shown in Table 1, the W^X prop-erty is not =
-enforced=20
->>>  in many platforms, including x86-64.  In our example, the content =
-of=20
->>>  user address 0xBEEF000 is also accessible through kernel address=20
->>>  0xFFFF87FF9F080000 as plain, executable code."
->>>=20
->>> Is this actually true of modern x86-64 kernels? We've locked down =
-W^X=20
->>> protections in general.
->>=20
->> As I was curious, I looked at the paper. Here is a quote from it:
->>=20
->> "In x86-64, however, the permissions of physmap are not in sane =
-state.
->> Kernels up to v3.8.13 violate the W^X property by mapping the entire =
-region
->> as =E2=80=9Creadable, writeable, and executable=E2=80=9D (RWX)=E2=80=94=
-only very recent kernels
->> (=E2=89=A5v3.9) use the more conservative RW mapping.=E2=80=9D
->=20
-> But v3.8.13 is a 5+ years old kernel, it doesn't count as a "modern"=20=
+Yes, that was the idea I wanted to get through. Sorry if that was not
+really clear.
 
-> kernel in any sense of the word. For any proposed patchset with=20
-> significant complexity and non-trivial costs the benchmark version=20
-> threshold is the "current upstream kernel".
->=20
-> So does that quote address my followup questions:
->=20
->> Is this actually true of modern x86-64 kernels? We've locked down W^X
->> protections in general.
->>=20
->> I.e. this conclusion:
->>=20
->>  "Therefore, by simply overwriting kfptr with 0xFFFF87FF9F080000 and
->>   triggering the kernel to dereference it, an attacker can directly
->>   execute shell code with kernel privileges."
->>=20
->> ... appears to be predicated on imperfect W^X protections on the =
-x86-64
->> kernel.
->>=20
->> Do such holes exist on the latest x86-64 kernel? If yes, is there a
->> reason to believe that these W^X holes cannot be fixed, or that any =
-fix
->> would be more expensive than XPFO?
->=20
-> ?
->=20
-> What you are proposing here is a XPFO patch-set against recent kernels=20=
+> If so the node reclaim on PMEM node may rebalance the pages to DRAM node?
+> Should this be allowed?
 
-> with significant runtime overhead, so my questions about the W^X holes=20=
+Why it shouldn't? If there are other vacant Nodes to absorb that memory
+then why not use it?
 
-> are warranted.
->=20
+> I think both I and Keith was supposed to treat PMEM as a tier in the reclaim
+> hierarchy. The reclaim should push inactive pages down to PMEM, then swap.
+> So, PMEM is kind of a "terminal" node. So, he introduced sysfs defined
+> target node, I introduced N_CPU_MEM.
 
-Just to clarify - I am an innocent bystander and have no part in this =
-work.
-I was just looking (again) at the paper, as I was curious due to the =
-recent
-patches that I sent that improve W^X protection.
+I understand that. And I am trying to figure out whether we really have
+to tream PMEM specially here. Why is it any better than a generic NUMA
+rebalancing code that could be used for many other usecases which are
+not PMEM specific. If you present PMEM as a regular memory then also use
+it as a normal memory.
+-- 
+Michal Hocko
+SUSE Labs
 
