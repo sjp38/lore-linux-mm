@@ -2,181 +2,138 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97CBDC10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:53:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53B59C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:17:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4AE2A2183E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:53:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AE2A2183E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 1D85C20651
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:17:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D85C20651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E62F46B0005; Thu, 18 Apr 2019 10:53:40 -0400 (EDT)
+	id 8381D6B0005; Thu, 18 Apr 2019 11:17:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E12916B0006; Thu, 18 Apr 2019 10:53:40 -0400 (EDT)
+	id 7E6D76B0006; Thu, 18 Apr 2019 11:17:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB3C66B0007; Thu, 18 Apr 2019 10:53:40 -0400 (EDT)
+	id 6B18F6B0007; Thu, 18 Apr 2019 11:17:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9107B6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 10:53:40 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 18so1490200pgx.11
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 07:53:40 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1943B6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:17:33 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k56so1432156edb.2
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:17:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=l9iiOHhrYHSRknLsyKFVdUHe2yDzQ8P/sJedBWVLSKo=;
-        b=giZ9vcbOULOvCvA1c2ebI6XwEFm6wLZ/CGbwIKhVUnu2CoZWbqgTCLDWkjMY4/eOHg
-         CSn+i9PENXzeANcTQfMej0KUzhNmx4ctvgqhZ7olaLrZ11YrCQAMZrqFcsRnjC+OXdGz
-         3c5oeP0jKXE3aHZHJA1OqrTGH77TkmfM64iMaaEzRe4dLuhUpNXrojZpl8dq4mom0CHd
-         HE0zcaiP8eedHIqw8BjyU1hgH5912tTkq0obnjVNwAdQ03yQqybBRBCjdKjCsjPjetOr
-         RHk+CqBoadj5S0rNXthJ925rOETFdqK0rKSYt03WDQL+XzbDQsZeUi+aHDBk24HdS+lT
-         oVjw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAXW1wo9CD7rEbURFG5vLM/5MYMOw80PBpGU44C6ULalCg5w/6GO
-	q/VELZEjWyKlacD79tE/QmXhnyhdbUUVXjH+4akUbD+UhZtXHsfWOAzHKPi6e8ztdnsrK/Ybo1o
-	RLbvkopWjFHvmOaRBJ8rJpwabQScZb11enm+GKCHaZGANoYirhcIwUDBoiXRtlmk=
-X-Received: by 2002:aa7:91d6:: with SMTP id z22mr6824016pfa.242.1555599220256;
-        Thu, 18 Apr 2019 07:53:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1743J3Wdqz8Ta12vmHpPABVLimbGoGC4e8teyspSeFdyqMSZDu6CDW8HfFP75LweaZC52
-X-Received: by 2002:aa7:91d6:: with SMTP id z22mr6823963pfa.242.1555599219594;
-        Thu, 18 Apr 2019 07:53:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555599219; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=wDZDD/f2hp+a/qiszZ323T1I8A4Ne2aqfzbI95NxmpE=;
+        b=U8yDILwTUgDA3g3M14kkgPPr3eEfKNAurotn7PbDB/okENeOs559TIxbL545qbt/Im
+         sYKOgcZf2JfY3bHEX3KT6zjQhlckT5rErkYV21ewvuOUFJrK3FSmxQ2W0ZwG2P3xqc9G
+         mRBKdwgzaar1Box0lucE5xnOmAksZTSl/UQi1NoPxk4cQDuyQENM0ofjqdcyWJf2t7K5
+         Gp8HfZwjFTGlvKbck/MLqPee3U/YQsCZfzocRBiK59kRvYilxr9/NbJs+6MJ/TyZTqkO
+         JEE6ISo8+dPWErjgNSg3SlgOPuSK+xjCbiCMWw8LX5RCvqJ2dqd0mdx/2yNo0AOxO9LM
+         aNrQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAX67icJadirHlxOBQ3COYM6kJ5a0hZjiAzfh6+2pah3EeJ40bMr
+	sYueQVEPJNSsbMIH03Uj2OWn/K7wSU9dhTYkcZJD6h+w5EyXLaTtmr2Vzrxi1yk9q/3wXY7CiA5
+	B/RYR+wOvO3Kjl1OKgr9Mpuq6r1WguMJ40GiLxEfNC/oNeSrLhK8HduYL5a8Ddcctbg==
+X-Received: by 2002:aa7:dada:: with SMTP id x26mr25235449eds.77.1555600652500;
+        Thu, 18 Apr 2019 08:17:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyn1yRNRNwbg6h8HkWq54nmf3y7dU36MGesNWXJu52dVT1OqGdnkxPkGdDL4BBiL64Z+x/p
+X-Received: by 2002:aa7:dada:: with SMTP id x26mr25235391eds.77.1555600651631;
+        Thu, 18 Apr 2019 08:17:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555600651; cv=none;
         d=google.com; s=arc-20160816;
-        b=X9o/uEcts43LaIc8dW9q3XBxKDCceFuEkMItwguY203U6dNSMdpQopAHkYKG4VB0Uf
-         CFJ5uVQ9GqkKceS+z5C1pbyjayJw8lJS8G7t5bYPg1g9bIAXWltv15z8w3G54Oc85pLE
-         kOPAvzRIH3cS44kWv59RmJTDrINnQHXfx73T6z+i+sOqLhMShuBg66zZVZNr3pmXV1RZ
-         DrhuHAYDNm+cfO2zz+SvKlWrXzy6P3eMWuR2yHi3sWAYeU0ZvobEt8KeJp30p2VIS/I4
-         Yub1Ry11ItUdULAUiMrt4FpF/zjA8QQRMXZB/7MUsNbkiXBpui9lzrPabE4UAuhMiMdB
-         G5Bw==
+        b=cWfYIOFGbfTabT5sD7xW3xHzbc7r8KIHO1ppQXFE9UnY9B5/ow1J7eJMlQzVIra17q
+         KZCGOHQ0rzXe9CNQwRS1OD+6+GFa4Tx5bXwphKxO0G6ec63oshpWHeBEatP/fwG/QloD
+         8N40iI2coP6nJo4RTm6FW45GjoToYZUA0DvtV4pc5FNYtxxm3AYQF/9TahpdwdccEleN
+         WgpfQwKMT4yK8dtCKxDf3DJNRxfxu6iMLoXRUB4V4baHspYu/SkLPV3eJqLHZqLhhf3B
+         9zNEnC2oiXX5jKEEgNgSYHJKoFLKv4hooyJ6xWWwfINjRE+ClRiRqe86uG5LBNopxRo0
+         3vnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=l9iiOHhrYHSRknLsyKFVdUHe2yDzQ8P/sJedBWVLSKo=;
-        b=X+w0M8VlRImZjfeCodYLCni0Izas+/0+LHIKkAxmlC7cZuXojmHt3OBlBsP93a3IV4
-         O5r93pVc2q6KP70Qgdnu/BuW9JYyM0TY+Zm1UYAAKIJhZxmogpoKAk4XEGuqFo7+IkDf
-         AGv+cneYNHWZ7dEW65uwVfchLZ1pmh2MpCsEkbCpEYLSeAp1eUf7RojLFrHwniFcLzPF
-         Eb8ttXkqHqESq/wvfhQzz8N0THSwvUfzCVFVzEsQEFZ5TelqFzGQ3KLDK+d3NBgmai/F
-         3uFwyYvkC5kkEPKq9su6QpC1DIjxqf+7mG3JVhVtkOEPUsjoUflQbuZwHPhQizrH+0gT
-         OAaQ==
+        bh=wDZDD/f2hp+a/qiszZ323T1I8A4Ne2aqfzbI95NxmpE=;
+        b=jj82EasVr419In9dOOPwwNZHeKNsd+cQHBio8oYUQSD50MhIcH4uD4wtKYa58Sk4vn
+         zgrL65nFtSaCz7lPw9KEqjvsI9Tn86GbX57oJAM+OS96bHO/85Qyt5xNmjgZaOSeRmjy
+         VQA+VW0q6rGd00a+9GUdmpfTSwHskI6s4zy9wcr95F+rgHAh4AYrhUpWkAuTZQz58vA3
+         sifYXhD8NKoquCMiu5TVB5fKT8Nsl7lIRFLp85EZ1ebHdKxWYArSURMGVZSt7tQ8XyeU
+         f7ao+Jj1TcTTaZnE6AIusG8Un/q2NMmZW8oop6ivKHZsIpUqwNQO5cskee/WqjN7ca2t
+         iAJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id cu15si2432130plb.83.2019.04.18.07.53.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 07:53:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g2si305446edh.410.2019.04.18.08.17.31
+        for <linux-mm@kvack.org>;
+        Thu, 18 Apr 2019 08:17:31 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 35831206B6;
-	Thu, 18 Apr 2019 14:53:36 +0000 (UTC)
-Date: Thu, 18 Apr 2019 10:53:34 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 84DA015AB;
+	Thu, 18 Apr 2019 08:17:30 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 86C8F3F5AF;
+	Thu, 18 Apr 2019 08:17:24 -0700 (PDT)
+Date: Thu, 18 Apr 2019 16:17:20 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
 To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf
- <jpoimboe@redhat.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>,
- Alexander Potapenko <glider@google.com>, Alexey Dobriyan
- <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka
- Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes
- <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Catalin Marinas
- <catalin.marinas@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey
- Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, Mike
- Rapoport <rppt@linux.vnet.ibm.com>, Akinobu Mita <akinobu.mita@gmail.com>,
- iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski
- <m.szyprowski@samsung.com>, Johannes Thumshirn <jthumshirn@suse.de>, David
- Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>, Josef Bacik
- <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
- Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- intel-gfx@lists.freedesktop.org, Joonas Lahtinen
- <joonas.lahtinen@linux.intel.com>, Maarten Lankhorst
- <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, David
- Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>,
- Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>,
- linux-arch@vger.kernel.org
-Subject: Re: [patch V2 21/29] tracing: Use percpu stack trace buffer more
- intelligently
-Message-ID: <20190418105334.5093528d@gandalf.local.home>
-In-Reply-To: <20190418084254.999521114@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>,
+	Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
+	Andy Lutomirski <luto@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Alexander Potapenko <glider@google.com>, linux-mm@kvack.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Christoph Lameter <cl@linux.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Akinobu Mita <akinobu.mita@gmail.com>,
+	iommu@lists.linux-foundation.org,
+	Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
+	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
+	Alasdair Kergon <agk@redhat.com>, intel-gfx@lists.freedesktop.org,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
+Subject: Re: [patch V2 08/29] mm/kmemleak: Simplify stacktrace handling
+Message-ID: <20190418151720.GH18646@arrakis.emea.arm.com>
 References: <20190418084119.056416939@linutronix.de>
-	<20190418084254.999521114@linutronix.de>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+ <20190418084253.811477032@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190418084253.811477032@linutronix.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Apr 2019 10:41:40 +0200
-Thomas Gleixner <tglx@linutronix.de> wrote:
-
-> The per cpu stack trace buffer usage pattern is odd at best. The buffer has
-> place for 512 stack trace entries on 64-bit and 1024 on 32-bit. When
-> interrupts or exceptions nest after the per cpu buffer was acquired the
-> stacktrace length is hardcoded to 8 entries. 512/1024 stack trace entries
-> in kernel stacks are unrealistic so the buffer is a complete waste.
-> 
-> Split the buffer into chunks of 64 stack entries which is plenty. This
-> allows nesting contexts (interrupts, exceptions) to utilize the cpu buffer
-> for stack retrieval and avoids the fixed length allocation along with the
-> conditional execution pathes.
+On Thu, Apr 18, 2019 at 10:41:27AM +0200, Thomas Gleixner wrote:
+> Replace the indirection through struct stack_trace by using the storage
+> array based interfaces.
 > 
 > Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> ---
->  kernel/trace/trace.c |   77 +++++++++++++++++++++++++--------------------------
->  1 file changed, 39 insertions(+), 38 deletions(-)
-> 
-> --- a/kernel/trace/trace.c
-> +++ b/kernel/trace/trace.c
-> @@ -2749,12 +2749,21 @@ trace_function(struct trace_array *tr,
->  
->  #ifdef CONFIG_STACKTRACE
->  
-> -#define FTRACE_STACK_MAX_ENTRIES (PAGE_SIZE / sizeof(unsigned long))
-> +/* 64 entries for kernel stacks are plenty */
-> +#define FTRACE_KSTACK_ENTRIES	64
-> +
->  struct ftrace_stack {
-> -	unsigned long		calls[FTRACE_STACK_MAX_ENTRIES];
-> +	unsigned long		calls[FTRACE_KSTACK_ENTRIES];
->  };
->  
-> -static DEFINE_PER_CPU(struct ftrace_stack, ftrace_stack);
-> +/* This allows 8 level nesting which is plenty */
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: linux-mm@kvack.org
 
-Can we make this 4 level nesting and increase the size? (I can see us
-going more than 64 deep, kernel developers never cease to amaze me ;-)
-That's all we need:
-
- Context: Normal, softirq, irq, NMI
-
-Is there any other way to nest?
-
--- Steve
-
-> +#define FTRACE_KSTACK_NESTING	(PAGE_SIZE / sizeof(struct ftrace_stack))
-> +
-> +struct ftrace_stacks {
-> +	struct ftrace_stack	stacks[FTRACE_KSTACK_NESTING];
-> +};
-> +
-> +static DEFINE_PER_CPU(struct ftrace_stacks, ftrace_stacks);
->  static DEFINE_PER_CPU(int, ftrace_stack_reserve);
->  
-> 
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
