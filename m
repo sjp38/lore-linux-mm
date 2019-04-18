@@ -2,187 +2,178 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 443ABC10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:40:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 666A2C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:50:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0017F2183F
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:40:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0017F2183F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 0CBF920674
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:50:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CBF920674
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A60F6B0006; Thu, 18 Apr 2019 09:40:20 -0400 (EDT)
+	id 7B3F36B0006; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8555C6B0008; Thu, 18 Apr 2019 09:40:20 -0400 (EDT)
+	id 73C0B6B0008; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 746486B000A; Thu, 18 Apr 2019 09:40:20 -0400 (EDT)
+	id 607A86B000A; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AC2B6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:40:20 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id c7so1517507plo.8
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 06:40:20 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AA0C6B0006
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o8so1273246edh.12
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 06:50:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=EhGohp98dajYydgt0W68QLMG3WNkyvoG32dk/didwEw=;
-        b=Aki8RWdwRNAOgFnmEtht09WmOtR9OzcjHsAWQjYR0MpS8wDEDWWYXZNdS/0HIVW3B3
-         MOz/Fh3d67I4jeVoatzug9p2wWXezSprXfrNiNqYs6D3x/1fXP01uCOWcR56MWhpWa3R
-         WaK9P2ygUMnhffb71dvdlpylkMlQn7jPvfElFuBZrKTJmdXAXP6VY9LdSCrVMaP24mJg
-         2zI8wnLkqWRCUaaRN0JKAgsf5cm8jS6NnoMqFFEeUuV2wix4I1csmO5JWIcrpYP3EvH/
-         x1sBhVUu0GfEY9eqoHrztwoNw52WO52e/6j/ex1tiESzhQg5siTPL+VljzWHci3yqewF
-         LRRA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAUq9s3pMnkxoOECcixciPuvO2ugoXzI2kZMuHaN1xJnwLTJGBDW
-	+BrG/BkHKcO1k+Hlb/h0VSMxAgD1u9WtWlquibiF5DiTNj5HYShVGyhS098FOQ+x5RCQHP+4HH2
-	H5/kn+JQHseSVLyIPChq6a+2x/121GE0f3yNgZfGpd1ojkvSc8tGjpo8bGZ9qDfs=
-X-Received: by 2002:a17:902:a704:: with SMTP id w4mr92332726plq.51.1555594819901;
-        Thu, 18 Apr 2019 06:40:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzj3DsWhZCTDNNdS1PFM6ZzUd2XJe3hegcmusi6VT3qqXZzE60d0KffOgz8NQh4odseZ80v
-X-Received: by 2002:a17:902:a704:: with SMTP id w4mr92332671plq.51.1555594818996;
-        Thu, 18 Apr 2019 06:40:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555594818; cv=none;
+        bh=j13ppKnA5XOevfzHj/veY7J+stZTddhKz4lu9/wYA5o=;
+        b=CzHlieDRozpd6S9dpT/E2CDIF/M/tdRycFfuOUKesMG9E3/Enkz6No9y0RQkdCkRkH
+         Wc3PgR6CYY9Ps93r9dYDAz290t5c8lR2xeAXsC/nrPivOdqN7jedXkVjfRb902QkZzc3
+         erVySVNvPJTT5YA5J6MWsmHUXLkzOFO1e+vRHFZVRUGWaXEB8xug/nUTXffsbzURoxf1
+         JIgr9J6VenWtIyGNQMcsLG/WoS/cAQpvdR1cSJqHZd0sEsDBOIdy0xWy7FeZR+Jyfwnp
+         ABSx9dDTW28h8zyHvcXOQC841BkhKMpm0/LltsqBpqjQW0RuqfZ+5TVvWa1EltoIHOP5
+         fiZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Gm-Message-State: APjAAAVklRN0rcfLT4OOnWvBljiiT5unIy4it5/JpnSFJ8rJhLWCBf//
+	ge45A96TFnQVdexncc4+OVmhLD4na/gMSBPCF8H17pU4+W1yhDF7PqignZJsiwnsnNQMhloApBA
+	Dw6929B7wWQAnQKpCt0BnNfeP7BuLe6o9SWVAmLNXXYP41PrjICGc2ABDw2OwSiTyeg==
+X-Received: by 2002:a17:906:a85a:: with SMTP id dx26mr50804580ejb.206.1555595456516;
+        Thu, 18 Apr 2019 06:50:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyr+LmsdU2R5FgmCwLKY8tCaxiR02qaE5oH2hou/PbcmnB2bNVPXCcI+AGRvLJO64jw/6z3
+X-Received: by 2002:a17:906:a85a:: with SMTP id dx26mr50804543ejb.206.1555595455530;
+        Thu, 18 Apr 2019 06:50:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555595455; cv=none;
         d=google.com; s=arc-20160816;
-        b=BVaJMlmeY2COhPcAnZKe/gMrYbpP27XIthsQvIkkmWoXfFDrxws0K+qUfh5ZH5d0Ui
-         1ZNDrAuR4hPELaZhgd2WpbC8oio1kNZ8Xeihyz0HqdGMuMa/liFCvBiCLresdY8ajavf
-         qG/2VeDqD4teADGT9yz05gSDxrnnPNwkK6MpUpR0OOC3DzRgcIwq+bfl6cOFw9u5nM5B
-         4zxnLxhfvej2X3xDrjh3bwTS/KJM/Axm646qTWgmuv+L4VdHthVK1gyKPioDLtkA1IKs
-         C+b6L5Dqz45ln+eyIaLGz0GY4J5IRqFzNlIZO6PrduYEgHiOcwppf1Dazjlrz4SWTCVK
-         4Klg==
+        b=iJ/w2FqgG00/gNko6VM/xm3hu0s67OMrh2hl6WnPui6v/QWF2S5PaujGPmtiLk0dZ2
+         xZPJWpL60L430Uj346Up8fCTt2aRKnSoDUcvVjrD6IegvFqiebWvUC8zic4xLYYFbokV
+         +KJmFmIkXvFRZLkSeCZq2m5mo7MyAW8t4API7cHrostqXSNbp23JIvh5UGPS0itqnwy4
+         C5aMFT6q8h/QuyjLOrn1qbYylDG2o05Igz0ertDWrrJqkTYJ5M9RjNOmibS9ckN542UC
+         52gVbIzbC0PACvCjBHgR+iThqrHJmzJpegL8VuCjyQ8mINmw6ibh50ChJt3HjyKK3drL
+         etSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=EhGohp98dajYydgt0W68QLMG3WNkyvoG32dk/didwEw=;
-        b=Wf7yOsYez1p3hxMtVmSrs75PkkcEP6a+onxbHvt7NOhqjj+4JF/Whg+u4L8MvPOako
-         M4YCYc7o04/rx1Tl/FT0go+d0GOjQkJ7JszFqzKsBDxeQ8GvXpOsNwQxO6iW+tQEXo/u
-         LnYDIoWfT/u1obhABCY/c8H4F8jJCZAp/w0asCFW7c7EQGqHKmMWxw/2otdQT8vq14Vc
-         ObqCFXBOIYCkdRGppvI3uYZXBqGo22Dgu7WMObLfq36Z1fZaeK/sZgFsC4EoJo0Rky8G
-         17F8Eye6BA8QwXPLhtBtArrQ70IzRG4sl6LKA7Ry784VGqozUahyvZ9EWkoKJ8iYYqBf
-         MnvA==
+         :message-id:date:subject:cc:to:from;
+        bh=j13ppKnA5XOevfzHj/veY7J+stZTddhKz4lu9/wYA5o=;
+        b=wsG7V5muThPBAhr21yPOOebwA6KC7f5lEjtBhbcYq5XLs9K1Tlu+tDVM8dekUECkIQ
+         58kayEkWI0FaCBXWyVklYcflfPt5SQDyFA4Tht/eAQopHdEVKZTUD9bSSTU0Xi3ho4eG
+         msBs7BLegsNiRNvIM88lmR9DEq/5B5nHAdJCn05TyGgTCARjnT+fpMOnd+6P9MMCiy0Y
+         FSZXlqzsW3X/BovXodtB16aTJ15RyW+PgOt7jHE6la2CnxXw0O3fKlg4IqEl70m8BdMT
+         u33iNRMeQ/EZqp/BSF9PFaQpXsREfr3OGMbyu52QH3AM6XS3iFgUQmsnXC9OynDDbOcU
+         uG7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k12si1800962pgo.429.2019.04.18.06.40.18
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hb2si1012835ejb.291.2019.04.18.06.50.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 06:40:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 18 Apr 2019 06:50:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 77CD12083D;
-	Thu, 18 Apr 2019 13:40:15 +0000 (UTC)
-Date: Thu, 18 Apr 2019 09:40:14 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Tom Zanussi
- <tom.zanussi@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf
- <jpoimboe@redhat.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>,
- Alexander Potapenko <glider@google.com>, Alexey Dobriyan
- <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka
- Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes
- <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Catalin Marinas
- <catalin.marinas@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey
- Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, Mike
- Rapoport <rppt@linux.vnet.ibm.com>, Akinobu Mita <akinobu.mita@gmail.com>,
- iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski
- <m.szyprowski@samsung.com>, Johannes Thumshirn <jthumshirn@suse.de>, David
- Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>, Josef Bacik
- <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
- Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- intel-gfx@lists.freedesktop.org, Joonas Lahtinen
- <joonas.lahtinen@linux.intel.com>, Maarten Lankhorst
- <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, David
- Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>,
- Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>,
- linux-arch@vger.kernel.org
-Subject: Re: [patch V2 20/29] tracing: Simplify stacktrace retrieval in
- histograms
-Message-ID: <20190418094014.7d457f29@gandalf.local.home>
-In-Reply-To: <20190418084254.910579307@linutronix.de>
-References: <20190418084119.056416939@linutronix.de>
-	<20190418084254.910579307@linutronix.de>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A41E2B6A0;
+	Thu, 18 Apr 2019 13:50:54 +0000 (UTC)
+From: =?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: mhocko@kernel.org,
+	akpm@linux-foundation.org,
+	arunks@codeaurora.org,
+	brgl@bgdev.pl,
+	geert+renesas@glider.be,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	mguzik@redhat.com,
+	mkoutny@suse.com,
+	rppt@linux.ibm.com,
+	vbabka@suse.cz,
+	Laurent Dufour <ldufour@linux.ibm.com>
+Subject: [PATCH] prctl_set_mm: downgrade mmap_sem to read lock
+Date: Thu, 18 Apr 2019 15:50:39 +0200
+Message-Id: <20190418135039.19987-1-mkoutny@suse.com>
+X-Mailer: git-send-email 2.16.4
+In-Reply-To: <20190417145548.GN5878@dhcp22.suse.cz>
+References: <20190417145548.GN5878@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+I learnt, it's, alas, too late to drop the non PRCTL_SET_MM_MAP calls
+[1], so at least downgrade the write acquisition of mmap_sem as in the
+patch below (that should be stacked on the previous one or squashed).
 
-[ Added Tom Zanussi ]
+Cyrill, you mentioned lock changes in [1] but the link seems empty. Is
+it supposed to be [2]? That could be an alternative to this patch after
+some refreshments and clarifications.
 
-On Thu, 18 Apr 2019 10:41:39 +0200
-Thomas Gleixner <tglx@linutronix.de> wrote:
 
-> The indirection through struct stack_trace is not necessary at all. Use the
-> storage array based interface.
-> 
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
+[1] https://lore.kernel.org/lkml/20190417165632.GC3040@uranus.lan/
+[2] https://lore.kernel.org/lkml/20180507075606.870903028@gmail.com/
 
-Looks fine to me
+========
 
-Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect
+arg_start|end and env_start|end in mm_struct") we use arg_lock for
+boundaries modifications. Synchronize prctl_set_mm with this lock and
+keep mmap_sem for reading only (analogous to what we already do in
+prctl_set_mm_map).
 
- But...
+Also, save few cycles by looking up VMA only after performing basic
+arguments validation.
 
-Tom,
+Signed-off-by: Michal Koutný <mkoutny@suse.com>
+---
+ kernel/sys.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
-Can you review this too?
-
-Patch series starts here:
-
-  http://lkml.kernel.org/r/20190418084119.056416939@linutronix.de
-
-Thanks,
-
--- Steve
-
-> ---
->  kernel/trace/trace_events_hist.c |   12 +++---------
->  1 file changed, 3 insertions(+), 9 deletions(-)
-> 
-> --- a/kernel/trace/trace_events_hist.c
-> +++ b/kernel/trace/trace_events_hist.c
-> @@ -5186,7 +5186,6 @@ static void event_hist_trigger(struct ev
->  	u64 var_ref_vals[TRACING_MAP_VARS_MAX];
->  	char compound_key[HIST_KEY_SIZE_MAX];
->  	struct tracing_map_elt *elt = NULL;
-> -	struct stack_trace stacktrace;
->  	struct hist_field *key_field;
->  	u64 field_contents;
->  	void *key = NULL;
-> @@ -5198,14 +5197,9 @@ static void event_hist_trigger(struct ev
->  		key_field = hist_data->fields[i];
->  
->  		if (key_field->flags & HIST_FIELD_FL_STACKTRACE) {
-> -			stacktrace.max_entries = HIST_STACKTRACE_DEPTH;
-> -			stacktrace.entries = entries;
-> -			stacktrace.nr_entries = 0;
-> -			stacktrace.skip = HIST_STACKTRACE_SKIP;
-> -
-> -			memset(stacktrace.entries, 0, HIST_STACKTRACE_SIZE);
-> -			save_stack_trace(&stacktrace);
-> -
-> +			memset(entries, 0, HIST_STACKTRACE_SIZE);
-> +			stack_trace_save(entries, HIST_STACKTRACE_DEPTH,
-> +					 HIST_STACKTRACE_SKIP);
->  			key = entries;
->  		} else {
->  			field_contents = key_field->fn(key_field, elt, rbe, rec);
-> 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 12df0e5434b8..bbce0f26d707 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2125,8 +2125,12 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
+ 	error = -EINVAL;
+ 
+-	down_write(&mm->mmap_sem);
+-	vma = find_vma(mm, addr);
++	/*
++	 * arg_lock protects concurent updates of arg boundaries, we need mmap_sem for
++	 * a) concurrent sys_brk, b) finding VMA for addr validation.
++	 */
++	down_read(&mm->mmap_sem);
++	spin_lock(&mm->arg_lock);
+ 
+ 	prctl_map.start_code	= mm->start_code;
+ 	prctl_map.end_code	= mm->end_code;
+@@ -2185,6 +2189,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 	if (error)
+ 		goto out;
+ 
++	vma = find_vma(mm, addr);
+ 	switch (opt) {
+ 	/*
+ 	 * If command line arguments and environment
+@@ -2218,7 +2223,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
+ 	error = 0;
+ out:
+-	up_write(&mm->mmap_sem);
++	spin_unlock(&mm->arg_lock);
++	up_read(&mm->mmap_sem);
+ 	return error;
+ }
+ 
+-- 
+2.16.4
 
