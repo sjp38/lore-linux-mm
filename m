@@ -2,162 +2,153 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F0E4C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:11:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BCA0C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:45:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 118762183E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:11:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QYox3mHS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 118762183E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0AAA42183E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:45:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AAA42183E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 936776B0008; Thu, 18 Apr 2019 08:11:57 -0400 (EDT)
+	id 6382F6B0008; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 90D6B6B000A; Thu, 18 Apr 2019 08:11:57 -0400 (EDT)
+	id 5E6E26B000A; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 823F86B000C; Thu, 18 Apr 2019 08:11:57 -0400 (EDT)
+	id 4D7D26B000C; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD8C6B0008
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:11:57 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id r17so425027vsk.0
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:11:57 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DF96B0008
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id n1so1878534qte.12
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:45:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=iSgCAvUEGOmkA7yqq7QK6OCH2CFcFcPt+JEh4ZctSK0=;
-        b=DJrKrr3lULkNuD6E+VeQDq8XSEzIZ3j0lk4ZchCXMYF4XVkgv88P4WgHA4RPVRC6sZ
-         iDs/lE4/9VDE4brSfqNfmV2UN28pDAYu5nECuld0+H6neCp6eoC1cedI7DlQE+qstPWY
-         odZDIwDTLAkc6xU9Zze8NiX/+mRuRs+KqsnQ8XBtEb6bHlmK/YpTlOEuYZFPbT6lpgJc
-         NXQB7yJNfgkVq3VqsDOGHR6HSxgkbVKLzyB3paaF+8ovESisY7fQ9FRTFauaFRgZBy3Y
-         1X5SeM2G04QldNJGWaBpBlzQ+jVzUh2O5ZPY/1j0aGlWiOtJaV38plXlcDAncwCtJwXo
-         gKUw==
-X-Gm-Message-State: APjAAAUyKt9K/ui72U4LK/u3EKhvmV/+ksslSmvZMm5yJimpbD9MBhR1
-	kgEZK1cQoyx2gz+YNulHhDQDnaHIhfC6Q9xtKcrCFTwegC/RXaH8CJkv9GQsvtfKF2J/CEPlyIG
-	F5/KusjFzjvZrARBHkTs1yzGi7k92L6Fhy5V2aJ23XfINztFhfsyFi8/9J6tzOf1OAg==
-X-Received: by 2002:ab0:5fc1:: with SMTP id g1mr8640098uaj.91.1555589516989;
-        Thu, 18 Apr 2019 05:11:56 -0700 (PDT)
-X-Received: by 2002:ab0:5fc1:: with SMTP id g1mr8640060uaj.91.1555589516298;
-        Thu, 18 Apr 2019 05:11:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555589516; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=V6+AwqFlWgmo/f1d5Sr1wG1FplZRlRHmIy7RCmGRmNA=;
+        b=iH8wJ9dbWje1aQWep1zlDY+aZi2a+cwrsvOQGnwdQfNW+7SHtuyTRddhRfkMEfYl2G
+         LTfwr86jzCyBqEpqy+NsmXKCHZhVTmLC73AUNDwgUHC3YweeuLpGh3OOz1kUxXssNrVC
+         NwSCq1xuJJ/ZW8k/eBZAg3TkO9qhRPwiGKVDgrE13XLrHzA8a2Wuon1zMd79l2vjcHjS
+         THvxpJ8hVcmZNJV7EF6aYjlqKNMFMaYc9wGRGESNeVC/iVylCxkxgPcCUJiJRfxVoxkB
+         1pZhLb1eyhEA0HkTyWVTaoHUBPzPkNib3c0EKU7W4XL0S+ARJ3DwKD8xq9kSloKmZPBO
+         9SWw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUfE0s5gKpL/BYOtiqBsb+gpl9g0rYPlKPiWq8r0F7iHEbn9fb1
+	Tp5PO4LY2sS8p+bsnQRJlpWBmnjpSlUsRuejprwejuikyoAcFCRH5N7Tz820BbxmoiIYGoNPyXk
+	PXONDuCASDikRzmDi8jzWN/tJOdgIDsSCml2oa2xyh9poxpw8BIl+thoiwTmrYGv8ww==
+X-Received: by 2002:a37:7c87:: with SMTP id x129mr8174161qkc.311.1555591527838;
+        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx7K6Gco0E4zKGW+yYKZ34b7XbKRYvnc1grFSL0JUUy7jG2y5Z6t/pqt/6+IGzm+rp1JIJJ
+X-Received: by 2002:a37:7c87:: with SMTP id x129mr8174120qkc.311.1555591527070;
+        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555591527; cv=none;
         d=google.com; s=arc-20160816;
-        b=BqZHsSZobN1x50ekQXALh2MZ5jHdioHmvMccs180fIGx8cHA212F/bshtGk1HE92T1
-         m80+oQJWqqXiGE44EbQlWZn2oWoAWW85m1gCs3bPF7El/oxzu+kSEVyTBOijU4xkLX8B
-         /3XIlyyXsJqp3bvAr2OvKHCwVne2ROQbXG8ci+s9y7K8HrZT/Ik5kWzd3vkwy2sL2rgK
-         i/B26rwouqnipka7aXybjG8hjXdgVFdy6xwMNCTW+Lq25iLf68XREm3RYpxHA48uRuSY
-         88yw3nOsrVjXR466zt7c02nOEcDzN/3oCfPBF2PJh0vQ9oqK1p4+zSJKSp1Emjj/22vt
-         +wrw==
+        b=lINbMtjMds0f4jh/SPrTkylBYNA6PTA9KIzMVAxqxNd7BuhAiH5cZPcYkS6dDTrPwj
+         dADtWe8yaNL2W+IAsrUsBsbVP8Tjudya4hN8wg7jHGl5Pdk6i1atTX0LhlELOOuRsHAZ
+         YhjZwuKZiSsVWPbrmEvRhwdrCjKPA3jjVsxGvcNtm16yj7txXZuAHXE5kjRY2k5STnLQ
+         +9g5XiJaSaCkbvcYKWWqv58wryLAIHUxyulec2ewDNaaO+lhvL2XnDLBirR+8KDEbS8n
+         s85q0CLf8W301jngavkmOBE8c/1PxRl5MKQ24TpPPhtvzMTE6nvNUWT4zqKT1+ErXdJo
+         SFfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=iSgCAvUEGOmkA7yqq7QK6OCH2CFcFcPt+JEh4ZctSK0=;
-        b=Lr5+EIkh9w0moU+PLhK5RMoJCGIbJkx9Yn0IJ8itIO8987m9FOAHUZLJpz8ImrsN51
-         MOciNGClhgSpib6ghDPhXYP/zYKZuEMHOIQaX1+qcmVk8DLXWXCRcIdcxwEJxNNxPqtG
-         q5dzrr/0TFPqf3y270Kw6lBmFS5C4vzMX2i78cX32V5Kowt/MRoVI5E4oAlX9p2zZ6mm
-         HZ2FhF/lER8llXnVEe2wx3spjbiF8erLNhOQF8u3lZD3Oy2tS/lQGbk+sn0VymueKxm2
-         9GXMgP67XvEnb1FFS2/hJBQCvyr7+q5UhVM666hF0waVhkPzWRFNrF2agurzgcua9YbH
-         GhlA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=V6+AwqFlWgmo/f1d5Sr1wG1FplZRlRHmIy7RCmGRmNA=;
+        b=imklo8SfPTBVlKO9TA58VA0vHWb7NS5kuczIe6UFlP/+eEASmetN4MmKFeqncjyZYL
+         BJ1tIeW0vZFte+3mV5RIl2GAje8qhnDWJH3+ehUUrYZDPgPJ8k2CSH329zg7GrnbNfcs
+         bA3cXfGSPMFM+ozaWHwQrO3YVAgvv5jVv3v3sdRMpo5Jpmbrh2wkBL5AxKKoR78fNgJu
+         GoWEqRCpklel+MjM0EWL4qpqMC+6XCTceeXePM+9GO37yA+Bd+qTtVtm0jmp7a5cFNfj
+         dZkVM9le3Ew5f2nciCmYjGXCIoG/RqfofeK0KwCGoITs0PQs45YEcEaSK0tOjyPb97Ij
+         C/yQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QYox3mHS;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y140sor829621vsc.13.2019.04.18.05.11.56
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e33si1516500qvh.73.2019.04.18.05.45.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Apr 2019 05:11:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QYox3mHS;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=iSgCAvUEGOmkA7yqq7QK6OCH2CFcFcPt+JEh4ZctSK0=;
-        b=QYox3mHSqW80j2A3IIiagUUBm09mZj02WRCKir6HBQx5T+b+hhAzGHQFOTwlONKbj+
-         JJgyR/WQHwg8Cc7ukRkbYZ/f59+ReLAwpKS1zTzZMgMWjQjpa+NvSVrh8A8T3ceV7bLY
-         uoXOMjV66AX9yM+yes+lXGolAtYtmsYKfcrPtWTFFr/7rqv9SEvseUou0t+cwv7s/iye
-         TvT67Ae1wW9IHuwbcM5KGneuy8s3xRcKd0xOYCDyYWSzCvqtrVSm9//cPZFi/yYSzHlT
-         1EQatPDgbrTsuxjhpE9ZcaOv8iSwAziw9Dkkkdizs+FhJMHfeZvWV03ILGIJlDd0RIEk
-         lVyA==
-X-Google-Smtp-Source: APXvYqwECAvEJzUlV7fzRl9b6wg7o0AisQ+1RCTx/KeiR4GaCwP9nHgwP4vp46KXwzB2ZT6/gaSoiXLGbekHjekrJKI=
-X-Received: by 2002:a67:e30a:: with SMTP id j10mr51098919vsf.103.1555589515631;
- Thu, 18 Apr 2019 05:11:55 -0700 (PDT)
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 83FA681129;
+	Thu, 18 Apr 2019 12:45:25 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6CC6519C65;
+	Thu, 18 Apr 2019 12:45:11 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,  David Hildenbrand
+ <david@redhat.com>,  =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+  Logan Gunthorpe <logang@deltatee.com>,  Toshi Kani <toshi.kani@hpe.com>,
+  Michal Hocko <mhocko@suse.com>,  Vlastimil Babka <vbabka@suse.cz>,
+  stable <stable@vger.kernel.org>,  Linux MM <linux-mm@kvack.org>,
+  linux-nvdimm <linux-nvdimm@lists.01.org>,  Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>,  osalvador@suse.de
+Subject: Re: [PATCH v6 00/12] mm: Sub-section memory hotplug support
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20190417150331.90219ca42a1c0db8632d0fd5@linux-foundation.org>
+	<CAPcyv4hB47NJrVi1sm+7msL+6dJNhBD10BJbtLPZRcK2JK6+pg@mail.gmail.com>
+	<CAPcyv4iW=xhhUQbg0bt=xCgVaR_jUvATeLxSoCfvzG5gTEAX6A@mail.gmail.com>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Thu, 18 Apr 2019 08:45:10 -0400
+In-Reply-To: <CAPcyv4iW=xhhUQbg0bt=xCgVaR_jUvATeLxSoCfvzG5gTEAX6A@mail.gmail.com>
+	(Dan Williams's message of "Wed, 17 Apr 2019 19:09:12 -0700")
+Message-ID: <x49lg07eb3d.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-References: <20190418084119.056416939@linutronix.de> <20190418084254.361284697@linutronix.de>
- <CAG_fn=WP9+bVv9hedoaTzWK+xBzedxaGJGVOPnF0o115s-oWvg@mail.gmail.com> <alpine.DEB.2.21.1904181353420.3174@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1904181353420.3174@nanos.tec.linutronix.de>
-From: Alexander Potapenko <glider@google.com>
-Date: Thu, 18 Apr 2019 14:11:44 +0200
-Message-ID: <CAG_fn=WL0yLqavV_mhodT=B6KcAzJ+LS0hss1jqany9Cn92RHw@mail.gmail.com>
-Subject: Re: [patch V2 14/29] dm bufio: Simplify stack trace retrieval
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org, 
-	Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, dm-devel@redhat.com, 
-	Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>, 
-	Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, 
-	David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, 
-	Catalin Marinas <catalin.marinas@arm.com>, Dmitry Vyukov <dvyukov@google.com>, 
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Akinobu Mita <akinobu.mita@gmail.com>, 
-	iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>, 
-	Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, 
-	Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>, 
-	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org, 
-	intel-gfx@lists.freedesktop.org, 
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, 
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, 
-	David Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>, 
-	Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 18 Apr 2019 12:45:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 18, 2019 at 1:54 PM Thomas Gleixner <tglx@linutronix.de> wrote:
+Dan Williams <dan.j.williams@intel.com> writes:
+
+>> On Wed, Apr 17, 2019 at 3:59 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>>
+>> On Wed, Apr 17, 2019 at 3:04 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>> >
+>> > On Wed, 17 Apr 2019 11:38:55 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
+>> >
+>> > > The memory hotplug section is an arbitrary / convenient unit for memory
+>> > > hotplug. 'Section-size' units have bled into the user interface
+>> > > ('memblock' sysfs) and can not be changed without breaking existing
+>> > > userspace. The section-size constraint, while mostly benign for typical
+>> > > memory hotplug, has and continues to wreak havoc with 'device-memory'
+>> > > use cases, persistent memory (pmem) in particular. Recall that pmem uses
+>> > > devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
+>> > > 'struct page' memmap for pmem. However, it does not use the 'bottom
+>> > > half' of memory hotplug, i.e. never marks pmem pages online and never
+>> > > exposes the userspace memblock interface for pmem. This leaves an
+>> > > opening to redress the section-size constraint.
+>> >
+>> > v6 and we're not showing any review activity.  Who would be suitable
+>> > people to help out here?
+>>
+>> There was quite a bit of review of the cover letter from Michal and
+>> David, but you're right the details not so much as of yet. I'd like to
+>> call out other people where I can reciprocate with some review of my
+>> own. Oscar's altmap work looks like a good candidate for that.
 >
-> On Thu, 18 Apr 2019, Alexander Potapenko wrote:
-> > On Thu, Apr 18, 2019 at 11:06 AM Thomas Gleixner <tglx@linutronix.de> w=
-rote:
-> > > -       save_stack_trace(&b->stack_trace);
-> > > +       b->stack_len =3D stack_trace_save(b->stack_entries, MAX_STACK=
-, 2);
-> > As noted in one of similar patches before, can we have an inline
-> > comment to indicate what does this "2" stand for?
->
-> Come on. We have gazillion of functions which take numerical constant
-> arguments. Should we add comments to all of them?
-Ok, sorry. I might not be familiar enough with the kernel style guide.
-> Thanks,
->
->         tglx
+> I'm also hoping Jeff can give a tested-by for the customer scenarios
+> that fall over with the current implementation.
 
+Sure.  I'll also have a look over the patches.
 
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+-Jeff
 
