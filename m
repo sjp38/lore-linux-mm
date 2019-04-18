@@ -2,180 +2,202 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13537C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:42:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC82EC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:47:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA28C217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:42:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="oaWnOGJj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA28C217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 6BCB520652
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:47:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BCB520652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 211556B0005; Thu, 18 Apr 2019 17:42:43 -0400 (EDT)
+	id 084D36B0005; Thu, 18 Apr 2019 17:47:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 196AB6B0006; Thu, 18 Apr 2019 17:42:43 -0400 (EDT)
+	id 034AD6B0006; Thu, 18 Apr 2019 17:47:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05EE66B0007; Thu, 18 Apr 2019 17:42:42 -0400 (EDT)
+	id E3F2D6B0007; Thu, 18 Apr 2019 17:47:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5D1F6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:42:42 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id e31so3278839qtb.0
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:42:42 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2EBC6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:47:30 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id n1so3230985qte.12
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:47:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=605MB47TGZE7++nkg35APlvJ7LvXGdU0fZst7n36xg0=;
-        b=fcc3ICa5NP1MmxRnxDB5LY73WFAIoIVfnlrcxza215tG++fYv6CDV1kDIJ3PvFWHke
-         aarnqibONvthws8EcER14M9X3ZF4p6+45Beg3vVf4D9rn1ak9oxaLv6M/xcOpcsbCTK2
-         soJ4IiPB0eCHHjc0Lq1QgW3J3IH0XvaQzRl0xQqmZiA9EccVRrf8eaU/SnMXE9R+y5f+
-         l3P3BzHDretUyDWZHRIBgGGmpG8O99nC8lgwBQOdt7OfXDW4BLaXo5GmOi9XQblO0bTY
-         esfXPnGWxanM+Lh2lvbVy/lKISpRfNG8U80O5ypUdT7xi+7WIvH3T3lR7IH16fsTTD09
-         zUng==
-X-Gm-Message-State: APjAAAX20tRBGw5Xn04B67rN0tZD066SJKlAiMxySIBYsLUNhq4rJLxE
-	zvaWWEgz6PYruggoSa3u99EeXWrAS9+yD5DqZdKIo3PSwIrC6mUT1G6TT7bcXw8nnL7jgYitPsV
-	7VKXGfqcsPz7Udm57KFa0lmuYhyS0CfZhkxr030ovqVdaSxJSlTvySvYv+OW8woZcXw==
-X-Received: by 2002:a0c:8b69:: with SMTP id d41mr437913qvc.186.1555623762614;
-        Thu, 18 Apr 2019 14:42:42 -0700 (PDT)
-X-Received: by 2002:a0c:8b69:: with SMTP id d41mr437852qvc.186.1555623761815;
-        Thu, 18 Apr 2019 14:42:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555623761; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=LPJ2NCPPdrZe8rPHVGpcy7e3s7cuKGwQ//HzPWb0JRE=;
+        b=BgVi6LKlV0pjS1nw5evE8Ybw6VkJfV0NFjk4Qca+ao+nSI5rtxsDRv0Qu40/3Ymaqy
+         OoYud6VhaeM7q36buTxqCg7fTy1OCCCL+g9l4h7RRrrATPpR/Xx/K5FHtwPMxsxhrIkv
+         Zf6miNJ9V/7ST6077NO8ccVCYpcQejUI6Zv2HIGifhwRPLiqHT347P7MUPu4ygzX49zs
+         0FWnNHjV1Neq7Ohwn6T0Ov3rCLZJ/XclasTCu5H13h3OWAh0+VSQs4/pn8fDcVVyIlrp
+         3MGEI1QtarA6YIN1BFt+z1HVfpUp4i0NBr71zsk6uBd+PXjFbeRYLww0f3TkdLt2ur2s
+         xj4w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUrSpy0YhdMf4r5b26iT7JO+2n9I8l/2ekCQ2Smu/NvslN30j+7
+	rdhD8lrc6A55nVCHC9m+Ljt5ijXuAsiw42HdtqQC5NVVPWm9k1LA8BQc5SQC+7r+B3ifiLJCmPL
+	eHewpNPLKPS2gzm8ggLyFCSqkrypedNiyfoZ7oDCVyyn8FdqHfrLMjSWeAnYsyZ1EOw==
+X-Received: by 2002:a37:a457:: with SMTP id n84mr291106qke.85.1555624050531;
+        Thu, 18 Apr 2019 14:47:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwUgBIxb48O44vPR9x5qRSConqBQVAVHxAmKZ4cQL0IjHHcTVUJG5Qwny9BAqzt5EG/Zfgb
+X-Received: by 2002:a37:a457:: with SMTP id n84mr291069qke.85.1555624049894;
+        Thu, 18 Apr 2019 14:47:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555624049; cv=none;
         d=google.com; s=arc-20160816;
-        b=GUe4/Xz7XgYAAceAzGB/g1lwy2knO56gzo2U/tlU7prCKBabhf68T4U7GRMkESyE4P
-         y6luO8CGjOwhXoMjjFQmsyznjlvH/syuNKLRY2Cb0dwbfR7vf71IzXL704VTcSR4iXWP
-         B3iFP5nPwsSUEdemHIifzjaHBrirOFb6J4lfdVQo5qeQpRx71giRlHelV/4J36Q5iZtg
-         xg1bFOh5wF0k+buyD7m9+nJ+MbxlZNowpv8DYj0rpA0T1eeP6eDFwkynZO/Y3FevIpOI
-         wpodKlarLXxWem6oVJhbUG4UDN6i7g7WyiDADmT6tv9XOB6w3YTnIsFSNvBDTEtRPjxr
-         tFcw==
+        b=ZrSYmBdticvO4/WKU0ZxunZBYTtuH9QJerojG0Ekhpz/Ozx1pOzMXtcrOnfumk1IsQ
+         qUK+rLEZ4RDQm+u60PTtbB92PfnQu2kVUA2pDLJVZejim6C1hDZkT4qJQ0ylmsAJHlCZ
+         zzfGF/RNaA+d/l1Kzj7T/gj1spKsHnBheuisviJclrhP8jkQjtrvjuFA+mQU9PP/QJWq
+         oCIXWdUr/ApBJLwT804Y8W205n9iRXbtXqw04qOD4gfwjZbcwUoVfxUyORMlSCTC9yZd
+         RCrSbSFP9OXgX6ZRrRiNBlRt1KEKw8Icc+/PPe31Cr6lGj0a+KuxxEj2sGHwJJG6n+EC
+         blzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=605MB47TGZE7++nkg35APlvJ7LvXGdU0fZst7n36xg0=;
-        b=xxgbTrtceLjHtlmp0IS+hwWj4YjTX9KpnsedbV2XqlokxXj8uYHs+4UeOZruLF/8ze
-         s+rZWTuVg740cKua2kw9QecwuCf0n24Zyb8k+F+xDJW5YF+ZtCv5IeJ7QFTg89Mhgr7A
-         u1HD+gdnotSIYCvxLDkCFQIH8LLeJJ0geuN2SUsB/BB2a1CBYqPfzk/9l5EEmPVur7kY
-         vFTZujL/EYMawNixEMwzvsDEIF4heVoL2timNOIuHoAFHvrNEnpotMU/dElJgfOMfeqg
-         FEBbNhrGIeyaHuN0Y2yOtz0X/ibd4TPfiQsD52nZoVn3kRQcfCeDau4VP+waZ5rWr20B
-         PQCQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=LPJ2NCPPdrZe8rPHVGpcy7e3s7cuKGwQ//HzPWb0JRE=;
+        b=XbrQB140OnVyyP8joWXqoX45pCdmNUi2/V/q0pyXE/B5ULImJ1uoe1lYXMvtW0tHkL
+         qlMzUaTlLMOGAyYugu9F19jEc5Ztxtyw4XqbO3R0ZP7fIy3QnWre3pMiEVsdgh+9IcA3
+         zOoLYmQ4fGFVgXgehx/96g+tsWmP70SuzpnVeGyXu6oe30iU5YOxFJyVSePYf90pJWBG
+         Xfwqg50N+6slThjMCRbizEaVuMmyH9tSVxzyYQGMFaaBRw484RB3vK9WxI/61XJL6jBV
+         drlHsvn3uZexeQRcyheok1FHZ59wIAxqoIXujXpPFXeQkuy82UrHhVkBo0BOzc5o18Qx
+         9iSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oaWnOGJj;
-       spf=pass (google.com: domain of 3ue-4xagkcp4yngqkkrhmuumrk.iusrot03-ssq1giq.uxm@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3Ue-4XAgKCP4yngqkkrhmuumrk.iusrot03-ssq1giq.uxm@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id l17sor1801138qkk.10.2019.04.18.14.42.41
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u35si2107134qtk.325.2019.04.18.14.47.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Apr 2019 14:42:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ue-4xagkcp4yngqkkrhmuumrk.iusrot03-ssq1giq.uxm@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 14:47:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=oaWnOGJj;
-       spf=pass (google.com: domain of 3ue-4xagkcp4yngqkkrhmuumrk.iusrot03-ssq1giq.uxm@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3Ue-4XAgKCP4yngqkkrhmuumrk.iusrot03-ssq1giq.uxm@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=605MB47TGZE7++nkg35APlvJ7LvXGdU0fZst7n36xg0=;
-        b=oaWnOGJjefDF9ALhsI0TQQYT+yASuFR/0cQfdkTMFbKQL5kxt0lWvB0UfR/e/diMWA
-         L5aPgj1ojrRz7lNhejHhqNQsMGPu/6Nzv3/CY8Qx7pKQUaD3AWxi3LJasbtot5BmbPyf
-         daKcD6r5a3Sisc7gFSEVTCzEpZ7IY8yDAGe9uWnkIw6nBUdXrfbFSC7p+0YhkpPTQR0F
-         kJmDsmSOyvV4y8m65E31wdOVUl2B7auUkm5c9a5Uif1GgOSo9YJSEgTZtwEjZfbBTqAo
-         q3hfAfXohgmVx1vGKRM6jzTXjRjAGaBsl07x0Gnx7qDTyX6wRXxGFxin8gxl1bSzIwkl
-         aY7A==
-X-Google-Smtp-Source: APXvYqwoo51/pygjywuTIOUu6emXG8qvgN27gaAs1GFwF5lpCnhgwa8++3Zml2MqfC8VgSCoWvlvInqJyrPa3g==
-X-Received: by 2002:a37:5a46:: with SMTP id o67mr290481qkb.31.1555623761557;
- Thu, 18 Apr 2019 14:42:41 -0700 (PDT)
-Date: Thu, 18 Apr 2019 14:42:24 -0700
-Message-Id: <20190418214224.61900-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [PATCH] memcg: refill_stock for kmem uncharging too
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 051B03082B44;
+	Thu, 18 Apr 2019 21:47:28 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 20A455D70A;
+	Thu, 18 Apr 2019 21:47:23 +0000 (UTC)
+Date: Thu, 18 Apr 2019 17:47:21 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Laurent Dufour <ldufour@linux.ibm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
+	kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
+	jack@suse.cz, Matthew Wilcox <willy@infradead.org>,
+	aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
+	mpe@ellerman.id.au, paulus@samba.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
+	Will Deacon <will.deacon@arm.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	sergey.senozhatsky.work@gmail.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
+	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
+	David Rientjes <rientjes@google.com>,
+	Ganesh Mahendran <opensource.ganesh@gmail.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Punit Agrawal <punitagrawal@gmail.com>,
+	vinayak menon <vinayakm.list@gmail.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	zhong jiang <zhongjiang@huawei.com>,
+	Haiyan Song <haiyanx.song@intel.com>,
+	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
+	Michel Lespinasse <walken@google.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
+	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
+	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+Subject: Re: [PATCH v12 01/31] mm: introduce CONFIG_SPECULATIVE_PAGE_FAULT
+Message-ID: <20190418214721.GA11645@redhat.com>
+References: <20190416134522.17540-1-ldufour@linux.ibm.com>
+ <20190416134522.17540-2-ldufour@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190416134522.17540-2-ldufour@linux.ibm.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 18 Apr 2019 21:47:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The commit 475d0487a2ad ("mm: memcontrol: use per-cpu stocks for socket
-memory uncharging") added refill_stock() for skmem uncharging path to
-optimize workloads having high network traffic. Do the same for the kmem
-uncharging as well. However bypass the refill for offlined memcgs to not
-cause zombie apocalypse.
+On Tue, Apr 16, 2019 at 03:44:52PM +0200, Laurent Dufour wrote:
+> This configuration variable will be used to build the code needed to
+> handle speculative page fault.
+> 
+> By default it is turned off, and activated depending on architecture
+> support, ARCH_HAS_PTE_SPECIAL, SMP and MMU.
+> 
+> The architecture support is needed since the speculative page fault handler
+> is called from the architecture's page faulting code, and some code has to
+> be added there to handle the speculative handler.
+> 
+> The dependency on ARCH_HAS_PTE_SPECIAL is required because vm_normal_page()
+> does processing that is not compatible with the speculative handling in the
+> case ARCH_HAS_PTE_SPECIAL is not set.
+> 
+> Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- mm/memcontrol.c | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2535e54e7989..7b8de091f572 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -178,6 +178,7 @@ struct mem_cgroup_event {
- 
- static void mem_cgroup_threshold(struct mem_cgroup *memcg);
- static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
-+static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages);
- 
- /* Stuffs for move charges at task migration. */
- /*
-@@ -2097,10 +2098,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
- 	struct mem_cgroup *old = stock->cached;
- 
- 	if (stock->nr_pages) {
--		page_counter_uncharge(&old->memory, stock->nr_pages);
--		if (do_memsw_account())
--			page_counter_uncharge(&old->memsw, stock->nr_pages);
--		css_put_many(&old->css, stock->nr_pages);
-+		cancel_charge(old, stock->nr_pages);
- 		stock->nr_pages = 0;
- 	}
- 	stock->cached = NULL;
-@@ -2133,6 +2131,11 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
- 	struct memcg_stock_pcp *stock;
- 	unsigned long flags;
- 
-+	if (unlikely(!mem_cgroup_online(memcg))) {
-+		cancel_charge(memcg, nr_pages);
-+		return;
-+	}
-+
- 	local_irq_save(flags);
- 
- 	stock = this_cpu_ptr(&memcg_stock);
-@@ -2768,17 +2771,13 @@ void __memcg_kmem_uncharge(struct page *page, int order)
- 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
- 		page_counter_uncharge(&memcg->kmem, nr_pages);
- 
--	page_counter_uncharge(&memcg->memory, nr_pages);
--	if (do_memsw_account())
--		page_counter_uncharge(&memcg->memsw, nr_pages);
--
- 	page->mem_cgroup = NULL;
- 
- 	/* slab pages do not have PageKmemcg flag set */
- 	if (PageKmemcg(page))
- 		__ClearPageKmemcg(page);
- 
--	css_put_many(&memcg->css, nr_pages);
-+	refill_stock(memcg, nr_pages);
- }
- #endif /* CONFIG_MEMCG_KMEM */
- 
--- 
-2.21.0.392.gf8f6787159e-goog
+Small question below
+
+> ---
+>  mm/Kconfig | 22 ++++++++++++++++++++++
+>  1 file changed, 22 insertions(+)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 0eada3f818fa..ff278ac9978a 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -761,4 +761,26 @@ config GUP_BENCHMARK
+>  config ARCH_HAS_PTE_SPECIAL
+>  	bool
+>  
+> +config ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +       def_bool n
+> +
+> +config SPECULATIVE_PAGE_FAULT
+> +	bool "Speculative page faults"
+> +	default y
+> +	depends on ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
+> +	depends on ARCH_HAS_PTE_SPECIAL && MMU && SMP
+> +	help
+> +	  Try to handle user space page faults without holding the mmap_sem.
+> +
+> +	  This should allow better concurrency for massively threaded processes
+
+Is there any case where it does not provide better concurrency ? The
+should make me wonder :)
+
+> +	  since the page fault handler will not wait for other thread's memory
+> +	  layout change to be done, assuming that this change is done in
+> +	  another part of the process's memory space. This type of page fault
+> +	  is named speculative page fault.
+> +
+> +	  If the speculative page fault fails because a concurrent modification
+> +	  is detected or because underlying PMD or PTE tables are not yet
+> +	  allocated, the speculative page fault fails and a classic page fault
+> +	  is then tried.
+> +
+>  endmenu
+> -- 
+> 2.21.0
+> 
 
