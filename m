@@ -2,78 +2,79 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B79FC282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:01:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E094EC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 038DE20869
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:01:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 038DE20869
+	by mail.kernel.org (Postfix) with ESMTP id A88BA217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A88BA217D7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 981F96B0271; Thu, 18 Apr 2019 17:01:57 -0400 (EDT)
+	id 7807A6B0005; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 92FD96B0272; Thu, 18 Apr 2019 17:01:57 -0400 (EDT)
+	id 708366B0006; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81EAB6B0273; Thu, 18 Apr 2019 17:01:57 -0400 (EDT)
+	id 5F7996B0007; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 654F86B0271
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:01:57 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id b188so2733562qkg.15
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:01:57 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2AB6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id c28so3183832qtd.2
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:07:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=w2uofvvjcpOcTtv6zw7AguCROFu6xIxMOOyWy4hHRzc=;
-        b=Ru1NwKMrgO8pJ2x3edtNksz3QT4rmCVdumaJmlg6ePq0I3VjnL6/KQnRxc7C2stk5C
-         lVQu0tSM8uURNqEFi98rY6ZrMWKXsnWl/lFn8FTeAg2j2cKoHFKIlTgJ9Hus8eRu596K
-         Yk1RKt88Egk2XJKtUOQYv4Q5wn7r6arvC2og1C3N+KVWKofaqBp56tR7tW9vhAjn6w4D
-         OiKSMIY2sI15jy1hMlbVZgVK7YF+1gK/urERFPLJXQ6DNCslJQ0k0V7yl1WtJccLT1sd
-         rn6MmmG8nwICb8hnzDyXgIvAChzejryQJHI8Jt3puFBTeQApTJuFrBXInEDLxQFlbMS9
-         xYYQ==
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=KP43xD+XX6SI0WFbf9e1APdiupecxwiSqel5wwcHzyM=;
+        b=BIG+0HzT0zOYz15rbQqQq4gZrQlC20GSrN5BilOLvP0j3Y6mpdklt0J+K7GTs4l1tF
+         jaUcjv1zhQxPYtnT0lpvZhEpj5tbL8kHRfrWjYgyLt6l8zNEwT/nZrjQwG0fpJIKLx2z
+         PYpoy664cMgd3BJsAd0+5M25tCvTcTMyZMBTeojz34iTsQfK5E5j59LpAiQFKJqDhUH4
+         Ya4rSk5yzNsARnwyzB7iIcAkd6bxVdTSWfjbS8foSMbvWMpnfqXzAZ/qeIMTo2F906ze
+         zs9BYTMJJYQcM8V2DwxwoxhE1qfdtg1YFLyhxig/JKbQ77jxoFubBBH/2KUxBXAWBFIB
+         ywUQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXJQdGvCXAoc9QvQd/Y+GhLnh5YfIOaJR8462xB5mGO6ZiB0Vl/
-	Mvdw8CL3CaCOw5+h5NowWUogmy13BLIGVN+w2q7lNTIOEhxHCV4ZKe3/gO3ub46EnwJFiUrcgew
-	NyjWI2E9hompA1SIQNG+hEr1wMonlQCxhxQG2f13YWnUo43LXd7MWeXAD7L2c9qw6nw==
-X-Received: by 2002:ac8:2a2e:: with SMTP id k43mr98665qtk.353.1555621317199;
-        Thu, 18 Apr 2019 14:01:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnI7O0kWIBvH1P84bqIHxhDYbazVVbjtkrZdzVgB10G5ffU959pDUEkaLg5NXlKMf2JS8E
-X-Received: by 2002:ac8:2a2e:: with SMTP id k43mr98619qtk.353.1555621316551;
-        Thu, 18 Apr 2019 14:01:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555621316; cv=none;
+X-Gm-Message-State: APjAAAVSlE6ttugTZ7DDipiu8W4EJvW8aM0lbaWU1QSkWavwk+z0IeM+
+	HpoGKhguw+oXJCRYDA1t6IjJ1EbwSl99N8d47ZVkPXAdYzeEysePAY8NgKQX8pg2DWOTVxAm82d
+	2Vme4tglhRLhPcBZnqJMBorZ5vcSLFNtGjzBBb+KFypusCREon+VoHxkWILZL/HjPrw==
+X-Received: by 2002:a37:a543:: with SMTP id o64mr123246qke.235.1555621634012;
+        Thu, 18 Apr 2019 14:07:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztZH2AI8uRU6rEiunpbx+RT7SupzKduCZ9+u5K9voEqMmkrtT8HGpuAmtCXc8nPWCY43F1
+X-Received: by 2002:a37:a543:: with SMTP id o64mr123201qke.235.1555621633461;
+        Thu, 18 Apr 2019 14:07:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555621633; cv=none;
         d=google.com; s=arc-20160816;
-        b=l1NC1pu0L6wc3E/+PVEEeXxg33JOsVSq+5WqK3K2sYf1a3yi7o4aOm1Jktci8dv2dt
-         fXjAD/WLHmCKh78hQ0fzdBXHEZI2QErqdpVfb8EA3IKYEoVZ6oNRBlLH6nA5mhy26eJX
-         LYMNsZCjrepNRpgewyonvxVpjv3DunHWKtTSNUH7dEiiRihNbOY6kBVOkTlRPeTbZFLP
-         4bWICC+PHrcQZW7ijUoCZiFFPc0YUVk7u8msN3eTD1KDHEuyjeK1PR8gRMrVcGDNAnhw
-         9QMIdSORt6ICFGtnorEIGJC8c30xuvqKKm/6zcNxhhAna8UHe5aXi+xpbBE4+8gDpYNT
-         dcUw==
+        b=xwuFFGogt+ASORegitZ6t7QOh/qyNqkVoclBduZWjyi9+Jztmn9hxHeOb8+qErsiVV
+         uajfFYqkahYoTgDwYM8GC4o99wy0hykjatPped7B97EMOnHMmjC1GncMV4T9qTh5OKBB
+         ZL96h8Y5kuwfNWENjU5pw9TOeFvOGqAYRRfAo7NOyGf92ENY+jIthbx9qTA9P6OCSGMf
+         2Kvn5LCoPCF345lpzxXX8K+G52VdQRqUWdS4/R87INtOUSnb6FuT38WnfXDhMI9OluPx
+         JrUmiJTOkKwwE+ukuiU3F0WDmfjrxmoDqG60bTmF8xqKmcgoK18CJIq6MM3rqEkHThLd
+         Qdvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=w2uofvvjcpOcTtv6zw7AguCROFu6xIxMOOyWy4hHRzc=;
-        b=lZlmLDhIeMKuZQomIFZmCnX59TXTYQxeXSTi0S4JL+aLZqhebdyOWEk5aK4h3gyoU0
-         UwYJpgBrz7dZqSEi4hOaHy/YHIvfFcOWvzYXzdyYQDPcM/iirRR04Ekw2uI3cNFbgRrx
-         rV/qPjURxH8UuBSqTEnFf1qIIvLWaCWQ4W9SBy/ECmWFuvLagWcBNK54vI3+mvvmG627
-         VhvlSsRQuUw0ngWTLgPVUxgfuDI6mLc+jVFqm+BQlB77obMGGJ1oaS12L1xOMcCTZ6Q0
-         t389ZUi2LwGe6HqI6p29h+dfy2NPASsI9K9uBjvB7Buapi+o5cUTPSsnXRraKiqRY1FN
-         aWVw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=KP43xD+XX6SI0WFbf9e1APdiupecxwiSqel5wwcHzyM=;
+        b=CufaGhO/gLnetBM0heRwulX0Jro6aOKBJcjC/XhwdK3SQgPr0aDt/DD2HUfqCC0XCu
+         3Mcp+SnGIVFmL3TYW5/zUxOELptBumS0FvCkWyxYcJIQoTgrmTyTTIiXTfD/w4i/9Kb5
+         +oTfjCOfEwQABQxIahuWK8v3oRN/IyuaYNQeizfgzqnS+uyv55pQmQtSUBgap1Psvvzl
+         JzLxuM+7xYuBCBcx//n/I7QUXoY3LbQLXatvte99thCtEf1xybGCiSQAomx8PmKRCMAw
+         3AJWZj70eyBWH/vc+mTfst9Yd2Vs5otX8ARFUkR5jlHftPMIMy81pGC5TL64wnfcV+Ok
+         5Jaw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i16si1418067qtr.138.2019.04.18.14.01.56
+        by mx.google.com with ESMTPS id d12si1945730qkb.126.2019.04.18.14.07.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 14:01:56 -0700 (PDT)
+        Thu, 18 Apr 2019 14:07:13 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,12 +82,12 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 997CE301EA86;
-	Thu, 18 Apr 2019 21:01:55 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 76AD2307CB3B;
+	Thu, 18 Apr 2019 21:07:12 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id D402060BFC;
-	Thu, 18 Apr 2019 21:01:49 +0000 (UTC)
-Date: Thu, 18 Apr 2019 17:01:48 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id A564E60BE5;
+	Thu, 18 Apr 2019 21:07:04 +0000 (UTC)
+Date: Thu, 18 Apr 2019 17:07:02 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -102,97 +103,53 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 25/28] userfaultfd: wp: fixup swap entries in
- change_pte_range
-Message-ID: <20190418210147.GM3288@redhat.com>
+Subject: Re: [PATCH v3 00/28] userfaultfd: write protection support
+Message-ID: <20190418210702.GN3288@redhat.com>
 References: <20190320020642.4000-1-peterx@redhat.com>
- <20190320020642.4000-26-peterx@redhat.com>
+ <20190409060839.GE3389@xz-x1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190320020642.4000-26-peterx@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190409060839.GE3389@xz-x1>
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 18 Apr 2019 21:01:55 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 18 Apr 2019 21:07:12 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 20, 2019 at 10:06:39AM +0800, Peter Xu wrote:
-> In change_pte_range() we do nothing for uffd if the PTE is a swap
-> entry.  That can lead to data mismatch if the page that we are going
-> to write protect is swapped out when sending the UFFDIO_WRITEPROTECT.
-> This patch applies/removes the uffd-wp bit even for the swap entries.
+On Tue, Apr 09, 2019 at 02:08:39PM +0800, Peter Xu wrote:
+> On Wed, Mar 20, 2019 at 10:06:14AM +0800, Peter Xu wrote:
+> > This series implements initial write protection support for
+> > userfaultfd.  Currently both shmem and hugetlbfs are not supported
+> > yet, but only anonymous memory.  This is the 3nd version of it.
+> > 
+> > The latest code can also be found at:
+> > 
+> >   https://github.com/xzpeter/linux/tree/uffd-wp-merged
+> > 
+> > Note again that the first 5 patches in the series can be seen as
+> > isolated work on page fault mechanism.  I would hope that they can be
+> > considered to be reviewed/picked even earlier than the rest of the
+> > series since it's even useful for existing userfaultfd MISSING case
+> > [8].
 > 
-> Signed-off-by: Peter Xu <peterx@redhat.com>
+> Ping - any further comments for v3?  Is there any chance to have this
+> series (or the first 5 patches) for 5.2?
 
-This one seems to address some of the comments i made on patch 17
-not all thought. Maybe squash them together ?
+Few issues left, sorry for taking so long to get to review, sometimes
+it goes to the bottom of my stack.
 
-> ---
-> 
-> I kept this patch a standalone one majorly to make review easier.  The
-> patch can be considered as standalone or to squash into the patch
-> "userfaultfd: wp: support swap and page migration".
-> ---
->  mm/mprotect.c | 24 +++++++++++++-----------
->  1 file changed, 13 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 96c0f521099d..a23e03053787 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -183,11 +183,11 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  			}
->  			ptep_modify_prot_commit(mm, addr, pte, ptent);
->  			pages++;
-> -		} else if (IS_ENABLED(CONFIG_MIGRATION)) {
-> +		} else if (is_swap_pte(oldpte)) {
->  			swp_entry_t entry = pte_to_swp_entry(oldpte);
-> +			pte_t newpte;
->  
->  			if (is_write_migration_entry(entry)) {
-> -				pte_t newpte;
->  				/*
->  				 * A protection check is difficult so
->  				 * just be safe and disable write
-> @@ -198,22 +198,24 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  					newpte = pte_swp_mksoft_dirty(newpte);
->  				if (pte_swp_uffd_wp(oldpte))
->  					newpte = pte_swp_mkuffd_wp(newpte);
-> -				set_pte_at(mm, addr, pte, newpte);
-> -
-> -				pages++;
-> -			}
-> -
-> -			if (is_write_device_private_entry(entry)) {
-> -				pte_t newpte;
-> -
-> +			} else if (is_write_device_private_entry(entry)) {
->  				/*
->  				 * We do not preserve soft-dirtiness. See
->  				 * copy_one_pte() for explanation.
->  				 */
->  				make_device_private_entry_read(&entry);
->  				newpte = swp_entry_to_pte(entry);
-> -				set_pte_at(mm, addr, pte, newpte);
-> +			} else {
-> +				newpte = oldpte;
-> +			}
->  
-> +			if (uffd_wp)
-> +				newpte = pte_swp_mkuffd_wp(newpte);
-> +			else if (uffd_wp_resolve)
-> +				newpte = pte_swp_clear_uffd_wp(newpte);
-> +
-> +			if (!pte_same(oldpte, newpte)) {
-> +				set_pte_at(mm, addr, pte, newpte);
->  				pages++;
->  			}
->  		}
-> -- 
-> 2.17.1
-> 
+I am guessing this should be merge through Andrew ? Unless Andrea have
+a tree for userfaultfd (i am not following all that closely).
+
+From my point of view it almost all look good. I sent review before
+this email. Maybe we need some review from x86 folks on the x86 arch
+changes for the feature ?
+
+Cheers,
+Jérôme
 
