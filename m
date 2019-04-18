@@ -2,139 +2,178 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0036CC10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:37:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73C6EC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:52:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE18221479
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:37:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="CIVdNiHn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE18221479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 142A7206B6
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 14:52:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 142A7206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 484726B0005; Thu, 18 Apr 2019 10:37:17 -0400 (EDT)
+	id 7B1AA6B0005; Thu, 18 Apr 2019 10:52:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 435A26B0006; Thu, 18 Apr 2019 10:37:17 -0400 (EDT)
+	id 75EB16B0006; Thu, 18 Apr 2019 10:52:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34BED6B0007; Thu, 18 Apr 2019 10:37:17 -0400 (EDT)
+	id 626D36B0007; Thu, 18 Apr 2019 10:52:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDDD66B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 10:37:16 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id n5so1471729pgk.9
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 07:37:16 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F2AB6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 10:52:16 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id z24so2227281qto.7
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 07:52:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=noo9RZuSmQzMt67aa+GzHzuTRBl4Y+P9KScgu1KB88Q=;
-        b=aUKWNhX0xH9Pe2ySh5oPxGXIVwt7QTaKgXDwP9/wkpEGGS3xMhrDprfq00HqzajqTP
-         zpqlctiU0QTLnfgt9BqCxnh68jQoo4977FgrkXIgYh90DSiO6n1ZAHNUrlZAPZRecRwX
-         yIoCd4/e20JhFb3+t+tSO4HexXu9jkMRsG9lmlx6xx+EoMVnn1KpfZg6L5HzJ7sHmqNh
-         4tbQc2Cr5UvRHzytMgI6flSIrpLu8xqTZvxZMTw9ngEo4Xzz0Cd5epMYqszCtSHsV/wz
-         IArb5F1svimt051ygQEU3zZWAwYVOUrNsXWRG5ebwE+4uIh/suNK+SvnzOuIgIKLc9FR
-         Au8g==
-X-Gm-Message-State: APjAAAWhkx6lChqwDwLEQjZUzD15NWyYXWrKGKMdn0Uk8cfcTEewu7DM
-	G0fpgXgZfiC/JStn82LlKtDKtedoJODhQwmA85OwS6XwYwjBLoiwTf4NgGVdJEGP0RbwqTkZoec
-	CGsHAO5uLK2BUVcYCa2Oz2kUtVUev/uzB9CtxYqx+baUudALLc5jbOuigwWYBZr+fjg==
-X-Received: by 2002:a63:e045:: with SMTP id n5mr89564675pgj.230.1555598236640;
-        Thu, 18 Apr 2019 07:37:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5KB15KzfP/CwRMVSRyX/dyFOFnDEQtDHy07KtZq7q/BBSQtGRFzmKpJXODHvoDaXV9/Qv
-X-Received: by 2002:a63:e045:: with SMTP id n5mr89564607pgj.230.1555598235827;
-        Thu, 18 Apr 2019 07:37:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555598235; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=UJ0G9gEmfESTJQLoX1qgmdWz06MkmV1SWQsPisJNzDI=;
+        b=Aq4k14z91bqRHE+GCkYGOvT5QwQOZz0ZFZ7/iLtuji6d7D4KX1lueJZcozv5yn1gWy
+         aoHjaDaCsOR9z6I4iYRMI4Wh8Q31s8Ttu2MWrOgTudCwgq99ADWQ/yAvbveqNEtUIEvv
+         U9+NTLZw8ccV3GgdkEJ66Hpbq9AMSww8RAEhysnl34wkExwi9Jvx4IlMgwP/3CQKgwMc
+         HTPcFY/iRao3zQuubdbJK0kQhrYA81Uz5SNPIH1XbAGYAm9YAd5rCJqqF/Pgehh62A8x
+         h//c9cNxYy6mjvMUTJUnm3coZIqUgSxCwi++f5A4o3fw3JNgcTjDSUkJotaA3NEpZACn
+         nC4Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV+EkdbQZi672GVEyKT/NI0fBObIdqyHYSp9kcNsq7Voz9M4HaG
+	iPkA43X6cCuC4CUW0A29QmPWTANH5eCSKYWdaCrXUsPgxBzVhnG24eofAK3p8amtgczB1cy230d
+	+rGNo31XYcMPMF60+jz8QzXn4BArGg3t+k0KzeJugpE2ExvJthWDUJOyj363oNGzZbQ==
+X-Received: by 2002:aed:3fa7:: with SMTP id s36mr79246215qth.124.1555599135901;
+        Thu, 18 Apr 2019 07:52:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwCHDmN6+WVjfVe01dBkBGBxBuOqZGHDWc0n77vOU2yKF4C79LkLCbi9sxBpQMlRTT4k0ZL
+X-Received: by 2002:aed:3fa7:: with SMTP id s36mr79246158qth.124.1555599135323;
+        Thu, 18 Apr 2019 07:52:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555599135; cv=none;
         d=google.com; s=arc-20160816;
-        b=QOXdrV8rHzLas01VGTX9Oita+0zTxgyY2TaXTTn6FvCvYpGSoCI8kh7AtUunQhXo1G
-         bSB2UpkFnpeYdS4pNzYs2XgXk9ETyZp36yNCge74X/xByqyBAU9zMr1SXi8GReeuYcIr
-         cHMXUPUkwIlQpurMpwnGujRUrTv4sycuZmKm1eqj3209JlX61+2UZe4SI1l8RGQMmEwN
-         dCfIZE6WTL0os+kbFfjJl1a6zlkXG0h4+HOgosxpfnzAmDfh9b6xbaeMPFsGDLgqHXLu
-         afbuETNqG1kNELfqGb7rGL1n/GR+7P58PDDn/WB6IRGDJ9IT0D4q/uVxZAtXgtg6G+82
-         iSdA==
+        b=kdMlqa5Q0uOh6oSytpA38lkYwL6vTBkumVZH7jWJjlXzm367zR7SuzIZEHYIL0JmF7
+         c33vIS4wziTtMMjjWNK+a5EawXPLBDvdRxCs/yMPLOtFyUhLD9lhPxYRQBaBbvN/IUfW
+         T0Re/Wml5q5cBQj8VzN8zX3Q8wDlDb+HoMANa3OOcPZxGo5p/W5kmeNeknNlf9E1kNV/
+         acvgJtQ2l9kR9MuPKe5o5Ike6c/wTh5YTeJfmsMSX7hPZ/CIt51erzaSw9Mggh1XfuoK
+         IjreEPK2aokVneiLEaYIHna/sLrVBTEvyyC3qTTRAXBURy07LY8oFHPPsnGY0io9Xpi4
+         +gcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=noo9RZuSmQzMt67aa+GzHzuTRBl4Y+P9KScgu1KB88Q=;
-        b=XwgP5rwIOO8i6DArI3jI9wieDb93+R5Qg7irF220B55NxOuTXhgau2YkPUerXPxKu0
-         gbtxUg+E+M0jt+dAIWANsZCeIUX+1vAwOqx7QewXt5710FqblkuW/zuAM6n9yDNXyWNu
-         4lqWlJc6P0M56SMYOzj8ingj5bpSskbZOUoLs0fR9YCNYhIf2jmL9J470vrOQlFpx6Ap
-         9M2rSEROObFIsfjv2PQ0ZwWRZQT+xdnuFzu6N7E5mBUJFM330CFKlu+iVsPFzsMNNBZJ
-         AwGR5xW3Nhi5k2c8yI/T0YqKYZG3T3oloVlVXxNFHj0JygVf1mF/bgw/oS+lNsvWJH4u
-         CFsA==
+         :message-id:subject:cc:to:from:date;
+        bh=UJ0G9gEmfESTJQLoX1qgmdWz06MkmV1SWQsPisJNzDI=;
+        b=pA2jca7yIab0NccvhyvF/nFH7tt1T/BW3T5zI0pOZ6y+ydKyUscCJ10A4QhUjVqM6o
+         jORmNn5Enoop00nIVTvA5RkjVbfBqaRAmuvyEwXtpo2BIQHLb1tXwPwElIzvLkWDL4xw
+         qso9l0fDtXmTICcTfDGWBwUAXhRiAYfQsMeyT7sDpHL+fptihMtk//JcS83FVEkmyxrr
+         LherLy9nzOus+rb/DhWYLyP2gr8STbG67NgxrNilZMeDcwyG9mPaWQooZuwEOhs9N0D3
+         hJz1c0V7gabCzXKLk9CUcFKIYYSW58aB14shpOnuWKoqd68k0dqiAyGDhw0+4SRJa+qK
+         4ewg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=CIVdNiHn;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 16si2358708pfh.244.2019.04.18.07.37.15
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s10si1547042qth.78.2019.04.18.07.52.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 18 Apr 2019 07:37:15 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 07:52:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=CIVdNiHn;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=noo9RZuSmQzMt67aa+GzHzuTRBl4Y+P9KScgu1KB88Q=; b=CIVdNiHnksaNJux5nRHHoIWZD
-	wLYwAOSC5nitkHKSXWezArXQcdT5vCBuak47ikvMm9ZLrCLtYgWLQg825DrjKNiJ3gNQ6+Lh5oj/M
-	xx8SAiuPTveLUSFWKTpUkyI6a7si0Mj0n+kGcWfuJCnb/QgpRnHQLQZlHMQbewE7faSsSffOA5cM/
-	yEcYUqyluVR2BT1IJLhW6vXu+1w+c6nwDzyZ6Ry4LW8dIpO4BB5p2rCFFTFf1v9gbVwNg9ZKyZzQR
-	Tq2ga6cMnNvP4QFIkzyHRYMR88VpbBisOkm7HMX9iag6qxN26Yzva8btPNYEfEGpleOtgP4k/FMQY
-	GaKkGXwvw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hH8A4-0001py-8I; Thu, 18 Apr 2019 14:37:12 +0000
-Date: Thu, 18 Apr 2019 07:37:12 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Li Wang <liwang@redhat.com>,
-	Minchan Kim <minchan@kernel.org>, linux-mm <linux-mm@kvack.org>
-Subject: Re: v5.1-rc5 s390x WARNING
-Message-ID: <20190418143711.GF7751@bombadil.infradead.org>
-References: <CAEemH2fh2goOS7WuRUaVBEN2SSBX0LOv=+LGZwkpjAebS6MFuQ@mail.gmail.com>
- <73fbe83d-97d8-c05f-38fa-5e1a0eec3c10@suse.cz>
- <20190418135452.GF18914@techsingularity.net>
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C39BB3078AD9;
+	Thu, 18 Apr 2019 14:52:13 +0000 (UTC)
+Received: from treble (ovpn-124-190.rdu2.redhat.com [10.10.124.190])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 518AE1001DC0;
+	Thu, 18 Apr 2019 14:52:03 +0000 (UTC)
+Date: Thu, 18 Apr 2019 09:52:01 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org,
+	Andy Lutomirski <luto@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Alexander Potapenko <glider@google.com>, linux-arch@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org,
+	David Rientjes <rientjes@google.com>,
+	Christoph Lameter <cl@linux.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Akinobu Mita <akinobu.mita@gmail.com>,
+	iommu@lists.linux-foundation.org,
+	Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
+	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
+	Alasdair Kergon <agk@redhat.com>, intel-gfx@lists.freedesktop.org,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>
+Subject: Re: [patch V2 28/29] stacktrace: Provide common infrastructure
+Message-ID: <20190418145201.mjzyqbmkjcghqzex@treble>
+References: <20190418084119.056416939@linutronix.de>
+ <20190418084255.652003111@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190418135452.GF18914@techsingularity.net>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190418084255.652003111@linutronix.de>
+User-Agent: NeoMutt/20180716
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 18 Apr 2019 14:52:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 18, 2019 at 02:54:52PM +0100, Mel Gorman wrote:
-> > > [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
-
-We lost a character here?  "_irect_" should surely be "_direct_"
-
-> ---8<---
-> mm, page_alloc: Always use a captured page regardless of compaction result
+On Thu, Apr 18, 2019 at 10:41:47AM +0200, Thomas Gleixner wrote:
+> All architectures which support stacktrace carry duplicated code and
+> do the stack storage and filtering at the architecture side.
 > 
-> During the development of commit 5e1f0f098b46 ("mm, compaction: capture
-> a page under direct compaction"), a paranoid check was added to ensure
-> that if a captured page was available after compaction that it was
-> consistent with the final state of compaction. The intent was to catch
-> serious programming bugs such as using a stale page pointer and causing
-> corruption problems.
+> Provide a consolidated interface with a callback function for consuming the
+> stack entries provided by the architecture specific stack walker. This
+> removes lots of duplicated code and allows to implement better filtering
+> than 'skip number of entries' in the future without touching any
+> architecture specific code.
 > 
-> However, it is possible to get a captured page even if compaction was
-> unsuccessful if an interrupt triggered and happened to free pages in
-> interrupt context that got merged into a suitable high-order page. It's
-> highly unlikely but Li Wang did report the following warning on s390
-> 
-> [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-arch@vger.kernel.org
 
-... so it probably needs to be corrected here.
+This is a step in the right direction, especially if it allows us to get
+rid of the 'skip' stuff.  But I'm not crazy about the callbacks.
+
+Another idea I had (but never got a chance to work on) was to extend the
+x86 unwind interface to all arches.  So instead of the callbacks, each
+arch would implement something like this API:
+
+
+struct unwind_state state;
+
+void unwind_start(struct unwind_state *state, struct task_struct *task,
+		  struct pt_regs *regs, unsigned long *first_frame);
+
+bool unwind_next_frame(struct unwind_state *state);
+
+inline bool unwind_done(struct unwind_state *state);
+
+
+Not only would it avoid the callbacks (which is a nice benefit already),
+it would also allow the interfaces to be used outside of the
+stack_trace_*() interfaces.  That would come in handy in cases like the
+ftrace stack tracer code, which needs more than the stack_trace_*() API
+can give.
+
+Of course, this may be more work than what you thought you signed up for
+;-)
+
+-- 
+Josh
 
