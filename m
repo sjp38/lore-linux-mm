@@ -3,86 +3,85 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2D22C10F0B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 06:08:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1047FC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 06:08:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 41AF0204FD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 06:08:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41AF0204FD
+	by mail.kernel.org (Postfix) with ESMTP id C1DF12184B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 06:08:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1DF12184B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E42486B0005; Thu, 18 Apr 2019 02:08:08 -0400 (EDT)
+	id 7612E6B0006; Thu, 18 Apr 2019 02:08:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC89E6B0006; Thu, 18 Apr 2019 02:08:08 -0400 (EDT)
+	id 6EAC26B0007; Thu, 18 Apr 2019 02:08:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6B986B0007; Thu, 18 Apr 2019 02:08:08 -0400 (EDT)
+	id 564966B0008; Thu, 18 Apr 2019 02:08:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7290A6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:08:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id o8so665893edh.12
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 23:08:08 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 08D246B0006
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:08:37 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id p26so657522edy.19
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 23:08:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=3YxIuVKrhGADmewzu9OJtP8RmCUzuapD7GRBk6NNZsw=;
-        b=OTfCxfnUIm6X5QDlcDFIksFjfeSbvsYDHIFbHCtEtsKG3JC7gBfWb0/TKQXUV5aGrC
-         f7qi0Fa+1O8ogP59MVlJovuydqzmh04YZslI23iCqJHs95AyIgYsWbDxHnDU/s5BjYXj
-         qOXOCchC8v3CUiS/0LZ0LDzvLXYFwekZxMTWib5NorUQ4dwUQdBYWOU5ayCANlOINBhk
-         n+NRA2wnhkl5rTJp652o+CAyyvqOTk+x2Ol/l1EarIs8y9eAJ+JSTHe8MJfYjcPBGwTR
-         hI46RddePueUPTMXVrD2PN1wRir2fi4Jl3Ky32sQ6iJeE8Fc8M4ON/oXiqjLXTO9wbC3
-         nRzA==
+        bh=skSR5bmb9HcY1GMY6/sKX5kSLKz9gMRClhEZrep8Yy8=;
+        b=XHR06WjKKgs0GQKk22nWGwIOLpyf/pc/Z7BkihO+eyAcBXLeuQqjsBrB00iN4hMz2I
+         qQ+ILI2N/KX9WLlZhSItfz6JF+gybd5ffKFg33uhIMrz/T5O+ITByzxNNpfN60wGJ17F
+         qBy5dfhSsePeTz9UZnYRfUwQa1xnyyM1g3n1E2rDlisnJBwPuDNMLA2isUHchNqkuHXh
+         uD5q0C2PjY4O7Zt3zqvUjL9gPTsamNoqkVdHij5HZrdf2zxMcVut5kv3dnyPQW1oTS0A
+         mrERgG6nz+Rf549t5zASHX6jWZbXKiaroW0FrCXBAX/W3aq9WSvD5t6utfkuMryyfwu7
+         nfNg==
 X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAW/Y+0l6+dP0d5W92RzWzrW/JJ2Ed0fkaAGOLwvrblgBvCScUbE
-	Wb5cAnbLer/mH+3ZZmdXtspd3XDN8Fxh+4VGaceuRr1HQ09iw66S246A1kvmgMhLxCOWHBEIKki
-	9nHd+NnEWUiumqeZFEfcja6mePNQJDQVJcSuV8CAPg1WFXQooT5dyRTNGnh64/L4=
-X-Received: by 2002:aa7:c6c6:: with SMTP id b6mr57448495eds.69.1555567688035;
-        Wed, 17 Apr 2019 23:08:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwL97AHlxSU4ETvZinrBLROuRpxoQOQI54nZRsNRnr0Rv94CWnSuolcm+JoK/8GDOAgzH02
-X-Received: by 2002:aa7:c6c6:: with SMTP id b6mr57448455eds.69.1555567687311;
-        Wed, 17 Apr 2019 23:08:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555567687; cv=none;
+X-Gm-Message-State: APjAAAVfetIz9PY/gVhdYDG1T5qy0zD914cd1y5m8VFCDp4np1mFIgI/
+	vjFVWud6YqY74wPPhb7Us0x7NX7Mxb1x8IuhBjtAO4OC7Q7cTBCg869W8gGQ+l/HSRkfaJB6Nx0
+	FnvOZOYG7vrMIm+T+UVpIUnu6WA4VF6zBRxNrVlgaZZpSVzERctyL3cebudwso4s=
+X-Received: by 2002:a17:906:ddb:: with SMTP id p27mr51127793eji.183.1555567716570;
+        Wed, 17 Apr 2019 23:08:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwfl2Jxp3oDwa/l09G6lHvwDqmifj/GRC6e4TJtELifXZnLc+0ZT5S9apTpV1i/Lg7XqVfG
+X-Received: by 2002:a17:906:ddb:: with SMTP id p27mr51127753eji.183.1555567715641;
+        Wed, 17 Apr 2019 23:08:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555567715; cv=none;
         d=google.com; s=arc-20160816;
-        b=maPX51tw+SXJ37SkdgrkfY4JAflDVzyxf9jmCosb+iPc5XT7co720oYgNB2jvQmUKR
-         c+nWwc6U4tHEzlP6f8T4Ec/eXIQ6U21m7SVLHGzdtfdgKSbgvYbrYiBz9HCldQGUtTAn
-         vvjgEqSAguFEFveJf5rJTyMqRp6x2mIq1HwLtIQYBh4ItMMOjjnwKXsWlYfPRyBNC8X7
-         We7JBvf/3YjjhlySqq8weH6D2bzimxnQxnvRqHqTYIK8BGQI/AjeARiHzgB7WoDw/xt1
-         89QLWDd6RMUXm0FsreBpQGUKmkKlSDBxhEpP46q4O/xD4dY3zyD5ml1qko+OCPv2HYQG
-         +9qg==
+        b=ZZoKWArn4cPmFjN417aUcXzvLaDjgRgOrQkiRhB+xNBaCddlzEw7c5h+HbmLVLndWu
+         vTQ6r2TSEaiD4Z9zqv75jdi7EaCFxU+FM1R5Nk+svo9RruIw3lLsl8VObA4YKtKOnU/z
+         RDXc6qwU7vqp9z11/RBxBuWxHHkBEYPzSYqxt79wq5H0srwAow4V4/Maj4VU4fUlJTA4
+         Ocx2KF5uT6ZXfyPcmkYWXohwLhytdqfl8BjbPt9LCXwa9a9LTxnj3iNI1AT6nYWEQObt
+         jG64uOMX+OsxRziqwJm0nw74E4xGZf7CFtgGqJZKY0pm8H4WupFEcbl0bBjrPN0bWfrZ
+         /EoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3YxIuVKrhGADmewzu9OJtP8RmCUzuapD7GRBk6NNZsw=;
-        b=uHFKpPZYWpvNt7Uq1vbMfsJ/18sMe1WTwT+MU8uhadXky6Zj1ow/j881hqMjy45jm7
-         Fh1//jj2vFs8OCVbuWe0dlq1tMVSvQKQWGAPhXuAUh+tMKP750p4IXcAc9PL8MXw6Mis
-         NtI1G+W2FJLmj6TmIBcHqlFOyOx6VkDWLTmhW5NKIVO7TcYTYzOON7XGU7AIEt6HlyqV
-         Ik5835Ef3Sg9UNLGFFM8MhqNuCQmL0+iAeeqDlBKiniQRmFX+H1YErCtPs/lA6//Muev
-         gZIt7uY7PwRPMmurrc5Hd1Un+2V7OvSFz0LEAQUWUNb2BUOuDLvnUjaIeQn7JFH0uUB4
-         1vsw==
+        bh=skSR5bmb9HcY1GMY6/sKX5kSLKz9gMRClhEZrep8Yy8=;
+        b=xlQdbs7APAzCY/j6XjkIle93SKbA2OU0OsLNkiA/PLMmm9XK6HUkpRuaVlnp2GHao3
+         5LAoB6y9CTSVmuukB/MRQ6iQVQ4F+Z2qB0L6OAmg7E/NnmKOUZ6cJPLJYN0djcmZA933
+         p1bZuLvs3APVNL0se0rpQEK+Mui1KTWbUolmqEslQjcGbOwnuMu/9YsTUkN37qWkoG3O
+         jR2Fug1bkxXfZZ4F4NImKCSaAe6QDFdWgOPkzyq8ub5byGCg/Cmd2dWFo8XkuroiIog4
+         VxG/eYfT84XDWEERIBAb/+JdpoRFlVAMPGeC+qzUZ5HniwYAzlEi73egscA5GaG23xC5
+         FY4g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 Received: from relay7-d.mail.gandi.net (relay7-d.mail.gandi.net. [217.70.183.200])
-        by mx.google.com with ESMTPS id 17si596192ejy.390.2019.04.17.23.08.07
+        by mx.google.com with ESMTPS id n5si513395edn.449.2019.04.17.23.08.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 17 Apr 2019 23:08:07 -0700 (PDT)
+        Wed, 17 Apr 2019 23:08:35 -0700 (PDT)
 Received-SPF: neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.200;
 Authentication-Results: mx.google.com;
        spf=neutral (google.com: 217.70.183.200 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 X-Originating-IP: 79.86.19.127
 Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay7-d.mail.gandi.net (Postfix) with ESMTPSA id D89BD20008;
-	Thu, 18 Apr 2019 06:08:02 +0000 (UTC)
-Subject: Re: [PATCH v3 09/11] mips: Use STACK_TOP when computing mmap base
- address
+	by relay7-d.mail.gandi.net (Postfix) with ESMTPSA id 5721320005;
+	Thu, 18 Apr 2019 06:08:31 +0000 (UTC)
+Subject: Re: [PATCH v3 10/11] mips: Use generic mmap top-down layout
 To: Kees Cook <keescook@chromium.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
  <hch@lst.de>, Russell King <linux@armlinux.org.uk>,
@@ -97,15 +96,15 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
  "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
  Linux-MM <linux-mm@kvack.org>
 References: <20190417052247.17809-1-alex@ghiti.fr>
- <20190417052247.17809-10-alex@ghiti.fr>
- <CAGXu5jKx_A8GsFWWABKwEXmL5dTMKjk3Ub9GoE7Do9NcZ_ai=A@mail.gmail.com>
+ <20190417052247.17809-11-alex@ghiti.fr>
+ <CAGXu5jJSgHKjrQ2Z-aKofqroUDBjPnLOjiORw9pHT_cANhAqpg@mail.gmail.com>
 From: Alex Ghiti <alex@ghiti.fr>
-Message-ID: <16ed1829-a7ad-76b9-2929-9eb14406da00@ghiti.fr>
-Date: Thu, 18 Apr 2019 02:08:02 -0400
+Message-ID: <82116ac6-1997-b52d-b1dd-98cc97e731bf@ghiti.fr>
+Date: Thu, 18 Apr 2019 02:08:31 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKx_A8GsFWWABKwEXmL5dTMKjk3Ub9GoE7Do9NcZ_ai=A@mail.gmail.com>
+In-Reply-To: <CAGXu5jJSgHKjrQ2Z-aKofqroUDBjPnLOjiORw9pHT_cANhAqpg@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: sv-FI
@@ -115,15 +114,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
 On 4/18/19 1:31 AM, Kees Cook wrote:
-> On Wed, Apr 17, 2019 at 12:32 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
->> mmap base address must be computed wrt stack top address, using TASK_SIZE
->> is wrong since STACK_TOP and TASK_SIZE are not equivalent.
+> On Wed, Apr 17, 2019 at 12:33 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+>> mips uses a top-down layout by default that fits the generic functions.
+>> At the same time, this commit allows to fix problem uncovered
+>> and not fixed for mips here:
+>> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
 >>
 >> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 > Acked-by: Kees Cook <keescook@chromium.org>
-
 
 Thanks !
 
@@ -132,31 +131,124 @@ Thanks !
 > -Kees
 >
 >> ---
->>   arch/mips/mm/mmap.c | 4 ++--
->>   1 file changed, 2 insertions(+), 2 deletions(-)
+>>   arch/mips/Kconfig                 |  1 +
+>>   arch/mips/include/asm/processor.h |  5 ---
+>>   arch/mips/mm/mmap.c               | 67 -------------------------------
+>>   3 files changed, 1 insertion(+), 72 deletions(-)
 >>
+>> diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+>> index 4a5f5b0ee9a9..ec2f07561e4d 100644
+>> --- a/arch/mips/Kconfig
+>> +++ b/arch/mips/Kconfig
+>> @@ -14,6 +14,7 @@ config MIPS
+>>          select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
+>>          select ARCH_USE_QUEUED_RWLOCKS
+>>          select ARCH_USE_QUEUED_SPINLOCKS
+>> +       select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
+>>          select ARCH_WANT_IPC_PARSE_VERSION
+>>          select BUILDTIME_EXTABLE_SORT
+>>          select CLONE_BACKWARDS
+>> diff --git a/arch/mips/include/asm/processor.h b/arch/mips/include/asm/processor.h
+>> index aca909bd7841..fba18d4a9190 100644
+>> --- a/arch/mips/include/asm/processor.h
+>> +++ b/arch/mips/include/asm/processor.h
+>> @@ -29,11 +29,6 @@
+>>
+>>   extern unsigned int vced_count, vcei_count;
+>>
+>> -/*
+>> - * MIPS does have an arch_pick_mmap_layout()
+>> - */
+>> -#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
+>> -
+>>   #ifdef CONFIG_32BIT
+>>   #ifdef CONFIG_KVM_GUEST
+>>   /* User space process size is limited to 1GB in KVM Guest Mode */
 >> diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
->> index 3ff82c6f7e24..ffbe69f3a7d9 100644
+>> index ffbe69f3a7d9..61e65a69bb09 100644
 >> --- a/arch/mips/mm/mmap.c
 >> +++ b/arch/mips/mm/mmap.c
->> @@ -22,7 +22,7 @@ EXPORT_SYMBOL(shm_align_mask);
+>> @@ -20,43 +20,6 @@
+>>   unsigned long shm_align_mask = PAGE_SIZE - 1;  /* Sane caches */
+>>   EXPORT_SYMBOL(shm_align_mask);
 >>
->>   /* gap between mmap and stack */
->>   #define MIN_GAP                (128*1024*1024UL)
->> -#define MAX_GAP                ((TASK_SIZE)/6*5)
->> +#define MAX_GAP                ((STACK_TOP)/6*5)
->>   #define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
->>
->>   static int mmap_is_legacy(struct rlimit *rlim_stack)
->> @@ -54,7 +54,7 @@ static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
->>          else if (gap > MAX_GAP)
->>                  gap = MAX_GAP;
->>
->> -       return PAGE_ALIGN(TASK_SIZE - gap - rnd);
->> +       return PAGE_ALIGN(STACK_TOP - gap - rnd);
+>> -/* gap between mmap and stack */
+>> -#define MIN_GAP                (128*1024*1024UL)
+>> -#define MAX_GAP                ((STACK_TOP)/6*5)
+>> -#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
+>> -
+>> -static int mmap_is_legacy(struct rlimit *rlim_stack)
+>> -{
+>> -       if (current->personality & ADDR_COMPAT_LAYOUT)
+>> -               return 1;
+>> -
+>> -       if (rlim_stack->rlim_cur == RLIM_INFINITY)
+>> -               return 1;
+>> -
+>> -       return sysctl_legacy_va_layout;
+>> -}
+>> -
+>> -static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+>> -{
+>> -       unsigned long gap = rlim_stack->rlim_cur;
+>> -       unsigned long pad = stack_guard_gap;
+>> -
+>> -       /* Account for stack randomization if necessary */
+>> -       if (current->flags & PF_RANDOMIZE)
+>> -               pad += (STACK_RND_MASK << PAGE_SHIFT);
+>> -
+>> -       /* Values close to RLIM_INFINITY can overflow. */
+>> -       if (gap + pad > gap)
+>> -               gap += pad;
+>> -
+>> -       if (gap < MIN_GAP)
+>> -               gap = MIN_GAP;
+>> -       else if (gap > MAX_GAP)
+>> -               gap = MAX_GAP;
+>> -
+>> -       return PAGE_ALIGN(STACK_TOP - gap - rnd);
+>> -}
+>> -
+>>   #define COLOUR_ALIGN(addr, pgoff)                              \
+>>          ((((addr) + shm_align_mask) & ~shm_align_mask) +        \
+>>           (((pgoff) << PAGE_SHIFT) & shm_align_mask))
+>> @@ -154,36 +117,6 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
+>>                          addr0, len, pgoff, flags, DOWN);
 >>   }
 >>
->>   #define COLOUR_ALIGN(addr, pgoff)                              \
+>> -unsigned long arch_mmap_rnd(void)
+>> -{
+>> -       unsigned long rnd;
+>> -
+>> -#ifdef CONFIG_COMPAT
+>> -       if (TASK_IS_32BIT_ADDR)
+>> -               rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
+>> -       else
+>> -#endif /* CONFIG_COMPAT */
+>> -               rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
+>> -
+>> -       return rnd << PAGE_SHIFT;
+>> -}
+>> -
+>> -void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+>> -{
+>> -       unsigned long random_factor = 0UL;
+>> -
+>> -       if (current->flags & PF_RANDOMIZE)
+>> -               random_factor = arch_mmap_rnd();
+>> -
+>> -       if (mmap_is_legacy(rlim_stack)) {
+>> -               mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
+>> -               mm->get_unmapped_area = arch_get_unmapped_area;
+>> -       } else {
+>> -               mm->mmap_base = mmap_base(random_factor, rlim_stack);
+>> -               mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+>> -       }
+>> -}
+>> -
+>>   static inline unsigned long brk_rnd(void)
+>>   {
+>>          unsigned long rnd = get_random_long();
 >> --
 >> 2.20.1
 >>
