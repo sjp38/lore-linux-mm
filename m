@@ -2,174 +2,195 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D378C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 18:29:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07535C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:06:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EBB120643
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 18:29:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1pdY9JKW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EBB120643
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 950E32054F
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:06:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 950E32054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B02656B0008; Thu, 18 Apr 2019 14:29:29 -0400 (EDT)
+	id EB7A96B0005; Thu, 18 Apr 2019 15:06:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8A326B000C; Thu, 18 Apr 2019 14:29:29 -0400 (EDT)
+	id E40726B0006; Thu, 18 Apr 2019 15:06:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92EFE6B000D; Thu, 18 Apr 2019 14:29:29 -0400 (EDT)
+	id CE2756B0007; Thu, 18 Apr 2019 15:06:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 553906B0008
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:29:29 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s19so1953721plp.6
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:29:29 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 911B06B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 15:06:21 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a3so1930865pfi.17
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:06:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc:cc:cc
-         :cc:cc:cc:subject:in-reply-to:references:message-id;
-        bh=4IwPQs7+tWqTBeINo7em/WUJgXV/TTzNcedECp74YJU=;
-        b=JOLvc1ONDqhm2WHwOR8ax/5iKpn+SJiIKoH0idjcsW0jKEA+0RcDHeJQ3+VuKKJYnO
-         DBP16htULteauZ78dpzYbb3B+gssV5gKnHNnYMznwwffjuGdv4M41337s2IkmYnuk7zV
-         gwEbKWnNtdb9zU2P1NR8F9kVUp6X4XyOqXEqNCJXIBzVILzWIQiV1c+kz0XenlYBIwi2
-         028BP5JPH8j1FSYg88HGDiUKRVtGLJqCRplJ4FlnhTij9ZeU47Uuav2yNqGe8UfaqGUN
-         hwQOZEwvPLpFo2YwonNFCouKwmlsWY0itTTMT1qjxjq1MFKj6PHSOIeLpZFQh/05KO2H
-         bgEQ==
-X-Gm-Message-State: APjAAAUBHvOeUmjPEewNbRLxOcLPJ2doxUNZqFbu2+nY1UgFT1+W8NQQ
-	aE5pscO3tKZQsBvmkZ6h42kkhr/8rmq+py4Cy1jO1SBj6UUGKJVzI0F5xaLKnYOUQZZAd37VFJp
-	wI76RDmAbEXSTRoktxftXCHVE4J7GL9Cvw1iBacYoU/66+mB6Tfy2vRd7TKgy0yFzpQ==
-X-Received: by 2002:a63:c34c:: with SMTP id e12mr91242143pgd.279.1555612168962;
-        Thu, 18 Apr 2019 11:29:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqznuwckmfNTHxof804szwbupvTA/6aLOOtZQr6w0Dep2WszLYXAFJW66Thtl7Y613aI9Xug
-X-Received: by 2002:a63:c34c:: with SMTP id e12mr91242094pgd.279.1555612168232;
-        Thu, 18 Apr 2019 11:29:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555612168; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=QDnkIqgDCK+jGplDKmI5MM5U60+QK1T6N3YzHr7HOMY=;
+        b=O9IkqTcqSotSgG3OkUJX982U10kAqxFsg558AnouMOzvgsTy+6MW4e798lLRa1U2u+
+         CzuROlJS/rRCdwboR7rH/VOr/YAg5XlBSbflCltfQyT+a088BbTs6oXPvF9RQttr6p3i
+         D9kUJN6Y+K9iKwF6OZ8E/M+JObDGTklPHr84c7IitFR5b8OhxIBLhaHyWbAqMHpGxpon
+         LU4Pa7MiWGIJoVW4sfoILU/H8+8n+DKI2MbUs7PzY93diWkpBkvvmlZTxgiBeGvPzGEk
+         OM4sLfl3I7jR56N986WPG8I+ftO34m/xP1ZnBExqR6CMJAxuTlE7y2MtB9enFTOQXjl9
+         sO3Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWBMw+y7VQQg17ZfjvlLuo+teJKvsqsbbAJF0fJegr+iNRV0R2C
+	masNcKNjLjDPP3m4juj4B53r6Y+J3091POWnDoxgUhSHAfp40xBSjv7N9hZZK0NHeF5+6XEJ5A9
+	EVR8fOdKdpK4bEbR6eLKraUdoIqZp4Y9UDuJBA1hgZPzlElVTawpuzsIbJJ9GYaHaqQ==
+X-Received: by 2002:a65:424d:: with SMTP id d13mr9886077pgq.318.1555614381264;
+        Thu, 18 Apr 2019 12:06:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/YrljC7M5s//eCMTA27dKf4L0KD+VhBHBlYJ1K4XPu3EVWZeM9MTvPBaDTDWklj4EH4tm
+X-Received: by 2002:a65:424d:: with SMTP id d13mr9885975pgq.318.1555614380054;
+        Thu, 18 Apr 2019 12:06:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555614380; cv=none;
         d=google.com; s=arc-20160816;
-        b=z546YTj20XUmSg/2J8JSyz70vqxMBMTjceaJIQfN9LHoOE3aaA2dlXjs1k1hh/sUrr
-         ZV5W2Exhp3E79MmnP/1xLn4LAVnSO99SdDQPDT6bciTzDYNZ4uqfuYFx0b7Q+sGv6cYS
-         QFWAxsVY/uwbG4h0O6j+W4e/ydx4BGSZQOeZg0zNFn9y/bj0g5Q37xjiJRvTd8PDIp9y
-         +Dk182mthezdEFH0qTHpC7nnhRdUAHhjsXT0xOoknyNtsw33Bk8DVhDOPHbRpdHijguE
-         99+v0q1c2ReOGXRNGu7JqfamMgvYURVxAyVYxvmHqx010bWOXFfJpGLnvnAymNLZr5SG
-         BIdw==
+        b=qpoamoHZMxqUP74J4W+opHuKKrMz6M3n2guykZf8xpSDBPBVde+I4Kg0nE3neTorhp
+         0aGxxIcNcw1b9KW83NCIkyiMxY50EKJJNXOQSbubsMbDe2hvs1sRuEeI9DOEZMp99ff0
+         pB2KUgK3asgP4w7LvXG25ri28pQI/ZUVXEIfnk7bO3kgsxAt7YXie8DxWnGT1DFwdKK8
+         zrBHf9lAxiubvoxS6tmUTU1t+BmRBrSrSl/LoaWxPZ+WSWi71R1n1xFU2jxIVUVCYUT2
+         grRaw3KmnpmdTf+ktwImJi+NZWTjGDlPGxbpKrLeZ7RQd/X0K3WuMcVU/Jt1A9HgHJD3
+         6XGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:cc:cc:cc:cc:cc:cc
-         :to:to:to:from:date:dkim-signature;
-        bh=4IwPQs7+tWqTBeINo7em/WUJgXV/TTzNcedECp74YJU=;
-        b=b2QmPSJbjOii6ldB2sXpLyka7RrNrAm5XLfFaQh+dwSMvTIrnGv8X/McAyoFmtqCyW
-         7qmZL6/R/o301IELlcFqkIYNQloJCqEvWJKu6UjBtEFZNOHUV5a5pc4sOMyRHOA+68BD
-         6e/PBk81TlqYbTvGPsjTeNBKG6UJ6W2rv+xzSEWPHDkd+h3fIob9TMtLudn3EP8rOYHA
-         jLhFvyJgQfTrm0b+qj1G2/b1kARONcH8L14XpNBV+HECwNDWmvmcHx7+c+jtZWoWbUG5
-         wjKJPAMVEackjb8lW3ktMDNzFKi36M5PbsUxDXyVlREww409ZNKpMxGm7CN5DVdj41mf
-         pcaQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=QDnkIqgDCK+jGplDKmI5MM5U60+QK1T6N3YzHr7HOMY=;
+        b=e8oy5G1t6qhf9a6sJ56jDgpxb0zdDHhf9dD6KqCkeJf5W8aIs6xyjfkj1WUBeLVHb+
+         w8afEV5xItANT1BfxP3QnED/0jXKbOTCAWcqcRrU8Nq3nMzgQCub12wPdBDQ9zY0rp5R
+         YFimag/jpHTs0DGCes6YC4hgHgKlwwoFAoP4C3ttCBr64I8IvL5vIgExp9/o1ImQrE+F
+         u2AqgxYcF7U6nOol8HQykl+As08nXluYOikuj2L3jZgVSNnltQ6t8Vm2V8uTPBx4Ksm4
+         4I65KVm8wLZuirhxjEY0vXk5skBF0Xc4uBAjEELS8wc3/2/MOtbmaT3aPBaptjW20112
+         DPOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=1pdY9JKW;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f11si2594557pgf.406.2019.04.18.11.29.28
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 2si2683436pld.334.2019.04.18.12.06.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 11:29:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 18 Apr 2019 12:06:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=1pdY9JKW;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A78AB217D7;
-	Thu, 18 Apr 2019 18:29:27 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1555612167;
-	bh=rpspHx+PrMhUlp/JN2InCHYxpUdbfr/lUCvq05nBYZA=;
-	h=Date:From:To:To:To:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Subject:In-Reply-To:
-	 References:From;
-	b=1pdY9JKW6CU6v5psGDqz2oKEQnlENA4V/83ts6RvmelO+LpnmXTTCzcuar9IiiKPs
-	 a654PdO+R0443Gja1SilyK5MKAqNEwkLL0ld2VfI1HOdKRsTjv/6csEpsxXZlliP7u
-	 i72GEurCa+7MTtxRS4BGiOosOHtnfpu/F/R8QfW8=
-Date: Thu, 18 Apr 2019 18:29:26 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To:   tip-bot for Dave Hansen <tipbot@zytor.com>
-To:     linux-tip-commits@vger.kernel.org
-Cc:     dave.hansen@linux.intel.com, tglx@linutronix.de, mhocko@suse.com,
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Cc: stable@vger.kernel.org
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Apr 2019 12:06:18 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,367,1549958400"; 
+   d="scan'208";a="224713233"
+Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga001.jf.intel.com with ESMTP; 18 Apr 2019 12:06:18 -0700
 Subject: Re: [tip:x86/urgent] x86/mpx: Fix recursive munmap() corruption
-In-Reply-To: <tip-508b8482ea2227ba8695d1cf8311166a455c2ae0@git.kernel.org>
+To: Sasha Levin <sashal@kernel.org>,
+ tip-bot for Dave Hansen <tipbot@zytor.com>, linux-tip-commits@vger.kernel.org
+Cc: dave.hansen@linux.intel.com, tglx@linutronix.de, mhocko@suse.com,
+ Vlastimil Babka <vbabka@suse.cz>, Andy Lutomirski <luto@amacapital.net>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ stable@vger.kernel.org
 References: <tip-508b8482ea2227ba8695d1cf8311166a455c2ae0@git.kernel.org>
-Message-Id: <20190418182927.A78AB217D7@mail.kernel.org>
+ <20190418182927.A78AB217D7@mail.kernel.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <09aa9f89-14e1-a188-057b-592e2fc845e6@intel.com>
+Date: Thu, 18 Apr 2019 12:06:18 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190418182927.A78AB217D7@mail.kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 4/18/19 11:29 AM, Sasha Levin wrote:
+> This commit has been processed because it contains a "Fixes:" tag,
+> fixing commit: 1de4fa14ee25 x86, mpx: Cleanup unused bound tables.
+> 
+> The bot has tested the following trees: v5.0.8, v4.19.35, v4.14.112, v4.9.169, v4.4.178.
+> 
+> v5.0.8: Build OK!
+> v4.19.35: Failed to apply! Possible dependencies:
+>     dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
 
-[This is an automated email]
+I probably should have looked more closely at the state of the code
+before dd2283f2605e.  A more correct Fixes: would probably have referred
+to dd2283f2605e.  *It* appears to be the root cause rather than the
+original MPX code that I called out.
 
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: 1de4fa14ee25 x86, mpx: Cleanup unused bound tables.
+The pre-dd2283f2605e code does this:
 
-The bot has tested the following trees: v5.0.8, v4.19.35, v4.14.112, v4.9.169, v4.4.178.
+>         /*
+>          * Remove the vma's, and unmap the actual pages
+>          */
+>         detach_vmas_to_be_unmapped(mm, vma, prev, end);
+>         unmap_region(mm, vma, prev, start, end);
+> 
+>         arch_unmap(mm, vma, start, end);
+> 
+>         /* Fix up all other VM information */
+>         remove_vma_list(mm, vma);
 
-v5.0.8: Build OK!
-v4.19.35: Failed to apply! Possible dependencies:
-    dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+But, this is actually safe.  arch_unmap() can't see 'vma' in the rbtree
+because it's been detached, so it can't do anything to 'vma' that might
+be unsafe for remove_vma_list()'s use of 'vma'.	
 
-v4.14.112: Failed to apply! Possible dependencies:
-    dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+The bug in dd2283f2605e was moving unmap_region() to the after arch_unmap().
 
-v4.9.169: Failed to apply! Possible dependencies:
-    010426079ec1 ("sched/headers: Prepare for new header dependencies before moving more code to <linux/sched/mm.h>")
-    1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for 32-bit mmap()")
-    39bc88e5e38e ("arm64: Disable TTBR0_EL1 during normal kernel execution")
-    3f07c0144132 ("sched/headers: Prepare for new header dependencies before moving code to <linux/sched/signal.h>")
-    44b04912fa72 ("x86/mpx: Do not allow MPX if we have mappings above 47-bit")
-    6a0b41d1e23d ("x86/mm: Introduce arch_rnd() to compute 32/64 mmap random base")
-    7c0f6ba682b9 ("Replace <asm/uaccess.h> with <linux/uaccess.h> globally")
-    8f3e474f3cea ("x86/mm: Add task_size parameter to mmap_base()")
-    9cf09d68b89a ("arm64: xen: Enable user access before a privcmd hvc call")
-    bd38967d406f ("arm64: Factor out PAN enabling/disabling into separate uaccess_* macros")
-    e13b73dd9c80 ("x86/hugetlb: Adjust to the new native/compat mmap bases")
-
-v4.4.178: Failed to apply! Possible dependencies:
-    1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for 32-bit mmap()")
-    2b5e869ecfcb ("MIPS: ELF: Interpret the NAN2008 file header flag")
-    2ed02dd415ae ("MIPS: Use a union to access the ELF file header")
-    44b04912fa72 ("x86/mpx: Do not allow MPX if we have mappings above 47-bit")
-    5fa393c85719 ("MIPS: Break down cacheops.h definitions")
-    694977006a7b ("MIPS: Use enums to make asm/pgtable-bits.h readable")
-    745f35587846 ("MIPS: mm: Unify pte_page definition")
-    780602d740fc ("MIPS: mm: Standardise on _PAGE_NO_READ, drop _PAGE_READ")
-    7939469da29a ("MIPS64: signal: Fix o32 sigaction syscall")
-    7b2cb64f91f2 ("MIPS: mm: Fix MIPS32 36b physical addressing (alchemy, netlogic)")
-    8f3e474f3cea ("x86/mm: Add task_size parameter to mmap_base()")
-    97f2645f358b ("tree-wide: replace config_enabled() with IS_ENABLED()")
-    9e08f57d684a ("x86: mm: support ARCH_MMAP_RND_BITS")
-    a60ae81e5e59 ("MIPS: CM: Fix mips_cm_max_vp_width for UP kernels")
-    b1b4fad5cc67 ("MIPS: seccomp: Support compat with both O32 and N32")
-    b27873702b06 ("mips, thp: remove infrastructure for handling splitting PMDs")
-    b2edcfc81401 ("MIPS: Loongson: Add Loongson-3A R2 basic support")
-    d07e22597d1d ("mm: mmap: add new /proc tunable for mmap_base ASLR")
-    e13b73dd9c80 ("x86/hugetlb: Adjust to the new native/compat mmap bases")
-
-
-How should we proceed with this patch?
-
---
-Thanks,
-Sasha
+I confirmed this by running the reproducer on v4.19.35.  It did not
+trigger anything there, even with a bunch of debugging enabled which
+detected the issue in 5.0.
 
