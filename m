@@ -2,119 +2,167 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AF53C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:59:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90750C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 10:40:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF4E62183F
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:59:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF4E62183F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4D4562083D
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 10:40:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D4562083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 469226B0278; Thu, 18 Apr 2019 05:59:02 -0400 (EDT)
+	id 1B6BB6B0010; Thu, 18 Apr 2019 06:40:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41C8A6B0279; Thu, 18 Apr 2019 05:59:02 -0400 (EDT)
+	id 164576B0266; Thu, 18 Apr 2019 06:40:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 30B7A6B027A; Thu, 18 Apr 2019 05:59:02 -0400 (EDT)
+	id 005EC6B0269; Thu, 18 Apr 2019 06:40:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB526B0278
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:59:02 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id a64so1758280ith.0
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:59:02 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 89E3D6B0010
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 06:40:03 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id v20so347932ljk.7
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 03:40:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=VuebU8UkmIRaDiaZ1fyCf6Tqc3AJax52IMQPWDXFyYI=;
-        b=IbtFpMp+PEyIwkGUavsMcl2ciG1OexALtAYOzAFc/wlHiuxFi3ieNPV/sKLFDH8W7K
-         8+uHUYxvTrBegetw30pCRpOkslwazowqxYywIUo9+UGki6e7rmTLIhCcPs+XWIbWr0CA
-         X+EvXYTd7w0L83g9SG2+nY75E5ubu3eyLhbn2mNI+lNbDhH7pVPSguGE5H9Bqg8Q2xYA
-         PDs2c4PC9kYbpSF4dyH/gbtAJHi0JNBPBeCrSlabaqaHPW13O7qJRZCRMO8go+LIu11y
-         t09JL/7ZhOOAfrx26ivsmf+WLqbSTBGmm6lxzMrmISnAG2r8OiXVc1LcGRaQ2pVBDqGU
-         Xofw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3zeq4xakbamu39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ZEq4XAkbAMU39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAUQKgFLhjRV4Qu5+fU74uw/v6afDLdwGTSiEIK5AH5BXSAaHKwl
-	i+x4rNLZOouy3hlwy8HCV8pqZKZPFKDbY+3KRszsOx9n8IF4mnQccm5LXYx+Aes1EPtWjh0lHdy
-	0sdXkl7220GQS2bh+VA+xyukICiOJwaVhVzi5HQpacl08pfT0BkIvAk1dKiMHsr8=
-X-Received: by 2002:a6b:e202:: with SMTP id z2mr22422509ioc.6.1555581541788;
-        Thu, 18 Apr 2019 02:59:01 -0700 (PDT)
-X-Received: by 2002:a6b:e202:: with SMTP id z2mr22422482ioc.6.1555581540995;
-        Thu, 18 Apr 2019 02:59:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555581540; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=wAlg1KOiSqebwGJaG9t1DzfCFJrSdBxkcX0xApPz9Zc=;
+        b=XpcAraT9r0fEB1jUP3TR6VcpLmbfd6ptmy76GLUIkvEnlnFgj+PN0vM04OoakXVR8M
+         qkRY/tkjNUrQK+5Pm68CP63AGJwgtzrNTA3K2N79u1yy2BToGrUL5vEbyl2qrJ/V5mOy
+         karf8ZMq47SIX5Qqr5h8ga+EsT8XJaNoNUeFyFF6gbMhIzCDjkCMv1dyTf1lCIAVMu2K
+         STd4L7tfyJz2uJoQT1C/YUm++9NoZsDenp5tNUlr7Q/MoTwqktwndPJw3tKPQW3VVlEq
+         4FCmIVhwRmoIfYCz0pBCW8r+oUTs1Y/tO6ie07VH90Wt79TLVI+jBCErzTJd6bflcMx6
+         Ja6g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAXyQ/8rrA1Ms4BsDPMa1B+4V1GI333NtTuFuckanjqsAz6gahKH
+	j5S3msHzemvrRqoQ0A4VkgrmDoA7vBzhRth/bLdhS3EM6vAAKIpZn+fg/Lk4Y1bstIubQFs1uAc
+	Y1P5svCDGxHc3JSVxkVtJgN6Ry89b9XZ2pylgpM2jLC8uIfVoVfkG14VRVyFu3oyrVQ==
+X-Received: by 2002:a19:e30b:: with SMTP id a11mr40113717lfh.4.1555584002853;
+        Thu, 18 Apr 2019 03:40:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+oNjVoyY4++SIy2BVutajGenQ7Y5f7JO138N5jjUedz4Z89i1xUgilVv0QbSPfT0Bp9s4
+X-Received: by 2002:a19:e30b:: with SMTP id a11mr40113650lfh.4.1555584001567;
+        Thu, 18 Apr 2019 03:40:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555584001; cv=none;
         d=google.com; s=arc-20160816;
-        b=UbpjYeNPxv/IUEhu9hk6UsXnK8gmXGrpifoGY1OBX4zFFtfzD11ob99Rv2JgB8rYly
-         dvANwibdPY/uR2qeauBp3PZ9hw086LrdvcVK8OZCHV4H+1m6YJH7MGKtiduqeVvw+yFI
-         /KmRpHYssgKgjHrhqPhQymUxK5F9dkNKjVxJl7wYegmnto4lb7jeCF68BzYhNn5nulUb
-         A2k2lIAFRvvN1EzwJBrYda9vje+ldcbfOvUlImfq7MmSeoqkaYAcixmx4qKy+v/5PehX
-         TX/D3ximQGwz35Viw8cBHFHFG4cX4t1rjkRRgVJvF2vPk1keiJ2ts9HPeeTsefRrLwe2
-         EsiA==
+        b=cFrr/AwNklRSAaXVHnpL2Ergmqa+LcjtPhedrPE7hd9fqms9T+IDBtUEPJJmtaKAHX
+         FGcN4KYfS1E+3WZpBi7Xxtmh9m/1Naoiu8ethY7hXoP7pWA59pkEA0BA1SnlnK7jyMTE
+         m3WSAYK6HT0RN+XJu8rwwPEkyLXkFX7qsYDlIz6Cvk9TZmZPuQyEoHMiz4F4Zw5NtwtB
+         uWSS9tj8WPtswLPkmJaa73kykq4OrN2UaDRPyOFSYg5xrUcj3wu4Da3rqSU21YQR3say
+         /y46DV5kxkBpxiFx5f5FN+mncL9xbVuA09WevEkUEfRRBEGrnIyQgwSeaL7HkrASoH8X
+         AVqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=VuebU8UkmIRaDiaZ1fyCf6Tqc3AJax52IMQPWDXFyYI=;
-        b=ePS9g8YyeJmpkgEpuBV34gi0+0XivR4Ak7Gk3ke8kSON6qGW6r5ir94vVqwcGFMODe
-         b3kB4ne4uVqgMMLwfhStpTxSy1hFW+ISZhhrRbVl/rtGKBZG0Id6VExy86evafM/A63h
-         VOQHvJXajfVL700rLxxEzfhfos/dkQdNvKTd+wJQ9A5fNaZ2roQruFx4qR/J2saIdnOz
-         dkY1Y3qpcue0pSsPLa3hARna5ZUJ9FzaEyg4J9jhJb892D+GyNqEbTBZ6zc33GS2yJCf
-         r+0p4F3R3pHUePKqVaa48gGwswmGPhLM5pXjg7WcpHw4whOQIXo3YXKVKO+M6ZkmhetL
-         HAxQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=wAlg1KOiSqebwGJaG9t1DzfCFJrSdBxkcX0xApPz9Zc=;
+        b=Z/Rxwohf5YMjhDQ/LioAEvfdKwIVTqhsorMgEl9cgGF/d6hsgHOTccQFj0Bdbnnf8+
+         cAa+Ha3Tm0FlOGhR2C+qNm0inuH2UbLmLOYKo2zdfh7RiNNbL65fEBPFTETJn/O/PQuD
+         LchNCndr7Lc4KqMw+KWJ6SnABBCdZN+v7a4g37wDH/uwlgeU9zNTk6O9GgoEJ1hvjRBT
+         nWGGTy94EJ+qPav6VBqz4J1KC3vqZqJpYK0Jr7ygOrRxYA+t9A1KzeVQut24W5VUgimm
+         nrIj+3i4Kjlz82MvnMNV/UruZFh93B01PTKQsYPlaw+yuKgScsCu12lptzDCMjCA5fq0
+         yiwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3zeq4xakbamu39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ZEq4XAkbAMU39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id n133sor796989iod.100.2019.04.18.02.59.00
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id k21si1358345ljj.204.2019.04.18.03.40.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Apr 2019 02:59:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3zeq4xakbamu39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 03:40:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3zeq4xakbamu39avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ZEq4XAkbAMU39Avlwwp2l00to.rzzrwp53p2nzy4py4.nzx@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqxuguFF8FFR1m22eGEJb+0aWhIdhdSN3LOyfQ8EbAbAyGoX9sVIQFN5fC7AqwMqDcOvQERrrrEgHjXPT6FjVwoRV42Yw1lQ
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1hH4Rp-0002dq-HX; Thu, 18 Apr 2019 13:39:17 +0300
+Subject: Re: [patch V2 09/29] mm/kasan: Simplify stacktrace handling
+To: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
+ Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ kasan-dev@googlegroups.com, linux-mm@kvack.org,
+ Alexey Dobriyan <adobriyan@gmail.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg
+ <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Christoph Lameter <cl@linux.com>, Catalin Marinas <catalin.marinas@arm.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org,
+ Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
+ Marek Szyprowski <m.szyprowski@samsung.com>,
+ Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>,
+ Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
+ linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
+ Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
+ intel-gfx@lists.freedesktop.org,
+ Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+ Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+ Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
+References: <20190418084119.056416939@linutronix.de>
+ <20190418084253.903603121@linutronix.de>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <5b77992a-52b6-807e-f77d-9cf3e648c71f@virtuozzo.com>
+Date: Thu, 18 Apr 2019 13:39:45 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-X-Received: by 2002:a6b:188:: with SMTP id 130mr2185721iob.115.1555581540713;
- Thu, 18 Apr 2019 02:59:00 -0700 (PDT)
-Date: Thu, 18 Apr 2019 02:59:00 -0700
-In-Reply-To: <000000000000c770710586c6fc92@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <000000000000274d750586cb0d38@google.com>
-Subject: Re: BUG: unable to handle kernel paging request in free_block (5)
-From: syzbot <syzbot+438a5abd4f53adb1c073@syzkaller.appspotmail.com>
-To: davem@davemloft.net, jon.maloy@ericsson.com, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, netdev@vger.kernel.org, syzkaller-bugs@googlegroups.com, 
-	tipc-discussion@lists.sourceforge.net, ying.xue@windriver.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+In-Reply-To: <20190418084253.903603121@linutronix.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
+On 4/18/19 11:41 AM, Thomas Gleixner wrote:
+> Replace the indirection through struct stack_trace by using the storage
+> array based interfaces.
+> 
+> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Acked-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: kasan-dev@googlegroups.com
+> Cc: linux-mm@kvack.org
 
-commit 52dfae5c85a4c1078e9f1d5e8947d4a25f73dd81
-Author: Jon Maloy <jon.maloy@ericsson.com>
-Date:   Thu Mar 22 19:42:52 2018 +0000
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-     tipc: obtain node identity from interface by default
+>  
+>  static inline depot_stack_handle_t save_stack(gfp_t flags)
+>  {
+>  	unsigned long entries[KASAN_STACK_DEPTH];
+> -	struct stack_trace trace = {
+> -		.nr_entries = 0,
+> -		.entries = entries,
+> -		.max_entries = KASAN_STACK_DEPTH,
+> -		.skip = 0
+> -	};
+> +	unsigned int nr_entries;
+>  
+> -	save_stack_trace(&trace);
+> -	filter_irq_stacks(&trace);
+> -
+> -	return depot_save_stack(&trace, flags);
+> +	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 0);
+> +	nr_entries = filter_irq_stacks(entries, nr_entries);
+> +	return stack_depot_save(entries, nr_entries, flags);
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=15065bdd200000
-start commit:   e6986423 socket: fix compat SO_RCVTIMEO_NEW/SO_SNDTIMEO_NEW
-git tree:       net
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=17065bdd200000
-console output: https://syzkaller.appspot.com/x/log.txt?x=13065bdd200000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=4fb64439e07a1ec0
-dashboard link: https://syzkaller.appspot.com/bug?extid=438a5abd4f53adb1c073
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12adddbf200000
+Suggestion for further improvement:
 
-Reported-by: syzbot+438a5abd4f53adb1c073@syzkaller.appspotmail.com
-Fixes: 52dfae5c85a4 ("tipc: obtain node identity from interface by default")
+stack_trace_save() shouldn't unwind beyond irq entry point so we wouldn't need filter_irq_stacks().
+Probably all call sites doesn't care about random stack above irq entry point, so it doesn't
+make sense to spend resources on unwinding non-irq stack from interrupt first an filtering out it later.
 
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+It would improve performance of stack_trace_save() called from interrupt and fix page_owner which feed unfiltered
+stack to stack_depot_save(). Random non-irq part kills the benefit of using the stack_deopt_save().
 
