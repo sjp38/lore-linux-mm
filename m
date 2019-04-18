@@ -4,111 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03BAFC282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:30:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AEC15C10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:31:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A061B217F9
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:30:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6193021479
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:31:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="edeVbOaB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A061B217F9
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="EzI3iDp3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6193021479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 55BF96B0005; Thu, 18 Apr 2019 01:30:47 -0400 (EDT)
+	id 1DA186B0006; Thu, 18 Apr 2019 01:31:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 533D76B0006; Thu, 18 Apr 2019 01:30:47 -0400 (EDT)
+	id 1AF336B0007; Thu, 18 Apr 2019 01:31:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4494D6B0007; Thu, 18 Apr 2019 01:30:47 -0400 (EDT)
+	id 077C66B0008; Thu, 18 Apr 2019 01:31:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EDDB6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:30:47 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id p134so185615vsc.10
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:30:47 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D80216B0006
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:31:22 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id h23so186313vsp.14
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:31:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=bLtDzKXu09gPBmOTPhLlCKa/1j1gZ8w+6fLRYpgkXVc=;
-        b=VP5ajjXpwf829cnlXUNGtUoV4hT+5FiVIlIFkmpkhFVasJ+p9s3yeN5jIAxxzzEE3j
-         OJFjYQg42QDox4wIu0ly4NxMZWwcPLahvzFFRphHo3HfccR3lYW7Qjr0JBBAGR4IJfWs
-         vfUlQjrx3s894TWvgiygkaJdBOR7tJw4NX3Aaz++BJiL0a4rLMc5t2z/mjv2tnCn7gPf
-         wzCBFD6M1lIyqcUWNC9UQS3sW5YNwVXoSovlm3SkRPtzmFaPx731VoDZnq4wLq09qrGO
-         olyKg3Y3Qh//oLsaw0Jf8NjUnp38UL+WnJjBOmCrkPMGnTgcnpDZD/0poUoWhBPMhz0u
-         xu0A==
-X-Gm-Message-State: APjAAAV8vgpb5OoDVpESj/PpowioTjpF+HscE9ua3eq3oZ9x+EUzO3Ie
-	0eVx55uZWndLNRsKvrG2SU0M5qxmpQRhdS8G87Pu9eXEBYYukexAzOMchAsNU8M9BOry+24syE4
-	gUQf5DmUAsUlpt16VHKXF6rjfWwFEWP+YBhEwifLY+lOUvcPZ6QChoNndrwslqHKiJQ==
-X-Received: by 2002:a67:bc13:: with SMTP id t19mr2610608vsn.222.1555565446852;
-        Wed, 17 Apr 2019 22:30:46 -0700 (PDT)
-X-Received: by 2002:a67:bc13:: with SMTP id t19mr2610579vsn.222.1555565446100;
-        Wed, 17 Apr 2019 22:30:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555565446; cv=none;
+        bh=x/TP6sA5sajZCj+xhLCrRc8XOgk3i0sdPUEQY20nxic=;
+        b=rbxlp+y7Wspjhj/xay6+tb3+PxDOVUjs/DRIBZYXcWBNplNiFCeVkgVPfNAGt7wwoG
+         ZeEFZ1s9C95pzAFHnOVEXNJYRhin1W82OZ1cTy8rgQGHewpLn5bGD1E8ViskcCeJUhc+
+         D7/HgM8SbLFcOb9Wd7xVO3agbf5sYgW/AwLodDHrrMIRj5YbTgp2NLBy6IIcy9vQk8Fw
+         0d4pd+mnrjFmic6GcVEgcS1NdyttrapvqfH3XqaIvLpNgCVJovKPmkn3MdkYEwH1GGlj
+         6KqWrE6tkkggAVD5hq5LWmStqB7uokV8pgGCJ9qCSsvNiDCEXyrpdlrBTLrzJ1JCKo45
+         Z/UQ==
+X-Gm-Message-State: APjAAAUsey5jLTXn4qY08rdwDGYxeeFSNHAS+b/8WbQIHfwO5v0gaGtf
+	VKEtYrQE2gjAEVN0267CxarYJmvXIVXk7CRF3VBjpexFbZyGK1Dc0M3zfOUJOhzU5fHYoIeTjxE
+	dghUXv0l3yYRrxitBBXPbfknH9aB2cdp5Y9mo0SUFAH5VZtjsXLnVyH3GoM5oBrCscw==
+X-Received: by 2002:a1f:28d7:: with SMTP id o206mr49440376vko.36.1555565482189;
+        Wed, 17 Apr 2019 22:31:22 -0700 (PDT)
+X-Received: by 2002:a1f:28d7:: with SMTP id o206mr49440353vko.36.1555565481592;
+        Wed, 17 Apr 2019 22:31:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555565481; cv=none;
         d=google.com; s=arc-20160816;
-        b=YycveXxDLZOlZglebp/ZRgEblTVMIJqzACA52UL00l1acy7h3S0xIhGjiNgQTuCXV2
-         1oH5AuLPtZNH2CyhxBr7Bj5XQZdnIZN6qmvv46F1I7uyccC5wmPEWQzCQysBjKjWn8pf
-         +ZxlXsp6cVaZIqXCb2lKE4XIurdBozL53i2LMqDYFWeowWbw6cvpKg+XfZlcbp9Dexgn
-         CYYqFwlWFY0o83EhKLOlK+tH2vYbo6B6VRVN3MBy3swgp91Xbs/93ZFA2UXbQ1P0TESS
-         qPJCI7+fvPFiEfIwJUwlYseI6KFa0QIUh4ZRk65BOBTI+Zz9HRJIujqzIFHLjvz+KLtR
-         hGxQ==
+        b=m92rSXMU/8L9P6mzIZYEVbOmHDimf5bY7uUnPMRzsjbKbBkxh8gyden8PNf/cLOfsZ
+         8XbJ4RQl0T0bxDvclHMguWLN2t6Vp+gFN94RP+oV4AzgwKnWT3xoDrQC9bxYy9wa0IUu
+         2O+lJG3/Eo+QwTOaUADNAr0FGxGikWYYIep9expKSMReI8I+bP43udAMoAY1QDKSalBz
+         YxVPQ+w8xCwasYdeUNTf0ijv+vGW0U/RrOsrTWJWv98XCVwcRVZeuvFSCXSr82VHs9a0
+         yjyTNfG5f9uuSDpwuo9t4x++LWrnrtdmOMjO1KItXSV9ntWs7RG8x+uaSBchGeT0MH1p
+         xDJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=bLtDzKXu09gPBmOTPhLlCKa/1j1gZ8w+6fLRYpgkXVc=;
-        b=iTiXAsK6BM5l+U0i3d+6/FNGxZZmpB2vNnW9JMPajLN1SBrnoXMc+UomBWa3T0HkOM
-         /+Y1t1vA31KfUocGQ4epVy99O5VIyCF3wY+3w6pXnl4frkO78LMsKcPff642i+bWAqw3
-         Z+++mepX3gNYChY4Gtf1xIhsYJlWnKCDG3Q2T2yLb6NUfAJxledpQQWZd8nPWZuPF1KJ
-         VcJSNpZzv9AEOGKYQmejU5FA0/nSiRDs57JEuweeO91Sy4P3h3D+WsRSvyNlv2PaUVbQ
-         J9wCi09FvABpuC4Izi/4fn+DjPdcJCws3DB9M1wnFMBf7I1eH0ChvCZ296XZSCzPQLeH
-         FkWQ==
+        bh=x/TP6sA5sajZCj+xhLCrRc8XOgk3i0sdPUEQY20nxic=;
+        b=sUj7AHsudP1h+MejlhTfTtvxK62Ph2mplaaCZ38nsqHTCFUCv3ubjGW8BYpjRYvuym
+         pZsxPxqqv+Jodi+2knGOXt7dBhrlbANiRHoJLoit54FR+QoMNz1sxkbK0SDbVNuaSI0+
+         XWzaDUKkoeFvf8wDClHO5GRXqZ/YdaJI+KfyJ/9J7wKXIpePjKU86ZhvYJ/mGrKZ09KB
+         IkahgSs5QJOzNJqLFPPVhtYuJ04qspHvLOaQj5MS3VFS+rJp65vs4ss85nQQAkD0vGmX
+         qgDTNdEGqfpFcpDwa3lMWmpt0qTymQRssvGFEou1Y0vxJkLb4hadCDvDUZI+K+wVtWK+
+         kK2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=edeVbOaB;
+       dkim=pass header.i=@chromium.org header.s=google header.b=EzI3iDp3;
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f1sor515014uao.43.2019.04.17.22.30.46
+        by mx.google.com with SMTPS id t1sor381577vsc.84.2019.04.17.22.31.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 22:30:46 -0700 (PDT)
+        Wed, 17 Apr 2019 22:31:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=edeVbOaB;
+       dkim=pass header.i=@chromium.org header.s=google header.b=EzI3iDp3;
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chromium.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=bLtDzKXu09gPBmOTPhLlCKa/1j1gZ8w+6fLRYpgkXVc=;
-        b=edeVbOaBMLhN2dBQJXpv+D+6vAjewlRc9kM5lTmzsJMTYvnZuw8u8Y7DqZfh26UEgW
-         OHIgnpHVLQHXols38+FJXscMQV6lYZx93+goYy0WamrsRBkh1x83txAmNxUkD0xqfkb/
-         5V9w/CLbuOWB3OiL1UReRwHKvROTO3KbTfB1M=
-X-Google-Smtp-Source: APXvYqy8idrwo1IybjTLXKjxX3T+Wx8cDqYrZPT3sCnZyVy+TQbXNojIpyUCT8wGz6kQG/3oTk4A2A==
-X-Received: by 2002:ab0:6704:: with SMTP id q4mr2582684uam.132.1555565444651;
-        Wed, 17 Apr 2019 22:30:44 -0700 (PDT)
-Received: from mail-vs1-f51.google.com (mail-vs1-f51.google.com. [209.85.217.51])
-        by smtp.gmail.com with ESMTPSA id l9sm222487uae.1.2019.04.17.22.30.43
+        bh=x/TP6sA5sajZCj+xhLCrRc8XOgk3i0sdPUEQY20nxic=;
+        b=EzI3iDp3/PwAWlzrGsEJt8pSHXmaq0t/LgPtPVDCMvm+jD1PtYJaid1ZV/xGYcmd5I
+         lwY7VI0ze2TcOE31b8X8Debj5ZrSlCq5cQ8C17/vua658wrm2sWXYl5IeWCxo5rmKiWr
+         /FetUT2kibkKsifqxGloTOoB5vk3HAZhnG57A=
+X-Google-Smtp-Source: APXvYqwaLkNS6f9cCfBlhxM3iB4UPOOIG1dWb37pvwvgqWrqaBuSAyMpTVsS0vLRSxJDVRzqAcck/Q==
+X-Received: by 2002:a67:e28e:: with SMTP id g14mr50247252vsf.59.1555565480359;
+        Wed, 17 Apr 2019 22:31:20 -0700 (PDT)
+Received: from mail-vs1-f53.google.com (mail-vs1-f53.google.com. [209.85.217.53])
+        by smtp.gmail.com with ESMTPSA id c192sm930874vka.10.2019.04.17.22.31.18
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 22:30:43 -0700 (PDT)
-Received: by mail-vs1-f51.google.com with SMTP id g127so509287vsd.6
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:30:43 -0700 (PDT)
-X-Received: by 2002:a67:e881:: with SMTP id x1mr52185580vsn.48.1555565442783;
- Wed, 17 Apr 2019 22:30:42 -0700 (PDT)
+        Wed, 17 Apr 2019 22:31:19 -0700 (PDT)
+Received: by mail-vs1-f53.google.com with SMTP id o10so491257vsp.12
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:31:18 -0700 (PDT)
+X-Received: by 2002:a67:bc13:: with SMTP id t19mr2611825vsn.222.1555565478030;
+ Wed, 17 Apr 2019 22:31:18 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-9-alex@ghiti.fr>
-In-Reply-To: <20190417052247.17809-9-alex@ghiti.fr>
+References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-10-alex@ghiti.fr>
+In-Reply-To: <20190417052247.17809-10-alex@ghiti.fr>
 From: Kees Cook <keescook@chromium.org>
-Date: Thu, 18 Apr 2019 00:30:31 -0500
-X-Gmail-Original-Message-ID: <CAGXu5j+-M5VGsPqZ6JyqH6w=HP9NLK2KEAQqen99ssUg5mC89A@mail.gmail.com>
-Message-ID: <CAGXu5j+-M5VGsPqZ6JyqH6w=HP9NLK2KEAQqen99ssUg5mC89A@mail.gmail.com>
-Subject: Re: [PATCH v3 08/11] mips: Properly account for stack randomization
- and stack guard gap
+Date: Thu, 18 Apr 2019 00:31:06 -0500
+X-Gmail-Original-Message-ID: <CAGXu5jKx_A8GsFWWABKwEXmL5dTMKjk3Ub9GoE7Do9NcZ_ai=A@mail.gmail.com>
+Message-ID: <CAGXu5jKx_A8GsFWWABKwEXmL5dTMKjk3Ub9GoE7Do9NcZ_ai=A@mail.gmail.com>
+Subject: Re: [PATCH v3 09/11] mips: Use STACK_TOP when computing mmap base address
 To: Alexandre Ghiti <alex@ghiti.fr>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
 	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
@@ -127,15 +126,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 12:31 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+On Wed, Apr 17, 2019 at 12:32 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
 >
-> This commit takes care of stack randomization and stack guard gap when
-> computing mmap base address and checks if the task asked for randomization.
-> This fixes the problem uncovered and not fixed for mips here:
-> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
-
-same URL change here please...
-
+> mmap base address must be computed wrt stack top address, using TASK_SIZE
+> is wrong since STACK_TOP and TASK_SIZE are not equivalent.
 >
 > Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 
@@ -144,44 +138,35 @@ Acked-by: Kees Cook <keescook@chromium.org>
 -Kees
 
 > ---
->  arch/mips/mm/mmap.c | 14 ++++++++++++--
->  1 file changed, 12 insertions(+), 2 deletions(-)
+>  arch/mips/mm/mmap.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 >
 > diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
-> index 2f616ebeb7e0..3ff82c6f7e24 100644
+> index 3ff82c6f7e24..ffbe69f3a7d9 100644
 > --- a/arch/mips/mm/mmap.c
 > +++ b/arch/mips/mm/mmap.c
-> @@ -21,8 +21,9 @@ unsigned long shm_align_mask = PAGE_SIZE - 1; /* Sane caches */
->  EXPORT_SYMBOL(shm_align_mask);
+> @@ -22,7 +22,7 @@ EXPORT_SYMBOL(shm_align_mask);
 >
 >  /* gap between mmap and stack */
-> -#define MIN_GAP (128*1024*1024UL)
-> -#define MAX_GAP ((TASK_SIZE)/6*5)
-> +#define MIN_GAP                (128*1024*1024UL)
-> +#define MAX_GAP                ((TASK_SIZE)/6*5)
-> +#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
+>  #define MIN_GAP                (128*1024*1024UL)
+> -#define MAX_GAP                ((TASK_SIZE)/6*5)
+> +#define MAX_GAP                ((STACK_TOP)/6*5)
+>  #define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
 >
 >  static int mmap_is_legacy(struct rlimit *rlim_stack)
->  {
-> @@ -38,6 +39,15 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
->  static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
->  {
->         unsigned long gap = rlim_stack->rlim_cur;
-> +       unsigned long pad = stack_guard_gap;
-> +
-> +       /* Account for stack randomization if necessary */
-> +       if (current->flags & PF_RANDOMIZE)
-> +               pad += (STACK_RND_MASK << PAGE_SHIFT);
-> +
-> +       /* Values close to RLIM_INFINITY can overflow. */
-> +       if (gap + pad > gap)
-> +               gap += pad;
+> @@ -54,7 +54,7 @@ static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+>         else if (gap > MAX_GAP)
+>                 gap = MAX_GAP;
 >
->         if (gap < MIN_GAP)
->                 gap = MIN_GAP;
+> -       return PAGE_ALIGN(TASK_SIZE - gap - rnd);
+> +       return PAGE_ALIGN(STACK_TOP - gap - rnd);
+>  }
+>
+>  #define COLOUR_ALIGN(addr, pgoff)                              \
 > --
 > 2.20.1
 >
+
 
 -- 
 Kees Cook
