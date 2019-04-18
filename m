@@ -2,152 +2,160 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3C8FC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E3EDC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:48:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A206421479
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:43:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="PSoUbECw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A206421479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id E836121479
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:48:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E836121479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44E996B0005; Thu, 18 Apr 2019 12:43:40 -0400 (EDT)
+	id 8B6C76B0007; Thu, 18 Apr 2019 12:48:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FCA26B0006; Thu, 18 Apr 2019 12:43:40 -0400 (EDT)
+	id 865706B0008; Thu, 18 Apr 2019 12:48:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 314226B0007; Thu, 18 Apr 2019 12:43:40 -0400 (EDT)
+	id 77D466B000A; Thu, 18 Apr 2019 12:48:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2B46B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:43:40 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id t85so699716vsc.21
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:43:40 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7136B0007
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:48:16 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b7so164110plb.17
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:48:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=qzDLwBi5wGEl1QgiX6QazcN46g8jvDRco924zpUMTMs=;
-        b=UFLtE7vPTrLfW4rItwCPJph9lmE/SeecFdSL2uRondYeebXIHKjWNWTL6cE339p39F
-         FbktyToa2AIPPuuAmVAZ4+VnjAkFgOsuEDJZcqHZAOCXYADl9E0XNOOGhAZketIUhTVp
-         lyjDBbJe/86PHiVRkeQpozJC0LZOd4iGf14ykY1c33pWrcJoKoWz4FzJvTGtbQO9d/H4
-         PTJc3xLr23DZYcczQMmEMXPcGs1wNWclJhimlX09/Q3/VJRjFaN8i4hjI8VkXaWYbkrB
-         t41cgAr27GMK3QKA0xSU1XUEFVbSHJp1koCmfaIqs3NQ+BrCdXLRsO7IAdmKsq54N6Fc
-         i45Q==
-X-Gm-Message-State: APjAAAULPatXf5xayclJTUqGJbFBplZyG2xvnF1152hZumreLeQVp5o4
-	K7htKg8GPR+P/2FA1sSuTHcBij+189qrCWlNuC1imUWMMtd3iOepQZCfl2DUC7O8oRweG0y0R5y
-	qMF1hCK2P6foNp6PhUK5d54enq87DDQCP4ogXWLFQSUcFlgLTxDlXtlsYefc4rUeJiw==
-X-Received: by 2002:a1f:1d06:: with SMTP id d6mr50596842vkd.82.1555605819608;
-        Thu, 18 Apr 2019 09:43:39 -0700 (PDT)
-X-Received: by 2002:a1f:1d06:: with SMTP id d6mr50596773vkd.82.1555605818915;
-        Thu, 18 Apr 2019 09:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555605818; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=7fd//MdsUnuf1kx0gSh/g4qsh6yU8kXSazoNNEO7Dy0=;
+        b=fLW/BnpypWGkeDv0iRzkAL0k2yfJSKLST0n1VgLdL1nAfRIbAuLdBM5ZtrQEvoUfTE
+         XsCOjjh0yueK2zSH/bUmT4RwhEwWSM2ILxggJSUS7HZ6nj+rIGmfntoVGvhWyo7u3eHG
+         iWIBJiThv5wiVZkEykYxDkV74ei+nn7d5cyDY6BCNqdxOwlu/RuNt9z1yqiDLOMUKG7e
+         9lew9BN9mqpjdDeLeoiYaqgVzoY4CwyC5Sk9KsiQs1zw5p9J84GWhrzDnpUAvJnDn1Zc
+         5gaSaFWH/AOQ9J5FiviSMMwUqoYC0PYFUP041WOooneW0JxD2DKc8HZDD3ElpywS7GMp
+         zrxg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUNbOSBAAR67OvkFUa6XTjL4V2IzFYy1NTLSk1m4MpVWtXNSq26
+	5cznDK2seTJb+y00scC1w5yLACB5oNj4mPYsEvBthtnOBRZFIWgLOCb2pSvbyms8uYl97cBOivX
+	x5Ch15LPRDzpea5wQKz/C86hH4aDuCABPPa05y0MAcfnTaq725yVg1ymEYt+l9bkgUg==
+X-Received: by 2002:aa7:820c:: with SMTP id k12mr96357576pfi.177.1555606095698;
+        Thu, 18 Apr 2019 09:48:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMWp4/yfC9IwC4VNAJ8Bs/lcY0WuvaB5ZGsKTeAPnNS/sTrLz/V9Niq24vgw0bFzfzr0pB
+X-Received: by 2002:aa7:820c:: with SMTP id k12mr96357503pfi.177.1555606094773;
+        Thu, 18 Apr 2019 09:48:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555606094; cv=none;
         d=google.com; s=arc-20160816;
-        b=DsXytAVbVZPxBbdaWTWS/M64lqQ4qQkyvSGpiBDNMbnT+jC/vxfkUOrpfVf99+oW6t
-         nG44hIv4O0wEhUYAVHNuTdvQ1CL4CvMbRoohDhh5urQ69l1F7YjMX3F5PNXLqLc+XRJq
-         DLs8sIHR87cugkD5UVINDtSjzaikAgqpmnr0HrTNURyUASs221/yqBLiDAN1T11QDSkE
-         vkv3oa2HK3fxkebB+fiR3L1Pn1N5lSexOcIY3SYZRlUh665ANeeupxX4QUAnlIOANNcp
-         XSRtIjhWmrvbGM8VpRCluWORQtAbk/UinAO6+lh/2R1dQYycG3DWnOKnf3wL7fCddaD8
-         oJPQ==
+        b=tEIKptNbyUuFacdRQ2mHwR+jw5+vJosux6AVGkY9wyEjdxbHTWvZkeCQQIRKXeHuF1
+         cdSjOGE+1K+5jLJwJg7W9tzfTiZlwYltW8hDLXLubPhYZQFijDHtrozCUgH4nE+rtqBx
+         NGlcjppgkKdv0rTRnfaNrD9HtkNsfJ9wpiaFFI+FcSX0YQnAiLxIKuc21cLRfBIVqa5l
+         e8/lR8hmqEDEpwsMYwzfoPW1pYYl9GjDj7m4KLRZW55oEWXAaK2aaA8zcalwcpdYEgrK
+         q4Xk3At0ObOf7hkXNYRVtVWpB6+ad9Qh5RYXpdVuEda3Jc2JFFg+Xnvt6h0Hchz2IRma
+         YHSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=qzDLwBi5wGEl1QgiX6QazcN46g8jvDRco924zpUMTMs=;
-        b=fbwYRHTb33zF5shIqJVsCEz9462tUuH9W5BVnINZk120k9/5kga1Qz9F6egneYdY0R
-         saZAGvIQUAf9t/F025pi1m6K4LyJE3997O9shK555xBTn/X2dQi5G7nP7cqPiEAhhONP
-         791jUEZi9W3DGpHLCt+vde8JaPYprLw0zLT+eUlnkRqbndriByvfJ5a13quMgIl8KNEA
-         SWwansYSbWD/WrQX6O6fgwt0MozxmmW+4bQTd/4gNypMp9zy4MonDy5fm26QRx4rjTxS
-         OsU/xo1LM08DAPyd2nfyIXKTS+7F0k33EA02Kbyeh7dapcboJreNQFviDQEBpZelX6QG
-         k81A==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=7fd//MdsUnuf1kx0gSh/g4qsh6yU8kXSazoNNEO7Dy0=;
+        b=vkpyAHv7L4bvSwexZ8/lgg4iPo1Mn4UZUn0N/a3wawIUEBG+m+OM8j7b4p2CK1xFhc
+         d1FMhKxYNf4M1he77uOYWw71afbucl1v4NmsSXfo+V64hQwhhDVYXdisjTOK1iUmoAem
+         NwQlXH//wUQ+XC+8rCKFvSl1DupHtysiwuREeRm4EIFC0QzhYYei/uPts0SeYgv/6koC
+         +Tb6uMT09RExkFhFwYse+tEo84kbhcELqZUfKh3u9NdSbzC8jUceHOW2Yc3/4XUFHjsZ
+         Xt263K4AKW4SAuHCe+N3trLQakXZxwQITSC4ONUUaAzLKHs2660iwcg8N6EYtuD/wE+U
+         uHYg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PSoUbECw;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 129sor895508vkp.61.2019.04.18.09.43.38
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id l191si2715980pfc.213.2019.04.18.09.48.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Apr 2019 09:43:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 09:48:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PSoUbECw;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=qzDLwBi5wGEl1QgiX6QazcN46g8jvDRco924zpUMTMs=;
-        b=PSoUbECw7vwP45yX9rJ82zoosI6vrtSOcSvfexvtf9HX8wWoR5wUcRHsD9B7m5U2L7
-         jm9HH/bjxBGxi5+RCrCNLXetskJuMX2wfqmhBCXUlHJ5ijkxaWsjVIfbRyqsmp7XKLdh
-         gYaCyM7a99gS3drFWq3+iozBqgt+Qo29xLYJQvM/9GciLdkCCn30jwwNsdm+C4McJcqX
-         Ch2reOgZolGTpLBTrvtU/hr3aOBRzPcAWcPskgQk1pCvXRAGZ/MNcAluPTK+LTpj6hfe
-         oANJOvhbEp4yaN6R0AknZ+86wyCf7mZASFmzpqE0QfOYMcxeh4Oe96IoxGwr6LTvlJTJ
-         qp2w==
-X-Google-Smtp-Source: APXvYqyn9J+QqZgKJjQGoBk6T1xIB+6KLK6AJT56KZhqtsU+SxO6Kwx1Y5gtrSBkkcrVh5eG2zk2CkqmsC41n5XBaIc=
-X-Received: by 2002:a1f:aa93:: with SMTP id t141mr50445492vke.64.1555605818227;
- Thu, 18 Apr 2019 09:43:38 -0700 (PDT)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TPeyfr1_1555606089;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPeyfr1_1555606089)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 19 Apr 2019 00:48:12 +0800
+Subject: Re: [PATCH] mm: use mm.arg_lock in get_cmdline()
+To: Laurent Dufour <ldufour@linux.ibm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Michal Koutny <mkoutny@suse.com>
+References: <20190418125827.57479-1-ldufour@linux.ibm.com>
+ <20190418130310.GJ6567@dhcp22.suse.cz>
+ <749b8c73-a97d-b568-c0e5-a7bda77090c9@linux.ibm.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <efc01241-1ef0-09ed-e3b5-c4b04a0f64e8@linux.alibaba.com>
+Date: Thu, 18 Apr 2019 09:48:09 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-References: <20190418154208.131118-1-glider@google.com> <20190418154208.131118-2-glider@google.com>
- <981d439a-1107-2730-f27e-17635ee4a125@intel.com>
-In-Reply-To: <981d439a-1107-2730-f27e-17635ee4a125@intel.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Thu, 18 Apr 2019 18:43:27 +0200
-Message-ID: <CAG_fn=URD0WL+RE90ZE2FZM4=p2zE9V+YA2RW-LrWnuqYTwvKQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot option
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
-	Dmitriy Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, 
-	Laura Abbott <labbott@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <749b8c73-a97d-b568-c0e5-a7bda77090c9@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 18, 2019 at 6:35 PM Dave Hansen <dave.hansen@intel.com> wrote:
+
+
+On 4/18/19 6:05 AM, Laurent Dufour wrote:
+> Le 18/04/2019 à 15:03, Michal Hocko a écrit :
+>> Michal has posted the same patch few days ago 
+>> http://lkml.kernel.org/r/20190417120347.15397-1-mkoutny@suse.com
 >
-> On 4/18/19 8:42 AM, Alexander Potapenko wrote:
-> > This option adds the possibility to initialize newly allocated pages an=
-d
-> > heap objects with zeroes. This is needed to prevent possible informatio=
-n
-> > leaks and make the control-flow bugs that depend on uninitialized value=
-s
-> > more deterministic.
+> Oups, sorry for the noise, I missed it.
+
+Yes, Michal already posted a similar patch. Anyway, thanks for catching 
+this.
+
 >
-> Isn't it better to do this at free time rather than allocation time?  If
-> doing it at free, you can't even have information leaks for pages that
-> are in the allocator.
-I should have mentioned this in the patch description, as this
-question is being asked every time I send a patch :)
-If we want to avoid double initialization and take advantage of
-__GFP_NOINIT (see the second and third patches in the series) we need
-to do initialize the memory at allocation time, because free() and
-free_pages() don't accept GFP flags.
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+>> On Thu 18-04-19 14:58:27, Laurent Dufour wrote:
+>>> The commit 88aa7cc688d4 ("mm: introduce arg_lock to protect 
+>>> arg_start|end
+>>> and env_start|end in mm_struct") introduce the spinlock arg_lock to 
+>>> protect
+>>> the arg_* and env_* field of the mm_struct structure.
+>>>
+>>> While reading the code, I found that this new spinlock was not used in
+>>> get_cmdline() to protect access to these fields.
+>>>
+>>> Fixing this even if there is no issue reported yet for this.
+>>>
+>>> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect 
+>>> arg_start|end and env_start|end in mm_struct")
+>>> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+>>> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+>>> ---
+>>>   mm/util.c | 4 ++--
+>>>   1 file changed, 2 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/util.c b/mm/util.c
+>>> index 05a464929b3e..789760c3028b 100644
+>>> --- a/mm/util.c
+>>> +++ b/mm/util.c
+>>> @@ -758,12 +758,12 @@ int get_cmdline(struct task_struct *task, char 
+>>> *buffer, int buflen)
+>>>       if (!mm->arg_end)
+>>>           goto out_mm;    /* Shh! No looking before we're done */
+>>>   -    down_read(&mm->mmap_sem);
+>>> +    spin_lock(&mm->arg_lock);
+>>>       arg_start = mm->arg_start;
+>>>       arg_end = mm->arg_end;
+>>>       env_start = mm->env_start;
+>>>       env_end = mm->env_end;
+>>> -    up_read(&mm->mmap_sem);
+>>> +    spin_unlock(&mm->arg_lock);
+>>>         len = arg_end - arg_start;
+>>>   --
+>>> 2.21.0
+>>
 
