@@ -2,140 +2,162 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 703F7C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:17:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90B1AC10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:22:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2BA9220869
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:17:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BA9220869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 4C7DE21855
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:22:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C7DE21855
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BEA366B0266; Thu, 18 Apr 2019 16:17:16 -0400 (EDT)
+	id E09A56B0010; Thu, 18 Apr 2019 16:22:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B9A436B0269; Thu, 18 Apr 2019 16:17:16 -0400 (EDT)
+	id DDFA36B026A; Thu, 18 Apr 2019 16:22:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB1026B026A; Thu, 18 Apr 2019 16:17:16 -0400 (EDT)
+	id CF6F36B026B; Thu, 18 Apr 2019 16:22:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 72EC46B0266
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 16:17:16 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f7so2047469pfd.7
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 13:17:16 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3DA6B0010
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 16:22:27 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id n5so1993848pgk.9
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 13:22:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=4jPhGwjHunFWeSDK39fXDa38YqpMigqthqO4oi8UR94=;
-        b=c2cuJzfAfnJqlfXvcLBfNBrhr06bW8WOvWp0q4KxJ/MexOLKYlw0rAuhAGQMhqy4Fd
-         5Nx9wFmukdsJoCyrKm9CwOHsNkVb088ob5iUMVAwIhTbl2Lv2FLvHHz2kJcO7h7OpoY9
-         z4PI8mJeCPRYQFGj2aUD/1H/oSENadVuzW/koaBRAnDDSO4iLWnzcTgsbrR6qj6CLVtE
-         McjhAtuJFgspz+9wKtpsp5vFOvQgQcsFfDmjRG+RRtX2PFofLdeJ55pOk8Cea04f/8iL
-         YcXFQjSNtwbGQY1R7EdJFHhuq3QIrfHaIfgX8exouRsvuFCpt9HdG0QEPYWlVGdU124m
-         Pokg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVHseUkzU8NemTNBflGnqEG6r6BU0B+pUQbFvkfl2BmVH+vZrEm
-	rSTwHkROAGqHYShB3uaH1/3yalzpJ7M6F42RY1cmPIjU+bkah45xSl5JSET6AevpqKuFUrAE0li
-	+bvzhROPvM2/jNNlNwHBimHeR/lbhrYXPU7NYc0O6u/N6bAhJKtAYuaC2ei1/D7UkwQ==
-X-Received: by 2002:a17:902:2b89:: with SMTP id l9mr7813548plb.329.1555618636116;
-        Thu, 18 Apr 2019 13:17:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFhlp1tP1B9MxcMD00RsR3cDaxwStNT4Gxry+eI3PPUsg3taIUn+lv2zzduXHAB117nLZI
-X-Received: by 2002:a17:902:2b89:: with SMTP id l9mr7813477plb.329.1555618635080;
-        Thu, 18 Apr 2019 13:17:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555618635; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=2a89JEIBhNjnMFpHIUB8tXT6s1IU6EnujuDo+qXWpHg=;
+        b=e+73Znl/JsHItq0ZkEBdPQ8tgtp5derKiSV6Qfpnb/Fpc9b56U4ryzVTtXIqWJujiS
+         bKfZ2PnSAcdv2MHEA/1d9CzWSWmRhoE0Cc0Ves7gAEaRr1qgFMRsa9qGUsDxlOV6OxVG
+         WuLOIjg4Am26Ydp9dJIJ8pvysqTrH6Tu6ThgC+8yYsDIgzolDSdk2oRAVUVG97SRBgxX
+         jTJNnhtGiCRS8P4siCxcOyPN7tZnwxTUzinjJBAVM3K8uhK4juDLEuABhhnl9IvQgTNr
+         zaquoEkL8NGUjFe7fz0yibQfOqAI9pQD6I4pA03wuc18lOQVfIZ8oXG2G6dgwUfEJMB8
+         02EQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tom.zanussi@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=tom.zanussi@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUbcBjuOt4cSHhKfD+9xqYOnKnY+hl43ZGBmYymY6oFMcPKewwi
+	TAnC2NVGZxDAGSlGG+JlhTIw3FIFCzsCdQFlMWIQZsyD176c92X4BoFikjMF+Vc+xnTUvLuu5X5
+	ODTVpCApYfLsj3SFipi7BkUTIolrSOyOKnmKCNpUfmWG8AHaDTAumlQAkLIS05MboIA==
+X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr8269686plt.313.1555618947292;
+        Thu, 18 Apr 2019 13:22:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwt03N6LolFUgcAWzgCZFPsn5zO+BOt55B7URdDPx4+IeKXC7zDwB6U0rPCzvIlhPY7TFQG
+X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr8269641plt.313.1555618946690;
+        Thu, 18 Apr 2019 13:22:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555618946; cv=none;
         d=google.com; s=arc-20160816;
-        b=YO/njEc6s2uCm79CbN9e5jrvkMkjDWOfCxEoAriuJAcVa+Kl6TBRIpcM2zjbSGHgbo
-         B0/Mpwi4QPqrLzSVwCCMrEd9aW/jQeWzz6QhjJg6j1iGyQGgpdLD5UF9N8Hv0P4BSast
-         7DQ2EwDcW5aCFiuYto11z8F2EzfxcPx1nnTXwHSCC9phBkz9WzFcaljbsdpT3OBz5D7G
-         uStETehP6wFLMMICwOO9MdZVgN/OYoysZj+5E4wMzI/MFwHRMXmkP6BNZyjKErrqIk9Y
-         wh6Tyv4Yx36TQGnA0x6yRE/+Vk/7tiU99bvBi4J3r1istWDXN2fS15x2H5H22fZq30Uz
-         JsdQ==
+        b=X5TNDiTPQcMlNioY8CsR+MXyOfcrDxv1xyO4+LFBFOBv+Ngoj1ERyxCS/b54HJcfGu
+         ZRnwghYq561knHPzJO0mi1zfMEeihmzLue+dSHGdX/zCk14SnOOAH9eozHDgM8/XC+G1
+         bB//2XD+HTl4Dtl8/qzgo2mRb8ST0oarA87lZmf2ryP3OsygEflpy01TjVPVuQe9FPPd
+         6Om3fsF9uilns4ep4IGQiRR4SnpdlbMTTuIXzqEhzHTkTbZsCjCMWONbdEbPOutTx2uo
+         M5Ru79ElegPppbyZadvYOoR7HF+8Sj6QYwHIm2cem6DjMgNePAfes3HVfcAkH/HMx8Vu
+         /U0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=4jPhGwjHunFWeSDK39fXDa38YqpMigqthqO4oi8UR94=;
-        b=e4+jUlHK/VXIlpjM2gbrCPMCp/QvhBGXk3i7W2q+wMcAGF/0Gz0Z4uF29sYVRkgVLM
-         RxeFS7jim6GXjfBA+4jbcKh9zFW7lRN2306KUONHqX1VRVWdYOSrB4TWTfkiRTvASqB6
-         rhxbGbku2kkvddMMR5w84h1B1DWcQxgxJPxxsHo2DONd9EdaMPWW3ZnT97X56fn4S4MR
-         m0ZbNufZFJ6EFoa5KDl2ACqGh1II+Xcz44v8kHAct/156/D9UA/LpS4onfSym9n5FONA
-         WMR+zNu9OSP68aBzeODYSloM5Gmqwh/Iq5atBrNp4vhTx9K4q8oMnQKoOhNCxbcEl4TE
-         EQ/g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=2a89JEIBhNjnMFpHIUB8tXT6s1IU6EnujuDo+qXWpHg=;
+        b=Qec7btZh83NCfXJXOfJa3xDXuZbGggpfN5zu1gmp/4rR77wcaWxcusD2PkSjvIRITn
+         bg7P0mVNjRMNbOXFLiTl1kDbCUq/5ZyzfZVRu8/Qt1g28HHJPAer40FZQZgSNtxlON0+
+         p1XOgXbQtlqUlqBvKfIwL4F8AfvtTRRlloRmHPCKhnqr9u1dylb7paa+OWP74/JUuYDN
+         H0bRLA27rvBf36wfBAg+55HJgAz0U8AXi/PWAYLa6K44HelqMnnmW71psJJxwKyN2KEW
+         Y5ahcc7YwMBIS61J7kT34LkxRk7InFRZE6iNylMeiCbdiMAAcrM1RIYr1Wbw0SYOHkyR
+         rphw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-57.freemail.mail.aliyun.com (out30-57.freemail.mail.aliyun.com. [115.124.30.57])
-        by mx.google.com with ESMTPS id s2si3065435plr.110.2019.04.18.13.17.14
+       spf=pass (google.com: best guess record for domain of tom.zanussi@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=tom.zanussi@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id o15si420040pgf.105.2019.04.18.13.22.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 13:17:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) client-ip=115.124.30.57;
+        Thu, 18 Apr 2019 13:22:26 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tom.zanussi@linux.intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.57 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04426;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TPfSgC1_1555618625;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPfSgC1_1555618625)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 19 Apr 2019 04:17:13 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: mhocko@suse.com,
-	kirill.shutemov@linux.intel.com,
-	ziy@nvidia.com,
-	rppt@linux.vnet.ibm.com,
-	corbet@lwn.net,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-doc@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] doc: mm: migration doesn't use FOLL_SPLIT anymore
-Date: Fri, 19 Apr 2019 04:17:04 +0800
-Message-Id: <1555618624-23957-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       spf=pass (google.com: best guess record for domain of tom.zanussi@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=tom.zanussi@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Apr 2019 13:22:26 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,367,1549958400"; 
+   d="scan'208";a="141818813"
+Received: from dytagah-mobl.amr.corp.intel.com ([10.254.15.29])
+  by fmsmga008.fm.intel.com with ESMTP; 18 Apr 2019 13:22:22 -0700
+Message-ID: <a8b9954d0c0a6cc4c213ff65c9ec3795ed0a05ba.camel@linux.intel.com>
+Subject: Re: [patch V2 20/29] tracing: Simplify stacktrace retrieval in
+ histograms
+From: Tom Zanussi <tom.zanussi@linux.intel.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML
+ <linux-kernel@vger.kernel.org>,  Josh Poimboeuf <jpoimboe@redhat.com>,
+ x86@kernel.org, Andy Lutomirski <luto@kernel.org>, Alexander Potapenko
+ <glider@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton
+ <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, 
+ linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Christoph Lameter
+ <cl@linux.com>, Catalin Marinas <catalin.marinas@arm.com>, Dmitry Vyukov
+ <dvyukov@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
+ kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org,
+ Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek
+ Szyprowski <m.szyprowski@samsung.com>, Johannes Thumshirn
+ <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>, Chris Mason
+ <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
+ linux-btrfs@vger.kernel.org, dm-devel@redhat.com, Mike Snitzer
+ <snitzer@redhat.com>,  Alasdair Kergon <agk@redhat.com>,
+ intel-gfx@lists.freedesktop.org, Joonas Lahtinen
+ <joonas.lahtinen@linux.intel.com>, Maarten Lankhorst
+ <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, David
+ Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>,
+ Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>, 
+ linux-arch@vger.kernel.org
+Date: Thu, 18 Apr 2019 15:22:22 -0500
+In-Reply-To: <20190418161342.34f4abca@gandalf.local.home>
+References: <20190418084119.056416939@linutronix.de>
+	 <20190418084254.910579307@linutronix.de>
+	 <20190418094014.7d457f29@gandalf.local.home>
+	 <014a7564d606b249a5e50bef0fedf266977a935b.camel@linux.intel.com>
+	 <20190418161342.34f4abca@gandalf.local.home>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-1.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When demonstrating FOLL_SPLIT in transhuge document, migration is used
-as an example.  But, since commit 94723aafb9e7 ("mm: unclutter THP
-migration"), the way of THP migration is totally changed.  FOLL_SPLIT is
-not used by migration anymore due to the change.
+Hi Steve,
 
-Remove the obsolete example to avoid confusion.
+On Thu, 2019-04-18 at 16:13 -0400, Steven Rostedt wrote:
+> On Thu, 18 Apr 2019 14:58:55 -0500
+> Tom Zanussi <tom.zanussi@linux.intel.com> wrote:
+> 
+> > > Tom,
+> > > 
+> > > Can you review this too?  
+> > 
+> > Looks good to me too!
+> > 
+> > Acked-by: Tom Zanussi <tom.zanussi@linux.intel.com>
+> > 
+> 
+> Would you be OK to upgrade this to a Reviewed-by tag?
+> 
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Zi Yan <ziy@nvidia.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- Documentation/vm/transhuge.rst | 8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+Yeah, I did review it and even tested it, so:
 
-diff --git a/Documentation/vm/transhuge.rst b/Documentation/vm/transhuge.rst
-index a8cf680..8df3806 100644
---- a/Documentation/vm/transhuge.rst
-+++ b/Documentation/vm/transhuge.rst
-@@ -55,13 +55,7 @@ prevent page from being split by anyone.
- In case you can't handle compound pages if they're returned by
- follow_page, the FOLL_SPLIT bit can be specified as parameter to
- follow_page, so that it will split the hugepages before returning
--them. Migration for example passes FOLL_SPLIT as parameter to
--follow_page because it's not hugepage aware and in fact it can't work
--at all on hugetlbfs (but it instead works fine on transparent
--hugepages thanks to FOLL_SPLIT). migration simply can't deal with
--hugepages being returned (as it's not only checking the pfn of the
--page and pinning it during the copy but it pretends to migrate the
--memory in regular page sizes and with regular pte/pmd mappings).
-+them.
- 
- Graceful fallback
- =================
--- 
-1.8.3.1
+Reviewed-by: Tom Zanussi <tom.zanussi@linux.intel.com>
+Tested-by: Tom Zanussi <tom.zanussi@linux.intel.com>
+
+Tom
+
+
+> Thanks!
+> 
+> -- Steve
 
