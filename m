@@ -2,184 +2,253 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83ECAC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 22:19:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EE1DC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 22:22:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2499B217F9
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 22:19:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2499B217F9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 5B7E32064A
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 22:22:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B7E32064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACF7B6B0005; Thu, 18 Apr 2019 18:19:46 -0400 (EDT)
+	id EE8BC6B0005; Thu, 18 Apr 2019 18:22:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7B9E6B0006; Thu, 18 Apr 2019 18:19:46 -0400 (EDT)
+	id E98526B0006; Thu, 18 Apr 2019 18:22:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F94A6B0007; Thu, 18 Apr 2019 18:19:46 -0400 (EDT)
+	id D87AC6B0007; Thu, 18 Apr 2019 18:22:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 529FB6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 18:19:46 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s22so2271151plq.1
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 15:19:46 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B82EE6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 18:22:21 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id b1so3320171qtk.11
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 15:22:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=PjZi58gVreWv5Iuxlzjg5s/x6NQFE2omkHjhJQ21L0Y=;
-        b=m/UbhIoVTDqfjiNFpIriqoxEILHv6DIniERZaMNjsvgHnRrEVMI1CNeWyQCYU1hDqt
-         K4IhIPexh5jjgtoVngQNdIRQJ9NC/Zl+YW8wZxzO5QDozXLNTHLvjPjMa4koH3iKR7n9
-         o1qebr6rTzg9zHYq9Epym+8ZxvmgNhY31xSqrSjdMdZ2Cwl6eTIBRhKw1kBnq6Ywosv+
-         RpuSDADlZeKGVUZzgfQYj4ZxsPEpVJIqTozFWJ6MrsnvpvyOayhaFKn4Tw0UvlaqLiij
-         q3tF8/SpTSiZKN1/Pcnmspzcvf5I2aLrTbdcEDuzzgkNEbvJ+Jk2MPtqBVCposc5uEpU
-         0xgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAVVO2d/SsDpnSe9ccu84Uj9YJCeFvre2aeSk6UGODcgnrTam4rO
-	BceBnE0qxye7wGv1vT9Y7CgFNFjQ1ienw/dZhHmiboJN0tY5t+2hwX8N/18hHfZM8rrp+5PMvOv
-	cq4oVHjIuPixVe2PkW1vClQzq/dTKaI9HYNP0YSEgOXJqWtDnsm8uqjNf1IzJp+M=
-X-Received: by 2002:a65:5687:: with SMTP id v7mr351806pgs.299.1555625985933;
-        Thu, 18 Apr 2019 15:19:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5ZKw78dkVaqDbNBjt/M7LwtQvqJ0KLjy87TGub1WNAlgCRCCB0lFdMmaWnMAlUjdicxYg
-X-Received: by 2002:a65:5687:: with SMTP id v7mr351739pgs.299.1555625985081;
-        Thu, 18 Apr 2019 15:19:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555625985; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=4sXQaNqlRRTRdxOjRFxaauId6kyfzqxGAIe1B5ze7PQ=;
+        b=E3mn/SAt3DeNiVUh55fgsM4b4mOH7gFndhMGNFmaeG0WaPJNKnek1+Bi38nwe7hM7x
+         J251JzPgKLky4WiCK70w5TFxr+vseRg5r+C4hdEB1VHCRDNcMmpq96vKa2eiULzkjoUy
+         H5G+5AhU0rBz4VMpMR7t+9npOvgnRW/zbXKiYDix9B9uIFgj3WxGyYyDSpBFjc43qUNb
+         dKhD0ii+CYn+Vjnua0IQVh7ubBCWC+2uffrJ74qqhygii4g7uwxsw0ojxtoKBvGuCoOW
+         G87hocrrQiI7Lk9X4TrWEwlvDPMl1h+KZeTxZiGh7rHId8UDZYnZxKkU2Gkjin8QpSqF
+         TBnQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW6qKkxQ0xFmrArDNkOcfHelae2nJaIQ7+pXkItu9ko/zdVA4AD
+	wPG0fdJIE7iSoMTkOZtahvL+cHLc7LvXABgssA8W/hj4I51h7TRdVOpSrXDyfBvmpz+vi37dkoC
+	bGqYhXbR4KLW5VXvTkXPGbbVfz3qWG5EZ7H76bV8wclrrlqrr+3rXPp1vtrcfseFXBQ==
+X-Received: by 2002:ac8:2ca3:: with SMTP id 32mr543268qtw.60.1555626141518;
+        Thu, 18 Apr 2019 15:22:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxvebDWu6ZiSOD09hlxhPhA2GRGXbrGTQeRifGPERjf2QrDg8SFkwK+RwF+lKFIt9XjV/uQ
+X-Received: by 2002:ac8:2ca3:: with SMTP id 32mr543211qtw.60.1555626140733;
+        Thu, 18 Apr 2019 15:22:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555626140; cv=none;
         d=google.com; s=arc-20160816;
-        b=sS3J/80QtqBgx1CpPaLJPj+NbUdehXm7SVkjY3z75iqj94H5QUCDIeIVUiz2tK7arm
-         kD/ZFqMqxljX+gfIe0DdqRxNlOdHPy71b44O3wWx/+sJkd5PdAmZeA7CIdsAH/wok1wg
-         /30iGao+z5AGasuw1M5Ws4hb/RN6usaSb01P4RfV4xX7rRbX0iTAyslSK2cZ2rilYMHq
-         qzb+UZzu7/xfTXnGwF5JrHFZSiDmoIopNSPelZrF24Gcj+51/luovWFKHCAo7BWJS0dX
-         awhwORExcg7HaJFDJCpBIiiVVoMiTCwgZV1oLLzlt3SWxNWkZd1fJYZtOb/O/BCePVyQ
-         CBMQ==
+        b=MxCT79hhxaT8oSCes3rNRliiNVj4nN58QHgxTwmpLQr3MNsMMZeYzUZGxH42Njp+UK
+         5uiwLl6F1+tDW4lsRP2EnXnq4SPvzRoCGaLV16lNokyr3nHt3qMKvR6g1X1k+8MU9i4T
+         LNTFQXq5M9G5DYaUvymnRzDD8TQUEtz5q5n2H96btkxIylcoRmoQrxwW+lMzLykPt9rN
+         myVT7lUqZwHINJM9TnbLkQlGa+UBYNvshd0lzZauLdlQwQ90MTFvr27LhcV0eLY25J1l
+         IlhvbRf2YwdwIpwpfQPAfgfNUhhUmWzaER6HNfqJNr1pfOwNRSxogJlk2xhlYUriwq38
+         uMUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=PjZi58gVreWv5Iuxlzjg5s/x6NQFE2omkHjhJQ21L0Y=;
-        b=bmZZnMTGV6tLS6xkbgTf3Yi98tTM+RoG3k8IlVTBhX5LG8vJsU21q2GxzWjuqVNqV5
-         fYimcDrjfHKSOBbVrrwA2aNW7KEdy1RkGLy95LkEGkfkRZEvNaQwwSup6EisIf/AFyA9
-         FKD9cPqKuJ3nVSETMyuGcD5jH0iPKfE/VtzrC2o0DfryD0SoPsUAhT2GCLG5Ab11Ttam
-         tmwllIu8CQbADzf39wmn87WAI4ybNyFDQIXTmpuFlbAzIDZVKV5laqFMjWYC1MnWeet7
-         xFNs+hZZcdTnmKXMP03bob690uKTqMxOj/bNpjOVGECOO9RbR8vh2ABdZuikulkkY/8e
-         dmOw==
+        bh=4sXQaNqlRRTRdxOjRFxaauId6kyfzqxGAIe1B5ze7PQ=;
+        b=xSaf1BIsxB+L2jQJnPltNP33+wHpuPiWvPsnfEkJaMKrvU9gHZ7TnxuT7eXatl/gfs
+         JjDIxHHek/Vn8M7Vh4+6/dfe1UESkYJO58yXtKu/FAdxmSRziVwcvsm4/Lrt09gxpg5l
+         wQIY9nykjQ0rC6kJfywAvrkpXSwZKW2JzxRfa3KDKq2khUBqda54WI2x69jdv0v3VQ5j
+         9RwfDCZPHpeoX3MugK+qM5uazLlNws6F49qT/xue5ZX/hLjyq+mrdVJAPMp38wc5T9jf
+         NKWep4RtHYIq2ZpfDMbtsfDulohFJg64+hIwQWDhz0KJQkmd3880Te6juRfm0CBWF5kI
+         pXEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b23si3260256pls.430.2019.04.18.15.19.44
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 27si2292111qvx.58.2019.04.18.15.22.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 15:19:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 18 Apr 2019 15:22:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=+lpg=su=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=+LPG=SU=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 509352064A;
-	Thu, 18 Apr 2019 22:19:41 +0000 (UTC)
-Date: Thu, 18 Apr 2019 18:19:38 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf
- <jpoimboe@redhat.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>,
- Alexander Potapenko <glider@google.com>, Alexey Dobriyan
- <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka
- Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes
- <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Catalin Marinas
- <catalin.marinas@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey
- Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, Mike
- Rapoport <rppt@linux.vnet.ibm.com>, Akinobu Mita <akinobu.mita@gmail.com>,
- iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski
- <m.szyprowski@samsung.com>, Johannes Thumshirn <jthumshirn@suse.de>, David
- Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>, Josef Bacik
- <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
- Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- intel-gfx@lists.freedesktop.org, Joonas Lahtinen
- <joonas.lahtinen@linux.intel.com>, Maarten Lankhorst
- <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, David
- Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>,
- Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>,
- linux-arch@vger.kernel.org
-Subject: Re: [patch V2 01/29] tracing: Cleanup stack trace code
-Message-ID: <20190418181938.2e2a9a04@gandalf.local.home>
-In-Reply-To: <20190418084253.142712304@linutronix.de>
-References: <20190418084119.056416939@linutronix.de>
-	<20190418084253.142712304@linutronix.de>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+	by mx1.redhat.com (Postfix) with ESMTPS id 05FE4C066462;
+	Thu, 18 Apr 2019 22:22:19 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id ED5475D9CC;
+	Thu, 18 Apr 2019 22:22:14 +0000 (UTC)
+Date: Thu, 18 Apr 2019 18:22:13 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Laurent Dufour <ldufour@linux.ibm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
+	kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
+	jack@suse.cz, Matthew Wilcox <willy@infradead.org>,
+	aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
+	mpe@ellerman.id.au, paulus@samba.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
+	Will Deacon <will.deacon@arm.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	sergey.senozhatsky.work@gmail.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
+	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
+	David Rientjes <rientjes@google.com>,
+	Ganesh Mahendran <opensource.ganesh@gmail.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Punit Agrawal <punitagrawal@gmail.com>,
+	vinayak menon <vinayakm.list@gmail.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	zhong jiang <zhongjiang@huawei.com>,
+	Haiyan Song <haiyanx.song@intel.com>,
+	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
+	Michel Lespinasse <walken@google.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
+	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
+	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+Subject: Re: [PATCH v12 08/31] mm: introduce INIT_VMA()
+Message-ID: <20190418222212.GH11645@redhat.com>
+References: <20190416134522.17540-1-ldufour@linux.ibm.com>
+ <20190416134522.17540-9-ldufour@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190416134522.17540-9-ldufour@linux.ibm.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 18 Apr 2019 22:22:19 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Apr 2019 10:41:20 +0200
-Thomas Gleixner <tglx@linutronix.de> wrote:
-
-
-> @@ -412,23 +404,20 @@ stack_trace_sysctl(struct ctl_table *tab
->  		   void __user *buffer, size_t *lenp,
->  		   loff_t *ppos)
->  {
-> -	int ret;
-> +	int ret, was_enabled;
-
-One small nit. Could this be:
-
-	int was_enabled;
-	int ret;
-
-I prefer only joining variables that are related on the same line.
-Makes it look cleaner IMO.
-
+On Tue, Apr 16, 2019 at 03:44:59PM +0200, Laurent Dufour wrote:
+> Some VMA struct fields need to be initialized once the VMA structure is
+> allocated.
+> Currently this only concerns anon_vma_chain field but some other will be
+> added to support the speculative page fault.
+> 
+> Instead of spreading the initialization calls all over the code, let's
+> introduce a dedicated inline function.
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+> ---
+>  fs/exec.c          | 1 +
+>  include/linux/mm.h | 5 +++++
+>  kernel/fork.c      | 2 +-
+>  mm/mmap.c          | 3 +++
+>  mm/nommu.c         | 1 +
+>  5 files changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 2e0033348d8e..9762e060295c 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -266,6 +266,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+>  	vma->vm_start = vma->vm_end - PAGE_SIZE;
+>  	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
+>  	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+> +	INIT_VMA(vma);
 >  
->  	mutex_lock(&stack_sysctl_mutex);
-> +	was_enabled = !!stack_tracer_enabled;
+>  	err = insert_vm_struct(mm, vma);
+>  	if (err)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 4ba2f53f9d60..2ceb1d2869a6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1407,6 +1407,11 @@ struct zap_details {
+>  	pgoff_t last_index;			/* Highest page->index to unmap */
+>  };
 >  
+> +static inline void INIT_VMA(struct vm_area_struct *vma)
 
-Bah, not sure why I didn't do it this way to begin with. I think I
-copied something else that couldn't do it this way for some reason and
-didn't put any brain power behind the copy. :-/ But that was back in
-2008 so I blame it on being "young and stupid" ;-)
+Can we leave capital names for macro ? Also i prefer vma_init_struct() (the
+one thing i like in C++ is namespace and thus i like namespace_action() for
+function name).
 
-Other then the above nit and removing the unneeded +1 in max_entries:
+Also why not doing a coccinelle patch for this:
 
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+@@
+struct vm_area_struct *vma;
+@@
+-INIT_LIST_HEAD(&vma->anon_vma_chain);
++vma_init_struct(vma);
 
--- Steve
 
+Untested ...
 
->  	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+> +{
+> +	INIT_LIST_HEAD(&vma->anon_vma_chain);
+> +}
+> +
+>  struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>  			     pte_t pte, bool with_public_device);
+>  #define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 915be4918a2b..f8dae021c2e5 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -341,7 +341,7 @@ struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
 >  
-> -	if (ret || !write ||
-> -	    (last_stack_tracer_enabled == !!stack_tracer_enabled))
-> +	if (ret || !write || (was_enabled == !!stack_tracer_enabled))
->  		goto out;
->  
-> -	last_stack_tracer_enabled = !!stack_tracer_enabled;
-> -
->  	if (stack_tracer_enabled)
->  		register_ftrace_function(&trace_ops);
->  	else
->  		unregister_ftrace_function(&trace_ops);
-> -
->   out:
->  	mutex_unlock(&stack_sysctl_mutex);
->  	return ret;
-> @@ -444,7 +433,6 @@ static __init int enable_stacktrace(char
->  		strncpy(stack_trace_filter_buf, str + len, COMMAND_LINE_SIZE);
->  
->  	stack_tracer_enabled = 1;
-> -	last_stack_tracer_enabled = 1;
->  	return 1;
+>  	if (new) {
+>  		*new = *orig;
+> -		INIT_LIST_HEAD(&new->anon_vma_chain);
+> +		INIT_VMA(new);
+>  	}
+>  	return new;
 >  }
->  __setup("stacktrace", enable_stacktrace);
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index bd7b9f293b39..5ad3a3228d76 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1765,6 +1765,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+>  	vma->vm_flags = vm_flags;
+>  	vma->vm_page_prot = vm_get_page_prot(vm_flags);
+>  	vma->vm_pgoff = pgoff;
+> +	INIT_VMA(vma);
+>  
+>  	if (file) {
+>  		if (vm_flags & VM_DENYWRITE) {
+> @@ -3037,6 +3038,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
+>  	}
+>  
+>  	vma_set_anonymous(vma);
+> +	INIT_VMA(vma);
+>  	vma->vm_start = addr;
+>  	vma->vm_end = addr + len;
+>  	vma->vm_pgoff = pgoff;
+> @@ -3395,6 +3397,7 @@ static struct vm_area_struct *__install_special_mapping(
+>  	if (unlikely(vma == NULL))
+>  		return ERR_PTR(-ENOMEM);
+>  
+> +	INIT_VMA(vma);
+>  	vma->vm_start = addr;
+>  	vma->vm_end = addr + len;
+>  
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index 749276beb109..acf7ca72ca90 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -1210,6 +1210,7 @@ unsigned long do_mmap(struct file *file,
+>  	region->vm_flags = vm_flags;
+>  	region->vm_pgoff = pgoff;
+>  
+> +	INIT_VMA(vma);
+>  	vma->vm_flags = vm_flags;
+>  	vma->vm_pgoff = pgoff;
+>  
+> -- 
+> 2.21.0
 > 
 
