@@ -3,177 +3,239 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD839C282DA
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 00:01:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F5CAC282DA
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 00:39:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6FB48214DA
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 00:01:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DB7D0217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 00:39:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="IBLCLtPu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FB48214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="FW/JetfM";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="EWotGmsw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB7D0217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E48A16B0005; Wed, 17 Apr 2019 20:01:18 -0400 (EDT)
+	id 4FF996B0005; Wed, 17 Apr 2019 20:39:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DCA066B0006; Wed, 17 Apr 2019 20:01:18 -0400 (EDT)
+	id 4ACE86B0006; Wed, 17 Apr 2019 20:39:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6D896B0007; Wed, 17 Apr 2019 20:01:18 -0400 (EDT)
+	id 34F0A6B0007; Wed, 17 Apr 2019 20:39:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 591B36B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 20:01:18 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id i127so97773lji.1
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 17:01:18 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A9F66B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2019 20:39:17 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id i13so124127ual.17
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 17:39:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+kn5mtINPt4na060bar/tC0RHNfqAb7J/PmuZQ0Dyi8=;
-        b=UJrhthMomBlEGcCUJhJvZfguz6ebS0hRN4mSPfbeKnfBzOrHYfDqeQHgGpnBymS779
-         kuRULkkOQuEZeN5AOzimZSwPj6rzALVzdl39twCwxyiuTFxRqtzstqY7yfymp3j5qq2O
-         YbP4ayXoIvrVOwtPtKW91jM/3JWmUScND/m0cwwQWk0XuXlt92zAlEL6uX8anG2PmEi5
-         s55/9PGJgxOSJw/K3+G/x11Duela1tCrMYS2D24BjxUi48xs/cqP3UmLN09e4L1q2Yyj
-         M4ufkR9nrdcQp34Z8sb23IEwJ8PHMs6V28aZ7M+erufVxzhF/CHX2Q8qZaUrdKokJWFa
-         A+OQ==
-X-Gm-Message-State: APjAAAU/GqH4CST/TmJEzHVXEKookYwkrU+WUEDCZEJHTgXWphRVZzQR
-	p0tLpFJ5EtR4VNOxJHkGLe6uKqbWfRQsEysySsyQU6YBb0a2TFW9wB/YkUpvkicHL5svHMUtTRf
-	araybhAwKXVUZ695hcfPj9CO5/Un0O+69VZy060Lq5gQbP//QmOYrJbj/4td25XUKdw==
-X-Received: by 2002:a2e:74f:: with SMTP id i15mr43517898ljd.156.1555545677526;
-        Wed, 17 Apr 2019 17:01:17 -0700 (PDT)
-X-Received: by 2002:a2e:74f:: with SMTP id i15mr43517869ljd.156.1555545676528;
-        Wed, 17 Apr 2019 17:01:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555545676; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=GtgCHvQddxepzDm5CilE+VAum+QHU1xHkXGEwpuPmHo=;
+        b=I7PK+UVaRMPm7JVAqKKurbfY4MYDWbXCNOngHu3GSeHY18Q4UZsE8EuYErek7mAUAB
+         MmzD33UpF0hhFkoAGroMCQEAjTq5NseIRJiMDEYx66G276mtJTwYgKIZDGaEco11dXpQ
+         XhKy1obAYqpJED0xVSovTAy+KW9I/jwE4aQlgJdMUQdz2M/Ep/YB9Xge3TE/QyzBGG8M
+         qeyFZHdS1HKn9LDkT7iTsLr3aQBSJoYY90cE8RPqP1fwHw67jaFmUoqaA7kac7MEb+WN
+         aAmGrUhcAhfal9iDjRTBnrj0A8MARUjT3naxuH3YNQXhcfmhmXt3hIecy1GYLkEOJ9Ox
+         oajg==
+X-Gm-Message-State: APjAAAVwKafPnvZbDcw5dMp4nouYfHVA5VZwnJtMjMofKG0JOucuBSd1
+	A/Y/v2hVEQCpLaPSsHfIOb9Bh3BFhQ+z+9pRzDOOMRU1d3rnmDL3+kUxjzD56LcFFlypoQyCS2t
+	JkK3l7HVZFvFIt0PKJ7FVfsnh/SxEctLB7mokOXkQJVSJKgiz+R7h9WekaHlqGmVIAg==
+X-Received: by 2002:a67:7e12:: with SMTP id z18mr27859443vsc.82.1555547956643;
+        Wed, 17 Apr 2019 17:39:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwF3enPdTJ2pD3RZZwndtZafIEaeMF+Wqsrxrz5oV9maxxvcXuL55oMk0o2GGdpy9IeKZ+I
+X-Received: by 2002:a67:7e12:: with SMTP id z18mr27859429vsc.82.1555547955849;
+        Wed, 17 Apr 2019 17:39:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555547955; cv=none;
         d=google.com; s=arc-20160816;
-        b=SBW43cTplBQa3oTEm1Vh6Yww+K00shVpE+idbZhuGauCv6hVE1Nd9YlXEhfk5FBVeW
-         xp3riVGZlpInn9qOweX/4Zm8WFc+MIzDl2gYcgkiO86kDMakbdSqzLs8mC1BbF55ae28
-         0jZorRGIogGrm7ouboKz3O2nQbq1vSyIa7x52nyzApOxmyqhynLOcLVZCMkGTZkMWF+V
-         CW7ykwiq0a9OKEdnyLEgcuIOmNw4dMYyhi7frQrPbhlhcl1+/F6xBvysS2o1VJcGcL3f
-         4xOgL5lw/tM5QWWghGJC3wuBrF1xvW6jnX4ABXPaf82cojkEOb/ZX0f9jg7LNAF3hfm2
-         nwkg==
+        b=Ks4Ek1azuOYPmYN47jg4nJqd7/fj1V/EkaMqwUuq+fjiRQEt3SGZd6TzkKyUtNnwkp
+         JKN4OEJ4Ufrc5sr5nyhxAHHpQYhDm/7q8eCiqw2N4ZLPWsI8NlqWxaDw0TxVNhjd8ANE
+         zTX0TDWASpt5QBWf+cibjCaY8OPASWIi2vcwnKzzyeikXWKgp/ojN1orAgED55gPXaAN
+         VfUkBXQndNr8pv4CSZPUBZ5y4bN0GJUY5BdEdAsk0o1fR1KoqZxQP/PFwnLRagjDNqMC
+         Lwj0T15t4p/Xx0ewtRAXpEiKbMILJ66ZMibHQB6II+M3vL2ia/tlUimNUXcWqPu9AhWw
+         +1QA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=+kn5mtINPt4na060bar/tC0RHNfqAb7J/PmuZQ0Dyi8=;
-        b=SsXaeec/yQ1gVDEyaHolQavFTiHK8NS7+b0syGp7s2tEDLHPmahMTQ6xTqqnE1yRw4
-         Xj1NoxfQCBRO+WcIVD3rut0704jmablrVzCkWKE/Su7tG16oeE5sUPwKN5z60RCMKlz6
-         m0HcHCAiCX74YWUOihkV5KGPD003ZkEUoCoQHtNJtCfUwUnlQlss+5rS+xYwoXMQG5lg
-         Q9+uskn4YLX7jpvF7ZX7Xj5XciuX7X48VkNriUXUiwAdlmcGifNavmLjCgLC8doT51Bk
-         lJ82OAWP5wfFIxluQZuzI24AjswqaJ4rbM9CYJPk2xB9igbXXCKRrsdeIsosfCs8oZOZ
-         rB7Q==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=GtgCHvQddxepzDm5CilE+VAum+QHU1xHkXGEwpuPmHo=;
+        b=NZAiRGrob4Bcx2MSMsIqnV6qHXnxAv/3H9+JS1X0Wn294k7xWBJKFXzJzfY0vdkSwN
+         nxAdPoBKq2u55Fr00Y1J7ShlL8AIzWzX30Uypm5pK0IYHi8WVKHSjqUf5J9Uz+ImOlLj
+         fb96lABtxkZrt5y49UvYSMybgHTh1eEc+Nq+CyBT6Flxm3PtrMlxZC4+TDkOZQOGWyo+
+         331q9q4Oq7OtUMH6I1zs0Pn/0G9ZzDm9t5GdMZ5UIx+7M3g7etJjEAnuwGuon893g3Bi
+         2avIWYNP2rgwVFU7pVz3MQwPbwlp4sZITSPz57Jz260qDUIMnRsMq9EaRqO2Dj0ao/2U
+         d22Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=IBLCLtPu;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b26sor139214ljj.10.2019.04.17.17.01.16
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 17:01:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=IBLCLtPu;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=+kn5mtINPt4na060bar/tC0RHNfqAb7J/PmuZQ0Dyi8=;
-        b=IBLCLtPuOlIJGx6ETpn93rimEqBz5Au/0GjooFZAo0KIJTxoTsJPz413yAtvfmWoXY
-         BqvjzirjujDpTm8Z8RGtzbE47EZiPUSxIfegDrH1aTumTX5oM8C5bVyiexfx7ifgxxPB
-         UMawmkwQ/X7ZweYBYxIOjMj+Jba1Zio7Xb4vw=
-X-Google-Smtp-Source: APXvYqxckqXxWlE6Wltpoi1lHlzLq6zt+ZMYFt2/sYcWqh3sOaeuN0MfOnur0wwMmec/bEQ0FKwSIw==
-X-Received: by 2002:a2e:22c4:: with SMTP id i187mr48167621lji.94.1555545675741;
-        Wed, 17 Apr 2019 17:01:15 -0700 (PDT)
-Received: from mail-lj1-f180.google.com (mail-lj1-f180.google.com. [209.85.208.180])
-        by smtp.gmail.com with ESMTPSA id t23sm65957ljc.13.2019.04.17.17.01.15
+       dkim=pass header.i=@fb.com header.s=facebook header.b="FW/JetfM";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=EWotGmsw;
+       spf=pass (google.com: domain of prvs=90117e5206=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90117e5206=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id j19si86772vsl.258.2019.04.17.17.39.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 17:01:15 -0700 (PDT)
-Received: by mail-lj1-f180.google.com with SMTP id q66so269512ljq.7
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 17:01:15 -0700 (PDT)
-X-Received: by 2002:a2e:5dd2:: with SMTP id v79mr48356924lje.22.1555545190479;
- Wed, 17 Apr 2019 16:53:10 -0700 (PDT)
+        Wed, 17 Apr 2019 17:39:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=90117e5206=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@fb.com header.s=facebook header.b="FW/JetfM";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=EWotGmsw;
+       spf=pass (google.com: domain of prvs=90117e5206=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90117e5206=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3I0RO6d018235;
+	Wed, 17 Apr 2019 17:39:04 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=GtgCHvQddxepzDm5CilE+VAum+QHU1xHkXGEwpuPmHo=;
+ b=FW/JetfMvy6oE23quhvpPdBzWf3l3k1VoVn6e44DwXcJqI1umxU6gXFq3pdMU4AoVwMB
+ eobzNHwIwq78PyZPoYIm5j7VSVZ5WTyVzrDik0vQFZbnYF1RH4MY2adkGrhc4vM/g4Sh
+ rTdlTN+SjAsU3LcVA7RVQy4OJnKraUlSQD4= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2rx0t2u33r-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 17 Apr 2019 17:39:04 -0700
+Received: from frc-mbx07.TheFacebook.com (2620:10d:c0a1:f82::31) by
+ frc-hub04.TheFacebook.com (2620:10d:c021:18::174) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 17 Apr 2019 17:39:01 -0700
+Received: from frc-hub05.TheFacebook.com (2620:10d:c021:18::175) by
+ frc-mbx07.TheFacebook.com (2620:10d:c0a1:f82::31) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 17 Apr 2019 17:39:00 -0700
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.75) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 17 Apr 2019 17:39:00 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=GtgCHvQddxepzDm5CilE+VAum+QHU1xHkXGEwpuPmHo=;
+ b=EWotGmswVEmaOZyw8UJ1/cSI7CCmHAczCBjrjdhp6c2ApxoDgrJYxAAh7NZswvFRb4uh/MCiCHYKjPfaiJgTfHqpt1IU0PoywRYPaCBwAETXxVgscmLxibNVMGOXb0ZevGv6dB+jEKpxlhuDyqMWaa7jGbJK3CILXAJIv0uaOXY=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB2823.namprd15.prod.outlook.com (20.179.158.208) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1813.12; Thu, 18 Apr 2019 00:38:58 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d1a1:d74:852:a21e]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d1a1:d74:852:a21e%5]) with mapi id 15.20.1792.021; Thu, 18 Apr 2019
+ 00:38:58 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Shakeel Butt <shakeelb@google.com>
+CC: Roman Gushchin <guroan@gmail.com>,
+        Andrew Morton
+	<akpm@linux-foundation.org>,
+        Linux MM <linux-mm@kvack.org>, LKML
+	<linux-kernel@vger.kernel.org>,
+        Kernel Team <Kernel-team@fb.com>,
+        "Johannes
+ Weiner" <hannes@cmpxchg.org>,
+        Michal Hocko <mhocko@kernel.org>, Rik van Riel
+	<riel@surriel.com>,
+        "david@fromorbit.com" <david@fromorbit.com>,
+        "Christoph
+ Lameter" <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+        Vladimir Davydov
+	<vdavydov.dev@gmail.com>,
+        Cgroups <cgroups@vger.kernel.org>
+Subject: Re: [PATCH 4/5] mm: rework non-root kmem_cache lifecycle management
+Thread-Topic: [PATCH 4/5] mm: rework non-root kmem_cache lifecycle management
+Thread-Index: AQHU9WhFLwAo90XwHUSqs2s91sh5hqZBAzaAgAAQK4A=
+Date: Thu, 18 Apr 2019 00:38:57 +0000
+Message-ID: <20190418003850.GA13977@tower.DHCP.thefacebook.com>
+References: <20190417215434.25897-1-guro@fb.com>
+ <20190417215434.25897-5-guro@fb.com>
+ <CALvZod5K8SM2EQFH1WM9bbwWBtyXWb_PvzJGvF5dg1Z=bdR7zg@mail.gmail.com>
+In-Reply-To: <CALvZod5K8SM2EQFH1WM9bbwWBtyXWb_PvzJGvF5dg1Z=bdR7zg@mail.gmail.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR1001CA0002.namprd10.prod.outlook.com
+ (2603:10b6:301:2a::15) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::3:a1cc]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 1cf1bd20-59b0-4dcd-f990-08d6c3963e2a
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2823;
+x-ms-traffictypediagnostic: BYAPR15MB2823:
+x-microsoft-antispam-prvs: <BYAPR15MB28232CF6FC065CD15790BCD7BE260@BYAPR15MB2823.namprd15.prod.outlook.com>
+x-forefront-prvs: 0011612A55
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(396003)(366004)(39860400002)(136003)(376002)(199004)(189003)(97736004)(486006)(102836004)(446003)(2906002)(6246003)(52116002)(86362001)(7416002)(25786009)(256004)(6436002)(476003)(99286004)(54906003)(186003)(53546011)(386003)(6506007)(4326008)(11346002)(8936002)(5660300002)(6486002)(229853002)(14454004)(1076003)(71190400001)(71200400001)(81156014)(81166006)(33656002)(14444005)(316002)(8676002)(6512007)(9686003)(7736002)(53936002)(478600001)(6116002)(6916009)(68736007)(46003)(305945005)(76176011);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2823;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: Yeslp6739fC1arNXKi9CAv4CX2rcgZyjOZH1BPdEiyeUa4dZdt0msUU7uQd1z/qsbfArP82ZU5m3O6R0JgYtUKtDmqbfKVQ1IxoxfSgy2gcDq2VcJyOGUEVH1e+y0z5eNTYj5MCBiQqYoqoLgGPpFiBG9+8Vk61qhKnzw0JWHESzj27JDqtgubLQ66PgJR8dS6uteIEDYDOrCKE0IZhUdZosNnVXNtofjEoDa51f6EGsRb3tkLDrU212xMLq7OpSuA8+RyQ4UQRus+/ihovJkX9pHfOK7UB9vSZpA7yD8Ucn3WFNbFpq1ItkIPObUAUEA9y+ZHDRTB6Vd9eKU1rlc7Z29GhMxR20KD/JN82Vus7cZ/l9fCByW+IRR6CpDVAx1ZQ/O+T4OEeUpZJScsHDYuIzrA9hcpoFJY3IAVjJwCc=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <29E42D93509769408761DF124E08866C@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <cover.1554248001.git.khalid.aziz@oracle.com> <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190417161042.GA43453@gmail.com> <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
- <20190417170918.GA68678@gmail.com> <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
- <20190417172632.GA95485@gmail.com> <063753CC-5D83-4789-B594-019048DE22D9@gmail.com>
- <alpine.DEB.2.21.1904172317460.3174@nanos.tec.linutronix.de>
- <CAHk-=wgBMg9P-nYQR2pS0XwVdikPCBqLsMFqR9nk=wSmAd4_5g@mail.gmail.com> <alpine.DEB.2.21.1904180129000.3174@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1904180129000.3174@nanos.tec.linutronix.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 17 Apr 2019 16:52:54 -0700
-X-Gmail-Original-Message-ID: <CAHk-=whUwOjFW6RjHVM8kNOv1QVLJuHj2Dda0=mpLPdJ1UyatQ@mail.gmail.com>
-Message-ID: <CAHk-=whUwOjFW6RjHVM8kNOv1QVLJuHj2Dda0=mpLPdJ1UyatQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Ingo Molnar <mingo@kernel.org>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, Tycho Andersen <tycho@tycho.ws>, 
-	jsteckli@amazon.de, Kees Cook <keescook@google.com>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, 
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com, 
-	Tyler Hicks <tyhicks@canonical.com>, David Woodhouse <dwmw@amazon.co.uk>, 
-	Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>, 
-	Boris Ostrovsky <boris.ostrovsky@oracle.com>, iommu <iommu@lists.linux-foundation.org>, 
-	X86 ML <x86@kernel.org>, 
-	"linux-alpha@vger.kernel.org" <linux-arm-kernel@lists.infradead.org>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	LSM List <linux-security-module@vger.kernel.org>, Khalid Aziz <khalid@gonehiking.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, 
-	Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Arjan van de Ven <arjan@infradead.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Content-Type: text/plain; charset="UTF-8"
+X-MS-Exchange-CrossTenant-Network-Message-Id: 1cf1bd20-59b0-4dcd-f990-08d6c3963e2a
+X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Apr 2019 00:38:57.8701
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2823
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-17_12:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 4:42 PM Thomas Gleixner <tglx@linutronix.de> wrote:
->
-> On Wed, 17 Apr 2019, Linus Torvalds wrote:
->
-> > With SMEP, user space pages are always NX.
->
-> We talk past each other. The user space page in the ring3 valid virtual
-> address space (non negative) is of course protected by SMEP.
->
-> The attack utilizes the kernel linear mapping of the physical
-> memory. I.e. user space address 0x43210 has a kernel equivalent at
-> 0xfxxxxxxxxxx. So if the attack manages to trick the kernel to that valid
-> kernel address and that is mapped X --> game over. SMEP does not help
-> there.
+On Wed, Apr 17, 2019 at 04:41:01PM -0700, Shakeel Butt wrote:
+> On Wed, Apr 17, 2019 at 2:55 PM Roman Gushchin <guroan@gmail.com> wrote:
+> >
+> > This commit makes several important changes in the lifecycle
+> > of a non-root kmem_cache, which also affect the lifecycle
+> > of a memory cgroup.
+> >
+> > Currently each charged slab page has a page->mem_cgroup pointer
+> > to the memory cgroup and holds a reference to it.
+> > Kmem_caches are held by the cgroup. On offlining empty kmem_caches
+> > are freed, all other are freed on cgroup release.
+>=20
+> No, they are not freed (i.e. destroyed) on offlining, only
+> deactivated. All memcg kmem_caches are freed/destroyed on memcg's
+> css_free.
 
-Oh, agreed.
+You're right, my bad. I was thinking about the corresponding sysfs entry
+when was writing it. We try to free it from the deactivation path too.
 
-But that would simply be a kernel bug. We should only map kernel pages
-executable when we have kernel code in them, and we should certainly
-not allow those pages to be mapped writably in user space.
+>=20
+> >
+> > So the current scheme can be illustrated as:
+> > page->mem_cgroup->kmem_cache.
+> >
+> > To implement the slab memory reparenting we need to invert the scheme
+> > into: page->kmem_cache->mem_cgroup.
+> >
+> > Let's make every page to hold a reference to the kmem_cache (we
+> > already have a stable pointer), and make kmem_caches to hold a single
+> > reference to the memory cgroup.
+>=20
+> What about memcg_kmem_get_cache()? That function assumes that by
+> taking reference on memcg, it's kmem_caches will stay. I think you
+> need to get reference on the kmem_cache in memcg_kmem_get_cache()
+> within the rcu lock where you get the memcg through css_tryget_online.
 
-That kind of "executable in kernel, writable in user" would be a
-horrendous and major bug.
+Yeah, a very good question.
 
-So i think it's a non-issue.
+I believe it's safe because css_tryget_online() guarantees that
+the cgroup is online and won't go offline before css_free() in
+slab_post_alloc_hook(). I do initialize kmem_cache's refcount to 1
+and drop it on offlining, so it protects the online kmem_cache.
 
-> From the top of my head I'd say this is a non issue as those kernel address
-> space mappings _should_ be NX, but we got bitten by _should_ in the past:)
-
-I do agree that bugs can happen, obviously, and we might have missed something.
-
-But in the context of XPFO, I would argue (*very* strongly) that the
-likelihood of the above kind of bug is absolutely *miniscule* compared
-to the likelihood that we'd have something wrong in the software
-implementation of XPFO.
-
-So if the argument is "we might have bugs in software", then I think
-that's an argument _against_ XPFO rather than for it.
-
-                Linus
+Thank you for looking into the patchset!
 
