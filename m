@@ -2,252 +2,186 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C882C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:42:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3264C10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:43:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F2D48217FA
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:42:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uz44LnEk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2D48217FA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id B7E94217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:43:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7E94217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 934FE6B0010; Thu, 18 Apr 2019 11:42:46 -0400 (EDT)
+	id 5B1316B0269; Thu, 18 Apr 2019 11:43:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E5D26B0266; Thu, 18 Apr 2019 11:42:46 -0400 (EDT)
+	id 563066B026A; Thu, 18 Apr 2019 11:43:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D7016B0269; Thu, 18 Apr 2019 11:42:46 -0400 (EDT)
+	id 4520A6B026B; Thu, 18 Apr 2019 11:43:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 54C016B0010
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:42:46 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id l85so957388vke.15
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:42:46 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED6246B0269
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:43:10 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id u6so2209589wml.3
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:43:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=wAzPZXrwubmWQmF9WVABuPChIdQrJJ+ZBr0dE550aoQ=;
-        b=OMN5sLF4M6uE9jmlXOKu32u6pJaP97TYhvZT6sEfRPy6jpgSzOh+fFUvgQvQ4DDm3H
-         ik/uIV5bltXBkA5J6GNopMhWqke4vJSO4mTuuD2FHiuO5DBO4UpbI/AJ55Q/kaLjj90h
-         LklNGpT0DwOKzUJr+I0hnWkAzq/WyXBZp9I5zn9R0G/1Yj63hXVTq6Tu8sZyvKq/4ob9
-         VNXilKES3Q0FporeyNOZ1zwMBPjqRGnjdp6sZ8NL1s24zx+t4dOtUZiSxl3oTm6QxAGr
-         Ui/FGxP5eG2dWt4xjiADYBZZ9pYGmwfkUYFVojWW0sDbABzQDp+cky4eXwo63TCE7Hrp
-         Rh6w==
-X-Gm-Message-State: APjAAAVZbW9OxZCC/YChtFYHYvfg9lLBQZ2Y5RhQ72wqsWGjm2D9MIuz
-	NqLEiEZM8AHnY0oKM8DSa7n8Cy6IqqTRs10Nq2CHlkrE+syxvj8hQQ1dR0iNRODs7zbQ+RSzEao
-	dswWNJfry1/5NeGmqEY/qp4Pm/N52GqUaoRZoGsTTrqiwofO9vrxH1xALS3tOE+wjOw==
-X-Received: by 2002:a67:e3cf:: with SMTP id k15mr51052765vsm.185.1555602165934;
-        Thu, 18 Apr 2019 08:42:45 -0700 (PDT)
-X-Received: by 2002:a67:e3cf:: with SMTP id k15mr51052725vsm.185.1555602165155;
-        Thu, 18 Apr 2019 08:42:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555602165; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=U8s7AoQ/InpTaiomTRXjsIO3Vv1z7SjMxyh0o9DPMBQ=;
+        b=qHwHCti6eBnJ0lpgypg+Ra97gztOO6SFV/FUJ7r1OvneLI4cjcaqJoxm2cmSPk/ebf
+         K6FGaoS3DplhQGS7WN1+6tzu1o+Ft6FU5Km9ZrX2Md45DQJPmN0cgbqOMzWKEQKv4t7g
+         P0rZSCIo4nGXws/h5l49maeDJWFqM2Ux9cAbiXFX9FlzzqevvkfH1MRbe46++oVY644N
+         g3ccyC5K/yYQCwQnDfurpd1MoLR36rMpEa6IcMcMO+m25zWWM8NQdnoPW2+0zPeAs4lj
+         snEc0+BWpe8l38xFbGvYTayJIjA723UUU3XQuZtKh1h5U4GzIuxwEcHOI+cnVxEjN3Ef
+         vd+A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAXPvWjT9XRgvvzAw6IZX0F5o5L6IyAAIAufqZBozQ0qaWe0q/Xw
+	3hhHi8mSuLT30V9FXgedLXAHJhVYtxLRtpOyfIB7L5S7gDXCtvkhrrJL9RtqTFjaDiMluq6PAjl
+	Eh8GGeAB45Mk97GjfEKNQIq21zvQXb1P92T/TmX01H99g6+Tp/TEnz//vqetDwHwatQ==
+X-Received: by 2002:a1c:9cd1:: with SMTP id f200mr3528251wme.91.1555602190455;
+        Thu, 18 Apr 2019 08:43:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxM/pgiTO5n+hM/80InsPSILAVpofdZGUE4tRcHzTUk6jlae13bK7xq1IzwCr8Fc4M6kwvm
+X-Received: by 2002:a1c:9cd1:: with SMTP id f200mr3528203wme.91.1555602189539;
+        Thu, 18 Apr 2019 08:43:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555602189; cv=none;
         d=google.com; s=arc-20160816;
-        b=GHUl7cjtqB8GGp9tG9D06N6LSXcnvnx0lKC9SswAMa75FUQ//A9eOPQlTGixgcxkNQ
-         yI/eJ9I5N6U/Rrd1G/iVybKT1SGfvGa+8jBi2TELY7ymN2lE8LC8c40E/nKo3Ky2WhuL
-         Qrx4YphUMb/B3pYpMbWYIzlNdK834qBVIqY3+JHD1vHg80vYMnJlasVyR5/kNnQiU4SU
-         /++GFXuxWq/DICnDruT9nOG32o4eEzPNSsEOEiHP5rv67LBkciNp2ht74H8Ihiu8uaJt
-         PNoMLwYlR5hcZPb347zuvE77qXmDHbYVxd4hzVKKfB/e/H4k+zgTvIELUfPMT1DHtLEH
-         hQ8Q==
+        b=pqsd+7X3jgZyf6lyWSemjiBJA7B0UA1VyYwvXrqGqYlTWQiRdI9uX4jjO4+G3sH3RT
+         mOZeAjUIojxvSWK3VHnIRi++INhF+MPzxPOB9CfKIDCQ8BNfqZdLNZpff0PrpLNl2SLh
+         zr69QzOv8JoXYUb/DLhwyRWaaLtWJKJdfmQubIgC8r7yoxvTMdW4ikxNrdJVXiG+3S+D
+         CKxl5SY8Nfq5mPuuVzIbWbInE/ImnAsKoznafM6oZ8PSvsWXMSaukTW9g9+2xIlmzfAr
+         QaPd/ikNUWk3qV5FXR/YiSS9cCSX8jvnkVAY77sCrCLz1enqR6B9uPqLf6TF0uOUpYWs
+         AdtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=wAzPZXrwubmWQmF9WVABuPChIdQrJJ+ZBr0dE550aoQ=;
-        b=ZrAv0dNIT2AcDsInEtHmk6awap0AXvjfrSePgtS1uSVDKmHPGuHug3ztNXF/s1mZ3e
-         9yhCGEkCkp555/oPTjxtfbWyJXmuXXoxJ15u56+aQLUeP8SjNlCoApidrOFHyMiBJm40
-         45asgWIgim0gvaWlPdTMA/+KVS5re8fPpxK4BSERI1kwPaMFw9ORpoTSioEmhznGZPGI
-         cMF4A/kOU3ycRoZyuMBlvYfaNQBVsM6Kkkg4KPj5xooWrSOzTRH3hr58v082XqjRgIo3
-         naTiO9fl7CoY5V/xcyJc3izpYUlehXff2e3awHib5nu3Z5W3mMGKoQzWM6//dpnTS7oI
-         12AQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=U8s7AoQ/InpTaiomTRXjsIO3Vv1z7SjMxyh0o9DPMBQ=;
+        b=DcMAGpiMO4IGvUT/bQQErCj2ImHsxopPcn+RpI0SBJQZ3kw6IxvLrUfNY0VCuI0jYC
+         Gno45g/j341u5tPhTV6Re/xsBv2kuMBdHYa1aPUeG/yMzjXq+/I+oVxAflJbxpvcqz97
+         Tay2+4AlzJl8dZWs72gjFAYh++dbN29hhiDJdeKn9xAWhzlp8Od9dkLoxVKCTTA1sw92
+         0b1xDE6nuKSvKZfcN72kXkkAPRdd1J2C/FCu7emBHJtQJN3LsKAmqkO9ONjUTU7vQnzL
+         tRN/Cmr8l/YHmheHHDpLt3rAIEvy+YrSbWvU6Cq5/jkRR9Az+Vl4iYiFIsDY06PZANd/
+         hjhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uz44LnEk;
-       spf=pass (google.com: domain of 39jq4xaykcpcfkhcdqfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=39Jq4XAYKCPcfkhcdqfnnfkd.bnlkhmtw-lljuZbj.nqf@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id i15sor1352937uan.25.2019.04.18.08.42.44
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id v13si1946168wrp.115.2019.04.18.08.43.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 18 Apr 2019 08:42:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 39jq4xaykcpcfkhcdqfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 18 Apr 2019 08:43:09 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=uz44LnEk;
-       spf=pass (google.com: domain of 39jq4xaykcpcfkhcdqfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=39Jq4XAYKCPcfkhcdqfnnfkd.bnlkhmtw-lljuZbj.nqf@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=wAzPZXrwubmWQmF9WVABuPChIdQrJJ+ZBr0dE550aoQ=;
-        b=uz44LnEkT/HTvu3a4Wew6M3VjtSaNjOPAV8IN3679cQGnDIKZPAY5UEh6r2rpz7ttY
-         mMl3o4SwPUEN2ofrfX3B0/LWAnL+RPx9lzPcuaqTrmrcSmlARl9V1n1DoKFbvSJGzft0
-         6H0/dBM/WwbApZ+lzUY8DC1Wl+UbflS1eUi+68yXwwQWB+YKRoOtMMYXAHQsKTpu/pnn
-         LSdeJgCWccEPe8WNpebhj5En/NqxVTcptMohp6f288qWX32M+IcfqNcPhSwSzwQBNTix
-         qmG7T2aSp8g3xTX5pBmhi3ZhghhDIO5DbBC0B/sT5BxS/AO/RZEdc9pecFFoI/oOINKv
-         J6vw==
-X-Google-Smtp-Source: APXvYqwHmXjFzMWCMAI7HOZrq6fzDFcA552ul92tFMFuwikUvnM6lV/3lV2pYXjBJL2nc139P7EnlIzMCyk=
-X-Received: by 2002:ab0:348a:: with SMTP id c10mr45283321uar.79.1555602164536;
- Thu, 18 Apr 2019 08:42:44 -0700 (PDT)
-Date: Thu, 18 Apr 2019 17:42:08 +0200
-In-Reply-To: <20190418154208.131118-1-glider@google.com>
-Message-Id: <20190418154208.131118-4-glider@google.com>
-Mime-Version: 1.0
-References: <20190418154208.131118-1-glider@google.com>
-X-Mailer: git-send-email 2.21.0.392.gf8f6787159e-goog
-Subject: [PATCH 3/3] RFC: net: apply __GFP_NOINIT to AF_UNIX sk_buff allocations
-From: Alexander Potapenko <glider@google.com>
-To: akpm@linux-foundation.org, cl@linux.com, dvyukov@google.com, 
-	keescook@chromium.org, labbott@redhat.com
-Cc: linux-mm@kvack.org, linux-security-module@vger.kernel.org, 
-	kernel-hardening@lists.openwall.com
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hH9Bh-0004nI-GJ; Thu, 18 Apr 2019 17:42:57 +0200
+Date: Thu, 18 Apr 2019 17:42:55 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, 
+    Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, 
+    Alexander Potapenko <glider@google.com>, linux-arch@vger.kernel.org, 
+    Alexey Dobriyan <adobriyan@gmail.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, 
+    David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, 
+    Catalin Marinas <catalin.marinas@arm.com>, 
+    Dmitry Vyukov <dvyukov@google.com>, 
+    Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, 
+    Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+    Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org, 
+    Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, 
+    Marek Szyprowski <m.szyprowski@samsung.com>, 
+    Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>, 
+    Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
+    linux-btrfs@vger.kernel.org, dm-devel@redhat.com, 
+    Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>, 
+    intel-gfx@lists.freedesktop.org, 
+    Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, 
+    Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
+    dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, 
+    Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>, 
+    Rodrigo Vivi <rodrigo.vivi@intel.com>
+Subject: Re: [patch V2 28/29] stacktrace: Provide common infrastructure
+In-Reply-To: <20190418145201.mjzyqbmkjcghqzex@treble>
+Message-ID: <alpine.DEB.2.21.1904181734200.3174@nanos.tec.linutronix.de>
+References: <20190418084119.056416939@linutronix.de> <20190418084255.652003111@linutronix.de> <20190418145201.mjzyqbmkjcghqzex@treble>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add sock_alloc_send_pskb_noinit(), which is similar to
-sock_alloc_send_pskb(), but allocates with __GFP_NOINIT.
-This helps reduce the slowdown on hackbench from 9% to 0.1%.
+On Thu, 18 Apr 2019, Josh Poimboeuf wrote:
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: James Morris <jmorris@namei.org>
-Cc: "Serge E. Hallyn" <serge@hallyn.com>
-Cc: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Sandeep Patil <sspatil@android.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Jann Horn <jannh@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Eric Dumazet <edumazet@google.com>
-Cc: David S. Miller <davem@davemloft.net>
-Cc: linux-mm@kvack.org
-Cc: linux-security-module@vger.kernel.org
-Cc: kernel-hardening@lists.openwall.com
+> On Thu, Apr 18, 2019 at 10:41:47AM +0200, Thomas Gleixner wrote:
+> > All architectures which support stacktrace carry duplicated code and
+> > do the stack storage and filtering at the architecture side.
+> > 
+> > Provide a consolidated interface with a callback function for consuming the
+> > stack entries provided by the architecture specific stack walker. This
+> > removes lots of duplicated code and allows to implement better filtering
+> > than 'skip number of entries' in the future without touching any
+> > architecture specific code.
+> > 
+> > Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> > Cc: linux-arch@vger.kernel.org
+> 
+> This is a step in the right direction, especially if it allows us to get
+> rid of the 'skip' stuff.  But I'm not crazy about the callbacks.
+> 
+> Another idea I had (but never got a chance to work on) was to extend the
+> x86 unwind interface to all arches.  So instead of the callbacks, each
+> arch would implement something like this API:
+> 
+> 
+> struct unwind_state state;
+> 
+> void unwind_start(struct unwind_state *state, struct task_struct *task,
+> 		  struct pt_regs *regs, unsigned long *first_frame);
+> 
+> bool unwind_next_frame(struct unwind_state *state);
+> 
+> inline bool unwind_done(struct unwind_state *state);
+> 
+> 
+> Not only would it avoid the callbacks (which is a nice benefit already),
+> it would also allow the interfaces to be used outside of the
+> stack_trace_*() interfaces.  That would come in handy in cases like the
+> ftrace stack tracer code, which needs more than the stack_trace_*() API
+> can give.
 
----
- include/net/sock.h |  5 +++++
- net/core/sock.c    | 29 +++++++++++++++++++++++++----
- net/unix/af_unix.c | 13 +++++++------
- 3 files changed, 37 insertions(+), 10 deletions(-)
+I surely thought about that, but after staring at all incarnations of
+arch/*/stacktrace.c I just gave up.
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 8de5ee258b93..37fcdda23884 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -1612,6 +1612,11 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
- struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
- 				     unsigned long data_len, int noblock,
- 				     int *errcode, int max_page_order);
-+struct sk_buff *sock_alloc_send_pskb_noinit(struct sock *sk,
-+					    unsigned long header_len,
-+					    unsigned long data_len,
-+					    int noblock, int *errcode,
-+					    int max_page_order);
- void *sock_kmalloc(struct sock *sk, int size, gfp_t priority);
- void sock_kfree_s(struct sock *sk, void *mem, int size);
- void sock_kzfree_s(struct sock *sk, void *mem, int size);
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 99b288a19b39..0a2af1e1fa1c 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -2187,9 +2187,11 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
-  *	Generic send/receive buffer handlers
-  */
- 
--struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
--				     unsigned long data_len, int noblock,
--				     int *errcode, int max_page_order)
-+struct sk_buff *sock_alloc_send_pskb_internal(struct sock *sk,
-+					      unsigned long header_len,
-+					      unsigned long data_len,
-+					      int noblock, int *errcode,
-+					      int max_page_order, gfp_t gfp)
- {
- 	struct sk_buff *skb;
- 	long timeo;
-@@ -2218,7 +2220,7 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
- 		timeo = sock_wait_for_wmem(sk, timeo);
- 	}
- 	skb = alloc_skb_with_frags(header_len, data_len, max_page_order,
--				   errcode, sk->sk_allocation);
-+				   errcode, sk->sk_allocation | gfp);
- 	if (skb)
- 		skb_set_owner_w(skb, sk);
- 	return skb;
-@@ -2229,8 +2231,27 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
- 	*errcode = err;
- 	return NULL;
- }
-+
-+struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
-+				     unsigned long data_len, int noblock,
-+				     int *errcode, int max_page_order)
-+{
-+	return sock_alloc_send_pskb_internal(sk, header_len, data_len,
-+		noblock, errcode, max_page_order, /*gfp*/0);
-+}
- EXPORT_SYMBOL(sock_alloc_send_pskb);
- 
-+struct sk_buff *sock_alloc_send_pskb_noinit(struct sock *sk,
-+					    unsigned long header_len,
-+					    unsigned long data_len,
-+					    int noblock, int *errcode,
-+					    int max_page_order)
-+{
-+	return sock_alloc_send_pskb_internal(sk, header_len, data_len,
-+		noblock, errcode, max_page_order, /*gfp*/__GFP_NOINIT);
-+}
-+EXPORT_SYMBOL(sock_alloc_send_pskb_noinit);
-+
- struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
- 				    int noblock, int *errcode)
- {
-diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
-index ddb838a1b74c..9a45824c3c48 100644
---- a/net/unix/af_unix.c
-+++ b/net/unix/af_unix.c
-@@ -1627,9 +1627,9 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
- 		BUILD_BUG_ON(SKB_MAX_ALLOC < PAGE_SIZE);
- 	}
- 
--	skb = sock_alloc_send_pskb(sk, len - data_len, data_len,
--				   msg->msg_flags & MSG_DONTWAIT, &err,
--				   PAGE_ALLOC_COSTLY_ORDER);
-+	skb = sock_alloc_send_pskb_noinit(sk, len - data_len, data_len,
-+					  msg->msg_flags & MSG_DONTWAIT, &err,
-+					  PAGE_ALLOC_COSTLY_ORDER);
- 	if (skb == NULL)
- 		goto out;
- 
-@@ -1824,9 +1824,10 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
- 
- 		data_len = min_t(size_t, size, PAGE_ALIGN(data_len));
- 
--		skb = sock_alloc_send_pskb(sk, size - data_len, data_len,
--					   msg->msg_flags & MSG_DONTWAIT, &err,
--					   get_order(UNIX_SKB_FRAGS_SZ));
-+		skb = sock_alloc_send_pskb_noinit(sk, size - data_len, data_len,
-+						  msg->msg_flags & MSG_DONTWAIT,
-+						  &err,
-+						  get_order(UNIX_SKB_FRAGS_SZ));
- 		if (!skb)
- 			goto out_err;
- 
--- 
-2.21.0.392.gf8f6787159e-goog
+Aside of that quite some archs already have callback based unwinders
+because they use them for more than stacktracing and just have a single
+implementation of that loop.
+
+I'm fine either way. We can start with x86 and then let archs convert over
+their stuff, but I wouldn't hold my breath that this will be completed in
+the forseeable future.
+
+> Of course, this may be more work than what you thought you signed up for
+> ;-)
+
+I did not sign up for anything. I tripped over that mess by accident and me
+being me hated it strong enough to give it at least an initial steam blast.
+
+Thanks,
+
+	tglx
+	
 
