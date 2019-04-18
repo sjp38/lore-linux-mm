@@ -4,110 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AAEE9C10F0B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 63C76C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AF7621479
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1332221850
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="WZmIDWwI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AF7621479
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="ZOmVLE2k"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1332221850
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C9726B0007; Thu, 18 Apr 2019 01:28:49 -0400 (EDT)
+	id 621076B0008; Thu, 18 Apr 2019 01:28:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 079446B0008; Thu, 18 Apr 2019 01:28:49 -0400 (EDT)
+	id 5D13B6B000A; Thu, 18 Apr 2019 01:28:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED0986B000A; Thu, 18 Apr 2019 01:28:48 -0400 (EDT)
+	id 49BA66B000C; Thu, 18 Apr 2019 01:28:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C84586B0007
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:28:48 -0400 (EDT)
-Received: by mail-vs1-f69.google.com with SMTP id z206so183399vsz.11
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:48 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 234EE6B0008
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:28:52 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id r132so424584vke.21
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
-        b=HI05orBcafTMB00VR2PHW/fdcWw0eMEt0fGBsN+4Y4ZhbXHPU+Oev5sFCE7EbHfn4R
-         4pYJhc6+Hd8vmkS4AdoU1bi6zzuzbQT79vOAN8hXzCQ+dbfOULheAuQ0+wf76M1Vo3bQ
-         PBmVWXtSD03HorXpwH6h9nZB6EJ+BzJ8kt+jJHC6abxSiX2iIAFPa+JTsEcAJz5JKrx9
-         eV8uCG/jqk4gVLvCjfOtR36254qs7UkakAwpIjtdEu8DqVQsBdmTMsCTBl5TGcKqN+hY
-         SyVSpdyzYA7eM2BpS4mjo7tgqgsLkgkgeURt+eiaWUjB5HCcSyzBxJoemw1zDygBCxVH
-         688w==
-X-Gm-Message-State: APjAAAUIa/MTtr0msDXxh8vPwfW68DC7J+qd+FodgdwGQrfKY8FgiBq7
-	fBUyNTpY4U/19jddMYtz0wpwVyB6feqAwzItSo10GeFG5vgy8gT3spK8+TrKexZB8vFH671McSd
-	/nNawUImX/D32Iui871zIcaXqz/JpPMYMy7K5C1rc8K3PX0MuDeij1eD5LvUVtVkv0g==
-X-Received: by 2002:a1f:b297:: with SMTP id b145mr49650865vkf.74.1555565328571;
-        Wed, 17 Apr 2019 22:28:48 -0700 (PDT)
-X-Received: by 2002:a1f:b297:: with SMTP id b145mr49650857vkf.74.1555565327942;
-        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555565327; cv=none;
+        bh=IcA/uYI8DV5Uk3TdhA5fHXy0czTBgFSx6RCoxfz+//4=;
+        b=BsUhSTw5l3Rvxx9bBKmqUgYemUP5dl7ZDyhtbyRDsztdVL3LDfDnAmco8b5vZt8Byh
+         4YekSjHIo0wz70o78wanhgEcdVcRtCWBpzmMt5QGDNHhU61JLsNZOhIUZY5wkfym4OpK
+         QeYMysUVC1wXwnUTqFNBu4NKSG3b03N9DzaMEGuJPXiar2LPFiG5gHpwY8kS1jm/USob
+         MYJYMJ4KOf/x+8tcKhg8V/4IAMxxf7mOq8cDDDmsTjuXbo4HV8zQrH9CCA0/aQUQ19Dr
+         W+PAdYkhOXBLmRJqZ0dWfXIU4qJVPdNHFiY3Wh0DmlPjhffD2KuFhT+KfVgIWhHx4tGr
+         ueUg==
+X-Gm-Message-State: APjAAAW9MvNbkzB2u65uVeo8r1VsJ9ksPfEUSFqsanil9PooeEo5nvWW
+	4UhpM/194Pnq0SUI+1bVyeP8FVZxuOMehkDHTsNc6M5OD/4ovKaSqNaUmtQe1yz6hnuqSWhRFPT
+	5aWf8Dlb9AFm3BPSE1jsBpIXwqv4nuzC2VJ4WIgH2OIGItRYu0VgrcKdKAo/4Shuc5A==
+X-Received: by 2002:a1f:97ce:: with SMTP id z197mr39449840vkd.58.1555565331891;
+        Wed, 17 Apr 2019 22:28:51 -0700 (PDT)
+X-Received: by 2002:a1f:97ce:: with SMTP id z197mr39449827vkd.58.1555565331239;
+        Wed, 17 Apr 2019 22:28:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555565331; cv=none;
         d=google.com; s=arc-20160816;
-        b=h3mmdq/0ffbIsV4xt7K7lv0VbkR+fQuBdlX3+uDZM2DrK9rgSJZExNuHO9R5oRJAyr
-         /H88un/M/Z8MSht/0zO/3ToKLwY0uS+pgCowsLysfxL8cwdPpmt3zfiJ/VWWcwnnNxeA
-         cpmdl5S688z2t9dcqBvCpdGCHPo+6Z9dJ4BGcfJB7jRWYhJgOtDcp2y/rMbKzUb4GNvN
-         KIOTuFysM/asU7+k2pO6AkrZML45avBR/5lU0+L0l05gmzbVOjDvdauie2+/oXYD36EL
-         bdgu5m2q99TOP2bhXpb6Jj/V0CTBLEj+2eCxZEQf5RqG2GBJEom/ALqBEiH87rapE8fH
-         JDRw==
+        b=e0IHSxpop5HEj/Q+BuinlhdXYZkwJCYbUpmd8Ew5ZWyeklq444CTFE+u/TIrpjR4+y
+         dE60uiRohyyiGCH1m6mfu7kFuiE4TdDGf53AcysxqxvvsSXWvFIk13ajV45By6AUT82x
+         /1FVNiIqHNPoyR/b3oIuFMVCb21qbKavPuzSKQEQ2JsS3qoaNVdrWmGBP/yO6sICw6Oc
+         +biO016Kx3o658LsiHvJYjaxlThLoy3ExXxMfQQqNkqpD6FohGg62uby+ZLlJxcPb2rj
+         Ne9jW14HjIAVObV9DXv5CaJZ7suonLxfu0zQpoy7mfimfsqdcKFjGV9dWpAOWJGufJ3s
+         EiCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
-        b=lMZaNHhO+E3AzJSm6GXMkTRDFEo/7t9lvJXe4iF7B1wLLCBFBZT6ivIMNERSNsp+gf
-         cnKSc3cAJi1fPsZkykNtpgQvYNW/GakIN5MF17HlBNVkDFILCgScG/bzgs1hSwA41pPa
-         RzIQ3IwwgL4gHzgUEAKkzCdduYE27axzVK4UIUArSiG/1LuU97KuBCwS2WV4nG1dqLGm
-         J5SitZbNmt7d369Z8nVjPwsWogTy+LPwWFoSCdeTpjAkO3x6Qb7WVBaH4lnZBxeEOxpK
-         pTDosuYpdxxLM2T8ny1HPYS+0AGJawfsleQ8TvaVMTSAvZ6aDa+BMNwkBmY7L8DbMpev
-         Aicg==
+        bh=IcA/uYI8DV5Uk3TdhA5fHXy0czTBgFSx6RCoxfz+//4=;
+        b=OGbFhno+zNqL6Psxl3kONAuGi1E5VftS5aqrykpGFFbF//G851G+r2a9Fp++9GNUoO
+         v6WN1jqKKX6XjNNuRTiguHJPQBl9F7xReL3ZRvl+rEnt8tIvUlohP52H3aJoZEYD9+1x
+         ndt1kOWZSXQSKp3cPu79ohq9xPKQCO9yl3DTcv2mfMB+Odqvw7Ky8fv+1wKuYej76Bzn
+         5eFEnNlthiQWZZGcLplUqT5DkzIMOfrD13Agrced/XH3RqRc7/l188nD0aWoQDIktNHt
+         KUpy75jzRX60rN3ARus0a8+5S26M6X7aK3diUnS+0u3htAigZ9YirsJCvIM/8CacBcsr
+         4Lzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=WZmIDWwI;
+       dkim=pass header.i=@chromium.org header.s=google header.b=ZOmVLE2k;
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o11sor520885ual.11.2019.04.17.22.28.47
+        by mx.google.com with SMTPS id k19sor385060vsq.17.2019.04.17.22.28.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
+        Wed, 17 Apr 2019 22:28:51 -0700 (PDT)
 Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=WZmIDWwI;
+       dkim=pass header.i=@chromium.org header.s=google header.b=ZOmVLE2k;
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chromium.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
-        b=WZmIDWwIQt+p2U8OFcegWRRVLp6nJI1rwc15/sOJzGCUmcSGRFPVv48qDCitMPl6bn
-         rM78n9VYubygolMm6Ghe0eVh8aEQd+wbbsAcLH0uKTj/Hr9dtxdm7CrqSOZUwvjdwtFp
-         4/y4Gx8iiVq8g1yfl8tKAiGgIRUjAi38RRMeM=
-X-Google-Smtp-Source: APXvYqwdRwhY1CNojGvmOHJW4LwFgrbvTinvwuvZWMSXNqrZ1kzv84OIelFVtJiQ4FsHpXYqMmoOng==
-X-Received: by 2002:ab0:3058:: with SMTP id x24mr49112657ual.95.1555565327733;
-        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
-Received: from mail-vk1-f173.google.com (mail-vk1-f173.google.com. [209.85.221.173])
-        by smtp.gmail.com with ESMTPSA id q128sm329404vke.2.2019.04.17.22.28.46
+        bh=IcA/uYI8DV5Uk3TdhA5fHXy0czTBgFSx6RCoxfz+//4=;
+        b=ZOmVLE2kWQEfxAwJtqNT7fptm5m89yjN9pJ4hwhI4Z8f49vkIG1SsNzihNlPHXzko1
+         XXEV3xLUvXrMTYVGVNWYLrrCC0hIAZCueqmowWDl/0KTMFCsqx1U+m/G2nteU8eiooyN
+         6sDfWAdWlsvCPZQuCGxF8OqTfh2ZEPtoetyBA=
+X-Google-Smtp-Source: APXvYqzyc2psRVJF7YGPd3/2RhnXCD/0vo70xlO9iLXiWrYBRX4zryhsx3LPdbKLbljT4/ihly9F2g==
+X-Received: by 2002:a67:eeda:: with SMTP id o26mr52897586vsp.209.1555565330674;
+        Wed, 17 Apr 2019 22:28:50 -0700 (PDT)
+Received: from mail-ua1-f45.google.com (mail-ua1-f45.google.com. [209.85.222.45])
+        by smtp.gmail.com with ESMTPSA id j93sm252317uad.6.2019.04.17.22.28.49
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
-Received: by mail-vk1-f173.google.com with SMTP id 195so209094vkx.9
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:46 -0700 (PDT)
-X-Received: by 2002:a1f:7245:: with SMTP id n66mr38243289vkc.40.1555565326448;
- Wed, 17 Apr 2019 22:28:46 -0700 (PDT)
+        Wed, 17 Apr 2019 22:28:50 -0700 (PDT)
+Received: by mail-ua1-f45.google.com with SMTP id h4so374546uaj.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:49 -0700 (PDT)
+X-Received: by 2002:a9f:3fce:: with SMTP id m14mr49582984uaj.96.1555564855818;
+ Wed, 17 Apr 2019 22:20:55 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-8-alex@ghiti.fr>
-In-Reply-To: <20190417052247.17809-8-alex@ghiti.fr>
+References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-2-alex@ghiti.fr>
+In-Reply-To: <20190417052247.17809-2-alex@ghiti.fr>
 From: Kees Cook <keescook@chromium.org>
-Date: Thu, 18 Apr 2019 00:28:34 -0500
-X-Gmail-Original-Message-ID: <CAGXu5jLhZS3+tiDCMsQQ=s9_f5ZBTLEYfcSfmtDRYv8Pp-KF2Q@mail.gmail.com>
-Message-ID: <CAGXu5jLhZS3+tiDCMsQQ=s9_f5ZBTLEYfcSfmtDRYv8Pp-KF2Q@mail.gmail.com>
-Subject: Re: [PATCH v3 07/11] arm: Use generic mmap top-down layout
+Date: Thu, 18 Apr 2019 00:20:44 -0500
+X-Gmail-Original-Message-ID: <CAGXu5jKuOaGtb0S++_xpS=sxPLFwFqSgaecWae5iJ8f8eaQzDA@mail.gmail.com>
+Message-ID: <CAGXu5jKuOaGtb0S++_xpS=sxPLFwFqSgaecWae5iJ8f8eaQzDA@mail.gmail.com>
+Subject: Re: [PATCH v3 01/11] mm, fs: Move randomize_stack_top from fs to mm
 To: Alexandre Ghiti <alex@ghiti.fr>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
 	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
@@ -126,129 +126,115 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 12:30 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+On Wed, Apr 17, 2019 at 12:24 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
 >
-> arm uses a top-down mmap layout by default that exactly fits the generic
-> functions, so get rid of arch specific code and use the generic version
-> by selecting ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT.
+> This preparatory commit moves this function so that further introduction
+> of generic topdown mmap layout is contained only in mm/util.c.
 >
 > Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  fs/binfmt_elf.c    | 20 --------------------
+>  include/linux/mm.h |  2 ++
+>  mm/util.c          | 22 ++++++++++++++++++++++
+>  3 files changed, 24 insertions(+), 20 deletions(-)
+>
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 7d09d125f148..045f3b29d264 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -662,26 +662,6 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>   * libraries.  There is no binary dependent code anywhere else.
+>   */
+>
+> -#ifndef STACK_RND_MASK
+> -#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))    /* 8MB of VA */
+> -#endif
+> -
+> -static unsigned long randomize_stack_top(unsigned long stack_top)
+> -{
+> -       unsigned long random_variable = 0;
+> -
+> -       if (current->flags & PF_RANDOMIZE) {
+> -               random_variable = get_random_long();
+> -               random_variable &= STACK_RND_MASK;
+> -               random_variable <<= PAGE_SHIFT;
+> -       }
+> -#ifdef CONFIG_STACK_GROWSUP
+> -       return PAGE_ALIGN(stack_top) + random_variable;
+> -#else
+> -       return PAGE_ALIGN(stack_top) - random_variable;
+> -#endif
+> -}
+> -
+>  static int load_elf_binary(struct linux_binprm *bprm)
+>  {
+>         struct file *interpreter = NULL; /* to shut gcc up */
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 76769749b5a5..087824a5059f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2312,6 +2312,8 @@ extern int install_special_mapping(struct mm_struct *mm,
+>                                    unsigned long addr, unsigned long len,
+>                                    unsigned long flags, struct page **pages);
+>
+> +unsigned long randomize_stack_top(unsigned long stack_top);
+> +
+>  extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+>
+>  extern unsigned long mmap_region(struct file *file, unsigned long addr,
+> diff --git a/mm/util.c b/mm/util.c
+> index d559bde497a9..a54afb9b4faa 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -14,6 +14,8 @@
+>  #include <linux/hugetlb.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/userfaultfd_k.h>
+> +#include <linux/elf.h>
+> +#include <linux/random.h>
+>
+>  #include <linux/uaccess.h>
+>
+> @@ -291,6 +293,26 @@ int vma_is_stack_for_current(struct vm_area_struct *vma)
+>         return (vma->vm_start <= KSTK_ESP(t) && vma->vm_end >= KSTK_ESP(t));
+>  }
+>
+> +#ifndef STACK_RND_MASK
+> +#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))     /* 8MB of VA */
+> +#endif
+
+Oh right, here's the generic one... this should probably just copy
+arm64's version instead. Then x86 can be tweaked (it uses
+mmap_is_ia32() instead of is_compat_task() by default, but has a weird
+override..)
+
+Regardless, yes, this is a direct code move:
 
 Acked-by: Kees Cook <keescook@chromium.org>
 
 -Kees
 
-> ---
->  arch/arm/Kconfig                 |  1 +
->  arch/arm/include/asm/processor.h |  2 --
->  arch/arm/mm/mmap.c               | 62 --------------------------------
->  3 files changed, 1 insertion(+), 64 deletions(-)
->
-> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> index 850b4805e2d1..f8f603da181f 100644
-> --- a/arch/arm/Kconfig
-> +++ b/arch/arm/Kconfig
-> @@ -28,6 +28,7 @@ config ARM
->         select ARCH_SUPPORTS_ATOMIC_RMW
->         select ARCH_USE_BUILTIN_BSWAP
->         select ARCH_USE_CMPXCHG_LOCKREF
-> +       select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
->         select ARCH_WANT_IPC_PARSE_VERSION
->         select BUILDTIME_EXTABLE_SORT if MMU
->         select CLONE_BACKWARDS
-> diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
-> index 57fe73ea0f72..944ef1fb1237 100644
-> --- a/arch/arm/include/asm/processor.h
-> +++ b/arch/arm/include/asm/processor.h
-> @@ -143,8 +143,6 @@ static inline void prefetchw(const void *ptr)
->  #endif
->  #endif
->
-> -#define HAVE_ARCH_PICK_MMAP_LAYOUT
-> -
->  #endif
->
->  #endif /* __ASM_ARM_PROCESSOR_H */
-> diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
-> index 0b94b674aa91..b8d912ac9e61 100644
-> --- a/arch/arm/mm/mmap.c
-> +++ b/arch/arm/mm/mmap.c
-> @@ -17,43 +17,6 @@
->         ((((addr)+SHMLBA-1)&~(SHMLBA-1)) +      \
->          (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
->
-> -/* gap between mmap and stack */
-> -#define MIN_GAP                (128*1024*1024UL)
-> -#define MAX_GAP                ((STACK_TOP)/6*5)
-> -#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
-> -
-> -static int mmap_is_legacy(struct rlimit *rlim_stack)
-> -{
-> -       if (current->personality & ADDR_COMPAT_LAYOUT)
-> -               return 1;
-> -
-> -       if (rlim_stack->rlim_cur == RLIM_INFINITY)
-> -               return 1;
-> -
-> -       return sysctl_legacy_va_layout;
-> -}
-> -
-> -static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
-> -{
-> -       unsigned long gap = rlim_stack->rlim_cur;
-> -       unsigned long pad = stack_guard_gap;
-> -
-> -       /* Account for stack randomization if necessary */
-> -       if (current->flags & PF_RANDOMIZE)
-> -               pad += (STACK_RND_MASK << PAGE_SHIFT);
-> -
-> -       /* Values close to RLIM_INFINITY can overflow. */
-> -       if (gap + pad > gap)
-> -               gap += pad;
-> -
-> -       if (gap < MIN_GAP)
-> -               gap = MIN_GAP;
-> -       else if (gap > MAX_GAP)
-> -               gap = MAX_GAP;
-> -
-> -       return PAGE_ALIGN(STACK_TOP - gap - rnd);
-> -}
-> -
->  /*
->   * We need to ensure that shared mappings are correctly aligned to
->   * avoid aliasing issues with VIPT caches.  We need to ensure that
-> @@ -181,31 +144,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
->         return addr;
->  }
->
-> -unsigned long arch_mmap_rnd(void)
-> -{
-> -       unsigned long rnd;
-> -
-> -       rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-> -
-> -       return rnd << PAGE_SHIFT;
-> -}
-> -
-> -void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
-> -{
-> -       unsigned long random_factor = 0UL;
-> -
-> -       if (current->flags & PF_RANDOMIZE)
-> -               random_factor = arch_mmap_rnd();
-> -
-> -       if (mmap_is_legacy(rlim_stack)) {
-> -               mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
-> -               mm->get_unmapped_area = arch_get_unmapped_area;
-> -       } else {
-> -               mm->mmap_base = mmap_base(random_factor, rlim_stack);
-> -               mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-> -       }
-> -}
-> -
->  /*
->   * You really shouldn't be using read() or write() on /dev/mem.  This
->   * might go away in the future.
+> +
+> +unsigned long randomize_stack_top(unsigned long stack_top)
+> +{
+> +       unsigned long random_variable = 0;
+> +
+> +       if (current->flags & PF_RANDOMIZE) {
+> +               random_variable = get_random_long();
+> +               random_variable &= STACK_RND_MASK;
+> +               random_variable <<= PAGE_SHIFT;
+> +       }
+> +#ifdef CONFIG_STACK_GROWSUP
+> +       return PAGE_ALIGN(stack_top) + random_variable;
+> +#else
+> +       return PAGE_ALIGN(stack_top) - random_variable;
+> +#endif
+> +}
+> +
+>  #if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
+>  void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+>  {
 > --
 > 2.20.1
 >
