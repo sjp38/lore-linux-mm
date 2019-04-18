@@ -3,153 +3,161 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C575FC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:20:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74EFDC10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:23:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90D56214DA
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:20:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90D56214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 22D95214DA
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 19:23:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22D95214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 315446B0005; Thu, 18 Apr 2019 15:20:07 -0400 (EDT)
+	id B50F76B0005; Thu, 18 Apr 2019 15:23:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C3886B0006; Thu, 18 Apr 2019 15:20:07 -0400 (EDT)
+	id AD7546B0006; Thu, 18 Apr 2019 15:23:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DA826B0007; Thu, 18 Apr 2019 15:20:07 -0400 (EDT)
+	id 9791A6B0007; Thu, 18 Apr 2019 15:23:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C4A886B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 15:20:06 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id q16so2817399wrr.22
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:20:06 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E45B6B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 15:23:52 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id e12so1922460pgh.2
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:23:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=0gF5wMwYjHekDDpQMXiZeHs4LyorpTAzqryNxtdpgSg=;
-        b=qnn+Y01iqbVTVq4m24KAQNax5A4ZK6jL3iRR4OZpaHctEGg+RrXi46a3VZ/50zMF1H
-         oiWsy7mYB3Cqw2ihPryCU3N1HseofURSsbzjDN2WsI0Jlihr6jG2thuSKsXlhEXPxWwm
-         CXc0Ddo2isBOUiXSmzZuoEna3ddXnGCHmgzjLpB9bKJ3KiuX8O0GdNgJaLCVQWquegta
-         y1b+3DBrs8zwgnSv90pJwEBDWkD6+DRwXxMXShjJ4ySmfwq/XlBA+WA1IQh2nAnwM1lW
-         g5tB/xeJ8qQ8b+QbStGKl4sHCtLqlP//T+c4YPikYcoC2gUPc1zZRrmSCB5HtrImwvj1
-         Ibdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAW+7KK9IGtPyLjv2lNGPrq4apGiEMLIuPMjkTKQmSvZo7cr+dOl
-	z7jfVYnSjXuoX3YSRRk3ukw5/aPz8gp/W2yZssx3qC3p9gjOdg6JKDWEAYP5dX44V7A/OVVUOGd
-	Z4LXSQ+CAupmCcJpQJd0FE9O39wvBdcYmsfkMBhB8sjx2rRm3p5y8dpBvH1hc6zphxA==
-X-Received: by 2002:a05:600c:28d:: with SMTP id 13mr4386848wmk.82.1555615206270;
-        Thu, 18 Apr 2019 12:20:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPH2uzWwzNG+mYUjLiaM3jp7jqCRF5yhbHc7/vH9KzcsRK+4CKny2ufe1PcI7zDMtcEHGM
-X-Received: by 2002:a05:600c:28d:: with SMTP id 13mr4386816wmk.82.1555615205459;
-        Thu, 18 Apr 2019 12:20:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555615205; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=8QzPRxE9GQoBbILPD9hqOGzz1p8EdnUFfxd0351ryJc=;
+        b=EH9DUvwjDBBcFTHr6stv+xAh0OY5tdq3iVLMwrhMRYFB8XbwPSWlPsnXglYl451BhL
+         +MU7UQA5BeYfp9YNVriwZJhb4M4/obKvXj5uKhSjHRaBsx7wHOmuRZguFk40+zm6mP0j
+         1GDqA+I6aWR4oCAxx2/FjQZmA9Ypf8W4jmN22KlOnUAejSTqkF4OECRr75z8z38RZiPs
+         ucOkZLFt1CQ4ZqwZbm2NjXvYI9CeU3t9XxBIXCNuTNYbW6L+pWEbeDSyLrHEpeELtF9H
+         GRv3MZHZacbyi9myv2PD5/LU8lvBwvi+xRbA06XWHNq9CL2rprPviTUkwOV/vOiHBBtm
+         Oc5Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXtSB3W45P5aNFAbTSVsXhY7F3fc181QwfHR7jdEdPB2N436+IJ
+	1mrcAU983y3Qs32o7mOTeneu5DyJnSKi8WEWPy9nGUU+PnSA+3lgiUGeU+S96+18pLsEM33il0e
+	JxSnUplaYaxwjOKcypGGltBYh45weZCRqNxRdK+SwFx48bbcy1gNAza17k4wIG97LZg==
+X-Received: by 2002:a63:170b:: with SMTP id x11mr10030471pgl.186.1555615432030;
+        Thu, 18 Apr 2019 12:23:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxXJRy2/G43SPRWYgDs9e1sgeECsoO1GxyYGpW/9IWxD7Ir8IuOIZ1Iw0h9RVFEVK0FEYcE
+X-Received: by 2002:a63:170b:: with SMTP id x11mr10030427pgl.186.1555615431162;
+        Thu, 18 Apr 2019 12:23:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555615431; cv=none;
         d=google.com; s=arc-20160816;
-        b=VPoj6dx+9Uz1ZSsHCwsYZV9TfPBOOBmG5+jgWGQ20yJT/fX2ysWBLTVmm+CBqdDIHx
-         nVFJhqMr2Ge+acIWT8a9cDZ27+Rzi2okfkRP/hZmy1vK5jbLGa+3X/f9/p8l8pWGlH86
-         dZRcjd4obBmUDx4JY47YmO4DDT8C0dv3JDyi5HQOVVcqODVoctG0upxifTuR9RArcYFO
-         RnzeAMlkzNSB7rumBA09PCSB4TDIYyKuPTZH/cMQAsstHds0D0KM3hkfUpXpQxXVPRQq
-         SJKNiOzVaOeDLaSb72PMH+U9daI0dg6Txv57geo4NueNvnBgWwWumxxIZVaMwRj8TlNi
-         MPWA==
+        b=v3xFnqwNU5gCVyKxXfmWGjadLHo65anDDcZz8sarp7psI265f2uehjmr7qjK1HF2zH
+         N2UBNBLvxIDZGM29buMLc2Ivh0yZgaFMtoDcH+mkHmBGyrsdR/xRLm/tJ5syUcZ6wBxv
+         y5sKiZtEPNhrmBfFmnZd5XYzBLPhrqW7P4RfrCoEAij09ZJ3Y3CwUFWXvkpzuzpTV5QK
+         eaI+3wTGxEg6vAY6KgdA93UI6NrV6WATseoo0jkhRihTzfbtB0eXTPFhZRp82Y0U1UBN
+         vQCZLNFy43FqbLclndyXT0SKs8VSXV9HoEFjqJqvOUEME0suV3f6ewIbWOQlqmHwuW3T
+         YlpQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=0gF5wMwYjHekDDpQMXiZeHs4LyorpTAzqryNxtdpgSg=;
-        b=gvaspTVqf5ItJ5dsJVZoL490hcjla62v8+bcdKY7HjlHmIp2i2pL6NTAviFPxBOEN/
-         C/ZTj8dp32WHGFd7IKhU+4RWXjPOpKneW1uzOpU+fIl95AnhQydVCb6LL2PR4OgUqM1F
-         O7X9IKRtIftea3ZozvI4Ub8wNSIskPs9e/dzDCiVgnXeZaqPhMlYwWcq8lBdH1MGCIBh
-         LVaAjwO65f2ZU9g8ayJfuBnOmpa6KpSf7Pyofm/6fQlUv9IhnI1cbz0IhSYHHjoCE6kB
-         6pPYGCpsl8aABSGyDAMfmzAMtuDf6EsVeBdMRm3tA500jxNZFHGYzc3uuoB1d35X2uTS
-         /aag==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=8QzPRxE9GQoBbILPD9hqOGzz1p8EdnUFfxd0351ryJc=;
+        b=dwYnOsno2g2j/Q+B4t/W9Vu/Tz6T2CNPwVngWzkO5zQu4AXp0ZHVizirZlndPeDUmN
+         Q3yk6j7LHNdZqxUG5+IrADKdgAwdAeXoV711ODJr2m21wNOrht5o/lF6bCKThU8Ec9yt
+         8Jv8rVKqmQCZGXqx8bncJhfWjUzmIwkcku7XEWxaZ7KZI8Yo3UGofrePEjNOg1DSt94T
+         OCJxo+itU7m42fpQi/bVVVuoW3L9vzhdUJGM/kKwotMKAmR2eRM3YR00zS73KfziIQce
+         Lx9ZICF6hw2CxKtoz8eqB3QdKLBS9s+VNqFBI+jYZzE7ClNlU/6deVBn+fbC+aUVLb1X
+         PFgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id h10si2382458wre.404.2019.04.18.12.20.05
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
+        by mx.google.com with ESMTPS id r6si2850335plo.349.2019.04.18.12.23.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Apr 2019 12:20:05 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 12:23:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hHCZZ-000378-0T; Thu, 18 Apr 2019 21:19:49 +0200
-Date: Thu, 18 Apr 2019 21:19:48 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Dave Hansen <dave.hansen@intel.com>
-cc: Sasha Levin <sashal@kernel.org>, 
-    tip-bot for Dave Hansen <tipbot@zytor.com>, 
-    linux-tip-commits@vger.kernel.org, dave.hansen@linux.intel.com, 
-    mhocko@suse.com, Vlastimil Babka <vbabka@suse.cz>, 
-    Andy Lutomirski <luto@amacapital.net>, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    stable@vger.kernel.org
-Subject: Re: [tip:x86/urgent] x86/mpx: Fix recursive munmap() corruption
-In-Reply-To: <09aa9f89-14e1-a188-057b-592e2fc845e6@intel.com>
-Message-ID: <alpine.DEB.2.21.1904182118570.3174@nanos.tec.linutronix.de>
-References: <tip-508b8482ea2227ba8695d1cf8311166a455c2ae0@git.kernel.org> <20190418182927.A78AB217D7@mail.kernel.org> <09aa9f89-14e1-a188-057b-592e2fc845e6@intel.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TPeyaMj_1555615421;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPeyaMj_1555615421)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 19 Apr 2019 03:23:47 +0800
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+To: Keith Busch <keith.busch@intel.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, mgorman@techsingularity.net,
+ riel@surriel.com, hannes@cmpxchg.org, akpm@linux-foundation.org,
+ dan.j.williams@intel.com, fengguang.wu@intel.com, fan.du@intel.com,
+ ying.huang@intel.com, ziy@nvidia.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190412084702.GD13373@dhcp22.suse.cz>
+ <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+ <20190416074714.GD11561@dhcp22.suse.cz>
+ <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
+ <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
+ <20190417092318.GG655@dhcp22.suse.cz>
+ <5c2d37e1-c7f6-5b7b-4f8e-a34e981b841e@intel.com>
+ <20190418181643.GB7659@localhost.localdomain>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <8259dfd6-9044-b9f8-29b1-f427b4435eda@linux.alibaba.com>
+Date: Thu, 18 Apr 2019 12:23:41 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+In-Reply-To: <20190418181643.GB7659@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Apr 2019, Dave Hansen wrote:
 
-> On 4/18/19 11:29 AM, Sasha Levin wrote:
-> > This commit has been processed because it contains a "Fixes:" tag,
-> > fixing commit: 1de4fa14ee25 x86, mpx: Cleanup unused bound tables.
-> > 
-> > The bot has tested the following trees: v5.0.8, v4.19.35, v4.14.112, v4.9.169, v4.4.178.
-> > 
-> > v5.0.8: Build OK!
-> > v4.19.35: Failed to apply! Possible dependencies:
-> >     dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
-> 
-> I probably should have looked more closely at the state of the code
-> before dd2283f2605e.  A more correct Fixes: would probably have referred
-> to dd2283f2605e.  *It* appears to be the root cause rather than the
-> original MPX code that I called out.
-> 
-> The pre-dd2283f2605e code does this:
-> 
-> >         /*
-> >          * Remove the vma's, and unmap the actual pages
-> >          */
-> >         detach_vmas_to_be_unmapped(mm, vma, prev, end);
-> >         unmap_region(mm, vma, prev, start, end);
-> > 
-> >         arch_unmap(mm, vma, start, end);
-> > 
-> >         /* Fix up all other VM information */
-> >         remove_vma_list(mm, vma);
-> 
-> But, this is actually safe.  arch_unmap() can't see 'vma' in the rbtree
-> because it's been detached, so it can't do anything to 'vma' that might
-> be unsafe for remove_vma_list()'s use of 'vma'.	
-> 
-> The bug in dd2283f2605e was moving unmap_region() to the after arch_unmap().
-> 
-> I confirmed this by running the reproducer on v4.19.35.  It did not
-> trigger anything there, even with a bunch of debugging enabled which
-> detected the issue in 5.0.
 
-I'l amend the commit to avoid further confusion.
+On 4/18/19 11:16 AM, Keith Busch wrote:
+> On Wed, Apr 17, 2019 at 10:13:44AM -0700, Dave Hansen wrote:
+>> On 4/17/19 2:23 AM, Michal Hocko wrote:
+>>> yes. This could be achieved by GFP_NOWAIT opportunistic allocation for
+>>> the migration target. That should prevent from loops or artificial nodes
+>>> exhausting quite naturaly AFAICS. Maybe we will need some tricks to
+>>> raise the watermark but I am not convinced something like that is really
+>>> necessary.
+>> I don't think GFP_NOWAIT alone is good enough.
+>>
+>> Let's say we have a system full of clean page cache and only two nodes:
+>> 0 and 1.  GFP_NOWAIT will eventually kick off kswapd on both nodes.
+>> Each kswapd will be migrating pages to the *other* node since each is in
+>> the other's fallback path.
+>>
+>> I think what you're saying is that, eventually, the kswapds will see
+>> allocation failures and stop migrating, providing hysteresis.  This is
+>> probably true.
+>>
+>> But, I'm more concerned about that window where the kswapds are throwing
+>> pages at each other because they're effectively just wasting resources
+>> in this window.  I guess we should figure our how large this window is
+>> and how fast (or if) the dampening occurs in practice.
+> I'm still refining tests to help answer this and have some preliminary
+> data. My test rig has CPU + memory Node 0, memory-only Node 1, and a
+> fast swap device. The test has an application strict mbind more than
+> the total memory to node 0, and forever writes random cachelines from
+> per-cpu threads.
 
-Thanks,
+Thanks for the test. A follow-up question, how about the size for each 
+node? Is node 1 bigger than node 0? Since PMEM typically has larger 
+capacity, so I'm wondering whether the capacity may make things 
+different or not.
 
-	tglx
+> I'm testing two memory pressure policies:
+>
+>    Node 0 can migrate to Node 1, no cycles
+>    Node 0 and Node 1 migrate with each other (0 -> 1 -> 0 cycles)
+>
+> After the initial ramp up time, the second policy is ~7-10% slower than
+> no cycles. There doesn't appear to be a temporary window dealing with
+> bouncing pages: it's just a slower overall steady state. Looks like when
+> migration fails and falls back to swap, the newly freed pages occasionaly
+> get sniped by the other node, keeping the pressure up.
 
