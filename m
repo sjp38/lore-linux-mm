@@ -2,178 +2,290 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBB17C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:30:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4D1AC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:51:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DD8F214C6
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:30:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="SwnFKNon"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DD8F214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 6145F214DA
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 20:51:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6145F214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 10A906B026B; Thu, 18 Apr 2019 16:30:33 -0400 (EDT)
+	id EDFED6B026D; Thu, 18 Apr 2019 16:51:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0BC8E6B026C; Thu, 18 Apr 2019 16:30:33 -0400 (EDT)
+	id E8F7C6B026E; Thu, 18 Apr 2019 16:51:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F120C6B026D; Thu, 18 Apr 2019 16:30:32 -0400 (EDT)
+	id D579F6B026F; Thu, 18 Apr 2019 16:51:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B8A246B026B
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 16:30:32 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id g1so2073897pfo.2
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 13:30:32 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFAD96B026D
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 16:51:25 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id x18so2713223qkf.8
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 13:51:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:dkim-signature;
-        bh=T3JD0sgSOXk1vRSr1uVe9SorhMd4n+SS+HWTi6IFNCc=;
-        b=BcFzkWm93k7VwTiu6quOXT2eXcWvpY4nzVAiVbTIgkoQMEuT4SWo7yrrBqldEH8HjU
-         eRXDNEqCGbYMp6UqXzVBEk1cigF6cHEUjhXJpiYN9hTl7xTCc20K0DrsyNEaf6vsinzt
-         6XXIx1rhGLzD1qulXa7wpWHKJjOEdZQ+l50BuMjnimNh1CO3h5Rwk7FzKV2p+FPbFVIg
-         ehqOgoW1SxDR5KocsThy8KDJuBgvHhTSLl3szDLaS5GrVEs7I/9fzMYDAAbotDkSc2jT
-         7n/3pCzVIVL0mRqZy6zbHmyEFj7qPmhXj96/G0UL5r/eUUjPIhs12kzxLjpPBlFQPIFV
-         BzLg==
-X-Gm-Message-State: APjAAAUbWQbwIzrUHeFJhX4C4zfi8DoGn8fNOXVvex1VuFwHusYZ8MkJ
-	DRTfPh+wfQ8spjG4eD6NPdLWpUsQ4dIEOcta1SZtdVQZazy0kbI4DkcI7EFfh1SRhgS2n5LThmy
-	OcMT7CQvknDdIh2z81k1SthwKe8iyg3KEDF322YP9hQ3cRPLLBYr6XT5RrRfdMj7rAQ==
-X-Received: by 2002:aa7:86ce:: with SMTP id h14mr99232947pfo.84.1555619432345;
-        Thu, 18 Apr 2019 13:30:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/l7C4IvN7w5AjQBtmV+Fc5JLiMnzxUPAMX/aZMM6jbj7caC9vzdSSVOJhIrr+RWkkSaOq
-X-Received: by 2002:aa7:86ce:: with SMTP id h14mr99232893pfo.84.1555619431710;
-        Thu, 18 Apr 2019 13:30:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555619431; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=emfOYHs9HowdZh8bc6w6D6s/HR3MXIdxJdO6xhEVkXA=;
+        b=igcfmvdu1RlvuVMiEq+/if4CKQL4qU4ire6Bi96y8EiLPbQu+Vy9ydULXg8cFz8jhm
+         cWz568VmSd2AzwggEAE+wSIT40oPjpErLR5HAm/DP+Dh58Yo3Wnts02EJzziCd/LHNQC
+         4rkLY1lT29Q7xWtH8T9Hqr4whI3DDK46cjHRHL48djdk3Y92+hqbgjqAzQibxLSSaPA7
+         y3Nal1sN+I62Afd/fY8AtL9rrZTL+48FUAlSYCZ3qnwvh0bzPsBfKPhr01QZ5DBE2Y6F
+         uqQL6iMc1sLll/S4B1UScqFH3a+Aw3Ru3QqCdW5bpV0xaM6jV8uyzvvygBLH51hYkhWu
+         +nlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXc8uk4pv7ZLuKoz1kygTrsJ+zC8rv/b74vasiOr81zdkisoCmw
+	5xeVcZhHUQq6p3DLIQg7shj6Xgw1c9ZzLq9ZRRjHTwW6cmvHnODU9h4T7FdR9d4F9dvHJ7ycRVU
+	JdX7kxhTpLIvlz/vEgrC/b02TffjnNeVIvHtY3910p8DWzPJZyFcYtJ/nz+lDic9mlw==
+X-Received: by 2002:ae9:f44a:: with SMTP id z10mr57076qkl.223.1555620685434;
+        Thu, 18 Apr 2019 13:51:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxI1cm+SCTG3x3MCtOkpA7XQ4/YWNuJQb4yk2NXHFZjhHWviht2U3Jb3VysaGSkAOCaKDB9
+X-Received: by 2002:ae9:f44a:: with SMTP id z10mr57034qkl.223.1555620684564;
+        Thu, 18 Apr 2019 13:51:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555620684; cv=none;
         d=google.com; s=arc-20160816;
-        b=TFluXYvjUNbLbgiz66xFuxIo0Nf5KXtcNSQ3DYBr0gGl8QtBqXhgFsD67lxls9fR0g
-         SmM0BcmboVpU5rxkDrEbmMwWvHFnU193iTb77VxWn3y0oGbU3iGl9e1vhhlC+IehSWXU
-         tyeLRSbps4v5s7mB+oWz/hzRlPSsCYS3vCAkPgPGbIRap3mQ66Z9H0/GTBM7KhRLWWUT
-         JfZx4q868v7o3MGeQ68e+inNNE3Lup+a77GPG6VRTqZN0OS3b7f+WjAxlWx/mg34Tk+C
-         rACx22r9fEifID6D1DZL/L5T7S/+y8eCFQnAru2HLckZ58iB3aBl7b7cQXRcXfaub0jq
-         Uc0w==
+        b=NtP2Jrfj8qCpT9KxtLR5wFtkiKCYVAXggSpz/O+ckmOJSWB7MyV89NG1CLgbjDbBGe
+         yDxsf9XUMBSOPCNB2WZqRwzuh2oUpLP8tPauMmSiMWis1DwhgYGXUcf01PJX0deB+JIs
+         aOe+C6BrTUgF/crASZ/KWklCxNmyTVbg2AbwcdD8aI4hB+gBgoi28cMKDFE5+cU9BLgT
+         4EEfkl9+Ep5GE3V2Oz6DBrKMeavT4YeBxnzXnHcJtPzLj+yRoVPtONyaThzyIwsorVlW
+         kUHB4RJlS+2u1M/GdBP2JTxWGjkViEk6VkHN6EPaQdnnslVhj+heZfUBfEC7aP0PUP84
+         Cg8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
-         :subject:cc:to:from;
-        bh=T3JD0sgSOXk1vRSr1uVe9SorhMd4n+SS+HWTi6IFNCc=;
-        b=WI+IdXfYiirqk24kOTj3+vWWjd1nGthlVQb/OcGVBPCfP8q7s2BI1jlo4LVCD6GvBJ
-         dtFpRjcwoWELPitu70j3TLLkXTqHbz3h6cpGRcsBPgzKZ3Q9NcjLGjI6U2rHm3xpAn3k
-         4tRenIi6ZjYwe/aGJYvQlaAM1Ohv17Ck6TqHJ8yx6QepeDwQn2r2ikPYoe7P4cCFpT1a
-         wnkNXjwqIZooTVP+GNtCPilob5bDFuiuS90LCe0L/zfb6wwZeyn2nRfi7FMjPX7kIRmH
-         bPKighBwx3TkzhG61841tlrj4WWMen4CFWxZs5t7qIIL5d7YWBG1up/vppkTvcsqo22B
-         FhtQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=emfOYHs9HowdZh8bc6w6D6s/HR3MXIdxJdO6xhEVkXA=;
+        b=FE5b9k4FhUYQmJu18OjUAdiEGN68G06nImpPWicFlH0NoOQsHTix0aldX45Zr19Mf2
+         7Wa6sY4KXD+2HJJJsBhn+qWdcG1HsLDRm2qyFyHafwvgRns7bdbvr2/KEoEKr9tkMJZ2
+         K2w7FmV6v9fvBHteQtINjMSlQLAqQSuApXlv7PkIPrksFIxVTZQCZo+2Dj+v/mmLJ06x
+         WmuX5o+6BpRAVJK1o0t14Y0TM+s+eYA9NbUsTH53M6Y20ty9zfz8S47FtE5kJb10xD3G
+         8vR2FuMh8OjTXqKWZFEZMmVJSwTeSY7+18BbmFv+0ADPorrUNTnkAyd2QaYGLchmzgjA
+         lTiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=SwnFKNon;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id i1si2751602pgb.322.2019.04.18.13.30.31
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l27si1679735qtl.125.2019.04.18.13.51.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 13:30:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Thu, 18 Apr 2019 13:51:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=SwnFKNon;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cb8de6c0001>; Thu, 18 Apr 2019 13:30:36 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 18 Apr 2019 13:30:31 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 18 Apr 2019 13:30:31 -0700
-Received: from [10.2.163.72] (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 18 Apr
- 2019 20:30:29 +0000
-From: Zi Yan <ziy@nvidia.com>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-CC: <mhocko@suse.com>, <kirill.shutemov@linux.intel.com>,
-	<rppt@linux.vnet.ibm.com>, <corbet@lwn.net>, <akpm@linux-foundation.org>,
-	<linux-doc@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] doc: mm: migration doesn't use FOLL_SPLIT anymore
-Date: Thu, 18 Apr 2019 16:30:27 -0400
-X-Mailer: MailMate (1.12.4r5622)
-Message-ID: <C8CBF3A3-5ADA-4CA6-8AEB-4836AE9146D7@nvidia.com>
-In-Reply-To: <1555618624-23957-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1555618624-23957-1-git-send-email-yang.shi@linux.alibaba.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 78C61C04AC4B;
+	Thu, 18 Apr 2019 20:51:23 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1926419C58;
+	Thu, 18 Apr 2019 20:51:16 +0000 (UTC)
+Date: Thu, 18 Apr 2019 16:51:15 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v3 14/28] userfaultfd: wp: handle COW properly for uffd-wp
+Message-ID: <20190418202558.GK3288@redhat.com>
+References: <20190320020642.4000-1-peterx@redhat.com>
+ <20190320020642.4000-15-peterx@redhat.com>
 MIME-Version: 1.0
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; format=flowed
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1555619436; bh=T3JD0sgSOXk1vRSr1uVe9SorhMd4n+SS+HWTi6IFNCc=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
-	 In-Reply-To:References:MIME-Version:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type;
-	b=SwnFKNonXOE1zQVJWCyAkBVjCLR/gdo0c98WcA4gmTZefaRGQCthtZhxg/jleQzpb
-	 9ey3mfNA2l5uwtSrjts4734cmnAQzrvuHJkA0/uVgRhdrUSqaEEH5iSCLqsgZ+z1mf
-	 eeg11NLcYkIb/mqsgxPlqRYvLKPIDYGdSbrtnlZUeJ4SkRHOQlXkM81nzq/VmKWoBq
-	 F+ZustVToSp/Ww2x7qBHKYszHEDGptzDItgUiSNegC2a4t8wVt2Udzszw5zk7EYoRl
-	 T2VVXWCXJVBoGCwEAjqmLJrf4butHZI6agSmOQ0mGBaG9CzXgI07vrYyRDygRIjFSL
-	 N81lBCiahYjRw==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190320020642.4000-15-peterx@redhat.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 18 Apr 2019 20:51:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 18 Apr 2019, at 16:17, Yang Shi wrote:
+On Wed, Mar 20, 2019 at 10:06:28AM +0800, Peter Xu wrote:
+> This allows uffd-wp to support write-protected pages for COW.
+> 
+> For example, the uffd write-protected PTE could also be write-protected
+> by other usages like COW or zero pages.  When that happens, we can't
+> simply set the write bit in the PTE since otherwise it'll change the
+> content of every single reference to the page.  Instead, we should do
+> the COW first if necessary, then handle the uffd-wp fault.
+> 
+> To correctly copy the page, we'll also need to carry over the
+> _PAGE_UFFD_WP bit if it was set in the original PTE.
+> 
+> For huge PMDs, we just simply split the huge PMDs where we want to
+> resolve an uffd-wp page fault always.  That matches what we do with
+> general huge PMD write protections.  In that way, we resolved the huge
+> PMD copy-on-write issue into PTE copy-on-write.
+> 
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 
-> When demonstrating FOLL_SPLIT in transhuge document, migration is used
-> as an example.  But, since commit 94723aafb9e7 ("mm: unclutter THP
-> migration"), the way of THP migration is totally changed.  FOLL_SPLIT 
-> is
-> not used by migration anymore due to the change.
->
-> Remove the obsolete example to avoid confusion.
->
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Zi Yan <ziy@nvidia.com>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+This one has a bug see below.
+
+
 > ---
->  Documentation/vm/transhuge.rst | 8 +-------
->  1 file changed, 1 insertion(+), 7 deletions(-)
->
-> diff --git a/Documentation/vm/transhuge.rst 
-> b/Documentation/vm/transhuge.rst
-> index a8cf680..8df3806 100644
-> --- a/Documentation/vm/transhuge.rst
-> +++ b/Documentation/vm/transhuge.rst
-> @@ -55,13 +55,7 @@ prevent page from being split by anyone.
->  In case you can't handle compound pages if they're returned by
->  follow_page, the FOLL_SPLIT bit can be specified as parameter to
->  follow_page, so that it will split the hugepages before returning
-> -them. Migration for example passes FOLL_SPLIT as parameter to
-> -follow_page because it's not hugepage aware and in fact it can't work
-> -at all on hugetlbfs (but it instead works fine on transparent
-> -hugepages thanks to FOLL_SPLIT). migration simply can't deal with
-> -hugepages being returned (as it's not only checking the pfn of the
-> -page and pinning it during the copy but it pretends to migrate the
-> -memory in regular page sizes and with regular pte/pmd mappings).
-> +them.
->
->  Graceful fallback
->  =================
+>  mm/memory.c   |  5 +++-
+>  mm/mprotect.c | 64 ++++++++++++++++++++++++++++++++++++++++++++++++---
+>  2 files changed, 65 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e7a4b9650225..b8a4c0bab461 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2291,7 +2291,10 @@ vm_fault_t wp_page_copy(struct vm_fault *vmf)
+>  		}
+>  		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+>  		entry = mk_pte(new_page, vma->vm_page_prot);
+> -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +		if (pte_uffd_wp(vmf->orig_pte))
+> +			entry = pte_mkuffd_wp(entry);
+> +		else
+> +			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+>  		/*
+>  		 * Clear the pte entry and flush it first, before updating the
+>  		 * pte with the new entry. This will avoid a race condition
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 9d4433044c21..855dddb07ff2 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -73,18 +73,18 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  	flush_tlb_batched_pending(vma->vm_mm);
+>  	arch_enter_lazy_mmu_mode();
+>  	do {
+> +retry_pte:
+>  		oldpte = *pte;
+>  		if (pte_present(oldpte)) {
+>  			pte_t ptent;
+>  			bool preserve_write = prot_numa && pte_write(oldpte);
+> +			struct page *page;
+>  
+>  			/*
+>  			 * Avoid trapping faults against the zero or KSM
+>  			 * pages. See similar comment in change_huge_pmd.
+>  			 */
+>  			if (prot_numa) {
+> -				struct page *page;
+> -
+>  				page = vm_normal_page(vma, addr, oldpte);
+>  				if (!page || PageKsm(page))
+>  					continue;
+> @@ -114,6 +114,54 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  					continue;
+>  			}
+>  
+> +			/*
+> +			 * Detect whether we'll need to COW before
+> +			 * resolving an uffd-wp fault.  Note that this
+> +			 * includes detection of the zero page (where
+> +			 * page==NULL)
+> +			 */
+> +			if (uffd_wp_resolve) {
+> +				/* If the fault is resolved already, skip */
+> +				if (!pte_uffd_wp(*pte))
+> +					continue;
+> +				page = vm_normal_page(vma, addr, oldpte);
+> +				if (!page || page_mapcount(page) > 1) {
+> +					struct vm_fault vmf = {
+> +						.vma = vma,
+> +						.address = addr & PAGE_MASK,
+> +						.page = page,
+> +						.orig_pte = oldpte,
+> +						.pmd = pmd,
+> +						/* pte and ptl not needed */
+> +					};
+> +					vm_fault_t ret;
+> +
+> +					if (page)
+> +						get_page(page);
+> +					arch_leave_lazy_mmu_mode();
+> +					pte_unmap_unlock(pte, ptl);
+> +					ret = wp_page_copy(&vmf);
+> +					/* PTE is changed, or OOM */
+> +					if (ret == 0)
+> +						/* It's done by others */
+> +						continue;
+
+This is wrong if ret == 0 you still need to remap the pte before
+continuing as otherwise you will go to next pte without the page
+table lock for the directory. So 0 case must be handled after
+arch_enter_lazy_mmu_mode() below.
+
+Sorry i should have catch that in previous review.
+
+
+> +					else if (WARN_ON(ret != VM_FAULT_WRITE))
+> +						return pages;
+> +					pte = pte_offset_map_lock(vma->vm_mm,
+> +								  pmd, addr,
+> +								  &ptl);
+> +					arch_enter_lazy_mmu_mode();
+> +					if (!pte_present(*pte))
+> +						/*
+> +						 * This PTE could have been
+> +						 * modified after COW
+> +						 * before we have taken the
+> +						 * lock; retry this PTE
+> +						 */
+> +						goto retry_pte;
+> +				}
+> +			}
+> +
+>  			ptent = ptep_modify_prot_start(mm, addr, pte);
+>  			ptent = pte_modify(ptent, newprot);
+>  			if (preserve_write)
+
+>  	unsigned long pages = 0;
+>  	unsigned long nr_huge_updates = 0;
+>  	struct mmu_notifier_range range;
+> +	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
+>  
+>  	range.start = 0;
+>  
+> @@ -202,7 +251,16 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+>  		}
+>  
+>  		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+> -			if (next - addr != HPAGE_PMD_SIZE) {
+> +			/*
+> +			 * When resolving an userfaultfd write
+> +			 * protection fault, it's not easy to identify
+> +			 * whether a THP is shared with others and
+> +			 * whether we'll need to do copy-on-write, so
+> +			 * just split it always for now to simply the
+> +			 * procedure.  And that's the policy too for
+> +			 * general THP write-protect in af9e4d5f2de2.
+> +			 */
+> +			if (next - addr != HPAGE_PMD_SIZE || uffd_wp_resolve) {
+
+Just a nit pick can you please add () to next - addr ie:
+if ((next - addr) != HPAGE_PMD_SIZE || uffd_wp_resolve) {
+
+I know it is not needed but each time i bump into this i
+have to scratch my head for second to remember the operator
+rules :)
+
+>  				__split_huge_pmd(vma, pmd, addr, false, NULL);
+>  			} else {
+>  				int nr_ptes = change_huge_pmd(vma, pmd, addr,
 > -- 
-> 1.8.3.1
-
-Thanks for updating the document.
-
-Reviewed-by: Zi Yan <ziy@nvidia.com>
-
-
-
---
-Best Regards,
-Yan Zi
+> 2.17.1
+> 
 
