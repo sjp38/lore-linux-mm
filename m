@@ -2,178 +2,194 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 666A2C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:50:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15BEBC10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:54:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CBF920674
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:50:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CBF920674
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id D27B22083D
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 13:54:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D27B22083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B3F36B0006; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
+	id 62B6E6B0008; Thu, 18 Apr 2019 09:54:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73C0B6B0008; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
+	id 5DB7C6B000C; Thu, 18 Apr 2019 09:54:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 607A86B000A; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
+	id 4CBAD6B000D; Thu, 18 Apr 2019 09:54:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AA0C6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:50:57 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o8so1273246edh.12
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 06:50:56 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE4E16B0008
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:54:55 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y7so1288105eds.7
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 06:54:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=j13ppKnA5XOevfzHj/veY7J+stZTddhKz4lu9/wYA5o=;
-        b=CzHlieDRozpd6S9dpT/E2CDIF/M/tdRycFfuOUKesMG9E3/Enkz6No9y0RQkdCkRkH
-         Wc3PgR6CYY9Ps93r9dYDAz290t5c8lR2xeAXsC/nrPivOdqN7jedXkVjfRb902QkZzc3
-         erVySVNvPJTT5YA5J6MWsmHUXLkzOFO1e+vRHFZVRUGWaXEB8xug/nUTXffsbzURoxf1
-         JIgr9J6VenWtIyGNQMcsLG/WoS/cAQpvdR1cSJqHZd0sEsDBOIdy0xWy7FeZR+Jyfwnp
-         ABSx9dDTW28h8zyHvcXOQC841BkhKMpm0/LltsqBpqjQW0RuqfZ+5TVvWa1EltoIHOP5
-         fiZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-X-Gm-Message-State: APjAAAVklRN0rcfLT4OOnWvBljiiT5unIy4it5/JpnSFJ8rJhLWCBf//
-	ge45A96TFnQVdexncc4+OVmhLD4na/gMSBPCF8H17pU4+W1yhDF7PqignZJsiwnsnNQMhloApBA
-	Dw6929B7wWQAnQKpCt0BnNfeP7BuLe6o9SWVAmLNXXYP41PrjICGc2ABDw2OwSiTyeg==
-X-Received: by 2002:a17:906:a85a:: with SMTP id dx26mr50804580ejb.206.1555595456516;
-        Thu, 18 Apr 2019 06:50:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyr+LmsdU2R5FgmCwLKY8tCaxiR02qaE5oH2hou/PbcmnB2bNVPXCcI+AGRvLJO64jw/6z3
-X-Received: by 2002:a17:906:a85a:: with SMTP id dx26mr50804543ejb.206.1555595455530;
-        Thu, 18 Apr 2019 06:50:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555595455; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=AJ7bby9VAajq7vqzR0Jw1b4xJOwIPaTVWeDX6FwqVCM=;
+        b=IoToZNgAN81uS/b3vhuJmMT1MRCPh9ywo06BShQcI8X3oHmwVqYJB8WLGpgxxJZv5u
+         TS9cXnMh6O9kvfZ5sPrqd1XfXRZv604ja6wLF4SQB9zQJzRokBzpWSb12nwaDNkfm/Vy
+         P0ZMKNi7RMxYBoj8gNPgdYuVY3/5L6rPQ84MK0Vt3YISjO4zW/KelEtVg7CaRotxuRi4
+         znwsjTaj2s2sg/rZybw3lewbuUl2wACcP7cBomafvrImQnwieZqYsBGtJHmGvobTzlEb
+         DvwBKFiGstunG/OzC22Fo99goO4C7/kokpIDyeSJxW6Ob46mplo0Kjgk/WXS/Rcqifxs
+         PWYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVyRJTcW3Oe/mhUg02NU3fo0qrMXKnHySF9fvAuJNk71BsOZbgD
+	62UzvsSnpA5ElDr/Xy9Sz73tQQgVAw4WtS4D6OuScpBPduNhXwjrfVNGGKCB1pOl0QkE62GE70W
+	/kRBoXePc5S+8/8rXqaItOQpaa/0kcLdRU0yo4kvkcfaS+zMa1kur2Dt7npB3HX6/FQ==
+X-Received: by 2002:a17:906:69d3:: with SMTP id g19mr30232903ejs.212.1555595695440;
+        Thu, 18 Apr 2019 06:54:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPSDk7Futtmn6zE/DpWoif4HYeC7SODkdX2mC5RsRaznCe5+CzKY4buKFQpZnj3zZA6U34
+X-Received: by 2002:a17:906:69d3:: with SMTP id g19mr30232860ejs.212.1555595694432;
+        Thu, 18 Apr 2019 06:54:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555595694; cv=none;
         d=google.com; s=arc-20160816;
-        b=iJ/w2FqgG00/gNko6VM/xm3hu0s67OMrh2hl6WnPui6v/QWF2S5PaujGPmtiLk0dZ2
-         xZPJWpL60L430Uj346Up8fCTt2aRKnSoDUcvVjrD6IegvFqiebWvUC8zic4xLYYFbokV
-         +KJmFmIkXvFRZLkSeCZq2m5mo7MyAW8t4API7cHrostqXSNbp23JIvh5UGPS0itqnwy4
-         C5aMFT6q8h/QuyjLOrn1qbYylDG2o05Igz0ertDWrrJqkTYJ5M9RjNOmibS9ckN542UC
-         52gVbIzbC0PACvCjBHgR+iThqrHJmzJpegL8VuCjyQ8mINmw6ibh50ChJt3HjyKK3drL
-         etSw==
+        b=KCdQW+QGbYyN9RNE1CY2hi4ebtGTbO619/ijR4uPoSGS3s9uDW6O/VkK+iUCSn90s8
+         stEKxMem21jdlGlNLO+JicdzN7cRl9FrpgXgMvw6is24sKYtic18zkEkQNGcp+pmMPsP
+         yanGjdlpXyDGteH9exlrL1PXS9RnS5lO5heXI+WfZbmQm6CIx1wQ3FVIXx6UHdeSznt+
+         b0mee9Z/c5baA7Xq1yRrri0sduR+HDtyzuyaNn8ixHBkXmlWvikmwgV2N01MPQfNiARS
+         y4lW/RYOed12boP7WnpHiaQ4vEtdRSw8nHEjvgf3ZlrkUu5k8hx02iuoj6gnvFWkrjMp
+         8ZrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=j13ppKnA5XOevfzHj/veY7J+stZTddhKz4lu9/wYA5o=;
-        b=wsG7V5muThPBAhr21yPOOebwA6KC7f5lEjtBhbcYq5XLs9K1Tlu+tDVM8dekUECkIQ
-         58kayEkWI0FaCBXWyVklYcflfPt5SQDyFA4Tht/eAQopHdEVKZTUD9bSSTU0Xi3ho4eG
-         msBs7BLegsNiRNvIM88lmR9DEq/5B5nHAdJCn05TyGgTCARjnT+fpMOnd+6P9MMCiy0Y
-         FSZXlqzsW3X/BovXodtB16aTJ15RyW+PgOt7jHE6la2CnxXw0O3fKlg4IqEl70m8BdMT
-         u33iNRMeQ/EZqp/BSF9PFaQpXsREfr3OGMbyu52QH3AM6XS3iFgUQmsnXC9OynDDbOcU
-         uG7w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=AJ7bby9VAajq7vqzR0Jw1b4xJOwIPaTVWeDX6FwqVCM=;
+        b=M6j7sQD7P7HVc6N6WOIW3vHElHFsC5FSj6xmYc8FxWuzrgtdeaArMQoVMSsALeT5mj
+         C4F3hrks+sRIbzE05ADUlZn3Sad/WGF5Hhs3o3/ePjRIXMvE5YosEh/lylbGsLs/9cLN
+         DLlZJge4QK+DMGjvx35lntveaYMWs0Rg0FtlrpBoZuNV7jgDdhJ5V9i/yLEjN2MIT+hw
+         Dbrdtq/Qcp/BEPch5p2W9qqL9l4ztN8mOBJo3MCP1+L7rqqgk07N6Ph2+JG5NIY8UgzI
+         skw2W0jkUVvuvsBKRGJJF3Yni2P0VHoRYLb5S35eSLjas3VxIvwMcruZ2FKiqk80Uk7x
+         yHIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hb2si1012835ejb.291.2019.04.18.06.50.55
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp21.blacknight.com (outbound-smtp21.blacknight.com. [81.17.249.41])
+        by mx.google.com with ESMTPS id x2si949213eda.390.2019.04.18.06.54.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 06:50:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 18 Apr 2019 06:54:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) client-ip=81.17.249.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A41E2B6A0;
-	Thu, 18 Apr 2019 13:50:54 +0000 (UTC)
-From: =?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: mhocko@kernel.org,
-	akpm@linux-foundation.org,
-	arunks@codeaurora.org,
-	brgl@bgdev.pl,
-	geert+renesas@glider.be,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	mguzik@redhat.com,
-	mkoutny@suse.com,
-	rppt@linux.ibm.com,
-	vbabka@suse.cz,
-	Laurent Dufour <ldufour@linux.ibm.com>
-Subject: [PATCH] prctl_set_mm: downgrade mmap_sem to read lock
-Date: Thu, 18 Apr 2019 15:50:39 +0200
-Message-Id: <20190418135039.19987-1-mkoutny@suse.com>
-X-Mailer: git-send-email 2.16.4
-In-Reply-To: <20190417145548.GN5878@dhcp22.suse.cz>
-References: <20190417145548.GN5878@dhcp22.suse.cz>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.41 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp21.blacknight.com (Postfix) with ESMTPS id 09B26B89A8
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:54:53 +0100 (IST)
+Received: (qmail 5440 invoked from network); 18 Apr 2019 13:54:53 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 18 Apr 2019 13:54:53 -0000
+Date: Thu, 18 Apr 2019 14:54:52 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Li Wang <liwang@redhat.com>, Minchan Kim <minchan@kernel.org>,
+	linux-mm <linux-mm@kvack.org>
+Subject: Re: v5.1-rc5 s390x WARNING
+Message-ID: <20190418135452.GF18914@techsingularity.net>
+References: <CAEemH2fh2goOS7WuRUaVBEN2SSBX0LOv=+LGZwkpjAebS6MFuQ@mail.gmail.com>
+ <73fbe83d-97d8-c05f-38fa-5e1a0eec3c10@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <73fbe83d-97d8-c05f-38fa-5e1a0eec3c10@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I learnt, it's, alas, too late to drop the non PRCTL_SET_MM_MAP calls
-[1], so at least downgrade the write acquisition of mmap_sem as in the
-patch below (that should be stacked on the previous one or squashed).
+On Wed, Apr 17, 2019 at 10:54:38AM +0200, Vlastimil Babka wrote:
+> On 4/17/19 10:35 AM, Li Wang wrote:
+> > Hi there,
+> > 
+> > I catched this warning on v5.1-rc5(s390x). It was trggiered in fork & malloc & memset stress test, but the reproduced rate is very low. I'm working on find a stable reproducer for it. 
+> > 
+> > Anyone can have a look first?
+> > 
+> > [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
+> 
+> This means compaction was either skipped or deferred, yet it captured a
+> page. We have some registers with value 1 and 2, which is
+> COMPACT_SKIPPED and COMPACT_DEFERRED, so it could be one of those.
+> Probably COMPACT_SKIPPED. I think a race is possible:
+> 
+> - compact_zone_order() sets up current->capture_control
+> - compact_zone() calls compaction_suitable() which returns
+> COMPACT_SKIPPED, so it also returns
+> - interrupt comes and its processing happens to free a page that forms
+> high-order page, since 'current' isn't changed during interrupt (IIRC?)
+> the capture_control is still active and the page is captured
+> - compact_zone_order() does *capture = capc.page
+> 
+> What do you think, Mel, does it look plausible?
 
-Cyrill, you mentioned lock changes in [1] but the link seems empty. Is
-it supposed to be [2]? That could be an alternative to this patch after
-some refreshments and clarifications.
+It's plausible, just extremely unlikely. I think the most likely result
+was that a page filled the per-cpu lists and a bunch of pages got freed
+in a batch from interrupt context.
 
+> Not sure whether we want
+> to try avoiding this scenario, or just remove the warning and be
+> grateful for the successful capture :)
+> 
 
-[1] https://lore.kernel.org/lkml/20190417165632.GC3040@uranus.lan/
-[2] https://lore.kernel.org/lkml/20180507075606.870903028@gmail.com/
+Avoiding the scenario is pointless because it's not wrong. The check was
+initially meant to catch serious programming errors such as using a
+stale page pointer so I think the right patch is below. Li Wang, how
+reproducible is this and would you be willing to test it?
 
-========
+---8<---
+mm, page_alloc: Always use a captured page regardless of compaction result
 
-Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect
-arg_start|end and env_start|end in mm_struct") we use arg_lock for
-boundaries modifications. Synchronize prctl_set_mm with this lock and
-keep mmap_sem for reading only (analogous to what we already do in
-prctl_set_mm_map).
+During the development of commit 5e1f0f098b46 ("mm, compaction: capture
+a page under direct compaction"), a paranoid check was added to ensure
+that if a captured page was available after compaction that it was
+consistent with the final state of compaction. The intent was to catch
+serious programming bugs such as using a stale page pointer and causing
+corruption problems.
 
-Also, save few cycles by looking up VMA only after performing basic
-arguments validation.
+However, it is possible to get a captured page even if compaction was
+unsuccessful if an interrupt triggered and happened to free pages in
+interrupt context that got merged into a suitable high-order page. It's
+highly unlikely but Li Wang did report the following warning on s390
 
-Signed-off-by: Michal Koutný <mkoutny@suse.com>
+[ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
+[ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver
+ nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390 des_s390
+ des_generic sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs
+ libcrc32c dasd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm
+ ccwgroup fsm dm_mirror dm_region_hash dm_log dm_mod
+[ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not tainted 5.1.0-rc 5 #1
+
+This patch simply removes the check entirely instead of trying to be
+clever about pages freed from interrupt context. If a serious programming
+error was introduced, it is highly likely to be caught by prep_new_page()
+instead.
+
+Fixes: 5e1f0f098b46 ("mm, compaction: capture a page under direct compaction")
+Reported-by: Li Wang <liwang@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- kernel/sys.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ mm/page_alloc.c | 5 -----
+ 1 file changed, 5 deletions(-)
 
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 12df0e5434b8..bbce0f26d707 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -2125,8 +2125,12 @@ static int prctl_set_mm(int opt, unsigned long addr,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d96ca5bc555b..cfaba3889fa2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3773,11 +3773,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 	psi_memstall_leave(&pflags);
  
- 	error = -EINVAL;
- 
--	down_write(&mm->mmap_sem);
--	vma = find_vma(mm, addr);
-+	/*
-+	 * arg_lock protects concurent updates of arg boundaries, we need mmap_sem for
-+	 * a) concurrent sys_brk, b) finding VMA for addr validation.
-+	 */
-+	down_read(&mm->mmap_sem);
-+	spin_lock(&mm->arg_lock);
- 
- 	prctl_map.start_code	= mm->start_code;
- 	prctl_map.end_code	= mm->end_code;
-@@ -2185,6 +2189,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 	if (error)
- 		goto out;
- 
-+	vma = find_vma(mm, addr);
- 	switch (opt) {
+-	if (*compact_result <= COMPACT_INACTIVE) {
+-		WARN_ON_ONCE(page);
+-		return NULL;
+-	}
+-
  	/*
- 	 * If command line arguments and environment
-@@ -2218,7 +2223,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 
- 	error = 0;
- out:
--	up_write(&mm->mmap_sem);
-+	spin_unlock(&mm->arg_lock);
-+	up_read(&mm->mmap_sem);
- 	return error;
- }
- 
--- 
-2.16.4
+ 	 * At least in one zone compaction wasn't deferred or skipped, so let's
+ 	 * count a compaction stall
 
