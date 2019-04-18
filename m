@@ -2,73 +2,73 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNWANTED_LANGUAGE_BODY,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72577C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06C8FC10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DD1D2183E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DD1D2183E
+	by mail.kernel.org (Postfix) with ESMTP id C103C206B6
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C103C206B6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 495566B026A; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
+	id C0F546B026B; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41DCB6B026B; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
+	id BBFB76B026C; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C0316B026C; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
+	id A899B6B026D; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B565D6B026A
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:06:17 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id i184so1519269wmi.9
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:06:17 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 524216B026C
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:06:18 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id o16so1521652wrp.8
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:06:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=vE/h4iTaYWv2pX1V6FXNHaP6c7n1dI5SFaeY9qpaUbU=;
-        b=s0GTE7OJD1KYSLdZOQCVulaTWf6+9tQLGHZjagIqiQyWHV8LEx2a32g88vRU8HZorP
-         GyNqVtMhgNFxncK8YeQVaohgvymvVcQBV+RmLoqK1hOq9w7dENVfoSS32qapFlb3orEe
-         +0gQKxP1oMde7HnSfVeIGdC/3KhzPrqyPlWtvd2zL4zuE/kbqdVwZLeWQXlrBmuYFzb4
-         9gzK518jV8BJXrfxw2NOya7Cuy9gHArikOpP6SXKJQNo0SaWwgqZCyeV64xAvTy0tbK5
-         4bSxWwsy0G8uFgqnxLLvcl9gkmpOzeOM7QKZ5CNFeyskMCbZ1eRha9nUIaxoL2nPA7mq
-         zDCQ==
+        bh=0M2OLeqxAULJLF3vLiIc4vZkAtZeGcOr3pXLUexTG5I=;
+        b=Ys1+IYRZHI9BG6VkhAyivZElvgDyHEo/yKt7/i+wNje+5d6Xj2W01mVCoxmDZtOHNe
+         KQT+yB259Gjr38ZlEAN07TL/jZO3riAbOG0tIXTy/UO4M9/Qwx4+NH4V9pxko52TghKI
+         QhaQdVta//5NK0kN6f//k9m6gG8oT1Q8LQGETgz36cmaYm9RH65RYQ1zTo7bzTbs8FwU
+         X/Eqo4wKkmGfO8iMbUGc2IwLLbk/vylJeJFW+UELNEAl6NWNuORsf0W1lYAnoVDZEYzp
+         JqgNU+Cuih0zAW5jzPWVdIJW9dzHGaDvkKjAZVy9OUlkwraWELSzsQxJixFDBz+/9Hcx
+         rdrg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAUCaXNPvszblYnnyspFPDDoGfD3f/3RiSuTHgWij2Zb1Rei1j6B
-	Yp9pPZL1HUwTac/8qUYjI0YOTklehWW95vxtLr2ki6Op8mm4UeVP8DQUOLvUL4mQjSIQrjqz5bY
-	hla1ym3EVQLoyCRgfIgsNblB0vZxOPqI43IG3uPTvNEOuik28b9LYplH0sm4X/NLR2g==
-X-Received: by 2002:a5d:4a8d:: with SMTP id o13mr47878306wrq.209.1555578377275;
+X-Gm-Message-State: APjAAAWoxBGVpobMSnzKoPFHrE65/lVe5xCJVK2VpilaITPQMC9QXceE
+	ehvj1JZoNPvtZjYJVy2FiKHBWJd3MpUXOpVWHTSuzce7OQrrjEb13UK73vuMaL2Rst6TqskWp6s
+	z8czB9lHFb6HOBlXo2xmqfSg7qqkwgE+072QBwoDjVjorZKkzlc4j6xjgXO4ptzoXHw==
+X-Received: by 2002:a1c:7512:: with SMTP id o18mr2356413wmc.68.1555578377864;
         Thu, 18 Apr 2019 02:06:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz262Qh0LNuAQSJZPguwLT1QLX0B8TWwuB9CcF4GVzJy51k6fAvkUJaOutlyidEIKmbsEka
-X-Received: by 2002:a5d:4a8d:: with SMTP id o13mr47878226wrq.209.1555578376120;
+X-Google-Smtp-Source: APXvYqwTcsNIxWvAbBy58Mdmd+4E54O8PHh3nKmlDoE45DGWMl2iMWvxlfBMyINtj7SMUZ1C/Zl0
+X-Received: by 2002:a1c:7512:: with SMTP id o18mr2356326wmc.68.1555578376615;
         Thu, 18 Apr 2019 02:06:16 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555578376; cv=none;
         d=google.com; s=arc-20160816;
-        b=ggTJfWyZ8g620EzzVc96108Ya5Ne6fYTWZ9X1HIrQpKc/z89ngM8C/3HQCQ+xTDa4l
-         6pJfX7l7hrCbyxhmDnh59P3fBZoUhZIFcjCOVGJHfBhdBMy9pqrd9ip9NmAZvagjEccC
-         +Rd9dDyC1TsSBR/npitDbxGqlvffisJJ/e44jOTK2YW757ZgWQZKPoUGUNAQ+Na7TdrN
-         oe5/2yPRzsXzZhuLlpzag4FB61kCAK8Gr/U8ITkPbu5/NVuZyc0beNozaXFhaVmVJ9Aj
-         u//XKBFs8FPpcZoffCLT7PPvCFOTEX28XdDgokEPXMYxjPCJKd+NYKRotu5h2IxVDz8C
-         eznQ==
+        b=BnXvBYKv0le1HWHDAcE4zzxlXd2fifKVjYS3syQlKLIk8eekADDY8Qf3U1g3hCI2pW
+         kc+G/afclRx4mBQVLh/ITReMXauPVFUhDMFAgbrfDae//9PE1B4amLBBuCOj1k1VUcJe
+         9SXN7BndhWeRkUKN+KJm4+unxihxVUw2TzkW/zFQaoAppDOjUrvA4IffzJG643UyRGLr
+         qtS6oxPK/eBXA9KL/+5YGvVd/7FjxB2O4g02tIUZhzeIL11k/CnSPNgKsCHziN8S3vAN
+         CDOWNlr0UsFtZfE/iqQqgaNMpi307bx29WOaYEqOw0rr97+zz0lfih00teQtby2HuI8m
+         f59w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=vE/h4iTaYWv2pX1V6FXNHaP6c7n1dI5SFaeY9qpaUbU=;
-        b=yy2JiYC1f5mV/vpd8wg9j77bKGnFeNmUptHTtRB43syvbf5qdK9gMJ49Xb51QF8ajD
-         vQrxIcJeWx11aUfmg1J3Eld0fKdqbRxH/BjF2p8BQUddSUioc550/nPsuIiAbjt2CWU5
-         b9WPUpVXBI7i0KzR2sVvvzLO7XckwCqpTAJeoGeNnsCadZi3D5Cgu9/XzRBdqTmwGrtP
-         0JJrrLDA1h6Qi/Ip68Em27F/fIOdV2Jdou0jbv3Px8bO5T+2yzFdyAPRZ0Mv8wpsCybM
-         WUq2NBPBqm4YVMckGziy5RmdTp+WmUKXxU7F5R0KQ9dQFDcZQwUQWz6NzoEpX3v6jrxH
-         gEsg==
+        bh=0M2OLeqxAULJLF3vLiIc4vZkAtZeGcOr3pXLUexTG5I=;
+        b=Q681mtisgEi12+VKbuwR0rR7VC+jvha1TJbz1TOfLOIjra0oX6HL/1B8alL5dF1yW5
+         B4catw9YL6Dx8EdCpudIdSBIPFwsvS5JxDPukq9nMrBhHI740GdbpwAXAO+aFA2YFfaG
+         IWEongJfRSUxZXtpwb4xRJIpA98ITrzfwJowXaIWt1KA7ksELIerv7swW78iqkJghcF2
+         ZjotziFg0cnDh/vV48I4jJhVkZWUmHOPMmeqFbQ7kdzQR1jGna3hxbnjrDlXbT3oyDk8
+         Kqph4QlSuLBeVeQwPJ6JKl1L71KxevWof1zhJcQ+VbHlH2gAVBtjc6M5+rCan5kKbiwR
+         avtA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id z185si1090349wmb.30.2019.04.18.02.06.15
+        by mx.google.com with ESMTPS id a11si1060932wmg.137.2019.04.18.02.06.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Thu, 18 Apr 2019 02:06:16 -0700 (PDT)
@@ -78,20 +78,21 @@ Authentication-Results: mx.google.com;
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hH2zn-0001nO-Dg; Thu, 18 Apr 2019 11:06:15 +0200
-Message-Id: <20190418084253.811477032@linutronix.de>
+	id 1hH2zl-0001nA-9k; Thu, 18 Apr 2019 11:06:13 +0200
+Message-Id: <20190418084253.720040206@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 18 Apr 2019 10:41:27 +0200
+Date: Thu, 18 Apr 2019 10:41:26 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
  Alexander Potapenko <glider@google.com>,
- Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org,
- Alexey Dobriyan <adobriyan@gmail.com>,
  Andrew Morton <akpm@linux-foundation.org>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>,
+ Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org,
+ David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>,
+ Alexey Dobriyan <adobriyan@gmail.com>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dmitry Vyukov <dvyukov@google.com>,
  Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com,
  Mike Rapoport <rppt@linux.vnet.ibm.com>,
  Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org,
@@ -107,7 +108,7 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
  Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>,
  Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
-Subject: [patch V2 08/29] mm/kmemleak: Simplify stacktrace handling
+Subject: [patch V2 07/29] mm/slub: Simplify stack trace retrieval
 References: <20190418084119.056416939@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -117,70 +118,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Replace the indirection through struct stack_trace by using the storage
-array based interfaces.
+Replace the indirection through struct stack_trace with an invocation of
+the storage array based interface.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>
 Cc: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>
 ---
- mm/kmemleak.c |   24 +++---------------------
- 1 file changed, 3 insertions(+), 21 deletions(-)
+ mm/slub.c |   12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
 
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -410,11 +410,6 @@ static void print_unreferenced(struct se
-  */
- static void dump_object_info(struct kmemleak_object *object)
- {
--	struct stack_trace trace;
--
--	trace.nr_entries = object->trace_len;
--	trace.entries = object->trace;
--
- 	pr_notice("Object 0x%08lx (size %zu):\n",
- 		  object->pointer, object->size);
- 	pr_notice("  comm \"%s\", pid %d, jiffies %lu\n",
-@@ -424,7 +419,7 @@ static void dump_object_info(struct kmem
- 	pr_notice("  flags = 0x%x\n", object->flags);
- 	pr_notice("  checksum = %u\n", object->checksum);
- 	pr_notice("  backtrace:\n");
--	print_stack_trace(&trace, 4);
-+	stack_trace_print(object->trace, object->trace_len, 4);
- }
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -552,18 +552,14 @@ static void set_track(struct kmem_cache
  
- /*
-@@ -553,15 +548,7 @@ static struct kmemleak_object *find_and_
-  */
- static int __save_stack_trace(unsigned long *trace)
- {
--	struct stack_trace stack_trace;
--
--	stack_trace.max_entries = MAX_TRACE;
--	stack_trace.nr_entries = 0;
--	stack_trace.entries = trace;
--	stack_trace.skip = 2;
--	save_stack_trace(&stack_trace);
--
--	return stack_trace.nr_entries;
-+	return stack_trace_save(trace, MAX_TRACE, 2);
- }
+ 	if (addr) {
+ #ifdef CONFIG_STACKTRACE
+-		struct stack_trace trace;
++		unsigned int nr_entries;
  
- /*
-@@ -2019,13 +2006,8 @@ early_param("kmemleak", kmemleak_boot_co
+-		trace.nr_entries = 0;
+-		trace.max_entries = TRACK_ADDRS_COUNT;
+-		trace.entries = p->addrs;
+-		trace.skip = 3;
+ 		metadata_access_enable();
+-		save_stack_trace(&trace);
++		nr_entries = stack_trace_save(p->addrs, TRACK_ADDRS_COUNT, 3);
+ 		metadata_access_disable();
  
- static void __init print_log_trace(struct early_log *log)
- {
--	struct stack_trace trace;
--
--	trace.nr_entries = log->trace_len;
--	trace.entries = log->trace;
--
- 	pr_notice("Early log backtrace:\n");
--	print_stack_trace(&trace, 2);
-+	stack_trace_print(log->trace, log->trace_len, 2);
- }
- 
- /*
+-		if (trace.nr_entries < TRACK_ADDRS_COUNT)
+-			p->addrs[trace.nr_entries] = 0;
++		if (nr_entries < TRACK_ADDRS_COUNT)
++			p->addrs[nr_entries] = 0;
+ #endif
+ 		p->addr = addr;
+ 		p->cpu = smp_processor_id();
 
 
