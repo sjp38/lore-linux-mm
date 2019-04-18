@@ -2,182 +2,154 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9610C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:55:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F022C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:56:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A6FF217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:55:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E0E57217FA
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 15:56:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Swb7dcHK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A6FF217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (2048-bit key) header.d=plexistor-com.20150623.gappssmtp.com header.i=@plexistor-com.20150623.gappssmtp.com header.b="dUpWznY8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0E57217FA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=plexistor.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E0EB46B0005; Thu, 18 Apr 2019 11:55:54 -0400 (EDT)
+	id 7F1DE6B0007; Thu, 18 Apr 2019 11:56:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DBCB26B0006; Thu, 18 Apr 2019 11:55:54 -0400 (EDT)
+	id 7A22A6B0008; Thu, 18 Apr 2019 11:56:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CAD326B0007; Thu, 18 Apr 2019 11:55:54 -0400 (EDT)
+	id 6BC396B000A; Thu, 18 Apr 2019 11:56:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C9F76B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:55:54 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d16so1709808pll.21
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:55:54 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6C96B0007
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 11:56:19 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id m13so2386949wrr.17
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:56:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
-         :in-reply-to:message-id:mime-version:content-transfer-encoding;
-        bh=Mwu8bdvzFWo5PJrnmoXM4uXFOyCPd9+D4w2uDhG61cs=;
-        b=sWrUvzxJGVOhmBJ8dkLqtp9Jz8Eo/MjIr2VIJMgSEVLlkvvG7bVnDgukx6M8Mw1Env
-         LCNhcuSQit1u8w+Gx7sHQBNfClcEEhxZuIJxvbRWwd5YbnjYdVboPHORsEDh1hO71sOI
-         hlYKduuOH7J4lsq2Ot7ah8O2Ymc/ldIgU/0WYRUWpuc648QT/wvdVwKp84r5dVkS1zBC
-         WoLp9U4WkGDCWuE9SszJHIrvXM8iTEtQd5irGKCafUoD6v87616w2cVmc+QF55LPAeIR
-         95liEaFaQC60d6AwdyY6aSDSgCD2ULhd96fgOihTwXF9lmLNdUPTQGfgws7ClFoEkxrd
-         L9EQ==
-X-Gm-Message-State: APjAAAVUCeNX67FtG0vTcihs9+MRI9AVWpiikl+YuphYDWZawA4Xmqjd
-	o1FdAtX+LMIvTtHT/vJX4lmzed29ZpWk6ONX+R53+G2M2idZixJgF8C5V9pge09+Lb9TSyvY2eK
-	/VYCMjfqTgAzA9y951U22mFa48c/Jzp38mFYkdXGvh0nRScc6GYaxaJIHMvpAoFIdIA==
-X-Received: by 2002:a62:6f47:: with SMTP id k68mr80515535pfc.196.1555602954108;
-        Thu, 18 Apr 2019 08:55:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXWWdpqOOV0xqNep4u78TR8lujiBR8X7bgQwwsdxm6r6hwu/S8S3wLLGUnacxQZDBC0yy3
-X-Received: by 2002:a62:6f47:: with SMTP id k68mr80515474pfc.196.1555602953440;
-        Thu, 18 Apr 2019 08:55:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555602953; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:cc:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding;
+        bh=j5/kNl/9jg2RLilHg0X3VlWf56T+l7hUmvmFB/1Kfpk=;
+        b=UXDb18wt0wqE9Mva6IeHxnPa5OPv98MkNf+7RMDPPD94ud55cZgmfqD+gZwWNRjogL
+         7/FtJIoZRx1yc2WDCmYgWIfRzrYro0gpYW3wa/QaY2aKkb6SojxbsqIqsd2dSPc+UunK
+         vuueZaDIOXLGz1lDffxHfoE3j4ZVmk7hl5K78j7iGS0UTQOIGaAJtr/84/qTCcVnzkaZ
+         B+zTKSDDJTxi6Zf8XC0YEIQW7MhFJK8NLzNfR58sdeOarMprvgZE978dwYi72XPWKTvJ
+         uvWyR9fswvSjCwsD+KMMu3KwrVvJFml8imd2dGtF6aGVQI8/Vi6Y72vPFyJfhZ3d/GWm
+         2fkQ==
+X-Gm-Message-State: APjAAAVAp7OIvlQaXh3to2+W8IeBiLMCxUUEPhrBnYuA6mRsflF4nAx6
+	FdAlkTdX8F3KE7C8lVugP4rUz+tL0zQOafhmB1QJn9X51882TTX3A62UNKh0C0AXRW86jKFefC9
+	q9nvLv/dYyTYiJDFk2ck3iJNaVwpqmvceev5YitTNnb6POKu/tPoP/RcU3QoYpOlRmg==
+X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr3514054wmk.129.1555602978478;
+        Thu, 18 Apr 2019 08:56:18 -0700 (PDT)
+X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr3514024wmk.129.1555602977768;
+        Thu, 18 Apr 2019 08:56:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555602977; cv=none;
         d=google.com; s=arc-20160816;
-        b=1JQhE10hHm0oGtOomFI1vU/4QROuoDc8afIlHWlBcKgziPPq8LDvEtZ44OaaO3Bcrv
-         0hi+8lPkq2oBACes+5P9B287M5wGKxe5RzPW8aFwQU5q/fNeOyNbkPsd5glL0FQFEJEx
-         FxFTBm0rMG6GiCb17/cHWkpXdKKQn+RKFv8iLMr3yTSbucifh1lhVao7u2nrZwc3oSO3
-         crzDNbqViyV8ysTBVI/8soqNEOcTZNkSSwJNSrqPlcbMNf3k4nXuuvfr00bCttfYgZSY
-         BVaf7sU9a/MbbNJznFIgHHoIwTvQLfbY14PAtODF/QWTLI/65RnAAehr0EhnbqbIsBUu
-         9JFQ==
+        b=Ggnu3ip+UwEgodzwQQR4DQ/lVLZee1i1MYwrdVbj5PNhbjvzsjd9N5F1V1koyNUV7W
+         ui+yEvaTPTUdajjkLhx0ntt4nkEXyLVME2Qjir6Cd1ECexDRt+XJdaIQ3cMA/18DsxRr
+         XKBAS2/7j1flIfDhDTXbsI/f+ONefAb3yXQElKH4ymay6W7K3Bn55ZPblKNGV9H7609D
+         mNJ1cU2kvES9tn7eecAR8UeiqgJSpNNEzL5mm8G+C9L4lIWrtTEDAze4+zsSePW4Ukke
+         4XYUQDurVrGn6Mx7cjxpbEvUjV1bQityj6JkTDaDvyAQeYnonpTKL2v1R1kcfMEBp76X
+         /+bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:in-reply-to:date
-         :from:cc:to:subject:dkim-signature;
-        bh=Mwu8bdvzFWo5PJrnmoXM4uXFOyCPd9+D4w2uDhG61cs=;
-        b=NrbMI6F3rEhzQjreaix0/Za+JuIC2QuTMSZWG1BHvQE986axQ/07Wh8t6RfNi5KhF4
-         ItsTbFyKHHNKDY2zZKemLGoWrM7LW80MGKwuapShFA/TU7glL7Aosg8la9XIvVWT2Hj1
-         gU4kokEJbBZQoUDJt+D44UN2C9dBJugCRinh/YReSBdqzKTBpVQk1n1j6huxOtFjkcGh
-         49kaJnHBUh+g+ax0tz946Wfv/n3jNedOPhHmCUipeX5rXVi9SZ3yg3oHepTtOJsN1qVk
-         I6ZgIxw2abVE/f7dMGqW2X3ajxh4WI2icJ9rbU4CEAUVoWKxZLLU8+qOq2XN08emTpx5
-         P7sw==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject:dkim-signature;
+        bh=j5/kNl/9jg2RLilHg0X3VlWf56T+l7hUmvmFB/1Kfpk=;
+        b=J8yeDmGbmjpJzR34U9Ei6aFiuvs8wflSRtqhDjpSL2qZsArYdI7hwT2rat9uK/RIzf
+         1upTraDgON2ZrsYaaP6bOf8BuUY4ALrLYUDABgTbhdBB+kHXZwV2w1pDa5uJCQhgMCFE
+         wtDetEka0j945FH3m6rVjwR4KQ5yJmS8k3ygO5/ZLnMd2GDg0H9L/On0oQ+mfd1k87jh
+         RWy4UHKTF2TLwNAA4HkqxUbWPM/lSu2gQdVKPYxO4Wk/wDiNoxRGWv14O5YoVtsG8b9c
+         oh6NsMsJEWDDXKEkWhF/ztfQczvjdhr0tBM5gMJFUwpSsQnvohpe8BLGDnxgSovp8VtD
+         gPzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Swb7dcHK;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id ci14si2558993plb.264.2019.04.18.08.55.53
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=dUpWznY8;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z14sor1476305wmk.13.2019.04.18.08.56.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 08:55:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 18 Apr 2019 08:56:17 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Swb7dcHK;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 774F02148D;
-	Thu, 18 Apr 2019 15:55:52 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1555602953;
-	bh=p8Vh6V/JTze/+NYlJaIw/h/hfPhRHxpUig1heR6KLfQ=;
-	h=Subject:To:Cc:From:Date:In-Reply-To:From;
-	b=Swb7dcHKN4LEqyt5U4Zxl2i3IhVPWdikiW6D32NbGmU+3+onCiVdaEkSeAI4Mxk5I
-	 4CEcQBJyAQeafumPuTgfLLia1tU8zBDrjYl9qjjg1ZlqaKqwhjGw6Q38pB9r84F+Ew
-	 Gf4inQCCypyAeyOu0yLveLpgDwskYdkfhkdOt2X8=
-Subject: Patch "[PATCH 4.19.y 2/2] mm: hide incomplete nr_indirectly_reclaimable in sysfs" has been added to the 4.14-stable tree
-To: gregkh@linuxfoundation.org,guro@fb.com,khlebnikov@yandex-team.ru,linux-mm@kvack.org,vbabka@suse.cz
-Cc: <stable-commits@vger.kernel.org>
-From: <gregkh@linuxfoundation.org>
-Date: Thu, 18 Apr 2019 17:55:50 +0200
-In-Reply-To: <155482954368.2823.12386748649541618609.stgit@buzz>
-Message-ID: <155560295039175@kroah.com>
+       dkim=pass header.i=@plexistor-com.20150623.gappssmtp.com header.s=20150623 header.b=dUpWznY8;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of boaz@plexistor.com) smtp.mailfrom=boaz@plexistor.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=plexistor-com.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:references:cc:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding;
+        bh=j5/kNl/9jg2RLilHg0X3VlWf56T+l7hUmvmFB/1Kfpk=;
+        b=dUpWznY8DCr/ZDhSOM3cV0k5qfIfRJC6nUisP93SRbysdHNg3CGhq3n8UsT5+fFob7
+         1PTJDpfOm+xxRxRQplTaT/N5lsT9iGMCgrYAh0zsUZ5Pf2joUzgyfiSsvL8BnjGYdWhU
+         Z9m2kbKb5FOZPmu1NQggo+FdxFtM0bK5Cr/afQ/hmI7TCM9Ib4Hi79hyuUxCyVpWPtPw
+         902vYZBmeCjFCvKH4cGzpeMGk63ysiAFpqT9sukoBJhXKTrhPaqOpxOv8zaarPei5TxP
+         /tYVw9mFJFZaml2+Cr05rAVskwOdtCtkINWxHzX/glFgq02re1wk6JiB+Sm+ZEppboYD
+         mtBw==
+X-Google-Smtp-Source: APXvYqyDxQihas8VahgRTCxS6yq2sfHFGfCAy1vISwrqg0mAuZIX7LkIwS/Li3PIR8LKF/hbphdEiQ==
+X-Received: by 2002:a1c:cb0f:: with SMTP id b15mr3657594wmg.88.1555602977287;
+        Thu, 18 Apr 2019 08:56:17 -0700 (PDT)
+Received: from [10.0.0.5] (bzq-84-110-213-170.static-ip.bezeqint.net. [84.110.213.170])
+        by smtp.googlemail.com with ESMTPSA id r18sm3916458wme.18.2019.04.18.08.56.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 08:56:16 -0700 (PDT)
+Subject: Re: [PATCH v1 00/15] Keep track of GUPed pages in fs and block
+To: Dan Williams <dan.j.williams@intel.com>
+References: <20190411210834.4105-1-jglisse@redhat.com>
+ <2c124cc4-b97e-ee28-2926-305bc6bc74bd@plexistor.com>
+ <20190416185922.GA12818@kmo-pixel>
+ <CAPcyv4jLrQ6evLAJzsASh=H6Tzx8E1oiF+YR3L2fOpbZYNUWGg@mail.gmail.com>
+ <ccac6c5a-7120-0455-88de-ca321b01e825@plexistor.com>
+ <CAPcyv4hgs8fC+CeLTwqbjVqFE_HFiV-UQBankMBp5NmCniuBFA@mail.gmail.com>
+Cc: Kent Overstreet <kent.overstreet@gmail.com>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-block@vger.kernel.org,
+ Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>,
+ Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>,
+ Johannes Thumshirn <jthumshirn@suse.de>, Christoph Hellwig <hch@lst.de>,
+ Jens Axboe <axboe@kernel.dk>, Ming Lei <ming.lei@redhat.com>,
+ Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>,
+ Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org,
+ Yan Zheng <zyan@redhat.com>, Sage Weil <sage@redhat.com>,
+ Ilya Dryomov <idryomov@gmail.com>, Alex Elder <elder@kernel.org>,
+ ceph-devel@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>,
+ Latchesar Ionkov <lucho@ionkov.net>, Mike Marshall <hubcap@omnibond.com>,
+ Martin Brandenburg <martin@omnibond.com>, devel@lists.orangefs.org,
+ Dominique Martinet <asmadeus@codewreck.org>,
+ v9fs-developer@lists.sourceforge.net, Coly Li <colyli@suse.de>,
+ linux-bcache@vger.kernel.org,
+ =?UTF-8?Q?Ernesto_A._Fern=c3=a1ndez?= <ernesto.mnd.fernandez@gmail.com>
+From: Boaz Harrosh <boaz@plexistor.com>
+Message-ID: <577a5ba2-6be0-e2b8-a7ae-57da856f9839@plexistor.com>
+Date: Thu, 18 Apr 2019 18:56:13 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
+ Thunderbird/45.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
-X-stable: commit
-X-Patchwork-Hint: ignore 
+In-Reply-To: <CAPcyv4hgs8fC+CeLTwqbjVqFE_HFiV-UQBankMBp5NmCniuBFA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 18/04/19 00:54, Dan Williams wrote:
+<>
+> 
+> If it's not a pfn then it shouldn't be an unsigned long named "bv_pfn".
+> 
 
-This is a note to let you know that I've just added the patch titled
-
-    [PATCH 4.19.y 2/2] mm: hide incomplete nr_indirectly_reclaimable in sysfs
-
-to the 4.14-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     mm-hide-incomplete-nr_indirectly_reclaimable-in-sysfs.patch
-and it can be found in the queue-4.14 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
+Off course not:
+	ulong bv_page_gup;
 
 
-From khlebnikov@yandex-team.ru  Thu Apr 18 17:53:53 2019
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Tue, 09 Apr 2019 20:05:43 +0300
-Subject: [PATCH 4.19.y 2/2] mm: hide incomplete nr_indirectly_reclaimable in sysfs
-To: stable@vger.kernel.org
-Cc: linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <155482954368.2823.12386748649541618609.stgit@buzz>
+But I hope it is not needed at all
 
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-In upstream branch this fixed by commit b29940c1abd7 ("mm: rename and
-change semantics of nr_indirectly_reclaimable_bytes").
-
-This fixes /sys/devices/system/node/node*/vmstat format:
-
-...
-nr_dirtied 6613155
-nr_written 5796802
- 11089216
-...
-
-Cc: <stable@vger.kernel.org> # 4.19.y
-Fixes: 7aaf77272358 ("mm: don't show nr_indirectly_reclaimable in /proc/vmstat")
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- drivers/base/node.c |    7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -197,11 +197,16 @@ static ssize_t node_read_vmstat(struct d
- 			     sum_zone_numa_state(nid, i));
- #endif
- 
--	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
-+		/* Skip hidden vmstat items. */
-+		if (*vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-+				 NR_VM_NUMA_STAT_ITEMS] == '\0')
-+			continue;
- 		n += sprintf(buf+n, "%s %lu\n",
- 			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
- 			     NR_VM_NUMA_STAT_ITEMS],
- 			     node_page_state(pgdat, i));
-+	}
- 
- 	return n;
- }
-
-
-Patches currently in stable-queue which might be from khlebnikov@yandex-team.ru are
-
-queue-4.14/mm-hide-incomplete-nr_indirectly_reclaimable-in-sysfs.patch
+Thanks
+Boaz
 
