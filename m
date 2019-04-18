@@ -2,73 +2,72 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2A33C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 26D90C10F14
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C2F4218FD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C2F4218FD
+	by mail.kernel.org (Postfix) with ESMTP id D5E02218FD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 09:06:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5E02218FD
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C04A6B0266; Thu, 18 Apr 2019 05:06:12 -0400 (EDT)
+	id 36B7F6B000E; Thu, 18 Apr 2019 05:06:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 022F86B0008; Thu, 18 Apr 2019 05:06:11 -0400 (EDT)
+	id 26E3F6B000C; Thu, 18 Apr 2019 05:06:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2ED26B0010; Thu, 18 Apr 2019 05:06:11 -0400 (EDT)
+	id F0DDF6B000E; Thu, 18 Apr 2019 05:06:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91ADE6B0008
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9116E6B0006
 	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:06:11 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id y189so1535845wmd.4
+Received: by mail-wm1-f70.google.com with SMTP id b186so99034wmd.1
         for <linux-mm@kvack.org>; Thu, 18 Apr 2019 02:06:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
-         :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=PNBFVRoc9HP4CIX/Gjc0tnPba+utjyGgJUxB8b6IKHg=;
-        b=eBKy6HYZj64UaroAj6ozru0F9Dk8Hfir52nkSNe/P//5TqdNc1CbjYNCEizJN7x9dC
-         z3g1OstMx1bHf3jKGQAcjPgcJ+HUxW2NmQba7Fo6+yKtj9o3uJrEimX4f9llv+V/BsJ1
-         U8G1NidrMcr9f3QPtl/XrbDoBYhHIx4RFMXG86EPy74zT3DD/0ojiiKLM3ARARNxlnn7
-         1HXN5i1DzJyZxhIfu4kD9QATJqHkGb1nI/iyuV+wcQhS/XBhk3fBCcb+cYMj2Sqy1/Sl
-         FZsb7l6wTM58wSfmAM71Rxy4VSZEO91LxEfcs3785pK0RHohs4Wic1x0FRRRbtkujj3h
-         AGPg==
+         :user-agent:date:from:to:cc:subject;
+        bh=V41xwhODxsnHamjhphNGskSJta+SghipD5A07/5lSHQ=;
+        b=qOSBIFDcCPZH45q7xXP9UYAXYdwOTvnPfJKOzAgnWKZtDHzUYa7zOC6uIgvbkmXk7B
+         avT11fJKXAmGogozvr/T33LD2OKZbIgFCzU4Vs2fqaprj96BKa0Szr5GlCrpOtY7vnN0
+         4Y+78889aciL5v9stpRyAU55BrIuMzPVGDPMHgXNlayXXXrAQCQWuLXWqlYbVaA+XfGC
+         ADhoM5E2bWUbazQNyY2Rb7mM3zVhDhoCR1DjdqIZebPFDj/eZQmY9Y9IYt8/T/0ozTqX
+         KVoXOsQBFcYj6FQewr8U3E9lAB94MelbATJk26XhF1U9T4edors+PS901SOUGH644nc1
+         N/yw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAVDIf7I5Fnwa4vezY5rNGoLbGE5OJoWy5JWD/cxY4vub5yfA6Z3
-	P50o0JB/7RufR+R42dSNfSw0wLVb5eHvXoP1S407VAneMiOFu6aoD+7JHiyHEpV6gydqDRTS2d2
-	W7A4nSGYf8M2LPPx2jAIfJ9+EfJYC+tdDQm/u+OEwrHCsm4uW8+SdKdIFJvANXWn82A==
-X-Received: by 2002:a7b:c353:: with SMTP id l19mr2134155wmj.12.1555578370896;
+X-Gm-Message-State: APjAAAVVYaJWr2QCjOmEcpvI3No5oIQP1tKituy1m44RHFewl/MdRdDi
+	rYvpM2NMhMV7t59+vlfmfCDvQ09zy79wI41z+57SEyAReddRrVRMe6JveNFm/Pyg8VYKPkBKUUD
+	eiA1Jl+F6NgLHF12muA7goDMpMpGrWcSI7uHWTF09S4biRQzu2YgUgdZ+hD+Cq//rmQ==
+X-Received: by 2002:a1c:6c09:: with SMTP id h9mr2241501wmc.130.1555578370944;
         Thu, 18 Apr 2019 02:06:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzL7egUYu5e77MqJ1YlXin2jUbd2N560tiI9+gP/nylVUFAUN730DgAddPJM5xUTNA5e4gC
-X-Received: by 2002:a7b:c353:: with SMTP id l19mr2134075wmj.12.1555578369800;
+X-Google-Smtp-Source: APXvYqxpbjT7fM2f8MCOamqmSzMybGP5exlaEV0q7V82aEFA2eNV82UzEdUbjP9Be/ehInyaMADi
+X-Received: by 2002:a1c:6c09:: with SMTP id h9mr2241424wmc.130.1555578369801;
         Thu, 18 Apr 2019 02:06:09 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555578369; cv=none;
         d=google.com; s=arc-20160816;
-        b=m0EWcuQgfuRVVjSrPJD5iQb0Q89Okvvq+c3tkN4Ae5bywx/5wM+ogUisD6zFysuKHr
-         L3yq2z92p2EhDOxepbN3BVG8MMsh31fCLls0x5vn3dUSncRmE42aO1WXxdwVusdSmD2s
-         3qFtiCFjbQLYDs9JiGeSeugqQsGr0o4XIpZyOPv89nMbsb5mTrOdrSLwYS0Sm7sqp58H
-         U+Dxg010ZUpxE9MKAKxfUINXKklVindb9CJjIx2gMcqsR9AIdAaDGGfQ1MvVHK5t42qt
-         a0nXl5OqV7p5iCzOD2Q5pNFuV9UznIVoyfTdGyyemrqpN3G6YgubINJQVEkBkOZVgM0Q
-         rQ+Q==
+        b=mfaMAAnP8+0dVfMfCv/cIJ7TPg57ZtYyIlgIJl/SQ6indfmqbTKqXw0XOsB4TmwJ9+
+         VEmVtwMlVyGXOlOnscDsbD8kvpafPQGJNcguEMcfS0O1jFdfHnIJlvvcrc4Zu70mH1+o
+         I8bTA0Jo3K8Wz1vDGShtUDkxmXLRdHzDK9JetTI35tC0TPMB/F4GrkDRaCYmS0nU1MMn
+         XWEdhoPF2FXL1BjPfqxdOgHtyP7KlHAmIjs/i8Ppatj/tdYj8j5vGhLwgDDybRBPI7eL
+         f7ghG88hU6t6GDSfSaLKo0gB35FzjY4OHe20huibFcGjIAJI1ZUZuBtUTC/Vgmx+Z7lk
+         SGFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:subject:cc:to:from:date:user-agent
-         :message-id;
-        bh=PNBFVRoc9HP4CIX/Gjc0tnPba+utjyGgJUxB8b6IKHg=;
-        b=OLQcsIOETfCWuP8A9Co6sraaAA5NdNFeDNPWaVepfnFogVkGCrzbDNYaPx58sIdNLZ
-         bYm64vL6r+s76xYHqNkY5crmNNR6QIq9wgdcSxujvFvmb0/QD+Bf8FDA5CCsTsY7fv5o
-         DwkZcJsOPHQGAqGlXPxY5AwNm8RLQK4KnnZEJH/XuTwEgTnS+2lH+bDD4gIiXvg0vmet
-         7pEJBzus3ozUs17N/aG8YcsBY9FBhDbq90SvztE3kDIfTuxi8K0pkRd3sTDcmoUnsBDY
-         hDyiu/zX1UZFXLS29vo+XJzz0/W8x/O+G0ZXnII1uouWHq8XKx41N0c+roMF2IrqE3gj
-         ZgQQ==
+        h=subject:cc:to:from:date:user-agent:message-id;
+        bh=V41xwhODxsnHamjhphNGskSJta+SghipD5A07/5lSHQ=;
+        b=VxunHvhLRe1pt2l1WCQS5XQqWxh2XQnUwAZ8ERJsL2y/jK37Hsh76Nups3szTTcUHQ
+         LyxMrh+amQJv7TrfzCmRMbJtUfMBK/6S3MuZKQzbNt0iBKZIfd67n2HAGF43BkTTmh3M
+         lpXEBJihEfkg4tJWZcJvvOglEBosdwugP10PBejsIqX0D4ndkzZWwR0mEy81RABwtzC4
+         rPPR/kY3sc6C4UQcJNmrG/Z516r/w+VqZbFDri3avZ7/3ZUX9zs1Jny+/vk/2sB1BKRw
+         BFEtCLxHLihKX7200pDKUKu2/gIM96C1oJZsknZ3kxQ6qZe3OJ3xj1i/CNw9vcAltSGR
+         LIdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id z2si1253992wrp.169.2019.04.18.02.06.09
+        by mx.google.com with ESMTPS id y9si1239184wru.80.2019.04.18.02.06.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Thu, 18 Apr 2019 02:06:09 -0700 (PDT)
@@ -78,10 +77,10 @@ Authentication-Results: mx.google.com;
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hH2zZ-0001lv-2D; Thu, 18 Apr 2019 11:06:01 +0200
-Message-Id: <20190418084253.142712304@linutronix.de>
+	id 1hH2zW-0001ls-Ty; Thu, 18 Apr 2019 11:05:59 +0200
+Message-Id: <20190418084119.056416939@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 18 Apr 2019 10:41:20 +0200
+Date: Thu, 18 Apr 2019 10:41:19 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
@@ -108,161 +107,121 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
  Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>,
  Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
-Subject: [patch V2 01/29] tracing: Cleanup stack trace code
-References: <20190418084119.056416939@linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Subject: [patch V2 00/29] stacktrace: Consolidate stack trace usage
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-- Remove the extra array member of stack_dump_trace[]. It's not required as
-  the stack tracer stores at max array size - 1 entries so there is still
-  an empty slot.
+This is an update to V1:
 
-- Make variables which are only used in trace_stack.c static.
+ https://lkml.kernel.org/r/20190410102754.387743324@linutronix.de
 
-- Simplify the enable/disable logic.
+Struct stack_trace is a sinkhole for input and output parameters which is
+largely pointless for most usage sites. In fact if embedded into other data
+structures it creates indirections and extra storage overhead for no
+benefit.
 
-- Rename stack_trace_print() as it's using the stack_trace_ namespace. Free
-  the name up for stack trace related functions.
+Looking at all usage sites makes it clear that they just require an
+interface which is based on a storage array. That array is either on stack,
+global or embedded into some other data structure.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Steven Rostedt <rostedt@goodmis.org>
+Some of the stack depot usage sites are outright wrong, but fortunately the
+wrongness just causes more stack being used for nothing and does not have
+functional impact.
+
+Fix this up by:
+
+  1) Providing plain storage array based interfaces for stacktrace and
+     stackdepot.
+
+  2) Cleaning up the mess at the callsites including some related
+     cleanups.
+
+  3) Removing the struct stack_trace based interfaces
+
+  This is not yet changing the struct stack_trace interfaces at the
+  architecture level, but it removes the exposure to the usage sites.
+
+The last two patches are extending the cleanup to the architecture level by
+replacing the various save_stack_trace.* architecture interfaces with a
+more unified arch_stack_walk() interface. x86 is converted, but I have
+worked through all architectures already and it removes lots of duplicated
+code and allows consolidation across the board. The rest of the
+architecture patches are not included in this posting as I want to get
+feedback on the approach itself. The diffstat of cleaning up the remaining
+architectures is currently on top of the current lot is:
+
+   47 files changed, 402 insertions(+), 1196 deletions(-)
+
+Once this has settled, the core interfaces can be improved by adding
+features, which allow to get rid of the imprecise 'skip number of entries'
+approach which tries to remove the stack tracer and the callsites themself
+from the trace. That's error prone due to inlining and other issues. Having
+e.g. a _RET_IP_ based filter allows to do that far more reliable.
+
+The series is based on:
+
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/stacktrace
+
+which contains the removal of the inconsistent and pointless ULONG_MAX
+termination of stacktraces.
+
+It's also available from git:
+
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git WIP.core/stacktrace
+
+   up to:  131038eb3e2f ("x86/stacktrace: Use common infrastructure")
+
+Changes vs. V1:
+
+   - Applied the ULONG_MAX termination cleanup in tip
+
+   - Addressed the review comments
+
+   - Fixed up the last users of struct stack_trace outside the stacktrace
+     core and architecture code (livepatch, tracing)
+
+   - Added the new arch_stack_walk() model and converted x86 to it
+
+Thanks,
+
+	tglx
+
 ---
-V2: Add more cleanups and use print_max_stack() as requested by Steven.
----
- include/linux/ftrace.h     |   18 ++++--------------
- kernel/trace/trace_stack.c |   36 ++++++++++++------------------------
- 2 files changed, 16 insertions(+), 38 deletions(-)
+ arch/x86/Kconfig                              |    1 
+ arch/x86/kernel/stacktrace.c                  |  116 +--------
+ drivers/gpu/drm/drm_mm.c                      |   22 -
+ drivers/gpu/drm/i915/i915_vma.c               |   11 
+ drivers/gpu/drm/i915/intel_runtime_pm.c       |   21 -
+ drivers/md/dm-bufio.c                         |   15 -
+ drivers/md/persistent-data/dm-block-manager.c |   19 -
+ fs/btrfs/ref-verify.c                         |   15 -
+ fs/proc/base.c                                |   14 -
+ include/linux/ftrace.h                        |   18 -
+ include/linux/lockdep.h                       |    9 
+ include/linux/stackdepot.h                    |    8 
+ include/linux/stacktrace.h                    |   80 +++++-
+ kernel/backtracetest.c                        |   11 
+ kernel/dma/debug.c                            |   13 -
+ kernel/latencytop.c                           |   17 -
+ kernel/livepatch/transition.c                 |   22 -
+ kernel/locking/lockdep.c                      |   81 ++----
+ kernel/stacktrace.c                           |  323 ++++++++++++++++++++++++--
+ kernel/trace/trace.c                          |  105 +++-----
+ kernel/trace/trace.h                          |    8 
+ kernel/trace/trace_events_hist.c              |   12 
+ kernel/trace/trace_stack.c                    |   76 ++----
+ lib/Kconfig                                   |    4 
+ lib/fault-inject.c                            |   12 
+ lib/stackdepot.c                              |   50 ++--
+ mm/kasan/common.c                             |   30 --
+ mm/kasan/report.c                             |    7 
+ mm/kmemleak.c                                 |   24 -
+ mm/page_owner.c                               |   79 ++----
+ mm/slub.c                                     |   12 
+ 31 files changed, 664 insertions(+), 571 deletions(-)
 
---- a/include/linux/ftrace.h
-+++ b/include/linux/ftrace.h
-@@ -241,21 +241,11 @@ static inline void ftrace_free_mem(struc
- 
- #ifdef CONFIG_STACK_TRACER
- 
--#define STACK_TRACE_ENTRIES 500
--
--struct stack_trace;
--
--extern unsigned stack_trace_index[];
--extern struct stack_trace stack_trace_max;
--extern unsigned long stack_trace_max_size;
--extern arch_spinlock_t stack_trace_max_lock;
--
- extern int stack_tracer_enabled;
--void stack_trace_print(void);
--int
--stack_trace_sysctl(struct ctl_table *table, int write,
--		   void __user *buffer, size_t *lenp,
--		   loff_t *ppos);
-+
-+int stack_trace_sysctl(struct ctl_table *table, int write,
-+		       void __user *buffer, size_t *lenp,
-+		       loff_t *ppos);
- 
- /* DO NOT MODIFY THIS VARIABLE DIRECTLY! */
- DECLARE_PER_CPU(int, disable_stack_tracer);
---- a/kernel/trace/trace_stack.c
-+++ b/kernel/trace/trace_stack.c
-@@ -18,8 +18,10 @@
- 
- #include "trace.h"
- 
--static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES + 1];
--unsigned stack_trace_index[STACK_TRACE_ENTRIES];
-+#define STACK_TRACE_ENTRIES 500
-+
-+static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES];
-+static unsigned stack_trace_index[STACK_TRACE_ENTRIES];
- 
- /*
-  * Reserve one entry for the passed in ip. This will allow
-@@ -31,17 +33,16 @@ struct stack_trace stack_trace_max = {
- 	.entries		= &stack_dump_trace[0],
- };
- 
--unsigned long stack_trace_max_size;
--arch_spinlock_t stack_trace_max_lock =
-+static unsigned long stack_trace_max_size;
-+static arch_spinlock_t stack_trace_max_lock =
- 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
- 
- DEFINE_PER_CPU(int, disable_stack_tracer);
- static DEFINE_MUTEX(stack_sysctl_mutex);
- 
- int stack_tracer_enabled;
--static int last_stack_tracer_enabled;
- 
--void stack_trace_print(void)
-+static void print_max_stack(void)
- {
- 	long i;
- 	int size;
-@@ -61,16 +62,7 @@ void stack_trace_print(void)
- 	}
- }
- 
--/*
-- * When arch-specific code overrides this function, the following
-- * data should be filled up, assuming stack_trace_max_lock is held to
-- * prevent concurrent updates.
-- *     stack_trace_index[]
-- *     stack_trace_max
-- *     stack_trace_max_size
-- */
--void __weak
--check_stack(unsigned long ip, unsigned long *stack)
-+static void check_stack(unsigned long ip, unsigned long *stack)
- {
- 	unsigned long this_size, flags; unsigned long *p, *top, *start;
- 	static int tracer_frame;
-@@ -179,7 +171,7 @@ check_stack(unsigned long ip, unsigned l
- 	stack_trace_max.nr_entries = x;
- 
- 	if (task_stack_end_corrupted(current)) {
--		stack_trace_print();
-+		print_max_stack();
- 		BUG();
- 	}
- 
-@@ -412,23 +404,20 @@ stack_trace_sysctl(struct ctl_table *tab
- 		   void __user *buffer, size_t *lenp,
- 		   loff_t *ppos)
- {
--	int ret;
-+	int ret, was_enabled;
- 
- 	mutex_lock(&stack_sysctl_mutex);
-+	was_enabled = !!stack_tracer_enabled;
- 
- 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
- 
--	if (ret || !write ||
--	    (last_stack_tracer_enabled == !!stack_tracer_enabled))
-+	if (ret || !write || (was_enabled == !!stack_tracer_enabled))
- 		goto out;
- 
--	last_stack_tracer_enabled = !!stack_tracer_enabled;
--
- 	if (stack_tracer_enabled)
- 		register_ftrace_function(&trace_ops);
- 	else
- 		unregister_ftrace_function(&trace_ops);
--
-  out:
- 	mutex_unlock(&stack_sysctl_mutex);
- 	return ret;
-@@ -444,7 +433,6 @@ static __init int enable_stacktrace(char
- 		strncpy(stack_trace_filter_buf, str + len, COMMAND_LINE_SIZE);
- 
- 	stack_tracer_enabled = 1;
--	last_stack_tracer_enabled = 1;
- 	return 1;
- }
- __setup("stacktrace", enable_stacktrace);
 
 
