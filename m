@@ -2,154 +2,235 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E094EC10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A211FC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A88BA217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A88BA217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4ED24217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 21:07:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="h2W2PudR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ED24217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7807A6B0005; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
+	id 058D66B0007; Thu, 18 Apr 2019 17:07:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 708366B0006; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
+	id EF9376B0008; Thu, 18 Apr 2019 17:07:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F7996B0007; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
+	id D99BF6B000A; Thu, 18 Apr 2019 17:07:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2AB6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:07:14 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id c28so3183832qtd.2
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:07:14 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B58E6B0007
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 17:07:17 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 65so2142240plf.22
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 14:07:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=KP43xD+XX6SI0WFbf9e1APdiupecxwiSqel5wwcHzyM=;
-        b=BIG+0HzT0zOYz15rbQqQq4gZrQlC20GSrN5BilOLvP0j3Y6mpdklt0J+K7GTs4l1tF
-         jaUcjv1zhQxPYtnT0lpvZhEpj5tbL8kHRfrWjYgyLt6l8zNEwT/nZrjQwG0fpJIKLx2z
-         PYpoy664cMgd3BJsAd0+5M25tCvTcTMyZMBTeojz34iTsQfK5E5j59LpAiQFKJqDhUH4
-         Ya4rSk5yzNsARnwyzB7iIcAkd6bxVdTSWfjbS8foSMbvWMpnfqXzAZ/qeIMTo2F906ze
-         zs9BYTMJJYQcM8V2DwxwoxhE1qfdtg1YFLyhxig/JKbQ77jxoFubBBH/2KUxBXAWBFIB
-         ywUQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVSlE6ttugTZ7DDipiu8W4EJvW8aM0lbaWU1QSkWavwk+z0IeM+
-	HpoGKhguw+oXJCRYDA1t6IjJ1EbwSl99N8d47ZVkPXAdYzeEysePAY8NgKQX8pg2DWOTVxAm82d
-	2Vme4tglhRLhPcBZnqJMBorZ5vcSLFNtGjzBBb+KFypusCREon+VoHxkWILZL/HjPrw==
-X-Received: by 2002:a37:a543:: with SMTP id o64mr123246qke.235.1555621634012;
-        Thu, 18 Apr 2019 14:07:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztZH2AI8uRU6rEiunpbx+RT7SupzKduCZ9+u5K9voEqMmkrtT8HGpuAmtCXc8nPWCY43F1
-X-Received: by 2002:a37:a543:: with SMTP id o64mr123201qke.235.1555621633461;
-        Thu, 18 Apr 2019 14:07:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555621633; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=nL+sMwEmPCY4rNbOS/JGJ4nu8a5lRZWh4YcqIgrxm04=;
+        b=X89U+s/+l3qlG14CMunWCndpg3fGVU4AL3wrpjdrO7Xf+CSeY6rMXsX/TtUb5mGFUv
+         SlSVMn/QZsMgSEeQSlRD8PmYpi/QBAJamu07sEA02YFWZHKYywTxHMr78To+lwmRk9an
+         GQ4CKnBYOqOtC+Slj+nHgZcyzSE00UkHLJaGYtUPOudSpBB8ND4azSri9xo4j+lUvCya
+         Wa4YXI2T6t0vmpYOf9R1wmoMTn2qqeef3bFn9Aal26BL+7lRIuBzd0JX4jSj8FHih5V1
+         OpCgQ4WKZUMvQb4upEyd7RHylLvfcikcHbQES3kQKNfWiXxrwcGXlYLwV5Fo0OnMzikk
+         hHVw==
+X-Gm-Message-State: APjAAAVOxqqsAEzeYgUgolfhZJNllqoTo7QucsUFBdxZTwCD3m4w5bGG
+	Efu/RbmCwqQ3ehxYmV6eV8jCQK43f6+Wplp5PhBt8zWjKMZRY7ul6KsARaA35w+WQN5pEf1DPlZ
+	HekYd6HjuGM1EFCh4YbBIIA6glvehlEw5yO4rv1D+C/7OE2rUnMV++JfTXSNhwv1fow==
+X-Received: by 2002:a63:2c3:: with SMTP id 186mr52098pgc.161.1555621637179;
+        Thu, 18 Apr 2019 14:07:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyA0ayextJ4Kb56EkkLuE2OgInjv8KgicAcEKYVVQuBN117inreUhyo2Zl1i20U72QOupPN
+X-Received: by 2002:a63:2c3:: with SMTP id 186mr52038pgc.161.1555621636396;
+        Thu, 18 Apr 2019 14:07:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555621636; cv=none;
         d=google.com; s=arc-20160816;
-        b=xwuFFGogt+ASORegitZ6t7QOh/qyNqkVoclBduZWjyi9+Jztmn9hxHeOb8+qErsiVV
-         uajfFYqkahYoTgDwYM8GC4o99wy0hykjatPped7B97EMOnHMmjC1GncMV4T9qTh5OKBB
-         ZL96h8Y5kuwfNWENjU5pw9TOeFvOGqAYRRfAo7NOyGf92ENY+jIthbx9qTA9P6OCSGMf
-         2Kvn5LCoPCF345lpzxXX8K+G52VdQRqUWdS4/R87INtOUSnb6FuT38WnfXDhMI9OluPx
-         JrUmiJTOkKwwE+ukuiU3F0WDmfjrxmoDqG60bTmF8xqKmcgoK18CJIq6MM3rqEkHThLd
-         Qdvw==
+        b=z/bsqN6cac7qDHzV2pEZSBbd6yl72J+FFJvFEaRbbtwWe1sQYrtUFB/RceHfmACBOX
+         RM7Im2lKW5pqsZrW6rrKF1hW/g4gcTBfvsu1ytIWA4VrZ8r2TRHDNS5ihHOz21/GrvaG
+         U23u/XC3tuh3zYtGbgA+u3frDhu6AETMxvYrYGaErss0O20tTMx7fejLrPLipRC+CbB0
+         qRYg+izbECwTOptXMikuCZWJ7mQPWwYTYRJnHd8NqUxGAxjIdmEl1L6Z5xEZMREumv0E
+         pKlVwGqcfUGnaOd1HJ2CkUoS6iWFdenAuODi6DHH0wKx8xIAEvtbweHoA/SVzFXfUgCi
+         RPjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=KP43xD+XX6SI0WFbf9e1APdiupecxwiSqel5wwcHzyM=;
-        b=CufaGhO/gLnetBM0heRwulX0Jro6aOKBJcjC/XhwdK3SQgPr0aDt/DD2HUfqCC0XCu
-         3Mcp+SnGIVFmL3TYW5/zUxOELptBumS0FvCkWyxYcJIQoTgrmTyTTIiXTfD/w4i/9Kb5
-         +oTfjCOfEwQABQxIahuWK8v3oRN/IyuaYNQeizfgzqnS+uyv55pQmQtSUBgap1Psvvzl
-         JzLxuM+7xYuBCBcx//n/I7QUXoY3LbQLXatvte99thCtEf1xybGCiSQAomx8PmKRCMAw
-         3AJWZj70eyBWH/vc+mTfst9Yd2Vs5otX8ARFUkR5jlHftPMIMy81pGC5TL64wnfcV+Ok
-         5Jaw==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=nL+sMwEmPCY4rNbOS/JGJ4nu8a5lRZWh4YcqIgrxm04=;
+        b=UQT/fnwhpKaAxJfFBUstA4lMk1oS7SAwMuGiB4OTuV7/p7s0Q+h78Cep6lLx/STabi
+         MijjfdF+S2cFLNSHnlUv2B5KvakG38Or/A1psgcBb+u2iuGEzKmrpOM7Lh6oT6khljeo
+         jlhNi+SXLchRymVDwo12Bq8Po56Ury/kz/o6nxWQgLpsfSV+qV3db/rYdbZ84KeEUA/8
+         MLL4kVqufrSwtsek4qckSDB5cYrYP6TRRviB9Tbd5L4+uas6ZHslQGmwhfp9Wk8xgqSY
+         i4rR6kgTjLc0dPhec89xr3x/sODhEFvQUYTaOk05I/O6JIVQju2PYbmurgzyAPnXghL7
+         uZVw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d12si1945730qkb.126.2019.04.18.14.07.13
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=h2W2PudR;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 73si3347079pfs.186.2019.04.18.14.07.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 14:07:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 18 Apr 2019 14:07:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 76AD2307CB3B;
-	Thu, 18 Apr 2019 21:07:12 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A564E60BE5;
-	Thu, 18 Apr 2019 21:07:04 +0000 (UTC)
-Date: Thu, 18 Apr 2019 17:07:02 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 00/28] userfaultfd: write protection support
-Message-ID: <20190418210702.GN3288@redhat.com>
-References: <20190320020642.4000-1-peterx@redhat.com>
- <20190409060839.GE3389@xz-x1>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=h2W2PudR;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cb8e7090000>; Thu, 18 Apr 2019 14:07:21 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 18 Apr 2019 14:07:15 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 18 Apr 2019 14:07:15 -0700
+Received: from [10.2.163.72] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 18 Apr
+ 2019 21:07:13 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, Keith Busch <keith.busch@intel.com>
+CC: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>,
+	<mgorman@techsingularity.net>, <riel@surriel.com>, <hannes@cmpxchg.org>,
+	<akpm@linux-foundation.org>, <dan.j.williams@intel.com>,
+	<fengguang.wu@intel.com>, <fan.du@intel.com>, <ying.huang@intel.com>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
+Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
+Date: Thu, 18 Apr 2019 17:07:11 -0400
+X-Mailer: MailMate (1.12.4r5622)
+Message-ID: <1603DE17-0090-47C5-8438-4623D1B684AA@nvidia.com>
+In-Reply-To: <8259dfd6-9044-b9f8-29b1-f427b4435eda@linux.alibaba.com>
+References: <1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190412084702.GD13373@dhcp22.suse.cz>
+ <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
+ <20190416074714.GD11561@dhcp22.suse.cz>
+ <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
+ <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
+ <20190417092318.GG655@dhcp22.suse.cz>
+ <5c2d37e1-c7f6-5b7b-4f8e-a34e981b841e@intel.com>
+ <20190418181643.GB7659@localhost.localdomain>
+ <8259dfd6-9044-b9f8-29b1-f427b4435eda@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190409060839.GE3389@xz-x1>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 18 Apr 2019 21:07:12 +0000 (UTC)
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_5E3781CD-B9F6-408F-BA40-B35DEC4A82B8_=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1555621641; bh=nL+sMwEmPCY4rNbOS/JGJ4nu8a5lRZWh4YcqIgrxm04=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=h2W2PudRBNpYFmzSz+/ehPkOYUqJSQcofXo71X+1tFWypwa69zMPXFcLUvJWeDeQ0
+	 LtgeY99mETRwplq8gDd1AaCwMfs/f1d3HAQA5chJpOwEVjDHx+N/teXRXUIXNws3RT
+	 0oulDZVUhhNyR6UmrNjj8hdXUWlJDnUb1M2/XqlMA5i3h4Yx80AGXSawdwWWR9R5FX
+	 GV34jOBmU28ALQC8jSRg5U9TUJsZ5vZdY03/bXiWhYaBxLt9rb6XdlaqpVNFCVZZIx
+	 9Vc6Xhw5hIoTQXcmFT+EfUDWmxD9oaRMz4quXgzs5BZ0agBiuaTLQUzts9PpvOe6k0
+	 VWVlD+P+Qavng==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 09, 2019 at 02:08:39PM +0800, Peter Xu wrote:
-> On Wed, Mar 20, 2019 at 10:06:14AM +0800, Peter Xu wrote:
-> > This series implements initial write protection support for
-> > userfaultfd.  Currently both shmem and hugetlbfs are not supported
-> > yet, but only anonymous memory.  This is the 3nd version of it.
-> > 
-> > The latest code can also be found at:
-> > 
-> >   https://github.com/xzpeter/linux/tree/uffd-wp-merged
-> > 
-> > Note again that the first 5 patches in the series can be seen as
-> > isolated work on page fault mechanism.  I would hope that they can be
-> > considered to be reviewed/picked even earlier than the rest of the
-> > series since it's even useful for existing userfaultfd MISSING case
-> > [8].
-> 
-> Ping - any further comments for v3?  Is there any chance to have this
-> series (or the first 5 patches) for 5.2?
+--=_MailMate_5E3781CD-B9F6-408F-BA40-B35DEC4A82B8_=
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Few issues left, sorry for taking so long to get to review, sometimes
-it goes to the bottom of my stack.
+On 18 Apr 2019, at 15:23, Yang Shi wrote:
 
-I am guessing this should be merge through Andrew ? Unless Andrea have
-a tree for userfaultfd (i am not following all that closely).
+> On 4/18/19 11:16 AM, Keith Busch wrote:
+>> On Wed, Apr 17, 2019 at 10:13:44AM -0700, Dave Hansen wrote:
+>>> On 4/17/19 2:23 AM, Michal Hocko wrote:
+>>>> yes. This could be achieved by GFP_NOWAIT opportunistic allocation f=
+or
+>>>> the migration target. That should prevent from loops or artificial n=
+odes
+>>>> exhausting quite naturaly AFAICS. Maybe we will need some tricks to
+>>>> raise the watermark but I am not convinced something like that is re=
+ally
+>>>> necessary.
+>>> I don't think GFP_NOWAIT alone is good enough.
+>>>
+>>> Let's say we have a system full of clean page cache and only two node=
+s:
+>>> 0 and 1.  GFP_NOWAIT will eventually kick off kswapd on both nodes.
+>>> Each kswapd will be migrating pages to the *other* node since each is=
+ in
+>>> the other's fallback path.
+>>>
+>>> I think what you're saying is that, eventually, the kswapds will see
+>>> allocation failures and stop migrating, providing hysteresis.  This i=
+s
+>>> probably true.
+>>>
+>>> But, I'm more concerned about that window where the kswapds are throw=
+ing
+>>> pages at each other because they're effectively just wasting resource=
+s
+>>> in this window.  I guess we should figure our how large this window i=
+s
+>>> and how fast (or if) the dampening occurs in practice.
+>> I'm still refining tests to help answer this and have some preliminary=
 
-From my point of view it almost all look good. I sent review before
-this email. Maybe we need some review from x86 folks on the x86 arch
-changes for the feature ?
+>> data. My test rig has CPU + memory Node 0, memory-only Node 1, and a
+>> fast swap device. The test has an application strict mbind more than
+>> the total memory to node 0, and forever writes random cachelines from
+>> per-cpu threads.
+>
+> Thanks for the test. A follow-up question, how about the size for each =
+node? Is node 1 bigger than node 0? Since PMEM typically has larger capac=
+ity, so I'm wondering whether the capacity may make things different or n=
+ot.
+>
+>> I'm testing two memory pressure policies:
+>>
+>>    Node 0 can migrate to Node 1, no cycles
+>>    Node 0 and Node 1 migrate with each other (0 -> 1 -> 0 cycles)
+>>
+>> After the initial ramp up time, the second policy is ~7-10% slower tha=
+n
+>> no cycles. There doesn't appear to be a temporary window dealing with
+>> bouncing pages: it's just a slower overall steady state. Looks like wh=
+en
+>> migration fails and falls back to swap, the newly freed pages occasion=
+aly
+>> get sniped by the other node, keeping the pressure up.
 
-Cheers,
-Jérôme
+
+In addition to these two policies, I am curious about how MPOL_PREFERRED =
+to Node 0
+performs. I just wonder how bad static page allocation does.
+
+--
+Best Regards,
+Yan Zi
+
+--=_MailMate_5E3781CD-B9F6-408F-BA40-B35DEC4A82B8_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAly45v8PHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqKnnIQAKE47hPakks41SBv19FR7y5bTpSP1Z2QUQmd
+OvoFo8YxcVq0Dl7DA2QWP8DSGgc2qd2kWwtSnkFfIU0XLEONPZTGjzJ06vYdtjeT
+61xPup7HSMy4Lm21TINBKxUuE4ATRt4QYydB0mVRGdMObmfJfrrxW0UJXcbo/QFM
+KVS9tnf1qXVlrq0/BVi1u9b9s6Fvr386C1ClWXd5YXGtPgC2MzcYEuZkUhArwK9S
+bpjYP62hFButU6a9Vdsnm9s0R2S1D44iFChvtqGoDOzdU6cz06HB2gq9GjZJK8vZ
+RcDO0/nlGcrIxtxzUO0IJ581gFtOcqFu9kD5BgGzO4tS1BdmChs5QS7vGUR1YrGA
+X4zKSFe9xy4abqY6sirLPqDw45GrSFLiWlEbJvJvpM59Zm/fWnkBXlFNwgH2mUHi
+UnrGeKG11TtMvVSt6mfbadDvx2cMrlNkA/pcRHPwJh1QFKxHwcMbkkfE2HDLt8//
+5PLjzK0PmAih/ByCGhqSn0XFNBlS1QKGNo+Eo0tfOPgt3Y5FrxNgdkkoLEqQnvme
+mKmK+bUUyY/pYOgVfYgGKhJVkiyrTX3C7XooJRfYinqUPppRRQ+JffyCF96Lv8Ij
+qcgCvH7WBgtHQH923gLunxNzeGYubIMHNVDRPBWHV0Wfy7F3QBLw/dSdlGoEJ4ud
+JAHRzB4r
+=a4wc
+-----END PGP SIGNATURE-----
+
+--=_MailMate_5E3781CD-B9F6-408F-BA40-B35DEC4A82B8_=--
 
