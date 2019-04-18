@@ -2,153 +2,161 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BCA0C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:45:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A186CC10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:48:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0AAA42183E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:45:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AAA42183E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E9972183E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 12:48:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Lyq/6LL/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E9972183E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6382F6B0008; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
+	id 0B6556B0008; Thu, 18 Apr 2019 08:48:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E6E26B000A; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
+	id 065DB6B000A; Thu, 18 Apr 2019 08:48:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D7D26B000C; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
+	id EBE746B000C; Thu, 18 Apr 2019 08:48:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 29DF96B0008
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:45:28 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id n1so1878534qte.12
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:45:28 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B99696B0008
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 08:48:47 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e20so1339315pfn.8
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 05:48:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=V6+AwqFlWgmo/f1d5Sr1wG1FplZRlRHmIy7RCmGRmNA=;
-        b=iH8wJ9dbWje1aQWep1zlDY+aZi2a+cwrsvOQGnwdQfNW+7SHtuyTRddhRfkMEfYl2G
-         LTfwr86jzCyBqEpqy+NsmXKCHZhVTmLC73AUNDwgUHC3YweeuLpGh3OOz1kUxXssNrVC
-         NwSCq1xuJJ/ZW8k/eBZAg3TkO9qhRPwiGKVDgrE13XLrHzA8a2Wuon1zMd79l2vjcHjS
-         THvxpJ8hVcmZNJV7EF6aYjlqKNMFMaYc9wGRGESNeVC/iVylCxkxgPcCUJiJRfxVoxkB
-         1pZhLb1eyhEA0HkTyWVTaoHUBPzPkNib3c0EKU7W4XL0S+ARJ3DwKD8xq9kSloKmZPBO
-         9SWw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUfE0s5gKpL/BYOtiqBsb+gpl9g0rYPlKPiWq8r0F7iHEbn9fb1
-	Tp5PO4LY2sS8p+bsnQRJlpWBmnjpSlUsRuejprwejuikyoAcFCRH5N7Tz820BbxmoiIYGoNPyXk
-	PXONDuCASDikRzmDi8jzWN/tJOdgIDsSCml2oa2xyh9poxpw8BIl+thoiwTmrYGv8ww==
-X-Received: by 2002:a37:7c87:: with SMTP id x129mr8174161qkc.311.1555591527838;
-        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7K6Gco0E4zKGW+yYKZ34b7XbKRYvnc1grFSL0JUUy7jG2y5Z6t/pqt/6+IGzm+rp1JIJJ
-X-Received: by 2002:a37:7c87:: with SMTP id x129mr8174120qkc.311.1555591527070;
-        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555591527; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=Us+svWaeNHdKG5ZAI4/Uc7cIe1kfHBuE1Cz//sXnbCg=;
+        b=YlbkNscmIWFsNcxfoW9EwtNavsQ/Z8VJ5ykk1Jf4CNt1XDURwFb3OMKFCQCpbJxWAL
+         47T9xR/UHd3LkhsQ14NDZgqZJeaMAKth6A6DmCU7tiw/6p1RzbKJmWLgOQM/VbWIciSL
+         MrN0cvdm9ZUZc3DtyJx2FrH8wZwCzp+6ms5iO+o1KywXCvZ7OxOnOfvAauuT+nX+EaAV
+         KVWvNpvC+lCozYftteN8VQtGVG+zrvU8McmSlJfE2bdsecTNPOyoQK0l/Kngx8F2R6KM
+         Yr8wY8BrNPkP4ahBQs62MfqrNuPiWjPw2YEWPypkDjWUF3yr6x/XTzHmmK6bLoOueRqo
+         zh2A==
+X-Gm-Message-State: APjAAAWfzfO0VztKasb3ujGLF0HV0gRbq1XjQnbUJmH1XWTyvgv4pIPK
+	7UHW/K8mg44eL3FlS2+/FSrqWnuACkXCLIPB9EOI2qqPU8hDqXUj+1zXN/V3iesyuL/AF9MgvfH
+	hlpid1wr7aGo02KTacXjjvZjPWxta7IJ5CuX2K7toORf8Y/aV2qKLjYcstQQv/C5o6g==
+X-Received: by 2002:a63:d709:: with SMTP id d9mr85048700pgg.38.1555591727308;
+        Thu, 18 Apr 2019 05:48:47 -0700 (PDT)
+X-Received: by 2002:a63:d709:: with SMTP id d9mr85048585pgg.38.1555591725492;
+        Thu, 18 Apr 2019 05:48:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555591725; cv=none;
         d=google.com; s=arc-20160816;
-        b=lINbMtjMds0f4jh/SPrTkylBYNA6PTA9KIzMVAxqxNd7BuhAiH5cZPcYkS6dDTrPwj
-         dADtWe8yaNL2W+IAsrUsBsbVP8Tjudya4hN8wg7jHGl5Pdk6i1atTX0LhlELOOuRsHAZ
-         YhjZwuKZiSsVWPbrmEvRhwdrCjKPA3jjVsxGvcNtm16yj7txXZuAHXE5kjRY2k5STnLQ
-         +9g5XiJaSaCkbvcYKWWqv58wryLAIHUxyulec2ewDNaaO+lhvL2XnDLBirR+8KDEbS8n
-         s85q0CLf8W301jngavkmOBE8c/1PxRl5MKQ24TpPPhtvzMTE6nvNUWT4zqKT1+ErXdJo
-         SFfw==
+        b=VxCkiRjR8lO+LjovCsLrU3YgsntR31f1zNlzm+LfXJejgshScAfEfmuR87+rGQgYe/
+         /MEsMhxt1qhwpcZtKK5ClhFlVi4ZEyTmqHHJf0jFHQ2Z1+JeROV457dyAOzNnezHnNA9
+         TGl+PLt3vnAWlOidMo8VaKpqEqbZ3hvKC4kuEU0e7dZdt5jt8mbQ5JfH34oZi9wIvbOK
+         RpQW3NtK/NszQsc0fhoy7jC/s7oRkcy8Itvk+/8ys8GtZ1HIGIFV1lrIOdw8dMPy/6bb
+         INvsW7j7U5D87v9la2xtNxiZOc38rHNKzapZI8dxyLxmW3V/0bf0OMlLD5OmH4ig0VzI
+         91tA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=V6+AwqFlWgmo/f1d5Sr1wG1FplZRlRHmIy7RCmGRmNA=;
-        b=imklo8SfPTBVlKO9TA58VA0vHWb7NS5kuczIe6UFlP/+eEASmetN4MmKFeqncjyZYL
-         BJ1tIeW0vZFte+3mV5RIl2GAje8qhnDWJH3+ehUUrYZDPgPJ8k2CSH329zg7GrnbNfcs
-         bA3cXfGSPMFM+ozaWHwQrO3YVAgvv5jVv3v3sdRMpo5Jpmbrh2wkBL5AxKKoR78fNgJu
-         GoWEqRCpklel+MjM0EWL4qpqMC+6XCTceeXePM+9GO37yA+Bd+qTtVtm0jmp7a5cFNfj
-         dZkVM9le3Ew5f2nciCmYjGXCIoG/RqfofeK0KwCGoITs0PQs45YEcEaSK0tOjyPb97Ij
-         C/yQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=Us+svWaeNHdKG5ZAI4/Uc7cIe1kfHBuE1Cz//sXnbCg=;
+        b=f6MZjlMDvgwLalm2z91mvRXR+jD/MxK/OKNXfvZltNZzgY0kitO4eWWjLrcIGC2OX8
+         JZjb1uqqS+mQDQszBWI+cQeoqSKFsV4PmnF7a5eBCp8qKLStXvokiUPOJsY23wgVg2Uj
+         T/TYpNEW2GkSq8bh9WKpWY/DNNBiihKm6ruKl/5HjWR0hrAfTfw7EeEcWpxH0hgVwwbY
+         E0BMcw6Bxn+etyoSBVHlOoj4kaM3eRbVoBqd6WmVJT2DDnPOCb6LyK4rJpbRGf6kz0Ip
+         7qOmgTV/VV3sDb7RM/EkjR/WPvKqvLoZwHKWJ0mZsa9SkHxNiA58gvSRZJbegbbKOLv9
+         +mJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e33si1516500qvh.73.2019.04.18.05.45.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Lyq/6LL/";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z64sor2147883pfz.2.2019.04.18.05.48.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 05:45:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 18 Apr 2019 05:48:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 83FA681129;
-	Thu, 18 Apr 2019 12:45:25 +0000 (UTC)
-Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6CC6519C65;
-	Thu, 18 Apr 2019 12:45:11 +0000 (UTC)
-From: Jeff Moyer <jmoyer@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  David Hildenbrand
- <david@redhat.com>,  =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-  Logan Gunthorpe <logang@deltatee.com>,  Toshi Kani <toshi.kani@hpe.com>,
-  Michal Hocko <mhocko@suse.com>,  Vlastimil Babka <vbabka@suse.cz>,
-  stable <stable@vger.kernel.org>,  Linux MM <linux-mm@kvack.org>,
-  linux-nvdimm <linux-nvdimm@lists.01.org>,  Linux Kernel Mailing List
- <linux-kernel@vger.kernel.org>,  osalvador@suse.de
-Subject: Re: [PATCH v6 00/12] mm: Sub-section memory hotplug support
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20190417150331.90219ca42a1c0db8632d0fd5@linux-foundation.org>
-	<CAPcyv4hB47NJrVi1sm+7msL+6dJNhBD10BJbtLPZRcK2JK6+pg@mail.gmail.com>
-	<CAPcyv4iW=xhhUQbg0bt=xCgVaR_jUvATeLxSoCfvzG5gTEAX6A@mail.gmail.com>
-X-PGP-KeyID: 1F78E1B4
-X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
-Date: Thu, 18 Apr 2019 08:45:10 -0400
-In-Reply-To: <CAPcyv4iW=xhhUQbg0bt=xCgVaR_jUvATeLxSoCfvzG5gTEAX6A@mail.gmail.com>
-	(Dan Williams's message of "Wed, 17 Apr 2019 19:09:12 -0700")
-Message-ID: <x49lg07eb3d.fsf@segfault.boston.devel.redhat.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
-MIME-Version: 1.0
-Content-Type: text/plain
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 18 Apr 2019 12:45:26 +0000 (UTC)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Lyq/6LL/";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=Us+svWaeNHdKG5ZAI4/Uc7cIe1kfHBuE1Cz//sXnbCg=;
+        b=Lyq/6LL/vm9/9CntnBe3jua+7oE3/LUJep8Bx/8sZpNC2pD54b80smXs13QdfMnU+Z
+         6W/5IqvwTpg8qqIosDyVuqtpm6W5OdYolIn19T0vRy2UfnCkzkPXe0ZMMPrMQQFs98O0
+         dAvSzJS2UoYH8dC+uA4BJWLqBKE/pfbeESxlV49veF6uLBTDJYyk6dHdxiNTC/aQg1y5
+         HbEil4I9OvsYqco+aRRzcvPFvwdXXX4XlukRcLC28Cqa4yRYinfZrYUULKItOExi4m1X
+         SvWKCCXy9LzCwscNE8zEfiAt3NsdiazHf+2xRSAvedFouvYAzWElY8mC+9h56UfP89Qz
+         GIFQ==
+X-Google-Smtp-Source: APXvYqxSfPUDUJej9maChFxjvAQYyJ117+2VbYYM/a6x4Gh0h2McSHy+5zLEI59Yj3sE0U+qZTHekQ==
+X-Received: by 2002:a62:7591:: with SMTP id q139mr82209903pfc.14.1555591725235;
+        Thu, 18 Apr 2019 05:48:45 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id v12sm2908790pfe.148.2019.04.18.05.48.42
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Apr 2019 05:48:44 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: mhocko@suse.com,
+	vbabka@suse.cz,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/page_alloc: remove unnecessary parameter in rmqueue_pcplist
+Date: Thu, 18 Apr 2019 20:48:29 +0800
+Message-Id: <1555591709-11744-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+Because rmqueue_pcplist() is only called when order is 0,
+we don't need to use order as a parameter.
 
->> On Wed, Apr 17, 2019 at 3:59 PM Dan Williams <dan.j.williams@intel.com> wrote:
->>
->> On Wed, Apr 17, 2019 at 3:04 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->> >
->> > On Wed, 17 Apr 2019 11:38:55 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
->> >
->> > > The memory hotplug section is an arbitrary / convenient unit for memory
->> > > hotplug. 'Section-size' units have bled into the user interface
->> > > ('memblock' sysfs) and can not be changed without breaking existing
->> > > userspace. The section-size constraint, while mostly benign for typical
->> > > memory hotplug, has and continues to wreak havoc with 'device-memory'
->> > > use cases, persistent memory (pmem) in particular. Recall that pmem uses
->> > > devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
->> > > 'struct page' memmap for pmem. However, it does not use the 'bottom
->> > > half' of memory hotplug, i.e. never marks pmem pages online and never
->> > > exposes the userspace memblock interface for pmem. This leaves an
->> > > opening to redress the section-size constraint.
->> >
->> > v6 and we're not showing any review activity.  Who would be suitable
->> > people to help out here?
->>
->> There was quite a bit of review of the cover letter from Michal and
->> David, but you're right the details not so much as of yet. I'd like to
->> call out other people where I can reciprocate with some review of my
->> own. Oscar's altmap work looks like a good candidate for that.
->
-> I'm also hoping Jeff can give a tested-by for the customer scenarios
-> that fall over with the current implementation.
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ mm/page_alloc.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
 
-Sure.  I'll also have a look over the patches.
-
--Jeff
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f752025..25518bf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3096,9 +3096,8 @@ static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
+ 
+ /* Lock and remove page from the per-cpu list */
+ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+-			struct zone *zone, unsigned int order,
+-			gfp_t gfp_flags, int migratetype,
+-			unsigned int alloc_flags)
++			struct zone *zone, gfp_t gfp_flags,
++			int migratetype, unsigned int alloc_flags)
+ {
+ 	struct per_cpu_pages *pcp;
+ 	struct list_head *list;
+@@ -3110,7 +3109,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+ 	list = &pcp->lists[migratetype];
+ 	page = __rmqueue_pcplist(zone,  migratetype, alloc_flags, pcp, list);
+ 	if (page) {
+-		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
++		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1);
+ 		zone_statistics(preferred_zone, zone);
+ 	}
+ 	local_irq_restore(flags);
+@@ -3130,8 +3129,8 @@ struct page *rmqueue(struct zone *preferred_zone,
+ 	struct page *page;
+ 
+ 	if (likely(order == 0)) {
+-		page = rmqueue_pcplist(preferred_zone, zone, order,
+-				gfp_flags, migratetype, alloc_flags);
++		page = rmqueue_pcplist(preferred_zone, zone, gfp_flags,
++					migratetype, alloc_flags);
+ 		goto out;
+ 	}
+ 
+-- 
+1.8.3.1
 
