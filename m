@@ -2,130 +2,124 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A38EC10F0B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:42:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB273C10F0B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:49:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2154A2183F
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:42:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AAF3121479
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:49:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="R/AYdV4I"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2154A2183F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="JlYc5LnY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAF3121479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B47A16B0005; Thu, 18 Apr 2019 01:41:59 -0400 (EDT)
+	id 302E46B0005; Thu, 18 Apr 2019 01:49:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ACFBB6B0006; Thu, 18 Apr 2019 01:41:59 -0400 (EDT)
+	id 2B5336B0006; Thu, 18 Apr 2019 01:49:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 997C06B0007; Thu, 18 Apr 2019 01:41:59 -0400 (EDT)
+	id 1C8C66B0007; Thu, 18 Apr 2019 01:49:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E4006B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:41:59 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id g12so429982vkf.20
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:41:59 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EABD36B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:49:36 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id z5so201725vsq.6
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:49:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=zQ9PhXUre7lv39dhKUe3RnNugaLVkc5Fpp+aduMWHKc=;
-        b=e1DCfJGSLVSc9DWsW2d1i9bhYC8V8OX1dvracLVViAWJCcKjJamUJz/UKKOGmkakTW
-         lAtaI61WG0ey5sYLvgbjbNuIkbJa24zR88LAWnPju0l9XsliQEPET4eAaJQWvUDhvrI6
-         Y/kAZiwvL3yRqkSMjKVHZX7SJsX2qwKCH9VyYy2a5UdBcJAZ/9Pxj2ESX9cbyG1E1q79
-         y4zTY3KNZCUXICPqU2uMzWgygFKrpeotWi0UH/Hv/fEpo9V8mxM4zaxvGt5txD/kiE3G
-         K7fuonaxnGc3iQdIBnM1tO9FurohvFAO+boO3KRGbYOlVqbWsra18P30cIGhqaMacbHK
-         w/sg==
-X-Gm-Message-State: APjAAAXu72UtLnWVR4QwfDftW781MREjsFjS4DnYV/l1kyTUKNq3LW9a
-	997jxGlQZvs+Wz2cdHHkVNw9n7YXW0RYyi7Ivf9jHQylcnDi3j2u2ukTfWV0r1qpfilntwMFh14
-	OPNH6sQhgLY8F3rOevxPjcQqCWz2D0QC9lOyPQ1fR4V0Mmd7nUMSe1tZK1Q6y/D5rQg==
-X-Received: by 2002:ab0:274a:: with SMTP id c10mr24804714uap.107.1555566119212;
-        Wed, 17 Apr 2019 22:41:59 -0700 (PDT)
-X-Received: by 2002:ab0:274a:: with SMTP id c10mr24804696uap.107.1555566118440;
-        Wed, 17 Apr 2019 22:41:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555566118; cv=none;
+        bh=QVoqbwyN443Uxffv4ADeYKBc3zmgcqP5SCaKkpPU0Ag=;
+        b=RT2JRwwVqBSlnuUAAVs75Kt6kKyrcKBUUPBwyu26F7BKIlJCcpudB1eATXo6cbkfBZ
+         mPRLAFsgPsvvpXado0QUKrNXVq+YJqYa2eEpMQ+XMB+52NyQa1RlYtn2hRpaKe7SC5lb
+         3fidUcnhQuYXwxjG5D3NucSWlmSu5SxkbCUvyC4LlaW3TYN+Uj3Zt9TC6gqZWKL608BD
+         JaXbhVd3G8R9mGFCGYsCB/NyARtXimBwK1lHy45iZBdHwYuSQ7d8l7mIIlN7/fXtrGEB
+         Ze5tTAFIlcbMJE5MyqvZ2TXopEUBkFe9qGsbWdUiewKzMXJ9BLGbFubvmvrNixuJ4NAO
+         zaHA==
+X-Gm-Message-State: APjAAAV+3gwsKfCPvTnnzPgyocGr5GW5V4q7B2iRAK/ab8Gb8e+c+URO
+	wEM6TzHLWXJlOtPT8T0TlDoO6PA9Wnjj6XSAdgJh3+U7tDk+fQq6G1ChAaJrR7jkc6sv0vrxgUa
+	L9DigFVj1eUombkt5ACQKEDpaRoND8aJkduenbZ/m6hIVv3IRmG+nWawunG7a30ZZjg==
+X-Received: by 2002:a67:fb45:: with SMTP id e5mr50191037vsr.72.1555566576689;
+        Wed, 17 Apr 2019 22:49:36 -0700 (PDT)
+X-Received: by 2002:a67:fb45:: with SMTP id e5mr50191014vsr.72.1555566576025;
+        Wed, 17 Apr 2019 22:49:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555566576; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kl058gLnsi2Azv53dPDrVnMplzCz3IbQM3gjAUrWkve4U6zpmeq+nrwTvrlke3kgG4
-         rzMOka0Q2J18PNXN0fAb0c6BkQSPIi4vydM4qZi2HMI2hIPCvncu47H8Tqw1OL2eWoFE
-         006PfVO4MYnKVugSX21HCLCY4LGSObxp6V8IkGE/q2BxZjwkdGK5wkG+ZzwL5FqHee3b
-         3RER54AgBHPdg7VmMpK+WRJbh69pjA/aaO0QYOwiyEPfJSR5gnp8oKjpMBI4JCHMXUBg
-         yLX6Aj4PiSAEq+8vfqYKa8mbPu5QWVZjf4C4YkvZoewNbozqI48wz8T7zZcLSwI5omox
-         ZVxQ==
+        b=L4TdJ+6y/EPRNW35SMfhV4NXeNtMYW6BiCStp5QOoSkjRkv+vqaapEXRt/HbeWHEQo
+         bDao0/M2PPRMoG+Ct8J/ySTwkoCX6GgJX/w1JYrV6LpA5ohU+/r2UQFzIFrV6nzTf+oJ
+         bEkaN9STFElAbFcPye9We7z/t43vvHpy1/OhiWKd62AQJkQHH3Ni1g/bix2mEApAuZdt
+         fVFEHvkxhq5PAP1AEabbw6328/132wSkvBYbYdJA1XTfb0D8pego4G/ZtwGY4prgwAGp
+         gAJbklMMyagz5QdLAApL6sEq7eKNhxQHQjFt/CDz7C1Z9yiWFfK/CqwystlAqUB8e9YW
+         CWCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=zQ9PhXUre7lv39dhKUe3RnNugaLVkc5Fpp+aduMWHKc=;
-        b=R0QRpIiFedI+QUN4c14Sc8WUCOOM5+Nw+b1iSxjxWJP5DN8SI326xnKsLHlZZIBb+U
-         f0d7R+wr6MaivYMZ0hakUVV3+3vFu5X1+wk+WKmzm8GoMk7Gx0Ycrq9HBu7M0/tOqZHe
-         QqlLbKsKq/H/w7KaaReOSpvJEAW1i6KP0qMSwJKWONVM5skR5ecCv0I9ohcnAyrSdV1R
-         +YIM2XtDu68Ih5VC/nQFsL9Kk666HzNOENLUuS/oW7KCUX3Q7wNFQCIkE6lLRS5ZlaqH
-         txxw/t12k4nsBznQ2My5qED8X7UKDTHgqZ2x3aQref/+/Xr/oUEKfBM8qn4Kq7dtnvm9
-         W2Ow==
+        bh=QVoqbwyN443Uxffv4ADeYKBc3zmgcqP5SCaKkpPU0Ag=;
+        b=pSRPeNYVjZGd7sNxq4Nv8374wyZj/zo+DOaCGAYRiJHloo3RUnJZ/vIqYjjA3NZ8T1
+         PKN9hPsIuptFDSl6XimlDi+/OIyAvUQXDIvyOziA0DmPQd1js5fNtfSlOxxVusguh3pZ
+         I2d8xs0jl/mgkE2To4qci/Ij6VXjiiKsc5d7jgV7rQLY3NH8jq16o5uHQudJTOdNOu0j
+         UOUV+oX2DlPTeNDinHukoGeoB/D1Mq/HuwLXR1n113EoyM7VdgUk0jrXH+Yg3sbC4spT
+         I2OJI5fIpymkNG2aJsnu3GjybDvqbx93VXUmAvHh5czEuAiolRuJWfl1UyrZmN8Q8oPD
+         kmOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="R/AYdV4I";
-       spf=pass (google.com: domain of keescook@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=JlYc5LnY;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s85sor314503vkb.4.2019.04.17.22.41.58
+        by mx.google.com with SMTPS id m14sor380407vsk.106.2019.04.17.22.49.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 17 Apr 2019 22:41:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 17 Apr 2019 22:49:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="R/AYdV4I";
-       spf=pass (google.com: domain of keescook@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@chromium.org header.s=google header.b=JlYc5LnY;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=chromium.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=zQ9PhXUre7lv39dhKUe3RnNugaLVkc5Fpp+aduMWHKc=;
-        b=R/AYdV4IFItQnfjUNNubyf9+5USGcILzz8B1DmWPKSECRCluWxSP8rnztSiAw/nHbx
-         OgWc7upQI8/4NLGzsj8XCYD8CtK21EXPUD3kqVz8L9yqhXJs06gDEQL5f14t98XkKrDi
-         zZLGfesRzIi7SEtmDIBJc/zWHSSeITVGpq4qWo6pCUtYoX+1nKYsEkGc/aMtjhfeYPaR
-         zpe5obPY5UDXKnX5Ux3km1WyEqJmPrsvxZPBHysfpd+ZMjsl8a01eFzYpNC5mgWQOQvs
-         wfgj8VJjyeSiWxP7AB+2Th18IJzOpvgz45GRbENtjjUmOZDRpabHmRe+wBMg/KPgX8r9
-         SNsQ==
-X-Google-Smtp-Source: APXvYqzZLwtZBmPJJ/5v5RygK+/cFMwA6/cdqWVv/GY3jUCoHNshsVXhYcdmHi4zwosCo3mHVhlDcSu086Z/Mts0mIg=
-X-Received: by 2002:a1f:a4d:: with SMTP id 74mr51091145vkk.13.1555566117779;
- Wed, 17 Apr 2019 22:41:57 -0700 (PDT)
+        bh=QVoqbwyN443Uxffv4ADeYKBc3zmgcqP5SCaKkpPU0Ag=;
+        b=JlYc5LnYPCwWgX5oqj7ynsTkg9HwSCKe5lZ5zN605L7Uvo1glCbNDCtQfk8GyTRI13
+         ROZ9wJjLihPw49RRrvvr1sPQAGB3Bk/uVz5KXlTfPr4zLd1Qk3TnxysN1P6IizUWSim9
+         CZommiTKB0IOC+Nf2V/4WJTnJI7JYYMqf0DOY=
+X-Google-Smtp-Source: APXvYqxpfH/cnpmm1xO5dd/Q6EVmimiODDlPkz7/8R5kulTt6B7vBMSg2vUhtK/dnO4dX5SNxb3Vfw==
+X-Received: by 2002:a67:fb4b:: with SMTP id e11mr8843265vsr.148.1555566575453;
+        Wed, 17 Apr 2019 22:49:35 -0700 (PDT)
+Received: from mail-vs1-f52.google.com (mail-vs1-f52.google.com. [209.85.217.52])
+        by smtp.gmail.com with ESMTPSA id x80sm312098vkd.22.2019.04.17.22.49.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 22:49:35 -0700 (PDT)
+Received: by mail-vs1-f52.google.com with SMTP id w13so530878vsc.4
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:49:35 -0700 (PDT)
+X-Received: by 2002:a67:eecb:: with SMTP id o11mr50384241vsp.66.1555565182826;
+ Wed, 17 Apr 2019 22:26:22 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1554248001.git.khalid.aziz@oracle.com> <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190417161042.GA43453@gmail.com> <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
- <20190417170918.GA68678@gmail.com> <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
- <20190417172632.GA95485@gmail.com> <063753CC-5D83-4789-B594-019048DE22D9@gmail.com>
- <alpine.DEB.2.21.1904172317460.3174@nanos.tec.linutronix.de>
- <CAHk-=wgBMg9P-nYQR2pS0XwVdikPCBqLsMFqR9nk=wSmAd4_5g@mail.gmail.com>
- <alpine.DEB.2.21.1904180129000.3174@nanos.tec.linutronix.de>
- <CAHk-=whUwOjFW6RjHVM8kNOv1QVLJuHj2Dda0=mpLPdJ1UyatQ@mail.gmail.com> <CALCETrXm9PuUTEEmzA8bQJmg=PHC_2XSywECittVhXbMJS1rSA@mail.gmail.com>
-In-Reply-To: <CALCETrXm9PuUTEEmzA8bQJmg=PHC_2XSywECittVhXbMJS1rSA@mail.gmail.com>
-From: Kees Cook <keescook@google.com>
-Date: Thu, 18 Apr 2019 00:41:45 -0500
-Message-ID: <CAGXu5jL-qJtW7eH8S2yhqciE+J+FWz8HHzTrGJTgVUbd55n6dQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	Nadav Amit <nadav.amit@gmail.com>, Ingo Molnar <mingo@kernel.org>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, Juerg Haefliger <juergh@gmail.com>, 
-	Tycho Andersen <tycho@tycho.ws>, Julian Stecklina <jsteckli@amazon.de>, Kees Cook <keescook@google.com>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, 
-	deepa.srinivasan@oracle.com, chris hyser <chris.hyser@oracle.com>, 
-	Tyler Hicks <tyhicks@canonical.com>, David Woodhouse <dwmw@amazon.co.uk>, 
-	Andrew Cooper <andrew.cooper3@citrix.com>, Jon Masters <jcm@redhat.com>, 
-	Boris Ostrovsky <boris.ostrovsky@oracle.com>, iommu <iommu@lists.linux-foundation.org>, 
-	X86 ML <x86@kernel.org>, 
-	"linux-alpha@vger.kernel.org" <linux-arm-kernel@lists.infradead.org>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	LSM List <linux-security-module@vger.kernel.org>, Khalid Aziz <khalid@gonehiking.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, 
-	Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Arjan van de Ven <arjan@infradead.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-6-alex@ghiti.fr>
+In-Reply-To: <20190417052247.17809-6-alex@ghiti.fr>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 18 Apr 2019 00:26:11 -0500
+X-Gmail-Original-Message-ID: <CAGXu5j+V_kJk-Lu=u82CrA291EPpgJtX951EKigprozXt7=ORA@mail.gmail.com>
+Message-ID: <CAGXu5j+V_kJk-Lu=u82CrA291EPpgJtX951EKigprozXt7=ORA@mail.gmail.com>
+Subject: Re: [PATCH v3 05/11] arm: Properly account for stack randomization
+ and stack guard gap
+To: Alexandre Ghiti <alex@ghiti.fr>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
+	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, 
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, 
+	Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, 
+	Alexander Viro <viro@zeniv.linux.org.uk>, Luis Chamberlain <mcgrof@kernel.org>, 
+	Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-mips@vger.kernel.org, 
+	linux-riscv@lists.infradead.org, 
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -133,33 +127,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 11:41 PM Andy Lutomirski <luto@kernel.org> wrote:
-> I don't think this type of NX goof was ever the argument for XPFO.
-> The main argument I've heard is that a malicious user program writes a
-> ROP payload into user memory (regular anonymous user memory) and then
-> gets the kernel to erroneously set RSP (*not* RIP) to point there.
+On Wed, Apr 17, 2019 at 12:28 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+>
+> This commit takes care of stack randomization and stack guard gap when
+> computing mmap base address and checks if the task asked for randomization.
+> This fixes the problem uncovered and not fixed for arm here:
+> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
 
-Well, more than just ROP. Any of the various attack primitives. The NX
-stuff is about moving RIP: SMEP-bypassing. But there is still basic
-SMAP-bypassing for putting a malicious structure in userspace and
-having the kernel access it via the linear mapping, etc.
+Please use the official archive instead. This includes headers, linked
+patches, etc:
+https://lkml.kernel.org/r/20170622200033.25714-1-riel@redhat.com
 
-> I find this argument fairly weak for a couple reasons.  First, if
-> we're worried about this, let's do in-kernel CFI, not XPFO, to
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> ---
+>  arch/arm/mm/mmap.c | 14 ++++++++++++--
+>  1 file changed, 12 insertions(+), 2 deletions(-)
+>
+> diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
+> index f866870db749..bff3d00bda5b 100644
+> --- a/arch/arm/mm/mmap.c
+> +++ b/arch/arm/mm/mmap.c
+> @@ -18,8 +18,9 @@
+>          (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
+>
+>  /* gap between mmap and stack */
+> -#define MIN_GAP (128*1024*1024UL)
+> -#define MAX_GAP ((TASK_SIZE)/6*5)
+> +#define MIN_GAP                (128*1024*1024UL)
 
-CFI is getting much closer. Getting the kernel happy under Clang, LTO,
-and CFI is under active development. (It's functional for arm64
-already, and pieces have been getting upstreamed.)
+Might as well fix this up as SIZE_128M
 
-> mitigate it.  Second, I don't see why the exact same attack can't be
-> done using, say, page cache, and unless I'm missing something, XPFO
-> doesn't protect page cache.  Or network buffers, or pipe buffers, etc.
+> +#define MAX_GAP                ((TASK_SIZE)/6*5)
+> +#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
 
-My understanding is that it's much easier to feel out the linear
-mapping address than for the others. But yes, all of those same attack
-primitives are possible in other memory areas (though most are NX),
-and plenty of exploits have done such things.
+STACK_RND_MASK is already defined so you don't need to add it here, yes?
 
--- 
+>  static int mmap_is_legacy(struct rlimit *rlim_stack)
+>  {
+> @@ -35,6 +36,15 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
+>  static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+>  {
+>         unsigned long gap = rlim_stack->rlim_cur;
+> +       unsigned long pad = stack_guard_gap;
+> +
+> +       /* Account for stack randomization if necessary */
+> +       if (current->flags & PF_RANDOMIZE)
+> +               pad += (STACK_RND_MASK << PAGE_SHIFT);
+> +
+> +       /* Values close to RLIM_INFINITY can overflow. */
+> +       if (gap + pad > gap)
+> +               gap += pad;
+>
+>         if (gap < MIN_GAP)
+>                 gap = MIN_GAP;
+> --
+> 2.20.1
+>
+
+But otherwise, yes:
+
+Acked-by: Kees Cook <keescook@chromium.org>
+
+--
 Kees Cook
 
