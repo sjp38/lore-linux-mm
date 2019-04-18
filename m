@@ -2,431 +2,153 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECCEFC10F0B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:23:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EA7AC10F0B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:23:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DEEA21479
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:23:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="Vjhji0Ma"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DEEA21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id F09D921479
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:23:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F09D921479
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D2AA56B0005; Thu, 18 Apr 2019 01:23:10 -0400 (EDT)
+	id A41D36B0006; Thu, 18 Apr 2019 01:23:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDB106B0006; Thu, 18 Apr 2019 01:23:10 -0400 (EDT)
+	id 9F1516B0007; Thu, 18 Apr 2019 01:23:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BED436B0007; Thu, 18 Apr 2019 01:23:10 -0400 (EDT)
+	id 8E1626B0008; Thu, 18 Apr 2019 01:23:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 999166B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:23:10 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id c20so181513vse.1
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:23:10 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 435F56B0006
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:23:46 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k56so639937edb.2
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:23:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=jq72mIAW+DpXXKzdmdlCRpkn/sofWg7pTQf2H9PeRYA=;
-        b=seXG+2SgeTnKv3MLPYs1lfDaxaKs8OvjM/njBH0AJKih4LR272/R7JrtWDfhtrGHTx
-         7UbukcJdRUTEQnxs1RUCB1Rl+QkGC9fHuqzMuPcvLfodiFofNPfmgMOTQaFKCeczbOhv
-         rr7WVuD4UocBUswKeXuI8B3g3GlVXnaC7LnnNsR+hKyHag98pmaUqssnO8V6/zo9jOLA
-         YD5NvbFHhLwvxm4oVLe1UFqLJFX0FPCArYiGIaoV2QieaObwr7emB/iN9Jjhgm8gVNUX
-         N6f19iUJvNPYSsGXWOLPXhamLxe39Qb83/A0DiqADtPRWffZCUILW5eQMjZ6hZQftDkW
-         tGYQ==
-X-Gm-Message-State: APjAAAUYllnr+0OYugEHxvrverNPkUKkKvdmziDqtRr0oORyYyFEc+x3
-	n7iWXN5v/Lp40UmLsJkG5gDoaxVGK8Oey3Z2vyEmqEoBYQG7o4pIHzWbaI4n/4eeBT0JtreXeCD
-	X3miN/uNAAJKpKuWjFinxAixKgyl/9AILTx9q34F/1rz1ivDLZpc4dJhBDKqPEtpR7g==
-X-Received: by 2002:a67:f105:: with SMTP id n5mr25209219vsk.181.1555564990167;
-        Wed, 17 Apr 2019 22:23:10 -0700 (PDT)
-X-Received: by 2002:a67:f105:: with SMTP id n5mr25209191vsk.181.1555564989158;
-        Wed, 17 Apr 2019 22:23:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555564989; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=Y2OrEfAfUzMlipsZCoQ+KrURIeLhMn3AxuhA5y5txtM=;
+        b=XvkfaV+iypAHgQsOQ/iAi7KvlXh8XFwSm9uB8mTYJv6unZVGIVitrkCr+KHuzXFf2G
+         j9e+QXntNGFWF78yloDsr/Of/sXaUpgdqbOibZu+Qav6tX9Vi1eOm8SWSMbWjbLO4lnr
+         fH60kyDZAD26EOqB/qYia4x3H61HZjFBD0+UUbnc4tPI6H1IUMBGQpCCTOUZRxnUoKDP
+         /l5hCeGtZzSUAw3odEm8iduSiMmOrRnFbN1gTE7ISbMFISIrRdjArjJL/9Ff1shqLIPe
+         qB5+PXrO53nj8BU7hK16wA9rkcBYWwFRpoFsOFIZrKxpPPzKaeZ2F3UrWfKzhLm3OIow
+         MRhQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAUHKSk/BZJqtmePqvuuFYUgIy6zAUL1gnwDtDTjv0pA+pCe/fe4
+	tPZHMybBZ946LKmYtUQ6igynPHcCDLfcNEdqsEuMd4l9q4XperiqXAkmK0jpM0Yv24wg2yTbDUh
+	ITantT7nxrlD2tZoRGUXwl5IRwz+NxniDabagZEO94VqnghsSCyRNUOlNUSTrnj4=
+X-Received: by 2002:a50:89f4:: with SMTP id h49mr21897827edh.73.1555565025772;
+        Wed, 17 Apr 2019 22:23:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzOnIyIwfE6hwqs8tRAXbukSeBTUd1WLB1iO8suVvTCHwRldTNMVw9oobQvrzdtbklc5WeM
+X-Received: by 2002:a50:89f4:: with SMTP id h49mr21897799edh.73.1555565025094;
+        Wed, 17 Apr 2019 22:23:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555565025; cv=none;
         d=google.com; s=arc-20160816;
-        b=KgogpIXwjZRktU9raaEkbQ6/2Ue3ifG/T3jUH+iI6BMVrs2mrb9GZngb7nlawoK6ZI
-         u/KqljbvDkdgvlzhcVX56QlCj+cZsHArE7++YMnkMxBK7MD/UBDdLPYm4jbghiBGJziU
-         W2uvroeYTATHMwvSlwmiN+aBbEDTDdIc+bghjI+zkOv1MQpLoayJx2aklSSpuziOj1jA
-         Rj1vurjAYb0k088DMLXFcITV9M/NPgkHILP0wtrhlLQHpzcX7MXzWlAKUP8RpVHprBMy
-         ipri23SDPmcfdPMAOwT5LMlaiuIL6elwWmaOfHiwCaGIApiVusZyPyC9VX2Wn1R8Ud63
-         jVhA==
+        b=uG9HlpX8hoW2RiAEamdTKTtrVspUFXgVhk/EZJCUrw0ujlrLGPBa/SE0FLwKTAMxQj
+         6I9VqHp6SyWHoY8U9Tdt/1smCEwD+/ZlYhaomSi4tZ1a9eBldLQBOtkalfChG0WLmIA/
+         RogTYjJQOS/nJfUL9m5RGQFKrs30aKU6Zfc9MC98af3QGOZZRtBZGP3HhrMtFqyw1PfX
+         Mn7DkLY/xQVsYgr56YVumZ+vt/i0bOk8trFpi4/GCE2d9U0BWnM0IdjnbNeWrngxNzxy
+         C76NasPWFGHhjqCEbjyo0pk/e4Ylsv/2xDIwmkV/xnpz3rv6ZxMHT/DHFs0LM7ACQjVn
+         tWpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=jq72mIAW+DpXXKzdmdlCRpkn/sofWg7pTQf2H9PeRYA=;
-        b=vPl9P5F7F+g00xqy/jl6dM08kr1cc+2G+zblH1sOFAQWsOJgOMkCZ8dd6XY7OjE9SH
-         7oNWP6kEoTZwGAA5k3xX65AO28YmPIaY/gSkin0sRrpJxiVlyAjWoqZpJx1m5L/s9nMb
-         VI63XsnyONYVxGayxpODdiYoIA5Jt58Hfc2e++0CS0w8JAcEMkF4dd1cQdyV+A3Rv2EZ
-         tMx+gN0kL9NnRQwB9iPYmkj7Ux0JzqxDNUTBlCZXp0F+xuVGnWy0iLRonItsyXlecWWi
-         vtXpiVuCS5Ey/JN5QpY5WidGRaRQEBAmVMvAk6vU9EVocvPr11bPaL5GBjY5RfFD2cj2
-         OADw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Y2OrEfAfUzMlipsZCoQ+KrURIeLhMn3AxuhA5y5txtM=;
+        b=uoFf9CzPbh78avJUGcy06vq6vygo/ni9o9kgcT/9NCFx2XEG787pkBvRgW4olY/Def
+         eMXxIrFaNP1SCesWsCmYUMN6SBoOlfjNq0Z5cEwNRZeNeUXxdVkrL/s5v7kss6gxQK88
+         q3djwVrQR3I7Qf6QQQH+NgQMVHHk7ZHWAU9vyO8TwuIcQRlauo2HJowgHae0QfI7tpxv
+         c//c/jL36m7Nq7sm0g8bw64FterbmOwGAEKeR22An4dZNFZ7fJdX5olFtBVgWwIle42O
+         uG+PoJY8hyRxcYKvlUMHhFkygY5/q0LkITUw64Yja69MR0hGqE9zcBBgtnM8s3rkyK6c
+         yO7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=Vjhji0Ma;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l28sor372693vsj.105.2019.04.17.22.23.09
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
+        by mx.google.com with ESMTPS id i4si475280edg.311.2019.04.17.22.23.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 22:23:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 17 Apr 2019 22:23:45 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=Vjhji0Ma;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=jq72mIAW+DpXXKzdmdlCRpkn/sofWg7pTQf2H9PeRYA=;
-        b=Vjhji0MaAMge7bXj40KL9Z4UP08iRb0l6wKXsWdD6szF6TtGik3LdUi7v4kUyBltqk
-         uXEWf/Xmd5Jb5TvOqTmT1keAiZsZEJTLu6CtA2f7onItxqZpkLFTaTGgeIj8SvarRqS5
-         gJmbPP8YdEdnm/uN4CBbf+bZjMNpdKMLmHrrM=
-X-Google-Smtp-Source: APXvYqzHkV8qhc6wJLwDE0FKlzfgeBrsMfQdk+u+1Lo+jch8KnUsBkoADHXUy7Qd8SxApS91mJfy2A==
-X-Received: by 2002:a67:bb15:: with SMTP id m21mr55215955vsn.192.1555564988539;
-        Wed, 17 Apr 2019 22:23:08 -0700 (PDT)
-Received: from mail-vs1-f48.google.com (mail-vs1-f48.google.com. [209.85.217.48])
-        by smtp.gmail.com with ESMTPSA id y1sm756223uai.0.2019.04.17.22.23.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 22:23:08 -0700 (PDT)
-Received: by mail-vs1-f48.google.com with SMTP id s2so503359vsi.5
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:23:08 -0700 (PDT)
-X-Received: by 2002:a67:f849:: with SMTP id b9mr28803360vsp.188.1555564664290;
- Wed, 17 Apr 2019 22:17:44 -0700 (PDT)
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id 2D76460003;
+	Thu, 18 Apr 2019 05:23:38 +0000 (UTC)
+Subject: Re: [PATCH v3 02/11] arm64: Make use of is_compat_task instead of
+ hardcoding this test
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
+ <hch@lst.de>, Russell King <linux@armlinux.org.uk>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>,
+ Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+ Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>,
+ Alexander Viro <viro@zeniv.linux.org.uk>,
+ Luis Chamberlain <mcgrof@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
+ linux-mips@vger.kernel.org, linux-riscv@lists.infradead.org,
+ "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <20190417052247.17809-1-alex@ghiti.fr>
+ <20190417052247.17809-3-alex@ghiti.fr>
+ <CAGXu5jKVa2YgAkWH1e26kxd2j6C4WsJ38+Z3K1z7JRvr_jDX6Q@mail.gmail.com>
+From: Alex Ghiti <alex@ghiti.fr>
+Message-ID: <1f63cf5a-6bbe-fa55-75c0-20322d8a7f36@ghiti.fr>
+Date: Thu, 18 Apr 2019 01:23:38 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-5-alex@ghiti.fr>
-In-Reply-To: <20190417052247.17809-5-alex@ghiti.fr>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 18 Apr 2019 00:17:32 -0500
-X-Gmail-Original-Message-ID: <CAGXu5j+NV7nfQ044kvsqqSrWpuXH5J6aZEbvg7YpxyBFjdAHyw@mail.gmail.com>
-Message-ID: <CAGXu5j+NV7nfQ044kvsqqSrWpuXH5J6aZEbvg7YpxyBFjdAHyw@mail.gmail.com>
-Subject: Re: [PATCH v3 04/11] arm64, mm: Move generic mmap layout functions to mm
-To: Alexandre Ghiti <alex@ghiti.fr>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
-	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, 
-	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, 
-	Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, 
-	Alexander Viro <viro@zeniv.linux.org.uk>, Luis Chamberlain <mcgrof@kernel.org>, 
-	Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-mips@vger.kernel.org, 
-	linux-riscv@lists.infradead.org, 
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Christoph Hellwig <hch@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <CAGXu5jKVa2YgAkWH1e26kxd2j6C4WsJ38+Z3K1z7JRvr_jDX6Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: sv-FI
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000003, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(
-
-On Wed, Apr 17, 2019 at 12:27 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
->
-> arm64 handles top-down mmap layout in a way that can be easily reused
-> by other architectures, so make it available in mm.
-> It then introduces a new config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-> that can be set by other architectures to benefit from those functions.
-> Note that this new config depends on MMU being enabled, if selected
-> without MMU support, a warning will be thrown.
->
-> Suggested-by: Christoph Hellwig <hch@infradead.org>
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> ---
->  arch/Kconfig                       |  8 ++++
->  arch/arm64/Kconfig                 |  1 +
->  arch/arm64/include/asm/processor.h |  2 -
->  arch/arm64/mm/mmap.c               | 76 ------------------------------
->  kernel/sysctl.c                    |  6 ++-
->  mm/util.c                          | 74 ++++++++++++++++++++++++++++-
->  6 files changed, 86 insertions(+), 81 deletions(-)
->
-> diff --git a/arch/Kconfig b/arch/Kconfig
-> index 33687dddd86a..7c8965c64590 100644
-> --- a/arch/Kconfig
-> +++ b/arch/Kconfig
-> @@ -684,6 +684,14 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
->           and vice-versa 32-bit applications to call 64-bit mmap().
->           Required for applications doing different bitness syscalls.
->
-> +# This allows to use a set of generic functions to determine mmap base
-> +# address by giving priority to top-down scheme only if the process
-> +# is not in legacy mode (compat task, unlimited stack size or
-> +# sysctl_legacy_va_layout).
-> +config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-> +       bool
-> +       depends on MMU
-
-I'd prefer the comment were moved to the help text. I would include
-any details about what the arch still needs to define. For example
-right now, I think STACK_RND_MASK is still needed. (Though I think a
-common one could be added for this series too...)
-
-> +
->  config HAVE_COPY_THREAD_TLS
->         bool
->         help
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 7e34b9eba5de..670719a26b45 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -66,6 +66,7 @@ config ARM64
->         select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000 || CC_IS_CLANG
->         select ARCH_SUPPORTS_NUMA_BALANCING
->         select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
-> +       select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
->         select ARCH_WANT_FRAME_POINTERS
->         select ARCH_HAS_UBSAN_SANITIZE_ALL
->         select ARM_AMBA
-> diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-> index 5d9ce62bdebd..4de2a2fd605a 100644
-> --- a/arch/arm64/include/asm/processor.h
-> +++ b/arch/arm64/include/asm/processor.h
-> @@ -274,8 +274,6 @@ static inline void spin_lock_prefetch(const void *ptr)
->                      "nop") : : "p" (ptr));
->  }
->
-> -#define HAVE_ARCH_PICK_MMAP_LAYOUT
-> -
->  #endif
->
->  extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */
-> diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
-> index ac89686c4af8..c74224421216 100644
-> --- a/arch/arm64/mm/mmap.c
-> +++ b/arch/arm64/mm/mmap.c
-> @@ -31,82 +31,6 @@
->
->  #include <asm/cputype.h>
->
-> -/*
-> - * Leave enough space between the mmap area and the stack to honour ulimit in
-> - * the face of randomisation.
-> - */
-
-This comment goes missing in the move...
-
-> -#define MIN_GAP (SZ_128M)
-> -#define MAX_GAP        (STACK_TOP/6*5)
-> -
-> -static int mmap_is_legacy(struct rlimit *rlim_stack)
-> -{
-> -       if (current->personality & ADDR_COMPAT_LAYOUT)
-> -               return 1;
-> -
-> -       if (rlim_stack->rlim_cur == RLIM_INFINITY)
-> -               return 1;
-> -
-> -       return sysctl_legacy_va_layout;
-> -}
-> -
-> -unsigned long arch_mmap_rnd(void)
-> -{
-> -       unsigned long rnd;
-> -
-> -#ifdef CONFIG_COMPAT
-> -       if (is_compat_task())
-> -               rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
-> -       else
-> -#endif
-> -               rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-> -       return rnd << PAGE_SHIFT;
-> -}
-> -
-> -static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
-> -{
-> -       unsigned long gap = rlim_stack->rlim_cur;
-> -       unsigned long pad = stack_guard_gap;
-> -
-> -       /* Account for stack randomization if necessary */
-> -       if (current->flags & PF_RANDOMIZE)
-> -               pad += (STACK_RND_MASK << PAGE_SHIFT);
-> -
-> -       /* Values close to RLIM_INFINITY can overflow. */
-> -       if (gap + pad > gap)
-> -               gap += pad;
-> -
-> -       if (gap < MIN_GAP)
-> -               gap = MIN_GAP;
-> -       else if (gap > MAX_GAP)
-> -               gap = MAX_GAP;
-> -
-> -       return PAGE_ALIGN(STACK_TOP - gap - rnd);
-> -}
-> -
-> -/*
-> - * This function, called very early during the creation of a new process VM
-> - * image, sets up which VM layout function to use:
-> - */
-> -void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
-> -{
-> -       unsigned long random_factor = 0UL;
-> -
-> -       if (current->flags & PF_RANDOMIZE)
-> -               random_factor = arch_mmap_rnd();
-> -
-> -       /*
-> -        * Fall back to the standard layout if the personality bit is set, or
-> -        * if the expected stack growth is unlimited:
-> -        */
-> -       if (mmap_is_legacy(rlim_stack)) {
-> -               mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
-> -               mm->get_unmapped_area = arch_get_unmapped_area;
-> -       } else {
-> -               mm->mmap_base = mmap_base(random_factor, rlim_stack);
-> -               mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-> -       }
-> -}
-> -
->  /*
->   * You really shouldn't be using read() or write() on /dev/mem.  This might go
->   * away in the future.
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index e5da394d1ca3..eb3414e78986 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -269,7 +269,8 @@ extern struct ctl_table epoll_table[];
->  extern struct ctl_table firmware_config_table[];
->  #endif
->
-> -#ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
-> +#if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
-> +    defined(CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
->  int sysctl_legacy_va_layout;
->  #endif
->
-> @@ -1564,7 +1565,8 @@ static struct ctl_table vm_table[] = {
->                 .proc_handler   = proc_dointvec,
->                 .extra1         = &zero,
->         },
-> -#ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
-> +#if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
-> +    defined(CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
->         {
->                 .procname       = "legacy_va_layout",
->                 .data           = &sysctl_legacy_va_layout,
-> diff --git a/mm/util.c b/mm/util.c
-> index a54afb9b4faa..5c3393d32ed1 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -15,7 +15,12 @@
->  #include <linux/vmalloc.h>
->  #include <linux/userfaultfd_k.h>
->  #include <linux/elf.h>
-> +#include <linux/elf-randomize.h>
-> +#include <linux/personality.h>
->  #include <linux/random.h>
-> +#include <linux/processor.h>
-> +#include <linux/sizes.h>
-> +#include <linux/compat.h>
->
->  #include <linux/uaccess.h>
->
-> @@ -313,7 +318,74 @@ unsigned long randomize_stack_top(unsigned long stack_top)
->  #endif
->  }
->
-> -#if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
-> +#ifdef CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-> +#ifdef CONFIG_ARCH_HAS_ELF_RANDOMIZE
-
-I think CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT should select
-CONFIG_ARCH_HAS_ELF_RANDOMIZE. It would mean moving
-arch_randomize_brk() into this patch set too. For arm64 and arm, this
-is totally fine: they have identical logic. On MIPS this would mean
-bumping the randomization up: arm64 uses SZ_32M for 32-bit and SZ_1G
-for 64-bit. MIPS is 8M and 256M respectively. I don't see anything
-that indicates this would be a problem. *cross fingers*
-
-It looks like x86 would need bumping too: it uses 32M on both 32-bit
-and 64-bit. STACK_RND_MASK is the same though.
-
-> +unsigned long arch_mmap_rnd(void)
-> +{
-> +       unsigned long rnd;
-> +
-> +#ifdef CONFIG_COMPAT
-> +       if (is_compat_task())
-> +               rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
-> +       else
-> +#endif /* CONFIG_COMPAT */
-
-The ifdefs on is_compat_task() are not needed: is_compat_task()
-returns 0 in the !CONFIG_COMPAT case.
-
-> +               rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
-> +
-> +       return rnd << PAGE_SHIFT;
-> +}
-> +#endif /* CONFIG_ARCH_HAS_ELF_RANDOMIZE */
-> +
-> +static int mmap_is_legacy(struct rlimit *rlim_stack)
-> +{
-> +       if (current->personality & ADDR_COMPAT_LAYOUT)
-> +               return 1;
-> +
-> +       if (rlim_stack->rlim_cur == RLIM_INFINITY)
-> +               return 1;
-> +
-> +       return sysctl_legacy_va_layout;
-> +}
-> +
-> +#define MIN_GAP                (SZ_128M)
-> +#define MAX_GAP                (STACK_TOP / 6 * 5)
-> +
-> +static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
-> +{
-> +       unsigned long gap = rlim_stack->rlim_cur;
-> +       unsigned long pad = stack_guard_gap;
-> +
-> +       /* Account for stack randomization if necessary */
-> +       if (current->flags & PF_RANDOMIZE)
-> +               pad += (STACK_RND_MASK << PAGE_SHIFT);
-> +
-> +       /* Values close to RLIM_INFINITY can overflow. */
-> +       if (gap + pad > gap)
-> +               gap += pad;
-> +
-> +       if (gap < MIN_GAP)
-> +               gap = MIN_GAP;
-> +       else if (gap > MAX_GAP)
-> +               gap = MAX_GAP;
-> +
-> +       return PAGE_ALIGN(STACK_TOP - gap - rnd);
-> +}
-> +
-> +void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
-> +{
-> +       unsigned long random_factor = 0UL;
-> +
-> +       if (current->flags & PF_RANDOMIZE)
-> +               random_factor = arch_mmap_rnd();
-> +
-> +       if (mmap_is_legacy(rlim_stack)) {
-> +               mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
-> +               mm->get_unmapped_area = arch_get_unmapped_area;
-> +       } else {
-> +               mm->mmap_base = mmap_base(random_factor, rlim_stack);
-> +               mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-> +       }
-> +}
-> +#elif defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
->  void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
->  {
->         mm->mmap_base = TASK_UNMAPPED_BASE;
-> --
-> 2.20.1
->
+On 4/18/19 12:32 AM, Kees Cook wrote:
+> On Wed, Apr 17, 2019 at 12:25 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+>> Each architecture has its own way to determine if a task is a compat task,
+>> by using is_compat_task in arch_mmap_rnd, it allows more genericity and
+>> then it prepares its moving to mm/.
+>>
+>> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> Acked-by: Kees Cook <keescook@chromium.org>
 
 
---
-Kees Cook
+Thanks !
+
+
+> -Kees
+>
+>> ---
+>>   arch/arm64/mm/mmap.c | 2 +-
+>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
+>> index 842c8a5fcd53..ed4f9915f2b8 100644
+>> --- a/arch/arm64/mm/mmap.c
+>> +++ b/arch/arm64/mm/mmap.c
+>> @@ -54,7 +54,7 @@ unsigned long arch_mmap_rnd(void)
+>>          unsigned long rnd;
+>>
+>>   #ifdef CONFIG_COMPAT
+>> -       if (test_thread_flag(TIF_32BIT))
+>> +       if (is_compat_task())
+>>                  rnd = get_random_long() & ((1UL << mmap_rnd_compat_bits) - 1);
+>>          else
+>>   #endif
+>> --
+>> 2.20.1
+>>
+>
 
