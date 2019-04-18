@@ -2,124 +2,133 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE680C10F14
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 04:37:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01352C10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 04:41:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E2C72184B
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 04:37:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 94CC1217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 04:41:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="OLkbJU7m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E2C72184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="QVWUihYI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94CC1217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F20BD6B0007; Thu, 18 Apr 2019 00:37:16 -0400 (EDT)
+	id 422786B0005; Thu, 18 Apr 2019 00:41:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECFD56B0008; Thu, 18 Apr 2019 00:37:16 -0400 (EDT)
+	id 3A8866B0006; Thu, 18 Apr 2019 00:41:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBDF96B000A; Thu, 18 Apr 2019 00:37:16 -0400 (EDT)
+	id 24BFD6B0007; Thu, 18 Apr 2019 00:41:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA4A46B0007
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 00:37:16 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id l85so406504vke.15
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 21:37:16 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D95B96B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 00:41:49 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e19so638921pfd.19
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 21:41:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=92tRgfUMbeMv1ITsQnVX2nfQxbImxEmC6NtEESfsrL8=;
-        b=bSp7T3INSiVUgvihaSHRxfC6/VRd5NghkgHAhcpTYQc+W+KkcJuPgLqJtx8KWMeDTf
-         BxJ0wh2qljsQp0EJZD+PkRq5h3GvpctSyIKeRu1ZbbeHHfmFPBaWcCEcG5zQWtP21io+
-         jpSHL/Pff5J0C3JRnkmREHdjIMWWRR1Fn3mfksAWDMs4fx9SBDCvtL/QTj6sOFOZU3UF
-         p9++9j9AO+sdWp1+ZflR48vctZpyjFTkMWzbLM7Pu/E2rKmOWqSDeiZduQvKOODG6ODa
-         NNECM0P4wrkatTbhHU9yZvCDy3HSe31kknVaKD8O7AQmRssYoRrbB5wL/gLE5RfCd72J
-         kPmQ==
-X-Gm-Message-State: APjAAAVKQwHljcBiSz3UQOBtqguQbELfCZVbdjwR2NC5nhh1n9YoKE8h
-	SGJNe5sB4itV2W0/DYcBA/CG+9fNXwCPAT4LRf5ztt+JcAidruLqd6zy9Pt9Q2m8IcdYwFVxURu
-	gbtxxDOugLvk/7uvd+rsQScuiaamgx7XObjmmI8vw5SOmphUiO5yJWqNr+tb7Q7+Jmw==
-X-Received: by 2002:a67:fb18:: with SMTP id d24mr51597787vsr.44.1555562236535;
-        Wed, 17 Apr 2019 21:37:16 -0700 (PDT)
-X-Received: by 2002:a67:fb18:: with SMTP id d24mr51597772vsr.44.1555562235992;
-        Wed, 17 Apr 2019 21:37:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555562235; cv=none;
+        bh=HEJvVD5uAri2/7g+yjiM7+uD6Xn5OUBCfeb7aIYw4eQ=;
+        b=PwcXi2pv1TCeGRJb263dyek21SevZjbVKts5n6TfKKg3zeSt9I50xlAfKVSsiNDEhq
+         D9jvt+9nS9WSyrs+sqHx17Y9zHlsRjbfn2g5a5R5YVejuF44bfJwLV8Xs05fmoMOvuZ2
+         v90HEnEexl699t4SEFy0SrXM7TE/6Ad89iJaQmxY3LeCw2VhoGXJw7JE+vl0IWvvvphQ
+         YYhP6PZ1KbHaX8Y5iYlxIMmB7zIK00JyOgKTz+eGW1fyDJfTG/td6dMI16+mIQh+FKUN
+         zVidJ9IZlYXjuGvxzPHJy3RX+C1GeMy8zQIqD0If46lSViWtoo34BIxSNkXF/PGN1kGa
+         +F0A==
+X-Gm-Message-State: APjAAAVOg8+wEoyhe2jQTV6n9FpM57GJ/xIVyyhucMOZ9kUYBEvJ/o7x
+	jNM8LBfSAX7tSIXYHx4jK8e/HgyZil8nYwbdqhJ98Yi/P2UT3/seCRQFDyF9KYG1nWVDDHWAlVl
+	dyd+FwajCRWVfGXDWh0Emg8xH+RrjfsTTf+Y07FkJrQWFv6h3vA78zKF9x6v6JPCXYA==
+X-Received: by 2002:a62:7549:: with SMTP id q70mr83582123pfc.112.1555562509431;
+        Wed, 17 Apr 2019 21:41:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJ9hAeU3pr/nZjJuSCuilg1MaTL58gojLULZr3U5r9W2/ltL65WoyhcoFeFIbBzdW3Hqr8
+X-Received: by 2002:a62:7549:: with SMTP id q70mr83582081pfc.112.1555562508564;
+        Wed, 17 Apr 2019 21:41:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555562508; cv=none;
         d=google.com; s=arc-20160816;
-        b=U3e/Mk1uTya+v1aK/PjXfCB3YTQfyIbodCctURve/UWYY6ZFaC7A5eX4ThUAJuv4+n
-         BgQ+smChDGGfbsrmWwHHXfZuTIxlaX5nUAopebbGw2cV/dlG3jBRA89FjzARzi0h1LdW
-         3mqQN4Cj2t/9s1+faznQ/V+YHs/tEIBWKOb5j/ueCCcKN6V/U7wgEDDrm7Difgvtpqz5
-         Yqp4l4dEjuNcF439tfNCy0cloM/dqG/uPRD/cZ+AdbBmIciC1IDcecOwtSukKBVCHUPF
-         azKSGaMx6ZYdrepcu7kdQNisy0ycXV60rD4dHVddsp20YuU9UNtGhuEADnSK3TRovTEE
-         krOA==
+        b=yS1oGJ30U3E5dNIYABlOKNdTNfH6uziLJhnGIfjk2RK6A1zg5CD/OI3ih5RrxDLDkK
+         RSnFLREn3Zft0SPM2ykHReVKMnneNB+gvBZw6oB6D70m+Tva3pF5RI+OiYUn+pj1JIOz
+         6mLzaE0xLv+bWIMZFckXgugiMEmdMdzuYw4/tGOXOgZ4mNP42iORhwf7xybnjd0sSv8a
+         hPpERfIkv4yFV1A/nhpa+TGJUX9Ug9wJoQ7VTj0gJYGkvi1YiOgAb7urrxjKFxEQgFt0
+         okngbkqBSDuoDa/jYz7CxJeAzUbfhRk000djWJJi9Y6c9Zl8cJLoTMOOdfe4JMGH488/
+         z8hA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=92tRgfUMbeMv1ITsQnVX2nfQxbImxEmC6NtEESfsrL8=;
-        b=hlRmyRqPmrvwg8ibOPWfR7ZCwqiQQxFNvjzH4sbHVUyySI1k9wpzRE0MYcdzh1/Ue4
-         uVX6t3CKO2GRgddFIl3b1bbC4S55TF04YIOPnFmr488PqUz6tsXuMfG52976oIv2NVLs
-         GHaaP2rMuvmrq+JE9lXf6LmYuNX9cH8fdPxKxQsoGPx6VrCJiLU9vRgk4JnbJVT8E95r
-         Ac/GbOAI3u3Qj5u4rvfup7sm/U/JIRMwUt7PC1x0e9APw7dOlSmcb3wwmBWvzTHwZtwE
-         tSLjMAUNh7F13VTiV3ZsArcLE/B2z7fApVbtC1IGXqPKl+R1rXCEHj7dG1PCxLhVtTa6
-         vNoQ==
+        bh=HEJvVD5uAri2/7g+yjiM7+uD6Xn5OUBCfeb7aIYw4eQ=;
+        b=IZMcVeMYM5HZie9gjPSDX4vRZk3ya53CmpG3hIiwVEdiBhTJvjdp/7Ofh7jQw6YiGI
+         F/S//mdKmB61ZS1he3E3xiY2uWt5L8jLTK56/EdOCLP9DHDCqQt15VOYwDf+ASAB2KXY
+         5SoHGLI9btzjePvX/q1ElUMGg3PaPAM8bjTWv/HPw8AUqOPOUftpZbTqUxr4a1Wpzvme
+         R0f98+ocHpHnAdMIBPFJG/acEJQJ59I0wCa0xOfYp1WRXjYXLrG++1xsIalqIvV5gg5g
+         pFNA5GJfhsB2pXWb3y0G1bcU95sOUu4L25KOLvVLoGwGbckeCKuRdJPdLWkShrWr2ccv
+         pL+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=OLkbJU7m;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h6sor354771vsk.10.2019.04.17.21.37.15
+       dkim=pass header.i=@kernel.org header.s=default header.b=QVWUihYI;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x23si1028909plr.48.2019.04.17.21.41.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 17 Apr 2019 21:37:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 21:41:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=OLkbJU7m;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=92tRgfUMbeMv1ITsQnVX2nfQxbImxEmC6NtEESfsrL8=;
-        b=OLkbJU7m0JSpwXyWqa9ZSVBZbJJbsitwwGD9ZFTANpCONTXMGZ81AhxDTno9r38sEv
-         Z0JotjuwKOUss922IFDFo/63cZ+UAJRNvTAAAwjPU190WnPbTuipbvAcYF0az0veXucS
-         uACiUuIuiBILnxrE6ReQLiWsvSB24QasvXBQc=
-X-Google-Smtp-Source: APXvYqy27SysP+0kFs9FLZ/wHDQf+6HOLF24OqsVRis+b5759t7lyxIwhZ1bA4cvM0CCM8s/sOcUfw==
-X-Received: by 2002:a67:f358:: with SMTP id p24mr52076028vsm.3.1555562235299;
-        Wed, 17 Apr 2019 21:37:15 -0700 (PDT)
-Received: from mail-vs1-f51.google.com (mail-vs1-f51.google.com. [209.85.217.51])
-        by smtp.gmail.com with ESMTPSA id w184sm880395vkd.0.2019.04.17.21.37.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Apr 2019 21:37:13 -0700 (PDT)
-Received: by mail-vs1-f51.google.com with SMTP id t23so442417vso.10
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 21:37:12 -0700 (PDT)
-X-Received: by 2002:a67:7c8a:: with SMTP id x132mr50675686vsc.172.1555562232106;
- Wed, 17 Apr 2019 21:37:12 -0700 (PDT)
+       dkim=pass header.i=@kernel.org header.s=default header.b=QVWUihYI;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f46.google.com (mail-wr1-f46.google.com [209.85.221.46])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 01C89218EA
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 04:41:48 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1555562508;
+	bh=ZzJFjyGToYfbKAC7a2m7yS86J4A8OLDkslCG6xa8cQM=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=QVWUihYIOED3b6sf++tgY3iRdj8kiMHZVbckG4nNfCAClSFzLnTcPH+IgFSB9PrKC
+	 Z2tMpLhiQqQpdAO8Vqghyo+PaFXtDr9TPVxG3ICymGFgejmh9f9/1/nnjg3BTRsxMd
+	 IElW3sPpwA7MwJfgB7BILSJAa6MZxHiR0qJmXz6w=
+Received: by mail-wr1-f46.google.com with SMTP id w16so1173366wrl.1
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 21:41:47 -0700 (PDT)
+X-Received: by 2002:adf:efc1:: with SMTP id i1mr59073183wrp.199.1555562504832;
+ Wed, 17 Apr 2019 21:41:44 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-4-alex@ghiti.fr>
-In-Reply-To: <20190417052247.17809-4-alex@ghiti.fr>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 17 Apr 2019 23:37:00 -0500
-X-Gmail-Original-Message-ID: <CAGXu5jKo26zXw=jfKSzr_pnfx5Zux+fVbY7V9bJwEMApDcFi8w@mail.gmail.com>
-Message-ID: <CAGXu5jKo26zXw=jfKSzr_pnfx5Zux+fVbY7V9bJwEMApDcFi8w@mail.gmail.com>
-Subject: Re: [PATCH v3 03/11] arm64: Consider stack randomization for mmap
- base only when necessary
-To: Alexandre Ghiti <alex@ghiti.fr>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
-	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, 
-	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, 
-	Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, 
-	Alexander Viro <viro@zeniv.linux.org.uk>, Luis Chamberlain <mcgrof@kernel.org>, 
-	Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-mips@vger.kernel.org, 
-	linux-riscv@lists.infradead.org, 
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+References: <cover.1554248001.git.khalid.aziz@oracle.com> <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com> <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+ <20190417170918.GA68678@gmail.com> <56A175F6-E5DA-4BBD-B244-53B786F27B7F@gmail.com>
+ <20190417172632.GA95485@gmail.com> <063753CC-5D83-4789-B594-019048DE22D9@gmail.com>
+ <alpine.DEB.2.21.1904172317460.3174@nanos.tec.linutronix.de>
+ <CAHk-=wgBMg9P-nYQR2pS0XwVdikPCBqLsMFqR9nk=wSmAd4_5g@mail.gmail.com>
+ <alpine.DEB.2.21.1904180129000.3174@nanos.tec.linutronix.de> <CAHk-=whUwOjFW6RjHVM8kNOv1QVLJuHj2Dda0=mpLPdJ1UyatQ@mail.gmail.com>
+In-Reply-To: <CAHk-=whUwOjFW6RjHVM8kNOv1QVLJuHj2Dda0=mpLPdJ1UyatQ@mail.gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 17 Apr 2019 21:41:33 -0700
+X-Gmail-Original-Message-ID: <CALCETrXm9PuUTEEmzA8bQJmg=PHC_2XSywECittVhXbMJS1rSA@mail.gmail.com>
+Message-ID: <CALCETrXm9PuUTEEmzA8bQJmg=PHC_2XSywECittVhXbMJS1rSA@mail.gmail.com>
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Nadav Amit <nadav.amit@gmail.com>, 
+	Ingo Molnar <mingo@kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, 
+	Juerg Haefliger <juergh@gmail.com>, Tycho Andersen <tycho@tycho.ws>, jsteckli@amazon.de, 
+	Kees Cook <keescook@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, 
+	Juerg Haefliger <juerg.haefliger@canonical.com>, deepa.srinivasan@oracle.com, 
+	chris hyser <chris.hyser@oracle.com>, Tyler Hicks <tyhicks@canonical.com>, 
+	David Woodhouse <dwmw@amazon.co.uk>, Andrew Cooper <andrew.cooper3@citrix.com>, 
+	Jon Masters <jcm@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
+	iommu <iommu@lists.linux-foundation.org>, X86 ML <x86@kernel.org>, 
+	"linux-alpha@vger.kernel.org" <linux-arm-kernel@lists.infradead.org>, 
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	LSM List <linux-security-module@vger.kernel.org>, Khalid Aziz <khalid@gonehiking.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave@sr71.net>, Borislav Petkov <bp@alien8.de>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Arjan van de Ven <arjan@infradead.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -127,45 +136,57 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 12:26 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+On Wed, Apr 17, 2019 at 5:00 PM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> Do not offset mmap base address because of stack randomization if
-> current task does not want randomization.
-
-Maybe mention that this makes this logic match the existing x86 behavior too?
-
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-
-Acked-by: Kees Cook <keescook@chromium.org>
-
--Kees
-
-> ---
->  arch/arm64/mm/mmap.c | 6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+> On Wed, Apr 17, 2019 at 4:42 PM Thomas Gleixner <tglx@linutronix.de> wrote:
+> >
+> > On Wed, 17 Apr 2019, Linus Torvalds wrote:
+> >
+> > > With SMEP, user space pages are always NX.
+> >
+> > We talk past each other. The user space page in the ring3 valid virtual
+> > address space (non negative) is of course protected by SMEP.
+> >
+> > The attack utilizes the kernel linear mapping of the physical
+> > memory. I.e. user space address 0x43210 has a kernel equivalent at
+> > 0xfxxxxxxxxxx. So if the attack manages to trick the kernel to that valid
+> > kernel address and that is mapped X --> game over. SMEP does not help
+> > there.
 >
-> diff --git a/arch/arm64/mm/mmap.c b/arch/arm64/mm/mmap.c
-> index ed4f9915f2b8..ac89686c4af8 100644
-> --- a/arch/arm64/mm/mmap.c
-> +++ b/arch/arm64/mm/mmap.c
-> @@ -65,7 +65,11 @@ unsigned long arch_mmap_rnd(void)
->  static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
->  {
->         unsigned long gap = rlim_stack->rlim_cur;
-> -       unsigned long pad = (STACK_RND_MASK << PAGE_SHIFT) + stack_guard_gap;
-> +       unsigned long pad = stack_guard_gap;
-> +
-> +       /* Account for stack randomization if necessary */
-> +       if (current->flags & PF_RANDOMIZE)
-> +               pad += (STACK_RND_MASK << PAGE_SHIFT);
+> Oh, agreed.
 >
->         /* Values close to RLIM_INFINITY can overflow. */
->         if (gap + pad > gap)
-> --
-> 2.20.1
+> But that would simply be a kernel bug. We should only map kernel pages
+> executable when we have kernel code in them, and we should certainly
+> not allow those pages to be mapped writably in user space.
+>
+> That kind of "executable in kernel, writable in user" would be a
+> horrendous and major bug.
+>
+> So i think it's a non-issue.
+>
+> > From the top of my head I'd say this is a non issue as those kernel address
+> > space mappings _should_ be NX, but we got bitten by _should_ in the past:)
+>
+> I do agree that bugs can happen, obviously, and we might have missed something.
+>
+> But in the context of XPFO, I would argue (*very* strongly) that the
+> likelihood of the above kind of bug is absolutely *miniscule* compared
+> to the likelihood that we'd have something wrong in the software
+> implementation of XPFO.
+>
+> So if the argument is "we might have bugs in software", then I think
+> that's an argument _against_ XPFO rather than for it.
 >
 
+I don't think this type of NX goof was ever the argument for XPFO.
+The main argument I've heard is that a malicious user program writes a
+ROP payload into user memory (regular anonymous user memory) and then
+gets the kernel to erroneously set RSP (*not* RIP) to point there.
 
--- 
-Kees Cook
+I find this argument fairly weak for a couple reasons.  First, if
+we're worried about this, let's do in-kernel CFI, not XPFO, to
+mitigate it.  Second, I don't see why the exact same attack can't be
+done using, say, page cache, and unless I'm missing something, XPFO
+doesn't protect page cache.  Or network buffers, or pipe buffers, etc.
 
