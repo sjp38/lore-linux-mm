@@ -3,170 +3,165 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C52BC10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:24:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14001C10F0E
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:35:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA73D206B6
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:24:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA73D206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id B81A820821
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 16:35:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B81A820821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 657226B0005; Thu, 18 Apr 2019 12:24:44 -0400 (EDT)
+	id 4C8CB6B0005; Thu, 18 Apr 2019 12:35:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 607846B0006; Thu, 18 Apr 2019 12:24:44 -0400 (EDT)
+	id 477C96B0006; Thu, 18 Apr 2019 12:35:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F78B6B0007; Thu, 18 Apr 2019 12:24:44 -0400 (EDT)
+	id 390556B0007; Thu, 18 Apr 2019 12:35:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 177AC6B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:24:44 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e12so1659573pgh.2
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:24:44 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F29216B0005
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 12:35:45 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i23so1727509pfa.0
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 09:35:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=vkp8/nosqCBb5BPnvaBjttnZMMkTP5Cb5apy9+F143E=;
-        b=mEkxnyDSg97t4OKitnaYsJAYlJdV6uhHH7jYh5G0uf+AC2dDsVwfoYXlv0UhNfvLf/
-         jVVe/5lGsVkLBLXOn83HvF4HuEWifL4a2vqbdZ0b/F6fXqd+TPknMx/hVE0V8H0bnaJK
-         4UaFQxiJso2sKCMGGHES1bbhSwp8YuWraO4X8IqDx4VOkiYD9X/GyWa3HBYD207HwZ7T
-         53E9/Xp/fsZ4cmtSdI0y1Jzg6OhUL4U2a+OD52KENO4hIz3L8i4uQEVALR7a8e9WESZK
-         bDSVanHb7Tj3i4obJKB6jKrYhx3DiVPacOXx/YnnHCX/l1YGS/t882gWOW5uC+kNF1TP
-         PMqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUizt8dmvURkwX0AhOdZR1kP6ewJY6GMXfnoLfy5zojTTFwxu65
-	PI6f9NI5hCBgVG2app1XJMHshQNAxIuSXZe/Zsy59mrBuYbX94s0OUuzepof+1RgUL+367XcAlG
-	fnqUcnQGEMxbQ8Hub+/Uc38hHYMBTZEnmNNUkLC5gzcOUdb8SeauxOQw0VlKz1tweIA==
-X-Received: by 2002:aa7:8252:: with SMTP id e18mr96078812pfn.105.1555604683650;
-        Thu, 18 Apr 2019 09:24:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwHI6x3pX8/Dh5V/c+u/oi0pJXAu2VpvwHM334GowYfLXnpO2VHfgp1niMckyU/u0hXMhtS
-X-Received: by 2002:aa7:8252:: with SMTP id e18mr96078709pfn.105.1555604682548;
-        Thu, 18 Apr 2019 09:24:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555604682; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=sVRo1blcQGvaqZSMlBn6qCPALHJTmvqFqv8sG2j2qeM=;
+        b=BlHILPfIVnWOtr7zRt1rBbQHAorZZBfEzOQ8pVVR7Cz1/GIwT4EqZw+W5POLTHOhb9
+         mkhqk2TTlCnWn0aTOYFmKQa3gYrNiqMrro1OWcqAJazCeFBGJQbC/0KQvQDKg9rDzGzv
+         4sSMaqcL2vPObXNPQWkb6FDsT+yztFPLpCc18m0bw45xuFISd/jEAMcDSwieVUNCACkC
+         u1osZ0AG+H+Eo5wZgaPa8kyYHLzR1cLYj5cs8eAIx+2s3ZLUvXbSnlAe/01pe5P/CMQ9
+         YwwnKDjpBOwUZCnwdbOSNQ8i9DGG7PqLBkGCz0M6XFTspMtcjNpCvrc+2iAofwqymTXa
+         FzcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU0T69Pawm1Q8e1JT3BM1FRS1FDiFmGfgGYjuHVFYLVlq30Pdbg
+	vFGNtgWAtWQ9/TEhOh0VBBB3k2eot0SwHRfj6V3ZPrj2O2sxJ0CKPEPj53cEbvVf5NqO5qvBy6+
+	tTv9FlIEaOfoX6rEhiq+qV7dksflUdfFn/7bIAiVmHNupJw/66dJXOsqLja0bpCcX0A==
+X-Received: by 2002:a65:6294:: with SMTP id f20mr6390655pgv.415.1555605345437;
+        Thu, 18 Apr 2019 09:35:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNrH0T4gjp62jJsQ4L2KJ9/DaGawIlGUHhqc969hOF6aBS0VjrPo0bB3ElRYuPSecjudQc
+X-Received: by 2002:a65:6294:: with SMTP id f20mr6390592pgv.415.1555605344549;
+        Thu, 18 Apr 2019 09:35:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555605344; cv=none;
         d=google.com; s=arc-20160816;
-        b=lzjiU2/vAckeVh6khyyYfpY0C7RGtbpotibkYfXo9V1cF1tnOHiqYFSWm1bjdxq9Xx
-         vtaql6VF1naYu9xLkkYZU83m5pwzHqx3wbKdWnKwlL6G3x3akzfNzBg3demzUz360BzA
-         LaShY+lVql5YRJpj34nnr+S1NYRb5zjjlWTeACwx8Q53oa8XyHaTsQ6ppVqYpHaC73a2
-         jOwZ7hbZKPE8S0ZKmCT5ThhoZiQ1L7B37jWYHoQd/T/g/FGa/KbM5s/nicxsfMhd/O3Q
-         YgCOCCpPqWtG2/u3woEHQC1QE59IuEQTMp4pjIwkRXJ+VHwJ8QD3ed11LrHsjgY7r59s
-         wDUQ==
+        b=tkyPKxUDRLeONHERzPtRJs5t3SL5ZH+ehfo4G2Q9n81FxfxSJaUT7rN0IzlTudCXZy
+         DBBo6WptBafqunsddold9fOtM30I2Ha0i9Pvpu/P0lP9j53lR4jIu+T0Fc906AHYWhfe
+         U9MjtjvrwDlxtRMTCTXqf2HuawpA9mD2AbOm5I9F4XhwTGeYfESpp7HHI4Ko7VZME62W
+         Dif0khersqU0alqnLy5liUtMN+CvAawVkQjU6kwvX7QzNG5D9QDRcj4WTeGQm4wR6OnS
+         pugms4lPEfIk1nJveXQ7NXVTWK6c+FdeTTbsz2PuelXXZC+UVkSj+J/F5BjtqJeyHAAP
+         NamQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=vkp8/nosqCBb5BPnvaBjttnZMMkTP5Cb5apy9+F143E=;
-        b=n+ysK19h1iO+Kwm9b0YV3na0rFx5JFh3xRCVMT2LKUtnKGGt/Etyn/DIiTskuGtWb4
-         we5klz/uCPsTKKFNTByOb6+KrEaQ7c3Z7KXcH6AdnVMOrWY1KPqNOposkdUelYJuj9wk
-         t9RrwtyU4T7UJacQ29+VreKXW58sqbIpn+yQOu7x4xs8VQxxf8C1JZ6RWL+e16R1+52t
-         CLexo799oWF+eBxGRZyRNdFgIDgByM2TEEOW30PI5XKFMXck9uSVUFphMq/wRZdfrQaR
-         AqHP6vj37ebXXeD04N2PGV1JfCDrlkQyk9x3TLNdLQgWYwtg95X3/jPv2vX4rT7Tb4Ti
-         5BPg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=sVRo1blcQGvaqZSMlBn6qCPALHJTmvqFqv8sG2j2qeM=;
+        b=UtuNDADjdQ0zBawNn8RF7l3VZcczqUpeRd8fo4PftiYn/pzPtIOrrYjwKYUgIZbfTn
+         HTBpi/Fw+b8H7FN2QdXM+ekMcKWbHUsh4wcPkTKlLCvDbc6TaNKUnWILBKcfDYfM7m/s
+         2o5hfMSKyUzXegrzVdwgdXbnXfNxfS82Mov6R7r16UORiGnDoy+6ge7u2tseey2G3Fsh
+         VICf+O+0F2O7hz8izF5j/Olwe1CWkN+PEGCVxMroWnTW6Pznn+UPA9fsaUsEZOPDhu6f
+         jeGX218KNgLv6Ze+OwSNg8SKFVSrAfK7JKFKvuK1tseMHU6AXqC2EexDfIHh5Gcmbocw
+         3X+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id h26si2274858pgl.21.2019.04.18.09.24.41
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id f127si2719899pfc.176.2019.04.18.09.35.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 09:24:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) client-ip=115.124.30.130;
+        Thu, 18 Apr 2019 09:35:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TPecSvf_1555604676;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPecSvf_1555604676)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 19 Apr 2019 00:24:40 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Subject: Re: [v2 RFC PATCH 0/9] Another Approach to Use PMEM as NUMA Node
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Keith Busch <keith.busch@intel.com>, Dave Hansen <dave.hansen@intel.com>,
- mgorman@techsingularity.net, riel@surriel.com, hannes@cmpxchg.org,
- akpm@linux-foundation.org, dan.j.williams@intel.com, fengguang.wu@intel.com,
- fan.du@intel.com, ying.huang@intel.com, ziy@nvidia.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <a68137bb-dcd8-4e4a-b3a9-69a66f9dccaf@linux.alibaba.com>
- <20190416074714.GD11561@dhcp22.suse.cz>
- <876768ad-a63a-99c3-59de-458403f008c4@linux.alibaba.com>
- <a0bf6b61-1ec2-6209-5760-80c5f205d52e@intel.com>
- <20190417092318.GG655@dhcp22.suse.cz>
- <20190417152345.GB4786@localhost.localdomain>
- <20190417153923.GO5878@dhcp22.suse.cz>
- <20190417153739.GD4786@localhost.localdomain>
- <20190417163911.GA9523@dhcp22.suse.cz>
- <fcb30853-8039-8154-7ae0-706930642576@linux.alibaba.com>
- <20190417175151.GB9523@dhcp22.suse.cz>
-Message-ID: <bdc25ae2-bddd-1ecb-58b8-ce506274f1bb@linux.alibaba.com>
-Date: Thu, 18 Apr 2019 09:24:35 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 18 Apr 2019 09:35:33 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,366,1549958400"; 
+   d="scan'208";a="224675019"
+Received: from ray.jf.intel.com (HELO [10.7.201.126]) ([10.7.201.126])
+  by orsmga001.jf.intel.com with ESMTP; 18 Apr 2019 09:35:33 -0700
+Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot
+ option
+To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org,
+ cl@linux.com, dvyukov@google.com, keescook@chromium.org, labbott@redhat.com
+Cc: linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+ kernel-hardening@lists.openwall.com
+References: <20190418154208.131118-1-glider@google.com>
+ <20190418154208.131118-2-glider@google.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <981d439a-1107-2730-f27e-17635ee4a125@intel.com>
+Date: Thu, 18 Apr 2019 09:35:32 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190417175151.GB9523@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20190418154208.131118-2-glider@google.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 4/18/19 8:42 AM, Alexander Potapenko wrote:
+> This option adds the possibility to initialize newly allocated pages and
+> heap objects with zeroes. This is needed to prevent possible information
+> leaks and make the control-flow bugs that depend on uninitialized values
+> more deterministic.
 
-
-On 4/17/19 10:51 AM, Michal Hocko wrote:
-> On Wed 17-04-19 10:26:05, Yang Shi wrote:
->> On 4/17/19 9:39 AM, Michal Hocko wrote:
->>> On Wed 17-04-19 09:37:39, Keith Busch wrote:
->>>> On Wed, Apr 17, 2019 at 05:39:23PM +0200, Michal Hocko wrote:
->>>>> On Wed 17-04-19 09:23:46, Keith Busch wrote:
->>>>>> On Wed, Apr 17, 2019 at 11:23:18AM +0200, Michal Hocko wrote:
->>>>>>> On Tue 16-04-19 14:22:33, Dave Hansen wrote:
->>>>>>>> Keith Busch had a set of patches to let you specify the demotion order
->>>>>>>> via sysfs for fun.  The rules we came up with were:
->>>>>>> I am not a fan of any sysfs "fun"
->>>>>> I'm hung up on the user facing interface, but there should be some way a
->>>>>> user decides if a memory node is or is not a migrate target, right?
->>>>> Why? Or to put it differently, why do we have to start with a user
->>>>> interface at this stage when we actually barely have any real usecases
->>>>> out there?
->>>> The use case is an alternative to swap, right? The user has to decide
->>>> which storage is the swap target, so operating in the same spirit.
->>> I do not follow. If you use rebalancing you can still deplete the memory
->>> and end up in a swap storage. If you want to reclaim/swap rather than
->>> rebalance then you do not enable rebalancing (by node_reclaim or similar
->>> mechanism).
->> I'm a little bit confused. Do you mean just do *not* do reclaim/swap in
->> rebalancing mode? If rebalancing is on, then node_reclaim just move the
->> pages around nodes, then kswapd or direct reclaim would take care of swap?
-> Yes, that was the idea I wanted to get through. Sorry if that was not
-> really clear.
->
->> If so the node reclaim on PMEM node may rebalance the pages to DRAM node?
->> Should this be allowed?
-> Why it shouldn't? If there are other vacant Nodes to absorb that memory
-> then why not use it?
->
->> I think both I and Keith was supposed to treat PMEM as a tier in the reclaim
->> hierarchy. The reclaim should push inactive pages down to PMEM, then swap.
->> So, PMEM is kind of a "terminal" node. So, he introduced sysfs defined
->> target node, I introduced N_CPU_MEM.
-> I understand that. And I am trying to figure out whether we really have
-> to tream PMEM specially here. Why is it any better than a generic NUMA
-> rebalancing code that could be used for many other usecases which are
-> not PMEM specific. If you present PMEM as a regular memory then also use
-> it as a normal memory.
-
-This also makes some sense. We just look at PMEM from different point of 
-view. Taking into account the performance disparity may outweigh 
-treating it as a normal memory in this patchset.
-
-A ridiculous idea, may we have two modes? One for "rebalancing", the 
-other for "demotion"?
-
-
+Isn't it better to do this at free time rather than allocation time?  If
+doing it at free, you can't even have information leaks for pages that
+are in the allocator.
 
