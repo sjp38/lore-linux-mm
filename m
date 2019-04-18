@@ -2,194 +2,258 @@ Return-Path: <SRS0=2ZuM=SU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 200B2C10F0E
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAEE9C10F0B
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBA6F21479
-	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBA6F21479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5AF7621479
+	for <linux-mm@archiver.kernel.org>; Thu, 18 Apr 2019 05:28:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="WZmIDWwI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AF7621479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6230E6B0006; Thu, 18 Apr 2019 01:28:39 -0400 (EDT)
+	id 0C9726B0007; Thu, 18 Apr 2019 01:28:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5DD366B0007; Thu, 18 Apr 2019 01:28:39 -0400 (EDT)
+	id 079446B0008; Thu, 18 Apr 2019 01:28:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E6ED6B0008; Thu, 18 Apr 2019 01:28:39 -0400 (EDT)
+	id ED0986B000A; Thu, 18 Apr 2019 01:28:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0035A6B0006
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:28:39 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o3so640541edr.6
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:38 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C84586B0007
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 01:28:48 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id z206so183399vsz.11
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=5nxTKfs+ujRgLMgaMI11oau6MxYPEVtPOF8UnDm+3do=;
-        b=X2gEYdPEp5iCo2jWlzZTmXqlS00aolkXBv/L4J5WKbv38TSr/NFeLaPIDcLS64VVw1
-         HaOaFh9TX4FFRLkCTQ1EhYcrzu/IjrdoSYm796IQTJGlRjmbrRPZnxdy1JapvuRr/nOo
-         MJqLao5s3+/qCSQGwMPVdztFhyZRphwBblGhPjftWbMft2z/C5v3vf1VR2S430oJ1Zrz
-         0GtG4u9v9C7yqzdW8RKF66T0Q5CKRZPeUjBVjk1eqfGnf0aAIUPMYc9tBH2CzSmLa44i
-         k9R91eMZXW+cDttI2e5x2WUmLFSZEVV3+pna6gp8VDaNpEOFlCO3nIdZk9fscPdBcV7N
-         BE/g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWwLDZaJPR/BmThWOCgUjHafM9Gm3WFPQzYWnMG9eISy5pRVtHS
-	YcIzkgjO70icaDGaq8SaLvbr0pFOyx80y9wp+gZVxZxMZfKHGalMeAJS7GR4rq1Qj4WaUQxoazQ
-	w9lnWLTLIch/RWPgw+AjKLCaQCCfCFP3bb8DZKvjDa8NrEvHp3rYAI+8KS9slUK1Lyg==
-X-Received: by 2002:a50:a5f7:: with SMTP id b52mr740608edc.84.1555565318561;
-        Wed, 17 Apr 2019 22:28:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpn2XB0K+4iC3LhSlYi6bnhcxwR/myWXAhDYSf6/bTlPFYvdJRc2dbSJp7oMIcMSjUQqzu
-X-Received: by 2002:a50:a5f7:: with SMTP id b52mr740575edc.84.1555565317698;
-        Wed, 17 Apr 2019 22:28:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555565317; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
+        b=HI05orBcafTMB00VR2PHW/fdcWw0eMEt0fGBsN+4Y4ZhbXHPU+Oev5sFCE7EbHfn4R
+         4pYJhc6+Hd8vmkS4AdoU1bi6zzuzbQT79vOAN8hXzCQ+dbfOULheAuQ0+wf76M1Vo3bQ
+         PBmVWXtSD03HorXpwH6h9nZB6EJ+BzJ8kt+jJHC6abxSiX2iIAFPa+JTsEcAJz5JKrx9
+         eV8uCG/jqk4gVLvCjfOtR36254qs7UkakAwpIjtdEu8DqVQsBdmTMsCTBl5TGcKqN+hY
+         SyVSpdyzYA7eM2BpS4mjo7tgqgsLkgkgeURt+eiaWUjB5HCcSyzBxJoemw1zDygBCxVH
+         688w==
+X-Gm-Message-State: APjAAAUIa/MTtr0msDXxh8vPwfW68DC7J+qd+FodgdwGQrfKY8FgiBq7
+	fBUyNTpY4U/19jddMYtz0wpwVyB6feqAwzItSo10GeFG5vgy8gT3spK8+TrKexZB8vFH671McSd
+	/nNawUImX/D32Iui871zIcaXqz/JpPMYMy7K5C1rc8K3PX0MuDeij1eD5LvUVtVkv0g==
+X-Received: by 2002:a1f:b297:: with SMTP id b145mr49650865vkf.74.1555565328571;
+        Wed, 17 Apr 2019 22:28:48 -0700 (PDT)
+X-Received: by 2002:a1f:b297:: with SMTP id b145mr49650857vkf.74.1555565327942;
+        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555565327; cv=none;
         d=google.com; s=arc-20160816;
-        b=fudZ34cIoejagXXDV03IJqKXX+aiDEz0LqaeJpKTqAl/XnCPjixvjCPhDvzc0L7Qb5
-         zinxHur2UsjivHieoh02ZtUu/48/flkDDP5zTN42ukGp7S77xdEHWcCtfZDakZeW1RTo
-         FqTwNaaO/dkuiQLlA3bTIG/aVZms7luoK/SZIPyTdhNJTbSKtjy4lSOsgWhNhCb9iFbW
-         pQd6PUCWVtDMwZ+lzBL3oflOaxD+PHMR0y1KAIP6e8ZkMUzPfQ/5NQR0CcyY101b9lzy
-         8eUDZOhcr2x3Ip4a+EUjjjCVRZtAUIAn/cGZA9zKyzFFzC/nT+RaWOoiVoMlC+xIfkVQ
-         kV/A==
+        b=h3mmdq/0ffbIsV4xt7K7lv0VbkR+fQuBdlX3+uDZM2DrK9rgSJZExNuHO9R5oRJAyr
+         /H88un/M/Z8MSht/0zO/3ToKLwY0uS+pgCowsLysfxL8cwdPpmt3zfiJ/VWWcwnnNxeA
+         cpmdl5S688z2t9dcqBvCpdGCHPo+6Z9dJ4BGcfJB7jRWYhJgOtDcp2y/rMbKzUb4GNvN
+         KIOTuFysM/asU7+k2pO6AkrZML45avBR/5lU0+L0l05gmzbVOjDvdauie2+/oXYD36EL
+         bdgu5m2q99TOP2bhXpb6Jj/V0CTBLEj+2eCxZEQf5RqG2GBJEom/ALqBEiH87rapE8fH
+         JDRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=5nxTKfs+ujRgLMgaMI11oau6MxYPEVtPOF8UnDm+3do=;
-        b=OQgKJ9tavJ5t/BwCmKnMuI3okxaC2S7Vwh3Go7mZRuepk7drZiCYLyZcZqvegJFV/u
-         7ZSdwnjSE03Uv9sBwmmBZ/m5LWD6VWWoPJ8LRrRFBIkK+/XH1fY3Rhx5cXBQnco+lsYh
-         2ylftN8eROXOaVDyOtXwWsPHbfkWMiYtbiaAlZxj3qEv3xHW0T5XD6bNZuLULogfBapj
-         MR4SREtx+y/CyoJbRqO0In16/OEGP8WYr+5RUCL2lOs33yWbHi2H9bBv2CwGyhmP/xkJ
-         dhGf7yNVHce9KZD++/2dXRVjbymxFagqQZbwKE8BTU744s1T2FeydxR0sk1H49RrOAlh
-         Cubw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
+        b=lMZaNHhO+E3AzJSm6GXMkTRDFEo/7t9lvJXe4iF7B1wLLCBFBZT6ivIMNERSNsp+gf
+         cnKSc3cAJi1fPsZkykNtpgQvYNW/GakIN5MF17HlBNVkDFILCgScG/bzgs1hSwA41pPa
+         RzIQ3IwwgL4gHzgUEAKkzCdduYE27axzVK4UIUArSiG/1LuU97KuBCwS2WV4nG1dqLGm
+         J5SitZbNmt7d369Z8nVjPwsWogTy+LPwWFoSCdeTpjAkO3x6Qb7WVBaH4lnZBxeEOxpK
+         pTDosuYpdxxLM2T8ny1HPYS+0AGJawfsleQ8TvaVMTSAvZ6aDa+BMNwkBmY7L8DbMpev
+         Aicg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id x14si638924ejc.84.2019.04.17.22.28.37
-        for <linux-mm@kvack.org>;
-        Wed, 17 Apr 2019 22:28:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@chromium.org header.s=google header.b=WZmIDWwI;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o11sor520885ual.11.2019.04.17.22.28.47
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 54CD980D;
-	Wed, 17 Apr 2019 22:28:36 -0700 (PDT)
-Received: from [192.168.0.129] (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E6E9D3F68F;
-	Wed, 17 Apr 2019 22:28:30 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
- catalin.marinas@arm.com, mhocko@suse.com, mgorman@techsingularity.net,
- james.morse@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
- david@redhat.com, cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
- <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
- <20190415134841.GC13990@lakrids.cambridge.arm.com>
- <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
- <20190417142154.GA393@lakrids.cambridge.arm.com>
- <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
- <20190417173948.GB15589@lakrids.cambridge.arm.com>
-Message-ID: <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
-Date: Thu, 18 Apr 2019 10:58:29 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@chromium.org header.s=google header.b=WZmIDWwI;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=YsXAYO0c8zFLQiUk70GsGhFvh+QJiSpbjT3b+4rW66I=;
+        b=WZmIDWwIQt+p2U8OFcegWRRVLp6nJI1rwc15/sOJzGCUmcSGRFPVv48qDCitMPl6bn
+         rM78n9VYubygolMm6Ghe0eVh8aEQd+wbbsAcLH0uKTj/Hr9dtxdm7CrqSOZUwvjdwtFp
+         4/y4Gx8iiVq8g1yfl8tKAiGgIRUjAi38RRMeM=
+X-Google-Smtp-Source: APXvYqwdRwhY1CNojGvmOHJW4LwFgrbvTinvwuvZWMSXNqrZ1kzv84OIelFVtJiQ4FsHpXYqMmoOng==
+X-Received: by 2002:ab0:3058:: with SMTP id x24mr49112657ual.95.1555565327733;
+        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
+Received: from mail-vk1-f173.google.com (mail-vk1-f173.google.com. [209.85.221.173])
+        by smtp.gmail.com with ESMTPSA id q128sm329404vke.2.2019.04.17.22.28.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Apr 2019 22:28:47 -0700 (PDT)
+Received: by mail-vk1-f173.google.com with SMTP id 195so209094vkx.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2019 22:28:46 -0700 (PDT)
+X-Received: by 2002:a1f:7245:: with SMTP id n66mr38243289vkc.40.1555565326448;
+ Wed, 17 Apr 2019 22:28:46 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190417173948.GB15589@lakrids.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190417052247.17809-1-alex@ghiti.fr> <20190417052247.17809-8-alex@ghiti.fr>
+In-Reply-To: <20190417052247.17809-8-alex@ghiti.fr>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 18 Apr 2019 00:28:34 -0500
+X-Gmail-Original-Message-ID: <CAGXu5jLhZS3+tiDCMsQQ=s9_f5ZBTLEYfcSfmtDRYv8Pp-KF2Q@mail.gmail.com>
+Message-ID: <CAGXu5jLhZS3+tiDCMsQQ=s9_f5ZBTLEYfcSfmtDRYv8Pp-KF2Q@mail.gmail.com>
+Subject: Re: [PATCH v3 07/11] arm: Use generic mmap top-down layout
+To: Alexandre Ghiti <alex@ghiti.fr>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, 
+	Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, 
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, 
+	Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>, 
+	Alexander Viro <viro@zeniv.linux.org.uk>, Luis Chamberlain <mcgrof@kernel.org>, 
+	Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-mips@vger.kernel.org, 
+	linux-riscv@lists.infradead.org, 
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/17/2019 11:09 PM, Mark Rutland wrote:
-> On Wed, Apr 17, 2019 at 10:15:35PM +0530, Anshuman Khandual wrote:
->> On 04/17/2019 07:51 PM, Mark Rutland wrote:
->>> On Wed, Apr 17, 2019 at 03:28:18PM +0530, Anshuman Khandual wrote:
->>>> On 04/15/2019 07:18 PM, Mark Rutland wrote:
->>>>> On Sun, Apr 14, 2019 at 11:29:13AM +0530, Anshuman Khandual wrote:
-> 
->>>>>> +	spin_unlock(&init_mm.page_table_lock);
->>>>>
->>>>> What precisely is the page_table_lock intended to protect?
->>>>
->>>> Concurrent modification to kernel page table (init_mm) while clearing entries.
->>>
->>> Concurrent modification by what code?
->>>
->>> If something else can *modify* the portion of the table that we're
->>> manipulating, then I don't see how we can safely walk the table up to
->>> this point without holding the lock, nor how we can safely add memory.
->>>
->>> Even if this is to protect something else which *reads* the tables,
->>> other code in arm64 which modifies the kernel page tables doesn't take
->>> the lock.
->>>
->>> Usually, if you can do a lockless walk you have to verify that things
->>> didn't change once you've taken the lock, but we don't follow that
->>> pattern here.
->>>
->>> As things stand it's not clear to me whether this is necessary or
->>> sufficient.
->>
->> Hence lets take more conservative approach and wrap the entire process of
->> remove_pagetable() under init_mm.page_table_lock which looks safe unless
->> in the worst case when free_pages() gets stuck for some reason in which
->> case we have bigger memory problem to deal with than a soft lock up.
-> 
-> Sorry, but I'm not happy with _any_ solution until we understand where
-> and why we need to take the init_mm ptl, and have made some effort to
-> ensure that the kernel correctly does so elsewhere. It is not sufficient
-> to consider this code in isolation.
+On Wed, Apr 17, 2019 at 12:30 AM Alexandre Ghiti <alex@ghiti.fr> wrote:
+>
+> arm uses a top-down mmap layout by default that exactly fits the generic
+> functions, so get rid of arch specific code and use the generic version
+> by selecting ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT.
+>
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 
-We will have to take the kernel page table lock to prevent assumption regarding
-present or future possible kernel VA space layout. Wrapping around the entire
-remove_pagetable() will be at coarse granularity but I dont see why it should
-not sufficient atleast from this particular tear down operation regardless of
-how this might affect other kernel pgtable walkers.
+Acked-by: Kees Cook <keescook@chromium.org>
 
-IIUC your concern is regarding other parts of kernel code (arm64/generic) which
-assume that kernel page table wont be changing and hence they normally walk the
-table without holding pgtable lock. Hence those current pgtabe walker will be
-affected after this change.
+-Kees
 
-> 
-> IIUC, before this patch we never clear non-leaf entries in the kernel
-> page tables, so readers don't presently need to take the ptl in order to
-> safely walk down to a leaf entry.
+> ---
+>  arch/arm/Kconfig                 |  1 +
+>  arch/arm/include/asm/processor.h |  2 --
+>  arch/arm/mm/mmap.c               | 62 --------------------------------
+>  3 files changed, 1 insertion(+), 64 deletions(-)
+>
+> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> index 850b4805e2d1..f8f603da181f 100644
+> --- a/arch/arm/Kconfig
+> +++ b/arch/arm/Kconfig
+> @@ -28,6 +28,7 @@ config ARM
+>         select ARCH_SUPPORTS_ATOMIC_RMW
+>         select ARCH_USE_BUILTIN_BSWAP
+>         select ARCH_USE_CMPXCHG_LOCKREF
+> +       select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
+>         select ARCH_WANT_IPC_PARSE_VERSION
+>         select BUILDTIME_EXTABLE_SORT if MMU
+>         select CLONE_BACKWARDS
+> diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
+> index 57fe73ea0f72..944ef1fb1237 100644
+> --- a/arch/arm/include/asm/processor.h
+> +++ b/arch/arm/include/asm/processor.h
+> @@ -143,8 +143,6 @@ static inline void prefetchw(const void *ptr)
+>  #endif
+>  #endif
+>
+> -#define HAVE_ARCH_PICK_MMAP_LAYOUT
+> -
+>  #endif
+>
+>  #endif /* __ASM_ARM_PROCESSOR_H */
+> diff --git a/arch/arm/mm/mmap.c b/arch/arm/mm/mmap.c
+> index 0b94b674aa91..b8d912ac9e61 100644
+> --- a/arch/arm/mm/mmap.c
+> +++ b/arch/arm/mm/mmap.c
+> @@ -17,43 +17,6 @@
+>         ((((addr)+SHMLBA-1)&~(SHMLBA-1)) +      \
+>          (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
+>
+> -/* gap between mmap and stack */
+> -#define MIN_GAP                (128*1024*1024UL)
+> -#define MAX_GAP                ((STACK_TOP)/6*5)
+> -#define STACK_RND_MASK (0x7ff >> (PAGE_SHIFT - 12))
+> -
+> -static int mmap_is_legacy(struct rlimit *rlim_stack)
+> -{
+> -       if (current->personality & ADDR_COMPAT_LAYOUT)
+> -               return 1;
+> -
+> -       if (rlim_stack->rlim_cur == RLIM_INFINITY)
+> -               return 1;
+> -
+> -       return sysctl_legacy_va_layout;
+> -}
+> -
+> -static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+> -{
+> -       unsigned long gap = rlim_stack->rlim_cur;
+> -       unsigned long pad = stack_guard_gap;
+> -
+> -       /* Account for stack randomization if necessary */
+> -       if (current->flags & PF_RANDOMIZE)
+> -               pad += (STACK_RND_MASK << PAGE_SHIFT);
+> -
+> -       /* Values close to RLIM_INFINITY can overflow. */
+> -       if (gap + pad > gap)
+> -               gap += pad;
+> -
+> -       if (gap < MIN_GAP)
+> -               gap = MIN_GAP;
+> -       else if (gap > MAX_GAP)
+> -               gap = MAX_GAP;
+> -
+> -       return PAGE_ALIGN(STACK_TOP - gap - rnd);
+> -}
+> -
+>  /*
+>   * We need to ensure that shared mappings are correctly aligned to
+>   * avoid aliasing issues with VIPT caches.  We need to ensure that
+> @@ -181,31 +144,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+>         return addr;
+>  }
+>
+> -unsigned long arch_mmap_rnd(void)
+> -{
+> -       unsigned long rnd;
+> -
+> -       rnd = get_random_long() & ((1UL << mmap_rnd_bits) - 1);
+> -
+> -       return rnd << PAGE_SHIFT;
+> -}
+> -
+> -void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
+> -{
+> -       unsigned long random_factor = 0UL;
+> -
+> -       if (current->flags & PF_RANDOMIZE)
+> -               random_factor = arch_mmap_rnd();
+> -
+> -       if (mmap_is_legacy(rlim_stack)) {
+> -               mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
+> -               mm->get_unmapped_area = arch_get_unmapped_area;
+> -       } else {
+> -               mm->mmap_base = mmap_base(random_factor, rlim_stack);
+> -               mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+> -       }
+> -}
+> -
+>  /*
+>   * You really shouldn't be using read() or write() on /dev/mem.  This
+>   * might go away in the future.
+> --
+> 2.20.1
+>
 
-Got it. Will look into this.
 
-> 
-> For example, the arm64 ptdump code never takes the ptl, and as of this
-> patch it will blow up if it races with a hot-remove, regardless of
-> whether the hot-remove code itself holds the ptl.
-
-Got it. Are there there more such examples where this can be problematic. I
-will be happy to investigate all such places and change/add locking scheme
-in there to make them work with memory hot remove.
-
-> 
-> Note that the same applies to the x86 ptdump code; we cannot assume that
-> just because x86 does something that it happens to be correct.
-
-I understand. Will look into other non-x86 platforms as well on how they are
-dealing with this.
-
-> 
-> I strongly suspect there are other cases that would fall afoul of this,
-> in both arm64 and generic code.
-
-Will start looking into all such possible cases both on arm64 and generic.
-Mean while more such pointers would be really helpful.
+-- 
+Kees Cook
 
