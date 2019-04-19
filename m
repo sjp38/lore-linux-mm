@@ -2,169 +2,152 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37684C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:28:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15D51C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 18:33:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A79A6222A7
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:28:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A79A6222A7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id A4CF3204EC
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 18:33:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="vKnIY9ql"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4CF3204EC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37D296B0006; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
+	id F03EC6B0003; Fri, 19 Apr 2019 14:33:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 32A7E6B0007; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
+	id E8D656B0006; Fri, 19 Apr 2019 14:33:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 200C26B0008; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
+	id D55626B0007; Fri, 19 Apr 2019 14:33:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA426B0006
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 12:28:44 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id t13so7250395itk.0
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:28:44 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B3D7C6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:33:03 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id x194so4546763ybg.12
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 11:33:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=UPb0IWwjIBeEX5imLIyRgeszted8bfQ9YSKdWtZJE5Y=;
-        b=KEBVeNB+hNuChLn4oitWfND4SrtQI3Fw0Cq7SP/YbqwL/weywTVkg7tc2i3P1CBeSb
-         XNN4H4cUG8MqGQOJqnQB8ttNBNtcUX1S++Dz7DD+jPPgkTSoJmtkHQcXic5paiK1vsr2
-         oQTAiqy+dU8rhVqS00283ShBkfxh3dPZ5ETP7Y9+GmUxOCJsqkVL0DdI9H4GqdxQWCKA
-         oYpZsSNc7Rsib5ZWERoSjQhZnXyz16NCDDi7WpT8jV/6PSIJH8FHVR4zBamy1Zo+3CLB
-         ScoFgEoqOpqe6yiYwwmDQTN7+kv+QISvR85sDtzegCwaD3K0gXtmIEbwowIdKwiICASK
-         03yQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVjxQ9We8zqDjkxL/iub+ojSvpBiK1XYo24ae1pAjkloensCAnS
-	rgmZe08R6j6i71HUmNqgfvDWvgxJdqzE8eqHsRultV9W5OAdYyjlYK8zx8R0XI4z2C4aJe80mzR
-	rAzc0W2/Y6hW0DH1h9bUG+q6pKSXUhdJypJyamWNO1uIS6gOYEXFBxeKSufqTnePerA==
-X-Received: by 2002:a24:e303:: with SMTP id d3mr3722967ith.170.1555691324746;
-        Fri, 19 Apr 2019 09:28:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDwyBg4NR9CrAA92SZ6KPUDSah0sKBf54bb9tCunqMuVrNWDr5ofpTWNJpuQ0jKzcju87d
-X-Received: by 2002:a24:e303:: with SMTP id d3mr3722926ith.170.1555691323992;
-        Fri, 19 Apr 2019 09:28:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555691323; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=2l+yySfkbLjZ7A6AZC9+tOMoDXh431piIaB1MqjCE0s=;
+        b=aHDESuEKKxia7110mv3o5A+7oCVE+BWWBGaE6YqmFFz2Edew+pVjB2f4gZ4SLgNbXX
+         J4cLY92yoCVf+rJRPoxgt7IWqGtEq0s1C3umeWdu4MuoVaMfF1PHoOZsfdueHchVQ9Pm
+         0KApLy7Q/hcTD/YNjMcITTpuzgsiwcqq8xgDeSA5vr/s3NDWNzrxy1MkIe6Ts7qQ4TU8
+         rRbahRMax1fxtTF3MoxWr/Nn4pvWuJtIcYL0cQwc1yYMRJ0mM4AdrLlOB72Rw/J5ewfy
+         RJVJxwZZAJIQ2hU71Z0CH0U2kOYhaLX2OUOFuUFHj+fpiayz+Nf8SkDoXv2EqX3w/oYP
+         dhUw==
+X-Gm-Message-State: APjAAAUBPj7tnrHr1db/u8A8ZKpecAIbsbnAEkJ7RM1KnLNcDKfoKcCI
+	kGZHLt0IqkjQ7QGLjZMhCJ044gf6FFZ0Yl32SlQczPa0BCGAJ9P7XFqYJ8X59ZrH8SdWTPZ48ti
+	FE1lL1SZcvEU5hYNVDVcnmJAmio9Ic9f10OCbweEa8pUWB/Eq8YTLx/CEGUWageY=
+X-Received: by 2002:a25:34c1:: with SMTP id b184mr4525633yba.109.1555698783369;
+        Fri, 19 Apr 2019 11:33:03 -0700 (PDT)
+X-Received: by 2002:a25:34c1:: with SMTP id b184mr4525582yba.109.1555698782610;
+        Fri, 19 Apr 2019 11:33:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555698782; cv=none;
         d=google.com; s=arc-20160816;
-        b=pUS53t/JgyA/j+RFyP3MTQRNFFcdBsovBJH/RsUeh/HOjaaeAIrIQIMc9TPBABCbDE
-         3Zzuub1ndGGBW7pSOKDgoxZY+ROj+wMl4L5cBACdWzEWTzMAXx7KY47mW4xhOPLjpYOn
-         qHBO+Uzr3rSy1QruSPrZPs87pn9ed7wKGZuAtSJJiTJrUq0j7L3bdAtYPp2dB5uWcK7n
-         eWIEn8dn5Ji2OAxCJzIbanrwrRvpEXnGT5ISasSVSjVKSgmNnHUttNS22YDDEREw6zAz
-         audauMOPELnuWL3jRW4j2pFPxYKfhu//H4KdTCDrUnh6bIapnnwuGhHriRQwPAICHjSh
-         6wFg==
+        b=CB0I6WHbmgkiievp+3/3M/XYgCWf+vAIiP2tr/wqwMF03eBZATrrVsfElBK7fcjRdt
+         33Y4ApwpY7sOiLe9AAShaFac76n6Lxc6rWUYWhx5VMeYOHtQKGaqHz/HjZBHttXAgXyN
+         5DNqot9JguORLRQWLtgXokFV+D9fqvjyYUoIpyuUHSL/Kiuk+CU2LtZtsVQNZuff3Jqy
+         /gFvsHXJc2lPBxqv57vY27thPV3V8DZw2ZLWycRyegzmS+aAtEBXBFBB1WOFAfJqnfqC
+         app2YsRZQdRQHmF2H2tw9MnFI8YJrXfmUN/GLZobcj5ZqMia+GQmVHyBdrTDJWtRgxHG
+         qdzg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=UPb0IWwjIBeEX5imLIyRgeszted8bfQ9YSKdWtZJE5Y=;
-        b=nTZ2KABzHOCV6vc5wcDSopMkR4XSmrMXuEXmYzX3i78fIDNsJ+8824JJwnNm1LQNbj
-         UNoy7p0wS7pMINH8TccXy3cWobEoD6ngAbS65mk0EHpUND/aJwkijvY85SqaFSrmuw+R
-         F6VZeZjwdeUJChZy6hQxJaS4DbZpKV5sAFo6gRTHVpDX1rMHd22vTgmdFEYO+R1D4Yv1
-         HPfhZAD9H6fIzNkSTCksxrcAtqnN1xdvTFevvFK1KcdW/lzQJPXKn0xUgxEn/ctUhHUe
-         rApwmNtDtUnMGsxBJsKz/8F7wYJ3NodkYXYmAmBJJS+eAYqKiiY+Ui/R4giSLcLd5/J9
-         oXPg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=2l+yySfkbLjZ7A6AZC9+tOMoDXh431piIaB1MqjCE0s=;
+        b=JrlSisEw2aSiNPp7lgVQX5aG12+XwJNbYTXORdvRGlrKOvI2I9BBhKcRZBBiVfEsDm
+         BZiukopIksbeyaiam3AnVmk3Yinxrku4a9Ne5mfFV1mOxokccfHzfdd736P8Ywbfk+g9
+         ebzdnqLFzPWvDm4RqjQC/L+cWYuNm4Q0ZOYZ2kZqN8oUGA1Ql5xbPGxVBTdvozhqM5K8
+         LHXh2Y8kUk6rtou4y5nO7JLDPDDcEZig3myNy1QjK/n6EzGp01Lt2DJWobrnsZc99TC2
+         e+7ooEcesHAsiKYr1Cq9LmMvj+hitYAVv0tHCNiNK2J8LdHXLcG4EoJ+Yt8nyXq0ANrF
+         EICw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id k188si3623568itb.61.2019.04.19.09.28.41
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vKnIY9ql;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 125sor2552725yby.89.2019.04.19.11.33.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 09:28:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        (Google Transport Security);
+        Fri, 19 Apr 2019 11:33:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TPjGOrH_1555691304;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPjGOrH_1555691304)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 20 Apr 2019 00:28:26 +0800
-Subject: Re: [QUESTIONS] THP allocation in NUMA fault migration path
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- linux-kernel <linux-kernel@vger.kernel.org>
-References: <aa34f38e-5e55-bdb2-133c-016b91245533@linux.alibaba.com>
- <20190418063218.GA6567@dhcp22.suse.cz>
- <bb2464c9-dc45-eff1-b9ac-f29105ccd27b@linux.alibaba.com>
- <20190419111356.GK18914@techsingularity.net>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <e48a5899-7139-ba76-46e9-76bda4a7ab78@linux.alibaba.com>
-Date: Fri, 19 Apr 2019 09:28:21 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vKnIY9ql;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2l+yySfkbLjZ7A6AZC9+tOMoDXh431piIaB1MqjCE0s=;
+        b=vKnIY9qlcjEO4/xDKBuqisY4tcwNmuKVqmCCvxrmrgFg/BrWrtslw026dmHPjKt8wS
+         4LVM9r4aXHdN2ms11Xc2uYNc1ZDRZcuugF886rirSgFnjYk+XrtDOr0jcGDN8Ou0v5p0
+         2/EIxdHhlD4MfJkcokn63HtB+oVXq8znFxW6UI2IKtAjc7WHfQqBkj/Gf3QGxYnPd/Mo
+         LIc9FlMJw9M1tZt1pkq9nvNGVbPpdO1CB7HbO3dFBlLZQtBGT+QrTcPN6a0yBEGMOXU6
+         3kpRxeL5VYzfTbypmKGkQfsRJ44nBEy3Or1cSa9rOBpfKXk5yMlAPDj/5ikbY4sSiAUe
+         H+vA==
+X-Google-Smtp-Source: APXvYqxTuWsfhu6f6r5ali0UF2xMpp1330DZSyg/0vvk0URbiRBgcdOt0kyrcOvQjDDarprKxwZZVQ==
+X-Received: by 2002:a25:858d:: with SMTP id x13mr4733139ybk.38.1555698782082;
+        Fri, 19 Apr 2019 11:33:02 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:180::2162])
+        by smtp.gmail.com with ESMTPSA id k123sm1811854ywa.57.2019.04.19.11.33.00
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Apr 2019 11:33:00 -0700 (PDT)
+Date: Fri, 19 Apr 2019 11:32:58 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Jiufei Xue <jiufei.xue@linux.alibaba.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
+	joseph.qi@linux.alibaba.com, bo.liu@linux.alibaba.com
+Subject: Re: [PATCH v3] fs/writeback: use rcu_barrier() to wait for inflight
+ wb switches going into workqueue when umount
+Message-ID: <20190419183258.GI374014@devbig004.ftw2.facebook.com>
+References: <20190418020426.89259-1-jiufei.xue@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20190419111356.GK18914@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190418020426.89259-1-jiufei.xue@linux.alibaba.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Apr 18, 2019 at 10:04:26AM +0800, Jiufei Xue wrote:
+> synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
+> switch may not go to the workqueue after synchronize_rcu(). Thus
+> previous scheduled switches was not finished even flushing the
+> workqueue, which will cause a NULL pointer dereferenced followed below.
+> 
+> VFS: Busy inodes after unmount of vdd. Self-destruct in 5 seconds.  Have a nice day...
+> BUG: unable to handle kernel NULL pointer dereference at 0000000000000278
+> [<ffffffff8126a303>] evict+0xb3/0x180
+> [<ffffffff8126a760>] iput+0x1b0/0x230
+> [<ffffffff8127c690>] inode_switch_wbs_work_fn+0x3c0/0x6a0
+> [<ffffffff810a5b2e>] worker_thread+0x4e/0x490
+> [<ffffffff810a5ae0>] ? process_one_work+0x410/0x410
+> [<ffffffff810ac056>] kthread+0xe6/0x100
+> [<ffffffff8173c199>] ret_from_fork+0x39/0x50
+> 
+> Replace the synchronize_rcu() call with a rcu_barrier() to wait for all
+> pending callbacks to finish. And inc isw_nr_in_flight after call_rcu()
+> in inode_switch_wbs() to make more sense.
+> 
+> Suggested-by: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
+> Cc: stable@kernel.org
 
+Except for the documentation part that Andrew raised,
 
-On 4/19/19 4:13 AM, Mel Gorman wrote:
-> On Thu, Apr 18, 2019 at 09:18:15AM -0700, Yang Shi wrote:
->>
->> On 4/17/19 11:32 PM, Michal Hocko wrote:
->>> On Wed 17-04-19 21:15:41, Yang Shi wrote:
->>>> Hi folks,
->>>>
->>>>
->>>> I noticed that there might be new THP allocation in NUMA fault migration
->>>> path (migrate_misplaced_transhuge_page()) even when THP is disabled (set to
->>>> "never"). When THP is set to "never", there should be not any new THP
->>>> allocation, but the migration path is kind of special. So I'm not quite sure
->>>> if this is the expected behavior or not?
->>>>
->>>>
->>>> And, it looks this allocation disregards defrag setting too, is this
->>>> expected behavior too?H
->>> Could you point to the specific code? But in general the miTgration path
->> Yes. The code is in migrate_misplaced_transhuge_page() called by
->> do_huge_pmd_numa_page().
->>
->> It would just do:
->> alloc_pages_node(node, (GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
->> HPAGE_PMD_ORDER);
->> without checking if transparent_hugepage is enabled or not.
->>
->> THP may be disabled before calling into do_huge_pmd_numa_page(). The
->> do_huge_pmd_wp_page() does check if THP is disabled or not. If THP is
->> disabled, it just tries to allocate 512 base pages.
->>
->>> should allocate the memory matching the migration origin. If the origin
->>> was a THP then I find it quite natural if the target was a huge page as
->> Yes, this is what I would like to confirm. Migration allocates a new THP to
->> replace the old one.
->>
->>> well. How hard the allocation should try is another question and I
->>> suspect we do want to obedy the defrag setting.
->> Yes, I thought so too. However, THP NUMA migration was added in 3.8 by
->> commit b32967f ("mm: numa: Add THP migration for the NUMA working set
->> scanning fault case."). It disregarded defrag setting at the very beginning.
->> So, I'm not quite sure if it was done on purpose or just forgot it.
->>
-> It was on purpose as migration due to NUMA misplacement was not intended
-> to change the type of page used. It would be impossible to tell in advance
-> if locality was more important than the page size from a performance point
-> of view. This is particularly relevant if the workload is virtualised and
-> there is an expectation that huge pages are preserved.  I'm not aware of
-> any bugs whereby there was a complaint that the THP migration caused an
-> excessive stall. It could be altered of course, but it would be preferred
-> to have an example workload demonstrating the problem before making a
-> decision.
+  Acked-by: Tejun Heo <tj@kernel.org>
 
-Thanks a lot for elaborating the idea. I didn't run into any problem at 
-the moment, just didn't get the thinking behind the choice since other 
-page fault paths (i.e. wp) do allocate hugepages more aggressively.
+Thanks.
 
->
+-- 
+tejun
 
