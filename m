@@ -2,218 +2,153 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AA53C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:28:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A128FC282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:30:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37B3F222AB
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:28:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37B3F222AB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 45AFE222AA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:30:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45AFE222AA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CF886B0003; Fri, 19 Apr 2019 09:28:30 -0400 (EDT)
+	id C17646B0003; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97E3A6B0006; Fri, 19 Apr 2019 09:28:30 -0400 (EDT)
+	id BA0216B0006; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 875996B0007; Fri, 19 Apr 2019 09:28:30 -0400 (EDT)
+	id ADCC46B0007; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E0A16B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:28:30 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i14so3505588pfd.10
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 06:28:30 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 61B726B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id u16so2849793edq.18
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 06:30:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=DSINax2VH53gTG05uINPkEOC6Go/Wig4jq5raCdlUE0=;
-        b=m30PeAWvL+XEx+B0t2LVzlH/6zwK+wkYcrc+flnZryDgNF4BQ2/dqw29UBT7mrBvsl
-         jX/Yqpu/WKfRCqu7GFfpZ4vzePSwJ67nBjGlTfXjYacIJmn4+K9TBfYuvmtCK7cB+995
-         VNB8FGugVUJwqRv5aBNyBkckbBm4c4J2bobA0EF578cy05nIhZMqPK59kc2aTaLXgwJO
-         AkeA2rplIUbyfqfGKk4D4ZOliFM3N/X+g3Ja2YSO81rYFjURco4UYNLbNJeJnh6dD1OM
-         taYW664vI2jp0LclDLZN3jUhwINjSkBk2/qrpiR5rXCnBNkGQJipc0b65cffGphnMi1p
-         9J0A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=q68w=sv=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=Q68w=SV=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAULyj0Hq2WfN8mr8MdF727CE5yiSoPa3Mdd6/aAa1NtdjjCNgKm
-	B+wHpZsvLFsyNYMznEtCYMwzFCAmFRUC96N9IwrBmY3p5SAkMIGjECzcsRB/xsr+529lD6IH9ed
-	MiS59yI8Oygfjw2W/rSdTIueQejRCTyte9htUN+9fyJsnVB+JFPG7vz71uz7pi6g=
-X-Received: by 2002:a17:902:7883:: with SMTP id q3mr3834708pll.60.1555680509955;
-        Fri, 19 Apr 2019 06:28:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKdTk4JDFl4zHhj1wPk/Nawl0bnh28Aecn0n5q8EdCXGPnVMMfqH71FDX+xhtkxpzBly6n
-X-Received: by 2002:a17:902:7883:: with SMTP id q3mr3834645pll.60.1555680509076;
-        Fri, 19 Apr 2019 06:28:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555680509; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=a5Om8ovCuIz9VaJEUD70FklSFAGjVjefKwS8QomanNU=;
+        b=OTSSMlqj1sMZleMu6eIRGD6vr/Sm53dE9ZGDqZPxPHGb/K6eJTbgcGZfD857O0rBWA
+         7anpQK38IhZEuhTdsuHWI3J10+pINjwJEePsqbaN8pIJ6TpfoL6IoQXiGlrzil+50VDY
+         Lc1iV3Ppjjb5H0EXCEwxcwkDAZr4B9CGeOLI6S45b4How19Rv48bCChCR2lrv9KAfHd6
+         3T6kzPYtx9xnckvoeMH2E2X9nH+whip9XcUGSQHTUJ35+bb5yamPrx5DOvgYNnjjOqmw
+         n+MkqxE2LvBh3/5tp+/Bi0VFvyrLAnk21XFpVkkTcu/DRIioNjZGHspgCmzvXdfih8zr
+         7kyA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVNCb18k7KoMUWlWrcLzc7ixhkwe2kngc4g+EEZn50B0dIQZXtP
+	HAzTjnzXyahx3lxHSH0sNBexbhbY0KgOA+yUgFZI0VxckhDqrwAR8xEzLkMR36j189tMLhGl4X7
+	Ol5tj91gOOtEfoIuiv3jQs93XIsbzwBEmAAuG5ORH5ITuANIYhosS5IM+zu3f7u2cag==
+X-Received: by 2002:a17:906:6c0d:: with SMTP id j13mr1917020ejr.249.1555680602942;
+        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzU3SSdhPIjezbdQa9bC+HMAhjf2jy650JpUuTjTx7+IQmoLezIBVHo/fRn0OtQxVgHwodV
+X-Received: by 2002:a17:906:6c0d:: with SMTP id j13mr1916994ejr.249.1555680602029;
+        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555680602; cv=none;
         d=google.com; s=arc-20160816;
-        b=fg4dDKHbf+zSswBNsfiEMLlegC8YG4vAAfHJyEoJ4tRg2hqLKp7PIU1BHp+EYf6nLS
-         OFrh05xtbgxz9zeercdbF2NdTfW60Zl+FDfFgbSZDe/7kmTTeKVDlX7L908VcagtB5Aj
-         wcbfIl2Yr7h6ylacCMrgWsIBn/jQrVkA3SXiq70u/6ZnuDLlALhqhYAXeh8WUtedBF4o
-         MknrkS449hTzGuI7ZPQntXAZd5PmiufnQytUtqRTgxip2KugtlKgtjsIXjGRssdTU+Ht
-         tWYy2r4GlyAJyAca9OezBhXaEiS/BtP7Kdc/cWgqmt2IH6gjZ5D9V0sWVZ7aYsJ0nc8n
-         MpVw==
+        b=IConTIrhfUT/ORBzE2IPz6gehktQDoMNqeE6jZpXIDOqElRm/fgh3jWp5d/yVRCTW0
+         3CghGZJNdMlRJktlYoZrbljLtrD+ycrHEMXOykjqoD8ooZIzwPIFH8umasCrHD0qtw/E
+         maBkCrEPdL+joQ8Unfy6kChArWQOno+173hVwWZOIvLXz0ec+4PesYC3de5iaX6m3IXt
+         GRzK9nuP+MqU751WrvjQ6tNLNZBJjRrNt9TXENnkT++jMwfMKAn3JrWajKwIrtz+KdHS
+         gJ5DPMsHWT2alLjEMbd1BYWqlZPWQX3sG+G/zXgXhx7YJV3RSmGwyF0P6Mf3FKH5FaHe
+         DqHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=DSINax2VH53gTG05uINPkEOC6Go/Wig4jq5raCdlUE0=;
-        b=GAGsEKNGCln4477RKhcLqkjQTrSIya7SvA/CIrxzJ3I21HBKQTZeP/8vVf+28xqgtg
-         QCMriHpcCQoFrSyJP3Wsk6YIGjrLavkrvnFc3L1tjfVtHwJyHat8RWi2BNcqiaLMJQBF
-         Wv/BE4li7HLpnNhQpAqyJKTxb1qvuXgWJ+QmfNVHRkUfkhJ2qkWxE4m6BtmXs7GOqz8f
-         7c6A+CVta34d4Y7n2znKKWZpF5k9xQZm9Hol3RPTrA/Lad9/8IHGsqG92s6ofJv+o6K1
-         5kGHW1OdnIUV2HvthOaxHyFKkS/SMgKPcUqwSGhY2fth7qHsg+lM4KhylHYLUhyf9XYz
-         fxZw==
+        bh=a5Om8ovCuIz9VaJEUD70FklSFAGjVjefKwS8QomanNU=;
+        b=Ub3uHV94neW0k5cJi4/IHXRyyykpu8/giYbLR2JYOFfrsdZGoCXenOTT3oFcWY8Nim
+         uAe+3+zQ0PEi12E3RjD033GbxQkENAhbq82n5Jwx50o1zwwolWKSUulG54hQv/bLQpet
+         0XobKt+rcccd0ZD3+OCbL9jeuPUOxqFMWhr/WaT0Bt5513b67ruTUaMg2eydosbGbC/v
+         KzLmqslTOBXnLYeMkcCs7WCNLBurP/kSRq/NPur8yWfZN4rGZeHZ6Fon1v45qfXYHeT9
+         n8dgo8td3wxE9Frbs5ECO9fs4jp3w+MDOy7UqaiYUC667rk1g3ZzP8xxSddf5Rm6NOj6
+         mQeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=q68w=sv=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=Q68w=SV=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 14si5141022ple.218.2019.04.19.06.28.28
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id y8si2255028edv.7.2019.04.19.06.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 06:28:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=q68w=sv=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) client-ip=46.22.139.14;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=q68w=sv=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=Q68w=SV=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 262412229E;
-	Fri, 19 Apr 2019 13:28:25 +0000 (UTC)
-Date: Fri, 19 Apr 2019 09:28:23 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf
- <jpoimboe@redhat.com>, x86@kernel.org, Andy Lutomirski <luto@kernel.org>,
- Alexander Potapenko <glider@google.com>, Alexey Dobriyan
- <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka
- Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes
- <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Catalin Marinas
- <catalin.marinas@arm.com>, Dmitry Vyukov <dvyukov@google.com>, Andrey
- Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, Mike
- Rapoport <rppt@linux.vnet.ibm.com>, Akinobu Mita <akinobu.mita@gmail.com>,
- iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski
- <m.szyprowski@samsung.com>, Johannes Thumshirn <jthumshirn@suse.de>, David
- Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>, Josef Bacik
- <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
- Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- intel-gfx@lists.freedesktop.org, Joonas Lahtinen
- <joonas.lahtinen@linux.intel.com>, Maarten Lankhorst
- <maarten.lankhorst@linux.intel.com>, dri-devel@lists.freedesktop.org, David
- Airlie <airlied@linux.ie>, Jani Nikula <jani.nikula@linux.intel.com>,
- Daniel Vetter <daniel@ffwll.ch>, Rodrigo Vivi <rodrigo.vivi@intel.com>,
- linux-arch@vger.kernel.org
-Subject: Re: [patch V2 22/29] tracing: Make ftrace_trace_userstack() static
- and conditional
-Message-ID: <20190419092823.094a6061@gandalf.local.home>
-In-Reply-To: <20190418084255.088813838@linutronix.de>
-References: <20190418084119.056416939@linutronix.de>
-	<20190418084255.088813838@linutronix.de>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 809DE1C318F
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:30:01 +0100 (IST)
+Received: (qmail 29446 invoked from network); 19 Apr 2019 13:30:01 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 19 Apr 2019 13:30:01 -0000
+Date: Fri, 19 Apr 2019 14:30:00 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Li Wang <liwang@redhat.com>,
+	linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm, page_alloc: Always use a captured page regardless of
+ compaction result
+Message-ID: <20190419133000.GL18914@techsingularity.net>
+References: <20190419085133.GH18914@techsingularity.net>
+ <e99a54aa-bc21-d3f3-54a5-5da0039216a9@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <e99a54aa-bc21-d3f3-54a5-5da0039216a9@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Apr 2019 10:41:41 +0200
-Thomas Gleixner <tglx@linutronix.de> wrote:
-
-> It's only used in trace.c and there is absolutely no point in compiling it
-> in when user space stack traces are not supported.
+On Fri, Apr 19, 2019 at 02:54:54PM +0200, Vlastimil Babka wrote:
+> On 4/19/19 10:51 AM, Mel Gorman wrote:
+> > During the development of commit 5e1f0f098b46 ("mm, compaction: capture
+> > a page under direct compaction"), a paranoid check was added to ensure
+> > that if a captured page was available after compaction that it was
+> > consistent with the final state of compaction. The intent was to catch
+> > serious programming bugs such as using a stale page pointer and causing
+> > corruption problems.
+> > 
+> > However, it is possible to get a captured page even if compaction was
+> > unsuccessful if an interrupt triggered and happened to free pages in
+> > interrupt context that got merged into a suitable high-order page. It's
+> > highly unlikely but Li Wang did report the following warning on s390
+> > occuring when testing OOM handling. Note that the warning is slightly
+> > edited for clarity.
+> > 
+> > [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_direct_compact+0x182/0x190
+> > [ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver
+> >  nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390 des_s390
+> >  des_generic sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs
+> >  libcrc32c dasd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm
+> >  ccwgroup fsm dm_mirror dm_region_hash dm_log dm_mod
+> > [ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not tainted 5.1.0-rc 5 #1
+> > 
+> > This patch simply removes the check entirely instead of trying to be
+> > clever about pages freed from interrupt context. If a serious programming
+> > error was introduced, it is highly likely to be caught by prep_new_page()
+> > instead.
+> > 
+> > Fixes: 5e1f0f098b46 ("mm, compaction: capture a page under direct compaction")
+> > Reported-by: Li Wang <liwang@redhat.com>
+> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 > 
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-
-Funny, these were moved out to global functions along with the
-ftrace_trace_stack() but I guess they were never used.
-
-This basically just does a partial revert of:
-
- c0a0d0d3f6528 ("tracing/core: Make the stack entry helpers global")
-
-
-> ---
->  kernel/trace/trace.c |   14 ++++++++------
->  kernel/trace/trace.h |    8 --------
->  2 files changed, 8 insertions(+), 14 deletions(-)
+> Ah, noticed the new formal resend only after replying to the first one,
+> so here goes again:
 > 
-> --- a/kernel/trace/trace.c
-> +++ b/kernel/trace/trace.c
-> @@ -159,6 +159,8 @@ static union trace_eval_map_item *trace_
->  #endif /* CONFIG_TRACE_EVAL_MAP_FILE */
->  
->  static int tracing_set_tracer(struct trace_array *tr, const char *buf);
-> +static void ftrace_trace_userstack(struct ring_buffer *buffer,
-> +				   unsigned long flags, int pc);
->  
->  #define MAX_TRACER_SIZE		100
->  static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
-> @@ -2905,9 +2907,10 @@ void trace_dump_stack(int skip)
->  }
->  EXPORT_SYMBOL_GPL(trace_dump_stack);
->  
-> +#ifdef CONFIG_USER_STACKTRACE_SUPPORT
->  static DEFINE_PER_CPU(int, user_stack_count);
->  
-> -void
-> +static void
->  ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
->  {
->  	struct trace_event_call *call = &event_user_stack;
-> @@ -2958,13 +2961,12 @@ ftrace_trace_userstack(struct ring_buffe
->   out:
->  	preempt_enable();
->  }
-> -
-> -#ifdef UNUSED
-
-Strange, I never knew about this ifdef. I would have nuked it when I
-saw it.
-
-Anyway,
-
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-
--- Steve
-
-
-> -static void __trace_userstack(struct trace_array *tr, unsigned long flags)
-> +#else /* CONFIG_USER_STACKTRACE_SUPPORT */
-> +static void ftrace_trace_userstack(struct ring_buffer *buffer,
-> +				   unsigned long flags, int pc)
->  {
-> -	ftrace_trace_userstack(tr, flags, preempt_count());
->  }
-> -#endif /* UNUSED */
-> +#endif /* !CONFIG_USER_STACKTRACE_SUPPORT */
->  
->  #endif /* CONFIG_STACKTRACE */
->  
-> --- a/kernel/trace/trace.h
-> +++ b/kernel/trace/trace.h
-> @@ -782,17 +782,9 @@ void update_max_tr_single(struct trace_a
->  #endif /* CONFIG_TRACER_MAX_TRACE */
->  
->  #ifdef CONFIG_STACKTRACE
-> -void ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags,
-> -			    int pc);
-> -
->  void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
->  		   int pc);
->  #else
-> -static inline void ftrace_trace_userstack(struct ring_buffer *buffer,
-> -					  unsigned long flags, int pc)
-> -{
-> -}
-> -
->  static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
->  				 int skip, int pc)
->  {
+> Yup, no need for a Cc: stable on a very rare WARN_ON_ONCE. So the AI
+> will pick it anyway...
 > 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+
+With luck, this will be picked up and sent to Linus before 5.1 releases
+and then the stable bot will not need to touch the commit at all.
+
+-- 
+Mel Gorman
+SUSE Labs
 
