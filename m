@@ -2,153 +2,135 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A128FC282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:30:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EC22C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 14:05:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45AFE222AA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 13:30:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45AFE222AA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 2EDEB222C8
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 14:05:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jTOIGU81"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EDEB222C8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C17646B0003; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
+	id 82D4D6B0003; Fri, 19 Apr 2019 10:05:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA0216B0006; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
+	id 7DC566B0006; Fri, 19 Apr 2019 10:05:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADCC46B0007; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
+	id 6CBC86B0007; Fri, 19 Apr 2019 10:05:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 61B726B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:30:03 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id u16so2849793edq.18
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 06:30:03 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 368206B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 10:05:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h14so3457382pgn.23
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 07:05:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=a5Om8ovCuIz9VaJEUD70FklSFAGjVjefKwS8QomanNU=;
-        b=OTSSMlqj1sMZleMu6eIRGD6vr/Sm53dE9ZGDqZPxPHGb/K6eJTbgcGZfD857O0rBWA
-         7anpQK38IhZEuhTdsuHWI3J10+pINjwJEePsqbaN8pIJ6TpfoL6IoQXiGlrzil+50VDY
-         Lc1iV3Ppjjb5H0EXCEwxcwkDAZr4B9CGeOLI6S45b4How19Rv48bCChCR2lrv9KAfHd6
-         3T6kzPYtx9xnckvoeMH2E2X9nH+whip9XcUGSQHTUJ35+bb5yamPrx5DOvgYNnjjOqmw
-         n+MkqxE2LvBh3/5tp+/Bi0VFvyrLAnk21XFpVkkTcu/DRIioNjZGHspgCmzvXdfih8zr
-         7kyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVNCb18k7KoMUWlWrcLzc7ixhkwe2kngc4g+EEZn50B0dIQZXtP
-	HAzTjnzXyahx3lxHSH0sNBexbhbY0KgOA+yUgFZI0VxckhDqrwAR8xEzLkMR36j189tMLhGl4X7
-	Ol5tj91gOOtEfoIuiv3jQs93XIsbzwBEmAAuG5ORH5ITuANIYhosS5IM+zu3f7u2cag==
-X-Received: by 2002:a17:906:6c0d:: with SMTP id j13mr1917020ejr.249.1555680602942;
-        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzU3SSdhPIjezbdQa9bC+HMAhjf2jy650JpUuTjTx7+IQmoLezIBVHo/fRn0OtQxVgHwodV
-X-Received: by 2002:a17:906:6c0d:: with SMTP id j13mr1916994ejr.249.1555680602029;
-        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555680602; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=8GHfViN1qI7tP5bjrRTuauCJlfPJIop88X8YcwvDN6s=;
+        b=jfifnZsf2031mpjxsqvfjA1Dfhl39ZYgFMGkxDoLApujwTkbSr/e5PVzM8HKPERXXW
+         11yP3j+BHXLMY5b6Krkj/dmwbh8M5F7F49O5jIb0ljSmFmwLKG5YaBSQNRSzW+KVJfh8
+         siy+hq6ZmNRuJ23iTVIDew34w7P1HctEvVuGMIhvHkpxvgQTZR370ejsjS/JzapS/uSI
+         oekr2j784lZuD89QShwon+3qFx4LYHhoJIUT+0HzQnaJY436QySAIBM4o7YcsJIUiwfY
+         ZH3G0jMvtVZYssqI8KeSt+dWYTvtarlqPqfT4WgMLq8+f10G5zbfHUdhT87nEgN9dGH0
+         pivw==
+X-Gm-Message-State: APjAAAWlbZJk2rB4r3yMqA/J5M2VYEPDrRH9A923MIRC1frwWsyOldMO
+	gacpMbAzxx72xB/ls/fHW2FAb8nFpy/wKLyzT7Haz1TBPEp9N8g3K3UASbIt5cxwmJf9sMVAKTl
+	e0yrPsH/d/eh/xWszTQJ/TqZ0LWuu+HakzibUUeXjqfhbZzQG4sz+FFgaPAIoocnpsw==
+X-Received: by 2002:a63:5947:: with SMTP id j7mr4096521pgm.62.1555682730718;
+        Fri, 19 Apr 2019 07:05:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkcKL/3B84Y8AVSFPj1UDPg4D+XQNUdx20vQhXOqWYh5MrmUETdVij27k2YzQ8k6iqTaBC
+X-Received: by 2002:a63:5947:: with SMTP id j7mr4096463pgm.62.1555682729947;
+        Fri, 19 Apr 2019 07:05:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555682729; cv=none;
         d=google.com; s=arc-20160816;
-        b=IConTIrhfUT/ORBzE2IPz6gehktQDoMNqeE6jZpXIDOqElRm/fgh3jWp5d/yVRCTW0
-         3CghGZJNdMlRJktlYoZrbljLtrD+ycrHEMXOykjqoD8ooZIzwPIFH8umasCrHD0qtw/E
-         maBkCrEPdL+joQ8Unfy6kChArWQOno+173hVwWZOIvLXz0ec+4PesYC3de5iaX6m3IXt
-         GRzK9nuP+MqU751WrvjQ6tNLNZBJjRrNt9TXENnkT++jMwfMKAn3JrWajKwIrtz+KdHS
-         gJ5DPMsHWT2alLjEMbd1BYWqlZPWQX3sG+G/zXgXhx7YJV3RSmGwyF0P6Mf3FKH5FaHe
-         DqHQ==
+        b=xJ58xeK9zt/4ue9jtX4dBwd6somYUkLrW9GnOnqLD2egcyG+4MxMXcUqgqS7aTA+uO
+         nqvrtS2ltR9RduCY1/nZQAQ4mEkX3DCoYpozcB9snZmyH/bQAmjfpNiNbYRN8ejmcgR3
+         tuclpBqF7L+NkTL6zoX+qLkXHezRM+tUJfLIlAaqvyFu5mDlhrQvFKgmAIpBw2FwoKp+
+         ik8gwy+msQNmqbaCS/Rf+SwjVhkI0ZnsiC8+HTyp+Q1ESYh1KmZtIFWpJ8locVKjqrYd
+         swKTrQlGnJYSCE9RpVcltOgnQDf9ONqMhrcL3NJsNiK/iWVzfI8lBqo4TmcvosK166iz
+         jqlQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=a5Om8ovCuIz9VaJEUD70FklSFAGjVjefKwS8QomanNU=;
-        b=Ub3uHV94neW0k5cJi4/IHXRyyykpu8/giYbLR2JYOFfrsdZGoCXenOTT3oFcWY8Nim
-         uAe+3+zQ0PEi12E3RjD033GbxQkENAhbq82n5Jwx50o1zwwolWKSUulG54hQv/bLQpet
-         0XobKt+rcccd0ZD3+OCbL9jeuPUOxqFMWhr/WaT0Bt5513b67ruTUaMg2eydosbGbC/v
-         KzLmqslTOBXnLYeMkcCs7WCNLBurP/kSRq/NPur8yWfZN4rGZeHZ6Fon1v45qfXYHeT9
-         n8dgo8td3wxE9Frbs5ECO9fs4jp3w+MDOy7UqaiYUC667rk1g3ZzP8xxSddf5Rm6NOj6
-         mQeQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=8GHfViN1qI7tP5bjrRTuauCJlfPJIop88X8YcwvDN6s=;
+        b=giGBubPKjXG303lyA9BbyfKEO+9wN04bYphlY0QcGpUcdeJatYTD/gWNBTKrTTRLm0
+         8sCU0tmoTYqrUhyiHWW3fo7qdjJXYF02OWrQAIHj8Ai/5JKLckGbKEBVWzvJAhRYfBU6
+         nSzzCTdaRWvY4SXCdRX9vt3oTtXHreMtWsghVNWBipvrvHKqCB8J8qYPEtQR7qkXehOM
+         58YnwiJ3BmpWAYtWrmrHtFqn3AtZEm62+7U9FmwmpgPOWGhBWeEczKyRbQknNxbD+eka
+         cx79b9BEJIzvbtOo85tLcJ1vWXVN9z/1FWBFIh/9xJfrKHlyPzB7CaSw0KoElo7783LE
+         YMJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id y8si2255028edv.7.2019.04.19.06.30.01
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jTOIGU81;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e22si4947338pgi.66.2019.04.19.07.05.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 06:30:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) client-ip=46.22.139.14;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Apr 2019 07:05:29 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.14 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 809DE1C318F
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:30:01 +0100 (IST)
-Received: (qmail 29446 invoked from network); 19 Apr 2019 13:30:01 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 19 Apr 2019 13:30:01 -0000
-Date: Fri, 19 Apr 2019 14:30:00 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Li Wang <liwang@redhat.com>,
-	linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm, page_alloc: Always use a captured page regardless of
- compaction result
-Message-ID: <20190419133000.GL18914@techsingularity.net>
-References: <20190419085133.GH18914@techsingularity.net>
- <e99a54aa-bc21-d3f3-54a5-5da0039216a9@suse.cz>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jTOIGU81;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=8GHfViN1qI7tP5bjrRTuauCJlfPJIop88X8YcwvDN6s=; b=jTOIGU81UGM+SZeugfFRNRueG
+	l6N+dMe5L8tE+LsbrB8ff0RI23zdhq6sMGzaJL9CqIcSoEsKeE+4mKtV6w04nWSC7qRYvmWsX4qVv
+	Em6ez34lCyAWPmoo4haiEBl4pAP0PH4JLNkC+J77nltznW7JRNaHYaUvM5IoJDhTTIt9fWrjgAVWX
+	Is1aHcSYYpXbYDLQcz5qHAlAfHu6Ej/IcDznFo6/qIoVShfVOmTYM2vgrmAG/mFYR9pCVl8JRV8eu
+	HeKPmAjiFhTEbg9PgKdqcVA72Lz8X+M7ZlBEd2a/rQHpy56woJi6su9wdmYLTprp8Drt48ag2WAIl
+	/o7GbTcpA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hHU8n-0006OX-Cm; Fri, 19 Apr 2019 14:05:21 +0000
+Date: Fri, 19 Apr 2019 07:05:21 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Mikulas Patocka <mpatocka@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+Subject: DISCONTIGMEM is deprecated
+Message-ID: <20190419140521.GI7751@bombadil.infradead.org>
+References: <20190419094335.GJ18914@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e99a54aa-bc21-d3f3-54a5-5da0039216a9@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190419094335.GJ18914@techsingularity.net>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 02:54:54PM +0200, Vlastimil Babka wrote:
-> On 4/19/19 10:51 AM, Mel Gorman wrote:
-> > During the development of commit 5e1f0f098b46 ("mm, compaction: capture
-> > a page under direct compaction"), a paranoid check was added to ensure
-> > that if a captured page was available after compaction that it was
-> > consistent with the final state of compaction. The intent was to catch
-> > serious programming bugs such as using a stale page pointer and causing
-> > corruption problems.
-> > 
-> > However, it is possible to get a captured page even if compaction was
-> > unsuccessful if an interrupt triggered and happened to free pages in
-> > interrupt context that got merged into a suitable high-order page. It's
-> > highly unlikely but Li Wang did report the following warning on s390
-> > occuring when testing OOM handling. Note that the warning is slightly
-> > edited for clarity.
-> > 
-> > [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_direct_compact+0x182/0x190
-> > [ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver
-> >  nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390 des_s390
-> >  des_generic sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs
-> >  libcrc32c dasd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm
-> >  ccwgroup fsm dm_mirror dm_region_hash dm_log dm_mod
-> > [ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not tainted 5.1.0-rc 5 #1
-> > 
-> > This patch simply removes the check entirely instead of trying to be
-> > clever about pages freed from interrupt context. If a serious programming
-> > error was introduced, it is highly likely to be caught by prep_new_page()
-> > instead.
-> > 
-> > Fixes: 5e1f0f098b46 ("mm, compaction: capture a page under direct compaction")
-> > Reported-by: Li Wang <liwang@redhat.com>
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> 
-> Ah, noticed the new formal resend only after replying to the first one,
-> so here goes again:
-> 
-> Yup, no need for a Cc: stable on a very rare WARN_ON_ONCE. So the AI
-> will pick it anyway...
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
+On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
+> DISCONTIG is essentially deprecated and even parisc plans to move to
+> SPARSEMEM so there is no need to be fancy, this patch simply disables
+> watermark boosting by default on DISCONTIGMEM.
 
-With luck, this will be picked up and sent to Linus before 5.1 releases
-and then the stable bot will not need to touch the commit at all.
+I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
+scenarios.  Grepping the arch/ directories shows:
 
--- 
-Mel Gorman
-SUSE Labs
+alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
+arc (for supporting more than 1GB of memory)
+ia64 (looks complicated ...)
+m68k (for multiple chunks of memory)
+mips (does support NUMA but also non-NUMA)
+parisc (both NUMA and non-NUMA)
+
+I'm not sure that these architecture maintainers even know that DISCONTIGMEM
+is deprecated.  Adding linux-arch to the cc.
 
