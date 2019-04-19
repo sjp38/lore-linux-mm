@@ -2,156 +2,233 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0213C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 10:56:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17A48C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 11:07:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E89B2190A
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 10:56:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E89B2190A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id A6AA121908
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 11:07:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="R9Rm0/wR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6AA121908
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DEC266B0003; Fri, 19 Apr 2019 06:56:19 -0400 (EDT)
+	id 382676B0007; Fri, 19 Apr 2019 07:07:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D73D96B0006; Fri, 19 Apr 2019 06:56:19 -0400 (EDT)
+	id 332ED6B0008; Fri, 19 Apr 2019 07:07:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3C126B0007; Fri, 19 Apr 2019 06:56:19 -0400 (EDT)
+	id 224A86B000A; Fri, 19 Apr 2019 07:07:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B0C6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 06:56:19 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id t82so4421922wmg.8
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:56:19 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B281D6B0007
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 07:07:07 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id i27so896494ljb.3
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 04:07:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=qIQ9WMcBNJ0tg5n81lCR8/VIPfVjFMRggN0bApVKx8s=;
-        b=kG1YdwFnUYUNCjVeirnAvyZZX1ybo2p00qjplu/U90kbktWF8h9nFiik5gO0Tnw5Ls
-         AqzNgLFiLQO1qK1uoAFq6+6AwkAFKFgJZjAO7+aGxYL5cQ5kdbfDwy/0TA1dKsBDnUXt
-         DhyZJAQlE1KJy1h/XtmKoCztYf/h8t4AqrZMvEZ9htTBKPmTLYAWI1GnGTKfhM1EOgN2
-         Zix507YYgfjInFbrx19SEvkvIUXGDHNnsiTsk5UHm0agcIghVR3XNq/LKQqXt2vRzX/H
-         g7bJ40xcLVxcX5p1bwdiqsOQWLkXDX0YZQX51ZVloVFRjUTqRe7lpXrqoxh2ox5vampp
-         z86g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAXpUN5sn//pURoaB3FdwcceE2n0gG2CivoC2oOOnbZWITG+iCc3
-	KYS6Ypju5A36TzgO15LwV8jKpRJAnrzpIVTjJIUp5hRC6vHwUOuZDHwVStAtJ+XfoATCKaDKuXu
-	wFPj/+ZjpG5dIvut3hIfFp+ZMnBHaSR5k6CDR2XfaysWSDswte5MikwMX0EyZYWhH/g==
-X-Received: by 2002:a1c:6308:: with SMTP id x8mr2264328wmb.147.1555671378994;
-        Fri, 19 Apr 2019 03:56:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdYmqh6eDjzeY97cAqbocKtdaPicNxxr9i0vc0VCkrZ1Jf0lwiDX1v1Ra4XfTUtCUjLJNj
-X-Received: by 2002:a1c:6308:: with SMTP id x8mr2264288wmb.147.1555671378024;
-        Fri, 19 Apr 2019 03:56:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555671378; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=68TXNoe1+xM5JQ/u4eCzVp2M/QEoCEujrVbcsex5r28=;
+        b=CM0WYooNNKwRB6In4/SHNqKCceB4NbDpC//wmq6lEAdeCDimaZvTo3kdtj5JNmTf/h
+         NcSbWqcN1N3xHyKEWKly6Lfjxz6PjwVSPzsysT8X6JUAb9aekNcELwLeUdVAE6lrlmZE
+         kxMIzz7X3YT0/EFFg/BWtrXffNx1Gs+6Au5U10ytiMhKEXVt7efvZjQSK+Cf0DuFSBA7
+         OmLmro4NUadm2VRco+7g9U6JtBpknveGGStlzc/UC/HlzyFNDAyboF2DKULdtL5mHDHN
+         K5LVI3O/OwMFjT9tp9yUnTSeaC0bzlPi43ws0xXAX4+Ab5AOjMVJInu190BVDSavvWaL
+         0mYQ==
+X-Gm-Message-State: APjAAAXxyDw0d4QUyfV5xIYTHnA4KxXA6b7ebgzQ9Shf7jqJYCTcfM5w
+	JecgBdlpj0N4HPIYrRpGQrGMkY1N4jSXHu1uktUR31wWUxWVfaWvOAjGMhEIXBUjO285OJeASzI
+	TpHDPz+A/ZY96jS7ZCBGepEBbXCaT2OsxZ14IAqwjPCcC7JQJa++hDqZKYghm91Fhxw==
+X-Received: by 2002:ac2:560b:: with SMTP id v11mr1904416lfd.151.1555672026849;
+        Fri, 19 Apr 2019 04:07:06 -0700 (PDT)
+X-Received: by 2002:ac2:560b:: with SMTP id v11mr1904368lfd.151.1555672025866;
+        Fri, 19 Apr 2019 04:07:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555672025; cv=none;
         d=google.com; s=arc-20160816;
-        b=qY0DN+Xeq3ss8sMx+TrTihqoT5Ulpcgb0TNOoJFhqprogheFBW9LzkT/knSOUkCCYJ
-         B9XVsSEJ2NZgxYwYFczyVBVprdfGBTwp3C6Mqec4A/t+86ETXRtUKRulLo3jYsWwUch3
-         qPw8S7ekduSv7/iZ7Yi4GSCi0cmS7qPKlHorzwmbZr3YGwN6RVWvLHxyTYAekle1aXqd
-         qdRcHOxfrNi2orsOaWfCDsfqOikZDb9DbOmyJgjDHnU/LEpOWN8S9hO7PhWBCZtXxjS1
-         l6G9lLl+bjqMxGzPWSzScf3TWmyDHmQm/hg6USgvxRkVNyWg0a3UEyPmAT51tTwvtEfl
-         zDTw==
+        b=YQmFsz7k43/qZq2GRipMvPPfqdJkVq42n9d5WgoTPqlxsvEN5iEeqcTPz+REOgCZ9j
+         20dtIKHfv2LbeojYLqQjSk3yYRuJFy7jZT9oNsn2EFqYwai3qUuK295mySeK4idVNV84
+         4Q7aIQFYsBUH0sBU/C9eYH/I+Ws9+7LEejQjIqOfoGgkWQP1URc+h5VkdMQ9acz6N7/P
+         w4pFVwCTQmeMCRf8HNXTJWKGq/OfIGOlHWXb5/f7m62Pf/FVVOE4iYcvTr47r/0GyzYn
+         ZxtceRIz/cEewziUlR7CZgwOCiSHqB8H6k4K06bqJ64UPUg3dUzSZckaxHDDiJKvw2AN
+         X8vg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=qIQ9WMcBNJ0tg5n81lCR8/VIPfVjFMRggN0bApVKx8s=;
-        b=D5eTwoHWjIrKdWrDZnSCiV8fV5gPxrIRoRu0XzBy8cFElHnSbby4HSiWqrJMI3apL8
-         D+xIbAVqS3YD5/YjIhbnb7CFq+x7XUK4a99y4zf/TlezyQkx2DfR5lxN23Z9plc/qXLI
-         DT41HPQg7Eo/W7lfZNb+7uvAC8xRxil/iI2bYuM6hYCttejjRQpT4v/zXfPRhPMpMcJU
-         qggm77mdxumvqp0J72E4C5+7i2jmJngfsnsD4na3ZlonjTRtO2OGnm3TB+PzzrQ4G0TA
-         63T90zsC8civRRBV7VBYMGt7GZ7Ku93fofKWxFca0jkjkdvE/wPBy38uJ4b4eA9joHNb
-         ZMEw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=68TXNoe1+xM5JQ/u4eCzVp2M/QEoCEujrVbcsex5r28=;
+        b=MjA1YBYMOgSjq2Gu4c8IHIUcgI2y4WTXN5TzaeyMBrlci1eOgZX42txNzry3wBOZos
+         bAX5jyzS9V6rEtck0lkcMWSH2HmxsiAJW9J2ussOVY/++FWzsBwgSPQPdjR7iLOIYpSj
+         /HcNnLa6W4WJTjOJFnKPTfBxDbpFu/YI3pFeMfeDS1kR2lWJoeHJFsuKkqoJw3cit61R
+         xgZwmCjIDsEwG5XCFebi4ZwP2unD8Mgl2cIcKDUHB0ss+rDYQMSRbalD5Kpbpwd+qHtn
+         0yaz/EI6HNUHRZUk5uiBDkImNGYR3ui/bFM45Jx/Goqhu3xqfB7dFLwET8aE7QsLfqyJ
+         Orhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u9si1621982wrr.310.2019.04.19.03.56.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="R9Rm0/wR";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f28sor1309325lfk.57.2019.04.19.04.07.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Apr 2019 03:56:18 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (Google Transport Security);
+        Fri, 19 Apr 2019 04:07:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hHRBB-0002lN-E1; Fri, 19 Apr 2019 12:55:37 +0200
-Date: Fri, 19 Apr 2019 12:55:36 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-cc: LKML <linux-kernel@vger.kernel.org>, rguenther@suse.de, mhocko@suse.com, 
-    vbabka@suse.cz, luto@amacapital.net, x86@kernel.org, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    stable@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] x86/mpx: fix recursive munmap() corruption
-In-Reply-To: <20190401141549.3F4721FE@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.21.1904191248090.3174@nanos.tec.linutronix.de>
-References: <20190401141549.3F4721FE@viggo.jf.intel.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="R9Rm0/wR";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=68TXNoe1+xM5JQ/u4eCzVp2M/QEoCEujrVbcsex5r28=;
+        b=R9Rm0/wRIy6/5g6TMnj5RvD7oL5Z51FEI8yYWeCQp8SKio/6jsveYvyBotprga0fIT
+         GxNPo/Io7TAGAgnz7SMXSJsNXlxRqbeEHGIho8101KfEky4Y9jZqKRpr4BEl69Ng0A1N
+         nqsOsy3vTkt/jjsjqtaAl4GJGtkfm1EG7hQ9dFztX9Kfkss2+7a9l0ZrZGeAqWCl1Xnm
+         iQixh7ALVZDnZ7NQw2ekj0797Z6AsouXXwwoY3mpiOknEvbljywaoBV5k8RD5DLEKgl/
+         A7iTZxc3jlZ21jEejuFSgq/VPygySuNRuKy5rJlfKoMiCasMhg84QnvCgZvH311j/42E
+         n5pg==
+X-Google-Smtp-Source: APXvYqz5m5b6ag++LflCKpSfnwHSA+V0arpZSnsFvvtqZcfLD+mGsb6oWAHL2itIJoeyMsn0oGqd2g==
+X-Received: by 2002:a19:f50e:: with SMTP id j14mr1081673lfb.11.1555672025313;
+        Fri, 19 Apr 2019 04:07:05 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id g79sm992924lje.25.2019.04.19.04.07.03
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Apr 2019 04:07:04 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Fri, 19 Apr 2019 13:06:56 +0200
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
+	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/1] lib/test_vmalloc: do not create cpumask_t variable
+ on stack
+Message-ID: <20190419110656.znni5hdojf42iq5k@pc636>
+References: <20190418193925.9361-1-urezki@gmail.com>
+ <20190418151033.9e46ec06c1d7482e6dee14bc@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-Linutronix-Spam-Score: -1.0
-X-Linutronix-Spam-Level: -
-X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190418151033.9e46ec06c1d7482e6dee14bc@linux-foundation.org>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Apr 2019, Dave Hansen wrote:
-> diff -puN mm/mmap.c~mpx-rss-pass-no-vma mm/mmap.c
-> --- a/mm/mmap.c~mpx-rss-pass-no-vma	2019-04-01 06:56:53.409411123 -0700
-> +++ b/mm/mmap.c	2019-04-01 06:56:53.423411123 -0700
-> @@ -2731,9 +2731,17 @@ int __do_munmap(struct mm_struct *mm, un
->  		return -EINVAL;
+On Thu, Apr 18, 2019 at 03:10:33PM -0700, Andrew Morton wrote:
+> On Thu, 18 Apr 2019 21:39:25 +0200 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+> 
+> > On my "Intel(R) Xeon(R) W-2135 CPU @ 3.70GHz" system(12 CPUs)
+> > i get the warning from the compiler about frame size:
+> > 
+> > <snip>
+> > warning: the frame size of 1096 bytes is larger than 1024 bytes
+> > [-Wframe-larger-than=]
+> > <snip>
+> > 
+> > the size of cpumask_t depends on number of CPUs, therefore just
+> > make use of cpumask_of() in set_cpus_allowed_ptr() as a second
+> > argument.
+> > 
+> > ...
+> L
+> > --- a/lib/test_vmalloc.c
+> > +++ b/lib/test_vmalloc.c
+> > @@ -383,14 +383,14 @@ static void shuffle_array(int *arr, int n)
+> >  static int test_func(void *private)
+> >  {
+> >  	struct test_driver *t = private;
+> > -	cpumask_t newmask = CPU_MASK_NONE;
+> >  	int random_array[ARRAY_SIZE(test_case_array)];
+> >  	int index, i, j, ret;
+> >  	ktime_t kt;
+> >  	u64 delta;
+> >  
+> > -	cpumask_set_cpu(t->cpu, &newmask);
+> > -	set_cpus_allowed_ptr(current, &newmask);
+> > +	ret = set_cpus_allowed_ptr(current, cpumask_of(t->cpu));
+> > +	if (ret < 0)
+> > +		pr_err("Failed to set affinity to %d CPU\n", t->cpu);
+> >  
+> >  	for (i = 0; i < ARRAY_SIZE(test_case_array); i++)
+> >  		random_array[i] = i;
+> 
+> lgtm.
+> 
+> While we're in there...
+> 
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: lib/test_vmalloc.c:test_func(): eliminate local `ret'
+> 
+> Local 'ret' is unneeded and was poorly named: the variable `ret' generally
+> means the "the value which this function will return".
+> 
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Uladzislau Rezki <urezki@gmail.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Thomas Garnier <thgarnie@google.com>
+> Cc: Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: Joel Fernandes <joelaf@google.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@elte.hu>
+> Cc: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  lib/test_vmalloc.c |    8 +++-----
+>  1 file changed, 3 insertions(+), 5 deletions(-)
+> 
+> --- a/lib/test_vmalloc.c~a
+> +++ a/lib/test_vmalloc.c
+> @@ -384,12 +384,11 @@ static int test_func(void *private)
+>  {
+>  	struct test_driver *t = private;
+>  	int random_array[ARRAY_SIZE(test_case_array)];
+> -	int index, i, j, ret;
+> +	int index, i, j;
+>  	ktime_t kt;
+>  	u64 delta;
 >  
->  	len = PAGE_ALIGN(len);
-> +	end = start + len;
->  	if (len == 0)
->  		return -EINVAL;
+> -	ret = set_cpus_allowed_ptr(current, cpumask_of(t->cpu));
+> -	if (ret < 0)
+> +	if (set_cpus_allowed_ptr(current, cpumask_of(t->cpu)) < 0)
+>  		pr_err("Failed to set affinity to %d CPU\n", t->cpu);
 >  
-> +	/*
-> +	 * arch_unmap() might do unmaps itself.  It must be called
-> +	 * and finish any rbtree manipulation before this code
-> +	 * runs and also starts to manipulate the rbtree.
-> +	 */
-> +	arch_unmap(mm, start, end);
+>  	for (i = 0; i < ARRAY_SIZE(test_case_array); i++)
+> @@ -415,8 +414,7 @@ static int test_func(void *private)
+>  
+>  		kt = ktime_get();
+>  		for (j = 0; j < test_repeat_count; j++) {
+> -			ret = test_case_array[index].test_func();
+> -			if (!ret)
+> +			if (!test_case_array[index].test_func())
+>  				per_cpu_test_data[t->cpu][index].test_passed++;
+>  			else
+>  				per_cpu_test_data[t->cpu][index].test_failed++;
+> _
+> 
+Agree with your slight update.
 
-...
-  
-> -static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
-> -			      unsigned long start, unsigned long end)
-> +static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
-> +			      unsigned long end)
+Thank you!
 
-While you fixed up the asm-generic thing, this breaks arch/um and
-arch/unicorn32. For those the fixup is trivial by removing the vma
-argument.
-
-But itt also breaks powerpc and there I'm not sure whether moving
-arch_unmap() to the beginning of __do_munmap() is safe. Micheal???
-
-Aside of that the powerpc variant looks suspicious:
-
-static inline void arch_unmap(struct mm_struct *mm,
-                              unsigned long start, unsigned long end)
-{
- 	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-                mm->context.vdso_base = 0;
-}
-
-Shouldn't that be: 
-
- 	if (start >= mm->context.vdso_base && mm->context.vdso_base < end)
-
-Hmm?
-
-Thanks,
-
-	tglx
+--
+Vlad Rezki
 
