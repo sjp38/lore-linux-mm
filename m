@@ -2,469 +2,351 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD07CC282E1
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:54:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72B79C282E0
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:07:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4BA0B21855
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:54:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BA0B21855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 11071217F9
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:07:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11071217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B12036B0003; Fri, 19 Apr 2019 17:54:02 -0400 (EDT)
+	id 6C46D6B0003; Fri, 19 Apr 2019 18:07:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC16E6B0006; Fri, 19 Apr 2019 17:54:02 -0400 (EDT)
+	id 64BEB6B0006; Fri, 19 Apr 2019 18:07:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B14A6B0007; Fri, 19 Apr 2019 17:54:02 -0400 (EDT)
+	id 514E86B0007; Fri, 19 Apr 2019 18:07:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53F266B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 17:54:02 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id d7so1554013pln.14
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:54:02 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C4FA6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 18:07:31 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id z34so6006076qtz.14
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 15:07:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :subject:message-id:user-agent;
-        bh=U57933UIWWVa2PPADZBcv5QDNixZxV8RHKq/r/awYQU=;
-        b=KEhDojfq4lLPUeFU6F4VjSz2tTHSBAmNqJDzGk227Rj7zQWAqZQwCNTwQ7v3TUs6PR
-         pfDvEpQ6NTPce6UUtLwYMugIISUEAvpkI/QfDHWfvhLVICChuXk9rItCwtiPCuKqVwaS
-         qQXcJDC0vgcWH6nuPNfPNjcDTikcF0W2ED6GFtGjRKvcEvdwl4IHpp2e0Ojhfu6nUz+Y
-         0gLNSg7bIJzpmv5uuH2OJm0lT6640Od+cFmTeZCjI6J2qF1sWYsswDx92/SWnigfSSt9
-         RxEKZSAWeaYvQ6Quce3tq+aclc8b5kQm3GwNhCIbPE34XyLtYWIeN9EuCwmTqUjQjU5T
-         SMEA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAX7kBXqm8F9KRqrshPZ0N0BfhAAQTwTBJWye5St/MGh6UGyRPge
-	AWQG+aT15RzUhRwuODwv8kG6qi8DcdJaTV8dA+seWtfJX38GiugZL5Grw8pcpT+L5v9d5KeNIyz
-	dPT+y3A8cWguHYRHCaQBUVfpQT5974atNoS//i4ZB7UF+ExVcQSOLwdF+1OP3lgaR1g==
-X-Received: by 2002:aa7:9ab7:: with SMTP id x23mr6341756pfi.27.1555710841869;
-        Fri, 19 Apr 2019 14:54:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwbe1WjVnmE21NzsQo4uE9Z5SWyM3MpbyBuqGFWMjxjoOctwctTDm52XVQs1YnaFtDI2379
-X-Received: by 2002:aa7:9ab7:: with SMTP id x23mr6341602pfi.27.1555710840094;
-        Fri, 19 Apr 2019 14:54:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555710840; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=RJ1z5T/u2h4UsDydlnnlTPgBa1W7RfPMizPcX3N6M/A=;
+        b=bKw40HhwCVbSXSS7At6bwV9cGqTh5CyWf2XVen7uNnXPUqRqhkU52HvDPCjrEOxwSM
+         2mCKXagyycCTfKbzUVvLiJk3/Km/hUN5MnACmm52l0jJtvBrcartp+2hIh99xelfiYqS
+         kis44Tpm34S7GBJZbeLKnZBynoPgHK2nOTnhc7FDs333aD559FMFJVBc1tjd5nHH0SFA
+         tN+BnZiK3DTJOcgK5UO3xVFQ1zwM9eM7rlLmnnC1giEj/zgEzWO14OCx1CZG6TVvg4Ts
+         3z7ZRRZimKC+GNnVZ/lLNPWAKsc/aAyJ2tR1qaLUBPKb2IHtqzfJdqD9BLwq+9kT+tnT
+         9I7w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW+2pOAUdc/gi81dmDtUN5leaicZ+PXpSwAFolkt8L6xxoEuCY4
+	Vm/PJFCq1I2F6gBCoaVbaY1Gp9Y1DqCGiPuJJDQop0r//0nMR5fqHTQibr/Au0FoE+ERZyJH2Ks
+	vFGmB60wn9F3kMNerBZCcOmjmOQo+PXytrQRFVRvW1Yx3hbP1zaDkq1spwmgWpOLlgA==
+X-Received: by 2002:ae9:d886:: with SMTP id u128mr2826683qkf.279.1555711650907;
+        Fri, 19 Apr 2019 15:07:30 -0700 (PDT)
+X-Received: by 2002:ae9:d886:: with SMTP id u128mr2826635qkf.279.1555711650110;
+        Fri, 19 Apr 2019 15:07:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555711650; cv=none;
         d=google.com; s=arc-20160816;
-        b=BIJmC5wjJQG/5oAHYZMwl6ckKGqZbQJWQjcvaRpCZJjvXJxqE0mQ6a20EoAZlN8wuU
-         xjKU4wMuMJg5TorIwZlE+4fgvOFtjy4UKi0n0GIjehEGqXLtP9W2EpNG2EWTseZ+SjPP
-         NyGzJBQMp0QA8On65x9xnHCuzU9saCJC0yYSVJomVeQHUdPSS+2exNWoAkfrcRG8TN2T
-         DiJuwKmLaIN/Bjl7WiJW5VBITMn4xbuZvzO40C9a8wyXDlKvWAdNtWl8L4FGmrO2d6OG
-         DaUmid/SjvpGMzxcmaUTpG/wz8FFZZVlHg+v6Mm43ALPKay1ansX87cX/xipsKqMh5Pj
-         08sg==
+        b=syIL7sbx+UvwiOhs6HeR5Q1BcrztO3eGtaCOiuXJp7vMPvwXu3rHiCatHNjSnyZEI2
+         Sy6/bnntuhgxeYPcrieUysLZyLHb+ZsErGSKAGFen45bcMbe2ZdWDmMr/NJ2Dh5y2vUf
+         9LH2AFNR9jR66t3MEPe+a7i9VVqmvKmicwByj2b0FxJPVkL/gNMKk4I1e8HUlXBBNoDX
+         5R4Kyj6shuB4AYIKLw52hpScacQH3zERGo4gd8LvkaaZcGVDNXOQPciprOLyprRxPW+n
+         4LBIMTTBSHw43600/GbP4M5himxuRQMDBbL1GffvU8BIipbBUdxxMHIU/V2ZRGD7SYdB
+         Q/1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:message-id:subject:to:from:date;
-        bh=U57933UIWWVa2PPADZBcv5QDNixZxV8RHKq/r/awYQU=;
-        b=lDtFSQnad3VkakowT8HrnviOCerrhvG0GSMV9/RGg9go0MA3Kw3O0fJtW7w3EdVWyP
-         uaK4op6UTE7mUCHCryGgZjvk6u9jBJg92bA1H5eZsUkir3763uLHhcdjPhufEoLpepLX
-         PE3V7ZdamDwZS/L0/uTAQ+1m38U8QmpwdP673MtKdtMQ4pUBgBwQGP4u+vllja7biAty
-         tMhG2BomYN7LHdgyid1RlRP7a0xCxVBXugmGYH25+Bp7/s/dTyGG8iomhBLQs16j1GP9
-         dB3YxoruEpJ68rusUgr8VF9exuziuyDuFCGMDeGdRNkHebHi3j+M/JS7wicWPsdAADqx
-         eO6w==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=RJ1z5T/u2h4UsDydlnnlTPgBa1W7RfPMizPcX3N6M/A=;
+        b=mTJlsJ7CotAzyL9gPKAP/OZmELhxzP6UzMmxaS/bhUfBj77cQikEJHA7zfnFdFMdVq
+         /PkNG8Hg54i+vacGFCDsU3fXyYnj5LenX+oYiAoM95JHNhUVVnxeAvDmW7S4vJxU4yNc
+         w29pan9MK0D/tiaKo+5rreLfcnPrHxJj1GO8BWLU17Q9BdQUSyBjxRROvYmy2lA7RAvM
+         oybVEVy0S+ffn7HHyHEZ73WjvwPAYyaMykwm7YFIJ+YtHv5HcE/AWVEgTmsJQB6wmskU
+         F5KnHzEJKl0rcM1E6YAiABQknBBlvYIx7PJcSZeXv4ODZ5P52wRUUkbDSjoo5JGm3S+T
+         tWNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m17si5730281pgi.514.2019.04.19.14.53.59
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y17sor5587593qvc.28.2019.04.19.15.07.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 14:54:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Fri, 19 Apr 2019 15:07:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 4C068283B;
-	Fri, 19 Apr 2019 21:53:59 +0000 (UTC)
-Date: Fri, 19 Apr 2019 14:53:58 -0700
-From: akpm@linux-foundation.org
-To: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
- sfr@canb.auug.org.au
-Subject:  mmotm 2019-04-19-14-53 uploaded
-Message-ID: <20190419215358.WMVFXV3bT%akpm@linux-foundation.org>
-User-Agent: s-nail v14.8.16
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzKKzg0NpLfTNo6ZxJKpkZ3tLEmycdVD6SIpQ6z26RBZa9fp5qdweEsTbcLLA6o+VPlDj2r3Q==
+X-Received: by 2002:a0c:b5c2:: with SMTP id o2mr5324719qvf.58.1555711649798;
+        Fri, 19 Apr 2019 15:07:29 -0700 (PDT)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id j93sm3334393qtd.82.2019.04.19.15.07.27
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 19 Apr 2019 15:07:28 -0700 (PDT)
+Date: Fri, 19 Apr 2019 18:07:26 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nadav Amit <namit@vmware.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arnd Bergmann <arnd@arndb.de>, Jason Wang <jasowang@redhat.com>,
+	virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	"VMware, Inc." <pv-drivers@vmware.com>,
+	Julien Freche <jfreche@vmware.com>,
+	Nadav Amit <nadav.amit@gmail.com>
+Subject: Re: [PATCH v2 1/4] mm/balloon_compaction: list interfaces
+Message-ID: <20190419174452-mutt-send-email-mst@kernel.org>
+References: <20190328010718.2248-1-namit@vmware.com>
+ <20190328010718.2248-2-namit@vmware.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190328010718.2248-2-namit@vmware.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The mm-of-the-moment snapshot 2019-04-19-14-53 has been uploaded to
+On Thu, Mar 28, 2019 at 01:07:15AM +0000, Nadav Amit wrote:
+> Introduce interfaces for ballooning enqueueing and dequeueing of a list
+> of pages. These interfaces reduce the overhead of storing and restoring
+> IRQs by batching the operations. In addition they do not panic if the
+> list of pages is empty.
+> 
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Cc: Jason Wang <jasowang@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: virtualization@lists.linux-foundation.org
+> Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> ---
+>  include/linux/balloon_compaction.h |   4 +
+>  mm/balloon_compaction.c            | 145 +++++++++++++++++++++--------
+>  2 files changed, 111 insertions(+), 38 deletions(-)
+> 
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index f111c780ef1d..1da79edadb69 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -64,6 +64,10 @@ extern struct page *balloon_page_alloc(void);
+>  extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+>  				 struct page *page);
+>  extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
+> +extern size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+> +				      struct list_head *pages);
+> +extern size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
+> +				     struct list_head *pages, int n_req_pages);
+>  
 
-   http://www.ozlabs.org/~akpm/mmotm/
+Why size_t I wonder? It can never be > n_req_pages which is int.
+Callers also seem to assume int.
 
-mmotm-readme.txt says
-
-README for mm-of-the-moment:
-
-http://www.ozlabs.org/~akpm/mmotm/
-
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (5.x
-or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+>  static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+>  {
 
 
-This mmotm tree contains the following patches against 5.1-rc5:
-(patches marked "*" will be included in linux-next)
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index ef858d547e2d..88d5d9a01072 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -10,6 +10,106 @@
+>  #include <linux/export.h>
+>  #include <linux/balloon_compaction.h>
+>  
+> +static int balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
+> +				     struct page *page)
+> +{
+> +	/*
+> +	 * Block others from accessing the 'page' when we get around to
+> +	 * establishing additional references. We should be the only one
+> +	 * holding a reference to the 'page' at this point.
+> +	 */
+> +	if (!trylock_page(page)) {
+> +		WARN_ONCE(1, "balloon inflation failed to enqueue page\n");
+> +		return -EFAULT;
 
-  origin.patch
-* mm-add-sys-kernel-slab-cache-cache_dma32.patch
-* userfaultfd-use-rcu-to-free-the-task-struct-when-fork-fails.patch
-* mm-memory_hotplug-drop-memory-device-reference-after-find_memory_block.patch
-* zram-pass-down-the-bvec-we-need-to-read-into-in-the-work-struct.patch
-* lib-kconfigdebug-fix-build-error-without-config_block.patch
-* lib-test_vmalloc-do-not-create-cpumask_t-variable-on-stack.patch
-* mm-do-not-boost-watermarks-to-avoid-fragmentation-for-the-discontig-memory-model.patch
-* mm-page_alloc-always-use-a-captured-page-regardless-of-compaction-result.patch
-* prctl-fix-false-positive-in-validate_prctl_map.patch
-* scripts-spellingtxt-add-more-typos-to-spellingtxt-and-sort.patch
-* arch-sh-boards-mach-dreamcast-irqc-remove-duplicate-header.patch
-* debugobjects-move-printk-out-of-db-lock-critical-sections.patch
-* ocfs2-use-common-file-type-conversion.patch
-* ocfs2-fix-ocfs2-read-inode-data-panic-in-ocfs2_iget.patch
-* ocfs2-clear-zero-in-unaligned-direct-io.patch
-* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
-* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
-* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
-* ramfs-support-o_tmpfile.patch
-  mm.patch
-* list-add-function-list_rotate_to_front.patch
-* slob-respect-list_head-abstraction-layer.patch
-* slob-use-slab_list-instead-of-lru.patch
-* slub-add-comments-to-endif-pre-processor-macros.patch
-* slub-use-slab_list-instead-of-lru.patch
-* slab-use-slab_list-instead-of-lru.patch
-* mm-remove-stale-comment-from-page-struct.patch
-* slub-remove-useless-kmem_cache_debug-before-remove_full.patch
-* mm-slab-remove-unneed-check-in-cpuup_canceled.patch
-* slub-update-the-comment-about-slab-frozen.patch
-* slab-fix-an-infinite-loop-in-leaks_show.patch
-* slab-fix-an-infinite-loop-in-leaks_show-fix.patch
-* mm-vmscan-drop-zone-id-from-kswapd-tracepoints.patch
-* mm-cma_debugc-fix-the-break-condition-in-cma_maxchunk_get.patch
-* userfaultfd-sysctl-add-vmunprivileged_userfaultfd.patch
-* userfaultfd-sysctl-add-vmunprivileged_userfaultfd-fix.patch
-* page-cache-store-only-head-pages-in-i_pages.patch
-* page-cache-store-only-head-pages-in-i_pages-fix.patch
-* page-cache-store-only-head-pages-in-i_pages-fix-fix.patch
-* mm-page_alloc-disallow-__gfp_comp-in-alloc_pages_exact.patch
-* mm-move-recent_rotated-pages-calculation-to-shrink_inactive_list.patch
-* mm-move-nr_deactivate-accounting-to-shrink_active_list.patch
-* mm-move-nr_deactivate-accounting-to-shrink_active_list-fix.patch
-* mm-remove-pages_to_free-argument-of-move_active_pages_to_lru.patch
-* mm-generalize-putback-scan-functions.patch
-* mm-gup-replace-get_user_pages_longterm-with-foll_longterm.patch
-* mm-gup-replace-get_user_pages_longterm-with-foll_longterm-v3.patch
-* mm-gup-change-write-parameter-to-flags-in-fast-walk.patch
-* mm-gup-change-gup-fast-to-use-flags-rather-than-a-write-bool.patch
-* mm-gup-add-foll_longterm-capability-to-gup-fast.patch
-* mm-gup-add-foll_longterm-capability-to-gup-fast-v3.patch
-* ib-hfi1-use-the-new-foll_longterm-flag-to-get_user_pages_fast.patch
-* ib-hfi1-use-the-new-foll_longterm-flag-to-get_user_pages_fast-v3.patch
-* ib-qib-use-the-new-foll_longterm-flag-to-get_user_pages_fast.patch
-* ib-mthca-use-the-new-foll_longterm-flag-to-get_user_pages_fast.patch
-* mmmemory_hotplug-unlock-1gb-hugetlb-on-x86_64.patch
-* mmmemory_hotplug-drop-redundant-hugepage_migration_supported-check.patch
-* mm-memory_hotplug-fix-the-wrong-usage-of-n_high_memory.patch
-* mm-compaction-fix-an-undefined-behaviour.patch
-* mm-compaction-fix-an-undefined-behaviour-fix.patch
-* mm-cma-fix-the-bitmap-status-to-show-failed-allocation-reason.patch
-* mm-compaction-show-gfp-flag-names-in-try_to_compact_pages-tracepoint.patch
-* mm-compaction-some-tracepoints-should-be-defined-only-when-config_compaction-is-set.patch
-* mm-change-mm_update_next_owner-to-update-mm-owner-with-write_once.patch
-* mm-isolation-remove-redundant-pfn_valid_within-in-__first_valid_page.patch
-* mm-vmscan-add-tracepoints-for-node-reclaim.patch
-* mm-memcontrol-track-lru-counts-in-the-vmstats-array.patch
-* mm-memcontrol-replace-zone-summing-with-lruvec_page_state.patch
-* mm-memcontrol-replace-node-summing-with-memcg_page_state.patch
-* mm-memcontrol-push-down-mem_cgroup_node_nr_lru_pages.patch
-* mm-memcontrol-push-down-mem_cgroup_nr_lru_pages.patch
-* mm-memcontrol-quarantine-the-mem_cgroup_nr_lru_pages-api.patch
-* mm-cma-fix-crash-on-cma-allocation-if-bitmap-allocation-fails.patch
-* initramfs-free-initrd-memory-if-opening-initrdimage-fails.patch
-* initramfs-cleanup-initrd-freeing.patch
-* initramfs-factor-out-a-helper-to-populate-the-initrd-image.patch
-* initramfs-cleanup-populate_rootfs.patch
-* initramfs-cleanup-populate_rootfs-fix.patch
-* initramfs-move-the-legacy-keepinitrd-parameter-to-core-code.patch
-* initramfs-proide-a-generic-free_initrd_mem-implementation.patch
-* initramfs-poison-freed-initrd-memory.patch
-* init-provide-a-generic-free_initmem-implementation.patch
-* hexagon-switch-over-to-generic-free_initmem.patch
-* init-free_initmem-poison-freed-init-memory.patch
-* riscv-switch-over-to-generic-free_initmem.patch
-* sh-advertise-gigantic-page-support.patch
-* sparc-advertise-gigantic-page-support.patch
-* mm-simplify-memory_isolation-compaction-cma-into-contig_alloc.patch
-* hugetlb-allow-to-free-gigantic-pages-regardless-of-the-configuration.patch
-* mm-introduce-put_user_page-placeholder-versions.patch
-* mm-page_mkclean-vs-madv_dontneed-race.patch
-* mm-vmscan-drop-may_writepage-and-classzone_idx-from-direct-reclaim-begin-template.patch
-* mem-hotplug-fix-node-spanned-pages-when-we-have-a-node-with-only-zone_movable.patch
-* hugetlbfs-fix-potential-over-underflow-setting-node-specific-nr_hugepages.patch
-* mm-hugetlb-get-rid-of-nodemask_alloc.patch
-* mm-__pagevec_lru_add_fn-typo-fix.patch
-* mm-balloon-drop-unused-function-stubs.patch
-* mm-sparse-clean-up-the-obsolete-code-comment.patch
-* drivers-base-memoryc-clean-up-relicts-in-function-parameters.patch
-* huegtlbfs-on-restore-reserve-error-path-retain-subpool-reservation.patch
-* hugetlb-use-same-fault-hash-key-for-shared-and-private-mappings.patch
-* mm-change-locked_vms-type-from-unsigned-long-to-atomic64_t.patch
-* vfio-type1-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-* vfio-spapr_tce-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-* fpga-dlf-afu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-* powerpc-mmu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-* kvm-book3s-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-* mm-hmm-select-mmu-notifier-when-selecting-hmm-v2.patch
-* mm-hmm-use-reference-counting-for-hmm-struct-v3.patch
-* mm-hmm-do-not-erase-snapshot-when-a-range-is-invalidated.patch
-* mm-hmm-improve-and-rename-hmm_vma_get_pfns-to-hmm_range_snapshot-v2.patch
-* mm-hmm-improve-and-rename-hmm_vma_fault-to-hmm_range_fault-v3.patch
-* mm-hmm-improve-driver-api-to-work-and-wait-over-a-range-v3.patch
-* mm-hmm-add-default-fault-flags-to-avoid-the-need-to-pre-fill-pfns-arrays-v2.patch
-* mm-hmm-mirror-hugetlbfs-snapshoting-faulting-and-dma-mapping-v3.patch
-* mm-hmm-allow-to-mirror-vma-of-a-file-on-a-dax-backed-filesystem-v3.patch
-* mm-hmm-add-helpers-to-test-if-mm-is-still-alive-or-not.patch
-* mm-hmm-add-an-helper-function-that-fault-pages-and-map-them-to-a-device-v3.patch
-* mm-hmm-add-an-helper-function-that-fault-pages-and-map-them-to-a-device-v3-fix.patch
-* mm-hmm-convert-various-hmm_pfn_-to-device_entry-which-is-a-better-name.patch
-* mm-mmu_notifier-helper-to-test-if-a-range-invalidation-is-blockable.patch
-* mm-mmu_notifier-convert-user-range-blockable-to-helper-function.patch
-* mm-mmu_notifier-convert-mmu_notifier_range-blockable-to-a-flags.patch
-* mm-mmu_notifier-contextual-information-for-event-enums.patch
-* mm-mmu_notifier-contextual-information-for-event-triggering-invalidation-v2.patch
-* mm-mmu_notifier-use-correct-mmu_notifier-events-for-each-invalidation.patch
-* mm-mmu_notifier-pass-down-vma-and-reasons-why-mmu-notifier-is-happening-v2.patch
-* mm-mmu_notifier-mmu_notifier_range_update_to_read_only-helper.patch
-* mm-enable-error-injection-at-add_to_page_cache.patch
-* mm-enable-error-injection-at-add_to_page_cache-fix.patch
-* mm-rmap-use-the-pramapcount-to-do-the-check.patch
-* mm-use-mm_zero_struct_page-from-sparc-on-all-64b-architectures.patch
-* mm-drop-meminit_pfn_in_nid-as-it-is-redundant.patch
-* mm-implement-new-zone-specific-memblock-iterator.patch
-* mm-initialize-max_order_nr_pages-at-a-time-instead-of-doing-larger-sections.patch
-* mm-memory_hotplug-cleanup-memory-offline-path.patch
-* mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug.patch
-* mm-memory_hotplug-provide-a-more-generic-restrictions-for-memory-hotplug-fix.patch
-* mm-filemap-fix-minor-typo.patch
-* mm-memory_hotplug-release-memory-resource-after-arch_remove_memory.patch
-* mm-memory_hotplug-release-memory-resource-after-arch_remove_memory-fix.patch
-* mm-memory_hotplug-make-unregister_memory_section-never-fail.patch
-* mm-memory_hotplug-make-__remove_section-never-fail.patch
-* mm-memory_hotplug-make-__remove_pages-and-arch_remove_memory-never-fail.patch
-* mm-fix-false-positive-overcommit_guess-failures.patch
-* mm-remove-redundant-default-n-from-kconfig-s.patch
-* mm-introduce-new-vm_map_pages-and-vm_map_pages_zero-api.patch
-* arm-mm-dma-mapping-convert-to-use-vm_map_pages.patch
-* drivers-firewire-core-isoc-convert-to-use-vm_map_pages_zero.patch
-* drm-rockchip-rockchip_drm_gemc-convert-to-use-vm_map_pages.patch
-* drm-xen-xen_drm_front_gemc-convert-to-use-vm_map_pages.patch
-* iommu-dma-iommuc-convert-to-use-vm_map_pages.patch
-* videobuf2-videobuf2-dma-sgc-convert-to-use-vm_map_pages.patch
-* xen-gntdevc-convert-to-use-vm_map_pages.patch
-* xen-privcmd-bufc-convert-to-use-vm_map_pages_zero.patch
-* x86-numa-always-initialize-all-possible-nodes.patch
-* mm-be-more-verbose-about-zonelist-initialization.patch
-* fs-syncc-sync_file_range2-may-use-wb_sync_all-writeback.patch
-* mm-simplify-shrink_inactive_list.patch
-* mm-hmm-add-arch_has_hmm_mirror-arch_has_hmm_device-kconfig.patch
-* mm-refactor-__vunmap-to-avoid-duplicated-call-to-find_vm_area.patch
-* mm-show-number-of-vmalloc-pages-in-proc-meminfo.patch
-* mm-remove-might_sleep-in-__remove_vm_area.patch
-* mm-page_alloc-remove-unnecessary-parameter-in-rmqueue_pcplist.patch
-* z3fold-introduce-helper-functions.patch
-* z3fold-improve-compression-by-extending-search.patch
-* z3fold-add-structure-for-buddy-handles.patch
-* z3fold-support-page-migration.patch
-* z3fold-support-page-migration-fix.patch
-* hugetlbfs-always-use-address-space-in-inode-for-resv_map-pointer.patch
-* memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work.patch
-* memcg-schedule-high-reclaim-for-remote-memcgs-on-high_work-v3.patch
-* psi-introduce-state_mask-to-represent-stalled-psi-states.patch
-* psi-make-psi_enable-static.patch
-* psi-rename-psi-fields-in-preparation-for-psi-trigger-addition.patch
-* psi-rename-psi-fields-in-preparation-for-psi-trigger-addition-v6.patch
-* psi-split-update_stats-into-parts.patch
-* psi-track-changed-states.patch
-* refactor-header-includes-to-allow-kthreadh-inclusion-in-psi_typesh.patch
-* psi-introduce-psi-monitor.patch
-* mm-add-priority-threshold-to-__purge_vmap_area_lazy.patch
-* mm-vmap-keep-track-of-free-blocks-for-vmap-allocation.patch
-* mm-vmap-keep-track-of-free-blocks-for-vmap-allocation-v3.patch
-* mm-vmap-keep-track-of-free-blocks-for-vmap-allocation-v4.patch
-* mm-vmap-add-debug_augment_propagate_check-macro.patch
-* mm-vmap-add-debug_augment_propagate_check-macro-v4.patch
-* mm-vmap-add-debug_augment_lowest_match_check-macro.patch
-* mm-vmap-add-debug_augment_lowest_match_check-macro-v4.patch
-* mm-proportional-memorylowmin-reclaim.patch
-* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
-* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
-* mm-add-probe_user_read.patch
-* mm-add-probe_user_read-fix.patch
-* powerpc-use-probe_user_read.patch
-* mm-vmalloc-convert-vmap_lazy_nr-to-atomic_long_t.patch
-* mm-shuffle-initial-free-memory-to-improve-memory-side-cache-utilization.patch
-* mm-shuffle-initial-free-memory-to-improve-memory-side-cache-utilization-fix.patch
-* mm-move-buddy-list-manipulations-into-helpers.patch
-* mm-move-buddy-list-manipulations-into-helpers-fix.patch
-* mm-move-buddy-list-manipulations-into-helpers-fix2.patch
-* mm-maintain-randomization-of-page-free-lists.patch
-* mm-maintain-randomization-of-page-free-lists-checkpatch-fixes.patch
-* mm-vmscan-remove-unused-lru_pages-argument.patch
-* mm-mincore-make-mincore-more-conservative.patch
-* mm-mincore-make-mincore-more-conservative-v2.patch
-* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
-* info-task-hung-in-generic_file_write_iter.patch
-* info-task-hung-in-generic_file_write-fix.patch
-* fs-select-avoid-clang-stack-usage-warning.patch
-* kdb-get-rid-of-broken-attempt-to-print-ccversion-in-kdb-summary.patch
-* remove-spdx-with-linux-syscall-note-from-kernel-space-headers.patch
-* notifiers-double-register-detection.patch
-* kernel-latencytopc-remove-unnecessary-checks-for-latencytop_enabled.patch
-* kernel-latencytopc-rename-clear_all_latency_tracing-to-clear_tsk_latency_tracing.patch
-* byteorder-sanity-check-toolchain-vs-kernel-endianess.patch
-* lib-bitmapc-remove-unused-export_symbols.patch
-* lib-bitmapc-guard-exotic-bitmap-functions-by-config_numa.patch
-* lib-genallocc-export-symbol-addr_in_gen_pool.patch
-* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
-* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
-* lib-plist-rename-debug_pi_list-to-debug_plist.patch
-* lib-sort-make-swap-functions-more-generic.patch
-* lib-sort-use-more-efficient-bottom-up-heapsort-variant.patch
-* lib-sort-avoid-indirect-calls-to-built-in-swap.patch
-* lib-list_sort-simplify-and-remove-max_list_length_bits.patch
-* lib-list_sort-simplify-and-remove-max_list_length_bits-fix.patch
-* lib-list_sort-optimize-number-of-calls-to-comparison-function.patch
-* lib-move-mathematic-helpers-to-separate-folder.patch
-* lib-move-mathematic-helpers-to-separate-folder-fix.patch
-* lib-math-move-int_pow-from-pwm_blc-for-wider-use.patch
-* lib-make-bitmap_parselist_user-a-wrapper-on-bitmap_parselist.patch
-* lib-rework-bitmap_parselist.patch
-* lib-rework-bitmap_parselist-v5.patch
-* lib-test_bitmap-switch-test_bitmap_parselist-to-ktime_get.patch
-* lib-test_bitmap-add-testcases-for-bitmap_parselist.patch
-* lib-test_bitmap-add-testcases-for-bitmap_parselist-v5.patch
-* lib-test_bitmap-add-tests-for-bitmap_parselist_user.patch
-* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
-* bitopsh-sanitize-rotate-primitives.patch
-* lib-test_vmallocc-test_func-eliminate-local-ret.patch
-* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
-* checkpatch-fix-something.patch
-* fs-binfmt_elfc-remove-unneeded-initialization-of-mm-start_stack.patch
-* elf-make-scope-of-pos-variable-smaller.patch
-* elf-free-pt_interp-filename-asap.patch
-* elf-free-pt_interp-filename-asap-fix.patch
-* elf-delete-trailing-return-in-functions-returning-void.patch
-* elf-save-1-indent-level.patch
-* elf-move-variables-initialization-closer-to-their-usage.patch
-* elf-extract-prot_-calculations.patch
-* elf-init-pt_regs-pointer-later.patch
-* autofs-fix-some-word-usage-odities-in-autofstxt.patch
-* autofs-update-autofstxt-for-strictexpire-mount-option.patch
-* autofs-update-autofs_exp_leaves-description.patch
-* autofs-update-mount-control-expire-desription-with-autofs_exp_forced.patch
-* autofs-add-description-of-ignore-pseudo-mount-option.patch
-* fat-issue-flush-after-the-writeback-of-fat.patch
-* signal-annotate-implicit-fall-through.patch
-* exec-move-recursion_depth-out-of-critical-sections.patch
-* cpumask-fix-double-string-traverse-in-cpumask_parse.patch
-* cpumask-fix-double-string-traverse-in-cpumask_parse-fix.patch
-* rapidio-fix-a-null-pointer-derefenrece-when-create_workqueue-fails.patch
-* kernel-sysctlc-switch-to-bitmap_zalloc.patch
-* sysctl-return-einval-if-val-violates-minmax.patch
-* convert-struct-pid-count-to-refcount_t.patch
-* convert-struct-pid-count-to-refcount_t-fix.patch
-* eventfd-prepare-id-to-userspace-via-fdinfo.patch
-* gcov-clang-move-common-gcc-code-into-gcc_basec.patch
-* gcov-docs-add-a-note-on-gcc-vs-clang-differences.patch
-* gcov-clang-support.patch
-* gcov-clang-support-checkpatch-fixes.patch
-* panic-avoid-the-extra-noise-dmesg.patch
-* panic-reboot-allow-specifying-reboot_mode-for-panic-only.patch
-* pps-descriptor-based-gpio.patch
-* dt-bindings-pps-pps-gpio-pps-echo-implementation.patch
-* pps-pps-gpio-pps-echo-implementation.patch
-* scripts-gdb-find-vmlinux-where-it-was-before.patch
-* scripts-gdb-add-kernel-config-dumping-command.patch
-* scripts-gdb-add-kernel-config-dumping-command-v2.patch
-* scripts-gdb-add-rb-tree-iterating-utilities.patch
-* scripts-gdb-add-rb-tree-iterating-utilities-v2.patch
-* scripts-gdb-add-a-timer-list-command.patch
-* scripts-gdb-add-a-timer-list-command-v2.patch
-* scripts-gdb-silence-pep8-checks.patch
-* ipc-prevent-lockup-on-alloc_msg-and-free_msg.patch
-* ipc-mqueue-remove-redundant-wq-task-assignment.patch
-* ipc-mqueue-optimize-msg_get.patch
-* ipc-allow-boot-time-extension-of-ipcmni-from-32k-to-16m.patch
-* ipc-conserve-sequence-numbers-in-ipcmni_extend-mode.patch
-* ipc-do-cyclic-id-allocation-for-the-ipc-object.patch
-* ipc-do-cyclic-id-allocation-for-the-ipc-object-fix.patch
-  linux-next.patch
-  linux-next-rejects.patch
-  linux-next-git-rejects.patch
-* pinctrl-fix-pxa2xxc-build-warnings.patch
-* scripts-atomic-check-atomicssh-dont-assume-that-scripts-are-executable.patch
-* doc-mm-migration-doesnt-use-foll_split-anymore.patch
-* reiserfs-force-type-conversion-in-xattr_hash.patch
-* fs-coda-psdevc-remove-duplicate-header.patch
-* include-replace-tsk-to-task-in-linux-sched-signalh.patch
-* fs-cachefiles-nameic-remove-duplicate-header.patch
-* fs-block_devc-remove-duplicate-header.patch
-* kernel-resource-use-resource_overlaps-to-simplify-region_intersects.patch
-* treewide-replace-include-asm-sizesh-with-include-linux-sizesh.patch
-* arch-remove-asm-sizesh-amd-asm-generic-sizesh.patch
-* mm-rename-ambiguously-named-memorystat-counters-and-functions.patch
-* mm-rename-ambiguously-named-memorystat-counters-and-functions-fix.patch
-* mm-consider-subtrees-in-memoryevents.patch
-* fsl_hypervisor-dereferencing-error-pointers-in-ioctl.patch
-* fsl_hypervisor-prevent-integer-overflow-in-ioctl.patch
-* mm-memcontrol-make-cgroup-stats-and-events-query-api-explicitly-local.patch
-* mm-memcontrol-make-cgroup-stats-and-events-query-api-explicitly-local-fix.patch
-* mm-memcontrol-move-stat-event-counting-functions-out-of-line.patch
-* mm-memcontrol-fix-recursive-statistics-correctness-scalabilty.patch
-* mm-memcontrol-fix-numa-round-robin-reclaim-at-intermediate-level.patch
-* fix-read-buffer-overflow-in-delta-ipc.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  mutex-subsystem-synchro-test-module.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  slab-leaks3-default-y.patch
-  workaround-for-a-pci-restoring-bug.patch
+Looks like all callers bug on a failure. So let's just do it here,
+and then make this void?
+
+> +	}
+> +	list_del(&page->lru);
+> +	balloon_page_insert(b_dev_info, page);
+> +	unlock_page(page);
+> +	__count_vm_event(BALLOON_INFLATE);
+> +	return 0;
+> +}
+> +
+> +/**
+> + * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
+> + *				 list.
+> + * @b_dev_info: balloon device descriptor where we will insert a new page to
+> + * @pages: pages to enqueue - allocated using balloon_page_alloc.
+> + *
+> + * Driver must call it to properly enqueue a balloon pages before definitively
+> + * removing it from the guest system.
+
+A bunch of grammar error here. Pls fix for clarify.
+Also - document that nothing must lock the pages? More assumptions?
+What is "it" in this context? All pages? And what does removing from
+guest mean? Really adding to the balloon?
+
+> + *
+> + * Return: number of pages that were enqueued.
+> + */
+> +size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+> +			       struct list_head *pages)
+> +{
+> +	struct page *page, *tmp;
+> +	unsigned long flags;
+> +	size_t n_pages = 0;
+> +
+> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> +	list_for_each_entry_safe(page, tmp, pages, lru) {
+> +		balloon_page_enqueue_one(b_dev_info, page);
+
+Do we want to do something about an error here?
+
+> +		n_pages++;
+> +	}
+> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> +	return n_pages;
+> +}
+> +EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
+> +
+> +/**
+> + * balloon_page_list_dequeue() - removes pages from balloon's page list and
+> + *				 returns a list of the pages.
+> + * @b_dev_info: balloon device decriptor where we will grab a page from.
+> + * @pages: pointer to the list of pages that would be returned to the caller.
+> + * @n_req_pages: number of requested pages.
+> + *
+> + * Driver must call it to properly de-allocate a previous enlisted balloon pages
+> + * before definetively releasing it back to the guest system. This function
+> + * tries to remove @n_req_pages from the ballooned pages and return it to the
+> + * caller in the @pages list.
+> + *
+> + * Note that this function may fail to dequeue some pages temporarily empty due
+> + * to compaction isolated pages.
+> + *
+> + * Return: number of pages that were added to the @pages list.
+> + */
+> +size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
+> +				 struct list_head *pages, int n_req_pages)
+> +{
+> +	struct page *page, *tmp;
+> +	unsigned long flags;
+> +	size_t n_pages = 0;
+> +
+> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> +	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+> +		/*
+> +		 * Block others from accessing the 'page' while we get around
+> +		 * establishing additional references and preparing the 'page'
+> +		 * to be released by the balloon driver.
+> +		 */
+> +		if (!trylock_page(page))
+> +			continue;
+> +
+> +		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
+> +		    PageIsolated(page)) {
+> +			/* raced with isolation */
+> +			unlock_page(page);
+> +			continue;
+> +		}
+> +		balloon_page_delete(page);
+> +		__count_vm_event(BALLOON_DEFLATE);
+> +		unlock_page(page);
+> +		list_add(&page->lru, pages);
+> +		if (++n_pages >= n_req_pages)
+> +			break;
+> +	}
+> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> +
+> +	return n_pages;
+> +}
+> +EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+> +
+>  /*
+>   * balloon_page_alloc - allocates a new page for insertion into the balloon
+>   *			  page list.
+> @@ -43,17 +143,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+>  {
+>  	unsigned long flags;
+>  
+> -	/*
+> -	 * Block others from accessing the 'page' when we get around to
+> -	 * establishing additional references. We should be the only one
+> -	 * holding a reference to the 'page' at this point.
+> -	 */
+> -	BUG_ON(!trylock_page(page));
+>  	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> -	balloon_page_insert(b_dev_info, page);
+> -	__count_vm_event(BALLOON_INFLATE);
+> +	balloon_page_enqueue_one(b_dev_info, page);
+
+We used to bug on failure to lock page, now we
+silently ignore this error. Why?
+
+
+>  	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> -	unlock_page(page);
+>  }
+>  EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>  
+> @@ -70,36 +162,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>   */
+>  struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  {
+> -	struct page *page, *tmp;
+>  	unsigned long flags;
+> -	bool dequeued_page;
+> +	LIST_HEAD(pages);
+> +	int n_pages;
+>  
+> -	dequeued_page = false;
+> -	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> -	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+> -		/*
+> -		 * Block others from accessing the 'page' while we get around
+> -		 * establishing additional references and preparing the 'page'
+> -		 * to be released by the balloon driver.
+> -		 */
+> -		if (trylock_page(page)) {
+> -#ifdef CONFIG_BALLOON_COMPACTION
+> -			if (PageIsolated(page)) {
+> -				/* raced with isolation */
+> -				unlock_page(page);
+> -				continue;
+> -			}
+> -#endif
+> -			balloon_page_delete(page);
+> -			__count_vm_event(BALLOON_DEFLATE);
+> -			unlock_page(page);
+> -			dequeued_page = true;
+> -			break;
+> -		}
+> -	}
+> -	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> +	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
+>  
+> -	if (!dequeued_page) {
+> +	if (n_pages != 1) {
+>  		/*
+>  		 * If we are unable to dequeue a balloon page because the page
+>  		 * list is empty and there is no isolated pages, then something
+> @@ -112,9 +181,9 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  			     !b_dev_info->isolated_pages))
+>  			BUG();
+>  		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> -		page = NULL;
+> +		return NULL;
+>  	}
+> -	return page;
+> +	return list_first_entry(&pages, struct page, lru);
+>  }
+>  EXPORT_SYMBOL_GPL(balloon_page_dequeue);
+>  
+> -- 
+> 2.19.1
 
