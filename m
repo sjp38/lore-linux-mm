@@ -2,428 +2,200 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B591C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 19:56:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2705CC282DF
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 20:08:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5C7F217D7
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 19:56:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5C7F217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BFDD12171F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 20:08:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=gmx.net header.i=@gmx.net header.b="GdJtsS0U"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFDD12171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gmx.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 666096B0003; Fri, 19 Apr 2019 15:56:21 -0400 (EDT)
+	id 4D2906B0007; Fri, 19 Apr 2019 16:08:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C3A96B0006; Fri, 19 Apr 2019 15:56:21 -0400 (EDT)
+	id 481596B0008; Fri, 19 Apr 2019 16:08:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4664A6B0007; Fri, 19 Apr 2019 15:56:21 -0400 (EDT)
+	id 34B236B000A; Fri, 19 Apr 2019 16:08:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 029AF6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 15:56:21 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x2so3963438pge.16
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 12:56:20 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F18FC6B0007
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 16:08:43 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id g6so1433836wru.3
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 13:08:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :from:date:message-id;
-        bh=XATOWYlfY8mWr5n3Rp/7XQFoVZT6Gft99CJj+ScYlHU=;
-        b=ejXXMo25EywMcYM558+KPqJCR/mY2z06tNnWtkxz8yehiqgUaxcSE2BWhc6g1Ew5Qx
-         kknT6SCQOXWehyImj4dMnl6YeRPNr9wLacOk77akasckf1GRfdO1oNk7aUvEHKUg+tDx
-         uxmx561Omq0b32b44KhVrBENKR26OtbYQ/njBL3DNh+rk64uWrrjENnJ88V9OEufsby9
-         D7xgjYoEg0fdZSU53w5r/a3dUS3TqPU4KAw3zqRVU/GFyXq7q/jA1FYtKUBpATcQakk6
-         VvF4H/ZlrpY/F5HxfWkEHThKbN3pzdxWx4SX9owpxFqBHuae6FpEMYQjC8GJGKYwiwFr
-         jdFA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWU57GPX0ChZ0MIOTfEgXqg1XYLdIruE0qE2gtaeUixiEZaotfd
-	vto6zKRB7O8cypMJfz1fiRQDmLguAislQIaD/oX0tNSb4Wov8acTQdr0y0T12NCVKj7zkT4L3wF
-	/gSvPobqX2OqBv3FTi1od5eHiXVqCV0yYBg2e0lJUD0d0Qn7n22G3KjM9cuvudJcNyw==
-X-Received: by 2002:a17:902:201:: with SMTP id 1mr5705249plc.89.1555703780596;
-        Fri, 19 Apr 2019 12:56:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXrNXefDN+2l1IaeUK1bWzLjLi2k73Worm4o/bGp4+z2XRo9MqnqWdl+zq5apI5n5jYkBL
-X-Received: by 2002:a17:902:201:: with SMTP id 1mr5705169plc.89.1555703779274;
-        Fri, 19 Apr 2019 12:56:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555703779; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :openpgp:autocrypt:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=j47E3hXaIZPbHWF7Ycod/UKufYMTUHt3tLu5RUym6bQ=;
+        b=LZT6cQcro1dL3D559gUOjWk9Rq/uKs86vNMSm2UTzmjbuDiY0AQEesK7dQteb4A2Cr
+         QtY2bjr4Izi+UGhaa60yM1BJzucv5ymDlqXfqHEJOHVWPfZhwriuL9mXVbO5yx9l8PXc
+         9SOA4JUWTP5QGYbWAbuxb7dMqANLRg4t2VYFo1I+XMTOFsfu/cIdazdBhNygxJna9Uh0
+         +ENKXnmLECvSKzSW6lKZAWuS5WYPaLrK2/tuQmKDCLu9auYrROKDNhcI1ljYwuIO7YMa
+         O0hG0nslt63/OuVzVzbxO5xuZ739XuVtBvFthvNAa6gPqiIxDL0HTY/PE02MUeW+Rto7
+         ir3Q==
+X-Gm-Message-State: APjAAAVSqE5rbiyklbDJl7VxwAA2MuNh8hSu09D2+Npym70rQL3H/zxh
+	Prvdbzce6R5DK5n/kbzGIGiIANq7Bt51GyOKSm7QGKoVI+9+T81eNZYNx6v3QOX6HTaY1uHsQ01
+	z4YUQYF3fcdh7+mJhiaI31qyPZF0KDQhPmG6MU0w4MSnm8nT+vxnyRWsC6R8h+oOD7Q==
+X-Received: by 2002:a1c:4056:: with SMTP id n83mr3702714wma.146.1555704523525;
+        Fri, 19 Apr 2019 13:08:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2W7Mymw84C7/0vfmgzVQT+Fa5WgbsNK/iL6xZFBvhJb5/e0oX+6vBLLMjbCgXBDJhvh7R
+X-Received: by 2002:a1c:4056:: with SMTP id n83mr3702687wma.146.1555704522661;
+        Fri, 19 Apr 2019 13:08:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555704522; cv=none;
         d=google.com; s=arc-20160816;
-        b=H8nTv/l4080znQu/aUX4Yjpsv17vaDi3JsCvA+D2x7TjnEcWmrtA7zJa82zBEdkRQM
-         bJTp3Tfn3s7j87LoANbqBbEVG5W1dbbWjOm/8reRh4UpTy45GlVTKD5QHBR1gZu2MGlc
-         HxyvCfJvpEZhiA4qhK7cAdIE7AzjxE7dHxej7vw5fddJQReOJqwlk/n0KsA5uDullYG8
-         gFWaq/rXisNMSLdcgU2jtDGtDeJOEIW+L/Fg8YmMKRqWS8rABRgz81JER1z9Tb7TxB/+
-         Y9chUSmpG2YRikYJPenBak92nqiVMqEbU7AktEB2+LJcFNyBD3sAyVy1kB5yP3dEJSwB
-         V0Lg==
+        b=GqrOfPHXxfo3Qi+TSPaLeplTDmQ8QhkC84eaWP4vu1q77I+qxBZyehh6VCUTkGGffp
+         xtD4EreYz8n2VkXSpgCklQAQ6fs5BJTC8hdAXqtP9eBI46FfazCGSR8dTyZ4GFvvKVYR
+         LuppvDTLkQGL8+fUcu9e+AfuP7PjU8v35wnCGZUsodgHsqlU8S15HCSl8zjk7DNb6Hz7
+         HfaesbMuNxpiV9t8bpqHAex9AzELQRKsHlCBiGH0zjaW2XC+QFMXb/0koZWujG/JmZ8l
+         87Q3dGrwVAz+MgsNTl4wzMk6CaHy3gVN5WcyhHJmVMQwnReXgtYb8VlN9ht9epNonD+9
+         spug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:from:cc:to:subject;
-        bh=XATOWYlfY8mWr5n3Rp/7XQFoVZT6Gft99CJj+ScYlHU=;
-        b=F0VDrw9d9/XNbA60YZc7TXx/TPfsGdkePQF8Uq9b6qsXvaw37zr6UPpdAgHm7PeNPV
-         qu97OixRBeQEeuQ4k8stG/K5gjBNjGsgE4GJqx9x0AAyBHPTLJiOc6YBnjamDEXyMAAy
-         zpz6BrvdonnhkVwl3oQFg7zniRksI1XB47vMk5ztjkWtndM+3T5s25n9lne2kOwJ0qhu
-         dmu7tzmh/GkM2i2z86e0iRhVtKZh9X3limm1/F70Kn2KKocRcywEKsw2xKRvmkJDN2CZ
-         RPUHWcqRgzQTt/AR5oxHxEq2+mkTNeGUOt4FBfcmjZVYANnSrBINkaMbjP/Qt6g8yr1Y
-         p4MA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject:dkim-signature;
+        bh=j47E3hXaIZPbHWF7Ycod/UKufYMTUHt3tLu5RUym6bQ=;
+        b=Htzi1BQMvEvXJJdk3zzLad/EkQbdK92kYNB59uI5kNKeWYLaOeHbd31ZBL3DReYVsX
+         5y0RFPIT7sUuXHuitPERrtVXWyHcWLjtC+eHfXyROmcqYXdp51mQ9DmXQs6MTGa4Vo93
+         9L98VIbTUZQ/t3ozlF7VNP0xlhiFQfrTxFWRuoYRwFKeSxlXOkMY4y9aqFoakmH/+Fa3
+         R6Q1ZCJvyBNf+Xe5iw7HAsdIYnFRP6ZtHC+LBj3i+iKwK1N8Qi624762pWAZW/fYASBl
+         /+9ii8TZNhINbvXzwGnmXiMaazH88A5n+yaed5cO2Iupt/GQBLADhdjp/mA910QKbjfi
+         T2dg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id w20si5958821pfi.96.2019.04.19.12.56.18
+       dkim=pass header.i=@gmx.net header.s=badeba3b8450 header.b=GdJtsS0U;
+       spf=pass (google.com: domain of deller@gmx.de designates 212.227.17.22 as permitted sender) smtp.mailfrom=deller@gmx.de
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
+        by mx.google.com with ESMTPS id j5si3901882wrx.365.2019.04.19.13.08.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 12:56:19 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Fri, 19 Apr 2019 13:08:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of deller@gmx.de designates 212.227.17.22 as permitted sender) client-ip=212.227.17.22;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of dave.hansen@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Apr 2019 12:56:18 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,371,1549958400"; 
-   d="scan'208";a="339124191"
-Received: from viggo.jf.intel.com (HELO localhost.localdomain) ([10.54.77.144])
-  by fmsmga005.fm.intel.com with ESMTP; 19 Apr 2019 12:56:18 -0700
-Subject: [PATCH] [v2] x86/mpx: fix recursive munmap() corruption
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>,rguenther@suse.de,hjl.tools@gmail.com,yang.shi@linux.alibaba.com,mhocko@suse.com,vbabka@suse.cz,luto@amacapital.net,x86@kernel.org,akpm@linux-foundation.org,linux-mm@kvack.org,stable@vger.kernel.org,linuxppc-dev@lists.ozlabs.org,linux-um@lists.infradead.org,benh@kernel.crashing.org,paulus@samba.org,mpe@ellerman.id.au,linux-arch@vger.kernel.org,gxt@pku.edu.cn,jdike@addtoit.com,richard@nod.at,anton.ivanov@cambridgegreys.com
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 19 Apr 2019 12:47:47 -0700
-Message-Id: <20190419194747.5E1AD6DC@viggo.jf.intel.com>
+       dkim=pass header.i=@gmx.net header.s=badeba3b8450 header.b=GdJtsS0U;
+       spf=pass (google.com: domain of deller@gmx.de designates 212.227.17.22 as permitted sender) smtp.mailfrom=deller@gmx.de
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=gmx.net;
+	s=badeba3b8450; t=1555704514;
+	bh=88SiZFmmhRwC/7md4AJCYpTZ6Fy7rhwLCXuvvhMnM9Y=;
+	h=X-UI-Sender-Class:Subject:To:Cc:References:From:Date:In-Reply-To;
+	b=GdJtsS0UYIdRetD0I+Ks7DHl8xnBOlwqtuowppXDb6B2ENY0zLllx0v8+tTLq+p62
+	 791u5+655xbJiXK6ZbIz5QIXDeU0VCT8AW27OOoRWkEbiYXipbWGgzHAiaMAcT3PF2
+	 wWPl2OlHZRo6VrWiBvD4jIJrO4Iw2WpwkREzaO9I=
+X-UI-Sender-Class: 01bb95c1-4bf8-414a-932a-4f6e2808ef9c
+Received: from [192.168.20.60] ([92.116.171.44]) by mail.gmx.com (mrgmx103
+ [212.227.17.168]) with ESMTPSA (Nemesis) id 0MegeC-1hSeYE2YSO-00ODox; Fri, 19
+ Apr 2019 22:08:34 +0200
+Subject: Re: DISCONTIGMEM is deprecated
+To: Mel Gorman <mgorman@techsingularity.net>,
+ Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Mikulas Patocka <mpatocka@redhat.com>,
+ James Bottomley <James.Bottomley@hansenpartnership.com>,
+ linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+ Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+ linux-arch@vger.kernel.org
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190419142835.GM18914@techsingularity.net>
+From: Helge Deller <deller@gmx.de>
+Openpgp: preference=signencrypt
+Autocrypt: addr=deller@gmx.de; keydata=
+ xsBNBFDPIPYBCAC6PdtagIE06GASPWQJtfXiIzvpBaaNbAGgmd3Iv7x+3g039EV7/zJ1do/a
+ y9jNEDn29j0/jyd0A9zMzWEmNO4JRwkMd5Z0h6APvlm2D8XhI94r/8stwroXOQ8yBpBcP0yX
+ +sqRm2UXgoYWL0KEGbL4XwzpDCCapt+kmarND12oFj30M1xhTjuFe0hkhyNHkLe8g6MC0xNg
+ KW3x7B74Rk829TTAtj03KP7oA+dqsp5hPlt/hZO0Lr0kSAxf3kxtaNA7+Z0LLiBqZ1nUerBh
+ OdiCasCF82vQ4/y8rUaKotXqdhGwD76YZry9AQ9p6ccqKaYEzWis078Wsj7p0UtHoYDbABEB
+ AAHNHEhlbGdlIERlbGxlciA8ZGVsbGVyQGdteC5kZT7CwJIEEwECADwCGwMGCwkIBwMCBhUI
+ AgkKCwQWAgMBAh4BAheAFiEE9M/0wAvkPPtRU6Boh8nBUbUeOGQFAlrHzIICGQEACgkQh8nB
+ UbUeOGT1GAgAt+EeoHB4DbAx+pZoGbBYp6ZY8L6211n8fSi7wiwgM5VppucJ+C+wILoPkqiU
+ +ZHKlcWRbttER2oBUvKOt0+yDfAGcoZwHS0P+iO3HtxR81h3bosOCwek+TofDXl+TH/WSQJa
+ iaitof6iiPZLygzUmmW+aLSSeIAHBunpBetRpFiep1e5zujCglKagsW78Pq0DnzbWugGe26A
+ 288JcK2W939bT1lZc22D9NhXXRHfX2QdDdrCQY7UsI6g/dAm1d2ldeFlGleqPMdaaQMcv5+E
+ vDOur20qjTlenjnR/TFm9tA1zV+K7ePh+JfwKc6BSbELK4EHv8J8WQJjfTphakYLVM7ATQRQ
+ zyD2AQgA2SJJapaLvCKdz83MHiTMbyk8yj2AHsuuXdmB30LzEQXjT3JEqj1mpvcEjXrX1B3h
+ +0nLUHPI2Q4XWRazrzsseNMGYqfVIhLsK6zT3URPkEAp7R1JxoSiLoh4qOBdJH6AJHex4CWu
+ UaSXX5HLqxKl1sq1tO8rq2+hFxY63zbWINvgT0FUEME27Uik9A5t8l9/dmF0CdxKdmrOvGMw
+ T770cTt76xUryzM3fAyjtOEVEglkFtVQNM/BN/dnq4jDE5fikLLs8eaJwsWG9k9wQUMtmLpL
+ gRXeFPRRK+IT48xuG8rK0g2NOD8aW5ThTkF4apznZe74M7OWr/VbuZbYW443QQARAQABwsBf
+ BBgBAgAJBQJQzyD2AhsMAAoJEIfJwVG1HjhkNTgH/idWz2WjLE8DvTi7LvfybzvnXyx6rWUs
+ 91tXUdCzLuOtjqWVsqBtSaZynfhAjlbqRlrFZQ8i8jRyJY1IwqgvHP6PO9s+rIxKlfFQtqhl
+ kR1KUdhNGtiI90sTpi4aeXVsOyG3572KV3dKeFe47ALU6xE5ZL5U2LGhgQkbjr44I3EhPWc/
+ lJ/MgLOPkfIUgjRXt0ZcZEN6pAMPU95+u1N52hmqAOQZvyoyUOJFH1siBMAFRbhgWyv+YE2Y
+ ZkAyVDL2WxAedQgD/YCCJ+16yXlGYGNAKlvp07SimS6vBEIXk/3h5Vq4Hwgg0Z8+FRGtYZyD
+ KrhlU0uMP9QTB5WAUvxvGy8=
+Message-ID: <9e7b80a9-b90e-ac04-8b30-b2f285cd4432@gmx.de>
+Date: Fri, 19 Apr 2019 22:08:31 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190419142835.GM18914@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Provags-ID: V03:K1:jKfNtqE87ol8fRdlT+ZrUKs8u0n6+ekTNyxZxTDCtgZi2UD62Tv
+ Rge/xKNfkt/iueczYZ7jrnjYQUepkQb2HETqx08NAQ2QPH86oI3sEyK+N0Gt8RuE+Rez3r/
+ zEe/t3RoTsBjJ2jpG6uKco3FJo1xq39dq2SSz8qeDryfvNa8IZFDty6EYWwuV44zcfPS/w5
+ NTK2sl4yXNzb/2Ekt5oqg==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:LRTwxRmzW7s=:5glimZF4c8lHgNpScIYCI9
+ Gbes011K3KCpwakv6dhniWP2sx3+xvziqzK6FoR+JZ6BRGkXR4cJ4CSJN9skvADwKTgO5Sgf0
+ H1wkQ9ER998YXXi7szaPKd+AmTVVcbR5Y0TqptLkpjqaVepXQorlKucp49ecxpq9bZkdL69iU
+ ScJzkXdqK0LhXveRfcru1BQroznrDxFBzW2441omFSjo1FJ2GnDl158277HmUs4h5QzvOrHKT
+ F9GRvtxLY7em+iTFt5XsQqGkvRx2eGwXEYMc3zirDNg/UGqeMG4IAc2Hd0ZasVorrjf/iVFMh
+ 5LpkkiF1OIZhCjNetlX/JENDZ4TQZ0YF0eb7779qPm5vWszVCgKTIuZnLmra5gQAO5s2+Gjto
+ suK9y9sfJ9kvFhAAkf48Hn4xh/KIvRJDLQQSvGaOfy6ZX30ztVCCv37Vc2LcYnlxQYdkBL0xT
+ ioOGmDUI6ESuuDDdG8/w7uTpU0Meof2QhCk26vpoLtDM1hTX0t9wgvJ9vGSrHJZ3qNkpwgZbW
+ NU+Jh6uSzsM3SHoOlbWrY/mkk9s3on5zJ1TkModulCkDoBTh1HfEcUnehMbr7EBsNzkTL8l1J
+ zWi5cUQJ06v/KD2nw9WdGC3DXBk5wRHg8wgiDkMsDBOczHyPvfbZdFRLxIWEcbl5rMTXnlNiP
+ Vv5TKYgitStB2ssc3NRatRDwM8n2ysCTrECIK5ekyCDI7fVPwEm2KLPnqelMWhlEQjmsvw0go
+ agQg1/X2m+f2cSrSqQsykoivlHYQAcxMiSbsgVVMVSBTvrZJpcDYuZOLmDQiRDfVP7Z797BUQ
+ ifdaD4mSj6VCW0kg1ZE5rfr7AHPc68BmuCo0TUCVvo76lLE/qKkRgaM7TSNXNAeAvpz88NIq9
+ MdKedSTytSFnPO1vCIi9k0zeOTlkdeTjXuFYt+OywWi4mTn2IH4WLxrrrXAwdQ
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 19.04.19 16:28, Mel Gorman wrote:
+> On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
+>> On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
+>>> DISCONTIG is essentially deprecated and even parisc plans to move to
+>>> SPARSEMEM so there is no need to be fancy, this patch simply disables
+>>> watermark boosting by default on DISCONTIGMEM.
+>>
+>> I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
+>> scenarios.  Grepping the arch/ directories shows:
+>>
+>> alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
+>> arc (for supporting more than 1GB of memory)
+>> ia64 (looks complicated ...)
+>> m68k (for multiple chunks of memory)
+>> mips (does support NUMA but also non-NUMA)
+>> parisc (both NUMA and non-NUMA)
+>>
+>> I'm not sure that these architecture maintainers even know that DISCONT=
+IGMEM
+>> is deprecated.  Adding linux-arch to the cc.
+>
+> Poor wording then -- yes, DISCONTIGMEM is still used but look where it's
+> used. I find it impossible to believe that any new arch would support
+> DISCONTIGMEM or that DISCONTIGMEM would be selected when SPARSEMEM is
+> available.`It's even more insane when you consider that SPARSEMEM can be
+> extended to support VMEMMAP so that it has similar overhead to FLATMEM
+> when mapping pfns to struct pages and vice-versa.
 
-Changes from v1:
- * Fix compile errors on UML and non-x86 arches
- * Clarify commit message and Fixes about the origin of the
-   bug and add the impact to powerpc / uml / unicore32
+FYI, on parisc we will switch from DISCONTIGMEM to SPARSEMEM with kernel 5=
+.2.
+The patch was quite simple and it's currently in the for-next tree:
+https://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git/co=
+mmit/?h=3Dfor-next&id=3D281b718721a5e78288271d632731cea9697749f7
 
---
-
-This is a bit of a mess, to put it mildly.  But, it's a bug
-that only seems to have showed up in 4.20 but wasn't noticed
-until now because nobody uses MPX.
-
-MPX has the arch_unmap() hook inside of munmap() because MPX
-uses bounds tables that protect other areas of memory.  When
-memory is unmapped, there is also a need to unmap the MPX
-bounds tables.  Barring this, unused bounds tables can eat 80%
-of the address space.
-
-But, the recursive do_munmap() that gets called vi arch_unmap()
-wreaks havoc with __do_munmap()'s state.  It can result in
-freeing populated page tables, accessing bogus VMA state,
-double-freed VMAs and more.
-
-To fix this, call arch_unmap() before __do_unmap() has a chance
-to do anything meaningful.  Also, remove the 'vma' argument
-and force the MPX code to do its own, independent VMA lookup.
-
-== UML / unicore32 impact ==
-
-Remove unused 'vma' argument to arch_unmap().  No functional
-change.
-
-I compile tested this on UML but not unicore32.
-
-== powerpc impact ==
-
-powerpc uses arch_unmap() well to watch for munmap() on the
-VDSO and zeroes out 'current->mm->context.vdso_base'.  Moving
-arch_unmap() makes this happen earlier in __do_munmap().  But,
-'vdso_base' seems to only be used in perf and in the signal
-delivery that happens near the return to userspace.  I can not
-find any likely impact to powerpc, other than the zeroing
-happening a little earlier.
-
-powerpc does not use the 'vma' argument and is unaffected by
-its removal.
-
-I compile-tested a 64-bit powerpc defconfig.
-
-== x86 impact ==
-
-For the common success case this is functionally identical to
-what was there before.  For the munmap() failure case, it's
-possible that some MPX tables will be zapped for memory that
-continues to be in use.  But, this is an extraordinarily
-unlikely scenario and the harm would be that MPX provides no
-protection since the bounds table got reset (zeroed).
-
-I can't imagine anyone doing this:
-
-	ptr = mmap();
-	// use ptr
-	ret = munmap(ptr);
-	if (ret)
-		// oh, there was an error, I'll
-		// keep using ptr.
-
-Because if you're doing munmap(), you are *done* with the
-memory.  There's probably no good data in there _anyway_.
-
-This passes the original reproducer from Richard Biener as
-well as the existing mpx selftests/.
-
-====
-
-The long story:
-
-munmap() has a couple of pieces:
-1. Find the affected VMA(s)
-2. Split the start/end one(s) if neceesary
-3. Pull the VMAs out of the rbtree
-4. Actually zap the memory via unmap_region(), including
-   freeing page tables (or queueing them to be freed).
-5. Fixup some of the accounting (like fput()) and actually
-   free the VMA itself.
-
-This specific ordering was actually introduced by:
-
-	dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
-
-during the 4.20 merge window.  The previous __do_munmap() code
-was actually safe because the only thing after arch_unmap() was
-remove_vma_list().  arch_unmap() could not see 'vma' in the
-rbtree because it was detached, so it is not even capable of
-doing operations unsafe for remove_vma_list()'s use of 'vma'.
-
-Richard Biener reported a test that shows this in dmesg:
-
-[1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 val:551
-[1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
-
-What triggered this was the recursive do_munmap() called via
-arch_unmap().  It was freeing page tables that has not been
-properly zapped.
-
-But, the problem was bigger than this.  For one, arch_unmap()
-can free VMAs.  But, the calling __do_munmap() has variables
-that *point* to VMAs and obviously can't handle them just
-getting freed while the pointer is still in use.
-
-I tried a couple of things here.  First, I tried to fix the page
-table freeing problem in isolation, but I then found the VMA
-issue.  I also tried having the MPX code return a flag if it
-modified the rbtree which would force __do_munmap() to re-walk
-to restart.  That spiralled out of control in complexity pretty
-fast.
-
-Just moving arch_unmap() and accepting that the bonkers failure
-case might eat some bounds tables seems like the simplest viable
-fix.
-
-This was also reported in the following kernel bugzilla entry:
-
-	https://bugzilla.kernel.org/show_bug.cgi?id=203123
-
-There are some reports that dd2283f2605 ("mm: mmap: zap pages
-with read mmap_sem in munmap") triggered this issue.  While that
-commit certainly made the issues easier to hit, I belive the
-fundamental issue has been with us as long as MPX itself, thus
-the Fixes: tag below is for one of the original MPX commits.
-
-Reported-by: Richard Biener <rguenther@suse.de>
-Reported-by: H.J. Lu <hjl.tools@gmail.com>
-Fixes: dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
-Cc: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-um@lists.infradead.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: linux-arch@vger.kernel.org
-Cc: Guan Xuetao <gxt@pku.edu.cn>
-Cc: Jeff Dike <jdike@addtoit.com>
-Cc: Richard Weinberger <richard@nod.at>
-Cc: Anton Ivanov <anton.ivanov@cambridgegreys.com>
-
----
-
- b/arch/powerpc/include/asm/mmu_context.h   |    1 -
- b/arch/um/include/asm/mmu_context.h        |    1 -
- b/arch/unicore32/include/asm/mmu_context.h |    1 -
- b/arch/x86/include/asm/mmu_context.h       |    6 +++---
- b/arch/x86/include/asm/mpx.h               |    5 ++---
- b/arch/x86/mm/mpx.c                        |   10 ++++++----
- b/include/asm-generic/mm_hooks.h           |    1 -
- b/mm/mmap.c                                |   15 ++++++++-------
- 8 files changed, 19 insertions(+), 21 deletions(-)
-
-diff -puN mm/mmap.c~mpx-rss-pass-no-vma mm/mmap.c
---- a/mm/mmap.c~mpx-rss-pass-no-vma	2019-04-19 09:31:09.851509404 -0700
-+++ b/mm/mmap.c	2019-04-19 09:31:09.864509404 -0700
-@@ -2730,9 +2730,17 @@ int __do_munmap(struct mm_struct *mm, un
- 		return -EINVAL;
- 
- 	len = PAGE_ALIGN(len);
-+	end = start + len;
- 	if (len == 0)
- 		return -EINVAL;
- 
-+	/*
-+	 * arch_unmap() might do unmaps itself.  It must be called
-+	 * and finish any rbtree manipulation before this code
-+	 * runs and also starts to manipulate the rbtree.
-+	 */
-+	arch_unmap(mm, start, end);
-+
- 	/* Find the first overlapping VMA */
- 	vma = find_vma(mm, start);
- 	if (!vma)
-@@ -2741,7 +2749,6 @@ int __do_munmap(struct mm_struct *mm, un
- 	/* we have  start < vma->vm_end  */
- 
- 	/* if it doesn't overlap, we have nothing.. */
--	end = start + len;
- 	if (vma->vm_start >= end)
- 		return 0;
- 
-@@ -2811,12 +2818,6 @@ int __do_munmap(struct mm_struct *mm, un
- 	/* Detach vmas from rbtree */
- 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
- 
--	/*
--	 * mpx unmap needs to be called with mmap_sem held for write.
--	 * It is safe to call it before unmap_region().
--	 */
--	arch_unmap(mm, vma, start, end);
--
- 	if (downgrade)
- 		downgrade_write(&mm->mmap_sem);
- 
-diff -puN arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.853509404 -0700
-+++ b/arch/x86/include/asm/mmu_context.h	2019-04-19 09:31:09.865509404 -0700
-@@ -277,8 +277,8 @@ static inline void arch_bprm_mm_init(str
- 	mpx_mm_init(mm);
- }
- 
--static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
--			      unsigned long start, unsigned long end)
-+static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
-+			      unsigned long end)
- {
- 	/*
- 	 * mpx_notify_unmap() goes and reads a rarely-hot
-@@ -298,7 +298,7 @@ static inline void arch_unmap(struct mm_
- 	 * consistently wrong.
- 	 */
- 	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
--		mpx_notify_unmap(mm, vma, start, end);
-+		mpx_notify_unmap(mm, start, end);
- }
- 
- /*
-diff -puN include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma include/asm-generic/mm_hooks.h
---- a/include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.856509404 -0700
-+++ b/include/asm-generic/mm_hooks.h	2019-04-19 09:31:09.865509404 -0700
-@@ -18,7 +18,6 @@ static inline void arch_exit_mmap(struct
- }
- 
- static inline void arch_unmap(struct mm_struct *mm,
--			struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end)
- {
- }
-diff -puN arch/x86/mm/mpx.c~mpx-rss-pass-no-vma arch/x86/mm/mpx.c
---- a/arch/x86/mm/mpx.c~mpx-rss-pass-no-vma	2019-04-19 09:31:09.858509404 -0700
-+++ b/arch/x86/mm/mpx.c	2019-04-19 09:31:09.866509404 -0700
-@@ -881,9 +881,10 @@ static int mpx_unmap_tables(struct mm_st
-  * the virtual address region start...end have already been split if
-  * necessary, and the 'vma' is the first vma in this range (start -> end).
-  */
--void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
--		unsigned long start, unsigned long end)
-+void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
-+		      unsigned long end)
- {
-+       	struct vm_area_struct *vma;
- 	int ret;
- 
- 	/*
-@@ -902,11 +903,12 @@ void mpx_notify_unmap(struct mm_struct *
- 	 * which should not occur normally. Being strict about it here
- 	 * helps ensure that we do not have an exploitable stack overflow.
- 	 */
--	do {
-+	vma = find_vma(mm, start);
-+	while (vma && vma->vm_start < end) {
- 		if (vma->vm_flags & VM_MPX)
- 			return;
- 		vma = vma->vm_next;
--	} while (vma && vma->vm_start < end);
-+	}
- 
- 	ret = mpx_unmap_tables(mm, start, end);
- 	if (ret)
-diff -puN arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma arch/x86/include/asm/mpx.h
---- a/arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.860509404 -0700
-+++ b/arch/x86/include/asm/mpx.h	2019-04-19 09:31:09.866509404 -0700
-@@ -78,8 +78,8 @@ static inline void mpx_mm_init(struct mm
- 	 */
- 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
- }
--void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
--		      unsigned long start, unsigned long end);
-+void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
-+		unsigned long end);
- 
- unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
- 		unsigned long flags);
-@@ -100,7 +100,6 @@ static inline void mpx_mm_init(struct mm
- {
- }
- static inline void mpx_notify_unmap(struct mm_struct *mm,
--				    struct vm_area_struct *vma,
- 				    unsigned long start, unsigned long end)
- {
- }
-diff -puN arch/um/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/um/include/asm/mmu_context.h
---- a/arch/um/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:05.789507768 -0700
-+++ b/arch/um/include/asm/mmu_context.h	2019-04-19 09:42:57.962507638 -0700
-@@ -22,7 +22,6 @@ static inline int arch_dup_mmap(struct m
- }
- extern void arch_exit_mmap(struct mm_struct *mm);
- static inline void arch_unmap(struct mm_struct *mm,
--			struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end)
- {
- }
-diff -puN arch/unicore32/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/unicore32/include/asm/mmu_context.h
---- a/arch/unicore32/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:06.189507767 -0700
-+++ b/arch/unicore32/include/asm/mmu_context.h	2019-04-19 09:43:25.425507569 -0700
-@@ -88,7 +88,6 @@ static inline int arch_dup_mmap(struct m
- }
- 
- static inline void arch_unmap(struct mm_struct *mm,
--			struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end)
- {
- }
-diff -puN arch/powerpc/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/powerpc/include/asm/mmu_context.h
---- a/arch/powerpc/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:06.388507766 -0700
-+++ b/arch/powerpc/include/asm/mmu_context.h	2019-04-19 09:43:27.392507564 -0700
-@@ -237,7 +237,6 @@ extern void arch_exit_mmap(struct mm_str
- #endif
- 
- static inline void arch_unmap(struct mm_struct *mm,
--			      struct vm_area_struct *vma,
- 			      unsigned long start, unsigned long end)
- {
- 	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
-_
+Helge
 
