@@ -6,87 +6,88 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46202C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 15:03:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C58DC282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 15:08:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6F1821971
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 15:03:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6F1821971
+	by mail.kernel.org (Postfix) with ESMTP id B9F77222C7
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 15:08:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9F77222C7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 67AFB6B0003; Fri, 19 Apr 2019 11:03:07 -0400 (EDT)
+	id 194AA6B0003; Fri, 19 Apr 2019 11:08:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 62B746B0006; Fri, 19 Apr 2019 11:03:07 -0400 (EDT)
+	id 144C96B0006; Fri, 19 Apr 2019 11:08:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 519606B0007; Fri, 19 Apr 2019 11:03:07 -0400 (EDT)
+	id 05B186B0007; Fri, 19 Apr 2019 11:08:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1EC6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 11:03:07 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 54so5039514qtn.15
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 08:03:07 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D87696B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 11:08:15 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id k68so2090700qkd.21
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 08:08:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=qylEVom0l+bKTWkQi0OOKOrFTTNxJj2JfwjTHdMU3n0=;
-        b=NSl0OOcYYubGH8Vlak7jT9LhtkP18ocLgKKYU0053qDe0Ek7iVHozUUtFc29JE3HUU
-         72UkzXAtsBjpCNlyqKDVkdjR2eNKkxhtqCfqGYWg1Lms22/FIAwGS7hPM3fomL6t8ltA
-         jgCm/DkzgfZKwMSttsGABUNhf4+tWdd/4dROYf+zLwm+Ai55vRoti0Rxuu18Awn76amL
-         zWz+zVPQHys+V7QX8eDljAFYaAFN1oG0hyNQzQpNrCiP9ua/wcpADpzYDdhbMxw5akQc
-         ZfHD3fY6ZpTe1OvhGZTn3OFdI/0aaxMWCydJOQsFCduZxPhmW+G9XYQtwML821jwO/ru
-         2fYQ==
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=RxTpHXgBOb/uuALUzGgmc8qnD7CuCi0OGzlLyAE4SXM=;
+        b=IKcdbFoZXjcSxsU0fhqdCRM/nJu+vCoTeiQNjKI7rFdRKhzVO3+AyCCniCBUH/RG8n
+         VKJ62TjbzktA946BLK5vgRNeTrTOhG8+hMgRar+hwjLIZxRkDPEnryUKuNvN1P++xRtp
+         IL891fTwqtm7sde82ybJm+CG/Br5YBOEksdDjLqtO2pryV/gPpN8QjLA3+Fbnerjt4kN
+         X7DX7QCla32vNWqZJqMrf5gp2gymEz+G3hBRKgcVLPpV/qvANV/R7eFWP/e3K7ME+DV7
+         PK47F82NusFEXu6lERtauyrpx7r45PgIEztl03LCIQJO+T+6DxK9VKtDlRQJ5SsDH7R2
+         cwxg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWlXzvLfoVQJ3xVaBmy/nDLVRsGsoIHXXdKAftrBkMQ4EmMJPkw
-	UT8ER/jHA6kNWp8UAxqKhY94gvrRG2Cixg1lFVnb5kt9w3rDmHItlFAy9PXWNUTa8esG/4D6x5e
-	G+vX2J6WNV6x6PIoNxL5BexTM3/lBSmneHeR5XiI3+2UYCFeAB/eKcId8DUMoZcNjJA==
-X-Received: by 2002:a37:4c04:: with SMTP id z4mr3549009qka.312.1555686186888;
-        Fri, 19 Apr 2019 08:03:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPyBK5RyykmhvMWCVlKPbCZ70c1tzA9PJ8zgWlV8rUSkSpsc1l/ZsK9bGbhgYOpFkhyrmY
-X-Received: by 2002:a37:4c04:: with SMTP id z4mr3548905qka.312.1555686185808;
-        Fri, 19 Apr 2019 08:03:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555686185; cv=none;
+X-Gm-Message-State: APjAAAUSy9+dmWBjXaFZlKUIdjz/kIMU429zIBQeVwJCLI6WEADaTbzp
+	0EFOMgmQhBFbDdGmUKrMwrQBM548wGtJ1gMfyCq4aJc4utiDcmgJOTigF/dpH62gNYakyhpN/+1
+	TaT4hves7gIuapHkkr7eRrDb+N4SUWgZZQ63sHDMhcvgZN6IDeMLvTKN+/kP3cqZdyQ==
+X-Received: by 2002:a37:6812:: with SMTP id d18mr3644749qkc.28.1555686495615;
+        Fri, 19 Apr 2019 08:08:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwCPBnzlC/OY3x+n0RF/g/ZEQfNDGHEFrCjOSo+XiehcEa4CaBN/KVlmO1RsUYDPXsIf3UA
+X-Received: by 2002:a37:6812:: with SMTP id d18mr3644679qkc.28.1555686494762;
+        Fri, 19 Apr 2019 08:08:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555686494; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZAqN8FtHwPa7HVFPOUYSSreic7VE6A/vp0h5tESsBQUJjgwg69iIpe5U6zC1fwdUGj
-         Rx2gW8uBvdb1boPyYIDTSoNPMFvCqICUQE4TXamrSMvSaaK87gmQco8kJqYf1Tv2bLzB
-         8hGo24VqmELM6GgyMm8fz+RofYK7IfLk6rNo63RTDP386QinYhrst9JgNWL6eC8401My
-         lUrZUeodMxUciv0AwLc5vk8WkK/Jvnnke77rjPsTi9DtKx/E90Gn1iOfZU/PWulUzvT8
-         8iNNl1ZpR2r1qmLGycfJT2Uaf0v5833N7eJwqamzdysyaNgRtd9+kgeW724nWNTSTDxN
-         /OuA==
+        b=iXdrztWJD7xRKF2KC8Mkt9WZcjvu4jaQVH9ZA/y3SOsT+Rv/ceyrU1oP+L9uzC46tA
+         +FzxNAmJe04wjuqPaX/zLtF/CDWyhUaTdAnjeIJLoK27q9amn1U5SpoSw3dfnt5SeXBn
+         nJj/rFa3Y9Frwg9AIwM4wfplITvpydFNMVqEIRPO7AZIIs0WmMmDJGmNGlgJ9JDVZ28I
+         XAEisQmIzhQYLsACOiSxOJdYj/mu8s589hpUq1cjHwf1aZDujYwbqhr1Hmk5CrISFqIV
+         5moinuxMtjlIPAHky28QEpkkafb/0cKffrj+NpIOCGf6xsEoC4vF5iWnqSqJnNQV/Wyg
+         IISA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=qylEVom0l+bKTWkQi0OOKOrFTTNxJj2JfwjTHdMU3n0=;
-        b=FEmwWnm5NZs7QX6B/nJRci2vKhbdiX54vFCAObb0pGbbNhIH2rZiyh6C5g1t3lC1ee
-         d+F1Tmu2tj9SddcGuyItfc3hW314om3J9bU71HZdhsmXSqVkoJtSNG6i8H1KnCQluNDH
-         qwj8HR1qY0gZHB51dBhzAaGPkf9h7FjPpSzyLL0EK/pBsH8XlBEVmpFINHImyAL21UrW
-         ij5Xn2qFMAZqimJajQ2ho5u6pvc9IY8maPw+KrvIiNg0vvLnXo4FBmlNrqoBb60lKQWs
-         0YNDlvBTOLQF1kiTZ/LQi6xFwHXiGw6E6hAJghVOTHag8EGFHAgM0mt6bC+LNHJXaYpi
-         3+8A==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=RxTpHXgBOb/uuALUzGgmc8qnD7CuCi0OGzlLyAE4SXM=;
+        b=kVOiKwoosz7eNtPYzwQLsKwV9JEKKGlx968p2B2lr4tI8nooQhwscj3OjjDzSEDicn
+         IDuQOGvJd7ypVorbenHBAserVKmDG2SJy4R1hNyzUoQz2Z0ZzM2/ulbdDqh+5yNwz3/6
+         0m9GIS4eMYW/eaGrZiXrR/+dQCAxzlDJrHw6HvuXI2inSUQ2XsBeWKWVAEHKLzgxOBXt
+         fpCuX7OcynG4LDjjRHde+6RSyGrjzfyrSBNWARNR0EMPy9HDjFZpJ6FjrOO3xC4qc0+N
+         kiivlbgigUHei7C4YnOGq/uNxzgJGNHZBz2ZnaCQbBHmVIOXv7Eib5RqhNQ8NWvnqRPD
+         nWmw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h24si621053qkl.260.2019.04.19.08.03.05
+        by mx.google.com with ESMTPS id k59si107538qte.346.2019.04.19.08.08.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 08:03:05 -0700 (PDT)
+        Fri, 19 Apr 2019 08:08:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4400188E48;
-	Fri, 19 Apr 2019 15:03:04 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 76E9A89C39;
+	Fri, 19 Apr 2019 15:08:13 +0000 (UTC)
 Received: from redhat.com (ovpn-121-136.rdu2.redhat.com [10.10.121.136])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 933BA1001DEB;
-	Fri, 19 Apr 2019 15:02:55 +0000 (UTC)
-Date: Fri, 19 Apr 2019 11:02:53 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1370460BEC;
+	Fri, 19 Apr 2019 15:08:04 +0000 (UTC)
+Date: Fri, 19 Apr 2019 11:08:02 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -102,213 +103,159 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 14/28] userfaultfd: wp: handle COW properly for uffd-wp
-Message-ID: <20190419150253.GA3311@redhat.com>
+Subject: Re: [PATCH v3 17/28] userfaultfd: wp: support swap and page migration
+Message-ID: <20190419150802.GB3311@redhat.com>
 References: <20190320020642.4000-1-peterx@redhat.com>
- <20190320020642.4000-15-peterx@redhat.com>
- <20190418202558.GK3288@redhat.com>
- <20190419062650.GF13323@xz-x1>
+ <20190320020642.4000-18-peterx@redhat.com>
+ <20190418205907.GL3288@redhat.com>
+ <20190419074220.GG13323@xz-x1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190419062650.GF13323@xz-x1>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190419074220.GG13323@xz-x1>
 User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 19 Apr 2019 15:03:05 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Fri, 19 Apr 2019 15:08:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 02:26:50PM +0800, Peter Xu wrote:
-> On Thu, Apr 18, 2019 at 04:51:15PM -0400, Jerome Glisse wrote:
-> > On Wed, Mar 20, 2019 at 10:06:28AM +0800, Peter Xu wrote:
-> > > This allows uffd-wp to support write-protected pages for COW.
+On Fri, Apr 19, 2019 at 03:42:20PM +0800, Peter Xu wrote:
+> On Thu, Apr 18, 2019 at 04:59:07PM -0400, Jerome Glisse wrote:
+> > On Wed, Mar 20, 2019 at 10:06:31AM +0800, Peter Xu wrote:
+> > > For either swap and page migration, we all use the bit 2 of the entry to
+> > > identify whether this entry is uffd write-protected.  It plays a similar
+> > > role as the existing soft dirty bit in swap entries but only for keeping
+> > > the uffd-wp tracking for a specific PTE/PMD.
 > > > 
-> > > For example, the uffd write-protected PTE could also be write-protected
-> > > by other usages like COW or zero pages.  When that happens, we can't
-> > > simply set the write bit in the PTE since otherwise it'll change the
-> > > content of every single reference to the page.  Instead, we should do
-> > > the COW first if necessary, then handle the uffd-wp fault.
+> > > Something special here is that when we want to recover the uffd-wp bit
+> > > from a swap/migration entry to the PTE bit we'll also need to take care
+> > > of the _PAGE_RW bit and make sure it's cleared, otherwise even with the
+> > > _PAGE_UFFD_WP bit we can't trap it at all.
 > > > 
-> > > To correctly copy the page, we'll also need to carry over the
-> > > _PAGE_UFFD_WP bit if it was set in the original PTE.
+> > > Note that this patch removed two lines from "userfaultfd: wp: hook
+> > > userfault handler to write protection fault" where we try to remove the
+> > > VM_FAULT_WRITE from vmf->flags when uffd-wp is set for the VMA.  This
+> > > patch will still keep the write flag there.
 > > > 
-> > > For huge PMDs, we just simply split the huge PMDs where we want to
-> > > resolve an uffd-wp page fault always.  That matches what we do with
-> > > general huge PMD write protections.  In that way, we resolved the huge
-> > > PMD copy-on-write issue into PTE copy-on-write.
-> > > 
+> > > Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 > > > Signed-off-by: Peter Xu <peterx@redhat.com>
 > > 
-> > This one has a bug see below.
+> > Some missing thing see below.
 > > 
+> > [...]
 > > 
-> > > ---
-> > >  mm/memory.c   |  5 +++-
-> > >  mm/mprotect.c | 64 ++++++++++++++++++++++++++++++++++++++++++++++++---
-> > >  2 files changed, 65 insertions(+), 4 deletions(-)
-> > > 
 > > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index e7a4b9650225..b8a4c0bab461 100644
+> > > index 6405d56debee..c3d57fa890f2 100644
 > > > --- a/mm/memory.c
 > > > +++ b/mm/memory.c
-> > > @@ -2291,7 +2291,10 @@ vm_fault_t wp_page_copy(struct vm_fault *vmf)
-> > >  		}
-> > >  		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
-> > >  		entry = mk_pte(new_page, vma->vm_page_prot);
-> > > -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> > > +		if (pte_uffd_wp(vmf->orig_pte))
-> > > +			entry = pte_mkuffd_wp(entry);
-> > > +		else
-> > > +			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> > >  		/*
-> > >  		 * Clear the pte entry and flush it first, before updating the
-> > >  		 * pte with the new entry. This will avoid a race condition
+> > > @@ -736,6 +736,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+> > >  				pte = swp_entry_to_pte(entry);
+> > >  				if (pte_swp_soft_dirty(*src_pte))
+> > >  					pte = pte_swp_mksoft_dirty(pte);
+> > > +				if (pte_swp_uffd_wp(*src_pte))
+> > > +					pte = pte_swp_mkuffd_wp(pte);
+> > >  				set_pte_at(src_mm, addr, src_pte, pte);
+> > >  			}
+> > >  		} else if (is_device_private_entry(entry)) {
+> > 
+> > You need to handle the is_device_private_entry() as the migration case
+> > too.
+> 
+> Hi, Jerome,
+> 
+> Yes I can simply add the handling, but I'd confess I haven't thought
+> clearly yet on how userfault-wp will be used with HMM (and that's
+> mostly because my unfamiliarity so far with HMM).  Could you give me
+> some hint on a most general and possible scenario?
+
+device private is just a temporary state with HMM you can have thing
+like GPU or FPGA migrate some anonymous page to their local memory
+because it is use by the GPU or the FPGA. The GPU or FPGA behave like
+a CPU from mm POV so if it wants to write it will fault and go through
+the regular CPU page fault.
+
+That said it can still migrate a page that is UFD write protected just
+because the device only care about reading. So if you have a UFD pte
+to a regular page that get migrated to some device memory you want to
+keep the UFD WP flags after the migration (in both direction when going
+to device memory and from coming back from it).
+
+As far as UFD is concern this is just another page, it just does not
+have a valid pte entry because CPU can not access such memory. But from
+mm point of view it just another page.
+
+> 
+> > 
+> > 
+> > 
+> > > @@ -2825,6 +2827,10 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+> > >  	flush_icache_page(vma, page);
+> > >  	if (pte_swp_soft_dirty(vmf->orig_pte))
+> > >  		pte = pte_mksoft_dirty(pte);
+> > > +	if (pte_swp_uffd_wp(vmf->orig_pte)) {
+> > > +		pte = pte_mkuffd_wp(pte);
+> > > +		pte = pte_wrprotect(pte);
+> > > +	}
+> > >  	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
+> > >  	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
+> > >  	vmf->orig_pte = pte;
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index 181f5d2718a9..72cde187d4a1 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -241,6 +241,8 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+> > >  		entry = pte_to_swp_entry(*pvmw.pte);
+> > >  		if (is_write_migration_entry(entry))
+> > >  			pte = maybe_mkwrite(pte, vma);
+> > > +		else if (pte_swp_uffd_wp(*pvmw.pte))
+> > > +			pte = pte_mkuffd_wp(pte);
+> > >  
+> > >  		if (unlikely(is_zone_device_page(new))) {
+> > >  			if (is_device_private_page(new)) {
+> > 
+> > You need to handle is_device_private_page() case ie mark its swap
+> > as uffd_wp
+> 
+> Yes I can do this too.
+> 
+> > 
+> > > @@ -2301,6 +2303,8 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+> > >  			swp_pte = swp_entry_to_pte(entry);
+> > >  			if (pte_soft_dirty(pte))
+> > >  				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+> > > +			if (pte_uffd_wp(pte))
+> > > +				swp_pte = pte_swp_mkuffd_wp(swp_pte);
+> > >  			set_pte_at(mm, addr, ptep, swp_pte);
+> > >
+> > >  			/*
 > > > diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > > index 9d4433044c21..855dddb07ff2 100644
+> > > index 855dddb07ff2..96c0f521099d 100644
 > > > --- a/mm/mprotect.c
 > > > +++ b/mm/mprotect.c
-> > > @@ -73,18 +73,18 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  	flush_tlb_batched_pending(vma->vm_mm);
-> > >  	arch_enter_lazy_mmu_mode();
-> > >  	do {
-> > > +retry_pte:
-> > >  		oldpte = *pte;
-> > >  		if (pte_present(oldpte)) {
-> > >  			pte_t ptent;
-> > >  			bool preserve_write = prot_numa && pte_write(oldpte);
-> > > +			struct page *page;
+> > > @@ -196,6 +196,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  				newpte = swp_entry_to_pte(entry);
+> > >  				if (pte_swp_soft_dirty(oldpte))
+> > >  					newpte = pte_swp_mksoft_dirty(newpte);
+> > > +				if (pte_swp_uffd_wp(oldpte))
+> > > +					newpte = pte_swp_mkuffd_wp(newpte);
+> > >  				set_pte_at(mm, addr, pte, newpte);
 > > >  
-> > >  			/*
-> > >  			 * Avoid trapping faults against the zero or KSM
-> > >  			 * pages. See similar comment in change_huge_pmd.
-> > >  			 */
-> > >  			if (prot_numa) {
-> > > -				struct page *page;
-> > > -
-> > >  				page = vm_normal_page(vma, addr, oldpte);
-> > >  				if (!page || PageKsm(page))
-> > >  					continue;
-> > > @@ -114,6 +114,54 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> > >  					continue;
-> > >  			}
-> > >  
-> > > +			/*
-> > > +			 * Detect whether we'll need to COW before
-> > > +			 * resolving an uffd-wp fault.  Note that this
-> > > +			 * includes detection of the zero page (where
-> > > +			 * page==NULL)
-> > > +			 */
-> > > +			if (uffd_wp_resolve) {
-> > > +				/* If the fault is resolved already, skip */
-> > > +				if (!pte_uffd_wp(*pte))
-> > > +					continue;
-> > > +				page = vm_normal_page(vma, addr, oldpte);
-> > > +				if (!page || page_mapcount(page) > 1) {
-> > > +					struct vm_fault vmf = {
-> > > +						.vma = vma,
-> > > +						.address = addr & PAGE_MASK,
-> > > +						.page = page,
-> > > +						.orig_pte = oldpte,
-> > > +						.pmd = pmd,
-> > > +						/* pte and ptl not needed */
-> > > +					};
-> > > +					vm_fault_t ret;
-> > > +
-> > > +					if (page)
-> > > +						get_page(page);
-> > > +					arch_leave_lazy_mmu_mode();
-> > > +					pte_unmap_unlock(pte, ptl);
-> > > +					ret = wp_page_copy(&vmf);
-> > > +					/* PTE is changed, or OOM */
-> > > +					if (ret == 0)
-> > > +						/* It's done by others */
-> > > +						continue;
+> > >  				pages++;
 > > 
-> > This is wrong if ret == 0 you still need to remap the pte before
-> > continuing as otherwise you will go to next pte without the page
-> > table lock for the directory. So 0 case must be handled after
-> > arch_enter_lazy_mmu_mode() below.
-> > 
-> > Sorry i should have catch that in previous review.
+> > Need to handle is_write_device_private_entry() case just below
+> > that chunk.
 > 
-> My fault to not have noticed it since the very beginning... thanks for
-> spotting that.
-> 
-> I'm squashing below changes into the patch:
+> This one is a bit special - because it's not only the private entries
+> that are missing but also all swap/migration entries, which is
+> explicitly handled by patch 25.  But I think I can just squash it into
+> this patch as you suggested.
 
+Yeah i was reading thing in order and you can do that in patch 25.
 
-Well thinking of this some more i think you should use do_wp_page() and
-not wp_page_copy() it would avoid bunch of code above and also you are
-not properly handling KSM page or page in the swap cache. Instead of
-duplicating same code that is in do_wp_page() it would be better to call
-it here.
-
-
-> 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 3cddfd6627b8..13d493b836bb 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -141,22 +141,19 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->                                         arch_leave_lazy_mmu_mode();
->                                         pte_unmap_unlock(pte, ptl);
->                                         ret = wp_page_copy(&vmf);
-> -                                       /* PTE is changed, or OOM */
-> -                                       if (ret == 0)
-> -                                               /* It's done by others */
-> -                                               continue;
-> -                                       else if (WARN_ON(ret != VM_FAULT_WRITE))
-> +                                       if (ret != VM_FAULT_WRITE && ret != 0)
-> +                                               /* Probably OOM */
->                                                 return pages;
->                                         pte = pte_offset_map_lock(vma->vm_mm,
->                                                                   pmd, addr,
->                                                                   &ptl);
->                                         arch_enter_lazy_mmu_mode();
-> -                                       if (!pte_present(*pte))
-> +                                       if (ret == 0 || !pte_present(*pte))
->                                                 /*
->                                                  * This PTE could have been
-> -                                                * modified after COW
-> -                                                * before we have taken the
-> -                                                * lock; retry this PTE
-> +                                                * modified during or after
-> +                                                * COW before take the lock;
-> +                                                * retry.
->                                                  */
->                                                 goto retry_pte;
->                                 }
-> 
-> [...]
-> 
-> > >  		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
-> > > -			if (next - addr != HPAGE_PMD_SIZE) {
-> > > +			/*
-> > > +			 * When resolving an userfaultfd write
-> > > +			 * protection fault, it's not easy to identify
-> > > +			 * whether a THP is shared with others and
-> > > +			 * whether we'll need to do copy-on-write, so
-> > > +			 * just split it always for now to simply the
-> > > +			 * procedure.  And that's the policy too for
-> > > +			 * general THP write-protect in af9e4d5f2de2.
-> > > +			 */
-> > > +			if (next - addr != HPAGE_PMD_SIZE || uffd_wp_resolve) {
-> > 
-> > Just a nit pick can you please add () to next - addr ie:
-> > if ((next - addr) != HPAGE_PMD_SIZE || uffd_wp_resolve) {
-> > 
-> > I know it is not needed but each time i bump into this i
-> > have to scratch my head for second to remember the operator
-> > rules :)
-> 
-> Sure, as usual. :) And I tend to agree it's a good habit.  It's just
-> me that always forgot about it.
-> 
-> Thanks,
-> 
-> -- 
-> Peter Xu
+Cheers,
+Jérôme
 
