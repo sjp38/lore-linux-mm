@@ -2,177 +2,144 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EB3DC282E0
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:14:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C20C5C282E2
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:41:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C17C6208C0
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:14:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6C9B721736
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 21:41:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TN+lD0Yx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C17C6208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JJcZSD9H"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C9B721736
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 367826B0003; Fri, 19 Apr 2019 17:14:42 -0400 (EDT)
+	id 2BA266B0003; Fri, 19 Apr 2019 17:41:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 317066B0006; Fri, 19 Apr 2019 17:14:42 -0400 (EDT)
+	id 23FE96B0006; Fri, 19 Apr 2019 17:41:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 254EF6B0007; Fri, 19 Apr 2019 17:14:42 -0400 (EDT)
+	id 0BB406B0007; Fri, 19 Apr 2019 17:41:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 03DDF6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 17:14:42 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id i203so4912719ywa.5
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:14:41 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5F46B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 17:41:24 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d1so4102066pgk.21
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 14:41:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Ep33f62HX3AzUBDcVwFjTp0Z/qGrzWSSxgy6irC3Dwc=;
-        b=HXnqfyoa/0UaUahth1D+pWoeGNz9GbWik8S0oSZ0/L9eAcsB/ALmcQJUbYiXoqex7m
-         jC36RMrd6QXAHkdBUVQ760KHqNr25NtuE4j1TOakr9ZHrfPCOud0KOhvXQZWd4nLmuPH
-         rcfzxoQ3EJ4kt7Y9waRVXXJDlK9Su0rhfJ81s3K9KkjWA3SQcjtnDdDYyIr8nEnj2Trg
-         EiSx2aGx7PwfQxnKyVEpwf4n87vSqEkxx1YstNbshoOcTAokNjt7pIXci039+Cya6Dyd
-         ENQcrIUBn6JV1c5jXosWa6gkv1j1LmIyRf85r7IFaLMEJwKNNmnZOdxBPxpoDqB7wTe6
-         c/Pw==
-X-Gm-Message-State: APjAAAWw4e9/cObD+hi0Y8ncwrj2aad73Nr+4H3M50IG9twWjzFVjRva
-	ekp+ZJKmd1orT10nxu1dKEQ6zVEIetfXpE1B/wG1gXSQ7TMlWF7zTMTvHkmxRxVWkyicc4eYd6q
-	MLvqbH+x6WiHothvCjPAb7CxDamuZxM9GoZMMlLt2+gG6GWm01P6kAmjjHqfxsk7SEQ==
-X-Received: by 2002:a0d:c445:: with SMTP id g66mr2765245ywd.61.1555708481744;
-        Fri, 19 Apr 2019 14:14:41 -0700 (PDT)
-X-Received: by 2002:a0d:c445:: with SMTP id g66mr2765200ywd.61.1555708481083;
-        Fri, 19 Apr 2019 14:14:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555708481; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=sgVFhxDqfVPVv96StH2CfU6FG0N/pAfm/sn71zUxjIY=;
+        b=O2sMwpAniKwgvXuIUqOQf8m1tPewMRvWkCdtKWIEyvalEH9EQEOOI+q7w4fJvKu3Wj
+         nWRMdTxQ7b6Oq7wjEzdD+BsqqXAxI14p66V2vmO9A7F08e8dndmFlPzq4DHMwi8vUVHn
+         fpCtTF/G4okRu9VoISfNkhITHom3523Nzre59SknVJ2O+jwluPms8SrfRMbl0SaPewoB
+         QAopvZ+1dG/bkwFiz5HMWOinGcpSQATAl3U5xE+jstS6HUY0+XkKj3ECDpusGh8iRW7h
+         2OFGgNEewcgAOBVOClZbqz/zBK1R1QVmUAmu4foU6w/i2t4kot+JjMMOSGQyngVNs6S8
+         g8Iw==
+X-Gm-Message-State: APjAAAVYVCkX8fC+PugfxAxc4cEGSuGpSoOT4j8Q/2kBe0bRrhK0dahD
+	UCBL93FViBPY4WqzBMv8bH4V2w/PdqnxM6HR4HtV6zIe3WDZn8ZAbxCQNZFscKb0dzJsc56tBBS
+	RZVmcrB7Y/UGp7MTn0Gc3RR1jZ+8K3VXX5wwtTeEffMUCloAtzF+dZeO3H9xcJfYOsA==
+X-Received: by 2002:a65:6144:: with SMTP id o4mr5907657pgv.247.1555710084497;
+        Fri, 19 Apr 2019 14:41:24 -0700 (PDT)
+X-Received: by 2002:a65:6144:: with SMTP id o4mr5907610pgv.247.1555710083566;
+        Fri, 19 Apr 2019 14:41:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555710083; cv=none;
         d=google.com; s=arc-20160816;
-        b=M+BOHRC/bG1OeXU0JApo1sIxVt3MzM4dLKjbrbfDgwLwlCcgwEevrRci4lE6BOGHcA
-         5/l7HWXnV5uwmqC/RB2DZDku9XjwN1t8faT5yMDyzCSKhVUX3HIeWtmPIuod9GwvmlZS
-         sL3kIj3rVia6z2n7uMPnEiz1DeNQXouduyhKhEllDsGK9dO1ewncxm0zmpTfmrPX/m8F
-         myTgJeGC4vHD6/u4fQaOccQ5b70sw40DAZO1D96xjlTtQJzHVUwcOwLlt7BnfHf9ihuF
-         d8UoEfp6ks7kQJWLncCBTqE9wQGB90hRLp+xFYixhijqZJez6HBoTpi0IGgp9Nipe5Kc
-         enjQ==
+        b=Btyj5zvSmlueFOug3QSjMk1PhVE5laOtPdAMG9B7/p2DCikgzqGc263y7Vy30N5okk
+         kNEllYu0VXgGRUPUrRuuX/j1xC8c7pAkV6y2xJ/uobmqDBzp2lXfEd87xN3KuEHyPPzn
+         6a3LRW5uagLtRSVRWb13cu2UfVKWPvVagHFcLreNjdZIP/nquT7k+ChlZ4ItRNEMfkDw
+         LdYSVT6TUUOJ0vzwh8vzsa6wdwb2d006WR2/DVkrzGC0WI8XkQLun6RoFQkxUSz6L76U
+         MFtHwOVPdtwN2dH3bnskOVVqzPfdcPUHghm/VFETL21ia1HUsmMTDy+QLWTQB47EmMhH
+         5QrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Ep33f62HX3AzUBDcVwFjTp0Z/qGrzWSSxgy6irC3Dwc=;
-        b=IA7VZYTmImf40xiZ5VxnD1lYw+p1oKXpC95LUXI1FZt1twJyuL0J0ROOBjXUPx1Nef
-         UWB0chc+QUm0mM9FcihSmbNov5GEpfxK0GsTlzZA10ADCJPOzJrZ1BDC94bqEo7l1bkz
-         d5GiNHnDZdaoZUmR1XckWT9thNY9h+rb0IsGk2c6gi5zD4yIrx0N3eUFbcGLT1WcR0O1
-         0jVqQQXXR8EM6WrPLoG7Bk1OcBRJFviPyFTYTPLyBBwT8afEYj5Dk7fRezIKjEU2+7TI
-         YFwxyOr76ImgbgGdguNU5QU/FHAUM203aesxGq+G56nINR/kDdk3EG0lhtEQkk0Oya7+
-         dv6A==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=sgVFhxDqfVPVv96StH2CfU6FG0N/pAfm/sn71zUxjIY=;
+        b=qMtAac6k1v58J/D5hXEEfPoq/G7YQn+bH8yubHQ6BSupfBLiRNnLxRXZFXigkK1Nu0
+         06SdESmvvqWPSO2L6/8JxbRt9QerBw5+Pwh47tfOR31V4lIh4IVEz7ET8smiQZsbMIkQ
+         w+BRZHdRw9OINCNReMfUWChdkQ+EmhRlxiLescA3jXXusI46RJ28WcxfrclXLsPDuO5e
+         71X8KBl5R02mU2zb+ZcybhnV9W8LF0asr9KXrjxJHU957kZehG6rAJwatsa6n6oBhcML
+         dZeXD5BAlFhIuH1WWQ/1HAF/snH0D24kavSz/yJKFSY1bg8tXS49f3yCbXT5fRSNpBid
+         0gzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TN+lD0Yx;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JJcZSD9H;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t11sor2760930ybp.132.2019.04.19.14.14.41
+        by mx.google.com with SMTPS id g2sor6471175pgl.60.2019.04.19.14.41.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 19 Apr 2019 14:14:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 19 Apr 2019 14:41:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TN+lD0Yx;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JJcZSD9H;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Ep33f62HX3AzUBDcVwFjTp0Z/qGrzWSSxgy6irC3Dwc=;
-        b=TN+lD0YxK8/Z39tQFNeng7o7MdFoxCJhCMdqBA3VkWcQCiVs/XYz7qebhQCkvh98UL
-         QYtk4dk9C4miikKW7ebUyVThbhx3xOBfed7dosNc80MVG1HOVIEDJwbCgFx4BBOxXmuZ
-         9BJC9skhYCCPRcDFlVoAk1wWJi5QPd3x7bV9nZrQOdhbYWEdfxh+qFEzSbhjh2zcF+Qk
-         nEUxMY1lIEric7Sr22cPqLby1FKEYg8H2b/hKJaehzG2Bhsi5DI8SaX8kUlMXuKmwFZp
-         2fucI4cAXY9cXKu/jqmNdiuJqUHmBHXRYYAbiFf+Wwhsg2U7d7P+0QNi3h2mwT28yPuy
-         9j6Q==
-X-Google-Smtp-Source: APXvYqwP8W9joct14TvJoGQu1QeSZbbs3jHQ7fURiorHFky435pvPWJhgSP+s96y780vcjdoFGt8mEO4Ajd7ZHl7V9g=
-X-Received: by 2002:a25:4147:: with SMTP id o68mr5056203yba.148.1555708480546;
- Fri, 19 Apr 2019 14:14:40 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190418214224.61900-1-shakeelb@google.com> <20190419200733.GB31878@tower.DHCP.thefacebook.com>
-In-Reply-To: <20190419200733.GB31878@tower.DHCP.thefacebook.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 19 Apr 2019 14:14:29 -0700
-Message-ID: <CALvZod4N7XJ5Zxd-0pO0_tpnnmGHyY=6PMVcvCg49virdp=6SA@mail.gmail.com>
-Subject: Re: [PATCH] memcg: refill_stock for kmem uncharging too
-To: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=sgVFhxDqfVPVv96StH2CfU6FG0N/pAfm/sn71zUxjIY=;
+        b=JJcZSD9HCJpk2lu5iLVZIC+3fTiDv8Bjc3UmntHTEF3tLjbapQAqffVtSxjTXk1gHq
+         6bf8pML4ImHVYuV6pjOmJ1MTLQUMVn26F0Q0J51cEl/fmxMoj4qNNJT+Yk97NPSIgFuq
+         UuQgMYWBbLncGrglRNTlBS1fBXdjvSGCiC00pVWbeszmOIIv2ol38pQqwUTOh5n7GuVh
+         +cluXSuV6f86CDWtyVtS7ScX5x5ot4fCQunxDa5HA6uoCRYssq+OSuaZSQgBKMKD2ahR
+         mu3sfgf5XYfNVI7Vr/wpoOaN7EBYFpvxhe0ZSAXPamsCQpcbkFmp8/0qpnfyZ32IDHj0
+         fHUQ==
+X-Google-Smtp-Source: APXvYqz/sp8H3x86xArhlg636ZCPLDazcHqtwg/NBWqTeB/3SaxESSAc1piK3NoUeRZU5NWKhR6+qg==
+X-Received: by 2002:a65:5c42:: with SMTP id v2mr5914874pgr.360.1555710082873;
+        Fri, 19 Apr 2019 14:41:22 -0700 (PDT)
+Received: from [10.33.115.113] ([66.170.99.2])
+        by smtp.gmail.com with ESMTPSA id u26sm8024245pfn.5.2019.04.19.14.41.20
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Apr 2019 14:41:21 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH v2 1/4] mm/balloon_compaction: list interfaces
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <679D6F11-07D7-4227-9D02-41F9F8901E61@vmware.com>
+Date: Fri, 19 Apr 2019 14:41:19 -0700
+Cc: Jason Wang <jasowang@redhat.com>,
+ "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>,
+ Linux-MM <linux-mm@kvack.org>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ Pv-drivers <Pv-drivers@vmware.com>,
+ Julien Freche <jfreche@vmware.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Arnd Bergmann <arnd@arndb.de>,
+ Nadav Amit <namit@vmware.com>
+Content-Transfer-Encoding: 7bit
+Message-Id: <5A5146D6-9BE3-4240-BEBB-FDA5BC536E96@gmail.com>
+References: <20190328010718.2248-1-namit@vmware.com>
+ <20190328010718.2248-2-namit@vmware.com>
+ <679D6F11-07D7-4227-9D02-41F9F8901E61@vmware.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 1:07 PM Roman Gushchin <guro@fb.com> wrote:
->
-> On Thu, Apr 18, 2019 at 02:42:24PM -0700, Shakeel Butt wrote:
-> > The commit 475d0487a2ad ("mm: memcontrol: use per-cpu stocks for socket
-> > memory uncharging") added refill_stock() for skmem uncharging path to
-> > optimize workloads having high network traffic. Do the same for the kmem
-> > uncharging as well. However bypass the refill for offlined memcgs to not
-> > cause zombie apocalypse.
-> >
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
->
-> Hello, Shakeel!
->
-> > ---
-> >  mm/memcontrol.c | 17 ++++++++---------
-> >  1 file changed, 8 insertions(+), 9 deletions(-)
-> >
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 2535e54e7989..7b8de091f572 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -178,6 +178,7 @@ struct mem_cgroup_event {
-> >
-> >  static void mem_cgroup_threshold(struct mem_cgroup *memcg);
-> >  static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
-> > +static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages);
-> >
-> >  /* Stuffs for move charges at task migration. */
-> >  /*
-> > @@ -2097,10 +2098,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
-> >       struct mem_cgroup *old = stock->cached;
-> >
-> >       if (stock->nr_pages) {
-> > -             page_counter_uncharge(&old->memory, stock->nr_pages);
-> > -             if (do_memsw_account())
-> > -                     page_counter_uncharge(&old->memsw, stock->nr_pages);
-> > -             css_put_many(&old->css, stock->nr_pages);
-> > +             cancel_charge(old, stock->nr_pages);
-> >               stock->nr_pages = 0;
-> >       }
-> >       stock->cached = NULL;
-> > @@ -2133,6 +2131,11 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
-> >       struct memcg_stock_pcp *stock;
-> >       unsigned long flags;
-> >
-> > +     if (unlikely(!mem_cgroup_online(memcg))) {
-> > +             cancel_charge(memcg, nr_pages);
-> > +             return;
-> > +     }
->
-> I'm slightly concerned about this part. Do we really need it?
-> The number of "zombies" which we can pin is limited by the number of CPUs,
-> and it will drop fast if there is any load on the machine.
->
-> If we skip offline memcgs, it can slow down charging/uncharging of skmem,
-> which might be a problem, if the socket is in active use by an other cgroup.
-> Honestly, I'd drop this part.
->
+> On Apr 8, 2019, at 10:35 AM, Nadav Amit <namit@vmware.com> wrote:
+> 
+>> On Mar 27, 2019, at 6:07 PM, Nadav Amit <namit@vmware.com> wrote:
+>> 
+>> Introduce interfaces for ballooning enqueueing and dequeueing of a list
+>> of pages. These interfaces reduce the overhead of storing and restoring
+>> IRQs by batching the operations. In addition they do not panic if the
+>> list of pages is empty.
+>> 
+>> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> 
+> Michael, may I ping for your ack?
 
-Sure, I will wait for comments from others and then send the v2 without this.
-
-Shakeel
+Ping again?
 
