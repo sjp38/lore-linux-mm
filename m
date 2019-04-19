@@ -2,166 +2,137 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3510C10F14
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 01:08:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59BFFC282DD
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 03:25:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90726214DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 01:08:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90726214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id D2716217F9
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 03:25:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="AJYXOTYa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2716217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1D6A6B0007; Thu, 18 Apr 2019 21:08:29 -0400 (EDT)
+	id 41A466B0003; Thu, 18 Apr 2019 23:25:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DCC716B0008; Thu, 18 Apr 2019 21:08:29 -0400 (EDT)
+	id 3EF306B0006; Thu, 18 Apr 2019 23:25:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CBDBE6B000A; Thu, 18 Apr 2019 21:08:29 -0400 (EDT)
+	id 306AD6B0007; Thu, 18 Apr 2019 23:25:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 927F96B0007
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 21:08:29 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id r13so2389958pga.13
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 18:08:29 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F147F6B0003
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2019 23:25:36 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id f103so2131867otf.14
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2019 20:25:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=mYriDKxpxf4DvwDzBctP0HCwHj7Z8j8CRYhgzkOlfFw=;
-        b=eXqM41TlN7WDoXm5m7MpbP4YTStUsqwBKjGXs2IG0IR32bHTOzuvoyJKmhU2ayigL7
-         8AMs0KaSiJID0SCtWoq/CfhBxZXL/TBrI59S5nWBUNvyl7MTCeDQHBPupJUYeMhBuL/d
-         M80bW46lCypeYidgJYnIwjxYy3pIYOhKko6io8P02W6D6e4OLysMTMFT6TOhLQuW9oWk
-         OJuGT6pPYUvsC//KcdqGsElWwmjwHArBcvZ4wpSrht+xvdgqTFCc6AKOdTGW/iFvGFvF
-         GIE4wpx87RlzZgZcBDjy9VRtpNveT1H36DvL9CCwjMjQcfrkzfzcr//Acurt9vlIMxwm
-         vPuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAV4vFZGMkw4cpjnosfzhxiU/WqiWWso5Jnj6NfrOXWrm5Fjn/5+
-	1akG91EqxWYybhc7b8TUPPi6WyF6M1Hufxc/D1u6ABW/rapMMDg/cvrNR+IZlSgC4qOqfKKFpS4
-	QDRWSv2xqw3iHYuBHmL5HyOLlgMUjpSzfTC9AjA691o+2NnFRBQnVe6aKJDRTUp/aXQ==
-X-Received: by 2002:a17:902:e110:: with SMTP id cc16mr766650plb.147.1555636109173;
-        Thu, 18 Apr 2019 18:08:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUNmBOifQ/XjpzJbUcPdkWK9ELa2edX8Fwew2heuua5u1+LeB2g6jUVJqXbul0SIIcOE1B
-X-Received: by 2002:a17:902:e110:: with SMTP id cc16mr766560plb.147.1555636107902;
-        Thu, 18 Apr 2019 18:08:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555636107; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=M3KZlmbTuZ2H5T1ldOvJ/lTcJF1EunhRYO6gI9bp16A=;
+        b=UI0X8CSt07tNZBK1FZqBKdHsPCcqt+mmY1TRumcKgI/DYaTY65fw5zoCXGN558NdTN
+         U6LxERicatv7I+yElM0wszStotnasILetW69EoAvSrjUZuClQBgwriZnjFVAP2AKkzWh
+         4berWKxAAWPHQWdhjKWuLq2yPxVa8himmcoDPbFwpaypWf3jhq5QaL7wh1Nt+qC8EGVm
+         rsRw0jjAYXZPZIkMheJ03yhinwyprM91aHZVVibrmkw7hW1dZDZZL1YJjn8sHuE8LSJ7
+         YPc8H4OzVD/PwnJXuyruRJQDCUVa2i8uFLlxGfrWJOCIs1l9w1DCljw94i08CFaoO22f
+         h74A==
+X-Gm-Message-State: APjAAAWurbcs2t1moRsEYLIseswwMVEPLbRR9T83HOfX3psuwoPpgvBv
+	ul4rcuQKkUViq8AtH14XxGpuUJ3PogiFSKgMZc9VbOFCu95zPibj397pAzkUBZ57c5oS+775dt0
+	x0/J2VQlijMGvouQairSfFzArMzOMlWNsIqHfcENIaTU8cY6rsgIpSYL/tjV2pq8yFQ==
+X-Received: by 2002:a9d:6292:: with SMTP id x18mr858381otk.224.1555644336365;
+        Thu, 18 Apr 2019 20:25:36 -0700 (PDT)
+X-Received: by 2002:a9d:6292:: with SMTP id x18mr858342otk.224.1555644335245;
+        Thu, 18 Apr 2019 20:25:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555644335; cv=none;
         d=google.com; s=arc-20160816;
-        b=xrhHFC7XU4iFa6LH0DxK8iZocYxeirv+oH4PcJMnNSlj9SvCgrvuW8TtCcRSQD+aNT
-         oqnDrJhn4WGQXx+I2TPzw7D/ToJnvvU8dcdTPmyrOYdWrctKwQVHcEn/MegZOJ0LSTjR
-         RkQdzZERKZRMJvHyAm8tpCJ5KvMdn9Ho3Us2FlV35EzymEaEh1ILAyRKGXEY0V5XZQhq
-         miiDFumpGymaEFqoeoa5J3h9xWpMyTzvrMZg1pllsF2iYHnww96hh2e/wGlr71CgkejL
-         NqAEbY/tf5YgVu6/QyOGVRtWqGEHEoR/Tbj3CpMTEojsexlcmMCgHmF0QLq/NOqJwMTX
-         1GNg==
+        b=il8yAZ5XYLTn/2t0PwGz4qyab+1VriuoZHCSSeyKYK6e4N8fLNCk0tIPzn++x15Ru2
+         hteQrQkDcYlmxSGEhmKdsGMdvaMOPBnJBzkDaaEZp4tDOAkc3Z1ob8owyE3ZPEcLNB66
+         pLQ/jCdHn3jDOouHRZvsGpldSJxD4P+FKoSaDu/VoZb2cBxSsojPAU3v3uLguH3Tah2P
+         4Wtrh/dffv+Vyxrtho5HkX8lztdkmkNP1DfZ3mLU1pEX9an486gjmjUrHhaWs132akFg
+         nBZl45xtPH/jcJ2dyYVDlXqQ+uMhhJuUnzcMvEPFKWSylz5uB2wckJEz21/PHKr7xVLt
+         3Hgg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=mYriDKxpxf4DvwDzBctP0HCwHj7Z8j8CRYhgzkOlfFw=;
-        b=kXzBJG1ncwcKYg750gACqQavhgdkbFggWHmvqYQin0sPv9Lq4o3j1V4pxmFbTUqe9u
-         8wkl/B5uOL1bHINssuaEXm8oYr01B/YLzRG1JmNYieab+9pkntsEXjyHK9O12DG0zo1+
-         YZulo8XB3wYZoztgQmGHFkM4wUEBSeEIbNIaFFZe0g17br6Pds6qLUc7evJb23R5D+hY
-         Xl7q6oXxopfw9F460Faej0innOLNcLbz0GxWplSo6y4/ZjorX/IdOLD1oZurO/Y64yz4
-         bGt9sI2qkV56vMzQXU1uRfAaWazRbHRYHlXUefTAGzjCth5B3siwMFZt56s57wuYH10q
-         iUUA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=M3KZlmbTuZ2H5T1ldOvJ/lTcJF1EunhRYO6gI9bp16A=;
+        b=qtg6e7nenEVZ89avltX2Vk4oeiBJZEtrJbkbVeLRQEcWuBb9qWAbolIhYeOIAx/ak7
+         QRjoyLKppc6sTEo5IG3HH9TPP7CZsr5Uj2uNIlkMCZ21dvVulZkICnU8bjEAq0VNJx7K
+         yVRX7/Fnfu1982jloua7eJkjk4uiClbxV5KDp6dzHoUNDU7rnZ/hJ5soouaItxVv/ugh
+         SmLVJdA9fXtbTZEANV9WZNB7dvPdv9yfa29b+uiy5HK4oaFe7TRRvWM5EnIB6hy6q0S4
+         Yf9+4E+W0fTW41q+3K/UCyj7S2I6UoMIKcIblA649+Kx1gMncSJp04JPBkbXWbPsEvAV
+         EJkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
-        by mx.google.com with ESMTPS id 73si3544214pgb.414.2019.04.18.18.08.26
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=AJYXOTYa;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c78sor1754999oig.18.2019.04.18.20.25.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Apr 2019 18:08:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
+        (Google Transport Security);
+        Thu, 18 Apr 2019 20:25:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R441e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=jiufei.xue@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TPg--qB_1555636105;
-Received: from localhost(mailfrom:jiufei.xue@linux.alibaba.com fp:SMTPD_---0TPg--qB_1555636105)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 19 Apr 2019 09:08:25 +0800
-From: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-To: cgroups@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: tj@kernel.org,
-	akpm@linux-foundation.org,
-	joseph.qi@linux.alibaba.com,
-	bo.liu@linux.alibaba.com
-Subject: [PATCH v4] fs/writeback: use rcu_barrier() to wait for inflight wb switches going into workqueue when umount
-Date: Fri, 19 Apr 2019 09:08:24 +0800
-Message-Id: <20190419010824.28209-1-jiufei.xue@linux.alibaba.com>
-X-Mailer: git-send-email 2.19.1.856.g8858448bb
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=AJYXOTYa;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=M3KZlmbTuZ2H5T1ldOvJ/lTcJF1EunhRYO6gI9bp16A=;
+        b=AJYXOTYal8a2RJDZxJcIFEijx9f6mEXGoR2tvf87cLkTecJtJ9YSBPnmpvUr4hok50
+         cOQr9jW3d8KRIyb+1UWV7nyqpA1jlQVBa8IQI/Mq1U8oICkWET/LYgNdqqIGX5OyOamG
+         +iLu0IlSHZF84ih+uZdtIqpI4lRnXwEfZH4vfm6YZsQ7SROSE6X/D8pmo+m/2WmZNKCa
+         FTOMq7Kcdcu8EA9JfZ3lbs1IdfIi/zIOknFoud1nDCQhyTPiA08KHifPPr53WK9uqR45
+         MbZe/7R714qEPt1svrbQqFNxhAm2ALVqpOp1yDMoV+XcdJUIXfyBQeXUF+fKft4Gk/Ho
+         IeRw==
+X-Google-Smtp-Source: APXvYqzZF3vp7DVt9JqqtH0Z9V1KA9PGDB7qSCTpqgGKNLlAzHxWdi2y+8hfsB3Ix4eXJHqq+3zDLC3S85uNsv5YmY4=
+X-Received: by 2002:aca:aa57:: with SMTP id t84mr700347oie.149.1555644334421;
+ Thu, 18 Apr 2019 20:25:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190417150331.90219ca42a1c0db8632d0fd5@linux-foundation.org>
+ <CAPcyv4hB47NJrVi1sm+7msL+6dJNhBD10BJbtLPZRcK2JK6+pg@mail.gmail.com>
+ <CAPcyv4iW=xhhUQbg0bt=xCgVaR_jUvATeLxSoCfvzG5gTEAX6A@mail.gmail.com> <x49lg07eb3d.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49lg07eb3d.fsf@segfault.boston.devel.redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 18 Apr 2019 20:25:22 -0700
+Message-ID: <CAPcyv4jZwRfL5st3_MKwtTyuX8Rb+dYq6vpqwaEpp+BmZTgrYQ@mail.gmail.com>
+Subject: Re: [PATCH v6 00/12] mm: Sub-section memory hotplug support
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <david@redhat.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, osalvador@suse.de
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
-switch may not go to the workqueue after synchronize_rcu(). Thus
-previous scheduled switches was not finished even flushing the
-workqueue, which will cause a NULL pointer dereferenced followed below.
+On Thu, Apr 18, 2019 at 5:45 AM Jeff Moyer <jmoyer@redhat.com> wrote:
+[..]
+> >> > v6 and we're not showing any review activity.  Who would be suitable
+> >> > people to help out here?
+> >>
+> >> There was quite a bit of review of the cover letter from Michal and
+> >> David, but you're right the details not so much as of yet. I'd like to
+> >> call out other people where I can reciprocate with some review of my
+> >> own. Oscar's altmap work looks like a good candidate for that.
+> >
+> > I'm also hoping Jeff can give a tested-by for the customer scenarios
+> > that fall over with the current implementation.
+>
+> Sure.  I'll also have a look over the patches.
 
-VFS: Busy inodes after unmount of vdd. Self-destruct in 5 seconds.  Have a nice day...
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000278
-[<ffffffff8126a303>] evict+0xb3/0x180
-[<ffffffff8126a760>] iput+0x1b0/0x230
-[<ffffffff8127c690>] inode_switch_wbs_work_fn+0x3c0/0x6a0
-[<ffffffff810a5b2e>] worker_thread+0x4e/0x490
-[<ffffffff810a5ae0>] ? process_one_work+0x410/0x410
-[<ffffffff810ac056>] kthread+0xe6/0x100
-[<ffffffff8173c199>] ret_from_fork+0x39/0x50
-
-Replace the synchronize_rcu() call with a rcu_barrier() to wait for all
-pending callbacks to finish. And inc isw_nr_in_flight after call_rcu()
-in inode_switch_wbs() to make more sense.
-
-Suggested-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-Cc: stable@kernel.org
----
- fs/fs-writeback.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 36855c1f8daf..b16645b417d9 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -523,8 +523,6 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 
- 	isw->inode = inode;
- 
--	atomic_inc(&isw_nr_in_flight);
--
- 	/*
- 	 * In addition to synchronizing among switchers, I_WB_SWITCH tells
- 	 * the RCU protected stat update paths to grab the i_page
-@@ -532,6 +530,9 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
- 	 */
- 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
-+
-+	atomic_inc(&isw_nr_in_flight);
-+
- 	goto out_unlock;
- 
- out_free:
-@@ -901,7 +902,11 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
- void cgroup_writeback_umount(void)
- {
- 	if (atomic_read(&isw_nr_in_flight)) {
--		synchronize_rcu();
-+		/*
-+		 * Use rcu_barrier() to wait for all pending callbacks to
-+		 * ensure that all in-flight wb switches are in the workqueue.
-+		 */
-+		rcu_barrier();
- 		flush_workqueue(isw_wq);
- 	}
- }
--- 
-2.19.1.856.g8858448bb
+Andrew, heads up it looks like there is a memory corruption bug in
+these patches as I've gotten a few reported of "bad page state" at
+boot. Please drop until I can track down the failure.
 
