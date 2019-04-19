@@ -2,174 +2,187 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECDD5C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:19:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E7B4C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:21:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2EA5217F9
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:19:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="efhWri0O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2EA5217F9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id E11802183F
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:21:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E11802183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F3E06B0010; Fri, 19 Apr 2019 03:19:02 -0400 (EDT)
+	id 5B2896B0269; Fri, 19 Apr 2019 03:21:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A4796B0266; Fri, 19 Apr 2019 03:19:02 -0400 (EDT)
+	id 5633A6B026A; Fri, 19 Apr 2019 03:21:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 11F846B0269; Fri, 19 Apr 2019 03:19:02 -0400 (EDT)
+	id 42BFA6B026B; Fri, 19 Apr 2019 03:21:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C676E6B0010
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:19:01 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id n63so2991036pfb.14
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 00:19:01 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E44F56B0269
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:21:24 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id o8so2466838edh.12
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 00:21:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=M4U9lCHjwX+RI+C+4Qn3GQkY7/2O42PH32K/E1UYiUo=;
-        b=CYoxdo4QOPN5vIHjV76NLjbCaa+EUjXQbLYu4lmdjjU6oOg5JjeBUBwXbKXKbKob7p
-         oELpzsJwjM7iuLXiahu2TId9dCncOOy4fscfwtgvRw7+qCsG233R4pbyYEHu9uyLpRdC
-         YZjqvjt+4/Nq38RQSa5+3/IySVd8G0AJnfkq0Ra3dOJuOFkTg193x7IJ6lAdoEwzZfhk
-         PVPpPyhH22/U+ApDdGQG/sAKDOAPbmFkjVQhmN1yG3rhApkhLADAcOiwej/JyqjIM7r2
-         zcIlX+SWAL9Lf11tmAy8BJ1m09PDhYfpv1jAkzuvkaU6tjNiTA2VwLJas5duu9spn/JX
-         zOwA==
-X-Gm-Message-State: APjAAAUpv5hB67aqdSrmP5XQofzRXq+cnQ8eA57r12rAquzGEVOMult0
-	+A8QgLYwkIg7LKZob+TT+GxW6G+FXocVGVvNTOPsTxLgtOdqkBahyDiTaWLHKnuAGD2JsAqZDg4
-	1bdRBAkOGapCldw/ow2b0QRW1zg/wnWggigPyI259NJEF6fqPs1DgBBB1/3oEY5WEXQ==
-X-Received: by 2002:a63:fe0a:: with SMTP id p10mr2409995pgh.86.1555658341357;
-        Fri, 19 Apr 2019 00:19:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxRh+VqrYdIQCzt15jXzDVWOhBVrRunrccK+FigGPDtZPZUAWXVQSQPNc4vzIpeEsCMhN2e
-X-Received: by 2002:a63:fe0a:: with SMTP id p10mr2409951pgh.86.1555658340532;
-        Fri, 19 Apr 2019 00:19:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555658340; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=bnQSy0WtCB7Cu0qsokQqvclK8aEJwCrIiNI51qlDWjY=;
+        b=dZ1S8yi+9x0ZRJFW2BNZE7mv9X34CYhyloJpmyQMY3IdvZrlRpeQ4IU/iggeou3Tsi
+         RZ4SQYIlEDX4+0sNSY7pXpvLeBM9Sb07+GIcJhJ+lUfhZh+D4j/syafSm0o1p7JmEbln
+         axam2d42jzFkc1/1lLctNiVn2+vR3CLiLDH7MPh36ysKZFp5Wu3cKUHdW71Z1JGbuuIz
+         rQvfQHA38Bp8iFMukMbcLJ3oh0gEJf31t3XKRhH/HxHuCpfnFQDZEaBlvDSIUfbvyKe6
+         hvqqkXpd747w7IzGGpbICZErSRIi/s0njHq0Lp7Rul+OABO8Qk8e9ffE+PbyHV1Uj2av
+         liQA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAVhZquw63mFSNWksq5kWpGIoDfl/GepOnuLtimERuKC1d/EpE7p
+	jDBO1GaXoh2zJwSm7Z1dC7rAccMXmtldBivZqBsz7Mv3V7pv2Pv79k2/KKvG+GUFtoUlFT8EYhH
+	/92eeKYvBs0WLg39MLvqCUU5xYLybIoNehrNmCW2jSwMca/3DlDyA5bsn5thKICk=
+X-Received: by 2002:a50:cc89:: with SMTP id q9mr1382853edi.257.1555658484505;
+        Fri, 19 Apr 2019 00:21:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsAsjmzgjOQg0YaBq6UxXn9hAOmMEMYnMnWYwP1KJSVc/AMyFYqc3NL7NskiXWf1qZdUtn
+X-Received: by 2002:a50:cc89:: with SMTP id q9mr1382809edi.257.1555658483551;
+        Fri, 19 Apr 2019 00:21:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555658483; cv=none;
         d=google.com; s=arc-20160816;
-        b=1AjP+RVJ8ilDSMTEip1XM+andW1QykwLkXNS5bWMMUSFgEVkw8DbpjU4rZEUok2khZ
-         ajVgXj8olGAsEgI2EnTIB8reDBBzFhE5i7R5E8i9XxPDg5hWispWS1glIsp1+y+txmfb
-         8I95vNsltXqN8cdHCIdNQ3BwLDFf9qE2GBeBITT2erN9vyECYsvx3Q/mSM3IozLthCV3
-         2P3Xjmanlg/CQECl3m0Cq9j5ymOstCEVT5GSRQoyO+dy7OxTfkjHjp97sqlt7rvo2YMS
-         TLITCmqucC2l93H+IO7+a4MvQgmCXHc7OX7ElZR8FrOBG8FrcsPShNzydFk57Sl5oJb9
-         k0XQ==
+        b=aDjuMughCquqr1Tsj2Nbq7Vfj8u0faNJyNZa22+2KgSQVwr6T4IY3FjZk+e12gKOtF
+         L36SpsocD82PZp4ghpuWRSP5EvIj8dG5Tv7K8Ao6G1e/ermj791/XpyCEhCrxTaIVc59
+         A9h0QrPJx5CwFu6PHKZQ1xRIVkVzS+PmeMDFpbCGd/gYEdPKznG9woJoMZE++Eb4gGKE
+         BiCGUFy3sfp6ZO/s4KqLvAXiV1qRpg37RyGZAuyabNbizp00PBxtKrvBlr13x6YT+f69
+         a1uN+mx7KFEN5fmoif1zYVNTon7AtqMUZC868Oiq9out9Pcb91y/dZXwfOyHY8sSmyl8
+         XVyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=M4U9lCHjwX+RI+C+4Qn3GQkY7/2O42PH32K/E1UYiUo=;
-        b=gpS43mkNOlIVIq4GpYEN+HXCZwCz0KkQ4KJ/d8fmnDmL2eRyKi+x1p3HIxNEuUWnWW
-         ml52btPhacmxw5ISAEuxNzXrOx/nzIdivGq6q2/NzZspEufHfn4oIVUQ2JdhTg+Ylb4q
-         vqgNJB8ShI0+xL1XJvmDxmytgp7zvupmXgjoZ6hKfAxgFe5qBJtrkDGsElVozTVt8iUR
-         G+qrLKnow5R5E+QiotGwpTTn6Xx6PlpfSX8KMcLiapAY3qwRidxD8CYrvlItSIJCfSua
-         IbXPTfKyb7XLOzkmn6fSmQUA4zD5s/IMzeBml2xVXWLgCbravaroHJVU7FtGjIlAkJ/J
-         NYIg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from;
+        bh=bnQSy0WtCB7Cu0qsokQqvclK8aEJwCrIiNI51qlDWjY=;
+        b=XXilWec61hiPqZh5GbW7KlJgdgUNqHc1/fPRdyPr4U0QyUnN94/Tj6IF+k0BQnTNG8
+         kroqUp1nFOx3gC1ifd3YgigwfzUfAvDayA4hYnluTB8UZPbQ5aas5KG8cNOfb11v+ZLP
+         H++08NN0icPqofZJoYIoFqUrmjZRXhxio0jSUzrRNwkrMDAYP9KmuvQSX2MUAyyyZRHB
+         BspLa0SScBQxCTmSOH3xsIBM7xUNaXLrzL8lA5Oc9A6yMm0SsnSkRMrXKGANmOYzy6zY
+         I62mkQYxTWh6IR0Oj4Me/KRWEgUZSBLoaqAUH7blOQ6f1GeKbk1ydvhkBRKAmzIZD0hc
+         j5tQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=efhWri0O;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z8si4205708pgh.82.2019.04.19.00.19.00
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
+        by mx.google.com with ESMTPS id c44si2033896ede.368.2019.04.19.00.21.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 19 Apr 2019 00:19:00 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        Fri, 19 Apr 2019 00:21:23 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=efhWri0O;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=M4U9lCHjwX+RI+C+4Qn3GQkY7/2O42PH32K/E1UYiUo=; b=efhWri0OqGFVL87uVOhTf0P8c
-	VSvSxYJhAd6hWo8CmLsODUpgHy2FOdjPhzivpgzeDYDDeiD5oIiDpm5/7IbHgKjlq91wLpWzl1aD2
-	91I3Ez2HBIUFPqmjTLYnv1ZBwWH/Qw3AsrWa3Rbc4zrTGp/lwd5liclNi1MQEvkxFpGtCo0tFht6C
-	ylKfaemtfAjzZtz7n+nThE01KGuJI1R+8abPHEYloVasqEARRFqBwNStJEX8+DkrmdReR692/NWRH
-	8Fb/ZC+LcMEtU9ngoXTQZys0EFT/JnwkdRRcHWVA/k49KlOl+ugsAq67JLMjnv0e+1/DskCXYRzRn
-	lv2tg85gQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hHNnJ-0005As-Hx; Fri, 19 Apr 2019 07:18:45 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id C26E229B52F44; Fri, 19 Apr 2019 09:18:43 +0200 (CEST)
-Date: Fri, 19 Apr 2019 09:18:43 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>,
-	Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
-	Andy Lutomirski <luto@kernel.org>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Alexander Potapenko <glider@google.com>, linux-arch@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org,
-	David Rientjes <rientjes@google.com>,
-	Christoph Lameter <cl@linux.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Akinobu Mita <akinobu.mita@gmail.com>,
-	iommu@lists.linux-foundation.org,
-	Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
-	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
-	Alasdair Kergon <agk@redhat.com>, intel-gfx@lists.freedesktop.org,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>
-Subject: Re: [patch V2 28/29] stacktrace: Provide common infrastructure
-Message-ID: <20190419071843.GM4038@hirez.programming.kicks-ass.net>
-References: <20190418084119.056416939@linutronix.de>
- <20190418084255.652003111@linutronix.de>
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id 78D2F6000E;
+	Fri, 19 Apr 2019 07:21:16 +0000 (UTC)
+From: Alex Ghiti <alex@ghiti.fr>
+Subject: Re: [PATCH v3 08/11] mips: Properly account for stack randomization
+ and stack guard gap
+To: Paul Burton <paul.burton@mips.com>
+Cc: Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>,
+ Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt
+ <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
+ Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Luis Chamberlain <mcgrof@kernel.org>,
+ "linux-riscv@lists.infradead.org" <linux-riscv@lists.infradead.org>,
+ Alexander Viro <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>,
+ "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ "linux-mips@vger.kernel.org" <linux-mips@vger.kernel.org>,
+ Christoph Hellwig <hch@lst.de>,
+ "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+References: <20190417052247.17809-1-alex@ghiti.fr>
+ <20190417052247.17809-9-alex@ghiti.fr>
+ <20190418212701.dpymnwuki3g7rox2@pburton-laptop>
+Message-ID: <b971499a-ae49-bea5-d3ac-dc779d4817ef@ghiti.fr>
+Date: Fri, 19 Apr 2019 09:20:01 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190418084255.652003111@linutronix.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190418212701.dpymnwuki3g7rox2@pburton-laptop>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 18, 2019 at 10:41:47AM +0200, Thomas Gleixner wrote:
+On 4/18/19 5:27 PM, Paul Burton wrote:
+> Hi Alexandre,
+>
+> On Wed, Apr 17, 2019 at 01:22:44AM -0400, Alexandre Ghiti wrote:
+>> This commit takes care of stack randomization and stack guard gap when
+>> computing mmap base address and checks if the task asked for randomization.
+>> This fixes the problem uncovered and not fixed for mips here:
+>> https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1429066.html
+>>
+>> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> For patches 8-10:
+>
+>      Acked-by: Paul Burton <paul.burton@mips.com>
+>
+> Thanks for improving this,
 
-> +typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr,
-> +                                      bool reliable);
 
-> +void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
-> +		     struct task_struct *task, struct pt_regs *regs);
-> +int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry, void *cookie,
-> +			     struct task_struct *task);
+Thank you for your time,
 
-This bugs me a little; ideally the _reliable() thing would not exists.
 
-Thomas said that the existing __save_stack_trace_reliable() is different
-enough for the unification to be non-trivial, but maybe Josh can help
-out?
+Alex
 
-From what I can see the biggest significant differences are:
 
- - it looks at the regs sets on the stack and for FP bails early
- - bails for khreads and idle (after it does all the hard work!?!)
-
-The first (FP checking for exceptions) should probably be reflected in
-consume_fn(.reliable) anyway -- although that would mean a lot of extra
-'?' entries where there are none today.
-
-And the second (KTHREAD/IDLE) is something that the generic code can
-easily do before calling into the arch unwinder.
-
-Hmm?
+>      Paul
+>
+>> ---
+>>   arch/mips/mm/mmap.c | 14 ++++++++++++--
+>>   1 file changed, 12 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
+>> index 2f616ebeb7e0..3ff82c6f7e24 100644
+>> --- a/arch/mips/mm/mmap.c
+>> +++ b/arch/mips/mm/mmap.c
+>> @@ -21,8 +21,9 @@ unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
+>>   EXPORT_SYMBOL(shm_align_mask);
+>>   
+>>   /* gap between mmap and stack */
+>> -#define MIN_GAP (128*1024*1024UL)
+>> -#define MAX_GAP ((TASK_SIZE)/6*5)
+>> +#define MIN_GAP		(128*1024*1024UL)
+>> +#define MAX_GAP		((TASK_SIZE)/6*5)
+>> +#define STACK_RND_MASK	(0x7ff >> (PAGE_SHIFT - 12))
+>>   
+>>   static int mmap_is_legacy(struct rlimit *rlim_stack)
+>>   {
+>> @@ -38,6 +39,15 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
+>>   static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+>>   {
+>>   	unsigned long gap = rlim_stack->rlim_cur;
+>> +	unsigned long pad = stack_guard_gap;
+>> +
+>> +	/* Account for stack randomization if necessary */
+>> +	if (current->flags & PF_RANDOMIZE)
+>> +		pad += (STACK_RND_MASK << PAGE_SHIFT);
+>> +
+>> +	/* Values close to RLIM_INFINITY can overflow. */
+>> +	if (gap + pad > gap)
+>> +		gap += pad;
+>>   
+>>   	if (gap < MIN_GAP)
+>>   		gap = MIN_GAP;
+>> -- 
+>> 2.20.1
+>>
+> _______________________________________________
+> linux-riscv mailing list
+> linux-riscv@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-riscv
 
