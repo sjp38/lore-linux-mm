@@ -2,244 +2,239 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C802DC282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:29:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B34C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:42:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7012C217D7
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:29:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rotvELed"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7012C217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A70020869
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:42:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A70020869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18DCC6B026D; Fri, 19 Apr 2019 03:29:48 -0400 (EDT)
+	id B95A66B026F; Fri, 19 Apr 2019 03:42:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 13E4A6B026E; Fri, 19 Apr 2019 03:29:48 -0400 (EDT)
+	id B45E96B0270; Fri, 19 Apr 2019 03:42:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 02D166B026F; Fri, 19 Apr 2019 03:29:47 -0400 (EDT)
+	id A0DCB6B0271; Fri, 19 Apr 2019 03:42:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AB5956B026D
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:29:47 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id f12so3829484wmj.0
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 00:29:47 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 801EE6B026F
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:42:43 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id z19so978734qkj.5
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 00:42:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=JUrL+t/sGkk+Nd+0JlZtFUe7lRgqB2NCcYxNia/KE+Q=;
-        b=nhOkRvR7s8vCkE0SLpnrUaYOSbbzbJ+W2pjtEJlypwVDIDk+k2+N8JJ8l0uFObvqVJ
-         BzXyggni3I2y3VPm91m4tTLF9Ze25VQ/biWFBavrvpsotEQFEkSN6ts6SBDG3HlQ/tu1
-         2+/o3HkPsC4N0vOmf1TpHWkChllSzVcQ66jlT9t3PFqBpGAKSvij3SPpPAXv4MwYQOSH
-         KPRH00akNHVKL8IQ40L/uGdbC3x25knxe0PNtIwaF4qGEdATtGI98hPry/nHfQncIw1u
-         rRCEiotIdlH3+CWWm1vUyBL5FQcNMdW+UBynjVz0WtymhVGS1E9CC5s5rA19tKacudY3
-         4l2A==
-X-Gm-Message-State: APjAAAUPR3OTF5qRH94M+87QbTnDHdkO9yQV+DEVEVx1d5X8wU8k9n0y
-	fwKp8TC+EW9T7kyre6xV4IR0Aio7gZpmjxkzpe2Zu+OsXsFUNFc2MQidAQ0dfb1FTWY86ioNYo6
-	PGTqlVPYfb0e5pbHtlTUsmGZdOqlP70iG9pIN31Ze9jZcevuyYKtYgt1lZ+86vByvvQ==
-X-Received: by 2002:adf:e547:: with SMTP id z7mr1718043wrm.295.1555658987190;
-        Fri, 19 Apr 2019 00:29:47 -0700 (PDT)
-X-Received: by 2002:adf:e547:: with SMTP id z7mr1717988wrm.295.1555658986288;
-        Fri, 19 Apr 2019 00:29:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555658986; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=e9UmQx6T/I7t/3nc5KN45lKGQRiIq/ZYkk8pttdRMM0=;
+        b=ogtquxi84hhHAU4vtXraqmXKUS4OQfpDd2lq1A7W7R+m+0CQTDT5ZkCyxRTCZ3109b
+         8Zu7gV28CkyXZqj4S/LmPWJW+ZLAtXTslElzRBrtF/Dzj3k37+yTtsjGI6y4dG2yCMJv
+         +DuvGBDfb4uBjIDRZH7HBTbQIxrS/IH+vuG1MynmL4ExC2IC1IvtdHbYI+HFN13Mm5rb
+         QElL7FdgnAtAtfcZHp4SZ90+k6OEq6jUk4MLeCVzjtSZ3DaWmSlfKNOhqiX7KeVrPWZp
+         PXvg8jq35BCtLNQ0XjPzFWGXYpxN7KGS3KawDVtcW8bq6uzRrpGCjBoZgqFSj5SGh4jp
+         MD9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXRxqC7VMWcIcUD8+emr3DXcJXKloAnEh49rSoIHzr1PU2b+k6E
+	knZZsOBGT5fg59jC7ScJv6Hallqr+62Us6NI+/RNDrrfOdzjZs1/9gKcneBkeZg2jnOxZHPTe0G
+	KrovEHlmY6GB188gEx0rWxYMeOUPqjnuQ4epIreg2cWXYbSZ2aa5zKzo5rg+J07QPoA==
+X-Received: by 2002:a37:4988:: with SMTP id w130mr2025219qka.262.1555659763098;
+        Fri, 19 Apr 2019 00:42:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxEpnpQpDCXXmMxMBgyfx+GAkQLeKtnt4kDdJ3b04YF8qsTMigZxxnCgv9WqQOQqJg2+zK3
+X-Received: by 2002:a37:4988:: with SMTP id w130mr2025187qka.262.1555659762241;
+        Fri, 19 Apr 2019 00:42:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555659762; cv=none;
         d=google.com; s=arc-20160816;
-        b=0jijGJUSw4RTH/h4/I7CrATcTrY8vGcEL0untlroRNr1LTQfJzswJ1JB/BtFf1n6UM
-         RM27497zK058xSaTSg48NtQ+8c01DzRo3K2P2kDanThJZh8ipB/rgya5nL3LQK3Hm6ji
-         /6YFaNFOpr5CnPEPxLCBjucVY5lt53bma6HaW2p4RRVSf8YWjdZD6U0sss6bJN14G4gJ
-         4oNsklaf+1VVXjOXzbKnvZK2JmT36XUo61R5Js972pLrIWwlZH1rvyO6G3YXI1Smf3pc
-         dtxDXiLupV7t58CV3iNe00y1MEG2dZXrYz8LmY609XyisaB/U+PbUN9xKELG4WrGxtLW
-         un6g==
+        b=fSqOGC6CJ4ZUIzPUg4/X/B5OsTfrYCgjloaXfN/7uRX7dWlUKUaCxUrGk7jws3OKJS
+         8h+O70Xb4HHaZrtPXMYdGDLsRwRrclSpXf97aGbS6Rxgv2CdUKmKYEUF2CvmirlViPmC
+         DSBlIFf/J4936Sgww4vBjKfDGPVn+fTsn6UM28hOJYtD2zBNmDl2EPGESMWpjZJbmcJ1
+         Mr/AWaMAW+B7vJB+4pAXp/tzTzg10bV5LpdJZOSZ3V1qE35WBCyQFH0UVx62VUOmO83p
+         utpiGWKrv+SpeE1e4jyHbnz+iF5jZNtJPaCJSfZ+25FvMNP0s4myvfDIcEh7BkTmjVLS
+         Uzfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=JUrL+t/sGkk+Nd+0JlZtFUe7lRgqB2NCcYxNia/KE+Q=;
-        b=0nIactzNsrKFp89Jf+Ur02yr+tsLuzwEoAk8dPR0k9aEkBPJDkgfHA4IsN4CGd5DW8
-         +ILV1B8Tqux4U9qD+EQn6owpdKkoQV1wgnKz4MYTHhWQy7hADHC5cH+mgU+Bn+LpeEe6
-         qtnedWF/2Y8HtXBecjXunXHQOXMkv89ELDxMCeHSAngi0lpB66cpdl5Pr+u33Tg6Qov1
-         euSI9hf6uK5QfE4N4Ezx24B2/2iUG/1HsABOGnt5bW3suqL5AybtwCis99We1gA1JU78
-         Rfxr5pItHb+HkzdXd2DDXm4YSvYcEAHhVoW0JDQ9Sx/dv9T+IUqyjLiOA4wTrSO2iM0s
-         RvWA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=e9UmQx6T/I7t/3nc5KN45lKGQRiIq/ZYkk8pttdRMM0=;
+        b=Tsy6vE/FzzqELVyOkrknpAqaJBELjv/aONmwJilhfftKvMf18GWK47qoeUOtgZAhml
+         ZZ2/eZdNosEm1ZPrbsU3r3mEEUefp+s2uP6CdkU4bWhz2F8Rl8yPt/FCdvqggDHH/Njj
+         C0gjseASPQGI0hZn96fgn5bbKIE63HhVkx3VkTjhUoBW+lRps/KmVE7NbYNmz2PFTh3F
+         s9jMfZDGmtIxVcR590s1ySY/YcxHcMqVYhYGEdYt/I6Es0JhvWOaunwqhU/K5LGhNw1V
+         04udB5ryr1Kt/WaxLKAFhyzjgqyE302/ilSYktRt5CB2AQw8PK5fg7HQrTTpwoIaJjRt
+         Io2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rotvELed;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o3sor2409997wmo.17.2019.04.19.00.29.46
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o35si3119474qvf.60.2019.04.19.00.42.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Apr 2019 00:29:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rotvELed;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=JUrL+t/sGkk+Nd+0JlZtFUe7lRgqB2NCcYxNia/KE+Q=;
-        b=rotvELedYkfsMEDZw4+zMLSEYZrkCQewj8XNhvPQou+5xQKTeUyv8KrZyggorJjGET
-         r1bPrfPqlprXmHjt4LF97AXqE53KYsdrIivOj/iUxhAEJNoFXwb1FZyMnM6MKwYqjz+6
-         +Jb/qqEqizgyeYOki11WGYIZ26MT+o1hZ9kxndi66xVXSd0O0luLLecSu6Y/Fzk1Pkwr
-         bfvsIVJkm5WbktC8x5Rbd9azkPzVsjBl6UA94mBhq4ECHJrWqy/sIeqRL5FjOgf4P9Sx
-         ne2S82CNtSBXvBagWsq6ifC3WE6CmnwFySpL6b/8RKkrJcxXHqwGuKjYprV7jr4nHqMa
-         nuGA==
-X-Google-Smtp-Source: APXvYqzOWHpn1wSg+lT9K1wFIQIDgkcFXYdMOItJU3yOIH6AH4oCYQEiO3Wcw3VfodNnpv1E78czBA==
-X-Received: by 2002:a1c:9dc8:: with SMTP id g191mr1608551wme.132.1555658985835;
-        Fri, 19 Apr 2019 00:29:45 -0700 (PDT)
-Received: from localhost.localdomain ([5.102.238.208])
-        by smtp.gmail.com with ESMTPSA id z18sm5481865wrr.90.2019.04.19.00.29.44
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 00:29:45 -0700 (PDT)
-From: Amir Goldstein <amir73il@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	linux-mm@kvack.org,
-	linux-api@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org
-Subject: [PATCH v5] fs/sync.c: sync_file_range(2) may use WB_SYNC_ALL writeback
-Date: Fri, 19 Apr 2019 10:29:38 +0300
-Message-Id: <20190419072938.31320-1-amir73il@gmail.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190419000225.GF1454@dread.disaster.area>
-References: <20190419000225.GF1454@dread.disaster.area>
+        Fri, 19 Apr 2019 00:42:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4AF9C83F3A;
+	Fri, 19 Apr 2019 07:42:40 +0000 (UTC)
+Received: from xz-x1 (ovpn-12-224.pek2.redhat.com [10.72.12.224])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8794D19C65;
+	Fri, 19 Apr 2019 07:42:27 +0000 (UTC)
+Date: Fri, 19 Apr 2019 15:42:20 +0800
+From: Peter Xu <peterx@redhat.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v3 17/28] userfaultfd: wp: support swap and page migration
+Message-ID: <20190419074220.GG13323@xz-x1>
+References: <20190320020642.4000-1-peterx@redhat.com>
+ <20190320020642.4000-18-peterx@redhat.com>
+ <20190418205907.GL3288@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190418205907.GL3288@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Fri, 19 Apr 2019 07:42:41 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Commit 23d0127096cb ("fs/sync.c: make sync_file_range(2) use WB_SYNC_NONE
-writeback") claims that sync_file_range(2) syscall was "created for
-userspace to be able to issue background writeout and so waiting for
-in-flight IO is undesirable there" and changes the writeback (back) to
-WB_SYNC_NONE.
+On Thu, Apr 18, 2019 at 04:59:07PM -0400, Jerome Glisse wrote:
+> On Wed, Mar 20, 2019 at 10:06:31AM +0800, Peter Xu wrote:
+> > For either swap and page migration, we all use the bit 2 of the entry to
+> > identify whether this entry is uffd write-protected.  It plays a similar
+> > role as the existing soft dirty bit in swap entries but only for keeping
+> > the uffd-wp tracking for a specific PTE/PMD.
+> > 
+> > Something special here is that when we want to recover the uffd-wp bit
+> > from a swap/migration entry to the PTE bit we'll also need to take care
+> > of the _PAGE_RW bit and make sure it's cleared, otherwise even with the
+> > _PAGE_UFFD_WP bit we can't trap it at all.
+> > 
+> > Note that this patch removed two lines from "userfaultfd: wp: hook
+> > userfault handler to write protection fault" where we try to remove the
+> > VM_FAULT_WRITE from vmf->flags when uffd-wp is set for the VMA.  This
+> > patch will still keep the write flag there.
+> > 
+> > Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
+> 
+> Some missing thing see below.
+> 
+> [...]
+> 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 6405d56debee..c3d57fa890f2 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -736,6 +736,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+> >  				pte = swp_entry_to_pte(entry);
+> >  				if (pte_swp_soft_dirty(*src_pte))
+> >  					pte = pte_swp_mksoft_dirty(pte);
+> > +				if (pte_swp_uffd_wp(*src_pte))
+> > +					pte = pte_swp_mkuffd_wp(pte);
+> >  				set_pte_at(src_mm, addr, src_pte, pte);
+> >  			}
+> >  		} else if (is_device_private_entry(entry)) {
+> 
+> You need to handle the is_device_private_entry() as the migration case
+> too.
 
-This claim is only partially true. It is true for users that use the flag
-SYNC_FILE_RANGE_WRITE by itself, as does PostgreSQL, the user that was
-the reason for changing to WB_SYNC_NONE writeback.
+Hi, Jerome,
 
-However, that claim is not true for users that use that flag combination
-SYNC_FILE_RANGE_{WAIT_BEFORE|WRITE|_WAIT_AFTER}.
-Those users explicitly requested to wait for in-flight IO as well as to
-writeback of dirty pages.
+Yes I can simply add the handling, but I'd confess I haven't thought
+clearly yet on how userfault-wp will be used with HMM (and that's
+mostly because my unfamiliarity so far with HMM).  Could you give me
+some hint on a most general and possible scenario?
 
-Re-brand that flag combination as SYNC_FILE_RANGE_WRITE_AND_WAIT
-and use WB_SYNC_ALL writeback to perform the full range sync request.
+> 
+> 
+> 
+> > @@ -2825,6 +2827,10 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+> >  	flush_icache_page(vma, page);
+> >  	if (pte_swp_soft_dirty(vmf->orig_pte))
+> >  		pte = pte_mksoft_dirty(pte);
+> > +	if (pte_swp_uffd_wp(vmf->orig_pte)) {
+> > +		pte = pte_mkuffd_wp(pte);
+> > +		pte = pte_wrprotect(pte);
+> > +	}
+> >  	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
+> >  	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
+> >  	vmf->orig_pte = pte;
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 181f5d2718a9..72cde187d4a1 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -241,6 +241,8 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+> >  		entry = pte_to_swp_entry(*pvmw.pte);
+> >  		if (is_write_migration_entry(entry))
+> >  			pte = maybe_mkwrite(pte, vma);
+> > +		else if (pte_swp_uffd_wp(*pvmw.pte))
+> > +			pte = pte_mkuffd_wp(pte);
+> >  
+> >  		if (unlikely(is_zone_device_page(new))) {
+> >  			if (is_device_private_page(new)) {
+> 
+> You need to handle is_device_private_page() case ie mark its swap
+> as uffd_wp
 
-Link: http://lkml.kernel.org/r/20190409114922.30095-1-amir73il@gmail.com
-Fixes: 23d0127096cb ("fs/sync.c: make sync_file_range(2) use WB_SYNC_NONE")
-Signed-off-by: Amir Goldstein <amir73il@gmail.com>
-Acked-by: Jan Kara <jack@suse.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
----
+Yes I can do this too.
 
-Andrew,
+> 
+> > @@ -2301,6 +2303,8 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+> >  			swp_pte = swp_entry_to_pte(entry);
+> >  			if (pte_soft_dirty(pte))
+> >  				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+> > +			if (pte_uffd_wp(pte))
+> > +				swp_pte = pte_swp_mkuffd_wp(swp_pte);
+> >  			set_pte_at(mm, addr, ptep, swp_pte);
+> >
+> >  			/*
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 855dddb07ff2..96c0f521099d 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -196,6 +196,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> >  				newpte = swp_entry_to_pte(entry);
+> >  				if (pte_swp_soft_dirty(oldpte))
+> >  					newpte = pte_swp_mksoft_dirty(newpte);
+> > +				if (pte_swp_uffd_wp(oldpte))
+> > +					newpte = pte_swp_mkuffd_wp(newpte);
+> >  				set_pte_at(mm, addr, pte, newpte);
+> >  
+> >  				pages++;
+> 
+> Need to handle is_write_device_private_entry() case just below
+> that chunk.
 
-One more version addressing another comment by Dave Chinner.
+This one is a bit special - because it's not only the private entries
+that are missing but also all swap/migration entries, which is
+explicitly handled by patch 25.  But I think I can just squash it into
+this patch as you suggested.
 
 Thanks,
-Amir.
 
-Changes since v4:
-- Don't use filemap_write_and_wait_range() helper (Dave)
-
-Changes since v3:
-- Remove unneeded change to VALID_FLAGS (Dave)
-- Call file_fdatawait_range() before writeback (Dave)
-
-Changes since v2:
-- Return after filemap_write_and_wait_range()
-
-Changes since v1:
-- Remove non-guaranties of the API from commit message
-- Added ACK by Jan
-
- fs/sync.c               | 21 +++++++++++++++------
- include/uapi/linux/fs.h |  3 +++
- 2 files changed, 18 insertions(+), 6 deletions(-)
-
-diff --git a/fs/sync.c b/fs/sync.c
-index b54e0541ad89..9e8cd90e890f 100644
---- a/fs/sync.c
-+++ b/fs/sync.c
-@@ -235,9 +235,9 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
- }
- 
- /*
-- * sys_sync_file_range() permits finely controlled syncing over a segment of
-+ * ksys_sync_file_range() permits finely controlled syncing over a segment of
-  * a file in the range offset .. (offset+nbytes-1) inclusive.  If nbytes is
-- * zero then sys_sync_file_range() will operate from offset out to EOF.
-+ * zero then ksys_sync_file_range() will operate from offset out to EOF.
-  *
-  * The flag bits are:
-  *
-@@ -254,7 +254,7 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
-  * Useful combinations of the flag bits are:
-  *
-  * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE: ensures that all pages
-- * in the range which were dirty on entry to sys_sync_file_range() are placed
-+ * in the range which were dirty on entry to ksys_sync_file_range() are placed
-  * under writeout.  This is a start-write-for-data-integrity operation.
-  *
-  * SYNC_FILE_RANGE_WRITE: start writeout of all dirty pages in the range which
-@@ -266,10 +266,13 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
-  * earlier SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE operation to wait
-  * for that operation to complete and to return the result.
-  *
-- * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER:
-+ * SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER
-+ * (a.k.a. SYNC_FILE_RANGE_WRITE_AND_WAIT):
-  * a traditional sync() operation.  This is a write-for-data-integrity operation
-  * which will ensure that all pages in the range which were dirty on entry to
-- * sys_sync_file_range() are committed to disk.
-+ * ksys_sync_file_range() are written to disk.  It should be noted that disk
-+ * caches are not flushed by this call, so there are no guarantees here that the
-+ * data will be available on disk after a crash.
-  *
-  *
-  * SYNC_FILE_RANGE_WAIT_BEFORE and SYNC_FILE_RANGE_WAIT_AFTER will detect any
-@@ -345,8 +348,14 @@ int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
- 	}
- 
- 	if (flags & SYNC_FILE_RANGE_WRITE) {
-+		int sync_mode = WB_SYNC_NONE;
-+
-+		if ((flags & SYNC_FILE_RANGE_WRITE_AND_WAIT) ==
-+			     SYNC_FILE_RANGE_WRITE_AND_WAIT)
-+			sync_mode = WB_SYNC_ALL;
-+
- 		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
--						 WB_SYNC_NONE);
-+						 sync_mode);
- 		if (ret < 0)
- 			goto out_put;
- 	}
-diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
-index 121e82ce296b..59c71fa8c553 100644
---- a/include/uapi/linux/fs.h
-+++ b/include/uapi/linux/fs.h
-@@ -320,6 +320,9 @@ struct fscrypt_key {
- #define SYNC_FILE_RANGE_WAIT_BEFORE	1
- #define SYNC_FILE_RANGE_WRITE		2
- #define SYNC_FILE_RANGE_WAIT_AFTER	4
-+#define SYNC_FILE_RANGE_WRITE_AND_WAIT	(SYNC_FILE_RANGE_WRITE | \
-+					 SYNC_FILE_RANGE_WAIT_BEFORE | \
-+					 SYNC_FILE_RANGE_WAIT_AFTER)
- 
- /*
-  * Flags for preadv2/pwritev2:
 -- 
-2.17.1
+Peter Xu
 
