@@ -2,196 +2,169 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D4C83C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:17:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37684C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:28:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 745E7208C0
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:17:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 745E7208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A79A6222A7
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 16:28:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A79A6222A7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D241D6B0003; Fri, 19 Apr 2019 12:17:44 -0400 (EDT)
+	id 37D296B0006; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD1076B0006; Fri, 19 Apr 2019 12:17:44 -0400 (EDT)
+	id 32A7E6B0007; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBFBE6B0007; Fri, 19 Apr 2019 12:17:44 -0400 (EDT)
+	id 200C26B0008; Fri, 19 Apr 2019 12:28:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1FF6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 12:17:44 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id k68so2253850qkd.21
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:17:44 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA426B0006
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 12:28:44 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id t13so7250395itk.0
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 09:28:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VeS9ma+wicF8zbgwRvzdQ+Xy7920m5g7okRsCiGb38Y=;
-        b=bjeH5+D8jbjLLF15OrYWp8aysv//jiKCEXzKoh1Pcp2ZFcjvadF4jBM85O95nbr16n
-         gBkn+TKwF2gJEU21SfgPL7PEcAHyDSrnS0y7FwhiZ32En7wi7mxF6ZZZvetV2HoDFHmo
-         EwAHsJdzQy5QzQG85JMgEKBPkHTmV0kB8a3e2UUOVovvYCmYMkkpciL5LXe4Ss3mQWRU
-         vbMH2FEFalmuw7IQcvS4YNp/LHLbcXPfml0E0zo/GY+CjYxqqblILjS1nWNlfzUo0mte
-         Hc4j2t5npkp/60L8ASexEVIICmt/+QVQcpUwybIke982FRQi4GwqSzsTSuvUkCa1Csgz
-         GKjA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUtXTcKYG/CPsdN6zfcnO5YyJKmz45eKbJJ6tcBvccYwOhKRFCl
-	ki/f1Oe3/WKXogJk1XE+infwxbRPvx2MOHzshg9O4NZVjjFqe5ufbFyYjvMzGnSlpCQ8b31TIRP
-	6Qx9NVGK9Z5OUfM6G8QCGV2Mu6Lq+EXrNeeqnnGvcgqlm9HMsSqtrl+ywpYH3svf75Q==
-X-Received: by 2002:ac8:544c:: with SMTP id d12mr3980990qtq.199.1555690664367;
-        Fri, 19 Apr 2019 09:17:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOEM7akI1UKrngN40+FW2bmxO7WeZCr7hrQVRehqrFUalSk1ZyxjdY8xa9A2lxcLMDaQb0
-X-Received: by 2002:ac8:544c:: with SMTP id d12mr3980938qtq.199.1555690663637;
-        Fri, 19 Apr 2019 09:17:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555690663; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=UPb0IWwjIBeEX5imLIyRgeszted8bfQ9YSKdWtZJE5Y=;
+        b=KEBVeNB+hNuChLn4oitWfND4SrtQI3Fw0Cq7SP/YbqwL/weywTVkg7tc2i3P1CBeSb
+         XNN4H4cUG8MqGQOJqnQB8ttNBNtcUX1S++Dz7DD+jPPgkTSoJmtkHQcXic5paiK1vsr2
+         oQTAiqy+dU8rhVqS00283ShBkfxh3dPZ5ETP7Y9+GmUxOCJsqkVL0DdI9H4GqdxQWCKA
+         oYpZsSNc7Rsib5ZWERoSjQhZnXyz16NCDDi7WpT8jV/6PSIJH8FHVR4zBamy1Zo+3CLB
+         ScoFgEoqOpqe6yiYwwmDQTN7+kv+QISvR85sDtzegCwaD3K0gXtmIEbwowIdKwiICASK
+         03yQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVjxQ9We8zqDjkxL/iub+ojSvpBiK1XYo24ae1pAjkloensCAnS
+	rgmZe08R6j6i71HUmNqgfvDWvgxJdqzE8eqHsRultV9W5OAdYyjlYK8zx8R0XI4z2C4aJe80mzR
+	rAzc0W2/Y6hW0DH1h9bUG+q6pKSXUhdJypJyamWNO1uIS6gOYEXFBxeKSufqTnePerA==
+X-Received: by 2002:a24:e303:: with SMTP id d3mr3722967ith.170.1555691324746;
+        Fri, 19 Apr 2019 09:28:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDwyBg4NR9CrAA92SZ6KPUDSah0sKBf54bb9tCunqMuVrNWDr5ofpTWNJpuQ0jKzcju87d
+X-Received: by 2002:a24:e303:: with SMTP id d3mr3722926ith.170.1555691323992;
+        Fri, 19 Apr 2019 09:28:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555691323; cv=none;
         d=google.com; s=arc-20160816;
-        b=KYR3DgR6cUyZiKyFtJRV1nJX2txCR82TvboKgQv45IFIsgTtUHnoKhGcJL/MoHt4Wu
-         KvGdl9ZEJ43Q4e5nLxQarOSNX8ABnJQ+cQAknLN2Z23dQDxKSZeve9nOS9cxrmCjalb6
-         g+omFMYzWB4vFXhPGpnfDHNoqZAmpkP7H0wr0pYyGRUTCzooQ3F56nAfq9yTZcerQ7Iy
-         a5w1fOu5y7MJugZHQnXigphRup3fq/zxbvnvWDR3bn+d85PbRhyptytGnejqtWlHfub9
-         WY+bf4cuPDwTqJCgwUb7k2RjQFGFFzS44mEf+RbQzHJBa9s4DMvyE/eTSjgG5uFXfCvd
-         FnQA==
+        b=pUS53t/JgyA/j+RFyP3MTQRNFFcdBsovBJH/RsUeh/HOjaaeAIrIQIMc9TPBABCbDE
+         3Zzuub1ndGGBW7pSOKDgoxZY+ROj+wMl4L5cBACdWzEWTzMAXx7KY47mW4xhOPLjpYOn
+         qHBO+Uzr3rSy1QruSPrZPs87pn9ed7wKGZuAtSJJiTJrUq0j7L3bdAtYPp2dB5uWcK7n
+         eWIEn8dn5Ji2OAxCJzIbanrwrRvpEXnGT5ISasSVSjVKSgmNnHUttNS22YDDEREw6zAz
+         audauMOPELnuWL3jRW4j2pFPxYKfhu//H4KdTCDrUnh6bIapnnwuGhHriRQwPAICHjSh
+         6wFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VeS9ma+wicF8zbgwRvzdQ+Xy7920m5g7okRsCiGb38Y=;
-        b=Q7nCUZM5gS0Yj5+86Pc3iMEzIl+b7PMJU5fudbkv/CFLU+L4OaEcfK3aPPBAYxHPm5
-         zUBGe4wFewxacrX9l7l+m2xpfFLviOHSaNlkSIpcSCccdJ/bV3ymNn9P9e7dLmXchJAo
-         5925P4TxJ+GQKzcIQtYVbYL8MnvKU+HQ1q1QxxJESVy2FT7wI9z3S90IB02Q6qv3x3FE
-         6jNOzlCBQ2lwHJhxHcZGNphI3uOrGmwo5ylOjkPdsipDSRmMBYpexqL9tpMvdOW2Gen2
-         lqgn2OqoYgvYId6iWvzp/xBctAypEKklGxI5mTwLR6KwU/dQ78TQ1lRQonmrh5P/Mu8s
-         2NkQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=UPb0IWwjIBeEX5imLIyRgeszted8bfQ9YSKdWtZJE5Y=;
+        b=nTZ2KABzHOCV6vc5wcDSopMkR4XSmrMXuEXmYzX3i78fIDNsJ+8824JJwnNm1LQNbj
+         UNoy7p0wS7pMINH8TccXy3cWobEoD6ngAbS65mk0EHpUND/aJwkijvY85SqaFSrmuw+R
+         F6VZeZjwdeUJChZy6hQxJaS4DbZpKV5sAFo6gRTHVpDX1rMHd22vTgmdFEYO+R1D4Yv1
+         HPfhZAD9H6fIzNkSTCksxrcAtqnN1xdvTFevvFK1KcdW/lzQJPXKn0xUgxEn/ctUhHUe
+         rApwmNtDtUnMGsxBJsKz/8F7wYJ3NodkYXYmAmBJJS+eAYqKiiY+Ui/R4giSLcLd5/J9
+         oXPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a20si127673qvd.39.2019.04.19.09.17.43
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
+        by mx.google.com with ESMTPS id k188si3623568itb.61.2019.04.19.09.28.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 09:17:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 19 Apr 2019 09:28:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B05EF85541;
-	Fri, 19 Apr 2019 16:17:41 +0000 (UTC)
-Received: from treble (ovpn-124-190.rdu2.redhat.com [10.10.124.190])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8459E5D9D2;
-	Fri, 19 Apr 2019 16:17:32 +0000 (UTC)
-Date: Fri, 19 Apr 2019 11:17:30 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>,
-	LKML <linux-kernel@vger.kernel.org>, x86@kernel.org,
-	Andy Lutomirski <luto@kernel.org>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Alexander Potapenko <glider@google.com>, linux-arch@vger.kernel.org,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org,
-	David Rientjes <rientjes@google.com>,
-	Christoph Lameter <cl@linux.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Akinobu Mita <akinobu.mita@gmail.com>,
-	iommu@lists.linux-foundation.org,
-	Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
-	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
-	Alasdair Kergon <agk@redhat.com>, intel-gfx@lists.freedesktop.org,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>
-Subject: Re: [patch V2 28/29] stacktrace: Provide common infrastructure
-Message-ID: <20190419161730.zgpa3e5fhny42wq7@treble>
-References: <20190418084119.056416939@linutronix.de>
- <20190418084255.652003111@linutronix.de>
- <20190419071843.GM4038@hirez.programming.kicks-ass.net>
- <alpine.DEB.2.21.1904191031390.3174@nanos.tec.linutronix.de>
- <20190419090717.GN7905@worktop.programming.kicks-ass.net>
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TPjGOrH_1555691304;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TPjGOrH_1555691304)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sat, 20 Apr 2019 00:28:26 +0800
+Subject: Re: [QUESTIONS] THP allocation in NUMA fault migration path
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ linux-kernel <linux-kernel@vger.kernel.org>
+References: <aa34f38e-5e55-bdb2-133c-016b91245533@linux.alibaba.com>
+ <20190418063218.GA6567@dhcp22.suse.cz>
+ <bb2464c9-dc45-eff1-b9ac-f29105ccd27b@linux.alibaba.com>
+ <20190419111356.GK18914@techsingularity.net>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <e48a5899-7139-ba76-46e9-76bda4a7ab78@linux.alibaba.com>
+Date: Fri, 19 Apr 2019 09:28:21 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190419090717.GN7905@worktop.programming.kicks-ass.net>
-User-Agent: NeoMutt/20180716
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Fri, 19 Apr 2019 16:17:42 +0000 (UTC)
+In-Reply-To: <20190419111356.GK18914@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 11:07:17AM +0200, Peter Zijlstra wrote:
-> On Fri, Apr 19, 2019 at 10:32:30AM +0200, Thomas Gleixner wrote:
-> > On Fri, 19 Apr 2019, Peter Zijlstra wrote:
-> > > On Thu, Apr 18, 2019 at 10:41:47AM +0200, Thomas Gleixner wrote:
-> > > 
-> > > > +typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr,
-> > > > +                                      bool reliable);
-> > > 
-> > > > +void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
-> > > > +		     struct task_struct *task, struct pt_regs *regs);
-> > > > +int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry, void *cookie,
-> > > > +			     struct task_struct *task);
-> > > 
-> > > This bugs me a little; ideally the _reliable() thing would not exists.
-> > > 
-> > > Thomas said that the existing __save_stack_trace_reliable() is different
-> > > enough for the unification to be non-trivial, but maybe Josh can help
-> > > out?
-> > > 
-> > > >From what I can see the biggest significant differences are:
-> > > 
-> > >  - it looks at the regs sets on the stack and for FP bails early
-> > >  - bails for khreads and idle (after it does all the hard work!?!)
 
-That's done for a reason, see the "Success path" comments.
 
-> > > The first (FP checking for exceptions) should probably be reflected in
-> > > consume_fn(.reliable) anyway -- although that would mean a lot of extra
-> > > '?' entries where there are none today.
-> > > 
-> > > And the second (KTHREAD/IDLE) is something that the generic code can
-> > > easily do before calling into the arch unwinder.
-> > 
-> > And looking at the powerpc version of it, that has even more interesting
-> > extra checks in that function.
-> 
-> Right, but not fundamentally different from determining @reliable I
-> think.
-> 
-> Anyway, it would be good if someone knowledgable could have a look at
-> this.
+On 4/19/19 4:13 AM, Mel Gorman wrote:
+> On Thu, Apr 18, 2019 at 09:18:15AM -0700, Yang Shi wrote:
+>>
+>> On 4/17/19 11:32 PM, Michal Hocko wrote:
+>>> On Wed 17-04-19 21:15:41, Yang Shi wrote:
+>>>> Hi folks,
+>>>>
+>>>>
+>>>> I noticed that there might be new THP allocation in NUMA fault migration
+>>>> path (migrate_misplaced_transhuge_page()) even when THP is disabled (set to
+>>>> "never"). When THP is set to "never", there should be not any new THP
+>>>> allocation, but the migration path is kind of special. So I'm not quite sure
+>>>> if this is the expected behavior or not?
+>>>>
+>>>>
+>>>> And, it looks this allocation disregards defrag setting too, is this
+>>>> expected behavior too?H
+>>> Could you point to the specific code? But in general the miTgration path
+>> Yes. The code is in migrate_misplaced_transhuge_page() called by
+>> do_huge_pmd_numa_page().
+>>
+>> It would just do:
+>> alloc_pages_node(node, (GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
+>> HPAGE_PMD_ORDER);
+>> without checking if transparent_hugepage is enabled or not.
+>>
+>> THP may be disabled before calling into do_huge_pmd_numa_page(). The
+>> do_huge_pmd_wp_page() does check if THP is disabled or not. If THP is
+>> disabled, it just tries to allocate 512 base pages.
+>>
+>>> should allocate the memory matching the migration origin. If the origin
+>>> was a THP then I find it quite natural if the target was a huge page as
+>> Yes, this is what I would like to confirm. Migration allocates a new THP to
+>> replace the old one.
+>>
+>>> well. How hard the allocation should try is another question and I
+>>> suspect we do want to obedy the defrag setting.
+>> Yes, I thought so too. However, THP NUMA migration was added in 3.8 by
+>> commit b32967f ("mm: numa: Add THP migration for the NUMA working set
+>> scanning fault case."). It disregarded defrag setting at the very beginning.
+>> So, I'm not quite sure if it was done on purpose or just forgot it.
+>>
+> It was on purpose as migration due to NUMA misplacement was not intended
+> to change the type of page used. It would be impossible to tell in advance
+> if locality was more important than the page size from a performance point
+> of view. This is particularly relevant if the workload is virtualised and
+> there is an expectation that huge pages are preserved.  I'm not aware of
+> any bugs whereby there was a complaint that the THP migration caused an
+> excessive stall. It could be altered of course, but it would be preferred
+> to have an example workload demonstrating the problem before making a
+> decision.
 
-Yeah, we could probably do that.
+Thanks a lot for elaborating the idea. I didn't run into any problem at 
+the moment, just didn't get the thinking behind the choice since other 
+page fault paths (i.e. wp) do allocate hugepages more aggressively.
 
-The flow would need to be changed a bit -- some of the errors are soft
-errors which most users don't care about because they just want a best
-effort.  The soft errors can be remembered without breaking out of the
-loop, and just returned at the end.  Most users could just ignore the
-return code.
-
-The only thing I'd be worried about is performance for the non-livepatch
-users, but I guess those checks don't look very expensive.  And the x86
-unwinders are already pretty slow anyway...
-
--- 
-Josh
+>
 
