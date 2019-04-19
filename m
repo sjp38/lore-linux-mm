@@ -2,92 +2,94 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EFBD6C282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 12:54:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12896C282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 12:56:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 748652229E
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 12:54:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 748652229E
+	by mail.kernel.org (Postfix) with ESMTP id B96012229E
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 12:56:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B96012229E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C09E26B0003; Fri, 19 Apr 2019 08:54:49 -0400 (EDT)
+	id 8B0286B0003; Fri, 19 Apr 2019 08:56:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB9456B0006; Fri, 19 Apr 2019 08:54:49 -0400 (EDT)
+	id 85D896B0006; Fri, 19 Apr 2019 08:56:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A834A6B0007; Fri, 19 Apr 2019 08:54:49 -0400 (EDT)
+	id 74DAC6B0007; Fri, 19 Apr 2019 08:56:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 56EED6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 08:54:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m47so2824008edd.15
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 05:54:49 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2563A6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 08:56:41 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f42so2835383edd.0
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 05:56:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=Oil0T49urUPmzyyKnYAt5hq+rYN2/Qchuj84Awe7jkI=;
-        b=gaIHqbDW77AR9+Tej0IYflRR2KkvbmbXuDcliPF/CEHKYJ8qg2NmWVStNn6b4w5jB2
-         o3H9WYVvxr+5LObiyc7vqSJsM+L3Yo+1HJARpLHgYLsoXTSU1iS9wLTC3BM4rZjxRomU
-         6cX/Z7KonsRpc9vCRxY82n9YPlMeecxde/UvJEGxUVd/qSDWs+WY8q+Nv9+uSva8quSU
-         zGiVmPCPSJ33/+Q1zZQX6EoTGIK4YUwPIGaQWt1Ya6K7xvMG35ygLzp1gucwHGAVzCKn
-         i3Oj+r2mAdTEJFqK3npsb9XHQ7xXfjZJg8ASsayGA6sIB1tqzHfGJZZO55g19frm9WlK
-         5AgQ==
+        bh=rUk7zJL7VVSomx8FqD/+xZ2h2jssCRLvrn1gXMpHfPQ=;
+        b=cSt+C91VOemO3HIuqNs3l6AayTywzEa9o6N9r//dSmWG6wgKw3jm1akFsT9R8igl42
+         NNCAUYxsXKr0qH6KlVKxcdGXIR9Owbmdx11Wt3Ikamo5sWWENjG9O4M1ZDT7v8CyY0KE
+         inG9lHu6Q2RJJjGretbmWkk/UjFU1VfXpX0Ksrv9XInQ7COyOmaDQJMWQi59xqE386NM
+         lygYyclolPo6YMBM7zLPmtAt97mG3KPmJpqZSuJUIBCZHtJqMDpIP7atCbgB+9+6p/vY
+         zGv9YOk2nOgd/kZlRUseeoU2wuxrRDGRmJJbURpwfHqk4PzVYkeEG8tOfLadNQqZDSma
+         /qcQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWo4BFTiSacfBydnr58TZxPhtzVb1Sm8Sn4ccTiF+HeJsho8Jhm
-	mWSIMx2T7sFjfl7r04RK/s0lIVOQHsMpha8XrKzYffdSjIreHKQRjtxGn7tVtLOgU8oAij+MtBd
-	UC4koRQz1W0o4pAXMFWiX1vkYH7t02z1G3QU96xIU13mVul5KOxInvFHQxq4CgIqekw==
-X-Received: by 2002:a05:6402:390:: with SMTP id o16mr2268333edv.156.1555678488684;
-        Fri, 19 Apr 2019 05:54:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwRFnB1Jd6bqFODaGkMKuLWV3lfh7U2ZbiukxdykQLh1ooXExMHQjOVOIpa2dLk14pXHh2A
-X-Received: by 2002:a05:6402:390:: with SMTP id o16mr2268289edv.156.1555678487516;
-        Fri, 19 Apr 2019 05:54:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555678487; cv=none;
+X-Gm-Message-State: APjAAAX5NY+8PdiOEsRZHaZu5tg3pU1RsWeng9Nd1m+eQOVxZvBGW5Ta
+	seiJARUB2qWPWZia3W6C3i1zZCENCjiWLMhHQHsmIChbOJvH2kIX1xFwmauGwn5CToA5Ryc2td8
+	GhuCkQT1wqbM25ZT30Z3ikplqfBIBtx9DKK7h2JJVSg0JkrgDIOhlJr4kxF7MFThixA==
+X-Received: by 2002:a17:906:aece:: with SMTP id me14mr1952875ejb.0.1555678600712;
+        Fri, 19 Apr 2019 05:56:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzIdfkcvxN/PTa5JbMGD0FmrbCIlpHWggETxRT6JKqU6sib4w7kc8SkxK3e5VNwoSSUHBiV
+X-Received: by 2002:a17:906:aece:: with SMTP id me14mr1952849ejb.0.1555678599984;
+        Fri, 19 Apr 2019 05:56:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555678599; cv=none;
         d=google.com; s=arc-20160816;
-        b=C/g1SKPTD4Odcdd6qY65QY8LMRKIJ98i3E9WIdyLyRCyAqPxfVYIq/Eam7Jv9rM8FD
-         kP9Qr3r1QuPr7aRaFk/jNFI8fXQhqTjyOBIAHq4crjYImA/VXJuyPYQtcuA0sMQA+9K6
-         PvONIvhU89/+CdlB/PA2li7ftil+29p9LqGPmX6HVdjnuZvMCvuqU9z2RDLIQrAgYhio
-         PeqRyM4tev3Ku3/sC6BV36q2ATVdHstrooiST+s828OURyfeB6NbqTVx6VkmcCW8Pqom
-         vBic/4XzUlgT4V/DajyIT/uUvyJcmt+eEvzOsJiLKGZzQXXNzDL0pmgLqBIebPwDhXQi
-         A4MA==
+        b=XHzfdhk48Tf8VuVUuxuuZMq0snEZHUjGx2mOAHuOiuaPJvvYzGNNPxRA7+/NcZ6d5O
+         34PEuHz6xNHUI7v3zs8IxOhepATyDhgscrW3RHdSdt6cD7R8bUaLANEbQdbosnWlX5VV
+         tddNNgfKFV4v8VBhK/DOA1Wvh7mz8ZYcJJkG+qm6VG8RI4kljw1XMcxnqrNlOPjzBAJy
+         TXrDjQh1wz1OLF5u8gR/CR5mZPgkqLER5ft8cyJOd/v18MDFhDot98dbkUw1OFjvwqLO
+         jQlrLhjLYDYxxXMOnz2ZNILj8RLkY3slArzPJomJdir/pUNW8rq0zDfGMNkf2Dy99S32
+         2k1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=Oil0T49urUPmzyyKnYAt5hq+rYN2/Qchuj84Awe7jkI=;
-        b=I7nORxGISZ60TnNhR2IsUrHKtCKHAjY2SJuNkknsPG8VSmXFLFxlBa3VRyUXC//fWj
-         RpyzHcM9S5JQw53iajctA4v1nt9XCcqA/7ztbWTCe7bWowIU/cl6Q0BTqJ/WHv6nhwRO
-         cwGlNx/2PBEmf9BGpDjnQIRwCxjrEO42966pxTG+0IHGtcQ4HB+Q0t47Dgl4Kic5ZC1x
-         91AoGJuS48DaGDRO/cmraO1yzbMPACF8Yu5csRfJgCeJW1p6bZ6tLajISRU1xepNzc5/
-         oAzZK4HCDxWJuXWK5lN4jYdmelk+xa/d+EFGCZQBQk4x3Vfm3ouLXC6zaVj7OvtPvyUl
-         UmcQ==
+        bh=rUk7zJL7VVSomx8FqD/+xZ2h2jssCRLvrn1gXMpHfPQ=;
+        b=Hiq0uya6+p9YwQzd7ggmOIBoBHr5aRx/zs60K7dpyV+DMxiiA+88eqzOP8Bo+RDwQq
+         ogbn8zujIwS4amnnqDvZRwTebvzmDksntZluNlVBqTIkPWIJ3siO5tid0/pmK23vYfnw
+         +6XnUMdIRKBa3aub4F8i0+ATBLPfQEQrik3xBN4qvH8xGXXt14bGzwjdaHk31k0pXORH
+         +ZsXSfLo/UkDynr4kR1L4yruSBeRdQvMCDmlDgQO8i8fS0t44+7mQ1aSddZTXZVuJOWm
+         IsPElt4S6L8loHDiMZOX5KhuIFaiDKHnxziuw2wnY8lM7IAIGmf+zKugvarMU6Zv/3sp
+         DG4A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c9si2250155eds.357.2019.04.19.05.54.47
+        by mx.google.com with ESMTPS id h5si356270edi.276.2019.04.19.05.56.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 05:54:47 -0700 (PDT)
+        Fri, 19 Apr 2019 05:56:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 73BB6AB7D;
-	Fri, 19 Apr 2019 12:54:46 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 99768AB7D;
+	Fri, 19 Apr 2019 12:56:39 +0000 (UTC)
 Subject: Re: v5.1-rc5 s390x WARNING
-To: Mel Gorman <mgorman@techsingularity.net>
+To: Mel Gorman <mgorman@techsingularity.net>,
+ Matthew Wilcox <willy@infradead.org>
 Cc: Li Wang <liwang@redhat.com>, Minchan Kim <minchan@kernel.org>,
  linux-mm <linux-mm@kvack.org>
 References: <CAEemH2fh2goOS7WuRUaVBEN2SSBX0LOv=+LGZwkpjAebS6MFuQ@mail.gmail.com>
  <73fbe83d-97d8-c05f-38fa-5e1a0eec3c10@suse.cz>
  <20190418135452.GF18914@techsingularity.net>
+ <20190418143711.GF7751@bombadil.infradead.org>
+ <20190418152511.GG18914@techsingularity.net>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -150,12 +152,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <bc039ea9-c047-5385-36c1-00b706cfb91e@suse.cz>
-Date: Fri, 19 Apr 2019 14:51:26 +0200
+Message-ID: <b41e3c74-242c-04be-b631-e11164337f22@suse.cz>
+Date: Fri, 19 Apr 2019 14:53:20 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190418135452.GF18914@techsingularity.net>
+In-Reply-To: <20190418152511.GG18914@techsingularity.net>
 Content-Type: text/plain; charset=iso-8859-15
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -165,106 +167,21 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/18/19 3:54 PM, Mel Gorman wrote:
-> On Wed, Apr 17, 2019 at 10:54:38AM +0200, Vlastimil Babka wrote:
->> On 4/17/19 10:35 AM, Li Wang wrote:
->>> Hi there,
->>>
->>> I catched this warning on v5.1-rc5(s390x). It was trggiered in fork & malloc & memset stress test, but the reproduced rate is very low. I'm working on find a stable reproducer for it. 
->>>
->>> Anyone can have a look first?
->>>
->>> [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
+On 4/18/19 5:25 PM, Mel Gorman wrote:
+> On Thu, Apr 18, 2019 at 07:37:12AM -0700, Matthew Wilcox wrote:
+>> On Thu, Apr 18, 2019 at 02:54:52PM +0100, Mel Gorman wrote:
+>>>>> [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
 >>
->> This means compaction was either skipped or deferred, yet it captured a
->> page. We have some registers with value 1 and 2, which is
->> COMPACT_SKIPPED and COMPACT_DEFERRED, so it could be one of those.
->> Probably COMPACT_SKIPPED. I think a race is possible:
->>
->> - compact_zone_order() sets up current->capture_control
->> - compact_zone() calls compaction_suitable() which returns
->> COMPACT_SKIPPED, so it also returns
->> - interrupt comes and its processing happens to free a page that forms
->> high-order page, since 'current' isn't changed during interrupt (IIRC?)
->> the capture_control is still active and the page is captured
->> - compact_zone_order() does *capture = capc.page
->>
->> What do you think, Mel, does it look plausible?
-> 
-> It's plausible, just extremely unlikely. I think the most likely result
-> was that a page filled the per-cpu lists and a bunch of pages got freed
-> in a batch from interrupt context.
-
-Sure, good point. Per-cpu lists make the scenario even more rare, but
-once it's full, there's a higher change the batch free from the
-interrupt will result in high-order page being formed.
-
->> Not sure whether we want
->> to try avoiding this scenario, or just remove the warning and be
->> grateful for the successful capture :)
+>> We lost a character here?  "_irect_" should surely be "_direct_"
 >>
 > 
-> Avoiding the scenario is pointless because it's not wrong. The check was
-> initially meant to catch serious programming errors such as using a
-> stale page pointer so I think the right patch is below. Li Wang, how
-> reproducible is this and would you be willing to test it?
-> 
-> ---8<---
-> mm, page_alloc: Always use a captured page regardless of compaction result
-> 
-> During the development of commit 5e1f0f098b46 ("mm, compaction: capture
-> a page under direct compaction"), a paranoid check was added to ensure
-> that if a captured page was available after compaction that it was
-> consistent with the final state of compaction. The intent was to catch
-> serious programming bugs such as using a stale page pointer and causing
-> corruption problems.
-> 
-> However, it is possible to get a captured page even if compaction was
-> unsuccessful if an interrupt triggered and happened to free pages in
-> interrupt context that got merged into a suitable high-order page. It's
-> highly unlikely but Li Wang did report the following warning on s390
-> 
-> [ 1422.124060] WARNING: CPU: 0 PID: 9783 at mm/page_alloc.c:3777 __alloc_pages_irect_compact+0x182/0x190
-> [ 1422.124065] Modules linked in: rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver
->  nfs lockd grace fscache sunrpc pkey ghash_s390 prng xts aes_s390 des_s390
->  des_generic sha512_s390 zcrypt_cex4 zcrypt vmur binfmt_misc ip_tables xfs
->  libcrc32c dasd_fba_mod qeth_l2 dasd_eckd_mod dasd_mod qeth qdio lcs ctcm
->  ccwgroup fsm dm_mirror dm_region_hash dm_log dm_mod
-> [ 1422.124086] CPU: 0 PID: 9783 Comm: copy.sh Kdump: loaded Not tainted 5.1.0-rc 5 #1
-> 
-> This patch simply removes the check entirely instead of trying to be
-> clever about pages freed from interrupt context. If a serious programming
-> error was introduced, it is highly likely to be caught by prep_new_page()
-> instead.
-> 
-> Fixes: 5e1f0f098b46 ("mm, compaction: capture a page under direct compaction")
-> Reported-by: Li Wang <liwang@redhat.com>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> It confused me too but that was the bug report so I preserved the message
+> I was given.
 
-Yup, no need for a Cc: stable on a very rare WARN_ON_ONCE. So the AI
-will pick it anyway...
+I think it was a result of manual wrapping fixup. See how module list is
+wrapped around the same column, and the spaces at the same column in the
+register dump. Btw this line has the function name fine:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_alloc.c | 5 -----
->  1 file changed, 5 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d96ca5bc555b..cfaba3889fa2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3773,11 +3773,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  	memalloc_noreclaim_restore(noreclaim_flag);
->  	psi_memstall_leave(&pflags);
->  
-> -	if (*compact_result <= COMPACT_INACTIVE) {
-> -		WARN_ON_ONCE(page);
-> -		return NULL;
-> -	}
-> -
->  	/*
->  	 * At least in one zone compaction wasn't deferred or skipped, so let's
->  	 * count a compaction stall
-> 
+[ 1422.124092] Krnl PSW : 0704e00180000000 00000000002779ba
+(__alloc_pages_direct_compact+0x182/0x190)
 
