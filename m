@@ -2,163 +2,161 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E591BC282DA
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:54:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4728EC282DA
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 08:32:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 963C1217F9
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 07:54:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 963C1217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id CD435218AE
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 08:32:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD435218AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32C346B0007; Fri, 19 Apr 2019 03:54:10 -0400 (EDT)
+	id 3AA586B0003; Fri, 19 Apr 2019 04:32:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B2DC6B0008; Fri, 19 Apr 2019 03:54:10 -0400 (EDT)
+	id 37F276B0006; Fri, 19 Apr 2019 04:32:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17AA06B000A; Fri, 19 Apr 2019 03:54:10 -0400 (EDT)
+	id 248D06B0007; Fri, 19 Apr 2019 04:32:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E67AC6B0007
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 03:54:09 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id t22so4232727qtc.13
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 00:54:09 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C8FCC6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 04:32:48 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id 7so3900102wmj.9
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 01:32:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=24BXTuW/EhPnKZ8NnL+p/VOsTv6JGW4q4dXtEym+ecs=;
-        b=Bag+/QOEXXidhLCmOtWrWzUtMQQrX3MDT5yuJyha2p7EdO6ocAMI2J9wkqk91afd8J
-         IgH4DlVy0uelWL0DSS83kxro52eoSKU8i5vSERYWptgCQdkBUg+w9LjWINs0TbuihaVP
-         en4LTHb4FEoK+MQofwXYoA9j9h6MnmC8DlTgmDgi/tKmYN5IiN7TxQzDuyghD9jhm8Ll
-         UJASr5U1u1iIEmYqz6yw2C3TiQSgr9FNsHgTR4aWGNgiqQZEp1u2FsqIgAPloTkJKiNn
-         QpHzuYDsLZF9CZGqtPL+/mqY0qOsd29ag2j5yMLx568S3Hmj5HTtHivo5V5r0468KnZD
-         KtOw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUBDlsvbpcWeVI6ILzn0zeXAmaD8wjQjFzE3NcEkDq60gTxZF11
-	506kwBzZ8W4VIsKNxPXNf4WP553G35mYF4In29sVy5o9MVoHHp4k8ftI+SVy7sxe2hOpnkvjIsT
-	iSlL6xt5hA300vh4EVweE+Wi9kHnC9QXfuTje8F6SrW8IOMLEW6zmqXAdyBri+bIDhA==
-X-Received: by 2002:a37:784:: with SMTP id 126mr2057223qkh.10.1555660449724;
-        Fri, 19 Apr 2019 00:54:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXjRH/Bw/3WlgurzY33FOgpkQqj8EtrY4C0o0M6v2f5Tk40YD+utkcDLBA0wt5Yjp6fSv/
-X-Received: by 2002:a37:784:: with SMTP id 126mr2057201qkh.10.1555660449234;
-        Fri, 19 Apr 2019 00:54:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555660449; cv=none;
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=p3V+WOTuUdZHAdmzhtTm9PRZspQIxsuSMkvv8mL4NLY=;
+        b=VN3lkFDHQ0hZtOMLnO6Y30UOAgh+IEERRCWdfTHnPet9TLqJGFN3MM9Z6XJQfRpzDS
+         Znu9FUMdWfIezn8o6PwjzlMLBlSdGEurHUhJ+ZoYcCjNBGenei4JdKWhdJyJD79kCdqV
+         4SuO/sXDKcT6VDCYxTLEVHHY11n3XocNuw0WxQwVfKv6Qnz6EfhGOGJWvtnaO4Hqa6mP
+         o/4RR7hZ73v2oqxfxqCK0ufqR4OG6Q1EynBbRu/T12ChpFPOSuSJMh5nhJDZjlHSvn+X
+         7buOmPc21CY7jvJG/GPZMdSz078ukYByXkLFO8NCHIyA3AcdUdMHQfYhWuuuMMFpIyFX
+         gdGw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAUE9ctviJAh5sLR4Ugwu1AHT8J+rMbMMVq9viFRnMLwIrWq+j9c
+	SVA3ZmZWDfDwCzbetaO9+2+0PCARix2sj2O/sCc3Zt/rt6NGno8ZMDrw9Pz4wiefBpIOgbbkjiI
+	b1izyvRTtwgtekuKY2cyhApRUJYfvJ0Pa/7iw2nGe73a6VGhmQcl6MsIIkeXW26DB3A==
+X-Received: by 2002:a1c:6502:: with SMTP id z2mr1738563wmb.119.1555662768193;
+        Fri, 19 Apr 2019 01:32:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzh2oLLgziQX0kj/7yUu+5NnZDjHaKePPJCaRZmD5YUg4CEpWrCPZhFOipETT6uXEkVfDtV
+X-Received: by 2002:a1c:6502:: with SMTP id z2mr1738506wmb.119.1555662767126;
+        Fri, 19 Apr 2019 01:32:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555662767; cv=none;
         d=google.com; s=arc-20160816;
-        b=YL6Cf+WXq5bHP5S3HJcugJS+i8LG9HvaWYLopJ15wqQWiNRdwEadT5fuqqgH9EeHAX
-         ae/7pORnOwjSPFOsu1qHbbQ9JxpIfmJXHTXOztq1KzwfCCgY5RWoUrKxdtabAim6sH7D
-         NRLFZw3g5omYxsvapJj6t+u25BwjLLo1lvC/Pl7lyYDF5R8M2M/QgmryWLv7ElVEQRxX
-         hKqgVm9BNTI1iZKw0raDeklQfAlKH6ciSfUlxYu2KzYmmf5aWMSDbxGijt8hMujvt5KD
-         gQpg2hM4Vg2jZO8TBKhjSUgcvDWnN+Pe0w5xFftNTzRmn8LCYyVbawbkD8VhG4WkzKHV
-         +AIg==
+        b=XA3SNf0Rlq0le7lyrFkL1aNgFtGPVIbLfoJhz/G0uE5G83ySo7Txhvsr9fRWkq7X2/
+         HDzb6MMWhPPbTgLZGw++V654NmV/InoN9cKROkHmt946q350gkTM6ZNknwUFnXRAuB3/
+         YfJwXnhurgLOxCztEKvH6xlo670OAXo8iiINBAAq2YPQz5kdoTf+Lo24rGjeOs1YkzN/
+         0c2CXY279mcfKf9AOAD8i5yLZMD1FxSvbINwETs9raSNVvIpWQm6OxxUyKRu4jNJzSVb
+         HMaUDruwVDztq9OnIpqqDyjfh97D3JCznBZBzRkGz/E3oO5eG4uEaO/lIi2Q9EBV0J86
+         81SQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=24BXTuW/EhPnKZ8NnL+p/VOsTv6JGW4q4dXtEym+ecs=;
-        b=HFnGxowaakYoPs7zIEOMsGf60LYxk0t8e/hH0l+Nvn+0ZTDpEI0lVokNpio1K27hhe
-         eyEy/p1FgAVDC5/VMmdgplL2Mg2cQwTZY2xFF/bq43GJwtAktNDuI/vwWAJp50aVgs/t
-         srATt/ZNx8zMg6Ek4rbMUSPO+MUuULsWe+UUg0BOtO8H9j7LwQd/Cmcwkkl9dZI8DNjm
-         k9RA+L6Lyb9i+LH/q/hFKXlrPNduD1T6EfDvlR64tRiVO9O95DOGAwB/R/yU1PLApGiv
-         CUm/L+dciAxglCkzxGbyfv4eklSAZLyByw5YkXIYz2NLCKdz4YDDY7aUts693rA60+cL
-         WoYA==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=p3V+WOTuUdZHAdmzhtTm9PRZspQIxsuSMkvv8mL4NLY=;
+        b=X5Z15Qw2qwiDydpFL5hIul8nr7yAwoD9DZnZrRHBP9aLxYJnNAWYJfg3BpQwDlR38H
+         4qtBKeC3V6fcpDj2vlFgIQ0SRoMKlXUx+NPInJz09lufBe/J/sCqqm5mPjCiyA3bOf6/
+         vKSg0ZU285ahOj5QF9sEIvd6KFY2NRPOz5h2E4nuYY8gefBvbM7XSqvGiIbg7rDqKizr
+         24DXoz7EMBmSFeZsMfxl1dr+t5W27B/x98uqA53icCyA4gM3blODC5Sg+Qgik5o2s2nY
+         AJ5x9on1t3NxMHtTNZky2ZANA3QdgVs/UXoyJYhz8iXsEXpOwuxhFbBZCwmfRO6M/Uiv
+         2xhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d43si3522635qvd.59.2019.04.19.00.54.09
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id j5si2861095wrx.365.2019.04.19.01.32.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Apr 2019 00:54:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Apr 2019 01:32:47 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 15149C067C0A;
-	Fri, 19 Apr 2019 07:54:08 +0000 (UTC)
-Received: from xz-x1 (ovpn-12-224.pek2.redhat.com [10.72.12.224])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id BB1185D9C5;
-	Fri, 19 Apr 2019 07:53:57 +0000 (UTC)
-Date: Fri, 19 Apr 2019 15:53:50 +0800
-From: Peter Xu <peterx@redhat.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 00/28] userfaultfd: write protection support
-Message-ID: <20190419075350.GH13323@xz-x1>
-References: <20190320020642.4000-1-peterx@redhat.com>
- <20190409060839.GE3389@xz-x1>
- <20190418210702.GN3288@redhat.com>
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from pd9ef12d2.dip0.t-ipconnect.de ([217.239.18.210] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hHOwh-0001UI-Ot; Fri, 19 Apr 2019 10:32:31 +0200
+Date: Fri, 19 Apr 2019 10:32:30 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, 
+    x86@kernel.org, Andy Lutomirski <luto@kernel.org>, 
+    Steven Rostedt <rostedt@goodmis.org>, 
+    Alexander Potapenko <glider@google.com>, linux-arch@vger.kernel.org, 
+    Alexey Dobriyan <adobriyan@gmail.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, 
+    David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, 
+    Catalin Marinas <catalin.marinas@arm.com>, 
+    Dmitry Vyukov <dvyukov@google.com>, 
+    Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, 
+    Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+    Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org, 
+    Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, 
+    Marek Szyprowski <m.szyprowski@samsung.com>, 
+    Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>, 
+    Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
+    linux-btrfs@vger.kernel.org, dm-devel@redhat.com, 
+    Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>, 
+    intel-gfx@lists.freedesktop.org, 
+    Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, 
+    Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
+    dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, 
+    Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>, 
+    Rodrigo Vivi <rodrigo.vivi@intel.com>
+Subject: Re: [patch V2 28/29] stacktrace: Provide common infrastructure
+In-Reply-To: <20190419071843.GM4038@hirez.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.21.1904191031390.3174@nanos.tec.linutronix.de>
+References: <20190418084119.056416939@linutronix.de> <20190418084255.652003111@linutronix.de> <20190419071843.GM4038@hirez.programming.kicks-ass.net>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190418210702.GN3288@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Fri, 19 Apr 2019 07:54:08 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 18, 2019 at 05:07:02PM -0400, Jerome Glisse wrote:
-> On Tue, Apr 09, 2019 at 02:08:39PM +0800, Peter Xu wrote:
-> > On Wed, Mar 20, 2019 at 10:06:14AM +0800, Peter Xu wrote:
-> > > This series implements initial write protection support for
-> > > userfaultfd.  Currently both shmem and hugetlbfs are not supported
-> > > yet, but only anonymous memory.  This is the 3nd version of it.
-> > > 
-> > > The latest code can also be found at:
-> > > 
-> > >   https://github.com/xzpeter/linux/tree/uffd-wp-merged
-> > > 
-> > > Note again that the first 5 patches in the series can be seen as
-> > > isolated work on page fault mechanism.  I would hope that they can be
-> > > considered to be reviewed/picked even earlier than the rest of the
-> > > series since it's even useful for existing userfaultfd MISSING case
-> > > [8].
-> > 
-> > Ping - any further comments for v3?  Is there any chance to have this
-> > series (or the first 5 patches) for 5.2?
+On Fri, 19 Apr 2019, Peter Zijlstra wrote:
+> On Thu, Apr 18, 2019 at 10:41:47AM +0200, Thomas Gleixner wrote:
 > 
-> Few issues left, sorry for taking so long to get to review, sometimes
-> it goes to the bottom of my stack.
+> > +typedef bool (*stack_trace_consume_fn)(void *cookie, unsigned long addr,
+> > +                                      bool reliable);
 > 
-> I am guessing this should be merge through Andrew ? Unless Andrea have
-> a tree for userfaultfd (i am not following all that closely).
+> > +void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+> > +		     struct task_struct *task, struct pt_regs *regs);
+> > +int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry, void *cookie,
+> > +			     struct task_struct *task);
 > 
-> From my point of view it almost all look good. I sent review before
-> this email. Maybe we need some review from x86 folks on the x86 arch
-> changes for the feature ?
+> This bugs me a little; ideally the _reliable() thing would not exists.
+> 
+> Thomas said that the existing __save_stack_trace_reliable() is different
+> enough for the unification to be non-trivial, but maybe Josh can help
+> out?
+> 
+> >From what I can see the biggest significant differences are:
+> 
+>  - it looks at the regs sets on the stack and for FP bails early
+>  - bails for khreads and idle (after it does all the hard work!?!)
+> 
+> The first (FP checking for exceptions) should probably be reflected in
+> consume_fn(.reliable) anyway -- although that would mean a lot of extra
+> '?' entries where there are none today.
+> 
+> And the second (KTHREAD/IDLE) is something that the generic code can
+> easily do before calling into the arch unwinder.
 
-Thank you for your time on reviewing the series (my thanks to Mike
-too!).  I have no idea on anyone else I should ask for help for
-further review comments, but anyway I'd be more than glad to discuss
-with any further concerns or do anything to move this series forward.
-Because AFAIK mutliple userspace projects are waiting for this series
-to settle.
+And looking at the powerpc version of it, that has even more interesting
+extra checks in that function.
 
 Thanks,
 
--- 
-Peter Xu
+	tglx
 
