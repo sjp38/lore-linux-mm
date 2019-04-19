@@ -2,345 +2,275 @@ Return-Path: <SRS0=hU9b=SV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12FF0C282E0
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:47:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C546C282E0
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:59:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AEC6B217F9
-	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:47:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEC6B217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9E8FA21736
+	for <linux-mm@archiver.kernel.org>; Fri, 19 Apr 2019 22:59:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="f0FSmr18"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E8FA21736
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FA086B0003; Fri, 19 Apr 2019 18:47:47 -0400 (EDT)
+	id 42C046B0003; Fri, 19 Apr 2019 18:59:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AA1D6B0006; Fri, 19 Apr 2019 18:47:47 -0400 (EDT)
+	id 3DA926B0006; Fri, 19 Apr 2019 18:59:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C1A96B0007; Fri, 19 Apr 2019 18:47:47 -0400 (EDT)
+	id 2A4DD6B0007; Fri, 19 Apr 2019 18:59:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EDC6F6B0003
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 18:47:46 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id c25so5408409qkl.6
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 15:47:46 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2BC6B0003
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2019 18:59:02 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w5so2673572eda.16
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2019 15:59:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=vIS7MDTSEtYce2+CW2jJ89KJsV5GOFggi2hqHHvCCSE=;
-        b=el+xAS576cxVnfnsIO91DjNShugGcbJTDyp1laSPK8LT+OsV0NiBbRPlvNNH+DAWnT
-         XTV+hoidIcqaGH8vzVWwqfjw+OpWo406w5zbwVtUah31v3bVlOWpMRSoE4QHMHA9kFK+
-         pSOJoMJl8aTzgmpmteq4+CUKsmRvjVP/Ujmqk6pN2qQWkbij3CwDi4NcCuGN2NZWvRLz
-         +c+jCbgbKmm0/lQIIwt9xkc8TnRccvbMdXXluKHK8K1MRK+1PDOcNPoWHCQVfpxHJffo
-         VnR0wfqbozhfBlMaK7CQ02NRKHj/Y1hg413ykG+k+lQ0WYsXw33ezZP13GR7u5RFFd05
-         Mkmw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXgNGO3LoZJqV1mrRK/P8Tcv1dFnA6Fetpt97bLGbBD5NJte3OI
-	4K4y8Qs7YEa+hznLlMBJI8k1oErO3+tvF8mE1JaMcBezir4jDnNTC51u2TNIRZGKtZyZEZPGV9t
-	e1Ev8f0+kUR8rqfZdGWZky67sAnX3EdSf2BrGHJLULkpp7j0CeIM+AAL16kZqDC7AzQ==
-X-Received: by 2002:a0c:d27a:: with SMTP id o55mr5473807qvh.21.1555714066703;
-        Fri, 19 Apr 2019 15:47:46 -0700 (PDT)
-X-Received: by 2002:a0c:d27a:: with SMTP id o55mr5473756qvh.21.1555714065800;
-        Fri, 19 Apr 2019 15:47:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555714065; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=VT8nZW5dos+3pCPX64wfw4xqA1GLqtfELwI5iKGog4Y=;
+        b=UP0OA5SS0h2pZ8r3B7EUOpkD08fVS+lUS4mh23d9NEWa999Jf3qTWCNpN0lJMYRx4l
+         5bYr0n38baCMPjpFCTTuV34su+tmmuBunZlKNYaxAWbi3YxyWiCQa9oHFCE8lYx5O3/+
+         RelQnSyKTRxs0Tff5+0xgAGVVZKG/bWzChj6B1u46vzG2xpCKQ3+Y/7tZdlltvslkkru
+         B8MTkcCQenxq2wJNtx8SG46cf86/c/IdEOKRV5coAECoOe6cDloPTpxk2bTmheHO33KD
+         ovcC6DFrtQ/hxRPV6zInhzzWC5u8L3S42xjkixE8wIhjWAERUIlBfBEmnZ7EB6daz2t9
+         52cQ==
+X-Gm-Message-State: APjAAAXsfrY8UoJ4qX6Lgg+gPI9BlD/GRZDwzc7dAYjfzPf6+WHHB23b
+	jxnKErAF3YgfkzYBg6T7kOD8cQsZMbOxBa/G1iJFCdgqTOmtDvFCdbdGZPIG9tlJIFa6rUcuFH0
+	33gudlNC1tXxaU+1GHWOBezihKi2PhBx8NBdEF2QdBINFJRBI/roC5+KHnR+zVjSnKQ==
+X-Received: by 2002:a50:ca88:: with SMTP id x8mr3886348edh.139.1555714742357;
+        Fri, 19 Apr 2019 15:59:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyj4BLttHop+KKB64G5Crkt1+/jnQ00GaqHrgJJl42QbQGqs8fi6D2vBu87dz3w0ISVtZCt
+X-Received: by 2002:a50:ca88:: with SMTP id x8mr3886323edh.139.1555714741587;
+        Fri, 19 Apr 2019 15:59:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555714741; cv=none;
         d=google.com; s=arc-20160816;
-        b=i/xef5hLMvxvOtD+FS6wMtgCAQ45MVsQ6vSM+chRCMKDgzoRDO6ex0qxOGHcJL1qWH
-         3xTV93wM/2r6e+ndT5j8GJvtuZKMXVyO7IZPA2LJA0Oi+cZJTXZE5W988g1wZgYqbB8Z
-         GHPcsILHfUOPe+oMBduZGg45qAEsQtLnhJ4UGdqm0OBmZSwGFHHxI7y6ns2HN2y+qnZP
-         FYhfUrNl5xrVeK5kcU5kQe6nHXxjdu6itYEKCzcvfmPZbKd7++vCF3aXk0wi8lB80YyX
-         jU95DENW73QBYFbNsLv+TY2NBb9akh4LxE3USDgvq6dNa6tUV/7lYj3wn0dWMJ+KnSvs
-         R64A==
+        b=oty/I8Zv7L0jAslc/mqhmgxvfbHHSAXthijblKs1DsWssTjCaZ5BjWhYgl1dJnm9ww
+         CHVScLQnLsTtGYhZsq7vajeBeHYnvoCYQZTmwkNZWC3Uu6yfoIhY0+Xdh1s4Mr65Pm2x
+         v363GKkz20cVfwK6fTYjOHbU+GgnhmFFTQPJ2ANkrdu/Un/4Scj0M86Ki7VHf0fuNMnw
+         JZgN9H4s4Vajxl4dk+h6/vO+4WlCsDnSkncL/hyPeANC6o3wYmpHjss2ER20oG7y76Ql
+         MukdM0h8bRHafYLbyn6ROuLujHl1EjaMV1njoJ+zmfU9gsB1HiiCs+9CxW7fMY4+rb9t
+         t2wA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=vIS7MDTSEtYce2+CW2jJ89KJsV5GOFggi2hqHHvCCSE=;
-        b=1CwZgRLLIsGceQi47OKFGK8g1P8zt2Ab56H3jn1QFjWuqp9fazuxsdP8lwRsQRS3vM
-         6ZOIlUIiGP4tNYomVJl8xLvOKPmqItMLuoMPgmWl8ahX/FK5CZUbUFO8s68jB0rXaTU2
-         pULaBTzU1G0i17t5OXpOvxSocD2U92/PQeoch8P6oqEGV97N2AW3RWsC/8rZQ2X3nJGz
-         OpllixEtHj/8Xo89fqGPTuMwE9ueWTgtDQhsr7XspcmNmvidHlt6fuKcomI8Rexb1dIz
-         yXEYs7+IQrrdyThHaJgCgWV+0yuwg6DFZ3eUocy+CKWWFhv5set9gG+nFIMv5s946WV+
-         qmpQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=VT8nZW5dos+3pCPX64wfw4xqA1GLqtfELwI5iKGog4Y=;
+        b=M0jhBcuHwlIbiVWknlBfeuiM+ymKwQlcfp8fVAYQL3HtdYY4EbsVhmQGUlPU3QYkdR
+         BG/iQhLfFaMSMs8xuPl1FgMGd7b/sduMDlTYFDjHIxdnv1AKvUXhfap0tQaYCay+NBub
+         /ftWo+7cF0ZDpBCSvGLXwAfqQz9sZabvqpGWB6GbY97VhJMOmL6Hy+e8wo7icqCtN98u
+         Uwwf3huvXVHULo4IrALsOW4tuwsr0s+dJa7GRSv6U00dQ+uHWx0BA3HXzl5ZnQLFFTPN
+         t1sYEg7gVphzqXSlW+QHEfhYvZL++DEJ5k6sj4mBZFSVULoMDkIquiSF88j3Tf8jimJk
+         MsdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y17sor5650783qvc.28.2019.04.19.15.47.45
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=f0FSmr18;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.77.59 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-eopbgr770059.outbound.protection.outlook.com. [40.107.77.59])
+        by mx.google.com with ESMTPS id l40si2381200edc.435.2019.04.19.15.59.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 19 Apr 2019 15:47:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 19 Apr 2019 15:59:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.77.59 as permitted sender) client-ip=40.107.77.59;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxx4I9Xry+3LvTfBjLXp09NMdxLKmu0XJFptxlEsqLx3fO3wGWj0g3xOnFPx1VxyxPlyOdBKQ==
-X-Received: by 2002:a0c:924a:: with SMTP id 10mr5537258qvz.168.1555714065488;
-        Fri, 19 Apr 2019 15:47:45 -0700 (PDT)
-Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
-        by smtp.gmail.com with ESMTPSA id z9sm3804230qtb.73.2019.04.19.15.47.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 19 Apr 2019 15:47:44 -0700 (PDT)
-Date: Fri, 19 Apr 2019 18:47:42 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Nadav Amit <namit@vmware.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arnd Bergmann <arnd@arndb.de>, Jason Wang <jasowang@redhat.com>,
-	"virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Pv-drivers <Pv-drivers@vmware.com>,
-	Julien Freche <jfreche@vmware.com>
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=f0FSmr18;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.77.59 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=VT8nZW5dos+3pCPX64wfw4xqA1GLqtfELwI5iKGog4Y=;
+ b=f0FSmr182U+9tM81YTdO4ODxXxcBaQSVDab1MXeesv0DmIjoPEZqHwN2hr1mwjdKJdt5WwioIvonZO3u7IDLdp4Ani05UOcq9JLfZ2NTcqS5eqzuqJgng6cgPa+H2TWCsi2tkmfXHZeFe23bNEEO/R1B/8Wxj1/skzrsvUuj/q8=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB4504.namprd05.prod.outlook.com (52.135.203.140) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1835.6; Fri, 19 Apr 2019 22:58:53 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::4140:b8f2:8e3:f5fd%4]) with mapi id 15.20.1813.011; Fri, 19 Apr 2019
+ 22:58:53 +0000
+From: Nadav Amit <namit@vmware.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arnd Bergmann
+	<arnd@arndb.de>, Jason Wang <jasowang@redhat.com>,
+	"virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Pv-drivers <Pv-drivers@vmware.com>, Julien
+ Freche <jfreche@vmware.com>
 Subject: Re: [PATCH v2 1/4] mm/balloon_compaction: list interfaces
-Message-ID: <20190419183802-mutt-send-email-mst@kernel.org>
+Thread-Topic: [PATCH v2 1/4] mm/balloon_compaction: list interfaces
+Thread-Index: AQHU5L/fQHqTTJNOzkOghmdzHIOs1aZELwsAgAAHcICAAAPQAIAAAx8A
+Date: Fri, 19 Apr 2019 22:58:53 +0000
+Message-ID: <8FA36729-9174-409D-ADA6-CD50331866E4@vmware.com>
 References: <20190328010718.2248-1-namit@vmware.com>
  <20190328010718.2248-2-namit@vmware.com>
  <20190419174452-mutt-send-email-mst@kernel.org>
  <B2DD0CC3-DA8D-408C-986F-130B4B00A892@vmware.com>
+ <20190419183802-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190419183802-mutt-send-email-mst@kernel.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 12a8f4fb-316f-4846-2202-08d6c51a9889
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB4504;
+x-ms-traffictypediagnostic: BYAPR05MB4504:
+x-ms-exchange-purlcount: 1
+x-ld-processed: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0,ExtAddr
+x-microsoft-antispam-prvs:
+ <BYAPR05MB45044245C84FEC727C612787D0270@BYAPR05MB4504.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 0012E6D357
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(396003)(136003)(376002)(366004)(39860400002)(346002)(189003)(199004)(66556008)(54906003)(6306002)(316002)(305945005)(966005)(2616005)(446003)(6512007)(186003)(11346002)(36756003)(14454004)(476003)(97736004)(8676002)(4326008)(64756008)(68736007)(66946007)(66446008)(478600001)(6436002)(6916009)(229853002)(486006)(6486002)(107886003)(14444005)(102836004)(7736002)(53546011)(66066001)(81166006)(3846002)(83716004)(6116002)(256004)(26005)(6246003)(73956011)(99286004)(8936002)(25786009)(86362001)(33656002)(6506007)(93886005)(76176011)(2906002)(53936002)(71200400001)(82746002)(5660300002)(81156014)(71190400001)(76116006)(66476007);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB4504;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ WS3k3+i3W44dfviJz3Zu5zIH8VGe39HQOka7r+8X2QdKjbHeIXB6LnwXWKA2XfgjzCmtMqKcii1LV35ifreX6VLmiBXbEdlCU6kS9rnSyM31l2ZQMvynY4SL/Yu0vYKwB4HlI9GsqM+z/F2ilZd8kCWxGLIaDSjMhrSXUvqSh1DfLUdVd9YAFyNlWNL+oArdwOaZhQNJHsqAJ5XfIoVNU2mrWEFbJUuWjZva5+UVo/xMbLEu7d+32XVTQAOECBMCyDNDfe7KeWnwyKm5v0cHjvE8Ww6Q1sUMjZjN4PysrvHrjUKMjFWRykCS2jC1esEXPLvGYYPaYlpqbqh4wYPlnZ96QDL9crZc513PXWDykIQHaGx2WNJmKgH52fmi1DGvZ1fwMO1c1ISqrIojcOpyMC8kQSPvK6Barl5rCuXMXDQ=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <53FB3F53A3B0FA418D5DE7D5E126D154@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <B2DD0CC3-DA8D-408C-986F-130B4B00A892@vmware.com>
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 12a8f4fb-316f-4846-2202-08d6c51a9889
+X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Apr 2019 22:58:53.6267
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB4504
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 10:34:04PM +0000, Nadav Amit wrote:
-> > On Apr 19, 2019, at 3:07 PM, Michael S. Tsirkin <mst@redhat.com> wrote:
-> > 
-> > On Thu, Mar 28, 2019 at 01:07:15AM +0000, Nadav Amit wrote:
-> >> Introduce interfaces for ballooning enqueueing and dequeueing of a list
-> >> of pages. These interfaces reduce the overhead of storing and restoring
-> >> IRQs by batching the operations. In addition they do not panic if the
-> >> list of pages is empty.
-> >> 
-> >> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> >> Cc: Jason Wang <jasowang@redhat.com>
-> >> Cc: linux-mm@kvack.org
-> >> Cc: virtualization@lists.linux-foundation.org
-> >> Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
-> >> Signed-off-by: Nadav Amit <namit@vmware.com>
-> >> ---
-> >> include/linux/balloon_compaction.h |   4 +
-> >> mm/balloon_compaction.c            | 145 +++++++++++++++++++++--------
-> >> 2 files changed, 111 insertions(+), 38 deletions(-)
-> >> 
-> >> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-> >> index f111c780ef1d..1da79edadb69 100644
-> >> --- a/include/linux/balloon_compaction.h
-> >> +++ b/include/linux/balloon_compaction.h
-> >> @@ -64,6 +64,10 @@ extern struct page *balloon_page_alloc(void);
-> >> extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-> >> 				 struct page *page);
-> >> extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
-> >> +extern size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-> >> +				      struct list_head *pages);
-> >> +extern size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-> >> +				     struct list_head *pages, int n_req_pages);
-> > 
-> > Why size_t I wonder? It can never be > n_req_pages which is int.
-> > Callers also seem to assume int.
-> 
-> Only because on the previous iteration
-> ( https://lkml.org/lkml/2019/2/6/912 ) you said:
-> 
-> > Are we sure this int never overflows? Why not just use u64
-> > or size_t straight away?
-
-And the answer is because n_req_pages is an int too?
-
-> 
-> I am ok either way, but please be consistent.
-
-I guess n_req_pages should be size_t too then?
-
-> > 
-> >> static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
-> >> {
-> > 
-> > 
-> >> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> >> index ef858d547e2d..88d5d9a01072 100644
-> >> --- a/mm/balloon_compaction.c
-> >> +++ b/mm/balloon_compaction.c
-> >> @@ -10,6 +10,106 @@
-> >> #include <linux/export.h>
-> >> #include <linux/balloon_compaction.h>
-> >> 
-> >> +static int balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
-> >> +				     struct page *page)
-> >> +{
-> >> +	/*
-> >> +	 * Block others from accessing the 'page' when we get around to
-> >> +	 * establishing additional references. We should be the only one
-> >> +	 * holding a reference to the 'page' at this point.
-> >> +	 */
-> >> +	if (!trylock_page(page)) {
-> >> +		WARN_ONCE(1, "balloon inflation failed to enqueue page\n");
-> >> +		return -EFAULT;
-> > 
-> > Looks like all callers bug on a failure. So let's just do it here,
-> > and then make this void?
-> 
-> As you noted below, actually balloon_page_list_enqueue() does not do
-> anything when an error occurs. I really prefer to avoid adding BUG_ON() - 
-> I always get pushed back on such things. Yes, this might lead to memory
-> leak, but there is no reason to crash the system.
-
-Need to audit callers to make sure they don't misbehave in worse ways.
-
-I think in this case this indicates that someone is using the page so if
-one keeps going and adds it into balloon this will lead to corruption down the road.
-
-If you can change the caller code such that it's just a leak,
-then a warning is more appropriate. Or even do not warn at all.
-
-
-> >> +	}
-> >> +	list_del(&page->lru);
-> >> +	balloon_page_insert(b_dev_info, page);
-> >> +	unlock_page(page);
-> >> +	__count_vm_event(BALLOON_INFLATE);
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +/**
-> >> + * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
-> >> + *				 list.
-> >> + * @b_dev_info: balloon device descriptor where we will insert a new page to
-> >> + * @pages: pages to enqueue - allocated using balloon_page_alloc.
-> >> + *
-> >> + * Driver must call it to properly enqueue a balloon pages before definitively
-> >> + * removing it from the guest system.
-> > 
-> > A bunch of grammar error here. Pls fix for clarify.
-> > Also - document that nothing must lock the pages? More assumptions?
-> > What is "it" in this context? All pages? And what does removing from
-> > guest mean? Really adding to the balloon?
-> 
-> I pretty much copy-pasted this description from balloon_page_enqueue(). I
-> see that you edited this message in the past at least couple of times (e.g.,
-> c7cdff0e86471 “virtio_balloon: fix deadlock on OOM”) and left it as is.
-> 
-> So maybe all of the comments in this file need a rework, but I don’t think
-> this patch-set needs to do it.
-
-I see.
-That one dealt with one page so "it" was the page. This one deals with
-many pages so you can't just copy it over without changes.
-Makes it look like "it" refers to driver or guest.
-
-> >> + *
-> >> + * Return: number of pages that were enqueued.
-> >> + */
-> >> +size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-> >> +			       struct list_head *pages)
-> >> +{
-> >> +	struct page *page, *tmp;
-> >> +	unsigned long flags;
-> >> +	size_t n_pages = 0;
-> >> +
-> >> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> >> +	list_for_each_entry_safe(page, tmp, pages, lru) {
-> >> +		balloon_page_enqueue_one(b_dev_info, page);
-> > 
-> > Do we want to do something about an error here?
-> 
-> Hmm… This is really something that should never happen, but I still prefer
-> to avoid BUG_ON(), as I said before. I will just not count the page.
-
-Callers can BUG then if they want. That is fine but you then
-need to change the callers to do it.
-
-> > 
-> >> +		n_pages++;
-> >> +	}
-> >> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> >> +	return n_pages;
-> >> +}
-> >> +EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
-> >> +
-> >> +/**
-> >> + * balloon_page_list_dequeue() - removes pages from balloon's page list and
-> >> + *				 returns a list of the pages.
-> >> + * @b_dev_info: balloon device decriptor where we will grab a page from.
-> >> + * @pages: pointer to the list of pages that would be returned to the caller.
-> >> + * @n_req_pages: number of requested pages.
-> >> + *
-> >> + * Driver must call it to properly de-allocate a previous enlisted balloon pages
-> >> + * before definetively releasing it back to the guest system. This function
-> >> + * tries to remove @n_req_pages from the ballooned pages and return it to the
-> >> + * caller in the @pages list.
-> >> + *
-> >> + * Note that this function may fail to dequeue some pages temporarily empty due
-> >> + * to compaction isolated pages.
-> >> + *
-> >> + * Return: number of pages that were added to the @pages list.
-> >> + */
-> >> +size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-> >> +				 struct list_head *pages, int n_req_pages)
-> >> +{
-> >> +	struct page *page, *tmp;
-> >> +	unsigned long flags;
-> >> +	size_t n_pages = 0;
-> >> +
-> >> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> >> +	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
-> >> +		/*
-> >> +		 * Block others from accessing the 'page' while we get around
-> >> +		 * establishing additional references and preparing the 'page'
-> >> +		 * to be released by the balloon driver.
-> >> +		 */
-> >> +		if (!trylock_page(page))
-> >> +			continue;
-> >> +
-> >> +		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
-> >> +		    PageIsolated(page)) {
-> >> +			/* raced with isolation */
-> >> +			unlock_page(page);
-> >> +			continue;
-> >> +		}
-> >> +		balloon_page_delete(page);
-> >> +		__count_vm_event(BALLOON_DEFLATE);
-> >> +		unlock_page(page);
-> >> +		list_add(&page->lru, pages);
-> >> +		if (++n_pages >= n_req_pages)
-> >> +			break;
-> >> +	}
-> >> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-> >> +
-> >> +	return n_pages;
-> >> +}
-> >> +EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
-> >> +
-> >> /*
-> >>  * balloon_page_alloc - allocates a new page for insertion into the balloon
-> >>  *			  page list.
-> >> @@ -43,17 +143,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-> >> {
-> >> 	unsigned long flags;
-> >> 
-> >> -	/*
-> >> -	 * Block others from accessing the 'page' when we get around to
-> >> -	 * establishing additional references. We should be the only one
-> >> -	 * holding a reference to the 'page' at this point.
-> >> -	 */
-> >> -	BUG_ON(!trylock_page(page));
-> >> 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-> >> -	balloon_page_insert(b_dev_info, page);
-> >> -	__count_vm_event(BALLOON_INFLATE);
-> >> +	balloon_page_enqueue_one(b_dev_info, page);
-> > 
-> > We used to bug on failure to lock page, now we
-> > silently ignore this error. Why?
-> 
-> That’s a mistake. I’ll add a BUG_ON() if balloon_page_enqueue_one() fails.
-> 
-> 
+PiBPbiBBcHIgMTksIDIwMTksIGF0IDM6NDcgUE0sIE1pY2hhZWwgUy4gVHNpcmtpbiA8bXN0QHJl
+ZGhhdC5jb20+IHdyb3RlOg0KPiANCj4gT24gRnJpLCBBcHIgMTksIDIwMTkgYXQgMTA6MzQ6MDRQ
+TSArMDAwMCwgTmFkYXYgQW1pdCB3cm90ZToNCj4+PiBPbiBBcHIgMTksIDIwMTksIGF0IDM6MDcg
+UE0sIE1pY2hhZWwgUy4gVHNpcmtpbiA8bXN0QHJlZGhhdC5jb20+IHdyb3RlOg0KPj4+IA0KPj4+
+IE9uIFRodSwgTWFyIDI4LCAyMDE5IGF0IDAxOjA3OjE1QU0gKzAwMDAsIE5hZGF2IEFtaXQgd3Jv
+dGU6DQo+Pj4+IEludHJvZHVjZSBpbnRlcmZhY2VzIGZvciBiYWxsb29uaW5nIGVucXVldWVpbmcg
+YW5kIGRlcXVldWVpbmcgb2YgYSBsaXN0DQo+Pj4+IG9mIHBhZ2VzLiBUaGVzZSBpbnRlcmZhY2Vz
+IHJlZHVjZSB0aGUgb3ZlcmhlYWQgb2Ygc3RvcmluZyBhbmQgcmVzdG9yaW5nDQo+Pj4+IElSUXMg
+YnkgYmF0Y2hpbmcgdGhlIG9wZXJhdGlvbnMuIEluIGFkZGl0aW9uIHRoZXkgZG8gbm90IHBhbmlj
+IGlmIHRoZQ0KPj4+PiBsaXN0IG9mIHBhZ2VzIGlzIGVtcHR5Lg0KPj4+PiANCj4+Pj4gQ2M6ICJN
+aWNoYWVsIFMuIFRzaXJraW4iIDxtc3RAcmVkaGF0LmNvbT4NCj4+Pj4gQ2M6IEphc29uIFdhbmcg
+PGphc293YW5nQHJlZGhhdC5jb20+DQo+Pj4+IENjOiBsaW51eC1tbUBrdmFjay5vcmcNCj4+Pj4g
+Q2M6IHZpcnR1YWxpemF0aW9uQGxpc3RzLmxpbnV4LWZvdW5kYXRpb24ub3JnDQo+Pj4+IFJldmll
+d2VkLWJ5OiBYYXZpZXIgRGVndWlsbGFyZCA8eGRlZ3VpbGxhcmRAdm13YXJlLmNvbT4NCj4+Pj4g
+U2lnbmVkLW9mZi1ieTogTmFkYXYgQW1pdCA8bmFtaXRAdm13YXJlLmNvbT4NCj4+Pj4gLS0tDQo+
+Pj4+IGluY2x1ZGUvbGludXgvYmFsbG9vbl9jb21wYWN0aW9uLmggfCAgIDQgKw0KPj4+PiBtbS9i
+YWxsb29uX2NvbXBhY3Rpb24uYyAgICAgICAgICAgIHwgMTQ1ICsrKysrKysrKysrKysrKysrKysr
+Ky0tLS0tLS0tDQo+Pj4+IDIgZmlsZXMgY2hhbmdlZCwgMTExIGluc2VydGlvbnMoKyksIDM4IGRl
+bGV0aW9ucygtKQ0KPj4+PiANCj4+Pj4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvYmFsbG9v
+bl9jb21wYWN0aW9uLmggYi9pbmNsdWRlL2xpbnV4L2JhbGxvb25fY29tcGFjdGlvbi5oDQo+Pj4+
+IGluZGV4IGYxMTFjNzgwZWYxZC4uMWRhNzllZGFkYjY5IDEwMDY0NA0KPj4+PiAtLS0gYS9pbmNs
+dWRlL2xpbnV4L2JhbGxvb25fY29tcGFjdGlvbi5oDQo+Pj4+ICsrKyBiL2luY2x1ZGUvbGludXgv
+YmFsbG9vbl9jb21wYWN0aW9uLmgNCj4+Pj4gQEAgLTY0LDYgKzY0LDEwIEBAIGV4dGVybiBzdHJ1
+Y3QgcGFnZSAqYmFsbG9vbl9wYWdlX2FsbG9jKHZvaWQpOw0KPj4+PiBleHRlcm4gdm9pZCBiYWxs
+b29uX3BhZ2VfZW5xdWV1ZShzdHJ1Y3QgYmFsbG9vbl9kZXZfaW5mbyAqYl9kZXZfaW5mbywNCj4+
+Pj4gCQkJCSBzdHJ1Y3QgcGFnZSAqcGFnZSk7DQo+Pj4+IGV4dGVybiBzdHJ1Y3QgcGFnZSAqYmFs
+bG9vbl9wYWdlX2RlcXVldWUoc3RydWN0IGJhbGxvb25fZGV2X2luZm8gKmJfZGV2X2luZm8pOw0K
+Pj4+PiArZXh0ZXJuIHNpemVfdCBiYWxsb29uX3BhZ2VfbGlzdF9lbnF1ZXVlKHN0cnVjdCBiYWxs
+b29uX2Rldl9pbmZvICpiX2Rldl9pbmZvLA0KPj4+PiArCQkJCSAgICAgIHN0cnVjdCBsaXN0X2hl
+YWQgKnBhZ2VzKTsNCj4+Pj4gK2V4dGVybiBzaXplX3QgYmFsbG9vbl9wYWdlX2xpc3RfZGVxdWV1
+ZShzdHJ1Y3QgYmFsbG9vbl9kZXZfaW5mbyAqYl9kZXZfaW5mbywNCj4+Pj4gKwkJCQkgICAgIHN0
+cnVjdCBsaXN0X2hlYWQgKnBhZ2VzLCBpbnQgbl9yZXFfcGFnZXMpOw0KPj4+IA0KPj4+IFdoeSBz
+aXplX3QgSSB3b25kZXI/IEl0IGNhbiBuZXZlciBiZSA+IG5fcmVxX3BhZ2VzIHdoaWNoIGlzIGlu
+dC4NCj4+PiBDYWxsZXJzIGFsc28gc2VlbSB0byBhc3N1bWUgaW50Lg0KPj4gDQo+PiBPbmx5IGJl
+Y2F1c2Ugb24gdGhlIHByZXZpb3VzIGl0ZXJhdGlvbg0KPj4gKCBodHRwczovL2xrbWwub3JnL2xr
+bWwvMjAxOS8yLzYvOTEyICkgeW91IHNhaWQ6DQo+PiANCj4+PiBBcmUgd2Ugc3VyZSB0aGlzIGlu
+dCBuZXZlciBvdmVyZmxvd3M/IFdoeSBub3QganVzdCB1c2UgdTY0DQo+Pj4gb3Igc2l6ZV90IHN0
+cmFpZ2h0IGF3YXk/DQo+IA0KPiBBbmQgdGhlIGFuc3dlciBpcyBiZWNhdXNlIG5fcmVxX3BhZ2Vz
+IGlzIGFuIGludCB0b28/DQo+IA0KPj4gSSBhbSBvayBlaXRoZXIgd2F5LCBidXQgcGxlYXNlIGJl
+IGNvbnNpc3RlbnQuDQo+IA0KPiBJIGd1ZXNzIG5fcmVxX3BhZ2VzIHNob3VsZCBiZSBzaXplX3Qg
+dG9vIHRoZW4/DQoNClllcy4gSSB3aWxsIGNoYW5nZSBpdC4NCg0KPiANCj4+Pj4gc3RhdGljIGlu
+bGluZSB2b2lkIGJhbGxvb25fZGV2aW5mb19pbml0KHN0cnVjdCBiYWxsb29uX2Rldl9pbmZvICpi
+YWxsb29uKQ0KPj4+PiB7DQo+Pj4gDQo+Pj4gDQo+Pj4+IGRpZmYgLS1naXQgYS9tbS9iYWxsb29u
+X2NvbXBhY3Rpb24uYyBiL21tL2JhbGxvb25fY29tcGFjdGlvbi5jDQo+Pj4+IGluZGV4IGVmODU4
+ZDU0N2UyZC4uODhkNWQ5YTAxMDcyIDEwMDY0NA0KPj4+PiAtLS0gYS9tbS9iYWxsb29uX2NvbXBh
+Y3Rpb24uYw0KPj4+PiArKysgYi9tbS9iYWxsb29uX2NvbXBhY3Rpb24uYw0KPj4+PiBAQCAtMTAs
+NiArMTAsMTA2IEBADQo+Pj4+ICNpbmNsdWRlIDxsaW51eC9leHBvcnQuaD4NCj4+Pj4gI2luY2x1
+ZGUgPGxpbnV4L2JhbGxvb25fY29tcGFjdGlvbi5oPg0KPj4+PiANCj4+Pj4gK3N0YXRpYyBpbnQg
+YmFsbG9vbl9wYWdlX2VucXVldWVfb25lKHN0cnVjdCBiYWxsb29uX2Rldl9pbmZvICpiX2Rldl9p
+bmZvLA0KPj4+PiArCQkJCSAgICAgc3RydWN0IHBhZ2UgKnBhZ2UpDQo+Pj4+ICt7DQo+Pj4+ICsJ
+LyoNCj4+Pj4gKwkgKiBCbG9jayBvdGhlcnMgZnJvbSBhY2Nlc3NpbmcgdGhlICdwYWdlJyB3aGVu
+IHdlIGdldCBhcm91bmQgdG8NCj4+Pj4gKwkgKiBlc3RhYmxpc2hpbmcgYWRkaXRpb25hbCByZWZl
+cmVuY2VzLiBXZSBzaG91bGQgYmUgdGhlIG9ubHkgb25lDQo+Pj4+ICsJICogaG9sZGluZyBhIHJl
+ZmVyZW5jZSB0byB0aGUgJ3BhZ2UnIGF0IHRoaXMgcG9pbnQuDQo+Pj4+ICsJICovDQo+Pj4+ICsJ
+aWYgKCF0cnlsb2NrX3BhZ2UocGFnZSkpIHsNCj4+Pj4gKwkJV0FSTl9PTkNFKDEsICJiYWxsb29u
+IGluZmxhdGlvbiBmYWlsZWQgdG8gZW5xdWV1ZSBwYWdlXG4iKTsNCj4+Pj4gKwkJcmV0dXJuIC1F
+RkFVTFQ7DQo+Pj4gDQo+Pj4gTG9va3MgbGlrZSBhbGwgY2FsbGVycyBidWcgb24gYSBmYWlsdXJl
+LiBTbyBsZXQncyBqdXN0IGRvIGl0IGhlcmUsDQo+Pj4gYW5kIHRoZW4gbWFrZSB0aGlzIHZvaWQ/
+DQo+PiANCj4+IEFzIHlvdSBub3RlZCBiZWxvdywgYWN0dWFsbHkgYmFsbG9vbl9wYWdlX2xpc3Rf
+ZW5xdWV1ZSgpIGRvZXMgbm90IGRvDQo+PiBhbnl0aGluZyB3aGVuIGFuIGVycm9yIG9jY3Vycy4g
+SSByZWFsbHkgcHJlZmVyIHRvIGF2b2lkIGFkZGluZyBCVUdfT04oKSAtIA0KPj4gSSBhbHdheXMg
+Z2V0IHB1c2hlZCBiYWNrIG9uIHN1Y2ggdGhpbmdzLiBZZXMsIHRoaXMgbWlnaHQgbGVhZCB0byBt
+ZW1vcnkNCj4+IGxlYWssIGJ1dCB0aGVyZSBpcyBubyByZWFzb24gdG8gY3Jhc2ggdGhlIHN5c3Rl
+bS4NCj4gDQo+IE5lZWQgdG8gYXVkaXQgY2FsbGVycyB0byBtYWtlIHN1cmUgdGhleSBkb24ndCBt
+aXNiZWhhdmUgaW4gd29yc2Ugd2F5cy4NCj4gDQo+IEkgdGhpbmsgaW4gdGhpcyBjYXNlIHRoaXMg
+aW5kaWNhdGVzIHRoYXQgc29tZW9uZSBpcyB1c2luZyB0aGUgcGFnZSBzbyBpZg0KPiBvbmUga2Vl
+cHMgZ29pbmcgYW5kIGFkZHMgaXQgaW50byBiYWxsb29uIHRoaXMgd2lsbCBsZWFkIHRvIGNvcnJ1
+cHRpb24gZG93biB0aGUgcm9hZC4NCj4gDQo+IElmIHlvdSBjYW4gY2hhbmdlIHRoZSBjYWxsZXIg
+Y29kZSBzdWNoIHRoYXQgaXQncyBqdXN0IGEgbGVhaywNCj4gdGhlbiBhIHdhcm5pbmcgaXMgbW9y
+ZSBhcHByb3ByaWF0ZS4gT3IgZXZlbiBkbyBub3Qgd2FybiBhdCBhbGwuDQoNClllcywgeW91IGFy
+ZSByaWdodCAoYW5kIEkgd2FzIHdyb25nKSAtIHRoaXMgaXMgaW5kZWVkIG11Y2ggbW9yZSB0aGFu
+IGENCm1lbW9yeSBsZWFrLiBJ4oCZbGwgc2VlIGlmIGl0IGlzIGVhc3kgdG8gaGFuZGxlIHRoaXMg
+Y2FzZSAoSSBhbSBub3Qgc3VyZSksIGJ1dA0KSSB0aGluayB0aGUgd2FybmluZyBzaG91bGQgc3Rh
+eS4NCg0KPj4+PiArCX0NCj4+Pj4gKwlsaXN0X2RlbCgmcGFnZS0+bHJ1KTsNCj4+Pj4gKwliYWxs
+b29uX3BhZ2VfaW5zZXJ0KGJfZGV2X2luZm8sIHBhZ2UpOw0KPj4+PiArCXVubG9ja19wYWdlKHBh
+Z2UpOw0KPj4+PiArCV9fY291bnRfdm1fZXZlbnQoQkFMTE9PTl9JTkZMQVRFKTsNCj4+Pj4gKwly
+ZXR1cm4gMDsNCj4+Pj4gK30NCj4+Pj4gKw0KPj4+PiArLyoqDQo+Pj4+ICsgKiBiYWxsb29uX3Bh
+Z2VfbGlzdF9lbnF1ZXVlKCkgLSBpbnNlcnRzIGEgbGlzdCBvZiBwYWdlcyBpbnRvIHRoZSBiYWxs
+b29uIHBhZ2UNCj4+Pj4gKyAqCQkJCSBsaXN0Lg0KPj4+PiArICogQGJfZGV2X2luZm86IGJhbGxv
+b24gZGV2aWNlIGRlc2NyaXB0b3Igd2hlcmUgd2Ugd2lsbCBpbnNlcnQgYSBuZXcgcGFnZSB0bw0K
+Pj4+PiArICogQHBhZ2VzOiBwYWdlcyB0byBlbnF1ZXVlIC0gYWxsb2NhdGVkIHVzaW5nIGJhbGxv
+b25fcGFnZV9hbGxvYy4NCj4+Pj4gKyAqDQo+Pj4+ICsgKiBEcml2ZXIgbXVzdCBjYWxsIGl0IHRv
+IHByb3Blcmx5IGVucXVldWUgYSBiYWxsb29uIHBhZ2VzIGJlZm9yZSBkZWZpbml0aXZlbHkNCj4+
+Pj4gKyAqIHJlbW92aW5nIGl0IGZyb20gdGhlIGd1ZXN0IHN5c3RlbS4NCj4+PiANCj4+PiBBIGJ1
+bmNoIG9mIGdyYW1tYXIgZXJyb3IgaGVyZS4gUGxzIGZpeCBmb3IgY2xhcmlmeS4NCj4+PiBBbHNv
+IC0gZG9jdW1lbnQgdGhhdCBub3RoaW5nIG11c3QgbG9jayB0aGUgcGFnZXM/IE1vcmUgYXNzdW1w
+dGlvbnM/DQo+Pj4gV2hhdCBpcyAiaXQiIGluIHRoaXMgY29udGV4dD8gQWxsIHBhZ2VzPyBBbmQg
+d2hhdCBkb2VzIHJlbW92aW5nIGZyb20NCj4+PiBndWVzdCBtZWFuPyBSZWFsbHkgYWRkaW5nIHRv
+IHRoZSBiYWxsb29uPw0KPj4gDQo+PiBJIHByZXR0eSBtdWNoIGNvcHktcGFzdGVkIHRoaXMgZGVz
+Y3JpcHRpb24gZnJvbSBiYWxsb29uX3BhZ2VfZW5xdWV1ZSgpLiBJDQo+PiBzZWUgdGhhdCB5b3Ug
+ZWRpdGVkIHRoaXMgbWVzc2FnZSBpbiB0aGUgcGFzdCBhdCBsZWFzdCBjb3VwbGUgb2YgdGltZXMg
+KGUuZy4sDQo+PiBjN2NkZmYwZTg2NDcxIOKAnHZpcnRpb19iYWxsb29uOiBmaXggZGVhZGxvY2sg
+b24gT09N4oCdKSBhbmQgbGVmdCBpdCBhcyBpcy4NCj4+IA0KPj4gU28gbWF5YmUgYWxsIG9mIHRo
+ZSBjb21tZW50cyBpbiB0aGlzIGZpbGUgbmVlZCBhIHJld29yaywgYnV0IEkgZG9u4oCZdCB0aGlu
+aw0KPj4gdGhpcyBwYXRjaC1zZXQgbmVlZHMgdG8gZG8gaXQuDQo+IA0KPiBJIHNlZS4NCj4gVGhh
+dCBvbmUgZGVhbHQgd2l0aCBvbmUgcGFnZSBzbyAiaXQiIHdhcyB0aGUgcGFnZS4gVGhpcyBvbmUg
+ZGVhbHMgd2l0aA0KPiBtYW55IHBhZ2VzIHNvIHlvdSBjYW4ndCBqdXN0IGNvcHkgaXQgb3ZlciB3
+aXRob3V0IGNoYW5nZXMuDQo+IE1ha2VzIGl0IGxvb2sgbGlrZSAiaXQiIHJlZmVycyB0byBkcml2
+ZXIgb3IgZ3Vlc3QuDQoNCkkgd2lsbCBmaXgg4oCcaXTigJ0uIDstKQ0KDQo+IA0KPj4+PiArICoN
+Cj4+Pj4gKyAqIFJldHVybjogbnVtYmVyIG9mIHBhZ2VzIHRoYXQgd2VyZSBlbnF1ZXVlZC4NCj4+
+Pj4gKyAqLw0KPj4+PiArc2l6ZV90IGJhbGxvb25fcGFnZV9saXN0X2VucXVldWUoc3RydWN0IGJh
+bGxvb25fZGV2X2luZm8gKmJfZGV2X2luZm8sDQo+Pj4+ICsJCQkgICAgICAgc3RydWN0IGxpc3Rf
+aGVhZCAqcGFnZXMpDQo+Pj4+ICt7DQo+Pj4+ICsJc3RydWN0IHBhZ2UgKnBhZ2UsICp0bXA7DQo+
+Pj4+ICsJdW5zaWduZWQgbG9uZyBmbGFnczsNCj4+Pj4gKwlzaXplX3Qgbl9wYWdlcyA9IDA7DQo+
+Pj4+ICsNCj4+Pj4gKwlzcGluX2xvY2tfaXJxc2F2ZSgmYl9kZXZfaW5mby0+cGFnZXNfbG9jaywg
+ZmxhZ3MpOw0KPj4+PiArCWxpc3RfZm9yX2VhY2hfZW50cnlfc2FmZShwYWdlLCB0bXAsIHBhZ2Vz
+LCBscnUpIHsNCj4+Pj4gKwkJYmFsbG9vbl9wYWdlX2VucXVldWVfb25lKGJfZGV2X2luZm8sIHBh
+Z2UpOw0KPj4+IA0KPj4+IERvIHdlIHdhbnQgdG8gZG8gc29tZXRoaW5nIGFib3V0IGFuIGVycm9y
+IGhlcmU/DQo+PiANCj4+IEhtbeKApiBUaGlzIGlzIHJlYWxseSBzb21ldGhpbmcgdGhhdCBzaG91
+bGQgbmV2ZXIgaGFwcGVuLCBidXQgSSBzdGlsbCBwcmVmZXINCj4+IHRvIGF2b2lkIEJVR19PTigp
+LCBhcyBJIHNhaWQgYmVmb3JlLiBJIHdpbGwganVzdCBub3QgY291bnQgdGhlIHBhZ2UuDQo+IA0K
+PiBDYWxsZXJzIGNhbiBCVUcgdGhlbiBpZiB0aGV5IHdhbnQuIFRoYXQgaXMgZmluZSBidXQgeW91
+IHRoZW4NCj4gbmVlZCB0byBjaGFuZ2UgdGhlIGNhbGxlcnMgdG8gZG8gaXQuDQoNCk9rLCBJ4oCZ
+bGwgcGF5IG1vcmUgYXR0ZW50aW9uIHRoaXMgdGltZS4gVGhhbmtzIQ0KDQo=
 
