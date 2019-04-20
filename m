@@ -4,98 +4,98 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D948C282DD
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 15:31:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EC72C282E3
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 15:31:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F07452087F
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 15:31:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D26B320854
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 15:31:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="gv4y9y7c"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F07452087F
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="JPJzZ5OI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D26B320854
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2EFFA6B0006; Sat, 20 Apr 2019 11:31:54 -0400 (EDT)
+	id B06DF6B0008; Sat, 20 Apr 2019 11:31:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A1346B0007; Sat, 20 Apr 2019 11:31:54 -0400 (EDT)
+	id AB8826B000A; Sat, 20 Apr 2019 11:31:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1446B6B0008; Sat, 20 Apr 2019 11:31:54 -0400 (EDT)
+	id 980D56B000C; Sat, 20 Apr 2019 11:31:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E521F6B0006
-	for <linux-mm@kvack.org>; Sat, 20 Apr 2019 11:31:53 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id g7so6657622qkb.7
-        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 08:31:53 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8216B0008
+	for <linux-mm@kvack.org>; Sat, 20 Apr 2019 11:31:56 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id t67so1318568qkd.15
+        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 08:31:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id
          :in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=CYN5iyU5BivsuLuaj0p6OjCQw7Id7vPwrKGL/YIcXb0=;
-        b=rMSZhlOjRa2Gi6WMk/QVewj+kvQ8YzMXE18XYEmPgd3VbG3bpXtEAN7hgiFJ4CLo6Q
-         3ZJHnu5mk7nRlt0GMeZd0SsuYsLfgSMmPPokXlVy4eMr1RewP8HaguHnGB2XcmB9TKkw
-         Nj6zxTVOgAudUGTnh7xs68T+5VAsewbymbIrFp+KBeEPf49Ppk+oQ75Ob5e0JMIoXGFK
-         cubTqiZ6pwNBPvkYIhvwk8G066k5QZG3HQm967juWox09E+ZvQrOmOMR7V42Qss4HPN6
-         +WhR7E36jWIio+DBmJSSVhTjuV0P2evOEcdTgH0mZoKbH6dTdVG3SXmys3WJIQoTbqqD
-         v+fw==
-X-Gm-Message-State: APjAAAWIEPWXQ+gCEqNLk54BW5t7IxtunKCI7ZG0ZklyZ6slDTq0jQyD
-	+pY11S2EHTSM4DqbkmryFjW9Jm2XXvEiZjjDko8OiFxY8KzH4dxCj9ShpmCg4L9E3twF8z8b3aS
-	lMOLx9tBVO8alFpT7S2iIo1/gzfHwVpxcp9sZEGTR/CwdkY3Z3Pxw1Z57kPkIzj51ZQ==
-X-Received: by 2002:a05:620a:108a:: with SMTP id g10mr7606321qkk.309.1555774313623;
-        Sat, 20 Apr 2019 08:31:53 -0700 (PDT)
-X-Received: by 2002:a05:620a:108a:: with SMTP id g10mr7606268qkk.309.1555774312841;
-        Sat, 20 Apr 2019 08:31:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555774312; cv=none;
+        bh=Clj8uwwo5TlLh2AL+5SY6gvLnqtqKsZdzrxWwRvWBiM=;
+        b=Nf6V9vRVMJNN9F0nvLuFCbuLHNVkkeV/Cqy4gs7kqi2e1wHeKuykABRcmjqINLgui7
+         0xUzMkXAI2VQH0q8aVWABwQw8nPiC4MH2hOTokI0/U3mNJ2TBHayZo5iTReKaALFVrvs
+         ZTJrHSkf9c9LTRd82m1KDoMWAyTsqxBOXpck+It5NSy7reTP/hS/iIMMYGrI4Wp2yArk
+         ATbZXO8DCr4VDmtCxGk8X2N/IYdAyYsjJCoDBf6yLYYi4vp8qceYwSLoUksB6oV46keL
+         lX0M5GmCHI3DxzF0Klv8VKRmQLbS2qf+r8O9bgoiI3klMGJxL1GrVBt6A/WyjBR3nFYZ
+         dVSw==
+X-Gm-Message-State: APjAAAV04fu4/zmLI8ObrNOsPU7FPjw1nCroA3f7FkLBTyq4AFoWB8PH
+	3KaDioP4u5j1aE3ZDd/kQBVo+y3oqnLvhOXX7i1YJ0Epia4t/rr48B2q4yG62wH2h/LSVhHDYgp
+	4xzWyLS+iHZDfi7e3fy/pZ8dJaSUkRfgYSlM2vmQHZeBTnaAwySuMN8s7jVJN9uh3qQ==
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr7843669qke.323.1555774316157;
+        Sat, 20 Apr 2019 08:31:56 -0700 (PDT)
+X-Received: by 2002:a37:a34a:: with SMTP id m71mr7843559qke.323.1555774314510;
+        Sat, 20 Apr 2019 08:31:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555774314; cv=none;
         d=google.com; s=arc-20160816;
-        b=NEx+kiItZK7/NVNUG0Keptq2H5CcMQNQ8pxSyzi/Hu7NYEVOBaZPAM9rEm3kpxTm7Z
-         i2BEG/Sl9Zai9qcANHLO1dBW1nv4+hHv2xOJ6d18duxB73/uAr+b2DMEmg1/ivmiGt6T
-         +RTsmRm3HwQXJuwhRALwVaFFFXvVZgeG+zq9Dledn+s41BrizHIANNybNyJyQtnnHf8l
-         IBx4IQqttyS9n6sxmCcbBQU1O0ZTo44yxXKMMUC3GRMzSMJAD9zAz9Cacunyrdjfzf0f
-         IfTEdt4vBc7CA/QC2T/2bfRQIoBIbpx8Pmwrk0HmBJhbH0uvLgxtZvvaWhiw2IMUVpsk
-         6eqQ==
+        b=e3ExgouKjizQGI440G4XV+lWkHMPWdaUN5y9bSLHm0ZYqEebTNx/aGpE5SPASeiyXX
+         UlpK5wz4xipVGYMx7AM8Hzk9MHio7Fz0Axb3rhdIuirhZBTlGMx8RBlFQKT54ZfHu+Uf
+         LUAegli+IHWyqrsOpEO6CymhWgvxPiSs9VBu2QVbifvWqNMLF7UmJXQyCJZC00WpdPY7
+         OArj5SjclRMDLVteQ7md27MKCYHMMswq/oinOWZJ4heHb50mQwmtcfe802qtzgcxSX5l
+         7d8u3oZ8Y5VH5l6PzVw1PTUXYli11/U+KOd/RFBoH5l8wGo8p+FDw6v8jlcZyfGfIhPB
+         Lftg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:to:from:dkim-signature;
-        bh=CYN5iyU5BivsuLuaj0p6OjCQw7Id7vPwrKGL/YIcXb0=;
-        b=PFfRFp48w3cOIJaprlYgD2FgCp/QqDPDcDpY4g97POCMuiNTp9WRzg6KPRD7rwA9Ul
-         dZuAuGSJNHUaVHeXCwWI9SMFHhvQzalscJG2kt99d3bU73Bmt9anR/P/L3reVSEmSlo/
-         9drvGQKlAZCuTZK1FEuCJiy3ZeCrHJOo1qpyVVsupkjOAvD6MOXNuOAKss+odY1JuNKN
-         2k+yfXOZNHQ5/bvMsYlOUtAIfuigpb7rZhEoFr+tKtoKU5KzEC3oxdCgJOEnhIL0DeWm
-         IsIOC+KxJ6oXaFyeFccLEjUJvkLf8v798JW+ctMZmnEQzxz4abpE9pZkXQe5JHZKr5Ud
-         l59g==
+        bh=Clj8uwwo5TlLh2AL+5SY6gvLnqtqKsZdzrxWwRvWBiM=;
+        b=ZWrNtO4G6XMYDyVghhRHSu5oYovBYo1L7xu7O+Z68U7r2rs4/Te5DawiYeRc36HoBe
+         /S3LBCteq9alrVJB/hMPVPcvgoSL6LG7oY00mp8jBvOKH/VorKzGF0L60/mrxn34YLRU
+         TBBHsTIPVcoJq4HzXqwQD3/NhfqIj7D5TwxihdNtTy19GNy/T/7dOaY7dZyklp22POt0
+         hhdUZBcFKe8aqe5yykKLAwutdhZhDz2AM932esNTHSKKBSVQ2xRYZkbNm5BeOIyZivte
+         M1Zk4sEwKHaoq3gETk1L/GDBfmZXKF5G5B8+WB32pJQgkmbJxCou5JjfYD3mT8iYG1Ww
+         xArQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=gv4y9y7c;
+       dkim=pass header.i=@soleen.com header.s=google header.b=JPJzZ5OI;
        spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v15sor10962397qth.40.2019.04.20.08.31.52
+        by mx.google.com with SMTPS id b7sor11132257qtb.63.2019.04.20.08.31.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 20 Apr 2019 08:31:52 -0700 (PDT)
+        Sat, 20 Apr 2019 08:31:54 -0700 (PDT)
 Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=gv4y9y7c;
+       dkim=pass header.i=@soleen.com header.s=google header.b=JPJzZ5OI;
        spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=from:to:subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=CYN5iyU5BivsuLuaj0p6OjCQw7Id7vPwrKGL/YIcXb0=;
-        b=gv4y9y7cf3o267pQaWmOusE3XjrIdET78C/jhvKeJOOIswRYeg+xJ6iCNkoIp7jwe8
-         eMfmiMGvm3jiItgfWh7rsIC0iDU2arJGD0I8dEWbvohWpSoDYFJHV3UkftKRvGPAoITY
-         i6rIXoLgVSE0QCGGL2ddMLcfig3wKerZ3dju3rIHWGRenLbwMbvtm+Lsy5PzFF4kpInT
-         KtkQO0u2+bNCrI8wkRsYqKOOf0MB81gCxkVmhHSnce37h8lverX4ZAJfovKz65KVuDEZ
-         NQQnlVEnrSOI+B8KgloCauPdOt7A+nn+BGv5pJdp8UVFUN+0TOUYGt5tUHMaPh4tM4jZ
-         hVcw==
-X-Google-Smtp-Source: APXvYqy+F9p8F+adABZCVE7+/c6WL6tSVwOuI2/YAflpnkot9CpEHJuJLRjxVI692CvA24SyHzRqyA==
-X-Received: by 2002:ac8:1aec:: with SMTP id h41mr7984682qtk.345.1555774312594;
-        Sat, 20 Apr 2019 08:31:52 -0700 (PDT)
+        bh=Clj8uwwo5TlLh2AL+5SY6gvLnqtqKsZdzrxWwRvWBiM=;
+        b=JPJzZ5OIKsLYmvTIdkFML/dY72CPRTW2cT1SIq31qcyFxvWqMafajQMhQFxhcBOPTU
+         8AzB3qNhiJmnFlWB5HqQAvz8AGpUtICShYYnF4DOHmWErHByfa3aiDWfCZMtV269BAAY
+         ComE68zI6lRgCS/Xct0un5xrG/E06s0FxD8CFTL4yGNJmepVb515K1dMoVsrPJaC/SRz
+         OBGvYtneZKjRG5lqWq6EnLUu26e6NOpYPYFIRZ72cX6MjO8E2aVpD1MQP7Cazw/2FkcL
+         ZEnWbFIEIG7Vz5OYRaxd7zvnnT9Dd/Tp9eJ4w/B4eBR4YyTWf6PKF5d+M93wGVDSP0fQ
+         R+4Q==
+X-Google-Smtp-Source: APXvYqx+mhwHAne3YPmJNiH6uMUBiZOZZazvJRAODWFHnY5wdXYRB8uUqucch1+iEUrDBmqThGGBGQ==
+X-Received: by 2002:ac8:7687:: with SMTP id g7mr1627560qtr.114.1555774314241;
+        Sat, 20 Apr 2019 08:31:54 -0700 (PDT)
 Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
-        by smtp.gmail.com with ESMTPSA id n201sm3976523qka.10.2019.04.20.08.31.50
+        by smtp.gmail.com with ESMTPSA id n201sm3976523qka.10.2019.04.20.08.31.52
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Apr 2019 08:31:51 -0700 (PDT)
+        Sat, 20 Apr 2019 08:31:53 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
 To: pasha.tatashin@soleen.com,
 	jmorris@namei.org,
@@ -119,9 +119,9 @@ To: pasha.tatashin@soleen.com,
 	baiyaowei@cmss.chinamobile.com,
 	tiwai@suse.de,
 	jglisse@redhat.com
-Subject: [v1 1/2] device-dax: fix memory and resource leak if hotplug fails
-Date: Sat, 20 Apr 2019 11:31:47 -0400
-Message-Id: <20190420153148.21548-2-pasha.tatashin@soleen.com>
+Subject: [v1 2/2] device-dax: "Hotremove" persistent memory that is used like normal RAM
+Date: Sat, 20 Apr 2019 11:31:48 -0400
+Message-Id: <20190420153148.21548-3-pasha.tatashin@soleen.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190420153148.21548-1-pasha.tatashin@soleen.com>
 References: <20190420153148.21548-1-pasha.tatashin@soleen.com>
@@ -133,33 +133,144 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When add_memory() function fails, the resource and the memory should be
-freed.
+It is now allowed to use persistent memory like a regular RAM, but
+currently there is no way to remove this memory until machine is
+rebooted.
 
-Fixes: c221c0b0308f ("device-dax: "Hotplug" persistent memory for use like normal RAM")
+This work expands the functionality to also allow hot removing
+previously hotplugged persistent memory, and recover the device for use
+for other purposes.
+
+To hotremove persistent memory, the management software must unbind it
+from device-dax/kmem driver:
+
+            echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 ---
- drivers/dax/kmem.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ drivers/dax/dax-private.h |  2 +
+ drivers/dax/kmem.c        | 77 +++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 75 insertions(+), 4 deletions(-)
 
+diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
+index a45612148ca0..999aaf3a29b3 100644
+--- a/drivers/dax/dax-private.h
++++ b/drivers/dax/dax-private.h
+@@ -53,6 +53,7 @@ struct dax_region {
+  * @pgmap - pgmap for memmap setup / lifetime (driver owned)
+  * @ref: pgmap reference count (driver owned)
+  * @cmp: @ref final put completion (driver owned)
++ * @dax_mem_res: physical address range of hotadded DAX memory
+  */
+ struct dev_dax {
+ 	struct dax_region *region;
+@@ -62,6 +63,7 @@ struct dev_dax {
+ 	struct dev_pagemap pgmap;
+ 	struct percpu_ref ref;
+ 	struct completion cmp;
++	struct resource *dax_kmem_res;
+ };
+ 
+ static inline struct dev_dax *to_dev_dax(struct device *dev)
 diff --git a/drivers/dax/kmem.c b/drivers/dax/kmem.c
-index a02318c6d28a..4c0131857133 100644
+index 4c0131857133..026c34f93df5 100644
 --- a/drivers/dax/kmem.c
 +++ b/drivers/dax/kmem.c
-@@ -66,8 +66,11 @@ int dev_dax_kmem_probe(struct device *dev)
- 	new_res->name = dev_name(dev);
- 
- 	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
--	if (rc)
-+	if (rc) {
-+		release_resource(new_res);
-+		kfree(new_res);
+@@ -71,21 +71,90 @@ int dev_dax_kmem_probe(struct device *dev)
+ 		kfree(new_res);
  		return rc;
-+	}
+ 	}
++	dev_dax->dax_kmem_res = new_res;
  
  	return 0;
  }
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++/*
++ * Offline device-dax's memory_blocks. If a memory_block cannot be offlined
++ * a warning is printed and an error is returned. dax hotremove can succeed
++ * only when every memory_block is offline.
++ */
++static int
++offline_memblock_cb(struct memory_block *mem, void *arg)
++{
++	struct device *dev = (struct device *)arg;
++	int rc = device_offline(&mem->dev);
++
++	if (rc < 0) {
++		unsigned long spfn = section_nr_to_pfn(mem->start_section_nr);
++		unsigned long epfn = section_nr_to_pfn(mem->end_section_nr);
++		phys_addr_t spa = spfn << PAGE_SHIFT;
++		phys_addr_t epa = epfn << PAGE_SHIFT;
++
++		dev_warn(dev, "could not offline memory block [%pa-%pa]\n",
++			 &spa, &epa);
++
++		return rc;
++	}
++
++	return 0;
++}
++
++static int dev_dax_kmem_remove(struct device *dev)
++{
++	struct dev_dax *dev_dax = to_dev_dax(dev);
++	struct resource *res = dev_dax->dax_kmem_res;
++	resource_size_t kmem_start;
++	resource_size_t kmem_size;
++	unsigned long start_pfn;
++	unsigned long end_pfn;
++	int rc;
++
++	/*
++	 * dax kmem resource does not exist, means memory was never hotplugged.
++	 * So, nothing to do here.
++	 */
++	if (!res)
++		return 0;
++
++	kmem_start = res->start;
++	kmem_size = resource_size(res);
++	start_pfn = kmem_start >> PAGE_SHIFT;
++	end_pfn = start_pfn + (kmem_size >> PAGE_SHIFT) - 1;
++
++	/* Walk and offline every singe memory_block of the dax region. */
++	lock_device_hotplug();
++	rc = walk_memory_range(start_pfn, end_pfn, dev, offline_memblock_cb);
++	unlock_device_hotplug();
++	if (rc)
++		return rc;
++
++	/* Hotremove memory, cannot fail because memory is already offlined */
++	remove_memory(dev_dax->target_node, kmem_start, kmem_size);
++
++	/* Release and free dax resources */
++	release_resource(res);
++	kfree(res);
++	dev_dax->dax_kmem_res = NULL;
++
++	return 0;
++}
++#else
+ static int dev_dax_kmem_remove(struct device *dev)
+ {
+ 	/*
+-	 * Purposely leak the request_mem_region() for the device-dax
+-	 * range and return '0' to ->remove() attempts. The removal of
+-	 * the device from the driver always succeeds, but the region
+-	 * is permanently pinned as reserved by the unreleased
++	 * Without hotremove purposely leak the request_mem_region() for the
++	 * device-dax range and return '0' to ->remove() attempts. The removal
++	 * of the device from the driver always succeeds, but the region is
++	 * permanently pinned as reserved by the unreleased
+ 	 * request_mem_region().
+ 	 */
+ 	return 0;
+ }
++#endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ static struct dax_device_driver device_dax_kmem_driver = {
+ 	.drv = {
 -- 
 2.21.0
 
