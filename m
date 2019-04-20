@@ -2,105 +2,105 @@ Return-Path: <SRS0=t1VS=SW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A653EC282DD
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 16:30:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52FBEC282DD
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 16:34:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 58C3920869
-	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 16:30:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CAA8B20869
+	for <linux-mm@archiver.kernel.org>; Sat, 20 Apr 2019 16:34:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="M1iwu9ox"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58C3920869
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="lQ5hlKkn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAA8B20869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E35AA6B0007; Sat, 20 Apr 2019 12:30:27 -0400 (EDT)
+	id 447416B000A; Sat, 20 Apr 2019 12:34:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE5BC6B0008; Sat, 20 Apr 2019 12:30:27 -0400 (EDT)
+	id 3F74F6B000C; Sat, 20 Apr 2019 12:34:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFA776B000A; Sat, 20 Apr 2019 12:30:27 -0400 (EDT)
+	id 30D106B000D; Sat, 20 Apr 2019 12:34:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C70E6B0007
-	for <linux-mm@kvack.org>; Sat, 20 Apr 2019 12:30:27 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id k56so4202271edb.2
-        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 09:30:27 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1A56B000A
+	for <linux-mm@kvack.org>; Sat, 20 Apr 2019 12:34:39 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id c21so3355293oig.20
+        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 09:34:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RZD2TOJdguYske3XdmnLmIq3XfcXZwBSYG0QJWjhaWk=;
-        b=rt+uzoRW97QroBrJ30enhERMxI+t0E0CZciOQVO4euj3HC2X+KiQp0qGOIe4CsflNG
-         +FoSWhHIQqwiqcAcmqjuM2g/s0LkE3ND7zd10DAJlB6v6aYsbyJOR46qB2QJm9BK8v9f
-         uDAyt330iipv7sxhm/N5F0JgoMOyvdd20Y39nWs7RGKhm0rJvmkJ9+csaJdv1VHNsmUG
-         UqE5Gcw7Po9XjBp9HFWFMfpQWwN93djzSCOlmTe9C4FN9DdkCgllmit1XShU6OPKNAUh
-         mI7tYNaPml3qrrpwzsxbMxYNYCo1f8zlG+ABtXNOlN9FwUc8VQRX4GgSGPCa16RPuh4A
-         RT6Q==
-X-Gm-Message-State: APjAAAXJ4t6Ss9Ctu/T9dbGzkLOyRxKTVuPviaBT7ykCBIgh/qMe9JOQ
-	0yq/p6pbes2Ao0VlJDF8Hqw90kjnESENaZvtd0IOxjoU+VzmXDeWWXi6233Zi1UJWtJ9Z/VHLVz
-	7/HAQl4J5+9qlYyf1FneAju2VuJyu7oAESTeCE/91V3XSsXpn+bce899XU32Da3hbTA==
-X-Received: by 2002:a50:a7a6:: with SMTP id i35mr6424540edc.96.1555777826934;
-        Sat, 20 Apr 2019 09:30:26 -0700 (PDT)
-X-Received: by 2002:a50:a7a6:: with SMTP id i35mr6424502edc.96.1555777826218;
-        Sat, 20 Apr 2019 09:30:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555777826; cv=none;
+        bh=2nkNuARp9X01dKfEBOtMwOp996ppluuGSD9cN/HBKF0=;
+        b=GveRfrYpqVvCtRb7tSAhwlKLwSo22N9Pem7Hw8VdvZ4tWCdJwf4r5lLm+VQh1n4cJ5
+         vl/7BWJ1n69OA6infW2S0VjpulQ3xxOCLUB8xuxF+mPoAsKJNlZGTWXLeJKUyUrn5L6g
+         8xhMy8R3y1zwDcMydELuK153rvaemDsoqjpH5xObsnX9pzhRPmeRm99GoVoqKxJAGXx/
+         lK3QmEDWCFN1fLQqY3N2KbQIymHeH624xDiBA+/eax9EOS2Zhw4Z9DNVDXNZDb760QIh
+         VEY9Kz2IsS5XBVCJJSCf+97/jQNTwIO7ukj3WNGOXdsGk+4bGWPwiM9xDL0GSSOfUTBr
+         tQNA==
+X-Gm-Message-State: APjAAAWIdlX/LoQRQJOyBBpTluFUSU0SaWsgVyrGFJPbcc9EQ8GkCADM
+	cXC8XJ+0KWouTN1RWZh9EoAaxHzaeKnuO9ahUJun1uGw4LO+lj99c9Xd3MnEuy6wj7P9jGz12tW
+	VFPK+Hc1Crqj3OdXssQ2CBw5K7OQd3nhdiFVp0Uj40HGIf0tn3Bp5eKBd7fRciVg+iA==
+X-Received: by 2002:a9d:51d2:: with SMTP id d18mr6254997oth.61.1555778078777;
+        Sat, 20 Apr 2019 09:34:38 -0700 (PDT)
+X-Received: by 2002:a9d:51d2:: with SMTP id d18mr6254977oth.61.1555778078236;
+        Sat, 20 Apr 2019 09:34:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555778078; cv=none;
         d=google.com; s=arc-20160816;
-        b=xg7eeQTyXH37RmwcPDji0i9FOkvOTcB6YIuKkztcCDLCWefh5LWMqfqQ5OYzR3yWiZ
-         Bkng3GnmVdaIfBYD8mtwXlaewFhyutUF4bviTLmjDxVt9gNkjJT68C0I/Lt94qIsQf8P
-         BcPv0n8Qfw1pdANOQSu/XWczNW3Eg+T2YR3dIWtiKconYam5B5rhBgT6ge5+Duaq1sAR
-         QlHaHhQ+FsaU2/eunrE5mzQQ85nWoxE1WXmzesaA6vbp+qhm57pLzCtQk/cryqPRJMTT
-         bV9+2X1NIdPr7c2866UlAoxAPvgWcQNczsCw5ZE3ScWimWo9zQl88+wuuX3ePPJYg7y0
-         EhsQ==
+        b=URwt2fhEKrERXzYuQ25INp4QQkc96peNjUfgHZ6QtObQtI4KGuE26ayEfQypk+hOB7
+         bfHTDrV7CRkScXpBU0PbKx3TT9X79xGup99/Fa+azIziitM4elgdmh5VcKRovaoc+cjE
+         FDeR1MZ5LerNaA6rVGGMi73G5A7FXhyQyv6HxOcmyBR7OCLfjFzFKfLgUv0iyLlBWjR8
+         05BoCT1qBQ1z+DlxYaW0Eb4HxsYKvuh3TJV60fKaL7/FKPtbOPIhwGxt6mODcC+jLO56
+         L5RxjZkhdXAlQqrpcaSEA0I+rNrPZXF0K4yy4lt/qMm1k+6WhJVBfOtNwXlU2A1btgz5
+         wLqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=RZD2TOJdguYske3XdmnLmIq3XfcXZwBSYG0QJWjhaWk=;
-        b=dK+5nKcvNZ/i1rm/zawOMMOlUScB9yTL6T0wC79n1D8WHnyTfCriFXdC1h6tq1TJ+v
-         3ynS+RXOO9rr6XHDAYTeHkoTvdUSiccfmmyaVqwupHjwbKg7HUYLA/xvv3fHHVZQY3AB
-         HHuZUsBb62jKeu3AJIOmizRbcV3CKogLIAEDy/I5lrI3ZipFOkeNmhBgOdQTpn4Wo+vk
-         H6WESQK1NcwNaSDvo2lKrVMRVnZQDdvWphtwEdkbdWfDICrGGOs+TdvWtBURz3YAliAQ
-         bG8Y87HsRgfNYGLEm9t+4f3ssfZBxpaf/zwFEwNEvJh3cyKQhodYakBnp2U9LO5jToNY
-         cAWQ==
+        bh=2nkNuARp9X01dKfEBOtMwOp996ppluuGSD9cN/HBKF0=;
+        b=PI6gYOA6hdq8ewt0FZH+0vvjytYzVeYLl4kw9IPiVGjbUcl16tdFlCAZLYeNtazKL2
+         9m+QotLkTofnhx67RmVYGwCHbLZW4sUufrkHjHfsxMkwqvCD9hwroSTwhRNiJiHCgLOr
+         rwWgCREJJJaNufj8GkrpJZyCL8000YTBa7KFE/x9ut66KOgJQJEU4HFtrh6CCpubzAbk
+         wxroPr6+Sw/dFKNMynqKPjrO+kOaTHSnEssaVJwI2DnX6H4AWQ2G0VXqucBKYx9XmzgU
+         0rrFEVRKqlcX4sSJPRPgZ745I2XkjJlhYMomXIl2F7yWzWcsUV+wCU//gIBeY7FigGau
+         t8DA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=M1iwu9ox;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d16sor1524431edj.5.2019.04.20.09.30.26
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=lQ5hlKkn;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v2sor3740919oib.165.2019.04.20.09.34.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 20 Apr 2019 09:30:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Sat, 20 Apr 2019 09:34:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=M1iwu9ox;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=lQ5hlKkn;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=RZD2TOJdguYske3XdmnLmIq3XfcXZwBSYG0QJWjhaWk=;
-        b=M1iwu9oxwvEKXc+QWcLRm6hRiQ5kUxXpfVx34XcRBUZhoRcClhsh0JUyIwC1Ht03If
-         8a3G+pXgKZ9eavm0LjqGnf1JevmNy/hEoTi1kNvr/hT7CU/N9lh/wstJca1903j3q879
-         zWvJI/IPpJUKqLRCxvH5qRHYbnBDUKQy+AlS8GyhCyUN0nTH4Fd/1S7KmPnCYG9mSn28
-         2gQna42o0dUnhv0WrZf4ZmljAB7Iz/0ANS5d32EYaSbcFqdniC2v+w89Yc+/qAuk6ELQ
-         gBYuclDgpS0azcJCu6eTr5cKRx2t41QOMFBfPxhgW4g9bkAA2N/pCgS01Ui1P8Lw52Gu
-         bixQ==
-X-Google-Smtp-Source: APXvYqyvovu6cFSV63PCP8G4i0thnTzgWZNHajiZGvrLh8glESaAwS8yzV/gVTNrN+wbgH9aZrQzqv2Ey0SevBe6Nm8=
-X-Received: by 2002:a50:a4e4:: with SMTP id x33mr6290803edb.61.1555777825844;
- Sat, 20 Apr 2019 09:30:25 -0700 (PDT)
+        bh=2nkNuARp9X01dKfEBOtMwOp996ppluuGSD9cN/HBKF0=;
+        b=lQ5hlKknHgUdIgtdCdSW+BlZNAFfLwu4hWsS9k88Ag24YEMBmAwCWE3/CkQVyeYzeg
+         3DBa/mRqMobf0jbS4KDLFQpX2/bLaOPnc0J0DAzpIxxqngPpoOFIZcZ1Ig2O2j1EO3wf
+         GAun3ArtW1LScidQo9nzjwulZ5rXl5sF8L72MNAsiCJCkFtoO5KK4A8jdV4ivGcF97H+
+         I44a7FkspL8ec+mXvswIjUGz6vQ1DsIc+M8DgUzXLsv2YU7wNEYsP/zx7o4x1/zNh3AH
+         Tv/+hv9FI06FU/1rSvaLo8VX4p/Z2DHQwjQ2PjY8ERIoNlVwd9PcVwuwgdbAyuDsq3tt
+         oQRA==
+X-Google-Smtp-Source: APXvYqwPxWJkMWqyvsgPZQqhL3+W5zzE3UErLcb18t7ERNXhzlO8we8FPAnQV+jOk6LI1G7NFpMMK/IvtwiYI/3C0cA=
+X-Received: by 2002:aca:d513:: with SMTP id m19mr5252902oig.73.1555778077724;
+ Sat, 20 Apr 2019 09:34:37 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190420153148.21548-1-pasha.tatashin@soleen.com>
- <20190420153148.21548-3-pasha.tatashin@soleen.com> <CAPcyv4j9sG6Wy3EfTuPb0uZ2qp=gr9UgUhpnXQA_g6Ko9KFmLA@mail.gmail.com>
-In-Reply-To: <CAPcyv4j9sG6Wy3EfTuPb0uZ2qp=gr9UgUhpnXQA_g6Ko9KFmLA@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Sat, 20 Apr 2019 12:30:14 -0400
-Message-ID: <CA+CK2bA2QTzZtFvGRMaG10_TretDr6CGgZc4Hyi_1pku4ECqXw@mail.gmail.com>
-Subject: Re: [v1 2/2] device-dax: "Hotremove" persistent memory that is used
- like normal RAM
-To: Dan Williams <dan.j.williams@intel.com>
+In-Reply-To: <20190420153148.21548-1-pasha.tatashin@soleen.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 20 Apr 2019 09:34:26 -0700
+Message-ID: <CAPcyv4h73gUwntDYx012qcyMYCmzZDU3HOvKcW5DRkO-GoTc+w@mail.gmail.com>
+Subject: Re: [v1 0/2] "Hotremove" persistent memory
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
 Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
 	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
@@ -118,24 +118,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > +
-> > +       /* Walk and offline every singe memory_block of the dax region. */
-> > +       lock_device_hotplug();
-> > +       rc = walk_memory_range(start_pfn, end_pfn, dev, offline_memblock_cb);
-> > +       unlock_device_hotplug();
-> > +       if (rc)
-> > +               return rc;
+On Sat, Apr 20, 2019 at 8:32 AM Pavel Tatashin
+<pasha.tatashin@soleen.com> wrote:
 >
-> This potential early return is the reason why memory hotremove is not
-> reliable vs the driver-core. If this walk fails to offline the memory
-> it will still be online, but the driver-core has no consideration for
-> device-unbind failing. The ubind will proceed while the memory stays
-> pinned.
+> Recently, adding a persistent memory to be used like a regular RAM was
+> added to Linux. This work extends this functionality to also allow hot
+> removing persistent memory.
+>
+> We (Microsoft) have a very important use case for this functionality.
+>
+> The requirement is for physical machines with small amount of RAM (~8G)
+> to be able to reboot in a very short period of time (<1s). Yet, there is
+> a userland state that is expensive to recreate (~2G).
+>
+> The solution is to boot machines with 2G preserved for persistent
+> memory.
 
-Hi Dan,
+Makes sense, but I have some questions about the details.
 
-Thank you for looking at this.  Are you saying, that if drv.remove()
-returns a failure it is simply ignored, and unbind proceeds?
+>
+> Copy the state, and hotadd the persistent memory so machine still has all
+> 8G for runtime. Before reboot, hotremove device-dax 2G, copy the memory
+> that is needed to be preserved to pmem0 device, and reboot.
+>
+> The series of operations look like this:
+>
+>         1. After boot restore /dev/pmem0 to boot
+>         2. Convert raw pmem0 to devdax
+>         ndctl create-namespace --mode devdax --map mem -e namespace0.0 -f
+>         3. Hotadd to System RAM
+>         echo dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+>         echo dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+>         4. Before reboot hotremove device-dax memory from System RAM
+>         echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
+>         5. Create raw pmem0 device
+>         ndctl create-namespace --mode raw  -e namespace0.0 -f
+>         6. Copy the state to this device
 
-Pasha
+What is the source of this copy? The state that was in the hot-added
+memory? Isn't it "already there" since you effectively renamed dax0.0
+to pmem0?
+
+>         7. Do kexec reboot, or reboot through firmware, is firmware does not
+>         zero memory in pmem region.
+
+Wouldn't the dax0.0 contents be preserved regardless? How does the
+guest recover the pre-initialized state / how does the kernel know to
+give out the same pages to the application as the previous boot?
 
