@@ -2,296 +2,166 @@ Return-Path: <SRS0=izd7=SX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54756C282E2
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 01:44:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61ABFC10F14
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 06:39:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 077D220833
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 01:44:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="ZcOj6/tW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 077D220833
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	by mail.kernel.org (Postfix) with ESMTP id E862820869
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 06:39:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E862820869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E93F56B0008; Sat, 20 Apr 2019 21:44:37 -0400 (EDT)
+	id 68DB76B0003; Sun, 21 Apr 2019 02:39:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E46D06B000A; Sat, 20 Apr 2019 21:44:37 -0400 (EDT)
+	id 63C5F6B0006; Sun, 21 Apr 2019 02:39:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D31756B000C; Sat, 20 Apr 2019 21:44:37 -0400 (EDT)
+	id 52AE66B0007; Sun, 21 Apr 2019 02:39:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B541D6B0008
-	for <linux-mm@kvack.org>; Sat, 20 Apr 2019 21:44:37 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id o34so8396651qte.5
-        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 18:44:37 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7FE6B0003
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 02:39:11 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id k63so2551761ybf.18
+        for <linux-mm@kvack.org>; Sat, 20 Apr 2019 23:39:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id
-         :in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=KL328kJp7uYop/CaXZcmGRKfoBkXK0v1G+nukTp5itg=;
-        b=XimIRWqOjAbFTXxpuAQDMSUWE0VSgDT1FLPyCZt6nt5sqr09DcQ9TWGZ3EP6m66A16
-         PNUorDf6T9DBtBs+QQvXJ5qkJgSlz6h+qmyF/EJwezOBxrFj9fxB2XcSoR9jYSiFfCUo
-         kUO4eO8396iEGmEe1atFhbNJ0pjp6V21qz7m92sz391ogUdRXlyBTdFbY79XFI70grFX
-         vf4QMpgd/HPW+wkBHKBm2/AF3owa+sZS/cIrBb8yWJWCqRav+sFUpbbUeUPMmQcPiMOc
-         utBog76zyq1Fw4y3xEwjhgxThlr4G/QDCr0VdMvWewiL//oY4vo3wLWUFDY9aUTYdsm6
-         g05w==
-X-Gm-Message-State: APjAAAWbnFUb3FxEH1YT0B2nhoX99xQuFQvp7kRonvnB8aOkCuBXcgyn
-	DExJmEjSm6uzG3aLpNwx8kQ5aToICehRWHGXqotQTIK/hSyrsU/oQC/iN4JMyoGb+OWn3Qcd38/
-	p++A98YW28CNKFmMmZP8egN/LiZhs6ysLkmaoMyRkrjgouXVj+9afO3ZsYy4IzUBvHw==
-X-Received: by 2002:a37:5ac4:: with SMTP id o187mr9621544qkb.356.1555811077465;
-        Sat, 20 Apr 2019 18:44:37 -0700 (PDT)
-X-Received: by 2002:a37:5ac4:: with SMTP id o187mr9621501qkb.356.1555811076083;
-        Sat, 20 Apr 2019 18:44:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555811076; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=NrbLKYy6uwy+++ZsjXno1V8y3/i0EexFCyHxsdB+Qmc=;
+        b=X4FTRkux/NeHPt+a0bw6Wh7jipw/nV3MpKO/eYV+oPX1jYuIGpAbwdRovlchWk4ThQ
+         NTh5z3KtLxni0N7EgZt8Xo+Y+nuSX10CBp/lZh6mtEoayETfS5wAGJ5K9+sdC3nv5bEd
+         bfxbBuJXwArxamGib7TtBn8eQ/sn+UF3nxk0FgWXZ4MKOpm3w+BO7BtSS3wVn068u1fV
+         BceP4Ncjw6jw152UpqQ7eIwzZ1h4rhv2AGuGpcp6aFzt2xa6UJmmlC55WbBfJ5MnzgrA
+         ftaMOHpcTnjipVWLOWTcQpjqrYUQA99agloNNdgXiNghkTG9krPKvsCmF6JLrOh+nNl1
+         E4Jw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXu9Qa/cX1trCWuXg37muxe/7fnz+CAQQ6WoEAVI9zFDPBGFfY/
+	CrsuXHoZ8JRJpcM8nDYrfh2sQjnE+vJYrgBpaNZzYQ3PLzINLROa4XS+4Zw91me/5yA2b5VHfY8
+	L6i3IslF0e/e42aRskkGHog+QXnhzDSNhrCgZl19MdDPW+VEv6l7VqHC7YcfzTSj7GQ==
+X-Received: by 2002:a81:35c2:: with SMTP id c185mr3093695ywa.158.1555828750898;
+        Sat, 20 Apr 2019 23:39:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTM0U10tyEWF1DQv8IcZ0LIKXTwEwY8aSnWcPO9fmWqwxJ54Lc6fJh7o0wm6CO8Qr4iRXF
+X-Received: by 2002:a81:35c2:: with SMTP id c185mr3093676ywa.158.1555828750215;
+        Sat, 20 Apr 2019 23:39:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555828750; cv=none;
         d=google.com; s=arc-20160816;
-        b=GwndR9z4AANqaNYAM2KlgV9+OaVOgkFJV0Lo60y0oJrLPugE0yZJ/WLWeNXj7Hro0p
-         mIMKsIXrRBmCI2unDpiW8gSTGo7JquHB13QcO2pUQx1FH2403G4c3xNiGsSXtEwMoD0V
-         ORenKBNHu90Ku3kdp0Hz/F1mva7wbSbG9+G8v4nT4DcodKb3W1gDOlydsjjkbZqSBIxL
-         UUGjLNrYM5e2WkxC3YsL5hXkTozpWHsUyvN5HaSQ8XrrR/qiNX1HLGxU1eLIhHmBJt0r
-         7sFEK6DFnXBaVCJKDoBdXiqO4Y0A/KcOPa97z+9PPRdT3jHuVNNv6UaejSwbo5uMCI7P
-         8cRw==
+        b=Dje8pXs+iovEGNbgg+DrF7QtFnh/rhCjFSXQMmI6X4cRqkAk0IW/H3VVpVaUWB8J3U
+         Qz+hAWpn5eB0pbrEq735U5FMDAPY88LEY5G9HcHGgMUIJNnJkeJCs7S+to8gRQzKKJMQ
+         0WIXpvg1b0HS69YDzHSmrt61Js8Cte6a7HPcZQ+S44IVH/N8JzTyWKytgYbP83YYZteB
+         xIOPuv1zisPSveL6fqssGq5WXPTGRafiio1vBPfndD3954FqB9s24zEPsK7fwUVtJ5z4
+         d8TQIlLjhpSYzVecq0XS7pPwDyjF/keILvycdWQhZcFLTjPTO/3pV3G4I27f22LCMuxe
+         TpbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:to:from:dkim-signature;
-        bh=KL328kJp7uYop/CaXZcmGRKfoBkXK0v1G+nukTp5itg=;
-        b=caJAuZ5rD0xCv3UBjrrHJ3JZ/6UUTrrvnztz+zieNBsOwsMDCuKHfJRK6e/jFEc9mq
-         WgogqzVktBF5gpk0lZsmsf72uSC6X1Y9Wy+CxySGece9tOdbTF9b5ih49vztKyWIGoAd
-         qxFG71sqi6+jQ+7LjhGLWJf8n104IRddfoKY5Qsm1oDJoqS8WK7WhSN1qcnbpX3aGY4F
-         Tz7CJ3lb1Xw8h6BEZdFMwa8P+1Kfi1w9OVRWIm6dtbYSXbzVbU5FWS7BmBB+CXcxeW2E
-         A+s19UAfqceVoibi7dfDhZhinaA+crRkzd+KB9OGn2nnsxufM42hN5GWJ5D//e2+AAe+
-         9x0g==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=NrbLKYy6uwy+++ZsjXno1V8y3/i0EexFCyHxsdB+Qmc=;
+        b=00uKEUviECQy9QgcR1391rP2pWpeG0ZlDqDyz2bJPKVY8pQvcnXflcq+qqW+/uythX
+         YwkZ7AFenmgpM61mlHusmegdDYdOxdVr+bD36cBsQ3UNMmBEmqtDwpa/hM80jJ6EuwIS
+         QzlyucHTCgo4/ygkuIIXYY1TAuuomc1VysVH92tGlAYDzp3JWHq2o1/8Da/s5triieOm
+         gTwJBAdqnqlSQlpatf3AqQMKtjwsxg7DTGGfuKYrDH/O22YwXkcQ36T5M0wpVxSCib5q
+         0lPaloWF9c29VRs5jP/kiY0YZZCK4WTZ9lsx7ayNNtWJB6YPczBREc0cFT5ThPMhua+7
+         ieKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b="ZcOj6/tW";
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m4sor10901215qte.56.2019.04.20.18.44.35
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 192si6692653ywe.291.2019.04.20.23.39.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 20 Apr 2019 18:44:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b="ZcOj6/tW";
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=from:to:subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=KL328kJp7uYop/CaXZcmGRKfoBkXK0v1G+nukTp5itg=;
-        b=ZcOj6/tWBZki8VSTYWIx2hC0zATUWkFU1OTXUPmLys73YN2QUPVmWMkCAzisCIphb4
-         lagFcRl0UAa1+nKpZPFW6/ywAODOoC2ElJuMxdMZK+n/MVj6NLUv0dZbEJuUtuqfRbAG
-         2vQO7zgIlXc6foQWwNvVaXJ4cmOF6Nv1Mbrym5SdV+qbCVa1vCnbCbAIPeojIxSuiyzv
-         alULIAAU7iGCTj9LS/VnbEzAzTbYgUAZW4UQycLNdEUtMMs7BATfDuCFjGJGPJtHwATa
-         X1SGiIiiccfzYurY/yFrS0TMcM5+2hTPgZVtuHjsxwv960+2M26QfeQOg2ZSfR+OrX9P
-         Nihw==
-X-Google-Smtp-Source: APXvYqwLrbFXWXl4ushQLhaJbuTDu4grdgvxRuAMcypo1JTsKGB8Q7Xxy+bv6W6dd9hWBd51O4WhFg==
-X-Received: by 2002:ac8:1776:: with SMTP id u51mr436168qtk.151.1555811075671;
-        Sat, 20 Apr 2019 18:44:35 -0700 (PDT)
-Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
-        by smtp.gmail.com with ESMTPSA id u1sm1385218qtj.50.2019.04.20.18.44.34
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Apr 2019 18:44:34 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-To: pasha.tatashin@soleen.com,
-	jmorris@namei.org,
-	sashal@kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-nvdimm@lists.01.org,
-	akpm@linux-foundation.org,
-	mhocko@suse.com,
-	dave.hansen@linux.intel.com,
-	dan.j.williams@intel.com,
-	keith.busch@intel.com,
-	vishal.l.verma@intel.com,
-	dave.jiang@intel.com,
-	zwisler@kernel.org,
-	thomas.lendacky@amd.com,
-	ying.huang@intel.com,
-	fengguang.wu@intel.com,
-	bp@suse.de,
-	bhelgaas@google.com,
-	baiyaowei@cmss.chinamobile.com,
-	tiwai@suse.de,
-	jglisse@redhat.com
-Subject: [v2 2/2] device-dax: "Hotremove" persistent memory that is used like normal RAM
-Date: Sat, 20 Apr 2019 21:44:29 -0400
-Message-Id: <20190421014429.31206-3-pasha.tatashin@soleen.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190421014429.31206-1-pasha.tatashin@soleen.com>
-References: <20190421014429.31206-1-pasha.tatashin@soleen.com>
+        Sat, 20 Apr 2019 23:39:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3L6XWFn113102
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 02:39:09 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s0gqekwgj-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 02:39:08 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 21 Apr 2019 07:39:06 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sun, 21 Apr 2019 07:39:03 +0100
+Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3L6d2FV52625588
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sun, 21 Apr 2019 06:39:02 GMT
+Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 35FB952052;
+	Sun, 21 Apr 2019 06:39:02 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id 6B7BA52050;
+	Sun, 21 Apr 2019 06:39:01 +0000 (GMT)
+Date: Sun, 21 Apr 2019 09:38:59 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mikulas Patocka <mpatocka@redhat.com>,
+        James Bottomley <James.Bottomley@hansenpartnership.com>,
+        linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+        Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+        linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190419140521.GI7751@bombadil.infradead.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19042106-0016-0000-0000-00000271078B
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042106-0017-0000-0000-000032CD6817
+Message-Id: <20190421063859.GA19926@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-21_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=460 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904210050
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It is now allowed to use persistent memory like a regular RAM, but
-currently there is no way to remove this memory until machine is
-rebooted.
+On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
+> On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
+> > DISCONTIG is essentially deprecated and even parisc plans to move to
+> > SPARSEMEM so there is no need to be fancy, this patch simply disables
+> > watermark boosting by default on DISCONTIGMEM.
+> 
+> I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
+> scenarios.  Grepping the arch/ directories shows:
+> 
+> alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
+> arc (for supporting more than 1GB of memory)
+> ia64 (looks complicated ...)
+> m68k (for multiple chunks of memory)
+> mips (does support NUMA but also non-NUMA)
+> parisc (both NUMA and non-NUMA)
 
-This work expands the functionality to also allows hotremoving
-previously hotplugged persistent memory, and recover the device for use
-for other purposes.
-
-To hotremove persistent memory, the management software must first
-offline all memory blocks of dax region, and than unbind it from
-device-dax/kmem driver. So, operations should look like this:
-
-echo offline > echo offline > /sys/devices/system/memory/memoryN/state
-...
-echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
-
-Note: if unbind is done without offlining memory beforehand, it won't be
-possible to do dax0.0 hotremove, and dax's memory is going to be part of
-System RAM until reboot.
-
-Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
----
- drivers/dax/dax-private.h |  2 +
- drivers/dax/kmem.c        | 91 +++++++++++++++++++++++++++++++++++++--
- 2 files changed, 89 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
-index a45612148ca0..999aaf3a29b3 100644
---- a/drivers/dax/dax-private.h
-+++ b/drivers/dax/dax-private.h
-@@ -53,6 +53,7 @@ struct dax_region {
-  * @pgmap - pgmap for memmap setup / lifetime (driver owned)
-  * @ref: pgmap reference count (driver owned)
-  * @cmp: @ref final put completion (driver owned)
-+ * @dax_mem_res: physical address range of hotadded DAX memory
-  */
- struct dev_dax {
- 	struct dax_region *region;
-@@ -62,6 +63,7 @@ struct dev_dax {
- 	struct dev_pagemap pgmap;
- 	struct percpu_ref ref;
- 	struct completion cmp;
-+	struct resource *dax_kmem_res;
- };
+i386 NUMA as well
  
- static inline struct dev_dax *to_dev_dax(struct device *dev)
-diff --git a/drivers/dax/kmem.c b/drivers/dax/kmem.c
-index 4c0131857133..d4896b281036 100644
---- a/drivers/dax/kmem.c
-+++ b/drivers/dax/kmem.c
-@@ -71,21 +71,104 @@ int dev_dax_kmem_probe(struct device *dev)
- 		kfree(new_res);
- 		return rc;
- 	}
-+	dev_dax->dax_kmem_res = new_res;
- 
- 	return 0;
- }
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+/*
-+ * Check that device-dax's memory_blocks are offline. If a memory_block is not
-+ * offline a warning is printed and an error is returned. dax hotremove can
-+ * succeed only when every memory_block is offlined beforehand.
-+ */
-+static int
-+offline_memblock_cb(struct memory_block *mem, void *arg)
-+{
-+	struct device *mem_dev = &mem->dev;
-+	bool is_offline;
-+
-+	device_lock(mem_dev);
-+	is_offline = mem_dev->offline;
-+	device_unlock(mem_dev);
-+
-+	if (!is_offline) {
-+		struct device *dev = (struct device *)arg;
-+		unsigned long spfn = section_nr_to_pfn(mem->start_section_nr);
-+		unsigned long epfn = section_nr_to_pfn(mem->end_section_nr);
-+		phys_addr_t spa = spfn << PAGE_SHIFT;
-+		phys_addr_t epa = epfn << PAGE_SHIFT;
-+
-+		dev_warn(dev, "memory block [%pa-%pa] is not offline\n",
-+			 &spa, &epa);
-+
-+		return -EBUSY;
-+	}
-+
-+	return 0;
-+}
-+
-+static int dev_dax_kmem_remove(struct device *dev)
-+{
-+	struct dev_dax *dev_dax = to_dev_dax(dev);
-+	struct resource *res = dev_dax->dax_kmem_res;
-+	resource_size_t kmem_start;
-+	resource_size_t kmem_size;
-+	unsigned long start_pfn;
-+	unsigned long end_pfn;
-+	int rc;
-+
-+	/*
-+	 * dax kmem resource does not exist, means memory was never hotplugged.
-+	 * So, nothing to do here.
-+	 */
-+	if (!res)
-+		return 0;
-+
-+	kmem_start = res->start;
-+	kmem_size = resource_size(res);
-+	start_pfn = kmem_start >> PAGE_SHIFT;
-+	end_pfn = start_pfn + (kmem_size >> PAGE_SHIFT) - 1;
-+
-+	/*
-+	 * Walk and check that every singe memory_block of dax region is
-+	 * offline
-+	 */
-+	lock_device_hotplug();
-+	rc = walk_memory_range(start_pfn, end_pfn, dev, offline_memblock_cb);
-+	unlock_device_hotplug();
-+
-+	/*
-+	 * If admin has not offlined memory beforehand, we cannot hotremove dax.
-+	 * Unfortunately, because unbind will still succeed there is no way for
-+	 * user to hotremove dax after this.
-+	 */
-+	if (rc)
-+		return rc;
-+
-+	/* Hotremove memory, cannot fail because memory is already offlined */
-+	remove_memory(dev_dax->target_node, kmem_start, kmem_size);
-+
-+	/* Release and free dax resources */
-+	release_resource(res);
-+	kfree(res);
-+	dev_dax->dax_kmem_res = NULL;
-+
-+	return 0;
-+}
-+#else
- static int dev_dax_kmem_remove(struct device *dev)
- {
- 	/*
--	 * Purposely leak the request_mem_region() for the device-dax
--	 * range and return '0' to ->remove() attempts. The removal of
--	 * the device from the driver always succeeds, but the region
--	 * is permanently pinned as reserved by the unreleased
-+	 * Without hotremove purposely leak the request_mem_region() for the
-+	 * device-dax range and return '0' to ->remove() attempts. The removal
-+	 * of the device from the driver always succeeds, but the region is
-+	 * permanently pinned as reserved by the unreleased
- 	 * request_mem_region().
- 	 */
- 	return 0;
- }
-+#endif /* CONFIG_MEMORY_HOTREMOVE */
- 
- static struct dax_device_driver device_dax_kmem_driver = {
- 	.drv = {
+> I'm not sure that these architecture maintainers even know that DISCONTIGMEM
+> is deprecated.  Adding linux-arch to the cc.
+> 
+
 -- 
-2.21.0
+Sincerely yours,
+Mike.
 
