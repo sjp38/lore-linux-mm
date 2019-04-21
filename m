@@ -2,199 +2,143 @@ Return-Path: <SRS0=izd7=SX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB529C282E1
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 15:24:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFA43C10F14
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 21:16:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69B3520859
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 15:24:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="YkyaWKy5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69B3520859
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 51E1320870
+	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 21:16:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51E1320870
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEF0F6B0003; Sun, 21 Apr 2019 11:24:31 -0400 (EDT)
+	id 8DA146B0003; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9ED36B0006; Sun, 21 Apr 2019 11:24:31 -0400 (EDT)
+	id 863696B0006; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB55C6B0007; Sun, 21 Apr 2019 11:24:31 -0400 (EDT)
+	id 72AE86B0007; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 836346B0003
-	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 11:24:31 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o8so6537306pgq.5
-        for <linux-mm@kvack.org>; Sun, 21 Apr 2019 08:24:31 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8E86B0003
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y4so4921174edo.8
+        for <linux-mm@kvack.org>; Sun, 21 Apr 2019 14:16:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=9op1eYhFbJ9bjqJb16BhG3ik80oPMlMP4bm14U6cZdM=;
-        b=ezbt2kOgelDuWyWUqyY76bttUmQZV2rQOwK0aaU8jEhPePcRHTzznueeAC6J9lxjAb
-         NFvRpuPyGe32mLo0p5TlRZ2q1aSpYe8pZ+Dy/P//wKfAJU/OTDBF80gcqeDAdWKHwKcT
-         F4MqzvTiTMPWB12km5gG0uxQn+9x8hVX8h9Nn5hyijTRnFjjpGdYQUylO6RniV9JUwFp
-         +5q8Ac8dt8L1RErnVdWmb70h3Tgeyg6GpxD4UlhDXKf3r3QVVG7nhxk0hYiJ5q2QrEBR
-         I8k6OXIWlk88bvbdrhOKgs6+8gCCHzfVh89Sazd5esmJhb0VObCv2XIx4Lw0Vat56HD6
-         FQGg==
-X-Gm-Message-State: APjAAAX6yHV3U+Mn5yDh9CgD/IUCaHblDnu2YDpW9LzJLFpLsjvfdWHy
-	1UpsMom2MiOvr0YgYrTe8FHh6mzJ+u4cPykVbEYXjeKn3TO/pvMm0b//aNzfV94gL6DtWH18nNF
-	YIfwi73cH8nZ4DGDsO2LZErNFdFOoX5IFVq6WDG1B3MU7BxaRRp4Fx5VfnjmstTyVnQ==
-X-Received: by 2002:a17:902:1105:: with SMTP id d5mr15501819pla.311.1555860270314;
-        Sun, 21 Apr 2019 08:24:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzhLF9LXBI8ITj+bQgCe80TP9vHMixcu7uPg442nzRSZzc/d6vwp3aPfq1Ehv36JFp8ljBX
-X-Received: by 2002:a17:902:1105:: with SMTP id d5mr15501750pla.311.1555860269429;
-        Sun, 21 Apr 2019 08:24:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555860269; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Z4LorMPRPxWgJ6qu2lCv38u+QKsYqeyCamf3ZQLee70=;
+        b=tjpBtKmDIh+28Sa4P+zajxIILyePnFTUJTeGEIDPZ5NaxdvMzEckVJjLjrVaotM4Ri
+         3U5P5tVKxMeJTf6Bmrv6pS25QrXX3Ay/tchAe2qINGW/zMZK1BYpem1PgBHBb29jP2Nr
+         jED1oosNRIZu+7cD32XNAPQoTgIKhIXsnlXhy5pm8V+XfwgrKEZZFShqox/HE8Z9nn1W
+         pvLs/6LgHRVCNMWILjWzKbc95icYhwU8zxjAKZrwilLCoyzUJLCsJwlijrac/qBKZ0qV
+         SGrvGMB3HDJafQFq9SudQz2JzJ42iqj1a2Y3Ihnex1wo3jjp7DFq5YeyStRnZEh5ekwt
+         e1zw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVmtpwUZ8108nRkZBmO0mm1OzTBoMgHSVTojgrkgS2C7rMRj4+c
+	5oYuLNRjEgI/63zLBtWI2l7K41dkj/sJC3UI3qSGLQoxE58dKjlSu4GOb3gG5lsk9Hg76HwmaIX
+	s7uDwnSH+YaUyskvad2yamTNHqMD72l2RtgZplTCVEG/qfbkAsQeReRgbIBwkWAt6fA==
+X-Received: by 2002:a50:b797:: with SMTP id h23mr10212308ede.133.1555881367614;
+        Sun, 21 Apr 2019 14:16:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmsW5HGJsDKrNF3NwyByVOOtE5bCltc6ket2PMxehEL5PaTzRKyMDV6h4/XcJXGrzfFSPd
+X-Received: by 2002:a50:b797:: with SMTP id h23mr10212278ede.133.1555881366757;
+        Sun, 21 Apr 2019 14:16:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555881366; cv=none;
         d=google.com; s=arc-20160816;
-        b=bq13Zjvcoh1QJcV2YLjQ2Q2w6Ilts097KWHqfPQFRYsbBnr1uZyQH8HL3/LKZXwJv1
-         dyuEDzPQ5mMgInGABwFd69xuWW9UnucEc2t7zHYBZ+0elwBtKZL2oQi/h+gcS6k8GiAX
-         DWRSrGLeXfSCAlZvAaa4mSEqYZEACxqqfiXtdJU3ir41WMooKha/ZGDvM80zK1UociJA
-         qgzIeSqT3eWZiqFO9edgu4qEJ2/BPhjZiGfnLegvbaDUFTMoj5dBfZX4lyTykrzT7oip
-         d3pmWcx/g2BTjZiH3NNzsFj7VzDKwWaTTOqhqP1cKYhRipXAEy0OgDucgHW3j+XZJUdP
-         y5Hw==
+        b=YYM4C5agSKWqanU0vi2FUsoE5/lMvXbN2B9p5Sh+lBXOKLFuwWn1N8RWLKiMDB6inX
+         klGD93x7IUHmx2QLvD2dszZfFMK1gGn8hzvx/JjfHQEJxcId2xRQgBVm/pusf15XiiKw
+         2E+peH492Jc0ACuqlHhlP/yBmfuNs2BXgXnt8Ly8HxsXwpYZc59s4olojueu9r9m4/cw
+         MX9u0uBTjWCmbpddYB/t9vTtyeNxInvh+ZWBJNnn63TgIqwAilJnZTl1skEpBVdaympa
+         5lYdiQQhQmRFDgGc5YmWH3gHpz2DwRtdBTXxzh64FmhcbD3XUAqvkfYYwX6IXjkwDZN5
+         +o5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=9op1eYhFbJ9bjqJb16BhG3ik80oPMlMP4bm14U6cZdM=;
-        b=fWCs0v7hWC0XSNQktykjOW58B8EF3LFSfvpHQLEaZtxIzSefabHCll4RfwDElWljkK
-         g+TjEuDJoi0SqB6spoxLkKCiqiQcSmi0zf7+WKi0itcgj5aDFgNwXYNwyaHp1/2HXg1i
-         4BvDDCS2xfAImyDxQNcaYE68sdV5yvoIH5l3xDkllHGk5rCy2f0hMzJJzvEqXMBminmU
-         ntPgCF+8dsb6HjM/H18nsun0KWVIiADgyDoEPzSk8R4/T0MD2FR9Qisc5iBl2TZAA1XC
-         pANXLlncNHdeZo0Q7Dc8V6Tq0PUNT5UUjFJZRZMQi88ePrKjaJtK74nsqOY3f4VW6dmC
-         ahDA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Z4LorMPRPxWgJ6qu2lCv38u+QKsYqeyCamf3ZQLee70=;
+        b=Iqdvexr6I3sPJwwg/+liqsdY8Dfx4Gv/d9RSluCZvMBwqQELuhceQPm5HlZQFcrGAB
+         +OBtatHNcReK7Y/I4ql4V0BfAwGIv+HfUBRskiM6uqN5skhdTGkvEdwncnijp6VWHN+/
+         OOorFVVoWg2tnrcap+67Haw0gQx1jc3CS9+eGKe57qoXF2LtIIFbLUJyoWHq5KMHGIlH
+         ANv7OTZxGE37rUoVV4R5Lr5/P9F495QK0vMLMfIglgRqcqqqZoPDf6nkXTFs+ALAfusy
+         W8uvUdOo9k0ZvHe9Q5ypngFG6o1nQPTaPw/QHFY2+9wFvJAN4hpRxndnymsYJyjTmOz/
+         PN7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YkyaWKy5;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y22si11750004pfo.49.2019.04.21.08.24.29
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
+        by mx.google.com with ESMTPS id d2si1689307edb.202.2019.04.21.14.16.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 21 Apr 2019 08:24:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 21 Apr 2019 14:16:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) client-ip=81.17.249.7;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YkyaWKy5;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=9op1eYhFbJ9bjqJb16BhG3ik80oPMlMP4bm14U6cZdM=; b=YkyaWKy5g6a2/qgjt1qeWio4N
-	O4OL1HXCtDpdqrQuupSyXk0skuJv1XiuLaqyPjV7U3jD6POU+qkM55wEDT4rWszfjZQ20oUA0+mWv
-	Dsn+3uU9gUnMxofW7ueVl7mZVGXsp3Pp9xSg7K8ColR04ta3KSssfzw98wtU17GeE8YkdbFoBdLOE
-	PUpfnvtmWSFkcTaK562to/jAXRQbUMynqFO+lkkih0ruMIP6bjH7xATY4Qbef2yiMXv7k/7uHvYCA
-	YmiHLxbYkrzMwPXvm5ko/7Kx07UM3eviDVdYmWY5ENPU/wkBRNZSnbck9yBX6aUYbfjjSwI5llTuc
-	DNtw/dt5A==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIEKL-0003yr-Sh; Sun, 21 Apr 2019 15:24:26 +0000
-Subject: Re: arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to
- `followparent_recalc'
-To: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org,
- linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
- Linux Memory Management List <linux-mm@kvack.org>, paul.mundt@gmail.com,
- Rich Felker <dalias@libc.org>, Linux-sh list <linux-sh@vger.kernel.org>
-References: <201904201516.DdPznV5M%lkp@intel.com>
- <fb6880d2-06a4-cec2-e12c-c526d3a4358a@infradead.org>
- <87sgubcvoj.wl-ysato@users.sourceforge.jp>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <a7b17eb8-349f-298c-2e82-895a70b201ac@infradead.org>
-Date: Sun, 21 Apr 2019 08:24:21 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id 48D7398B1E
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 21:16:06 +0000 (UTC)
+Received: (qmail 12317 invoked from network); 21 Apr 2019 21:16:06 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 21 Apr 2019 21:16:06 -0000
+Date: Sun, 21 Apr 2019 22:16:04 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mikulas Patocka <mpatocka@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+Message-ID: <20190421211604.GN18914@techsingularity.net>
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190421063859.GA19926@rapoport-lnx>
+ <20190421132606.GJ7751@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <87sgubcvoj.wl-ysato@users.sourceforge.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190421132606.GJ7751@bombadil.infradead.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/21/19 6:52 AM, Yoshinori Sato wrote:
-> On Sun, 21 Apr 2019 04:34:36 +0900,
-> Randy Dunlap wrote:
->>
->> On 4/20/19 12:40 AM, kbuild test robot wrote:
->>> Hi Randy,
->>>
->>> It's probably a bug fix that unveils the link errors.
->>>
->>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
->>> head:   371dd432ab39f7bc55d6ec77d63b430285627e04
->>> commit: acaf892ecbf5be7710ae05a61fd43c668f68ad95 sh: fix multiple function definition build errors
->>> date:   2 weeks ago
->>> config: sh-allmodconfig (attached as .config)
->>> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
->>> reproduce:
->>>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>>         chmod +x ~/bin/make.cross
->>>         git checkout acaf892ecbf5be7710ae05a61fd43c668f68ad95
->>>         # save the attached .config to linux build tree
->>>         GCC_VERSION=7.2.0 make.cross ARCH=sh 
->>
->> Hi,
->>
->> Once again, the question is the validity of the SH2 .config file in this case
->> (that was attached).
->>
->> I don't believe that it is valid because CONFIG_SH_DEVICE_TREE=y,
->> which selects COMMON_CLK, and there is no followparent_recalc() in the
->> COMMON_CLK API.
->>
->> Also, while CONFIG_HAVE_CLK=y, drivers/sh/Makefile prevents that from
->> building clk/core.c, which could provide followparent_recalc():
->>
->> ifneq ($(CONFIG_COMMON_CLK),y)
->> obj-$(CONFIG_HAVE_CLK)			+= clk/
->> endif
->>
->> Hm, maybe that's where the problem is.  I'll look into that more.
->>
+On Sun, Apr 21, 2019 at 06:26:07AM -0700, Matthew Wilcox wrote:
+> On Sun, Apr 21, 2019 at 09:38:59AM +0300, Mike Rapoport wrote:
+> > On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
+> > > On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
+> > > > DISCONTIG is essentially deprecated and even parisc plans to move to
+> > > > SPARSEMEM so there is no need to be fancy, this patch simply disables
+> > > > watermark boosting by default on DISCONTIGMEM.
+> > > 
+> > > I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
+> > > scenarios.  Grepping the arch/ directories shows:
+> > > 
+> > > alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
+> > > arc (for supporting more than 1GB of memory)
+> > > ia64 (looks complicated ...)
+> > > m68k (for multiple chunks of memory)
+> > > mips (does support NUMA but also non-NUMA)
+> > > parisc (both NUMA and non-NUMA)
+> > 
+> > i386 NUMA as well
 > 
-> Yes.
-> Selected target (CONFIG_SH_7619_SOLUTION_ENGINE) is non devicetree
-> and used superh specific clk modules.
-> So allyesconfig output is incorrect.
-> 
-> I fixed Kconfig to output the correct config.
+> I clearly over-trimmed.  The original assumption that Mel had was that
+> DISCONTIGMEM => NUMA, and that's not true on the above six architectures.
+> It is true on i386 ;-)
 
-Thanks for that.
-The patch fixes this problem in my builds.
+32-bit NUMA systems should be non-existent in practice. The last NUMA
+system I'm aware of that was both NUMA and 32-bit only died somewhere
+between 2004 and 2007. If someone is running a 64-bit capable system in
+32-bit mode with NUMA, they really are just punishing themselves for fun.
 
-However, now I see these build errors:
-
-ERROR: "__ashiftrt_r4_28" [fs/udf/udf.ko] undefined!
-ERROR: "__ashiftrt_r4_26" [drivers/rtc/rtc-x1205.ko] undefined!
-ERROR: "__ashiftrt_r4_25" [drivers/rtc/rtc-pcf2123.ko] undefined!
-ERROR: "__ashiftrt_r4_28" [drivers/net/wireless/realtek/rtl8xxxu/rtl8xxxu.ko] undefined!
-ERROR: "__ashiftrt_r4_25" [drivers/input/tablet/gtco.ko] undefined!
-ERROR: "__ashiftrt_r4_26" [drivers/input/mouse/psmouse.ko] undefined!
-ERROR: "__ashiftrt_r4_28" [drivers/input/mouse/psmouse.ko] undefined!
-ERROR: "__ashiftrt_r4_25" [drivers/iio/pressure/bmp280.ko] undefined!
-ERROR: "__ashiftrt_r4_26" [drivers/iio/dac/ad5764.ko] undefined!
-ERROR: "__ashiftrt_r4_26" [drivers/iio/accel/mma7660.ko] undefined!
-ERROR: "__ashiftrt_r4_25" [drivers/iio/accel/dmard06.ko] undefined!
-ERROR: "__ashiftrt_r4_26" [drivers/iio/accel/bma220_spi.ko] undefined!
-ERROR: "__ashiftrt_r4_25" [drivers/crypto/hisilicon/sec/hisi_sec.ko] undefined!
-
-Is this just a toolchain problem?
-
-I am using the gcc 8.1.0 tools from
-https://mirrors.edge.kernel.org/pub/tools/crosstool/
-
-
-thanks.
 -- 
-~Randy
+Mel Gorman
+SUSE Labs
 
