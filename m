@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3896C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 19:00:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16563C282E1
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 19:00:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B616206A3
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 19:00:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B616206A3
+	by mail.kernel.org (Postfix) with ESMTP id C24A5218CD
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 19:00:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C24A5218CD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 383176B027C; Mon, 22 Apr 2019 15:00:19 -0400 (EDT)
+	id 6B5EC6B027E; Mon, 22 Apr 2019 15:00:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 331656B027E; Mon, 22 Apr 2019 15:00:19 -0400 (EDT)
+	id 68C736B0280; Mon, 22 Apr 2019 15:00:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F8F96B027F; Mon, 22 Apr 2019 15:00:19 -0400 (EDT)
+	id 557E06B0281; Mon, 22 Apr 2019 15:00:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D93406B027C
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 15:00:18 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so8111191pfn.8
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 12:00:18 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF166B027E
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 15:00:25 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id l13so8487575pgp.3
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 12:00:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=TdxUBqKvjD04gvlVW2fqTrr9rgpG7ttN99ifXgy4wJ0=;
-        b=LA7FUm0Bf7Ix8i1chPcq7KDAmrTG+LZLC6aPWNmEbR9ffwJ7ki04ATCBq2sAS6g8Fr
-         L/aMOi49/r6HXXNYxVoMxsoyAkcKeQTJUQ+psT41RMAS09dlPGQ0XiZe6sO83aClrd9n
-         chXC6Q0W6gtWMdlceI3Jbd4bZ4AMNMSw64z3b6cQ91OlfjHN32whtdKy7daNb+9p8J7U
-         +ljrf5ATFxDP1n1ZK8tkqoIzFOQn22UiP5HE6vk437ZZYlaT7YJSS9NmoXwVXWPVN8WN
-         SGvIg7NjJmcpTzVmCPgv36rL6/lCp+mpirFdm/sd2Dz6q9r/X4cbd7l561wi+FwJXIuR
-         sYYQ==
+        bh=RkWBxdSztj8rR+UGwRQ8u46DAnXrPhDoGJsRNKYizGU=;
+        b=VdASqhthpj4VS6NLcapUoEyp6tgrMpSthZKYjHgccMx1zs9VxlLXx+ZtyZfErWCiPZ
+         Zj9CIoQlim6lkEIZTkb5HCMfleMIqRdlKc9eBsp2D3kuZ1/fIw4EPGK/XDX97i8ibRf1
+         ZIe+Pw3H/HxPehkDQCBurgJl8yasfNP94Y8dH0Gnu7qQx6ttPUZBBIezk3zwIYChNQb8
+         Apve4+60o0M9E9247DIcpj7HFPaGtobU6YcvMRxEU2yZJ1cmTCjsAx40yem4JJkvZG6i
+         1qPn94kTlFKrIMDdZCFThdL0Rrxbhrp7OK18VYmJwF/lw9Odt+Zde9b0KEYctKc2HodN
+         AL+A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAURAXeRQXiLdYylK9HLtfhzWNXtFuvlxRCuD39E56XvjcB39Bs3
-	hjfs1pxhLZchWKM2uVTEweHlS1wJDIpGvEY+WSqryddQccD301mE2XBUE5sNdqNExGB8414PZlA
-	UqMuOMjrLdaOvoLRoV4uJlcB11CpdU3tzqWF9CAlYdn5Mxyoigv6gUL6zjMOzPWu0tQ==
-X-Received: by 2002:a62:8381:: with SMTP id h123mr21594925pfe.226.1555959618536;
-        Mon, 22 Apr 2019 12:00:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybgitSf8nYF6r0XiOi/2fRNRM2IGuVliv4NY+Q5+zGy7K3LBH9EkBSpr9zPEez3ZNC9V9s
-X-Received: by 2002:a62:8381:: with SMTP id h123mr21588233pfe.226.1555959524629;
-        Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555959524; cv=none;
+X-Gm-Message-State: APjAAAWZBURu8KrZuhueSTwezR7ECwE4BpdFKZDeUU3kqv8Fl9ROlvCB
+	GSDbOfMTX/y4J7PXvV15I6YRKvpe5O8uE4lF6bnm+sxdFjlU/Rp5jlDDy/9/o93fu8vlkO9HCet
+	8xTIknHF7/4H3b+UOxXeXfdAnDePrcnl1zez93ambshftJv9zwx336W2jTLEwTdhrHA==
+X-Received: by 2002:a63:5c43:: with SMTP id n3mr20180971pgm.163.1555959624770;
+        Mon, 22 Apr 2019 12:00:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyq8i+iaBrpWDs/gLIxeVTK0hYKvXj0Xhz7MZttV//COV7qyNeh56KMj/Wx0yyU4gX+Xnv2
+X-Received: by 2002:a63:5c43:: with SMTP id n3mr20174252pgm.163.1555959523841;
+        Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555959523; cv=none;
         d=google.com; s=arc-20160816;
-        b=otacb2kMBFuYAx0qKOlXG6dqFKXmQ40HYoxiSNu+GNIui+FArlK1qoRMRfwZhxEjiY
-         6ULRtWdBGQ2jdX/CsywUdUN+y+YieGP5fR7Hr9+dAoH6yO2JfsPLpdGzpYwu20H7vm3h
-         t3Zf3VwH730QLeXKi2fbQbx/xPEav8oZwAvu+0VhOOEt9bZMMFMD3c72D163TV8IsvXW
-         p7djFiXzTvhWFFsqOhKh6NKl+Ybdj18njA67XIQRTcfEN9PoqneEXXOnA7Ja72Y/DPHp
-         SusoC1+U2iALlKBAbZXk/bvw7oAKGyPc5ApCnxskvppLviBttfHet71K7BxwnPFjT1Ip
-         r+3Q==
+        b=bv+/fk5bAlNhlK/W930uUylm+AgOV8X+5x7p+fHGO06/5erbxtEG6vufdHSS2pcpeT
+         Q/wGFhlhIdMNPdpezQdQ4V0n4RNdilkiDKEyowqyw8QTDSEDsBf8LWDBfpe17ozuC74B
+         E8wAV0/X3vhJnG1YzYxUNHCfe/rMy6V8FiqZdxCF9wXjJHFZL4+BEqV7SM9Z0iKtwMOi
+         PfQx+B5lcZcpShfFOf21arltXBhicgs0f4rbp7Sd/wIowwTKGOd33jtN3ggClmw1r/RM
+         tFyF8v/s5x6CcIDYwQd/3CrkkNNPNZKlmnm3D0zoJ+4ogKN3ybeZOquzVsri9VkkLsDt
+         +pfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=TdxUBqKvjD04gvlVW2fqTrr9rgpG7ttN99ifXgy4wJ0=;
-        b=wgTOUpq3gX+dbLIEPzPceNdAL5xfp4mS8BWmYXKNmZHV5yG+EC/wmlxQvhLonKg5U6
-         nOLq/va5483IL/CU+zfTPci+H11Fwju1X7TujN+oaYbWk85J5eh31EokvjV0PoI9sjOH
-         xDRBwzjOuTGPvKDVKToA4AbxKBzFQdl8FutCbvnmUVRUY/IEFy0HE/20G6CNRm83XdOJ
-         GEHkUT4+YMu6wsCCXrNJ8lhFIx9/pj/Y8uNsY9a/SUYg2GXfAFov+1Xg3CiBSbLHRlxJ
-         Y1Mz7r6gCutrEvWCDlQvwOZuueGeip+aNLHoxIrntYHoDuGnzuVbj7byd+2aNGbTWUC0
-         6d1A==
+        bh=RkWBxdSztj8rR+UGwRQ8u46DAnXrPhDoGJsRNKYizGU=;
+        b=TVSEstu7BVfrf3xqhJDJhG7L0Q5E9CSNKaXl90jUedpMog2Mze/q4UdTd2OW05UgWL
+         RRaGq76qWImsem3ZHNGpZMDMk/s7p4bwJnHz7nrJZtrZPFZQV84tHYGvr96Pf+nFwIuA
+         f/SWew0vnmAVJqHZxk0ziAX905CDMbquK4yOzu09v6QBpRzLgn+VCNqLEfP4ild+dK2t
+         oLW69Mv+3MhmW9MW13VDCDX5avy+1qU2Xq3PKPUjl2b8gb82xkF8vi3OgfvFskstC4p1
+         +/ZnSlwQxXg/DGScnaV1aV/No1/T2RI3/m+eV4At6ZuBbksxs7o+IMGWcWeAMfbwhLpT
+         Xekw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id w15si615875pga.591.2019.04.22.11.58.44
+        by mx.google.com with ESMTPS id a20si5314305pgb.421.2019.04.22.11.58.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
+        Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:42 -0700
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417185"
+   d="scan'208";a="136417155"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:42 -0700
+  by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Borislav Petkov <bp@alien8.de>,
 	Andy Lutomirski <luto@kernel.org>,
@@ -107,12 +107,13 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
-	Daniel Borkmann <daniel@iogearbox.net>,
-	Alexei Starovoitov <ast@kernel.org>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 23/23] bpf: Fail bpf_probe_write_user() while mm is switched
-Date: Mon, 22 Apr 2019 11:58:05 -0700
-Message-Id: <20190422185805.1169-24-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 13/23] x86/alternative: Remove the return value of text_poke_*()
+Date: Mon, 22 Apr 2019 11:57:55 -0700
+Message-Id: <20190422185805.1169-14-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -124,53 +125,91 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-When using a temporary mm, bpf_probe_write_user() should not be able to
-write to user memory, since user memory addresses may be used to map
-kernel memory.  Detect these cases and fail bpf_probe_write_user() in
-such cases.
+The return value of text_poke_early() and text_poke_bp() is useless.
+Remove it.
 
-Cc: Daniel Borkmann <daniel@iogearbox.net>
-Cc: Alexei Starovoitov <ast@kernel.org>
-Reported-by: Jann Horn <jannh@google.com>
-Suggested-by: Jann Horn <jannh@google.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- kernel/trace/bpf_trace.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ arch/x86/include/asm/text-patching.h |  4 ++--
+ arch/x86/kernel/alternative.c        | 11 ++++-------
+ 2 files changed, 6 insertions(+), 9 deletions(-)
 
-diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
-index d64c00afceb5..94b0e37d90ef 100644
---- a/kernel/trace/bpf_trace.c
-+++ b/kernel/trace/bpf_trace.c
-@@ -14,6 +14,8 @@
- #include <linux/syscalls.h>
- #include <linux/error-injection.h>
+diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
+index a75eed841eed..c90678fd391a 100644
+--- a/arch/x86/include/asm/text-patching.h
++++ b/arch/x86/include/asm/text-patching.h
+@@ -18,7 +18,7 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
+ #define __parainstructions_end	NULL
+ #endif
  
-+#include <asm/tlb.h>
-+
- #include "trace_probe.h"
- #include "trace.h"
+-extern void *text_poke_early(void *addr, const void *opcode, size_t len);
++extern void text_poke_early(void *addr, const void *opcode, size_t len);
  
-@@ -163,6 +165,10 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
- 	 * access_ok() should prevent writing to non-user memory, but in
- 	 * some situations (nommu, temporary switch, etc) access_ok() does
- 	 * not provide enough validation, hence the check on KERNEL_DS.
-+	 *
-+	 * nmi_uaccess_okay() ensures the probe is not run in an interim
-+	 * state, when the task or mm are switched. This is specifically
-+	 * required to prevent the use of temporary mm.
+ /*
+  * Clear and restore the kernel write-protection flag on the local CPU.
+@@ -37,7 +37,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
+ extern void *text_poke(void *addr, const void *opcode, size_t len);
+ extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
+ extern int poke_int3_handler(struct pt_regs *regs);
+-extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
++extern void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+ extern int after_bootmem;
+ extern __ro_after_init struct mm_struct *poking_mm;
+ extern __ro_after_init unsigned long poking_addr;
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index 3d2b6b6fb20c..18f959975ea0 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -265,7 +265,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
+ 
+ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
+ extern s32 __smp_locks[], __smp_locks_end[];
+-void *text_poke_early(void *addr, const void *opcode, size_t len);
++void text_poke_early(void *addr, const void *opcode, size_t len);
+ 
+ /*
+  * Are we looking at a near JMP with a 1 or 4-byte displacement.
+@@ -667,8 +667,8 @@ void __init alternative_instructions(void)
+  * instructions. And on the local CPU you need to be protected again NMI or MCE
+  * handlers seeing an inconsistent instruction while you patch.
+  */
+-void *__init_or_module text_poke_early(void *addr, const void *opcode,
+-				       size_t len)
++void __init_or_module text_poke_early(void *addr, const void *opcode,
++				      size_t len)
+ {
+ 	unsigned long flags;
+ 
+@@ -691,7 +691,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+ 		 * that causes hangs on some VIA CPUs.
+ 		 */
+ 	}
+-	return addr;
+ }
+ 
+ __ro_after_init struct mm_struct *poking_mm;
+@@ -893,7 +892,7 @@ NOKPROBE_SYMBOL(poke_int3_handler);
+  *	  replacing opcode
+  *	- sync cores
+  */
+-void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
++void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+ {
+ 	unsigned char int3 = 0xcc;
+ 
+@@ -935,7 +934,5 @@ void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+ 	 * the writing of the new instruction.
  	 */
- 
- 	if (unlikely(in_interrupt() ||
-@@ -170,6 +176,8 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
- 		return -EPERM;
- 	if (unlikely(uaccess_kernel()))
- 		return -EPERM;
-+	if (unlikely(!nmi_uaccess_okay()))
-+		return -EPERM;
- 	if (!access_ok(unsafe_ptr, size))
- 		return -EPERM;
+ 	bp_patching_in_progress = false;
+-
+-	return addr;
+ }
  
 -- 
 2.17.1
