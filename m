@@ -6,69 +6,69 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0840DC10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9937FC10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1D7C218D3
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1D7C218D3
+	by mail.kernel.org (Postfix) with ESMTP id 683B8217D4
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 683B8217D4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6DEC6B000D; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 117256B0006; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA8456B0008; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 002CF6B026B; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 888EA6B000E; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id A5F1A6B0006; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 13B3F6B000C
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3C36B0006
 	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o1so8457710pgv.15
+Received: by mail-pg1-f200.google.com with SMTP id e14so8196988pgg.12
         for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=+opaO1awQtWXl9ApsaZ/rgEyOZ23bi+ZXWhS2cx66gg=;
-        b=VLacFO/eRYx3xU+8yGgqaapuX1dBkkTpOKfIsqcAdS3CBx8MqeYz8h1EOhmd/TbaC6
-         wATSwEtWvhUIGWqEbTH7EFLZU375Ec2GgfggGTUveyeIgrQ/i1aMqbm5IWEC0YXZZH3v
-         t3dI8PsTA8Fzk9sXl2jXAc/P2OA7aqIGs/GcT2Gid18WGjAdFHNQpucQWDoXsob5saem
-         tFkiIesFbCU2tHFiW5ysdaY3EpZk23j7GFKq6JrW2fvujviZQbataowQjrDVKAnD4fJL
-         KuyIgmlz49iZn7drVPoUdtTDtu6llFAvGk7ObF5wTekpcXvRfrtqSePIezRybQF8NR24
-         QYHg==
+        bh=Y4ax2hOd4Buhijx/oNSuXPhWpslJbmlh2LJYha9eHFk=;
+        b=cOHSf8SDOjOCCn0xUf5xre6sOmrV2u06McI6rxqRJQT4/Kv1jwX4TK+AX2tbEIYgNq
+         AEA2bYA+7TurL2d42jzIdOobsrmsEFDS5p/DGT3TOBpMqZ7kRdrzGn36e3DcbS3qUUWC
+         aDQ/M28n7S5/K//uKmUKC5zAvQ35d+HrdqfBalSa8Dh200bRcYJ8DcNS6T+FIrdH3sRP
+         SrMgsVa1I3n2FY4EoKLfpH3Mf/bpkGxCwB5ydb+Ll3hxmko7ZORPlum3dmSDV7kNfPZQ
+         eg8N/XoNp3xpdnMGd23omCRSh3SGb+ZU9Z01vuO9Pz0Y8XCjbVipZCDQGoABmmB6v07B
+         /oLA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWOOlsLZBSU3SBXT+pRS/ZOTVw6DkmY+7W5NEr00pP9+o3Qy4dB
-	z6Met1eL1/kAVek6BHW/4wHJphSlJSvURYjlgOe4+eRxTfSBucieDgBrbkVTrJrZbFEcJ3C85Cp
-	8xqp0k1r+PxB0Dg8Qlh9/oibi9OgiqEaqu9SgATli03BH6CWTy5LNO9GgJQ7Sc4hNYA==
-X-Received: by 2002:a65:4802:: with SMTP id h2mr18937043pgs.98.1555959523726;
+X-Gm-Message-State: APjAAAX9HeyiyZp1hk+wkbo6QMHjgwdWW7rs/MD+PtxRTGD2WAgKFh+d
+	pt/MYhE7ZPXMGmhdQQdAjlrAuh04M//peCIm17dzXsGyS1EY4TdJECa0uqmB9cDHf1sG+yA6OXf
+	+iCGpEJYczR0wqSKFdxJ8AUxuhjtFzyDfEeD569NpYYAsds8dSOuAcMxsl/O5/a7mYw==
+X-Received: by 2002:a63:fd49:: with SMTP id m9mr20238026pgj.16.1555959523481;
         Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKJo+cK5HWrFUB2d3Y5F0DvfXrbxgp96JQUE5a8z1blVUH6mZsH6AASeHpcbRxytVhBRP6
-X-Received: by 2002:a65:4802:: with SMTP id h2mr18936993pgs.98.1555959522802;
+X-Google-Smtp-Source: APXvYqwhbjsUZ6D5GgJQ14xg07i4WhP6ruHS3XoNeDnaVh/2kiHf4l36uWcfoQG27DtuKsnjr3Jn
+X-Received: by 2002:a63:fd49:: with SMTP id m9mr20237976pgj.16.1555959522571;
         Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555959522; cv=none;
         d=google.com; s=arc-20160816;
-        b=SKZzqELvL+K1Abb2dArXvVRcJwDqtyF9gQMjmT0sx4nR7xKsNfZNwcpDA9EMPeIVLX
-         IeYZxiH8Ui3a7nfU16jsor7Ge+x/USbQvBi6OAtq6oHW6PF9pstK4OVhsaYCZTJBeDZr
-         iLROlrqgqOIdUY5hihtmIxuNbNFTVY+ZLEotdB9q0cFwB8JVv0oFH6kUvVs+0UkMIDjE
-         3NPs2JLdS2NOzMUvV5t1HfjPU5Gu2YucB4iEhLVFigioSKjoZxEkqTyB86UBV189adJw
-         BhULmicBZ+D06QNyh6NxRH6VrPatbdNSRPjIS7MW0zfMgAinI2Rm4In4y/xWtwAjYWvu
-         T+ng==
+        b=FxQxErtYL1nhWG3UATS5FB7BKyYyYpoSqTQ+cjfFaxeU1hIyJZsl3UkZopT4j7Q7zG
+         nQlmAwAm6qBq0QywqOwhe+UAuBVzSJ7S+p7zMKjLAQFL2N2gr0Gc+F29/nsNQYBP2Den
+         M3kR4IBbXM04C8Nipz0gh/59QLSbhlCmhrvDxyZG4WKV/kwObwtsP6rNJDJbjhTdj10N
+         e6glP93c+8O7KWN7qjdzTRATJE7DuzFuzjEgiiLFe+VeWp3DBtEhSklo838hclM8DodR
+         xRwl9ZLr0IsJ1dCfws2kCG5unDR5bILNxlhHwevFFRF+SSyGkoJzZD8uXYgvSM4rOegy
+         s9lQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=+opaO1awQtWXl9ApsaZ/rgEyOZ23bi+ZXWhS2cx66gg=;
-        b=H7WUJPHGSJxxZbo6Abp+/lM6hzrt4Vu8j9Bk7d1mbR7WMZh7MTGy6jygjUDsbKiqcT
-         g4IjK5Wyxlpb+6Nj2uWDEUe2tJc74dTGVeQG9PLTohAU11baK8lYOhzRAQCutMb5ll+Z
-         gfY+1FA8LV+JWRo0PZGrXy40uGHXo86cO3y+1bZsl4eOBFYnmNm23jzURiGvaJVsvnk2
-         NSLDvGf6NfGmUQ7XcL3rUNU1YBTbS+rc9XVgAiuNNeMAVHAKnvSDEapN/RfUeMTbrKgY
-         vLNuZIggnoZr4EpsQ8csPOIlFzQuLhhEQ4476RVvQmbLLtkjrN2l2BAAJe0naFMnJMrr
-         KJNQ==
+        bh=Y4ax2hOd4Buhijx/oNSuXPhWpslJbmlh2LJYha9eHFk=;
+        b=N+QAZKYaQlM86OogavV30KiFsEd5hSfD3AJ8vd2zU0yHHD3gI1AxlYlp1XVzN8XY/Q
+         svYz1N6WJMDB6WmD6jwxHV38RAYa5ZxAhbf9xERfMRw8OMNuC0OlAQ1b6NfKtKpmCa24
+         Pnw0g51+AFLUQvnTBlUn8WNjxFDzoQHWu45q4qMOYJc3YVauYiMQ7xLCwk3+b9px4ILY
+         NTbXytQ1oTeX5NGZiL4v75ZRMsfAFe3ll+FkLcpeOjmhqlgJ5rO8OAsmSXGwHx3o64j3
+         Y3cBF5uakPgmYuZ2Xb8Fh5amOc7n4BtAwEzQLgtu9Vi4Hv8lc4WOmvCg+tI/mjbzCUsE
+         Hy8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a20si5314305pgb.421.2019.04.22.11.58.42
+        by mx.google.com with ESMTPS id a2si12975117pgn.530.2019.04.22.11.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
@@ -82,7 +82,7 @@ Received: from orsmga008.jf.intel.com ([10.7.209.65])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417131"
+   d="scan'208";a="136417122"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
   by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -109,10 +109,11 @@ Cc: linux-kernel@vger.kernel.org,
 	Nadav Amit <namit@vmware.com>,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 05/23] fork: Provide a function for copying init_mm
-Date: Mon, 22 Apr 2019 11:57:47 -0700
-Message-Id: <20190422185805.1169-6-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 02/23] x86/jump_label: Use text_poke_early() during early init
+Date: Mon, 22 Apr 2019 11:57:44 -0700
+Message-Id: <20190422185805.1169-3-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -124,85 +125,43 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Provide a function for copying init_mm. This function will be later used
-for setting a temporary mm.
+There is no apparent reason not to use text_poke_early() during
+early-init, since no patching of code that might be on the stack is done
+and only a single core is running.
+
+This is required for the next patches that would set a temporary mm for
+text poking, and this mm is only initialized after some static-keys are
+enabled/disabled.
 
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
 Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
-Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- include/linux/sched/task.h |  1 +
- kernel/fork.c              | 24 ++++++++++++++++++------
- 2 files changed, 19 insertions(+), 6 deletions(-)
+ arch/x86/kernel/jump_label.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
-index 2e97a2227045..f1227f2c38a4 100644
---- a/include/linux/sched/task.h
-+++ b/include/linux/sched/task.h
-@@ -76,6 +76,7 @@ extern void exit_itimers(struct signal_struct *);
- extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
- extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
- struct task_struct *fork_idle(int);
-+struct mm_struct *copy_init_mm(void);
- extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
- extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
+diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
+index f99bd26bd3f1..e7d8c636b228 100644
+--- a/arch/x86/kernel/jump_label.c
++++ b/arch/x86/kernel/jump_label.c
+@@ -50,7 +50,12 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 	jmp.offset = jump_entry_target(entry) -
+ 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
  
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 9dcd18aa210b..099cca8f701c 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1298,13 +1298,20 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
- 		complete_vfork_done(tsk);
- }
+-	if (early_boot_irqs_disabled)
++	/*
++	 * As long as only a single processor is running and the code is still
++	 * not marked as RO, text_poke_early() can be used; Checking that
++	 * system_state is SYSTEM_BOOTING guarantees it.
++	 */
++	if (system_state == SYSTEM_BOOTING)
+ 		poker = text_poke_early;
  
--/*
-- * Allocate a new mm structure and copy contents from the
-- * mm structure of the passed in task structure.
-+/**
-+ * dup_mm() - duplicates an existing mm structure
-+ * @tsk: the task_struct with which the new mm will be associated.
-+ * @oldmm: the mm to duplicate.
-+ *
-+ * Allocates a new mm structure and duplicates the provided @oldmm structure
-+ * content into it.
-+ *
-+ * Return: the duplicated mm or NULL on failure.
-  */
--static struct mm_struct *dup_mm(struct task_struct *tsk)
-+static struct mm_struct *dup_mm(struct task_struct *tsk,
-+				struct mm_struct *oldmm)
- {
--	struct mm_struct *mm, *oldmm = current->mm;
-+	struct mm_struct *mm;
- 	int err;
- 
- 	mm = allocate_mm();
-@@ -1371,7 +1378,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
- 	}
- 
- 	retval = -ENOMEM;
--	mm = dup_mm(tsk);
-+	mm = dup_mm(tsk, current->mm);
- 	if (!mm)
- 		goto fail_nomem;
- 
-@@ -2186,6 +2193,11 @@ struct task_struct *fork_idle(int cpu)
- 	return task;
- }
- 
-+struct mm_struct *copy_init_mm(void)
-+{
-+	return dup_mm(NULL, &init_mm);
-+}
-+
- /*
-  *  Ok, this is the main fork-routine.
-  *
+ 	if (type == JUMP_LABEL_JMP) {
 -- 
 2.17.1
 
