@@ -2,197 +2,190 @@ Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 213B5C10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 21:29:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E04EBC282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 21:36:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CCC0F20675
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 21:29:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Boh3XzRN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCC0F20675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 9B0822075A
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 21:36:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B0822075A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6BD016B0003; Mon, 22 Apr 2019 17:29:30 -0400 (EDT)
+	id 6905B6B0003; Mon, 22 Apr 2019 17:36:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 693F06B0006; Mon, 22 Apr 2019 17:29:30 -0400 (EDT)
+	id 667CE6B0006; Mon, 22 Apr 2019 17:36:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 583396B0007; Mon, 22 Apr 2019 17:29:30 -0400 (EDT)
+	id 554C66B0007; Mon, 22 Apr 2019 17:36:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 331956B0003
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 17:29:30 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id r14so6136569vkd.18
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:29:30 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B9B6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 17:36:24 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id g7so11494973qkb.7
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:36:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=j6ZNX8PzZTc2KzrAqgh1Ng4laLRheQ1IuJOBZqlb3Bs=;
-        b=O03UBlaLSvFLQ79VOWOsCZ9uz3NGML8MSDM+5Rcp8gzlpnCe2v4B/ngOA62m3TgE8C
-         lXpQQe/y+bcjR4TgP0Qh9K5d7NJoPItP60vqXwRg/I8xkyD1MSS3CG1UMgHrcsLbE9fE
-         /Qt6VQmC6+GDc4I0YCiETLf4zpINRdNeeZ2vKqE+Snb2mG97rCBteO1ryvAwrM3Gu/Qv
-         r2tGQ1gEqHcqKHm1SgkXRTwKDf4TcHPSg+/XZ5WjajisooiRq/M/CRY6EuVrBMVZxD0b
-         AQUE5WqgnXDFUDDTKgqZJK8fSPDpJTmEZhOtIProST/pkTgywLkbLot57G+HN7jwhbWI
-         1ZEQ==
-X-Gm-Message-State: APjAAAVkVIwLAxpSAsetNbpKbhW1lvrq3EOxwwkVziL/FrhhhxTCE/SO
-	0ajOP471QWLdfH6phuzWT6WidAlq4nTwcJZS4az/xWYiVSX4qGzi4uwGr5W3z/gASHrmDHnbDds
-	hzq75oA49rsZD/uBNQ0Kh9gEjkffHkoXukyCA3lahRGe89V/9Yui00YTTukTvjmCI0A==
-X-Received: by 2002:a05:6102:201:: with SMTP id z1mr11015806vsp.43.1555968569855;
-        Mon, 22 Apr 2019 14:29:29 -0700 (PDT)
-X-Received: by 2002:a05:6102:201:: with SMTP id z1mr11015772vsp.43.1555968569026;
-        Mon, 22 Apr 2019 14:29:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555968569; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=8Ec0BDC3SDr2CWg/mc5y7+eafRA+gLLv0ir1dY0Kvfg=;
+        b=re9eJ9qme46xdV1DIByi9TyWgtaMKE49VL997CYYps4a1TIiqt7uqf/OT0yLEzhMHE
+         2TTxwgYaVQiLg87MxdACvvEq3GduVy+AQQyTNaQSqz9ceBaBgWtXC2Kqw1Hmc4IW/g4t
+         fGsX6Qh57gYKxTFJ9t3iS/WhT0gF1DaV8nL3bsJ4TAA1IGkncwmaqOID/pEXhBJ2a20t
+         FMaG4VzmbcVzhSy1BOIOSt14Pdh2j0kRVWkqDn21h6GX+b4t1cnSsU8Bz5cHrvvVpIiW
+         Xqz6RXCE3C5mKqnNRJrJhndhIkCSw4oMOEHKYVNkvscRF6fNxcq5hj7hCWlXu1M3IKIJ
+         flwg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV3lOJNWOJ2qyNCCFaYiDat5ncXZH+LynTQplMzWimIBwWDtuOt
+	mc7DY3jROI6SH1IBGpli+TJPG3grcMTgvT/nnvQkWXrXKZPIkunVaXRxN0aPAjwChUbJxU639FS
+	Q39XzWeK9faGW4CGG36feYSlkkI0di0E9tfv9ZdZ/1YgNNTBnD0zOiBELpV/5lSrBkA==
+X-Received: by 2002:ad4:5291:: with SMTP id v17mr5775246qvr.76.1555968983982;
+        Mon, 22 Apr 2019 14:36:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz9vRfqHsj+C63lraYbHd1hthXXKjJ1Lv8vWxZz8Lq8UZn0Ey3wXbPbEoBXhxPh7N6If2T+
+X-Received: by 2002:ad4:5291:: with SMTP id v17mr5775198qvr.76.1555968983097;
+        Mon, 22 Apr 2019 14:36:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555968983; cv=none;
         d=google.com; s=arc-20160816;
-        b=HB2WwkLX+tsoosG4c8xjpVCEwrdaoIjuCipfYMlsYzGR5VSgi4kcXJ9WEP/0iE9IC9
-         nisP7AatoSvgYckEwOSlduJff4s72ZTE2I7Pnarkpy8NVbJrQY/D0jwmV+LPbdpyJOSv
-         dVhgBCAU4Xg7aZxzJlW9MzZrABbyBCNoJ+2cHvEJjjPaL+rTXXJ+PSQuIErveIcderxj
-         bXRUkaTSAsVPcxe+RHddvrW5XuSER9Ouk7rQUgkfSffHOUX7CG9BFbBNk9gVeYuCvy/Y
-         9E1u/UY7QQNzQfGm3H+/niY0uo6ZTQpteWETJzqvKhzK7+OkWxolt9fwM0MfE+N/Eh6N
-         R5tw==
+        b=HU/BmlmTvBFsUvslpE0y9TfxAnOxio1cSprU+DhkFYEgpzpf/jvQ+ZtHgPkSXKY0pS
+         M+CBe/VamWvdfYwp9kesNfdLqSprzlVgFQbqX9m0t3Wx4kdD2sxJOkt3ZqgBrL61LSEI
+         b1iFLJ6MFOKUGISIigcFYbw/SVzXyJkJYjfsm1+yqycWxJnPsdcoVcdaklUeWlSoUbKy
+         lz9A1mXiPMe/f37k0UyLracU5JIruzW3iI19uP2INukblDl4qA08fIBJJrHDcpICterj
+         5XuTWigt/rpaT36RbMoycGLOGABmYujQJGexm0xCzwthO2c8KBuaokH/ozzDdtkLgdfQ
+         pW3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=j6ZNX8PzZTc2KzrAqgh1Ng4laLRheQ1IuJOBZqlb3Bs=;
-        b=DO0TIreP3usV9n96O1lfkT9tKbnXJzAH0M4jFa7Dxd+9A7qoW7TOGhUCxkrcXD6+Vi
-         BoxMxuKpTIH/lYpUjcvh+ARSDeWu7mDoHeD5JY3HKNkLwp7Xs9IPtByCeySLRpoODJ3w
-         pVO8qfO1nKCtGJAKXjmGgb2d36AU5HraUs0ZHm81iCqUa9pQQWJ78gyxLtrIA5aQtiJ5
-         eYD3YMQmei4fcwLEIkvC5bkRL+PVM/F6aEYkNqYWfi9bvDC1LY2pTrEFxdfoB8Xl/Bi6
-         wnEXELODhhZcOiCfp1ddxKH3d9j3xXoMVyy3+Z0/wUFma+ilfZUeeXwO40GlpHA9v5XS
-         e5QA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=8Ec0BDC3SDr2CWg/mc5y7+eafRA+gLLv0ir1dY0Kvfg=;
+        b=qK5THwh2Dmh1I6DR7DPPJo6EZVo2naAsCAH6wVsTv/VlCR8iWgKRNT+wpJQCwElMFH
+         k54Bo/bVsj2Mro1F5kUTtkGSU5HtoZV2VIwmjbpspLvkC8FY/CaqCekd/eStAYBKezOe
+         ZYq0EVeraaBc94mgJpnQzqUXVgsN452hAAjNQLCErhKJChSmKhleS37b1PNk27/hGFee
+         Hnz5p0CUY85J28I0O6O2lQviYeiKQy2IC5j0BZvoNgpb1S4Z8vJ0VcBiuibroyh1GHlE
+         TGWKVPSSRX5qea2ErmrR1BttSgkvQ778cx0R+BvNmfhRQyvWovHBQWyCeCRL9b4dHVIr
+         qrsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Boh3XzRN;
-       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l23sor4765973vkl.56.2019.04.22.14.29.28
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u51si5292900qtj.25.2019.04.22.14.36.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Apr 2019 14:29:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Apr 2019 14:36:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Boh3XzRN;
-       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=j6ZNX8PzZTc2KzrAqgh1Ng4laLRheQ1IuJOBZqlb3Bs=;
-        b=Boh3XzRNxD117G85f/L05gtwAnDAfHoPs9C1FhzigFYfOnfP0eH2Ibrg1KsROyHkXG
-         E5FokjelGfi7bsSOKsnu/qDQybbKcNTShOUMhOPHQUSZLq3sTgesj44PcT+sLLvcP0u1
-         0zprQt1JN4vP4+kxx0XnT7UE+8fflPPsY81LEbfMtNSQFyD/dmCc6KkcEq7RHfflccuJ
-         k7oxWsl6T6plZHXzE7oObRUH+TJBP6n7E8Xh9mkAtD3F0D5QHEPkcEPDVzor0meP454r
-         ivW5OATTTiYvx8CEC+AWPGD54CmOlxJRr3T9iS5AqO1cuZY4F8dg8Bfqa3XGFY4IJ/lb
-         1TkQ==
-X-Google-Smtp-Source: APXvYqyayLq7fveYwsVJYv2RL6WtmqgCh4VRowXNECgcbX8d5XclmkCqh6hazJDdUL3SB6G8DBLVF2TroVADzI3hjsU=
-X-Received: by 2002:a1f:a0d2:: with SMTP id j201mr11280429vke.37.1555968568316;
- Mon, 22 Apr 2019 14:29:28 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
-In-Reply-To: <20190416134522.17540-1-ldufour@linux.ibm.com>
-From: Michel Lespinasse <walken@google.com>
-Date: Mon, 22 Apr 2019 14:29:16 -0700
-Message-ID: <CANN689F1h9XoHPzr_FQY2WfN5bb2TTd6M3HLqoJ-DQuHkNbA7g@mail.gmail.com>
-Subject: Re: [PATCH v12 00/31] Speculative page faults
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5F1213092650;
+	Mon, 22 Apr 2019 21:36:21 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 94B225D9D4;
+	Mon, 22 Apr 2019 21:36:13 +0000 (UTC)
+Date: Mon, 22 Apr 2019 17:36:11 -0400
+From: Jerome Glisse <jglisse@redhat.com>
 To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, 
-	Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, 
-	Andi Kleen <ak@linux.intel.com>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, 
-	Matthew Wilcox <willy@infradead.org>, aneesh.kumar@linux.ibm.com, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, mpe@ellerman.id.au, 
-	Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, 
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, sergey.senozhatsky.work@gmail.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, 
-	Daniel Jordan <daniel.m.jordan@oracle.com>, David Rientjes <rientjes@google.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, 
-	Minchan Kim <minchan@kernel.org>, Punit Agrawal <punitagrawal@gmail.com>, 
-	vinayak menon <vinayakm.list@gmail.com>, Yang Shi <yang.shi@linux.alibaba.com>, 
-	zhong jiang <zhongjiang@huawei.com>, Haiyan Song <haiyanx.song@intel.com>, 
-	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com, 
-	Mike Rapoport <rppt@linux.ibm.com>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, 
-	Nick Piggin <npiggin@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, 
-	Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
+	kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
+	jack@suse.cz, Matthew Wilcox <willy@infradead.org>,
+	aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
+	mpe@ellerman.id.au, paulus@samba.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
+	Will Deacon <will.deacon@arm.com>,
+	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
+	sergey.senozhatsky.work@gmail.com,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
+	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
+	David Rientjes <rientjes@google.com>,
+	Ganesh Mahendran <opensource.ganesh@gmail.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Punit Agrawal <punitagrawal@gmail.com>,
+	vinayak menon <vinayakm.list@gmail.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	zhong jiang <zhongjiang@huawei.com>,
+	Haiyan Song <haiyanx.song@intel.com>,
+	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
+	Michel Lespinasse <walken@google.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
+	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
+	linuxppc-dev@lists.ozlabs.org, x86@kernel.org,
+	Vinayak Menon <vinmenon@codeaurora.org>
+Subject: Re: [PATCH v12 23/31] mm: don't do swap readahead during speculative
+ page fault
+Message-ID: <20190422213611.GN14666@redhat.com>
+References: <20190416134522.17540-1-ldufour@linux.ibm.com>
+ <20190416134522.17540-24-ldufour@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190416134522.17540-24-ldufour@linux.ibm.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Mon, 22 Apr 2019 21:36:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Laurent,
+On Tue, Apr 16, 2019 at 03:45:14PM +0200, Laurent Dufour wrote:
+> Vinayak Menon faced a panic because one thread was page faulting a page in
+> swap, while another one was mprotecting a part of the VMA leading to a VMA
+> split.
+> This raise a panic in swap_vma_readahead() because the VMA's boundaries
+> were not more matching the faulting address.
+> 
+> To avoid this, if the page is not found in the swap, the speculative page
+> fault is aborted to retry a regular page fault.
+> 
+> Reported-by: Vinayak Menon <vinmenon@codeaurora.org>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 
-Thanks a lot for copying me on this patchset. It took me a few days to
-go through it - I had not been following the previous iterations of
-this series so I had to catch up. I will be sending comments for
-individual commits, but before tat I would like to discuss the series
-as a whole.
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-I think these changes are a big step in the right direction. My main
-reservation about them is that they are additive - adding some complexity
-for speculative page faults - and I wonder if it'd be possible, over the
-long term, to replace the existing complexity we have in mmap_sem retry
-mechanisms instead of adding to it. This is not something that should
-block your progress, but I think it would be good, as we introduce spf,
-to evaluate whether we could eventually get all the way to removing the
-mmap_sem retry mechanism, or if we will actually have to keep both.
+Note that you should also skip non swap entry in do_swap_page() when doing
+speculative page fault at very least you need to is_device_private_entry()
+case.
 
+But this should either be part of patch 22 or another patch to fix swap
+case.
 
-The proposed spf mechanism only handles anon vmas. Is there a
-fundamental reason why it couldn't handle mapped files too ?
-My understanding is that the mechanism of verifying the vma after
-taking back the ptl at the end of the fault would work there too ?
-The file has to stay referenced during the fault, but holding the vma's
-refcount could be made to cover that ? the vm_file refcount would have
-to be released in __free_vma() instead of remove_vma; I'm not quite sure
-if that has more implications than I realize ?
-
-The proposed spf mechanism only works at the pte level after the page
-tables have already been created. The non-spf page fault path takes the
-mm->page_table_lock to protect against concurrent page table allocation
-by multiple page faults; I think unmapping/freeing page tables could
-be done under mm->page_table_lock too so that spf could implement
-allocating new page tables by verifying the vma after taking the
-mm->page_table_lock ?
-
-The proposed spf mechanism depends on ARCH_HAS_PTE_SPECIAL.
-I am not sure what is the issue there - is this due to the vma->vm_start
-and vma->vm_pgoff reads in *__vm_normal_page() ?
-
-
-My last potential concern is about performance. The numbers you have
-look great, but I worry about potential regressions in PF performance
-for threaded processes that don't currently encounter contention
-(i.e. there may be just one thread actually doing all the work while
-the others are blocked). I think one good proxy for measuring that
-would be to measure a single threaded workload - kernbench would be
-fine - without the special-case optimization in patch 22 where
-handle_speculative_fault() immediately aborts in the single-threaded case.
-
-Reviewed-by: Michel Lespinasse <walken@google.com>
-This is for the series as a whole; I expect to do another review pass on
-individual commits in the series when we have agreement on the toplevel
-stuff (I noticed a few things like out-of-date commit messages but that's
-really minor stuff).
-
-
-I want to add a note about mmap_sem. In the past there has been
-discussions about replacing it with an interval lock, but these never
-went anywhere because, mostly, of the fact that such mechanisms were
-too expensive to use in the page fault path. I think adding the spf
-mechanism would invite us to revisit this issue - interval locks may
-be a great way to avoid blocking between unrelated mmap_sem writers
-(for example, do not delay stack creation for new threads while a
-large mmap or munmap may be going on), and probably also to handle
-mmap_sem readers that can't easily use the spf mechanism (for example,
-gup callers which make use of the returned vmas). But again that is a
-separate topic to explore which doesn't have to get resolved before
-spf goes in.
+> ---
+>  mm/memory.c | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 6e6bf61c0e5c..1991da97e2db 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2900,6 +2900,17 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+>  				lru_cache_add_anon(page);
+>  				swap_readpage(page, true);
+>  			}
+> +		} else if (vmf->flags & FAULT_FLAG_SPECULATIVE) {
+> +			/*
+> +			 * Don't try readahead during a speculative page fault
+> +			 * as the VMA's boundaries may change in our back.
+> +			 * If the page is not in the swap cache and synchronous
+> +			 * read is disabled, fall back to the regular page
+> +			 * fault mechanism.
+> +			 */
+> +			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+> +			ret = VM_FAULT_RETRY;
+> +			goto out;
+>  		} else {
+>  			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
+>  						vmf);
+> -- 
+> 2.21.0
+> 
 
