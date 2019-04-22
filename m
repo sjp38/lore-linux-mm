@@ -2,174 +2,105 @@ Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1305EC10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 16:38:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EC91C10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 17:09:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5563214AE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 16:38:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5563214AE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id DB585214AF
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 17:09:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB585214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54BC96B0006; Mon, 22 Apr 2019 12:38:01 -0400 (EDT)
+	id 4E6CA6B0003; Mon, 22 Apr 2019 13:09:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D48A6B0007; Mon, 22 Apr 2019 12:38:01 -0400 (EDT)
+	id 4952F6B0006; Mon, 22 Apr 2019 13:09:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 376246B0008; Mon, 22 Apr 2019 12:38:01 -0400 (EDT)
+	id 3AD126B0007; Mon, 22 Apr 2019 13:09:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 149F36B0006
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 12:38:01 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id w1so56904itk.4
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 09:38:01 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 007076B0003
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 13:09:07 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id z7so8348168pgc.1
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 10:09:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=x2ZIiqWU/I1OpVuCFizQaPJmUnwt8MtEvuDELdX4JTY=;
-        b=YSFpVd1vMeDicINYZYstQ2TZDnzLqyJP0jPOte/PcWMettF+5yFZaOdO8n6H6ghPia
-         KJW9obDYCW4UADOjm0xxXE0idTAW02f18GqZ2y74t2GwP0UALDxHLWzBIGLr4+KsVpf9
-         cXCh/B4DmED0YPulac4USwy4kDq546aZNt9rskiPu2zG5BLLTUymc1pm77lN76+1P+wz
-         aYv0OP34uPuT4BzVEw2LxglFbZ5TbispMdpByzWZ7/jNAClie03zQ2lEoPyXjh1/mJ0k
-         9TmoqHqSGiKmiA2u9NtQG357gVBlvmRmDeGqfIwzCPcKplTKQ5neufP6GxmHGrkls/Vq
-         fA+Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: APjAAAXFGSq3OS/n8Uh8Heo+ZZQmlT3DOdEusqYDezIghsS4ZApHAGo9
-	/ufoOmCRtaBgqy4BwHqKUPFYlHVwO4j+mNJpmDNINxB9AHc8awBv2Ifyw1LiTC6rryby57Q2Jvy
-	y32DjJP76FCnuVMBPtTCUkUr/eGB+0DeWNFzosvUOCNdCoEgtpToV8C7EXXtHmGziIg==
-X-Received: by 2002:a05:6602:20c3:: with SMTP id 3mr5758552ioz.111.1555951080828;
-        Mon, 22 Apr 2019 09:38:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwjs6GIg30m3Bwxukp9inT2dReTU6QeQI9GxnxFyDsPq6IdboQkYGhGm2Fv80cTXahySX5i
-X-Received: by 2002:a05:6602:20c3:: with SMTP id 3mr5758499ioz.111.1555951079896;
-        Mon, 22 Apr 2019 09:37:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555951079; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=d6E3NS1T5kSEsaNcK8m2BxvwxGOXWzN7NnCqMnNbxqw=;
+        b=MVRQ8NMaL93Xq+ymGm+PJF9K9vFFvHGozn8GPuLr8j+rIOr+3tMqG9+4OgWiqHtWys
+         3qiRHDjtsk8cDw/npggcCru1s3RYjFg+2hrrKbNazzdzjyk4UAKhimhyCOrMDJi8GQ4o
+         pg7YCibtHUtrjczd+wbWMNghgc/HBXaixFpIuHCEE0gsNsCtUPsNYbWc1dstMKTfhW7C
+         Dr+5y6b++bYFxfmqM3D+RYYqNTRXzTM9V5U2Wm1e5aHgJeVoIV/9wfXbD4fJ7ZR7/cgc
+         6Z4QbPmgbYH5r4swG7p53mdgqclFZcGr4617N6r6sKTmPjR9PrtqIPZwNNdTAaRXSf/e
+         TExg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVdmLQ7tmf5zj4qVCwzL4RCl+iRtoZ3JOMQxGQdibI1iccgVvTc
+	x4toKND3eHz+q9SKLn4dnWM8WT1ePYFN4L18gKnS2EPxTQ/achpcrnqnI+wQ5dTMeXgKQR0YDpg
+	DPb3WSej7yGKYOrxRIwVHJmBkqh8XjVhwANUVS+pmSEsoFe3tNnTl1G/p7KQ7nCqwFQ==
+X-Received: by 2002:a62:5707:: with SMTP id l7mr22261097pfb.205.1555952947335;
+        Mon, 22 Apr 2019 10:09:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmEk5Dl2Da7GQ8tHGVBPpyoHgFkPVjuxpZknCCcFT3dLqFUKeUEU56FAbqT4pXTkX2HH6F
+X-Received: by 2002:a62:5707:: with SMTP id l7mr22260981pfb.205.1555952946069;
+        Mon, 22 Apr 2019 10:09:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555952946; cv=none;
         d=google.com; s=arc-20160816;
-        b=E05Pbms/VovecP9LJdQ/QVjeUqgAoOROW56msDXTAJlVBE+Mmp7OEQrVvQ4OuO7ch5
-         QFGUynKEh47q8BplLtcSik8TDUoVXvezwW/ne0O+6nxjnBS8dq5PUTS7G3iPoYIHd03o
-         LSq0w/G+eCgERjDWegyCQbNxJrWAR57OQs8q1AhDtKpIgefu6ZgcGkh72VyosqoACCoD
-         Z2WijcH23l98+dvIRrj1mYpt9pm44bkm8UthFyU2gcxjDmRLb2IznFMT9Awbsvi8weAQ
-         fRi9TED/ZqIE596BNl4JyW2vpay6hSAewwE8rZ3DxF9jbFSJ2T7HGRILJysLsMJqcNGw
-         skiQ==
+        b=ISPj7DDmOgZ/Bt32i803+mtQX4uDX74ThImDxUHw1ytYPlL2Acz4WrxeQPCPYWR5YU
+         W/xdZPB19dVV5f9z7yiQq8k+Jp65z+nCUPWekbKd1hqPB7IAWYZ4RhPqOPAQ7LCXnrM2
+         B528axwM3ByHg+xtbC+b6KfddUpiVaOyVEZzGvg7htDqqH64z2EgM4SD76j3byVYlIBo
+         5aChvdWnXW+eI7BtqnQhG7p4xFLVQfTANCagwgGkiuYFHY2CgiqVW7e5UMZWqwyIhFY6
+         7+2ZXb5BbkXYNm7bXWEOg5C7N2hJ1YVytY8av+rkiXC9fDZYlaKwHt8jRhzknrxGpetb
+         N9lA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=x2ZIiqWU/I1OpVuCFizQaPJmUnwt8MtEvuDELdX4JTY=;
-        b=IZm7w67v61VzOgC6Hl3gVEP2aw4J77E86L06SKiUCJTmauZFdw9E9K1biqvpW85w/w
-         3hmDHnDVLVivFZrdkRpqIuQM9doa4DEy/zsgf3MaeeZ5VjMMYaxkitkuEF5c3DcMqgMK
-         rspOyar3ci0DJ3DSjwoWAFQjuTCzkFmnVvFhNYwfKKys/DKS3aH1gSd4mE9zIQjnNMsq
-         PB+//70rTq4WObuXT8N3UQ9jIDLaCvoUBQKDCN22KxpFqvsIHXl0q2Blclnn23jwMJYc
-         G1yFW6Uuw3uqgiYxPe9XgKmWLFHYdpXLHqvyqK4eR5646R0K4klNOyiBCAOCwXfWcuXc
-         99ng==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=d6E3NS1T5kSEsaNcK8m2BxvwxGOXWzN7NnCqMnNbxqw=;
+        b=Dv2HzkX4EeFXfYtVnBpv0+xnS1B8EKBmDcyJ3956h9J/wF7XRXvS0Qmaj8kCsr8r4B
+         LiacuXfQgnWf2zQrcqZXDkSK07kQbYpKxvLEN2h6+nL0iZakpIrUg65Hk+lnY6/RwCHu
+         RZWDR+TOulR8drJknFOyhtLIb2J1y35C3jPutdUT2a0k9RFwdDsoNkgrKbYkkH71kLc0
+         j0M0pUhbXo3Yt5tEhvzmUQKaeDG4+HfLiJVJs+68pCr2U4WjML8r6Zwb6aI5bzk7p+dk
+         KdI7r24EfJXQWp+KWNtPVdUemLFJXt0KvDVsuS2/hAFmrq+ZgEds283VAXzhHGojYstn
+         zynA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id k18si7954046itb.100.2019.04.22.09.37.59
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id k15si14860427pfg.202.2019.04.22.10.09.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 22 Apr 2019 09:37:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Apr 2019 10:09:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from guinness.priv.deltatee.com ([172.16.1.162])
-	by ale.deltatee.com with esmtp (Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1hIbx7-0005wS-NL; Mon, 22 Apr 2019 10:37:58 -0600
-To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>,
- Linux Doc Mailing List <linux-doc@vger.kernel.org>
-Cc: Mauro Carvalho Chehab <mchehab@infradead.org>,
- linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>,
- Johannes Berg <johannes@sipsolutions.net>,
- Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
- Bjorn Helgaas <bhelgaas@google.com>, Alasdair Kergon <agk@redhat.com>,
- Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com,
- Kishon Vijay Abraham I <kishon@ti.com>, Rob Herring <robh+dt@kernel.org>,
- Mark Rutland <mark.rutland@arm.com>,
- Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
- David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
- Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
- Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
- Ning Sun <ning.sun@intel.com>, Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>,
- Alan Stern <stern@rowland.harvard.edu>,
- Andrea Parri <andrea.parri@amarulasolutions.com>,
- Boqun Feng <boqun.feng@gmail.com>, Nicholas Piggin <npiggin@gmail.com>,
- David Howells <dhowells@redhat.com>, Jade Alglave <j.alglave@ucl.ac.uk>,
- Luc Maranget <luc.maranget@inria.fr>,
- "Paul E. McKenney" <paulmck@linux.ibm.com>, Akira Yokosawa
- <akiyks@gmail.com>, Daniel Lustig <dlustig@nvidia.com>,
- "David S. Miller" <davem@davemloft.net>, =?UTF-8?Q?Andreas_F=c3=a4rber?=
- <afaerber@suse.de>, Manivannan Sadhasivam
- <manivannan.sadhasivam@linaro.org>, Cornelia Huck <cohuck@redhat.com>,
- Farhan Ali <alifm@linux.ibm.com>, Eric Farman <farman@linux.ibm.com>,
- Halil Pasic <pasic@linux.ibm.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, Harry Wei
- <harryxiyou@gmail.com>, Alex Shi <alex.shi@linux.alibaba.com>,
- Jerry Hoemann <jerry.hoemann@hpe.com>,
- Wim Van Sebroeck <wim@linux-watchdog.org>, Guenter Roeck
- <linux@roeck-us.net>, Thomas Gleixner <tglx@linutronix.de>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Russell King <linux@armlinux.org.uk>,
- Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
- "James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
- Helge Deller <deller@gmx.de>, Yoshinori Sato <ysato@users.sourceforge.jp>,
- Rich Felker <dalias@libc.org>, Guan Xuetao <gxt@pku.edu.cn>,
- Jens Axboe <axboe@kernel.dk>, Greg Kroah-Hartman
- <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>,
- Arnd Bergmann <arnd@arndb.de>, Matt Mackall <mpm@selenic.com>,
- Herbert Xu <herbert@gondor.apana.org.au>, Corey Minyard <minyard@acm.org>,
- Sumit Semwal <sumit.semwal@linaro.org>,
- Linus Walleij <linus.walleij@linaro.org>,
- Bartosz Golaszewski <bgolaszewski@baylibre.com>,
- Darren Hart <dvhart@infradead.org>, Andy Shevchenko <andy@infradead.org>,
- Stuart Hayes <stuart.w.hayes@gmail.com>, Jaroslav Kysela <perex@perex.cz>,
- Alex Williamson <alex.williamson@redhat.com>,
- Kirti Wankhede <kwankhede@nvidia.com>, Christoph Hellwig <hch@lst.de>,
- Marek Szyprowski <m.szyprowski@samsung.com>,
- Robin Murphy <robin.murphy@arm.com>,
- Steffen Klassert <steffen.klassert@secunet.com>,
- Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
- James Morris <jmorris@namei.org>, "Serge E. Hallyn" <serge@hallyn.com>,
- linux-wireless@vger.kernel.org, linux-pci@vger.kernel.org,
- devicetree@vger.kernel.org, dri-devel@lists.freedesktop.org,
- linux-fbdev@vger.kernel.org, tboot-devel@lists.sourceforge.net,
- linux-arch@vger.kernel.org, netdev@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
- kvm@vger.kernel.org, linux-watchdog@vger.kernel.org,
- linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
- linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
- openipmi-developer@lists.sourceforge.net, linaro-mm-sig@lists.linaro.org,
- linux-gpio@vger.kernel.org, platform-driver-x86@vger.kernel.org,
- iommu@lists.linux-foundation.org, linux-mm@kvack.org,
- kernel-hardening@lists.openwall.com, linux-security-module@vger.kernel.org
-References: <cover.1555938375.git.mchehab+samsung@kernel.org>
- <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <3e26b3a0-bcd3-93a1-d21c-ac1041f93697@deltatee.com>
-Date: Mon, 22 Apr 2019 10:37:35 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=21;SR=0;TI=SMTPD_---0TQ-sYhp_1555952928;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TQ-sYhp_1555952928)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 23 Apr 2019 01:09:02 +0800
+Subject: Re: [PATCH] [v2] x86/mpx: fix recursive munmap() corruption
+To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: rguenther@suse.de, hjl.tools@gmail.com, mhocko@suse.com, vbabka@suse.cz,
+ luto@amacapital.net, x86@kernel.org, akpm@linux-foundation.org,
+ linux-mm@kvack.org, stable@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-um@lists.infradead.org, benh@kernel.crashing.org, paulus@samba.org,
+ mpe@ellerman.id.au, linux-arch@vger.kernel.org, gxt@pku.edu.cn,
+ jdike@addtoit.com, richard@nod.at, anton.ivanov@cambridgegreys.com
+References: <20190419194747.5E1AD6DC@viggo.jf.intel.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <fe0ba8f2-ee2c-4dcc-39e8-629a02ac583c@linux.alibaba.com>
+Date: Mon, 22 Apr 2019 10:08:46 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
+In-Reply-To: <20190419194747.5E1AD6DC@viggo.jf.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 172.16.1.162
-X-SA-Exim-Rcpt-To: linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, platform-driver-x86@vger.kernel.org, linux-gpio@vger.kernel.org, linaro-mm-sig@lists.linaro.org, openipmi-developer@lists.sourceforge.net, linux-crypto@vger.kernel.org, linux-block@vger.kernel.org, sparclinux@vger.kernel.org, linux-sh@vger.kernel.org, linux-parisc@vger.kernel.org, linux-ia64@vger.kernel.org, linux-watchdog@vger.kernel.org, kvm@vger.kernel.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, netdev@vger.kernel.org, linux-arch@vger.kernel.org, tboot-devel@lists.sourceforge.net, linux-fbdev@vger.kernel.org, dri-devel@lists.freedesktop.org, devicetree@vger.kernel.org, linux-pci@vger.kernel.org, linux-wireless@vger.kernel.org, serge@hallyn.com, jmorris@namei.org, re.emese@gmail.com, keescook@chromium.org, steffen.klassert@secunet.com, robin.murphy@arm.com, m.szyprowski@samsung.com, hch@lst.de, kwankh
- ede@nvidia.com, alex.williamson@redhat.com, perex@perex.cz, stuart.w.hayes@gmail.com, andy@infradead.org, dvhart@infradead.org, bgolaszewski@baylibre.com, linus.walleij@linaro.org, sumit.semwal@linaro.org, minyard@acm.org, herbert@gondor.apana.org.au, mpm@selenic.com, arnd@arndb.de, rafael@kernel.org, gregkh@linuxfoundation.org, axboe@kernel.dk, gxt@pku.edu.cn, dalias@libc.org, ysato@users.sourceforge.jp, deller@gmx.de, James.Bottomley@HansenPartnership.com, fenghua.yu@intel.com, tony.luck@intel.com, linux@armlinux.org.uk, x86@kernel.org, hpa@zytor.com, bp@alien8.de, tglx@linutronix.de, linux@roeck-us.net, wim@linux-watchdog.org, jerry.hoemann@hpe.com, alex.shi@linux.alibaba.com, harryxiyou@gmail.com, heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com, pasic@linux.ibm.com, farman@linux.ibm.com, alifm@linux.ibm.com, cohuck@redhat.com, manivannan.sadhasivam@linaro.org, afaerber@suse.de, davem@davemloft.net, dlustig@nvidia.com, akiyks@gmail.com, paulmck@linux.ibm.com, luc.marang
- et@inria.fr, j.alglave@ucl.ac.uk, dhowells@redhat.com, npiggin@gmail.com, boqun.feng@gmail.com, andrea.parri@amarulasolutions.com, stern@rowland.harvard.edu, will.deacon@arm.com, mingo@redhat.com, peterz@infradead.org, ning.sun@intel.com, sean@poorly.run, maxime.ripard@bootlin.com, maarten.lankhorst@linux.intel.com, daniel@ffwll.ch, airlied@linux.ie, b.zolnierkie@samsung.com, mark.rutland@arm.com, robh+dt@kernel.org, kishon@ti.com, dm-devel@redhat.com, snitzer@redhat.com, agk@redhat.com, bhelgaas@google.com, kurt.schwemmer@microsemi.com, johannes@sipsolutions.net, corbet@lwn.net, linux-kernel@vger.kernel.org, mchehab@infradead.org, linux-doc@vger.kernel.org, mchehab+samsung@kernel.org
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST files
- to *.rst
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -178,117 +109,337 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 2019-04-22 7:27 a.m., Mauro Carvalho Chehab wrote:
-
-> 
-> Later patches will move them to a better place and remove the
-> :orphan: markup.
-> 
-> Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+On 4/19/19 12:47 PM, Dave Hansen wrote:
+> Changes from v1:
+>   * Fix compile errors on UML and non-x86 arches
+>   * Clarify commit message and Fixes about the origin of the
+>     bug and add the impact to powerpc / uml / unicore32
+>
+> --
+>
+> This is a bit of a mess, to put it mildly.  But, it's a bug
+> that only seems to have showed up in 4.20 but wasn't noticed
+> until now because nobody uses MPX.
+>
+> MPX has the arch_unmap() hook inside of munmap() because MPX
+> uses bounds tables that protect other areas of memory.  When
+> memory is unmapped, there is also a need to unmap the MPX
+> bounds tables.  Barring this, unused bounds tables can eat 80%
+> of the address space.
+>
+> But, the recursive do_munmap() that gets called vi arch_unmap()
+> wreaks havoc with __do_munmap()'s state.  It can result in
+> freeing populated page tables, accessing bogus VMA state,
+> double-freed VMAs and more.
+>
+> To fix this, call arch_unmap() before __do_unmap() has a chance
+> to do anything meaningful.  Also, remove the 'vma' argument
+> and force the MPX code to do its own, independent VMA lookup.
+>
+> == UML / unicore32 impact ==
+>
+> Remove unused 'vma' argument to arch_unmap().  No functional
+> change.
+>
+> I compile tested this on UML but not unicore32.
+>
+> == powerpc impact ==
+>
+> powerpc uses arch_unmap() well to watch for munmap() on the
+> VDSO and zeroes out 'current->mm->context.vdso_base'.  Moving
+> arch_unmap() makes this happen earlier in __do_munmap().  But,
+> 'vdso_base' seems to only be used in perf and in the signal
+> delivery that happens near the return to userspace.  I can not
+> find any likely impact to powerpc, other than the zeroing
+> happening a little earlier.
+>
+> powerpc does not use the 'vma' argument and is unaffected by
+> its removal.
+>
+> I compile-tested a 64-bit powerpc defconfig.
+>
+> == x86 impact ==
+>
+> For the common success case this is functionally identical to
+> what was there before.  For the munmap() failure case, it's
+> possible that some MPX tables will be zapped for memory that
+> continues to be in use.  But, this is an extraordinarily
+> unlikely scenario and the harm would be that MPX provides no
+> protection since the bounds table got reset (zeroed).
+>
+> I can't imagine anyone doing this:
+>
+> 	ptr = mmap();
+> 	// use ptr
+> 	ret = munmap(ptr);
+> 	if (ret)
+> 		// oh, there was an error, I'll
+> 		// keep using ptr.
+>
+> Because if you're doing munmap(), you are *done* with the
+> memory.  There's probably no good data in there _anyway_.
+>
+> This passes the original reproducer from Richard Biener as
+> well as the existing mpx selftests/.
+>
+> ====
+>
+> The long story:
+>
+> munmap() has a couple of pieces:
+> 1. Find the affected VMA(s)
+> 2. Split the start/end one(s) if neceesary
+> 3. Pull the VMAs out of the rbtree
+> 4. Actually zap the memory via unmap_region(), including
+>     freeing page tables (or queueing them to be freed).
+> 5. Fixup some of the accounting (like fput()) and actually
+>     free the VMA itself.
+>
+> This specific ordering was actually introduced by:
+>
+> 	dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+>
+> during the 4.20 merge window.  The previous __do_munmap() code
+> was actually safe because the only thing after arch_unmap() was
+> remove_vma_list().  arch_unmap() could not see 'vma' in the
+> rbtree because it was detached, so it is not even capable of
+> doing operations unsafe for remove_vma_list()'s use of 'vma'.
+>
+> Richard Biener reported a test that shows this in dmesg:
+>
+> [1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 val:551
+> [1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
+>
+> What triggered this was the recursive do_munmap() called via
+> arch_unmap().  It was freeing page tables that has not been
+> properly zapped.
+>
+> But, the problem was bigger than this.  For one, arch_unmap()
+> can free VMAs.  But, the calling __do_munmap() has variables
+> that *point* to VMAs and obviously can't handle them just
+> getting freed while the pointer is still in use.
+>
+> I tried a couple of things here.  First, I tried to fix the page
+> table freeing problem in isolation, but I then found the VMA
+> issue.  I also tried having the MPX code return a flag if it
+> modified the rbtree which would force __do_munmap() to re-walk
+> to restart.  That spiralled out of control in complexity pretty
+> fast.
+>
+> Just moving arch_unmap() and accepting that the bonkers failure
+> case might eat some bounds tables seems like the simplest viable
+> fix.
+>
+> This was also reported in the following kernel bugzilla entry:
+>
+> 	https://bugzilla.kernel.org/show_bug.cgi?id=203123
+>
+> There are some reports that dd2283f2605 ("mm: mmap: zap pages
+> with read mmap_sem in munmap") triggered this issue.  While that
+> commit certainly made the issues easier to hit, I belive the
+> fundamental issue has been with us as long as MPX itself, thus
+> the Fixes: tag below is for one of the original MPX commits.
+>
+> Reported-by: Richard Biener <rguenther@suse.de>
+> Reported-by: H.J. Lu <hjl.tools@gmail.com>
+> Fixes: dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: x86@kernel.org
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: stable@vger.kernel.org
+> Cc: linuxppc-dev@lists.ozlabs.org
+> Cc: linux-um@lists.infradead.org
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: linux-arch@vger.kernel.org
+> Cc: Guan Xuetao <gxt@pku.edu.cn>
+> Cc: Jeff Dike <jdike@addtoit.com>
+> Cc: Richard Weinberger <richard@nod.at>
+> Cc: Anton Ivanov <anton.ivanov@cambridgegreys.com>
+>
 > ---
->  Documentation/ABI/removed/sysfs-class-rfkill  |  2 +-
->  Documentation/ABI/stable/sysfs-class-rfkill   |  2 +-
->  Documentation/ABI/stable/sysfs-devices-node   |  2 +-
->  Documentation/ABI/testing/procfs-diskstats    |  2 +-
->  Documentation/ABI/testing/sysfs-block         |  2 +-
->  .../ABI/testing/sysfs-class-switchtec         |  2 +-
->  .../ABI/testing/sysfs-devices-system-cpu      |  4 +-
->  .../{DMA-API-HOWTO.txt => DMA-API-HOWTO.rst}  |  2 +
->  Documentation/{DMA-API.txt => DMA-API.rst}    |  8 ++-
->  .../{DMA-ISA-LPC.txt => DMA-ISA-LPC.rst}      |  4 +-
->  ...{DMA-attributes.txt => DMA-attributes.rst} |  2 +
->  Documentation/{IPMI.txt => IPMI.rst}          |  2 +
->  .../{IRQ-affinity.txt => IRQ-affinity.rst}    |  2 +
->  .../{IRQ-domain.txt => IRQ-domain.rst}        |  2 +
->  Documentation/{IRQ.txt => IRQ.rst}            |  2 +
->  .../{Intel-IOMMU.txt => Intel-IOMMU.rst}      |  2 +
->  Documentation/PCI/pci.txt                     |  8 +--
->  Documentation/{SAK.txt => SAK.rst}            |  2 +
->  Documentation/{SM501.txt => SM501.rst}        |  2 +
->  .../admin-guide/kernel-parameters.txt         |  6 +-
->  Documentation/admin-guide/l1tf.rst            |  2 +-
->  .../{atomic_bitops.txt => atomic_bitops.rst}  |  2 +
->  Documentation/block/biodoc.txt                |  2 +-
->  .../{bt8xxgpio.txt => bt8xxgpio.rst}          |  2 +
->  Documentation/{btmrvl.txt => btmrvl.rst}      |  2 +
->  ...-mapping.txt => bus-virt-phys-mapping.rst} |  4 +-
->  ...g-warn-once.txt => clearing-warn-once.rst} |  2 +
->  Documentation/{cpu-load.txt => cpu-load.rst}  |  2 +
->  .../{cputopology.txt => cputopology.rst}      |  2 +
->  Documentation/{crc32.txt => crc32.rst}        |  2 +
->  Documentation/{dcdbas.txt => dcdbas.rst}      |  2 +
->  ...ging-modules.txt => debugging-modules.rst} |  2 +
->  ...hci1394.txt => debugging-via-ohci1394.rst} |  2 +
->  Documentation/{dell_rbu.txt => dell_rbu.rst}  |  2 +
->  Documentation/device-mapper/statistics.rst    |  4 +-
->  .../devicetree/bindings/phy/phy-bindings.txt  |  2 +-
->  Documentation/{digsig.txt => digsig.rst}      |  2 +
->  Documentation/driver-api/usb/dma.rst          |  6 +-
->  Documentation/driver-model/device.rst         |  2 +-
->  Documentation/{efi-stub.txt => efi-stub.rst}  |  2 +
->  Documentation/{eisa.txt => eisa.rst}          |  2 +
->  Documentation/fb/vesafb.rst                   |  2 +-
->  Documentation/filesystems/sysfs.txt           |  2 +-
->  ...ex-requeue-pi.txt => futex-requeue-pi.rst} |  2 +
->  .../{gcc-plugins.txt => gcc-plugins.rst}      |  2 +
->  Documentation/gpu/drm-mm.rst                  |  2 +-
->  Documentation/{highuid.txt => highuid.rst}    |  2 +
->  .../{hw_random.txt => hw_random.rst}          |  2 +
->  .../{hwspinlock.txt => hwspinlock.rst}        |  2 +
->  Documentation/ia64/IRQ-redir.txt              |  2 +-
->  .../{intel_txt.txt => intel_txt.rst}          |  2 +
->  .../{io-mapping.txt => io-mapping.rst}        |  2 +
->  .../{io_ordering.txt => io_ordering.rst}      |  2 +
->  Documentation/{iostats.txt => iostats.rst}    |  2 +
->  ...flags-tracing.txt => irqflags-tracing.rst} |  2 +
->  Documentation/{isa.txt => isa.rst}            |  2 +
->  Documentation/{isapnp.txt => isapnp.rst}      |  2 +
->  ...hreads.txt => kernel-per-CPU-kthreads.rst} |  4 +-
->  Documentation/{kobject.txt => kobject.rst}    |  4 +-
->  Documentation/{kprobes.txt => kprobes.rst}    |  2 +
->  Documentation/{kref.txt => kref.rst}          |  2 +
->  Documentation/laptops/thinkpad-acpi.txt       |  6 +-
->  Documentation/{ldm.txt => ldm.rst}            |  2 +
->  Documentation/locking/rt-mutex.rst            |  2 +-
->  ...kup-watchdogs.txt => lockup-watchdogs.rst} |  2 +
->  Documentation/{lsm.txt => lsm.rst}            |  2 +
->  Documentation/{lzo.txt => lzo.rst}            |  2 +
->  Documentation/{mailbox.txt => mailbox.rst}    |  2 +
->  Documentation/memory-barriers.txt             |  6 +-
->  ...hameleon-bus.txt => men-chameleon-bus.rst} |  2 +
->  Documentation/networking/scaling.rst          |  4 +-
->  .../{nommu-mmap.txt => nommu-mmap.rst}        |  2 +
->  Documentation/{ntb.txt => ntb.rst}            |  2 +
->  Documentation/{numastat.txt => numastat.rst}  |  2 +
->  Documentation/{padata.txt => padata.rst}      |  2 +
->  ...port-lowlevel.txt => parport-lowlevel.rst} |  2 +
->  ...-semaphore.txt => percpu-rw-semaphore.rst} |  2 +
->  Documentation/{phy.txt => phy.rst}            |  2 +
->  Documentation/{pi-futex.txt => pi-futex.rst}  |  2 +
->  Documentation/{pnp.txt => pnp.rst}            |  2 +
->  ...reempt-locking.txt => preempt-locking.rst} |  2 +
->  Documentation/{pwm.txt => pwm.rst}            |  2 +
->  Documentation/{rbtree.txt => rbtree.rst}      |  2 +
->  .../{remoteproc.txt => remoteproc.rst}        |  4 +-
->  Documentation/{rfkill.txt => rfkill.rst}      |  2 +
->  ...ust-futex-ABI.txt => robust-futex-ABI.rst} |  2 +
->  ...{robust-futexes.txt => robust-futexes.rst} |  2 +
->  Documentation/{rpmsg.txt => rpmsg.rst}        |  2 +
->  Documentation/{rtc.txt => rtc.rst}            |  2 +
->  Documentation/s390/vfio-ccw.rst               |  6 +-
->  Documentation/{sgi-ioc4.txt => sgi-ioc4.rst}  |  2 +
->  Documentation/{siphash.txt => siphash.rst}    |  2 +
->  .../{smsc_ece1099.txt => smsc_ece1099.rst}    |  2 +
->  .../{speculation.txt => speculation.rst}      |  2 +
->  .../{static-keys.txt => static-keys.rst}      |  2 +
->  Documentation/{svga.txt => svga.rst}          |  2 +
->  .../{switchtec.txt => switchtec.rst}          |  4 +-
+>
+>   b/arch/powerpc/include/asm/mmu_context.h   |    1 -
+>   b/arch/um/include/asm/mmu_context.h        |    1 -
+>   b/arch/unicore32/include/asm/mmu_context.h |    1 -
+>   b/arch/x86/include/asm/mmu_context.h       |    6 +++---
+>   b/arch/x86/include/asm/mpx.h               |    5 ++---
+>   b/arch/x86/mm/mpx.c                        |   10 ++++++----
+>   b/include/asm-generic/mm_hooks.h           |    1 -
+>   b/mm/mmap.c                                |   15 ++++++++-------
+>   8 files changed, 19 insertions(+), 21 deletions(-)
+>
+> diff -puN mm/mmap.c~mpx-rss-pass-no-vma mm/mmap.c
+> --- a/mm/mmap.c~mpx-rss-pass-no-vma	2019-04-19 09:31:09.851509404 -0700
+> +++ b/mm/mmap.c	2019-04-19 09:31:09.864509404 -0700
+> @@ -2730,9 +2730,17 @@ int __do_munmap(struct mm_struct *mm, un
+>   		return -EINVAL;
+>   
+>   	len = PAGE_ALIGN(len);
+> +	end = start + len;
+>   	if (len == 0)
+>   		return -EINVAL;
+>   
+> +	/*
+> +	 * arch_unmap() might do unmaps itself.  It must be called
+> +	 * and finish any rbtree manipulation before this code
+> +	 * runs and also starts to manipulate the rbtree.
+> +	 */
+> +	arch_unmap(mm, start, end);
+> +
+>   	/* Find the first overlapping VMA */
+>   	vma = find_vma(mm, start);
+>   	if (!vma)
+> @@ -2741,7 +2749,6 @@ int __do_munmap(struct mm_struct *mm, un
+>   	/* we have  start < vma->vm_end  */
+>   
+>   	/* if it doesn't overlap, we have nothing.. */
+> -	end = start + len;
+>   	if (vma->vm_start >= end)
+>   		return 0;
+>   
+> @@ -2811,12 +2818,6 @@ int __do_munmap(struct mm_struct *mm, un
+>   	/* Detach vmas from rbtree */
+>   	detach_vmas_to_be_unmapped(mm, vma, prev, end);
+>   
+> -	/*
+> -	 * mpx unmap needs to be called with mmap_sem held for write.
+> -	 * It is safe to call it before unmap_region().
+> -	 */
+> -	arch_unmap(mm, vma, start, end);
+> -
+>   	if (downgrade)
+>   		downgrade_write(&mm->mmap_sem);
 
-For all the switchtec changes:
+Thanks for debugging this. The change looks good to me. Reviewed-by: 
+Yang Shi <yang.shi@linux.alibaba.com>
 
-Acked-by: Logan Gunthorpe <logang@deltatee.com>
-
-Thanks,
-
-Logan
+>   
+> diff -puN arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/x86/include/asm/mmu_context.h
+> --- a/arch/x86/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.853509404 -0700
+> +++ b/arch/x86/include/asm/mmu_context.h	2019-04-19 09:31:09.865509404 -0700
+> @@ -277,8 +277,8 @@ static inline void arch_bprm_mm_init(str
+>   	mpx_mm_init(mm);
+>   }
+>   
+> -static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+> -			      unsigned long start, unsigned long end)
+> +static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
+> +			      unsigned long end)
+>   {
+>   	/*
+>   	 * mpx_notify_unmap() goes and reads a rarely-hot
+> @@ -298,7 +298,7 @@ static inline void arch_unmap(struct mm_
+>   	 * consistently wrong.
+>   	 */
+>   	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
+> -		mpx_notify_unmap(mm, vma, start, end);
+> +		mpx_notify_unmap(mm, start, end);
+>   }
+>   
+>   /*
+> diff -puN include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma include/asm-generic/mm_hooks.h
+> --- a/include/asm-generic/mm_hooks.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.856509404 -0700
+> +++ b/include/asm-generic/mm_hooks.h	2019-04-19 09:31:09.865509404 -0700
+> @@ -18,7 +18,6 @@ static inline void arch_exit_mmap(struct
+>   }
+>   
+>   static inline void arch_unmap(struct mm_struct *mm,
+> -			struct vm_area_struct *vma,
+>   			unsigned long start, unsigned long end)
+>   {
+>   }
+> diff -puN arch/x86/mm/mpx.c~mpx-rss-pass-no-vma arch/x86/mm/mpx.c
+> --- a/arch/x86/mm/mpx.c~mpx-rss-pass-no-vma	2019-04-19 09:31:09.858509404 -0700
+> +++ b/arch/x86/mm/mpx.c	2019-04-19 09:31:09.866509404 -0700
+> @@ -881,9 +881,10 @@ static int mpx_unmap_tables(struct mm_st
+>    * the virtual address region start...end have already been split if
+>    * necessary, and the 'vma' is the first vma in this range (start -> end).
+>    */
+> -void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		unsigned long start, unsigned long end)
+> +void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
+> +		      unsigned long end)
+>   {
+> +       	struct vm_area_struct *vma;
+>   	int ret;
+>   
+>   	/*
+> @@ -902,11 +903,12 @@ void mpx_notify_unmap(struct mm_struct *
+>   	 * which should not occur normally. Being strict about it here
+>   	 * helps ensure that we do not have an exploitable stack overflow.
+>   	 */
+> -	do {
+> +	vma = find_vma(mm, start);
+> +	while (vma && vma->vm_start < end) {
+>   		if (vma->vm_flags & VM_MPX)
+>   			return;
+>   		vma = vma->vm_next;
+> -	} while (vma && vma->vm_start < end);
+> +	}
+>   
+>   	ret = mpx_unmap_tables(mm, start, end);
+>   	if (ret)
+> diff -puN arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma arch/x86/include/asm/mpx.h
+> --- a/arch/x86/include/asm/mpx.h~mpx-rss-pass-no-vma	2019-04-19 09:31:09.860509404 -0700
+> +++ b/arch/x86/include/asm/mpx.h	2019-04-19 09:31:09.866509404 -0700
+> @@ -78,8 +78,8 @@ static inline void mpx_mm_init(struct mm
+>   	 */
+>   	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
+>   }
+> -void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+> -		      unsigned long start, unsigned long end);
+> +void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
+> +		unsigned long end);
+>   
+>   unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+>   		unsigned long flags);
+> @@ -100,7 +100,6 @@ static inline void mpx_mm_init(struct mm
+>   {
+>   }
+>   static inline void mpx_notify_unmap(struct mm_struct *mm,
+> -				    struct vm_area_struct *vma,
+>   				    unsigned long start, unsigned long end)
+>   {
+>   }
+> diff -puN arch/um/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/um/include/asm/mmu_context.h
+> --- a/arch/um/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:05.789507768 -0700
+> +++ b/arch/um/include/asm/mmu_context.h	2019-04-19 09:42:57.962507638 -0700
+> @@ -22,7 +22,6 @@ static inline int arch_dup_mmap(struct m
+>   }
+>   extern void arch_exit_mmap(struct mm_struct *mm);
+>   static inline void arch_unmap(struct mm_struct *mm,
+> -			struct vm_area_struct *vma,
+>   			unsigned long start, unsigned long end)
+>   {
+>   }
+> diff -puN arch/unicore32/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/unicore32/include/asm/mmu_context.h
+> --- a/arch/unicore32/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:06.189507767 -0700
+> +++ b/arch/unicore32/include/asm/mmu_context.h	2019-04-19 09:43:25.425507569 -0700
+> @@ -88,7 +88,6 @@ static inline int arch_dup_mmap(struct m
+>   }
+>   
+>   static inline void arch_unmap(struct mm_struct *mm,
+> -			struct vm_area_struct *vma,
+>   			unsigned long start, unsigned long end)
+>   {
+>   }
+> diff -puN arch/powerpc/include/asm/mmu_context.h~mpx-rss-pass-no-vma arch/powerpc/include/asm/mmu_context.h
+> --- a/arch/powerpc/include/asm/mmu_context.h~mpx-rss-pass-no-vma	2019-04-19 09:42:06.388507766 -0700
+> +++ b/arch/powerpc/include/asm/mmu_context.h	2019-04-19 09:43:27.392507564 -0700
+> @@ -237,7 +237,6 @@ extern void arch_exit_mmap(struct mm_str
+>   #endif
+>   
+>   static inline void arch_unmap(struct mm_struct *mm,
+> -			      struct vm_area_struct *vma,
+>   			      unsigned long start, unsigned long end)
+>   {
+>   	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
+> _
 
