@@ -4,74 +4,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E809C10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0840DC10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 103D221738
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 103D221738
+	by mail.kernel.org (Postfix) with ESMTP id B1D7C218D3
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1D7C218D3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1AEF6B0007; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id D6DEC6B000D; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C07A6B000D; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id CA8456B0008; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 813346B0008; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 888EA6B000E; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 104AA6B000A
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B3F6B000C
 	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id u2so8459535pgi.10
+Received: by mail-pg1-f199.google.com with SMTP id o1so8457710pgv.15
         for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=TDi+ZaxaGFwMJnbi/KBZqpgNpblOvtV7DEanhYCdmjY=;
-        b=K640UsPHOTzMPTlgl4a/1Kl4kuLc9ZamKZ9feGQZWGT/p6gwLFKrfcRlN43SwtIYyu
-         taLqt4zsuCWDbDKjc3Au4Jn6RUf3V3ld/qwBFSe3VHnk4jduSli1xETTgEudx+9Vv9N/
-         6oa+Nhwg573CBHBHjyrdR1hADucpAf1R6/NT74XpQvgbH6MtxZdiCMahPtMRVKh/qRoO
-         jUzNRk/TyD5IYjCEYw97m9qWpFjBl2G6oSsyYByQmAEU/QG3uirDHune/Mf2nc9Tg97y
-         zY2Gz+ksc1Bmqygwu6kROTrJ1RcbpkZ8OOwrDxsI+Tb2fe9iEyLzQyKxkvgp0tRghrci
-         FGJQ==
+        bh=+opaO1awQtWXl9ApsaZ/rgEyOZ23bi+ZXWhS2cx66gg=;
+        b=VLacFO/eRYx3xU+8yGgqaapuX1dBkkTpOKfIsqcAdS3CBx8MqeYz8h1EOhmd/TbaC6
+         wATSwEtWvhUIGWqEbTH7EFLZU375Ec2GgfggGTUveyeIgrQ/i1aMqbm5IWEC0YXZZH3v
+         t3dI8PsTA8Fzk9sXl2jXAc/P2OA7aqIGs/GcT2Gid18WGjAdFHNQpucQWDoXsob5saem
+         tFkiIesFbCU2tHFiW5ysdaY3EpZk23j7GFKq6JrW2fvujviZQbataowQjrDVKAnD4fJL
+         KuyIgmlz49iZn7drVPoUdtTDtu6llFAvGk7ObF5wTekpcXvRfrtqSePIezRybQF8NR24
+         QYHg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWK7ntJeANDSMbR9lR2y3ElVD0c4brmsnxSn0OV4FTG/bf6W4tC
-	d46afvWnxaYPFmjmLlpKuk+HCqrq9q8LNvV7YO4rTTEBgB40eIt9CVxa4ViLxu93bDPV9Te3fSA
-	xpgRtfxqatPawqlO4RV63WvqvW7jq7tB94EVau4YduUqclfHmQ9lYlu7xkoDoGgTHMA==
-X-Received: by 2002:a17:902:28ab:: with SMTP id f40mr4435678plb.297.1555959523544;
+X-Gm-Message-State: APjAAAWOOlsLZBSU3SBXT+pRS/ZOTVw6DkmY+7W5NEr00pP9+o3Qy4dB
+	z6Met1eL1/kAVek6BHW/4wHJphSlJSvURYjlgOe4+eRxTfSBucieDgBrbkVTrJrZbFEcJ3C85Cp
+	8xqp0k1r+PxB0Dg8Qlh9/oibi9OgiqEaqu9SgATli03BH6CWTy5LNO9GgJQ7Sc4hNYA==
+X-Received: by 2002:a65:4802:: with SMTP id h2mr18937043pgs.98.1555959523726;
         Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxArDSB4Jn30qhacmD7H5ZmFtydVFqmQG/MM8BhjT2Am0swLevXMahgeTHiZApSAeKmnsI/
-X-Received: by 2002:a17:902:28ab:: with SMTP id f40mr4435590plb.297.1555959521973;
-        Mon, 22 Apr 2019 11:58:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555959521; cv=none;
+X-Google-Smtp-Source: APXvYqzKJo+cK5HWrFUB2d3Y5F0DvfXrbxgp96JQUE5a8z1blVUH6mZsH6AASeHpcbRxytVhBRP6
+X-Received: by 2002:a65:4802:: with SMTP id h2mr18936993pgs.98.1555959522802;
+        Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555959522; cv=none;
         d=google.com; s=arc-20160816;
-        b=SpRZD1EmgK3HNv/+Tvo8l6+/K10tPuWTj3i4CtYWK/zaTkVDqTr4zIy9U4iFN+Uexd
-         mWecqBuMvEIyBoAsjR5gFy24zkZHN+YJav0wV77iUaYbhvLSEalw6WSkaku74gtIh6T9
-         djoOAy4ZbmQx9bbe8U4/DaysZu49BZw3GBydsRqAPUpf0zH41M9pS9hmK+L4zsJ6fqh5
-         6b5UHnS6/a9d+ZsgsS8u8NbLk+ASRgyQAL5D8e5jsmiHyFIPC8dWg7H4tAk1sElun3qh
-         kHslVoLGoQpuu4/VtzKHsmfBQYPu7Q4qybaMYbJ/7vA+yV+XJk0sHZ/u/s+ZOuysiqHV
-         4e3Q==
+        b=SKZzqELvL+K1Abb2dArXvVRcJwDqtyF9gQMjmT0sx4nR7xKsNfZNwcpDA9EMPeIVLX
+         IeYZxiH8Ui3a7nfU16jsor7Ge+x/USbQvBi6OAtq6oHW6PF9pstK4OVhsaYCZTJBeDZr
+         iLROlrqgqOIdUY5hihtmIxuNbNFTVY+ZLEotdB9q0cFwB8JVv0oFH6kUvVs+0UkMIDjE
+         3NPs2JLdS2NOzMUvV5t1HfjPU5Gu2YucB4iEhLVFigioSKjoZxEkqTyB86UBV189adJw
+         BhULmicBZ+D06QNyh6NxRH6VrPatbdNSRPjIS7MW0zfMgAinI2Rm4In4y/xWtwAjYWvu
+         T+ng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=TDi+ZaxaGFwMJnbi/KBZqpgNpblOvtV7DEanhYCdmjY=;
-        b=D+pp+pCitZ4BSWq3nPuc48fNRIoLnQUl0Ln+YifLo0yo6bkiyzJcvScic3jBIDs2HX
-         Ls1gWq5QCbUxvxaHC1+C/IdQO5sEER9ZXIvST9bIY3OWtK4BsK9b59rnFecM+hL6hIhW
-         vAzZvRa+YpcP1+E3LW2cdvpCVAblO6vYoZOOg88ATF7bnfT9thmNZUbsWdAtepIZ+tDe
-         4Wy+/hloHSx4puPFObRZb6bGcb7uocIiQXZlpb9G1VOURjji2r7ZZwdEB2sVld6Pncaz
-         GF6AREu3Qa8feFyPcSirjF2ghEj4o+Uz7tlywy97rX9xrFcneLPT1OSqKDF8XBo1oYVd
-         rwKA==
+        bh=+opaO1awQtWXl9ApsaZ/rgEyOZ23bi+ZXWhS2cx66gg=;
+        b=H7WUJPHGSJxxZbo6Abp+/lM6hzrt4Vu8j9Bk7d1mbR7WMZh7MTGy6jygjUDsbKiqcT
+         g4IjK5Wyxlpb+6Nj2uWDEUe2tJc74dTGVeQG9PLTohAU11baK8lYOhzRAQCutMb5ll+Z
+         gfY+1FA8LV+JWRo0PZGrXy40uGHXo86cO3y+1bZsl4eOBFYnmNm23jzURiGvaJVsvnk2
+         NSLDvGf6NfGmUQ7XcL3rUNU1YBTbS+rc9XVgAiuNNeMAVHAKnvSDEapN/RfUeMTbrKgY
+         vLNuZIggnoZr4EpsQ8csPOIlFzQuLhhEQ4476RVvQmbLLtkjrN2l2BAAJe0naFMnJMrr
+         KJNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a2si12975117pgn.530.2019.04.22.11.58.41
+        by mx.google.com with ESMTPS id a20si5314305pgb.421.2019.04.22.11.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 11:58:41 -0700 (PDT)
+        Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -82,7 +82,7 @@ Received: from orsmga008.jf.intel.com ([10.7.209.65])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417125"
+   d="scan'208";a="136417131"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
   by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -106,13 +106,13 @@ Cc: linux-kernel@vger.kernel.org,
 	ard.biesheuvel@linaro.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
+	Nadav Amit <namit@vmware.com>,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
-	Nadav Amit <namit@vmware.com>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 03/23] x86/mm: Introduce temporary mm structs
-Date: Mon, 22 Apr 2019 11:57:45 -0700
-Message-Id: <20190422185805.1169-4-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 05/23] fork: Provide a function for copying init_mm
+Date: Mon, 22 Apr 2019 11:57:47 -0700
+Message-Id: <20190422185805.1169-6-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -122,82 +122,87 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andy Lutomirski <luto@kernel.org>
+From: Nadav Amit <namit@vmware.com>
 
-Using a dedicated page-table for temporary PTEs prevents other cores
-from using - even speculatively - these PTEs, thereby providing two
-benefits:
+Provide a function for copying init_mm. This function will be later used
+for setting a temporary mm.
 
-(1) Security hardening: an attacker that gains kernel memory writing
-abilities cannot easily overwrite sensitive data.
-
-(2) Avoiding TLB shootdowns: the PTEs do not need to be flushed in
-remote page-tables.
-
-To do so a temporary mm_struct can be used. Mappings which are private
-for this mm can be set in the userspace part of the address-space.
-During the whole time in which the temporary mm is loaded, interrupts
-must be disabled.
-
-The first use-case for temporary mm struct, which will follow, is for
-poking the kernel text.
-
-[ Commit message was written by Nadav Amit ]
-
+Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
 Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++
- 1 file changed, 33 insertions(+)
+ include/linux/sched/task.h |  1 +
+ kernel/fork.c              | 24 ++++++++++++++++++------
+ 2 files changed, 19 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 19d18fae6ec6..d684b954f3c0 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -356,4 +356,37 @@ static inline unsigned long __get_current_cr3_fast(void)
- 	return cr3;
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index 2e97a2227045..f1227f2c38a4 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -76,6 +76,7 @@ extern void exit_itimers(struct signal_struct *);
+ extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
+ extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
+ struct task_struct *fork_idle(int);
++struct mm_struct *copy_init_mm(void);
+ extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+ extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 9dcd18aa210b..099cca8f701c 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1298,13 +1298,20 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+ 		complete_vfork_done(tsk);
  }
  
-+typedef struct {
-+	struct mm_struct *prev;
-+} temp_mm_state_t;
-+
-+/*
-+ * Using a temporary mm allows to set temporary mappings that are not accessible
-+ * by other cores. Such mappings are needed to perform sensitive memory writes
-+ * that override the kernel memory protections (e.g., W^X), without exposing the
-+ * temporary page-table mappings that are required for these write operations to
-+ * other cores. Using temporary mm also allows to avoid TLB shootdowns when the
-+ * mapping is torn down.
+-/*
+- * Allocate a new mm structure and copy contents from the
+- * mm structure of the passed in task structure.
++/**
++ * dup_mm() - duplicates an existing mm structure
++ * @tsk: the task_struct with which the new mm will be associated.
++ * @oldmm: the mm to duplicate.
 + *
-+ * Context: The temporary mm needs to be used exclusively by a single core. To
-+ *          harden security IRQs must be disabled while the temporary mm is
-+ *          loaded, thereby preventing interrupt handler bugs from overriding
-+ *          the kernel memory protection.
-+ */
-+static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
++ * Allocates a new mm structure and duplicates the provided @oldmm structure
++ * content into it.
++ *
++ * Return: the duplicated mm or NULL on failure.
+  */
+-static struct mm_struct *dup_mm(struct task_struct *tsk)
++static struct mm_struct *dup_mm(struct task_struct *tsk,
++				struct mm_struct *oldmm)
+ {
+-	struct mm_struct *mm, *oldmm = current->mm;
++	struct mm_struct *mm;
+ 	int err;
+ 
+ 	mm = allocate_mm();
+@@ -1371,7 +1378,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
+ 	}
+ 
+ 	retval = -ENOMEM;
+-	mm = dup_mm(tsk);
++	mm = dup_mm(tsk, current->mm);
+ 	if (!mm)
+ 		goto fail_nomem;
+ 
+@@ -2186,6 +2193,11 @@ struct task_struct *fork_idle(int cpu)
+ 	return task;
+ }
+ 
++struct mm_struct *copy_init_mm(void)
 +{
-+	temp_mm_state_t state;
-+
-+	lockdep_assert_irqs_disabled();
-+	state.prev = this_cpu_read(cpu_tlbstate.loaded_mm);
-+	switch_mm_irqs_off(NULL, mm, current);
-+	return state;
++	return dup_mm(NULL, &init_mm);
 +}
 +
-+static inline void unuse_temporary_mm(temp_mm_state_t prev)
-+{
-+	lockdep_assert_irqs_disabled();
-+	switch_mm_irqs_off(NULL, prev.prev, current);
-+}
-+
- #endif /* _ASM_X86_MMU_CONTEXT_H */
+ /*
+  *  Ok, this is the main fork-routine.
+  *
 -- 
 2.17.1
 
