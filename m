@@ -2,214 +2,170 @@ Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43EB4C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 14:54:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A5C3C282E1
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 14:55:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8AC620684
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 14:54:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8AC620684
+	by mail.kernel.org (Postfix) with ESMTP id DC6E720874
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 14:55:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC6E720874
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 830E46B0003; Mon, 22 Apr 2019 10:54:14 -0400 (EDT)
+	id 7B97D6B0003; Mon, 22 Apr 2019 10:55:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E1EE6B0006; Mon, 22 Apr 2019 10:54:14 -0400 (EDT)
+	id 76A7F6B0006; Mon, 22 Apr 2019 10:55:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AA936B0007; Mon, 22 Apr 2019 10:54:14 -0400 (EDT)
+	id 681226B0007; Mon, 22 Apr 2019 10:55:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 472C06B0003
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 10:54:14 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id f15so11858011qtk.16
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 07:54:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 476E06B0003
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 10:55:53 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id y11so11893670qtb.6
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 07:55:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=16QC4KlNooUWDwXyV9FxYmhQJlMkf/WTwy+yGx9XFgw=;
-        b=nI10ZOD7/K+O69IK/kHi1OW7Ny3vy9zX+EeYzfmdK5wWfQR2RkU/y+CRIhc6qXU3/J
-         eObEvrhu7c4UJdLpMdhz/eU+S2ITmwmiIjQcNm5hQOKl+N6rv+7VJJm+mIFT7qNiCYWR
-         KFcYrgxkSwDm9zVK1dyiExd1aT9Xu52CMfEw+nVE7XlWzB71imCOB2JVI/bMJppifKvu
-         y0m7GjCJbLIT6LZW7gQK2K8rzCTB3y1xm2yM6XeYD9iRKyqF+XUuZT7yYp/29F3U0+XC
-         uwdUZekJAx1CZaCEMuBHnqTRzIwYxBwZU5tXalnIO+UVVJEtzr38wKr6Y4qS8j8VNbIP
-         1bTA==
+        bh=YBrjvnQnYPYeAwmo0xvknuKZqa8tuoNbw4Ef9y3Vo5U=;
+        b=Y+10RUVLUuVIiqoD15FyDjl5FGofYA9hecTr734CTyt9jrXASO+HR2Ss1a5VZueZ8G
+         6E3H15iLMjFtvN1d1gKoGY/Ii/dC/HWYch8qcsUTu1atHcx9DhOgDxqG0rBLu58TRrJE
+         jP0LZ+cp/xQo/boN4PCs4AEBPMxV450JXYFnGbcOjas2gfYVzc1viYGpBu6AipMqDgvz
+         2qgPDLaXksDDRJhP939TL41EUTcvK5CqCglKxo2Psq1yQsilz9lp9fks5jBDj2sj8na9
+         nIO6/1lqzuY1XBG/cSPckL6g4igltAlra+JkGAfrDYtrGXYGAoCUUYEM9RYIJQxrnJOT
+         ad7A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV7ZSC/ikVN4/+aw2q3g2DhVN527y/VVxsBAYRanamb5/tcjt58
-	4LsTOtBrqQimi+iP7CZ2b7vKO6r4Tnr1PN/4dE8spYAg2aYtq63edK2EosClQuy850RhpTqDzWY
-	o2D4970KEkcgKVxhFkLTg4djiC1vlvVbY8N8HA5DsyYKEytXcAc4Z66vgrVhJjMPkGA==
-X-Received: by 2002:a0c:d0d0:: with SMTP id b16mr10128317qvh.139.1555944854015;
-        Mon, 22 Apr 2019 07:54:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYSd0oUbb0R3IxudD3AJyytmm9/5QxzlUkqx3gNX5gnZjh1MSVw8IW3E3Mh5qdk5a0tndB
-X-Received: by 2002:a0c:d0d0:: with SMTP id b16mr10128288qvh.139.1555944853391;
-        Mon, 22 Apr 2019 07:54:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555944853; cv=none;
+X-Gm-Message-State: APjAAAVR3f7+44fSSWuXy1vDh9rWA7mWoswuTeUA5A5F61q5lWnh7pKN
+	q27B6gfcTKnJ1GCUdf/OWtWoM8iXMn/CwwNlkzAQr4rVSoR6yA+k5drcr1ojJBt7h1DRDR43ULq
+	jvNg4O8FstsMN45BnRqkuruZP/Bkfg3XMFGqQKh4L/inGa6W+HsfVmENPZ6UK+caWgQ==
+X-Received: by 2002:ac8:45c1:: with SMTP id e1mr10629659qto.191.1555944953018;
+        Mon, 22 Apr 2019 07:55:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz910U6lIMgBlemz0BMmNpcedaVhJQ+u2SooMpGjBq5VatqP2IsCJtKnu89BpiYEwLDg9FB
+X-Received: by 2002:ac8:45c1:: with SMTP id e1mr10629618qto.191.1555944952394;
+        Mon, 22 Apr 2019 07:55:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555944952; cv=none;
         d=google.com; s=arc-20160816;
-        b=spCPbCwWXUe/fXzGpjR8Xq2V9TOzl1xPGOVyIKrNN7UpxJk+5ZLNLyicw41YAvlMxr
-         N+Ka7couQdpQL2aEz0YuZnyjmVB5F2/sEKTzPhwTAJ1y5TrZMcjYi6EGPoCXiP01j5d4
-         bSsKgPDjpUEjbnBivhA9nxI8ihex+i13SCxOIVdpNso8rGOojjtVzLfZae6WGTSmDt1n
-         K/BhcaA9kFOjJy/LGAfls0C9SER1rirDDTneds/aWfgjHP7CqySPJjdqlNWu/TuO6yiE
-         eIxtXGWRQ6pEIGkXADgWGsSI8BLApRIBTWLCiwh0Q0l8dilaTnj/1LhP5wYUXWLJAPyO
-         hXJw==
+        b=iWxNLsgPUTlegpF42+sa3eovVII3iEb18A3lgEth4cD77KhSVvxQD62bQfUqkVJMAX
+         xPHz/fY+MtPKCxiLJ4X6vk485FZ8twt2Mp3hGL19Gi06ep/JDE2OydwMb+5nMAaPzT1U
+         jWT2Pm13iY6lNQAAEXHC7vImtiHq5FGDV7s6HKw6Kblzx3LSGy8s4OzjLn8ipgnBsgps
+         EZEctgNtC7xRXT8sOwa+t1Reu5pJi0eEcx0RM8pNjJFb/94nxIMK0YM6q8iduTHmPeO7
+         HERQ5sEunzlPszNKHLLg5iFa7mRHI/L31ktgSCgtCjh4gFD7Net2B0zzOyiEe3K0hA0e
+         zHRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=16QC4KlNooUWDwXyV9FxYmhQJlMkf/WTwy+yGx9XFgw=;
-        b=CAk4b9fv39teXHK76owD5sFryVRntQP64sL0AZpj3CF5VuhzF0aGXpq/q9biayLjAT
-         9GBktdDpGrUyQfCmzZd7mX3TiXw8yKWcAWeWRD9PjBblIBX9u1Z0JqgUXf59vJDSmEoc
-         /ugB3jHPnUFysErZAt95+iOmrC6BEyq+mUBN3xekxTparSANmrwoyrzBD0v2kECgSbFe
-         hLxNxRYqU2EfxqVrTNE69TfD26S2dZh8+JQtpsLHU8OduNNQyq9b7EgZYcv0QzdLGXop
-         npwvYWZ17iquS7LCcatVJB4e6xWbXpU6FKymIUq2DbF3MHKLwsNulHeAhDiFP4u88GWc
-         vibQ==
+        bh=YBrjvnQnYPYeAwmo0xvknuKZqa8tuoNbw4Ef9y3Vo5U=;
+        b=HNhIfQBOEq6rhsekq6H15n5jAvOjxItQWd5NLVr80w+5ctg8YWXGplQNq5GjXnkPDL
+         Pk7ByviOpcpALEEVZ5gtygfUXTplTm1oNzR5M9t2clsJcA/wR4iODnaghm8SqaDi8Ekz
+         TB3yoeFNf6YfZvUsMTDXRhKEhTZ0Zj8+s6RP/hvmK2dXBCytY+mzJIJoVBJVag6lJlv1
+         tPJXPg1KLd8jmj4kmYynKIDBsAVUfe2qeBR/JpH72Ec7GGLN0exMLH+lKs1ZBxVeN/I2
+         k2Q5ilTgSPIEB6znOvIC/qjmHoWxIQNfPPy3kc3DmYh7MqO0+r0RpRYci1i0iYjmzMZb
+         fVnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u36si1948068qte.226.2019.04.22.07.54.13
+        by mx.google.com with ESMTPS id u13si6474199qve.103.2019.04.22.07.55.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 07:54:13 -0700 (PDT)
+        Mon, 22 Apr 2019 07:55:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AD10930ADBB3;
-	Mon, 22 Apr 2019 14:54:11 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 704A881F0F;
+	Mon, 22 Apr 2019 14:55:51 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C410C5D9D3;
-	Mon, 22 Apr 2019 14:54:04 +0000 (UTC)
-Date: Mon, 22 Apr 2019 10:54:02 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 401B7608E4;
+	Mon, 22 Apr 2019 14:55:50 +0000 (UTC)
+Date: Mon, 22 Apr 2019 10:55:48 -0400
 From: Jerome Glisse <jglisse@redhat.com>
-To: Peter Xu <peterx@redhat.com>
+To: rcampbell@nvidia.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 14/28] userfaultfd: wp: handle COW properly for uffd-wp
-Message-ID: <20190422145402.GB3450@redhat.com>
-References: <20190320020642.4000-1-peterx@redhat.com>
- <20190320020642.4000-15-peterx@redhat.com>
- <20190418202558.GK3288@redhat.com>
- <20190419062650.GF13323@xz-x1>
- <20190419150253.GA3311@redhat.com>
- <20190422122010.GA25896@xz-x1>
+	Ira Weiny <ira.weiny@intel.com>, John Hubbard <jhubbard@nvidia.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND PATCH] mm/hmm: Fix initial PFN for hugetlbfs pages
+Message-ID: <20190422145548.GC3450@redhat.com>
+References: <20190419233536.8080-1-rcampbell@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190422122010.GA25896@xz-x1>
+In-Reply-To: <20190419233536.8080-1-rcampbell@nvidia.com>
 User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 22 Apr 2019 14:54:12 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 22 Apr 2019 14:55:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 22, 2019 at 08:20:10PM +0800, Peter Xu wrote:
-> On Fri, Apr 19, 2019 at 11:02:53AM -0400, Jerome Glisse wrote:
+On Fri, Apr 19, 2019 at 04:35:36PM -0700, rcampbell@nvidia.com wrote:
+> From: Ralph Campbell <rcampbell@nvidia.com>
 > 
-> [...]
+> The mmotm patch [1] adds hugetlbfs support for HMM but the initial
+> PFN used to fill the HMM range->pfns[] array doesn't properly
+> compute the starting PFN offset.
+> This can be tested by running test-hugetlbfs-read from [2].
 > 
-> > > > > +			if (uffd_wp_resolve) {
-> > > > > +				/* If the fault is resolved already, skip */
-> > > > > +				if (!pte_uffd_wp(*pte))
-> > > > > +					continue;
-> > > > > +				page = vm_normal_page(vma, addr, oldpte);
-> > > > > +				if (!page || page_mapcount(page) > 1) {
-> > > > > +					struct vm_fault vmf = {
-> > > > > +						.vma = vma,
-> > > > > +						.address = addr & PAGE_MASK,
-> > > > > +						.page = page,
-> > > > > +						.orig_pte = oldpte,
-> > > > > +						.pmd = pmd,
-> > > > > +						/* pte and ptl not needed */
-> > > > > +					};
-> > > > > +					vm_fault_t ret;
-> > > > > +
-> > > > > +					if (page)
-> > > > > +						get_page(page);
-> > > > > +					arch_leave_lazy_mmu_mode();
-> > > > > +					pte_unmap_unlock(pte, ptl);
-> > > > > +					ret = wp_page_copy(&vmf);
-> > > > > +					/* PTE is changed, or OOM */
-> > > > > +					if (ret == 0)
-> > > > > +						/* It's done by others */
-> > > > > +						continue;
-> > > > 
-> > > > This is wrong if ret == 0 you still need to remap the pte before
-> > > > continuing as otherwise you will go to next pte without the page
-> > > > table lock for the directory. So 0 case must be handled after
-> > > > arch_enter_lazy_mmu_mode() below.
-> > > > 
-> > > > Sorry i should have catch that in previous review.
-> > > 
-> > > My fault to not have noticed it since the very beginning... thanks for
-> > > spotting that.
-> > > 
-> > > I'm squashing below changes into the patch:
-> > 
-> > 
-> > Well thinking of this some more i think you should use do_wp_page() and
-> > not wp_page_copy() it would avoid bunch of code above and also you are
-> > not properly handling KSM page or page in the swap cache. Instead of
-> > duplicating same code that is in do_wp_page() it would be better to call
-> > it here.
+> Fix the PFN offset by adjusting the page offset by the device's
+> page size.
 > 
-> Yeah it makes sense to me.  Then here's my plan:
+> Andrew, this should probably be squashed into Jerome's patch.
 > 
-> - I'll need to drop previous patch "export wp_page_copy" since then
->   it'll be not needed
+> [1] https://marc.info/?l=linux-mm&m=155432003506068&w=2
+> ("mm/hmm: mirror hugetlbfs (snapshoting, faulting and DMA mapping)")
+> [2] https://gitlab.freedesktop.org/glisse/svm-cl-tests
 > 
-> - I'll introduce another patch to split current do_wp_page() and
->   introduce function "wp_page_copy_cont" (better suggestion on the
->   naming would be welcomed) which contains most of the wp handling
->   that'll be needed for change_pte_range() in this patch and isolate
->   the uffd handling:
-> 
-> static vm_fault_t do_wp_page(struct vm_fault *vmf)
-> 	__releases(vmf->ptl)
-> {
-> 	struct vm_area_struct *vma = vmf->vma;
-> 
-> 	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
-> 		pte_unmap_unlock(vmf->pte, vmf->ptl);
-> 		return handle_userfault(vmf, VM_UFFD_WP);
-> 	}
-> 
-> 	return do_wp_page_cont(vmf);
-> }
-> 
-> Then I can probably use do_wp_page_cont() in this patch.
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
 
-Instead i would keep the do_wp_page name and do:
-    static vm_fault_t do_userfaultfd_wp_page(struct vm_fault *vmf) {
-        ... // what you have above
-        return do_wp_page(vmf);
-    }
+Good catch.
 
-Naming wise i think it would be better to keep do_wp_page() as
-is.
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-Cheers,
-Jérôme
+> Cc: Jérôme Glisse <jglisse@redhat.com>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  mm/hmm.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index def451a56c3e..fcf8e4fb5770 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -868,7 +868,7 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
+>  		goto unlock;
+>  	}
+>  
+> -	pfn = pte_pfn(entry) + (start & mask);
+> +	pfn = pte_pfn(entry) + ((start & mask) >> range->page_shift);
+>  	for (; addr < end; addr += size, i++, pfn += pfn_inc)
+>  		range->pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
+>  				 cpu_flags;
+> -- 
+> 2.20.1
+> 
 
