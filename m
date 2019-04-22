@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACE11C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 247AAC10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66D36218B0
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66D36218B0
+	by mail.kernel.org (Postfix) with ESMTP id CEDA5218B0
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEDA5218B0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2B976B0010; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id 3AEA66B0269; Mon, 22 Apr 2019 14:58:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 756796B000E; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id 358C66B026B; Mon, 22 Apr 2019 14:58:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B86C6B0008; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id 223536B026A; Mon, 22 Apr 2019 14:58:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D737D6B000E
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s19so8829718plp.6
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCA2C6B0269
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id x2so8448357pge.16
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
-        b=HcoQJ0mc7iK73K1XktxPfMTMGnlNQhja5Dc0xRvYH/L4CjWHXU1yTylFS7jkcJylmi
-         L7cWW48NND8MuW8JMA1zvbfnCzMBQ/quYf4KE14ZWh6AaHPBC/g0P4Z9D6++fSm3HLwt
-         b/f4tFzTGPYqqyzI8MuVhJrhxAsHc08XGGfTIgWpnWditG8QMHlh4XqjBhjrSXlusfGC
-         vstpAgShNZPODEmQs7FsRShN6BzLP85f+msZ2VfobS1MMNjPSRrbA2titrPMFsvvjWNz
-         l7EoEqigqOCG2cwN5CUljU7/gv+g4TD5mKSK03nrN4KWAXF1k3sAXM7qK6GbL4QgoX8d
-         4ZjQ==
+        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
+        b=BNI3LEBLVaMVJXoFqtKWg2Fw5YCft0+Q6hp/sA3soM1NE2BKstay8DxGolYaWm7eJr
+         vh2LubBuIAlJDJm4XFS5/Aq++5r0KvVdiC1wAseoRmfr/QvgU1AS1rYtsCXtTC5qZqaU
+         HYNj4CaXFWSp1yVLWlObRIBLLEiXclhFN81RGMRcJYRxBfZyzqFvGl5dg0M0DuyKM8l2
+         G611CwuT3Iy9bzr+iOOL4SpUkOlDHujdXHVqtM5JpBL7Zv53v65g7o5cvQTSbVEbliJf
+         8Eh4AHrrJw9SvsMGEoYHD9AvbA1kRXUftIPPAgV23iIgwRS1JyTILNzvKfKYVOGbC6JL
+         nWBg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXoTgzEfiI1ZWOGFdW4xhQUKC589xd5qmgYicxqHmmJdeTE4/f6
-	ocLHHIRo8KjNOogXrmziRGVlQ+vBQsHD/TBCnwprLhoSIJMNsrLlUkkhlT5uDYrL/HhqHW5LSsQ
-	dhdzZjFWb9sy/ddMq0jMVRiC9M0BWfUs1TDjd1RdyBKrr/koPStWPFYqDiry1Q1wrNw==
-X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr22150509plt.177.1555959524529;
+X-Gm-Message-State: APjAAAUxY5Y5fEYUrK2qgFVq5nHgnnAgrOnyBilYAidYIqJliifSt/zM
+	AxxEn8xQO7jQoduZzy4Gh6rvsrY6HWsTBt0EHsp/sX9l23BVbzUXX+v4YnO/ULzbgz1B7P3Gxml
+	7pcbUFwv+AuVYeCOl7uAtcStC+L4KgkrfcRzFMH7Y9Wv//riyun0XRKPzwJxCvf62Pg==
+X-Received: by 2002:a63:5c43:: with SMTP id n3mr20174334pgm.163.1555959525406;
+        Mon, 22 Apr 2019 11:58:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9e1eaEuPY13QE4437Qli9bBZ9CzkZoXTrXqwsRrMDm/xZoa8rx5UuJCpJHy4EulnkfbLL
+X-Received: by 2002:a63:5c43:: with SMTP id n3mr20174297pgm.163.1555959524616;
         Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweBJHlpFdyv6pmg3+0kLdzjylHl9yi+W4MfJcHSKm2iPxhPz6OKqoJfwB0HEDBtPNElzlh
-X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr22150454plt.177.1555959523666;
-        Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555959523; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1555959524; cv=none;
         d=google.com; s=arc-20160816;
-        b=luKyJ+uYhdSl+YmonvGd/wADQiCVckVJS2N3Jz75Xy1We7EiMWxkObZLpQTOa+JTvq
-         fU96pKXj0nELGLYE7Uh+nFs21wWIIxO/QIpfAqkNb+tlybzXufRXA6hWcGU4ETgho7D5
-         qT33bDMo520IzPH6Ym6vBsOm0LwwckMYkZAVkbI1feOlVIjNqwzDpC1QkEQbQeNrutE2
-         AyJoZIFLM71m9RsoETwNbfVjoKNhJEUqpnDBPqqZus88SFb1cmxJCEqu5/CsIzC8gdOZ
-         mjcDWxqykvzn3YeWf0jWZ3XA3jH86A0VDvGpH+Z9amL6xx2L5zAApOQdxrnD7QSBiZ48
-         Ts1w==
+        b=o/FlyCMekM/QBtxJogXiNshf4fORTf5jV5u/1GzfmemjiUJMChIZcwV1HgfXdomsBv
+         QHmJhb07klkRXPu5U23vU+dcwF8jpYXY8x+rwa4SpAW76KGgwI20ht8rSuMdsiMfy72i
+         9nbnc/phGCTQyyeLbDtP5hWSbP+ieWYBCTL0gcIq3qFr/vV50POrlCKEZ1BThjyyag38
+         S4o9q4KFczfRY3eqnQyZ+rHFLSX4SwfgQTfr+IeGzzV4xbojeNQbaYsp8aynVJCn0NBL
+         92dCndsHX8XkYabVWzdQ/zVs5iMH68tGmklMs/Mg61Ha+3sEsR5mNiqiKTcn7GByi7of
+         De+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
-        b=mlEkCcGoaHMwWGSYW0Z9EsrgwHEAr9ylzdz8wY4qWcWWR0cCRznayxnf74FkylQCZq
-         Hd/tLzAbTE6HYVH05vkIQTTtK8f26famPpOnewlHEU/iJc9/zypWtU5SdNR6Hu1gkTu6
-         R2VgQWFrrPulSck9onsVwTEt5tvnjJKqakmMAdSDG551TvPmSVohP45WZAZOjXuUGhWZ
-         YIj/KDSl80SaLGOSQeOzvFNM/FhGhXbQY6ccW/tiyW/TXXTKsjISwDLDIBhSgjPo3bfh
-         AI3PiJyr32Jr5H0IH9AOFlsAnwFZVXB6nBfuz2tAR/j+is6ao+BCfpeFK2YcLH0XqIqt
-         njuQ==
+        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
+        b=PpudQdPyWtKVa+9uYVoo2qxGYOuICKJSX/+lMG3/bL+JODnO1c+J1W+mf+RFemXZYd
+         1FQ2Yd/Vx09BdURKf0LArMeNGNz0WcLBZypfxNnvnwo4emrW363vmDZ0rwaH3TBfld/l
+         d0HHyGqN6bGFKNI8hPX1UURQBQr4f2P0Mq/eBvdRqhDIz2XzphsuJtuQngEaQO59iFf7
+         da3NvU2Yo9BqDB3qUg2SNp8wIG/cXLUp0bechrG9b7inL/RriMb7WLB1u9RKeHu5MrGe
+         d01E6nhGeSuBmz+BrCEfVZyXhMrkPpoG7R1pBo+68/VZ5rB4nOY7nUmndZjvocz/YWVv
+         kEmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a2si12975117pgn.530.2019.04.22.11.58.43
+        by mx.google.com with ESMTPS id a2si12975117pgn.530.2019.04.22.11.58.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
+        Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:42 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417152"
+   d="scan'208";a="136417182"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
+  by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:42 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Borislav Petkov <bp@alien8.de>,
 	Andy Lutomirski <luto@kernel.org>,
@@ -107,13 +107,10 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 12/23] x86/jump-label: Remove support for custom poker
-Date: Mon, 22 Apr 2019 11:57:54 -0700
-Message-Id: <20190422185805.1169-13-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 22/23] tlb: provide default nmi_uaccess_okay()
+Date: Mon, 22 Apr 2019 11:58:04 -0700
+Message-Id: <20190422185805.1169-23-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -125,89 +122,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-There are only two types of poking: early and breakpoint based. The use
-of a function pointer to perform poking complicates the code and is
-probably inefficient due to the use of indirect branches.
+x86 has an nmi_uaccess_okay(), but other architectures do not.
+Arch-independent code might need to know whether access to user
+addresses is ok in an NMI context or in other code whose execution
+context is unknown.  Specifically, this function is needed for
+bpf_probe_write_user().
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Add a default implementation of nmi_uaccess_okay() for architectures
+that do not have such a function.
+
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/jump_label.c | 26 ++++++++++----------------
- 1 file changed, 10 insertions(+), 16 deletions(-)
+ arch/x86/include/asm/tlbflush.h | 2 ++
+ include/asm-generic/tlb.h       | 9 +++++++++
+ 2 files changed, 11 insertions(+)
 
-diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
-index e7d8c636b228..e631c358f7f4 100644
---- a/arch/x86/kernel/jump_label.c
-+++ b/arch/x86/kernel/jump_label.c
-@@ -37,7 +37,6 @@ static void bug_at(unsigned char *ip, int line)
- 
- static void __ref __jump_label_transform(struct jump_entry *entry,
- 					 enum jump_label_type type,
--					 void *(*poker)(void *, const void *, size_t),
- 					 int init)
- {
- 	union jump_code_union jmp;
-@@ -50,14 +49,6 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
- 	jmp.offset = jump_entry_target(entry) -
- 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
- 
--	/*
--	 * As long as only a single processor is running and the code is still
--	 * not marked as RO, text_poke_early() can be used; Checking that
--	 * system_state is SYSTEM_BOOTING guarantees it.
--	 */
--	if (system_state == SYSTEM_BOOTING)
--		poker = text_poke_early;
--
- 	if (type == JUMP_LABEL_JMP) {
- 		if (init) {
- 			expect = default_nop; line = __LINE__;
-@@ -80,16 +71,19 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
- 		bug_at((void *)jump_entry_code(entry), line);
- 
- 	/*
--	 * Make text_poke_bp() a default fallback poker.
-+	 * As long as only a single processor is running and the code is still
-+	 * not marked as RO, text_poke_early() can be used; Checking that
-+	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
-+	 * SYSTEM_SCHEDULING before other cores are awaken and before the
-+	 * code is write-protected.
- 	 *
- 	 * At the time the change is being done, just ignore whether we
- 	 * are doing nop -> jump or jump -> nop transition, and assume
- 	 * always nop being the 'currently valid' instruction
--	 *
- 	 */
--	if (poker) {
--		(*poker)((void *)jump_entry_code(entry), code,
--			 JUMP_LABEL_NOP_SIZE);
-+	if (init || system_state == SYSTEM_BOOTING) {
-+		text_poke_early((void *)jump_entry_code(entry), code,
-+				JUMP_LABEL_NOP_SIZE);
- 		return;
- 	}
- 
-@@ -101,7 +95,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
- 			       enum jump_label_type type)
- {
- 	mutex_lock(&text_mutex);
--	__jump_label_transform(entry, type, NULL, 0);
-+	__jump_label_transform(entry, type, 0);
- 	mutex_unlock(&text_mutex);
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 90926e8dd1f8..dee375831962 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -274,6 +274,8 @@ static inline bool nmi_uaccess_okay(void)
+ 	return true;
  }
  
-@@ -131,5 +125,5 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
- 			jlstate = JL_STATE_NO_UPDATE;
- 	}
- 	if (jlstate == JL_STATE_UPDATE)
--		__jump_label_transform(entry, type, text_poke_early, 1);
-+		__jump_label_transform(entry, type, 1);
- }
++#define nmi_uaccess_okay nmi_uaccess_okay
++
+ /* Initialize cr4 shadow for this CPU. */
+ static inline void cr4_init_shadow(void)
+ {
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index b9edc7608d90..480e5b2a5748 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -21,6 +21,15 @@
+ #include <asm/tlbflush.h>
+ #include <asm/cacheflush.h>
+ 
++/*
++ * Blindly accessing user memory from NMI context can be dangerous
++ * if we're in the middle of switching the current user task or switching
++ * the loaded mm.
++ */
++#ifndef nmi_uaccess_okay
++# define nmi_uaccess_okay() true
++#endif
++
+ #ifdef CONFIG_MMU
+ 
+ /*
 -- 
 2.17.1
 
