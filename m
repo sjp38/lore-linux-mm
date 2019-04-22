@@ -1,144 +1,189 @@
-Return-Path: <SRS0=izd7=SX=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CFA43C10F14
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 21:16:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97026C282E3
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 02:10:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51E1320870
-	for <linux-mm@archiver.kernel.org>; Sun, 21 Apr 2019 21:16:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51E1320870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id DC84B2087B
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 02:10:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC84B2087B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DA146B0003; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
+	id 3DE2F6B0003; Sun, 21 Apr 2019 22:10:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 863696B0006; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
+	id 38DC86B0006; Sun, 21 Apr 2019 22:10:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72AE86B0007; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
+	id 27DC66B0007; Sun, 21 Apr 2019 22:10:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E8E86B0003
-	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 17:16:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y4so4921174edo.8
-        for <linux-mm@kvack.org>; Sun, 21 Apr 2019 14:16:08 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E593F6B0003
+	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 22:10:15 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id n5so7102336pgk.9
+        for <linux-mm@kvack.org>; Sun, 21 Apr 2019 19:10:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Z4LorMPRPxWgJ6qu2lCv38u+QKsYqeyCamf3ZQLee70=;
-        b=tjpBtKmDIh+28Sa4P+zajxIILyePnFTUJTeGEIDPZ5NaxdvMzEckVJjLjrVaotM4Ri
-         3U5P5tVKxMeJTf6Bmrv6pS25QrXX3Ay/tchAe2qINGW/zMZK1BYpem1PgBHBb29jP2Nr
-         jED1oosNRIZu+7cD32XNAPQoTgIKhIXsnlXhy5pm8V+XfwgrKEZZFShqox/HE8Z9nn1W
-         pvLs/6LgHRVCNMWILjWzKbc95icYhwU8zxjAKZrwilLCoyzUJLCsJwlijrac/qBKZ0qV
-         SGrvGMB3HDJafQFq9SudQz2JzJ42iqj1a2Y3Ihnex1wo3jjp7DFq5YeyStRnZEh5ekwt
-         e1zw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVmtpwUZ8108nRkZBmO0mm1OzTBoMgHSVTojgrkgS2C7rMRj4+c
-	5oYuLNRjEgI/63zLBtWI2l7K41dkj/sJC3UI3qSGLQoxE58dKjlSu4GOb3gG5lsk9Hg76HwmaIX
-	s7uDwnSH+YaUyskvad2yamTNHqMD72l2RtgZplTCVEG/qfbkAsQeReRgbIBwkWAt6fA==
-X-Received: by 2002:a50:b797:: with SMTP id h23mr10212308ede.133.1555881367614;
-        Sun, 21 Apr 2019 14:16:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzmsW5HGJsDKrNF3NwyByVOOtE5bCltc6ket2PMxehEL5PaTzRKyMDV6h4/XcJXGrzfFSPd
-X-Received: by 2002:a50:b797:: with SMTP id h23mr10212278ede.133.1555881366757;
-        Sun, 21 Apr 2019 14:16:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555881366; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc:from
+         :subject:message-id:date:user-agent:mime-version:content-language
+         :content-transfer-encoding;
+        bh=2q443B0eOWyL/uLnvbH3BRqdzuFql2rjMMi/K1LHZUk=;
+        b=l7y/v27MeqjE4P/bNba2qwVswz9x3W21s4Zn3+dIMZuOOQpVDLfSK99q92/AwRm/ed
+         fGQQ4NZEp7wb/Tuumd3G6vpXbPoOcHJH/frLHfJkGr7pZW8b2Vz2XlYJw2tidV9NIj8v
+         Ckta9cKUWvu+EqjeOjYbQEFS5JM+FRyWbEo5pBuzp2/6Zk9r1xHTmuWh3apZVfKVAvT8
+         e964Dx4drVS4ZCJePRBHxzR4O5dMNt7p3UpIM+Qzou7JCG/ThyNYDuNJmHTqJVxoto2k
+         THc4THn/90hzFdx4Yu9lQQvInYoJa3Z13uPSPpwM+9LYtXtvAYglP6G9bAyg1Pwc0JXD
+         OKWg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAU3TVoB4nQWpaLhNOy+gzCjo2JhnHqM0Qz248g5zto7CjCfyvz/
+	DN+pJEJAgZRqZtH6daoWqvriKb/KCDLQN7bhxPmiuGRYTmd0pXQh7ehUWVlg1Lf7n5mhJT9j6Z3
+	b1ewzzC1WR1Uq+epolouRLg4v5NwPXO2s83QaL8ijcq+FAVdBfkd0R4/Dqq+SKiRvFw==
+X-Received: by 2002:a65:63d7:: with SMTP id n23mr16767736pgv.26.1555899015431;
+        Sun, 21 Apr 2019 19:10:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWhVNZ07bHb4Sct6zqRdTO8iJ3y7QL1tJX/WFZM+iMoSQXpM51aFboQ6YMRYaVWlyftkG5
+X-Received: by 2002:a65:63d7:: with SMTP id n23mr16767655pgv.26.1555899013958;
+        Sun, 21 Apr 2019 19:10:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555899013; cv=none;
         d=google.com; s=arc-20160816;
-        b=YYM4C5agSKWqanU0vi2FUsoE5/lMvXbN2B9p5Sh+lBXOKLFuwWn1N8RWLKiMDB6inX
-         klGD93x7IUHmx2QLvD2dszZfFMK1gGn8hzvx/JjfHQEJxcId2xRQgBVm/pusf15XiiKw
-         2E+peH492Jc0ACuqlHhlP/yBmfuNs2BXgXnt8Ly8HxsXwpYZc59s4olojueu9r9m4/cw
-         MX9u0uBTjWCmbpddYB/t9vTtyeNxInvh+ZWBJNnn63TgIqwAilJnZTl1skEpBVdaympa
-         5lYdiQQhQmRFDgGc5YmWH3gHpz2DwRtdBTXxzh64FmhcbD3XUAqvkfYYwX6IXjkwDZN5
-         +o5Q==
+        b=XHWK94izikqIlufCLrfgwNebXeiyl0YJLAzxeRmUAJPq6pB+XNAnEievDKChz5+L6Q
+         lHCTLD4YAoFtWqjCpIgqcvjaK34blaF6LfgEXRUBfyeXibjo7dsdY7tscVJvmchmnMjA
+         nrz8399Mi63ZxSx3bag3Ey53y19ppS7LLfNe2I/Z+3pIwoOFf1Sh9f7O2+bUZmrZ11YA
+         e9Q1gQbFv1SSSVNxCuUjDRJJFryzDr1Vugz4W05SLpEeRJwGTXrklhimFmzYsBGm52Nr
+         t3KdcSpFFqvNfkhJx4UqZVwIbKJnGZA+uId8N7ai9G3TR9Yz836SwgHfTq0+OlNBU5JR
+         HTLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Z4LorMPRPxWgJ6qu2lCv38u+QKsYqeyCamf3ZQLee70=;
-        b=Iqdvexr6I3sPJwwg/+liqsdY8Dfx4Gv/d9RSluCZvMBwqQELuhceQPm5HlZQFcrGAB
-         +OBtatHNcReK7Y/I4ql4V0BfAwGIv+HfUBRskiM6uqN5skhdTGkvEdwncnijp6VWHN+/
-         OOorFVVoWg2tnrcap+67Haw0gQx1jc3CS9+eGKe57qoXF2LtIIFbLUJyoWHq5KMHGIlH
-         ANv7OTZxGE37rUoVV4R5Lr5/P9F495QK0vMLMfIglgRqcqqqZoPDf6nkXTFs+ALAfusy
-         W8uvUdOo9k0ZvHe9Q5ypngFG6o1nQPTaPw/QHFY2+9wFvJAN4hpRxndnymsYJyjTmOz/
-         PN7Q==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:subject:from:cc:to;
+        bh=2q443B0eOWyL/uLnvbH3BRqdzuFql2rjMMi/K1LHZUk=;
+        b=muyTbjkzuuqj2i7d77ymbd3y+dCHqYeXVrmkpqVNxqcscsBje6HAq0u4Pk62KBQVtv
+         u0FPi+7gu3OYsjEts3S1RXA2N48RFHs//TiMr4+TUve09t93z8mJGY5OtNS4KZDsG3qg
+         mvFu5QApjVjVQX42XlOP9AUF4UOW+uyqfXmY79MJs0s6Ra6gTu2h2PGDxLdaPXl2CNkS
+         lgpA3QdeB4QxFFjf/zKv2QzRrCtFK+XZRF1nqTx4SBVrCnQXYqcGeTNZsMjAOo/L9oX+
+         NoD/mlEpQy1MldCNdHmU3FFB8PZPvPtRBHI1ptBBarkcJBli49uo8rFuJ6QOcNRcI8VN
+         wsYg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp01.blacknight.com (outbound-smtp01.blacknight.com. [81.17.249.7])
-        by mx.google.com with ESMTPS id d2si1689307edb.202.2019.04.21.14.16.06
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id b5si10742200pgw.359.2019.04.21.19.10.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Apr 2019 14:16:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) client-ip=81.17.249.7;
+        Sun, 21 Apr 2019 19:10:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.7 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp01.blacknight.com (Postfix) with ESMTPS id 48D7398B1E
-	for <linux-mm@kvack.org>; Sun, 21 Apr 2019 21:16:06 +0000 (UTC)
-Received: (qmail 12317 invoked from network); 21 Apr 2019 21:16:06 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 21 Apr 2019 21:16:06 -0000
-Date: Sun, 21 Apr 2019 22:16:04 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mikulas Patocka <mpatocka@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
-	Vlastimil Babka <vbabka@suse.cz>,
-	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
-Subject: Re: DISCONTIGMEM is deprecated
-Message-ID: <20190421211604.GN18914@techsingularity.net>
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <20190421063859.GA19926@rapoport-lnx>
- <20190421132606.GJ7751@bombadil.infradead.org>
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TPtsupF_1555899010;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TPtsupF_1555899010)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 22 Apr 2019 10:10:10 +0800
+To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
+ mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+Subject: [RFC PATCH 0/5] NUMA Balancer Suite
+Message-ID: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+Date: Mon, 22 Apr 2019 10:10:10 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20190421132606.GJ7751@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 21, 2019 at 06:26:07AM -0700, Matthew Wilcox wrote:
-> On Sun, Apr 21, 2019 at 09:38:59AM +0300, Mike Rapoport wrote:
-> > On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
-> > > On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
-> > > > DISCONTIG is essentially deprecated and even parisc plans to move to
-> > > > SPARSEMEM so there is no need to be fancy, this patch simply disables
-> > > > watermark boosting by default on DISCONTIGMEM.
-> > > 
-> > > I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
-> > > scenarios.  Grepping the arch/ directories shows:
-> > > 
-> > > alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
-> > > arc (for supporting more than 1GB of memory)
-> > > ia64 (looks complicated ...)
-> > > m68k (for multiple chunks of memory)
-> > > mips (does support NUMA but also non-NUMA)
-> > > parisc (both NUMA and non-NUMA)
-> > 
-> > i386 NUMA as well
-> 
-> I clearly over-trimmed.  The original assumption that Mel had was that
-> DISCONTIGMEM => NUMA, and that's not true on the above six architectures.
-> It is true on i386 ;-)
+We have NUMA Balancing feature which always trying to move pages
+of a task to the node it executed more, while still got issues:
 
-32-bit NUMA systems should be non-existent in practice. The last NUMA
-system I'm aware of that was both NUMA and 32-bit only died somewhere
-between 2004 and 2007. If someone is running a 64-bit capable system in
-32-bit mode with NUMA, they really are just punishing themselves for fun.
+* page cache can't be handled
+* no cgroup level balancing
+
+Suppose we have a box with 4 cpu, two cgroup A & B each running 4 tasks,
+below scenery could be easily observed:
+
+NODE0			|	NODE1
+			|
+CPU0		CPU1	|	CPU2		CPU3
+task_A0		task_A1	|	task_A2		task_A3
+task_B0		task_B1	|	task_B2		task_B3
+
+and usually with the equal memory consumption on each node, when tasks have
+similar behavior.
+
+In this case numa balancing try to move pages of task_A0,1 & task_B0,1 to node 0,
+pages of task_A2,3 & task_B2,3 to node 1, but page cache will be located randomly,
+depends on the first read/write CPU location.
+
+Let's suppose another scenery:
+
+NODE0			|	NODE1
+			|
+CPU0		CPU1	|	CPU2		CPU3
+task_A0		task_A1	|	task_B0		task_B1
+task_A2		task_A3	|	task_B2		task_B3
+
+By switching the cpu & memory resources of task_A0,1 and task_B0,1, now workloads
+of cgroup A all on node 0, and cgroup B all on node 1, resource consumption are same
+but related tasks could share a closer cpu cache, while cache still randomly located.
+
+Now what if the workloads generate lot's of page cache, and most of the memory
+accessing are page cache writing?
+
+A page cache generated by task_A0 on NODE1 won't follow it to NODE0, but if task_A0
+was already on NODE0 before it read/write files, caches will be there, so how to
+make sure this happen?
+
+Usually we could solve this problem by binding workloads on a single node, if the
+cgroup A was binding to CPU0,1, then all the caches it generated will be on NODE0,
+the numa bonus will be maximum.
+
+However, this require a very well administration on specified workloads, suppose in our
+cases if A & B are with a changing CPU requirement from 0% to 400%, then binding to a
+single node would be a bad idea.
+
+So what we need is a way to detect memory topology on cgroup level, and try to migrate
+cpu/mem resources to the node with most of the caches there, as long as the resource
+is plenty on that node.
+
+This patch set introduced:
+  * advanced per-cgroup numa statistic
+  * numa preferred node feature
+  * Numa Balancer module
+
+Which helps to achieve an easy and flexible numa resource assignment, to gain numa bonus
+as much as possible.
+
+Michael Wang (5):
+  numa: introduce per-cgroup numa balancing locality statistic
+  numa: append per-node execution info in memory.numa_stat
+  numa: introduce per-cgroup preferred numa node
+  numa: introduce numa balancer infrastructure
+  numa: numa balancer
+
+ drivers/Makefile             |   1 +
+ drivers/numa/Makefile        |   1 +
+ drivers/numa/numa_balancer.c | 715 +++++++++++++++++++++++++++++++++++++++++++
+ include/linux/memcontrol.h   |  99 ++++++
+ include/linux/sched.h        |   9 +-
+ kernel/sched/debug.c         |   8 +
+ kernel/sched/fair.c          |  41 +++
+ mm/huge_memory.c             |   7 +-
+ mm/memcontrol.c              | 246 +++++++++++++++
+ mm/memory.c                  |   9 +-
+ mm/mempolicy.c               |   4 +
+ 11 files changed, 1133 insertions(+), 7 deletions(-)
+ create mode 100644 drivers/numa/Makefile
+ create mode 100644 drivers/numa/numa_balancer.c
 
 -- 
-Mel Gorman
-SUSE Labs
+2.14.4.44.g2045bb6
 
