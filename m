@@ -2,271 +2,169 @@ Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC5C4C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 15:51:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C3E2C10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 15:56:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D25B2077C
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 15:51:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D25B2077C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4BD752077C
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 15:56:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="XI/gGUG+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BD752077C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0CAC6B0003; Mon, 22 Apr 2019 11:51:55 -0400 (EDT)
+	id CBE556B0006; Mon, 22 Apr 2019 11:56:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBD106B0006; Mon, 22 Apr 2019 11:51:55 -0400 (EDT)
+	id C47E06B0007; Mon, 22 Apr 2019 11:56:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D83C36B0007; Mon, 22 Apr 2019 11:51:55 -0400 (EDT)
+	id B0FE36B0008; Mon, 22 Apr 2019 11:56:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B33A86B0003
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:51:55 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id g1so565992qkm.3
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 08:51:55 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 917FF6B0006
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:56:39 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id q203so13018649itb.2
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 08:56:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=fC072qf+mCMjRutEAQYtab5sKujsgZWzioVp6Qf+3rw=;
-        b=jbsG6D1ZD4AcbFfhTgiYV9Cw1HMINooTN1klGxntKoUeIrIeqzW7YrwLUhhCyZ2DS7
-         rXEoO1oRFPHesMH8EvG9mw8Ib2s1PnwcCzn6bBt0NZ3Z+TOXShWOyeYIO0EqhSvQjhoW
-         OV8XnuMbCBZIJ54mCtopbem+C0xuYd2Xm7FeMVqS29ogMU6HMSZcjQLOxcChChsTR23N
-         k1X8uD9idNANmKEt1gRTGeSipT34k626vhbKv238+3TRt7nAH5x5CY2BTttdK7u9aCZZ
-         3DhqSl6bobM/WQqPEMJoJjbUznOKSDxMykPguuLWYKxC0BdzJ5vOGxUI3dpGu9a+h+NK
-         cXYA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWrORf7lgVkJEtRJMQacIV6OdeFmBVs6jtxpqQqUaPnslt2mbjc
-	CNwOdAdqYU1nc39oKnM8Uo3W+RZ4LtfeLB6Zg+sx53WsPwMFgTGLK2QTNTeXCxIA4yMbNlaQWNk
-	jwYDLSkBqnf1XCtLhxe4x/ZEBmI5R1ff85JNmtOngEIjU21JAS9J36+bkKFEPIKWHHQ==
-X-Received: by 2002:ac8:22f3:: with SMTP id g48mr15530778qta.333.1555948315329;
-        Mon, 22 Apr 2019 08:51:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxeost4QIJK9aj9RyGLd9ittz/fqwZ6wTziI0Hm/MUZ0X1Vo+7leumA+FveqTrY6+KUT39O
-X-Received: by 2002:ac8:22f3:: with SMTP id g48mr15530717qta.333.1555948314423;
-        Mon, 22 Apr 2019 08:51:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555948314; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=1YFWhk18nPvj1sYrbNiGZZtKSn/WuN9LenTer33fr9w=;
+        b=n19b8Il2pyJQ3jaWYSen9NmW1mI+5cAilfYCqeo/C3oFKQZWgOnYcldYptC7+IJSXL
+         PNspyTOiPLAURCO9WuECgqfUkJnIpuCdp5Vdt+n6ovTRNPFERR27wGdOpuw7rzWbnR7b
+         YsvuJinQItKF2DPcHx+0oM0xS7rpbhE4vN23R93jIzDEf6JvLgrsJym/G8aVcNDbqow4
+         AVUIZMPGT5z/dtbWw6nz2zLnxf7R2P5/faFbO/vozS8jiAFJv7Xf2QBYI9G1P/ahsDnH
+         0Oq/Az+M/7SPahcje2HEPLB32CE9NQbgoGoxNPTrAeMS6FEpbtAkKGwVRtcm/8WOmB0f
+         6hXA==
+X-Gm-Message-State: APjAAAUgphNNbjmQgToHUWIiDX8+VxLVhG/6s6zSw3gUb/R7/1te9a4l
+	LQWD9PkTpoXAxgaKq8uQBMuUwkJW3y09OWVA5ZuulILvIDV8wEcQJhnS8OspTa64c9bxv0nkTf6
+	dCLlh4izt8otW5pILr+fOcDtb4ZasfBLi0c3JQGStLaQ9BRxOCnlkfVw9XIVoZtMO/w==
+X-Received: by 2002:a05:660c:1282:: with SMTP id s2mr13902164ita.47.1555948599290;
+        Mon, 22 Apr 2019 08:56:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUn85lLFqPXzXqIvKBvPCVxt5nyzbvyGgKcg+CeZSvjlnukNG7Srp2fU3NtmBZRZGaEgEg
+X-Received: by 2002:a05:660c:1282:: with SMTP id s2mr13902109ita.47.1555948598290;
+        Mon, 22 Apr 2019 08:56:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555948598; cv=none;
         d=google.com; s=arc-20160816;
-        b=zt9TwUHHFMolaOzU7mlpJoe7Y8avg5YZrGkPmtU7kwEgrNYYNhycQnhCzw6KhHKYtE
-         nG5nykAPek+9+OiLiHhpikOtlOGzq3VPjoUqXnGeDxhLrr4redbhzupJiQC582hHzNcZ
-         OzbOyZPRX5fWKzIfh5THnjw78o8Jv5lsVXEz5VZQCUzzBHYsbCgpVOjmpqtr5YELZqwb
-         nvaB4oCRiHjJobPrXv7oY147xY4hjgtZYes50xx0DaYkbh24/LoiTGscAQv3LVNG93Eu
-         dDsPXQhBoJ9TDTHj+Dz6wObq1JjfbqDswhLXzsAzoU4XIIErA42wx5FM8tEGizx1w12q
-         2elg==
+        b=reX8/A71Z78VQcCO4ThMNV2UcjQTuQhWhRxV9a46jhbCMvYnpeUonN+YDMRghElFK+
+         yUsTl7DnrFPgKycV4duFP8DRtqlW4rxVes9bMPTTZ3eDw61bGtQup8JAkelpZKqtkT9I
+         ysTrElmtzRubIewkuKzlHBqxzPmJqZ6wIWfaLu1jmhLTy6omNnYCWvzKSIL1v/HSvv8L
+         1XAMkS2Z4iLCOgMQTOkstiWTAtzhba5Wq9qmaqae1NfYYwj17H17FA58I6C4b/zNYUpY
+         QxOoVmFCDMbSoLwxJQy56E72ZqpGAXaunFpxh36eU0/Mm7vjSpxgOjcqe5Kbcde+85eH
+         2F7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=fC072qf+mCMjRutEAQYtab5sKujsgZWzioVp6Qf+3rw=;
-        b=J388/r6qFY8DSPAeXpbTfW99lZBkpUAd+Po269CZQYYAuhfXviHclick+MSGs8VOVy
-         Hgufh4F30AjIZDn/+G1BrCJQizpZ8977a/0xRELoUrJ8re6WtJesG4qTFQIiG6kbI3l0
-         YkmBYmcuP1SlkGfwtb/R8mOFLi6d4oHJxqlYFalJkuxLb+syFVCLBiaYgMWV02MEAPrN
-         cx0fCVsvfC6HtUxUQPLO428MdmWbz0SnA9cQalqYGuAPZZQvMagFInDqcbol0NZkVEst
-         mj5jS1yyCCEV593FBCk1N4EHjZcsLwCXfn7RPnOx79JBqv8SXMsNCjPuyr3Fw4A3Hndq
-         gycw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1YFWhk18nPvj1sYrbNiGZZtKSn/WuN9LenTer33fr9w=;
+        b=ejlxWQhzkqtj+Oa5OxF+1+PfEcxoxO5H9mabxyzusEh+lFgM8agF7puz+Xj3OBNKlR
+         0Q2MZyBELVLoZ7IDpuE3GIu1YpWjzNj2F9n3bbYDx1oeov8JeUaJcnRqdl3j8BNDryAG
+         8y4gjgmMB0iO0FHdLJ/aAeN97GJ/tPk2frFbYy+Vcne8PIcD/gZ2tDgmfC4XXGG4YSks
+         INj5jZUAFmtmstRKeblC3wganVYSwRkAe0JymJCFGZsKvDop9AhtmfLZRBeOFONiUg/q
+         VCLdmlgthRXOZZiA7tzIg9QI6hz5hlDO93ngwaKrLU1pU0s7IkfdccHS8wHipve91AQ5
+         Q9qQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z28si1393032qtb.61.2019.04.22.08.51.54
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="XI/gGUG+";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id u202si8612605itb.124.2019.04.22.08.56.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 08:51:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 22 Apr 2019 08:56:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BBD2C307D867;
-	Mon, 22 Apr 2019 15:51:52 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 730DE5D9D4;
-	Mon, 22 Apr 2019 15:51:44 +0000 (UTC)
-Date: Mon, 22 Apr 2019 11:51:42 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
-	kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
-	jack@suse.cz, Matthew Wilcox <willy@infradead.org>,
-	aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
-	mpe@ellerman.id.au, paulus@samba.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
-	Will Deacon <will.deacon@arm.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	sergey.senozhatsky.work@gmail.com,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
-	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
-	David Rientjes <rientjes@google.com>,
-	Ganesh Mahendran <opensource.ganesh@gmail.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Punit Agrawal <punitagrawal@gmail.com>,
-	vinayak menon <vinayakm.list@gmail.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	zhong jiang <zhongjiang@huawei.com>,
-	Haiyan Song <haiyanx.song@intel.com>,
-	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
-	Michel Lespinasse <walken@google.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
-	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
-	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Subject: Re: [PATCH v12 09/31] mm: VMA sequence count
-Message-ID: <20190422155142.GD3450@redhat.com>
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
- <20190416134522.17540-10-ldufour@linux.ibm.com>
- <20190418224857.GI11645@redhat.com>
- <d217e71c-7d55-ce1a-6461-ce1de732fb57@linux.ibm.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="XI/gGUG+";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3MFiBSe058592;
+	Mon, 22 Apr 2019 15:56:23 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=1YFWhk18nPvj1sYrbNiGZZtKSn/WuN9LenTer33fr9w=;
+ b=XI/gGUG+sf++GowsIupWT5i00SK26pIYdJnbzRAIp5hm0bAIDhZ+HttAnN8UusZbg37f
+ So4eNeN89QqmJDJYtFelMLz/WtDjWFC4JI13s69D8/mCyTwTiKeEy3M1ol1MZPpLBRVM
+ EQAZVzhqPrMY9wC7JFjW77AgLSQwVDPUfzH0zzmc3k3rW5FewyAfituuLXUvJFQdROGx
+ GS362yi9MfcSNU3GoqOPsC8ptuJCrMaT5jVDs3wh6y6gqMsMYSdN9CpJPmByAnZi2MJA
+ xR2qnfkRNVjMcTAoSXvj5iXxpKQDOeZy3BVYwnRY548p3gsR0HBA8WtDdtlKPvYE71Vc iw== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2120.oracle.com with ESMTP id 2ryv2pxx83-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 22 Apr 2019 15:56:23 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3MFsMGr013459;
+	Mon, 22 Apr 2019 15:54:22 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3030.oracle.com with ESMTP id 2s0f0v0qrs-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 22 Apr 2019 15:54:22 +0000
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3MFs8g3003588;
+	Mon, 22 Apr 2019 15:54:09 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 22 Apr 2019 08:54:08 -0700
+Date: Mon, 22 Apr 2019 11:54:37 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
+        Mark Rutland <mark.rutland@arm.com>,
+        Alexey Kardashevskiy <aik@ozlabs.ru>, Alan Tull <atull@kernel.org>,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Christoph Lameter <cl@linux.com>, Davidlohr Bueso <dave@stgolabs.net>,
+        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
+        Paul Mackerras <paulus@ozlabs.org>, Wu Hao <hao.wu@intel.com>,
+        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/6] mm: change locked_vm's type from unsigned long to
+ atomic64_t
+Message-ID: <20190422155437.qppyxcbfql34ginr@ca-dmjordan1.us.oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+ <20190402204158.27582-2-daniel.m.jordan@oracle.com>
+ <614ea07a-dd1e-2561-b6f4-2d698bf55f5b@ozlabs.ru>
+ <20190411095543.GA55197@lakrids.cambridge.arm.com>
+ <20190411202807.q2fge33uoduhtehq@ca-dmjordan1.us.oracle.com>
+ <20190416163351.5e4e075ddfad0677239fc23a@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <d217e71c-7d55-ce1a-6461-ce1de732fb57@linux.ibm.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 22 Apr 2019 15:51:53 +0000 (UTC)
+In-Reply-To: <20190416163351.5e4e075ddfad0677239fc23a@linux-foundation.org>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9235 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=18 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=701
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904220119
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9235 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=18 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=724 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904220119
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 19, 2019 at 05:45:57PM +0200, Laurent Dufour wrote:
-> Hi Jerome,
-> 
-> Thanks a lot for reviewing this series.
-> 
-> Le 19/04/2019 à 00:48, Jerome Glisse a écrit :
-> > On Tue, Apr 16, 2019 at 03:45:00PM +0200, Laurent Dufour wrote:
-> > > From: Peter Zijlstra <peterz@infradead.org>
-> > > 
-> > > Wrap the VMA modifications (vma_adjust/unmap_page_range) with sequence
-> > > counts such that we can easily test if a VMA is changed.
-> > > 
-> > > The calls to vm_write_begin/end() in unmap_page_range() are
-> > > used to detect when a VMA is being unmap and thus that new page fault
-> > > should not be satisfied for this VMA. If the seqcount hasn't changed when
-> > > the page table are locked, this means we are safe to satisfy the page
-> > > fault.
-> > > 
-> > > The flip side is that we cannot distinguish between a vma_adjust() and
-> > > the unmap_page_range() -- where with the former we could have
-> > > re-checked the vma bounds against the address.
-> > > 
-> > > The VMA's sequence counter is also used to detect change to various VMA's
-> > > fields used during the page fault handling, such as:
-> > >   - vm_start, vm_end
-> > >   - vm_pgoff
-> > >   - vm_flags, vm_page_prot
-> > >   - vm_policy
-> > 
-> > ^ All above are under mmap write lock ?
-> 
-> Yes, changes are still made under the protection of the mmap_sem.
-> 
-> > 
-> > >   - anon_vma
-> > 
-> > ^ This is either under mmap write lock or under page table lock
-> > 
-> > So my question is do we need the complexity of seqcount_t for this ?
-> 
-> The sequence counter is used to detect write operation done while readers
-> (SPF handler) is running.
-> 
-> The implementation is quite simple (here without the lockdep checks):
-> 
-> static inline void raw_write_seqcount_begin(seqcount_t *s)
-> {
-> 	s->sequence++;
-> 	smp_wmb();
-> }
-> 
-> I can't see why this is too complex here, would you elaborate on this ?
-> 
-> > 
-> > It seems that using regular int as counter and also relying on vm_flags
-> > when vma is unmap should do the trick.
-> 
-> vm_flags is not enough I guess an some operation are not impacting the
-> vm_flags at all (resizing for instance).
-> Am I missing something ?
-> 
-> > 
-> > vma_delete(struct vm_area_struct *vma)
-> > {
-> >      ...
-> >      /*
-> >       * Make sure the vma is mark as invalid ie neither read nor write
-> >       * so that speculative fault back off. A racing speculative fault
-> >       * will either see the flags as 0 or the new seqcount.
-> >       */
-> >      vma->vm_flags = 0;
-> >      smp_wmb();
-> >      vma->seqcount++;
-> >      ...
-> > }
-> 
-> Well I don't think we can safely clear the vm_flags this way when the VMA is
-> unmap, I think it is used later when cleaning is doen.
-> 
-> Later in this series, the VMA deletion is managed when the VMA is unlinked
-> from the RB Tree. That is checked using the vm_rb field's value, and managed
-> using RCU.
-> 
-> > Then:
-> > speculative_fault_begin(struct vm_area_struct *vma,
-> >                          struct spec_vmf *spvmf)
-> > {
-> >      ...
-> >      spvmf->seqcount = vma->seqcount;
-> >      smp_rmb();
-> >      spvmf->vm_flags = vma->vm_flags;
-> >      if (!spvmf->vm_flags) {
-> >          // Back off the vma is dying ...
-> >          ...
-> >      }
-> > }
-> > 
-> > bool speculative_fault_commit(struct vm_area_struct *vma,
-> >                                struct spec_vmf *spvmf)
-> > {
-> >      ...
-> >      seqcount = vma->seqcount;
-> >      smp_rmb();
-> >      vm_flags = vma->vm_flags;
-> > 
-> >      if (spvmf->vm_flags != vm_flags || seqcount != spvmf->seqcount) {
-> >          // Something did change for the vma
-> >          return false;
-> >      }
-> >      return true;
-> > }
-> > 
-> > This would also avoid the lockdep issue described below. But maybe what
-> > i propose is stupid and i will see it after further reviewing thing.
-> 
-> That's true that the lockdep is quite annoying here. But it is still
-> interesting to keep in the loop to avoid 2 subsequent write_seqcount_begin()
-> call being made in the same context (which would lead to an even sequence
-> counter value while write operation is in progress). So I think this is
-> still a good thing to have lockdep available here.
+On Tue, Apr 16, 2019 at 04:33:51PM -0700, Andrew Morton wrote:
 
-Ok so i had to read everything and i should have read everything before
-asking all of the above. It does look good in fact, what worried my in
-this patch is all the lockdep avoidance as it is usualy a red flags.
+Sorry for the delay, I was on vacation all last week.
 
-But after thinking long and hard i do not see how to easily solve that
-one as unmap_page_range() is in so many different path... So what is done
-in this patch is the most sane thing. Sorry for the noise.
+> What's the status of this patchset, btw?
+> 
+> I have a note here that
+> powerpc-mmu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch is to be
+> updated.
 
-So for this patch:
-
-Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+Yes, the series needs a few updates.  v2 should appear in the next day or two.
 
