@@ -2,73 +2,74 @@ Return-Path: <SRS0=CbiD=SY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C373C282E1
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21DCBC282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EF6652175B
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF6652175B
+	by mail.kernel.org (Postfix) with ESMTP id D082721738
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:58:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D082721738
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 386EF6B0003; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 8159C6B000A; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30CC76B0007; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 7C7796B0010; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C2946B000D; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+	id 6671A6B000D; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5BF6B0003
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:43 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id o8so8479682pgq.5
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9166B0008
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h14so8432326pgn.23
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=2uQh+p4niM1XazCyX0W8SClLNopGSLFeOTKZKD97XRE=;
-        b=n4Iwd7t0W2867DU6O4oY3WWOIQx2wBP93LnxYFdXpPKcfR51Bs6IFW0NcECLlMrRrL
-         EGOH+ot+K7jK/2xlCXD724m+BKNXMehFL/ss8MX13UEBqZV9Ijc8B44v+wX+GzOqxuXw
-         KdqYGLxlp3HCFbnHhkbAaStRobS+gafMD+9KM9cXyoUIy4n4+DAYDSZCX+GDnm4kaQP7
-         psxitxEJHNoPTNEEExoOegkmu/a0gieGsm69WpgjbTKMzJwk45H0H6J5vGThEiWmkWYC
-         BxOrVjyCWYfS707/7PCb2wElbsxzSkbLBnxEnzioGh7lwLm5aeJ7OsbAt4MQvm9zeDn7
-         FJqQ==
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=7B+CL5Sto9KU/VBigp9SJGxY8kRqK761XCrRvI17bdQ=;
+        b=iifLdm4ui5wzKQ8XUmzNARk7CcXeENwnDTOZqMcCPy8DOA6mIYrcIFZsDNZumm2NX/
+         xfG+nA5nIOc0qswxRc04xIQMI3pZ+6jEQqsEf6e0Odv3JQDQs2Yre/nLLFlXqkcLxVUl
+         zyC8P5gIaQ2pFXQzzVqu6QOmL4xpyNWXlztzCmzZohv8yB4Hm7s34iUyER4VrN87WYjc
+         8t3T0mDWvilu0qV5PDJN3gY3NN9QQLCSCyKDc1Qz2RLVi/X4mrYXNbJlAmqXFx3y/QhA
+         ULaMerANofEOdXpcdOhc1DklwZ12hJyE0HZSoKUfKNLW2CkJ9imtSLqq0McMjksJ2OV/
+         pE2w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXmjlnlvnz7YioPjLHOGjgILa7lpeuy9roqEXQsppn1IIVacS9d
-	M2z/56cgYgIeNXi6wyNAae6ymCOQzqIE6skVd2E4sobVExeicaamsScQN98dkset7lUPxtiteyI
-	U0rUJYTVNeP8JJejvQQQp/zBSXMqhv1L+Dwhc2SFS4iTY0eZVh8uh2xsd3vIk+x06Aw==
-X-Received: by 2002:a63:6fcf:: with SMTP id k198mr20149697pgc.158.1555959523193;
+X-Gm-Message-State: APjAAAWlDiBqLgCR6X9A2i9rhQ/Pijg68WZMKOlwgeudNVUSfECyJTCG
+	y4ZR2ke/ObyC3faJ+g4OPSIHh7qXHJ+maaQLh3TbmWu1EDpSsElCOIzh9yqxk6ZAmFv8I/CpK0j
+	StQ+eX9vI8g4FWnz1QHkcq1NN1SLRHULX4EkFzegu9mKO4q96HX3akL/Do6RY7MEBqA==
+X-Received: by 2002:a63:d04b:: with SMTP id s11mr534989pgi.137.1555959523609;
         Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqym7m/sJHOJ5H106O5w6z5v1U3smcyroZ/93ELbtQXKOaCclXHp6Cs3cHMNJLJXbfUoedeJ
-X-Received: by 2002:a63:6fcf:: with SMTP id k198mr20149644pgc.158.1555959522203;
+X-Google-Smtp-Source: APXvYqzGr0zxhULJJ2/q/B5HLYtAIL1D4lMZscKs1D384W1xqIsf+Ut+CGz0G0rCRYZoyiDxg9ep
+X-Received: by 2002:a63:d04b:: with SMTP id s11mr534933pgi.137.1555959522582;
         Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555959522; cv=none;
         d=google.com; s=arc-20160816;
-        b=J+sRKXeEyrbbHnMQgLYSko/oGz++d5QGHUIKuQviTHbCCvXrHdhf95eoWYg8N9aklu
-         fKuCKmcw/p0qZy4aKvodc6xZKyIUhM4HoVOjODzQETlJCHIxWO7Vb/hqSCnNlT2ul6bF
-         oPh6A5IDJiql03qzuTb5P0fQya3FldE4qGXUzpQ5Vswrql+F+fpwPK2PtjtsFEO4LwPQ
-         oCdP3XEuLR+iFFFN842QmMDbBCKlhW8P7foYb0EEdcqdTR9pe4X/3QbH/J9KJV3LVkFP
-         tFa8STnnwq7A8vqAEBulUKl+Ec1DWOxZax3JOFJobeoWtjQ0Oa5g0V3eQE7O6uosv17X
-         mmdg==
+        b=uZpiB4XSFsorbZbYYAIZxGLQntaHdLznp3a1FqTW2JDs9LlGyUfjqyZedW68zk/7CA
+         xqKLylU6LamJ7dTTh5yqHxCaVpWZX7kHvW2PCciLySqQdfIS1fz5M6XTGSGXIXVWisKp
+         Qm4XA8lxJHnB4Ipv/RhgY7hhDHRdvA12JD0fNh6K7RqzZnry1u36VBCzbGU/gsEzTw6l
+         jwm6ShAVoILAu/weeJaHh2wBzFZUqCgQJAdkH4UpGyEbVZkNz7u3bVqBBrqTZiz1UJbx
+         RtFBDDlf+S7pQQ9vqCuxmX31tA6SbDSQQqlFEdyfywSCA6PraR+UXwpvM2hG24wfkQE0
+         Nipw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=2uQh+p4niM1XazCyX0W8SClLNopGSLFeOTKZKD97XRE=;
-        b=QPJcZt7evCAtr0SaUVicXQcgv6oMbYvDwwQqKf8j4Cexh29GrlrAY2IFIPxoO/pzBm
-         0owClqPBPQ5r33kPURtwvrLxk/Ptj2z1VV9GitPAtH3VH86powmS+TbMEBehkMvrotOz
-         twmn/lbsmeltC2zmb42Ldx67mgy7M1vy4GVr6MtxnejjA8z/iUSKum9tWzBZG+8EWmM+
-         9aaClu3vqDQH9Z9aKZjKGrxtERfLMOzwd1e4yQ1l+kZ5wMyL/Lk967Q6akh0tAUSMn9v
-         lUPoSmAsIDLBiNQgM5JTsPw6atgdI3IcvOE5cd8nDrunJvp/cMW197GcZKWUQY2C62jB
-         9KlA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=7B+CL5Sto9KU/VBigp9SJGxY8kRqK761XCrRvI17bdQ=;
+        b=loTd6n0fyxlfUuFGwMseD69uq4X4e5fmdVCgGmAQtb1j5ExSa+H93+gSnOuvhFrXTR
+         wxsjDPyF4TTvZwdguq2f570qSOxZg5kDXp1x8lpJpYei8n6p6U9pGOUnaNZiHKk0XV/X
+         fkXDUQDKc6ntPWiuYmDLBlie3GKDtiqSWi2QeyVt7WgG5YqPYEjkAonY420FRYWeBHD1
+         zORhKhTf77nMnbTAOzBi/9xQyjbEVoc3b1KWoFQZLFm66cT8zhFgoBUj9klvTmsYUxXL
+         YEqA+DVkhavJkGIV+pHP78dsOTfnszGjBs8XdD/Rv+zH6W28tX5qG0QaxFe2dSRivETz
+         Vxgg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a2si12975117pgn.530.2019.04.22.11.58.42
+        by mx.google.com with ESMTPS id a20si5314305pgb.421.2019.04.22.11.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 22 Apr 2019 11:58:42 -0700 (PDT)
@@ -82,7 +83,7 @@ Received: from orsmga008.jf.intel.com ([10.7.209.65])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417120"
+   d="scan'208";a="136417117"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
   by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:40 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -106,184 +107,157 @@ Cc: linux-kernel@vger.kernel.org,
 	ard.biesheuvel@linaro.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
-	Nadav Amit <namit@vmware.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 01/23] Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
-Date: Mon, 22 Apr 2019 11:57:43 -0700
-Message-Id: <20190422185805.1169-2-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 00/23] Merge text_poke fixes and executable lockdowns
+Date: Mon, 22 Apr 2019 11:57:42 -0700
+Message-Id: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
-References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nadav Amit <namit@vmware.com>
+Hi,
 
-text_mutex is currently expected to be held before text_poke() is
-called, but kgdb does not take the mutex, and instead *supposedly*
-ensures the lock is not taken and will not be acquired by any other core
-while text_poke() is running.
+Picking this up again after seeing how things shook out around the issue
+raised here: https://lkml.org/lkml/2019/2/22/702
 
-The reason for the "supposedly" comment is that it is not entirely clear
-that this would be the case if gdb_do_roundup is zero.
+This patchset improves several overlapping issues around stale TLB entries and
+W^X violations. It is combined from "x86/alternative: text_poke() enhancements
+v7" [1] and "Don’t leave executable TLB entries to freed pages v2" [2] patchsets
+that were conflicting.
 
-Create two wrapper functions, text_poke() and text_poke_kgdb(), which do
-or do not run the lockdep assertion respectively.
+The related issues that this fixes:
+1. Fixmap PTEs that are used for patching are available for access from
+   other cores and might be exploited. They are not even flushed from
+   the TLB in remote cores, so the risk is even higher. Address this
+   issue by introducing a temporary mm that is only used during
+   patching. Unfortunately, due to init ordering, fixmap is still used
+   during boot-time patching. Future patches can eliminate the need for
+   it.
+2. Missing lockdep assertion to ensure text_mutex is taken. It is
+   actually not always taken, so fix the instances that were found not
+   to take the lock (although they should be safe even without taking
+   the lock).
+3. Module_alloc returning memory that is RWX until a module is finished
+   loading.
+4. Sometimes when memory is freed via the module subsystem, an
+   executable permissioned TLB entry can remain to a freed page. If the
+   page is re-used to back an address that will receive data from
+   userspace, it can result in user data being mapped as executable in
+   the kernel. The root of this behavior is vfree lazily flushing the
+   TLB, but not lazily freeing the underlying pages.
 
-While we are at it, change the return code of text_poke() to something
-meaningful. One day, callers might actually respect it and the existing
-BUG_ON() when patching fails could be removed. For kgdb, the return
-value can actually be used.
+Changes v3 to v4:
+ - Remove the size parameter from tramp_free() [Steven]
+ - Remove caching of hw_breakpoint_active() [Sean]
+ - Prevent the use of bpf_probe_write_user() while using temporary mm [Jann]
+ - Fix build issues on other archs
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Fixes: 9222f606506c ("x86/alternatives: Lockdep-enforce text_mutex in text_poke*()")
-Suggested-by: Peter Zijlstra <peterz@infradead.org>
-Acked-by: Jiri Kosina <jkosina@suse.cz>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
-Signed-off-by: Nadav Amit <namit@vmware.com>
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
----
- arch/x86/include/asm/text-patching.h |  1 +
- arch/x86/kernel/alternative.c        | 52 ++++++++++++++++++++--------
- arch/x86/kernel/kgdb.c               | 11 +++---
- 3 files changed, 45 insertions(+), 19 deletions(-)
+Changes v2 to v3:
+ - Fix commit messages and comments [Boris]
+ - Rename VM_HAS_SPECIAL_PERMS [Boris]
+ - Remove unnecessary local variables [Boris]
+ - Rename set_alias_*() functions [Boris, Andy]
+ - Save/restore DR registers when using temporary mm
+ - Move line deletion from patch 10 to patch 17
 
-diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
-index e85ff65c43c3..f8fc8e86cf01 100644
---- a/arch/x86/include/asm/text-patching.h
-+++ b/arch/x86/include/asm/text-patching.h
-@@ -35,6 +35,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
-  * inconsistent instruction while you patch.
-  */
- extern void *text_poke(void *addr, const void *opcode, size_t len);
-+extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
- extern int poke_int3_handler(struct pt_regs *regs);
- extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
- extern int after_bootmem;
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 9a79c7808f9c..0a814d73547a 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -679,18 +679,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
- 	return addr;
- }
+Changes v1 to v2:
+ - Adding “Reviewed-by tag” [Masami]
+ - Comment instead of code to warn against module removal while
+   patching [Masami]
+ - Avoiding open-coded TLB flush [Andy]
+ - Remove "This patch" [Borislav Petkov]
+ - Not set global bit during text poking [Andy, hpa]
+ - Add Ack from [Pavel Machek]
+ - Split patch 16 "Plug in new special vfree flag" into 4 patches (16-19)
+   to make it easier to review. There were no code changes.
+
+The changes from "Don’t leave executable TLB entries to freed pages
+v2" to v1:
+ - Add support for case of hibernate trying to save an unmapped page
+   on the directmap. (Ard Biesheuvel)
+ - No week arch breakout for vfree-ing special memory (Andy Lutomirski)
+ - Avoid changing deferred free code by moving modules init free to work
+   queue (Andy Lutomirski)
+ - Plug in new flag for kprobes and ftrace
+ - More arch generic names for set_pages functions (Ard Biesheuvel)
+ - Fix for TLB not always flushing the directmap (Nadav Amit)
  
--/**
-- * text_poke - Update instructions on a live kernel
-- * @addr: address to modify
-- * @opcode: source of the copy
-- * @len: length to copy
-- *
-- * Only atomic text poke/set should be allowed when not doing early patching.
-- * It means the size must be writable atomically and the address must be aligned
-- * in a way that permits an atomic write. It also makes sure we fit on a single
-- * page.
-- */
--void *text_poke(void *addr, const void *opcode, size_t len)
-+static void *__text_poke(void *addr, const void *opcode, size_t len)
- {
- 	unsigned long flags;
- 	char *vaddr;
-@@ -703,8 +692,6 @@ void *text_poke(void *addr, const void *opcode, size_t len)
- 	 */
- 	BUG_ON(!after_bootmem);
+Changes from "x86/alternative: text_poke() enhancements v7" to v1
+ - Fix build failure on CONFIG_RANDOMIZE_BASE=n (Rick)
+ - Remove text_poke usage from ftrace (Nadav)
  
--	lockdep_assert_held(&text_mutex);
--
- 	if (!core_kernel_text((unsigned long)addr)) {
- 		pages[0] = vmalloc_to_page(addr);
- 		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
-@@ -733,6 +720,43 @@ void *text_poke(void *addr, const void *opcode, size_t len)
- 	return addr;
- }
- 
-+/**
-+ * text_poke - Update instructions on a live kernel
-+ * @addr: address to modify
-+ * @opcode: source of the copy
-+ * @len: length to copy
-+ *
-+ * Only atomic text poke/set should be allowed when not doing early patching.
-+ * It means the size must be writable atomically and the address must be aligned
-+ * in a way that permits an atomic write. It also makes sure we fit on a single
-+ * page.
-+ */
-+void *text_poke(void *addr, const void *opcode, size_t len)
-+{
-+	lockdep_assert_held(&text_mutex);
-+
-+	return __text_poke(addr, opcode, len);
-+}
-+
-+/**
-+ * text_poke_kgdb - Update instructions on a live kernel by kgdb
-+ * @addr: address to modify
-+ * @opcode: source of the copy
-+ * @len: length to copy
-+ *
-+ * Only atomic text poke/set should be allowed when not doing early patching.
-+ * It means the size must be writable atomically and the address must be aligned
-+ * in a way that permits an atomic write. It also makes sure we fit on a single
-+ * page.
-+ *
-+ * Context: should only be used by kgdb, which ensures no other core is running,
-+ *	    despite the fact it does not hold the text_mutex.
-+ */
-+void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
-+{
-+	return __text_poke(addr, opcode, len);
-+}
-+
- static void do_sync_core(void *info)
- {
- 	sync_core();
-diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
-index 4ff6b4cdb941..2b203ee5b879 100644
---- a/arch/x86/kernel/kgdb.c
-+++ b/arch/x86/kernel/kgdb.c
-@@ -759,13 +759,13 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
- 	if (!err)
- 		return err;
- 	/*
--	 * It is safe to call text_poke() because normal kernel execution
-+	 * It is safe to call text_poke_kgdb() because normal kernel execution
- 	 * is stopped on all cores, so long as the text_mutex is not locked.
- 	 */
- 	if (mutex_is_locked(&text_mutex))
- 		return -EBUSY;
--	text_poke((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
--		  BREAK_INSTR_SIZE);
-+	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
-+		       BREAK_INSTR_SIZE);
- 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
- 	if (err)
- 		return err;
-@@ -784,12 +784,13 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
- 	if (bpt->type != BP_POKE_BREAKPOINT)
- 		goto knl_write;
- 	/*
--	 * It is safe to call text_poke() because normal kernel execution
-+	 * It is safe to call text_poke_kgdb() because normal kernel execution
- 	 * is stopped on all cores, so long as the text_mutex is not locked.
- 	 */
- 	if (mutex_is_locked(&text_mutex))
- 		goto knl_write;
--	text_poke((void *)bpt->bpt_addr, bpt->saved_instr, BREAK_INSTR_SIZE);
-+	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
-+		       BREAK_INSTR_SIZE);
- 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
- 	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
- 		goto knl_write;
+[1] https://lkml.org/lkml/2018/12/5/200
+[2] https://lkml.org/lkml/2018/12/11/1571
+
+
+Andy Lutomirski (1):
+  x86/mm: Introduce temporary mm structs
+
+Nadav Amit (15):
+  Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+  x86/jump_label: Use text_poke_early() during early init
+  x86/mm: Save DRs when loading a temporary mm
+  fork: Provide a function for copying init_mm
+  x86/alternative: Initialize temporary mm for patching
+  x86/alternative: Use temporary mm for text poking
+  x86/kgdb: Avoid redundant comparison of patched code
+  x86/ftrace: Set trampoline pages as executable
+  x86/kprobes: Set instruction page as executable
+  x86/module: Avoid breaking W^X while loading modules
+  x86/jump-label: Remove support for custom poker
+  x86/alternative: Remove the return value of text_poke_*()
+  x86/alternative: Comment about module removal races
+  tlb: provide default nmi_uaccess_okay()
+  bpf: Fail bpf_probe_write_user() while mm is switched
+
+Rick Edgecombe (7):
+  x86/mm/cpa: Add set_direct_map_ functions
+  mm: Make hibernate handle unmapped pages
+  vmalloc: Add flag for free of special permsissions
+  modules: Use vmalloc special flag
+  bpf: Use vmalloc special flag
+  x86/ftrace: Use vmalloc special flag
+  x86/kprobes: Use vmalloc special flag
+
+ arch/Kconfig                         |   4 +
+ arch/x86/Kconfig                     |   1 +
+ arch/x86/include/asm/fixmap.h        |   2 -
+ arch/x86/include/asm/mmu_context.h   |  56 ++++++++
+ arch/x86/include/asm/pgtable.h       |   3 +
+ arch/x86/include/asm/set_memory.h    |   3 +
+ arch/x86/include/asm/text-patching.h |   7 +-
+ arch/x86/include/asm/tlbflush.h      |   2 +
+ arch/x86/kernel/alternative.c        | 201 ++++++++++++++++++++-------
+ arch/x86/kernel/ftrace.c             |  22 +--
+ arch/x86/kernel/jump_label.c         |  21 ++-
+ arch/x86/kernel/kgdb.c               |  25 +---
+ arch/x86/kernel/kprobes/core.c       |  19 ++-
+ arch/x86/kernel/module.c             |   2 +-
+ arch/x86/mm/init_64.c                |  36 +++++
+ arch/x86/mm/pageattr.c               |  16 ++-
+ arch/x86/xen/mmu_pv.c                |   2 -
+ include/asm-generic/tlb.h            |   9 ++
+ include/linux/filter.h               |  18 +--
+ include/linux/mm.h                   |  18 +--
+ include/linux/sched/task.h           |   1 +
+ include/linux/set_memory.h           |  11 ++
+ include/linux/vmalloc.h              |  15 ++
+ init/main.c                          |   3 +
+ kernel/bpf/core.c                    |   1 -
+ kernel/fork.c                        |  24 +++-
+ kernel/module.c                      |  82 ++++++-----
+ kernel/power/snapshot.c              |   5 +-
+ kernel/trace/bpf_trace.c             |   8 ++
+ mm/page_alloc.c                      |   7 +-
+ mm/vmalloc.c                         | 113 ++++++++++++---
+ 31 files changed, 542 insertions(+), 195 deletions(-)
+
 -- 
 2.17.1
 
