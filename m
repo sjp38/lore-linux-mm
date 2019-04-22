@@ -4,90 +4,90 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 22F77C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 20:34:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12FF0C282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 20:36:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5DC820859
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 20:33:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5DC820859
+	by mail.kernel.org (Postfix) with ESMTP id C1BCE20859
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 20:36:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1BCE20859
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 562BD6B0006; Mon, 22 Apr 2019 16:33:59 -0400 (EDT)
+	id 5F8CC6B0006; Mon, 22 Apr 2019 16:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50ED16B0007; Mon, 22 Apr 2019 16:33:59 -0400 (EDT)
+	id 5A8A66B0007; Mon, 22 Apr 2019 16:36:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AFE06B0008; Mon, 22 Apr 2019 16:33:59 -0400 (EDT)
+	id 470626B0008; Mon, 22 Apr 2019 16:36:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 14C4E6B0006
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 16:33:59 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id j9so6489016qtp.17
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 13:33:59 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 228786B0006
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 16:36:55 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id c22so2510310qtk.10
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 13:36:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=387eashXwjQh5KAXgGCHdyJxaR2TrgnUAVU+gbo6h2Y=;
-        b=MNm/sEfpO5PZsl1lE8cvbrVgvk9FpPL5kFaqNRR/8pFNnqUDUQZrEMluqp2ux64p/J
-         pl6qIoptsGyNiK94/rIhAYGZs2WlUDXLB+99Jz8XQ9HioCPWIrfm1C2n0roRcndnT1A6
-         of5X5h/7WmTHmn6kEtGa/nSAQJ21H06N5X+f0rcIXHM9aSZ+OPQxXju1byjpBbYdVs20
-         LYPEOAyQ3ylle0ReiP73gyQQRBHGratdj1nYuSRptVDWHfjS79bj33F5/le6EEGkwplG
-         oyBxLtZM0Q2wqx7FtO6wNqMJQSwlkkrJSa6Iaz8zk8IYG/bPh5yq2lTs+RZ8K9R4VKHF
-         YU4Q==
+        bh=D3+m21ih45NvqPnfBe5l9rY8WEBQ+TUJxM2mfrOLCdM=;
+        b=WJCUhjjEogeXMWcNjwIBm6zvGvasBZnhxiTaImFvWrAcWLRrH3jhGve/t3XfDIZWHB
+         EGw9fh8AIefVg4W5XCLGVqatRS+THAiGfbO+RUMP/xs3WjPLaB5qZy1vlvX6UoSp2592
+         VXbtTOrbbQUJYisLbTCGtFM0UG1e2gItcEHv45IguFSCLycF8ImMPGmBW1wTbZ68mrbr
+         1l5c05i/Ph3lSwPe2kz9V5kqljs4PTE0k4yy1R/4Ofz+xsLgHqZVDoj6MGneqfTKTFFD
+         hX1qULuY/J0e++lJzeF4vC2vHUBe/EsAsIEOClBKhGDTSilXYRT6yoqrjLb4PS3Kk3Fx
+         PGLg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXl4xZY6MWbvwsp/hdOroa8Ft5S6HmpmrqV8G8Kg0CiGYR8Fydn
-	cNE8aekSgpE3zyxIUQO0xiM9WuQVFWgXtz8mGFdfs5IzqQiqCuiusCWTAyX0gEHehKN/ygFNLkI
-	6ZCsOqJhMbL/5XRP71WsqIUrEteUGgtx6c3SarqNZ1/d4uRj1EWjO0Adla8PeNV2q6g==
-X-Received: by 2002:a05:620a:130f:: with SMTP id o15mr16308672qkj.252.1555965238821;
-        Mon, 22 Apr 2019 13:33:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3Bt8gPtBpIyvia6XQac6q/8bGQjoa6Z4FwFYtBCmHaecC3fZVK5oXuSepzLMFaK2AeDUb
-X-Received: by 2002:a05:620a:130f:: with SMTP id o15mr16308604qkj.252.1555965237838;
-        Mon, 22 Apr 2019 13:33:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555965237; cv=none;
+X-Gm-Message-State: APjAAAWHAsoS5o+Z4N4IfUkJdoybe6d/f6xb1k0NieZugIiZXrC7XhQN
+	FlWDhSYM3Xl7GPep+M9Mqv15Zy8+5F84dIpD1idkC9RZVqlRopyKbFICNjQQPCknoe7dx+oI07Y
+	Ubj7dhQOHwtw9ZQMRN8UdaGkM1Wq/oSc3AtiuDYP9kf/FfDkJBuFlL2wxv1KAzMAjLw==
+X-Received: by 2002:a0c:ae7c:: with SMTP id z57mr17710311qvc.244.1555965414881;
+        Mon, 22 Apr 2019 13:36:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw44EKJJIaehC8MR2noRpldtz0xr6Qs6358xtEX2H842aBPkyEFDb7BURu4pmoTcLIRp2oq
+X-Received: by 2002:a0c:ae7c:: with SMTP id z57mr17710271qvc.244.1555965414123;
+        Mon, 22 Apr 2019 13:36:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555965414; cv=none;
         d=google.com; s=arc-20160816;
-        b=xUEHJyuHS8t/IgHdmYDoCa2DQ//rsCMedjdidc22sg9DcJFXIXESai8/t4TU1/I/Hr
-         6QisvjCmrfe2H+qucMZHY2WlQcBoQntOESYkbK+K8PVtkopdek3mtmoVO8QEhtNCwHGI
-         JLcHH9Y+pSFaoemqsNGZx1okjOrh0d5c/ob+Gn2zy1NnHU5baaC8FWJrWFsox4ypjago
-         f5qpc1u4HVk2+Rz61y3ogvQVNb6xxMNP8xsT6cjp+1s/6Nhrn/NV7mii58t3lNq47hgq
-         LpcXUts22smvMxNjHaFHAHy0lwEMtKT9WeThpibDqWkW7FOCc8UNe1qwAmaQ23M4sgg5
-         JoGA==
+        b=vO5x43Qep+KaCyobKMugVo4SGEOOLGJ2EIe20MVgBXBat8s3GhtADtZKPBw0ihSorz
+         rJj9F1Yq9GKjfLfKGQCRSnDDSD1WgkGm57nGOxGiA/zfIIID6Ieh1Jnhzog/KRdfks/q
+         lEyjQd/AuuFsIhWgE0RIdkgvIzcfI4uUzs8O3eoIcqMuwVUX8OegXQ+YsRQKgMnGoRR3
+         3M/Mw9jl5z0kS7kTnwC5qPh/eTcV2RghdN3csc46j/WXV8IsEOoc1k+j9zZKnkwONY3f
+         qmbvbGDHxVY7Osnr0FiJHY98HyhX/2USHDupNfxmb9sNpSslziLWhnxvic+0Mq1pWNcw
+         2dWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=387eashXwjQh5KAXgGCHdyJxaR2TrgnUAVU+gbo6h2Y=;
-        b=A0eM7PLwoYKGkL/rAVn104C62ALGiaKlq1dSGwdoXeDoO1UJ8GbnJAeCBv0XZQxUbA
-         3Nw8y5TAfhqf7CwG5bgvzOoZ5oz4oJPZd0pkaMOqHmILrByw2vVVSVrk9PLnEk8tCcCL
-         /h1cT+GWGj1JbBL0LirbS/mnaq9isf6d3gvQ0rd2/AzkUwBYDAJzj8hHeUSZTgHJcjpx
-         7G+T1JiigL1zAs9JDlG/w3m5gq8XTcC2cimDKoD1dYwfp/Wsc0VpiFCj9WyHEN4DEq6K
-         8iBjPlCvVAJzoZV0V+ujNy1k1sXR0hEIdeHwu/KH/PHAr884DiZKzhQyOdfSlc4DwvPo
-         gW8Q==
+        bh=D3+m21ih45NvqPnfBe5l9rY8WEBQ+TUJxM2mfrOLCdM=;
+        b=yfRBOu5+/hZztwGaohA4uKDuDH4rjZuzC5pwjqCgfUBb8Q+AGJekA9c+KTLtabUsSW
+         +cnhH/+xfe9drsvjKYL1RXQf16OHTC7ziitR1LAP/zUL+qPrZp+KmXWaVQEPGYRj920S
+         rMeJeL631yj3ELFrq2nB3+TTKt6tTEjSUBSj0uFIkO8AZKB7pGOi4WxSzU0XkD6Crx1c
+         bKoo6IpbZHqWz+I1RBQNgcJtXNTFoc3c0J6xzJnDkeOXEvstqMmPdGVzYU0OdoM51K/r
+         p0AXNbjFDSmvFIBpg0EXojAcntNZ7l6jsbPHBszzEr6z0jsEO4vdZhTJYuzyq04MbDsS
+         fnLw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g34si3731076qve.192.2019.04.22.13.33.57
+        by mx.google.com with ESMTPS id a20si2880852qvd.39.2019.04.22.13.36.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 13:33:57 -0700 (PDT)
+        Mon, 22 Apr 2019 13:36:54 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7D15F30832EF;
-	Mon, 22 Apr 2019 20:33:56 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id B387D369CA;
+	Mon, 22 Apr 2019 20:36:52 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E22545D9D4;
-	Mon, 22 Apr 2019 20:33:52 +0000 (UTC)
-Date: Mon, 22 Apr 2019 16:33:51 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 131C95C1B5;
+	Mon, 22 Apr 2019 20:36:48 +0000 (UTC)
+Date: Mon, 22 Apr 2019 16:36:47 -0400
 From: Jerome Glisse <jglisse@redhat.com>
 To: Laurent Dufour <ldufour@linux.ibm.com>
 Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
@@ -117,214 +117,167 @@ Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
 	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
 	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
 	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Subject: Re: [PATCH v12 19/31] mm: protect the RB tree with a sequence lock
-Message-ID: <20190422203350.GJ14666@redhat.com>
+Subject: Re: [PATCH v12 20/31] mm: introduce vma reference counter
+Message-ID: <20190422203647.GK14666@redhat.com>
 References: <20190416134522.17540-1-ldufour@linux.ibm.com>
- <20190416134522.17540-20-ldufour@linux.ibm.com>
+ <20190416134522.17540-21-ldufour@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190416134522.17540-20-ldufour@linux.ibm.com>
+In-Reply-To: <20190416134522.17540-21-ldufour@linux.ibm.com>
 User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 22 Apr 2019 20:33:57 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 22 Apr 2019 20:36:53 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 03:45:10PM +0200, Laurent Dufour wrote:
-> Introducing a per mm_struct seqlock, mm_seq field, to protect the changes
-> made in the MM RB tree. This allows to walk the RB tree without grabbing
-> the mmap_sem, and on the walk is done to double check that sequence counter
-> was stable during the walk.
+On Tue, Apr 16, 2019 at 03:45:11PM +0200, Laurent Dufour wrote:
+> The final goal is to be able to use a VMA structure without holding the
+> mmap_sem and to be sure that the structure will not be freed in our back.
 > 
-> The mm seqlock is held while inserting and removing entries into the MM RB
-> tree.  Later in this series, it will be check when looking for a VMA
-> without holding the mmap_sem.
+> The lockless use of the VMA will be done through RCU protection and thus a
+> dedicated freeing service is required to manage it asynchronously.
 > 
-> This is based on the initial work from Peter Zijlstra:
-> https://lore.kernel.org/linux-mm/20100104182813.479668508@chello.nl/
+> As reported in a 2010's thread [1], this may impact file handling when a
+> file is still referenced while the mapping is no more there.  As the final
+> goal is to handle anonymous VMA in a speculative way and not file backed
+> mapping, we could close and free the file pointer in a synchronous way, as
+> soon as we are guaranteed to not use it without holding the mmap_sem. For
+> sanity reason, in a minimal effort, the vm_file file pointer is unset once
+> the file pointer is put.
+> 
+> [1] https://lore.kernel.org/linux-mm/20100104182429.833180340@chello.nl/
 > 
 > Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+
+Using kref would have been better from my POV even with RCU freeing
+but anyway:
 
 Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
 > ---
+>  include/linux/mm.h       |  4 ++++
 >  include/linux/mm_types.h |  3 +++
->  kernel/fork.c            |  3 +++
->  mm/init-mm.c             |  3 +++
->  mm/mmap.c                | 48 +++++++++++++++++++++++++++++++---------
->  4 files changed, 46 insertions(+), 11 deletions(-)
+>  mm/internal.h            | 27 +++++++++++++++++++++++++++
+>  mm/mmap.c                | 13 +++++++++----
+>  4 files changed, 43 insertions(+), 4 deletions(-)
 > 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index e78f72eb2576..24b3f8ce9e42 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -358,6 +358,9 @@ struct mm_struct {
->  	struct {
->  		struct vm_area_struct *mmap;		/* list of VMAs */
->  		struct rb_root mm_rb;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index f14b2c9ddfd4..f761a9c65c74 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -529,6 +529,9 @@ static inline void vma_init(struct vm_area_struct *vma, struct mm_struct *mm)
+>  	vma->vm_mm = mm;
+>  	vma->vm_ops = &dummy_vm_ops;
+>  	INIT_LIST_HEAD(&vma->anon_vma_chain);
 > +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +		seqlock_t mm_seq;
+> +	atomic_set(&vma->vm_ref_count, 1);
 > +#endif
->  		u64 vmacache_seqnum;                   /* per-thread vmacache */
->  #ifdef CONFIG_MMU
->  		unsigned long (*get_unmapped_area) (struct file *filp,
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 2992d2c95256..3a1739197ebc 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -1008,6 +1008,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm->mmap = NULL;
->  	mm->mm_rb = RB_ROOT;
->  	mm->vmacache_seqnum = 0;
-> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +	seqlock_init(&mm->mm_seq);
-> +#endif
->  	atomic_set(&mm->mm_users, 1);
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
-> diff --git a/mm/init-mm.c b/mm/init-mm.c
-> index a787a319211e..69346b883a4e 100644
-> --- a/mm/init-mm.c
-> +++ b/mm/init-mm.c
-> @@ -27,6 +27,9 @@
->   */
->  struct mm_struct init_mm = {
->  	.mm_rb		= RB_ROOT,
-> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +	.mm_seq		= __SEQLOCK_UNLOCKED(init_mm.mm_seq),
-> +#endif
->  	.pgd		= swapper_pg_dir,
->  	.mm_users	= ATOMIC_INIT(2),
->  	.mm_count	= ATOMIC_INIT(1),
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 13460b38b0fb..f7f6027a7dff 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -170,6 +170,24 @@ void unlink_file_vma(struct vm_area_struct *vma)
->  	}
 >  }
 >  
+>  static inline void vma_set_anonymous(struct vm_area_struct *vma)
+> @@ -1418,6 +1421,7 @@ static inline void INIT_VMA(struct vm_area_struct *vma)
+>  	INIT_LIST_HEAD(&vma->anon_vma_chain);
+>  #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+>  	seqcount_init(&vma->vm_sequence);
+> +	atomic_set(&vma->vm_ref_count, 1);
+>  #endif
+>  }
+>  
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 24b3f8ce9e42..6a6159e11a3f 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -285,6 +285,9 @@ struct vm_area_struct {
+>  	/* linked list of VM areas per task, sorted by address */
+>  	struct vm_area_struct *vm_next, *vm_prev;
+>  
 > +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-> +static inline void mm_write_seqlock(struct mm_struct *mm)
+> +	atomic_t vm_ref_count;
+> +#endif
+>  	struct rb_node vm_rb;
+>  
+>  	/*
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 9eeaf2b95166..302382bed406 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -40,6 +40,33 @@ void page_writeback_init(void);
+>  
+>  vm_fault_t do_swap_page(struct vm_fault *vmf);
+>  
+> +
+> +extern void __free_vma(struct vm_area_struct *vma);
+> +
+> +#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+> +static inline void get_vma(struct vm_area_struct *vma)
 > +{
-> +	write_seqlock(&mm->mm_seq);
+> +	atomic_inc(&vma->vm_ref_count);
 > +}
-> +static inline void mm_write_sequnlock(struct mm_struct *mm)
+> +
+> +static inline void put_vma(struct vm_area_struct *vma)
 > +{
-> +	write_sequnlock(&mm->mm_seq);
+> +	if (atomic_dec_and_test(&vma->vm_ref_count))
+> +		__free_vma(vma);
 > +}
+> +
 > +#else
-> +static inline void mm_write_seqlock(struct mm_struct *mm)
+> +
+> +static inline void get_vma(struct vm_area_struct *vma)
 > +{
 > +}
-> +static inline void mm_write_sequnlock(struct mm_struct *mm)
+> +
+> +static inline void put_vma(struct vm_area_struct *vma)
 > +{
+> +	__free_vma(vma);
 > +}
 > +#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
+> +
+>  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+>  		unsigned long floor, unsigned long ceiling);
+>  
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index f7f6027a7dff..c106440dcae7 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -188,6 +188,12 @@ static inline void mm_write_sequnlock(struct mm_struct *mm)
+>  }
+>  #endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
+>  
+> +void __free_vma(struct vm_area_struct *vma)
+> +{
+> +	mpol_put(vma_policy(vma));
+> +	vm_area_free(vma);
+> +}
 > +
 >  /*
 >   * Close a vm structure and free it, returning the next.
 >   */
-> @@ -445,26 +463,32 @@ static void vma_gap_update(struct vm_area_struct *vma)
+> @@ -200,8 +206,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+>  		vma->vm_ops->close(vma);
+>  	if (vma->vm_file)
+>  		fput(vma->vm_file);
+> -	mpol_put(vma_policy(vma));
+> -	vm_area_free(vma);
+> +	vma->vm_file = NULL;
+> +	put_vma(vma);
+>  	return next;
 >  }
 >  
->  static inline void vma_rb_insert(struct vm_area_struct *vma,
-> -				 struct rb_root *root)
-> +				 struct mm_struct *mm)
->  {
-> +	struct rb_root *root = &mm->mm_rb;
-> +
->  	/* All rb_subtree_gap values must be consistent prior to insertion */
->  	validate_mm_rb(root, NULL);
->  
->  	rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
->  }
->  
-> -static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
-> +static void __vma_rb_erase(struct vm_area_struct *vma, struct mm_struct *mm)
->  {
-> +	struct rb_root *root = &mm->mm_rb;
-> +
->  	/*
->  	 * Note rb_erase_augmented is a fairly large inline function,
->  	 * so make sure we instantiate it only once with our desired
->  	 * augmented rbtree callbacks.
->  	 */
-> +	mm_write_seqlock(mm);
->  	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
-> +	mm_write_sequnlock(mm);	/* wmb */
->  }
->  
->  static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
-> -						struct rb_root *root,
-> +						struct mm_struct *mm,
->  						struct vm_area_struct *ignore)
->  {
->  	/*
-> @@ -472,21 +496,21 @@ static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
->  	 * with the possible exception of the "next" vma being erased if
->  	 * next->vm_start was reduced.
->  	 */
-> -	validate_mm_rb(root, ignore);
-> +	validate_mm_rb(&mm->mm_rb, ignore);
->  
-> -	__vma_rb_erase(vma, root);
-> +	__vma_rb_erase(vma, mm);
->  }
->  
->  static __always_inline void vma_rb_erase(struct vm_area_struct *vma,
-> -					 struct rb_root *root)
-> +					 struct mm_struct *mm)
->  {
->  	/*
->  	 * All rb_subtree_gap values must be consistent prior to erase,
->  	 * with the possible exception of the vma being erased.
->  	 */
-> -	validate_mm_rb(root, vma);
-> +	validate_mm_rb(&mm->mm_rb, vma);
->  
-> -	__vma_rb_erase(vma, root);
-> +	__vma_rb_erase(vma, mm);
->  }
->  
->  /*
-> @@ -601,10 +625,12 @@ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * immediately update the gap to the correct value. Finally we
->  	 * rebalance the rbtree after all augmented values have been set.
->  	 */
-> +	mm_write_seqlock(mm);
->  	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
->  	vma->rb_subtree_gap = 0;
->  	vma_gap_update(vma);
-> -	vma_rb_insert(vma, &mm->mm_rb);
-> +	vma_rb_insert(vma, mm);
-> +	mm_write_sequnlock(mm);
->  }
->  
->  static void __vma_link_file(struct vm_area_struct *vma)
-> @@ -680,7 +706,7 @@ static __always_inline void __vma_unlink_common(struct mm_struct *mm,
->  {
->  	struct vm_area_struct *next;
->  
-> -	vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
-> +	vma_rb_erase_ignore(vma, mm, ignore);
->  	next = vma->vm_next;
->  	if (has_prev)
->  		prev->vm_next = next;
-> @@ -2674,7 +2700,7 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
->  	insertion_point = (prev ? &prev->vm_next : &mm->mmap);
->  	vma->vm_prev = NULL;
->  	do {
-> -		vma_rb_erase(vma, &mm->mm_rb);
-> +		vma_rb_erase(vma, mm);
+> @@ -990,8 +996,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+>  		if (next->anon_vma)
+>  			anon_vma_merge(vma, next);
 >  		mm->map_count--;
->  		tail_vma = vma;
->  		vma = vma->vm_next;
+> -		mpol_put(vma_policy(next));
+> -		vm_area_free(next);
+> +		put_vma(next);
+>  		/*
+>  		 * In mprotect's case 6 (see comments on vma_merge),
+>  		 * we must remove another next too. It would clutter
 > -- 
 > 2.21.0
 > 
