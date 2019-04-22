@@ -6,64 +6,64 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54F4FC10F11
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ACE11C282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07493218B0
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07493218B0
+	by mail.kernel.org (Postfix) with ESMTP id 66D36218B0
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66D36218B0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B79116B0266; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id E2B976B0010; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6917B6B0010; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id 756796B000E; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 257AF6B0010; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
+	id 4B86C6B0008; Mon, 22 Apr 2019 14:58:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B39A86B0269
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D737D6B000E
 	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:44 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n5so8474522pgk.9
+Received: by mail-pl1-f197.google.com with SMTP id s19so8829718plp.6
         for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=CLKl6NZzJuOK2yM4IgvyVy0XzBWA5gDBiZYSHfLNQ00=;
-        b=Ruja2QPURe+6IsigPi7rLyBcR7+r8uh+jczLnLnviBCfHeJq5aMP9CW8+JiS4glaeU
-         iXZkAQb2gwYvqLUD4kth30Ai2KLGbds7n1CTeevEsYI/1ST4lqNLU+Wo77bux25AQCTl
-         QqID8h8KJ4pvyrSlKkQnrRYhJoDEUPJBmsp8Vs21RkiJ0NXL9ojAjHoHEBsZLVN4Rszo
-         zSUwxlgjC8psIk7iZBVfjavJYGx/gTjIA0X/O9xqh25uU45oGY51dP6LHxgFfJSLvyMr
-         VyRlgyyt42xQ/jsg6D9JgTNf+MEE9CZDz/AJ5ER30Hgh5uvPBcW35rYl7HyUxw0Xa9rR
-         1eCw==
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=HcoQJ0mc7iK73K1XktxPfMTMGnlNQhja5Dc0xRvYH/L4CjWHXU1yTylFS7jkcJylmi
+         L7cWW48NND8MuW8JMA1zvbfnCzMBQ/quYf4KE14ZWh6AaHPBC/g0P4Z9D6++fSm3HLwt
+         b/f4tFzTGPYqqyzI8MuVhJrhxAsHc08XGGfTIgWpnWditG8QMHlh4XqjBhjrSXlusfGC
+         vstpAgShNZPODEmQs7FsRShN6BzLP85f+msZ2VfobS1MMNjPSRrbA2titrPMFsvvjWNz
+         l7EoEqigqOCG2cwN5CUljU7/gv+g4TD5mKSK03nrN4KWAXF1k3sAXM7qK6GbL4QgoX8d
+         4ZjQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVVuZfi4YcrsONBtdXgLCV0Ie6VdNSmu8uOsI2kRj0xcLHm8Ft/
-	W8mWRaXAhWPDVC/cl1ossjHuJuRyTxpS3G81GWQT1FONJpM4qL6ti6sPRCGimH9XJTtCCyz1mDa
-	XUSXKhXE1RiyAUGts+JyJYCd9D+GdeZwcDa9GdSq7dPoyUyU5pP/pgr24grCfX72qfA==
-X-Received: by 2002:a17:902:20c6:: with SMTP id v6mr20749444plg.276.1555959524395;
+X-Gm-Message-State: APjAAAXoTgzEfiI1ZWOGFdW4xhQUKC589xd5qmgYicxqHmmJdeTE4/f6
+	ocLHHIRo8KjNOogXrmziRGVlQ+vBQsHD/TBCnwprLhoSIJMNsrLlUkkhlT5uDYrL/HhqHW5LSsQ
+	dhdzZjFWb9sy/ddMq0jMVRiC9M0BWfUs1TDjd1RdyBKrr/koPStWPFYqDiry1Q1wrNw==
+X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr22150509plt.177.1555959524529;
         Mon, 22 Apr 2019 11:58:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxFd/C5ODM2my4PUmNlkfyHBw5qK1S+aeT6PcS951bxAhA8IdWfEaSs2Vu8K8PladKM9yQW
-X-Received: by 2002:a17:902:20c6:: with SMTP id v6mr20749394plg.276.1555959523454;
+X-Google-Smtp-Source: APXvYqweBJHlpFdyv6pmg3+0kLdzjylHl9yi+W4MfJcHSKm2iPxhPz6OKqoJfwB0HEDBtPNElzlh
+X-Received: by 2002:a17:902:70c8:: with SMTP id l8mr22150454plt.177.1555959523666;
         Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555959523; cv=none;
         d=google.com; s=arc-20160816;
-        b=FkHmAXXRcwwuXgtdr1oS8gOqMMknf+ZXYEJIzYC81XQ2OIerTcMQs+71hB3N0emirB
-         Q5k4OdbJczY3adc81oIy31lvRAOsOJ2u3G7lWEManAfxxltJpvyLNbNpbnMZTYelWwLo
-         Ez/LI4vty2giKn3w2TIEiBp7Xd1HXlcb3DIPDxdxQBD2Gv7yICX1AIhYJT1SLjvw9UcG
-         EHG3cZpDmS93F2awqxcnUH/hpIR76JflHQCXkD85kSmNjxxOOqqSoQQDxcC5aKLiCOLj
-         MIsQD5H0DOCq6/KjrgEYXsS1sarKSFB8BUFpaq8L3Bf+60OfJEcTONpMtH9FiZT/OEta
-         5NGg==
+        b=luKyJ+uYhdSl+YmonvGd/wADQiCVckVJS2N3Jz75Xy1We7EiMWxkObZLpQTOa+JTvq
+         fU96pKXj0nELGLYE7Uh+nFs21wWIIxO/QIpfAqkNb+tlybzXufRXA6hWcGU4ETgho7D5
+         qT33bDMo520IzPH6Ym6vBsOm0LwwckMYkZAVkbI1feOlVIjNqwzDpC1QkEQbQeNrutE2
+         AyJoZIFLM71m9RsoETwNbfVjoKNhJEUqpnDBPqqZus88SFb1cmxJCEqu5/CsIzC8gdOZ
+         mjcDWxqykvzn3YeWf0jWZ3XA3jH86A0VDvGpH+Z9amL6xx2L5zAApOQdxrnD7QSBiZ48
+         Ts1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=CLKl6NZzJuOK2yM4IgvyVy0XzBWA5gDBiZYSHfLNQ00=;
-        b=zsnA61SB2KFN8zQRhS5F5kJ3rNYCJ1c2kfOn0ANpG5PbGJFzBtk8auPM2o+4T7ag14
-         fVHBcohcZso/Q1MeatI+5pr/97jN8MbBQR9QAEmQFkpd/6F3MEvkCZaSZrwox22pAWbF
-         08Mb3Eq+okHJGqmGw7k1nmV5GPSwmkIjNNo4GLRAapnbWaZKTMt57DICs8nFPd75fFa3
-         kFBkhyPCZ02PMuWzpDpZkfpC4hDAKqCYcie35083Rh8G7To6d401hMAVzMtf+VoEkEr2
-         BjMjyTK9uHMpeMttmK3hU6ACbA1CXgVMSSrNKQ0yz4yeQPlyJDBQ46yXxVVruQLKbhfV
-         MKTA==
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=mlEkCcGoaHMwWGSYW0Z9EsrgwHEAr9ylzdz8wY4qWcWWR0cCRznayxnf74FkylQCZq
+         Hd/tLzAbTE6HYVH05vkIQTTtK8f26famPpOnewlHEU/iJc9/zypWtU5SdNR6Hu1gkTu6
+         R2VgQWFrrPulSck9onsVwTEt5tvnjJKqakmMAdSDG551TvPmSVohP45WZAZOjXuUGhWZ
+         YIj/KDSl80SaLGOSQeOzvFNM/FhGhXbQY6ccW/tiyW/TXXTKsjISwDLDIBhSgjPo3bfh
+         AI3PiJyr32Jr5H0IH9AOFlsAnwFZVXB6nBfuz2tAR/j+is6ao+BCfpeFK2YcLH0XqIqt
+         njuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -82,7 +82,7 @@ Received: from orsmga008.jf.intel.com ([10.7.209.65])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417143"
+   d="scan'208";a="136417152"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
   by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -107,10 +107,13 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 09/23] x86/ftrace: Set trampoline pages as executable
-Date: Mon, 22 Apr 2019 11:57:51 -0700
-Message-Id: <20190422185805.1169-10-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 12/23] x86/jump-label: Remove support for custom poker
+Date: Mon, 22 Apr 2019 11:57:54 -0700
+Message-Id: <20190422185805.1169-13-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -122,52 +125,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Since alloc_module() will not set the pages as executable soon, set
-ftrace trampoline pages as executable after they are allocated.
+There are only two types of poking: early and breakpoint based. The use
+of a function pointer to perform poking complicates the code and is
+probably inefficient due to the use of indirect branches.
 
-For the time being, do not change ftrace to use the text_poke()
-interface. As a result, ftrace still breaks W^X.
-
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/ftrace.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ arch/x86/kernel/jump_label.c | 26 ++++++++++----------------
+ 1 file changed, 10 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
-index ef49517f6bb2..53ba1aa3a01f 100644
---- a/arch/x86/kernel/ftrace.c
-+++ b/arch/x86/kernel/ftrace.c
-@@ -730,6 +730,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 	unsigned long end_offset;
- 	unsigned long op_offset;
- 	unsigned long offset;
-+	unsigned long npages;
- 	unsigned long size;
- 	unsigned long retq;
- 	unsigned long *ptr;
-@@ -762,6 +763,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 		return 0;
+diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
+index e7d8c636b228..e631c358f7f4 100644
+--- a/arch/x86/kernel/jump_label.c
++++ b/arch/x86/kernel/jump_label.c
+@@ -37,7 +37,6 @@ static void bug_at(unsigned char *ip, int line)
  
- 	*tramp_size = size + RET_SIZE + sizeof(void *);
-+	npages = DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
+ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 					 enum jump_label_type type,
+-					 void *(*poker)(void *, const void *, size_t),
+ 					 int init)
+ {
+ 	union jump_code_union jmp;
+@@ -50,14 +49,6 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 	jmp.offset = jump_entry_target(entry) -
+ 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
  
- 	/* Copy ftrace_caller onto the trampoline memory */
- 	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
-@@ -806,6 +808,12 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 	/* ALLOC_TRAMP flags lets us know we created it */
- 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
+-	/*
+-	 * As long as only a single processor is running and the code is still
+-	 * not marked as RO, text_poke_early() can be used; Checking that
+-	 * system_state is SYSTEM_BOOTING guarantees it.
+-	 */
+-	if (system_state == SYSTEM_BOOTING)
+-		poker = text_poke_early;
+-
+ 	if (type == JUMP_LABEL_JMP) {
+ 		if (init) {
+ 			expect = default_nop; line = __LINE__;
+@@ -80,16 +71,19 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 		bug_at((void *)jump_entry_code(entry), line);
  
-+	/*
-+	 * Module allocation needs to be completed by making the page
-+	 * executable. The page is still writable, which is a security hazard,
-+	 * but anyhow ftrace breaks W^X completely.
-+	 */
-+	set_memory_x((unsigned long)trampoline, npages);
- 	return (unsigned long)trampoline;
- fail:
- 	tramp_free(trampoline, *tramp_size);
+ 	/*
+-	 * Make text_poke_bp() a default fallback poker.
++	 * As long as only a single processor is running and the code is still
++	 * not marked as RO, text_poke_early() can be used; Checking that
++	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
++	 * SYSTEM_SCHEDULING before other cores are awaken and before the
++	 * code is write-protected.
+ 	 *
+ 	 * At the time the change is being done, just ignore whether we
+ 	 * are doing nop -> jump or jump -> nop transition, and assume
+ 	 * always nop being the 'currently valid' instruction
+-	 *
+ 	 */
+-	if (poker) {
+-		(*poker)((void *)jump_entry_code(entry), code,
+-			 JUMP_LABEL_NOP_SIZE);
++	if (init || system_state == SYSTEM_BOOTING) {
++		text_poke_early((void *)jump_entry_code(entry), code,
++				JUMP_LABEL_NOP_SIZE);
+ 		return;
+ 	}
+ 
+@@ -101,7 +95,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
+ 			       enum jump_label_type type)
+ {
+ 	mutex_lock(&text_mutex);
+-	__jump_label_transform(entry, type, NULL, 0);
++	__jump_label_transform(entry, type, 0);
+ 	mutex_unlock(&text_mutex);
+ }
+ 
+@@ -131,5 +125,5 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
+ 			jlstate = JL_STATE_NO_UPDATE;
+ 	}
+ 	if (jlstate == JL_STATE_UPDATE)
+-		__jump_label_transform(entry, type, text_poke_early, 1);
++		__jump_label_transform(entry, type, 1);
+ }
 -- 
 2.17.1
 
