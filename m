@@ -4,66 +4,66 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00902C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 058A7C10F11
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABD4F2064A
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABD4F2064A
+	by mail.kernel.org (Postfix) with ESMTP id B27DC2064A
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Apr 2019 18:59:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B27DC2064A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86CA86B0271; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
+	id B72EE6B026E; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 75B216B026E; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
+	id 86A606B0270; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E36C6B0271; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
+	id 695C86B0272; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DDEFE6B026E
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 132so8436601pgc.18
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 074AD6B026F
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 14:58:55 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id b12so8132071pfj.5
         for <linux-mm@kvack.org>; Mon, 22 Apr 2019 11:58:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=3mFI7V2IpbwOhuCcp+g9CO2dE2meFXsvyyAeb18NWyo=;
-        b=fnzdWan1Z5sBJvBF44Yi6VVgB1VudELxIMBtHaQOvnu5WeJUBrFjTPmAL16/CJDDWW
-         gI7TyCI/nv49kzLVCWZlYS2EJDzlW5ZjpI/Zn+UR0huwlcR3+7Rt/wY3JXGyAR7gepsk
-         qjuTf/6i3sJYyOi/p3v4a0F/7Pi5jXTFdrKfIPgCBXeitOFLu9wI+QVYuqYVIeF9QmyW
-         MZ7V6ZXCzd7s/e/Ua4n62uMIxIxF73vctdotWhJMrxsGsnQ6jpFWndds6QB0f/Afc9YR
-         UtoJe3N+v8nqglPZZkMRJ5ZA6MdLzpHVGw4N8szYuG9HYCNrNsgKMv37HO0ulHg1qlwU
-         cvTQ==
+        bh=yNv4uuWY37+QDIo+8eJ5Cs1RQKFygWuhu/mUpTFc+50=;
+        b=sOmvkPM0hjPLNVKbD/nO4NRCPqU+sRwrgTYx2nW/zeoeu0HabIFSTKjAJOr9AMz1We
+         8Hm4mPkKu/aqw6vT0uhP/u2Nt4z+Bc8GmHgprkzFffJIzUlyahwX4TUMth7MV+pg8xkN
+         Elzvv9UaHoTIPvXx0clm/Z6CL2PVj+nT9ya/K1ytKd6OVdO80tbqK94klEucfopuMuR+
+         DEJ5/9qMEyqMqNCR+l/c2SMBBLiWv1A4fjlxZIllKsxagnfPtAEoi49zr8siRr7SKNvS
+         Tuelp6JqCPzDApW5HxgfIQYXCesbnO6nuqAnmLPa2HdoySSwdEEd/c2JBo9fVAxM2kSy
+         PEpA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVeuzOofa6d6XE5xMlzhfLtRqjt6ooQaIy/bzeFtbuRQaRKvAvn
-	8jhouz3hBAfDGVnSpSC4if6m9pB+inVQ76a7kAczKr6tIbzA1zUSiplLF5Sxby1jYod+4gZvFN1
-	samxh6BrnikDgsryxdq9lKQgio5vyM9ayhlXx6+dEjUhLCF55L9HB2hOMhpSXKTS8Hw==
-X-Received: by 2002:a63:3281:: with SMTP id y123mr20452289pgy.272.1555959534517;
+X-Gm-Message-State: APjAAAXSou8xQ8bgdD/A4/dwPWcfOXr9uOrOgIEtDSDcSnjVZ9NsHVvJ
+	4puaoTu5mru1UbkDA4w2Eb/Rl1vcYmiYiNnjs5o4sda14f/222mjuMiLQ38rCmzAvktFfkCfVSC
+	kiKeU+xOU5kf5QsoRPDX29CPPnY/6Kk8jmYQQ35XDf4FoS2AIRZciVnzxjk5EAFpUFg==
+X-Received: by 2002:a62:6086:: with SMTP id u128mr22585385pfb.148.1555959534698;
         Mon, 22 Apr 2019 11:58:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygQWToNVYgEOHPy2ZS9ereJqkOFwCvtNhHZ3h+9+8saUbuz+HKI2reMQVulZ3SgMWB8h4A
-X-Received: by 2002:a63:3281:: with SMTP id y123mr20451661pgy.272.1555959523359;
+X-Google-Smtp-Source: APXvYqxtJvIHxx/i2Ts3cNM7XFD4I1LfROwkoBTclyOfRewUUm2q1+kxow7IgGo9jgKt5ObsRqsq
+X-Received: by 2002:a62:6086:: with SMTP id u128mr22584615pfb.148.1555959523584;
         Mon, 22 Apr 2019 11:58:43 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1555959523; cv=none;
         d=google.com; s=arc-20160816;
-        b=k/BgZ+PD/RpyuAd6ziaISb7wk7hzWL/ttc8KwLGlyu0H3qpFvVkfw2/ADrUGIXpBlE
-         e+efm1LVx2EwhM+azY/LGEE7VZmK5qlTggHM8bUaxMBXVpw8waMSauTAkFDNmFNbAZKN
-         6emqfw3UfkTIE+eF38x7w10edH3/IUla1nEIHhkZ95s6KVSZPBfcV2s98I0TYlCuxBZ5
-         CGe9QUyegqk6+iI1x5gA84melXn14WDkMj7EVV+p6y4H7igQnBcFireKVNd/Fo67iBxL
-         C9ErWgvEXG1IKKwz+yTcorBlOZZQVgIfaRIGg31ElHHzK4Z32gONrvSPqtxkvp1spmvu
-         DVAA==
+        b=H/KOPbNa2iOWnGgMDAJAGdvUb4n3FIrNRJfMsqjIKrHgM3l6QKG0Rbc6rgU71z+nTo
+         HZhMygM3y/hJHYgi1mEmHbpxT91Mgjvn77jjKgnTPWsc+UVzL1J2N5ZD/1EMJ9zQkcBr
+         CrLrUGuD5Wl08hu7+uPKi0nzO/KcT4wk7d+Xna/ZzvPxxyI981SFi2xW7NzQlFF44sAa
+         gS03Bd1NNdNFYumpJsROlpG/Ygk4iNNaIl/55yLBiL7RmPRYt/+6+FAebVbGGCjZhXwm
+         Gb6VHhw57DW1pFEZzlUJfeMFmxdp/d4LZVIqWfMbIgxWaHkdICt11sQ4BEG49hsLoZvX
+         L/pg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=3mFI7V2IpbwOhuCcp+g9CO2dE2meFXsvyyAeb18NWyo=;
-        b=TJbIhnwQTpc3a+wbTeNixsIhlPM+RbYjke6hAX7/YAhpVhhVmGmwAbJaqWEC3FSc2G
-         Xl0Utwwox2y7HOK4PDW1Luw3p76ckLR0TihC8LWMJfK0e9FljIuYhyy3VKDaEYl26ihK
-         uWxXA8LoLwJY1H+I2SC0fSw7VuWIBfTM5G+7MvlWZlnodmoQjajmzxNHDVONXHvfBWaa
-         7ogbh1xrT0b87AErJDbHpmaDcFhSPIs/cP4y0xcHQKpasrnRPYHjQ6uly/toENLZgJAu
-         G5n6hiQo7mDm2vjGl+DhPjLmZr0ywmSLRK3c/4sxwP8i/05gJ22OzoS4r9volYmk4o8A
-         5U5g==
+        bh=yNv4uuWY37+QDIo+8eJ5Cs1RQKFygWuhu/mUpTFc+50=;
+        b=cHuuHOArXWDvlW+OPQqp13NMQgTzrTQtk/vX9uJ2Dc8xeOZNt3WI/gFkeDVE/+TkMM
+         spBQDtKrh6M3wJBTKYGcu/cHiOgk7+S5kcqgoECg5bgwEO0Hp0cyoORFBjYSnyjXro0m
+         cyKyXOgjOliOP9dBlTE3iVQelaZQFCEezO4ze9Nfm8wY90YRYN28NjZ8B43PZqLCJV/w
+         KwfI+ritT10UzobF7cLFSeGUF5NaBQpRuW2kNph8at+6gwguj6cNGYiNp39XHFNsE396
+         YuBcQsMCUMWqM8AIDtGMf9EBL6vldXrp1EYlmbPI3wXjqHDMmK46l7XfpB4jbmkj0nAe
+         K5fg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -82,7 +82,7 @@ Received: from orsmga008.jf.intel.com ([10.7.209.65])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Apr 2019 11:58:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,382,1549958400"; 
-   d="scan'208";a="136417140"
+   d="scan'208";a="136417146"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
   by orsmga008.jf.intel.com with ESMTP; 22 Apr 2019 11:58:41 -0700
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
@@ -108,9 +108,9 @@ Cc: linux-kernel@vger.kernel.org,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v4 08/23] x86/kgdb: Avoid redundant comparison of patched code
-Date: Mon, 22 Apr 2019 11:57:50 -0700
-Message-Id: <20190422185805.1169-9-rick.p.edgecombe@intel.com>
+Subject: [PATCH v4 10/23] x86/kprobes: Set instruction page as executable
+Date: Mon, 22 Apr 2019 11:57:52 -0700
+Message-Id: <20190422185805.1169-11-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
@@ -122,63 +122,62 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-text_poke() already ensures that the written value is the correct one
-and fails if that is not the case. There is no need for an additional
-comparison. Remove it.
+Set the page as executable after allocation.  This patch is a
+preparatory patch for a following patch that makes module allocated
+pages non-executable.
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+While at it, do some small cleanup of what appears to be unnecessary
+masking.
+
+Acked-by: Masami Hiramatsu <mhiramat@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/kgdb.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ arch/x86/kernel/kprobes/core.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
-index 2b203ee5b879..13b13311b792 100644
---- a/arch/x86/kernel/kgdb.c
-+++ b/arch/x86/kernel/kgdb.c
-@@ -747,7 +747,6 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
- int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
+index a034cb808e7e..1591852d3ac4 100644
+--- a/arch/x86/kernel/kprobes/core.c
++++ b/arch/x86/kernel/kprobes/core.c
+@@ -431,8 +431,20 @@ void *alloc_insn_page(void)
+ 	void *page;
+ 
+ 	page = module_alloc(PAGE_SIZE);
+-	if (page)
+-		set_memory_ro((unsigned long)page & PAGE_MASK, 1);
++	if (!page)
++		return NULL;
++
++	/*
++	 * First make the page read-only, and only then make it executable to
++	 * prevent it from being W+X in between.
++	 */
++	set_memory_ro((unsigned long)page, 1);
++
++	/*
++	 * TODO: Once additional kernel code protection mechanisms are set, ensure
++	 * that the page was not maliciously altered and it is still zeroed.
++	 */
++	set_memory_x((unsigned long)page, 1);
+ 
+ 	return page;
+ }
+@@ -440,8 +452,12 @@ void *alloc_insn_page(void)
+ /* Recover page to RW mode before releasing it */
+ void free_insn_page(void *page)
  {
- 	int err;
--	char opc[BREAK_INSTR_SIZE];
+-	set_memory_nx((unsigned long)page & PAGE_MASK, 1);
+-	set_memory_rw((unsigned long)page & PAGE_MASK, 1);
++	/*
++	 * First make the page non-executable, and only then make it writable to
++	 * prevent it from being W+X in between.
++	 */
++	set_memory_nx((unsigned long)page, 1);
++	set_memory_rw((unsigned long)page, 1);
+ 	module_memfree(page);
+ }
  
- 	bpt->type = BP_BREAKPOINT;
- 	err = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
-@@ -766,11 +765,6 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
- 		return -EBUSY;
- 	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
- 		       BREAK_INSTR_SIZE);
--	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
--	if (err)
--		return err;
--	if (memcmp(opc, arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE))
--		return -EINVAL;
- 	bpt->type = BP_POKE_BREAKPOINT;
- 
- 	return err;
-@@ -778,9 +772,6 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
- 
- int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
- {
--	int err;
--	char opc[BREAK_INSTR_SIZE];
--
- 	if (bpt->type != BP_POKE_BREAKPOINT)
- 		goto knl_write;
- 	/*
-@@ -791,10 +782,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
- 		goto knl_write;
- 	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
- 		       BREAK_INSTR_SIZE);
--	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
--	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
--		goto knl_write;
--	return err;
-+	return 0;
- 
- knl_write:
- 	return probe_kernel_write((char *)bpt->bpt_addr,
 -- 
 2.17.1
 
