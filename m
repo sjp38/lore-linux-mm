@@ -3,115 +3,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9EC8C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:55:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40CDEC10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:05:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 830F220685
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:55:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E41BE21773
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:05:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OY0kxQQC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 830F220685
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="JzQhZaX9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E41BE21773
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 249996B000D; Tue, 23 Apr 2019 04:55:43 -0400 (EDT)
+	id 835806B000D; Tue, 23 Apr 2019 05:05:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F70A6B000E; Tue, 23 Apr 2019 04:55:43 -0400 (EDT)
+	id 7E4E26B000E; Tue, 23 Apr 2019 05:05:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10D5C6B0010; Tue, 23 Apr 2019 04:55:43 -0400 (EDT)
+	id 6D4BB6B0010; Tue, 23 Apr 2019 05:05:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E7B406B000D
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 04:55:42 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id s23so149594iol.20
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 01:55:42 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3236C6B000D
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 05:05:10 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id r13so9692336pga.13
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:05:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Vzytoljj+XSZztNSEXF/+jHuvarC7Phi+bRc5Lds+2A=;
-        b=IecS+WrW4eVsXvRcEcG1C4JY7I4TXNwsHe89d5D/HQcqEbBFb5TyqOUY6ZshELln1N
-         V6AUHE1vuS37f20aPQDvEQMQcWaKPXwBaKm8RwQ3FA7v6sIchdKoMqgi8dRBDQIz9UE1
-         N/8KTU3XD6ndBSYKXlW4u5cB3y+DnRRWLNcZZMcYLRobzo0MY7P8F6EhLTjZlhxcUziD
-         ysOecdb4u+BV89lRzPgRrhO5FyuTd6g1CElE7CzkNmq/xvN2xPVhmVHLCqwUeLy7+gku
-         yfSMu5aKkJ2VdgUxuPha+kE3/bQscg3ulAPR2hP14NUR0faF9jPhnUNDtEvFy5GGRJpN
-         jupw==
-X-Gm-Message-State: APjAAAXT3B3NJF+9QL9/p6nujj06JVIoNdEDTvekg5pvM9Sf0+ZQDQAF
-	9PlhIyprK8CvfVN0gUJWmLAbEHF8Gz7lw/S6szUiOWEAdjwo6mCthtxUECwfSsTdGPyfm3bXIMe
-	HiqSDPFnOJAzcXuGM9kuwYHTzOcq+SmqKWJ08OcxPZ+QyCjed0KQzCLeCjRKoLnZDNw==
-X-Received: by 2002:a02:1049:: with SMTP id 70mr15599854jay.114.1556009742728;
-        Tue, 23 Apr 2019 01:55:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqylWJOPajoD8HEpZtwSQ61Wbd/BkTzl7pOsaE5GB/rV+nfaZA1UK/lbbEUGz6Fhn7GxHGdp
-X-Received: by 2002:a02:1049:: with SMTP id 70mr15599837jay.114.1556009742069;
-        Tue, 23 Apr 2019 01:55:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556009742; cv=none;
+        bh=6VqXzTqzV4erjPSVPtVl2zQZ4ymXP6yRhCiCP3xmNmw=;
+        b=rfkhOhP36nIvBjmd8cgBkU95XrQMO69nrgG5OtqGL9qFH5oxGABjMRn/5Lw9ghA1qB
+         7JY+W3iciBGHaLLj/BbuQb/mvRB8R9N8KHNNyG4BOzCP5pKg5Q5ZTpfsAYfLXhJHbwVe
+         QpvY3y6y4Hzso7195q4rrVqR5cdv+vZ63Qicx+dueB788+K3xS022IzGQ1FWVXYZM7NU
+         dfvlcbiWGkNfBSvC/Fyg8aWNzyWdvyZwcodefVONYgf6x1/YwSk5KzLJiz8Os4q7rree
+         618UpwmVy0GmES892VQ6ItjUOGz+PEsuzsclAnpQaPSqFP1DXW6i0ZQQMG+PuKeNKTfu
+         rANQ==
+X-Gm-Message-State: APjAAAXdszhAVJ1/m1VDBQNYIRE7Qpgrfs4iCAL5RcP/Q2OlfDoleheE
+	TyCi+nU5K6jsgUu4U/cPg1NJQ1mfU0uaWcMMHj37A93OKm6ocNWH9f/LtAkkYoJ0IadHe1t0L0p
+	jEvsj809Pe21jgzd0RPZ+gwBnGBR7nzUsoQj+EyGSHagtaWVZuBkLkS3gYOpjJz9hxw==
+X-Received: by 2002:a62:62c3:: with SMTP id w186mr24954054pfb.73.1556010309752;
+        Tue, 23 Apr 2019 02:05:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxVxORilvkDPWX9VEs9glucFwZ6ZZ916lKGtOAaGm6QlwXfeM8IqyV108upauVaRgEPQu4f
+X-Received: by 2002:a62:62c3:: with SMTP id w186mr24953998pfb.73.1556010308994;
+        Tue, 23 Apr 2019 02:05:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556010308; cv=none;
         d=google.com; s=arc-20160816;
-        b=AUwcWLWFOFkQrnE064yw00uf72WUx4mHWQDOe912fIqv/YoiixmG/z3qztQo+ta0h/
-         5pbigZ7GOimlMaRwalEf18dT3rnijRwGT588XmugtRNzsQlU0/5tPdbxQ/y67T1B7p3Q
-         MvuweHBjIoRCGBsc4v+EJXRXcUIcv0VhI/LHZwVGrMy5E2G8JxYtThbL0zSucGSR8A/O
-         eNAmrgLR/nYPDbwajimpUllLNcdDN/K+nTFn/7O5L1lVsjqlck4nrdvURIBdzt8Vx17H
-         sYuwzKz0Lgp+6C8pXfEcz4nOHghXpdJm3tueTmwbY/6/ZYhbrs6pZ4osI796ZNHBFKmz
-         eE8Q==
+        b=zf6JnCHWHSOo5tBj0paP7u7GMnFHY4swgdA+A1dv8hIkP1wq18ZqtOgkYrPVtunFc3
+         HXYuRkFOlR1YmgV6SMx48nYszs81FJIpLEsOlS3brQRAs7hL8kWGllbFO4o32cT0mCXD
+         JJ9moJm37cTrOVnYpkqVG9oQtfVY168Y0TLddPDfY4CZGnekaid+aeO9QLeaE5wc4Gtk
+         uSp1nrRa8GLlNApjR33853RKJByslNtjtF8WjInkD/2joZqBqshAL5QZd06H38b/z1TQ
+         TQRaXhVehs4DLNDC24tNhEN4UmVJoV5k84nYpHkq6ZY9Q+57FHnd8XLRBVGWFHuk7QNu
+         MxFw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date:dkim-signature;
-        bh=Vzytoljj+XSZztNSEXF/+jHuvarC7Phi+bRc5Lds+2A=;
-        b=l1dDipFtS9Psi475WMNaF+mMW7DHYjoVuEbN4Lxx3oc7pAD8XooItcfmQ7dT9eSpOG
-         xQBpQ9xFQpGX0EVYZ7GdCo8ozGZDHg3QawdlzLrjB6tjbooUhAgU1q4ghEJ4UjzkftaG
-         Vv9xfhSZfchRrv2Af2URichkyCWuyjmSpaRwCc9+96evMxfjrOuDZD4n6qRlYMroFV6y
-         3ALOmwoVkA9+NNYExvB9rzcKkYJiGufbbfyg4+OMBRQ5y/S7FPmxBp5RB6G4v0hzXull
-         WsSpY76w5rVoMIpk+nUyXWXrCTzP5lvLWXWGV1aZvymOlZkVLeuM3KJtd1Ljc1rv9S56
-         H8Ng==
+        bh=6VqXzTqzV4erjPSVPtVl2zQZ4ymXP6yRhCiCP3xmNmw=;
+        b=Yqyes2zOTt9+aDdb0rjoFzrkxnZQy1lEgOte9lgh6m1ulcCCjRnFYUG3mgA03D7pvW
+         7eHgSyyX5uryjdflkT7jqM3yXrUcjFI5nfhG+UAmCeb9tT/jCmvbUR33KO7kHFLlvHds
+         3csfq6zOuORm+tluiGd1fy+HiBrsYAm09teoR2rKRbqLKYJdzMbslLNFIaGpc7DeC/KY
+         dGGM9RhOTSS0vrW+uEjBo3rW7HM+9kuNdaW1UartC7mC/v5QfX0VOSYnWhp4KDKrXBUI
+         HpXjvJo+jybzGwXZ+sz3nMg1ythec82ZtUVIyOIaj3sqZNRJVNXeWBC36uPt61WYNi2c
+         1gdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OY0kxQQC;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 10si9384159jaz.79.2019.04.23.01.55.41
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=JzQhZaX9;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id b68si15937281plb.351.2019.04.23.02.05.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Apr 2019 01:55:42 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        Tue, 23 Apr 2019 02:05:08 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=OY0kxQQC;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=JzQhZaX9;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
-	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
 	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
 	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=Vzytoljj+XSZztNSEXF/+jHuvarC7Phi+bRc5Lds+2A=; b=OY0kxQQCWaRRFvkHxaJDDH859D
-	doWhg6jMgGLA2qRh0WfVL/ddu4Vh2aX0cvCWc/bIv+uWFJLp72sDTev5Fv71xin+ob6VuaaOqMLiq
-	QsHPWqnIph1yIh2nHyb6oYyiM00+ru8vQPfFBkBTWxUJ6o7624/yf80Ve9cfq5y7GXw15gsoY8vqr
-	XtFVBZWWJ8rD7frh7Hz8E/EmqdEAN+o19CfwdEvTrJojsmmZmwI5c0II2G2J1T0NFzqMErUS5sKnx
-	2DSRihH4gZVdTtuParDoBhWKnqTH6ThfX/euuVzAu0Be8x3dVocjoO0Al4I1AVfng9SResQ7Zkq8p
-	3CgMcKQg==;
+	bh=6VqXzTqzV4erjPSVPtVl2zQZ4ymXP6yRhCiCP3xmNmw=; b=JzQhZaX9wCR1O+q7wBnsYM6n0U
+	V+FN/qJvVRDX/PdLVZhm0qsNatmpcnHcFuJ0sI9VMTSmVZiTDfFnQ/IalvfBTnz7WzD3W0/B3tTsS
+	QpXw6XhiPzEw+nCaurIJhIoBvm2yg4Yptl8hMg0tWToYZQOOKLZ7EkwMnq7ZVqIo8wt3XxN4Ajh4f
+	NjWysATDqv1dQ6ZV6VfP7HRwy4cr3txcBpY2O08fb3MncEICV/9yvPwSa6BYci7Zil6Uaw/tvBexY
+	obgQhKwzPrTCW5m6f6dB4BvPaGA//4enbwbat3m+hpZZbnEFFQWVuUFyqoVwSLZpBD/HUvi6EIy/R
+	B8+U44fw==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIrDD-0001M3-DP; Tue, 23 Apr 2019 08:55:36 +0000
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hIrMR-0006tp-7X; Tue, 23 Apr 2019 09:05:07 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id DB27329B47DCB; Tue, 23 Apr 2019 10:55:33 +0200 (CEST)
-Date: Tue, 23 Apr 2019 10:55:33 +0200
+	id 90E0329B47DCD; Tue, 23 Apr 2019 11:05:05 +0200 (CEST)
+Date: Tue, 23 Apr 2019 11:05:05 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
 Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
 	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: Re: [RFC PATCH 3/5] numa: introduce per-cgroup preferred numa node
-Message-ID: <20190423085533.GF11158@hirez.programming.kicks-ass.net>
+Subject: Re: [RFC PATCH 5/5] numa: numa balancer
+Message-ID: <20190423090505.GG11158@hirez.programming.kicks-ass.net>
 References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <77452c03-bc4c-7aed-e605-d5351f868586@linux.alibaba.com>
+ <85bcd381-ef27-ddda-6069-1f1d80cf296a@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <77452c03-bc4c-7aed-e605-d5351f868586@linux.alibaba.com>
+In-Reply-To: <85bcd381-ef27-ddda-6069-1f1d80cf296a@linux.alibaba.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -119,22 +119,54 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 22, 2019 at 10:13:36AM +0800, 王贇 wrote:
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index af171ccb56a2..6513504373b4 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -2031,6 +2031,10 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+On Mon, Apr 22, 2019 at 10:21:17AM +0800, 王贇 wrote:
+> numa balancer is a module which will try to automatically adjust numa
+> balancing stuff to gain numa bonus as much as possible.
 > 
->  	pol = get_vma_policy(vma, addr);
+> For each memory cgroup, we process the work in two steps:
 > 
-> +	page = alloc_page_numa_preferred(gfp, order);
-> +	if (page)
-> +		goto out;
-> +
->  	if (pol->mode == MPOL_INTERLEAVE) {
->  		unsigned nid;
+> On stage 1 we check cgroup's exectime and memory topology to see
+> if there could be a candidate for settled down, if we got one then
+> move onto stage 2.
 > 
+> On stage 2 we try to settle down as much as possible by prefer the
+> candidate node, if the node no longer suitable or locality keep
+> downturn, we reset things and new round begin.
+> 
+> Decision made with find_candidate_nid(), should_prefer() and keep_prefer(),
+> which try to pick a candidate node, see if allowed to prefer it and if
+> keep doing the prefer.
+> 
+> Tested on the box with 96 cpus with sysbench-mysql-oltp_read_write
+> testing, 4 mysqld instances created and attached to 4 cgroups, 4
+> sysbench instances then created and attached to corresponding cgroup
+> to test the mysql with oltp_read_write script, average eps show:
+> 
+> 				origin		balancer
+> 4 instances each 12 threads	5241.08		5375.59		+2.50%
+> 4 instances each 24 threads	7497.29		7820.73		+4.13%
+> 4 instances each 36 threads	8985.44		9317.04		+3.55%
+> 4 instances each 48 threads	9716.50		9982.60		+2.66%
+> 
+> Other benchmark liks dbench, pgbench, perf bench numa also tested, and
+> with different parameters and number of instances/threads, most of
+> the cases show bonus, some show acceptable regression, and some got no
+> changes.
+> 
+> TODO:
+>   * improve the logical to address the regression cases
+>   * Find a way, maybe, to handle the page cache left on remote
+>   * find more scenery which could gain benefit
+> 
+> Signed-off-by: Michael Wang <yun.wang@linux.alibaba.com>
+> ---
+>  drivers/Makefile             |   1 +
+>  drivers/numa/Makefile        |   1 +
+>  drivers/numa/numa_balancer.c | 715 +++++++++++++++++++++++++++++++++++++++++++
 
-This I think is wrong, it overrides app specific mbind() requests.
+So I really think this is the wrong direction. Why introduce yet another
+balancer thingy and not extend the existing numa balancer with the
+additional information you got from the previous patches?
+
+Also, this really should not be a module and not in drivers/
 
