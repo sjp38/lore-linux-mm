@@ -2,141 +2,333 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08CC7C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:31:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0564EC282E1
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:35:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B685A217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:31:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jaJ2fkwH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B685A217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id AA71B218B0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:35:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA71B218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5169A6B0003; Tue, 23 Apr 2019 11:31:00 -0400 (EDT)
+	id 476DE6B0003; Tue, 23 Apr 2019 11:35:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C66F6B0005; Tue, 23 Apr 2019 11:31:00 -0400 (EDT)
+	id 3FF8E6B0005; Tue, 23 Apr 2019 11:35:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3B8C46B0007; Tue, 23 Apr 2019 11:31:00 -0400 (EDT)
+	id 2A1356B0007; Tue, 23 Apr 2019 11:35:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 191526B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 11:31:00 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id p1so12681509ywm.6
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 08:31:00 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 00CE66B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 11:35:17 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id e31so15044414qtb.0
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 08:35:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
-         :subject:to:cc;
-        bh=yEsJunfUbaZmio+edIZHR7uNumWd1MHNzVqBngWscks=;
-        b=DafSfTCbbpbqYE4A8Dr4KDIHROJuikfMSnt7moKZ9wj49Gp3VaiTpYbhJFjISTkoGM
-         AZ9kxyNwc/OpIK6uxIpj4PTs+PdbBTI4L3HaGoVxFNmbBhrW+9GT6zE/yzYTrUk2njX7
-         k8Td7LemrO/WA6tEUj0wAo/IqHPPWqr0Aa+VezakLxempiMYrLtOar+Trcc7LryqQZw8
-         52ABnPE2XKFQnkah4De8bSp6cb6DyJoCR7hp/Bq+8BmhsndCmByp/C0EJpqMc0hb9B4W
-         j4cBz8DoXJ+HmmR4tgQ1Og5PxfQzVOay5FIegnvLJaHlf7Vbn72QD+HTIjVlOSF5hCa1
-         vJhw==
-X-Gm-Message-State: APjAAAUkEFK4VsdpG/BPOWnFS9bYE8pkW3Dm6Q3TnpZ+2QlmZDst5acL
-	oCzoN9lbZNkFiDiBDWTz9lQ99FxjhUidBVT2pYWb+k/mp+ZACpJH5GdEpUhxvM2kUmHivEXOzN9
-	GZgla+uA8QgAM95qhu5B0XZlq20eqXvxBlUoCcVpd3msQSroKIv3fDHhgTUb3HEKGuA==
-X-Received: by 2002:a25:d314:: with SMTP id e20mr21877979ybf.271.1556033459654;
-        Tue, 23 Apr 2019 08:30:59 -0700 (PDT)
-X-Received: by 2002:a25:d314:: with SMTP id e20mr21877922ybf.271.1556033458995;
-        Tue, 23 Apr 2019 08:30:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556033458; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=IalHDzIn6cFiMbWSdjaTK+txxaAluqjJJZ4Tm476mO0=;
+        b=cL+ufC/bM/ShHScaRYxveA0EotGGKcNAqC3YsSbKO7lHVRloJ4jC1G2I8IK4utWUbA
+         XSSS8XdEicHCJ8oKctBB8mEcs57Rcd7ATEulTWui4QFAlfByVkP+YCaLqnkuD9mRwkd0
+         hM89K8tpfUi+rLUMAJJ4UfQTRoAQeLxdk8vA6AIhBc3MvMytrEwNMDqnEyP+cUIeM7g0
+         itm+uLdy24ED9BO5RW/o5CwghaFt/oPrVLK97csBTNCFKPYX1LZ59smCK2Yowec1VCLN
+         9iFNo1XF8ZjS0MYBbAKV21L3G4aVQI28RkIY13BhGlthPIOTCYzEB3UVUJIgOozuoIWI
+         c3YA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXuFO7iMCFdIv7/2Ng6jwBso29q/EXdeu6a+j+NuKaO2hVuDnbH
+	js5ESSfzQGLnjVr1RBa181qaLsD0yh1wsJBQeJ4vuirh0Lykmpq8Btcug8LIu49VbJl/pNHkIYg
+	C3AZ+EjbcpknU6cD4bSwFWrOlnwKAJIyPEfK4rAtZ/3TyVA7I0swJrTQvjhzcbTWLPQ==
+X-Received: by 2002:ac8:2d15:: with SMTP id n21mr6093470qta.21.1556033717709;
+        Tue, 23 Apr 2019 08:35:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOVNb9A+Uxcdty4jprbM/VGPjVxs3Vti/kd5SIOPtK0YiLqkeRAIXHw7tkoSsEoUgxWvzm
+X-Received: by 2002:ac8:2d15:: with SMTP id n21mr6093371qta.21.1556033716445;
+        Tue, 23 Apr 2019 08:35:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556033716; cv=none;
         d=google.com; s=arc-20160816;
-        b=pa/z2PMuHtfakBdC+hkPrqXZS4gUGDFjGXCK0nWQQy7Dqm9iyxmKJPZ5lA95OTGQOO
-         LJA3OZgtcb+feMbaWnEVSStnOXf/3Ry7OFC2yzou6oJMXGaSZmuMtvMIdsxb+txvJqTp
-         cKE8LZsArdWxxzixW8LUo5161PcMVBvvt6q8hunSVBuOXVz0K+aSBs43XGkO/VmBUWYT
-         u/zjWlF3fSdBkQ19ff2mDCCgUJ65PdoHGTqLgfV5oAfGFj8ztbxDO9dTDT65tQHDpzM2
-         DR35HcZne6mOEz1SBdx+b5gg5t3TC+uIvNeoBfTsefW1Ye7YCzcxXM5Mi2Aqy4t95cef
-         isaQ==
+        b=eevQDlHrtk9hiSQku5vTsg/IIYBj3btjn8cfnyOePmuAdwKazRsc/zG7LXu/cePDnP
+         Ob++W5JBJV93SC2yjZmgRfldWmw2E7EbBpSwEhSQeK4reB8ICkEhiFhgeQG15r4wVMtH
+         6ORdSpP8XiTCHuypcArLRHbpdenLdqDMXRgJMChhGbG3LviXMnaxkl3fWUTFO4wiOVdg
+         3mERJNXkw70v/peAUUtr/8qsZaIUsUd0XHN2smkoSUWY7wIjSGslktuIxGLSFSQnS9sp
+         Y+p3cOmyB5LBgqUrH5AKYwiDgV9Br630YzFmnYS+pSR6VA5WJmbyLzUYhg7iLS1fc1Z9
+         nS9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:mime-version:dkim-signature;
-        bh=yEsJunfUbaZmio+edIZHR7uNumWd1MHNzVqBngWscks=;
-        b=c8cwnjsLTj6FTjHS4bipym32j3hzyy1uJu+2L2xflzgqZ3Rt4pCRLKa7uNNTW3rzct
-         ryRnITpGjE5DjLRBCx511nFTSagcUECRBTFrZgAv7xygaC3OY+Jgr9KYA+U7LrCw8EJ/
-         wdc1SuJ1u7qAhLKHhbMSkqkklvvSErIobZeVny8Nm/fXIgZy+nz/Ku5lPL9xYty2uqhj
-         aWQvre4MaRMCET4uYLJekWMDa/LqktXbyisAtlZikQgolR8SuqS8sqn2cxyowVExmnqr
-         G8mCvb2oPHBZ9kKPj3m2KNgQVwusfyTyhGR0KVUjdlXuTPyQemUlmjoWo+XLSpS/OKAc
-         GwDw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=IalHDzIn6cFiMbWSdjaTK+txxaAluqjJJZ4Tm476mO0=;
+        b=FOUgTxBhcO+mSLg9GCVBbCF9679omnE85a048WWUmenIvXxFWmLnfyIzs0SN9BFcj3
+         kQ6odFonjJdJJR6Jeev9BnLAgfH6j3M9nLG8x9ahpiYgnPff4i7tOtzSEoSx8fnUD37H
+         2ou9DyeYShv3rINBMunuSaUq7fYFn7FuwgM6OdsI06uUCdOLGApqpzd8rX8IFsJd7LZe
+         KdKLswIPuMxI4EQaXXpGXyGUgb/xv/4HQ6+mZkmIeQb8ozu4AHJT+SM30qK/YqeB9poC
+         xUpqCzTq2tjQoSyq5XuRYHhY6nE1m79Kf5VyDRvxJ47k+3RqhcBhwg1tP9JFXnYBXM3F
+         +tPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=jaJ2fkwH;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 139sor7001096ywg.99.2019.04.23.08.30.58
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k63si1448318qkc.86.2019.04.23.08.35.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Apr 2019 08:30:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 08:35:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=jaJ2fkwH;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to:cc;
-        bh=yEsJunfUbaZmio+edIZHR7uNumWd1MHNzVqBngWscks=;
-        b=jaJ2fkwH1mCx0hopdYwEXAa6YwETI3xUruPfHlDIT+EBBuYIC7jKH+kYeGmrn3J0KV
-         0K7M7FOYTg7yEL+VytFmj7npBJvQVcXJXUk13yMyhXSUboKKBm03V0l4JPmtghQDeyWH
-         kPp9DTwV6sGINI/qX5HziGPtLxUwsW/HYNElIgtCt5vj6r1G7posqTw+8/D5wI2lapP5
-         8rdrGSuFUoL1oVf1K7qxdM39NhmrUB5RQtwAOyJDqAXxH7Y1jtozkhQVS/JrNttthJLR
-         YiUjQalCCpRyXkjbgBWGPXqWVvB7FyDUhFt2ts1+3hiwB+swCoz/xlMAf52ZaBJiWXw3
-         LnTw==
-X-Google-Smtp-Source: APXvYqznU3B5y7vUTJV9lSTCzlHB67tsYye4b9R5i29Jr3eQ7gJOeRnV8BkHalFoUNQz4NeVqVqTcHq6UOv9tX23lrs=
-X-Received: by 2002:a81:2204:: with SMTP id i4mr21278665ywi.349.1556033457993;
- Tue, 23 Apr 2019 08:30:57 -0700 (PDT)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9601D308623F;
+	Tue, 23 Apr 2019 15:35:11 +0000 (UTC)
+Received: from redhat.com (ovpn-121-195.rdu2.redhat.com [10.10.121.195])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C252B261CB;
+	Tue, 23 Apr 2019 15:34:58 +0000 (UTC)
+Date: Tue, 23 Apr 2019 11:34:56 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v3 14/28] userfaultfd: wp: handle COW properly for uffd-wp
+Message-ID: <20190423153456.GA3288@redhat.com>
+References: <20190320020642.4000-1-peterx@redhat.com>
+ <20190320020642.4000-15-peterx@redhat.com>
+ <20190418202558.GK3288@redhat.com>
+ <20190419062650.GF13323@xz-x1>
+ <20190419150253.GA3311@redhat.com>
+ <20190422122010.GA25896@xz-x1>
+ <20190422145402.GB3450@redhat.com>
+ <20190423030030.GA21301@xz-x1>
 MIME-Version: 1.0
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 23 Apr 2019 08:30:46 -0700
-Message-ID: <CALvZod4V+56pZbPkFDYO3+60Xr0_ZjiSgrfJKs_=Bd4AjdvFzA@mail.gmail.com>
-Subject: [LSF/MM TOPIC] Proactive Memory Reclaim
-To: lsf-pc@lists.linux-foundation.org
-Cc: Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Roman Gushchin <guro@fb.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190423030030.GA21301@xz-x1>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 23 Apr 2019 15:35:15 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Though this is quite late, I still want to propose a topic for
-discussion during LSFMM'19 which I think will be beneficial for Linux
-users in general but particularly the data center users running a
-range of different workloads and want to reduce the memory cost.
+On Tue, Apr 23, 2019 at 11:00:30AM +0800, Peter Xu wrote:
+> On Mon, Apr 22, 2019 at 10:54:02AM -0400, Jerome Glisse wrote:
+> > On Mon, Apr 22, 2019 at 08:20:10PM +0800, Peter Xu wrote:
+> > > On Fri, Apr 19, 2019 at 11:02:53AM -0400, Jerome Glisse wrote:
+> > > 
+> > > [...]
+> > > 
+> > > > > > > +			if (uffd_wp_resolve) {
+> > > > > > > +				/* If the fault is resolved already, skip */
+> > > > > > > +				if (!pte_uffd_wp(*pte))
+> > > > > > > +					continue;
+> > > > > > > +				page = vm_normal_page(vma, addr, oldpte);
+> > > > > > > +				if (!page || page_mapcount(page) > 1) {
+> > > > > > > +					struct vm_fault vmf = {
+> > > > > > > +						.vma = vma,
+> > > > > > > +						.address = addr & PAGE_MASK,
+> > > > > > > +						.page = page,
+> > > > > > > +						.orig_pte = oldpte,
+> > > > > > > +						.pmd = pmd,
+> > > > > > > +						/* pte and ptl not needed */
+> > > > > > > +					};
+> > > > > > > +					vm_fault_t ret;
+> > > > > > > +
+> > > > > > > +					if (page)
+> > > > > > > +						get_page(page);
+> > > > > > > +					arch_leave_lazy_mmu_mode();
+> > > > > > > +					pte_unmap_unlock(pte, ptl);
+> > > > > > > +					ret = wp_page_copy(&vmf);
+> > > > > > > +					/* PTE is changed, or OOM */
+> > > > > > > +					if (ret == 0)
+> > > > > > > +						/* It's done by others */
+> > > > > > > +						continue;
+> > > > > > 
+> > > > > > This is wrong if ret == 0 you still need to remap the pte before
+> > > > > > continuing as otherwise you will go to next pte without the page
+> > > > > > table lock for the directory. So 0 case must be handled after
+> > > > > > arch_enter_lazy_mmu_mode() below.
+> > > > > > 
+> > > > > > Sorry i should have catch that in previous review.
+> > > > > 
+> > > > > My fault to not have noticed it since the very beginning... thanks for
+> > > > > spotting that.
+> > > > > 
+> > > > > I'm squashing below changes into the patch:
+> > > > 
+> > > > 
+> > > > Well thinking of this some more i think you should use do_wp_page() and
+> > > > not wp_page_copy() it would avoid bunch of code above and also you are
+> > > > not properly handling KSM page or page in the swap cache. Instead of
+> > > > duplicating same code that is in do_wp_page() it would be better to call
+> > > > it here.
+> > > 
+> > > Yeah it makes sense to me.  Then here's my plan:
+> > > 
+> > > - I'll need to drop previous patch "export wp_page_copy" since then
+> > >   it'll be not needed
+> > > 
+> > > - I'll introduce another patch to split current do_wp_page() and
+> > >   introduce function "wp_page_copy_cont" (better suggestion on the
+> > >   naming would be welcomed) which contains most of the wp handling
+> > >   that'll be needed for change_pte_range() in this patch and isolate
+> > >   the uffd handling:
+> > > 
+> > > static vm_fault_t do_wp_page(struct vm_fault *vmf)
+> > > 	__releases(vmf->ptl)
+> > > {
+> > > 	struct vm_area_struct *vma = vmf->vma;
+> > > 
+> > > 	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
+> > > 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+> > > 		return handle_userfault(vmf, VM_UFFD_WP);
+> > > 	}
+> > > 
+> > > 	return do_wp_page_cont(vmf);
+> > > }
+> > > 
+> > > Then I can probably use do_wp_page_cont() in this patch.
+> > 
+> > Instead i would keep the do_wp_page name and do:
+> >     static vm_fault_t do_userfaultfd_wp_page(struct vm_fault *vmf) {
+> >         ... // what you have above
+> >         return do_wp_page(vmf);
+> >     }
+> > 
+> > Naming wise i think it would be better to keep do_wp_page() as
+> > is.
+> 
+> In case I misunderstood... what I've proposed will be simply:
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 64bd8075f054..ab98a1eb4702 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2497,6 +2497,14 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
+>                 return handle_userfault(vmf, VM_UFFD_WP);
+>         }
+> 
+> +       return do_wp_page_cont(vmf);
+> +}
+> +
+> +vm_fault_t do_wp_page_cont(struct vm_fault *vmf)
+> +       __releases(vmf->ptl)
+> +{
+> +       struct vm_area_struct *vma = vmf->vma;
+> +
+>         vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
+>         if (!vmf->page) {
+>                 /*
+> 
+> And the other proposal is:
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 64bd8075f054..a73792127553 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2469,6 +2469,8 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
+>         return VM_FAULT_WRITE;
+>  }
+> 
+> +static vm_fault_t do_wp_page(struct vm_fault *vmf);
+> +
+>  /*
+>   * This routine handles present pages, when users try to write
+>   * to a shared page. It is done by copying the page to a new address
+> @@ -2487,7 +2489,7 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
+>   * but allow concurrent faults), with pte both mapped and locked.
+>   * We return with mmap_sem still held, but pte unmapped and unlocked.
+>   */
+> -static vm_fault_t do_wp_page(struct vm_fault *vmf)
+> +static vm_fault_t do_userfaultfd_wp_page(struct vm_fault *vmf)
+>         __releases(vmf->ptl)
+>  {
+>         struct vm_area_struct *vma = vmf->vma;
+> @@ -2497,6 +2499,14 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
+>                 return handle_userfault(vmf, VM_UFFD_WP);
+>         }
+> 
+> +       return do_wp_page(vmf);
+> +}
+> +
+> +static vm_fault_t do_wp_page(struct vm_fault *vmf)
+> +       __releases(vmf->ptl)
+> +{
+> +       struct vm_area_struct *vma = vmf->vma;
+> +
+>         vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
+>         if (!vmf->page) {
+>                 /*
+> @@ -2869,7 +2879,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+>         }
+> 
+>         if (vmf->flags & FAULT_FLAG_WRITE) {
+> -               ret |= do_wp_page(vmf);
+> +               ret |= do_userfaultfd_wp_page(vmf);
+>                 if (ret & VM_FAULT_ERROR)
+>                         ret &= VM_FAULT_ERROR;
+>                 goto out;
+> @@ -3831,7 +3841,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
+>                 goto unlock;
+>         if (vmf->flags & FAULT_FLAG_WRITE) {
+>                 if (!pte_write(entry))
+> -                       return do_wp_page(vmf);
+> +                       return do_userfaultfd_wp_page(vmf);
+>                 entry = pte_mkdirty(entry);
+>         }
+>         entry = pte_mkyoung(entry);
+> 
+> I would prefer the 1st approach since it not only contains fewer lines
+> of changes because it does not touch callers, and also the naming in
+> the 2nd approach can be a bit confusing (calling
+> do_userfaultfd_wp_page in handle_pte_fault may let people think of an
+> userfault-only path but actually it covers the general path).  But if
+> you really like the 2nd one I can use that too.
 
-Topic: Proactive Memory Reclaim
+Maybe move the userfaultfd code to a small helper, call it first in
+call site of do_wp_page() and do_wp_page() if it does not fire ie:
 
-Motivation/Problem: Memory overcommit is most commonly used technique
-to reduce the cost of memory by large infrastructure owners. However
-memory overcommit can adversely impact the performance of latency
-sensitive applications by triggering direct memory reclaim. Direct
-reclaim is unpredictable and disastrous for latency sensitive
-applications.
+bool do_userfaultfd_wp(struct vm_fault *vmf, int ret)
+{
+    if (handleuserfault) return true;
+    return false;
+}
 
-Solution: Proactively reclaim memory from the system to drastically
-reduce the occurrences of direct reclaim. Target cold memory to keep
-the refault rate of the applications acceptable (i.e. no impact on the
-performance).
+then
+     if (vmf->flags & FAULT_FLAG_WRITE) {
+            if (do_userfaultfd_wp(vmf, tmp)) {
+                ret |= tmp;
+            } else
+                ret |= do_wp_page(vmf);
+            if (ret & VM_FAULT_ERROR)
+                ret &= VM_FAULT_ERROR;
+            goto out;
 
-Challenges:
-1. Tracking cold memory efficiently.
-2. Lack of infrastructure to reclaim specific memory.
+and:
+    if (vmf->flags & FAULT_FLAG_WRITE) {
+        if (!pte_write(entry)) {
+            if (do_userfaultfd_wp(vmf, ret))
+                return ret;
+            else
+                return do_wp_page(vmf);
+        }
 
-Details: Existing "Idle Page Tracking" allows tracking cold memory on
-a system but it becomes prohibitively expensive as the machine size
-grows. Also there is no way from the user space to reclaim a specific
-'cold' page. I want to present our implementation of cold memory
-tracking and reclaim. The aim is to make it more generally beneficial
-to lot more users and upstream it.
-
-More details:
-"Software-driven far-memory in warehouse-scale computers", ASPLOS'19.
-https://youtu.be/aKddds6jn1s
+Cheers,
+Jérôme
 
