@@ -2,133 +2,162 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2685EC282E1
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:14:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90874C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:19:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B154C20674
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:14:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="H2HIjKph"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B154C20674
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 436DA2077C
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:19:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 436DA2077C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1AA756B0003; Tue, 23 Apr 2019 03:14:08 -0400 (EDT)
+	id C53956B0003; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 15A516B0006; Tue, 23 Apr 2019 03:14:08 -0400 (EDT)
+	id C03426B0006; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 022676B0007; Tue, 23 Apr 2019 03:14:07 -0400 (EDT)
+	id ACBB26B0007; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BBD6B6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 03:14:07 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id i35so778227plb.7
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:14:07 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BFB86B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f7so2266596edi.20
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:19:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=;
-        b=WNGyycIOooHrPUx9RjCVSu2Ph29gmTYXPWWEv6znyv/CLwxtbnPdGGEwDcVDPioX3b
-         Qlmqlnjy/eZ7fYdqRF54Vfr2sRiXFf5LxqNLSexcpYjXNjc0K4l0Ckg6xC90lQmyFjrO
-         t3gxHJtjmusyskqg23ILOGXctq/S7FiEUbarOEbF/N8fcYpiFd+DmCerVxcK4rScbe0N
-         ZY5xalGAChP4xC0/XWM5Wa3ue/8H3QDNKc3+mRxR9TJoMW8HWSrPFtndnuEHtFIh/idy
-         1jcp17cIm4vvMMddHePhx+c7c6iQYVCkIjh8BPFj5z3rYPlEdk7O0eMVxIBUXAEx/Czd
-         4Hgw==
-X-Gm-Message-State: APjAAAXHaONSCcMmZHARYXBBggu6voHhU6zNfV54HHmmVQOmxZ5OmtNS
-	QuabBDgvPWTH+7769/Ok04BrNRkbsPOog6GnI9EGqiKqaZ+SvFAHGLQW5etTn3zqiy0EnCL8JQX
-	DM6mBeQkEJtDmnBzitWukcMgWL9Xr0hD4xqW/JmFH8gqiXwQLbIOB7rg43oGS5B3S8A==
-X-Received: by 2002:a63:3284:: with SMTP id y126mr23277663pgy.424.1556003647010;
-        Tue, 23 Apr 2019 00:14:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzBZF26FrqeZZdArrhIzLiRwHUGufnjouHhViv6P2IH31Xbr3u5aH8S56MKDqHydYo+Ex+
-X-Received: by 2002:a63:3284:: with SMTP id y126mr23277577pgy.424.1556003646183;
-        Tue, 23 Apr 2019 00:14:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556003646; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=42ugvElMVoGqu/m8MSC5tnYu4AH/sC8WY74C7nB6B6o=;
+        b=N62Cv9/fBkZRyf+5w4wSBxV/r1c6mhYT9/xSukItnII5T0AVDwmZyUIMfyTh82fFYm
+         MXl4zQpgsFJ7fXyLxExwAkSZrw1xC5ar7KRYsW9kGCjTiH9ViC1tkYKglupRMJ+roUDj
+         BPAn01yoqNGKl/Bs/CNW2bsCHfY0t9Dzaj8dHXBT7x9IX3+EU6DKMoRuVa0CIkOaQ+Zr
+         Rm8V5CWYOZHiQs+X4euSUzVf6T3aHYISJ41ez3019QRD1d96oRyUXtW5cdbsnwo8T+r+
+         EEVEN5vHO9VfCfmC5PP1JlI/Oo3oxUeIh1dbJ6phvE77aPBAanj0dQ8HWY6Ic677Jm0s
+         dI9g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXyB1U5Q+ibEGcq9z7ul0b5IAYZ/366R3At+WamVzo4MRyBgKwZ
+	UOt67zpC9vTMe9XIPHnrabH3g8FD298Hdn2Bzk6yFpi4gKDMcVsoPU1xIIot1xRPTIDn3AJBhV+
+	YQh5sTaMQn4vAeFNRDY99PEBY1VRa5yHLYly0SqfGKU81j1bWzK+8wmApg72XeWQ=
+X-Received: by 2002:aa7:c510:: with SMTP id o16mr14240382edq.277.1556003995917;
+        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPlIiKM71vRxLsozXqh05lMMwY0uFZpbcRCSFZf77KvYd2qeQtyz/5b1BpbcqYk9kIT9G/
+X-Received: by 2002:aa7:c510:: with SMTP id o16mr14240341edq.277.1556003995096;
+        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556003995; cv=none;
         d=google.com; s=arc-20160816;
-        b=ATTFQ0nxmPoF5JcssA1jm9qWQ/hTf+3PsTJNM/DG7akC7G7nWlN+jhPIHkfKKl6lP5
-         2K+gReX6XH5L/NCAV4k6RQjeqF4zSjlOAgSTEEsOCDrz67mDBWuNpY/n9g9RXNyP0qBd
-         TZsM/PVLCgLrAgEyNHtRCAvM5F8Q2wAe3svs/xro/vps8x399hCqxymIt6nNooUlOBXa
-         31gYh4TNWu+L18KvEJ8AJ8d7Cg8rbszIa3e9XBIBPoeLERNfucKFLeZOuLLdjv8Cuu0m
-         HO0VYUrBQCJ3yCWcko+EDR64fR2NRpY4YKNFynbylaGEowllTxp2iz99dX89iK/tU+ra
-         ojSg==
+        b=N2zZ1vpVkPHRZnrRGt4vONXChz2pQbrNFCSRVzK4h/bGmkeABe7hAcZMwMhOjztbFQ
+         TTYj0S4IL0zDgO/UCkvaKwUGAWrIGMQtQhxuRsHSTof7iWT8qFk1e2WOKyGl4jixHQnz
+         NhKAMnhC68+l37Tw7PoR0dSvp2qUwE33MECYbhZ2OsG/F1pyUObWZNd+PZpAbwSaiZN7
+         pVuaa75xGJhb49Fno2frzuqn4bQcl5M89EAqbicxGGsQr85cRSQcE8lljO0GVnj5QAl5
+         BgHKnK+rOOdN1uFCHlHswRpAaJ0BzqjXTsl5/lEy2pSeK2+A3c27wGEnoVggVUrlvjzc
+         X/2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=;
-        b=MT5lOLGR3S7373gL8RMkQzKSbK+Jyg37xr5SEQsMZYREv7t6KXEpIIQRz1BhIcOX7a
-         MTfteoMYLv1hGJ+aUg5/0VamKWPcoOGIgjdP18iY0iFo4bqAAWjjSd0E/9MwiXrO9SSX
-         ck1pdJcjr/qThkLdzINUNKGlK39mdWUeIMW0lnfCefCcxadQ+Gufi3M9XPAgDA02SAw+
-         XT0lmaGeKS2yPIU5BYah88gZuUxX/D0FLv5Ac9jIFLCO0dZpeYAIWQEzS+axblcOWffx
-         0o08w4e93R+QKeRwOZsNTvevy51dk7Pzo0ou7xBiCqeR+U7xtWBUk8sQK9IBCj/S2mv7
-         6jIg==
+         :message-id:subject:cc:to:from:date;
+        bh=42ugvElMVoGqu/m8MSC5tnYu4AH/sC8WY74C7nB6B6o=;
+        b=ud6C6731IhvcLTMcSHYRknJBq3C7bNo2bN2C6XHx7I6XfFQB/vVY9fOQ+F0JzTGLoZ
+         U3MvMpSgfcRYpDnn8xk//OVtQ4tc4uqE5O7MA+e5k8jxudkXyIengvbHNBBoyLGxusI9
+         vXU4AFQlCY33SWjM7rhUx/NMUD/MpOuA3tq+IFEQPB9ykb/Ojg+UzS/0YKhY+Admb0ZO
+         25LPfqkKqGwC3xSRatqL2kUOdlU7LYY8vn5QrAhIrVhTehS8GqXkBDgTXm/NywVZ/3Mn
+         Oid1l7nJ/tl8KpwRdK5TdNMHOCd8VQgEFlxbMZC+mjD8oAZp4rvHDDkikZKPJxUd5pH/
+         3AWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=H2HIjKph;
-       spf=pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c12si14231305pgj.461.2019.04.23.00.14.06
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r5si935438edy.227.2019.04.23.00.19.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Apr 2019 00:14:06 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=H2HIjKph;
-       spf=pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=; b=H2HIjKphtjzOGFQrLmcu0oOFr
-	5r3bAwWLkfQXSq9ayF7kYfnbhUjaU+tcCP3tyTatUyrT8kjp/mZymokWA2BvbP6qQr3yKHCAQRtUk
-	/rdcDAeYXJDTVFa2DQ/xmqKnEtwTMu84elAhhsiAvLjU/eBU1t8FRYkPWntVgG8l+g30dwUwM/5/Z
-	hlGqromgmM12sN2kE/0UwWS7366vJVO7iwyegEIytfYJEpPnGAAAwBc+VfAch2uGo4VcQ9qlP5wZU
-	cFF1btw7ENuY8StXWiv/d74Z1+44bgUKCwY2vlR27IP+fhLq0QnZWB5h0llfduvDthG5CrdmkV0J7
-	6BHcgY35Q==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIpco-0006EN-T8; Tue, 23 Apr 2019 07:13:54 +0000
-Date: Tue, 23 Apr 2019 00:13:54 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mikulas Patocka <mpatocka@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
-	Vlastimil Babka <vbabka@suse.cz>,
-	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
-Subject: Re: DISCONTIGMEM is deprecated
-Message-ID: <20190423071354.GB12114@infradead.org>
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <20190421063859.GA19926@rapoport-lnx>
- <20190421132606.GJ7751@bombadil.infradead.org>
- <20190421211604.GN18914@techsingularity.net>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8EE12AD1A;
+	Tue, 23 Apr 2019 07:19:54 +0000 (UTC)
+Date: Tue, 23 Apr 2019 09:19:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	linux-kernel <linux-kernel@vger.kernel.org>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
+	Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Question] Should direct reclaim time be bounded?
+Message-ID: <20190423071953.GC25106@dhcp22.suse.cz>
+References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190421211604.GN18914@techsingularity.net>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
-> 32-bit NUMA systems should be non-existent in practice. The last NUMA
-> system I'm aware of that was both NUMA and 32-bit only died somewhere
-> between 2004 and 2007. If someone is running a 64-bit capable system in
-> 32-bit mode with NUMA, they really are just punishing themselves for fun.
+On Mon 22-04-19 21:07:28, Mike Kravetz wrote:
+[...]
+> However, consider the case of a 2 node system where:
+> node 0 has 2GB memory
+> node 1 has 4GB memory
+> 
+> Now, if one wants to allocate 4GB of huge pages they may be tempted to simply,
+> "echo 2048 > nr_hugepages".  At first this will go well until node 0 is out
+> of memory.  When this happens, alloc_pool_huge_page() will continue to be
+> called.  Because of that for_each_node_mask_to_alloc() macro, it will likely
+> attempt to first allocate a page from node 0.  It will call direct reclaim and
+> compaction until it fails.  Then, it will successfully allocate from node 1.
 
-Can we mark it as BROKEN to see if someone shouts and then remove it
-a year or two down the road?  Or just kill it off now..
+Yeah, the even distribution is quite a strong statement. We just try to
+distribute somehow and it is likely to not work really great on system
+with nodes that are different in size. I know it sucks but I've been
+recommending to use the /sys/devices/system/node/node$N/hugepages/hugepages-2048kB/nr_hugepages
+because that allows the define the actual policy much better. I guess we
+want to be more specific about this in the documentation at least.
+
+> In our distro kernel, I am thinking about making allocations try "less hard"
+> on nodes where we start to see failures.  less hard == NORETRY/NORECLAIM.
+> I was going to try something like this on an upstream kernel when I noticed
+> that it seems like direct reclaim may never end/exit.  It 'may' exit, but I
+> instrumented __alloc_pages_slowpath() and saw it take well over an hour
+> before I 'tricked' it into exiting.
+> 
+> [ 5916.248341] hpage_slow_alloc: jiffies 5295742  tries 2   node 0 success
+> [ 5916.249271]                   reclaim 5295741  compact 1
+
+This is unexpected though. What does tries mean? Number of reclaim
+attempts? If yes could you enable tracing to see what takes so long in
+the reclaim path?
+
+> This is where it stalled after "echo 4096 > nr_hugepages" on a little VM
+> with 8GB total memory.
+> 
+> I have not started looking at the direct reclaim code to see exactly where
+> we may be stuck, or trying really hard.  My question is, "Is this expected
+> or should direct reclaim be somewhat bounded?"  With __alloc_pages_slowpath
+> getting 'stuck' in direct reclaim, the documented behavior for huge page
+> allocation is not going to happen.
+
+Well, our "how hard to try for hugetlb pages" is quite arbitrary. We
+used to rety as long as at least order worth of pages have been
+reclaimed but that didn't make any sense since the lumpy reclaim was
+gone. So the semantic has change to reclaim&compact as long as there is
+some progress. From what I understad above it seems that you are not
+thrashing and calling reclaim again and again but rather one reclaim
+round takes ages.
+
+That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
+looks like there is something wrong in the reclaim going on.
+
+-- 
+Michal Hocko
+SUSE Labs
 
