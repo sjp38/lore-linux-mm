@@ -2,655 +2,232 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33C04C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:14:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1C42C10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:20:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B0AEA217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:14:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 60A1020835
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:20:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ib64WJia"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B0AEA217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="McGNaf3d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60A1020835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 650206B026D; Tue, 23 Apr 2019 13:14:53 -0400 (EDT)
+	id E148F6B0269; Tue, 23 Apr 2019 13:20:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 600486B026E; Tue, 23 Apr 2019 13:14:53 -0400 (EDT)
+	id DC3B16B026C; Tue, 23 Apr 2019 13:20:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EF186B026F; Tue, 23 Apr 2019 13:14:53 -0400 (EDT)
+	id C65366B026F; Tue, 23 Apr 2019 13:20:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C03266B026D
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:14:52 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id 140so2491820ljj.17
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 10:14:52 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 714D16B0269
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:20:16 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id u14so15381373wrr.9
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 10:20:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=DN41PzKZOmTQMbeHkdOhlUuj8ZVoq/HWKOihKOAiUlk=;
-        b=HLvQqWiJqc8GZVn5z0Wrum/wPX1AlzGo9dTDsk4x2tnTOUVZIaG7XfMrO1pGBh4vwr
-         Cs8cvuzLb+0fpq0VSDnwCFEuVFJ570Cj7VQIxfF1y2dqXsBRZIzog5xUegwNhOb3+iWh
-         e+FJotuhR2fJw4ygZz7JVXoIOMdMK/N0IQzh/mVhSxUrffZ8mrmWW44Bc0A5CQVmN0Me
-         67wz8KnlZBk0/AQxPlWY1DyzEFrHvXFDm9Hekc47/VbDAGDSX/S8z5xU53c9D+Pf4Yf7
-         SyvKCcVgkincM9QIzT+Oh/D2taLawWQrZzoY3ReM4ZLqRGoHa5RdW0tgyR95UPG9jSJw
-         cSvw==
-X-Gm-Message-State: APjAAAUBW2cQ37Yp44BuAbzyZcVXF1Lo0p9PQceaHLgqjG5Y8ZtfTajB
-	VjAjzIki6Bv6XmpUuYZ7PDAH/Axiiyxvhuseg2sVCp+dfuQ1xXjtrovz2cyDCLRba+IKLsXBFJd
-	6DsSPjWPJkW6QutlaPMSECZ/dXEsooLjq5iTBvMFUtfGEk2Hwh4ikx8ChErsIQtGW9w==
-X-Received: by 2002:a2e:4555:: with SMTP id s82mr14305972lja.15.1556039691941;
-        Tue, 23 Apr 2019 10:14:51 -0700 (PDT)
-X-Received: by 2002:a2e:4555:: with SMTP id s82mr14305899lja.15.1556039690217;
-        Tue, 23 Apr 2019 10:14:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556039690; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=mwVTpg13SBC97f2USbPraM4nvtlLOXZnOp5nHcgdKwk=;
+        b=iDVFEIboKz48l7nAn7SI0Ca2nN5G1tlfsOo9pJo9/wNhwOUQNPHHQVpMY4AMA/TP0n
+         qyN/7a/4R3B/Y1HY2FpVPyf8MYEvm6ncAznwAgIVxPMCwpO2FoOKddPaZEV1pgUTc2C8
+         omFjJ0prDl4y32iILeQlX4wmDxT/QZIgXw3pVLOvVjIojbu7odISWMuzP3H566cgj5MP
+         /qJX8Aq0t6Fsl1YnAfr8rMDNRIjEx2qTInbLnVixTPH182i9BSaGd3iRcg/PSeniceFc
+         ZeagI+ljxe7BdflsYcEKsFoOMY8iGow4EXLAqWesrWnkKyK51hxCDk54TGdtkMx4W5hv
+         gS2g==
+X-Gm-Message-State: APjAAAUAv3IwjGXDboTEJOMfMGxVspf4RVgV+d6F0WYInJHUihRUtkzP
+	7XipZR7WYSmq/ERj0Qx0lBglaJj4NYZZb1cX0cOw0lEyAr7sgVnw6bMA2o+wSngYG9TvvuCuRrT
+	JIYB8RvT/d4pWoQRuYmUVhtmitGTe33xG4tkLGWYi7JMVM66M3YqTI0dkWx3M/6hPKw==
+X-Received: by 2002:a1c:4102:: with SMTP id o2mr2971975wma.91.1556040016002;
+        Tue, 23 Apr 2019 10:20:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZ4ThxpSeRdOvkHqpHFjXlCVFs5+0OYE4YzpAQIHGMHQrspbdLeT+XnAwf+zcLq2VYrzjb
+X-Received: by 2002:a1c:4102:: with SMTP id o2mr2971882wma.91.1556040014250;
+        Tue, 23 Apr 2019 10:20:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556040014; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZPu+5ztDCJrL3YMP7LfpcFQkClEx+KV9up9iHJCNoTI1atn6PBBxo5E5ZcR96eLtJZ
-         u9glxN0P+6NNwFWH4O9aaV1Wk8+zYZzIMfOpRHcr0qf9Pybh6WJxbyOKhfr3MKUCSB28
-         hi9QUbtcI58xO4Y3M1WpqgK9lg+xlkqTfpD2EHU/8RxH/3SaWiVLbyKxPYHWT/RRqezV
-         QU/NSimf0qSECR+u5RAcQnjiFsQM1p+zbcie9AcDIPmnbdDabYytb2kMcX2w4wS7TX5X
-         0yzDVwY79mMha2GnJpJkQMMwfUbx8dv8OAKe3vmNC2iJs/5DmW+QLiqDDB22bxBy5snW
-         kUTw==
+        b=zo/MCp42Obw9uMHcG5ND5HUTtqXx0n2Ll6ifJsvfPMdYdgyHLlV9gLhfv8+0sHt1Ym
+         0cAVG7prIjtSsKIFaZ0nrkiGc98lTRdbJLa06qGVQQL8kF8LavQA37f7NZhbTut5YpuZ
+         LqNRQ2PKT0pMa8tNYiHbp8HnOPPRMj+4191Q/Ch+gT6qtvATByeM3xRsRxg1Q0MU10HY
+         v8j0KfTgTxY/hsUeyZxLIepG9nF5E/2yGX7svrAkLvYIF3mtP0zM0Svml/UWEotWjgT/
+         svg2zfgfSQF9equN77fn6huqLnHYhgMUix8Z2OV4yQuJW760DSkBjFIr3ytJamCR//O7
+         WhrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=DN41PzKZOmTQMbeHkdOhlUuj8ZVoq/HWKOihKOAiUlk=;
-        b=zuUv6bok/9XE7yfS8fFig1+Kp8OYwmjOGtu/7d70APynbkFTK2+jzHNyTEuEihn1Oh
-         1Gp+ToqzBbq/ltdU27gSmdugm3dPNadVD7yBIdrbIuqMAHDAB7Ndvkqtvcxp+Li1pxgt
-         7R5+CjRKNTE1ZrVRiHAF0VpP3XIHjuhpYO3Kn/iahYqMfTqEdoG4CgLNKYV5ovvXrCeQ
-         LPsy6qnnZBh/2XivqvQTU9vIxjCGnTjuCc1keU+5AtBJ7K5XzfTLiNbyaUvJHv49+BSo
-         psfhqYDbeLwTIrqdY5JihK2QORdDz6HAcdpoV36GK6YptDbm+upBajnRG/nnhJaZBWk2
-         Y3Og==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=mwVTpg13SBC97f2USbPraM4nvtlLOXZnOp5nHcgdKwk=;
+        b=xy0we3wjgXm7gcmbIiUM3woC/7YvTJoIf6NjzwRW5PpEFKXQ/6JKlccHP9ZXaGUKwx
+         Kx9xfOFKsPKbEGlxCXwW2E260M00DjokbxrNyDSh3qqKGQ2Bymy6oa924iFH/nqFU+eX
+         L8L0E3Fm8OqtfdJ9fgNa2IzzOS811Dv0QM41/LcdsIi7RqoZySN+X5If2l6xgbRGDvyi
+         /IBrTZKw102FK5+PehinLqeImbhwzRs4MQ8TgBr8Lvr+Hbc6tmI/yxFnbd62uhpQlQXb
+         EptTWp+rUsIVA77Gu6gOuMoBo6sbuVSSeqkbHDwTuVYAJR9GL/kVU862fe7IS5u+lHqY
+         vKeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ib64WJia;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v7sor4167054lfe.27.2019.04.23.10.14.50
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=McGNaf3d;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id t1si11349506wrs.98.2019.04.23.10.20.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Apr 2019 10:14:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 10:20:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ib64WJia;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=DN41PzKZOmTQMbeHkdOhlUuj8ZVoq/HWKOihKOAiUlk=;
-        b=Ib64WJia/BAkPDxbS+Kc7wXnZyKBjMnMMHhd+sIbXK68gAgLelqjEQTJbsLzKLenkP
-         fsUI/qmA7RWw9sKX+1LXEyJ0JjpobuIYaE5y5iZEQVfDbXFKv4nQF6ctLwx8VbQ6iq6r
-         L8FlHR7/6h1HX4TJHJE1+HMqNNdLQcm4yYvuPAXpcUjpad3YIqqt8g3+z+zn2kwra6kZ
-         G1rCsDybwHQAbtp4pxJ3U92I640/D33dXYjVYVnxI9aMnifAV+u9MbkNi//0UfKQdnhb
-         ClzR7A2g2WZ+YQ9QVvteaAwicRGRCxFUBTuGbc5d4esRIQE/NvlpKDd7UFrwF4J9FaZ5
-         Nfrw==
-X-Google-Smtp-Source: APXvYqz/hN6UwWr6nRTmMXR2GagmRGWOtCDKVVMFHwAq+NEsAjy94UHcnM8rxvZyuHgPDHHoWZI2R7Mo5DoWGs7U42Y=
-X-Received: by 2002:a05:6512:20e:: with SMTP id a14mr254692lfo.14.1556039689580;
- Tue, 23 Apr 2019 10:14:49 -0700 (PDT)
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=McGNaf3d;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from zn.tnic (p200300EC2F10CC005966DC6E23F72562.dip0.t-ipconnect.de [IPv6:2003:ec:2f10:cc00:5966:dc6e:23f7:2562])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id DEF101EC0A7C;
+	Tue, 23 Apr 2019 19:20:12 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
+	t=1556040013;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
+	bh=mwVTpg13SBC97f2USbPraM4nvtlLOXZnOp5nHcgdKwk=;
+	b=McGNaf3dJr2pnuSgxKLdzHDiUmeuMU1w6Z9Q4i61m49AW2HPRaBzWB8EJBztU2o2umPz9H
+	HwWZFqAdk5Ab8mSBFnzm96ATsTndVAZBVkf/zrEqMSvZhEmuePqwmEhTycRuvsqoFqm39D
+	plTTzIQp0QPM2dINdzvM89Rx4KkUnDs=
+Date: Tue, 23 Apr 2019 19:20:06 +0200
+From: Borislav Petkov <bp@alien8.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jonathan Corbet <corbet@lwn.net>, Mike Snitzer <snitzer@redhat.com>,
+	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>,
+	Linux Doc Mailing List <linux-doc@vger.kernel.org>,
+	Mauro Carvalho Chehab <mchehab@infradead.org>,
+	linux-kernel@vger.kernel.org,
+	Johannes Berg <johannes@sipsolutions.net>,
+	Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Alasdair Kergon <agk@redhat.com>, dm-devel@redhat.com,
+	Kishon Vijay Abraham I <kishon@ti.com>,
+	Rob Herring <robh+dt@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, Ning Sun <ning.sun@intel.com>,
+	Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>,
+	Alan Stern <stern@rowland.harvard.edu>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
+	Boqun Feng <boqun.feng@gmail.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	David Howells <dhowells@redhat.com>,
+	Jade Alglave <j.alglave@ucl.ac.uk>,
+	Luc Maranget <luc.maranget@inria.fr>,
+	"Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Akira Yokosawa <akiyks@gmail.com>,
+	Daniel Lustig <dlustig@nvidia.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Andreas =?utf-8?Q?F=C3=A4rber?= <afaerber@suse.de>,
+	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>,
+	Cornelia Huck <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>,
+	Eric Farman <farman@linux.ibm.com>,
+	Halil Pasic <pasic@linux.ibm.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Harry Wei <harryxiyou@gmail.com>,
+	Alex Shi <alex.shi@linux.alibaba.com>,
+	Jerry Hoemann <jerry.hoemann@hpe.com>,
+	Wim Van Sebroeck <wim@linux-watchdog.org>,
+	Guenter Roeck <linux@roeck-us.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	"H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org,
+	Russell King <linux@armlinux.org.uk>,
+	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
+	Helge Deller <deller@gmx.de>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>, Guan Xuetao <gxt@pku.edu.cn>,
+	Jens Axboe <axboe@kernel.dk>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Arnd Bergmann <arnd@arndb.de>, Matt Mackall <mpm@selenic.com>,
+	Herbert Xu <herbert@gondor.apana.org.au>,
+	Corey Minyard <minyard@acm.org>,
+	Sumit Semwal <sumit.semwal@linaro.org>,
+	Linus Walleij <linus.walleij@linaro.org>,
+	Bartosz Golaszewski <bgolaszewski@baylibre.com>,
+	Darren Hart <dvhart@infradead.org>,
+	Andy Shevchenko <andy@infradead.org>,
+	Stuart Hayes <stuart.w.hayes@gmail.com>,
+	Jaroslav Kysela <perex@perex.cz>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Kirti Wankhede <kwankhede@nvidia.com>,
+	Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Steffen Klassert <steffen.klassert@secunet.com>,
+	Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
+	James Morris <jmorris@namei.org>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	linux-wireless@vger.kernel.org, linux-pci@vger.kernel.org,
+	devicetree@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-fbdev@vger.kernel.org, tboot-devel@lists.sourceforge.net,
+	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
+	kvm@vger.kernel.org, linux-watchdog@vger.kernel.org,
+	linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
+	linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
+	platform-driver-x86@vger.kernel.org,
+	iommu@lists.linux-foundation.org, linux-mm@kvack.org,
+	kernel-hardening@lists.openwall.com,
+	linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
+ files to *.rst
+Message-ID: <20190423172006.GD16353@zn.tnic>
+References: <cover.1555938375.git.mchehab+samsung@kernel.org>
+ <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
+ <20190423083135.GA11158@hirez.programming.kicks-ass.net>
+ <20190423125519.GA7104@redhat.com>
+ <20190423130132.GT4038@hirez.programming.kicks-ass.net>
+ <20190423103053.07cf2149@lwn.net>
+ <20190423171158.GG12232@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-References: <cover.1555427418.git.nishadkamdar@gmail.com> <f6a7c31f4e8b743a2877875ac3fc49ecb8b9eb0c.1555427419.git.nishadkamdar@gmail.com>
-In-Reply-To: <f6a7c31f4e8b743a2877875ac3fc49ecb8b9eb0c.1555427419.git.nishadkamdar@gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 23 Apr 2019 22:44:38 +0530
-Message-ID: <CAFqt6za6CgpL--0eNSC28FheRYLxwfCeGVgiZS9xhkNovtyPPA@mail.gmail.com>
-Subject: Re: [PATCH v3 2/5] nds32: Use the correct style for SPDX License Identifier
-To: Nishad Kamdar <nishadkamdar@gmail.com>
-Cc: Greentime Hu <green.hu@gmail.com>, Vincent Chen <deanbo422@gmail.com>, 
-	Oleg Nesterov <oleg@redhat.com>, Will Deacon <will.deacon@arm.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Nick Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joe Perches <joe@perches.com>, 
-	=?UTF-8?Q?Uwe_Kleine=2DK=C3=B6nig?= <u.kleine-koenig@pengutronix.de>, 
-	linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190423171158.GG12232@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 8:54 PM Nishad Kamdar <nishadkamdar@gmail.com> wrote:
->
-> This patch corrects the SPDX License Identifier style
-> in the nds32 Hardware Architecture related files.
->
-> Suggested-by: Joe Perches <joe@perches.com>
-> Signed-off-by: Nishad Kamdar <nishadkamdar@gmail.com>
-> ---
->  arch/nds32/include/asm/assembler.h       | 2 +-
->  arch/nds32/include/asm/barrier.h         | 2 +-
->  arch/nds32/include/asm/bitfield.h        | 2 +-
->  arch/nds32/include/asm/cache.h           | 2 +-
->  arch/nds32/include/asm/cache_info.h      | 2 +-
->  arch/nds32/include/asm/cacheflush.h      | 2 +-
->  arch/nds32/include/asm/current.h         | 2 +-
->  arch/nds32/include/asm/delay.h           | 2 +-
->  arch/nds32/include/asm/elf.h             | 2 +-
->  arch/nds32/include/asm/fixmap.h          | 2 +-
->  arch/nds32/include/asm/futex.h           | 2 +-
->  arch/nds32/include/asm/highmem.h         | 2 +-
->  arch/nds32/include/asm/io.h              | 2 +-
->  arch/nds32/include/asm/irqflags.h        | 2 +-
->  arch/nds32/include/asm/l2_cache.h        | 2 +-
->  arch/nds32/include/asm/linkage.h         | 2 +-
->  arch/nds32/include/asm/memory.h          | 2 +-
->  arch/nds32/include/asm/mmu.h             | 2 +-
->  arch/nds32/include/asm/mmu_context.h     | 2 +-
->  arch/nds32/include/asm/module.h          | 2 +-
->  arch/nds32/include/asm/nds32.h           | 2 +-
->  arch/nds32/include/asm/page.h            | 2 +-
->  arch/nds32/include/asm/pgalloc.h         | 2 +-
->  arch/nds32/include/asm/pgtable.h         | 2 +-
->  arch/nds32/include/asm/proc-fns.h        | 2 +-
->  arch/nds32/include/asm/processor.h       | 2 +-
->  arch/nds32/include/asm/ptrace.h          | 2 +-
->  arch/nds32/include/asm/shmparam.h        | 2 +-
->  arch/nds32/include/asm/string.h          | 2 +-
->  arch/nds32/include/asm/swab.h            | 2 +-
->  arch/nds32/include/asm/syscall.h         | 2 +-
->  arch/nds32/include/asm/syscalls.h        | 2 +-
->  arch/nds32/include/asm/thread_info.h     | 2 +-
->  arch/nds32/include/asm/tlb.h             | 2 +-
->  arch/nds32/include/asm/tlbflush.h        | 2 +-
->  arch/nds32/include/asm/uaccess.h         | 2 +-
->  arch/nds32/include/asm/unistd.h          | 2 +-
->  arch/nds32/include/asm/vdso.h            | 2 +-
->  arch/nds32/include/asm/vdso_datapage.h   | 2 +-
->  arch/nds32/include/asm/vdso_timer_info.h | 2 +-
->  arch/nds32/include/uapi/asm/auxvec.h     | 2 +-
->  arch/nds32/include/uapi/asm/byteorder.h  | 2 +-
->  arch/nds32/include/uapi/asm/cachectl.h   | 2 +-
->  arch/nds32/include/uapi/asm/param.h      | 2 +-
->  arch/nds32/include/uapi/asm/ptrace.h     | 2 +-
->  arch/nds32/include/uapi/asm/sigcontext.h | 2 +-
->  arch/nds32/include/uapi/asm/unistd.h     | 2 +-
->  47 files changed, 47 insertions(+), 47 deletions(-)
->
-> diff --git a/arch/nds32/include/asm/assembler.h b/arch/nds32/include/asm/assembler.h
-> index c3855782a541..5e7c56926049 100644
-> --- a/arch/nds32/include/asm/assembler.h
-> +++ b/arch/nds32/include/asm/assembler.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
+On Tue, Apr 23, 2019 at 07:11:58PM +0200, Peter Zijlstra wrote:
+> I know I'm an odd duck; but no. They're _less_ accessible for me, as
+> both a reader and author. They look 'funny' when read as a text file
+> (the only way it makes sense to read them; I spend 99% of my time on a
+> computer looking at monospace text interfaces; mutt, vim and console, in
+> that approximate order).
 
-I think, better to include next *Copyright* line in multi line comment.
-Applicable in all below places.
++1
 
->
->  #ifndef __NDS32_ASSEMBLER_H__
-> diff --git a/arch/nds32/include/asm/barrier.h b/arch/nds32/include/asm/barrier.h
-> index faafc373ea6c..16413172fd50 100644
-> --- a/arch/nds32/include/asm/barrier.h
-> +++ b/arch/nds32/include/asm/barrier.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_ASM_BARRIER_H
-> diff --git a/arch/nds32/include/asm/bitfield.h b/arch/nds32/include/asm/bitfield.h
-> index 7414fcbbab4e..e75212c76b20 100644
-> --- a/arch/nds32/include/asm/bitfield.h
-> +++ b/arch/nds32/include/asm/bitfield.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_BITFIELD_H__
-> diff --git a/arch/nds32/include/asm/cache.h b/arch/nds32/include/asm/cache.h
-> index 347db4881c5f..fc3c41b59169 100644
-> --- a/arch/nds32/include/asm/cache.h
-> +++ b/arch/nds32/include/asm/cache.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_CACHE_H__
-> diff --git a/arch/nds32/include/asm/cache_info.h b/arch/nds32/include/asm/cache_info.h
-> index 38ec458ba543..e89d8078f3a6 100644
-> --- a/arch/nds32/include/asm/cache_info.h
-> +++ b/arch/nds32/include/asm/cache_info.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  struct cache_info {
-> diff --git a/arch/nds32/include/asm/cacheflush.h b/arch/nds32/include/asm/cacheflush.h
-> index 8b26198d51bb..d9ac7e6408ef 100644
-> --- a/arch/nds32/include/asm/cacheflush.h
-> +++ b/arch/nds32/include/asm/cacheflush.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_CACHEFLUSH_H__
-> diff --git a/arch/nds32/include/asm/current.h b/arch/nds32/include/asm/current.h
-> index b4dcd22b7bcb..65d30096142b 100644
-> --- a/arch/nds32/include/asm/current.h
-> +++ b/arch/nds32/include/asm/current.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASM_NDS32_CURRENT_H
-> diff --git a/arch/nds32/include/asm/delay.h b/arch/nds32/include/asm/delay.h
-> index 519ba97acb6e..56ea3894f8f8 100644
-> --- a/arch/nds32/include/asm/delay.h
-> +++ b/arch/nds32/include/asm/delay.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_DELAY_H__
-> diff --git a/arch/nds32/include/asm/elf.h b/arch/nds32/include/asm/elf.h
-> index 02250626b9f0..1c8e56d7013d 100644
-> --- a/arch/nds32/include/asm/elf.h
-> +++ b/arch/nds32/include/asm/elf.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASMNDS32_ELF_H
-> diff --git a/arch/nds32/include/asm/fixmap.h b/arch/nds32/include/asm/fixmap.h
-> index 0e60e153a71a..5a4bf11e5800 100644
-> --- a/arch/nds32/include/asm/fixmap.h
-> +++ b/arch/nds32/include/asm/fixmap.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_FIXMAP_H
-> diff --git a/arch/nds32/include/asm/futex.h b/arch/nds32/include/asm/futex.h
-> index baf178bf1d0b..5213c65c2e0b 100644
-> --- a/arch/nds32/include/asm/futex.h
-> +++ b/arch/nds32/include/asm/futex.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_FUTEX_H__
-> diff --git a/arch/nds32/include/asm/highmem.h b/arch/nds32/include/asm/highmem.h
-> index 425d546cb059..b3a82c97ded3 100644
-> --- a/arch/nds32/include/asm/highmem.h
-> +++ b/arch/nds32/include/asm/highmem.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASM_HIGHMEM_H
-> diff --git a/arch/nds32/include/asm/io.h b/arch/nds32/include/asm/io.h
-> index 5ef8ae5ba833..16f262322b8f 100644
-> --- a/arch/nds32/include/asm/io.h
-> +++ b/arch/nds32/include/asm/io.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_IO_H
-> diff --git a/arch/nds32/include/asm/irqflags.h b/arch/nds32/include/asm/irqflags.h
-> index 2bfd00f8bc48..fb45ec46bb1b 100644
-> --- a/arch/nds32/include/asm/irqflags.h
-> +++ b/arch/nds32/include/asm/irqflags.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #include <asm/nds32.h>
-> diff --git a/arch/nds32/include/asm/l2_cache.h b/arch/nds32/include/asm/l2_cache.h
-> index 37dd5ef61de8..3ea48e19e6de 100644
-> --- a/arch/nds32/include/asm/l2_cache.h
-> +++ b/arch/nds32/include/asm/l2_cache.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef L2_CACHE_H
-> diff --git a/arch/nds32/include/asm/linkage.h b/arch/nds32/include/asm/linkage.h
-> index e708c8bdb926..a696469abb70 100644
-> --- a/arch/nds32/include/asm/linkage.h
-> +++ b/arch/nds32/include/asm/linkage.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_LINKAGE_H
-> diff --git a/arch/nds32/include/asm/memory.h b/arch/nds32/include/asm/memory.h
-> index 60efc726b56e..3f4b5eeb5be2 100644
-> --- a/arch/nds32/include/asm/memory.h
-> +++ b/arch/nds32/include/asm/memory.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_MEMORY_H
-> diff --git a/arch/nds32/include/asm/mmu.h b/arch/nds32/include/asm/mmu.h
-> index 88b9ee8c1064..89d63afee455 100644
-> --- a/arch/nds32/include/asm/mmu.h
-> +++ b/arch/nds32/include/asm/mmu.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_MMU_H
-> diff --git a/arch/nds32/include/asm/mmu_context.h b/arch/nds32/include/asm/mmu_context.h
-> index fd7d13cefccc..b8fd3d189fdc 100644
-> --- a/arch/nds32/include/asm/mmu_context.h
-> +++ b/arch/nds32/include/asm/mmu_context.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_MMU_CONTEXT_H
-> diff --git a/arch/nds32/include/asm/module.h b/arch/nds32/include/asm/module.h
-> index 16cf9c7237ad..a3a08e993c65 100644
-> --- a/arch/nds32/include/asm/module.h
-> +++ b/arch/nds32/include/asm/module.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASM_NDS32_MODULE_H
-> diff --git a/arch/nds32/include/asm/nds32.h b/arch/nds32/include/asm/nds32.h
-> index 68c38151c3e4..4994f6a9e0a0 100644
-> --- a/arch/nds32/include/asm/nds32.h
-> +++ b/arch/nds32/include/asm/nds32.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASM_NDS32_NDS32_H_
-> diff --git a/arch/nds32/include/asm/page.h b/arch/nds32/include/asm/page.h
-> index 947f0491c9a7..8feb1fa12f01 100644
-> --- a/arch/nds32/include/asm/page.h
-> +++ b/arch/nds32/include/asm/page.h
-> @@ -1,5 +1,5 @@
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  /*
-> - * SPDX-License-Identifier: GPL-2.0
->   * Copyright (C) 2005-2017 Andes Technology Corporation
->   */
->
-> diff --git a/arch/nds32/include/asm/pgalloc.h b/arch/nds32/include/asm/pgalloc.h
-> index 3c5fee5b5759..3cbc749c79aa 100644
-> --- a/arch/nds32/include/asm/pgalloc.h
-> +++ b/arch/nds32/include/asm/pgalloc.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMNDS32_PGALLOC_H
-> diff --git a/arch/nds32/include/asm/pgtable.h b/arch/nds32/include/asm/pgtable.h
-> index ee59c1f9e4fc..c70cc56bec09 100644
-> --- a/arch/nds32/include/asm/pgtable.h
-> +++ b/arch/nds32/include/asm/pgtable.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMNDS32_PGTABLE_H
-> diff --git a/arch/nds32/include/asm/proc-fns.h b/arch/nds32/include/asm/proc-fns.h
-> index bedc4f59e064..27c617fa77af 100644
-> --- a/arch/nds32/include/asm/proc-fns.h
-> +++ b/arch/nds32/include/asm/proc-fns.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_PROCFNS_H__
-> diff --git a/arch/nds32/include/asm/processor.h b/arch/nds32/include/asm/processor.h
-> index 72024f8bc129..b82369c7659d 100644
-> --- a/arch/nds32/include/asm/processor.h
-> +++ b/arch/nds32/include/asm/processor.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_PROCESSOR_H
-> diff --git a/arch/nds32/include/asm/ptrace.h b/arch/nds32/include/asm/ptrace.h
-> index c4538839055c..919ee223620c 100644
-> --- a/arch/nds32/include/asm/ptrace.h
-> +++ b/arch/nds32/include/asm/ptrace.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_PTRACE_H
-> diff --git a/arch/nds32/include/asm/shmparam.h b/arch/nds32/include/asm/shmparam.h
-> index fd1cff64b68e..3aeee946973d 100644
-> --- a/arch/nds32/include/asm/shmparam.h
-> +++ b/arch/nds32/include/asm/shmparam.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMNDS32_SHMPARAM_H
-> diff --git a/arch/nds32/include/asm/string.h b/arch/nds32/include/asm/string.h
-> index 179272caa540..cae8fe16de98 100644
-> --- a/arch/nds32/include/asm/string.h
-> +++ b/arch/nds32/include/asm/string.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_STRING_H
-> diff --git a/arch/nds32/include/asm/swab.h b/arch/nds32/include/asm/swab.h
-> index e01a755a37d2..362a466f2976 100644
-> --- a/arch/nds32/include/asm/swab.h
-> +++ b/arch/nds32/include/asm/swab.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_SWAB_H__
-> diff --git a/arch/nds32/include/asm/syscall.h b/arch/nds32/include/asm/syscall.h
-> index 174b8571d362..899b2fb4b52f 100644
-> --- a/arch/nds32/include/asm/syscall.h
-> +++ b/arch/nds32/include/asm/syscall.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
-> diff --git a/arch/nds32/include/asm/syscalls.h b/arch/nds32/include/asm/syscalls.h
-> index da32101b455d..f3b16f602cb5 100644
-> --- a/arch/nds32/include/asm/syscalls.h
-> +++ b/arch/nds32/include/asm/syscalls.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_SYSCALLS_H
-> diff --git a/arch/nds32/include/asm/thread_info.h b/arch/nds32/include/asm/thread_info.h
-> index bff741ff337b..3734b1c1cf82 100644
-> --- a/arch/nds32/include/asm/thread_info.h
-> +++ b/arch/nds32/include/asm/thread_info.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_THREAD_INFO_H
-> diff --git a/arch/nds32/include/asm/tlb.h b/arch/nds32/include/asm/tlb.h
-> index d5ae571c8d30..a8aff1c8b4f4 100644
-> --- a/arch/nds32/include/asm/tlb.h
-> +++ b/arch/nds32/include/asm/tlb.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASMNDS32_TLB_H
-> diff --git a/arch/nds32/include/asm/tlbflush.h b/arch/nds32/include/asm/tlbflush.h
-> index 38ee769b18d8..97155366ea01 100644
-> --- a/arch/nds32/include/asm/tlbflush.h
-> +++ b/arch/nds32/include/asm/tlbflush.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMNDS32_TLBFLUSH_H
-> diff --git a/arch/nds32/include/asm/uaccess.h b/arch/nds32/include/asm/uaccess.h
-> index 116598b47c4d..8916ad9f9f13 100644
-> --- a/arch/nds32/include/asm/uaccess.h
-> +++ b/arch/nds32/include/asm/uaccess.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMANDES_UACCESS_H
-> diff --git a/arch/nds32/include/asm/unistd.h b/arch/nds32/include/asm/unistd.h
-> index b586a2862beb..bf5e2d440913 100644
-> --- a/arch/nds32/include/asm/unistd.h
-> +++ b/arch/nds32/include/asm/unistd.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #define __ARCH_WANT_SYS_CLONE
-> diff --git a/arch/nds32/include/asm/vdso.h b/arch/nds32/include/asm/vdso.h
-> index af2c6afc2469..89b113ffc3dc 100644
-> --- a/arch/nds32/include/asm/vdso.h
-> +++ b/arch/nds32/include/asm/vdso.h
-> @@ -1,5 +1,5 @@
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  /*
-> - * SPDX-License-Identifier: GPL-2.0
->   * Copyright (C) 2005-2017 Andes Technology Corporation
->   */
->
-> diff --git a/arch/nds32/include/asm/vdso_datapage.h b/arch/nds32/include/asm/vdso_datapage.h
-> index 79db5a12ca5e..cd1dda3da0f9 100644
-> --- a/arch/nds32/include/asm/vdso_datapage.h
-> +++ b/arch/nds32/include/asm/vdso_datapage.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2012 ARM Limited
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->  #ifndef __ASM_VDSO_DATAPAGE_H
-> diff --git a/arch/nds32/include/asm/vdso_timer_info.h b/arch/nds32/include/asm/vdso_timer_info.h
-> index 50ba117cff12..328439ce37db 100644
-> --- a/arch/nds32/include/asm/vdso_timer_info.h
-> +++ b/arch/nds32/include/asm/vdso_timer_info.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  extern struct timer_info_t timer_info;
-> diff --git a/arch/nds32/include/uapi/asm/auxvec.h b/arch/nds32/include/uapi/asm/auxvec.h
-> index 2d3213f5e595..b5d58ea8decb 100644
-> --- a/arch/nds32/include/uapi/asm/auxvec.h
-> +++ b/arch/nds32/include/uapi/asm/auxvec.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_AUXVEC_H
-> diff --git a/arch/nds32/include/uapi/asm/byteorder.h b/arch/nds32/include/uapi/asm/byteorder.h
-> index a23f6f3a2468..511e653c709d 100644
-> --- a/arch/nds32/include/uapi/asm/byteorder.h
-> +++ b/arch/nds32/include/uapi/asm/byteorder.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __NDS32_BYTEORDER_H__
-> diff --git a/arch/nds32/include/uapi/asm/cachectl.h b/arch/nds32/include/uapi/asm/cachectl.h
-> index 4cdca9b23974..73793662815c 100644
-> --- a/arch/nds32/include/uapi/asm/cachectl.h
-> +++ b/arch/nds32/include/uapi/asm/cachectl.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 1994, 1995, 1996 by Ralf Baechle
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->  #ifndef        _ASM_CACHECTL
-> diff --git a/arch/nds32/include/uapi/asm/param.h b/arch/nds32/include/uapi/asm/param.h
-> index e3fb723ee362..2977534a6bd3 100644
-> --- a/arch/nds32/include/uapi/asm/param.h
-> +++ b/arch/nds32/include/uapi/asm/param.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __ASM_NDS32_PARAM_H
-> diff --git a/arch/nds32/include/uapi/asm/ptrace.h b/arch/nds32/include/uapi/asm/ptrace.h
-> index 358c99e399d0..1a6e01c00e6f 100644
-> --- a/arch/nds32/include/uapi/asm/ptrace.h
-> +++ b/arch/nds32/include/uapi/asm/ptrace.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef __UAPI_ASM_NDS32_PTRACE_H
-> diff --git a/arch/nds32/include/uapi/asm/sigcontext.h b/arch/nds32/include/uapi/asm/sigcontext.h
-> index 58afc416473e..628ff6b75825 100644
-> --- a/arch/nds32/include/uapi/asm/sigcontext.h
-> +++ b/arch/nds32/include/uapi/asm/sigcontext.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #ifndef _ASMNDS32_SIGCONTEXT_H
-> diff --git a/arch/nds32/include/uapi/asm/unistd.h b/arch/nds32/include/uapi/asm/unistd.h
-> index 4ec8f543103f..c691735017ed 100644
-> --- a/arch/nds32/include/uapi/asm/unistd.h
-> +++ b/arch/nds32/include/uapi/asm/unistd.h
-> @@ -1,4 +1,4 @@
-> -// SPDX-License-Identifier: GPL-2.0
-> +/* SPDX-License-Identifier: GPL-2.0 */
->  // Copyright (C) 2005-2017 Andes Technology Corporation
->
->  #define __ARCH_WANT_STAT64
-> --
-> 2.17.1
->
+It is probably fine to stare at them here
+https://www.kernel.org/doc/html/latest/ and the end result is good
+for showing them in browsers but after this conversion, it is
+getting more and more painful to work with those files. For example,
+Documentation/x86/x86_64/mm.txt we use a lot. I'd hate it if I had to go
+sort out rest muck first just so that I can read it.
+
+I think we can simply leave some text files be text files and be done
+with it.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
