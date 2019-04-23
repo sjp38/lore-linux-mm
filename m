@@ -2,198 +2,180 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44CB1C282E3
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:04:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5828C282E1
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:05:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 01C2720693
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:04:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 01C2720693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9FF0F20693
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:05:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FF0F20693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96B1F6B0003; Tue, 23 Apr 2019 12:04:47 -0400 (EDT)
+	id 43A4F6B0005; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 91A756B0005; Tue, 23 Apr 2019 12:04:47 -0400 (EDT)
+	id 3E9726B0007; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 793DA6B0007; Tue, 23 Apr 2019 12:04:47 -0400 (EDT)
+	id 2D9EF6B0008; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CCDF6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:04:47 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id b11so9962644pfo.15
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:04:47 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D05BB6B0005
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:05:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id q17so8225980eda.13
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:05:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=FBdyN/zGmesCEJEQawfW2McFC8juiGwayAJvNE/x3ic=;
-        b=GfXksHyp7vYKa8gIhOTqpBu5DgeR/RE+xN+3wM+9Qjzjm5e8epJx+ojp18jrSw/Tp9
-         9V303a00XWIQEGLKmmCghLRymUX/iUEjrJPo9cmkgwuJI8oSnEYDGuhk7dNgTSLLtD59
-         XNAZQLy5uEKz223jMDM6k+23r7G8wBCiF0BMmr5xUvdfT4w6c5eV6Z6ljXUOKHqhYUT9
-         cCWxXQ/k9V3wgCkDa8UENb5Fy+xEb7WX4NpWn1YoYdRwM3jsv/WfP0R7qm6PeTR/TX5V
-         PMCfaD9/DPy0At45vvlWD9z2UAn+Zz4RgTZj9Qz0MpLQKn0t+y0l5OVIoJ1HHIJBqC8R
-         zJIw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU9Dyk2vUI6eEyskpnyn3dyQ5SJDD9sOUBJpfAiJHZcPffJ0fO7
-	dhcM90MnSykGiQCalaf2URg8fVjGnQh5dDy4RYx4xYniqBoER+4a/UQYjJ5wYcUs3crvtmMdffK
-	lqNiZ+ff94L/mD8obMrzFVzp25iuQjRYbFoFnGn5L4Yl13lTHfG2Az+bZpQFZK58i4g==
-X-Received: by 2002:a17:902:8c97:: with SMTP id t23mr27027977plo.110.1556035486623;
-        Tue, 23 Apr 2019 09:04:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzuxuI/zFp03hFQ6fAc+0S350uIq1ZOtcUpbJfQGqDqovqBub63Zl1k4oGegelTJXi+CFOJ
-X-Received: by 2002:a17:902:8c97:: with SMTP id t23mr27027898plo.110.1556035485769;
-        Tue, 23 Apr 2019 09:04:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556035485; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=uAHY0wf1u2BiqDnvhotMH2pZWcfDhYETaV9BWTFbLFo=;
+        b=P3UEt0T9gliRNbKV6ILN0x+wKNqy92C/amYwDf1l8q6jawjZv8CljVgxVhp8gNSuyN
+         wjMI/WshWyPg6pzuPOmG0FNv5ovCLYh3/5XZhBlBbUEhZOLHoZM5YBAwE4dC0A8V+Hp3
+         PNdxGB3bkLvfxjy60UZEfIBTW8WpKyZamSPxxo/kwEV1R/JP40/OLsEBg2B/BwLP5vFI
+         Z2VDvEk5JOdNl9xTHDRbM+Ty8vaPq0FFO4WuBa/OMycH8WQh10+RXlQ5a9TRezjC7HUd
+         hsBGQCOgyb/HoPwwPZvY8YEi4qYK1RqfDY3QxUTwhuEKzzE/byCerQ1cyvbGrcaxqhpx
+         XlZg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAXcg7zD7P7mCASsBQkoceScNYZ7pGXd0Df3VGhxWenXQXci+llv
+	H9kQKt+jdFiTc4Hj+KlO/hp3kRP5TO/B3prFCTsaYHsfmlwnKXqw4FF9xFB6qE8FKvCw7Y38bY2
+	ZxNXoDnmBszKjZhJDoVesDyuM2qtP/aQRucmzqMwoRMwOA6s7WDC9xZXA0piZSNQCBQ==
+X-Received: by 2002:a50:8bbd:: with SMTP id m58mr16801617edm.42.1556035533423;
+        Tue, 23 Apr 2019 09:05:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzFZSjwwVxeAr7JXt6ko4SSXINCyFitvS6aEebKhpihNA1GhlLvQD78FfUDVxSN4Fyr1hq9
+X-Received: by 2002:a50:8bbd:: with SMTP id m58mr16801540edm.42.1556035532558;
+        Tue, 23 Apr 2019 09:05:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556035532; cv=none;
         d=google.com; s=arc-20160816;
-        b=CW1yNFE4Goef3+blNJVndDLrSVDDvcTmkSr7y4BmM/r0mozMEmDM64vihyOOnfOsD2
-         Jq7KcxbjCyLw24pn9rMFhiJlOt5PsRa8EAX0UakQtm4szPcs35CaUN5NdkFXw/5/QLV5
-         4ws66HDgXDWhjYRv3OfCPoHLszwWBNRWDLpyBsOn1PDvUzHOtLehqTjw5Zq/UEjAtWAA
-         zJMUb4AYt0bwRD5C8nfRQGQbuSVFU2lopYsXwMroYRVRoLKcR3i2RBUkF51Su08tB1xy
-         M/FJBT3j0BbIUqytSUbgYux8x23j1ZfwcWxVu8zaDtJ+JYV+r1/aSls80Y7X749XCA40
-         zfsQ==
+        b=1B0Buyw7w7etkkzP8ylZ7OshmtEvn9Yg6bMC1xTLmrYub7DYv3cXzsC70aVmMBNXP0
+         tUfmsu6RIA4hzj0IvDiYLmiMftG4qTkvaTetaZvPDNv50szWCyR6PEA1iVF8QmW8PVGf
+         83/TA+/f8uPu3RThK2/DxltfGi87dP+JUYGryouREulLhZQqeZ69RXaVzR6oGNogz1/m
+         1wWqMZx14dJzBQ8NBDl/Wi1fOwQ6aBHygYCe9EL1PM1GY793ViPUjCYtoKbPHwat6Cxn
+         YktiFSBR8jGID/6tkIiyHY9MCL+YC/OZWEC56P0ZV4vyJNP8SciWs8A1AGfkKrc8gWtk
+         h7kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=FBdyN/zGmesCEJEQawfW2McFC8juiGwayAJvNE/x3ic=;
-        b=zr1TTjuNBAuasNWvoZnSsIxiyVMMkUR5P1MjWVCIojfdJ7VkjjpX5IUqiSc332xdIt
-         296KJUrvkxcLGhNfxO8wFcQLOOBuxvx6rG6adHpHmg9tGZU7QD889VWhmpz3cjTH5b60
-         4JVYCF8wpCF1/SVu3xKLSx8QXTmrDwXEXuMq+m+dUh4P6cJm4CqNFGKz4fkg+Q92xpS+
-         xBxojP1FxMPUeh4xKg+yzNUp4LAk9jXdECviKApdu2gOFrBEWkXQWUtkcEbNlHQmf3X7
-         VG+EaipdgswoImdUBQJZhha/FBrP0fkpkycbZYcLwtZ3np+bTI9dkDBC1zCDkWUZdiC8
-         ESOg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=uAHY0wf1u2BiqDnvhotMH2pZWcfDhYETaV9BWTFbLFo=;
+        b=Eh92lY+H2T3e2sh5k+ZUZrBW/WGIMf2j8nCNRJOhD6n7rEfLN9urDX9xh7guQ+tRFU
+         rM72SzSBa/ZfCh+xg/B40atljM0KeO8G5d9HAy39TM+5ortkBbU2E98aJvDc3UdJmSzU
+         PBPxhy7DSsn53fLS/vODvTTbo9JmG7f2IC1mqqSLOwmgaOTaQLLAp74RvkAx6G1rQK52
+         tKnLSw+IY1qdYmCLmD8mdjM1aiPZhkgNt1FzLaTWS1NnN5gfWH/M0bWZ8xRQdSuq+SQt
+         6+gT0Lr3FSPZDZirM7ECp01X2ssb+e4u8uCru42i5f2IvR2iG2bVGrHbUO0cV00lREup
+         Hp3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id w5si8086075plz.387.2019.04.23.09.04.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 09:04:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b23si3411840ejq.15.2019.04.23.09.05.32
+        for <linux-mm@kvack.org>;
+        Tue, 23 Apr 2019 09:05:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Apr 2019 09:04:45 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,386,1549958400"; 
-   d="scan'208";a="138130319"
-Received: from ray.jf.intel.com (HELO [10.7.201.133]) ([10.7.201.133])
-  by orsmga006.jf.intel.com with ESMTP; 23 Apr 2019 09:04:45 -0700
-Subject: Re: [PATCH] x86/mpx: fix recursive munmap() corruption
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>,
- Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>,
- Dave Hansen <dave.hansen@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, rguenther@suse.de, mhocko@suse.com,
- vbabka@suse.cz, luto@amacapital.net, x86@kernel.org,
- Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- stable@vger.kernel.org
-References: <20190401141549.3F4721FE@viggo.jf.intel.com>
- <alpine.DEB.2.21.1904191248090.3174@nanos.tec.linutronix.de>
- <87d0lht1c0.fsf@concordia.ellerman.id.au>
- <6718ede2-1fcb-1a8f-a116-250eef6416c7@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <4f43d4d4-832d-37bc-be7f-da0da735bbec@intel.com>
-Date: Tue, 23 Apr 2019 09:04:45 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3BA8280D;
+	Tue, 23 Apr 2019 09:05:31 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 039593F5AF;
+	Tue, 23 Apr 2019 09:05:27 -0700 (PDT)
+Date: Tue, 23 Apr 2019 17:05:25 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+	catalin.marinas@arm.com, mhocko@suse.com,
+	mgorman@techsingularity.net, james.morse@arm.com,
+	robin.murphy@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
+	dan.j.williams@intel.com, osalvador@suse.de, david@redhat.com,
+	cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
+Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
+Message-ID: <20190423160525.GD56999@lakrids.cambridge.arm.com>
+References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+ <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
+ <20190415134841.GC13990@lakrids.cambridge.arm.com>
+ <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
+ <20190417142154.GA393@lakrids.cambridge.arm.com>
+ <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
+ <20190417173948.GB15589@lakrids.cambridge.arm.com>
+ <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
+ <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <6718ede2-1fcb-1a8f-a116-250eef6416c7@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/23/19 4:16 AM, Laurent Dufour wrote:
-> My only concern is the error path.
-> Calling arch_unmap() before handling any error case means that it will
-> have to be undo and there is no way to do so.
+On Tue, Apr 23, 2019 at 01:01:58PM +0530, Anshuman Khandual wrote:
+> Generic usage for init_mm.pagetable_lock
+> 
+> Unless I have missed something else these are the generic init_mm kernel page table
+> modifiers at runtime (at least which uses init_mm.page_table_lock)
+> 
+> 	1. ioremap_page_range()		/* Mapped I/O memory area */
+> 	2. apply_to_page_range()	/* Change existing kernel linear map */
+> 	3. vmap_page_range()		/* Vmalloc area */
 
-Is there a practical scenario where munmap() of the VDSO can split a
-VMA?  If the VDSO is guaranteed to be a single page, it would have to be
-a scenario where munmap() was called on a range that included the VDSO
-*and* other VMA that we failed to split.
+Internally, those all use the __p??_alloc() functions to handle racy
+additions by transiently taking the PTL when installing a new table, but
+otherwise walk kernel tables _without_ the PTL held. Note that none of
+these ever free an intermediate level of table.
 
-But, the scenario would have to be that someone tried to munmap() the
-VDSO and something adjacent, the munmap() failed, and they kept on using
-the VDSO and expected the special signal and perf behavior to be maintained.
+I believe that the idea is that operations on separate VMAs should never
+conflict at the leaf level, and operations on the same VMA should be
+serialised somehow w.r.t. that VMA.
 
-BTW, what keeps the VDSO from merging with an adjacent VMA?  Is it just
-the vm_ops->close that comes from special_mapping_vmops?
+AFAICT, these functions are _never_ called on the linear/direct map or
+vmemmap VA ranges, and whether or not these can conflict with hot-remove
+is entirely dependent on whether those ranges can share a level of table
+with the vmalloc region.
 
-> I don't know what is the rational to move arch_unmap() to the beginning
-> of __do_munmap() but the error paths must be managed.
+Do you know how likely that is to occur? e.g. what proportion of the
+vmalloc region may share a level of table with the linear or vmemmap
+regions in a typical arm64 or x86 configuration? Can we deliberately
+provoke this failure case?
 
-It's in the changelog:
+[...]
 
-	https://patchwork.kernel.org/patch/10909727/
+> In all of the above.
+> 
+> - Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are
+>   protected with init_mm.page_table_lock
 
-But, the tl;dr version is: x86 is recursively calling __do_unmap() (via
-arch_unmap()) in a spot where the internal rbtree data is inconsistent,
-which causes all kinds of fun.  If we move arch_unmap() to before
-__do_munmap() does any data structure manipulation, the recursive call
-doesn't get confused any more.
+Racy addition is protect in this manner.
 
-> There are 2 assumptions here:
->  1. 'start' and 'end' are page aligned (this is guaranteed by __do_munmap().
->  2. the VDSO is 1 page (this is guaranteed by the union vdso_data_store on powerpc)
+> - Should not it require init_mm.page_table_lock for all leaf level
+>   (PUD|PMD|PTE) modification as well ?
 
-Are you sure about #2?  The 'vdso64_pages' variable seems rather
-unnecessary if the VDSO is only 1 page. ;)
+As above, I believe that the PTL is assumed to not be necessary there
+since other mutual exclusion should be in effect to prevent racy
+modification of leaf entries.
+
+> - Should not this require init_mm.page_table_lock for page table walk
+>   itself ?
+> 
+> Not taking an overall lock for all these three operations will
+> potentially race with an ongoing memory hot remove operation which
+> takes an overall lock as proposed. Wondering if this has this been
+> safe till now ?
+
+I suspect that the answer is that hot-remove is not thoroughly
+stress-tested today, and conflicts are possible but rare.
+
+As above, can we figure out how likely conflicts are, and try to come up
+with a stress test?
+
+Is it possible to avoid these specific conflicts (ignoring ptdump) by
+aligning VA regions such that they cannot share intermediate levels of
+table?
+
+Thanks,
+Mark.
 
