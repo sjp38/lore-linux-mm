@@ -2,107 +2,294 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1E5AC282DD
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 19:01:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16FCDC282E1
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 19:11:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C3BF218B0
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 19:01:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C3BF218B0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id A183421773
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 19:11:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="JwagZLYu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A183421773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 429C96B0003; Tue, 23 Apr 2019 15:01:47 -0400 (EDT)
+	id 24F576B0003; Tue, 23 Apr 2019 15:11:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 401346B0005; Tue, 23 Apr 2019 15:01:47 -0400 (EDT)
+	id 1FF0F6B0005; Tue, 23 Apr 2019 15:11:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33D996B0007; Tue, 23 Apr 2019 15:01:47 -0400 (EDT)
+	id 0F1146B0007; Tue, 23 Apr 2019 15:11:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B3556B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 15:01:47 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id r13so10569497pga.13
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:01:47 -0700 (PDT)
+Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D94B76B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 15:11:25 -0400 (EDT)
+Received: by mail-vk1-f197.google.com with SMTP id v4so7407614vka.10
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:11:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=pIiKOOgCR/TNxE6yXzwzJFRERUw2hVqbz11aHRTY6RU=;
-        b=VazqDXjABPSJW7KpixThsVO1Vx9g80yaoZz+kQUwib8giNdXVQmsyAYtlQd7J+F1vJ
-         Pq7JanNLEcOZ4ZQiNy/iK7i5rvQeV0c99AZ5E5D9UjdnYq18fpJlofgoWM8eUUjP3+yy
-         sK9sh7DZt5/fkfJ85+y9ycoW3nw+tGQAHxSPD10JeuGYUQB1H9Siy6mshcw/cKRyxERx
-         NR6Nu4GYtSmKpmN6YluGwRG0am4bznIRB9Ofo381Hgu6BhlzC696A3ywot7oQPopGTc9
-         ewws7DPoTcZhzGWr5Denm2DOtkDq0+2GeYpOCX+aVyOvfj4sWZzhJ+9IsiNTuTOKbiUZ
-         NfpQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAWRfKGTiOLerCtLAOkNKZetwJo4qWVXsp6A6bxzwNw7a3YMT9Kg
-	ib9hmmCUqBA6qDXpHxqR+C0U0wc9xiAtsEAWagJ5rcZdLUX0sgNBt9QMugfCrudWYtRYgIgT4K5
-	tmytr/q89jXy4FqN/uZcmRy5drS5VvUhMddtUofOHtM4lz8+apPbF4iV/IlTE0FY5wA==
-X-Received: by 2002:a62:7603:: with SMTP id r3mr28744463pfc.32.1556046106698;
-        Tue, 23 Apr 2019 12:01:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbDsCr0SX0+HwduD2kW+c0fC09g1Q2RVoeYQtz4q9fDG5iwC5s+yiZNkdbmr2uVzjXvHg0
-X-Received: by 2002:a62:7603:: with SMTP id r3mr28744391pfc.32.1556046105863;
-        Tue, 23 Apr 2019 12:01:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556046105; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qHtt5m+l+HCxm2/aQ3CiCdm/qRf6FDQPPHURcC67FHo=;
+        b=GMJ4qMxglh34BAwrYXFMgmaiN1TyRIDTerccFweerxCfl5RiuxSjkyz7kr/lovT/Y4
+         1vbSL1VpcxCIuUUr4g+SA0xWQf7eyq1IpbwX3VqrSb2nCeLewr3mLLm3kRkxoNQVdWA2
+         RRlojvhehRWB4a+xaxqCYmGgHz9dJErKuKQIn+CSsvpXLMDVLomVVDN647ie7ls6rjBr
+         uA7qbgER1iLTKBKKarnOyo+ehyVjHebqoO6jWTILskLwwRWX9A4llUl0nMzU9RHYgZpO
+         Q+y4w9OUxBqQoq1dQ2zIWQLX1LpDhFe8QQa8qFzRaZyG2FsRwLo5Yj6jv3l25vhWwRoW
+         0+qA==
+X-Gm-Message-State: APjAAAW3hy1a8ib3inS5plrPtdNIKNqTHySPgLn0O9aky818GdSmJnEQ
+	EiEqr0HRHL7408A9IheWWO28eCddPSbQZlys7cCRSoMhd0tASaIX2kXRNRspLjw+H5FWRO34bVS
+	hcQUxYvRoWvbvnQuGT3hWS2EoePTm6MLnIpEy1ehB0xTkWYvxMMsMmx+YoHCVONILlA==
+X-Received: by 2002:a1f:2fc7:: with SMTP id v190mr14224427vkv.84.1556046685464;
+        Tue, 23 Apr 2019 12:11:25 -0700 (PDT)
+X-Received: by 2002:a1f:2fc7:: with SMTP id v190mr14224381vkv.84.1556046684693;
+        Tue, 23 Apr 2019 12:11:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556046684; cv=none;
         d=google.com; s=arc-20160816;
-        b=esERuL35Tr+9M5y0QIjPdsJLAcYvESxALid3HQ+sUdVzUZq9mHbjxu45m41jRGHSc8
-         2kkCf1uPzONE+/PqBbXwDSZBAXc1mtiXTynm4ZpyxzUl3Yg7DA4lAMySHv1NYHwxvMWl
-         vALN007LuIPs0tGONBFgHD1Euzj9psYIQwYETwfRY7QFICvCyGRGiSQv6c9CMaOyRD6N
-         zwPk9Z4Ty/YkZS9DCkYaI0VemNXSsOeVspk4EAbzXfCFI9Xj8CZvpH1MYKARvXAKNJXr
-         odZkaSOs3kCjA8wK8Y25nUSi4JRnaM0Jh9mCy3blB9VDw76sjkvxzKWmNVpei+3iXTd3
-         gvJw==
+        b=07BdlauIAzp9swekeKz/5vTSACAvl1cMH+i8tCf+Hykimub9ae6aoKauwohGHG82jS
+         F/FpKB2pZd1qaXxMQCQvLX6mg29TdLmFfveyV2Pxmnp+1X3fVybQEZ3Hmy1gzopCDCaj
+         FQogjYHpBkl3kDWm6IwyyV4qyW8JUIdm6/gWf6uJICxfzhkOh5oAsZAGTfGVpVY4simo
+         uTvNq8v9ZxP+6SuCAfcEDkZNthOPvynCECGNtWnLoMyEve7VLzrfZRPcxa6fXFAx4OpO
+         6imNNnYrrswOgAC+F2zAvv1FQeorfsyTGeUm5S++27ibDjx4zh2syh/scCmTxPm0hQR6
+         egOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=pIiKOOgCR/TNxE6yXzwzJFRERUw2hVqbz11aHRTY6RU=;
-        b=mJEmPPSxUCChbFNYrq+CnATr/IhyxnN5s7N98WV3i7kRVELgdb72s6qP0lrVxDgQFa
-         C1GqHj6z1rFK5yUJMr9A17GHMFdXskv9kRQEUk/+WpzcKjR103cE3UgnVI4yxMI9BFBJ
-         x0EbqhbYQeU0mMDjxmM/JOHTxEA2BhExvqZLqVYQIqkHmO0BPMN9l8PjQSUcgobvsCdj
-         sfLqNA6T/+Xp/N27iFL670cG1gTQZW0efBAqWr8JX0/k9tj9wLbpyyxKCWss3C7pSHi9
-         uxCrhv9iFC3cjPI0QHIQeTfifpfhWr62QYEN5xnzkwO+nEyH8geCLx7ItGtWMfhDIjaW
-         FB3A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qHtt5m+l+HCxm2/aQ3CiCdm/qRf6FDQPPHURcC67FHo=;
+        b=iIXmDbPh1OpU7AD0SgnKuHCxoa/Ef49TxgsnxXxxD7ghkttX1mGNj8SHMOqFsAoTeC
+         DKCwhRMfkd80IZyOhi5H04ohNTfMMToqOsFdt6QAsxt4dYaE0CG5b5r7RaXNmBc92ipi
+         6yrWck/6DHvYSzrgIxY3WSgLMIJnOTsfRntV/vFvUipFniayarSRrZy5flyINxCSZogU
+         RbHhYDGJSGGQHcLr9bu7/AK1Rk6QDmVIO+L/Wnwj1JWE1jF/A74ewZVk8ySOfNI2Px1w
+         K9UPo9m08lw3uE7RcpdUgceZmOch5iDA3FgSUzGBaWeYjIOqosqwae6KQyU6sXsXESHN
+         TGmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f9si14985809pgv.475.2019.04.23.12.01.45
+       dkim=pass header.i=@chromium.org header.s=google header.b=JwagZLYu;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p8sor8850092vsc.101.2019.04.23.12.11.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 12:01:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Tue, 23 Apr 2019 12:11:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 52444E1A;
-	Tue, 23 Apr 2019 19:01:45 +0000 (UTC)
-Date: Tue, 23 Apr 2019 12:01:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] mm/page_alloc: fix never set ALLOC_NOFRAGMENT flag
-Message-Id: <20190423120143.f555f77df02a266ba2a7f1fc@linux-foundation.org>
-In-Reply-To: <20190423120806.3503-2-aryabinin@virtuozzo.com>
-References: <20190423120806.3503-1-aryabinin@virtuozzo.com>
-	<20190423120806.3503-2-aryabinin@virtuozzo.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@chromium.org header.s=google header.b=JwagZLYu;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qHtt5m+l+HCxm2/aQ3CiCdm/qRf6FDQPPHURcC67FHo=;
+        b=JwagZLYuUJZLwQj169iGPTDtVDfEsTyhf4LGF838jLBuKkjd4b/5k6dh6osH1hBA/G
+         KXBt4JKuqlV4PmpQLbsBbCB8IU0jaQ3Fu9nZ5iLMnzb4Jjk5yiMotnrtn4zJWcERR4co
+         AiNIc4sN9Pv+o/DIENIkK3b+C56hA5e9QydZg=
+X-Google-Smtp-Source: APXvYqxGbaAQEvsI1L48ZOkTU43btKS7tdMX13/MIptveLaFvITCVvelQpnF8LRezWVrwOKMS+trww==
+X-Received: by 2002:a67:f753:: with SMTP id w19mr14880182vso.27.1556046683734;
+        Tue, 23 Apr 2019 12:11:23 -0700 (PDT)
+Received: from mail-vs1-f47.google.com (mail-vs1-f47.google.com. [209.85.217.47])
+        by smtp.gmail.com with ESMTPSA id y1sm8343936uai.0.2019.04.23.12.11.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 12:11:22 -0700 (PDT)
+Received: by mail-vs1-f47.google.com with SMTP id n17so641210vsr.1
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:11:22 -0700 (PDT)
+X-Received: by 2002:a67:f849:: with SMTP id b9mr14352168vsp.188.1556046682180;
+ Tue, 23 Apr 2019 12:11:22 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190418154208.131118-1-glider@google.com> <20190418154208.131118-3-glider@google.com>
+In-Reply-To: <20190418154208.131118-3-glider@google.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 23 Apr 2019 12:11:09 -0700
+X-Gmail-Original-Message-ID: <CAGXu5jJ0EKVjKHFJETP+YnRPuT_Gr=ozXYU6sgak26BBCAEp7A@mail.gmail.com>
+Message-ID: <CAGXu5jJ0EKVjKHFJETP+YnRPuT_Gr=ozXYU6sgak26BBCAEp7A@mail.gmail.com>
+Subject: Re: [PATCH 2/3] gfp: mm: introduce __GFP_NOINIT
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Apr 2019 15:08:06 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+On Thu, Apr 18, 2019 at 8:42 AM Alexander Potapenko <glider@google.com> wrote:
+>
+> When passed to an allocator (either pagealloc or SL[AOU]B), __GFP_NOINIT
+> tells it to not initialize the requested memory if the init_allocations
+> boot option is enabled. This can be useful in the cases the newly
+> allocated memory is going to be initialized by the caller right away.
 
-> Commit 0a79cdad5eb2 ("mm: use alloc_flags to record if kswapd can wake")
-> removed setting of the ALLOC_NOFRAGMENT flag. Bring it back.
+Maybe add "... as seen when the slab allocator needs to allocate new
+pages from the page allocator." just to help clarify it here (instead
+of from the end of the commit log where you mention it offhand).
 
-What are the runtime effects of this fix?
+>
+> __GFP_NOINIT basically defeats the hardening against information leaks
+> provided by the init_allocations feature, so one should use it with
+> caution.
+>
+> This patch also adds __GFP_NOINIT to alloc_pages() calls in SL[AOU]B.
+>
+> Signed-off-by: Alexander Potapenko <glider@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> Cc: James Morris <jmorris@namei.org>
+> Cc: "Serge E. Hallyn" <serge@hallyn.com>
+> Cc: Nick Desaulniers <ndesaulniers@google.com>
+> Cc: Kostya Serebryany <kcc@google.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Sandeep Patil <sspatil@android.com>
+> Cc: Laura Abbott <labbott@redhat.com>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Jann Horn <jannh@google.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: linux-mm@kvack.org
+> Cc: linux-security-module@vger.kernel.org
+> Cc: kernel-hardening@lists.openwall.com
+> ---
+>  include/linux/gfp.h | 6 +++++-
+>  include/linux/mm.h  | 2 +-
+>  kernel/kexec_core.c | 2 +-
+>  mm/slab.c           | 2 +-
+>  mm/slob.c           | 1 +
+>  mm/slub.c           | 1 +
+>  6 files changed, 10 insertions(+), 4 deletions(-)
+>
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index fdab7de7490d..66d7f5604fe2 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -44,6 +44,7 @@ struct vm_area_struct;
+>  #else
+>  #define ___GFP_NOLOCKDEP       0
+>  #endif
+> +#define ___GFP_NOINIT          0x1000000u
+>  /* If the above are modified, __GFP_BITS_SHIFT may need updating */
+
+I think you want to add NOINIT below GFP_ACCOUNT, update NOLOCKDEP and
+then adjust GFP_BITS_SHIFT differently, noted below.
+
+>
+>  /*
+> @@ -208,16 +209,19 @@ struct vm_area_struct;
+>   * %__GFP_COMP address compound page metadata.
+>   *
+>   * %__GFP_ZERO returns a zeroed page on success.
+> + *
+> + * %__GFP_NOINIT requests non-initialized memory from the underlying allocator.
+>   */
+>  #define __GFP_NOWARN   ((__force gfp_t)___GFP_NOWARN)
+>  #define __GFP_COMP     ((__force gfp_t)___GFP_COMP)
+>  #define __GFP_ZERO     ((__force gfp_t)___GFP_ZERO)
+> +#define __GFP_NOINIT   ((__force gfp_t)___GFP_NOINIT)
+>
+>  /* Disable lockdep for GFP context tracking */
+>  #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+>
+>  /* Room for N __GFP_FOO bits */
+> -#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
+> +#define __GFP_BITS_SHIFT (25)
+
+This should just be 24 + ...   with the bit field added above NOLOCKDEP.
+
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+>
+>  /**
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index b38b71a5efaa..8f03334a9033 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2601,7 +2601,7 @@ DECLARE_STATIC_KEY_FALSE(init_allocations);
+>  static inline bool want_init_memory(gfp_t flags)
+>  {
+>         if (static_branch_unlikely(&init_allocations))
+> -               return true;
+> +               return !(flags & __GFP_NOINIT);
+>         return flags & __GFP_ZERO;
+>  }
+
+You need to test for GFP_ZERO here too: return ((flags & __GFP_NOINIT
+| __GFP_ZERO) == 0)
+
+Also, I wonder, for the sake of readability, if this should be named
+__GFP_NO_AUTOINIT ?
+
+I'd also like to see each use of __GFP_NOINIT include a comment above
+its use where the logic is explained for _why_ it's safe (or
+reasonable) to use __GFP_NOINIT in each place.
+
+>
+> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+> index be84f5f95c97..f9d1f1236cd0 100644
+> --- a/kernel/kexec_core.c
+> +++ b/kernel/kexec_core.c
+> @@ -302,7 +302,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
+>  {
+>         struct page *pages;
+>
+> -       pages = alloc_pages(gfp_mask & ~__GFP_ZERO, order);
+> +       pages = alloc_pages((gfp_mask & ~__GFP_ZERO) | __GFP_NOINIT, order);
+>         if (pages) {
+>                 unsigned int count, i;
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index dcc5b73cf767..762cb0e7bcc1 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1393,7 +1393,7 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+>         struct page *page;
+>         int nr_pages;
+>
+> -       flags |= cachep->allocflags;
+> +       flags |= (cachep->allocflags | __GFP_NOINIT);
+>
+>         page = __alloc_pages_node(nodeid, flags, cachep->gfporder);
+>         if (!page) {
+> diff --git a/mm/slob.c b/mm/slob.c
+> index 18981a71e962..867d2d68a693 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -192,6 +192,7 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
+>  {
+>         void *page;
+>
+> +       gfp |= __GFP_NOINIT;
+>  #ifdef CONFIG_NUMA
+>         if (node != NUMA_NO_NODE)
+>                 page = __alloc_pages_node(node, gfp, order);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index e4efb6575510..a79b4cb768a2 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1493,6 +1493,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+
+What about kmalloc_large_node()?
+
+>         struct page *page;
+>         unsigned int order = oo_order(oo);
+>
+> +       flags |= __GFP_NOINIT;
+>         if (node == NUMA_NO_NODE)
+>                 page = alloc_pages(flags, order);
+>         else
+
+And just so I make sure I'm understanding this correctly: __GFP_NOINIT
+is passed to the page allocator because we know each allocation from
+the slab will get initialized at "sub allocation" time.
+
+Looks good!
+
+-- 
+Kees Cook
 
