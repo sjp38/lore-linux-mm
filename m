@@ -2,151 +2,222 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D4FBC10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:44:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5496C282DD
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:46:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C13C2175B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:44:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 97D90218CD
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 15:46:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DGFJ0uzR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C13C2175B
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="e0tqHuoQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97D90218CD
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F1356B0008; Tue, 23 Apr 2019 11:44:30 -0400 (EDT)
+	id 35E4F6B0007; Tue, 23 Apr 2019 11:46:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0777F6B000A; Tue, 23 Apr 2019 11:44:30 -0400 (EDT)
+	id 30DF16B0008; Tue, 23 Apr 2019 11:46:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5B756B000C; Tue, 23 Apr 2019 11:44:29 -0400 (EDT)
+	id 1FBAC6B000A; Tue, 23 Apr 2019 11:46:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ACFF56B0008
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 11:44:29 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id w9so10540936plz.11
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 08:44:29 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC0AA6B0007
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 11:46:01 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i14so9930728pfd.10
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 08:46:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+K0qQkMPhyOnz59Oaseee2QX30i0QPa2TDYTaUA1ZuA=;
-        b=dkVuWrxoPAzj1WdKqBozxUJxen7BYbS519/8CUK9BVBEJTNECqyMCoYtAkxt9O0GhA
-         ayaq2t3k8D9Ehc/2qiHlcoj1KqF4KIkGKvyuFQrdfx4Dn8EYG8RpQ7broOo76Hlg9/BQ
-         B+9zMnJoFi5Ftqj2VbUk56wh7KUpeBZ9BUBpnrNMYwrHT3vDEmk5LPTk1q8o4Tn/H4do
-         kEO9t0gkCSeifF9deOcFl+xctgBE4a0vmi/pMSlUkkZ7jAczmOwVzBIYYAAYnvj2Rx1Z
-         9IH92hclSYnQUQkjLXMsYMcF6lh45f32zekyHXHmv27oRGjHiFokU4+1XHEDaOX6t4zk
-         7aLw==
-X-Gm-Message-State: APjAAAXx8fodAgVA4HzrO/tXlz9Io7mDsFGqUNbGWKhfuTfO7njLl//o
-	98KTEWaEFn8Ehi48s+CubnnezCrdpfjxNoFnOv+GmWWtMYAG5RLamP0uacEp1De4YF0EcQtotGP
-	jVPMOEE/nbljutS/T08iPXyKQNWqt+Ln5vGrILq3tgAa1ON0IiX5Bl5BPw4iCFvPorQ==
-X-Received: by 2002:a17:902:9341:: with SMTP id g1mr27320979plp.81.1556034269222;
-        Tue, 23 Apr 2019 08:44:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw17FlpkW0EsFkeKp/kHbt2giSPGaOSL4CWtCh8Pl4NpistPYZ7w4gcQscNpebVZHJf2tdk
-X-Received: by 2002:a17:902:9341:: with SMTP id g1mr27320916plp.81.1556034268554;
-        Tue, 23 Apr 2019 08:44:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556034268; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=9NNCwHmbRpdEn6eFr9PBTWdRMDfTap2B4jvrrMqdzmo=;
+        b=KcMBpyWc3kivDn8mpbOEBAYt6bw2XYjr+4HfbTKh1O/EzcbelT2G8PHe9w8OmS9gnW
+         RxJt3yxGM+pVqtONmiry6Yl24pT2ssTBXvdOMwO4fdUZiQW7Yy/PgepV2ZavHs2JOwci
+         WQWzKS+MXtmS4fPCIFLblUk5mBmpQnHIs5ImhdHO6bMk/vgfl40NTX6QqQ7Azhr5ICOY
+         n7vsyDLlGV3B/sKZYHmtX0reFCPqsYTnfaXOAlMOQJnH95eVTKa+auUe24mScNvLNZKG
+         rat7kME6CL0jad6svInJxtkpPKdCdWipWTprdZ+wlpaZ1vZr1zp86gIBHyanw7/Sozra
+         GMvA==
+X-Gm-Message-State: APjAAAUBfUBD5gOyBGCg0KUSFicFOEAdL4VARz063njDMNC+5iu5P7nD
+	EfnGHw3ReefyO2n8OOejGdC5cOVPoZY5BjrcmViVLUTHYiBHuqyI8j67K2w2MYzA/McPIqcV+w8
+	HLMd+gMyY2Wrid37hVY/WRfNDgETsK6lfdZ2LwhqIDARvjGkRZj4UDhAaLrPl/lOdhQ==
+X-Received: by 2002:aa7:92d5:: with SMTP id k21mr27468795pfa.223.1556034361553;
+        Tue, 23 Apr 2019 08:46:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx4jVme4Jy9qmeq9Tm5FAH+Ne4P9V4c+zgJ3cAGloUB86ZuBguCHV/Eebrr1gU1T5CEmyWm
+X-Received: by 2002:aa7:92d5:: with SMTP id k21mr27468597pfa.223.1556034359810;
+        Tue, 23 Apr 2019 08:45:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556034359; cv=none;
         d=google.com; s=arc-20160816;
-        b=gMBE5KHI/gVcTR4x6bK2uRgWHaKK1c7HrMFfVpvhejIMuWYoieXuqPfuPlxl+k3Nhg
-         ogvB7fCxbP+nJzDuKHoJbcN8ISupisgjvv0Z4dBAIL7Wr+DxcgPDOfK7FJ+f08Zn7pf0
-         1NL8Yib4AtTw+lv9bDjsAV4x6KYN2+H2iHRj1rh6jF/KI5nKeJ4GPShWClK5JWAjGqGn
-         ViO75kC4FW8muAbaSy4Y2TIZkHke3SX9eLUPkZe/1tRPMaIlJVTuTZpi15Yv1ozNDuXQ
-         klx+iDtWdjvCpxwSUY40hMyM3JFua3aBYXeYRfI3/5S2bfGLSbwp6DXFqDdClVxkliTd
-         ASBw==
+        b=kDRjsR1bg6GwIYFWL6rcI9knnYAlT5DWkUzW2J/oEFtu5+ClskJhgXdIlbCKi/xgW6
+         KLKOyNMuBFVb9AqDGjmEHTEO/coj9kJe9JgnEEvsjAUb+3vJAcqvHsrCredhssOufPMS
+         sPPTBKqhhSQPdgDNxao43gM0sG+B483jQpXooNmIbi2LBwJc1c2XQ+EHJDt9nn0kZMpq
+         GfFHFT/pJqBGSu6cPcMBMCy9NttYZWOmurTR9+7sILCiRfDQ5QnppvskqtQhgxwhmR7X
+         P4Z3KAJcPsmDheELr5RKtXZBAoc9DqQTbngMT/cEUQh5eo76TjkONCnLe6VlfNi7pNds
+         UfFw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+K0qQkMPhyOnz59Oaseee2QX30i0QPa2TDYTaUA1ZuA=;
-        b=sRRZPCEVSWdwkE6Su/Yhgmt+nqW0HOZs07vCu33mD3R+kgrUpHUzT3mh9NdeAIEjh0
-         8vdxZYEA9JlitwIiQ896T3L9Vt2uH6QetmLsRrHf+s+l7aLxM7RVhzfxRO4ncTbuduaJ
-         As5oAinU2fSbRlXDQhKmtfCQD4G0b2rdUlZEKan7PJMwKDrs7kfS0XsufUPK8mQjtrkC
-         GXoRHitBHF+OP5NkvKOO37Mkw1LzJJIV46YFBqn5Bp12fl7NX9g6LADMGWfVu8elt6YG
-         PxYs+R/AcKIMqXCXcqfmW1Jeg7+f6D6i+IT4m2ZZHk/ZGfOGWuttpkLzEC+m5iiyu3fR
-         rcQw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=9NNCwHmbRpdEn6eFr9PBTWdRMDfTap2B4jvrrMqdzmo=;
+        b=bpLsYSV4IkC6WrRBy+Ydvd4HiRlktFnBMIBVo137Hza7LnwbHIgwoSdM2UlYCjQIiK
+         X8zCUQSRyn0/PrkjL/1qVDEJ5qaO6ZLAaANENfNxj70yN+t63DispY3TQngHqMf3eARe
+         n0gDoSnwywa23aVMdwRAKo/rEsOcdKEEj84nzOHN5rK2zesgZWbL103V53pehsdwId+6
+         cq+tC56+L8NqX2RTkJl3vHBX/soa5KbdRdf/GpOd0qG4RqjuHBnnWJ/F3rblOP+4iklP
+         YCsl896AcAtbg/CmlAkX8IGakHNsNm7tBDXUeBHBzNvTCF7GTc258tfh2Go+HrLpB2pl
+         nUdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DGFJ0uzR;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e0tqHuoQ;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u22si16237825plq.193.2019.04.23.08.44.28
+        by mx.google.com with ESMTPS id o64si16458499pfa.274.2019.04.23.08.45.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Apr 2019 08:44:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        Tue, 23 Apr 2019 08:45:59 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DGFJ0uzR;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=e0tqHuoQ;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=+K0qQkMPhyOnz59Oaseee2QX30i0QPa2TDYTaUA1ZuA=; b=DGFJ0uzRQz4B1HqRz/5Dx9nOD
-	QGgXKNpcRkcjjOoU/iQfadRwOvYwjKjEVEexgm2sgHK7FdXUF2nBWerqyIud4WjMCOCz2IWA52R2K
-	mZHc+Wwnh7ACTSZAlBxzcqGBvhWqh+QBAJsv9RWCv+nZsFe+wqj3qfmMDCPaz6BQC+zBUcF9jDM/n
-	TfFhgOQP52WzFRP/25AczbcCko5xNofRAILBILxezaKYK2pqgluLcwu9m5DBcGjYZ/gZk6YrqbJbF
-	4mjVGaAyq5a+NYlIyLUPZq6vcqMfdM8nM5/mkmPJu3FD97kf0Ba7zCgsih5105Truw37ChSq5mbML
-	OKB8is8ww==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIxaJ-0001JO-98; Tue, 23 Apr 2019 15:43:51 +0000
-Date: Tue, 23 Apr 2019 08:43:51 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, peterz@infradead.org,
-	kirill@shutemov.name, ak@linux.intel.com, dave@stgolabs.net,
-	jack@suse.cz, aneesh.kumar@linux.ibm.com, benh@kernel.crashing.org,
-	mpe@ellerman.id.au, paulus@samba.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
-	Will Deacon <will.deacon@arm.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	sergey.senozhatsky.work@gmail.com,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
-	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
-	David Rientjes <rientjes@google.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Ganesh Mahendran <opensource.ganesh@gmail.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Punit Agrawal <punitagrawal@gmail.com>,
-	vinayak menon <vinayakm.list@gmail.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	zhong jiang <zhongjiang@huawei.com>,
-	Haiyan Song <haiyanx.song@intel.com>,
-	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
-	Michel Lespinasse <walken@google.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
-	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
-	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Subject: Re: [PATCH v12 07/31] mm: make pte_unmap_same compatible with SPF
-Message-ID: <20190423154351.GB19031@bombadil.infradead.org>
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
- <20190416134522.17540-8-ldufour@linux.ibm.com>
+	 bh=9NNCwHmbRpdEn6eFr9PBTWdRMDfTap2B4jvrrMqdzmo=; b=e0tqHuoQ5ZYSoe3n8LkEi470N
+	SPB6Cb5TAQEToUHk0u6AKK5ZSYn0iAiDEnDR3qjUMeoZYXconzfxrq5pi1GqeNZr4l7i7QOfPfwZo
+	+w8O1ieR6ab6N3EBNnvYytL1CVygjALEgMAr4AClAQZcHw8Du/znuvVY9KAziwH6cFDZQgGD1xWVh
+	AVURoPaeB8V7R9OzTCM/ulmvDz9oNZQoGH8WZ954XCo+y2eUAQOZ+Posl+OZ85HNbVSIp1JJqefri
+	B0R8mJ4tMQWDFI03n10MGJ6znbwvAyhVlGQtUiwtEqam3Gt1+DwGQnA5UjojWN7zJaZm8Sh8XR1qf
+	JYxCVuO1Q==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hIxcF-0003oT-QV; Tue, 23 Apr 2019 15:45:51 +0000
+Subject: Re: mmotm 2019-04-19-14-53 uploaded (objtool)
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: akpm@linux-foundation.org, broonie@kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-next@vger.kernel.org, mhocko@suse.cz,
+ mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
+ Josh Poimboeuf <jpoimboe@redhat.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andy Lutomirski <luto@kernel.org>
+References: <20190419215358.WMVFXV3bT%akpm@linux-foundation.org>
+ <af3819b4-008f-171e-e721-a9a20f85d8d1@infradead.org>
+ <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <9b6de597-110c-aa83-4c58-3dbe937948cf@infradead.org>
+Date: Tue, 23 Apr 2019 08:45:49 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190416134522.17540-8-ldufour@linux.ibm.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 03:44:58PM +0200, Laurent Dufour wrote:
-> +static inline vm_fault_t pte_unmap_same(struct vm_fault *vmf)
+On 4/23/19 1:24 AM, Peter Zijlstra wrote:
+> On Fri, Apr 19, 2019 at 09:36:46PM -0700, Randy Dunlap wrote:
+>> On 4/19/19 2:53 PM, akpm@linux-foundation.org wrote:
+>>> The mm-of-the-moment snapshot 2019-04-19-14-53 has been uploaded to
+>>>
+>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>>
+>>> mmotm-readme.txt says
+>>>
+>>> README for mm-of-the-moment:
+>>>
+>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>
+>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>> more than once a week.
+>>
+>> on x86_64:
+>>
+>>   CC      lib/strncpy_from_user.o
+>> lib/strncpy_from_user.o: warning: objtool: strncpy_from_user()+0x315: call to __ubsan_handle_add_overflow() with UACCESS enabled
+>>   CC      lib/strnlen_user.o
+>> lib/strnlen_user.o: warning: objtool: strnlen_user()+0x337: call to __ubsan_handle_sub_overflow() with UACCESS enabled
+> 
+> Lemme guess, you're using GCC < 8 ? That had a bug where UBSAN
+> considered signed overflow UB when using -fno-strict-overflow or
+> -fwrapv.
+
+Correct.  7.4.0.
+
+Patch works for me.  Thanks.
+
+Acked-by: Randy Dunlap <rdunlap@infradead.org> # build-tested
+
+
+> Now, we could of course allow this symbol, but I found only the below
+> was required to make allyesconfig build without issue.
+> 
+> Andy, Linus?
+> 
+> (note: the __put_user thing is from this one:
+> 
+>   drivers/gpu/drm/i915/i915_gem_execbuffer.c:	if (unlikely(__put_user(offset, &urelocs[r-stack].presumed_offset))) {
+> 
+>  where (ptr) ends up non-trivial due to UBSAN)
+> 
+> ---
+> 
+> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+> index 22ba683afdc2..c82abd6e4ca3 100644
+> --- a/arch/x86/include/asm/uaccess.h
+> +++ b/arch/x86/include/asm/uaccess.h
+> @@ -427,10 +427,11 @@ do {									\
+>  ({								\
+>  	__label__ __pu_label;					\
+>  	int __pu_err = -EFAULT;					\
+> -	__typeof__(*(ptr)) __pu_val;				\
+> -	__pu_val = x;						\
+> +	__typeof__(*(ptr)) __pu_val = (x);			\
+> +	__typeof__(ptr) __pu_ptr = (ptr);			\
+> +	__typeof__(size) __pu_size = (size);			\
+>  	__uaccess_begin();					\
+> -	__put_user_size(__pu_val, (ptr), (size), __pu_label);	\
+> +	__put_user_size(__pu_val, __pu_ptr, __pu_size, __pu_label);	\
+>  	__pu_err = 0;						\
+>  __pu_label:							\
+>  	__uaccess_end();					\
+> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
+> index 58eacd41526c..07045bc4872e 100644
+> --- a/lib/strncpy_from_user.c
+> +++ b/lib/strncpy_from_user.c
+> @@ -26,7 +26,7 @@
+>  static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
 >  {
-> -	int same = 1;
-> +	int ret = 0;
+>  	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
+> -	long res = 0;
+> +	unsigned long res = 0;
+>  
+>  	/*
+>  	 * Truncate 'max' to the user-specified limit, so that
+> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
+> index 1c1a1b0e38a5..0729378ad3e9 100644
+> --- a/lib/strnlen_user.c
+> +++ b/lib/strnlen_user.c
+> @@ -28,7 +28,7 @@
+>  static inline long do_strnlen_user(const char __user *src, unsigned long count, unsigned long max)
+>  {
+>  	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
+> -	long align, res = 0;
+> +	unsigned long align, res = 0;
+>  	unsigned long c;
+>  
+>  	/*
+> 
 
-Surely 'ret' should be of type vm_fault_t?
 
-> +			ret = VM_FAULT_RETRY;
-
-... this should have thrown a sparse warning?
+-- 
+~Randy
 
