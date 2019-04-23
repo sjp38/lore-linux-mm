@@ -2,268 +2,275 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD8AFC282E1
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:34:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 30EE9C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:42:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40BDA20674
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:34:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40BDA20674
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id E241520843
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:42:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E241520843
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C03676B0003; Tue, 23 Apr 2019 02:34:00 -0400 (EDT)
+	id 852176B0003; Tue, 23 Apr 2019 02:42:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B8A2C6B0006; Tue, 23 Apr 2019 02:34:00 -0400 (EDT)
+	id 7D8D76B0006; Tue, 23 Apr 2019 02:42:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A03A46B0007; Tue, 23 Apr 2019 02:34:00 -0400 (EDT)
+	id 67B166B0007; Tue, 23 Apr 2019 02:42:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4528E6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:34:00 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id j9so3051434eds.17
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 23:34:00 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 168DE6B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:42:51 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id u6so12796996wml.3
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 23:42:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=BwXTUc1q5CtW2peENvu8Y7l7bAFHeldqtmOljmzYOB8=;
-        b=RV764Ak8r7VZYP6BLBmEQnm2Mvy8NfEfTsbsOb1TOKXmT8iaxiFFWeWbzI+yDUR6QA
-         Eq3S/GCUhLpK1kvjbUalXFOnpPAvKB7x69IlxP2IxbCuz8ZGDDSeYSRHxnVDmLUc8VFN
-         QSL741eoDkaaVNhU6Sg7rC3bXoj4Qk7JWxpfLzMEIbhZ6tXhHIPjaZOFZd1Cv1NgF144
-         SLm+RpZYwjzPBZbrUlkOs0QR7WB4WrVlHQjYdeTIxjh0XD2vefjaP1GKpa5H/Fvx4jav
-         ePY50SNtSEf8CGPljjHGRR+iT8TWc0qpwC6VJvHgPCvM0j0OlQwBGiIKXhlmQIcWX+dI
-         Q5FA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUOIEzMfR+uTyGeYXYMQ+ZG9R355kE4hQSmBoi5pz5fmfRw68Ul
-	bjd5CoNVxvwHkLGRlioi9AHQH3LvqRO9LodPZ/YZX/6aUch9Uik1cNm5NuqYd+EVFYMA8MQ05uH
-	DUZB7yf7ngUoFjNJIlURN1S5bGnKA46h7gx0+zFVxxy2xpmEuWLPwLPeAv+7EYUBYdQ==
-X-Received: by 2002:a17:906:f03:: with SMTP id z3mr11704317eji.280.1556001239802;
-        Mon, 22 Apr 2019 23:33:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPEzv3+JqKxgd2tF7PuZZf/NObYNPG01BtPCeFbRp4EI2OLnYZFNki0IggATRwHhBsDl9m
-X-Received: by 2002:a17:906:f03:: with SMTP id z3mr11704277eji.280.1556001238843;
-        Mon, 22 Apr 2019 23:33:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556001238; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=MMY0ApRUeDdkE4j4nyWsTOaQzUutj1zUXePp0yJAXnU=;
+        b=POrl/JUO2lCaVv1pkAQ8SpZ7pghnz2zV331WBMK0+N6mkW1KGkOtHRn/vszw67jpdT
+         INjflFh18TCSJzoR7ZSqWlLRFy3S3dIMnMYDv6ySkqdD2C9uisxuBdbULC9p/yATj49S
+         89EvJupTDGZ+NKzYB4e+smDEWDl2znJHaNK5t7+XF2V16HKqMDlsXubqiXEEtIu1P8If
+         MuALGO2aqN5+Kd7ziqIJgYMH9JJQC9o19jFAsecsCnSqJPxMB2DnN/ZSOmi4HVTdkQm7
+         UJ8SSVIZwwmLvh4c6shtGB8qo/BPQ8kCuXMIR8DvWfXfgWxyXtiSqJWiii+GFO0U1ycM
+         IJ+w==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+X-Gm-Message-State: APjAAAWjii87vqm671zG/gB/ALRyKergjzxR06bijKYV65ykd9QXmkaX
+	Lg2osw9I4tYW6t8l6PRA8aXYBJSqmSYdCVlMUAYQlY8LfHOi5WcbxmcPhjyHpEOSU4WmJzUGcvA
+	lLULEDm3fi79rAAmYsyjh9h8isGYfg5kbISO9tUwwo9MJFrRV+PPwUG+P93HU9/w=
+X-Received: by 2002:adf:9f14:: with SMTP id l20mr14507911wrf.240.1556001770635;
+        Mon, 22 Apr 2019 23:42:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxe/MDoy+csra0AIspmIV8THkJwdFSnxFgK9toIem1UgHkWPW801CyaGSluCyaHA71HuvRJ
+X-Received: by 2002:adf:9f14:: with SMTP id l20mr14507840wrf.240.1556001769367;
+        Mon, 22 Apr 2019 23:42:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556001769; cv=none;
         d=google.com; s=arc-20160816;
-        b=DTUo3rxeCP81ew1Z47pipQxZ/z4MqEn6QZyMGwP330EyC5w1MIAU9CbKX59PwSgeQ/
-         u8i3wNmV9i6hDc4XN/1zD2T+htZbbj1319Xv1FTzx2CAR92Dhjy3uc+kBiJaUbAjqwY5
-         psm7/VfQdrwjoinunsPolqgkTjd6qunkxApcNlWIpBq45zHFDiwzWz8BbZPcOJLnErle
-         Yb899seVrskTwWaYWSSZwEvGkpmSF7QLq4oCWPzINOo2U2xyp5Ff5oysJ86o6SnWgLEQ
-         y9FyqbbsgN96GAilbb+RYtRrsYRZj5D9EiYJgQyX4tZvXiAvuyTSCi+7SLgEHkdyqJ+Q
-         tjdA==
+        b=ab7gUe1qJVNUFLk6+92JCeLlK7aIG/5vlr/yApupYoNivFuWmiEfICZ41cilXrwcOv
+         gAwWgm4hWHdL7wipIveH15NTIgzZZFxQCWnn7EANq6ITvXmCYzd02zY0/29REoXPw5sw
+         lJDyLYsk1pNPLGNcAWb1iZ+7IS91k8P2N9aKh+3qrloDzOZn2WtMxghp0WNl332HsoIZ
+         nCmWBLnzB1GKMq8f1dx4emOfPc/YIJBWkWnkupluo2ifb/KklcObfxYUY2mYsn55si9Y
+         LQEuYxSLHLb07mCxnq0lu2SzWABmwy7+yaCnJk/66uP4qMMfRLmIEOE+k5HzAKxp3Z8C
+         1tuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=BwXTUc1q5CtW2peENvu8Y7l7bAFHeldqtmOljmzYOB8=;
-        b=otogm0oT2sqZJBZbwV3C+lSMy8Hw0RUQmUJVGm2YELc0Bh9eahCIDzhMs9NvNvT4Jb
-         T6rdWYHgGm/SnTWeYF+Ve56EfgCe2UJd4+qzJ/ZeexmnJeM2b78rtEr63QaHTBg0hNX+
-         6xTQtRCP44PSz3wjykJLcfeX5NLKqx8edJztvjIDahiNX2nYDkgSWhdgepcoFfr96KxE
-         kljPhjjjXfv/VPMqkpJWlJWJuvGAGPrw1KoVir91WsJ2QiQuYvhrEZA7DR8JKFZOVEmk
-         qh6fkeROxEADsHOkv5Pyv5qE5T2uijI3XU+CQPASYw8xZWZNio6VB30jpcFSsi2vpQE0
-         I20g==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=MMY0ApRUeDdkE4j4nyWsTOaQzUutj1zUXePp0yJAXnU=;
+        b=dx/OC1f13lRcjdC/lIr5OaZNQcnZxMoeFHX4q2FjvVqNqFO1747GtIy7Vu74fTI+Qf
+         mM8X5H3EWPH3iIHbwstIVmRMZNGxRKIErJ9XcJ87m8Ayh/VF6yGEDsygHluhbPpcoegN
+         xlwvk6jdITYcECL5044VYO/bHy2Niq6xaU2knTa/EBeO+GtcT+nmsxsj7qM/mpM6MqEc
+         XElcdEfPuCSaMjGtlNck60JOCTTMLjaV6HMg0K95855cUC+L4DY43QP9B67pWIw7QUPt
+         TsYy3h2ZnJvGDUrCdDioM93A0tk2YoHJE18HuR57pptRMW/XlyY0coWfZuapJmaARCYW
+         Grpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h14si342505edk.382.2019.04.22.23.33.58
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id j6si11534042wrn.331.2019.04.22.23.42.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 23:33:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 22 Apr 2019 23:42:49 -0700 (PDT)
+Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id ED2F8AD72;
-	Tue, 23 Apr 2019 06:33:57 +0000 (UTC)
-Subject: Re: [PATCH] mm: Do not boost watermarks to avoid fragmentation for
- the DISCONTIG memory model
-To: Mel Gorman <mgorman@techsingularity.net>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>,
- James Bottomley <James.Bottomley@hansenpartnership.com>,
- linux-parisc@vger.kernel.org, linux-mm@kvack.org,
- LKML <linux-kernel@vger.kernel.org>
-References: <20190419094335.GJ18914@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- mQINBFZdmxYBEADsw/SiUSjB0dM+vSh95UkgcHjzEVBlby/Fg+g42O7LAEkCYXi/vvq31JTB
- KxRWDHX0R2tgpFDXHnzZcQywawu8eSq0LxzxFNYMvtB7sV1pxYwej2qx9B75qW2plBs+7+YB
- 87tMFA+u+L4Z5xAzIimfLD5EKC56kJ1CsXlM8S/LHcmdD9Ctkn3trYDNnat0eoAcfPIP2OZ+
- 9oe9IF/R28zmh0ifLXyJQQz5ofdj4bPf8ecEW0rhcqHfTD8k4yK0xxt3xW+6Exqp9n9bydiy
- tcSAw/TahjW6yrA+6JhSBv1v2tIm+itQc073zjSX8OFL51qQVzRFr7H2UQG33lw2QrvHRXqD
- Ot7ViKam7v0Ho9wEWiQOOZlHItOOXFphWb2yq3nzrKe45oWoSgkxKb97MVsQ+q2SYjJRBBH4
- 8qKhphADYxkIP6yut/eaj9ImvRUZZRi0DTc8xfnvHGTjKbJzC2xpFcY0DQbZzuwsIZ8OPJCc
- LM4S7mT25NE5kUTG/TKQCk922vRdGVMoLA7dIQrgXnRXtyT61sg8PG4wcfOnuWf8577aXP1x
- 6mzw3/jh3F+oSBHb/GcLC7mvWreJifUL2gEdssGfXhGWBo6zLS3qhgtwjay0Jl+kza1lo+Cv
- BB2T79D4WGdDuVa4eOrQ02TxqGN7G0Biz5ZLRSFzQSQwLn8fbwARAQABtCBWbGFzdGltaWwg
- QmFia2EgPHZiYWJrYUBzdXNlLmN6PokCVAQTAQoAPgIbAwULCQgHAwUVCgkICwUWAgMBAAIe
- AQIXgBYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJcbbyGBQkH8VTqAAoJECJPp+fMgqZkpGoP
- /1jhVihakxw1d67kFhPgjWrbzaeAYOJu7Oi79D8BL8Vr5dmNPygbpGpJaCHACWp+10KXj9yz
- fWABs01KMHnZsAIUytVsQv35DMMDzgwVmnoEIRBhisMYOQlH2bBn/dqBjtnhs7zTL4xtqEcF
- 1hoUFEByMOey7gm79utTk09hQE/Zo2x0Ikk98sSIKBETDCl4mkRVRlxPFl4O/w8dSaE4eczH
- LrKezaFiZOv6S1MUKVKzHInonrCqCNbXAHIeZa3JcXCYj1wWAjOt9R3NqcWsBGjFbkgoKMGD
- usiGabetmQjXNlVzyOYdAdrbpVRNVnaL91sB2j8LRD74snKsV0Wzwt90YHxDQ5z3M75YoIdl
- byTKu3BUuqZxkQ/emEuxZ7aRJ1Zw7cKo/IVqjWaQ1SSBDbZ8FAUPpHJxLdGxPRN8Pfw8blKY
- 8mvLJKoF6i9T6+EmlyzxqzOFhcc4X5ig5uQoOjTIq6zhLO+nqVZvUDd2Kz9LMOCYb516cwS/
- Enpi0TcZ5ZobtLqEaL4rupjcJG418HFQ1qxC95u5FfNki+YTmu6ZLXy+1/9BDsPuZBOKYpUm
- 3HWSnCS8J5Ny4SSwfYPH/JrtberWTcCP/8BHmoSpS/3oL3RxrZRRVnPHFzQC6L1oKvIuyXYF
- rkybPXYbmNHN+jTD3X8nRqo+4Qhmu6SHi3VquQENBFsZNQwBCACuowprHNSHhPBKxaBX7qOv
- KAGCmAVhK0eleElKy0sCkFghTenu1sA9AV4okL84qZ9gzaEoVkgbIbDgRbKY2MGvgKxXm+kY
- n8tmCejKoeyVcn9Xs0K5aUZiDz4Ll9VPTiXdf8YcjDgeP6/l4kHb4uSW4Aa9ds0xgt0gP1Xb
- AMwBlK19YvTDZV5u3YVoGkZhspfQqLLtBKSt3FuxTCU7hxCInQd3FHGJT/IIrvm07oDO2Y8J
- DXWHGJ9cK49bBGmK9B4ajsbe5GxtSKFccu8BciNluF+BqbrIiM0upJq5Xqj4y+Xjrpwqm4/M
- ScBsV0Po7qdeqv0pEFIXKj7IgO/d4W2bABEBAAGJA3IEGAEKACYWIQSpQNQ0mSwujpkQPVAi
- T6fnzIKmZAUCWxk1DAIbAgUJA8JnAAFACRAiT6fnzIKmZMB0IAQZAQoAHRYhBKZ2GgCcqNxn
- k0Sx9r6Fd25170XjBQJbGTUMAAoJEL6Fd25170XjDBUH/2jQ7a8g+FC2qBYxU/aCAVAVY0NE
- YuABL4LJ5+iWwmqUh0V9+lU88Cv4/G8fWwU+hBykSXhZXNQ5QJxyR7KWGy7LiPi7Cvovu+1c
- 9Z9HIDNd4u7bxGKMpn19U12ATUBHAlvphzluVvXsJ23ES/F1c59d7IrgOnxqIcXxr9dcaJ2K
- k9VP3TfrjP3g98OKtSsyH0xMu0MCeyewf1piXyukFRRMKIErfThhmNnLiDbaVy6biCLx408L
- Mo4cCvEvqGKgRwyckVyo3JuhqreFeIKBOE1iHvf3x4LU8cIHdjhDP9Wf6ws1XNqIvve7oV+w
- B56YWoalm1rq00yUbs2RoGcXmtX1JQ//aR/paSuLGLIb3ecPB88rvEXPsizrhYUzbe1TTkKc
- 4a4XwW4wdc6pRPVFMdd5idQOKdeBk7NdCZXNzoieFntyPpAq+DveK01xcBoXQ2UktIFIsXey
- uSNdLd5m5lf7/3f0BtaY//f9grm363NUb9KBsTSnv6Vx7Co0DWaxgC3MFSUhxzBzkJNty+2d
- 10jvtwOWzUN+74uXGRYSq5WefQWqqQNnx+IDb4h81NmpIY/X0PqZrapNockj3WHvpbeVFAJ0
- 9MRzYP3x8e5OuEuJfkNnAbwRGkDy98nXW6fKeemREjr8DWfXLKFWroJzkbAVmeIL0pjXATxr
- +tj5JC0uvMrrXefUhXTo0SNoTsuO/OsAKOcVsV/RHHTwCDR2e3W8mOlA3QbYXsscgjghbuLh
- J3oTRrOQa8tUXWqcd5A0+QPo5aaMHIK0UAthZsry5EmCY3BrbXUJlt+23E93hXQvfcsmfi0N
- rNh81eknLLWRYvMOsrbIqEHdZBT4FHHiGjnck6EYx/8F5BAZSodRVEAgXyC8IQJ+UVa02QM5
- D2VL8zRXZ6+wARKjgSrW+duohn535rG/ypd0ctLoXS6dDrFokwTQ2xrJiLbHp9G+noNTHSan
- ExaRzyLbvmblh3AAznb68cWmM3WVkceWACUalsoTLKF1sGrrIBj5updkKkzbKOq5gcC5AQ0E
- Wxk1NQEIAJ9B+lKxYlnKL5IehF1XJfknqsjuiRzj5vnvVrtFcPlSFL12VVFVUC2tT0A1Iuo9
- NAoZXEeuoPf1dLDyHErrWnDyn3SmDgb83eK5YS/K363RLEMOQKWcawPJGGVTIRZgUSgGusKL
- NuZqE5TCqQls0x/OPljufs4gk7E1GQEgE6M90Xbp0w/r0HB49BqjUzwByut7H2wAdiNAbJWZ
- F5GNUS2/2IbgOhOychHdqYpWTqyLgRpf+atqkmpIJwFRVhQUfwztuybgJLGJ6vmh/LyNMRr8
- J++SqkpOFMwJA81kpjuGR7moSrUIGTbDGFfjxmskQV/W/c25Xc6KaCwXah3OJ40AEQEAAYkC
- PAQYAQoAJhYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJbGTU1AhsMBQkDwmcAAAoJECJPp+fM
- gqZkPN4P/Ra4NbETHRj5/fM1fjtngt4dKeX/6McUPDIRuc58B6FuCQxtk7sX3ELs+1+w3eSV
- rHI5cOFRSdgw/iKwwBix8D4Qq0cnympZ622KJL2wpTPRLlNaFLoe5PkoORAjVxLGplvQIlhg
- miljQ3R63ty3+MZfkSVsYITlVkYlHaSwP2t8g7yTVa+q8ZAx0NT9uGWc/1Sg8j/uoPGrctml
- hFNGBTYyPq6mGW9jqaQ8en3ZmmJyw3CHwxZ5FZQ5qc55xgshKiy8jEtxh+dgB9d8zE/S/UGI
- E99N/q+kEKSgSMQMJ/CYPHQJVTi4YHh1yq/qTkHRX+ortrF5VEeDJDv+SljNStIxUdroPD29
- 2ijoaMFTAU+uBtE14UP5F+LWdmRdEGS1Ah1NwooL27uAFllTDQxDhg/+LJ/TqB8ZuidOIy1B
- xVKRSg3I2m+DUTVqBy7Lixo73hnW69kSjtqCeamY/NSu6LNP+b0wAOKhwz9hBEwEHLp05+mj
- 5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
- hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
- Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <f3c49c8d-6723-3d97-bcdb-ff7ffa84998a@suse.cz>
-Date: Tue, 23 Apr 2019 08:33:56 +0200
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: (qmail 13401 invoked from network); 23 Apr 2019 08:42:48 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.165]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Tue, 23 Apr 2019 08:42:48 +0200
+Subject: Re: debug linux kernel memory management / pressure
+To: Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>
+Cc: l.roehrs@profihost.ag,
+ Daniel Aberger - Profihost AG <d.aberger@profihost.ag>,
+ "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
+ Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+References: <36329138-4a6f-9560-b36c-02dc528a8e12@profihost.ag>
+ <3c98c75c-b554-499e-d42e-8b9286f3176b@profihost.ag>
+ <2b0cd84c-b5e5-033c-3bae-e108b038209b@suse.cz>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <7cc0592c-228b-6e4b-0410-552ea5e08329@profihost.ag>
+Date: Tue, 23 Apr 2019 08:42:48 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190419094335.GJ18914@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
+In-Reply-To: <2b0cd84c-b5e5-033c-3bae-e108b038209b@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
 Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/19/19 11:43 AM, Mel Gorman wrote:
-> Mikulas Patocka reported that 1c30844d2dfe ("mm: reclaim small amounts
-> of memory when an external fragmentation event occurs") "broke" memory
-> management on parisc. The machine is not NUMA but the DISCONTIG model
-> creates three pgdats even though it's a UMA machine for the following
-> ranges
-> 
->         0) Start 0x0000000000000000 End 0x000000003fffffff Size   1024 MB
->         1) Start 0x0000000100000000 End 0x00000001bfdfffff Size   3070 MB
->         2) Start 0x0000004040000000 End 0x00000040ffffffff Size   3072 MB
-> 
-> From his own report
-> 
-> 	With the patch 1c30844d2, the kernel will incorrectly reclaim the
-> 	first zone when it fills up, ignoring the fact that there are two
-> 	completely free zones. Basiscally, it limits cache size to 1GiB.
-> 
-> 	For example, if I run:
-> 	# dd if=/dev/sda of=/dev/null bs=1M count=2048
-> 
-> 	- with the proper kernel, there should be "Buffers - 2GiB"
-> 	when this command finishes. With the patch 1c30844d2, buffers
-> 	will consume just 1GiB or slightly more, because the kernel was
-> 	incorrectly reclaiming them.
-> 
-> The page allocator and reclaim makes assumptions that pgdats really
-> represent NUMA nodes and zones represent ranges and makes decisions
-> on that basis. Watermark boosting for small pgdats leads to unexpected
-> results even though this would have behaved reasonably on SPARSEMEM.
-> 
-> DISCONTIG is essentially deprecated and even parisc plans to move to
-> SPARSEMEM so there is no need to be fancy, this patch simply disables
-> watermark boosting by default on DISCONTIGMEM.
-> 
-> Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external fragmentation event occurs")
-> Reported-by: Mikulas Patocka <mpatocka@redhat.com>
-> Tested-by: Mikulas Patocka <mpatocka@redhat.com>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Hi Vlastimil,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+sorry for the late reply i was on holiday.
 
-> ---
->  Documentation/sysctl/vm.txt | 16 ++++++++--------
->  mm/page_alloc.c             | 13 +++++++++++++
->  2 files changed, 21 insertions(+), 8 deletions(-)
+Am 05.04.19 um 12:37 schrieb Vlastimil Babka:
+> On 3/29/19 10:41 AM, Stefan Priebe - Profihost AG wrote:
+>> Hi,
+>>
+>> nobody an idea? I had another system today:
 > 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 6af24cdb25cc..3f13d8599337 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -866,14 +866,14 @@ The intent is that compaction has less work to do in the future and to
->  increase the success rate of future high-order allocations such as SLUB
->  allocations, THP and hugetlbfs pages.
->  
-> -To make it sensible with respect to the watermark_scale_factor parameter,
-> -the unit is in fractions of 10,000. The default value of 15,000 means
-> -that up to 150% of the high watermark will be reclaimed in the event of
-> -a pageblock being mixed due to fragmentation. The level of reclaim is
-> -determined by the number of fragmentation events that occurred in the
-> -recent past. If this value is smaller than a pageblock then a pageblocks
-> -worth of pages will be reclaimed (e.g.  2MB on 64-bit x86). A boost factor
-> -of 0 will disable the feature.
-> +To make it sensible with respect to the watermark_scale_factor
-> +parameter, the unit is in fractions of 10,000. The default value of
-> +15,000 on !DISCONTIGMEM configurations means that up to 150% of the high
-> +watermark will be reclaimed in the event of a pageblock being mixed due
-> +to fragmentation. The level of reclaim is determined by the number of
-> +fragmentation events that occurred in the recent past. If this value is
-> +smaller than a pageblock then a pageblocks worth of pages will be reclaimed
-> +(e.g.  2MB on 64-bit x86). A boost factor of 0 will disable the feature.
->  
->  =============================================================
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index cfaba3889fa2..86c3806f1070 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -266,7 +266,20 @@ compound_page_dtor * const compound_page_dtors[] = {
->  
->  int min_free_kbytes = 1024;
->  int user_min_free_kbytes = -1;
-> +#ifdef CONFIG_DISCONTIGMEM
-> +/*
-> + * DiscontigMem defines memory ranges as separate pg_data_t even if the ranges
-> + * are not on separate NUMA nodes. Functionally this works but with
-> + * watermark_boost_factor, it can reclaim prematurely as the ranges can be
-> + * quite small. By default, do not boost watermarks on discontigmem as in
-> + * many cases very high-order allocations like THP are likely to be
-> + * unsupported and the premature reclaim offsets the advantage of long-term
-> + * fragmentation avoidance.
-> + */
-> +int watermark_boost_factor __read_mostly;
-> +#else
->  int watermark_boost_factor __read_mostly = 15000;
-> +#endif
->  int watermark_scale_factor = 10;
->  
->  static unsigned long nr_kernel_pages __initdata;
+> Well, isn't it still the same thing as we discussed in last autumn?
+> You did report success with the ill-fated patch "mm: thp:  relax __GFP_THISNODE
+> for MADV_HUGEPAGE mappings", or not?
+
+No it's not. Last year those were KVM Host machines. These time it's a
+LAMP machine. But i think i'll upgrade to 4.19.36 LTS and see if that
+fixes the problem.
+
+Thanks!
+
+> 
+>> # cat /proc/meminfo
+>> MemTotal:       131911684 kB
+>> MemFree:        25734836 kB
+>> MemAvailable:   78158816 kB
+>> Buffers:            2916 kB
+>> Cached:         20650184 kB
+>> SwapCached:       544016 kB
+>> Active:         58999352 kB
+>> Inactive:       10084060 kB
+>> Active(anon):   43412532 kB
+>> Inactive(anon):  5583220 kB
+>> Active(file):   15586820 kB
+>> Inactive(file):  4500840 kB
+>> Unevictable:       35032 kB
+>> Mlocked:           35032 kB
+>> SwapTotal:       3905532 kB
+>> SwapFree:              0 kB
+>> Dirty:              1048 kB
+>> Writeback:         20144 kB
+>> AnonPages:      47923392 kB
+>> Mapped:           775376 kB
+>> Shmem:            561420 kB
+>> Slab:           35798052 kB
+>> SReclaimable:   34309112 kB
+> 
+> That's rather significant. Got a /proc/slabinfo from such system state?
+> 
+>> SUnreclaim:      1488940 kB
+>> KernelStack:       42160 kB
+>> PageTables:       248008 kB
+>> NFS_Unstable:          0 kB
+>> Bounce:                0 kB
+>> WritebackTmp:          0 kB
+>> CommitLimit:    69861372 kB
+>> Committed_AS:   100328892 kB
+>> VmallocTotal:   34359738367 kB
+>> VmallocUsed:           0 kB
+>> VmallocChunk:          0 kB
+>> HardwareCorrupted:     0 kB
+>> AnonHugePages:  19177472 kB
+>> ShmemHugePages:        0 kB
+>> ShmemPmdMapped:        0 kB
+>> HugePages_Total:       0
+>> HugePages_Free:        0
+>> HugePages_Rsvd:        0
+>> HugePages_Surp:        0
+>> Hugepagesize:       2048 kB
+>> DirectMap4k:      951376 kB
+>> DirectMap2M:    87015424 kB
+>> DirectMap1G:    48234496 kB
+>>
+>> # cat /proc/buddyinfo
+>> Node 0, zone      DMA      1      0      0      0      2      1      1
+>>     0      1      1      3
+>> Node 0, zone    DMA32    372    418    403    395    371    322    262
+>>   179    114      0      0
+>> Node 0, zone   Normal  89147  96397  76496  56407  41671  29289  18142
+>> 10278   4075      0      0
+>> Node 1, zone   Normal 113266      0      1      1      1      1      1
+>>     1      1      0      0
+> 
+> Node 1 seems quite fragmented. Again from last year I recall somebody (was it
+> you?) capturing a larger series of snapshots where we saw a Sreclaimable rise
+> due to some overnight 'find /' activity inflating dentry/inode caches which then
+> got slowly reclaimed, but memory remained fragmented until enough of slab was
+> reclaimed, and compaction couldn't help. drop_caches did help. Looks like this
+> might be the same case. Add in something that tries to get large-order
+> allocations on node 1 (e.g. with __GFP_THISNODE) and overreclaim will happen.
+> 
+>> But with high PSI / memory pressure values above 10-30.
+>>
+>> Greets,
+>> Stefan
+>> Am 27.03.19 um 11:56 schrieb Stefan Priebe - Profihost AG:
+>>> Hello list,
+>>>
+>>> i hope this is the right place to ask. If not i would be happy to point
+>>> me to something else.
+>>>
+>>> I'm seeing the following behaviour on some of our hosts running a SLES
+>>> 15 kernel (kernel v4.12 as it's base) but i don't think it's related to
+>>> the kernel.
+>>>
+>>> At some "random" interval - mostly 3-6 weeks of uptime. Suddenly mem
+>>> pressure rises and the linux cache (Cached: /proc/meminfo) drops from
+>>> 12G to 3G. After that io pressure rises most probably due to low cache.
+>>> But at the same time i've MemFree und MemAvailable at 19-22G.
+>>>
+>>> Why does this happen? How can i debug this situation? I would expect
+>>> that the page / file cache never drops if there is so much free mem.
+>>>
+>>> Thanks a lot for your help.
+>>>
+>>> Greets,
+>>> Stefan
+>>>
+>>> Not sure whether needed but these are the vm. kernel settings:
+>>> vm.admin_reserve_kbytes = 8192
+>>> vm.block_dump = 0
+>>> vm.compact_unevictable_allowed = 1
+>>> vm.dirty_background_bytes = 0
+>>> vm.dirty_background_ratio = 10
+>>> vm.dirty_bytes = 0
+>>> vm.dirty_expire_centisecs = 3000
+>>> vm.dirty_ratio = 20
+>>> vm.dirty_writeback_centisecs = 500
+>>> vm.dirtytime_expire_seconds = 43200
+>>> vm.drop_caches = 0
+>>> vm.extfrag_threshold = 500
+>>> vm.hugepages_treat_as_movable = 0
+>>> vm.hugetlb_shm_group = 0
+>>> vm.laptop_mode = 0
+>>> vm.legacy_va_layout = 0
+>>> vm.lowmem_reserve_ratio = 256   256     32      1
+>>> vm.max_map_count = 65530
+>>> vm.memory_failure_early_kill = 0
+>>> vm.memory_failure_recovery = 1
+>>> vm.min_free_kbytes = 393216
+>>> vm.min_slab_ratio = 5
+>>> vm.min_unmapped_ratio = 1
+>>> vm.mmap_min_addr = 65536
+>>> vm.mmap_rnd_bits = 28
+>>> vm.mmap_rnd_compat_bits = 8
+>>> vm.nr_hugepages = 0
+>>> vm.nr_hugepages_mempolicy = 0
+>>> vm.nr_overcommit_hugepages = 0
+>>> vm.nr_pdflush_threads = 0
+>>> vm.numa_zonelist_order = default
+>>> vm.oom_dump_tasks = 1
+>>> vm.oom_kill_allocating_task = 0
+>>> vm.overcommit_kbytes = 0
+>>> vm.overcommit_memory = 0
+>>> vm.overcommit_ratio = 50
+>>> vm.page-cluster = 3
+>>> vm.panic_on_oom = 0
+>>> vm.percpu_pagelist_fraction = 0
+>>> vm.stat_interval = 1
+>>> vm.swappiness = 50
+>>> vm.user_reserve_kbytes = 131072
+>>> vm.vfs_cache_pressure = 100
+>>> vm.watermark_scale_factor = 10
+>>> vm.zone_reclaim_mode = 0
+>>>
+>>
 > 
 
