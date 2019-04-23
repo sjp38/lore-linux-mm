@@ -2,127 +2,195 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39A5CC10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:53:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38672C10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:54:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E7E70218EA
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:53:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="V+AOhodA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7E70218EA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id E6AA720651
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 17:54:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6AA720651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 918D16B0007; Tue, 23 Apr 2019 13:53:35 -0400 (EDT)
+	id 8A2FA6B0003; Tue, 23 Apr 2019 13:54:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A1626B0008; Tue, 23 Apr 2019 13:53:35 -0400 (EDT)
+	id 82BA36B0005; Tue, 23 Apr 2019 13:54:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71E936B000A; Tue, 23 Apr 2019 13:53:35 -0400 (EDT)
+	id 6A5AF6B000A; Tue, 23 Apr 2019 13:54:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FAF86B0007
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:53:35 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i23so10148994pfa.0
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 10:53:35 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2776B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:54:20 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x9so10781228pln.0
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 10:54:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Hu2+IHvU0rbjKTuDhKIV7ajzUzxsMVFATjP9eUoiQdA=;
-        b=oFd8FRgSa3EWNZaIWRpMGipRlFdgpG8vu+g34jHToqEw1rNvuRlKgus331rF1CgejZ
-         M1UsDnE3pWNotVIq+5NeFsq0K8Crb4yMjnXN/FrbbZxF4K/rGjhWwNGbR+c1K135idDG
-         lin6LL7+YMLV1xduLx6GWYNK2fQ1I+Sg6JntINCrs0Du0OdvlBtOIiO3VOnVoYrnDRCb
-         A41otUfEsJQxXDSXAE450usP4FhtEeuND1nnBMdJzAPOwvyx9hQvKC//O0xMENc7N3Sn
-         9dIUiiGX69ZU42hDGK6tbQJMkefvxtlV8owsNXTBPtnUafkV3JpbDjxKsXijh2l6nqc2
-         NqIw==
-X-Gm-Message-State: APjAAAU6GJsqByEFZzeXft4CRrrnzwgVp4RkdGrMfejy20Zn2JNuR3PW
-	hBLdE2yrU9aJLkI6sgaZ6EaiVNJNgEW35aZKFMeu+5wjZqmdaVyHN4SWmV5iSz97vdKqtID9cIE
-	DRbJ4G8McnCoThOqXicdE9ffIhvpZVXcHhlRUauKn7OuBlFlAQPICmgi3xXbhTDW05Q==
-X-Received: by 2002:a62:1385:: with SMTP id 5mr28064133pft.221.1556042014864;
-        Tue, 23 Apr 2019 10:53:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7k3X7rnJScSc1n3lEONG7r+e650C8ex0yT4A/xwpaVbE+xSJ1hVhAspXmIQ43AnQZv9yZ
-X-Received: by 2002:a62:1385:: with SMTP id 5mr28064083pft.221.1556042014267;
-        Tue, 23 Apr 2019 10:53:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556042014; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=ti8PeUs+SEtcVpT4jkp4p9ziOXOkaOIVi5KzTFKptXo=;
+        b=GmaSrBGdEx4hzvFVTLBRM8grRlebWZ6f13HzpHzopYqkwh9Hel4tsPha8opNrL/F2R
+         6lWBDDzRsSmSEbrmSegS6R+q1+K0bsFlACWQaR4xE2lB6sL+VXHnW/iO4eKOpXsvVd+y
+         K4WY0guZkGmX2AwQvneS++428PUkRuphlZNGeawNMYC7QcvvFGAfvCqQnMZO+b6ykGuG
+         Cy0n1dzgWSPbh8QjminMtkdL1k1eX5shoFcAD+2ymPlYH9KiRC40euIG/TjB1M8jHIzX
+         qmyPMu+4arW4hnTDMKaAmUBuQOmQ/35xO8ZQDbVNvpHhZCsKKskafdOlPJM1t6cIXRQW
+         hYlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+X-Gm-Message-State: APjAAAW87SsRNYODjZMm5RqSEY2UvLrZWjLOj7rxFq/2V4CoKtoykoK0
+	Q3t/GrraPANatkkBLYkP+DmmpB7kJSBC0MJVXND6QVuhq7cggKKCDpUv1+mST7yzw42vncoAJd6
+	mHsrzz2K6Nn7ClFz9vCvY6NoH4AmVChl92ZH13NtizrZ0wpAGVBNswooXcblcjpC3tQ==
+X-Received: by 2002:a62:6e05:: with SMTP id j5mr28389993pfc.5.1556042059809;
+        Tue, 23 Apr 2019 10:54:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxqC/bVP+SOse78uVOou6buew7weUg4UvIgfJ/ILzBEVor6mQWNSuH22VXGaai2WopYJ9+E
+X-Received: by 2002:a62:6e05:: with SMTP id j5mr28389923pfc.5.1556042059007;
+        Tue, 23 Apr 2019 10:54:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556042059; cv=none;
         d=google.com; s=arc-20160816;
-        b=lqJzEzMeJpi8oYa4JSyedN4ENFMNfuqjs208fVGfiv33KowtnoCtUi3ABfkvXTa9qT
-         lXBZfAQjhIGLfM0SLWfhBtpl5EmBQ8fYaPekla8FqOwyymGT77CxzTaRxAL4hmx68/pu
-         H6GZQdvOeyMlP4oLAvIPe3Tjv0kiFJhlSu6QiwaR1TpEvXmUwSO+wlGZt/9RXaObU6Ii
-         0zHmqDiFKpyLVRqpI73giPLr6tu4KpeM9W4R3qnb3PeEu3pN4HBr4FR6N5xBd3nkdn4Y
-         d2lTD/F/x7dsqBbu1NGAHG+vzNE47ek4J0OSlRM/7ja2GK8Y/x1TkS1QKIlFhWND9RuW
-         kbbA==
+        b=yURrGCJ1wogRcLNLYdSRkaZ31NVR6ES/6s4krM1WPDB8IH2wpXYaLQmpTq9y8T/Sv4
+         NerSZGAK6nRaspEUWwDimwLl0vAYb+EHOewTT4uAqYLi94AYuLkzUd1LsrZHHbhn7mCf
+         NIZ7so6sPQXuf8DG7o0yfgEZf/rHKdgGvqWzW5BnrHzpJWaqDXlSWhvWbdpELpZyMacd
+         g7PBli6beFRT5Cq592feuC8wdwKFDGsNQKdE4FJ9KVPTwPE450vRjOtGxmPYcU1SRc9j
+         O0roq094ck37KaJT7ErnRXhNM1Lw1SEDF9ivp1ZyWm6cLgl/al3rdimH4p/MNilDZp6C
+         4V0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Hu2+IHvU0rbjKTuDhKIV7ajzUzxsMVFATjP9eUoiQdA=;
-        b=lJ5rTeH5v2J4fLqOz2KCWDHwxEv17HtMnVDLQHqUzJDYrVhIDQ3w/PQ11LI/ZY+Vgn
-         t9tWKdxbEpH0XZs7RP1lulhSgiHNZZ7YA5JyJPkuWE+ZokVsr6JnclujXh0AGbjQYnEK
-         3yCY/pf+Oa4ECwQf1m3VklzunzaSfFVLu+Pvl4x6lNfLo/wDGf8h5mLIgvcNR1AQrNJ4
-         TdWS2e4kxeXn1/zzn/OoYg11BG0aD6kGqtZ1iwv2987kIROGncjRL/KOlcDbjGt3Zcm9
-         vDNQEdUM5NUWMnKMvDiT9d23xGQWb4/tz/rPkDl/foHjG1WJPivm6AvUt4MhWTdJ0k0u
-         pLzQ==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=ti8PeUs+SEtcVpT4jkp4p9ziOXOkaOIVi5KzTFKptXo=;
+        b=W95ZqM9nHl9gVGvsnqauu/dnC+9FLHj1CpalNXVyDHya+24prawq0A2yyTuk10OuKb
+         HjCVHAgA111ragUznQ1eBYQIfXCm0A7u9LV6iWxlolLFLJqgFZfocTg3okhX4I5PuPEN
+         SmbTR2etVdnHNwEP/8FgTmN9mXzLCWwlHGq/qgy6layf5G0zSC+2zGDEbNhPTCMDNaYe
+         swb4l/oNBHCp7oNdgG3zcpzIaipsUMMn5USWjBhd5wPlEz9FyL0g7EEWb2/CBfJMpNyg
+         TMwhEqj3SAp3lpMBKiNVtBalR238eJiQ/Pmd8T0e5gQgoLEo+c3p+lP7JoYASHEpI47Z
+         whpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=V+AOhodA;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e14si16486484pfn.203.2019.04.23.10.53.34
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id l59si16071592plb.298.2019.04.23.10.54.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Apr 2019 10:53:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 10:54:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=V+AOhodA;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=Hu2+IHvU0rbjKTuDhKIV7ajzUzxsMVFATjP9eUoiQdA=; b=V+AOhodAI+KAMRnXGD2WAOGJQ
-	xPQ5d4bCeODBL2OqoCj8evwLcikkJhxk2qk5dh2E9kn+CSgyJqTsvvCYZuxJN219WNLsMnIdgCQaT
-	Ly79tNmWBMwlhG/27ffMqzsvCfZfASKYN20e9Xz3d7iJ+NnXgIXBn1kHe2YN8jGrUSp1zwKQx54Nz
-	Z01b+yw3jDza/c4oO9DOUwFLRUVtnwKSZtXnK6H/urYIjYe7sMGC31dg0UvgwmZbnOjI3exfVz7yS
-	vYqqufXzb4cR/PfHUEpOSMEF8OBUWV30jwMwH3U99FNG0Ub6dRVQbaMAv5593KRL76F9wBL7C5SlE
-	Mc/SjbtAg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIzbi-0001CA-UI; Tue, 23 Apr 2019 17:53:26 +0000
-Date: Tue, 23 Apr 2019 10:53:26 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: syzbot <syzbot+35a50f1f6dfd5a0d7378@syzkaller.appspotmail.com>
-Cc: akpm@linux-foundation.org, aneesh.kumar@linux.ibm.com,
-	dave.jiang@intel.com, hughd@google.com, jglisse@redhat.com,
-	jrdr.linux@gmail.com, kirill.shutemov@linux.intel.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com,
-	rientjes@google.com, syzkaller-bugs@googlegroups.com,
-	vbabka@suse.cz
-Subject: Re: WARNING: locking bug in split_huge_page_to_list
-Message-ID: <20190423175326.GC19031@bombadil.infradead.org>
-References: <0000000000003c9bea058734dc28@google.com>
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from localhost.localdomain (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ms.lwn.net (Postfix) with ESMTPSA id 77A672DD;
+	Tue, 23 Apr 2019 17:53:53 +0000 (UTC)
+Date: Tue, 23 Apr 2019 11:53:49 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mike Snitzer <snitzer@redhat.com>, Mauro Carvalho Chehab
+ <mchehab+samsung@kernel.org>, Linux Doc Mailing List
+ <linux-doc@vger.kernel.org>, Mauro Carvalho Chehab <mchehab@infradead.org>,
+ linux-kernel@vger.kernel.org, Johannes Berg <johannes@sipsolutions.net>,
+ Kurt Schwemmer <kurt.schwemmer@microsemi.com>, Logan Gunthorpe
+ <logang@deltatee.com>, Bjorn Helgaas <bhelgaas@google.com>, Alasdair Kergon
+ <agk@redhat.com>, dm-devel@redhat.com, Kishon Vijay Abraham I
+ <kishon@ti.com>, Rob Herring <robh+dt@kernel.org>, Mark Rutland
+ <mark.rutland@arm.com>, Bartlomiej Zolnierkiewicz
+ <b.zolnierkie@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter
+ <daniel@ffwll.ch>, Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
+ Ning Sun <ning.sun@intel.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon
+ <will.deacon@arm.com>, Alan Stern <stern@rowland.harvard.edu>, Andrea Parri
+ <andrea.parri@amarulasolutions.com>, Boqun Feng <boqun.feng@gmail.com>,
+ Nicholas Piggin <npiggin@gmail.com>, David Howells <dhowells@redhat.com>,
+ Jade Alglave <j.alglave@ucl.ac.uk>, Luc Maranget <luc.maranget@inria.fr>,
+ "Paul E. McKenney" <paulmck@linux.ibm.com>, Akira Yokosawa
+ <akiyks@gmail.com>, Daniel Lustig <dlustig@nvidia.com>, "David S. Miller"
+ <davem@davemloft.net>, Andreas =?UTF-8?B?RsOkcmJlcg==?= <afaerber@suse.de>,
+ Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>, Cornelia Huck
+ <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>, Eric Farman
+ <farman@linux.ibm.com>, Halil Pasic <pasic@linux.ibm.com>, Martin
+ Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, Harry Wei <harryxiyou@gmail.com>, Alex Shi
+ <alex.shi@linux.alibaba.com>, Jerry Hoemann <jerry.hoemann@hpe.com>, Wim
+ Van Sebroeck <wim@linux-watchdog.org>, Guenter Roeck <linux@roeck-us.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Russell King
+ <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, "James E.J. Bottomley"
+ <James.Bottomley@HansenPartnership.com>, Helge Deller <deller@gmx.de>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ Guan Xuetao <gxt@pku.edu.cn>, Jens Axboe <axboe@kernel.dk>, Greg
+ Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki"
+ <rafael@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Matt Mackall
+ <mpm@selenic.com>, Herbert Xu <herbert@gondor.apana.org.au>, Corey Minyard
+ <minyard@acm.org>, Sumit Semwal <sumit.semwal@linaro.org>, Linus Walleij
+ <linus.walleij@linaro.org>, Bartosz Golaszewski
+ <bgolaszewski@baylibre.com>, Darren Hart <dvhart@infradead.org>, Andy
+ Shevchenko <andy@infradead.org>, Stuart Hayes <stuart.w.hayes@gmail.com>,
+ Jaroslav Kysela <perex@perex.cz>, Alex Williamson
+ <alex.williamson@redhat.com>, Kirti Wankhede <kwankhede@nvidia.com>,
+ Christoph Hellwig <hch@lst.de>, Marek Szyprowski
+ <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Steffen
+ Klassert <steffen.klassert@secunet.com>, Kees Cook <keescook@chromium.org>,
+ Emese Revfy <re.emese@gmail.com>, James Morris <jmorris@namei.org>, "Serge
+ E. Hallyn" <serge@hallyn.com>, linux-wireless@vger.kernel.org,
+ linux-pci@vger.kernel.org, devicetree@vger.kernel.org,
+ dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org,
+ tboot-devel@lists.sourceforge.net, linux-arch@vger.kernel.org,
+ netdev@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-s390@vger.kernel.org, kvm@vger.kernel.org,
+ linux-watchdog@vger.kernel.org, linux-ia64@vger.kernel.org,
+ linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, linux-block@vger.kernel.org,
+ linux-crypto@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
+ linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
+ platform-driver-x86@vger.kernel.org, iommu@lists.linux-foundation.org,
+ linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
+ linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
+ files to *.rst
+Message-ID: <20190423115349.589c3d50@lwn.net>
+In-Reply-To: <20190423171158.GG12232@hirez.programming.kicks-ass.net>
+References: <cover.1555938375.git.mchehab+samsung@kernel.org>
+	<cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
+	<20190423083135.GA11158@hirez.programming.kicks-ass.net>
+	<20190423125519.GA7104@redhat.com>
+	<20190423130132.GT4038@hirez.programming.kicks-ass.net>
+	<20190423103053.07cf2149@lwn.net>
+	<20190423171158.GG12232@hirez.programming.kicks-ass.net>
+Organization: LWN.net
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000000000003c9bea058734dc28@google.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 09:13:06AM -0700, syzbot wrote:
-> DEBUG_LOCKS_WARN_ON(class_idx > MAX_LOCKDEP_KEYS)
-> WARNING: CPU: 0 PID: 1553 at kernel/locking/lockdep.c:3673
-> __lock_acquire+0x1887/0x3fb0 kernel/locking/lockdep.c:3673
->  down_write+0x38/0x90 kernel/locking/rwsem.c:70
->  anon_vma_lock_write include/linux/rmap.h:120 [inline]
+On Tue, 23 Apr 2019 19:11:58 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-All anon_vmas share the same lockdep map, so I think this is just a
-victim of someone else who's taken all the lockdep classes.
+> When writing, I now have to be bothered about this format crap over just
+> trying to write a coherent document.
+
+Just write text, it'll all work out in the end :)
+
+> Look at crap like this:
+> 
+> "The memory allocations via :c:func:`kmalloc`, :c:func:`vmalloc`,
+> :c:func:`kmem_cache_alloc` and"
+> 
+> That should've been written like:
+> 
+> "The memory allocations via kmalloc(), vmalloc(), kmem_cache_alloc()
+> and"
+
+Yeah, I get it.  That markup generates cross-references, which can be
+seriously useful for readers - we want that.  But I do wonder if we
+couldn't do it automatically with just a little bit of scripting work.
+It's not to hard to recognize this_is_a_function(), after all.  I'll look
+into that, it would definitely help to remove some gunk from the source
+docs.
+
+jon
 
