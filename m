@@ -2,194 +2,148 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91424C282DD
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:19:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D642CC10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:20:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C9F62175B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:19:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C9F62175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 94556218DA
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:20:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="U0ZAOGTH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94556218DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E1CC76B0003; Tue, 23 Apr 2019 12:19:44 -0400 (EDT)
+	id B36B16B0007; Tue, 23 Apr 2019 12:20:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA35B6B0005; Tue, 23 Apr 2019 12:19:44 -0400 (EDT)
+	id AE41C6B0008; Tue, 23 Apr 2019 12:20:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6D386B0007; Tue, 23 Apr 2019 12:19:44 -0400 (EDT)
+	id 986356B000A; Tue, 23 Apr 2019 12:20:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 73ACB6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:19:44 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w5so7463028eda.16
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:19:44 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA6D6B0007
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:20:11 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id s19so2476860ljg.4
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:20:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=ShdelWa0SnJVuS9NeeHLECeve8FIaEzLn2zENZakrrI=;
-        b=Qj/WNyAqpVujLxlNZE8W+7+YNeqr57AIctuX04tUqCZf06HW/zdS5rRgbngvyemCBu
-         wjXe5a0gEFFXNPnuruFDdgsLzzf/fLWkawFiEjcClCdc8SgbeqQ9SLk29LS+2xJ08fSy
-         Sr+GZY0oI2ZSi8Md7uMvuBpWE7ADKJ9uvz21b/3rBmEZ/s0ag01zAlJQDVLxJ0uy7Vj7
-         6xzK5BhL3oyEHtXaliPrifK667cSgv+dDtkfYhDpMB15jsB6iR63Q0XUyH3LqjNlAWRN
-         i9O1IVnYAdcT6JB7nzmQIZtFzoQLMdDxsuIIZ7bMvNmldWPQN7ELd2+7t4x3OLXUnSbJ
-         CvjA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAXSqkofZ71uLV9vIVPBuHnmAaTx2CSPJqwBWuNHTdVzN9YF1fDV
-	+yrlstg6rtWhgX/XFXd19A2uJAF6L/eBWpYIMDIzQwFOrNKrw7gc8rqkqLTUUwZhFazu0jO4eGq
-	sQbvXMB2SOIWGRrQGrNV0LAuxOd2I4wINW/1WbA9JQ9VGBBTlPOIcMvlj6PzoUPKypw==
-X-Received: by 2002:a17:906:bce2:: with SMTP id op2mr5078229ejb.105.1556036384001;
-        Tue, 23 Apr 2019 09:19:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNSBi8f8V/b/UwGioozAn4HDl2LfM7cDFZCNwJeRu3J7iR5vQkmHvhcxMvWjN8fEJxZV37
-X-Received: by 2002:a17:906:bce2:: with SMTP id op2mr5078188ejb.105.1556036383183;
-        Tue, 23 Apr 2019 09:19:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556036383; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=9lZI3PImqx3T4CK/0DFoAjfnTtOk7dOVBphM/XkSKVI=;
+        b=K6JlDByFlPDoQXMl8vwGz6tAleeim/fIYivRjQaFWGXh+f8FWWL2CyPod0cBWk7qxF
+         YPMoRKn9gItoDFfBF1MuQN+1MMpSvRF23/VaGggy6j6PFqpIIUzPqM5XI77j1YFpZllw
+         CZqnLsF6MmZT5mXFF01x5cphGiG2lEhg3P/Pek6TOe6dCltegAaAwV+DRtVLgusboAaa
+         Zmfe1yqxL+pDcuxXIXSuaJLyIF4Xm8r5xfx2gfB2IlBA7izviVd3Xs9ud5erVf4dWJkX
+         z15t96fhTvyCxiClMZnZ+71iIEWcq10kfpbKoaMpSMq2J2eIAzlDEBW0exBXIaAmaJwt
+         H+PQ==
+X-Gm-Message-State: APjAAAVyUMKWZcJNN/dTZcERN/HWcosjsNQ0SMw4ja7fttgu+Z7uAgZJ
+	HDyEcEVvqYRmImAdjknA/JHvwyrx5qnxwfYl4Lqnxu3b+85LwTNPOmI9cg2rVgXvRmGDdOk7Hjj
+	nQwAYqeNyu3g5I0ALyfNkNyu1MckvaYQ7foIk3wQUvgJMJj9wnXw+4tVSg+N+7aPn3A==
+X-Received: by 2002:a19:f50f:: with SMTP id j15mr14837535lfb.135.1556036410287;
+        Tue, 23 Apr 2019 09:20:10 -0700 (PDT)
+X-Received: by 2002:a19:f50f:: with SMTP id j15mr14837478lfb.135.1556036409430;
+        Tue, 23 Apr 2019 09:20:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556036409; cv=none;
         d=google.com; s=arc-20160816;
-        b=JQ5l3dyvUw6tUBoMKk48iF6RajQ2gNyW3rJyHnw7bSrKsbn3xN0eSF1+WqnPsy+UVo
-         HReih4ePICPA3Yfn2kfTS2oZO9/Z4tNT7XPGnutW2tibNce/cQDo24Z295B6goGQeBXj
-         6L2rvZg3wmfxfpAZxcn76PZR+Rgxt9d6cCg3gT85cIpU1OiXDPydwqUo0z9q/hYJKYlv
-         Ol5SYY8xEtFNjt+n6DD3HsRGDAHWa0HDgNq1SqPJISSqGfoZWplWEt3dkhIPZPEgqe50
-         hcTdXxs3lgnYjVnTQ70xK1IQ4kMrGDCSKg05/I7GXa2Arauck7B+0yFeiYUCWNBFMmXc
-         0iFA==
+        b=uKd1fxMKHm4s++9w+4GjJZeBLAF39Z7oHDG/Kbu0L9GzxZvPKkxZt8373cG3sBBsWq
+         7IsQbd4tTm/V3vfTC9HeOSBYYaUbplH8JeQETBLbCUmbm6CuLVEtE3bOThQ9GLzT3v3A
+         ihBNip7loDF8JGCKk+x9kkdXLLwknWSOHrchNrFeNwoPEFpUDMgzILg0pJKLoxcusRtc
+         ArxIe/QGf7xpX+9kqVZa4zRQed7SSaeJ0iufFanAslr19t+Bo5fjDP7fVGXrp3eAr8q3
+         tMk8QDo/hiIKi/3LKQzoFmqp5pQvmwyr9YWkfK+MQw25lZpfloVHrrm7v7eu8jaujOid
+         QBFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=ShdelWa0SnJVuS9NeeHLECeve8FIaEzLn2zENZakrrI=;
-        b=r289kTRUduLpn17I5kBEx9nhogwyi9tki189wwZG9zXoNEPi49CUQlo4Ynihq0Api9
-         UBJMUXLOKC/vd9QEuI3UL9rHOkrk0VBEiTDRFZG+rHPZHh5ZrBSrA7/1nNuJOw/tPYDs
-         5EXaV6rl1QQk9j0Y1gjqeWJun1Kipa8Lg1ZM9AP+Y0BXBJ+is0VSMmKdEAAsKdzK6gYr
-         C/sQghTYIfFKfuZMK04LnMrnMmIZZkyveFSnoVI7nqWwqzec15/5HYFbZzdrnsIMFMSF
-         B04gRS4a3u0Mp9Tlpb/PCR0SYchsKpVv8aoWEUi2nnVeDtpKszBo6vtPB9E1Rh5Z+AAs
-         E2uQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=9lZI3PImqx3T4CK/0DFoAjfnTtOk7dOVBphM/XkSKVI=;
+        b=MYViJIjw6ER0a4KCbZKEkLQrFRxLnGZmV1/gsfzi1HSHya0LpiI49Xuhd5+lCmNJKa
+         wz5aLKpGBU9XgxP2/lQo7JxMTdN7fnAuTbF1hGA2za26lcJuYiPfYoF3FVwf0lhTmOwh
+         HsAxglvNbiqEg3BTIyjJgHZlasemN/SuU34st6jbV6BrcGh338hVlLfb8xbRL5z59kJd
+         jGQQO6Fp1O+6EczD90zt/QzLiheTnHUy4fwb94a+aUN149pfPCqVYHi+0SE8+4JrjdYH
+         S55SIVw4DDRy6p2AgUKBIXzjHtA5BmhyEBQhmK6OKiflFFs1VRFchXBAKysfIZu5Mt/X
+         KJhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id z11si177998ejp.297.2019.04.23.09.19.42
-        for <linux-mm@kvack.org>;
-        Tue, 23 Apr 2019 09:19:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=U0ZAOGTH;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t13sor2551249lje.28.2019.04.23.09.20.09
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 23 Apr 2019 09:20:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C1AFD80D;
-	Tue, 23 Apr 2019 09:19:41 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BD5F03F557;
-	Tue, 23 Apr 2019 09:19:34 -0700 (PDT)
-Date: Tue, 23 Apr 2019 17:19:32 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, akpm@linux-foundation.org,
-	mhocko@kernel.org, peterz@infradead.org, kirill@shutemov.name,
-	ak@linux.intel.com, dave@stgolabs.net, jack@suse.cz,
-	Matthew Wilcox <willy@infradead.org>, aneesh.kumar@linux.ibm.com,
-	benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, hpa@zytor.com,
-	Will Deacon <will.deacon@arm.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	sergey.senozhatsky.work@gmail.com,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
-	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
-	David Rientjes <rientjes@google.com>,
-	Ganesh Mahendran <opensource.ganesh@gmail.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Punit Agrawal <punitagrawal@gmail.com>,
-	vinayak menon <vinayakm.list@gmail.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	zhong jiang <zhongjiang@huawei.com>,
-	Haiyan Song <haiyanx.song@intel.com>,
-	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
-	Michel Lespinasse <walken@google.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com,
-	paulmck@linux.vnet.ibm.com, Tim Chen <tim.c.chen@linux.intel.com>,
-	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Subject: Re: [PATCH v12 04/31] arm64/mm: define
- ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT
-Message-ID: <20190423161931.GE56999@lakrids.cambridge.arm.com>
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
- <20190416134522.17540-5-ldufour@linux.ibm.com>
- <20190416142710.GA54515@lakrids.cambridge.arm.com>
- <4ef9ff4b-2230-0644-2254-c1de22d41e6c@linux.ibm.com>
- <20190416144156.GB54708@lakrids.cambridge.arm.com>
- <20190418215113.GD11645@redhat.com>
- <73a3650d-7e9f-bc9e-6ea1-2cef36411b0c@linux.ibm.com>
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=U0ZAOGTH;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=9lZI3PImqx3T4CK/0DFoAjfnTtOk7dOVBphM/XkSKVI=;
+        b=U0ZAOGTH5UzOQdSVmsRebl4caZMqgVo2nPoPpTPrrdJ2jTA2RW3NvPCtg1KZ42Zvcn
+         G1ZGbbk7dpA34xaZlDxhRhMjPICHO6n25H8k2Y6VQo012xfUtNyPqEP4sg7Co05cV8zT
+         6xNAONXbiweJJlYFDC8Lw3jO/2/rX7GIsZO6s=
+X-Google-Smtp-Source: APXvYqy8z3ISMOUFUIcweVO2oXH/dP5ciAzBJLjV/iC13YrX1VwJRd1NA4q4tvNQObItsnAdIQ7WCQ==
+X-Received: by 2002:a2e:2d02:: with SMTP id t2mr12762231ljt.148.1556036408032;
+        Tue, 23 Apr 2019 09:20:08 -0700 (PDT)
+Received: from mail-lj1-f175.google.com (mail-lj1-f175.google.com. [209.85.208.175])
+        by smtp.gmail.com with ESMTPSA id b20sm3352976lfi.78.2019.04.23.09.20.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 09:20:07 -0700 (PDT)
+Received: by mail-lj1-f175.google.com with SMTP id v13so1506959ljk.4
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:20:06 -0700 (PDT)
+X-Received: by 2002:a2e:5dd2:: with SMTP id v79mr14738625lje.22.1556036406473;
+ Tue, 23 Apr 2019 09:20:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <73a3650d-7e9f-bc9e-6ea1-2cef36411b0c@linux.ibm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+References: <20190419215358.WMVFXV3bT%akpm@linux-foundation.org>
+ <af3819b4-008f-171e-e721-a9a20f85d8d1@infradead.org> <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 23 Apr 2019 09:19:50 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wg_yKXPmkTcHWPsf61BXNLzz9bEUDWboN4QfeHKZsCoXA@mail.gmail.com>
+Message-ID: <CAHk-=wg_yKXPmkTcHWPsf61BXNLzz9bEUDWboN4QfeHKZsCoXA@mail.gmail.com>
+Subject: Re: mmotm 2019-04-19-14-53 uploaded (objtool)
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Mark Brown <broonie@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, Josh Poimboeuf <jpoimboe@redhat.com>, 
+	Andy Lutomirski <luto@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 05:36:31PM +0200, Laurent Dufour wrote:
-> Le 18/04/2019 à 23:51, Jerome Glisse a écrit :
-> > On Tue, Apr 16, 2019 at 03:41:56PM +0100, Mark Rutland wrote:
-> > > On Tue, Apr 16, 2019 at 04:31:27PM +0200, Laurent Dufour wrote:
-> > > > Le 16/04/2019 à 16:27, Mark Rutland a écrit :
-> > > > > On Tue, Apr 16, 2019 at 03:44:55PM +0200, Laurent Dufour wrote:
-> > > > > > From: Mahendran Ganesh <opensource.ganesh@gmail.com>
-> > > > > > 
-> > > > > > Set ARCH_SUPPORTS_SPECULATIVE_PAGE_FAULT for arm64. This
-> > > > > > enables Speculative Page Fault handler.
-> > > > > > 
-> > > > > > Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> > > > > 
-> > > > > This is missing your S-o-B.
-> > > > 
-> > > > You're right, I missed that...
-> > > > 
-> > > > > The first patch noted that the ARCH_SUPPORTS_* option was there because
-> > > > > the arch code had to make an explicit call to try to handle the fault
-> > > > > speculatively, but that isn't addeed until patch 30.
-> > > > > 
-> > > > > Why is this separate from that code?
-> > > > 
-> > > > Andrew was recommended this a long time ago for bisection purpose. This
-> > > > allows to build the code with CONFIG_SPECULATIVE_PAGE_FAULT before the code
-> > > > that trigger the spf handler is added to the per architecture's code.
-> > > 
-> > > Ok. I think it would be worth noting that in the commit message, to
-> > > avoid anyone else asking the same question. :)
-> > 
-> > Should have read this thread before looking at x86 and ppc :)
-> > 
-> > In any case the patch is:
-> > 
-> > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> 
-> Thanks Mark and Jérôme for reviewing this.
-> 
-> Regarding the change in the commit message, I'm wondering if this would be
-> better to place it in the Series's letter head.
-> 
-> But I'm fine to put it in each architecture's commit.
+On Tue, Apr 23, 2019 at 1:25 AM Peter Zijlstra <peterz@infradead.org> wrote:
+>
+> Now, we could of course allow this symbol, but I found only the below
+> was required to make allyesconfig build without issue.
+>
+> Andy, Linus?
 
-I think noting it in both the cover letter and specific patches is best.
+Ack on that patch. Except I think the uaccess.h part should be a
+separate commit: I think it goes along with 2a418cf3f5f1
+("x86/uaccess: Don't leak the AC flag into __put_user() value
+evaluation") we did earlier. I think the logic is the same - it's not
+just the _value_ that can have complex calculations, the address can
+too (although admittedly that's really not supposed to be common, but
+you clearly found one case where a complier misfeature made it happen,
+so...).
 
-Having something in the commit message means that the intent will be
-clear when the patch is viewed in isolation (e.g. as they will be once
-merged).
+I also wonder if we should just make "count" be "unsigned long" in
+do_{strncpy_from,strnlen}_user() too, since we've already done
 
-All that's necessary is something like:
+        if (unlikely(count <= 0))
+                return 0;
 
-  Note that this patch only enables building the common speculative page
-  fault code such that this can be bisected, and has no functional
-  impact. The architecture-specific code to make use of this and enable
-  the feature will be addded in a subsequent patch.
+in the caller, so it *is* unsigned by then, and we'd not be mixing
+signedness when comparing "max/count/res".
 
-Thanks,
-Mark.
+                   Linus
 
