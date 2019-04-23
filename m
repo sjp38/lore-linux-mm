@@ -5,162 +5,149 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C4470C10F03
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 20:35:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 323D3C282DD
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 20:36:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B85A218B0
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 20:35:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B85A218B0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
+	by mail.kernel.org (Postfix) with ESMTP id DDBA5218B0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 20:36:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDBA5218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 199ED6B0003; Tue, 23 Apr 2019 16:35:12 -0400 (EDT)
+	id 93A4A6B0007; Tue, 23 Apr 2019 16:36:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 149186B0005; Tue, 23 Apr 2019 16:35:12 -0400 (EDT)
+	id 8E9F56B0008; Tue, 23 Apr 2019 16:36:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 010E26B0007; Tue, 23 Apr 2019 16:35:11 -0400 (EDT)
+	id 7D7DF6B000A; Tue, 23 Apr 2019 16:36:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BBAF66B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 16:35:11 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id r5so4294139pgb.11
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:35:11 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 465ED6B0007
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 16:36:30 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id n63so10369492pfb.14
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 13:36:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=NWym8ed0ac5YijevlL+9P33gekKbYTV5W+hQH97w1zw=;
-        b=SA5c3ZHMHjRdhbvsbJ47D/zHfTC9J/jUP/15YhBfDYyqmjkKum6tTG6/o1ThLq4U/R
-         Pbt15GzW9N0YD51MonmVp4VukuUZp4Ke5IHQeBy+2rG/nYJsD9VRLfQJXOmvAkJ1nCuR
-         Vzv5B2SPstbeuPVDEgnFbkARWmnWMWp1M49G+mLjj9HDlypwABaWlnsQOl7RheZKwqKC
-         m1kFOx2xEG1RKGoI/ckgVC2sNUmQJFJ0v/dZQfskn2hP5WJISUfaNZ5u+uHP92xfJTis
-         DNbReFfMAP6T16LY6WAsCyBoHOHn7FhbU0MahQg5NgNjHYLBPVFFsMs6McVzfRrrvKgj
-         rp4g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-X-Gm-Message-State: APjAAAWWxAA+gQ5+3zKAebKzaU41NM9kBdombJz5Fwf7xuAdxsPxmFWn
-	unYPvfeG9YOJhntNK0QyyefbiT7hhIJf4rcuGbsJ1kx3+aRyceE5DZ7lUFnKKPqKz50aRyRiiMR
-	z0J3UDi6qAUdNEBsktVtmCdliTbOvLTO7Syk65GI/BHwUsA3uNWa9RnXYMZ7DAypiZw==
-X-Received: by 2002:a17:902:1d4a:: with SMTP id u10mr2724153plu.272.1556051711336;
-        Tue, 23 Apr 2019 13:35:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxcuvTYntd0mBLpytNvUJOmPTHA0lradzs56+/wRuCU7L15r4OA1XbIr4eDBOlY7euF9fto
-X-Received: by 2002:a17:902:1d4a:: with SMTP id u10mr2724109plu.272.1556051710671;
-        Tue, 23 Apr 2019 13:35:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556051710; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=wkDXEyuBWVa26ktVkqbuCJ5rsN/f+QpBE+itAQZqAZM=;
+        b=bNCZBkARmHRo3zq22TeOtOb8+FUFfY3rRHwqrJtj+0hLU79cGjqYIn/ba+mJ4SmTZg
+         OfK05Y1f9Cjpsh9jUUXQiI8rLAdMtCQ4uWCRCUwaZxPsVjf69Sebi9lc6YA/bbv5F0HP
+         hS4yjTXpDX/5sb/bI88ZSdsxXEXchMcVLDinuztF7OXUx8L9wzNZAklicHmZcQNvpRC7
+         0GaJUbrC1lYnozrrqHp5wvQLjH4wct/IddWA5mMM22epFXMkcvFMvY84d893tkgRZdfz
+         RyEd5o0AKDTmYPcD5fQb/BsogSWLmyMJFkkjoBuuXDql8ouKRH1zSxqRL4n3No76+1Wd
+         SQ4w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX2fDlpkMWemu0fv9oN5Mz2oyPmPz/bt2Fxnx3x0fV4RBsZ0mpv
+	J6hY7rSvJpp6VoG6Hbby5vFTCm30xHgs91eSKYngyR0LixmlOPvJaN0pLTTD+/o0gt/lCGdPeT1
+	mXisRwa/MMU6SmPac0kdkEa7jrvkxTV6Y9cLv+0DIYu34L7d8QixvEMF8LDsfrDqhOw==
+X-Received: by 2002:a63:4144:: with SMTP id o65mr26579064pga.241.1556051789969;
+        Tue, 23 Apr 2019 13:36:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzf3p84ikjv5lOqCGwBXrPiTQa3Zobs5bmtsapG6BhGv3N0UFG7sZT+8raYXYnzkxjlvRL4
+X-Received: by 2002:a63:4144:: with SMTP id o65mr26579010pga.241.1556051789235;
+        Tue, 23 Apr 2019 13:36:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556051789; cv=none;
         d=google.com; s=arc-20160816;
-        b=I7AZlEok12KufmVOgaCeSVcV6DI3xbj5+d0gH4ahvhNisTN1GQzVW+krLyqtbwx1Ss
-         ibPOb/7jnKuaYsP22tdOaGv33uDMHLbNbf8NYYE4fw06Su8hmpYNhSwstXMJ9HDbQejU
-         vVm8XpSzYzxVx9HpukfSOHQnKERr9Bz6VObdZ6fLZSYmzW7UXLwNPnKDYvXoS3IEtG5p
-         TrywtaiHqKhYn4AbxHuSl0gPtKLu9BCNJJXKHLeaidqmMAUBv32Mif/u/TJuUS9QIaB9
-         sXQlUL0iCXLr3Cqf3ORudtTcA8HD51Ncei/XEQvpEgTFPsXMXdUu+VUQPxU6+2cxKXEi
-         o3NQ==
+        b=RKNRgjt8L/rKUBM1TJ2TAZPxakS8bbmDtbSNqATuLImR7d9WlaYG4s//aRDDDx+3Qv
+         tVCDo9M8c6XIaG9JRJhK7DKRiHP1lNBGk1KYZEQR1IQBrkZz7du3nfgIyR8xvBlp7z2C
+         BHFfr3pWvMsp2TW3lrQ4EN5AKLWqoizMIPmCAzeIJCX01a4xGx9/ez/BkSiLYOymchh5
+         IERI9OSTkY/noQal3ZZzDhZGttY1G6RfAVRVpT69nr8a/xU63Mon9ZpGsqP3OUe0BDy0
+         Nzhm/IsvlBGk3uOQ6z/YX6dlf8Ip+oShKEeaqSCgGVKD0+5KbghSD3OQpGDPPI7xgbtK
+         xZGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=NWym8ed0ac5YijevlL+9P33gekKbYTV5W+hQH97w1zw=;
-        b=mVYYLywmGM4gGpO2k9ZrI5ZIdeebOL8SP5DhSm7Udqngc4I53IoXLCOsmldVasnyJe
-         LxJi1j4m40nUJrpxdkuk6HfaNEA1X7sjS8z01tuWswP0WGEZWhTAEQ+Nhos7i4o3zHUZ
-         +4OeMT9nW0oJ95KZbtQWr702IQ0eevRT7+6nml1lJswSHL3MOhUI7Z4YDOGv98jBGS/n
-         WE05lIl7sOlmBMhEDIYzcupwOY61/pNnY125JZg7oewMQqcm76hcu4Ar2AeVdUpyuG0j
-         x/6GlcVcHek6jKwhy1TdAfpdB1JPhcXBbUdrlD5+lrOXMHJpPfXwSwZCrDv9LSRCS7Mv
-         Cb3A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=wkDXEyuBWVa26ktVkqbuCJ5rsN/f+QpBE+itAQZqAZM=;
+        b=QN8Lbl7ccLB/DwztOuLdOLfJWhF3fhKk76A05ZqthhA1pt9eMoGwbu7Ex4AXkMfuOs
+         8t2yeqS/oPX7NcNYJwJBjlW30ZViRLSuJz8NBop8HmLV+WaUGmWNm6M9dMW4+Jo4kLVg
+         NR5RAAiERb1DVLAfDhnTf0dk4S5Sy83FdTaxH4hNJJFz26XhckzUinP8FEis07Bbaj9X
+         HDoLDo3lHa2b8gZSl/CuFLrcH/gVyEe8l5KqsxUyFKticZK9q2BF26C6RPTa12wPdcGE
+         NLOR/ZtxbXN+nR/60B2kMm7ML29ItW3XNkpDLBCAoRUiesTtClxUBDrjbgHHHSHe1JGr
+         v5Uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id e92si17672217pld.252.2019.04.23.13.35.10
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id c5si16329955plr.5.2019.04.23.13.36.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 13:35:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
+        Tue, 23 Apr 2019 13:36:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-Received: from localhost.localdomain (localhost [127.0.0.1])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by ms.lwn.net (Postfix) with ESMTPSA id 5739A2DD;
-	Tue, 23 Apr 2019 20:34:42 +0000 (UTC)
-Date: Tue, 23 Apr 2019 14:34:38 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Mike Snitzer
- <snitzer@redhat.com>, Linux Doc Mailing List <linux-doc@vger.kernel.org>,
- Mauro Carvalho Chehab <mchehab@infradead.org>,
- linux-kernel@vger.kernel.org, Johannes Berg <johannes@sipsolutions.net>,
- Kurt Schwemmer <kurt.schwemmer@microsemi.com>, Logan Gunthorpe
- <logang@deltatee.com>, Bjorn Helgaas <bhelgaas@google.com>, Alasdair Kergon
- <agk@redhat.com>, dm-devel@redhat.com, Kishon Vijay Abraham I
- <kishon@ti.com>, Rob Herring <robh+dt@kernel.org>, Mark Rutland
- <mark.rutland@arm.com>, Bartlomiej Zolnierkiewicz
- <b.zolnierkie@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter
- <daniel@ffwll.ch>, Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
- Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
- Ning Sun <ning.sun@intel.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon
- <will.deacon@arm.com>, Alan Stern <stern@rowland.harvard.edu>, Andrea Parri
- <andrea.parri@amarulasolutions.com>, Boqun Feng <boqun.feng@gmail.com>,
- Nicholas Piggin <npiggin@gmail.com>, David Howells <dhowells@redhat.com>,
- Jade Alglave <j.alglave@ucl.ac.uk>, Luc Maranget <luc.maranget@inria.fr>,
- "Paul E. McKenney" <paulmck@linux.ibm.com>, Akira Yokosawa
- <akiyks@gmail.com>, Daniel Lustig <dlustig@nvidia.com>, "David S. Miller"
- <davem@davemloft.net>, Andreas =?UTF-8?B?RsOkcmJlcg==?= <afaerber@suse.de>,
- Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>, Cornelia Huck
- <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>, Eric Farman
- <farman@linux.ibm.com>, Halil Pasic <pasic@linux.ibm.com>, Martin
- Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens
- <heiko.carstens@de.ibm.com>, Harry Wei <harryxiyou@gmail.com>, Alex Shi
- <alex.shi@linux.alibaba.com>, Jerry Hoemann <jerry.hoemann@hpe.com>, Wim
- Van Sebroeck <wim@linux-watchdog.org>, Guenter Roeck <linux@roeck-us.net>,
- Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, "H.
- Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Russell King
- <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
- <fenghua.yu@intel.com>, "James E.J. Bottomley"
- <James.Bottomley@HansenPartnership.com>, Helge Deller <deller@gmx.de>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- Guan Xuetao <gxt@pku.edu.cn>, Jens Axboe <axboe@kernel.dk>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki"
- <rafael@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Matt Mackall
- <mpm@selenic.com>, Herbert Xu <herbert@gondor.apana.org.au>, Corey Minyard
- <minyard@acm.org>, Sumit Semwal <sumit.semwal@linaro.org>, Linus Walleij
- <linus.walleij@linaro.org>, Bartosz Golaszewski
- <bgolaszewski@baylibre.com>, Darren Hart <dvhart@infradead.org>, Andy
- Shevchenko <andy@infradead.org>, Stuart Hayes <stuart.w.hayes@gmail.com>,
- Jaroslav Kysela <perex@perex.cz>, Alex Williamson
- <alex.williamson@redhat.com>, Kirti Wankhede <kwankhede@nvidia.com>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski
- <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Steffen
- Klassert <steffen.klassert@secunet.com>, Kees Cook <keescook@chromium.org>,
- Emese Revfy <re.emese@gmail.com>, James Morris <jmorris@namei.org>, "Serge
- E. Hallyn" <serge@hallyn.com>, linux-wireless@vger.kernel.org,
- linux-pci@vger.kernel.org, devicetree@vger.kernel.org,
- dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org,
- tboot-devel@lists.sourceforge.net, linux-arch@vger.kernel.org,
- netdev@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-s390@vger.kernel.org, kvm@vger.kernel.org,
- linux-watchdog@vger.kernel.org, linux-ia64@vger.kernel.org,
- linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, linux-block@vger.kernel.org,
- linux-crypto@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
- linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
- platform-driver-x86@vger.kernel.org, iommu@lists.linux-foundation.org,
- linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
- linux-security-module@vger.kernel.org
-Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
- files to *.rst
-Message-ID: <20190423143438.6a7ce0f2@lwn.net>
-In-Reply-To: <20190423171944.7ac6db54@coco.lan>
-References: <cover.1555938375.git.mchehab+samsung@kernel.org>
-	<cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
-	<20190423083135.GA11158@hirez.programming.kicks-ass.net>
-	<20190423125519.GA7104@redhat.com>
-	<20190423130132.GT4038@hirez.programming.kicks-ass.net>
-	<20190423103053.07cf2149@lwn.net>
-	<20190423171158.GG12232@hirez.programming.kicks-ass.net>
-	<20190423115349.589c3d50@lwn.net>
-	<20190423171944.7ac6db54@coco.lan>
-Organization: LWN.net
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Apr 2019 13:36:28 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,387,1549958400"; 
+   d="scan'208";a="318346461"
+Received: from ray.jf.intel.com (HELO [10.7.201.133]) ([10.7.201.133])
+  by orsmga005.jf.intel.com with ESMTP; 23 Apr 2019 13:36:28 -0700
+Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot
+ option
+To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org,
+ cl@linux.com, dvyukov@google.com, keescook@chromium.org, labbott@redhat.com
+Cc: linux-mm@kvack.org, linux-security-module@vger.kernel.org,
+ kernel-hardening@lists.openwall.com
+References: <20190418154208.131118-1-glider@google.com>
+ <20190418154208.131118-2-glider@google.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
+ oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
+ 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
+ ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
+ VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
+ iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
+ c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
+ pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
+ ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
+ QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
+ c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
+ LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
+ lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
+ MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
+ IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
+ aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
+ I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
+ E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
+ F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
+ CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
+ P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
+ 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
+ GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
+ MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
+ Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
+ lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
+ 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
+ qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
+ BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
+ 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
+ vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
+ FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
+ l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
+ yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
+ +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
+ asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
+ WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
+ sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
+ KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
+ MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
+ hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
+ vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
+Message-ID: <a0b69045-f6c4-0290-1c59-4dd75b05ee25@intel.com>
+Date: Tue, 23 Apr 2019 13:36:28 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20190418154208.131118-2-glider@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -168,20 +155,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Apr 2019 17:19:44 -0300
-Mauro Carvalho Chehab <mchehab+samsung@kernel.org> wrote:
+On 4/18/19 8:42 AM, Alexander Potapenko wrote:
+> +static void poison_dont(struct kmem_cache *c, void *object)
+> +{
+> +	/* Do nothing. Use for caches with constructors. */
+> +}
+> +
+>  static struct kmem_cache *create_cache(const char *name,
+>  		unsigned int object_size, unsigned int align,
+>  		slab_flags_t flags, unsigned int useroffset,
+> @@ -381,6 +391,10 @@ static struct kmem_cache *create_cache(const char *name,
+>  	s->size = s->object_size = object_size;
+>  	s->align = align;
+>  	s->ctor = ctor;
+> +	if (ctor)
+> +		s->poison_fn = poison_dont;
+> +	else
+> +		s->poison_fn = poison_zero;
+>  	s->useroffset = useroffset;
+>  	s->usersize = usersize;
+>  
+> @@ -974,6 +988,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
+>  	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+>  	s->useroffset = useroffset;
+>  	s->usersize = usersize;
+> +	s->poison_fn = poison_zero;
 
-> Anyway, one of the things that occurred to me is that maybe
-> some scripting work or a ReST extension could do something to parse
-> "Documentation/foo" as :doc:`Documentation/foo` without needing to 
-> explicitly use any ReST specific tags.
-
-That probably makes sense too.  People do want to link to specific
-subsections within documents, though; maybe we could allow
-"Documentation/foo#bar" for that.  Such "markup" could even be useful for
-people reading the plain-text files.
-
-Thanks,
-
-jon
+An empty indirect call is probably a pretty bad idea on systems with
+retpoline.  Isn't this just a bool anyway for either calling poison_dont
+or poison_zero?  Can it call anything else?
 
