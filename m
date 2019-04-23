@@ -2,138 +2,136 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9704FC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:41:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F034C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:46:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55C372077C
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:41:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55C372077C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id BED3120843
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 09:46:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VhCDJgQB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BED3120843
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D21D46B0007; Tue, 23 Apr 2019 05:41:13 -0400 (EDT)
+	id 619E66B0007; Tue, 23 Apr 2019 05:46:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD1416B000A; Tue, 23 Apr 2019 05:41:13 -0400 (EDT)
+	id 5A2A16B0008; Tue, 23 Apr 2019 05:46:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE8E16B000C; Tue, 23 Apr 2019 05:41:13 -0400 (EDT)
+	id 492806B000A; Tue, 23 Apr 2019 05:46:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 864276B0007
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 05:41:13 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id p8so9404942pfd.4
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:41:13 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 286886B0007
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 05:46:23 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id s1so15065191itl.1
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:46:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=2uob2F3Kx6TW0ByX6Nfo89dOAaZeH4eT8fFX6/yrdPw=;
-        b=JOeQA1Pr9x1ovgCVDazULX1zVvtVl3PDbrb4WpYqTvxuh8iS9ZJvBzhxbxORB6FJz+
-         FqEnMeVnoEBTSu+NnyawAoPaKRqtd6QAkV6iulCpsbhL53Dr6ExSq/viTrEhOeazK2dv
-         dZ/LR/QFLcMvBh5uMYXIhrNuxvxGR6uI4pe94GY/KK1DCw/afJLDZuCkZgIragGQZhw9
-         78v8/m5OfPcrrkLLfWyDbCLGozOnaRhYfgS1dC9CxOT54v2fcAB8Ye8jTYyM/Wf838J6
-         mpNRyAqgN+pK3KDmlEclLbAgILcaV/MHZ5RGBIVzqQDgnsLzE2qg1hS/LAFOh9Jb9ukE
-         gMNA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXfSJERTLIzOSuhQJewhO8VQ+Hn4TqDW9MTnRqNiKvs/HkqDMR3
-	bDKATiCkClBDj1qFebgT56Smt2dPVe+PH6UmPtwXf3u6Qr3SF4FK8ffCqr2fklC4eUhmLlywQim
-	r+GJt5mZth6DDldPh4pw15aaRFKoY6WW+8L2Zo1IF5V7wZe0y2rJ/CzF/Rr8v7xqfhA==
-X-Received: by 2002:a62:292:: with SMTP id 140mr26395399pfc.206.1556012473203;
-        Tue, 23 Apr 2019 02:41:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxohdDfAfMvZ2GCbAIV3bW6HuEvnPMILoj5Thw+aV1+eKxvfvO6C+L3MiTgYNlHzilkHbLB
-X-Received: by 2002:a62:292:: with SMTP id 140mr26395349pfc.206.1556012472492;
-        Tue, 23 Apr 2019 02:41:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556012472; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=ZDorSYmy5pifOTHN5/R3ArDCdlVxn3mnwyoVkmNtAtk=;
+        b=ACRKv+bkj1rDPAmdQNNyuVZdeq4st4Uz61Y8MT5L+FoC4vxEYobCM5ZYqpu4onZdTL
+         8wvkTbeDaNUmdfbNU6OzG1YZBRvpW8AugM+MUTSZ5OVOr9NIYSUzP8nimxNFheRYrVCV
+         ojU2W4CyfP3DHPj8QL6PrQuLigc7v1/liDcmdpkpY+IUuaCG5I8y9D5rZvfAfhxgyUJd
+         bOh3PVQLJWBXZZ6vLXdTQ7PjaUOeii+bi8oKY392Ns0dOUmfa6UInJrCPVbDHGvX8Va+
+         uGsKOUPlynePTxiNh/1V4Q+o9Sr1qI6aE+ldtUIEqcHYaHSxDNXDSsPIqpO9jUDA9Eng
+         HfOQ==
+X-Gm-Message-State: APjAAAW8eOnLGifNIcgdor75IeEd3t8N6SIBUKCeKtbdDZCJBq2BpVYr
+	iy3nCbyOlHhkrt5gAPZw/Ev6HxS8lQ64FqHiOyB8t3C4O+19JEawNcXCif8ZVnzLY/lQcuqLG5Z
+	XDdWhkBlHNGbgvGcIqUP6J9LjGhRFwUpZOFhF9d2EZL6cOAfVBlcVfHbfM56fC2YtaA==
+X-Received: by 2002:a24:56d1:: with SMTP id o200mr1390651itb.111.1556012782925;
+        Tue, 23 Apr 2019 02:46:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhrYxjPbYY97yNZ3IElU94o9D55wR6Eny7YmnuZpiJbF5D71aUhLorVmrP5C/dJZ3MYKoi
+X-Received: by 2002:a24:56d1:: with SMTP id o200mr1390632itb.111.1556012782420;
+        Tue, 23 Apr 2019 02:46:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556012782; cv=none;
         d=google.com; s=arc-20160816;
-        b=oMqqQout9v2/03CV++/wSwqZdpaw8BMurGMXe2QisUbP73q4wAVIyFxnJkqUJy9M4Q
-         kiH+wgYFJylNX1PpoVMIM647WLsLttmI8MI1QYiO6ZZ5YQovjRuVQ0qToVRBDDo2SZyu
-         DBLr1EcuGuMsYLOwj2wJFZsqrlytOp/z91Qr40OQwvPDDOIZaK1OlSKdCUPUzb7dVMPg
-         HPBRYjVSkbPDjCYctzUDJx/cVbKc93I9TuboyUm0ygmbllPwl3KwIB08gUYHK96J/3dZ
-         jh3HKWA/4Jm7ckDvBN93zyL8D6jV4rPXzVP0aO96zE84dzlTUbu4dM6jeOkxRlmirFrJ
-         7Bjw==
+        b=zwXkg2ip+cCALiYY9zVEW0qdmCV4ESSTX5ewxgdfFfGPnKFr3BGbwqSFGKI3CvcFxc
+         v44XJfajVYPBoGD0Ks9Hn/CDwvg2by8bTRZV5E5oo+PVtdb/A4+/lxx3sLf5yS7gjv13
+         1KD0uNN9V21Zm6LVFrFBStPQktFtjyU0k9uoQWw4+7juVQvTJ6uRXru/Dq3rohAkUrow
+         WkNpRuBQSCb/RkS/10Bq8YkWvY6lG909SKWveXK23u2X7AaZOMZCiuyYjFR9QQrB8ktR
+         ohGVvtQXdzY2Zw3RNGkxQE7F2ZPg6AucvypCtEOt4IWRVHeaZum5Fbr+SZtECPuT4Y92
+         fgGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=2uob2F3Kx6TW0ByX6Nfo89dOAaZeH4eT8fFX6/yrdPw=;
-        b=f2KP8I3eu8gLMIY2SSBsiukXvzsoumbVK6w/wPuOXkWg5GLczOiDvpxuvPxeZOlYSJ
-         VSBy0AAS1jT0DsmVi3nIrjRTcK5eqGCUoIDNFLQxevWBQrVIdUl9f0tHebkXPZVoRscr
-         vhRVBnBlu9GofuzwimyJ7DlXBCfmfLCBQuUtW/AHTsOFAaCCkD71vHeINej64eFkX0cO
-         6xEB6m/bYIpQkLz5R/6bMOtlaiZlIYIF3ad598sZQSX9fdzbsLHpdvaZeFMnESS1LGL5
-         C+vsARg+bti1XadG3AADDT2nuxGLDEJEhArOlVbUyqNvcS3CRPXm93kdQPcc5cH8D2YB
-         DYWw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=ZDorSYmy5pifOTHN5/R3ArDCdlVxn3mnwyoVkmNtAtk=;
+        b=IXeXPBqnPopcMiKoZYrm4xKnzljN+nseKbl6KLcpchXy/7tHm6NxbOraoBEc8vPUkh
+         m/Nn45f95YueBsxzhGLL2Svq+VXp1ysXxmJrFvwjuaXTffM8rwBwrHlpyOv60ea7ICiv
+         5JxUiZ+L8wjL6eqBeswFkR5AermBXCYBKHXkBetFmcdezix5NQpHTbqt5jWDtYsIONWv
+         EgQc0a9GoKMTVqaqT8zuraqWnWLCRafq9knAGUUJ/2kstfWfcAuwSuR1aHqvdvx1ujPb
+         b2mqGh9tIH/CERj6E7VkHgEcqGH4x0kX4jzcwkJceZM6mE+pLmVQBDPFJLJJziKOMe5w
+         +DbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id y193si14374415pgd.483.2019.04.23.02.41.11
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VhCDJgQB;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id y139si9850204itb.94.2019.04.23.02.46.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 02:41:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Apr 2019 02:46:22 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TQ1rapc_1556012469;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TQ1rapc_1556012469)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 23 Apr 2019 17:41:10 +0800
-Subject: Re: [RFC PATCH 3/5] numa: introduce per-cgroup preferred numa node
-To: Peter Zijlstra <peterz@infradead.org>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VhCDJgQB;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
+	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=ZDorSYmy5pifOTHN5/R3ArDCdlVxn3mnwyoVkmNtAtk=; b=VhCDJgQBiA236vNR4anmbsAMXL
+	iKoz13puLU3Kc/59ZTI7P9DnUr9OHwD93GcjQh9E7uYv8wbd0wqaokjsOKy3vOOuUWmExvfTYAbT4
+	6vxpv6oPbmJ21DxtsSrcmPKLRZ+y7jBBaEhdJPeNSTbWD7z3aGOkwcyI8YRXdoapScIPbHdU/XXEk
+	1BPrb0+kAYTfnvJKEgbWV7hV6BLNeWCzHqaMdOcf7P761H3Csf+VD39hheTQ8GDXFNYbmlUOSPHsN
+	9Yx2NlSnYMVNsvSH6uieX/wAQBElNwObTUe5sQtnAyblmtpOfYK9NmQrAXyf3V9d89q84UF0RfFou
+	9hsFg8pQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hIs07-0001ze-Rv; Tue, 23 Apr 2019 09:46:08 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 75A5A29BB5057; Tue, 23 Apr 2019 11:46:06 +0200 (CEST)
+Date: Tue, 23 Apr 2019 11:46:06 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: =?utf-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
 Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov.dev@gmail.com,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH 1/5] numa: introduce per-cgroup numa balancing
+ locality, statistic
+Message-ID: <20190423094606.GK11158@hirez.programming.kicks-ass.net>
 References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <77452c03-bc4c-7aed-e605-d5351f868586@linux.alibaba.com>
- <20190423085533.GF11158@hirez.programming.kicks-ass.net>
-From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-Message-ID: <e5e39d99-2b7a-db27-5aa0-ecc8d064257b@linux.alibaba.com>
-Date: Tue, 23 Apr 2019 17:41:09 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
- Gecko/20100101 Thunderbird/60.6.1
+ <c0ec8861-2387-e73b-e450-2d636557a3dd@linux.alibaba.com>
+ <20190423084722.GD11158@hirez.programming.kicks-ass.net>
+ <b1a3aebf-e699-23ce-b7b8-06b6155f3dbe@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20190423085533.GF11158@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <b1a3aebf-e699-23ce-b7b8-06b6155f3dbe@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 2019/4/23 下午4:55, Peter Zijlstra wrote:
-> On Mon, Apr 22, 2019 at 10:13:36AM +0800, 王贇 wrote:
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index af171ccb56a2..6513504373b4 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -2031,6 +2031,10 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->>
->>  	pol = get_vma_policy(vma, addr);
->>
->> +	page = alloc_page_numa_preferred(gfp, order);
->> +	if (page)
->> +		goto out;
->> +
->>  	if (pol->mode == MPOL_INTERLEAVE) {
->>  		unsigned nid;
->>
+On Tue, Apr 23, 2019 at 05:33:25PM +0800, 王贇 wrote:
 > 
-> This I think is wrong, it overrides app specific mbind() requests.
-
-The original concern is that we scared the user apps insider cgroup deal
-wrong with memory policy and do bad behavior, but now I agree that we
-should not override the policy, the admin will take the responsibility.
-
-Regards,
-Michael Wang
-
 > 
+> On 2019/4/23 下午4:47, Peter Zijlstra wrote:
+> > On Mon, Apr 22, 2019 at 10:11:24AM +0800, 王贇 wrote:
+> >> +	p->numa_faults_locality[mem_node == numa_node_id() ? 4 : 3] += pages;
+> > 
+> > Possibly: 3 + !!(mem_node = numa_node_id()), generates better code.
+> 
+> Sounds good~ will apply in next version.
+
+Well, check code gen first, of course.
 
