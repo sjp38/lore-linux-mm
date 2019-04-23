@@ -2,192 +2,133 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6390C282E1
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:50:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2685EC282E1
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:14:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 983AC20643
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 06:50:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 983AC20643
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B154C20674
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:14:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="H2HIjKph"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B154C20674
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 345446B0003; Tue, 23 Apr 2019 02:50:27 -0400 (EDT)
+	id 1AA756B0003; Tue, 23 Apr 2019 03:14:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2CA3C6B0006; Tue, 23 Apr 2019 02:50:27 -0400 (EDT)
+	id 15A516B0006; Tue, 23 Apr 2019 03:14:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16BD66B0007; Tue, 23 Apr 2019 02:50:27 -0400 (EDT)
+	id 022676B0007; Tue, 23 Apr 2019 03:14:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B6AA46B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 02:50:26 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n25so7456847edd.5
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 23:50:26 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BBD6B6B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 03:14:07 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id i35so778227plb.7
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:14:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=jD+8DUCoVQgBWAtwdgeeix+moiolWyT23gO9EZ6PCyM=;
-        b=TFfer7zT2vpsando+qdyGG+4GeW2ShqkPz+QuAE/BZdE3Y4+E+kPKjus3WAGIxGqsX
-         IYBQJsrntfVkSnFkcnZ0iSRPjtexGCnoMmjp7vmUbU1sYL8pwW1FNm49xeINkUyt5fSj
-         HqcPI3wExOKm/e9vcSCYIuz39araWvS9GNPofnMkIx0ZtSdNizdOJjMxjl4jOXXbvn8w
-         nPEmX3XsaC1PLQIQDrngPNWbb2ENGzXpv/905ulrvE/o2hoQdXzRnLR0dRkrAsS0CQOR
-         t1dzu5TCTuVKatxkH/v45WnY731xgLf5SETTdDxdR90HHG5FQsecB9Nw6cEWDu1yLNut
-         yDvA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWKJHDeq3+atafMybSq1IqEebi6O0Phogk6IUf7r0fgtntyYRO1
-	NvCEGyj1InNxneLUlmJVDkhqak8baCGsONWyjLD0tN0CvaHPOZ9nPWi+8e+/DiWd+PTi1IVXdNV
-	WS9B54bFBrvjP9chtIcM3smTlGPMqTR8eshGljvWQh3+L7ZQF8lS0XTMlc2gaqfQ=
-X-Received: by 2002:a50:f78b:: with SMTP id h11mr10692553edn.143.1556002226280;
-        Mon, 22 Apr 2019 23:50:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9w/twmF6lCwkCdYZx9lUQq4rSBmjRl20dYJl2oZJBWqSF4vsbRrIcoryO0yZYBCFLZ6fO
-X-Received: by 2002:a50:f78b:: with SMTP id h11mr10692515edn.143.1556002225448;
-        Mon, 22 Apr 2019 23:50:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556002225; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=;
+        b=WNGyycIOooHrPUx9RjCVSu2Ph29gmTYXPWWEv6znyv/CLwxtbnPdGGEwDcVDPioX3b
+         Qlmqlnjy/eZ7fYdqRF54Vfr2sRiXFf5LxqNLSexcpYjXNjc0K4l0Ckg6xC90lQmyFjrO
+         t3gxHJtjmusyskqg23ILOGXctq/S7FiEUbarOEbF/N8fcYpiFd+DmCerVxcK4rScbe0N
+         ZY5xalGAChP4xC0/XWM5Wa3ue/8H3QDNKc3+mRxR9TJoMW8HWSrPFtndnuEHtFIh/idy
+         1jcp17cIm4vvMMddHePhx+c7c6iQYVCkIjh8BPFj5z3rYPlEdk7O0eMVxIBUXAEx/Czd
+         4Hgw==
+X-Gm-Message-State: APjAAAXHaONSCcMmZHARYXBBggu6voHhU6zNfV54HHmmVQOmxZ5OmtNS
+	QuabBDgvPWTH+7769/Ok04BrNRkbsPOog6GnI9EGqiKqaZ+SvFAHGLQW5etTn3zqiy0EnCL8JQX
+	DM6mBeQkEJtDmnBzitWukcMgWL9Xr0hD4xqW/JmFH8gqiXwQLbIOB7rg43oGS5B3S8A==
+X-Received: by 2002:a63:3284:: with SMTP id y126mr23277663pgy.424.1556003647010;
+        Tue, 23 Apr 2019 00:14:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyzBZF26FrqeZZdArrhIzLiRwHUGufnjouHhViv6P2IH31Xbr3u5aH8S56MKDqHydYo+Ex+
+X-Received: by 2002:a63:3284:: with SMTP id y126mr23277577pgy.424.1556003646183;
+        Tue, 23 Apr 2019 00:14:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556003646; cv=none;
         d=google.com; s=arc-20160816;
-        b=uojll+jVWkQKlfC71Fd7H6Z5r2Ce4ovzt4ck5FNe4ey85XSFwRdtanQ64w4hORlVJx
-         LJnJFlDpVFy2KnrOGXD7ZvEZkLGbKelOektKYvTzg3VNxzmXV4HacLOb9WY51SZzqjns
-         kgE6sR/L9no9A4oPqJCmDiaNJfm1Uwmz7CGVaTm/5lXKWceJQILAZhiZIkrluTiICPX+
-         xrtYNutQuv4J9Fsm5cjrjTKn+TBfsRkYI/DIzDXotuQeclojZaWYLluWYzOO+Kp7nDvr
-         BHLQq3HVoU1SNKGiPdvnTCUBM7ckTXXbbZZ5DQVpW7J1YKSCubWYznEbkVcJhu6QcK/N
-         N/WQ==
+        b=ATTFQ0nxmPoF5JcssA1jm9qWQ/hTf+3PsTJNM/DG7akC7G7nWlN+jhPIHkfKKl6lP5
+         2K+gReX6XH5L/NCAV4k6RQjeqF4zSjlOAgSTEEsOCDrz67mDBWuNpY/n9g9RXNyP0qBd
+         TZsM/PVLCgLrAgEyNHtRCAvM5F8Q2wAe3svs/xro/vps8x399hCqxymIt6nNooUlOBXa
+         31gYh4TNWu+L18KvEJ8AJ8d7Cg8rbszIa3e9XBIBPoeLERNfucKFLeZOuLLdjv8Cuu0m
+         HO0VYUrBQCJ3yCWcko+EDR64fR2NRpY4YKNFynbylaGEowllTxp2iz99dX89iK/tU+ra
+         ojSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=jD+8DUCoVQgBWAtwdgeeix+moiolWyT23gO9EZ6PCyM=;
-        b=vAoEhflVL6/cGjwMSVuN/SVzbqW4Hzw/LfTnXARQINpRpHiN7eUWK6Dk+QD9FKzjSE
-         8RFXg+hwu/A3CBWPVfEHua8qhAdDEVndZJJnno3aphHN8DMXhMxaYmV8fMZwrNeEN5r6
-         guoy6liYQFzVtxJRgkxqU1Blh+OdZQkOzHTVbUcEEKSXQEBzKGCIWIZHxEIUu4fPA+Ea
-         w1VdvRYF6GIu1pG9S8ipzp3cZYnB8mm1gciz2OCgPXFLOqJXHu4rcsTboWUTJt+jvcQE
-         px6ZsOfupmWvMc6Sg7cGJDslp+/19R24VmozA6PT/szwkCZK84txnR2SMsau+XmBMQRp
-         B3gQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=;
+        b=MT5lOLGR3S7373gL8RMkQzKSbK+Jyg37xr5SEQsMZYREv7t6KXEpIIQRz1BhIcOX7a
+         MTfteoMYLv1hGJ+aUg5/0VamKWPcoOGIgjdP18iY0iFo4bqAAWjjSd0E/9MwiXrO9SSX
+         ck1pdJcjr/qThkLdzINUNKGlK39mdWUeIMW0lnfCefCcxadQ+Gufi3M9XPAgDA02SAw+
+         XT0lmaGeKS2yPIU5BYah88gZuUxX/D0FLv5Ac9jIFLCO0dZpeYAIWQEzS+axblcOWffx
+         0o08w4e93R+QKeRwOZsNTvevy51dk7Pzo0ou7xBiCqeR+U7xtWBUk8sQK9IBCj/S2mv7
+         6jIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j2si2313283ejn.201.2019.04.22.23.50.25
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=H2HIjKph;
+       spf=pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c12si14231305pgj.461.2019.04.23.00.14.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 23:50:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Apr 2019 00:14:06 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8BB55AE32;
-	Tue, 23 Apr 2019 06:50:24 +0000 (UTC)
-Date: Tue, 23 Apr 2019 08:50:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: vbabka@suse.cz, rientjes@google.com, kirill@shutemov.name,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-Message-ID: <20190423065023.GA25106@dhcp22.suse.cz>
-References: <1555971893-52276-1-git-send-email-yang.shi@linux.alibaba.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=H2HIjKph;
+       spf=pass (google.com: best guess record for domain of batv+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+307e856acde472aa9de6+5721+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=SDlbfGGT6h+AH6jrlBAq/GN8velgMypb49RBj12dJJc=; b=H2HIjKphtjzOGFQrLmcu0oOFr
+	5r3bAwWLkfQXSq9ayF7kYfnbhUjaU+tcCP3tyTatUyrT8kjp/mZymokWA2BvbP6qQr3yKHCAQRtUk
+	/rdcDAeYXJDTVFa2DQ/xmqKnEtwTMu84elAhhsiAvLjU/eBU1t8FRYkPWntVgG8l+g30dwUwM/5/Z
+	hlGqromgmM12sN2kE/0UwWS7366vJVO7iwyegEIytfYJEpPnGAAAwBc+VfAch2uGo4VcQ9qlP5wZU
+	cFF1btw7ENuY8StXWiv/d74Z1+44bgUKCwY2vlR27IP+fhLq0QnZWB5h0llfduvDthG5CrdmkV0J7
+	6BHcgY35Q==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hIpco-0006EN-T8; Tue, 23 Apr 2019 07:13:54 +0000
+Date: Tue, 23 Apr 2019 00:13:54 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mikulas Patocka <mpatocka@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+Message-ID: <20190423071354.GB12114@infradead.org>
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190421063859.GA19926@rapoport-lnx>
+ <20190421132606.GJ7751@bombadil.infradead.org>
+ <20190421211604.GN18914@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1555971893-52276-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190421211604.GN18914@techsingularity.net>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 23-04-19 06:24:53, Yang Shi wrote:
-> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
-> vma") introduced THPeligible bit for processes' smaps. But, when checking
-> the eligibility for shmem vma, __transparent_hugepage_enabled() is
-> called to override the result from shmem_huge_enabled().  It may result
-> in the anonymous vma's THP flag override shmem's.
+On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
+> 32-bit NUMA systems should be non-existent in practice. The last NUMA
+> system I'm aware of that was both NUMA and 32-bit only died somewhere
+> between 2004 and 2007. If someone is running a 64-bit capable system in
+> 32-bit mode with NUMA, they really are just punishing themselves for fun.
 
-Hmm, I was under impression that thw global sysfs is not anonymous
-memory specific and it overrides whatever sysfs comes with. Isn't
-ignoring the global setting a bug in the shmemfs allocation paths?
-Kirill what is the actual semantic here?
-
-> For example, running a
-> simple test which create THP for shmem, but with anonymous THP disabled,
-> when reading the process's smaps, it may show:
-> 
-> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
-> Size:               4096 kB
-> ...
-> [snip]
-> ...
-> ShmemPmdMapped:     4096 kB
-> ...
-> [snip]
-> ...
-> THPeligible:    0
-> 
-> And, /proc/meminfo does show THP allocated and PMD mapped too:
-> 
-> ShmemHugePages:     4096 kB
-> ShmemPmdMapped:     4096 kB
-> 
-> This doesn't make too much sense.  The anonymous THP flag should not
-> intervene shmem THP.  Calling shmem_huge_enabled() with checking
-> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
-> dax vma check since we already checked if the vma is shmem already.
-
-Even if I am wrong about the /sys/kernel/mm/transparent_hugepage/enabled
-being the global setting for _all_ THP then this patch is not sufficient
-because it doesn't reflect VM_NOHUGEPAGE.
-> 
-> Fixes: 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma")
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->  mm/huge_memory.c | 4 ++--
->  mm/shmem.c       | 2 ++
->  2 files changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 165ea46..5881e82 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -67,8 +67,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
->  {
->  	if (vma_is_anonymous(vma))
->  		return __transparent_hugepage_enabled(vma);
-> -	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
-> -		return __transparent_hugepage_enabled(vma);
-> +	if (vma_is_shmem(vma))
-> +		return shmem_huge_enabled(vma);
->  
->  	return false;
->  }
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 2275a0f..be15e9b 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -3873,6 +3873,8 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
->  	loff_t i_size;
->  	pgoff_t off;
->  
-> +	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
-> +		return false;
->  	if (shmem_huge == SHMEM_HUGE_FORCE)
->  		return true;
->  	if (shmem_huge == SHMEM_HUGE_DENY)
-> -- 
-> 1.8.3.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Can we mark it as BROKEN to see if someone shouts and then remove it
+a year or two down the road?  Or just kill it off now..
 
