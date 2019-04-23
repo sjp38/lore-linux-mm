@@ -2,197 +2,187 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD62DC282DD
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:30:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF1A0C10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:31:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5DF3921773
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:30:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5DF3921773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 9EABE217D9
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:31:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EABE217D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC4526B0007; Tue, 23 Apr 2019 12:30:51 -0400 (EDT)
+	id 2EE886B000A; Tue, 23 Apr 2019 12:31:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D735F6B0008; Tue, 23 Apr 2019 12:30:51 -0400 (EDT)
+	id 29E446B000C; Tue, 23 Apr 2019 12:31:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C89F86B000A; Tue, 23 Apr 2019 12:30:51 -0400 (EDT)
+	id 118CB6B000D; Tue, 23 Apr 2019 12:31:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9E76B0007
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:30:51 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f7so10324178pgi.20
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:30:51 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C8C186B000A
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:31:23 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s22so10654312plq.1
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:31:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=T3DNsPpus+LKe1g+W1omVLgiVZeg2r40yne7jRLjnMc=;
-        b=AAoCcP/gDB2HwYh/jdfpQFp7be7/xwpR06aDp5PAwL1xMYJCBSGqumVhrpmeutVwcA
-         WC/EYd5bF8WYoFijSFOICcRiSEJhKKxWzjCZ16gdt8y1CIEaDalxcjm3nBoCubzpWQ2I
-         FFoxPO7DD7HzcEb7iVYlhsSxVHZZVEsHeMK0tF0AHqd1IdHulPZsecGgc/32BjoT1lAm
-         lVBh0+BfIbCUs0hIacTodi5qE8FufaB9CSERyJ1Zm+4ygrghLidrCJJkDr+Wm4fFq6JY
-         vTAGXJuyaucvjP7nds2GtO4LcDCrh69/nlV1vElJOvPcLVdBLQmYkjSRHCugM6y29Paf
-         0BFw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUELih989MvcDZRYUVpUapOJXdu2o0f9NPUZ+Oo1Vw3qHDGGyu5
-	iunFZpr5FTgmyV27A2SAzC30i1iMiyQffVTe4xmfbPqq6wV1LoEZu5Ffnwnr953c+VP/FAFm1Qo
-	HZJ0BZOnw1nG0rFUA9aayqGffHE0DtdbW7HP+gz7ayw8m/KX0GkiSBXTsWsEWYTtbIQ==
-X-Received: by 2002:a62:388d:: with SMTP id f135mr28110265pfa.103.1556037050852;
-        Tue, 23 Apr 2019 09:30:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDX3S1yHHVVsf5fEXlu8oE0oHbeTSo3Ybox18RxNNGwglUOBwSsSJ8Qi3pEme+1/IfvOC6
-X-Received: by 2002:a62:388d:: with SMTP id f135mr28110180pfa.103.1556037049998;
-        Tue, 23 Apr 2019 09:30:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556037049; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=mJbG0Lrs3tIzOF1o3QpW56PWhl0dYmYu/GLcncNgKi4=;
+        b=MJR0TLbKjH7XygvjVpD332MZ/2q5DbkCxmbj3f6K0/NIVnzevmsxlv9tcufe9E7PD4
+         Prt6DhqXJGK9ihcaih9//BgHZKbwAdTsPHZhrgHNjd7MuiqyRHmt5GP3WvAnJflgP6Gw
+         uc+Db3dyCshopZXqLxxMFZCRLrcDH/hqlAFKgE1hvf2seEMKZ6bqTypkTsIRcrXNOR45
+         oY8aLet/0xro+3jjykf4QMnNRRj7SXO2Hc4wr0F1oi1a7bM+YqwBQelv8txSQYAaf3fU
+         Qrlp0xT6x0/e+PgqR69t8LIBtYJfT/HH6kw5RXNDcdynWPLnnDxL/XsVrvPM5hyfH1kZ
+         zfbQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+X-Gm-Message-State: APjAAAUhxDsWKyrRSrf08pvd8bDKy5Ru9/C0F4YMYLA6F18U1UKtNlG7
+	FphK9vJyTOxD2KyLarg/e3/cfZc0q7kmsJZGcZum6iZXxy8WGkRKkXUYKwllz8FzZagx2vCW9aL
+	qeGkc+fASY5bMtSk8/BIWcKRnc4dZJIXJkHIhHwrhNDOrAW8ZrM0VWQj0jhvUOKWykw==
+X-Received: by 2002:a17:902:3324:: with SMTP id a33mr27266218plc.186.1556037083485;
+        Tue, 23 Apr 2019 09:31:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwCvJiOk+9OxMKXyzxO2qd+ta4o81AmHQt7O+f6r1XoxBhAFCs48nYQjIvRsy6jrt5yXS4A
+X-Received: by 2002:a17:902:3324:: with SMTP id a33mr27266132plc.186.1556037082593;
+        Tue, 23 Apr 2019 09:31:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556037082; cv=none;
         d=google.com; s=arc-20160816;
-        b=El2e3WgDpE44YR5ovnDd8J9cPN4edcYnPqMKrqvGSdZDriYVBMXKsly27pcjjaHtCW
-         GRBFSOlULFvo6f625VQb84S/R9AaDX2EEIr2FTr/msOBT9lO1FCx+cILumWE9yYSR0oX
-         HDXDaQ34AjGBIGcyfJBzgkGuQJVeGHwGk2fdFm+EpZyBYyOdgFagxrJ3qsEKFTZzPBMI
-         bjyvLKFMsVBrX6/HGEkWhHIjdh3A+5gpXzFkWEazHY83ApHXS07l5znd64AuySbgR46F
-         srM+OqMGMI1vav9evynEHM//jWdZJ0t5SESPiEHR8zeOylh0AD16rqdaMOgTt0pNYx78
-         dxyQ==
+        b=A5Z+9AEcebY5otSSpixy0r4T8gVagTtozaJc7t/ijmG4fr2UChISZpoHhcBW7LOP8b
+         AEzznkqclgOB4ij9rqAPw7ma1P8nNutVYydzuWdnH+fwqITaQN1drS4nhohQhzjdzjgw
+         aVEErpAMvkvM23mkAaHTMj3ruNPsqUMI97qf5KNXHTsyFAA9ciqdvwVZ7CpEnL7uE7M8
+         sIwdDQF0TjNRgkaqP/VxuH9rQogFtvJr3/rmrv8nI5Eex3GwgzdawdfwFGdErJj/7U0X
+         5gXq7QBQP2WK3z+oUXMcoUr+YRW1zPSdwbpAox2yhNf//hEvj63iXFRgRILIIpJXS7zo
+         cZfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=T3DNsPpus+LKe1g+W1omVLgiVZeg2r40yne7jRLjnMc=;
-        b=e7kk/yjH3Ov+vw7HKP5OALuJmsFQCmRjQhI5IEP5izIDGsY9pouNhvMKefqUulx+2o
-         +VsLb9FR1HCwewwh5RJz6U92EGhjoPHtrf0WyL4G+ttcR9ZsCf6WtiXZQLvAYREMhG+i
-         Zjh1RarZ5qP6Z+vkXO1udh/iboesx+QG28KTHN6H0MbBse0S4WfTJGjk5YYLd/MAXDhI
-         ped3zxrGNhki2pQrAlNjVcxzAmHs59MOA0TIzuJCE+92kWoP8eBherGNUWw551RkMBY+
-         JmQwphNfDtx7FPgcRPJATk8C0mINkYvxAOrKbZW9Ak39XgS4sV6FYn6BaZ6mAIdKQN9P
-         zM6w==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=mJbG0Lrs3tIzOF1o3QpW56PWhl0dYmYu/GLcncNgKi4=;
+        b=NESnLh7JJt1U3Iy+S1u33FLHsXHU1CwN9QIObnkXDuRzo4n4L8ElbvAxsqjSnwhGiK
+         JQbf8PBky9Ejbc8tPwbNpz4lCKNpNwPfL+duteey9GyoUHPkV60us9yFKFfCSZ23nDv+
+         nIfKLgKH0Sc9kQ5qbnWey9yvDv6sYHdu7cvhfb6A25uauvcP6BxdyTUPFKeQAwfXRPsu
+         lcwoBpVSBxByekB+XFrsX8CWUZXwv8G7h1Cwusafpb1f/4eywPbSk/EOkYimdhbhmc72
+         alzxBaMLsiJP794cQUCpRxCmUM4uYONV8Opjs5Gh8e/nzkWBYT1QRHdSif3zGRGKYCYu
+         vIIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com. [115.124.30.54])
-        by mx.google.com with ESMTPS id i9si14373430pgq.23.2019.04.23.09.30.49
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id z2si14888897pgp.239.2019.04.23.09.31.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 09:30:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) client-ip=115.124.30.54;
+        Tue, 23 Apr 2019 09:31:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R931e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TQ40AXp_1556037044;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TQ40AXp_1556037044)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 24 Apr 2019 00:30:47 +0800
-Subject: Re: [PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-To: Michal Hocko <mhocko@kernel.org>
-Cc: vbabka@suse.cz, rientjes@google.com, kirill@shutemov.name,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1555971893-52276-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190423065023.GA25106@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <b16183a7-4ac6-0314-3cfc-6d630e70bf4f@linux.alibaba.com>
-Date: Tue, 23 Apr 2019 09:30:44 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from localhost.localdomain (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ms.lwn.net (Postfix) with ESMTPSA id 448882DD;
+	Tue, 23 Apr 2019 16:30:57 +0000 (UTC)
+Date: Tue, 23 Apr 2019 10:30:53 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mike Snitzer <snitzer@redhat.com>, Mauro Carvalho Chehab
+ <mchehab+samsung@kernel.org>, Linux Doc Mailing List
+ <linux-doc@vger.kernel.org>, Mauro Carvalho Chehab <mchehab@infradead.org>,
+ linux-kernel@vger.kernel.org, Johannes Berg <johannes@sipsolutions.net>,
+ Kurt Schwemmer <kurt.schwemmer@microsemi.com>, Logan Gunthorpe
+ <logang@deltatee.com>, Bjorn Helgaas <bhelgaas@google.com>, Alasdair Kergon
+ <agk@redhat.com>, dm-devel@redhat.com, Kishon Vijay Abraham I
+ <kishon@ti.com>, Rob Herring <robh+dt@kernel.org>, Mark Rutland
+ <mark.rutland@arm.com>, Bartlomiej Zolnierkiewicz
+ <b.zolnierkie@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter
+ <daniel@ffwll.ch>, Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ Maxime Ripard <maxime.ripard@bootlin.com>, Sean Paul <sean@poorly.run>,
+ Ning Sun <ning.sun@intel.com>, Ingo Molnar <mingo@redhat.com>, Will Deacon
+ <will.deacon@arm.com>, Alan Stern <stern@rowland.harvard.edu>, Andrea Parri
+ <andrea.parri@amarulasolutions.com>, Boqun Feng <boqun.feng@gmail.com>,
+ Nicholas Piggin <npiggin@gmail.com>, David Howells <dhowells@redhat.com>,
+ Jade Alglave <j.alglave@ucl.ac.uk>, Luc Maranget <luc.maranget@inria.fr>,
+ "Paul E. McKenney" <paulmck@linux.ibm.com>, Akira Yokosawa
+ <akiyks@gmail.com>, Daniel Lustig <dlustig@nvidia.com>, "David S. Miller"
+ <davem@davemloft.net>, Andreas =?UTF-8?B?RsOkcmJlcg==?= <afaerber@suse.de>,
+ Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>, Cornelia Huck
+ <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>, Eric Farman
+ <farman@linux.ibm.com>, Halil Pasic <pasic@linux.ibm.com>, Martin
+ Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, Harry Wei <harryxiyou@gmail.com>, Alex Shi
+ <alex.shi@linux.alibaba.com>, Jerry Hoemann <jerry.hoemann@hpe.com>, Wim
+ Van Sebroeck <wim@linux-watchdog.org>, Guenter Roeck <linux@roeck-us.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, "H.
+ Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Russell King
+ <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
+ <fenghua.yu@intel.com>, "James E.J. Bottomley"
+ <James.Bottomley@HansenPartnership.com>, Helge Deller <deller@gmx.de>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ Guan Xuetao <gxt@pku.edu.cn>, Jens Axboe <axboe@kernel.dk>, Greg
+ Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki"
+ <rafael@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Matt Mackall
+ <mpm@selenic.com>, Herbert Xu <herbert@gondor.apana.org.au>, Corey Minyard
+ <minyard@acm.org>, Sumit Semwal <sumit.semwal@linaro.org>, Linus Walleij
+ <linus.walleij@linaro.org>, Bartosz Golaszewski
+ <bgolaszewski@baylibre.com>, Darren Hart <dvhart@infradead.org>, Andy
+ Shevchenko <andy@infradead.org>, Stuart Hayes <stuart.w.hayes@gmail.com>,
+ Jaroslav Kysela <perex@perex.cz>, Alex Williamson
+ <alex.williamson@redhat.com>, Kirti Wankhede <kwankhede@nvidia.com>,
+ Christoph Hellwig <hch@lst.de>, Marek Szyprowski
+ <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Steffen
+ Klassert <steffen.klassert@secunet.com>, Kees Cook <keescook@chromium.org>,
+ Emese Revfy <re.emese@gmail.com>, James Morris <jmorris@namei.org>, "Serge
+ E. Hallyn" <serge@hallyn.com>, linux-wireless@vger.kernel.org,
+ linux-pci@vger.kernel.org, devicetree@vger.kernel.org,
+ dri-devel@lists.freedesktop.org, linux-fbdev@vger.kernel.org,
+ tboot-devel@lists.sourceforge.net, linux-arch@vger.kernel.org,
+ netdev@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-s390@vger.kernel.org, kvm@vger.kernel.org,
+ linux-watchdog@vger.kernel.org, linux-ia64@vger.kernel.org,
+ linux-parisc@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, linux-block@vger.kernel.org,
+ linux-crypto@vger.kernel.org, openipmi-developer@lists.sourceforge.net,
+ linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
+ platform-driver-x86@vger.kernel.org, iommu@lists.linux-foundation.org,
+ linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
+ linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
+ files to *.rst
+Message-ID: <20190423103053.07cf2149@lwn.net>
+In-Reply-To: <20190423130132.GT4038@hirez.programming.kicks-ass.net>
+References: <cover.1555938375.git.mchehab+samsung@kernel.org>
+	<cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
+	<20190423083135.GA11158@hirez.programming.kicks-ass.net>
+	<20190423125519.GA7104@redhat.com>
+	<20190423130132.GT4038@hirez.programming.kicks-ass.net>
+Organization: LWN.net
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-In-Reply-To: <20190423065023.GA25106@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 23 Apr 2019 15:01:32 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
 
+> But yes, I have 0 motivation to learn or abide by rst. It simply doesn't
+> give me anything in return. There is no upside, only worse text files :/
 
-On 4/22/19 11:50 PM, Michal Hocko wrote:
-> On Tue 23-04-19 06:24:53, Yang Shi wrote:
->> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
->> vma") introduced THPeligible bit for processes' smaps. But, when checking
->> the eligibility for shmem vma, __transparent_hugepage_enabled() is
->> called to override the result from shmem_huge_enabled().  It may result
->> in the anonymous vma's THP flag override shmem's.
-> Hmm, I was under impression that thw global sysfs is not anonymous
-> memory specific and it overrides whatever sysfs comes with. Isn't
-> ignoring the global setting a bug in the shmemfs allocation paths?
-> Kirill what is the actual semantic here?
+So I believe it gives even you one thing in return: documentation that is
+more accessible for both readers and authors.  More readable docs should
+lead to more educated developers who understand the code better.  More
+writable docs will bring more people in to help to improve them.  The
+former effect has been reported in the GPU community, where they say that
+the quality of submissions has improved along with the docs.  The latter
+can be observed in the increased number of people working on the docs
+overall, something that Linus noted in the 5.1-rc1 announcement.
 
-I tried 4.9, 4.14, 4.20 and 5.1-rc5, all behaves in the same way. So, 
-I'm supposed "enabled" is for anonymous THP only.
+Hopefully that's worth something :)
 
->
->> For example, running a
->> simple test which create THP for shmem, but with anonymous THP disabled,
->> when reading the process's smaps, it may show:
->>
->> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
->> Size:               4096 kB
->> ...
->> [snip]
->> ...
->> ShmemPmdMapped:     4096 kB
->> ...
->> [snip]
->> ...
->> THPeligible:    0
->>
->> And, /proc/meminfo does show THP allocated and PMD mapped too:
->>
->> ShmemHugePages:     4096 kB
->> ShmemPmdMapped:     4096 kB
->>
->> This doesn't make too much sense.  The anonymous THP flag should not
->> intervene shmem THP.  Calling shmem_huge_enabled() with checking
->> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
->> dax vma check since we already checked if the vma is shmem already.
-> Even if I am wrong about the /sys/kernel/mm/transparent_hugepage/enabled
-> being the global setting for _all_ THP then this patch is not sufficient
-> because it doesn't reflect VM_NOHUGEPAGE.
+Thanks,
 
-Aha, yes, thanks for catching this. Will fix in v2.
-
->> Fixes: 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma")
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Kirill A. Shutemov <kirill@shutemov.name>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> ---
->>   mm/huge_memory.c | 4 ++--
->>   mm/shmem.c       | 2 ++
->>   2 files changed, 4 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 165ea46..5881e82 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -67,8 +67,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
->>   {
->>   	if (vma_is_anonymous(vma))
->>   		return __transparent_hugepage_enabled(vma);
->> -	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
->> -		return __transparent_hugepage_enabled(vma);
->> +	if (vma_is_shmem(vma))
->> +		return shmem_huge_enabled(vma);
->>   
->>   	return false;
->>   }
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 2275a0f..be15e9b 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -3873,6 +3873,8 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
->>   	loff_t i_size;
->>   	pgoff_t off;
->>   
->> +	if (test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
->> +		return false;
->>   	if (shmem_huge == SHMEM_HUGE_FORCE)
->>   		return true;
->>   	if (shmem_huge == SHMEM_HUGE_DENY)
->> -- 
->> 1.8.3.1
->>
+jon
 
