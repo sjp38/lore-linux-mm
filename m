@@ -2,180 +2,226 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5828C282E1
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:05:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B89E0C10F03
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:07:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FF0F20693
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:05:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FF0F20693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6B6C920693
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 16:07:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="UiRr4bOd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B6C920693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43A4F6B0005; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
+	id 1C8816B0003; Tue, 23 Apr 2019 12:07:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E9726B0007; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
+	id 177B96B0005; Tue, 23 Apr 2019 12:07:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D9EF6B0008; Tue, 23 Apr 2019 12:05:34 -0400 (EDT)
+	id 067846B0007; Tue, 23 Apr 2019 12:07:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D05BB6B0005
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:05:33 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id q17so8225980eda.13
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:05:33 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BFC406B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 12:07:06 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b7so8937668plb.17
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 09:07:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=uAHY0wf1u2BiqDnvhotMH2pZWcfDhYETaV9BWTFbLFo=;
-        b=P3UEt0T9gliRNbKV6ILN0x+wKNqy92C/amYwDf1l8q6jawjZv8CljVgxVhp8gNSuyN
-         wjMI/WshWyPg6pzuPOmG0FNv5ovCLYh3/5XZhBlBbUEhZOLHoZM5YBAwE4dC0A8V+Hp3
-         PNdxGB3bkLvfxjy60UZEfIBTW8WpKyZamSPxxo/kwEV1R/JP40/OLsEBg2B/BwLP5vFI
-         Z2VDvEk5JOdNl9xTHDRbM+Ty8vaPq0FFO4WuBa/OMycH8WQh10+RXlQ5a9TRezjC7HUd
-         hsBGQCOgyb/HoPwwPZvY8YEi4qYK1RqfDY3QxUTwhuEKzzE/byCerQ1cyvbGrcaxqhpx
-         XlZg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAXcg7zD7P7mCASsBQkoceScNYZ7pGXd0Df3VGhxWenXQXci+llv
-	H9kQKt+jdFiTc4Hj+KlO/hp3kRP5TO/B3prFCTsaYHsfmlwnKXqw4FF9xFB6qE8FKvCw7Y38bY2
-	ZxNXoDnmBszKjZhJDoVesDyuM2qtP/aQRucmzqMwoRMwOA6s7WDC9xZXA0piZSNQCBQ==
-X-Received: by 2002:a50:8bbd:: with SMTP id m58mr16801617edm.42.1556035533423;
-        Tue, 23 Apr 2019 09:05:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFZSjwwVxeAr7JXt6ko4SSXINCyFitvS6aEebKhpihNA1GhlLvQD78FfUDVxSN4Fyr1hq9
-X-Received: by 2002:a50:8bbd:: with SMTP id m58mr16801540edm.42.1556035532558;
-        Tue, 23 Apr 2019 09:05:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556035532; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=/6yGNw+GddeG+JGK7yWuf2Vdt5FOQ0zTBy3ljzfqBg4=;
+        b=Vjuy2ShYD7jKa9oKrnlCITAjIBtBMX/oSIHp53g6mg3asG5BzawaC2ROti8Q+055+q
+         f6NSPt8jp5ixQHIXh4fV7cFbYmXMIoX34JyO+r6VmXsw0Mznk7TJo/w2SwWI3x5TUcSR
+         rB/F9fFd6qlMDM9uEQhynNYgVptQFQUe1htwm3NtQX0EZ7wDBZtrybSyGQfvKDXTsV61
+         7G3EHA5/VU0SadYPWGzmWG/4M3MuwD5Rj6WoV3QgqZaL/ieri+B606+LrXURRlNNauDv
+         Ky0I4h/2rmqpEY8NEJ6uFb5AjIGseRyq7QyuUnlnAFPTwcx9lfChbbcTPB4DFpoGjL7a
+         X1kg==
+X-Gm-Message-State: APjAAAXJsEHMSIub9xsyO2KF1GaX9yEmdd12a48sBTdfD3W79rhHviTD
+	tLWEERFOIAX0To7zvkL2+FwejAFD1B0K8yvpmhGBhq8NAqKhG7dR3BE1bf09J/oN8lewIYbLSco
+	HoonBM18UrHr6y7yKTCLNtpkIPbh34sAhd06kc3BN0x/m4w3XR0UVa6E0WYWTCQfGtQ==
+X-Received: by 2002:a63:6849:: with SMTP id d70mr24658037pgc.21.1556035626365;
+        Tue, 23 Apr 2019 09:07:06 -0700 (PDT)
+X-Received: by 2002:a63:6849:: with SMTP id d70mr24657952pgc.21.1556035625336;
+        Tue, 23 Apr 2019 09:07:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556035625; cv=none;
         d=google.com; s=arc-20160816;
-        b=1B0Buyw7w7etkkzP8ylZ7OshmtEvn9Yg6bMC1xTLmrYub7DYv3cXzsC70aVmMBNXP0
-         tUfmsu6RIA4hzj0IvDiYLmiMftG4qTkvaTetaZvPDNv50szWCyR6PEA1iVF8QmW8PVGf
-         83/TA+/f8uPu3RThK2/DxltfGi87dP+JUYGryouREulLhZQqeZ69RXaVzR6oGNogz1/m
-         1wWqMZx14dJzBQ8NBDl/Wi1fOwQ6aBHygYCe9EL1PM1GY793ViPUjCYtoKbPHwat6Cxn
-         YktiFSBR8jGID/6tkIiyHY9MCL+YC/OZWEC56P0ZV4vyJNP8SciWs8A1AGfkKrc8gWtk
-         h7kg==
+        b=Jy6EqBxOWJhCdECP8224zRqFIrafnZZdeqCmH90Hg1e55IMFrtKA0GgXr6SUJ97c2y
+         C0UwB3AwOoV2V7WYYGcFAoNpEnfWBgTyrufzgfUgsCIEOUVJl34xwfhi1JRWSZH/St0d
+         vgZQnqY2TIwB5Bw1EoF9sifiuROvHuJFW/jUoZH/KsNwgB8TxzM+v5gxwh03Y10H1IpC
+         L5Y7ej2Et07lFGQclWtxNcvSEq8Brr/QmUVsaeBWwiXO17oF3rkiqZHUdW6B1R9pTexl
+         xrH43J07ryTkd5dqJQEjmO49VoZu6CoLhVE+dqIzHBos4ETPpF7XI/eFSSaUYICiokJn
+         u1TA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=uAHY0wf1u2BiqDnvhotMH2pZWcfDhYETaV9BWTFbLFo=;
-        b=Eh92lY+H2T3e2sh5k+ZUZrBW/WGIMf2j8nCNRJOhD6n7rEfLN9urDX9xh7guQ+tRFU
-         rM72SzSBa/ZfCh+xg/B40atljM0KeO8G5d9HAy39TM+5ortkBbU2E98aJvDc3UdJmSzU
-         PBPxhy7DSsn53fLS/vODvTTbo9JmG7f2IC1mqqSLOwmgaOTaQLLAp74RvkAx6G1rQK52
-         tKnLSw+IY1qdYmCLmD8mdjM1aiPZhkgNt1FzLaTWS1NnN5gfWH/M0bWZ8xRQdSuq+SQt
-         6+gT0Lr3FSPZDZirM7ECp01X2ssb+e4u8uCru42i5f2IvR2iG2bVGrHbUO0cV00lREup
-         Hp3g==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=/6yGNw+GddeG+JGK7yWuf2Vdt5FOQ0zTBy3ljzfqBg4=;
+        b=TV7siIuldY1oLBxI6TmVE9u6ZkT7+JReh1JBppuBb4REmibJpHsyKNxNO8kMw+csvN
+         JEZdql7OH7SvN1a+Fjic4vSGAzqxNBd/rLn+gchU+Oo1dr9ZCd3OIQsYBiPBBRMf138w
+         YsNY9+Qh5unQYEThhrBanlp3XhdPkwA+mjom3rknN5vS2bJSPdZbE3KHY2yhcXuaVI98
+         FvDUZS+UOUwVZSdUx/UR4i3aHUey1rWV+6F68KlFPA1xO+vgbiJkFwCQqLN/NM2/PGIx
+         6hpT8q7LPEBKPcxDYYuELYUZg5U4NP0uxs/tF45qAB37bDNUZlqiPNKJXzEhWxXTCp9p
+         uHeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b23si3411840ejq.15.2019.04.23.09.05.32
-        for <linux-mm@kvack.org>;
-        Tue, 23 Apr 2019 09:05:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=UiRr4bOd;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a37sor17125504pgl.72.2019.04.23.09.07.05
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 23 Apr 2019 09:07:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3BA8280D;
-	Tue, 23 Apr 2019 09:05:31 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 039593F5AF;
-	Tue, 23 Apr 2019 09:05:27 -0700 (PDT)
-Date: Tue, 23 Apr 2019 17:05:25 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
-	catalin.marinas@arm.com, mhocko@suse.com,
-	mgorman@techsingularity.net, james.morse@arm.com,
-	robin.murphy@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
-	dan.j.williams@intel.com, osalvador@suse.de, david@redhat.com,
-	cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
-Message-ID: <20190423160525.GD56999@lakrids.cambridge.arm.com>
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
- <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
- <20190415134841.GC13990@lakrids.cambridge.arm.com>
- <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
- <20190417142154.GA393@lakrids.cambridge.arm.com>
- <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
- <20190417173948.GB15589@lakrids.cambridge.arm.com>
- <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
- <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=UiRr4bOd;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=/6yGNw+GddeG+JGK7yWuf2Vdt5FOQ0zTBy3ljzfqBg4=;
+        b=UiRr4bOdWC4Yr+hy2WKLYg1BrqWUtayOk+O7ylBgu9sQi/yt6to0sRGuvM6SYS7Gjm
+         r+P5niyvJmJOu+dS/BksvvPjfKTgilVxI2m7QtOI+tnJUmW2xwUC7+r9UbBJRpqulPyp
+         Fi9f3f7NmMbBnJFAKGlZbj80GO3zgHVY6J5l5TvqFoLUp8nvvdadqAIbmAbhRzf3Z6dO
+         F1g55E6U4+wBVXdHqch+opg+7veDYRcoGJcn+IO1qQAeZvAnqk/F1Uw7YAu0EQi7lqqt
+         x0grR+mE0e2HBZIEr5nHm3DTb7oyYuUxOLF9Oi26hN5VimZipHmmgwIraFHMIo5kPlQk
+         sSbA==
+X-Google-Smtp-Source: APXvYqy8AC4d+BvWkifWyma+BkNGRsgxkP0k610zpgUd8DVOzWg/wETNM/CHFKJ/jnSscWDGu1JqZA==
+X-Received: by 2002:a63:c54d:: with SMTP id g13mr22435956pgd.376.1556035624380;
+        Tue, 23 Apr 2019 09:07:04 -0700 (PDT)
+Received: from ?IPv6:2601:646:c200:1ef2:909f:2a1b:c449:c291? ([2601:646:c200:1ef2:909f:2a1b:c449:c291])
+        by smtp.gmail.com with ESMTPSA id o66sm4176929pfb.184.2019.04.23.09.07.03
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 09:07:03 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: mmotm 2019-04-19-14-53 uploaded (objtool)
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16E227)
+In-Reply-To: <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+Date: Tue, 23 Apr 2019 09:07:01 -0700
+Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org,
+ broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org,
+ mhocko@suse.cz, mm-commits@vger.kernel.org, sfr@canb.auug.org.au,
+ Josh Poimboeuf <jpoimboe@redhat.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andy Lutomirski <luto@kernel.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D7626BC0-FCE9-4424-A6F5-D4AAB6727ED4@amacapital.net>
+References: <20190419215358.WMVFXV3bT%akpm@linux-foundation.org> <af3819b4-008f-171e-e721-a9a20f85d8d1@infradead.org> <20190423082448.GY11158@hirez.programming.kicks-ass.net>
+To: Peter Zijlstra <peterz@infradead.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 01:01:58PM +0530, Anshuman Khandual wrote:
-> Generic usage for init_mm.pagetable_lock
-> 
-> Unless I have missed something else these are the generic init_mm kernel page table
-> modifiers at runtime (at least which uses init_mm.page_table_lock)
-> 
-> 	1. ioremap_page_range()		/* Mapped I/O memory area */
-> 	2. apply_to_page_range()	/* Change existing kernel linear map */
-> 	3. vmap_page_range()		/* Vmalloc area */
 
-Internally, those all use the __p??_alloc() functions to handle racy
-additions by transiently taking the PTL when installing a new table, but
-otherwise walk kernel tables _without_ the PTL held. Note that none of
-these ever free an intermediate level of table.
 
-I believe that the idea is that operations on separate VMAs should never
-conflict at the leaf level, and operations on the same VMA should be
-serialised somehow w.r.t. that VMA.
+> On Apr 23, 2019, at 1:24 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+>=20
+>> On Fri, Apr 19, 2019 at 09:36:46PM -0700, Randy Dunlap wrote:
+>>> On 4/19/19 2:53 PM, akpm@linux-foundation.org wrote:
+>>> The mm-of-the-moment snapshot 2019-04-19-14-53 has been uploaded to
+>>>=20
+>>>   http://www.ozlabs.org/~akpm/mmotm/
+>>>=20
+>>> mmotm-readme.txt says
+>>>=20
+>>> README for mm-of-the-moment:
+>>>=20
+>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>=20
+>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>> more than once a week.
+>>=20
+>> on x86_64:
+>>=20
+>>  CC      lib/strncpy_from_user.o
+>> lib/strncpy_from_user.o: warning: objtool: strncpy_from_user()+0x315: cal=
+l to __ubsan_handle_add_overflow() with UACCESS enabled
+>>  CC      lib/strnlen_user.o
+>> lib/strnlen_user.o: warning: objtool: strnlen_user()+0x337: call to __ubs=
+an_handle_sub_overflow() with UACCESS enabled
+>=20
+> Lemme guess, you're using GCC < 8 ? That had a bug where UBSAN
+> considered signed overflow UB when using -fno-strict-overflow or
+> -fwrapv.
+>=20
+> Now, we could of course allow this symbol, but I found only the below
+> was required to make allyesconfig build without issue.
+>=20
+> Andy, Linus?
+>=20
+> (note: the __put_user thing is from this one:
+>=20
+>  drivers/gpu/drm/i915/i915_gem_execbuffer.c:    if (unlikely(__put_user(of=
+fset, &urelocs[r-stack].presumed_offset))) {
+>=20
+> where (ptr) ends up non-trivial due to UBSAN)
+>=20
+> ---
+>=20
+> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess=
+.h
+> index 22ba683afdc2..c82abd6e4ca3 100644
+> --- a/arch/x86/include/asm/uaccess.h
+> +++ b/arch/x86/include/asm/uaccess.h
+> @@ -427,10 +427,11 @@ do {                                    \
+> ({                                \
+>    __label__ __pu_label;                    \
+>    int __pu_err =3D -EFAULT;                    \
+> -    __typeof__(*(ptr)) __pu_val;                \
+> -    __pu_val =3D x;                        \
+> +    __typeof__(*(ptr)) __pu_val =3D (x);            \
+> +    __typeof__(ptr) __pu_ptr =3D (ptr);            \
 
-AFAICT, these functions are _never_ called on the linear/direct map or
-vmemmap VA ranges, and whether or not these can conflict with hot-remove
-is entirely dependent on whether those ranges can share a level of table
-with the vmalloc region.
+Hmm.  I wonder if this forces the address calculation to be done before STAC=
+, which means that gcc can=E2=80=99t use mov ..., %gs:(fancy stuff).  It pro=
+bably depends on how clever the optimizer is. Have you looked at the generat=
+ed code?
 
-Do you know how likely that is to occur? e.g. what proportion of the
-vmalloc region may share a level of table with the linear or vmemmap
-regions in a typical arm64 or x86 configuration? Can we deliberately
-provoke this failure case?
+Other than that, it seems reasonable to me.
 
-[...]
-
-> In all of the above.
-> 
-> - Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are
->   protected with init_mm.page_table_lock
-
-Racy addition is protect in this manner.
-
-> - Should not it require init_mm.page_table_lock for all leaf level
->   (PUD|PMD|PTE) modification as well ?
-
-As above, I believe that the PTL is assumed to not be necessary there
-since other mutual exclusion should be in effect to prevent racy
-modification of leaf entries.
-
-> - Should not this require init_mm.page_table_lock for page table walk
->   itself ?
-> 
-> Not taking an overall lock for all these three operations will
-> potentially race with an ongoing memory hot remove operation which
-> takes an overall lock as proposed. Wondering if this has this been
-> safe till now ?
-
-I suspect that the answer is that hot-remove is not thoroughly
-stress-tested today, and conflicts are possible but rare.
-
-As above, can we figure out how likely conflicts are, and try to come up
-with a stress test?
-
-Is it possible to avoid these specific conflicts (ignoring ptdump) by
-aligning VA regions such that they cannot share intermediate levels of
-table?
-
-Thanks,
-Mark.
+> +    __typeof__(size) __pu_size =3D (size);            \
+>    __uaccess_begin();                    \
+> -    __put_user_size(__pu_val, (ptr), (size), __pu_label);    \
+> +    __put_user_size(__pu_val, __pu_ptr, __pu_size, __pu_label);    \
+>    __pu_err =3D 0;                        \
+> __pu_label:                            \
+>    __uaccess_end();                    \
+> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
+> index 58eacd41526c..07045bc4872e 100644
+> --- a/lib/strncpy_from_user.c
+> +++ b/lib/strncpy_from_user.c
+> @@ -26,7 +26,7 @@
+> static inline long do_strncpy_from_user(char *dst, const char __user *src,=
+ long count, unsigned long max)
+> {
+>    const struct word_at_a_time constants =3D WORD_AT_A_TIME_CONSTANTS;
+> -    long res =3D 0;
+> +    unsigned long res =3D 0;
+>=20
+>    /*
+>     * Truncate 'max' to the user-specified limit, so that
+> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
+> index 1c1a1b0e38a5..0729378ad3e9 100644
+> --- a/lib/strnlen_user.c
+> +++ b/lib/strnlen_user.c
+> @@ -28,7 +28,7 @@
+> static inline long do_strnlen_user(const char __user *src, unsigned long c=
+ount, unsigned long max)
+> {
+>    const struct word_at_a_time constants =3D WORD_AT_A_TIME_CONSTANTS;
+> -    long align, res =3D 0;
+> +    unsigned long align, res =3D 0;
+>    unsigned long c;
+>=20
+>    /*
+>=20
 
