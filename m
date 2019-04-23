@@ -2,208 +2,333 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 006F5C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:32:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D2A1C282DD
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:38:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A95EA20843
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:32:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="wtcLR00S"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A95EA20843
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 1BFBC20843
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:38:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BFBC20843
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 62AE06B0006; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
+	id B07E96B0003; Tue, 23 Apr 2019 04:38:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5DA136B0007; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
+	id AB5D86B0006; Tue, 23 Apr 2019 04:38:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47A2C6B0008; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
+	id 9A7426B0007; Tue, 23 Apr 2019 04:38:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 279636B0006
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id y10so3950333ioj.7
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 01:32:26 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 41CBC6B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 04:38:06 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z29so7581696edb.4
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 01:38:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=;
-        b=SQa0qmB1PX1l78A+E9yuBMMEyYVziH2K+gcDcsd1C06F39B1k9Hryg76jZef47eN2O
-         bLVQYTfU0NH4bl6JSMHHPrPt12P6mpTGzS1hNf+TU28H240ZW3lERS9ActR2QGEg/4cM
-         cWShYGxqCod8F3kZevsBIHKio8Wuv2ZEBZHIzGzSeAHHJH9oHelp1VR6Pdq2/tVcmXzP
-         xNKhU9yVNsegI2fLuOFfwiAqmuzigDVy0cPEuya3chBbDJkM/Yx/laKgTTeSUZ3U+Rht
-         aWkzwglyCRtgvh3a4bc4L+liOWxRZUrqgVzOoOEPPlk82NQJF0koI9rlhqx0jwJLUTtp
-         XpAQ==
-X-Gm-Message-State: APjAAAUnnh57WTdMsu6i6VmjefUxwUiNeca/EBqZFKl2axftyJfoTpQU
-	052Z2LaH3/jZHSDCWYE2P4sxoJ84pRIUbEgFMGULO1diAnnzdvgN5PWo4Ptl4F5k4B7vK+KOCaC
-	rRkUetjAwRHTZLneVuqX51ks+dXZvldojZJ6amZaDqF10MD+cmLttHvNPuJMBPUY1kA==
-X-Received: by 2002:a02:1649:: with SMTP id a70mr16972843jaa.116.1556008345889;
-        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwdS9QEbH2jl+tViIE/CtXQnSiS4FrKDCuABocsvkMuMkF2k15IypLqUj/b/sPJiBYDyiX4
-X-Received: by 2002:a02:1649:: with SMTP id a70mr16972813jaa.116.1556008345189;
-        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556008345; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=crFi3dNvcIIUK+aGImN7hKVe33y7RGoDCk4Px11dm5Q=;
+        b=bODS/J/rK343+aVcsftowmaOMXTXHFSj5jiCfcmQ5zrBk0wOZW8pHZEoBDyaam2QWS
+         uPLBRcMEaWGspHQlHPN7bEM5IK7PuzHcOmuFrUD2HZpoji1siGdbJWwP7gEbDGFxNKq2
+         ngeC7Khuj3QoIUK2p4I22pNgB3m8fTNqTqlOCnYwC45BHRLMUORzbVBoU2Phzg8T2Mf6
+         McY4DEASeSEpBarXdinny7eYYeMH5E9o7DVA1pZ2MSQaEyUwOk2UhyYyq9ew9h3HM4F8
+         jtnfcgZtsj8NQJ5LZr41rHBhl45Awv5KSHHpQS/cdm2sotztMAjL9GKJ3xTqJKQ/4Rv/
+         NTzQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWQbVCDSdCneo7pQpF+YGWrfl7IRxk55gMqwHwxjcQvKAimgnY5
+	EhZBTIYycWPw4DkN6uIgnJHz1uNU44SgUiNzJL63mMwHigW5p0WWpVbKoWAkiEeV9zl4dajbDDK
+	dziV7Rhj5LsvGM95eGqMRXj6Rizp3VI7SyPWgUhWGP0r+x42Jn6crJCXgi8eJflwBeA==
+X-Received: by 2002:a50:a945:: with SMTP id m5mr8582314edc.207.1556008685803;
+        Tue, 23 Apr 2019 01:38:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzv+x36g+yQin/7eIt21UHzZTKyFu+UW0SinkvjPnhV/uZtLRp3spYl1fcKMcByVvc+JUih
+X-Received: by 2002:a50:a945:: with SMTP id m5mr8582256edc.207.1556008684731;
+        Tue, 23 Apr 2019 01:38:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556008684; cv=none;
         d=google.com; s=arc-20160816;
-        b=aMtaoqXP6ROiUzhdwJyalxu9AJpdEQp3NqvTql7UwSNI03xlntdcGrHxrso5l+J2Uh
-         kL1WkKpzVzeCAedk4lKH2oePM+SrU8jmwsH7HuDoPhhLi79SOv1fl9Ju3pm0VeCDEXET
-         d9MzeBiEfFiDqL0IJLyxHZiXq0+Q5951fL+n4bi5EYSigaj6J8ptp2KawVx/Rp5fJro8
-         Ib22MbM9Zp6MIpW3mcAWTr2zwjVNBrgeoY7PaOl0Ta36GzExSK4OtlJleP5BU3/kJsuY
-         faryC9Y8MRrcXFsIZKlkFZnqcRuq9viCWaYxq6NnjYcKyvLwqv+c15XypFACmCvYB8uv
-         TM6w==
+        b=F+NoscDYLfPsrcvf5Y//OgmUiL7NPNDMoPUz8MWTML5xrb/f2M0Z8UKYsOMY/JDfHo
+         asMwyE28JMSS8nIe01ZMGzJdLmfE/snLXP540eZrdGq1LjbwbtTDhTsJC6WEsWFmkrhp
+         SMTlX0i5j+cm5ur8pL6J4NfGBxO/ffrbCWGD3Lx68CSPxF4pLFHuPHykYJ3hFG7+1wLf
+         bsjfP3fVFsSDtpkFW+DjODelbrIMCkGo6adKFtEnrHFaDN175coU0d0ttr2Rn/PA6G32
+         zPeDcFx+XkFDnbZoeyrkQB9nLoG/CO89kAKLaMg8RZEH2HhH8FJiLHq4ezt+8dxJsKD/
+         elqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=;
-        b=lSrqwqg1GslV5v6vYVYElUVt9/oPHI8C+73uB+IXcPA1+Ryq5fxsksuJgB3C9nTTU9
-         iyOxDUTF67iZiesXITpJ6AT4uTHyhMQiGC0mpxmjBfyvj3CWAVBEQa2t+yQQ0sisx6ab
-         nNkUoLMKVRaormbHTk4vxT789i8GhDNJwDQPPd3RDmbbcoJ+v5v1IeuixF6EyRnBhquS
-         B18dveRVZ4nyIHD6InWdNy/JXagRpFcX5J20Ye2bhJOAGn9w23lGzfnj0IaQbjv4JiKh
-         3F+mwv3RpPV/0VzmBtENRN2laWcz9/0A1uFVflwekfuIL82nNKvSXq2FuFU/1DarVrs4
-         O2Ig==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=crFi3dNvcIIUK+aGImN7hKVe33y7RGoDCk4Px11dm5Q=;
+        b=GlzLeWGwjO3Lx8pAtn72sSwYr/BqlRBuYyXYWfwBvQ/QGUr6+wMMLqkT9nv+zYl9Kd
+         v3V9bycQ0bUO9kqYeZwiB1KUBytzZaxubhwEW8zfnzf3YJru6X2VJ7ck9PzGIwozRd92
+         lrV1fnNi8B8eCxSwE0x/FSsA61YScaOFSztt189iiyOqLYm9W0o5kkghKE3/MSFjcOqM
+         jMtxbPsqlM4fkcO4sW7IKZ0M7vIx0sgIhsJrF2EXOxjuZa36j0WZ18i51UIXouKtDyYB
+         qJ+MeodWQtut9dPm5v4So9nUalCI1fmZrp+a0XvS+6T+KbmHH4b8elrzl830dpDOvMY2
+         V7aQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=wtcLR00S;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [205.233.59.134])
-        by mx.google.com with ESMTPS id u14si9755340itb.54.2019.04.23.01.32.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) client-ip=205.233.59.134;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f45si5460494edd.132.2019.04.23.01.38.04
+        for <linux-mm@kvack.org>;
+        Tue, 23 Apr 2019 01:38:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=wtcLR00S;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=; b=wtcLR00S2SyaNSHW4W8YJVLlo
-	O+xbXpGju2AS15n0RmT22PNWFPgguiraXkdz7fTJOOPFCelJgRckZD0/2ZuE5op1dhFB31L2Ux4Ze
-	01lbzR2iOYjQ3s5bFQe0H6jR2yRtfoA9auKWa+hqqZAoYDA+4QO6IOvxFPGmNu1KYOUdAu9Smvfih
-	bfDZX+lBlu9XddXeAz50OuhzynHVc2qNrk6xzn2OJuiCWDCSuOHf0ablqILz4HnjnmIrjKhnwvtVI
-	f2hObf07+j4H1ytWJzP6eiFop3mnBtxtn6MgoVhsIhyBGhkKYWLd+Q/sSRXuYtDP18GWF7fFzmPne
-	zpUrj3YTA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hIqq0-00012o-Ks; Tue, 23 Apr 2019 08:31:36 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 6323E29B47DC6; Tue, 23 Apr 2019 10:31:35 +0200 (CEST)
-Date: Tue, 23 Apr 2019 10:31:35 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
-	Mauro Carvalho Chehab <mchehab@infradead.org>,
-	linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>,
-	Johannes Berg <johannes@sipsolutions.net>,
-	Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Bjorn Helgaas <bhelgaas@google.com>,
-	Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>,
-	dm-devel@redhat.com, Kishon Vijay Abraham I <kishon@ti.com>,
-	Rob Herring <robh+dt@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
-	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	Maxime Ripard <maxime.ripard@bootlin.com>,
-	Sean Paul <sean@poorly.run>, Ning Sun <ning.sun@intel.com>,
-	Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>,
-	Alan Stern <stern@rowland.harvard.edu>,
-	Andrea Parri <andrea.parri@amarulasolutions.com>,
-	Boqun Feng <boqun.feng@gmail.com>,
-	Nicholas Piggin <npiggin@gmail.com>,
-	David Howells <dhowells@redhat.com>,
-	Jade Alglave <j.alglave@ucl.ac.uk>,
-	Luc Maranget <luc.maranget@inria.fr>,
-	"Paul E. McKenney" <paulmck@linux.ibm.com>,
-	Akira Yokosawa <akiyks@gmail.com>,
-	Daniel Lustig <dlustig@nvidia.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
-	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>,
-	Cornelia Huck <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>,
-	Eric Farman <farman@linux.ibm.com>,
-	Halil Pasic <pasic@linux.ibm.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Harry Wei <harryxiyou@gmail.com>,
-	Alex Shi <alex.shi@linux.alibaba.com>,
-	Jerry Hoemann <jerry.hoemann@hpe.com>,
-	Wim Van Sebroeck <wim@linux-watchdog.org>,
-	Guenter Roeck <linux@roeck-us.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-	x86@kernel.org, Russell King <linux@armlinux.org.uk>,
-	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
-	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
-	Helge Deller <deller@gmx.de>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>, Guan Xuetao <gxt@pku.edu.cn>,
-	Jens Axboe <axboe@kernel.dk>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Arnd Bergmann <arnd@arndb.de>, Matt Mackall <mpm@selenic.com>,
-	Herbert Xu <herbert@gondor.apana.org.au>,
-	Corey Minyard <minyard@acm.org>,
-	Sumit Semwal <sumit.semwal@linaro.org>,
-	Linus Walleij <linus.walleij@linaro.org>,
-	Bartosz Golaszewski <bgolaszewski@baylibre.com>,
-	Darren Hart <dvhart@infradead.org>,
-	Andy Shevchenko <andy@infradead.org>,
-	Stuart Hayes <stuart.w.hayes@gmail.com>,
-	Jaroslav Kysela <perex@perex.cz>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Kirti Wankhede <kwankhede@nvidia.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Steffen Klassert <steffen.klassert@secunet.com>,
-	Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	linux-wireless@vger.kernel.org, linux-pci@vger.kernel.org,
-	devicetree@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-fbdev@vger.kernel.org, tboot-devel@lists.sourceforge.net,
-	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
-	kvm@vger.kernel.org, linux-watchdog@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org,
-	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
-	openipmi-developer@lists.sourceforge.net,
-	linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
-	platform-driver-x86@vger.kernel.org,
-	iommu@lists.linux-foundation.org, linux-mm@kvack.org,
-	kernel-hardening@lists.openwall.com,
-	linux-security-module@vger.kernel.org
-Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
- files to *.rst
-Message-ID: <20190423083135.GA11158@hirez.programming.kicks-ass.net>
-References: <cover.1555938375.git.mchehab+samsung@kernel.org>
- <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4FEB2374;
+	Tue, 23 Apr 2019 01:38:03 -0700 (PDT)
+Received: from [10.163.1.68] (unknown [10.163.1.68])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E1CD43F706;
+	Tue, 23 Apr 2019 01:37:51 -0700 (PDT)
+Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
+To: David Hildenbrand <david@redhat.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+ catalin.marinas@arm.com, mhocko@suse.com, mgorman@techsingularity.net,
+ james.morse@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
+ cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
+References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+ <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
+ <20190415134841.GC13990@lakrids.cambridge.arm.com>
+ <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
+ <20190417142154.GA393@lakrids.cambridge.arm.com>
+ <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
+ <20190417173948.GB15589@lakrids.cambridge.arm.com>
+ <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
+ <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
+ <3f9b39d5-e2d2-8f1b-1c66-4bd977d74f4c@redhat.com>
+ <5c8e4a69-8c71-85e1-3275-c04f84bde639@arm.com>
+ <14364fe5-0999-0c60-d109-af22c13deafa@redhat.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <d6c198ca-5ea4-6f7e-3d95-c89db1d5159b@arm.com>
+Date: Tue, 23 Apr 2019 14:07:50 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <14364fe5-0999-0c60-d109-af22c13deafa@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 22, 2019 at 10:27:45AM -0300, Mauro Carvalho Chehab wrote:
 
->  .../{atomic_bitops.txt => atomic_bitops.rst}  |  2 +
 
-What's happend to atomic_t.txt, also NAK, I still occationally touch
-these files.
+On 04/23/2019 01:21 PM, David Hildenbrand wrote:
+> On 23.04.19 09:45, Anshuman Khandual wrote:
+>>
+>>
+>> On 04/23/2019 01:07 PM, David Hildenbrand wrote:
+>>> On 23.04.19 09:31, Anshuman Khandual wrote:
+>>>>
+>>>>
+>>>> On 04/18/2019 10:58 AM, Anshuman Khandual wrote:
+>>>>> On 04/17/2019 11:09 PM, Mark Rutland wrote:
+>>>>>> On Wed, Apr 17, 2019 at 10:15:35PM +0530, Anshuman Khandual wrote:
+>>>>>>> On 04/17/2019 07:51 PM, Mark Rutland wrote:
+>>>>>>>> On Wed, Apr 17, 2019 at 03:28:18PM +0530, Anshuman Khandual wrote:
+>>>>>>>>> On 04/15/2019 07:18 PM, Mark Rutland wrote:
+>>>>>>>>>> On Sun, Apr 14, 2019 at 11:29:13AM +0530, Anshuman Khandual wrote:
+>>>>>>
+>>>>>>>>>>> +	spin_unlock(&init_mm.page_table_lock);
+>>>>>>>>>>
+>>>>>>>>>> What precisely is the page_table_lock intended to protect?
+>>>>>>>>>
+>>>>>>>>> Concurrent modification to kernel page table (init_mm) while clearing entries.
+>>>>>>>>
+>>>>>>>> Concurrent modification by what code?
+>>>>>>>>
+>>>>>>>> If something else can *modify* the portion of the table that we're
+>>>>>>>> manipulating, then I don't see how we can safely walk the table up to
+>>>>>>>> this point without holding the lock, nor how we can safely add memory.
+>>>>>>>>
+>>>>>>>> Even if this is to protect something else which *reads* the tables,
+>>>>>>>> other code in arm64 which modifies the kernel page tables doesn't take
+>>>>>>>> the lock.
+>>>>>>>>
+>>>>>>>> Usually, if you can do a lockless walk you have to verify that things
+>>>>>>>> didn't change once you've taken the lock, but we don't follow that
+>>>>>>>> pattern here.
+>>>>>>>>
+>>>>>>>> As things stand it's not clear to me whether this is necessary or
+>>>>>>>> sufficient.
+>>>>>>>
+>>>>>>> Hence lets take more conservative approach and wrap the entire process of
+>>>>>>> remove_pagetable() under init_mm.page_table_lock which looks safe unless
+>>>>>>> in the worst case when free_pages() gets stuck for some reason in which
+>>>>>>> case we have bigger memory problem to deal with than a soft lock up.
+>>>>>>
+>>>>>> Sorry, but I'm not happy with _any_ solution until we understand where
+>>>>>> and why we need to take the init_mm ptl, and have made some effort to
+>>>>>> ensure that the kernel correctly does so elsewhere. It is not sufficient
+>>>>>> to consider this code in isolation.
+>>>>>
+>>>>> We will have to take the kernel page table lock to prevent assumption regarding
+>>>>> present or future possible kernel VA space layout. Wrapping around the entire
+>>>>> remove_pagetable() will be at coarse granularity but I dont see why it should
+>>>>> not sufficient atleast from this particular tear down operation regardless of
+>>>>> how this might affect other kernel pgtable walkers.
+>>>>>
+>>>>> IIUC your concern is regarding other parts of kernel code (arm64/generic) which
+>>>>> assume that kernel page table wont be changing and hence they normally walk the
+>>>>> table without holding pgtable lock. Hence those current pgtabe walker will be
+>>>>> affected after this change.
+>>>>>
+>>>>>>
+>>>>>> IIUC, before this patch we never clear non-leaf entries in the kernel
+>>>>>> page tables, so readers don't presently need to take the ptl in order to
+>>>>>> safely walk down to a leaf entry.
+>>>>>
+>>>>> Got it. Will look into this.
+>>>>>
+>>>>>>
+>>>>>> For example, the arm64 ptdump code never takes the ptl, and as of this
+>>>>>> patch it will blow up if it races with a hot-remove, regardless of
+>>>>>> whether the hot-remove code itself holds the ptl.
+>>>>>
+>>>>> Got it. Are there there more such examples where this can be problematic. I
+>>>>> will be happy to investigate all such places and change/add locking scheme
+>>>>> in there to make them work with memory hot remove.
+>>>>>
+>>>>>>
+>>>>>> Note that the same applies to the x86 ptdump code; we cannot assume that
+>>>>>> just because x86 does something that it happens to be correct.
+>>>>>
+>>>>> I understand. Will look into other non-x86 platforms as well on how they are
+>>>>> dealing with this.
+>>>>>
+>>>>>>
+>>>>>> I strongly suspect there are other cases that would fall afoul of this,
+>>>>>> in both arm64 and generic code.
+>>>>
+>>>> On X86
+>>>>
+>>>> - kernel_physical_mapping_init() takes the lock for pgtable page allocations as well
+>>>>   as all leaf level entries including large mappings.
+>>>>
+>>>> On Power
+>>>>
+>>>> - remove_pagetable() take an overall high level init_mm.page_table_lock as I had
+>>>>   suggested before. __map_kernel_page() calls [pud|pmd|pte]_alloc_[kernel] which
+>>>>   allocates page table pages are protected with init_mm.page_table_lock but then
+>>>>   the actual setting of the leaf entries are not (unlike x86)
+>>>>
+>>>> 	arch_add_memory()
+>>>> 		create_section_mapping()
+>>>> 			radix__create_section_mapping()
+>>>> 				create_physical_mapping()
+>>>> 					__map_kernel_page()
+>>>> On arm64.
+>>>>
+>>>> Both kernel page table dump and linear mapping (__create_pgd_mapping on init_mm)
+>>>> will require init_mm.page_table_lock to be really safe against this new memory
+>>>> hot remove code. I will do the necessary changes as part of this series next time
+>>>> around. IIUC there is no equivalent generic feature for ARM64_PTDUMP_CORE/DEBUGFS.
+>>>> 	 > 
+>>>>> Will start looking into all such possible cases both on arm64 and generic.
+>>>>> Mean while more such pointers would be really helpful.
+>>>>
+>>>> Generic usage for init_mm.pagetable_lock
+>>>>
+>>>> Unless I have missed something else these are the generic init_mm kernel page table
+>>>> modifiers at runtime (at least which uses init_mm.page_table_lock)
+>>>>
+>>>> 	1. ioremap_page_range()		/* Mapped I/O memory area */
+>>>> 	2. apply_to_page_range()	/* Change existing kernel linear map */
+>>>> 	3. vmap_page_range()		/* Vmalloc area */
+>>>>
+>>>> A. IOREMAP
+>>>>
+>>>> ioremap_page_range()
+>>>> 	ioremap_p4d_range()
+>>>> 		p4d_alloc()
+>>>> 		ioremap_try_huge_p4d() -> p4d_set_huge() -> set_p4d()
+>>>> 		ioremap_pud_range()
+>>>> 			pud_alloc()
+>>>> 			ioremap_try_huge_pud() -> pud_set_huge() -> set_pud()
+>>>> 			ioremap_pmd_range()
+>>>> 				pmd_alloc()
+>>>> 				ioremap_try_huge_pmd() -> pmd_set_huge() -> set_pmd()
+>>>> 				ioremap_pte_range()
+>>>> 					pte_alloc_kernel()
+>>>> 						set_pte_at() -> set_pte()
+>>>> B. APPLY_TO_PAGE_RANGE
+>>>>
+>>>> apply_to_page_range()
+>>>> 	apply_to_p4d_range()
+>>>> 		p4d_alloc()
+>>>> 		apply_to_pud_range()
+>>>> 			pud_alloc()
+>>>> 			apply_to_pmd_range()
+>>>> 				pmd_alloc()
+>>>> 				apply_to_pte_range()
+>>>> 					pte_alloc_kernel()
+>>>>
+>>>> C. VMAP_PAGE_RANGE
+>>>>
+>>>> vmap_page_range()
+>>>> vmap_page_range_noflush()
+>>>> 	vmap_p4d_range()
+>>>> 		p4d_alloc()
+>>>> 		vmap_pud_range()
+>>>> 			pud_alloc()
+>>>> 			vmap_pmd_range()
+>>>> 				pmd_alloc()
+>>>> 				vmap_pte_range()
+>>>> 					pte_alloc_kernel()
+>>>> 					set_pte_at()
+>>>>
+>>>> In all of the above.
+>>>>
+>>>> - Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are protected with init_mm.page_table_lock
+>>>> - Should not it require init_mm.page_table_lock for all leaf level (PUD|PMD|PTE) modification as well ?
+>>>> - Should not this require init_mm.page_table_lock for page table walk itself ?
+>>>>
+>>>> Not taking an overall lock for all these three operations will potentially race with an ongoing memory
+>>>> hot remove operation which takes an overall lock as proposed. Wondering if this has this been safe till
+>>>> now ?
+>>>>
+>>>
+>>> All memory add/remove operations are currently guarded by
+>>> mem_hotplug_lock as far as I know.
+>>
+>> Right but it seems like it guards against concurrent memory hot add or remove operations with
+>> respect to memory block, sections, sysfs etc. But does it cover with respect to other init_mm
+>> modifiers or accessors ?
+>>
+> 
+> Don't think so, it's purely for memory add/remove via
+> add_memory/remove_memory/devm_memremap_pages, not anything beyond that.
+> Whoever uses get_online_mems/put_online_mems is save in respect to that
+> - mostly slab/slub.
+
+There are two distinct locking requirements here
+
+* Protect against clearing of intermediate pgtable pages to prevent unhandled aborts while walking
+  the kernel page table.
+
+	- pgtable page clearing happens only through memory hot-remove not with any other modifiers
+	- At minimum we would require get_online_mems() for all concurrent walkers of kernel page table
+
+		- Kernel page table dump on arm64 (with ARM64_PTDUMP_CORE_[DEBUGFS])
+		- Existing generic MM modifiers. Without get_online_mems() not sure how these can be
+		  really safe against memory hot-remove.
+
+			1. ioremap_page_range()
+			2. apply_to_page_range()
+			3. vmap_page_range()
+
+* Protect against each other's accesses (apart from get_online_mems)
+
+	- Take overall init_mm.page_table_lock for [ioremap|apply_to|vmap]_page_range()
+	- Take overall lock while creating/destroying linear mapping on each platform
+	- Hotplug lock through get_online_mems only protects against clearing/adding of intermediate pgtable
+	  pages not general modifications by non-hotplug accessors.
+
+Will appreciate if folks could review the assumptions made above as I might have missed something.
 
