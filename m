@@ -2,303 +2,234 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38254C282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 03:00:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9544C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 04:07:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6267206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 03:00:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6267206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 59B9820843
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 04:07:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="tVUjv4Kp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59B9820843
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 797BA6B0003; Mon, 22 Apr 2019 23:00:48 -0400 (EDT)
+	id A9D216B0003; Tue, 23 Apr 2019 00:07:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7498C6B0006; Mon, 22 Apr 2019 23:00:48 -0400 (EDT)
+	id A49746B0006; Tue, 23 Apr 2019 00:07:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60F4D6B0007; Mon, 22 Apr 2019 23:00:48 -0400 (EDT)
+	id 8EC336B0007; Tue, 23 Apr 2019 00:07:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EAA06B0003
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2019 23:00:48 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id e31so13561021qtb.0
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 20:00:48 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 515666B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:07:40 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 132so9215456pgc.18
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2019 21:07:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=pPcKg7SKzskbBRYTtyAPqJaynaXgzoZN3Rr5GGiuAlc=;
-        b=ksC/Dti8voZKG7D4mFcyEA/zf+OGFXnZey4V7ZUpMCi9uKsP5aKPq0e2soSHc4s6+V
-         hih/YrX7z7OjiwRHTnHZFO6LmiTxAyQ6TUgP510NAMZTMfhwYF/kDqakh0NowayH+xaJ
-         PYtYhtS6cv9m0xj339zdAdX0Jqlw8ZTHdG/mP6bFqOD+EzS/xMzNMY2lrxJbjRIxN1bc
-         vxpBfBEImqV2Xl30p4FB2wyhBPtSNMx/vMWkcHwfF8U5RN5DQ0vQriTjKS/zKKXlMoMV
-         qznqhy9SPwQmVsAoMJGTIgMtyq0q0H8ZACaFRN/bfFndJ3QTSnqxNpgaidug0TxHo0UA
-         u7sQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWmLwpEwIB0kGt+hfaOaJJtxoSN1RKoMecyVRUbiGns0nL6vxeT
-	y3C7XuVtmA3F5tWAEdNTfgTPqizjExRmJbgilesD3tO/PeJZAU8YNp5WYpP/Gr+fVHMwbL89uy7
-	HBodfHKFTvGRqHeFuxbc54niR9bYZsh0HkoEMkgpCejXiV3ixgeBFzQHV1LEcST+/9g==
-X-Received: by 2002:ac8:851:: with SMTP id x17mr18627138qth.373.1555988447999;
-        Mon, 22 Apr 2019 20:00:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHHHGVRhAHipe9iAATHX6hRrejrvI9n8s1hoCd0O6Sx4+fS0fWYHoUmv7WocMnJHUumAlj
-X-Received: by 2002:ac8:851:: with SMTP id x17mr18627076qth.373.1555988446828;
-        Mon, 22 Apr 2019 20:00:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1555988446; cv=none;
+        h=x-gm-message-state:dkim-signature:to:cc:from:subject:message-id
+         :date:user-agent:mime-version:content-language
+         :content-transfer-encoding;
+        bh=k7+6BSM8oK42LBfrwAQFm5AsEwXn9us3zgPOcGHMauk=;
+        b=VPRkeWx9PUwHD+FXcTwvVuZWplF2fKKjW+TB+VtrTiASjVCtWQOo6NDLP75xmw5Yp2
+         tnzrN2qx0hblcSPIroQaLnKXU8FmDVLYTNk2xYShWBKehxwy7lqeuYDJWzen8EuNnbfN
+         3i8lKiGO+jgGd2yfPMXH4++bHftRf9XUQOBa/nfv7FOAv/IavpOOSuWufSCSQBhX32FD
+         h86/nwbtmKp7gnElSkoZTLC9JlM2pvMtca53Z2WDsdCt+HDaR50tQ5vOvnnbH1rifvag
+         YFlMNZDVpEo0++3yrJYwQH63/YAlVn8zB2GnLjKiHdqwDbZW7JYmPSeL7PvJoOle9kL6
+         LFOQ==
+X-Gm-Message-State: APjAAAWBibGKy4ywbFS9LsIhg0ixiGRk5rlE0wmYaaDwYsYt6zMdgwmB
+	sGL3htW7/pDc8Es0PkzbLntsNXC4NQNiYyVAHEsvBPFhDr9g0DCC9V/iFrZGYTR0cx7lWlrqMWe
+	yp3x/yTdyMuwBXAeWxN3ICsO7g8GYNNiGgrtGD5kdSN5VdiBegBy6N+iW0EzdNi0BTQ==
+X-Received: by 2002:a63:ff26:: with SMTP id k38mr22558030pgi.123.1555992459679;
+        Mon, 22 Apr 2019 21:07:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPhAGiEDncKEbTK4r5xcX32uifrNkdTh1e9yZON2xmAeCMgck56cHKnxXU6EkAwgJAvfxJ
+X-Received: by 2002:a63:ff26:: with SMTP id k38mr22557981pgi.123.1555992458738;
+        Mon, 22 Apr 2019 21:07:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1555992458; cv=none;
         d=google.com; s=arc-20160816;
-        b=IH+qPD7sGQfBbIRSI5OhxCFqzSpu4kgCzk7yY63hPx4IZO3qBYrH/eqN68k4MaAXf/
-         GSEBByoGLMUblG4vO1qr2jWV5sTTildG+pH9Ab9ZlCS2aqlXSqWs49gEKxBQE+wv93Wx
-         TJIfLpfWHQRwOxUDAVnZBE0urr+lAjNVkUU07vlQ2nJPNjnnb8V40uGybPh5+pOfEw2N
-         rvA4ncDtzk34TerbhkcIP6B3COopwgXII1eDXlMIgtWEdofxhdqlJIbLz+qWwJxGux30
-         6zkAHsOwt/Y4F+MEzJki1O7QbZ3a4hkQLHvOk1HCnpn/AnVGp8yPKPLHXkyYd1n6YTKu
-         ybgw==
+        b=k6CVQROom1McIFYX+uytt73jkemEiIxtbBbkabJSqEojsjwefXkHeKpBPJM6bxbQJB
+         rfGY6DK8re5VlLZZ+G+7HXE97/M/VJkOxyC4Eq3RaECjOEVRtHl/zZXTc5D0GSoQ4HJu
+         crYI3hNFlInWgsSHA1X0HzmE91PJk25whVuQ14vkmmDBT4uj3qEyDYXXDUobD82xfMub
+         8yZG+NsNgX7evnHrWHFt5TQ4Z8TXydr47qQmifhd205bxlmBJtoK/16HIJXIqHlsrpMx
+         QrO9cuwpcoOXJqSCbqOyZmwHUCB3/QG8ZvLbormMvObJpWHfanlqj7MdP6kHEyNVhGOU
+         hdsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=pPcKg7SKzskbBRYTtyAPqJaynaXgzoZN3Rr5GGiuAlc=;
-        b=uZxub1n0mTJiUBt0P+LYMpo+YtvJkCAZlYg8khT6nQ4QkyYK7ol21Za1lVeSFpiID1
-         T1fp22T6zMl1cICZoh75d9rAJjQXzcJRZZ7MwnM5eS1SSK712E3bbHF9Qku+mfazYttZ
-         0NaLXKhu0ObhQ43ZBTjkQ/NkPh8L4+VXU+lTVqm5i9do/2iAz6mSP46uPaViKFrV5R47
-         hzjuFA/HQs6dFV6kt11LFUVptiLouh4NkKguI12vaaHuYoLM32pK1Wmei5Hg7DJOEPbu
-         Yx1ZmyIxCJ64QKWPED5v5d2ATi7mhNVqKkDMHwfhw0kV07vqqFxJ78urppw4v+nsCHR3
-         +jcQ==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:subject:from:cc:to:dkim-signature;
+        bh=k7+6BSM8oK42LBfrwAQFm5AsEwXn9us3zgPOcGHMauk=;
+        b=zroDLKVBZHzCljd3Kmn15RomPELwXmun5JkxxpV2qxGUx4a4PkxDLMmpxQv1tHQorf
+         Rf0DDN/1ETpc+hxLpl0LeMp4qNpXXA+zWg4jQCpYtfzt+9nJb88LJ+Cw/KAXZkkpAJHK
+         VOGl9uAd2aCUmgnplSPoPm2UoTcIl6HyHpJMiBoHN7l711swOT55E6rsj1rYjPbxIpLg
+         X019w6W6y7Ql8n0E2e2vkM5WGKVXdGsarIWdQxUrUuBC6JUo4Sh/wpIynuWJdEowyTK/
+         6Xi3ObqlvGdGBOUyrOzRdUiEZBd+WqhHCHbeAC2tc0qURxNNFMUyHsFnLxb8o8toajRi
+         opzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e14si1026436qtg.174.2019.04.22.20.00.46
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tVUjv4Kp;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id h72si15289334pfd.86.2019.04.22.21.07.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Apr 2019 20:00:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 22 Apr 2019 21:07:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B3009307D840;
-	Tue, 23 Apr 2019 03:00:44 +0000 (UTC)
-Received: from xz-x1 (ovpn-12-175.pek2.redhat.com [10.72.12.175])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 23A585C1B5;
-	Tue, 23 Apr 2019 03:00:33 +0000 (UTC)
-Date: Tue, 23 Apr 2019 11:00:30 +0800
-From: Peter Xu <peterx@redhat.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Marty McFadden <mcfadden8@llnl.gov>, Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v3 14/28] userfaultfd: wp: handle COW properly for uffd-wp
-Message-ID: <20190423030030.GA21301@xz-x1>
-References: <20190320020642.4000-1-peterx@redhat.com>
- <20190320020642.4000-15-peterx@redhat.com>
- <20190418202558.GK3288@redhat.com>
- <20190419062650.GF13323@xz-x1>
- <20190419150253.GA3311@redhat.com>
- <20190422122010.GA25896@xz-x1>
- <20190422145402.GB3450@redhat.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tVUjv4Kp;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3N44Mjt195522;
+	Tue, 23 Apr 2019 04:07:35 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=to : cc : from :
+ subject : message-id : date : mime-version : content-type :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=k7+6BSM8oK42LBfrwAQFm5AsEwXn9us3zgPOcGHMauk=;
+ b=tVUjv4KpTRT2YKBooSrTLi5Bf3BqdOIXX5+Tju0BWfEFQFpaJ5YTjHcvX4bdUvkan6oa
+ O5/PNDyB9ZJQ0jVN01+3D8NOFzPttoDZW6620OrHGG9qIo1ff+uPJBXSyDoX+nM/RuSR
+ goDfVJkyGhRvAIFhq0Ur6I5vYE7KGHWDjBogkYGcXX+OyHZMIgj3gCiSGnBeCESOqL6X
+ qMO1xrF20CHn9+B/pvReqjktiz3G01AApfvZbFgtuQyg8UpR9QyI+4ziBdj46smZ875y
+ lMMY/GZ6iK3UK82zLiqHj3rMiUoGtV8AIAQyEN12B2aqlBlyUwy/3BtjaYBdT0BLcKsr TA== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2130.oracle.com with ESMTP id 2ryrxcsr4w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 23 Apr 2019 04:07:35 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3N46O54134864;
+	Tue, 23 Apr 2019 04:07:35 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3030.oracle.com with ESMTP id 2s0f0v96ge-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 23 Apr 2019 04:07:34 +0000
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3N47Tcs004188;
+	Tue, 23 Apr 2019 04:07:30 GMT
+Received: from [192.168.1.222] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 22 Apr 2019 21:07:29 -0700
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>,
+        Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
+        Johannes Weiner <hannes@cmpxchg.org>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [Question] Should direct reclaim time be bounded?
+Message-ID: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+Date: Mon, 22 Apr 2019 21:07:28 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190422145402.GB3450@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Tue, 23 Apr 2019 03:00:45 +0000 (UTC)
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9235 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904230029
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9235 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904230029
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 22, 2019 at 10:54:02AM -0400, Jerome Glisse wrote:
-> On Mon, Apr 22, 2019 at 08:20:10PM +0800, Peter Xu wrote:
-> > On Fri, Apr 19, 2019 at 11:02:53AM -0400, Jerome Glisse wrote:
-> > 
-> > [...]
-> > 
-> > > > > > +			if (uffd_wp_resolve) {
-> > > > > > +				/* If the fault is resolved already, skip */
-> > > > > > +				if (!pte_uffd_wp(*pte))
-> > > > > > +					continue;
-> > > > > > +				page = vm_normal_page(vma, addr, oldpte);
-> > > > > > +				if (!page || page_mapcount(page) > 1) {
-> > > > > > +					struct vm_fault vmf = {
-> > > > > > +						.vma = vma,
-> > > > > > +						.address = addr & PAGE_MASK,
-> > > > > > +						.page = page,
-> > > > > > +						.orig_pte = oldpte,
-> > > > > > +						.pmd = pmd,
-> > > > > > +						/* pte and ptl not needed */
-> > > > > > +					};
-> > > > > > +					vm_fault_t ret;
-> > > > > > +
-> > > > > > +					if (page)
-> > > > > > +						get_page(page);
-> > > > > > +					arch_leave_lazy_mmu_mode();
-> > > > > > +					pte_unmap_unlock(pte, ptl);
-> > > > > > +					ret = wp_page_copy(&vmf);
-> > > > > > +					/* PTE is changed, or OOM */
-> > > > > > +					if (ret == 0)
-> > > > > > +						/* It's done by others */
-> > > > > > +						continue;
-> > > > > 
-> > > > > This is wrong if ret == 0 you still need to remap the pte before
-> > > > > continuing as otherwise you will go to next pte without the page
-> > > > > table lock for the directory. So 0 case must be handled after
-> > > > > arch_enter_lazy_mmu_mode() below.
-> > > > > 
-> > > > > Sorry i should have catch that in previous review.
-> > > > 
-> > > > My fault to not have noticed it since the very beginning... thanks for
-> > > > spotting that.
-> > > > 
-> > > > I'm squashing below changes into the patch:
-> > > 
-> > > 
-> > > Well thinking of this some more i think you should use do_wp_page() and
-> > > not wp_page_copy() it would avoid bunch of code above and also you are
-> > > not properly handling KSM page or page in the swap cache. Instead of
-> > > duplicating same code that is in do_wp_page() it would be better to call
-> > > it here.
-> > 
-> > Yeah it makes sense to me.  Then here's my plan:
-> > 
-> > - I'll need to drop previous patch "export wp_page_copy" since then
-> >   it'll be not needed
-> > 
-> > - I'll introduce another patch to split current do_wp_page() and
-> >   introduce function "wp_page_copy_cont" (better suggestion on the
-> >   naming would be welcomed) which contains most of the wp handling
-> >   that'll be needed for change_pte_range() in this patch and isolate
-> >   the uffd handling:
-> > 
-> > static vm_fault_t do_wp_page(struct vm_fault *vmf)
-> > 	__releases(vmf->ptl)
-> > {
-> > 	struct vm_area_struct *vma = vmf->vma;
-> > 
-> > 	if (userfaultfd_pte_wp(vma, *vmf->pte)) {
-> > 		pte_unmap_unlock(vmf->pte, vmf->ptl);
-> > 		return handle_userfault(vmf, VM_UFFD_WP);
-> > 	}
-> > 
-> > 	return do_wp_page_cont(vmf);
-> > }
-> > 
-> > Then I can probably use do_wp_page_cont() in this patch.
-> 
-> Instead i would keep the do_wp_page name and do:
->     static vm_fault_t do_userfaultfd_wp_page(struct vm_fault *vmf) {
->         ... // what you have above
->         return do_wp_page(vmf);
->     }
-> 
-> Naming wise i think it would be better to keep do_wp_page() as
-> is.
+I was looking into an issue on our distro kernel where allocation of huge
+pages via "echo X > /proc/sys/vm/nr_hugepages" was taking a LONG time.
+In this particular case, we were actually allocating huge pages VERY slowly
+at the rate of about one every 30 seconds.  I don't want to talk about the
+code in our distro kernel, but the situation that caused this issue exists
+upstream and appears to be worse there.
 
-In case I misunderstood... what I've proposed will be simply:
+One thing to note is that hugetlb page allocation can really stress the
+page allocator.  The routine alloc_pool_huge_page is of special concern.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 64bd8075f054..ab98a1eb4702 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2497,6 +2497,14 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
-                return handle_userfault(vmf, VM_UFFD_WP);
-        }
+/*
+ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
+ * manner.
+ */
+static int alloc_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+{
+	struct page *page;
+	int nr_nodes, node;
+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
 
-+       return do_wp_page_cont(vmf);
-+}
-+
-+vm_fault_t do_wp_page_cont(struct vm_fault *vmf)
-+       __releases(vmf->ptl)
-+{
-+       struct vm_area_struct *vma = vmf->vma;
-+
-        vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
-        if (!vmf->page) {
-                /*
+	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+		page = alloc_fresh_huge_page(h, gfp_mask, node, nodes_allowed);
+		if (page)
+			break;
+	}
 
-And the other proposal is:
+	if (!page)
+		return 0;
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 64bd8075f054..a73792127553 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2469,6 +2469,8 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
-        return VM_FAULT_WRITE;
- }
+	put_page(page); /* free it into the hugepage allocator */
 
-+static vm_fault_t do_wp_page(struct vm_fault *vmf);
-+
- /*
-  * This routine handles present pages, when users try to write
-  * to a shared page. It is done by copying the page to a new address
-@@ -2487,7 +2489,7 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
-  * but allow concurrent faults), with pte both mapped and locked.
-  * We return with mmap_sem still held, but pte unmapped and unlocked.
-  */
--static vm_fault_t do_wp_page(struct vm_fault *vmf)
-+static vm_fault_t do_userfaultfd_wp_page(struct vm_fault *vmf)
-        __releases(vmf->ptl)
- {
-        struct vm_area_struct *vma = vmf->vma;
-@@ -2497,6 +2499,14 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
-                return handle_userfault(vmf, VM_UFFD_WP);
-        }
+	return 1;
+}
 
-+       return do_wp_page(vmf);
-+}
-+
-+static vm_fault_t do_wp_page(struct vm_fault *vmf)
-+       __releases(vmf->ptl)
-+{
-+       struct vm_area_struct *vma = vmf->vma;
-+
-        vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
-        if (!vmf->page) {
-                /*
-@@ -2869,7 +2879,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
-        }
+This routine is called for each huge page the user wants to allocate.  If
+they do "echo 4096 > nr_hugepages", this is called 4096 times.
+alloc_fresh_huge_page() will eventually call __alloc_pages_nodemask with
+__GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN in addition to __GFP_THISNODE.
+That for_each_node_mask_to_alloc() macro is hugetlbfs specific and attempts
+to allocate huge pages in a round robin fashion.  When asked to allocate a
+huge page, it first tries the 'next_nid_to_alloc'.  If that fails, it goes
+to the next allowed node.  This is 'documented' in kernel docs as:
 
-        if (vmf->flags & FAULT_FLAG_WRITE) {
--               ret |= do_wp_page(vmf);
-+               ret |= do_userfaultfd_wp_page(vmf);
-                if (ret & VM_FAULT_ERROR)
-                        ret &= VM_FAULT_ERROR;
-                goto out;
-@@ -3831,7 +3841,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
-                goto unlock;
-        if (vmf->flags & FAULT_FLAG_WRITE) {
-                if (!pte_write(entry))
--                       return do_wp_page(vmf);
-+                       return do_userfaultfd_wp_page(vmf);
-                entry = pte_mkdirty(entry);
-        }
-        entry = pte_mkyoung(entry);
+"On a NUMA platform, the kernel will attempt to distribute the huge page pool
+ over all the set of allowed nodes specified by the NUMA memory policy of the
+ task that modifies nr_hugepages.  The default for the allowed nodes--when the
+ task has default memory policy--is all on-line nodes with memory.  Allowed
+ nodes with insufficient available, contiguous memory for a huge page will be
+ silently skipped when allocating persistent huge pages.  See the discussion
+ below of the interaction of task memory policy, cpusets and per node attributes
+ with the allocation and freeing of persistent huge pages.
 
-I would prefer the 1st approach since it not only contains fewer lines
-of changes because it does not touch callers, and also the naming in
-the 2nd approach can be a bit confusing (calling
-do_userfaultfd_wp_page in handle_pte_fault may let people think of an
-userfault-only path but actually it covers the general path).  But if
-you really like the 2nd one I can use that too.
+ The success or failure of huge page allocation depends on the amount of
+ physically contiguous memory that is present in system at the time of the
+ allocation attempt.  If the kernel is unable to allocate huge pages from
+ some nodes in a NUMA system, it will attempt to make up the difference by
+ allocating extra pages on other nodes with sufficient available contiguous
+ memory, if any."
 
-Thanks,
+However, consider the case of a 2 node system where:
+node 0 has 2GB memory
+node 1 has 4GB memory
 
+Now, if one wants to allocate 4GB of huge pages they may be tempted to simply,
+"echo 2048 > nr_hugepages".  At first this will go well until node 0 is out
+of memory.  When this happens, alloc_pool_huge_page() will continue to be
+called.  Because of that for_each_node_mask_to_alloc() macro, it will likely
+attempt to first allocate a page from node 0.  It will call direct reclaim and
+compaction until it fails.  Then, it will successfully allocate from node 1.
+
+In our distro kernel, I am thinking about making allocations try "less hard"
+on nodes where we start to see failures.  less hard == NORETRY/NORECLAIM.
+I was going to try something like this on an upstream kernel when I noticed
+that it seems like direct reclaim may never end/exit.  It 'may' exit, but I
+instrumented __alloc_pages_slowpath() and saw it take well over an hour
+before I 'tricked' it into exiting.
+
+[ 5916.248341] hpage_slow_alloc: jiffies 5295742  tries 2   node 0 success
+[ 5916.249271]                   reclaim 5295741  compact 1
+
+This is where it stalled after "echo 4096 > nr_hugepages" on a little VM
+with 8GB total memory.
+
+I have not started looking at the direct reclaim code to see exactly where
+we may be stuck, or trying really hard.  My question is, "Is this expected
+or should direct reclaim be somewhat bounded?"  With __alloc_pages_slowpath
+getting 'stuck' in direct reclaim, the documented behavior for huge page
+allocation is not going to happen.
 -- 
-Peter Xu
+Mike Kravetz
 
