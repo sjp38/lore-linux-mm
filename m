@@ -2,162 +2,282 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90874C10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:19:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70E5EC282E1
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:32:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 436DA2077C
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:19:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 436DA2077C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1FF6420645
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 07:32:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FF6420645
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C53956B0003; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
+	id B3B626B0003; Tue, 23 Apr 2019 03:32:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C03426B0006; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
+	id AE7C46B0006; Tue, 23 Apr 2019 03:32:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACBB26B0007; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
+	id 9B1816B0007; Tue, 23 Apr 2019 03:32:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BFB86B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 03:19:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f7so2266596edi.20
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:19:56 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5076B0003
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 03:32:15 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id o3so7506567edr.6
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 00:32:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=42ugvElMVoGqu/m8MSC5tnYu4AH/sC8WY74C7nB6B6o=;
-        b=N62Cv9/fBkZRyf+5w4wSBxV/r1c6mhYT9/xSukItnII5T0AVDwmZyUIMfyTh82fFYm
-         MXl4zQpgsFJ7fXyLxExwAkSZrw1xC5ar7KRYsW9kGCjTiH9ViC1tkYKglupRMJ+roUDj
-         BPAn01yoqNGKl/Bs/CNW2bsCHfY0t9Dzaj8dHXBT7x9IX3+EU6DKMoRuVa0CIkOaQ+Zr
-         Rm8V5CWYOZHiQs+X4euSUzVf6T3aHYISJ41ez3019QRD1d96oRyUXtW5cdbsnwo8T+r+
-         EEVEN5vHO9VfCfmC5PP1JlI/Oo3oxUeIh1dbJ6phvE77aPBAanj0dQ8HWY6Ic677Jm0s
-         dI9g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXyB1U5Q+ibEGcq9z7ul0b5IAYZ/366R3At+WamVzo4MRyBgKwZ
-	UOt67zpC9vTMe9XIPHnrabH3g8FD298Hdn2Bzk6yFpi4gKDMcVsoPU1xIIot1xRPTIDn3AJBhV+
-	YQh5sTaMQn4vAeFNRDY99PEBY1VRa5yHLYly0SqfGKU81j1bWzK+8wmApg72XeWQ=
-X-Received: by 2002:aa7:c510:: with SMTP id o16mr14240382edq.277.1556003995917;
-        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPlIiKM71vRxLsozXqh05lMMwY0uFZpbcRCSFZf77KvYd2qeQtyz/5b1BpbcqYk9kIT9G/
-X-Received: by 2002:aa7:c510:: with SMTP id o16mr14240341edq.277.1556003995096;
-        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556003995; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=Mdsn1hqOiVdoh781EYC9AX9axb3hKxh37ECIIawKCbw=;
+        b=B0e4m3UnrjRkO/cOjN4BP/ymEKHDxK7f47kMBt4pPKPWbxMtd/QjV5zas9+0UvbMt6
+         f8ftRSPt9+ogpqJ5p2zqbxR9cHE5TyHnGE5KZ/iHNQ+aSCKhOvgof0lHmTrG1+ce4qKU
+         +EpZFX0DXImo/1x/hCjdCzNMTiGzZv6GSYGD7haTFaecS1N7lhgdwEYnYjDB4t7EBc7y
+         q8L93ssKkBiS1gmP743f9FOzjTcz2otlw/fA7HxtTk4cM2bazPLasJJ1PrDCH+b9BHQu
+         pCbx9hjDxugQGlHiKvGFnQFJTXa6uue7bkCA0tlNhyvNFQbPK1/PCoyXKjw7zzvH+cVi
+         GsZg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXPBLUGaWjCPexTEqqFmh6aBStjlIWcZMXZpZQEANnarKefwQxj
+	NuI1ISLB6Hew6ppvZrxBxW0TzrIqQoLk7EoZwAObOVl2ucFpmf5SJUoHA3rTMa8+zdRh8V36bgr
+	BMZHB99a/EaTNYo0Wo4G90POliaNQwC63BO4q9bhMXloYWLfK3L2ZLvWeHePZW67JNg==
+X-Received: by 2002:a50:86bd:: with SMTP id r58mr14891078eda.155.1556004734805;
+        Tue, 23 Apr 2019 00:32:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycHsBPuIDBtHlyWKHns5k7xGFnCFjNnw637Ebz/GSkDHV9raU0IV4nRsFflF0gdQP/hv/x
+X-Received: by 2002:a50:86bd:: with SMTP id r58mr14891026eda.155.1556004733753;
+        Tue, 23 Apr 2019 00:32:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556004733; cv=none;
         d=google.com; s=arc-20160816;
-        b=N2zZ1vpVkPHRZnrRGt4vONXChz2pQbrNFCSRVzK4h/bGmkeABe7hAcZMwMhOjztbFQ
-         TTYj0S4IL0zDgO/UCkvaKwUGAWrIGMQtQhxuRsHSTof7iWT8qFk1e2WOKyGl4jixHQnz
-         NhKAMnhC68+l37Tw7PoR0dSvp2qUwE33MECYbhZ2OsG/F1pyUObWZNd+PZpAbwSaiZN7
-         pVuaa75xGJhb49Fno2frzuqn4bQcl5M89EAqbicxGGsQr85cRSQcE8lljO0GVnj5QAl5
-         BgHKnK+rOOdN1uFCHlHswRpAaJ0BzqjXTsl5/lEy2pSeK2+A3c27wGEnoVggVUrlvjzc
-         X/2g==
+        b=voltmbulvjdRuBQIYo8W+HvOTWMfKd3sqU0fGUV1J237n3L9Beki9TGqbVUzw4KyCM
+         AeeUbEfkFGlFwhVlmPR2Kx/mZCNsIKpwD9vwZsPr+F5fYiaCwF57IcV85GDjj4rNIVRm
+         K2LmhPZU5ZV1ah93jKgvshigaiSUGhseYwsUbJgx9ubvPlKPaBU2cpA1IqAC5ndAl7pP
+         WZRb36ps4/g3+0JY5NkcsXuAPCHMJJLwHHio4GYs9/FWBZIN2KoEHOWCBkcncdM7Jn99
+         ZC/PQX7UeeZiK4QrBfDL1ZbQ08uw86Tch+C6loCdI0JI54a8RM10mEGSVpsSZOqjZ39t
+         IV9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=42ugvElMVoGqu/m8MSC5tnYu4AH/sC8WY74C7nB6B6o=;
-        b=ud6C6731IhvcLTMcSHYRknJBq3C7bNo2bN2C6XHx7I6XfFQB/vVY9fOQ+F0JzTGLoZ
-         U3MvMpSgfcRYpDnn8xk//OVtQ4tc4uqE5O7MA+e5k8jxudkXyIengvbHNBBoyLGxusI9
-         vXU4AFQlCY33SWjM7rhUx/NMUD/MpOuA3tq+IFEQPB9ykb/Ojg+UzS/0YKhY+Admb0ZO
-         25LPfqkKqGwC3xSRatqL2kUOdlU7LYY8vn5QrAhIrVhTehS8GqXkBDgTXm/NywVZ/3Mn
-         Oid1l7nJ/tl8KpwRdK5TdNMHOCd8VQgEFlxbMZC+mjD8oAZp4rvHDDkikZKPJxUd5pH/
-         3AWw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from;
+        bh=Mdsn1hqOiVdoh781EYC9AX9axb3hKxh37ECIIawKCbw=;
+        b=C6dsScEJxa8gRfNj6q78BXS2kfLZU3Ic5njMpw1n5zFZyNkCdBNIe4ryrBpCayiWuo
+         M09aYL0Dl9t2+gFzSo1Ow7Xxr2QIHg04I6yiqoEuAzP/SvgNuhnRrqhjLNn3eVlS29+9
+         pzZ7MdfuA15/bzHK+2/euawp5IpYranM6cXpQ6z1jnd05E4+ux+y27wLO6wxS2KfqMw1
+         Dxb66bQGWyRW/lx3ncjKOt0MT0f1GB7aFc0nlebSezIJfnMKQxNdQ3ot6y7ZJJkNl5UA
+         rRmsD3h1gzn+3aZcOW4sHV0AK6nK66uvAHvq/kkPGelI9AhTno7sk8LBL0IVa16qDH4O
+         Q5qA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r5si935438edy.227.2019.04.23.00.19.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 00:19:55 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m7si3041115edi.175.2019.04.23.00.32.13
+        for <linux-mm@kvack.org>;
+        Tue, 23 Apr 2019 00:32:13 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8EE12AD1A;
-	Tue, 23 Apr 2019 07:19:54 +0000 (UTC)
-Date: Tue, 23 Apr 2019 09:19:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	linux-kernel <linux-kernel@vger.kernel.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>,
-	Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Question] Should direct reclaim time be bounded?
-Message-ID: <20190423071953.GC25106@dhcp22.suse.cz>
-References: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 48ACFA78;
+	Tue, 23 Apr 2019 00:32:12 -0700 (PDT)
+Received: from [10.163.1.68] (unknown [10.163.1.68])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D0ADC3F706;
+	Tue, 23 Apr 2019 00:31:59 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+ catalin.marinas@arm.com, mhocko@suse.com, mgorman@techsingularity.net,
+ james.morse@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
+ david@redhat.com, cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
+References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+ <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
+ <20190415134841.GC13990@lakrids.cambridge.arm.com>
+ <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
+ <20190417142154.GA393@lakrids.cambridge.arm.com>
+ <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
+ <20190417173948.GB15589@lakrids.cambridge.arm.com>
+ <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
+Message-ID: <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
+Date: Tue, 23 Apr 2019 13:01:58 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d38a095e-dc39-7e82-bb76-2c9247929f07@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 22-04-19 21:07:28, Mike Kravetz wrote:
-[...]
-> However, consider the case of a 2 node system where:
-> node 0 has 2GB memory
-> node 1 has 4GB memory
+
+
+On 04/18/2019 10:58 AM, Anshuman Khandual wrote:
+> On 04/17/2019 11:09 PM, Mark Rutland wrote:
+>> On Wed, Apr 17, 2019 at 10:15:35PM +0530, Anshuman Khandual wrote:
+>>> On 04/17/2019 07:51 PM, Mark Rutland wrote:
+>>>> On Wed, Apr 17, 2019 at 03:28:18PM +0530, Anshuman Khandual wrote:
+>>>>> On 04/15/2019 07:18 PM, Mark Rutland wrote:
+>>>>>> On Sun, Apr 14, 2019 at 11:29:13AM +0530, Anshuman Khandual wrote:
+>>
+>>>>>>> +	spin_unlock(&init_mm.page_table_lock);
+>>>>>>
+>>>>>> What precisely is the page_table_lock intended to protect?
+>>>>>
+>>>>> Concurrent modification to kernel page table (init_mm) while clearing entries.
+>>>>
+>>>> Concurrent modification by what code?
+>>>>
+>>>> If something else can *modify* the portion of the table that we're
+>>>> manipulating, then I don't see how we can safely walk the table up to
+>>>> this point without holding the lock, nor how we can safely add memory.
+>>>>
+>>>> Even if this is to protect something else which *reads* the tables,
+>>>> other code in arm64 which modifies the kernel page tables doesn't take
+>>>> the lock.
+>>>>
+>>>> Usually, if you can do a lockless walk you have to verify that things
+>>>> didn't change once you've taken the lock, but we don't follow that
+>>>> pattern here.
+>>>>
+>>>> As things stand it's not clear to me whether this is necessary or
+>>>> sufficient.
+>>>
+>>> Hence lets take more conservative approach and wrap the entire process of
+>>> remove_pagetable() under init_mm.page_table_lock which looks safe unless
+>>> in the worst case when free_pages() gets stuck for some reason in which
+>>> case we have bigger memory problem to deal with than a soft lock up.
+>>
+>> Sorry, but I'm not happy with _any_ solution until we understand where
+>> and why we need to take the init_mm ptl, and have made some effort to
+>> ensure that the kernel correctly does so elsewhere. It is not sufficient
+>> to consider this code in isolation.
 > 
-> Now, if one wants to allocate 4GB of huge pages they may be tempted to simply,
-> "echo 2048 > nr_hugepages".  At first this will go well until node 0 is out
-> of memory.  When this happens, alloc_pool_huge_page() will continue to be
-> called.  Because of that for_each_node_mask_to_alloc() macro, it will likely
-> attempt to first allocate a page from node 0.  It will call direct reclaim and
-> compaction until it fails.  Then, it will successfully allocate from node 1.
-
-Yeah, the even distribution is quite a strong statement. We just try to
-distribute somehow and it is likely to not work really great on system
-with nodes that are different in size. I know it sucks but I've been
-recommending to use the /sys/devices/system/node/node$N/hugepages/hugepages-2048kB/nr_hugepages
-because that allows the define the actual policy much better. I guess we
-want to be more specific about this in the documentation at least.
-
-> In our distro kernel, I am thinking about making allocations try "less hard"
-> on nodes where we start to see failures.  less hard == NORETRY/NORECLAIM.
-> I was going to try something like this on an upstream kernel when I noticed
-> that it seems like direct reclaim may never end/exit.  It 'may' exit, but I
-> instrumented __alloc_pages_slowpath() and saw it take well over an hour
-> before I 'tricked' it into exiting.
+> We will have to take the kernel page table lock to prevent assumption regarding
+> present or future possible kernel VA space layout. Wrapping around the entire
+> remove_pagetable() will be at coarse granularity but I dont see why it should
+> not sufficient atleast from this particular tear down operation regardless of
+> how this might affect other kernel pgtable walkers.
 > 
-> [ 5916.248341] hpage_slow_alloc: jiffies 5295742  tries 2   node 0 success
-> [ 5916.249271]                   reclaim 5295741  compact 1
-
-This is unexpected though. What does tries mean? Number of reclaim
-attempts? If yes could you enable tracing to see what takes so long in
-the reclaim path?
-
-> This is where it stalled after "echo 4096 > nr_hugepages" on a little VM
-> with 8GB total memory.
+> IIUC your concern is regarding other parts of kernel code (arm64/generic) which
+> assume that kernel page table wont be changing and hence they normally walk the
+> table without holding pgtable lock. Hence those current pgtabe walker will be
+> affected after this change.
 > 
-> I have not started looking at the direct reclaim code to see exactly where
-> we may be stuck, or trying really hard.  My question is, "Is this expected
-> or should direct reclaim be somewhat bounded?"  With __alloc_pages_slowpath
-> getting 'stuck' in direct reclaim, the documented behavior for huge page
-> allocation is not going to happen.
+>>
+>> IIUC, before this patch we never clear non-leaf entries in the kernel
+>> page tables, so readers don't presently need to take the ptl in order to
+>> safely walk down to a leaf entry.
+> 
+> Got it. Will look into this.
+> 
+>>
+>> For example, the arm64 ptdump code never takes the ptl, and as of this
+>> patch it will blow up if it races with a hot-remove, regardless of
+>> whether the hot-remove code itself holds the ptl.
+> 
+> Got it. Are there there more such examples where this can be problematic. I
+> will be happy to investigate all such places and change/add locking scheme
+> in there to make them work with memory hot remove.
+> 
+>>
+>> Note that the same applies to the x86 ptdump code; we cannot assume that
+>> just because x86 does something that it happens to be correct.
+> 
+> I understand. Will look into other non-x86 platforms as well on how they are
+> dealing with this.
+> 
+>>
+>> I strongly suspect there are other cases that would fall afoul of this,
+>> in both arm64 and generic code.
 
-Well, our "how hard to try for hugetlb pages" is quite arbitrary. We
-used to rety as long as at least order worth of pages have been
-reclaimed but that didn't make any sense since the lumpy reclaim was
-gone. So the semantic has change to reclaim&compact as long as there is
-some progress. From what I understad above it seems that you are not
-thrashing and calling reclaim again and again but rather one reclaim
-round takes ages.
+On X86
 
-That being said, I do not think __GFP_RETRY_MAYFAIL is wrong here. It
-looks like there is something wrong in the reclaim going on.
+- kernel_physical_mapping_init() takes the lock for pgtable page allocations as well
+  as all leaf level entries including large mappings.
 
--- 
-Michal Hocko
-SUSE Labs
+On Power
+
+- remove_pagetable() take an overall high level init_mm.page_table_lock as I had
+  suggested before. __map_kernel_page() calls [pud|pmd|pte]_alloc_[kernel] which
+  allocates page table pages are protected with init_mm.page_table_lock but then
+  the actual setting of the leaf entries are not (unlike x86)
+
+	arch_add_memory()
+		create_section_mapping()
+			radix__create_section_mapping()
+				create_physical_mapping()
+					__map_kernel_page()
+On arm64.
+
+Both kernel page table dump and linear mapping (__create_pgd_mapping on init_mm)
+will require init_mm.page_table_lock to be really safe against this new memory
+hot remove code. I will do the necessary changes as part of this series next time
+around. IIUC there is no equivalent generic feature for ARM64_PTDUMP_CORE/DEBUGFS.
+	 > 
+> Will start looking into all such possible cases both on arm64 and generic.
+> Mean while more such pointers would be really helpful.
+
+Generic usage for init_mm.pagetable_lock
+
+Unless I have missed something else these are the generic init_mm kernel page table
+modifiers at runtime (at least which uses init_mm.page_table_lock)
+
+	1. ioremap_page_range()		/* Mapped I/O memory area */
+	2. apply_to_page_range()	/* Change existing kernel linear map */
+	3. vmap_page_range()		/* Vmalloc area */
+
+A. IOREMAP
+
+ioremap_page_range()
+	ioremap_p4d_range()
+		p4d_alloc()
+		ioremap_try_huge_p4d() -> p4d_set_huge() -> set_p4d()
+		ioremap_pud_range()
+			pud_alloc()
+			ioremap_try_huge_pud() -> pud_set_huge() -> set_pud()
+			ioremap_pmd_range()
+				pmd_alloc()
+				ioremap_try_huge_pmd() -> pmd_set_huge() -> set_pmd()
+				ioremap_pte_range()
+					pte_alloc_kernel()
+						set_pte_at() -> set_pte()
+B. APPLY_TO_PAGE_RANGE
+
+apply_to_page_range()
+	apply_to_p4d_range()
+		p4d_alloc()
+		apply_to_pud_range()
+			pud_alloc()
+			apply_to_pmd_range()
+				pmd_alloc()
+				apply_to_pte_range()
+					pte_alloc_kernel()
+
+C. VMAP_PAGE_RANGE
+
+vmap_page_range()
+vmap_page_range_noflush()
+	vmap_p4d_range()
+		p4d_alloc()
+		vmap_pud_range()
+			pud_alloc()
+			vmap_pmd_range()
+				pmd_alloc()
+				vmap_pte_range()
+					pte_alloc_kernel()
+					set_pte_at()
+
+In all of the above.
+
+- Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are protected with init_mm.page_table_lock
+- Should not it require init_mm.page_table_lock for all leaf level (PUD|PMD|PTE) modification as well ?
+- Should not this require init_mm.page_table_lock for page table walk itself ?
+
+Not taking an overall lock for all these three operations will potentially race with an ongoing memory
+hot remove operation which takes an overall lock as proposed. Wondering if this has this been safe till
+now ?
 
