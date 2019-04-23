@@ -2,103 +2,197 @@ Return-Path: <SRS0=sydr=SZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 606EAC10F14
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:31:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 006F5C10F14
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:32:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28C5C20645
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:31:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28C5C20645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A95EA20843
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Apr 2019 08:32:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="wtcLR00S"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A95EA20843
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF8966B0003; Tue, 23 Apr 2019 04:31:51 -0400 (EDT)
+	id 62AE06B0006; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA55A6B0006; Tue, 23 Apr 2019 04:31:51 -0400 (EDT)
+	id 5DA136B0007; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A945D6B0007; Tue, 23 Apr 2019 04:31:51 -0400 (EDT)
+	id 47A2C6B0008; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C24A6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 04:31:51 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f7so2367493edi.20
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 01:31:51 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 279636B0006
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 04:32:26 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id y10so3950333ioj.7
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 01:32:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=SzhiKLqepLs4TLyFMC3qY82Pew51Os0SgpyAsf9Oskc=;
-        b=AUeBR/VudDjVjL1a5EbNym8pV0mgPqyHCb8GN4R9E0y7DIATZ8DnLYic9BCq8qVJhO
-         rsVwF52IdJY3aOJgWQKjlwTUVuHIgRE1kDy0ZUtn2NQvCDl/xqlB9Y361MPC61J7Nh9t
-         D4vjqBJi8SQBwClhTRyLuBzNM5cKGbj3z0DPsKUfArdmcE+9xRp+CumTCeXLWzuYM97s
-         816qD65DFAyISQ1mech62pWIa/TfYYzcZM6YipVJ3CKtywEYtcvNmn55BZhdx/nxpsLx
-         FleKke1XZsnFlRpLAFiVU7hiyMXoQdPC6XWddJ3/yVZDRD22bmKon5bIJ7PmIRSilosJ
-         a7AQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWorzzOKobCTrmMvwpTOvmZVciHSzGZlfEHM5+SpiO6g5uJieoq
-	Bp8vs3fIhM483fN14GkIh4qa8nILyEnXeOCf0R6j+OYMZKogzALuYSo8GaMXPx19P1wy2tLhoWW
-	NCv/KM9ckQPyA8qJfdrHzP64DxUrZm4fLfYjRq+2GH0G33EEZAxomEWva8qzjQrI=
-X-Received: by 2002:aa7:d950:: with SMTP id l16mr15208991eds.296.1556008310947;
-        Tue, 23 Apr 2019 01:31:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjniSDvVfE6Vac4+xbYJm3PiQiVlDOpY9gj9BQEeaFOhIPlVdhsZ/ASjLwHDJ283+1is2D
-X-Received: by 2002:aa7:d950:: with SMTP id l16mr15208944eds.296.1556008310139;
-        Tue, 23 Apr 2019 01:31:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556008310; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=;
+        b=SQa0qmB1PX1l78A+E9yuBMMEyYVziH2K+gcDcsd1C06F39B1k9Hryg76jZef47eN2O
+         bLVQYTfU0NH4bl6JSMHHPrPt12P6mpTGzS1hNf+TU28H240ZW3lERS9ActR2QGEg/4cM
+         cWShYGxqCod8F3kZevsBIHKio8Wuv2ZEBZHIzGzSeAHHJH9oHelp1VR6Pdq2/tVcmXzP
+         xNKhU9yVNsegI2fLuOFfwiAqmuzigDVy0cPEuya3chBbDJkM/Yx/laKgTTeSUZ3U+Rht
+         aWkzwglyCRtgvh3a4bc4L+liOWxRZUrqgVzOoOEPPlk82NQJF0koI9rlhqx0jwJLUTtp
+         XpAQ==
+X-Gm-Message-State: APjAAAUnnh57WTdMsu6i6VmjefUxwUiNeca/EBqZFKl2axftyJfoTpQU
+	052Z2LaH3/jZHSDCWYE2P4sxoJ84pRIUbEgFMGULO1diAnnzdvgN5PWo4Ptl4F5k4B7vK+KOCaC
+	rRkUetjAwRHTZLneVuqX51ks+dXZvldojZJ6amZaDqF10MD+cmLttHvNPuJMBPUY1kA==
+X-Received: by 2002:a02:1649:: with SMTP id a70mr16972843jaa.116.1556008345889;
+        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwdS9QEbH2jl+tViIE/CtXQnSiS4FrKDCuABocsvkMuMkF2k15IypLqUj/b/sPJiBYDyiX4
+X-Received: by 2002:a02:1649:: with SMTP id a70mr16972813jaa.116.1556008345189;
+        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556008345; cv=none;
         d=google.com; s=arc-20160816;
-        b=G5/FperWFMF5GUD1mEgmss0w6x29WQoOzLUtnlXKgGIH561B5oNzFvn5OybCV4/d70
-         oh9TJkynNtVTezuI+Vbolq51BCR+XCxnuFDvEqmIhc1IIYXwVKCAbK//GI9hhIqA5mLL
-         +3rEUJv+4cK/034Y1a2DRAjX6t+yyHkXw51jphnBZM8NmLTRNYbtcxlODm5sYvvvp844
-         NhCrcfLWcXrvScQj8GK2npkY6GvDttT/p5FI3YZc549ZMMHQF88TsVGGZP+othMwKyM3
-         IUUZlAmOmk2Mn5qAb6bEOnTtls3FctZwUqiI+1AL4hd49kb3XE2sG0tygZfxU9H2qPPd
-         7Wpg==
+        b=aMtaoqXP6ROiUzhdwJyalxu9AJpdEQp3NqvTql7UwSNI03xlntdcGrHxrso5l+J2Uh
+         kL1WkKpzVzeCAedk4lKH2oePM+SrU8jmwsH7HuDoPhhLi79SOv1fl9Ju3pm0VeCDEXET
+         d9MzeBiEfFiDqL0IJLyxHZiXq0+Q5951fL+n4bi5EYSigaj6J8ptp2KawVx/Rp5fJro8
+         Ib22MbM9Zp6MIpW3mcAWTr2zwjVNBrgeoY7PaOl0Ta36GzExSK4OtlJleP5BU3/kJsuY
+         faryC9Y8MRrcXFsIZKlkFZnqcRuq9viCWaYxq6NnjYcKyvLwqv+c15XypFACmCvYB8uv
+         TM6w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=SzhiKLqepLs4TLyFMC3qY82Pew51Os0SgpyAsf9Oskc=;
-        b=oQiGWefVl6dScRogMv3XiQyomBOxJvviHSj8Ue5bB0ATXMEn4P6AYOpB76SWI9YfUn
-         a//416ntxwcf83SpplExc0rO4nPG3fG2D26ma+BfA3nw0BaUYP5R+Qq4SIBe9NjGqetU
-         j6I5iZWkhjr0OkSNYyvlgz3fOCnaCmmGRUNMWeH+WkOlHHK2c1pIwxKCQqr6e9MqBIyN
-         q10obutUjRiqeJtigPb6ERP82st779gTpENdpdQ8gWSTDxKGS8xRJBZPRsEBfagDBuY9
-         12vOJgGbkZbvp/DiRUm/ivzZCUuAiZ1ljecPCsJpz0HWYEqWbOff0+3BA3MTVF2O/Izl
-         D0gA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=;
+        b=lSrqwqg1GslV5v6vYVYElUVt9/oPHI8C+73uB+IXcPA1+Ryq5fxsksuJgB3C9nTTU9
+         iyOxDUTF67iZiesXITpJ6AT4uTHyhMQiGC0mpxmjBfyvj3CWAVBEQa2t+yQQ0sisx6ab
+         nNkUoLMKVRaormbHTk4vxT789i8GhDNJwDQPPd3RDmbbcoJ+v5v1IeuixF6EyRnBhquS
+         B18dveRVZ4nyIHD6InWdNy/JXagRpFcX5J20Ye2bhJOAGn9w23lGzfnj0IaQbjv4JiKh
+         3F+mwv3RpPV/0VzmBtENRN2laWcz9/0A1uFVflwekfuIL82nNKvSXq2FuFU/1DarVrs4
+         O2Ig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b9si351368edw.129.2019.04.23.01.31.49
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=wtcLR00S;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [205.233.59.134])
+        by mx.google.com with ESMTPS id u14si9755340itb.54.2019.04.23.01.32.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 01:31:50 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 23 Apr 2019 01:32:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) client-ip=205.233.59.134;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 86760AED6;
-	Tue, 23 Apr 2019 08:31:49 +0000 (UTC)
-Date: Tue, 23 Apr 2019 10:31:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org,
-	cl@linux.com, dvyukov@google.com, keescook@chromium.org,
-	labbott@redhat.com, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org,
-	kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot
- option
-Message-ID: <20190423083148.GF25106@dhcp22.suse.cz>
-References: <20190418154208.131118-1-glider@google.com>
- <20190418154208.131118-2-glider@google.com>
- <981d439a-1107-2730-f27e-17635ee4a125@intel.com>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=wtcLR00S;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 205.233.59.134 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=mVbTPadcqfIC9mixerPpd69JlL1rVPk8BX8DnNvgvak=; b=wtcLR00S2SyaNSHW4W8YJVLlo
+	O+xbXpGju2AS15n0RmT22PNWFPgguiraXkdz7fTJOOPFCelJgRckZD0/2ZuE5op1dhFB31L2Ux4Ze
+	01lbzR2iOYjQ3s5bFQe0H6jR2yRtfoA9auKWa+hqqZAoYDA+4QO6IOvxFPGmNu1KYOUdAu9Smvfih
+	bfDZX+lBlu9XddXeAz50OuhzynHVc2qNrk6xzn2OJuiCWDCSuOHf0ablqILz4HnjnmIrjKhnwvtVI
+	f2hObf07+j4H1ytWJzP6eiFop3mnBtxtn6MgoVhsIhyBGhkKYWLd+Q/sSRXuYtDP18GWF7fFzmPne
+	zpUrj3YTA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hIqq0-00012o-Ks; Tue, 23 Apr 2019 08:31:36 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 6323E29B47DC6; Tue, 23 Apr 2019 10:31:35 +0200 (CEST)
+Date: Tue, 23 Apr 2019 10:31:35 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+Cc: Linux Doc Mailing List <linux-doc@vger.kernel.org>,
+	Mauro Carvalho Chehab <mchehab@infradead.org>,
+	linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>,
+	Johannes Berg <johannes@sipsolutions.net>,
+	Kurt Schwemmer <kurt.schwemmer@microsemi.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>,
+	dm-devel@redhat.com, Kishon Vijay Abraham I <kishon@ti.com>,
+	Rob Herring <robh+dt@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, Ning Sun <ning.sun@intel.com>,
+	Ingo Molnar <mingo@redhat.com>, Will Deacon <will.deacon@arm.com>,
+	Alan Stern <stern@rowland.harvard.edu>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
+	Boqun Feng <boqun.feng@gmail.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	David Howells <dhowells@redhat.com>,
+	Jade Alglave <j.alglave@ucl.ac.uk>,
+	Luc Maranget <luc.maranget@inria.fr>,
+	"Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Akira Yokosawa <akiyks@gmail.com>,
+	Daniel Lustig <dlustig@nvidia.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Andreas =?iso-8859-1?Q?F=E4rber?= <afaerber@suse.de>,
+	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>,
+	Cornelia Huck <cohuck@redhat.com>, Farhan Ali <alifm@linux.ibm.com>,
+	Eric Farman <farman@linux.ibm.com>,
+	Halil Pasic <pasic@linux.ibm.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Harry Wei <harryxiyou@gmail.com>,
+	Alex Shi <alex.shi@linux.alibaba.com>,
+	Jerry Hoemann <jerry.hoemann@hpe.com>,
+	Wim Van Sebroeck <wim@linux-watchdog.org>,
+	Guenter Roeck <linux@roeck-us.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+	x86@kernel.org, Russell King <linux@armlinux.org.uk>,
+	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
+	Helge Deller <deller@gmx.de>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>, Guan Xuetao <gxt@pku.edu.cn>,
+	Jens Axboe <axboe@kernel.dk>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Arnd Bergmann <arnd@arndb.de>, Matt Mackall <mpm@selenic.com>,
+	Herbert Xu <herbert@gondor.apana.org.au>,
+	Corey Minyard <minyard@acm.org>,
+	Sumit Semwal <sumit.semwal@linaro.org>,
+	Linus Walleij <linus.walleij@linaro.org>,
+	Bartosz Golaszewski <bgolaszewski@baylibre.com>,
+	Darren Hart <dvhart@infradead.org>,
+	Andy Shevchenko <andy@infradead.org>,
+	Stuart Hayes <stuart.w.hayes@gmail.com>,
+	Jaroslav Kysela <perex@perex.cz>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Kirti Wankhede <kwankhede@nvidia.com>,
+	Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Steffen Klassert <steffen.klassert@secunet.com>,
+	Kees Cook <keescook@chromium.org>, Emese Revfy <re.emese@gmail.com>,
+	James Morris <jmorris@namei.org>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	linux-wireless@vger.kernel.org, linux-pci@vger.kernel.org,
+	devicetree@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-fbdev@vger.kernel.org, tboot-devel@lists.sourceforge.net,
+	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
+	kvm@vger.kernel.org, linux-watchdog@vger.kernel.org,
+	linux-ia64@vger.kernel.org, linux-parisc@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
+	openipmi-developer@lists.sourceforge.net,
+	linaro-mm-sig@lists.linaro.org, linux-gpio@vger.kernel.org,
+	platform-driver-x86@vger.kernel.org,
+	iommu@lists.linux-foundation.org, linux-mm@kvack.org,
+	kernel-hardening@lists.openwall.com,
+	linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 56/79] docs: Documentation/*.txt: rename all ReST
+ files to *.rst
+Message-ID: <20190423083135.GA11158@hirez.programming.kicks-ass.net>
+References: <cover.1555938375.git.mchehab+samsung@kernel.org>
+ <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <981d439a-1107-2730-f27e-17635ee4a125@intel.com>
+In-Reply-To: <cda57849a6462ccc72dcd360b30068ab6a1021c4.1555938376.git.mchehab+samsung@kernel.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,27 +200,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 18-04-19 09:35:32, Dave Hansen wrote:
-> On 4/18/19 8:42 AM, Alexander Potapenko wrote:
-> > This option adds the possibility to initialize newly allocated pages and
-> > heap objects with zeroes. This is needed to prevent possible information
-> > leaks and make the control-flow bugs that depend on uninitialized values
-> > more deterministic.
-> 
-> Isn't it better to do this at free time rather than allocation time?  If
-> doing it at free, you can't even have information leaks for pages that
-> are in the allocator.
+On Mon, Apr 22, 2019 at 10:27:45AM -0300, Mauro Carvalho Chehab wrote:
 
-I would tend to agree here. Free path is usually less performance sensitive
-than the allocation. Those really hot paths tend to defer the work.
+>  .../{atomic_bitops.txt => atomic_bitops.rst}  |  2 +
 
-I am also worried that an opt-out gfp flag would tend to be used
-incorrectly as the history has shown for others - e.g. __GFP_TEMPORARY.
-So I would rather see this robust without a fine tuning unless there is
-real use case that would suffer from this and we can think of a
-background scrubbing or something similar.
-
--- 
-Michal Hocko
-SUSE Labs
+What's happend to atomic_t.txt, also NAK, I still occationally touch
+these files.
 
