@@ -2,172 +2,293 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C229C10F03
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 02:32:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF1C3C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:44:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05A2A218D3
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 02:32:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05A2A218D3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
+	by mail.kernel.org (Postfix) with ESMTP id 42138218D2
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:44:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="bHFYCX9d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42138218D2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 633FF6B0007; Tue, 23 Apr 2019 22:32:01 -0400 (EDT)
+	id B76236B0005; Wed, 24 Apr 2019 00:44:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E45E6B0008; Tue, 23 Apr 2019 22:32:01 -0400 (EDT)
+	id B25556B0006; Wed, 24 Apr 2019 00:44:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D4426B000A; Tue, 23 Apr 2019 22:32:01 -0400 (EDT)
+	id 9ECEF6B0007; Wed, 24 Apr 2019 00:44:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F31276B0007
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:32:00 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f17so3996406edq.3
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 19:32:00 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 786546B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 00:44:24 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id g186so13958659ybg.16
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:44:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=fEa3JOUbGsOnEgEQWnRoThOH7r3kOP5ZNmmP02Yq4X8=;
-        b=WdXbhnIoDl+RkhtG5Fd4JCIw3FqGBBg6DGDfcZLB9bYdT2Q6VA6vvGtfqEpKSiSlUX
-         KJUSnSlV3A33Rg6U6l01r6EHSmTEgFcOt4AaQKxi04LYo1n25bs8ToBhrzWX1JBzJ/bn
-         OtyRdjpe2x+lZyQ62MPzwJywvHkN7prEc9vZCYOJPz+iWLolLSFXl+XTVfaI9mpzE9bb
-         31dC8vVC+rcL7/qDnjjjR5tpZmCpesFKrBm91xsrlRDE7IqSWAcVBAWBslHOeLtoSv5j
-         EQ1M1x8BjpXemD11kCA8+RuW8mT5cqRtWVOyEW4qmxNKXr1GdameCHkINhwpjIN2F3vp
-         +bgw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Gm-Message-State: APjAAAURziJP3fN3eJca/kFrZata01BSViW9t3EWtUe/EfkZT0NR7apO
-	CNNwO6FwjPycAdxjvMxj/EZSm06Er8UNnmFrmMOclV2lgkZTBLMSGYa6hSTvK5P+G7CDbooMTkr
-	mrWjIWLGOAe18zdavxmIZ2H7iMaI9B/Lksh0GH3pbvSE7O//XH68nHQ1sh/LD/Zo=
-X-Received: by 2002:aa7:c5c4:: with SMTP id h4mr18873075eds.19.1556073120536;
-        Tue, 23 Apr 2019 19:32:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy55iO9SmewWG788/daoun8f6Tr4VcYXbQF+gnQLQSnm+1w3B37Bk6AnEblnd/SIupZblY+
-X-Received: by 2002:aa7:c5c4:: with SMTP id h4mr18873044eds.19.1556073119799;
-        Tue, 23 Apr 2019 19:31:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556073119; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=DYe1Kczls7Vz3TOywv3SCxyloB0ylRoW+6/MG/k28Aw=;
+        b=DVvyT5foRXkai1jZUNTHYzJfnglGC6zr7bhUiv+jE/Yu3PO5XKd2sy0a+HgA0dHBrB
+         1L2nFezAbi3lJkRyDxVA+oqOQL8s8uxp/gkrTybkW/+cfzpmzlffJYOnRVpg1mv6YIiQ
+         QpSIQ8FLQfpHNGWRWYbCmA4DWv2t1Srr4fl+yT8xokNUsvuETjJbcBG2lfvO+Htmcop2
+         gJfWgqOUUZ1zDPBDx/nSIt7Y9HRaLaW4y8hMsQVFo6ZEb1mutkCBUnoATl4Utl8hiNSC
+         0xD5xquinggebXhU9ve/obWup/cdD8KlW17ksS4JH3flsrAH9o4Km63HDnaI+uHChykW
+         2/XA==
+X-Gm-Message-State: APjAAAW5/GtFR8LXwXax5ctmZA0jeeSS4S+M7+ElpIe1rheRx96CnHza
+	rJVJIXnjbazx13yI70tteGdhg4gIEkVVbqHsiNa2X9tnkYrRtcI7bSux9YLcppq84uL0OLMSQgc
+	ugSa0Y/dRNY6+c2/fji52E4P0BAuS0HjgcySemTO4Y9TpbKf0niuBGbdW0wbPmEAVdg==
+X-Received: by 2002:a81:7c56:: with SMTP id x83mr1592385ywc.303.1556081064201;
+        Tue, 23 Apr 2019 21:44:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQXH2RDkpXNDVEtztn4YY1peBN+RZLoAKasrUhPt+QZ3z9ABPNs88J9WPjX+krAZxAffZn
+X-Received: by 2002:a81:7c56:: with SMTP id x83mr1592343ywc.303.1556081063192;
+        Tue, 23 Apr 2019 21:44:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556081063; cv=none;
         d=google.com; s=arc-20160816;
-        b=enBB1hf782Hbvxeb5MoNonQlZx4oLhtd0GY8pQssOKRgOy1HcduUT6UlpqOxoJfdqE
-         dQU4YBsuOAOoS9GBY3byag807crBVy6tNoTwI1X6KVyKdxjI7e2skavLF/ni9mdXaqHr
-         5k2rewdNHm4lcR6L3DwkpugeKUJuqB5LFS5DvHuCJN/c+gX4n3nhRXbQXU6mE5aZz+Va
-         sGk39TcKvJJGUVZ6bBP3SXQpBxw+NCaFwHCx6VABrc1n/sGsA0+mU6If7NTaTXINUheI
-         8qBfaD0Dd09whzeX8rg+1LEe04YES2uE56ejgLtLLSmpcJ8uCWjhJXTUXw5nNH0OXaaT
-         bAGw==
+        b=lccI+HC4KvR1L0kFI5khL7R1hnbWR9Fwb+0h7rfo/qFsVZEAGgDJ42GrvBbIqKUkQ9
+         f0SAwUIDB91ILTL3UwoiBljqsNNhsEVllOJG7ueC3g0ENd6xmMu8j/X31+/hC//AHNcd
+         /qJ1tirtIYXOlZviMRXGM4+OCHM6tMWMnfcjqoayp5q4acGitsiamvIRffLxVNaDcnmp
+         O2DQ+AopgzTYXxCpEdt4WNpqg36nDHew761ecc2ow6bZg+NZohAAEZY/5dySsrtDKZii
+         NqX436MwqrPBOOeaTeK1MP4SbBxvURjo7TFVKGhEol/5axBHTtmwRWphTWN0/aRriTKp
+         K7qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:mail-followup-to
-         :message-id:subject:to:from:date;
-        bh=fEa3JOUbGsOnEgEQWnRoThOH7r3kOP5ZNmmP02Yq4X8=;
-        b=mLRtfc92/ZVbhvpyqcfFn2RFMZYb0FDJxK5F+Ke4HdtIm97Q/wa4SmDxgP0XbCXDyv
-         ob+jBnWPGuZVf7r4NKPYtZn+Um1c6Zxl5V862S9PHQYOty0uLvXFowBBwptLbZlckdai
-         gaGX9vk3oi8uNWHQfk2xBtxZ101Yfozyq/rUwDz0WCkozcvw9jZsBXqsCchpZpa/H2eq
-         +RcIeGABE/RIez3hAJSYgVlj+TsF/IwL6ZF2ntU6fqAtlsMZWmugHoqMTnLTn6rA+Z0K
-         GlO14kSR2S4g77CQO6MwnpcWBriOWSFMZxXTvnIxky9DsLo5+JpATx2mekKefXaf4zBI
-         cG1w==
+        h=mime-version:references:in-reply-to:message-id:date:subject
+         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
+         :smtp-origin-hostprefix:dkim-signature;
+        bh=DYe1Kczls7Vz3TOywv3SCxyloB0ylRoW+6/MG/k28Aw=;
+        b=RG9R8xaRm2xIibxg2v2oP/RWpInJm99QG+f0/ZrVHwoJVEy4Re5a65MW1U9L2UNb2J
+         DJJOi0IBhYDKFff1kdIdVpddflhmYOjLVvCYnWGTNkGsrqLaXyOcPUZiLxDR2x5mNiER
+         Pw50GEdUPEuyfT7G5Sf+INyV7FoRmmAfM/xG7tUqitBtZ655fBiS3efygU3cGw8+vfVK
+         d8AP94lo4yq7f5lB7jDZ3XxHtQGQo0RYNsbH/Cda/DhR8sbwdxNtJuTdpTPQxsLp261T
+         elyKLCiNqYzXrt2+mmp+KdJbX7i4/93gjwzM+UkBdEcNP9TDwU82IQofHEZNvmhpQxBt
+         FIiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g23si3272283ejm.69.2019.04.23.19.31.59
+       dkim=pass header.i=@fb.com header.s=facebook header.b=bHFYCX9d;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id j74si12375977ybj.472.2019.04.23.21.44.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 19:31:59 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 23 Apr 2019 21:44:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0466CAF1F;
-	Wed, 24 Apr 2019 02:31:59 +0000 (UTC)
-Date: Tue, 23 Apr 2019 19:31:52 -0700
-From: Davidlohr Bueso <dave@stgolabs.net>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>,
-	linuxppc-dev@lists.ozlabs.org, jgg@mellanox.com
-Subject: Re: [PATCH 5/6] powerpc/mmu: drop mmap_sem now that locked_vm is
- atomic
-Message-ID: <20190424023152.vrnyx4r4oapt7vdy@linux-r8p5>
-Mail-Followup-To: Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>,
-	linuxppc-dev@lists.ozlabs.org, jgg@mellanox.com
-References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
- <20190402204158.27582-6-daniel.m.jordan@oracle.com>
- <964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr>
- <20190403164002.hued52o4mga4yprw@ca-dmjordan1.us.oracle.com>
- <20190424021544.ygqa4hvwbyb6nuxp@linux-r8p5>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=bHFYCX9d;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
+	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x3O4ftRX022118
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:44:22 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : in-reply-to : references : mime-version :
+ content-type; s=facebook; bh=DYe1Kczls7Vz3TOywv3SCxyloB0ylRoW+6/MG/k28Aw=;
+ b=bHFYCX9dNv+cHnVzRdmj18VbL4bDaxiJJyLgc94iTPCfRd9wNi3dL/rByW9imQZa6iGr
+ kACIO/RjRo+g9bmaNvlqG0vBB/KS4n/qab2mlGo2lBZ6N+pY8AiRkfvXFNklVhQHI0sR
+ qBwXvEKBnK4lJsv6nu2Q33NJFu6LmyVS0aY= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by m0001303.ppops.net with ESMTP id 2s28ke1upn-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:44:22 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a1:3::13) by
+ mail.thefacebook.com (2620:10d:c021:18::174) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Tue, 23 Apr 2019 21:44:21 -0700
+Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
+	id CBFA01142D2E6; Tue, 23 Apr 2019 14:31:36 -0700 (PDT)
+Smtp-Origin-Hostprefix: devvm
+From: Roman Gushchin <guro@fb.com>
+Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Michal Hocko
+	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+        Shakeel Butt
+	<shakeelb@google.com>, Christoph Lameter <cl@linux.com>,
+        Vladimir Davydov
+	<vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
+        Roman Gushchin
+	<guro@fb.com>
+Smtp-Origin-Cluster: prn2c23
+Subject: [PATCH v2 4/6] mm: unify SLAB and SLUB page accounting
+Date: Tue, 23 Apr 2019 14:31:31 -0700
+Message-ID: <20190423213133.3551969-5-guro@fb.com>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190423213133.3551969-1-guro@fb.com>
+References: <20190423213133.3551969-1-guro@fb.com>
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20190424021544.ygqa4hvwbyb6nuxp@linux-r8p5>
-User-Agent: NeoMutt/20180323
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_02:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Apr 2019, Bueso wrote:
+Currently the page accounting code is duplicated in SLAB and SLUB
+internals. Let's move it into new (un)charge_slab_page helpers
+in the slab_common.c file. These helpers will be responsible
+for statistics (global and memcg-aware) and memcg charging.
+So they are replacing direct memcg_(un)charge_slab() calls.
 
->On Wed, 03 Apr 2019, Daniel Jordan wrote:
->
->>On Wed, Apr 03, 2019 at 06:58:45AM +0200, Christophe Leroy wrote:
->>>Le 02/04/2019 =E0 22:41, Daniel Jordan a =E9crit=A0:
->>>> With locked_vm now an atomic, there is no need to take mmap_sem as
->>>> writer.  Delete and refactor accordingly.
->>>
->>>Could you please detail the change ?
->>
->>Ok, I'll be more specific in the next version, using some of your languag=
-e in
->>fact.  :)
->>
->>>It looks like this is not the only
->>>change. I'm wondering what the consequences are.
->>>
->>>Before we did:
->>>- lock
->>>- calculate future value
->>>- check the future value is acceptable
->>>- update value if future value acceptable
->>>- return error if future value non acceptable
->>>- unlock
->>>
->>>Now we do:
->>>- atomic update with future (possibly too high) value
->>>- check the new value is acceptable
->>>- atomic update back with older value if new value not acceptable and re=
-turn
->>>error
->>>
->>>So if a concurrent action wants to increase locked_vm with an acceptable
->>>step while another one has temporarily set it too high, it will now fail.
->>>
->>>I think we should keep the previous approach and do a cmpxchg after
->>>validating the new value.
->
->Wouldn't the cmpxchg alternative also be exposed the locked_vm changing be=
-tween
->validating the new value and the cmpxchg() and we'd bogusly fail even when=
- there
->is still just because the value changed (I'm assuming we don't hold any lo=
-cks,
->otherwise all this is pointless).
->
->  current_locked =3D atomic_read(&mm->locked_vm);
->  new_locked =3D current_locked + npages;
->  if (new_locked < lock_limit)
->     if (cmpxchg(&mm->locked_vm, current_locked, new_locked) =3D=3D curren=
-t_locked)
+Signed-off-by: Roman Gushchin <guro@fb.com>
+---
+ mm/slab.c | 19 +++----------------
+ mm/slab.h | 22 ++++++++++++++++++++++
+ mm/slub.c | 14 ++------------
+ 3 files changed, 27 insertions(+), 28 deletions(-)
 
-Err, this being !=3D of course.
+diff --git a/mm/slab.c b/mm/slab.c
+index 14466a73d057..53e6b2687102 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1389,7 +1389,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 								int nodeid)
+ {
+ 	struct page *page;
+-	int nr_pages;
+ 
+ 	flags |= cachep->allocflags;
+ 
+@@ -1399,17 +1398,11 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 		return NULL;
+ 	}
+ 
+-	if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
++	if (charge_slab_page(page, flags, cachep->gfporder, cachep)) {
+ 		__free_pages(page, cachep->gfporder);
+ 		return NULL;
+ 	}
+ 
+-	nr_pages = (1 << cachep->gfporder);
+-	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+-		mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
+-	else
+-		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, nr_pages);
+-
+ 	__SetPageSlab(page);
+ 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
+ 	if (sk_memalloc_socks() && page_is_pfmemalloc(page))
+@@ -1424,12 +1417,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+ {
+ 	int order = cachep->gfporder;
+-	unsigned long nr_freed = (1 << order);
+-
+-	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+-		mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, -nr_freed);
+-	else
+-		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, -nr_freed);
+ 
+ 	BUG_ON(!PageSlab(page));
+ 	__ClearPageSlabPfmemalloc(page);
+@@ -1438,8 +1425,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+ 	page->mapping = NULL;
+ 
+ 	if (current->reclaim_state)
+-		current->reclaim_state->reclaimed_slab += nr_freed;
+-	memcg_uncharge_slab(page, order, cachep);
++		current->reclaim_state->reclaimed_slab += 1 << order;
++	uncharge_slab_page(page, order, cachep);
+ 	__free_pages(page, order);
+ }
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 4a261c97c138..0f5c5444acf1 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -205,6 +205,12 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
+ int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+ 
++static inline int cache_vmstat_idx(struct kmem_cache *s)
++{
++	return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
++		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
++}
++
+ #ifdef CONFIG_MEMCG_KMEM
+ 
+ /* List of all root caches. */
+@@ -352,6 +358,22 @@ static inline void memcg_link_cache(struct kmem_cache *s,
+ 
+ #endif /* CONFIG_MEMCG_KMEM */
+ 
++static __always_inline int charge_slab_page(struct page *page,
++					    gfp_t gfp, int order,
++					    struct kmem_cache *s)
++{
++	memcg_charge_slab(page, gfp, order, s);
++	mod_lruvec_page_state(page, cache_vmstat_idx(s), 1 << order);
++	return 0;
++}
++
++static __always_inline void uncharge_slab_page(struct page *page, int order,
++					       struct kmem_cache *s)
++{
++	mod_lruvec_page_state(page, cache_vmstat_idx(s), -(1 << order));
++	memcg_uncharge_slab(page, order, s);
++}
++
+ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+ {
+ 	struct kmem_cache *cachep;
+diff --git a/mm/slub.c b/mm/slub.c
+index 195f61785c7d..90563c0b3b5f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1499,7 +1499,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+ 	else
+ 		page = __alloc_pages_node(node, flags, order);
+ 
+-	if (page && memcg_charge_slab(page, flags, order, s)) {
++	if (page && charge_slab_page(page, flags, order, s)) {
+ 		__free_pages(page, order);
+ 		page = NULL;
+ 	}
+@@ -1692,11 +1692,6 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	if (!page)
+ 		return NULL;
+ 
+-	mod_lruvec_page_state(page,
+-		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
+-		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+-		1 << oo_order(oo));
+-
+ 	inc_slabs_node(s, page_to_nid(page), page->objects);
+ 
+ 	return page;
+@@ -1730,18 +1725,13 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 			check_object(s, page, p, SLUB_RED_INACTIVE);
+ 	}
+ 
+-	mod_lruvec_page_state(page,
+-		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
+-		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+-		-pages);
+-
+ 	__ClearPageSlabPfmemalloc(page);
+ 	__ClearPageSlab(page);
+ 
+ 	page->mapping = NULL;
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
+-	memcg_uncharge_slab(page, order, s);
++	uncharge_slab_page(page, order, s);
+ 	__free_pages(page, order);
+ }
+ 
+-- 
+2.20.1
 
