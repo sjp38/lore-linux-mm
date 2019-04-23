@@ -2,210 +2,352 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EFD88C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:54:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B203C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:59:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A5838218D2
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:54:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9B91820674
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 04:59:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sbBZ1/eo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5838218D2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="DfRDcwz9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B91820674
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 41AFB6B0007; Wed, 24 Apr 2019 00:54:47 -0400 (EDT)
+	id 464F96B000A; Wed, 24 Apr 2019 00:59:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C98B6B0008; Wed, 24 Apr 2019 00:54:47 -0400 (EDT)
+	id 414336B000C; Wed, 24 Apr 2019 00:59:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B9786B000A; Wed, 24 Apr 2019 00:54:47 -0400 (EDT)
+	id 2DD2A6B000D; Wed, 24 Apr 2019 00:59:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D200C6B0007
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 00:54:46 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id w13so1667913wmc.6
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:54:46 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 048B56B000A
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 00:59:42 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id o17so1825728ywd.22
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:59:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=6SCJHenPmeZBgq84wCssWQ06ag129Nkv1xXgSAngMo4=;
-        b=C1nguXfsG4VrR9i1yHzBUIYK9DUeUiuPuD1Yf5wakBqSyNCe8AQJEI0Pms5A/wdSrb
-         Fzn48CFS2+SSU5XPxvyAyVCn5caZPgBJzptNwM95ylgijP8wKkun7nQmhqgbzQx4MFoQ
-         GQV0IuIgCt9BhdqDkZqOBYDWZ7eLtQPEhjc9zhHrW4mKqTvXiUd3555Y0gOaR2LOeHnN
-         8Kr0t5d4OuCpAtbF1p4KlfR8kHDHNMG3m7qwL+e7eRkU6O6gb/zBB+ZAdPJI4XlAk3bb
-         tJs4xyOOgjMgNCQvDqaTfRO2u0MksNLUhbq26zWbOGT5fVc8RXpkmC9b4+76WSXd5YdH
-         ByUw==
-X-Gm-Message-State: APjAAAV5M0UiVUTMAorZjhU7TbgtLmkhMmw58kp11tmYCLnKQiOQ/M2v
-	ePoO+83YkZqL8rRFwtMgJvfTijTSr7cxZ5TJ/F8EgBd/KIj+stYfqpppUXzBCGkF3B6QWFWqZp5
-	ZjGHl21C0BouC7e1ypnD6sCnXe7nb5L9xYoh0lJ0akTWXnZ4aTyafbJCNhESKdvRYwQ==
-X-Received: by 2002:a1c:a7c5:: with SMTP id q188mr4742888wme.126.1556081686180;
-        Tue, 23 Apr 2019 21:54:46 -0700 (PDT)
-X-Received: by 2002:a1c:a7c5:: with SMTP id q188mr4742841wme.126.1556081685284;
-        Tue, 23 Apr 2019 21:54:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556081685; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=VEdpMvj5kP5nuI6Ztt7mzIbqR1F5iJNOXyr/8yu0PUA=;
+        b=FcFiQX+uAZgmAQIW6sdoD13yXpSTl3Gs/1kVAkgK2lxtpvbkUjcFF790d9q8REXSxX
+         d508PDc1lqZDSvcsEfXRiYd8Q58hCZkyhRvlEvgRjK0gWbbE9liChp2UR4tkPW5HPIFX
+         2RgmJeFbbbuXao4wIcPH9P5bf5zFX/9UrFJWStQzFHMtggIVEmMVxvzanpS9vdSWqQhM
+         HS9a7tuOXIC7jXOQMGac8q+z545zrEm22THOgAs3Wrm7i5f1CoV2/o1ImvsOPbzPiR0T
+         MZz319YQOpw8aDpFNB3VetbDyfC99wqJMvfaL/mDsyspHCXtySGIXZQd1oq5iwDvjYXN
+         JZ8A==
+X-Gm-Message-State: APjAAAUfMYdZNid3euXV3b9jcrImf0REgUFxNCwHOXmBLK5gfuH3FKz3
+	3Ckk3IunIBWOEhiQeQL5Q4xbHQV1yYBUHomEhZrA4e3DG+Bbs2NGl8egZ9MxA5/Pcj3ZY/PLjPs
+	N7t5j1QTHqMbJajkPKvBa3/Mr1Y2amfQzPEM6RLEzgWWZvsxLLf3jR3ZHWijFxGc7vA==
+X-Received: by 2002:a25:2a13:: with SMTP id q19mr23091754ybq.243.1556081981737;
+        Tue, 23 Apr 2019 21:59:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3xGyLR2STh4KYTB52c1HNTyBkPH9NvXwe7QthwUXV9wMuNlc2+zanAR3lG6EBN6xMPrJ9
+X-Received: by 2002:a25:2a13:: with SMTP id q19mr23091720ybq.243.1556081980929;
+        Tue, 23 Apr 2019 21:59:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556081980; cv=none;
         d=google.com; s=arc-20160816;
-        b=cabsCSO2Go8b2ik5Ix0jORr2u2tbNGi9H22F3BKYZcjYFo5AZSznXPUeyQx6ooOQiF
-         swUgq4WRjGP+/GyKg3xDgqWIG9tovq0QLWQKHxISl++9jdSxcgWPZKrbS0FuDZvZxYBe
-         Ig4ZD3aIC7z2vrOCoeFaAU9CS57PFrqwEf5mGeALMra6JHxoBVyPqv0PNfxAS5Xq09Gb
-         cOAfU0fpW88yY3jpGPcpmkfWu8i0Zt5Myw/rNbAAvdcqqmGXslyXTUgIe6ySvZZC5e4g
-         9HXrUEWyFYPsJkivaG8DYFG44b22WyWjW0qDNihwB5wZTyl7NaLprMvkH90/ZmQ9/nN0
-         aKYA==
+        b=MmtFxFe7klt2H2QipGDh/dZOU6uTp8/wC21GUcpCMi9s43eZBlG+ZHPxr3jPtVNtlt
+         Qli9ycgPhcaZmsbkb7tH3YaiVCMh6+LbylQiIiQIK0nUByFo1/BWgHT5W5KFQwa35q2m
+         OwMy34Fxt6eNbNbn/lxynZyxCK+jmvYmftpISfKS8sD0k4tKmCPniBmGTh5IlXqfPecJ
+         JUjyeDVyOcOqYzEQCqUiDhYwEckJYL3ZvqDt6de87YDl01K4biFgtqC8NpPW4Q9E33aG
+         96k2DQ7mrQxZnOX7aG9dA5Zo6GhjYuZ922dMnUUPC26tkdKgX7BN/Ru6C2m9pylLjiIU
+         X4bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=6SCJHenPmeZBgq84wCssWQ06ag129Nkv1xXgSAngMo4=;
-        b=awtIvXHEtW4OHpNBs6OUD06XDTqWmRFa/cNKF+gvHE7BK+ekKjRhPpzmc146h0Ot8Y
-         8bjQD6Fq3nqsJp7+Er62cqqvWADftEK+K7HUmtNCie0mNQ5kWCc7prRMHUlivvTs1uaE
-         FVCMDfWtfbACclXlu488YjPOxZBcMGbbqdj2ubBir4YdbKPEmIkogcBzqPxMM3Hng8TW
-         YqGKsXhaSL/2Dg/fPuNKAtud9dPtcviGoPKty2f9hfeykc7ekYQwqeCN5+vTswFCiiaN
-         G7fC9dTSUuTVXj2wovFT5jnxKU2O8FPwPuiZVLMto/tUJ7DsvoZrcneTNVj43Hjz0AjG
-         FmZw==
+        h=mime-version:references:in-reply-to:message-id:date:subject
+         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
+         :smtp-origin-hostprefix:dkim-signature;
+        bh=VEdpMvj5kP5nuI6Ztt7mzIbqR1F5iJNOXyr/8yu0PUA=;
+        b=qwO6EkrL1xxtZugIF2YVLCIRNBNPQGPUg3RoyW9xceTG1rSpaNgJe8L73MgswkpuY1
+         xWhSg5FVCJ20c0d1JVZqmywfFP763nJp7a32MqltNa20jsHqWGo3tSL+K6rs4nZJpA7O
+         PTbscsCxz4Mz0RHb++7PWaoaQ9hKbwGimoX9V2K0dD2RQ9xF0Kn1cwm56TCxIzqaMzG5
+         sOhmIyrpWvAEuGp52W8rsE4EIsb3NF87aYtNBTGErnSeDilflpf9dU+fpt0F/M3uae+C
+         FT7JP2OzByav+9MTom8bAEpkIyf7bOOzZbi0YDjUtZk2JqrDz41urskt3av9peWnFx3Y
+         AZmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="sbBZ1/eo";
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=semenzato@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n7sor7850698wru.28.2019.04.23.21.54.45
+       dkim=pass header.i=@fb.com header.s=facebook header.b=DfRDcwz9;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id g129si3597461ywb.266.2019.04.23.21.59.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Apr 2019 21:54:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of semenzato@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 21:59:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="sbBZ1/eo";
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=semenzato@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=6SCJHenPmeZBgq84wCssWQ06ag129Nkv1xXgSAngMo4=;
-        b=sbBZ1/eoUq7zcobXpSRUwda2pB49uestq+nwxHbCRyxnJuCd3G71CKzQ1jbTZ7Vs+6
-         nyqWlmCTTkHtpyg9hshJwcCjIKwAMFnWa+fWBmWCmxwGxrJLjC2b5yV0RZ1POd/3/gyj
-         UfZBvf3ImWApwJWf5RK4aTQN3rm67fQnbSKDW7qq9UtnG9yXSE+ObvxbXEs/VeMdGKw/
-         jmEMZ7DE3RZZZ0aNcf1Z6TalqJ7QXKMVNcnIMA73fHksPuPGF7y/QA7z8BYpXOUrNey8
-         QK/jNRnlQD3E7zg4ELir7CNmMJUF//55klVpu+jCJMcBwLvxxbj3b6RR0kFqKt6biT91
-         os8g==
-X-Google-Smtp-Source: APXvYqxZ8k/sKZA2poWNiV7NWAtsrXvBBFZShZPZzId1RHlYEx7sXnUvVJA3UN3eJkSwIn0ylcyGqg4/4KI8dQ3n8VA=
-X-Received: by 2002:a5d:5343:: with SMTP id t3mr6097845wrv.49.1556081684213;
- Tue, 23 Apr 2019 21:54:44 -0700 (PDT)
+       dkim=pass header.i=@fb.com header.s=facebook header.b=DfRDcwz9;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
+	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x3O4xNBR031269
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:59:40 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : in-reply-to : references : mime-version :
+ content-type; s=facebook; bh=VEdpMvj5kP5nuI6Ztt7mzIbqR1F5iJNOXyr/8yu0PUA=;
+ b=DfRDcwz9GNFsTOvKcjdYUIClLw2lmbenktFncRuI/FTa8XUZ6VyjEodtAqNCMQl29Bhy
+ 1DALn7surcj2kJNETxq0jo4Hn5+pQ8NquZhMWHyKLNswPeUbmqeulLzItHee2hTbDMAc
+ zeVPjI2V9zlLEp1iFsjjb8L51n0Wi8QqcKY= 
+Authentication-Results: fb.com;
+	spf=pass smtp.mailfrom=guro@fb.com
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by m0089730.ppops.net with ESMTP id 2s2du18m6d-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 21:59:40 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::7) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Tue, 23 Apr 2019 21:59:39 -0700
+Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
+	id D5B971142D2EA; Tue, 23 Apr 2019 14:31:36 -0700 (PDT)
+Smtp-Origin-Hostprefix: devvm
+From: Roman Gushchin <guro@fb.com>
+Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Michal Hocko
+	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+        Shakeel Butt
+	<shakeelb@google.com>, Christoph Lameter <cl@linux.com>,
+        Vladimir Davydov
+	<vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
+        Roman Gushchin
+	<guro@fb.com>
+Smtp-Origin-Cluster: prn2c23
+Subject: [PATCH v2 6/6] mm: reparent slab memory on cgroup removal
+Date: Tue, 23 Apr 2019 14:31:33 -0700
+Message-ID: <20190423213133.3551969-7-guro@fb.com>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190423213133.3551969-1-guro@fb.com>
+References: <20190423213133.3551969-1-guro@fb.com>
+X-FB-Internal: Safe
 MIME-Version: 1.0
-References: <CAA25o9TV7B5Cej_=snuBcBnNFpfixBEQduTwQZOH0fh5iyXd=A@mail.gmail.com>
- <CAJuCfpHGcDM8c19g_AxWa4FSx++YbTSE70CGW4TiKvrdAg3R+w@mail.gmail.com>
-In-Reply-To: <CAJuCfpHGcDM8c19g_AxWa4FSx++YbTSE70CGW4TiKvrdAg3R+w@mail.gmail.com>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Tue, 23 Apr 2019 21:54:31 -0700
-Message-ID: <CAA25o9Rzcqts7oCpwyRq2yBALkHQVwgzgFDVYv08Z0UUhY+qhw@mail.gmail.com>
-Subject: Re: PSI vs. CPU overhead for client computing
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904240042
+X-FB-Internal: deliver
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you very much Suren.
+Let's reparent memcg slab memory on memcg offlining. This allows us
+to release the memory cgroup without waiting for the last outstanding
+kernel object (e.g. dentry used by another application).
 
-On Tue, Apr 23, 2019 at 3:04 PM Suren Baghdasaryan <surenb@google.com> wrote:
->
-> Hi Luigi,
->
-> On Tue, Apr 23, 2019 at 11:58 AM Luigi Semenzato <semenzato@google.com> wrote:
-> >
-> > I and others are working on improving system behavior under memory
-> > pressure on Chrome OS.  We use zram, which swaps to a
-> > statically-configured compressed RAM disk.  One challenge that we have
-> > is that the footprint of our workloads is highly variable.  With zram,
-> > we have to set the size of the swap partition at boot time.  When the
-> > (logical) swap partition is full, we're left with some amount of RAM
-> > usable by file and anonymous pages (we can ignore the rest).  We don't
-> > get to control this amount dynamically.  Thus if the workload fits
-> > nicely in it, everything works well.  If it doesn't, then the rate of
-> > anonymous page faults can be quite high, causing large CPU overhead
-> > for compression/decompression (as well as for other parts of the MM).
-> >
-> > In Chrome OS and Android, we have the luxury that we can reduce
-> > pressure by terminating processes (tab discard in Chrome OS, app kill
-> > in Android---which incidentally also runs in parallel with Chrome OS
-> > on some chromebooks).  To help decide when to reduce pressure, we
-> > would like to have a reliable and device-independent measure of MM CPU
-> > overhead.  I have looked into PSI and have a few questions.  I am also
-> > looking for alternative suggestions.
-> >
-> > PSI measures the times spent when some and all tasks are blocked by
-> > memory allocation.  In some experiments, this doesn't seem to
-> > correlate too well with CPU overhead (which instead correlates fairly
-> > well with page fault rates).  Could this be because it includes
-> > pressure from file page faults?
->
-> This might be caused by thrashing (see:
-> https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1114).
->
-> >  Is there some way of interpreting PSI
-> > numbers so that the pressure from file pages is ignored?
->
-> I don't think so but I might be wrong. Notice here
-> https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1111
-> you could probably use delayacct to distinguish file thrashing,
-> however remember that PSI takes into account the number of CPUs and
-> the number of currently non-idle tasks in its pressure calculations,
-> so the raw delay numbers might not be very useful here.
+So instead of reparenting all accounted slab pages, let's do reparent
+a relatively small amount of kmem_caches. Reparenting is performed as
+a part of the deactivation process.
 
-OK.
+Since the parent cgroup is already charged, everything we need to do
+is to splice the list of kmem_caches to the parent's kmem_caches list,
+swap the memcg pointer and drop the css refcounter for each kmem_cache
+and adjust the parent's css refcounter. Quite simple.
 
-> > What is the purpose of "some" and "full" in the PSI measurements?  The
-> > chrome browser is a multi-process app and there is a lot of IPC.  When
-> > process A is blocked on memory allocation, it cannot respond to IPC
-> > from process B, thus effectively both processes are blocked on
-> > allocation, but we don't see that.
->
-> I don't think PSI would account such an indirect stall when A is
-> waiting for B and B is blocked on memory access. B's stall will be
-> accounted for but I don't think A's blocked time will go into PSI
-> calculations. The process inter-dependencies are probably out of scope
-> for PSI.
+Please, note that kmem_cache->memcg_params.memcg isn't a stable
+pointer anymore. It's safe to read it under rcu_read_lock() or
+with slab_mutex held.
 
-Right, that's what I was also saying.  It would be near impossible to
-figure it out.  It may also be that statistically it doesn't matter,
-as long as the workload characteristics don't change dramatically.
-Which unfortunately they might...
+We can race with the slab allocation and deallocation paths. It's not
+a big problem: parent's charge and slab global stats are always
+correct, and we don't care anymore about the child usage and global
+stats. The child cgroup is already offline, so we don't use or show it
+anywhere.
 
-> > Also, there are situations in
-> > which some "uninteresting" process keep running.  So it's not clear we
-> > can rely on "full".  Or maybe I am misunderstanding?  "Some" may be a
-> > better measure, but again it doesn't measure indirect blockage.
->
-> Johannes explains the SOME and FULL calculations here:
-> https://elixir.bootlin.com/linux/v5.1-rc6/source/kernel/sched/psi.c#L76
-> and includes couple examples with the last one showing FULL>0 and some
-> tasks still running.
+Local slab stats (NR_SLAB_RECLAIMABLE and NR_SLAB_UNRECLAIMABLE)
+aren't used anywhere except count_shadow_nodes(). But even there it
+won't break anything: after reparenting "nodes" will be 0 on child
+level (because we're already reparenting shrinker lists), and on
+parent level page stats always were 0, and this patch won't change
+anything.
 
-Thank you, yes, those are good explanation.  I am still not sure how
-to use this in our case.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+---
+ include/linux/slab.h |  4 ++--
+ mm/memcontrol.c      | 14 ++++++++------
+ mm/slab.h            | 14 +++++++++-----
+ mm/slab_common.c     | 23 ++++++++++++++++++++---
+ 4 files changed, 39 insertions(+), 16 deletions(-)
 
-I thought about using the page fault rate as a proxy for the
-allocation overhead.  Unfortunately it is difficult to figure out the
-baseline, because: 1. it is device-dependent (that's not
-insurmountable: we could compute a per-device baseline offline); 2.
-the CPUs can go in and out of turbo mode, or temperature-throttling,
-and the notion of a constant "baseline" fails miserably.
-
-> > The kernel contains various cpustat measurements, including some
-> > slightly esoteric ones such as CPUTIME_GUEST and CPUTIME_GUEST_NICE.
-> > Would adding a CPUTIME_MEM be out of the question?
-
-Any opinion on CPUTIME_MEM?
-
-Thanks again!
-
-> > Thanks!
-> >
->
-> Just my 2 cents and Johannes being the author might have more to say here.
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 1b54e5f83342..109cab2ad9b4 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -152,7 +152,7 @@ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+ 
+ void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
+-void memcg_deactivate_kmem_caches(struct mem_cgroup *);
++void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
+ 
+ /*
+  * Please use this macro to create slab caches. Simply specify the
+@@ -638,7 +638,7 @@ struct memcg_cache_params {
+ 			bool dying;
+ 		};
+ 		struct {
+-			struct mem_cgroup *memcg;
++			struct mem_cgroup __rcu *memcg;
+ 			struct list_head children_node;
+ 			struct list_head kmem_caches_node;
+ 			struct percpu_ref refcnt;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c9896105d8d5..27ae253922da 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3201,15 +3201,15 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 	 */
+ 	memcg->kmem_state = KMEM_ALLOCATED;
+ 
+-	memcg_deactivate_kmem_caches(memcg);
+-
+-	kmemcg_id = memcg->kmemcg_id;
+-	BUG_ON(kmemcg_id < 0);
+-
+ 	parent = parent_mem_cgroup(memcg);
+ 	if (!parent)
+ 		parent = root_mem_cgroup;
+ 
++	memcg_deactivate_kmem_caches(memcg, parent);
++
++	kmemcg_id = memcg->kmemcg_id;
++	BUG_ON(kmemcg_id < 0);
++
+ 	/*
+ 	 * Change kmemcg_id of this cgroup and all its descendants to the
+ 	 * parent's id, and then move all entries from this cgroup's list_lrus
+@@ -3242,7 +3242,6 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
+ 	if (memcg->kmem_state == KMEM_ALLOCATED) {
+ 		WARN_ON(!list_empty(&memcg->kmem_caches));
+ 		static_branch_dec(&memcg_kmem_enabled_key);
+-		WARN_ON(page_counter_read(&memcg->kmem));
+ 	}
+ }
+ #else
+@@ -4654,6 +4653,9 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 
+ 	/* The following stuff does not apply to the root */
+ 	if (!parent) {
++#ifdef CONFIG_MEMCG_KMEM
++		INIT_LIST_HEAD(&memcg->kmem_caches);
++#endif
+ 		root_mem_cgroup = memcg;
+ 		return &memcg->css;
+ 	}
+diff --git a/mm/slab.h b/mm/slab.h
+index 61110b3035e7..68c5fc6e557e 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -289,10 +289,11 @@ static __always_inline int memcg_charge_slab(struct page *page,
+ 	struct lruvec *lruvec;
+ 	int ret;
+ 
+-	memcg = s->memcg_params.memcg;
++	rcu_read_lock();
++	memcg = rcu_dereference(s->memcg_params.memcg);
+ 	ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
+ 	if (ret)
+-		return ret;
++		goto out;
+ 
+ 	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+ 	mod_lruvec_state(lruvec, cache_vmstat_idx(s), 1 << order);
+@@ -300,8 +301,9 @@ static __always_inline int memcg_charge_slab(struct page *page,
+ 	/* transer try_charge() page references to kmem_cache */
+ 	percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
+ 	css_put_many(&memcg->css, 1 << order);
+-
+-	return 0;
++out:
++	rcu_read_unlock();
++	return ret;
+ }
+ 
+ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+@@ -310,10 +312,12 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+ 	struct mem_cgroup *memcg;
+ 	struct lruvec *lruvec;
+ 
+-	memcg = s->memcg_params.memcg;
++	rcu_read_lock();
++	memcg = rcu_dereference(s->memcg_params.memcg);
+ 	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+ 	mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
+ 	memcg_kmem_uncharge_memcg(page, order, memcg);
++	rcu_read_unlock();
+ 
+ 	percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
+ }
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 995920222127..36673a43ed31 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -236,7 +236,7 @@ void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg)
+ 		list_add(&s->root_caches_node, &slab_root_caches);
+ 	} else {
+ 		css_get(&memcg->css);
+-		s->memcg_params.memcg = memcg;
++		rcu_assign_pointer(s->memcg_params.memcg, memcg);
+ 		list_add(&s->memcg_params.children_node,
+ 			 &s->memcg_params.root_cache->memcg_params.children);
+ 		list_add(&s->memcg_params.kmem_caches_node,
+@@ -251,7 +251,8 @@ static void memcg_unlink_cache(struct kmem_cache *s)
+ 	} else {
+ 		list_del(&s->memcg_params.children_node);
+ 		list_del(&s->memcg_params.kmem_caches_node);
+-		css_put(&s->memcg_params.memcg->css);
++		mem_cgroup_put(rcu_dereference_protected(s->memcg_params.memcg,
++			lockdep_is_held(&slab_mutex)));
+ 	}
+ }
+ #else
+@@ -772,11 +773,13 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
+ 	call_rcu(&s->memcg_params.rcu_head, kmemcg_schedule_work_after_rcu);
+ }
+ 
+-void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
++void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg,
++				  struct mem_cgroup *parent)
+ {
+ 	int idx;
+ 	struct memcg_cache_array *arr;
+ 	struct kmem_cache *s, *c;
++	unsigned int nr_reparented;
+ 
+ 	idx = memcg_cache_id(memcg);
+ 
+@@ -794,6 +797,20 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
+ 		kmemcg_cache_deactivate(c);
+ 		arr->entries[idx] = NULL;
+ 	}
++	if (memcg != parent) {
++		nr_reparented = 0;
++		list_for_each_entry(s, &memcg->kmem_caches,
++				    memcg_params.kmem_caches_node) {
++			rcu_assign_pointer(s->memcg_params.memcg, parent);
++			css_put(&memcg->css);
++			nr_reparented++;
++		}
++		if (nr_reparented) {
++			list_splice_init(&memcg->kmem_caches,
++					 &parent->kmem_caches);
++			css_get_many(&parent->css, nr_reparented);
++		}
++	}
+ 	mutex_unlock(&slab_mutex);
+ 
+ 	put_online_mems();
+-- 
+2.20.1
 
