@@ -2,200 +2,135 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 15060C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:54:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3CBBC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:20:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B883E2077C
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:54:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 768EE2175B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:20:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="FWABCsfc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B883E2077C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ah3y4ju0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 768EE2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56F946B0005; Wed, 24 Apr 2019 15:54:39 -0400 (EDT)
+	id D9A9C6B0005; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 520156B0006; Wed, 24 Apr 2019 15:54:39 -0400 (EDT)
+	id D49506B0006; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 437376B0007; Wed, 24 Apr 2019 15:54:39 -0400 (EDT)
+	id C5FB36B0007; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E90486B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:54:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o8so10476830edh.12
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:54:38 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EC656B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a8so12715077pgq.22
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:20:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NoQw6rZ1McAuWA48g8wjk6m9xf3EqIUgssJwMcJF7eQ=;
-        b=iBwfoVi3s2o+ipt9qUH4bDGLg33P6Q0AsQCYrlHU9LXqFWp/8oGkT/aB0XM6+54fWT
-         SZjZX+u4Lj0KBIyg1ElXYjwTbfjNBmUi5FiLyq7cBTZZIKVEMu7Pq4bXz+Rp5UL62WT7
-         VFVCfShdpfqIrBuM1A8JR+o85puIDS/YMODgSmUteWoa5GARCm97faCcDOp2h9B1fihM
-         JpumuetTHtBu9SoOOAJAiT2UxdIAtrI/pMRWuR0D7GynG+Yshf2gJ1AwCsORq8XT6yqV
-         VfNrtNuBEzfO1lcvAUAh8dibrg3q0wlrnc5zRY2eSQO+QwxXrnzepPOSP75VyL1GHwt8
-         41/g==
-X-Gm-Message-State: APjAAAU+RmiWQU7VgSFaIBeDpktXZ79yT/U3KUYLRWJAiaLYb8nsEmOu
-	q5fzUeoNi7bfjreq82fGvgTvIDujiU9/O6IIWgtFp4JzI0NivoQe/V2P+VrmFKaKZOkTdnGK0Qf
-	29T1c5fT1Ac4t33b+nW4MyeXtOoiJmrVOyjoTRa4Rlv0xFIj5VpM5OqVWFpXOYzhB9g==
-X-Received: by 2002:aa7:d899:: with SMTP id u25mr22213639edq.219.1556135678457;
-        Wed, 24 Apr 2019 12:54:38 -0700 (PDT)
-X-Received: by 2002:aa7:d899:: with SMTP id u25mr22213602edq.219.1556135677623;
-        Wed, 24 Apr 2019 12:54:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556135677; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=;
+        b=HPnzh+EtK2nfAiToeIsPHSGuPwexn3dkZQx0yZ2h8Iysz4B4o7hSVsyy1VJXbtKqai
+         8YoT0X3RcV3mpH3L1O7VrIKGU26ZOk/FcVRNjsQwzamLHOfECUXxhoXyS3nUbJ5CD6sr
+         q9e+a3gG7fTIfp+URqtsbddgJ/hVHKBdxPuwUtct1+fT5ONc+bYsrnhhl0fRYzl+vzwz
+         5XfcESYWXasCIVP9yRbyRk/GVC9XHnfbhc8ZoxPNeHugHG918M2Osx9e1HFAzH6gjH2+
+         Y+vEsxEsspPWJMbEgyLLHbF797RQWtfEYQw09H1U53UPaG8/y24PBapvzGPw8Hh8H4dq
+         TG2A==
+X-Gm-Message-State: APjAAAU3PGggYXWid4V9iR/RmXAfrRqvPXyUvA5dFVu66aZDm+l5AVG5
+	a+bDSTAuWYPPzpuOnSkzrlSYcBfmqBaFGa8kbiyacWfeisrJDFA826ngoM1uSdiSeV6GamnPpNM
+	ttCb3Bpc43lKIAVk4mbzqWQVJrJBBUOVpZ8jtvi1mNn6SZDgymDm2/d+qMjx9C9BO8w==
+X-Received: by 2002:aa7:9f49:: with SMTP id h9mr10389966pfr.173.1556137208911;
+        Wed, 24 Apr 2019 13:20:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw5h9qhezZfOh7BPQcFbj0lUegQOJQljlh7k2pekXMwzIHLstDq+WsGtBDjcBQ23t/fvRmX
+X-Received: by 2002:aa7:9f49:: with SMTP id h9mr10389901pfr.173.1556137208031;
+        Wed, 24 Apr 2019 13:20:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556137208; cv=none;
         d=google.com; s=arc-20160816;
-        b=Sk49YLbxMtDo+DX+AZi8ZLDMbvL1prpujZihVe/nS8nsCKLcAfna9xmANsraiS2gkP
-         vbbT6qyCy5dKSBprrGEkJCg+SxL6DWp9CrEnHg9gRNQSphpv1/SvUGs+DbeKTP/aYUbi
-         D05t3Y4JWkJfJXJ/z/LXRLW/9zihpmg8Iyas2togy1FMFJOj//AuAYjrjwAiUDCeYLIq
-         rB+fQ9uXYSaWmxTCo8EopN6DwQIQQXz3kti755OP55THDLDV9srOvLeumoU5fWUAE6Fj
-         aC7WYYTMrQgC0JcHfiJHF0xkyoMa7knI9p6dfwXlhS/2TuwO8OfKpmCemIg6wTY978Ml
-         kjFw==
+        b=v8Jcbwxc9ItcAaAEXt3nFxI2BSXvXiAQnxqHifZsQ1d89Je7lTR6cHqlL5KmO1u3Ni
+         MkyxolfJPmRmrcgwHO7012b3uAIjDjkrDJSwXku/3s80RScGLxEiQWN9WRJ3T/JPr/pm
+         +BHHRZKM5COX6WQWqxKrM9KKLmIyR/OkF6aV/kH+pFjxrWMEbWBXcgiLftj85jsHJL5a
+         WAmSUP0izcQzPEfphDcr14bLg6cVKtk2TobIndDskpRi7nQ2uoW6DfBz2zUxhtgs5cmV
+         EYwVATA31hggRg2cgm3dfzuHzbAGHCCFyESlUJrqs9SARv7iGbSbFhGCTcj/tsLFoeOZ
+         wpYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=NoQw6rZ1McAuWA48g8wjk6m9xf3EqIUgssJwMcJF7eQ=;
-        b=W0GDfnKdIRaYj6Mk44tZdfeHXlgzidGvQTZ1unGG2iuowrwCGK7UOtTo+jgd+YVMfB
-         qHo10gG9JLL2PIihPm8GIJfJEBc7/SLdUBgnC/DTww2vWnCJeyyzR5Y0zDeXqK/oFgUj
-         TM48XP/2Qlgj5MKUBLhxBbK9rdprnyxx/jkZFskzl3ud1iyryD+XLD1cWhMy7pywOCZ/
-         0W9j3fF/kMT5gK4aQZuoPBXCw427GgpuZ3IwG5dPHy6ujijy9Mb1DnNaHvCxgbnz5htr
-         r4a+7abhNwQdcvsW+sN4QlVpi9z8A3h9CDSXbLy9w12iI3noUR8FHH4+RoPEzoBkUaBP
-         5gMA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=;
+        b=hRYBaR29Z0Q+BRCWt9pD7dUnhaT/wd1RtnSsq2UJQ25ZH0YwhhtX3jPintTeL3rXGN
+         i6baWSXdJnJM7pxN35rqoXDk/5ihwcOWhnLS2ziDvV9G3tDBpRTFw8q9sD41GWx0YLR+
+         +26kNHNGOewqVvbFMRDV55NoWwb6TWaQ1wcI7BIKXzJ7+Xeo3wL4RL+tO4GEL2AXrt80
+         rUQD8V98u/IqLMSyEc3Nyye1zAz3xwEo5pyxpRpKA/nz3nRivCrPrfqqVmhKwjsA1Fa5
+         vMwXEdpli7witTqg72L2o1/p3XZpc9FxES30NtWQyAquaJ2vGm3uuOfQz7/8KPMbyGA+
+         XcbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=FWABCsfc;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t35sor6969778edd.10.2019.04.24.12.54.37
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ah3y4ju0;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c25si21043345pfr.94.2019.04.24.13.20.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 12:54:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 24 Apr 2019 13:20:07 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=FWABCsfc;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NoQw6rZ1McAuWA48g8wjk6m9xf3EqIUgssJwMcJF7eQ=;
-        b=FWABCsfcDUGiyw2AJKt7/tqGtquTmKrMJwtTDm1UIkIn8sIiysQkYo7zN6jnpoWRJu
-         n8Epr+xkic8xVfW6yServfaij14CAu17uMVbu7rd2T7Vvbprewku9FXUATHZnBIVdbY7
-         45QxR360C3F9+Ll07NAgZN33BbNEPdTtrzen1OEp9crUlA0msc8afRtjDxrK7nKLmdOK
-         bUiuaaAovpjYhEllJzUhXyfQKylPL4N42gNnURUhDynBR3JpC+Rv9eTXRWEp4eZSXHeL
-         4c0w7t8Io4Lqq7Ip/pH4e98jRSL8a0IXICT1C8XkWF01hWJej9QkvoWCQ57PBfig9XLC
-         Dh2g==
-X-Google-Smtp-Source: APXvYqwIKfB190CTRW4eiQZHchohbyuWQ9ao6ccKR/jzQFiEa1MtpZ8e5nsTiBNSRhDrst2+6ow+bgf4eCZZRpTH1gk=
-X-Received: by 2002:aa7:cf8f:: with SMTP id z15mr18858819edx.190.1556135677145;
- Wed, 24 Apr 2019 12:54:37 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ah3y4ju0;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=; b=ah3y4ju0TB4PyH0mfIs0dPXWG
+	L7DveKuRwVDmOxpNe3CLWQaTEc5D9U3dJe7BbNiRTTVHOkZCOwEUf1m3dVuFgbaIUr8+cwB5at7fU
+	/XyJ8iCoynTcQvBt2W6+Hv6I0f9vPFbZMoq2nqUlc/rSGBS++Kv4E5NKI//DnfjBX8Fw1aY8nZSlL
+	bVxd3oUpsw+bjk2PD3GDIOecAtwn5BdZhsvZOV4MIVml6rj+V25+ACOn4C3tL3jnkn6t1hVM22Gu2
+	ulVlcynDWatW6rCpxM4bv/v3GecYz55R5Jk1Yv7iFgCvWySyaDZ+hvV781lEWUBbDxmZtvFAEkwot
+	+0FeunrEQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hJONC-0007u8-Vc; Wed, 24 Apr 2019 20:20:06 +0000
+Date: Wed, 24 Apr 2019 13:20:06 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Matthew Garrett <mjg59@google.com>
+Cc: linux-mm@kvack.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm: Allow userland to request that the kernel clear
+ memory on release
+Message-ID: <20190424202006.GH19031@bombadil.infradead.org>
+References: <20190424191440.170422-1-matthewgarrett@google.com>
+ <20190424192812.GG19031@bombadil.infradead.org>
+ <CACdnJutj4K1kQj7yXcCNVWM_hmrUwMfZ-JBi=FHkBvYFfbJNZA@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190423203843.2898-1-pasha.tatashin@soleen.com>
- <7f7499bd-8d48-945b-6d69-60685a02c8da@arm.com> <CA+CK2bCD11x64pJj5gSnsu5jsUqJyU6o+=J4K8oYAsHqz9ULqQ@mail.gmail.com>
-In-Reply-To: <CA+CK2bCD11x64pJj5gSnsu5jsUqJyU6o+=J4K8oYAsHqz9ULqQ@mail.gmail.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Wed, 24 Apr 2019 15:54:26 -0400
-Message-ID: <CA+CK2bB5ahqLrekkTUSdzTE2BPSPbB9nk6nKs+LjTap2oF8X-w@mail.gmail.com>
-Subject: Re: [PATCH] arm64: configurable sparsemem section size
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>, 
-	Vishal L Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, 
-	Ross Zwisler <zwisler@kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
-	Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	catalin.marinas@arm.com, Will Deacon <will.deacon@arm.com>, rppt@linux.vnet.ibm.com, 
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>, andrew.murray@arm.com, james.morse@arm.com, 
-	Marc Zyngier <marc.zyngier@arm.com>, sboyd@kernel.org, 
-	linux-arm-kernel@lists.infradead.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACdnJutj4K1kQj7yXcCNVWM_hmrUwMfZ-JBi=FHkBvYFfbJNZA@mail.gmail.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<resending> from original email
+On Wed, Apr 24, 2019 at 12:33:11PM -0700, Matthew Garrett wrote:
+> On Wed, Apr 24, 2019 at 12:28 PM Matthew Wilcox <willy@infradead.org> wrote:
+> > But you can't have a new PageFlag.  Can you instead zero the memory in
+> > unmap_single_vma() where we call uprobe_munmap() and untrack_pfn() today?
+> 
+> Is there any way the page could be referenced by something other than
+> a VMA at this point? If so we probably don't want to zero it here, but
+> we do want to zero it when the page is finally released (which is why
+> I went with a page flag)
 
-On Wed, Apr 24, 2019 at 3:48 PM Pavel Tatashin
-<patatash@linux.microsoft.com> wrote:
->
-> On Wed, Apr 24, 2019 at 5:07 AM Anshuman Khandual
-> <anshuman.khandual@arm.com> wrote:
-> >
-> > On 04/24/2019 02:08 AM, Pavel Tatashin wrote:
-> > > sparsemem section size determines the maximum size and alignment that
-> > > is allowed to offline/online memory block. The bigger the size the less
-> > > the clutter in /sys/devices/system/memory/*. On the other hand, however,
-> > > there is less flexability in what granules of memory can be added and
-> > > removed.
-> >
-> > Is there any scenario where less than a 1GB needs to be added on arm64 ?
->
-> Yes, DAX hotplug loses 1G of memory without allowing smaller sections.
-> Machines on which we are going to be using this functionality have 8G
-> of System RAM, therefore losing 1G is a big problem.
->
-> For details about using scenario see this cover letter:
-> https://lore.kernel.org/lkml/20190421014429.31206-1-pasha.tatashin@soleen.com/
->
-> >
-> > >
-> > > Recently, it was enabled in Linux to hotadd persistent memory that
-> > > can be either real NV device, or reserved from regular System RAM
-> > > and has identity of devdax.
-> >
-> > devdax (even ZONE_DEVICE) support has not been enabled on arm64 yet.
->
-> Correct, I use your patches to enable ZONE_DEVICE, and  thus devdax on ARM64:
-> https://lore.kernel.org/lkml/1554265806-11501-1-git-send-email-anshuman.khandual@arm.com/
->
-> >
-> > >
-> > > The problem is that because ARM64's section size is 1G, and devdax must
-> > > have 2M label section, the first 1G is always missed when device is
-> > > attached, because it is not 1G aligned.
-> >
-> > devdax has to be 2M aligned ? Does Linux enforce that right now ?
->
-> Unfortunately, there is no way around this. Part of the memory can be
-> reserved as persistent memory via device tree.
->         memory@40000000 {
->                 device_type = "memory";
->                 reg = < 0x00000000 0x40000000
->                         0x00000002 0x00000000 >;
->         };
->
->         pmem@1c0000000 {
->                 compatible = "pmem-region";
->                 reg = <0x00000001 0xc0000000
->                        0x00000000 0x80000000>;
->                 volatile;
->                 numa-node-id = <0>;
->         };
->
-> So, while pmem is section aligned, as it should be, the dax device is
-> going to be pmem start address + label size, which is 2M. The actual
-> DAX device starts at:
-> 0x1c0000000 + 2M.
->
-> Because section size is 1G, the hotplug will able to add only memory
-> starting from
-> 0x1c0000000 + 1G
->
-> > 27 and 28 do not even compile for ARM64_64_PAGES because of MAX_ORDER and
-> > SECTION_SIZE mismatch.
->
-> Can you please elaborate what configs are you using? I have no
-> problems compiling with 27 and 28 bit.
->
-> Thank you,
-> Pasha
+It could be the target/source of direct I/O, or userspace could have
+registered it with an RDMA device, or ...
+
+It depends on the semantics you want.  There's no legacy code to
+worry about here.  I was seeing this as the equivalent of an atexit()
+handler; userspace is saying "When this page is unmapped, zero it".
+So it doesn't matter that somebody else might be able to reference it --
+userspace could have zeroed it themselves.
 
