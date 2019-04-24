@@ -2,275 +2,238 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E81FC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:25:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF8C1C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:59:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FE5D218D2
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:25:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="fbPk8N3D"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FE5D218D2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 687A92148D
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:59:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 687A92148D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A978D6B0005; Wed, 24 Apr 2019 01:25:03 -0400 (EDT)
+	id C29F56B0005; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1D9D6B0006; Wed, 24 Apr 2019 01:25:03 -0400 (EDT)
+	id BB11B6B0006; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8BD5C6B0007; Wed, 24 Apr 2019 01:25:03 -0400 (EDT)
+	id A52076B0007; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3E26B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 01:25:03 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n25so9234562edd.5
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:25:03 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4F8F76B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id e22so9238894edd.9
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:59:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:in-reply-to:references:mime-version;
-        bh=76gfXMG+0uRElSBO/APtur6FtcIZXTee5d1iEwxVGMw=;
-        b=fnVxplyPRbhFkVVhTMWMs+cStcG7Khuf/EwJW3FQCfTJnN4HFBNpqbo6OiYNUWWlpD
-         PtfRyqm+mRlqcYeKLO2yPjqhfrS9H5Iute+OTgAzTpNyIQF7vNx1GsxibIrUwnP0RD0k
-         CqJ4WsjvJWM8T1l3TtZ0BTeI3Jw35ayvDz83I90h5nkRp+h8fPZvZx9PlZ4iyx29A7Bz
-         tCQvzSgyWaKVU2C6yjmB7DXqd9SjbxWnA5jo8/U2PL1SEHFyAyjmJ9VS/mZgsGKY5MvF
-         9yKAykyUsrS5xk8yiykjYcd2+SKKmR3WRq5E0AU7R8k3wlMkEGkqGKrU8zYg4sFk+5kj
-         FJqg==
-X-Gm-Message-State: APjAAAXCqKeCCO/HttL3AUu3OlpCotUfSuGBxS+br4EjX7T63OC/4Ni+
-	6LrPJKEahwDqnLSLSvLkmwaz9vwa9lL69+XSrmLuLsimmPjJ/vhWLBYxo2pGL2puJQIQd2Xs8ur
-	phgwhdheD/DYROk+H/uwSGQclvnUcOsbXVP6ga3EHNWUACedbvxkXg0guBLSBPDGU2A==
-X-Received: by 2002:a50:ed0a:: with SMTP id j10mr17970631eds.188.1556083502687;
-        Tue, 23 Apr 2019 22:25:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwd4xJeciem+O3fFWexFUaBIY8kFLIPZEcFobtdMCz7IHmS5eZS46JXwoW6gVAk0hwC6ALe
-X-Received: by 2002:a50:ed0a:: with SMTP id j10mr17970599eds.188.1556083501835;
-        Tue, 23 Apr 2019 22:25:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556083501; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=iyaoBtjrf3Al6KtC2RbgldakEO39ShWQ0SV9Np35UIg=;
+        b=T/gcmbP99aEQ8XcI6syyamiUAtcCnt9bfVbQbSkzOU6sG+8PuC+d9INxS7wq3bVsPj
+         6Wp4UJERXp5KM50ukDgHa9FXMnc2oRDUTSB8v12DqgSkWZ1eUVsNsvNu9w2qXiF9l+g9
+         hCby6UKbzuHjXRg3sdPDaTtExdFDwShI2AwWFOy38YmMOx/xi2bTDSQYG8mjP3tKYPNk
+         4wCBTe42DEUiAa8KAvakBod7++KwXnuu4yzM/ZM/Yoi9fl070EKYic3k8cHT3vXuFuwZ
+         dKnDULJdF1R5Q3bNHZJoKS/hkEA39x2JViLxIaCJayTXLAlckojob4hr/EPsUlMNd2yn
+         WsgQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVcw/bI1ml+IGyhEmiInRb5grE7EzzEgUr0Ap5FJ3/IZZY/+6PM
+	lzCqheF8INEQei38qUu7tGEqV2mou9vmZwIL0U5gRaSOdc9gZXAu+NZgW8Sc6qmIK88vxgvsG8T
+	EssLoEHmhnNorCfXSEIXCxLs1lHdmua8EDOcMjSDp0YZTBxxXrvajlteb4xlZg750EQ==
+X-Received: by 2002:a17:906:288f:: with SMTP id o15mr3352214ejd.282.1556085577748;
+        Tue, 23 Apr 2019 22:59:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy0WPnGOzRE/MJfTl89EIuLdLFkrYuPkbzKH/Z/FUnx1/8V7ecHtc5gqe+OkWS+gSjl4vNd
+X-Received: by 2002:a17:906:288f:: with SMTP id o15mr3352173ejd.282.1556085576732;
+        Tue, 23 Apr 2019 22:59:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556085576; cv=none;
         d=google.com; s=arc-20160816;
-        b=L9x1moumQFJOzG7RznqPWUQDQoPLtFehR+TgXGN84T3RuSoLYe79Nob0wth4PuMzXs
-         Kt1vIqedaYNcL9LlrjRpVjZPBrZjhqRdjkKPtzhqmVmlG/s8m8jzzxxiAuWDIZqF15U7
-         TU8cDuoLMDCejV4dvISODqPE0DtbHVusH494XF2LCv6Rx3HJ4/ovsFZYH1gNfGOqDPMy
-         VSybqPG6vzXjogQIsncyTYjglKe4zi9joPKZMCsKKT6cJC6CrbUdETJPikYQUHn9gHYh
-         I+jI/lfB48wuojtN8nGSplCCHdH8z69k+e3vXm7ArUM6K1JGjhXK7MM7y2q4ODgF6s6q
-         VfSA==
+        b=vEOAFedJAlR9ZFCBMMVGlgetf0co3SvrI4caTMb+hIHweiGlfoIXP5xkZ+1uh70jrd
+         1Phaa6uqnFn/IyXBtlkcSPKhczIIANIjUvUsWTxbIQb6j2qXDYvL/n4n8h9+cAxdBfKf
+         vg3cdIpLcCHgndHI9f1KHVnqXu4nsDN9rvg2zEVplP4eH6Mg0Ptgncm4DsbuBOYXtH1M
+         3vMbdj3+SS7cOlZpW2HDMUhPCD9ycZE4s1deWiQ9LT2BWjw+P9QgSCjO5PUKIsERe8Aw
+         WOYfyIWaP6aNfrUrf/dKTFqdD28NVoPxyWGe/S9J52rUSaZn4Geh9KCYZq5AUd4u3JgR
+         Ga5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject
-         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
-         :smtp-origin-hostprefix:dkim-signature;
-        bh=76gfXMG+0uRElSBO/APtur6FtcIZXTee5d1iEwxVGMw=;
-        b=dzp9NgEKXyVQ27Q7qg5vZ/wbZR3yZEgiS+pqbGu7IisD/nCuAlUxtmq+WOIvnCa/1R
-         3vZfXIr7Y+yKqo6UvokZ7GqfRbvb+lO6bdXLTMiewNzgz+xW/fsRlKGDtONv/E1sbc2J
-         7YxlJlbO/o4w6mqe/x8CQZ9UbmIR/Gd8JjwAxseVKp1wnDtaw3CPehFAASkLrzJIyPf9
-         aAC7PqJvIQ0A9GlDwJjurIgEqUIc1CVqg92rHj76HBbsBg/OlPDoGlT5axh1FpxA1QXc
-         wftTqqbeDnF9x8Q1E7B+7EBwCRbZjXTia+c28DXcPeMIbvOQl8xt8L1PPFuz0m+w0s7d
-         upGA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from;
+        bh=iyaoBtjrf3Al6KtC2RbgldakEO39ShWQ0SV9Np35UIg=;
+        b=Z7HWvbQMVv1j9g9LYZGbll9517+UsOzNgLLIpFtt/f8O6NvcYCjE+3zI9KcWE95iGZ
+         /LxMJ9VkSRPjm8WcgiD7iONNNFpbDF226LdRm0d5h3am21facQgAwU7U6TruysBk8fNS
+         0jau6al9JpVKo0/s5f55DDeWM/vC/16eQn5fAS1rVxPFszTPIhLu/Vavfw/B421H29vZ
+         9GhvjwXn1GpuSi1jG7o6y2PZp+OrZagoNiRS3j10Q6kYiqImZiZvY2oDvtooHlorSeej
+         ZsVoJgimDKoIw0h1xUpGIhrsFHxp27yWyCE4tEFPYmnX7Z9+PSp/Ocmg6suAVLsGkm5t
+         NIbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=fbPk8N3D;
-       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l18si1306397ejp.166.2019.04.23.22.25.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Apr 2019 22:25:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k9si149028ejd.118.2019.04.23.22.59.36
+        for <linux-mm@kvack.org>;
+        Tue, 23 Apr 2019 22:59:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=fbPk8N3D;
-       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3O5NIM3024315
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:25:00 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=76gfXMG+0uRElSBO/APtur6FtcIZXTee5d1iEwxVGMw=;
- b=fbPk8N3Dow+holCAQ3pCf4QAbbqddsS6NPrkcJh5/QiNWaTDi9YD90sMkGICKxU3HUQ7
- Rvyu2D2pzHyc6dLas8EtypUUHuMAoloq4yfc5bcS8GewMfvZxKcwHG1ruQn+fVFu5/Ro
- cuCf3AlXQXLrs9x25vA93N1ythjfbpb4Sxc= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2s2695bb1e-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:25:00 -0700
-Received: from mx-out.facebook.com (2620:10d:c0a1:3::13) by
- mail.thefacebook.com (2620:10d:c021:18::171) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Tue, 23 Apr 2019 22:24:52 -0700
-Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id BFBD71142D2E0; Tue, 23 Apr 2019 14:31:36 -0700 (PDT)
-Smtp-Origin-Hostprefix: devvm
-From: Roman Gushchin <guro@fb.com>
-Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Michal Hocko
-	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
-        Shakeel Butt
-	<shakeelb@google.com>, Christoph Lameter <cl@linux.com>,
-        Vladimir Davydov
-	<vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
-        Roman Gushchin
-	<guro@fb.com>
-Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v2 1/6] mm: postpone kmem_cache memcg pointer initialization to memcg_link_cache()
-Date: Tue, 23 Apr 2019 14:31:28 -0700
-Message-ID: <20190423213133.3551969-2-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190423213133.3551969-1-guro@fb.com>
-References: <20190423213133.3551969-1-guro@fb.com>
-X-FB-Internal: Safe
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3AFDCA78;
+	Tue, 23 Apr 2019 22:59:35 -0700 (PDT)
+Received: from [10.163.1.68] (unknown [10.163.1.68])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 7260F3F5AF;
+	Tue, 23 Apr 2019 22:59:27 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
+ catalin.marinas@arm.com, mhocko@suse.com, mgorman@techsingularity.net,
+ james.morse@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
+ arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
+ david@redhat.com, cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
+References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
+ <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
+ <20190415134841.GC13990@lakrids.cambridge.arm.com>
+ <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
+ <20190417142154.GA393@lakrids.cambridge.arm.com>
+ <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
+ <20190417173948.GB15589@lakrids.cambridge.arm.com>
+ <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
+ <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
+ <20190423160525.GD56999@lakrids.cambridge.arm.com>
+Message-ID: <ebb9aba0-5ca3-41ed-4183-9d72a354f529@arm.com>
+Date: Wed, 24 Apr 2019 11:29:28 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_03:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+In-Reply-To: <20190423160525.GD56999@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Initialize kmem_cache->memcg_params.memcg pointer in
-memcg_link_cache() rather than in init_memcg_params().
+On 04/23/2019 09:35 PM, Mark Rutland wrote:
+> On Tue, Apr 23, 2019 at 01:01:58PM +0530, Anshuman Khandual wrote:
+>> Generic usage for init_mm.pagetable_lock
+>>
+>> Unless I have missed something else these are the generic init_mm kernel page table
+>> modifiers at runtime (at least which uses init_mm.page_table_lock)
+>>
+>> 	1. ioremap_page_range()		/* Mapped I/O memory area */
+>> 	2. apply_to_page_range()	/* Change existing kernel linear map */
+>> 	3. vmap_page_range()		/* Vmalloc area */
+> 
+> Internally, those all use the __p??_alloc() functions to handle racy
+> additions by transiently taking the PTL when installing a new table, but
+> otherwise walk kernel tables _without_ the PTL held. Note that none of
+> these ever free an intermediate level of table.
 
-Once kmem_cache will hold a reference to the memory cgroup,
-it will simplify the refcounting.
+Right they dont free intermediate level page table but I was curious about the
+only the leaf level modifications.
 
-For non-root kmem_caches memcg_link_cache() is always called
-before the kmem_cache becomes visible to a user, so it's safe.
+> 
+> I believe that the idea is that operations on separate VMAs should never
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
----
- mm/slab.c        |  2 +-
- mm/slab.h        |  5 +++--
- mm/slab_common.c | 14 +++++++-------
- mm/slub.c        |  2 +-
- 4 files changed, 12 insertions(+), 11 deletions(-)
+I guess you meant kernel virtual range with 'VMA' but not the actual VMA which is
+vm_area_struct applicable only for the user space not the kernel.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index b1eefe751d2a..57a332f524cf 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1268,7 +1268,7 @@ void __init kmem_cache_init(void)
- 				  nr_node_ids * sizeof(struct kmem_cache_node *),
- 				  SLAB_HWCACHE_ALIGN, 0, 0);
- 	list_add(&kmem_cache->list, &slab_caches);
--	memcg_link_cache(kmem_cache);
-+	memcg_link_cache(kmem_cache, NULL);
- 	slab_state = PARTIAL;
+> conflict at the leaf level, and operations on the same VMA should be
+> serialised somehow w.r.t. that VMA.
+
+AFAICT see there is nothing other than hotplug lock i.e mem_hotplug_lock which
+prevents concurrent init_mm modifications and the current situation is only safe
+because some how these VA areas dont overlap with respect to intermediate page
+table level spans.
+
+> 
+> AFAICT, these functions are _never_ called on the linear/direct map or
+> vmemmap VA ranges, and whether or not these can conflict with hot-remove
+> is entirely dependent on whether those ranges can share a level of table
+> with the vmalloc region.
+
+Right but all these VA ranges (linear, vmemmap, vmalloc) are wired in on init_mm
+hence wondering if it is prudent to assume layout scheme which varies a lot based
+on different architectures while deciding possible race protections. Wondering why
+these user should not call [get|put]_online_mems() to prevent race with hotplug.
+Will try this out.
+
+Unless generic MM expects these VA ranges (linear, vmemmap, vmalloc) layout to be
+in certain manner from the platform guaranteeing non-overlap at intermediate level
+page table spans. Only then we would not a lock.
  
- 	/*
-diff --git a/mm/slab.h b/mm/slab.h
-index 43ac818b8592..6a562ca72bca 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -289,7 +289,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
- }
- 
- extern void slab_init_memcg_params(struct kmem_cache *);
--extern void memcg_link_cache(struct kmem_cache *s);
-+extern void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg);
- extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
- 				void (*deact_fn)(struct kmem_cache *));
- 
-@@ -344,7 +344,8 @@ static inline void slab_init_memcg_params(struct kmem_cache *s)
- {
- }
- 
--static inline void memcg_link_cache(struct kmem_cache *s)
-+static inline void memcg_link_cache(struct kmem_cache *s,
-+				    struct mem_cgroup *memcg)
- {
- }
- 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 58251ba63e4a..6e00bdf8618d 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -140,13 +140,12 @@ void slab_init_memcg_params(struct kmem_cache *s)
- }
- 
- static int init_memcg_params(struct kmem_cache *s,
--		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
-+			     struct kmem_cache *root_cache)
- {
- 	struct memcg_cache_array *arr;
- 
- 	if (root_cache) {
- 		s->memcg_params.root_cache = root_cache;
--		s->memcg_params.memcg = memcg;
- 		INIT_LIST_HEAD(&s->memcg_params.children_node);
- 		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
- 		return 0;
-@@ -221,11 +220,12 @@ int memcg_update_all_caches(int num_memcgs)
- 	return ret;
- }
- 
--void memcg_link_cache(struct kmem_cache *s)
-+void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg)
- {
- 	if (is_root_cache(s)) {
- 		list_add(&s->root_caches_node, &slab_root_caches);
- 	} else {
-+		s->memcg_params.memcg = memcg;
- 		list_add(&s->memcg_params.children_node,
- 			 &s->memcg_params.root_cache->memcg_params.children);
- 		list_add(&s->memcg_params.kmem_caches_node,
-@@ -244,7 +244,7 @@ static void memcg_unlink_cache(struct kmem_cache *s)
- }
- #else
- static inline int init_memcg_params(struct kmem_cache *s,
--		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
-+				    struct kmem_cache *root_cache)
- {
- 	return 0;
- }
-@@ -384,7 +384,7 @@ static struct kmem_cache *create_cache(const char *name,
- 	s->useroffset = useroffset;
- 	s->usersize = usersize;
- 
--	err = init_memcg_params(s, memcg, root_cache);
-+	err = init_memcg_params(s, root_cache);
- 	if (err)
- 		goto out_free_cache;
- 
-@@ -394,7 +394,7 @@ static struct kmem_cache *create_cache(const char *name,
- 
- 	s->refcount = 1;
- 	list_add(&s->list, &slab_caches);
--	memcg_link_cache(s);
-+	memcg_link_cache(s, memcg);
- out:
- 	if (err)
- 		return ERR_PTR(err);
-@@ -997,7 +997,7 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name,
- 
- 	create_boot_cache(s, name, size, flags, useroffset, usersize);
- 	list_add(&s->list, &slab_caches);
--	memcg_link_cache(s);
-+	memcg_link_cache(s, NULL);
- 	s->refcount = 1;
- 	return s;
- }
-diff --git a/mm/slub.c b/mm/slub.c
-index a34fbe1f6ede..2b9244529d76 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4224,7 +4224,7 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
- 	}
- 	slab_init_memcg_params(s);
- 	list_add(&s->list, &slab_caches);
--	memcg_link_cache(s);
-+	memcg_link_cache(s, NULL);
- 	return s;
- }
- 
--- 
-2.20.1
+> 
+> Do you know how likely that is to occur? e.g. what proportion of the
+
+TBH I dont know.
+
+> vmalloc region may share a level of table with the linear or vmemmap
+> regions in a typical arm64 or x86 configuration? Can we deliberately
+> provoke this failure case?
+
+I have not enumerated those yet but there are multiple configs on arm64 and
+probably on x86 which decides kernel VA space layout causing these potential
+races. But regardless its not right to assume on vmalloc range span and not
+take a lock.
+
+Not sure how to provoke this failure case from user space with simple hotplug
+because vmalloc physical allocation normally cannot be controlled without a
+hacked kernel change.
+
+> 
+> [...]
+> 
+>> In all of the above.
+>>
+>> - Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are
+>>   protected with init_mm.page_table_lock
+> 
+> Racy addition is protect in this manner.
+
+Right.
+
+> 
+>> - Should not it require init_mm.page_table_lock for all leaf level
+>>   (PUD|PMD|PTE) modification as well ?
+> 
+> As above, I believe that the PTL is assumed to not be necessary there
+> since other mutual exclusion should be in effect to prevent racy
+> modification of leaf entries.
+
+Wondering what are those mutual exclusions other than the memory hotplug lock.
+Again if its on kernel VA space layout assumptions its not a good idea.
+
+> 
+>> - Should not this require init_mm.page_table_lock for page table walk
+>>   itself ?
+>>
+>> Not taking an overall lock for all these three operations will
+>> potentially race with an ongoing memory hot remove operation which
+>> takes an overall lock as proposed. Wondering if this has this been
+>> safe till now ?
+> 
+> I suspect that the answer is that hot-remove is not thoroughly
+> stress-tested today, and conflicts are possible but rare.
+
+Will make these generic modifiers call [get|put]_online_mems() in a separate
+patch at least to protect themselves from memory hot remove operation.
+
+> 
+> As above, can we figure out how likely conflicts are, and try to come up
+> with a stress test?
+
+Will try something out by hot plugging a memory range without actually onlining it
+while there is another vmalloc stress running on the system.
+
+> 
+> Is it possible to avoid these specific conflicts (ignoring ptdump) by
+> aligning VA regions such that they cannot share intermediate levels of
+> table?
+
+Kernel VA space layout is platform specific where core MM does not mandate much. 
+Hence generic modifiers should not make any assumptions regarding it but protect
+themselves with locks. Doing any thing other than that is just pushing the problem
+to future.
 
