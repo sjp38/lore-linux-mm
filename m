@@ -2,347 +2,310 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DED31C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:14:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D09F1C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:17:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67AF5218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:14:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72DC1205ED
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:17:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="CK5/cDiI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67AF5218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="RlEhoc/k";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="I3YTA9pz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72DC1205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E9396B0005; Wed, 24 Apr 2019 15:14:47 -0400 (EDT)
+	id 1700C6B0005; Wed, 24 Apr 2019 15:17:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 899386B0006; Wed, 24 Apr 2019 15:14:47 -0400 (EDT)
+	id 11D966B0006; Wed, 24 Apr 2019 15:17:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73AFA6B0007; Wed, 24 Apr 2019 15:14:47 -0400 (EDT)
+	id F26A36B0007; Wed, 24 Apr 2019 15:17:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D0606B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:14:47 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id j14so9377603ywb.2
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:14:47 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8F66B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:17:24 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id b10so8958666vkf.3
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:17:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=YMOcZ6hYHsZD+sSFKx+9vdGslH8MLfzgQRgSaDPv8B4=;
-        b=lk9gZ5P1T4+igWr25lylNrB05DvUrzZwn/I8A1jXJAbNoNYfePW6sedwxW2aysYRw0
-         vZQ078lFIWpGf7QtdFhcPQ/CNB4yo8ADl8bKuVbf5NXssKep6qJk1L9+Em2wHPsWy2xG
-         u4dDX8xV5YmXH+ATx9u0rFLiTD9BFvhow/EJdL4KRm98M/f/DtdWW7OQ7jo08g/Vm00G
-         +z8zmXW2h6RjehO26w6qIPkdNj+ZcOhg8xyHoqGM/kmvfUDMRHhwXxb0d4NLqDfZvxJe
-         a4OUtW07zP4VN6kJpeXsU9tlMhFouRZJHc0gV1ibQEosTcL73lrrCDCui3LRfCGsJGmF
-         etRg==
-X-Gm-Message-State: APjAAAWy5wT9v7kgljdeBb4ovOAfqtA8RGHoITrqALyXuu0KX7/FaVXG
-	i1GcJuTyXGWr8Kf8cRnRUGNlBDFyr7JQ4cjY8l86HEMaD92Q7VsXr/vyG1nM1AzgxN/kTFJDvav
-	DVLGr9CEm3tDExiMkLjKL0av0zUtK6L4L9inZ5uOZmjYnBP+S1vl3P2fZzIdevhW8EK4WDK8CKw
-	IpY4F78ULUSIeUdlhasxNCSjvGLoSEGJD3NcKm4ogYf1TxRH1kd8M4jY/YFoY54XkBkQ2Sv07uk
-	c2BHdfhNUAf6z7KDzS5RTVKTOR4Cw==
-X-Received: by 2002:a81:9286:: with SMTP id j128mr19531429ywg.97.1556133287015;
-        Wed, 24 Apr 2019 12:14:47 -0700 (PDT)
-X-Received: by 2002:a81:9286:: with SMTP id j128mr19531335ywg.97.1556133285900;
-        Wed, 24 Apr 2019 12:14:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556133285; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=YaopUjZJy+hmGVptkNC+a3/dCOZGizWEQXEvUySQ7qA=;
+        b=dUx9VyfthJ1BTOObCI6wvVSkG6E4fX6JY4FqUzlJQs1FyUZvqdEh7PqhGNg+asAnHE
+         YPjuaQEKFZi43TaDu0dp/fdfXaanplaTF2Jt39Ym0J9MOQirlSq9Vg7vg8eCG7tvNZy4
+         r8qsxP4ILgqfQdxZ2WOjL8HIaN3U17PkDlokTq2JjegapISz9cD2EHBkEEGU/gXBmL9C
+         9pUOd6J+WzV7491jnb+D9tpNtaP3rD54YAv2OswpilbP3TUFjzLFMgW3+GZseoTEyCNe
+         BaTAXjuypefOKl5KQrPKu0fB8IGtf/RFUi8mV9jHPkHsotQMqT1p78ldEOPfcgNCGrMu
+         SR+Q==
+X-Gm-Message-State: APjAAAVMsVnpghHIoXx5yVpqNWFX21H7rSR1a93uKnPP5dfT4IGHRJkC
+	MMH+wHpgLx8vKM4HD2ALtdeLTkd86eZVqySrdNGgSemOm0xYVzAM7U98CRCGFAlGeGial+kXkwe
+	isnFTvjQWxb2rHP2wSEECfeimrLiOXuJ61CCsLnbg4+sq8l1jxpgL1W6+6iqrL7W3Pg==
+X-Received: by 2002:ab0:7003:: with SMTP id k3mr17778126ual.0.1556133444410;
+        Wed, 24 Apr 2019 12:17:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxoKaeckYhnTMsezbPfXVCzCRrPRup9YG6k0jEEK53HZL/7wr8ErqB4eD1gysMAHIhfDXNr
+X-Received: by 2002:ab0:7003:: with SMTP id k3mr17778054ual.0.1556133443499;
+        Wed, 24 Apr 2019 12:17:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556133443; cv=none;
         d=google.com; s=arc-20160816;
-        b=H7GAurvZTtaSWOEI9MjO56Tj4fswDVRGRNTbgL/7gUfkgGEJiRQQyi/YKk5v98TJPA
-         qB3JvRS3PZDk2/YY4iwufc2yJq6TwLRY1h26AXPMDVh9zETMW7Rn8/NsAWNfzwpoJc8W
-         fVEYFLJM7AQH9ych+kT/VVpvUmf83xomjcpvRXnmiXaDES6GhavNEM/9Q1rw1vTGQ+JU
-         WX2fw1zVHLPXSGTxp+1ZtNND5HjU8jAKUs5kaeh8RGfBOzUQjGCMR5cyfrcZL1Wt8ZXz
-         3OBSws+JDGVH1PUZlDlKCf5WJW5QpvAYl0VppmO+M9W7/G0xcTEatYeAlC1Xpxaw9d0Z
-         GeDQ==
+        b=nLDNrb9vdILKfDCss987WGvp5nR1TpMVVm+Rwj0XfTxTSdopSmzvMQw6Skdl9fZuE7
+         WdNpN/V8hCydOCf4Vj646Z1g753hEATbX0GUUAs+dD81IjyUxMWIENLy3Hcr99qumON1
+         fwbbS4mdRtWbxukRbkXhtf/fNMuR6DSUhQJzikVbpsbms5e//pyrBOk5eU59O8aTRPck
+         JbOQEdD8+81pSbjQ79ysA4tCBjbegoGsTEg3ufE+aAOb3QpcRB1n59U7NmYL8py8qU8M
+         ptbhFOpFzs1/l3UKDDlZ/PY7n9bNEW6sU7bWU1DAUzHaxcCpon5uUK0Ksr1HQR216vi0
+         w/Tg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=YMOcZ6hYHsZD+sSFKx+9vdGslH8MLfzgQRgSaDPv8B4=;
-        b=HGDjkbFZdMDk5sKMxIaSRzCCo4QlOuo17Z32xJTf+RebMit9RFHK0aXlAglm3yiYbz
-         xtZV+MSPD3fd6nDBcOOsWEdVDDwz53r3eIRablykOVrTGMgc7RpEUoN0FYlzxHRlzAKv
-         vm6FISZrLhwhPlw7qSAVIbpf+HJFj2+xplc+JltrEnlbzUY76lh/VRDNaQ+emj6pwsXB
-         9JX+fbD2zVGzRtXeIwCDi9oaf0KQl7QL+qmdbtTFOslDAal+ugfzFlJSKYRFZXNodRgY
-         DbKmXgHfMx5ej/tOLG0mMnnBvimEbeILJkpfkRNqiemxKZ9aKmD5lWt1udEAL3jSl2bt
-         jcgQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=YaopUjZJy+hmGVptkNC+a3/dCOZGizWEQXEvUySQ7qA=;
+        b=O/I/bu0wuJHehq5ePs0R1SvY7Y8Hnn8LcT4x4/m4TyQZcL979HjkuKQJcO4k82jaPy
+         yszy8k8AP45V04sDwGNqCkeKDHXjUrUNkLHzHM+Y/17ivN9mOs/Qf3U8oB9zuVuOKBYn
+         Q/7jGW8rUVQQkTRp1W2BCt4kDphZOoFSXsPMi+qpuBzvuUb5eoY0Ssdhlv67fvCsNWyy
+         Ah4Ae6hfdr6xSOB050qA2WYBzNt/AN8MS5cTMid6WwppMTSjoWHmc80ShjNG2m+KWcYA
+         0QsXePxnGRui4n2MpYjFfNa6ZmGAtqsBlM0T7yQUfkWmtKxVYBoHfRUfqabwiDrwZ9jO
+         Cz1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="CK5/cDiI";
-       spf=pass (google.com: domain of 3pbxaxa4kcp4sgzznk2mgxxkzzmuumrk.iusrot03-ssq1giq.uxm@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pbXAXA4KCP4sgzznk2mgxxkzzmuumrk.iusrot03-ssq1giq.uxm@flex--matthewgarrett.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id z3sor9339372ybj.135.2019.04.24.12.14.45
+       dkim=pass header.i=@fb.com header.s=facebook header.b="RlEhoc/k";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=I3YTA9pz;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id 186si4532004vsl.346.2019.04.24.12.17.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 12:14:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3pbxaxa4kcp4sgzznk2mgxxkzzmuumrk.iusrot03-ssq1giq.uxm@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 12:17:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="CK5/cDiI";
-       spf=pass (google.com: domain of 3pbxaxa4kcp4sgzznk2mgxxkzzmuumrk.iusrot03-ssq1giq.uxm@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3pbXAXA4KCP4sgzznk2mgxxkzzmuumrk.iusrot03-ssq1giq.uxm@flex--matthewgarrett.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=YMOcZ6hYHsZD+sSFKx+9vdGslH8MLfzgQRgSaDPv8B4=;
-        b=CK5/cDiIJONIYgXEjD4RYg7dx7rZaJFUstQgjPj46FIZEmxSoXJYUzd8KizMI7qZm5
-         RcqPy5y2ld7r7T+zmkQjj033UEft/zD76GShdGT7dLBn6VrP68WZ1rGH4Pmtx/S0GSaE
-         CCfK92GDkQqkZOAtecU27oeItmXzP9praIYdYw5cNNArlD39XW+UpYDma69msyOZA0FI
-         D6dyGnZFsxYy1qrivHoTo+C+iIwSLYT7ryXiEs5828TsFejMYMFsZRVhGrtLaiEwafMe
-         Gvk0ihsMGd6z+9yOt5fiSz7NiuW8t356Mu8rXv9SBYJ/njQ4T+cJc0hvGUHeJ++5KSjE
-         ETVg==
-X-Google-Smtp-Source: APXvYqwGnqehJEjs5NYoxwPs3X8dJXUEmrQ64ohhLda/ISlPMpUEBLkRXx820otp2prfmVVgP2TGuihp1B4/RY5E10/nnA==
-X-Received: by 2002:a25:2a13:: with SMTP id q19mr26364218ybq.243.1556133285327;
- Wed, 24 Apr 2019 12:14:45 -0700 (PDT)
-Date: Wed, 24 Apr 2019 12:14:40 -0700
-Message-Id: <20190424191440.170422-1-matthewgarrett@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.21.0.593.g511ec345e18-goog
-Subject: [PATCH] mm: Allow userland to request that the kernel clear memory on release
-From: Matthew Garrett <matthewgarrett@google.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Matthew Garrett <mjg59@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@fb.com header.s=facebook header.b="RlEhoc/k";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=I3YTA9pz;
+       spf=pass (google.com: domain of prvs=90171118fe=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=90171118fe=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3OJ4XSe008920;
+	Wed, 24 Apr 2019 12:17:17 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=YaopUjZJy+hmGVptkNC+a3/dCOZGizWEQXEvUySQ7qA=;
+ b=RlEhoc/kw5Roh6ogLWx45qe5yRQZLRK90uQZbGvl048xjbuvSxz6L1g0QKf1OLFJdJcx
+ GDQr6ljSoMzZhmSFe/TDG04R3W3QU5U6Z6Rjg9GUsND7osnxh7zZLPJNMd82mSXnoxGm
+ YVpKwk1aUJ8NOAdarIrBQ4nd8bhvWW0mWeQ= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2s2tvc8xbt-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 24 Apr 2019 12:17:17 -0700
+Received: from frc-hub03.TheFacebook.com (2620:10d:c021:18::173) by
+ frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 24 Apr 2019 12:17:15 -0700
+Received: from NAM05-DM3-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.73) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 24 Apr 2019 12:17:15 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=YaopUjZJy+hmGVptkNC+a3/dCOZGizWEQXEvUySQ7qA=;
+ b=I3YTA9pzR9DqPZ7I0CR8A4ZGolLHkHL8FCmbicpxEFSk6a4L74E2khRimiVbgM5P988NkmeQT2lPks7gQ50NxPF9RlFaxyr2n2OMvRZXo2s6pk7ERZCwSvUFqW90/pGoz0+uRo91YIiUp0T/dwMSuWwTorBlGIjs1jcG9vVMAkU=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB3351.namprd15.prod.outlook.com (20.179.58.157) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1835.12; Wed, 24 Apr 2019 19:17:13 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d1a1:d74:852:a21e]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d1a1:d74:852:a21e%5]) with mapi id 15.20.1813.017; Wed, 24 Apr 2019
+ 19:17:13 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Shakeel Butt <shakeelb@google.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+        "Rik
+ van Riel" <riel@surriel.com>, Christoph Lameter <cl@linux.com>,
+        "Vladimir
+ Davydov" <vdavydov.dev@gmail.com>,
+        Cgroups <cgroups@vger.kernel.org>
+Subject: Re: [PATCH v2 4/6] mm: unify SLAB and SLUB page accounting
+Thread-Topic: [PATCH v2 4/6] mm: unify SLAB and SLUB page accounting
+Thread-Index: AQHU+le/pG/VfTvnsEqWX9tIv1e8wqZLkEGAgAAfr4A=
+Date: Wed, 24 Apr 2019 19:17:12 +0000
+Message-ID: <20190424191706.GA26707@tower.DHCP.thefacebook.com>
+References: <20190423213133.3551969-1-guro@fb.com>
+ <20190423213133.3551969-5-guro@fb.com>
+ <CALvZod6A43nQgkYj38K4h_ZYLSmYp0xJwO7n44kGJx2Ut7-EVg@mail.gmail.com>
+In-Reply-To: <CALvZod6A43nQgkYj38K4h_ZYLSmYp0xJwO7n44kGJx2Ut7-EVg@mail.gmail.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR19CA0094.namprd19.prod.outlook.com
+ (2603:10b6:320:1f::32) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::3:1630]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: a94306f0-9714-4419-3ecf-08d6c8e97480
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3351;
+x-ms-traffictypediagnostic: BYAPR15MB3351:
+x-microsoft-antispam-prvs: <BYAPR15MB33511CB2DDAF72162E02112EBE3C0@BYAPR15MB3351.namprd15.prod.outlook.com>
+x-forefront-prvs: 00179089FD
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(136003)(396003)(346002)(39860400002)(366004)(52314003)(189003)(199004)(6486002)(68736007)(86362001)(71200400001)(8936002)(97736004)(54906003)(6916009)(9686003)(71190400001)(6512007)(478600001)(64756008)(66946007)(81166006)(7416002)(5660300002)(6436002)(73956011)(8676002)(66556008)(66476007)(4326008)(52116002)(66446008)(81156014)(14444005)(256004)(316002)(76176011)(2906002)(99286004)(305945005)(53936002)(14454004)(386003)(33656002)(11346002)(46003)(6506007)(486006)(476003)(229853002)(7736002)(53546011)(102836004)(6116002)(446003)(1076003)(15650500001)(25786009)(186003)(6246003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3351;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: 0enE/1eOvRPwJXiy46eGZwSRy5wKXaUD4rvakdaIw1tZsHAbMgGmjy6nUxXFdZiVEqCb+XSciDqbhQc64RkaHzVsx9GMcKJCrPElqfzriI4F069eJ9jyzyIurtpZibkOQB9hY1nEqIT8QvzAAlTN2NdiGuYuNaGxbD9oAK7qOL78bTarNJJ8i+FSSCMqVvV6j3zQbmxz0dksjUshoTV5khrjBQIA+X+5SD6Pe/RC8PudgDS6PR3cS2De/Yw+cjMZmfTkCBC6BI10matnFpjngMPAA0yDlu2evXt9UKGw2bQZjwgrMGWMrkr2dsyPv7gOho9uzX2Fvu2g+rdm5BQFgS6lJDxaBHFUYWkNILXkAYVVyBJ3rUOeTKc2+/z3c366wMN0d7/VzJLIcJ4xOArBN8/nikKN4GYcKHlA1ZaK92k=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6FAACE41325E304CBA651E0E42932B9F@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: a94306f0-9714-4419-3ecf-08d6c8e97480
+X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Apr 2019 19:17:12.9642
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3351
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_12:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Matthew Garrett <mjg59@google.com>
+On Wed, Apr 24, 2019 at 10:23:45AM -0700, Shakeel Butt wrote:
+> Hi Roman,
+>=20
+> On Tue, Apr 23, 2019 at 9:30 PM Roman Gushchin <guro@fb.com> wrote:
+> >
+> > Currently the page accounting code is duplicated in SLAB and SLUB
+> > internals. Let's move it into new (un)charge_slab_page helpers
+> > in the slab_common.c file. These helpers will be responsible
+> > for statistics (global and memcg-aware) and memcg charging.
+> > So they are replacing direct memcg_(un)charge_slab() calls.
+> >
+> > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > ---
+> >  mm/slab.c | 19 +++----------------
+> >  mm/slab.h | 22 ++++++++++++++++++++++
+> >  mm/slub.c | 14 ++------------
+> >  3 files changed, 27 insertions(+), 28 deletions(-)
+> >
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 14466a73d057..53e6b2687102 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -1389,7 +1389,6 @@ static struct page *kmem_getpages(struct kmem_cac=
+he *cachep, gfp_t flags,
+> >                                                                 int nod=
+eid)
+> >  {
+> >         struct page *page;
+> > -       int nr_pages;
+> >
+> >         flags |=3D cachep->allocflags;
+> >
+> > @@ -1399,17 +1398,11 @@ static struct page *kmem_getpages(struct kmem_c=
+ache *cachep, gfp_t flags,
+> >                 return NULL;
+> >         }
+> >
+> > -       if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
+> > +       if (charge_slab_page(page, flags, cachep->gfporder, cachep)) {
+> >                 __free_pages(page, cachep->gfporder);
+> >                 return NULL;
+> >         }
+> >
+> > -       nr_pages =3D (1 << cachep->gfporder);
+> > -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+> > -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pag=
+es);
+> > -       else
+> > -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, nr_p=
+ages);
+> > -
+> >         __SetPageSlab(page);
+> >         /* Record if ALLOC_NO_WATERMARKS was set when allocating the sl=
+ab */
+> >         if (sk_memalloc_socks() && page_is_pfmemalloc(page))
+> > @@ -1424,12 +1417,6 @@ static struct page *kmem_getpages(struct kmem_ca=
+che *cachep, gfp_t flags,
+> >  static void kmem_freepages(struct kmem_cache *cachep, struct page *pag=
+e)
+> >  {
+> >         int order =3D cachep->gfporder;
+> > -       unsigned long nr_freed =3D (1 << order);
+> > -
+> > -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+> > -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, -nr_fr=
+eed);
+> > -       else
+> > -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, -nr_=
+freed);
+> >
+> >         BUG_ON(!PageSlab(page));
+> >         __ClearPageSlabPfmemalloc(page);
+> > @@ -1438,8 +1425,8 @@ static void kmem_freepages(struct kmem_cache *cac=
+hep, struct page *page)
+> >         page->mapping =3D NULL;
+> >
+> >         if (current->reclaim_state)
+> > -               current->reclaim_state->reclaimed_slab +=3D nr_freed;
+> > -       memcg_uncharge_slab(page, order, cachep);
+> > +               current->reclaim_state->reclaimed_slab +=3D 1 << order;
+> > +       uncharge_slab_page(page, order, cachep);
+> >         __free_pages(page, order);
+> >  }
+> >
+> > diff --git a/mm/slab.h b/mm/slab.h
+> > index 4a261c97c138..0f5c5444acf1 100644
+> > --- a/mm/slab.h
+> > +++ b/mm/slab.h
+> > @@ -205,6 +205,12 @@ ssize_t slabinfo_write(struct file *file, const ch=
+ar __user *buffer,
+> >  void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
+> >  int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void *=
+*);
+> >
+> > +static inline int cache_vmstat_idx(struct kmem_cache *s)
+> > +{
+> > +       return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+> > +               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
+> > +}
+> > +
+> >  #ifdef CONFIG_MEMCG_KMEM
+> >
+> >  /* List of all root caches. */
+> > @@ -352,6 +358,22 @@ static inline void memcg_link_cache(struct kmem_ca=
+che *s,
+> >
+> >  #endif /* CONFIG_MEMCG_KMEM */
+> >
+> > +static __always_inline int charge_slab_page(struct page *page,
+> > +                                           gfp_t gfp, int order,
+> > +                                           struct kmem_cache *s)
+> > +{
+> > +       memcg_charge_slab(page, gfp, order, s);
+>=20
+> This does not seem right. Why the return of memcg_charge_slab is ignored?
 
-Applications that hold secrets and wish to avoid them leaking can use
-mlock() to prevent the page from being pushed out to swap and
-MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-can also use atexit() handlers to overwrite secrets on application exit.
-However, if an attacker can reboot the system into another OS, they can
-dump the contents of RAM and extract secrets. We can avoid this by setting
-CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-firmware wipe the contents of RAM before booting another OS, but this means
-rebooting takes a *long* time - the expected behaviour is for a clean
-shutdown to remove the request after scrubbing secrets from RAM in order to
-avoid this.
+Hi Shakeel!
 
-Unfortunately, if an application exits uncleanly, its secrets may still be
-present in RAM. This can't be easily fixed in userland (eg, if the OOM
-killer decides to kill a process holding secrets, we're not going to be able
-to avoid that), so this patch adds a new flag to madvise() to allow userland
-to request that the kernel clear the covered pages whenever the page
-reference count hits zero. Since vm_flags is already full on 32-bit, it
-will only work on 64-bit systems.
+Right, it's a bug. It's actually fixed later in the patchset
+(in "mm: rework non-root kmem_cache lifecycle management"),
+so the final result looks correct to me. Anyway, I'll fix it.
 
-Signed-off-by: Matthew Garrett <mjg59@google.com>
----
+How does everything else look to you?
 
-I know nothing about mm, so this is doubtless broken in any number of
-ways - please let me know how!
-
- include/linux/mm.h                     |  6 ++++
- include/linux/page-flags.h             |  2 ++
- include/trace/events/mmflags.h         |  4 +--
- include/uapi/asm-generic/mman-common.h |  2 ++
- mm/hugetlb.c                           |  2 ++
- mm/madvise.c                           | 39 ++++++++++++++++++++++++++
- mm/mempolicy.c                         |  2 ++
- mm/page_alloc.c                        |  6 ++++
- 8 files changed, 61 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6b10c21630f5..64bdab679275 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -257,6 +257,8 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
- #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
-+
-+#define VM_WIPEONRELEASE BIT(37)       /* Clear pages when releasing them */
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
- 
- #ifdef CONFIG_ARCH_HAS_PKEYS
-@@ -298,6 +300,10 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_GROWSUP	VM_NONE
- #endif
- 
-+#ifndef VM_WIPEONRELEASE
-+# define VM_WIPEONRELEASE VM_NONE
-+#endif
-+
- /* Bits set in the VMA until the stack is in its final location */
- #define VM_STACK_INCOMPLETE_SETUP	(VM_RAND_READ | VM_SEQ_READ)
- 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 9f8712a4b1a5..c52ea8a89c5d 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -118,6 +118,7 @@ enum pageflags {
- 	PG_reclaim,		/* To be reclaimed asap */
- 	PG_swapbacked,		/* Page is backed by RAM/swap */
- 	PG_unevictable,		/* Page is "unevictable"  */
-+	PG_wipeonrelease,
- #ifdef CONFIG_MMU
- 	PG_mlocked,		/* Page is vma mlocked */
- #endif
-@@ -316,6 +317,7 @@ PAGEFLAG(Referenced, referenced, PF_HEAD)
- PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
- 	__CLEARPAGEFLAG(Dirty, dirty, PF_HEAD)
- PAGEFLAG(LRU, lru, PF_HEAD) __CLEARPAGEFLAG(LRU, lru, PF_HEAD)
-+PAGEFLAG(WipeOnRelease, wipeonrelease, PF_HEAD) __CLEARPAGEFLAG(WipeOnRelease, wipeonrelease, PF_HEAD)
- PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
- 	TESTCLEARFLAG(Active, active, PF_HEAD)
- PAGEFLAG(Workingset, workingset, PF_HEAD)
-diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
-index a1675d43777e..4e5116a95b82 100644
---- a/include/trace/events/mmflags.h
-+++ b/include/trace/events/mmflags.h
-@@ -100,13 +100,13 @@
- 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
- 	{1UL << PG_reclaim,		"reclaim"	},		\
- 	{1UL << PG_swapbacked,		"swapbacked"	},		\
--	{1UL << PG_unevictable,		"unevictable"	}		\
-+	{1UL << PG_unevictable,		"unevictable"	},		\
-+	{1UL << PG_wipeonrelease,	"wipeonrelease"	}		\
- IF_HAVE_PG_MLOCK(PG_mlocked,		"mlocked"	)		\
- IF_HAVE_PG_UNCACHED(PG_uncached,	"uncached"	)		\
- IF_HAVE_PG_HWPOISON(PG_hwpoison,	"hwpoison"	)		\
- IF_HAVE_PG_IDLE(PG_young,		"young"		)		\
- IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
--
- #define show_page_flags(flags)						\
- 	(flags) ? __print_flags(flags, "|",				\
- 	__def_pageflag_names						\
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index abd238d0f7a4..82dfff4a8e3d 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -64,6 +64,8 @@
- #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
- #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
- 
-+#define MADV_WIPEONRELEASE 20
-+#define MADV_DONTWIPEONRELEASE 21
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6cdc7b2d9100..2816dc5c31f9 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1683,6 +1683,8 @@ struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
- 	node = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
- 	page = alloc_huge_page_nodemask(h, node, nodemask);
- 	mpol_cond_put(mpol);
-+	if (vma->vm_flags & VM_WIPEONRELEASE)
-+		SetPageWipeOnRelease(page);
- 
- 	return page;
- }
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 21a7881a2db4..bf256c1a3b51 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -48,6 +48,23 @@ static int madvise_need_mmap_write(int behavior)
- 	}
- }
- 
-+static int madvise_wipe_on_release(unsigned long start, unsigned long end)
-+{
-+	struct page *page;
-+
-+	for (; start < end; start += PAGE_SIZE) {
-+		int ret;
-+
-+		ret = get_user_pages(start, 1, 0, &page, NULL);
-+		if (ret != 1)
-+			return ret;
-+		SetPageWipeOnRelease(page);
-+		put_page(page);
-+	}
-+
-+	return 0;
-+}
-+
- /*
-  * We can potentially split a vm area into separate
-  * areas, each area with its own behavior.
-@@ -92,6 +109,23 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	case MADV_KEEPONFORK:
- 		new_flags &= ~VM_WIPEONFORK;
- 		break;
-+	case MADV_WIPEONRELEASE:
-+		/* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-+		if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-+		    vma->vm_flags & VM_SHARED) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		madvise_wipe_on_release(start, end);
-+		new_flags |= VM_WIPEONRELEASE;
-+		break;
-+	case MADV_DONTWIPEONRELEASE:
-+		if (VM_WIPEONRELEASE == 0) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		new_flags &= ~VM_WIPEONRELEASE;
-+		break;
- 	case MADV_DONTDUMP:
- 		new_flags |= VM_DONTDUMP;
- 		break;
-@@ -727,6 +761,8 @@ madvise_behavior_valid(int behavior)
- 	case MADV_DODUMP:
- 	case MADV_WIPEONFORK:
- 	case MADV_KEEPONFORK:
-+	case MADV_WIPEONRELEASE:
-+	case MADV_DONTWIPEONRELEASE:
- #ifdef CONFIG_MEMORY_FAILURE
- 	case MADV_SOFT_OFFLINE:
- 	case MADV_HWPOISON:
-@@ -785,6 +821,9 @@ madvise_behavior_valid(int behavior)
-  *  MADV_DONTDUMP - the application wants to prevent pages in the given range
-  *		from being included in its core dump.
-  *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
-+ *  MADV_WIPEONRELEASE - clear the contents of the memory after the last
-+ *		reference to it has been released
-+ *  MADV_DONTWIPEONRELEASE - cancel MADV_WIPEONRELEASE
-  *
-  * return values:
-  *  zero    - success
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 2219e747df49..c3bda2d9ab8e 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2096,6 +2096,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
- 	mpol_cond_put(pol);
- out:
-+	if (vma->vm_flags & VM_WIPEONRELEASE)
-+		SetPageWipeOnRelease(page);
- 	return page;
- }
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c6ce20aaf80b..39a37d7601a5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1083,11 +1083,17 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 					unsigned int order, bool check_free)
- {
- 	int bad = 0;
-+	int i;
- 
- 	VM_BUG_ON_PAGE(PageTail(page), page);
- 
- 	trace_mm_page_free(page, order);
- 
-+	if (PageWipeOnRelease(page)) {
-+		for (i = 0; i < (1<<order); i++)
-+			clear_highpage(page + i);
-+	}
-+
- 	/*
- 	 * Check tail pages before head page information is cleared to
- 	 * avoid checking PageCompound for order-0 pages.
--- 
-2.21.0.593.g511ec345e18-goog
+Thank you!
 
