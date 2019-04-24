@@ -2,237 +2,172 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36C51C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:41:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 921FCC10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:45:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD7FA2175B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:41:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 46D7F20652
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:45:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="HSQGlCAB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD7FA2175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jnXyb2lO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46D7F20652
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6DA276B0005; Wed, 24 Apr 2019 15:41:12 -0400 (EDT)
+	id D66E46B0005; Wed, 24 Apr 2019 15:45:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68A676B0006; Wed, 24 Apr 2019 15:41:12 -0400 (EDT)
+	id D16A06B0006; Wed, 24 Apr 2019 15:45:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 578A06B0007; Wed, 24 Apr 2019 15:41:12 -0400 (EDT)
+	id C05AB6B0007; Wed, 24 Apr 2019 15:45:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E486B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:41:12 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id g128so4098090ywf.11
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:41:12 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEBF6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:45:23 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id o8so12722740pgq.5
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:45:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Yniv5sy+5BQNRUjtlaSRpscFDyrU4/SisoLwlgAM2ng=;
-        b=FeTN3RUtVnKXRn5Ucjj2941SS5oz5QbhOrr1LqLGn3tG4oif0eiBGA8Y75Lgf6V5nq
-         8457iWwuk6M7uNfULhdHfMDx7ngYoQNKQqHjZsa2aWx/tH20+fXNrHClw9OgXsNSn3Nk
-         qbq2BlzAbFae1RQ3pcXLJHpX8L1UGkI6/DEtGaQmco+/OsrhIep72dA/C6b+sth1AgA5
-         7V9JPgvndUpFLr5Tt0iHcQwDrU0G2YlYmxNT+cHMoj/d/QmpX5F9eYsESIDSivJxi8qc
-         FGYiFDEkWWGm9q7mAKTOeaHlkcByxe40MdsaltmruMGyTuFEMy0fIpGR16YT1ATkTknm
-         adfA==
-X-Gm-Message-State: APjAAAU4Kc6hs4/G0pufJKYNpsn5UpP2sTMSk/eu78WrMpE9ogUz+bQT
-	Wpadu4A2byrZ2+Pb6z/QLU1t4JMlNhHqHFWQXhFpctV2VKyRaSswuKu01gSszLrGFx5uP4JYLOA
-	12TsrH84kXYsoD3su+6g+KPwjCOUKOv4J2miEPIEUt8iMq+oikzrSW5mxrtmtRZKcCg==
-X-Received: by 2002:a25:e89:: with SMTP id 131mr24946383ybo.416.1556134871824;
-        Wed, 24 Apr 2019 12:41:11 -0700 (PDT)
-X-Received: by 2002:a25:e89:: with SMTP id 131mr24946313ybo.416.1556134870768;
-        Wed, 24 Apr 2019 12:41:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556134870; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=nXNCzgXPp/MC/y/PJgs7pmMKbFnjx8a6N8WFYhwtNcs=;
+        b=TvWdz52Q3Ust32TJZG/IT4y1iSCmAdZ3+1Kv/Xgn8ldFJq+mBs/kVs/QwmIodEP7T+
+         He+5ZxSR0idx7K3uOQKTiI3Qqdfb/PaAs38HQjRIRENzx4BuID4FuRa2ERhJFGaxCTJX
+         LeqlyYCf+1xn+klEg2JfTBK9v9D3278MiA5BUiYhgCs6x2L0uToBoZH59eEzxMVkFazM
+         70LfHIIEmQELYOIXoWWAD7hDm6zDma9JjnvqCbW+Lnp3eYyL/b5IpEt9L2ddBK6bFJ1m
+         gSfpDJN7aiV956LIvxMNsXrdVj2hdtxg3g4lX8MfUD4IQPrs4Rn9nljYXn+x7bUmrJif
+         Rmmg==
+X-Gm-Message-State: APjAAAUf46/fLnn1no6zE4XxJlRtrloiqb5hfc7HJ6pK1ntEBOVTFnQJ
+	zmtPKKPK4oSMZ+eBFgbO/rhPfZLtmHnkBYOEkB8O+8V0HtAQ1/p9tqCQRl2Lx8IM8nU4z5E/pW1
+	8rFp2ipevPZNZcPK64ALIUOzlEhchB1I+1HrNCS4UbAw1jqEctXryUWs3DxNPPoZtQw==
+X-Received: by 2002:a63:170d:: with SMTP id x13mr32234525pgl.169.1556135123059;
+        Wed, 24 Apr 2019 12:45:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx8AB9ZV4FnJ3VhLmh05RWCpsegR/352dXkOjIcrW+2fu4o2MXcOHuC6wpY8UkR36gunIwN
+X-Received: by 2002:a63:170d:: with SMTP id x13mr32234461pgl.169.1556135122391;
+        Wed, 24 Apr 2019 12:45:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556135122; cv=none;
         d=google.com; s=arc-20160816;
-        b=OUcMzvPPyEhvl9LF45CWTFiceW3O5mhk1LlOKnLKfpwvHRoZEjpkfU+o6ZZxGFpT1b
-         aKixaOthmiJQKVIt8pTBam+kJ8Vr8XvImmtufwBD+5Tin/3LjoH07/BBKhvX0SgcJ3p+
-         64u1rrIJdjAumlcplTRisQ7Z6VRYuPovY0syS44Ex4yC6rnNSTHFIUahGdM1+uQTiQjG
-         zHdBwDx6Zk3XpTpUGphPlhezATVqtgjLdCmsf7djdA1Gw+V4l6nXmQlejaVulJ18c4BZ
-         QchhycY+m9DoA0QZNp8fYiaTA7mcAsS9E3+UAPZ5Bd1mHogKnLGbdny0Hio0qxUlcl2/
-         Ww8Q==
+        b=hTJMGK/iLTaqucg6qoayhO2Yy4BOrkeThF2tuoyF+hwY03J1tWX7LANRqhIt8/IXjM
+         gKzHBj97RdNmJg41vWOsqWh9mSv6RmZl1wFYeg5aiWzN4aEfVg7+93igsSBU+Ve9CL8/
+         eqtb5GXjg/+hX1yAtuh/TGr77DdyKJa2OKxIIg+tB48AKFhwjtUcDB1+sPoVpOGhPoFA
+         pokrDT1ttTczB1LxIFCcX6nE2jFbDzt7649qhUuzAtWtI0SCPtSyoqQ/ODLhXauLWSSr
+         4Q/CvWMdilmRCj3t/Edh7BT4B+qKXx5G7WiEB/c5tznY4oyCTFok/20LJVDMyMdGU4QW
+         XdgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Yniv5sy+5BQNRUjtlaSRpscFDyrU4/SisoLwlgAM2ng=;
-        b=f/HnHQdCwKMTT9kZ0Gou6XqJ1pjtbrwFUMlsOU8FHKkXyMw5SpeoIPIfG7tDsHgOB/
-         5J2qmL/AZ3WEChvONTctG2Jc44l9F5SGWjeC/FvaDTJ9YfW7m8yvvewyyW7GJY97AHFA
-         zNXjYeJ/oEjmRyiq3ob1qYMZr1X8dVQkRJGDO2UU/JqBIFYxvYvAQITpo7COj+Glx2pv
-         1nKAr9AaYVTJbS4IyfOkkN/SQbTDAWB8INWZ5fJ2nlysXLNcRVTPXz7jMtfKbmmJhtBC
-         FJlhe+uU1zunuTKKK8FvNNXlvvsUDNyiguk/g3xYkmYtehW6EU85lZLEknJe88zfetl4
-         un7Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=nXNCzgXPp/MC/y/PJgs7pmMKbFnjx8a6N8WFYhwtNcs=;
+        b=GbANy7bM4ToOpVhZ34EJVjZtpFhFRzN/ILy3xCP+tU7FwvaTmdAFHjcdu46yOm2JPO
+         D+qDHc5TBLG7K7wam/6pMtMrznvvoEdWNFAQEvyDAvkISxGgIZeiCB6/OySHjMvaHfng
+         AVX2rcxsB6dMlcDKqpZZIuVrsa5+M9oUCW8A8D8FeprhDdfG9l3XOvGYK5JhnbEjn4+5
+         mc9+LcyMbmgGMnUh+RAWFDeFPRikOJkQl5OqXlEZa+/JjZriPfhhiaQRwtNqJ67o1M3s
+         TPeyjQyBV4SU++/qTvvjmlPD7iRWupeoabtjajpQndImt7MswfMeEa3bumbtEGRHdcZ2
+         HUCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HSQGlCAB;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 21sor8789406ywg.189.2019.04.24.12.41.10
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jnXyb2lO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v9si18274905pgr.167.2019.04.24.12.45.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 12:41:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 24 Apr 2019 12:45:22 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HSQGlCAB;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Yniv5sy+5BQNRUjtlaSRpscFDyrU4/SisoLwlgAM2ng=;
-        b=HSQGlCABvRIZPxZA8AOq9czRV7ZfXLMVbzQJ3+KvICA6fAiq4fTXLdIW4I9pcAK5Ar
-         J+DJ/nbaXuY3mcsBwclwSQbl8CvBRvPVpIS3X80Q33eYOZKD7jYDyFucYjA3EpdqGupt
-         K2FB85/z9856MjrPeLO6FF0Jm97fu+CWhTWj1Vdn3CGKACt4d1cJFkbwKCIGLs/yOjCd
-         MngXQA1Gc0EtXw+FzBHSUypHSaaqwPOeSCyBaCn8Hus3JFZtQSJIdPAtrU1hGAOOuF+/
-         g1VzjfOuDMEfuueQgSzVFMoHMKMeE5PDBn3VG6Wr6EjzwrAJY4zJq+5zS72iouyIgmNg
-         XZwQ==
-X-Google-Smtp-Source: APXvYqxv1u3H9ygt4AZH9qpNsjBSq/NfXcClQxIBs/Dob2wUtNxoudJC/96BrFm+ew0Zx5DOFe/D9zIl/Nygshyc5hM=
-X-Received: by 2002:a0d:f804:: with SMTP id i4mr28081368ywf.345.1556134869972;
- Wed, 24 Apr 2019 12:41:09 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jnXyb2lO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=nXNCzgXPp/MC/y/PJgs7pmMKbFnjx8a6N8WFYhwtNcs=; b=jnXyb2lOVttIJoTmHH09wDdgf
+	n8NwsMb9Q8EZ9BhZYTUEmA/PHtyPiQZOmqBu9mXa6yS7FNimIsZTp3th5+3stcuYygHbNmLLYqBGT
+	QahsATylTqjWyQwmQWDXx0qU89AA6/OXLd2NCoPGpUOZ+2qhJ4st3eHGbksMYs7v8Vz1EtlVHBU/V
+	0d2uWTvtE1ut2NEV0rW9PoEWWmPOPkZ6B4Ll/v8YqCWjQwzFWcsIDvwui3aaYqTf72W1WXM1j/0xM
+	JpCvyP3P7MY/egBVMNbkcye19upsSYlZcw08/CLq5k4oepPII8zRfmSr6JNXtPbV5jb8VqzdiXZp7
+	XpWmu0naw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hJNpM-0005aH-OA; Wed, 24 Apr 2019 19:45:08 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id E5F80203E8871; Wed, 24 Apr 2019 21:45:05 +0200 (CEST)
+Date: Wed, 24 Apr 2019 21:45:05 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>,
+	Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
+	Andy Lutomirski <luto@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Alexander Potapenko <glider@google.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org,
+	David Rientjes <rientjes@google.com>,
+	Christoph Lameter <cl@linux.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Akinobu Mita <akinobu.mita@gmail.com>,
+	iommu@lists.linux-foundation.org,
+	Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
+	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
+	Alasdair Kergon <agk@redhat.com>, intel-gfx@lists.freedesktop.org,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
+Subject: Re: [patch V2 18/29] lockdep: Move stack trace logic into
+ check_prev_add()
+Message-ID: <20190424194505.GR11158@hirez.programming.kicks-ass.net>
+References: <20190418084119.056416939@linutronix.de>
+ <20190418084254.729689921@linutronix.de>
 MIME-Version: 1.0
-References: <20190423213133.3551969-1-guro@fb.com> <20190423213133.3551969-5-guro@fb.com>
- <CALvZod6A43nQgkYj38K4h_ZYLSmYp0xJwO7n44kGJx2Ut7-EVg@mail.gmail.com> <20190424191706.GA26707@tower.DHCP.thefacebook.com>
-In-Reply-To: <20190424191706.GA26707@tower.DHCP.thefacebook.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 24 Apr 2019 12:40:59 -0700
-Message-ID: <CALvZod7sG+sD76dQmMhXa92=zpXz=wdUcsR9ah7YRj13g=YT+g@mail.gmail.com>
-Subject: Re: [PATCH v2 4/6] mm: unify SLAB and SLUB page accounting
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Kernel Team <Kernel-team@fb.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>, 
-	Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190418084254.729689921@linutronix.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 12:17 PM Roman Gushchin <guro@fb.com> wrote:
->
-> On Wed, Apr 24, 2019 at 10:23:45AM -0700, Shakeel Butt wrote:
-> > Hi Roman,
-> >
-> > On Tue, Apr 23, 2019 at 9:30 PM Roman Gushchin <guro@fb.com> wrote:
-> > >
-> > > Currently the page accounting code is duplicated in SLAB and SLUB
-> > > internals. Let's move it into new (un)charge_slab_page helpers
-> > > in the slab_common.c file. These helpers will be responsible
-> > > for statistics (global and memcg-aware) and memcg charging.
-> > > So they are replacing direct memcg_(un)charge_slab() calls.
-> > >
-> > > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > > ---
-> > >  mm/slab.c | 19 +++----------------
-> > >  mm/slab.h | 22 ++++++++++++++++++++++
-> > >  mm/slub.c | 14 ++------------
-> > >  3 files changed, 27 insertions(+), 28 deletions(-)
-> > >
-> > > diff --git a/mm/slab.c b/mm/slab.c
-> > > index 14466a73d057..53e6b2687102 100644
-> > > --- a/mm/slab.c
-> > > +++ b/mm/slab.c
-> > > @@ -1389,7 +1389,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
-> > >                                                                 int nodeid)
-> > >  {
-> > >         struct page *page;
-> > > -       int nr_pages;
-> > >
-> > >         flags |= cachep->allocflags;
-> > >
-> > > @@ -1399,17 +1398,11 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
-> > >                 return NULL;
-> > >         }
-> > >
-> > > -       if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
-> > > +       if (charge_slab_page(page, flags, cachep->gfporder, cachep)) {
-> > >                 __free_pages(page, cachep->gfporder);
-> > >                 return NULL;
-> > >         }
-> > >
-> > > -       nr_pages = (1 << cachep->gfporder);
-> > > -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-> > > -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
-> > > -       else
-> > > -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, nr_pages);
-> > > -
-> > >         __SetPageSlab(page);
-> > >         /* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
-> > >         if (sk_memalloc_socks() && page_is_pfmemalloc(page))
-> > > @@ -1424,12 +1417,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
-> > >  static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
-> > >  {
-> > >         int order = cachep->gfporder;
-> > > -       unsigned long nr_freed = (1 << order);
-> > > -
-> > > -       if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-> > > -               mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, -nr_freed);
-> > > -       else
-> > > -               mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, -nr_freed);
-> > >
-> > >         BUG_ON(!PageSlab(page));
-> > >         __ClearPageSlabPfmemalloc(page);
-> > > @@ -1438,8 +1425,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
-> > >         page->mapping = NULL;
-> > >
-> > >         if (current->reclaim_state)
-> > > -               current->reclaim_state->reclaimed_slab += nr_freed;
-> > > -       memcg_uncharge_slab(page, order, cachep);
-> > > +               current->reclaim_state->reclaimed_slab += 1 << order;
-> > > +       uncharge_slab_page(page, order, cachep);
-> > >         __free_pages(page, order);
-> > >  }
-> > >
-> > > diff --git a/mm/slab.h b/mm/slab.h
-> > > index 4a261c97c138..0f5c5444acf1 100644
-> > > --- a/mm/slab.h
-> > > +++ b/mm/slab.h
-> > > @@ -205,6 +205,12 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
-> > >  void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-> > >  int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
-> > >
-> > > +static inline int cache_vmstat_idx(struct kmem_cache *s)
-> > > +{
-> > > +       return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
-> > > +               NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
-> > > +}
-> > > +
-> > >  #ifdef CONFIG_MEMCG_KMEM
-> > >
-> > >  /* List of all root caches. */
-> > > @@ -352,6 +358,22 @@ static inline void memcg_link_cache(struct kmem_cache *s,
-> > >
-> > >  #endif /* CONFIG_MEMCG_KMEM */
-> > >
-> > > +static __always_inline int charge_slab_page(struct page *page,
-> > > +                                           gfp_t gfp, int order,
-> > > +                                           struct kmem_cache *s)
-> > > +{
-> > > +       memcg_charge_slab(page, gfp, order, s);
-> >
-> > This does not seem right. Why the return of memcg_charge_slab is ignored?
->
-> Hi Shakeel!
->
-> Right, it's a bug. It's actually fixed later in the patchset
-> (in "mm: rework non-root kmem_cache lifecycle management"),
-> so the final result looks correct to me. Anyway, I'll fix it.
->
-> How does everything else look to you?
->
-> Thank you!
+On Thu, Apr 18, 2019 at 10:41:37AM +0200, Thomas Gleixner wrote:
+> There is only one caller of check_prev_add() which hands in a zeroed struct
+> stack trace and a function pointer to save_stack(). Inside check_prev_add()
+> the stack_trace struct is checked for being empty, which is always
+> true. Based on that one code path stores a stack trace which is unused. The
+> comment there does not make sense either. It's all leftovers from
+> historical lockdep code (cross release).
 
-I caught this during quick glance. Another high level issue I found is
-breakage of /proc/kpagecgroup for the slab pages which is easy to fix.
+I was more or less expecting a revert of:
 
-At the moment I am kind of stuck on some other stuff but will get back
-to this in a week or so.
+ce07a9415f26 ("locking/lockdep: Make check_prev_add() able to handle external stack_trace")
 
-Shakeel
+And then I read the comment that went with the "static struct
+stack_trace trace" that got removed (in the above commit) and realized
+that your patch will consume more stack entries.
+
+The problem is when the held lock stack in check_prevs_add() has multple
+trylock entries on top, in that case we call check_prev_add() multiple
+times, and this patch will then save the exact same stack-trace multiple
+times, consuming static resources.
+
+Possibly we should copy what stackdepot does (but we cannot use it
+directly because stackdepot uses locks; but possible we can share bits),
+but that is a patch for another day I think.
+
+So while convoluted, perhaps we should retain this code for now.
 
