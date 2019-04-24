@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87336C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:25:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32765C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:25:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F890218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:25:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F890218B0
+	by mail.kernel.org (Postfix) with ESMTP id F126221773
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:25:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F126221773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 45AC46B0007; Wed, 24 Apr 2019 06:25:42 -0400 (EDT)
+	id 23D156B0008; Wed, 24 Apr 2019 06:25:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 40C836B0008; Wed, 24 Apr 2019 06:25:42 -0400 (EDT)
+	id 1CDDB6B000C; Wed, 24 Apr 2019 06:25:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2AD666B000C; Wed, 24 Apr 2019 06:25:42 -0400 (EDT)
+	id EC1B76B000D; Wed, 24 Apr 2019 06:25:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1496B0007
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:25:42 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p26so17238637qtq.21
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 03:25:42 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C443E6B0008
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:25:43 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id t67so10206163qkd.15
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 03:25:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=X3Se80q1dKdim+vPqx/FPGIOapUfHtVIBKJDjYe8V8k=;
-        b=QjbP70HAIyzVPochIxS7B32gcF4un4fcd4JqiB3e+JJsXUMpQolaL3o/mwe1+B1VDN
-         E6IkgBJY1Al3FPwcEwUrDel/cmXFoaRnb/FqAQHvtoDGB64Vb0J9mT6Ial88pYxuhieq
-         gcEO5wjgoZGTZu5tYunFRiF4rwY8ukJira4DKL9nXMUin4vDvGowX+6VTSS5EvZ+7Lq9
-         zCO3SCQ8TDo5/nIka75kI4Vhf9Dw69tu8BP0306RE04p2fR1c3KHfgpNFXYtGRb2ZzOD
-         YzxDJlvYBNSOj6W7gGF2XUkGx+uEiJNJJ3SFmSoFI7T89Tj9gJHRYbGUpWBnW8s0NAhG
-         kL/w==
+        bh=Sstr/K0HceJCPLq+MhzSzTpSmFovLaEMCGEENQ8I26Y=;
+        b=Y3t1sShMXfhDhJ9Gao9GtLePmNMkE5oAAJZaAZ7F5nzE1cuSnI8dKsOdN7QnrCeZ/N
+         4DO2h4AjaWr6mG6DYo7WQtU3SB4QmL0eDd2oG2Z8lXRcsBRcPAsXwLH6wRub3G9EJKmC
+         45mnM3kRMV2CyjOpfRzM5QRxFB8SMs/oD36v+xfO1wJoLAQ3A9OVSN9+KTafIg73gN7V
+         /pKZr9fgpnTuEVluCgZqFzi0nL/jerVRFtaH1PZVV3FMMY0eSYqiQNqjKSyunak0/uq7
+         E4Yo6JPstzX5BVTInn9GzPB9VQNW78rRB7QuIAGsab8nRcT8yJ0vS4prXqhu7j9zXxw6
+         //Wg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUGJ8r9k8bJEFTlY8uWRr9RTaToX4ETUVUt8SAx9fOx20/FtEOk
-	GloT2iTIWH1XRMD+3+58vZVias3lk8WkUwZXINMHLPon3jA/3XFiGeqf1hag5S8IhcSIIEWVBGJ
-	oP7HwtS1d9ybOfgdrcDl0mSSzIDAJyNsIaQiqXxl9320SGRJQUTZ1P757uozWOQ9Rlw==
-X-Received: by 2002:a05:6214:162:: with SMTP id y2mr5270025qvs.157.1556101541825;
-        Wed, 24 Apr 2019 03:25:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1M3V8eS4QwXdPjVL12zypdmXXxd9zWHJSLSB87matZkh/mYtaMph02DAB4fbI9iXMENJl
-X-Received: by 2002:a05:6214:162:: with SMTP id y2mr5269977qvs.157.1556101540980;
-        Wed, 24 Apr 2019 03:25:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556101540; cv=none;
+X-Gm-Message-State: APjAAAUSbd/MPDrBVmNP74ZMaMXrSsLdyv/aXyaPOrtvPKzS5n5kw5sZ
+	vKMnM7+nJ/c9miRMeOsmPSvz/8OSkTE77ghKArji8Fv4zQgimD6f8Ejk1ulACCebJW6mYju0Rvm
+	JmrskqqRW68J5KXlGJUKkClzpdZkDI5oiac7pxELKUY5lqiBp2t1sT3fKicc8LMIU7g==
+X-Received: by 2002:ac8:74d6:: with SMTP id j22mr5135052qtr.144.1556101543583;
+        Wed, 24 Apr 2019 03:25:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx64zuXMgoeTF83FCEa5ZmbEVOjuJzIVFNxwHgDZuvW3jAXEEjW15E0g212YPwys2UeH6Qb
+X-Received: by 2002:ac8:74d6:: with SMTP id j22mr5135012qtr.144.1556101543004;
+        Wed, 24 Apr 2019 03:25:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556101542; cv=none;
         d=google.com; s=arc-20160816;
-        b=HHWJ+Q9oDlgGvujWU+crFYq24zRmJdW5eBct+TBe3u+xRbw2+QjglCcgrWaCBt9cQi
-         MMalsp1CTkv1/GDaKxdkdr7KtvuRQ1KJghKEbyst2Xr0MdNIQ3FOYpGEkHqp2oGhsY+8
-         uYCDmMJQH9Kw9eFDUrPTuYbbUgfba4hEBaImRtNufS5/TTRkqi3dxMJFfBQj8y2lVBOI
-         aypfM9PNIjRcdmgsfWqJGRe+M9pGYfYAIPqNm10xNhFYZtCGQw7F1nzwDQUAMTtlW0PL
-         vX0nG4nu0y+74b5UxIS79QDHtfQR8P56m6A8Z9nTa6B5t4BPxjO9Uxlc4uo51SLse6If
-         e3cA==
+        b=OVI8mQ1fpCGR5yIgdgFP9fqxj2y3YdUZ8gE6pWvd/C5SpBHgf7vc1b1bOOxM40iZPk
+         bMgZI2t9Onn1hNIKgaXHCp52sBGk4p/QjQcmMh5e1UCrAl1q+uXzhHsvML8mlxmpDhGl
+         aQhndjX/z8hXKcEDqNjztl+13zX9tYgS9xzMuppDngCropgWEmEVidXevGfwOtV7m03T
+         M1bqQktDbtiRMV+/dcaBt8VjqaRRB/U4aX8ik8l/1KlKwBEB1CQHRcMvXtLksU2jcp20
+         7rOXw8vm+oX1WQz6jlCRVmEwfqS5k7Ih9By+l6IkJq2CIZ2GePeA/XOFaWfJn2hyuLGP
+         enJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=X3Se80q1dKdim+vPqx/FPGIOapUfHtVIBKJDjYe8V8k=;
-        b=lncWN2VEWVkdkl/C1XNeXa9pSnSOGjYF1x1KL/rAaqTGD1/7Vcl80MOEgWyTLmUNeo
-         /9R9yUTY8JZ6VN80JkRF5TiFD9uV/6gckyMpYtXqdrcK4Zi2nsa1ZuuAtQJwyEVxeIXA
-         zX9MWQcbWJX2NADYUJZdJUw4YPVXMsQ14+pAQUep+dxo4gyl2boqM33OoYkjppsjrVzc
-         UYQS9syvmJXEQdlH1gmHSSZyr5OqOJ8KFR89AQk3PMqP5bZI8JCsmYvgzGuTHwealPdA
-         7xCkj8IGRfUSYbhQ+K2fp6Wu5sw7uhmMMcNib0tIIjP4YGyoVM0uPSHd6GwRt1235vQK
-         WlpA==
+        bh=Sstr/K0HceJCPLq+MhzSzTpSmFovLaEMCGEENQ8I26Y=;
+        b=Z6MV9KiHtq3CiZFzAFfaNhqffqn15PsgOWfGZWLj/M7XFCNB/Z/B+4OOYZVbpt9IQk
+         +dGmMMzv/KkYUe1ASgXeaja4bJ5pA2B1/evACrDXtK2mEdQDHoDqrS8dC8nARTBYiisO
+         ZczvyxuA1xjaMnMhzKOU03cPj+EZKO6Lu1jSrphpP4gljcDfXCVKipQyVHBnPtHMSoYv
+         i8uHxCrPd33BZGzVQQT9BDLt5q89TV4ySerIuQjiXORYGqcJexr3u46bFI2D97UFcOmC
+         tWHeLqklF141y5898127TsvSa6UVrD9c240IsdBe1FSI2g8ehw+i7Tmif8SiIeLiMjtA
+         bL7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b5si1182817qtr.404.2019.04.24.03.25.40
+        by mx.google.com with ESMTPS id c9si4814226qte.102.2019.04.24.03.25.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 03:25:40 -0700 (PDT)
+        Wed, 24 Apr 2019 03:25:42 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 10061308FB9D;
-	Wed, 24 Apr 2019 10:25:39 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 2D2062D6A11;
+	Wed, 24 Apr 2019 10:25:42 +0000 (UTC)
 Received: from t460s.redhat.com (ovpn-116-45.ams2.redhat.com [10.36.116.45])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id F03CD600C1;
-	Wed, 24 Apr 2019 10:25:33 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6357E600C1;
+	Wed, 24 Apr 2019 10:25:39 +0000 (UTC)
 From: David Hildenbrand <david@redhat.com>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org,
@@ -96,70 +96,67 @@ Cc: linux-kernel@vger.kernel.org,
 	akpm@linux-foundation.org,
 	Dan Williams <dan.j.williams@intel.com>,
 	David Hildenbrand <david@redhat.com>,
-	Oscar Salvador <osalvador@suse.de>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
 	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Qian Cai <cai@lca.pw>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: [PATCH v1 1/7] mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
-Date: Wed, 24 Apr 2019 12:25:05 +0200
-Message-Id: <20190424102511.29318-2-david@redhat.com>
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Oscar Salvador <osalvador@suse.com>
+Subject: [PATCH v1 2/7] s390x/mm: Implement arch_remove_memory()
+Date: Wed, 24 Apr 2019 12:25:06 +0200
+Message-Id: <20190424102511.29318-3-david@redhat.com>
 In-Reply-To: <20190424102511.29318-1-david@redhat.com>
 References: <20190424102511.29318-1-david@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Wed, 24 Apr 2019 10:25:39 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 24 Apr 2019 10:25:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-By converting start and size to page granularity, we actually ignore
-unaligned parts within a page instead of properly bailing out with an
-error.
+Will come in handy when wanting to handle errors after
+arch_add_memory().
 
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>
 Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Cc: David Hildenbrand <david@redhat.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Arun KS <arunks@codeaurora.org>
-Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Vasily Gorbik <gor@linux.ibm.com>
+Cc: Oscar Salvador <osalvador@suse.com>
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/memory_hotplug.c | 11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+ arch/s390/mm/init.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 328878b6799d..202febe88b58 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1050,16 +1050,11 @@ int try_online_node(int nid)
- 
- static int check_hotplug_memory_range(u64 start, u64 size)
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 31b1071315d7..2636d62df04e 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -237,12 +237,13 @@ int arch_add_memory(int nid, u64 start, u64 size,
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
  {
--	unsigned long block_sz = memory_block_size_bytes();
--	u64 block_nr_pages = block_sz >> PAGE_SHIFT;
--	u64 nr_pages = size >> PAGE_SHIFT;
--	u64 start_pfn = PFN_DOWN(start);
--
- 	/* memory range must be block size aligned */
--	if (!nr_pages || !IS_ALIGNED(start_pfn, block_nr_pages) ||
--	    !IS_ALIGNED(nr_pages, block_nr_pages)) {
-+	if (!size || !IS_ALIGNED(start, memory_block_size_bytes()) ||
-+	    !IS_ALIGNED(size, memory_block_size_bytes())) {
- 		pr_err("Block size [%#lx] unaligned hotplug range: start %#llx, size %#llx",
--		       block_sz, start, size);
-+		       memory_block_size_bytes(), start, size);
- 		return -EINVAL;
- 	}
- 
+-	/*
+-	 * There is no hardware or firmware interface which could trigger a
+-	 * hot memory remove on s390. So there is nothing that needs to be
+-	 * implemented.
+-	 */
+-	BUG();
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++
++	vmem_remove_mapping(start, size);
++	zone = page_zone(pfn_to_page(start_pfn));
++	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ }
+ #endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 -- 
 2.20.1
 
