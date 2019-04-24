@@ -3,83 +3,83 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE11FC10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AFCCC282E3
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A91B1218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A91B1218B0
+	by mail.kernel.org (Postfix) with ESMTP id BFD30218D3
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFD30218D3
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5988A6B0008; Wed, 24 Apr 2019 07:12:41 -0400 (EDT)
+	id 71FDA6B000A; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 520326B000A; Wed, 24 Apr 2019 07:12:41 -0400 (EDT)
+	id 6A7456B000C; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E97D6B000C; Wed, 24 Apr 2019 07:12:41 -0400 (EDT)
+	id 549086B000D; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F6C6B0008
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:12:40 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id t9so17413130wrs.16
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 04:12:40 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0483D6B000A
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r7so7886319wrc.14
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 04:12:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=DIn5FEbRXYQzdZBIvpyZtr7sGYOlqQ3CKLeCoHcIFJI=;
-        b=EHPOroHkBXyRuQqEMfpS6rrnLhstH5BfGTNNF38WXWw+l8HqCNilX4S09GNuhslJWm
-         hJV2XxgP2xtwKldJRCNHgzr8D/gptNCJ+Pbv/6V2y/sECELzPwTki8DpytpVycdCt/s9
-         pdSUuqkNz6ZgKNjMvq1YeBI73b2pV7aIUSXgAUwn1pSQ8dQmBL44SmfSYX4FdyAlDF2Q
-         85RWqlcgUqsRihV2MI/Pwp+ehbVw6NO2sjOAK3Thr8xx6JNZLYKkpR/WG/jRvGReZg1+
-         cVP0IC7X9y4A0P9N1p2pIrfSF1NdcrP3xDIaezt158fPwRUCqErOhCsEBvdb5Of16LVQ
-         1BlA==
+        bh=Nrdy8KLOBuiWA1DS+gjdUN5k8KpcliPOrG7O1lyxcrA=;
+        b=sSVjntas4HIVnMmKgIVm3kG7B2zvt3hQD5ojpV3B7XYLdhzMxfY36wk5Bam8DPmNmE
+         8UwWGawdX10RMYjxu2o1t3BpO4EwaWROPefhnsahNDrHxXRnlGwkw4O13TJ7IznWvt/X
+         hv78+gxUHWm64QaVAObTGcs50FnxFjAwXZfd0q9UfFS5aSbWExk4ZgxKh2cBlWtHYVmi
+         KJlVN03taPabObW2W6zm9U75Zgq9QSxc/7BRZtUl8E+e2egKRCNQEJRRa0siWhhy4hiI
+         LOS/jmDZIGRUvBRupq//m0zbEUwYhBxWpd8vW0TO2VdxS5YI7nBI5Hy54E4HNOv9OLpE
+         VR5g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAUOCLHpDkpOQR5E/wSb58LdKUIPdnQ3c7AKkEeR2KrrLAsvNQMr
-	JOs642MVEwdb4QN8yPGuyC3dOtzDZNUn2wslOBcVIQyOpaEiQP4n4JM9k+e0aDfym+G9EOEgEnE
-	T6VAzyx7o/e9xOk83OtQqrGquBe2359ob3ukDCaRBfpAMTavhhHy2SqYlZW+b+ffqrg==
-X-Received: by 2002:a5d:6848:: with SMTP id o8mr6426032wrw.204.1556104360404;
-        Wed, 24 Apr 2019 04:12:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzX97uhTFodJ1QsuwvLCXJnBdenyVyLJvrd+F1coAKQth47A2i9bBKxzqjpGrRJxhQUidYh
-X-Received: by 2002:a5d:6848:: with SMTP id o8mr6425984wrw.204.1556104359561;
-        Wed, 24 Apr 2019 04:12:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556104359; cv=none;
+X-Gm-Message-State: APjAAAXONogCGNp/cdclw/g62AxdaIp8ixfB1hA4VMqhoeDZ3OdG3sfD
+	G1ECiaHbSfWlbpecTgbhLcAeDqTpvrhZ0MEwz/8onUzJr8wp4ysEGuVdH5sHxe12QREs+nGQORY
+	dNOYN1kzb2Rb6m/IJ41pf1vPWOrv/TA/jmr9Rhcg56le+TdRT6HMG1hzASqdRssZ8TQ==
+X-Received: by 2002:adf:ec09:: with SMTP id x9mr21931000wrn.187.1556104365546;
+        Wed, 24 Apr 2019 04:12:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzo9d9GgidaV+51RMED+QpB0TS2eh8Ko2iewy06X/MohlM1/r7KJX2e/5a9/YSMd3udq/cM
+X-Received: by 2002:adf:ec09:: with SMTP id x9mr21930945wrn.187.1556104364683;
+        Wed, 24 Apr 2019 04:12:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556104364; cv=none;
         d=google.com; s=arc-20160816;
-        b=qUheegLreovQh0i91Y1Fi7SjBCTRc5DisxG9DGmFHyjE3q89xeMlqNs6JA7i/Iq2S3
-         q9zDvYhY+Rgy9MatfYm6BnqhYDt4CBadm3wJF/e/y8I3qXgGncIMyynjmcqRaYDJpzZg
-         SiR7hSX160FL20mHR2cKd8BypyiouqvO2tnb8t9TRnYtZlJ2JRdcX1qUPZluqe13Axml
-         z4YfVKnY0R0FIpljMLjPpTKvn49R4PVMM+CnQj7GHOZMgVU33TGdqMk4vD4vRowVO1vC
-         n/GT9LAuw26p9yDw4bezLMW+V6YhQ5r3mPIOWPEqco0CKJh9/KQWjn/n6iO8h5ypoD9W
-         TRiQ==
+        b=HrPWftXCf0W4KdBKPz6plG45txC9mC5IG0LgpjGAdYt4w7Ozwtm2eEigskmj6NA+5/
+         XHI9Op9hQKmwEzrK2C5bvO3g33H3yH5+Vh07O1tODEKauTZaT3+JNvE+wJU/SfJSI5OR
+         r4lj5lNHjkvZ2du/2XDGoX0t40wqCTglzTI8CZRXyk1wxjniZpxg+Y/sUcYz6982TJXh
+         r4f3VMZ9kuFub7Q78XaAVL1rtQ0a+idxkYPPCrgRU7IWwVovX2FpeC5zm+T0vodYFTJI
+         qrWA2iAFniKgBXTJkkFVJpWs37M9NS3YAvyjYgpA5dOGLA/KTnPhIN3/BBNWs8fDsD+V
+         Fn6w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=DIn5FEbRXYQzdZBIvpyZtr7sGYOlqQ3CKLeCoHcIFJI=;
-        b=bsEcpXXxf0NRwYI5B2UTHRd+NmpWRuCkZ8CIAjXWJ14mcplXpLxHESHrI0wx9691yu
-         PPrj/eAx2aoyr02/bt63o5WDM9FyDPtKNxZb+bZbXiQzNV4bjM0a0fhT5eioPJQOmU94
-         /C7QLbKr2cqMtGBigWBZfkZurCANdpP3fJedA1+aXAWmWgiXsqoDTRLd+pCva+4N/qDQ
-         Vf0g6q/qwRMZJsTaWTRpPIdg0XO4xrHp/QdHXMpdkJJXBHBjur4h9+9/tEIU98jxdwdi
-         MeicunYNWBlEU1FR8BZdygcIpqGTJa4hqlPd1UEohU2o8W9BDohN/d7vJKvHrm9tucAu
-         1iRQ==
+        bh=Nrdy8KLOBuiWA1DS+gjdUN5k8KpcliPOrG7O1lyxcrA=;
+        b=NVPyGOzF8+uYRnqj7q1KKob1MOvjjkAgnMj9GS64oaTM+Z7qLL2HKEU2l0TrT3MrqN
+         1ErgEMI6sjSfBYKC9Z0jEqoe7DT74ewZVuR5qOmCnlE/yGLK+wBUoGSfZukxGg5UXV/s
+         Tpu4J4kz7ZdALm7nDyZKr84A3vLEsj/BAVn8Fb8C4fdPufDzM1fnCEUbVMxBTy/taZSY
+         nC0vLSNcWoa/clyAazl7T4Zxe5A9pbL5e0SDatB7quYHtgR4AFkdSqm+fMU8ZeEMFLCG
+         GuZMZDuMBP4P2YoDWdVSECQxWeA+nTmMCms4OkmjN0H/F07gfp/4XumWaUoTwWVVr6ko
+         mYWg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id z9si3588666wmi.28.2019.04.24.04.12.39
+        by mx.google.com with ESMTPS id g130si13144045wmf.140.2019.04.24.04.12.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Apr 2019 04:12:39 -0700 (PDT)
+        Wed, 24 Apr 2019 04:12:44 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
 Received: from localhost ([127.0.0.1] helo=flow.W.breakpoint.cc)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <bigeasy@linutronix.de>)
-	id 1hJFpN-0006KY-Rs; Wed, 24 Apr 2019 13:12:38 +0200
+	id 1hJFpS-0006KY-OT; Wed, 24 Apr 2019 13:12:42 +0200
 From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 To: linux-mm@kvack.org
 Cc: tglx@linutronix.de,
@@ -87,9 +87,9 @@ Cc: tglx@linutronix.de,
 	Christoph Lameter <cl@linux.com>,
 	anna-maria@linutronix.de,
 	Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 3/4] mm/swap: Access struct pagevec remotely
-Date: Wed, 24 Apr 2019 13:12:07 +0200
-Message-Id: <20190424111208.24459-4-bigeasy@linutronix.de>
+Subject: [PATCH 4/4] mm/swap: Enable "use_pvec_lock" nohz_full dependent
+Date: Wed, 24 Apr 2019 13:12:08 +0200
+Message-Id: <20190424111208.24459-5-bigeasy@linutronix.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190424111208.24459-1-bigeasy@linutronix.de>
 References: <20190424111208.24459-1-bigeasy@linutronix.de>
@@ -101,118 +101,62 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Thomas Gleixner <tglx@linutronix.de>
+From: Anna-Maria Gleixner <anna-maria@linutronix.de>
 
-When the newly introduced static key would be enabled, struct pagevec is
-locked during access. So it is possible to access it from a remote CPU. The
-advantage is that the work can be done from the "requesting" CPU without
-firing a worker on a remote CPU and waiting for it to complete the work.
+When a system runs with CONFIG_NO_HZ_FULL enabled, the tick of CPUs listed
+in 'nohz_full=' kernel command line parameter should be stopped whenever
+possible. The tick stays longer stopped, when work for this CPU is handled
+by another CPU.
 
-No functional change because static key is not enabled.
+With the already introduced static key 'use_pvec_lock' there is the
+possibility to prevent firing a worker for mm/swap work on a remote CPU
+with a stopped tick.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Therefore enabling the static key in case kernel command line parameter
+'nohz_full=' setup was successful, which implies that CONFIG_NO_HZ_FULL is
+set.
+
 Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
 Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 ---
- mm/swap.c | 75 +++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 45 insertions(+), 30 deletions(-)
+ kernel/sched/isolation.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 136c80480dbde..ea623255cd305 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -774,7 +774,8 @@ static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
- static void lru_add_drain_per_cpu(struct work_struct *dummy)
- {
--	lru_add_drain();
-+	if (static_branch_unlikely(&use_pvec_lock))
-+		lru_add_drain();
- }
- 
- /*
-@@ -786,38 +787,52 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+diff --git a/kernel/sched/isolation.c b/kernel/sched/isolation.c
+index b02d148e76727..b532f448cab42 100644
+--- a/kernel/sched/isolation.c
++++ b/kernel/sched/isolation.c
+@@ -7,6 +7,7 @@
+  *
   */
- void lru_add_drain_all(void)
- {
--	static DEFINE_MUTEX(lock);
--	static struct cpumask has_work;
--	int cpu;
-+	if (static_branch_likely(&use_pvec_lock)) {
-+		int cpu;
+ #include "sched.h"
++#include "../../mm/internal.h"
  
--	/*
--	 * Make sure nobody triggers this path before mm_percpu_wq is fully
--	 * initialized.
--	 */
--	if (WARN_ON(!mm_percpu_wq))
--		return;
--
--	mutex_lock(&lock);
--	cpumask_clear(&has_work);
--
--	for_each_online_cpu(cpu) {
--		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
--
--		if (pagevec_count(&per_cpu(lru_add_pvec.pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_rotate_pvecs.pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs.pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_lazyfree_pvecs.pvec, cpu)) ||
--		    need_activate_page_drain(cpu)) {
--			INIT_WORK(work, lru_add_drain_per_cpu);
--			queue_work_on(cpu, mm_percpu_wq, work);
--			cpumask_set_cpu(cpu, &has_work);
-+		for_each_online_cpu(cpu) {
-+			if (pagevec_count(&per_cpu(lru_add_pvec.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_rotate_pvecs.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_deactivate_file_pvecs.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_lazyfree_pvecs.pvec, cpu)) ||
-+			    need_activate_page_drain(cpu)) {
-+				lru_add_drain_cpu(cpu);
-+			}
- 		}
-+	} else {
-+		static DEFINE_MUTEX(lock);
-+		static struct cpumask has_work;
-+		int cpu;
+ DEFINE_STATIC_KEY_FALSE(housekeeping_overridden);
+ EXPORT_SYMBOL_GPL(housekeeping_overridden);
+@@ -116,10 +117,21 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
+ static int __init housekeeping_nohz_full_setup(char *str)
+ {
+ 	unsigned int flags;
++	int ret;
+ 
+ 	flags = HK_FLAG_TICK | HK_FLAG_WQ | HK_FLAG_TIMER | HK_FLAG_RCU | HK_FLAG_MISC;
+ 
+-	return housekeeping_setup(str, flags);
++	ret = housekeeping_setup(str, flags);
 +
-+		/*
-+		 * Make sure nobody triggers this path before mm_percpu_wq
-+		 * is fully initialized.
-+		 */
-+		if (WARN_ON(!mm_percpu_wq))
-+			return;
++	/*
++	 * Protect struct pagevec with a lock instead using preemption disable;
++	 * with lock protection, remote handling of events instead of queue
++	 * work on remote cpu is default behavior.
++	 */
++	if (ret)
++		static_branch_enable(&use_pvec_lock);
 +
-+		mutex_lock(&lock);
-+		cpumask_clear(&has_work);
-+
-+		for_each_online_cpu(cpu) {
-+			struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
-+
-+			if (pagevec_count(&per_cpu(lru_add_pvec.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_rotate_pvecs.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_deactivate_file_pvecs.pvec, cpu)) ||
-+			    pagevec_count(&per_cpu(lru_lazyfree_pvecs.pvec, cpu)) ||
-+			    need_activate_page_drain(cpu)) {
-+				INIT_WORK(work, lru_add_drain_per_cpu);
-+				queue_work_on(cpu, mm_percpu_wq, work);
-+				cpumask_set_cpu(cpu, &has_work);
-+			}
-+		}
-+
-+		for_each_cpu(cpu, &has_work)
-+			flush_work(&per_cpu(lru_add_drain_work, cpu));
-+
-+		mutex_unlock(&lock);
- 	}
--
--	for_each_cpu(cpu, &has_work)
--		flush_work(&per_cpu(lru_add_drain_work, cpu));
--
--	mutex_unlock(&lock);
++	return ret;
  }
- #else
- void lru_add_drain_all(void)
+ __setup("nohz_full=", housekeeping_nohz_full_setup);
+ 
 -- 
 2.20.1
 
