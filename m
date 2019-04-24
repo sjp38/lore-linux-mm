@@ -3,86 +3,86 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 63800C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:19:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 576BDC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:20:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2903E20835
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:19:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2903E20835
+	by mail.kernel.org (Postfix) with ESMTP id 22ABC21901
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:20:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22ABC21901
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC1596B0005; Wed, 24 Apr 2019 10:19:40 -0400 (EDT)
+	id 9783C6B0006; Wed, 24 Apr 2019 10:20:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B71126B0006; Wed, 24 Apr 2019 10:19:40 -0400 (EDT)
+	id 9273F6B0007; Wed, 24 Apr 2019 10:20:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A613C6B0007; Wed, 24 Apr 2019 10:19:40 -0400 (EDT)
+	id 816396B0008; Wed, 24 Apr 2019 10:20:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7866B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 10:19:40 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id j44so9277576eda.11
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:19:40 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D716B0006
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 10:20:41 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r8so916256edd.21
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:20:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=5UCoUvXLO0M/TdfgfzJq1Fxq7YLxeYuDRR3bQbQyeNE=;
-        b=pYiVV+JoNa4gdOE9ZzCLeCCx8qmlA+B98GTIXXbh9erNPWDx+wNQXh17uhyhwNZtpd
-         Smyl+WY6EslzrWPyxNwH5ajuItVgb1bWCTW9FxJUY9ipiLCTffgdNSTDzWapQRpImkjZ
-         Rs1nfd2zkQ6Nc1CwxWtM4I4PTcP4KB6zywiziHvRSX5fZCsvsZQvUf4VesDrj6LMTUMf
-         ZyLSru4AmrxbDAFYBNQT8y0qZ9ptRG/zPcYtCqLVxcRmvBDL+cPZ1Ef8mQ0tFDOUWHMP
-         CCiQPWQnqBDekH/M3+GK+Ika5IoTdIjTqslxRF0JqkBxLGc6e1utP3J+FsWBkvICFbRP
-         S5BA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.39 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAUlKGZHJdIZJIWidcTpCJLqY8JECy5+1qrG5EKUGOLIaSNtQ0cy
-	MxC2o3LQe5FYUG+XvlFR3nfDHX2enatw+IknnaPspORFbGp0oQNUFQJ7kYLcNc0+0u8ar0CXrpK
-	to55Gii0jOuLjxSgvHKMkb0ti/Y10BHLA2ftzOjYb1J1s8TqdTLY1kXytTYPyZST2Cg==
-X-Received: by 2002:a17:906:6051:: with SMTP id p17mr16377323ejj.243.1556115579941;
-        Wed, 24 Apr 2019 07:19:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzd24QyhWt1PBJh/QPWNUQUGR3x8VywESmMJdebBrIwWrDTrnXNj28NgLVL8cGB34c/qz5m
-X-Received: by 2002:a17:906:6051:: with SMTP id p17mr16377284ejj.243.1556115579020;
-        Wed, 24 Apr 2019 07:19:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556115579; cv=none;
+        bh=teq7UCa9Dfh3lENQ4jCacwuC0q8HiMfiDBZl97UHR0k=;
+        b=O1mUDNZiqHNN1JWcAiHhQM09bXepU2AusXTQ23JEj18mGHv/AbZPnBQIwjfH+4QmxH
+         MzwRW6fH76c72VdBZXGMgPpFTRSzL/ebTyKkdIuZc1up/d9DP/XrZHOt8w3DzzB6lkeT
+         N1ObWyic4t/hqT0Kj0XQT3eOtczF9m8kARVUM1AxG+PAO9prt5GpRu1dCLy/RyYdAfKS
+         qNR98PTjnnBHm1kUjcJcf+JHsxa0S+fK9KcuR/eNCw/B48OdSZySR8ZX2ihF2ZxZWRbS
+         +Mxpketayf+gRsXEqA5gyVA/6+2SiR2E3fJHbi7gTD+RSZKBIl8QI0p5fTcQ+qTHhUfr
+         aUuw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVTpNM+Pnw1Co4gqqauoe6luTdW3bnyrOIIX4hc8mS2FyqU5EGK
+	Ta153HzpZUz08TymtXT8vihSvMRdq+++OP/IR+Ap+T7wHfBBasYEjytg6dQqckl9Gd+ZU6iO8RX
+	xfVmISbTskmXtKgNhkKLcZW9DDnAfjEVEEVVws+/Q5gExQi5xjQxBepwggcVfgNyNYg==
+X-Received: by 2002:a17:906:660f:: with SMTP id b15mr16135079ejp.13.1556115640786;
+        Wed, 24 Apr 2019 07:20:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqypIQSxhgvRB/XSaKFkal29dUO08WoDywhu+p3biBhXdgUb8Y/Wfrpp+qnEN2YF0h/0wgxV
+X-Received: by 2002:a17:906:660f:: with SMTP id b15mr16135050ejp.13.1556115640099;
+        Wed, 24 Apr 2019 07:20:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556115640; cv=none;
         d=google.com; s=arc-20160816;
-        b=aU0Y+g5yCBjdF7zoxUtxULg1Ucwf9CpLgPjSN3uril3gr3dZVoKGkJe8HZXX/cFL1x
-         +TTRz6oWTZyvJ1VJj9PE6Ic+tsZtTicJuPtkcm+E09ZWIdst7locn7C1S5ZBJPLm7lOy
-         IqEh5ES6xmJyippzgPhWTZueuBiEvUcQ8PqIfCXQkVa5JvPDA1OUOAutnzumm79noYxv
-         bJxMM6ConIYxuxQc02kN9qix+6NjbyjbmtyphbU/09PAr9owNUYfL0RD5ah2bIuJQuw4
-         ITlhZdDfy4+wKn3ioSjD2WlepaA13Kw2ibaGk81c+xg1+RUTr/LwCAmISsHzcTpwShvA
-         y+ww==
+        b=WLpJo6c0xYj6xEpK+dqrJm0z+wyQDlUgCJKwwEGKLlRpfR1CvObacT4I6xZlZZQ3A0
+         FNOjv7pYUbo/fuwKb3uh12xCe3jRk38D4SK8eHqiZA0IU1Lne4VkMFgNFTBjvPGn7Dcn
+         Uaz3xjDK4/yc9lPLQa4y2uez76IPG7Hs8NmGhgqNeIJ10gYTat+gHx6mLip3iTQiFnCU
+         NgWVwS11s4qzbtnftxxJDlwGWki8QKK/oFGRASlhZv7IbXlNlalpn5cN+dw8cPcn/OPQ
+         0K+7iBqiFU+UkhPIdJhgOtf5l1OdIUcx2TyUvIxMNGuPkENKcfruNeL/lUwfWEcAfYiY
+         2aDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=5UCoUvXLO0M/TdfgfzJq1Fxq7YLxeYuDRR3bQbQyeNE=;
-        b=psqLcUjdr01NShzrxU68XlORjdGxOkS2iH09J8ZhcXRQXNXPHanKRooOcpG7jifPPs
-         XW1NQ4PO7IiQF2U5Su2TjETWOV8xQgcdmH56GxKpWgWKs7gI1iL7yilwiRlJJEcLFTMK
-         4g/prQ+h0z2gNvndJfhXAmPMgy7N98wcS0z6fpphMEsmkJup//LstLBgObbXBN5o4qQd
-         QYRBcFZSg2kwYXkj3F80NdxD67NYUlzFIUVLB//snr37EfecRYfqoWHjrjWEhrcBUMcv
-         Se8MFCRbhq5y3tX5qy3DkIttB+tLsE8I+ipU2KltFJB1/hBdCAxHzyKHA5gVjPe4ie9s
-         T9ag==
+        bh=teq7UCa9Dfh3lENQ4jCacwuC0q8HiMfiDBZl97UHR0k=;
+        b=d+35ioW5REHdChiwYdjLbOkHKL7VUbYTi3lFl+o6F1OuantndcR3y0/cX/BS54Umxv
+         ZYi55IHZU7tdkTXTq/Mq0jDzBcMvoht4hqG5Y3bbXQCXcjuHmmW9pnG0UXtrWpTJKkvY
+         AYjo7u3av0QU0OoHxdo+Vy/0fuXSUhu8Ls9+LwRWDxgeTmwEiFFCthhYz70A5Fv7pFOx
+         Ebpid1uFhl79+ry+ceL5MfIc73W2FpoE+PZHvk1f0e+b6s6MZh7ZyyliXpIlWP4bYCtt
+         GYYjcwo+HEUgU/y6u9KpmGPGjgz6HFztdI3llZsKnrKAaUbUO8ZB8S+569sJVpfKO+mc
+         XLCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.39 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id a10si3346698edq.180.2019.04.24.07.19.38
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id j3si3220811ejs.316.2019.04.24.07.20.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 07:19:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.39 as permitted sender) client-ip=81.17.249.39;
+        Wed, 24 Apr 2019 07:20:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.39 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 47FF198852
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 14:19:38 +0000 (UTC)
-Received: (qmail 21430 invoked from network); 24 Apr 2019 14:19:38 -0000
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 894251C1FD2
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:20:39 +0100 (IST)
+Received: (qmail 25928 invoked from network); 24 Apr 2019 14:20:38 -0000
 Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 24 Apr 2019 14:19:38 -0000
-Date: Wed, 24 Apr 2019 15:19:36 +0100
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 24 Apr 2019 14:20:38 -0000
+Date: Wed, 24 Apr 2019 15:20:37 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
 To: Mike Rapoport <rppt@linux.ibm.com>
 Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>,
@@ -91,14 +91,15 @@ Cc: x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>,
 	Christoph Hellwig <hch@infradead.org>,
 	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/2] x86/Kconfig: make SPARSEMEM default for 32-bit
-Message-ID: <20190424141936.GU18914@techsingularity.net>
+Subject: Re: [PATCH 2/2] x86/Kconfig: deprecate DISCONTIGMEM support for
+ 32-bit
+Message-ID: <20190424142037.GV18914@techsingularity.net>
 References: <1556112252-9339-1-git-send-email-rppt@linux.ibm.com>
- <1556112252-9339-2-git-send-email-rppt@linux.ibm.com>
+ <1556112252-9339-3-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1556112252-9339-2-git-send-email-rppt@linux.ibm.com>
+In-Reply-To: <1556112252-9339-3-git-send-email-rppt@linux.ibm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,14 +107,22 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 04:24:11PM +0300, Mike Rapoport wrote:
-> Sparsemem has been a default memory model for x86-64 for over a decade
-> since the commit b263295dbffd ("x86: 64-bit, make sparsemem vmemmap the
-> only memory model").
+On Wed, Apr 24, 2019 at 04:24:12PM +0300, Mike Rapoport wrote:
+> Mel Gorman says:
+>   32-bit NUMA systems should be non-existent in practice.  The last NUMA
+>   system I'm aware of that was both NUMA and 32-bit only died somewhere
+>   between 2004 and 2007. If someone is running a 64-bit capable system in
+>   32-bit mode with NUMA, they really are just punishing themselves for fun.
 > 
-> Make it the default for 32-bit NUMA systems (if there any left) as well.
+> Mark DISCONTIGMEM broken for now and remove it in a couple of releases.
 > 
+> Suggested-by: Christoph Hellwig <hch@infradead.org>
+> Suggested-by: Mel Gorman <mgorman@techsingularity.net>
 > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+
+It was really Christoph that suggested marking it broken but I do agree
+that it should be marked broken to see if anyone complains and if not,
+there is no real reason to keep discontig available on x86.
 
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
