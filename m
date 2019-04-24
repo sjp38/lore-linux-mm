@@ -2,223 +2,333 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47270C282E1
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:26:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3600C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:28:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F29AC218B0
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:26:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F29AC218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4DFF921773
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 10:28:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DFF921773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A03366B0266; Wed, 24 Apr 2019 06:26:12 -0400 (EDT)
+	id F2DC46B0007; Wed, 24 Apr 2019 06:28:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B0D46B0269; Wed, 24 Apr 2019 06:26:12 -0400 (EDT)
+	id EB7126B0008; Wed, 24 Apr 2019 06:28:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8A0AD6B026A; Wed, 24 Apr 2019 06:26:12 -0400 (EDT)
+	id D7F9F6B000A; Wed, 24 Apr 2019 06:28:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3476B0266
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:26:12 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id f89so17324278qtb.4
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 03:26:12 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0FB6B0007
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:28:47 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r8so559345edd.21
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 03:28:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=jwqamueXeySfeFxINzjppTw9mQ9ehliTYQXoU7pLAas=;
-        b=ecnOAbwG8mUZHjsAt43/D/e3fDkmBeuJWIE+p8a1cgc6ilflfIs7AlQx74KcP5faLx
-         S8okv8N4o+SULCmKGCXDQg3v9/gb1M7ebtBKeHeiW17WwmlzdmFWrQhJc3LIg6AEwbwj
-         gFu6QB/ROvRMMKZI4l/9kYxZ1xu0vKX2ixb2Wb4FeCI2SqHp4+zJ28nMRbZ68ofHdtxr
-         GiCI4D+EwslmBFnl+0e5DLrMyqo6nFhYIZ05UVv2mF8Vik3jgCDgJl9Pw+KHF4n4vJuo
-         TNOUlYIfdTScPEULy5bi8tg8SnR2eEde1L4ccM2QH+iu8hikJyggAYNPvRyXcTPLlQXo
-         U89g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUxwUtYHy/ogiBGsXidh4nICbfui+fdprz8yghva4kWZqsJyNfC
-	7XN7YNGSaGrkExGafA23QoIOCPz5cLwnucq5zMxN0XswShZ2akxZEuZa1M5qc1+2xDm0mXwXDhv
-	bi7LJbBw/OxQESa5Y+Loto0kdbG/TBuZzPoKzGcS1L1Fvcz6Y/FK1ajCGYbaUSD7saA==
-X-Received: by 2002:a05:620a:1389:: with SMTP id k9mr247822qki.192.1556101572186;
-        Wed, 24 Apr 2019 03:26:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxk5WwAih+n1AJV6CsLUWg8AyONoz1LNBD8jFNREmkQOGUTuQewEeCqrY8WmHpjWWdCnDQx
-X-Received: by 2002:a05:620a:1389:: with SMTP id k9mr247784qki.192.1556101571520;
-        Wed, 24 Apr 2019 03:26:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556101571; cv=none;
+         :subject:date:message-id;
+        bh=dhfm3jTvsX2n/D5y56nV22ccKTlxf5APor7WYBG2OX0=;
+        b=MlTsFnRpuad8tua9eRkBQ/7+1dmM8KLYVWBwZWa1L/HgAeaoS5WpM37cuo3dFByVi8
+         TjO3R9JX5C2OHAbZhRkt2LsWZqphz+TjUMeyGZlFZZeyeUFPc2jJ/9OzZJ3CB+HYFjr0
+         Cyz0+35fKQYO8rf6E0lAarKb60dpStoq4deIq8/SEZVevBpmxxfAA+O1RvJuYG6Qt1HX
+         mY6xuwGbQbDG6EHlfu937SBcNYFIu1CifWr4HQP9DFhMBFoVqdciBxtZ66xTrW9Smvxv
+         RAPnqJRiTW/rZZnf30qGlBoYkl59BEfyuzfvEwD5KFw0K6DwZqbDKF2SH5p21Mrd8Oba
+         qhFA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAV8cKQE24UKHz+iSLTjNTsvNMhiI0GzOg9YgQgo+4ucLF1ejN55
+	oly4tSKhmGL5UyTq1Xb0WkY+nP6+CrPc9lsQcDwIHgDhyxmsVdnCyDHGHhN+37ddougy9egPq68
+	ClrDBYsHbgPkQ2TNKjKWplqDOvSjCTRo/Ws1E597xsZVS0zFqMdqM+h6desXWWRKNQw==
+X-Received: by 2002:aa7:c88a:: with SMTP id p10mr20086236eds.145.1556101726957;
+        Wed, 24 Apr 2019 03:28:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyo5P1KwlshS8rVRYT2oHWdwhGm1Lzro9dclBWyl392ZVbn93GnAfP91GONk1RPOus3N7zj
+X-Received: by 2002:aa7:c88a:: with SMTP id p10mr20086181eds.145.1556101725708;
+        Wed, 24 Apr 2019 03:28:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556101725; cv=none;
         d=google.com; s=arc-20160816;
-        b=SjnPR/FY4osUQ2GflBL+g5YJdTZXpca9mX+EZhVV7SHeb/X9Jj1sC+HGV1j0T4NQ+V
-         2F6oR1Fs8/yYphsFNF6oQd6QoREil/mcc5HLyv+7ZiasxvzjmouSEBWLYVfdY+jAQ/MR
-         LI/7t86tzahLXq6oNsHi0bW+BLeNTLIhiAFl9eL0hkQfJ2opIIssm9AayTgymgm1oaum
-         sv3z6rJ8e7Izxs3pX/zCvkGVLTph154ShVZERBPt3QYUFCEFnMB6OJHY8vVrz/bdcsF6
-         G7QDuVR9L8rd0fEzWAQuMmnY6MHPNCEJNExnwzBtSO0/HbQIk/Mvw5nUW9Jfn1BQfhQV
-         8wnQ==
+        b=j4cYXiAw2L6x/g46Me+t84UB3k9ueVZSgZPDpfb+Xan+Qqz1HeTwa0/Qs9aRxxLNhU
+         +Tb6bh5oPciueSYFsDsdoZ+qY8LJ2eT0dyNkmmYcUhMCf7bJ9gV8p/mKdoQJHxQT7i6d
+         HvnDhjLFpXQkCNEQQjhV3zpVoDemCh5CeYNVapqk73B8AbVQ1tH1fYF2qTltliKP9F0g
+         9XOhm0d46RxFwf645984jkg9dkweJPDaKPYMYGbpC+cYb9JyweKh7jZ9Rxc1e6o67nSo
+         gMY+LhJZ8F0OGenzdIgcyUE0mnXPkOPpi8yv1AjBGzWntro8iIZ95FYp7i+KmVCW3omJ
+         44dg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=jwqamueXeySfeFxINzjppTw9mQ9ehliTYQXoU7pLAas=;
-        b=c0s2uMfS16Mp/RzJCyjDxhD7H1HMPTDiCXnfxEyTQ7Nx26eWfMYA4XyM1YOdGN2piZ
-         P8hb1JprOZdPShggctYCeA1NZLK9ZJf9uE9ch+bxd8y4iIgPvKMCO6lCcRcAvcNsrdza
-         J56KHgioBABCxCAPaTJPI42v6XYG3d1izQuqXk5XlJPQYNLBD+2SHLAdp8MeWfT+jpHL
-         RzVAnZKwEl2xAfMHk97rgajWm+s3zTuHrACJZtTqhi8Ro3uC1Ygjm7d8bKEMCkXUtc7A
-         Mjtxn5pvZHW1Cu+dgG4jT2hrhHPk7Bv1JhOc4Jk714i7GUgFM2ldx4EWGmtFCzIt2dax
-         OxwQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=dhfm3jTvsX2n/D5y56nV22ccKTlxf5APor7WYBG2OX0=;
+        b=qu9dbSsbfPn9aLzwi4IVjLTe3OpW/Evllb/ZjURxOQ3rN/ALUdFkTFrYyQi5UJJTJn
+         ZKCUmnhOdxQ+qVkab9cSG5EvWfLtSGYRfc/6aF9MVLiDuQ0iD35i6nXHiw7lYHw77dp4
+         e1SXKpiW7OBW2RtcGhmTXv6IhqHDsa+8MurcuQWp8c+f0QoBQJq3q01JGosjCqXk61iN
+         6dDgezeVuyJG8ke+L3Bde8QJILK/BI0Q/IG2E6Vnmc56EUBJfswCGcq1NVcfSxgtscYt
+         GIdQiVmRvB3EkzTF7um/oyYsGJwrSpi2AS2L99cxQeKmTMcUDg9qRyOvkY5PGjaCaty5
+         8CFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x26si6129187qto.160.2019.04.24.03.26.11
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c33si1069968eda.356.2019.04.24.03.28.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 03:26:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 24 Apr 2019 03:28:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9334940F46;
-	Wed, 24 Apr 2019 10:26:10 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-116-45.ams2.redhat.com [10.36.116.45])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 79977600C4;
-	Wed, 24 Apr 2019 10:26:07 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	akpm@linux-foundation.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	David Hildenbrand <david@redhat.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Mark Brown <broonie@kernel.org>,
-	Chris Wilson <chris@chris-wilson.co.uk>,
-	Oscar Salvador <osalvador@suse.de>,
-	Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Subject: [PATCH v1 7/7] mm/memory_hotplug: Make unregister_memory_block_under_nodes() never fail
-Date: Wed, 24 Apr 2019 12:25:11 +0200
-Message-Id: <20190424102511.29318-8-david@redhat.com>
-In-Reply-To: <20190424102511.29318-1-david@redhat.com>
-References: <20190424102511.29318-1-david@redhat.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 24 Apr 2019 10:26:10 +0000 (UTC)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3OAP9li001867
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:28:43 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s2np1h6d7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 06:28:43 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 24 Apr 2019 11:28:41 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 24 Apr 2019 11:28:39 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3OAScpI38469700
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 24 Apr 2019 10:28:38 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 33E4A4C046;
+	Wed, 24 Apr 2019 10:28:38 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id C33904C040;
+	Wed, 24 Apr 2019 10:28:36 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 24 Apr 2019 10:28:36 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 24 Apr 2019 13:28:36 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] docs/vm: add documentation of memory models
+Date: Wed, 24 Apr 2019 13:28:35 +0300
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19042410-0028-0000-0000-00000364F203
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042410-0029-0000-0000-00002424439E
+Message-Id: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904240086
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We really don't want anything during memory hotunplug to fail.
-We always pass a valid memory block device, that check can go. Avoid
-allocating memory and eventually failing. As we are always called under
-lock, we can use a static piece of memory. This avoids having to put
-the structure onto the stack, having to guess about the stack size
-of callers.
+Describe what {FLAT,DISCONTIG,SPARSE}MEM are and how they manage to
+maintain pfn <-> struct page correspondence.
 
-Patch inspired by a patch from Oscar Salvador.
-
-In the future, there might be no need to iterate over nodes at all.
-mem->nid should tell us exactly what to remove. Memory block devices
-with mixed nodes (added during boot) should properly fenced off and never
-removed.
-
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Mark Brown <broonie@kernel.org>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- drivers/base/node.c  | 18 +++++-------------
- include/linux/node.h |  5 ++---
- 2 files changed, 7 insertions(+), 16 deletions(-)
+ Documentation/vm/index.rst        |   1 +
+ Documentation/vm/memory-model.rst | 171 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 172 insertions(+)
+ create mode 100644 Documentation/vm/memory-model.rst
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 04fdfa99b8bc..9be88fd05147 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -803,20 +803,14 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
- 
- /*
-  * Unregister memory block device under all nodes that it spans.
-+ * Has to be called with mem_sysfs_mutex held (due to unlinked_nodes).
-  */
--int unregister_memory_block_under_nodes(struct memory_block *mem_blk)
-+void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
- {
--	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
- 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
-+	static nodemask_t unlinked_nodes;
- 
--	if (!mem_blk) {
--		NODEMASK_FREE(unlinked_nodes);
--		return -EFAULT;
--	}
--	if (!unlinked_nodes)
--		return -ENOMEM;
--	nodes_clear(*unlinked_nodes);
--
-+	nodes_clear(unlinked_nodes);
- 	sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
- 	sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
- 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-@@ -827,15 +821,13 @@ int unregister_memory_block_under_nodes(struct memory_block *mem_blk)
- 			continue;
- 		if (!node_online(nid))
- 			continue;
--		if (node_test_and_set(nid, *unlinked_nodes))
-+		if (node_test_and_set(nid, unlinked_nodes))
- 			continue;
- 		sysfs_remove_link(&node_devices[nid]->dev.kobj,
- 			 kobject_name(&mem_blk->dev.kobj));
- 		sysfs_remove_link(&mem_blk->dev.kobj,
- 			 kobject_name(&node_devices[nid]->dev.kobj));
- 	}
--	NODEMASK_FREE(unlinked_nodes);
--	return 0;
- }
- 
- int link_mem_sections(int nid, unsigned long start_pfn, unsigned long end_pfn)
-diff --git a/include/linux/node.h b/include/linux/node.h
-index 02a29e71b175..548c226966a2 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -139,7 +139,7 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int register_mem_sect_under_node(struct memory_block *mem_blk,
- 						void *arg);
--extern int unregister_memory_block_under_nodes(struct memory_block *mem_blk);
-+extern void unregister_memory_block_under_nodes(struct memory_block *mem_blk);
- 
- extern int register_memory_node_under_compute_node(unsigned int mem_nid,
- 						   unsigned int cpu_nid,
-@@ -175,9 +175,8 @@ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
- {
- 	return 0;
- }
--static inline int unregister_memory_block_under_nodes(struct memory_block *mem_blk)
-+static inline void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
- {
--	return 0;
- }
- 
- static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
+diff --git a/Documentation/vm/index.rst b/Documentation/vm/index.rst
+index b58cc3b..e8d943b 100644
+--- a/Documentation/vm/index.rst
++++ b/Documentation/vm/index.rst
+@@ -37,6 +37,7 @@ descriptions of data structures and algorithms.
+    hwpoison
+    hugetlbfs_reserv
+    ksm
++   memory-model
+    mmu_notifier
+    numa
+    overcommit-accounting
+diff --git a/Documentation/vm/memory-model.rst b/Documentation/vm/memory-model.rst
+new file mode 100644
+index 0000000..914c52a
+--- /dev/null
++++ b/Documentation/vm/memory-model.rst
+@@ -0,0 +1,171 @@
++.. SPDX-License-Identifier: GPL-2.0
++
++.. _physical_memory_model:
++
++=====================
++Physical Memory Model
++=====================
++
++Physical memory in a system may be addressed in different ways. The
++simplest case is when the physical memory starts at address 0 and
++spans a contiguous range up to the maximal address. It could be,
++however, that this range contains small holes that are not accessible
++for the CPU. Then there could be several contiguous ranges at
++completely distinct addresses. And, don't forget about NUMA, where
++different memory banks are attached to different CPUs.
++
++Linux abstracts this diversity using one of the three memory models:
++FLATMEM, DISCONTIGMEM and SPARSEMEM. Each architecture defines what
++memory models it supports, what is the default memory model and
++whether it possible to manually override that default.
++
++All the memory models track the status of physical page frames using
++:c:type:`struct page` arranged in one or more arrays.
++
++Regardless of the selected memory model, there exists one-to-one
++mapping between the physical page frame number (PFN) and the
++corresponding `struct page`.
++
++Each memory model defines :c:func:`pfn_to_page` and :c:func:`page_to_pfn`
++helpers that allow the conversion from PFN to `struct page` and vise
++versa.
++
++FLATMEM
++=======
++
++The simplest memory model is FLATMEM. This model is suitable for
++non-NUMA systems with contiguous, or mostly contiguous, physical
++memory.
++
++In the FLATMEM memory model, there is a global `mem_map` array that
++maps the entire physical memory. For most architectures, the holes
++have entries in the `mem_map` array. The `struct page` objects
++corresponding to the holes are never fully initialized.
++
++To allocate the `mem_map` array, architecture specific setup code
++should call :c:func:`free_area_init_node` function or its convenience
++wrapper :c:func:`free_area_init`. Yet, the mappings array is not
++usable until the call to :c:func:`memblock_free_all` that hands all
++the memory to the page allocator.
++
++If an architecture enables `CONFIG_ARCH_HAS_HOLES_MEMORYMODEL` option,
++it may free parts of the `mem_map` array that do not cover the
++actual physical pages. In such case, the architecture specific
++:c:func:`pfn_valid` implementation should take the holes in the
++`mem_map` into account.
++
++With FLATMEM, the conversion between a PFN and the `struct page` is
++straightforward: `PFN - ARCH_PFN_OFFSET` is an index to the
++`mem_map` array.
++
++The `ARCH_PFN_OFFSET` defines the first page frame number for
++systems that their physical memory does not start at 0.
++
++DISCONTIGMEM
++============
++
++The DISCONTIGMEM model treats the physical memory as a collection of
++`nodes` similarly to how Linux NUMA support does. For each node Linux
++constructs an independent memory management subsystem represented by
++`struct pglist_data` (or `pg_data_t` for short). Among other
++things, `pg_data_t` holds the `node_mem_map` array that maps
++physical pages belonging to that node. The `node_start_pfn` field of
++`pg_data_t` is the number of the first page frame belonging to that
++node.
++
++The architecture setup code should call :c:func:`free_area_init_node` for
++each node in the system to initialize the `pg_data_t` object and its
++`node_mem_map`.
++
++Every `node_mem_map` behaves exactly as FLATMEM's `mem_map` -
++every physical page frame in a node has a `struct page` entry in the
++`node_mem_map` array. When DISCONTIGMEM is enabled, a portion of the
++`flags` field of the `struct page` encodes the node number of the
++node hosting that page.
++
++The conversion between a PFN and the `struct page` in the
++DISCONTIGMEM model became slightly more complex as it has to determine
++which node hosts the physical page and which `pg_data_t` object
++holds the `struct page`.
++
++Architectures that support DISCONTIGMEM provide :c:func:`pfn_to_nid`
++to convert PFN to the node number. The opposite conversion helper
++:c:func:`page_to_nid` is generic as it uses the node number encoded in
++page->flags.
++
++Once the node number is known, the PFN can be used to index
++appropriate `node_mem_map` array to access the `struct page` and
++the offset of the `struct page` from the `node_mem_map` plus
++`node_start_pfn` is the PFN of that page.
++
++SPARSEMEM
++=========
++
++SPARSEMEM is the most versatile memory model available in Linux and it
++is the only memory model that supports several advanced features such
++as hot-plug and hot-remove of the physical memory, alternative memory
++maps for non-volatile memory devices and deferred initialization of
++the memory map for larger systems.
++
++The SPARSEMEM model presents the physical memory as a collection of
++sections. A section is represented with :c:type:`struct mem_section`
++that contains `section_mem_map` that is, logically, a pointer to an
++array of struct pages. However, it is stored with some other magic
++that aids the sections management. The section size and maximal number
++of section is specified using `SECTION_SIZE_BITS` and
++`MAX_PHYSMEM_BITS` constants defined by each architecture that
++supports SPARSEMEM. While `MAX_PHYSMEM_BITS` is an actual width of a
++physical address that an architecture supports, the
++`SECTION_SIZE_BITS` is an arbitrary value.
++
++The maximal number of sections is denoted `NR_MEM_SECTIONS` and
++defined as
++
++.. math::
++
++   NR\_MEM\_SECTIONS = 2 ^ {(MAX\_PHYSMEM\_BITS - SECTION\_SIZE\_BITS)}
++
++The `mem_section` objects are arranged in a two dimensional array
++called `mem_sections`. The size and placement of this array depend
++on `CONFIG_SPARSEMEM_EXTREME` and the maximal possible number of
++sections:
++
++* When `CONFIG_SPARSEMEM_EXTREME` is disabled, the `mem_sections`
++  array is static and has `NR_MEM_SECTIONS` rows. Each row holds a
++  single `mem_section` object.
++* When `CONFIG_SPARSEMEM_EXTREME` is enabled, the `mem_sections`
++  array is dynamically allocated. Each row contains PAGE_SIZE worth of
++  `mem_section` objects and the number of rows is calculated to fit
++  all the memory sections.
++
++The architecture setup code should call :c:func:`memory_present` for
++each active memory range or use :c:func:`memblocks_present` or
++:c:func:`sparse_memory_present_with_active_regions` wrappers to
++initialize the memory sections. Next, the actual memory maps should be
++set up using :c:func:`sparse_init`.
++
++With SPARSEMEM there are two possible ways to convert a PFN to the
++corresponding `struct page` - a "classic sparse" and "sparse
++vmemmap". The selection is made at build time and it is determined by
++the value of `CONFIG_SPARSEMEM_VMEMMAP`.
++
++The classic sparse encodes the section number of a page in page->flags
++and uses high bits of a PFN to access the section that maps that page
++frame. Inside a section, the PFN is the index to the array of pages.
++
++The sparse vmemmap uses a virtually mapped memory map to optimize
++pfn_to_page and page_to_pfn operations. There is a global `struct
++page *vmemmap` pointer that points to a virtually contiguous array of
++`struct page` objects. A PFN is an index to that array and the the
++offset of the `struct page` from `vmemmap` is the PFN of that
++page.
++
++To use vmemmap, an architecture has to reserve a range of virtual
++addresses that will map the physical pages containing the memory
++map. and make sure that `vmemmap` points to that range. In addition,
++the architecture should implement :c:func:`vmemmap_populate` method
++that will allocate the physical memory and create page tables for the
++virtual memory map. If an architecture does not have any special
++requirements for the vmemmap mappings, it can use default
++:c:func:`vmemmap_populate_basepages` provided by the generic memory
++management.
 -- 
-2.20.1
+2.7.4
 
