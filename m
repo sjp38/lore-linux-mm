@@ -2,219 +2,194 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E5BBC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:49:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5992EC282E1
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:51:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3457218FC
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:49:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0EDC42190C
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 14:51:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IswxzmgI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3457218FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="0i7YU/SR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EDC42190C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 963F96B026B; Wed, 24 Apr 2019 10:49:48 -0400 (EDT)
+	id A4C876B026B; Wed, 24 Apr 2019 10:51:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 910C56B026F; Wed, 24 Apr 2019 10:49:48 -0400 (EDT)
+	id 9D33C6B026C; Wed, 24 Apr 2019 10:51:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7FFFE6B0270; Wed, 24 Apr 2019 10:49:48 -0400 (EDT)
+	id 874676B026F; Wed, 24 Apr 2019 10:51:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 365476B026B
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 10:49:48 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id j5so4238884wrw.23
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:49:48 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2D56B026B
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 10:51:18 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id b37so7704122pgl.19
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:51:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=VEczXuKv6Quy6JBmvR+06hO4NY3fHEDgv6Ho0d2mWwk=;
-        b=Xu9xHXw0sjkux8iGjOPTwH04VZGOP3kVHsjwX0EixktPJKTkEQDc7pXINsc4BrU7KM
-         INIEyJYz8oUoeAm4ZYFCpu3LT/jgzyELUMdG9LG+roSf/JKnXcKqqLkRqL1qoL8ju7IZ
-         dHTwrCMy5z86FWTATOi1ozkt8wEqFKDD6IEjYEDijh+tFOj0RwpPP2J/oLhNMG+VG3RL
-         /by1UJ+Z0HcAhBklYTJwbbMK3GRtxiFdCjUULnShMi2j2L3emIbwRxhAgqxTf3h9V+lb
-         riMGXHtjX1T0S19ZRqQMFDbHliJSX/XpCfvZsoEO8KK5PfXovkX8LefefuzguvlsrBPK
-         xutQ==
-X-Gm-Message-State: APjAAAU1+knHUn1f93vLWPKy6hxtuKG4Xqgbm+o5wLYxRAo3EpGbKrqE
-	6/ewMUQ2POS2xaT/NfDvSN2mWyUwupXDS1g/dIlRGh5Az6DYTMA8HcEG1RnPqyqddOPFBMhvyG4
-	zPomiWzi32LnyhU2iBqM3Ob/q59NTwT+8A8HqU1iNUJS66bJut9x0WUhIKfW9hN0Trw==
-X-Received: by 2002:a5d:56c6:: with SMTP id m6mr21047233wrw.211.1556117387658;
-        Wed, 24 Apr 2019 07:49:47 -0700 (PDT)
-X-Received: by 2002:a5d:56c6:: with SMTP id m6mr21047155wrw.211.1556117386437;
-        Wed, 24 Apr 2019 07:49:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556117386; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=F1W3PQ/xWZLZN7vG28FtQK6gkAE1MyhT2wspVEUeKY8=;
+        b=IL7RjequnTYuvy8W5CeMAmYdZArtBWnZyUmB4DpitSCOt+kRbf8gUf1y+N/hzwutcv
+         2HCNBHxBgwpxNQZMrXDH4K7Za8GExIN0Ui4a2KJCtADWzve1bUhfx0CxJkLgOrK2nQPC
+         0wQC1QbF6LIZ9cjHsnawTpsb4SbrSLZxRwRjiZyFpSttW8wyGGuIDyfkFjEXObFevEdq
+         w5MNzbe8QL9ZKFHtiEt3duR8guzX2HpznTVHcSBrONImVqKauspBiXPy3Tg7sLCK1g63
+         y1pW30cIw65gs0HVg3nSpsq8bMJ+aWDjT+s+PX0QIWoDfdGlXFmIIC/Fpepfb1VUSozs
+         Ihpw==
+X-Gm-Message-State: APjAAAWhKQxnCagAvnCscFY/rPyVwFV78MvMTN0oC7SoeiWpYWl2/OAH
+	p4PlCLMrKQm/b3KneKWlZpRn9uptVdXdUSWFPw6u94r+Lvmrb+IhfpiRZxSBKne6SeZoeSCzQc/
+	wn1U6JRZaZI7Oa4QQs1sJv8o9+TJ3m5qjXHB5vpdg3EeOYQKcYHgjh55vyMElO7OnyQ==
+X-Received: by 2002:a65:5009:: with SMTP id f9mr30832306pgo.390.1556117477870;
+        Wed, 24 Apr 2019 07:51:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzLf+nkd3Qs8fiCimr9n1BIwYorBME7bVZWtBgBt4nBkiN3tpuCytuGub4puE3+Fi0QPxnV
+X-Received: by 2002:a65:5009:: with SMTP id f9mr30832261pgo.390.1556117477057;
+        Wed, 24 Apr 2019 07:51:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556117477; cv=none;
         d=google.com; s=arc-20160816;
-        b=rkWS8iKTc8twJKMMIp/KaK/1Fof2bkmbzqlRz9ZUSoNeVHuC/75PDBdmRLDMLp86GI
-         YSRjzJXeOvhgOpDLwhywZ+zVqHo86RqVe6EVMj4ORMfNM7B30s9SuxrOZe4awqJTQZHY
-         FEZNXk720LHfKrLlOJY3JEwGy99L0GpQH/bY9J0yurPn2tUe8oEbdqJv8wS0hiYjCjUL
-         aIvZiTCJTMJkdhGtPJtBSaGMyNercuqiNhQmWPMt48otf5adz/nhy1f8vPkBsCvHCcbN
-         k4hDsnK9muPoJGt1Wid1qljlkIW2lJYvtKFcHtmkjF2OCYsxVddrcsnp2itI0PuBMW4x
-         PVYA==
+        b=ShTmxZjiSBJw0qMUIlLmuJZZL/tOCuFPex3Z152sXWJ+t9z96zz76k4hzPd3t61Jqq
+         WbuK1ZW2D5iRuKMqbdTJJYLkHqq5kczPHa8nOEOKl7pvIZkWPIwpSjCG0h6QOi6dVEyC
+         wGvLfD3s+t0drnTqF4iPy8XF9mOzbx7mxvmAenwHaViUH78KC55kzr4ooqSDh51HSJ35
+         s5NRqggBQ6aVVuJI0LOp0Q+hVWYqAef2H6QEOFFT0/k7ptM+y5hEpIszVxmyIz7C//4J
+         860RKdh2viX50x3Oqau37LXQQbRx/g+BlSoOnQxbtw5P7leCeKhy12u/In+LAkrts4xZ
+         ui7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=VEczXuKv6Quy6JBmvR+06hO4NY3fHEDgv6Ho0d2mWwk=;
-        b=Kau93jzuEmtzV/yIso2rdDkpOdzmR1GZIjuoRMB/1/i3BjPxynpXGCgSrpKt8pY5Ts
-         bEqHHyuHQD2CCUydoM+/y2Y8EpBxOI/mT6flvzQAxGgolP/aXcwtE/lv8H9FX7oihJRX
-         cOIHqyMv+bJuTs2LI2mAGeIdUtRaI/ojfF+aPOxDJ8BEIPEMK357ieOA7L6t913kZnGM
-         MaR9tY7Bcd+RaWEnrlapG3KhgNKgmZSmFbkG8pSa7BPN72fbbSOVUnKQV7EpnWDR1fz0
-         iQ1IThJnbWyvTr5xpS8kHGifF5pxb29vO2vpVtI2utgYYDDGINJF6bxNbXwA0HIui/sx
-         waMg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=F1W3PQ/xWZLZN7vG28FtQK6gkAE1MyhT2wspVEUeKY8=;
+        b=JODTNkSQDz7WFilVJ+pLPEK1aIp8hGvx7ZuTtnbw28JiIiwxDqSCXEd3/zZ1E5xBK8
+         5i9QFXKGfVnCuVNvJCDwuBzYuFKf5pUDA2mV8njKdyzgOW3nq0VxZYzVFNXrdVFPcS/Q
+         q+oWElnHkHGknQNZEIoEyPIQctUxa89rC/bU1V68cfHkPPeIZwptCIxoQfuxbwsdZKMm
+         km/VslQfrSmMLUV2v+8rDY9i404wkp281FblU92bSuAmHhtKd3Ez+n+omZwbbMoEyzmB
+         knIhyFxIgHrXW6tTzGAoUuOLn12WFm52dXqji1byQ9w3TmMjd4hrnw3IeDrzWaeAkV8I
+         np3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=IswxzmgI;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f9sor10303508wro.20.2019.04.24.07.49.46
+       dkim=pass header.i=@kernel.org header.s=default header.b="0i7YU/SR";
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f18si18390378pgg.361.2019.04.24.07.51.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 07:49:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 07:51:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=IswxzmgI;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=VEczXuKv6Quy6JBmvR+06hO4NY3fHEDgv6Ho0d2mWwk=;
-        b=IswxzmgI0ShNbykD7kndvpLF85H2h6GXvadS1FzOPjjd+yKC51HBOObG/WxulZ15RW
-         NA5hz8iZ0gufEo9n115kG6hQX8eWwuQcXxLvJHbXaqp8qbV08wniVPauvZWfarXX35lL
-         1LbxPqvT/kxCQ3nS4egL/wP+DS5BYAehdfMSyiRyRiYagdZ2UqxN/95kMEIh+mHnDtHn
-         RRPa0eD771DNjlNyLEpJ1i1RoAKjRVDvjEncUeBmJFM2sGNGJhoBdy6nD/T5Niy472UY
-         u6Ol+LvfqYx6sENQyl/oEz0fNQ7ag4f3rbZyl6dBfB8TszMKn3g8yxudMgYrHD73MYGD
-         7mDQ==
-X-Google-Smtp-Source: APXvYqzbLKD7e6vF/Xd0n0gKbXO3rKSTqPXWRzpQJzk6js86LohvFP/CQTzlMu2/0wXgu7Nokw/jSf7DnkSx6pM3570=
-X-Received: by 2002:adf:f310:: with SMTP id i16mr8261598wro.291.1556117385543;
- Wed, 24 Apr 2019 07:49:45 -0700 (PDT)
+       dkim=pass header.i=@kernel.org header.s=default header.b="0i7YU/SR";
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id E219B218FD;
+	Wed, 24 Apr 2019 14:51:14 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1556117476;
+	bh=33Gn4RX9w7PnpKe/p7WdD26A51nQUhczgLDGa3vcGas=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=0i7YU/SRfgA4e0ZNavooxrPGI4VLQomXOnQzD6OweQ1MW1HaQ/bMGm0xMQpJ9qgIC
+	 6JeAEMz4YZpC7F6NKQExcsjzV3hz3xkddzZArCBSaRoq+LdlKIMG526UU7sOOvtGhh
+	 YMWQdjNU9rD34vmlmNSKt7heeqDHBLLRld34+Q04=
+From: Sasha Levin <sashal@kernel.org>
+To: linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 4.9 23/28] hugetlbfs: fix memory leak for resv_map
+Date: Wed, 24 Apr 2019 10:50:07 -0400
+Message-Id: <20190424145012.30886-23-sashal@kernel.org>
+X-Mailer: git-send-email 2.19.1
+In-Reply-To: <20190424145012.30886-1-sashal@kernel.org>
+References: <20190424145012.30886-1-sashal@kernel.org>
 MIME-Version: 1.0
-References: <CAA25o9TV7B5Cej_=snuBcBnNFpfixBEQduTwQZOH0fh5iyXd=A@mail.gmail.com>
- <CAJuCfpHGcDM8c19g_AxWa4FSx++YbTSE70CGW4TiKvrdAg3R+w@mail.gmail.com> <CAA25o9Rzcqts7oCpwyRq2yBALkHQVwgzgFDVYv08Z0UUhY+qhw@mail.gmail.com>
-In-Reply-To: <CAA25o9Rzcqts7oCpwyRq2yBALkHQVwgzgFDVYv08Z0UUhY+qhw@mail.gmail.com>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Wed, 24 Apr 2019 07:49:34 -0700
-Message-ID: <CAJuCfpHMEVHYpodjsote2Gp0y_G1=Hi66xzdhXfOgtcMMiiL9g@mail.gmail.com>
-Subject: Re: PSI vs. CPU overhead for client computing
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
+X-stable: review
+X-Patchwork-Hint: Ignore
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 9:54 PM Luigi Semenzato <semenzato@google.com> wrote:
->
-> Thank you very much Suren.
->
-> On Tue, Apr 23, 2019 at 3:04 PM Suren Baghdasaryan <surenb@google.com> wrote:
-> >
-> > Hi Luigi,
-> >
-> > On Tue, Apr 23, 2019 at 11:58 AM Luigi Semenzato <semenzato@google.com> wrote:
-> > >
-> > > I and others are working on improving system behavior under memory
-> > > pressure on Chrome OS.  We use zram, which swaps to a
-> > > statically-configured compressed RAM disk.  One challenge that we have
-> > > is that the footprint of our workloads is highly variable.  With zram,
-> > > we have to set the size of the swap partition at boot time.  When the
-> > > (logical) swap partition is full, we're left with some amount of RAM
-> > > usable by file and anonymous pages (we can ignore the rest).  We don't
-> > > get to control this amount dynamically.  Thus if the workload fits
-> > > nicely in it, everything works well.  If it doesn't, then the rate of
-> > > anonymous page faults can be quite high, causing large CPU overhead
-> > > for compression/decompression (as well as for other parts of the MM).
-> > >
-> > > In Chrome OS and Android, we have the luxury that we can reduce
-> > > pressure by terminating processes (tab discard in Chrome OS, app kill
-> > > in Android---which incidentally also runs in parallel with Chrome OS
-> > > on some chromebooks).  To help decide when to reduce pressure, we
-> > > would like to have a reliable and device-independent measure of MM CPU
-> > > overhead.  I have looked into PSI and have a few questions.  I am also
-> > > looking for alternative suggestions.
-> > >
-> > > PSI measures the times spent when some and all tasks are blocked by
-> > > memory allocation.  In some experiments, this doesn't seem to
-> > > correlate too well with CPU overhead (which instead correlates fairly
-> > > well with page fault rates).  Could this be because it includes
-> > > pressure from file page faults?
-> >
-> > This might be caused by thrashing (see:
-> > https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1114).
-> >
-> > >  Is there some way of interpreting PSI
-> > > numbers so that the pressure from file pages is ignored?
-> >
-> > I don't think so but I might be wrong. Notice here
-> > https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1111
-> > you could probably use delayacct to distinguish file thrashing,
-> > however remember that PSI takes into account the number of CPUs and
-> > the number of currently non-idle tasks in its pressure calculations,
-> > so the raw delay numbers might not be very useful here.
->
-> OK.
->
-> > > What is the purpose of "some" and "full" in the PSI measurements?  The
-> > > chrome browser is a multi-process app and there is a lot of IPC.  When
-> > > process A is blocked on memory allocation, it cannot respond to IPC
-> > > from process B, thus effectively both processes are blocked on
-> > > allocation, but we don't see that.
-> >
-> > I don't think PSI would account such an indirect stall when A is
-> > waiting for B and B is blocked on memory access. B's stall will be
-> > accounted for but I don't think A's blocked time will go into PSI
-> > calculations. The process inter-dependencies are probably out of scope
-> > for PSI.
->
-> Right, that's what I was also saying.  It would be near impossible to
-> figure it out.  It may also be that statistically it doesn't matter,
-> as long as the workload characteristics don't change dramatically.
-> Which unfortunately they might...
->
-> > > Also, there are situations in
-> > > which some "uninteresting" process keep running.  So it's not clear we
-> > > can rely on "full".  Or maybe I am misunderstanding?  "Some" may be a
-> > > better measure, but again it doesn't measure indirect blockage.
-> >
-> > Johannes explains the SOME and FULL calculations here:
-> > https://elixir.bootlin.com/linux/v5.1-rc6/source/kernel/sched/psi.c#L76
-> > and includes couple examples with the last one showing FULL>0 and some
-> > tasks still running.
->
-> Thank you, yes, those are good explanation.  I am still not sure how
-> to use this in our case.
->
-> I thought about using the page fault rate as a proxy for the
-> allocation overhead.  Unfortunately it is difficult to figure out the
-> baseline, because: 1. it is device-dependent (that's not
-> insurmountable: we could compute a per-device baseline offline); 2.
-> the CPUs can go in and out of turbo mode, or temperature-throttling,
-> and the notion of a constant "baseline" fails miserably.
->
-> > > The kernel contains various cpustat measurements, including some
-> > > slightly esoteric ones such as CPUTIME_GUEST and CPUTIME_GUEST_NICE.
-> > > Would adding a CPUTIME_MEM be out of the question?
->
-> Any opinion on CPUTIME_MEM?
+From: Mike Kravetz <mike.kravetz@oracle.com>
 
-I guess some description of how you plan to calculate it would be
-helpful. A simple raw delay counter might not be very useful, that's
-why PSI performs more elaborate calculations.
-Maybe posting a small RFC patch with code would get more attention and
-you can collect more feedback.
+[ Upstream commit 58b6e5e8f1addd44583d61b0a03c0f5519527e35 ]
 
-> Thanks again!
->
-> > > Thanks!
-> > >
-> >
-> > Just my 2 cents and Johannes being the author might have more to say here.
+When mknod is used to create a block special file in hugetlbfs, it will
+allocate an inode and kmalloc a 'struct resv_map' via resv_map_alloc().
+inode->i_mapping->private_data will point the newly allocated resv_map.
+However, when the device special file is opened bd_acquire() will set
+inode->i_mapping to bd_inode->i_mapping.  Thus the pointer to the
+allocated resv_map is lost and the structure is leaked.
+
+Programs to reproduce:
+        mount -t hugetlbfs nodev hugetlbfs
+        mknod hugetlbfs/dev b 0 0
+        exec 30<> hugetlbfs/dev
+        umount hugetlbfs/
+
+resv_map structures are only needed for inodes which can have associated
+page allocations.  To fix the leak, only allocate resv_map for those
+inodes which could possibly be associated with page allocations.
+
+Link: http://lkml.kernel.org/r/20190401213101.16476-1-mike.kravetz@oracle.com
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Reported-by: Yufen Yu <yuyufen@huawei.com>
+Suggested-by: Yufen Yu <yuyufen@huawei.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ fs/hugetlbfs/inode.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 001487b230b5..4acc677ac8fb 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -746,11 +746,17 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 					umode_t mode, dev_t dev)
+ {
+ 	struct inode *inode;
+-	struct resv_map *resv_map;
++	struct resv_map *resv_map = NULL;
+ 
+-	resv_map = resv_map_alloc();
+-	if (!resv_map)
+-		return NULL;
++	/*
++	 * Reserve maps are only needed for inodes that can have associated
++	 * page allocations.
++	 */
++	if (S_ISREG(mode) || S_ISLNK(mode)) {
++		resv_map = resv_map_alloc();
++		if (!resv_map)
++			return NULL;
++	}
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
+@@ -782,8 +788,10 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 			break;
+ 		}
+ 		lockdep_annotate_inode_mutex_key(inode);
+-	} else
+-		kref_put(&resv_map->refs, resv_map_release);
++	} else {
++		if (resv_map)
++			kref_put(&resv_map->refs, resv_map_release);
++	}
+ 
+ 	return inode;
+ }
+-- 
+2.19.1
 
