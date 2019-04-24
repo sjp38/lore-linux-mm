@@ -2,135 +2,124 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3CBBC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:20:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58708C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:22:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 768EE2175B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:20:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0B31320835
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:22:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ah3y4ju0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 768EE2175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aCxbrCuW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B31320835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D9A9C6B0005; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
+	id 97C506B0005; Wed, 24 Apr 2019 16:22:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D49506B0006; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
+	id 901A06B0006; Wed, 24 Apr 2019 16:22:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C5FB36B0007; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
+	id 7A3826B0007; Wed, 24 Apr 2019 16:22:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EC656B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:20:09 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a8so12715077pgq.22
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:20:09 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2346B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:22:45 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id w1so4273345itk.4
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:22:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=;
-        b=HPnzh+EtK2nfAiToeIsPHSGuPwexn3dkZQx0yZ2h8Iysz4B4o7hSVsyy1VJXbtKqai
-         8YoT0X3RcV3mpH3L1O7VrIKGU26ZOk/FcVRNjsQwzamLHOfECUXxhoXyS3nUbJ5CD6sr
-         q9e+a3gG7fTIfp+URqtsbddgJ/hVHKBdxPuwUtct1+fT5ONc+bYsrnhhl0fRYzl+vzwz
-         5XfcESYWXasCIVP9yRbyRk/GVC9XHnfbhc8ZoxPNeHugHG918M2Osx9e1HFAzH6gjH2+
-         Y+vEsxEsspPWJMbEgyLLHbF797RQWtfEYQw09H1U53UPaG8/y24PBapvzGPw8Hh8H4dq
-         TG2A==
-X-Gm-Message-State: APjAAAU3PGggYXWid4V9iR/RmXAfrRqvPXyUvA5dFVu66aZDm+l5AVG5
-	a+bDSTAuWYPPzpuOnSkzrlSYcBfmqBaFGa8kbiyacWfeisrJDFA826ngoM1uSdiSeV6GamnPpNM
-	ttCb3Bpc43lKIAVk4mbzqWQVJrJBBUOVpZ8jtvi1mNn6SZDgymDm2/d+qMjx9C9BO8w==
-X-Received: by 2002:aa7:9f49:: with SMTP id h9mr10389966pfr.173.1556137208911;
-        Wed, 24 Apr 2019 13:20:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw5h9qhezZfOh7BPQcFbj0lUegQOJQljlh7k2pekXMwzIHLstDq+WsGtBDjcBQ23t/fvRmX
-X-Received: by 2002:aa7:9f49:: with SMTP id h9mr10389901pfr.173.1556137208031;
-        Wed, 24 Apr 2019 13:20:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556137208; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ltHpCvaDH0MdzUIEDOiPJEYuRRXip5WNmUSOIBLj3WA=;
+        b=uLvou9cB7Zx5L4uA2cHnC72NM2IIIGrjHTW5/H0H1w8MTVLzpY7F0qv7rPDqUSTYtD
+         pJLqwHGxpcgylizJQRPmeiUfgOiBGJU5eimnXhYfsuOvoEkWgo7zA5f59sAKDaQ05CRk
+         dsBWpsFq7PYA4KzBp5jwlY7sUW9GBtEObyLJLazbk9Le9XVyiumY43RlesTzhCLW4Atu
+         k10+NCe3tEN1cDrdrSUy1rkWH/OBjb+AWbj9tKxI/ulH3PVEYVoiOWxY6jEMu5UssAfj
+         dX0XmmU7EogoK3UPv+ziQkKX5wv5fZadW97TrB4uLU7Y5CZqNneKB8iWVvsXXeftUUvm
+         L1vw==
+X-Gm-Message-State: APjAAAUQTO9iFe+eyXcp6dItUn3tC0t9lkgY5q1KvtA18HGywhW8axHu
+	JtuFI4yP3ny2LWBOFsI3kTGyVct1brVIcRHG4Wit7OnMIWJgP6NzC9FSHLlbKi6I0bzt5jVfO+9
+	gvnq4TvIaRQFTKy5ocMFblCDIapc4y8cEH92EDWvDjkumY1BmHgNaaQVwpNp0tOxINg==
+X-Received: by 2002:a02:6307:: with SMTP id j7mr19685438jac.65.1556137365140;
+        Wed, 24 Apr 2019 13:22:45 -0700 (PDT)
+X-Received: by 2002:a02:6307:: with SMTP id j7mr19685381jac.65.1556137364450;
+        Wed, 24 Apr 2019 13:22:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556137364; cv=none;
         d=google.com; s=arc-20160816;
-        b=v8Jcbwxc9ItcAaAEXt3nFxI2BSXvXiAQnxqHifZsQ1d89Je7lTR6cHqlL5KmO1u3Ni
-         MkyxolfJPmRmrcgwHO7012b3uAIjDjkrDJSwXku/3s80RScGLxEiQWN9WRJ3T/JPr/pm
-         +BHHRZKM5COX6WQWqxKrM9KKLmIyR/OkF6aV/kH+pFjxrWMEbWBXcgiLftj85jsHJL5a
-         WAmSUP0izcQzPEfphDcr14bLg6cVKtk2TobIndDskpRi7nQ2uoW6DfBz2zUxhtgs5cmV
-         EYwVATA31hggRg2cgm3dfzuHzbAGHCCFyESlUJrqs9SARv7iGbSbFhGCTcj/tsLFoeOZ
-         wpYQ==
+        b=VtG8PeW+dpLpSWevedVumiZ6pIiJS8AwREwuY80A6gPRAiPudVwDiLTtAEx+oopwSS
+         yr6yrxt0uJV5GIWso1j9E4xMkBBlOtMzvczAf72GZkE7TIYl+52cTn3TpjL9FNX5nJp7
+         BcyytfmaRExF+R5eX4I0TypRMzWLX1K2vI3jywkUjpG2FLhTyF13dDUNHAz2RPH19Adc
+         0iZw+7wbVv4yszbYaLVPReC0wfujCav0bh1y0mY1NAewf5F+V6us0TIZP7UR/7mfGL9l
+         q2qzWmO+lvpA4hQIZ3bxgUd5XcYNzMdhVVXTH5rJ+93Yo+TP0I4hbxI2PmvC6yzBjXN6
+         gscQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=;
-        b=hRYBaR29Z0Q+BRCWt9pD7dUnhaT/wd1RtnSsq2UJQ25ZH0YwhhtX3jPintTeL3rXGN
-         i6baWSXdJnJM7pxN35rqoXDk/5ihwcOWhnLS2ziDvV9G3tDBpRTFw8q9sD41GWx0YLR+
-         +26kNHNGOewqVvbFMRDV55NoWwb6TWaQ1wcI7BIKXzJ7+Xeo3wL4RL+tO4GEL2AXrt80
-         rUQD8V98u/IqLMSyEc3Nyye1zAz3xwEo5pyxpRpKA/nz3nRivCrPrfqqVmhKwjsA1Fa5
-         vMwXEdpli7witTqg72L2o1/p3XZpc9FxES30NtWQyAquaJ2vGm3uuOfQz7/8KPMbyGA+
-         XcbA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ltHpCvaDH0MdzUIEDOiPJEYuRRXip5WNmUSOIBLj3WA=;
+        b=MV8DMLv5dPfIlXbpppRsoFC5P48yniKTGh5snMVBGOQYdQXkgCyITxvrEe0MAZJjv1
+         fPouBKwxhw6Lqgftf9OPNLTTzBqLNGa43P2DjEh+F3OGLSRnGh+QWrxKzOBRjA5YZDhr
+         Kw5d8xH/Hpfhxn6ow25gmSw9v64E6RS5wlng4aoLr7cD0prOoWjMtDnJA1tzEfFOX2Lz
+         gAlqGlmvzYMio7lXxqdBlx+cje1sWcN5v+tDTVaPF9Wb63ACfq/FdO+L2NVgOw6Zbk7g
+         9eNrORotGe6IduBwII/kk+GaKwBAKTBcw9ditcJqhky/ExD6O6PT4hqfZVgnJ9iq6Grh
+         O3pg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ah3y4ju0;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c25si21043345pfr.94.2019.04.24.13.20.07
+       dkim=pass header.i=@google.com header.s=20161025 header.b=aCxbrCuW;
+       spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l12sor4496673jaa.0.2019.04.24.13.22.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Apr 2019 13:20:07 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Wed, 24 Apr 2019 13:22:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ah3y4ju0;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=gtC/CUPlFtAMyxjH1wQBFTK5CfdQnQD/owV+EtKziJE=; b=ah3y4ju0TB4PyH0mfIs0dPXWG
-	L7DveKuRwVDmOxpNe3CLWQaTEc5D9U3dJe7BbNiRTTVHOkZCOwEUf1m3dVuFgbaIUr8+cwB5at7fU
-	/XyJ8iCoynTcQvBt2W6+Hv6I0f9vPFbZMoq2nqUlc/rSGBS++Kv4E5NKI//DnfjBX8Fw1aY8nZSlL
-	bVxd3oUpsw+bjk2PD3GDIOecAtwn5BdZhsvZOV4MIVml6rj+V25+ACOn4C3tL3jnkn6t1hVM22Gu2
-	ulVlcynDWatW6rCpxM4bv/v3GecYz55R5Jk1Yv7iFgCvWySyaDZ+hvV781lEWUBbDxmZtvFAEkwot
-	+0FeunrEQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hJONC-0007u8-Vc; Wed, 24 Apr 2019 20:20:06 +0000
-Date: Wed, 24 Apr 2019 13:20:06 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Matthew Garrett <mjg59@google.com>
-Cc: linux-mm@kvack.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=aCxbrCuW;
+       spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=ltHpCvaDH0MdzUIEDOiPJEYuRRXip5WNmUSOIBLj3WA=;
+        b=aCxbrCuWdkFAWtU99D3beSVgZBV29+mudc9bxwax85StrwLHtx55VSBHYXXmBRJPvp
+         BcLXAO3KZFy33jffdX9Cc+LE7ErYbxncG/8rBWa60u0AMk5bZKzuauGJ/utyDSrRW3qK
+         Mu2thUGdiMQa/Ce8UMZnyuiLjOYqjQXVEaap7N8+l2b2Oz0ZoRHz9qwLWYDHeyYLbKt9
+         4GUTxtvIcufJcNSRvN2Gre+MCRlYbOPXIZLjXCsM2obfXFag/8G26D9Shh6jXcZlO+UC
+         sOsd86pg294hODTTnP8ehCR4AuGMhgyIa74nNJ9Txy9KTu2PFcDvPgeSF0QHBmRMCHIM
+         Sbkw==
+X-Google-Smtp-Source: APXvYqwDIHdpqJZWC9/1e1j8c7MN7Q7ec24v/q7WYdAsy47RoI6XXcs7tJMSLCseUO1rJ0xxq4Gwz7aOUUkKd0Z3OJ0=
+X-Received: by 2002:a02:ad07:: with SMTP id s7mr14136376jan.103.1556137363865;
+ Wed, 24 Apr 2019 13:22:43 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190424191440.170422-1-matthewgarrett@google.com>
+ <20190424192812.GG19031@bombadil.infradead.org> <CACdnJutj4K1kQj7yXcCNVWM_hmrUwMfZ-JBi=FHkBvYFfbJNZA@mail.gmail.com>
+ <20190424202006.GH19031@bombadil.infradead.org>
+In-Reply-To: <20190424202006.GH19031@bombadil.infradead.org>
+From: Matthew Garrett <mjg59@google.com>
+Date: Wed, 24 Apr 2019 13:22:32 -0700
+Message-ID: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
 Subject: Re: [PATCH] mm: Allow userland to request that the kernel clear
  memory on release
-Message-ID: <20190424202006.GH19031@bombadil.infradead.org>
-References: <20190424191440.170422-1-matthewgarrett@google.com>
- <20190424192812.GG19031@bombadil.infradead.org>
- <CACdnJutj4K1kQj7yXcCNVWM_hmrUwMfZ-JBi=FHkBvYFfbJNZA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACdnJutj4K1kQj7yXcCNVWM_hmrUwMfZ-JBi=FHkBvYFfbJNZA@mail.gmail.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 12:33:11PM -0700, Matthew Garrett wrote:
-> On Wed, Apr 24, 2019 at 12:28 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > But you can't have a new PageFlag.  Can you instead zero the memory in
-> > unmap_single_vma() where we call uprobe_munmap() and untrack_pfn() today?
-> 
-> Is there any way the page could be referenced by something other than
-> a VMA at this point? If so we probably don't want to zero it here, but
-> we do want to zero it when the page is finally released (which is why
-> I went with a page flag)
+On Wed, Apr 24, 2019 at 1:20 PM Matthew Wilcox <willy@infradead.org> wrote:
+> It depends on the semantics you want.  There's no legacy code to
+> worry about here.  I was seeing this as the equivalent of an atexit()
+> handler; userspace is saying "When this page is unmapped, zero it".
+> So it doesn't matter that somebody else might be able to reference it --
+> userspace could have zeroed it themselves.
 
-It could be the target/source of direct I/O, or userspace could have
-registered it with an RDMA device, or ...
-
-It depends on the semantics you want.  There's no legacy code to
-worry about here.  I was seeing this as the equivalent of an atexit()
-handler; userspace is saying "When this page is unmapped, zero it".
-So it doesn't matter that somebody else might be able to reference it --
-userspace could have zeroed it themselves.
+Mm ok that seems reasonable. I'll rework with that in mind.
 
