@@ -2,166 +2,226 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 035B5C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:43:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E87E2C282E1
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:50:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96AA32175B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:43:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8DD222183E
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 20:50:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="dvJtRlOF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96AA32175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (1024-bit key) header.d=wavesemi.onmicrosoft.com header.i=@wavesemi.onmicrosoft.com header.b="K0+4Lyxh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DD222183E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28CE96B0005; Wed, 24 Apr 2019 16:43:48 -0400 (EDT)
+	id 2887D6B0005; Wed, 24 Apr 2019 16:50:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23BA36B0006; Wed, 24 Apr 2019 16:43:48 -0400 (EDT)
+	id 2379D6B0006; Wed, 24 Apr 2019 16:50:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 152556B0007; Wed, 24 Apr 2019 16:43:48 -0400 (EDT)
+	id 0FF6D6B0007; Wed, 24 Apr 2019 16:50:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B7E8C6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:43:47 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id m47so10569643edd.15
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:43:47 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D7E4C6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:50:35 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id q82so8141027oif.7
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:50:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=3uQ6pt/79DaqV1w1HqJ3riyr5/sBvHSK6/Hzd6NMzp4=;
-        b=W3VHHdenQq1x8/4bWfD31nisAGkUqGdri7+iJ8zL5dgcX8u+l9GFfpdmvJGUik2MHS
-         oZKS4fwKsMUfrSlj7iBk6e/4mZEWvJR0/pUJUss6EU+m8oXVKNRyqtQB+ywX35k7kKmn
-         oG5cM27dmuU+RsGaSWvWKA0BlA3gAjsoefc3EDLrC+gyIsB7cIdv/5/8fj1iLo7HQo+7
-         l1rGXPG04GFp1jNWTodnL+Qg+hR9qFtjs76Jey9+Ul0AJft1RetcDMjy72f/IZOMfoEA
-         R86OrD8PFAFEE1h8EP2OXa00RWuK10t0NYkt6cAwQzOzn/GVVWN82rHZyC6TznlvnD58
-         C2Iw==
-X-Gm-Message-State: APjAAAVStFVkhzl3MYr3Hx9w2zvxfmoH963GRWqD1tV4VimN69Fiv2wn
-	73fPCJDPAFKdvlhokD7T4aU895R5AbJMa4kHuStFxfYnHv/vVs6hhHyhtDsRe2ez5ZgZ/TgrBhh
-	CQxUvPrwV8fZdxDVSEMYR0iMSQR2TmIME9ioneSocuie/c84fvL03BPTmBQgAfk0+FQ==
-X-Received: by 2002:a50:9707:: with SMTP id c7mr21651116edb.222.1556138627298;
-        Wed, 24 Apr 2019 13:43:47 -0700 (PDT)
-X-Received: by 2002:a50:9707:: with SMTP id c7mr21651086edb.222.1556138626582;
-        Wed, 24 Apr 2019 13:43:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556138626; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=dagHIG0/uDgKzzzZeg2bbroAeyAEP6gZcPiOb0HPDgc=;
+        b=g0pV/A9+d7MRH02LN6M9g4YNqqaMd5Y6qHX9NyeoVpfqkuXogFoK6UC69GRBVwoBUD
+         IyJvfqYPn/xeEwSy9ppMzxcFxeNU1TbauCUYHmTAP8GulWG/thn4aIEj0e8LQK07QlRO
+         fAbLf7u+Y4/rG3I5M//S1FPTWlVJ9GhnzGAWTMwANc1CxYcLq2TbjnzGBzm/CAfmokrw
+         X2FX16SccnInlRaexFkbP5MEVkEjJ1cCnYQu29VCCkoOtkDsasvC9S2T9U1/TfOLMK+K
+         139Y0gJu1ZHCNuauGBc2vaYBJULpLZ+i//bTBDFlaP17x9u/m9zOgO/wu1W8Utrx03mN
+         WUlw==
+X-Gm-Message-State: APjAAAUN9msvTF7cFLCH+DAzKZJ4JF6zhcKVS0ApXg3Q3vckIlCOieFp
+	MF7INBEil6CHP97Z32vkgfc8HIH05JGWmJI9o3OcwPz4Xg0Lp686bxaGTtzUPjZhzNAj/RD6BDt
+	YqlI8tpgRBjMwwV7b8SwrLe2eg4QhC8AwEq2+vKUndYAtS8GXCaOgpVvbYq1g1gA=
+X-Received: by 2002:a9d:3d03:: with SMTP id a3mr22436002otc.72.1556139035526;
+        Wed, 24 Apr 2019 13:50:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwi6/2CaSGt9Ra8W8n8iAw+6lH+iINQj33Klzf5sC1m/gCXfjf3JC+rmUFU6x5Ks8GKVorL
+X-Received: by 2002:a9d:3d03:: with SMTP id a3mr22435958otc.72.1556139034748;
+        Wed, 24 Apr 2019 13:50:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556139034; cv=none;
         d=google.com; s=arc-20160816;
-        b=w3wMGDiZlZ+KCjsnNvpQe7UTmWvvJkISSyBftxGXf2ZdstOlQJMInhkl3ZmPjGorYS
-         SjGTUsKsSXkcbSpZ5RaZnnW8b8Jp310tOuE8/d1rqUqb9T55lTu1JaPm+PuqcqyLUAte
-         CxOXwPvDJWFTT8/Moxzo7xh4qtmsqHoFOsWTzYp0d8fUnedrMipXTfMhDbmvL0RsC7ql
-         ekSW4p4qTvaQo1C8J5w4z+qNR/XS1kL8KIuBIcJrZUL/ZNNwaE6ZFU1cbCS0YtZBT4OU
-         Tv2SaGSfy2f/4L2HUZM6JZQepNQCMa9jR5a5iIzoy6bPDCwF+m1CDN3IuChrsXzaMPiy
-         4qaA==
+        b=iLRd3owSGe+Kn8RHz3fIu35bMcEonR1a0H32zDfSAMtdQWAOEBckIj4LMpm80ZICPe
+         e9CCDHwndmYnQ6ggKQ+KmMcs99yQudhadRAd/NHfOsKeOTNNOT1Nb04XQ4ngJrraO3G0
+         p7W5LmwuAJ5JMuSMAeCWFV1oYIUEn3nQqjdmazN8sBIfS69IYMQoB5wlYdMBOsIXFYL1
+         wnhrJe6f5GcDCL3GBo0JCJoiLVLqXj+wkM5yVFPADNKYqxajQULCK39KOwK2badgCUAk
+         rtPipp2cszNu6XN1y76LLzNqKkDStcPTQVv5O8nRptMKd/QbbfC4uafXk1EpXXCTZUBz
+         v0cA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=3uQ6pt/79DaqV1w1HqJ3riyr5/sBvHSK6/Hzd6NMzp4=;
-        b=AbUbmTnWkcszvVq6xbvHmlsZ7gHRAr82Qd43HSyQloEaT2W6ew2sZhn8of8ooCaaZD
-         TaZlYlRhynmeX7FJIN2FfaW8vHWh/m5nJEqI7oUoXSjxwUe/T0YRZLI+pEn4ZdVjnbaO
-         10NcusimWNa0GEDnpsILu3WkyuqswsvGRVVm/pngpyIRCSiFNFvK8AifmUwsNNi0fyWY
-         I01qJ0SHVn/QmODWXJXAIM7ZwmlKR1xlVeazyVktYfoO/TyvOH+7ddHB0CuvD3oaLn2j
-         v+XOJqmvBrM3DcO175iCC5ebOKJFOSlQ6/CRI3vGPvg/l4zUs7yhilJxc6mpYKe4y+QW
-         DZaA==
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=dagHIG0/uDgKzzzZeg2bbroAeyAEP6gZcPiOb0HPDgc=;
+        b=kO9jujScR4WkNdQCJQl+f5z+I12LtNEspdH/Usqt8NQSDQvq0iFSEDXYetcWn6jPMj
+         VQ9rrDePgr8ouODlNIxVi3hir9AyzS1I0YnFaiTnN1baWYZ/ugMllfLRbkQHrgkqQVE/
+         twJdnz9DD/ShE/4E3cYtQ7+Bp619XPwqzkz9Fn9Wp1VxKL3zpOGGlSBqGMA6UWb0CAv8
+         02+rw6lle70zkiKTzt9b0CwJs4XKb/QbB8cO9+msP08xO878f7oAtAwaXyEPyJOMdMi8
+         ZCSoUgCfo2Gp3ScnQQEdGhIlG1BVcoUE8i6kkZQJe9xr45MfQ6F7xdBR0/i0faho3joF
+         FKgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=dvJtRlOF;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p26sor11028040edy.1.2019.04.24.13.43.46
+       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=K0+4Lyxh;
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.81.115 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-eopbgr810115.outbound.protection.outlook.com. [40.107.81.115])
+        by mx.google.com with ESMTPS id q3si10224763otn.207.2019.04.24.13.50.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 13:43:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 13:50:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pburton@wavecomp.com designates 40.107.81.115 as permitted sender) client-ip=40.107.81.115;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=dvJtRlOF;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+       dkim=pass header.i=@wavesemi.onmicrosoft.com header.s=selector1-wavecomp-com header.b=K0+4Lyxh;
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.81.115 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=3uQ6pt/79DaqV1w1HqJ3riyr5/sBvHSK6/Hzd6NMzp4=;
-        b=dvJtRlOFxT2cfx81ZV1rLhKqHcn8wP2dkltllzCy9vGNw9dCzrxYafuNn9nXLujGYh
-         r8KoU13+AeniwVXgc+5SvHyy9qPkc7xV8mX4t5Ed52uWdqlkciy8+zrrvBToREKKetCx
-         pxTzVNN/CnXf7j+4dQlzA5QY3JiiQz92Hpz12WJH2+ZRoxvVV8GsZKUg9UmhLUN3M+lw
-         JYhxE8Qqw62YesIQjDOqszN5E4+qjxPaCr3WTjbqXxAYnnL65L2o2yzdlmsYe1NcqCtJ
-         r1EHPXmGQtacfX2M02uzrnZwa6pNZgYpC0gjFWqjsm9oCIFQqctsxRZaZfWoXNg54JXI
-         LHcg==
-X-Google-Smtp-Source: APXvYqwwtgxviomoeB178elsaWelBPDBbhr4KEN1wrW4lNWd86vBErwAgnmmMXG7JMKrSJmUjpuHPaC2EjvlBKqmsPs=
-X-Received: by 2002:a50:978e:: with SMTP id e14mr21377731edb.91.1556138626271;
- Wed, 24 Apr 2019 13:43:46 -0700 (PDT)
+ d=wavesemi.onmicrosoft.com; s=selector1-wavecomp-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=dagHIG0/uDgKzzzZeg2bbroAeyAEP6gZcPiOb0HPDgc=;
+ b=K0+4LyxhVUJ0vOGNGOd8PObmFCvltmaJbjpUJ4ojW5b2alX4kdC5BUzrSzeTrQYykDqiOcgRMVbrKBbUfRkgQkzpyN4+m0X9b4UatwgL6sXjZgcGEu9P5+5L4sGpSqRCHrKQeEvMiAcW+2iar51E5sDr+W0oiU4hjs5Cun00oLE=
+Received: from MWHPR2201MB1277.namprd22.prod.outlook.com (10.174.162.17) by
+ MWHPR2201MB1040.namprd22.prod.outlook.com (10.174.169.138) with Microsoft
+ SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1835.12; Wed, 24 Apr 2019 20:50:31 +0000
+Received: from MWHPR2201MB1277.namprd22.prod.outlook.com
+ ([fe80::b9d6:bf19:ec58:2765]) by MWHPR2201MB1277.namprd22.prod.outlook.com
+ ([fe80::b9d6:bf19:ec58:2765%7]) with mapi id 15.20.1813.017; Wed, 24 Apr 2019
+ 20:50:31 +0000
+From: Paul Burton <paul.burton@mips.com>
+To: Aaro Koskinen <aaro.koskinen@iki.fi>
+CC: "linux-mips@vger.kernel.org" <linux-mips@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: MIPS/CI20: BUG: Bad page state
+Thread-Topic: MIPS/CI20: BUG: Bad page state
+Thread-Index: AQHU+spp/ojd69QglkGCzSQtjt0+I6ZLsnQAgAAT/oCAAAKdAA==
+Date: Wed, 24 Apr 2019 20:50:31 +0000
+Message-ID: <20190424205016.yqtrlygqojii2rs6@pburton-laptop>
+References: <20190424182012.GA21072@darkstar.musicnaut.iki.fi>
+ <20190424192922.ilnn3oxc7ryzhd3l@pburton-laptop>
+ <20190424204055.GB21072@darkstar.musicnaut.iki.fi>
+In-Reply-To: <20190424204055.GB21072@darkstar.musicnaut.iki.fi>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: BYAPR11CA0089.namprd11.prod.outlook.com
+ (2603:10b6:a03:f4::30) To MWHPR2201MB1277.namprd22.prod.outlook.com
+ (2603:10b6:301:24::17)
+user-agent: NeoMutt/20180716
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pburton@wavecomp.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [67.207.99.198]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: fdbfb9d3-42c4-48c6-330d-08d6c8f67d86
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:MWHPR2201MB1040;
+x-ms-traffictypediagnostic: MWHPR2201MB1040:
+x-ms-exchange-purlcount: 4
+x-microsoft-antispam-prvs:
+ <MWHPR2201MB104079557B7A8671F5CB37BCC13C0@MWHPR2201MB1040.namprd22.prod.outlook.com>
+x-forefront-prvs: 00179089FD
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(979002)(7916004)(366004)(346002)(39850400004)(136003)(376002)(396003)(189003)(199004)(54094003)(478600001)(66556008)(1076003)(44832011)(64756008)(73956011)(476003)(486006)(7736002)(446003)(33716001)(53936002)(11346002)(6436002)(71200400001)(256004)(42882007)(68736007)(14444005)(305945005)(5660300002)(71190400001)(66446008)(6246003)(66476007)(6486002)(229853002)(66946007)(966005)(66066001)(14454004)(386003)(6506007)(102836004)(97736004)(26005)(99286004)(186003)(81166006)(8676002)(76176011)(52116002)(8936002)(81156014)(58126008)(2906002)(4326008)(9686003)(6512007)(6306002)(316002)(3846002)(6116002)(25786009)(54906003)(6916009)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR2201MB1040;H:MWHPR2201MB1277.namprd22.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: wavecomp.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ i3rqxhW0EHmzBxsVG6+9aqwqopMU2M5qw2XRApmJUTOMyqK8VbsmSBZDn286VvI8tPFp81SzKScmd7uEEfnbP6jwQAfXj/OCDtcjRIxHsBprrtZ8U3+TtTOhY+IXL/0OsJkv2ZenQ+dckXNc0NU8Xy/B1iC+FhAFRkWNklDn+ccTFRnvlFUMcWoxCP1QJk7r31wktPQ4TIkKySRiI+4RFsh4baM8rh/rsOlzqBnf/rz9McT8FjCk1O02DrDUhVHVnYPLWZZomDtNkw3bo86KFmehK/l6upUpNgMxzvUKtfzNOb/OT7VEXKJ6G7/1qi5+9JBbUF7KxTaya7DVAPaoEAmosL4ET6M8JNk6dJsyb1PGndg99Ulgs9zbc2B+2Re2Hjtu1F7AseOso94RkM6O6BNjz/xo2U+VQiQIUOSHjTU=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <792F3D94E681F64898B3F8D1982535F6@namprd22.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190417150331.90219ca42a1c0db8632d0fd5@linux-foundation.org>
- <CAPcyv4hB47NJrVi1sm+7msL+6dJNhBD10BJbtLPZRcK2JK6+pg@mail.gmail.com> <1556025416.2956.0.camel@suse.de>
-In-Reply-To: <1556025416.2956.0.camel@suse.de>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Wed, 24 Apr 2019 16:43:35 -0400
-Message-ID: <CA+CK2bBS_cWJCWDCQAXKU6t=r=nAC908jz8uQ90DjKT5XcuNtw@mail.gmail.com>
-Subject: Re: [PATCH v6 00/12] mm: Sub-section memory hotplug support
-To: Oscar Salvador <osalvador@suse.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	David Hildenbrand <david@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
-	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+X-OriginatorOrg: mips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: fdbfb9d3-42c4-48c6-330d-08d6c8f67d86
+X-MS-Exchange-CrossTenant-originalarrivaltime: 24 Apr 2019 20:50:31.5602
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 463607d3-1db3-40a0-8a29-970c56230104
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR2201MB1040
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I am also taking a look at this work now. I will review and test it in
-the next couple of days.
+Hi Aaro,
 
-Pasha
+On Wed, Apr 24, 2019 at 11:40:55PM +0300, Aaro Koskinen wrote:
+> On Wed, Apr 24, 2019 at 07:29:29PM +0000, Paul Burton wrote:
+> > On Wed, Apr 24, 2019 at 09:20:12PM +0300, Aaro Koskinen wrote:
+> > > I have been trying to get GCC bootstrap to pass on CI20 board, but it
+> > > seems to always crash. Today, I finally got around connecting the ser=
+ial
+> > > console to see why, and it logged the below BUG.
+> > >=20
+> > > I wonder if this is an actual bug, or is the hardware faulty?
+> > >=20
+> > > FWIW, this is 32-bit board with 1 GB RAM. The rootfs is on MMC, as we=
+ll
+> > > as 2 GB + 2 GB swap files.
+> > >=20
+> > > Kernel config is at the end of the mail.
+> >=20
+> > I'd bet on memory corruption, though not necessarily faulty hardware.
+> >=20
+> > Unfortunately memory corruption on Ci20 boards isn't uncommon... Someon=
+e
+> > did make some tweaks to memory timings configured in the DDR controller
+> > which improved things for them a while ago:
+> >=20
+> >   https://github.com/MIPS/CI20_u-boot/pull/18
+> >=20
+> > Would you be up for testing with those tweaks? I'd be happy to help wit=
+h
+> > updating U-Boot if needed.
+>=20
+> Thanks, I wasn't aware of this, and seems like it could help.
+>=20
+> I guess instructions here <https://elinux.org/CI20_Dev_Zone> are valid,
+> i.e. I can use MMC/SD card to re-flash the U-boot without the risk of
+> bricking the board, if I understood correctly?
 
-On Tue, Apr 23, 2019 at 9:17 AM Oscar Salvador <osalvador@suse.de> wrote:
->
-> On Wed, 2019-04-17 at 15:59 -0700, Dan Williams wrote:
-> > On Wed, Apr 17, 2019 at 3:04 PM Andrew Morton <akpm@linux-foundation.
-> > org> wrote:
-> > >
-> > > On Wed, 17 Apr 2019 11:38:55 -0700 Dan Williams <dan.j.williams@int
-> > > el.com> wrote:
-> > >
-> > > > The memory hotplug section is an arbitrary / convenient unit for
-> > > > memory
-> > > > hotplug. 'Section-size' units have bled into the user interface
-> > > > ('memblock' sysfs) and can not be changed without breaking
-> > > > existing
-> > > > userspace. The section-size constraint, while mostly benign for
-> > > > typical
-> > > > memory hotplug, has and continues to wreak havoc with 'device-
-> > > > memory'
-> > > > use cases, persistent memory (pmem) in particular. Recall that
-> > > > pmem uses
-> > > > devm_memremap_pages(), and subsequently arch_add_memory(), to
-> > > > allocate a
-> > > > 'struct page' memmap for pmem. However, it does not use the
-> > > > 'bottom
-> > > > half' of memory hotplug, i.e. never marks pmem pages online and
-> > > > never
-> > > > exposes the userspace memblock interface for pmem. This leaves an
-> > > > opening to redress the section-size constraint.
-> > >
-> > > v6 and we're not showing any review activity.  Who would be
-> > > suitable
-> > > people to help out here?
-> >
-> > There was quite a bit of review of the cover letter from Michal and
-> > David, but you're right the details not so much as of yet. I'd like
-> > to
-> > call out other people where I can reciprocate with some review of my
-> > own. Oscar's altmap work looks like a good candidate for that.
->
-> Thanks Dan for ccing me.
-> I will take a look at the patches soon.
->
-> --
-> Oscar Salvador
-> SUSE L3
+Yes that's correct. It's difficult to impossible to totally brick the
+board, given the ability to boot from SD or USB & rewrite the NAND.
+
+One option would be to just build the new U-Boot for SD boot, and leave
+your NAND U-Boot entirely untouched until/unless you're satisfied that
+the changes help.
+
+> BTW, would it be possible to re-adjust these timings from the kernel side=
+?
+
+Maybe, I'm really not sure. So long as it can be done without destroying
+any of the RAM content it would be OK, but I don't know if that's the
+case.
+
+> > Do you know which board revision you have? (Is it square or a funny
+> > shape, green or purple, and does it have a revision number printed on
+> > the silkscreen?)
+>=20
+> It's a purple one. Based on quick look all printings are identical to thi=
+s
+> one:
+> https://images.anandtech.com/doci/8958/purple%20ci20_smaller_678x452.jpg
+
+OK good to know - so it's a revision B board, which changed from Hynix
+to Samsung DDR:
+
+  https://elinux.org/CI20_Hardware#Board_Revisions_and_changes
+
+That's also the revision Gabriele who submitted the U-Boot pull request
+linked above has.
+
+Thanks,
+    Paul
 
