@@ -2,161 +2,202 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AFCCC282E3
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F249C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:34:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFD30218D3
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:12:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFD30218D3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 02F59218B0
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 11:34:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02F59218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 71FDA6B000A; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
+	id 90C406B0005; Wed, 24 Apr 2019 07:34:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A7456B000C; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
+	id 8B9A56B0006; Wed, 24 Apr 2019 07:34:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 549086B000D; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
+	id 7843C6B0007; Wed, 24 Apr 2019 07:34:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0483D6B000A
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:12:46 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id r7so7886319wrc.14
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 04:12:45 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B246B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:34:06 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id 10so14367173ybx.19
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 04:34:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Nrdy8KLOBuiWA1DS+gjdUN5k8KpcliPOrG7O1lyxcrA=;
-        b=sSVjntas4HIVnMmKgIVm3kG7B2zvt3hQD5ojpV3B7XYLdhzMxfY36wk5Bam8DPmNmE
-         8UwWGawdX10RMYjxu2o1t3BpO4EwaWROPefhnsahNDrHxXRnlGwkw4O13TJ7IznWvt/X
-         hv78+gxUHWm64QaVAObTGcs50FnxFjAwXZfd0q9UfFS5aSbWExk4ZgxKh2cBlWtHYVmi
-         KJlVN03taPabObW2W6zm9U75Zgq9QSxc/7BRZtUl8E+e2egKRCNQEJRRa0siWhhy4hiI
-         LOS/jmDZIGRUvBRupq//m0zbEUwYhBxWpd8vW0TO2VdxS5YI7nBI5Hy54E4HNOv9OLpE
-         VR5g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAXONogCGNp/cdclw/g62AxdaIp8ixfB1hA4VMqhoeDZ3OdG3sfD
-	G1ECiaHbSfWlbpecTgbhLcAeDqTpvrhZ0MEwz/8onUzJr8wp4ysEGuVdH5sHxe12QREs+nGQORY
-	dNOYN1kzb2Rb6m/IJ41pf1vPWOrv/TA/jmr9Rhcg56le+TdRT6HMG1hzASqdRssZ8TQ==
-X-Received: by 2002:adf:ec09:: with SMTP id x9mr21931000wrn.187.1556104365546;
-        Wed, 24 Apr 2019 04:12:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzo9d9GgidaV+51RMED+QpB0TS2eh8Ko2iewy06X/MohlM1/r7KJX2e/5a9/YSMd3udq/cM
-X-Received: by 2002:adf:ec09:: with SMTP id x9mr21930945wrn.187.1556104364683;
-        Wed, 24 Apr 2019 04:12:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556104364; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=CK48a1V47w5pk5MuUvIvJ01PE7uUDnX9FP0Tm8x/mAQ=;
+        b=sglNFQ1nRAY0yWQu/qs++i/dv+0rzo2zzLWMPJyGnYGTQMnuzio65ksMaafBLZ2CMa
+         NySa/Dzk6dFEyyzOLxqHixVw4sspoDV5co4Iy402fn5EEKFKwMWEube5bbsbdBGjSrev
+         Je7voyPq3uP89ZTvIdfTJnxgS9UXHYIzLBFKfP8GuiWIVHW22AD+sRERUTXsveA74+ou
+         M8d9Q6u+MIoKYRdrd6mADYVw6p/KjYMMdboJmPPs6parKfkSoE8khs17xIZEdaPqvP34
+         UGZDqAgvv8+UoHnpV2T4XGG6metYAYA4dSCKZD6ygSdxG7ldYVDZFvPnfbNoWi4cIuVk
+         01Gw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUvKSrODHEhlCMM58zAD0BQK0SHgRj4f1eiTrisPwiYxoi/5lq/
+	m3Rsjz0wXGAq6CyIbZCjDtzkrzs0q/M7LYgQAIlQANGjjmnv7wfBvoNEy+qYO7EA4zFJYEISyDS
+	r0suh6VroiyhdhqpxJE7fksbOp0rbqUBJA19FqwuZ2XDL1gjZGGfoEk5lrJum4SVHaw==
+X-Received: by 2002:a25:2451:: with SMTP id k78mr20875587ybk.126.1556105646121;
+        Wed, 24 Apr 2019 04:34:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyP14XFL2iF3aVwwqRnrQRjVlrNCYZRaMFx9lifakBBgy8eB4UXMDcvQ/uiW7bgNPRSJc6t
+X-Received: by 2002:a25:2451:: with SMTP id k78mr20875528ybk.126.1556105645336;
+        Wed, 24 Apr 2019 04:34:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556105645; cv=none;
         d=google.com; s=arc-20160816;
-        b=HrPWftXCf0W4KdBKPz6plG45txC9mC5IG0LgpjGAdYt4w7Ozwtm2eEigskmj6NA+5/
-         XHI9Op9hQKmwEzrK2C5bvO3g33H3yH5+Vh07O1tODEKauTZaT3+JNvE+wJU/SfJSI5OR
-         r4lj5lNHjkvZ2du/2XDGoX0t40wqCTglzTI8CZRXyk1wxjniZpxg+Y/sUcYz6982TJXh
-         r4f3VMZ9kuFub7Q78XaAVL1rtQ0a+idxkYPPCrgRU7IWwVovX2FpeC5zm+T0vodYFTJI
-         qrWA2iAFniKgBXTJkkFVJpWs37M9NS3YAvyjYgpA5dOGLA/KTnPhIN3/BBNWs8fDsD+V
-         Fn6w==
+        b=ENmaJsaW7cHtBvNlmwdeNFPgfXUSQzotAWVVbPMcII5L1YCkpabc81exmreRtwuChY
+         IlycIZT4FBpQXpbzPUupKz+Wdw2z/UPRtJp6jFB4SvBxZB8R6mhVKyZL9AkANUpn8h2+
+         0Lz5iwgLxuBgtLm0ihs08KwzGSEl2NB73AOrJcQCWYQPUdEpvPDSrbCqiB+YfJAOgSU5
+         DC0aCtieKw55Ow4CYFuIrr28/wtGG+6RwuNK1QsJwbvceQCtJ0u2I6aKinxvtcAoZbWN
+         N42QP+iydwig+RqZ9NRpAkefX8g74Nu6CO1GBxn3P9brV6wLSBLa29duy4B6yLhEGsdz
+         Cv4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=Nrdy8KLOBuiWA1DS+gjdUN5k8KpcliPOrG7O1lyxcrA=;
-        b=NVPyGOzF8+uYRnqj7q1KKob1MOvjjkAgnMj9GS64oaTM+Z7qLL2HKEU2l0TrT3MrqN
-         1ErgEMI6sjSfBYKC9Z0jEqoe7DT74ewZVuR5qOmCnlE/yGLK+wBUoGSfZukxGg5UXV/s
-         Tpu4J4kz7ZdALm7nDyZKr84A3vLEsj/BAVn8Fb8C4fdPufDzM1fnCEUbVMxBTy/taZSY
-         nC0vLSNcWoa/clyAazl7T4Zxe5A9pbL5e0SDatB7quYHtgR4AFkdSqm+fMU8ZeEMFLCG
-         GuZMZDuMBP4P2YoDWdVSECQxWeA+nTmMCms4OkmjN0H/F07gfp/4XumWaUoTwWVVr6ko
-         mYWg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=CK48a1V47w5pk5MuUvIvJ01PE7uUDnX9FP0Tm8x/mAQ=;
+        b=IJgaOTxm0SZp2Ld0ycWaZU95n68JoPDvQMelW7u7e+cd7lLFfM6ldgUEWIkrXQ1giP
+         A+F1MyGZ1BhpfMXuYfvjiItmYXK1YyBzEDQLw8w2C2QcvnW0SJQdM9V8yJawrSpj4/iy
+         r7dWnd8Kl7c2cBKfzO6XUAk7VpAFAzlS5aDPT0+RRcIaFfwi6DsIRrnkTFCQRBPWeltm
+         nB9P8vKTVmBulO7+CaQtTjOoSC7lkqGbyq8K9BhsTz4DW3yyFSQRX/qgeO0ARoxCnbeo
+         DWISEs4KFvE7HwwDAZUtR25b3xZQ3FniKV1QAXJ3GuNSpvElf47MX/YONH5BovC5OGyk
+         DtKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g130si13144045wmf.140.2019.04.24.04.12.44
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n5si12592588yba.355.2019.04.24.04.34.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Apr 2019 04:12:44 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 04:34:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from localhost ([127.0.0.1] helo=flow.W.breakpoint.cc)
-	by Galois.linutronix.de with esmtp (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hJFpS-0006KY-OT; Wed, 24 Apr 2019 13:12:42 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: linux-mm@kvack.org
-Cc: tglx@linutronix.de,
-	frederic@kernel.org,
-	Christoph Lameter <cl@linux.com>,
-	anna-maria@linutronix.de,
-	Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH 4/4] mm/swap: Enable "use_pvec_lock" nohz_full dependent
-Date: Wed, 24 Apr 2019 13:12:08 +0200
-Message-Id: <20190424111208.24459-5-bigeasy@linutronix.de>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190424111208.24459-1-bigeasy@linutronix.de>
-References: <20190424111208.24459-1-bigeasy@linutronix.de>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3OBU064146491
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:34:04 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s2n2s6746-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 07:34:04 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 24 Apr 2019 12:34:02 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 24 Apr 2019 12:33:58 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3OBXvOw43188232
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 24 Apr 2019 11:33:57 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B0825A4068;
+	Wed, 24 Apr 2019 11:33:55 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DBF48A4064;
+	Wed, 24 Apr 2019 11:33:54 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 24 Apr 2019 11:33:54 +0000 (GMT)
+Date: Wed, 24 Apr 2019 14:33:53 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
+        Matthew Wilcox <willy@infradead.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mikulas Patocka <mpatocka@redhat.com>,
+        James Bottomley <James.Bottomley@hansenpartnership.com>,
+        linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+        Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+        linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190421063859.GA19926@rapoport-lnx>
+ <20190421132606.GJ7751@bombadil.infradead.org>
+ <20190421211604.GN18914@techsingularity.net>
+ <20190423071354.GB12114@infradead.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190423071354.GB12114@infradead.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19042411-4275-0000-0000-0000032C0709
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042411-4276-0000-0000-0000383B4F66
+Message-Id: <20190424113352.GA6278@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-24_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=874 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904240095
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Anna-Maria Gleixner <anna-maria@linutronix.de>
+On Tue, Apr 23, 2019 at 12:13:54AM -0700, Christoph Hellwig wrote:
+> On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
+> > 32-bit NUMA systems should be non-existent in practice. The last NUMA
+> > system I'm aware of that was both NUMA and 32-bit only died somewhere
+> > between 2004 and 2007. If someone is running a 64-bit capable system in
+> > 32-bit mode with NUMA, they really are just punishing themselves for fun.
+> 
+> Can we mark it as BROKEN to see if someone shouts and then remove it
+> a year or two down the road?  Or just kill it off now..
 
-When a system runs with CONFIG_NO_HZ_FULL enabled, the tick of CPUs listed
-in 'nohz_full=' kernel command line parameter should be stopped whenever
-possible. The tick stays longer stopped, when work for this CPU is handled
-by another CPU.
+How about making SPARSEMEM default for x86-32?
 
-With the already introduced static key 'use_pvec_lock' there is the
-possibility to prevent firing a worker for mm/swap work on a remote CPU
-with a stopped tick.
+From ac2dc27414e26f799ea063fd1d01e19d70056f43 Mon Sep 17 00:00:00 2001
+From: Mike Rapoport <rppt@linux.ibm.com>
+Date: Wed, 24 Apr 2019 14:32:12 +0300
+Subject: [PATCH] x86/Kconfig: make SPARSEMEM default for X86_32
 
-Therefore enabling the static key in case kernel command line parameter
-'nohz_full=' setup was successful, which implies that CONFIG_NO_HZ_FULL is
-set.
-
-Signed-off-by: Anna-Maria Gleixner <anna-maria@linutronix.de>
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- kernel/sched/isolation.c | 14 +++++++++++++-
- 1 file changed, 13 insertions(+), 1 deletion(-)
+ arch/x86/Kconfig | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-diff --git a/kernel/sched/isolation.c b/kernel/sched/isolation.c
-index b02d148e76727..b532f448cab42 100644
---- a/kernel/sched/isolation.c
-+++ b/kernel/sched/isolation.c
-@@ -7,6 +7,7 @@
-  *
-  */
- #include "sched.h"
-+#include "../../mm/internal.h"
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 62fc3fd..77b17af 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1609,10 +1609,6 @@ config ARCH_DISCONTIGMEM_ENABLE
+ 	def_bool y
+ 	depends on NUMA && X86_32
  
- DEFINE_STATIC_KEY_FALSE(housekeeping_overridden);
- EXPORT_SYMBOL_GPL(housekeeping_overridden);
-@@ -116,10 +117,21 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
- static int __init housekeeping_nohz_full_setup(char *str)
- {
- 	unsigned int flags;
-+	int ret;
+-config ARCH_DISCONTIGMEM_DEFAULT
+-	def_bool y
+-	depends on NUMA && X86_32
+-
+ config ARCH_SPARSEMEM_ENABLE
+ 	def_bool y
+ 	depends on X86_64 || NUMA || X86_32 || X86_32_NON_STANDARD
+@@ -1621,7 +1617,7 @@ config ARCH_SPARSEMEM_ENABLE
  
- 	flags = HK_FLAG_TICK | HK_FLAG_WQ | HK_FLAG_TIMER | HK_FLAG_RCU | HK_FLAG_MISC;
+ config ARCH_SPARSEMEM_DEFAULT
+ 	def_bool y
+-	depends on X86_64
++	depends on X86_64 || (NUMA && X86_32)
  
--	return housekeeping_setup(str, flags);
-+	ret = housekeeping_setup(str, flags);
-+
-+	/*
-+	 * Protect struct pagevec with a lock instead using preemption disable;
-+	 * with lock protection, remote handling of events instead of queue
-+	 * work on remote cpu is default behavior.
-+	 */
-+	if (ret)
-+		static_branch_enable(&use_pvec_lock);
-+
-+	return ret;
- }
- __setup("nohz_full=", housekeeping_nohz_full_setup);
- 
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
 -- 
-2.20.1
+2.7.4
+
+
+-- 
+Sincerely yours,
+Mike.
 
