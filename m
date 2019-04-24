@@ -2,134 +2,137 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBAF1C282E1
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 12:15:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 864A2C282E1
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 12:22:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7447421773
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 12:15:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="J8NPq1X7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7447421773
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 4E93E21773
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 12:22:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E93E21773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D32BF6B0005; Wed, 24 Apr 2019 08:15:54 -0400 (EDT)
+	id D05ED6B0005; Wed, 24 Apr 2019 08:21:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDFA36B0006; Wed, 24 Apr 2019 08:15:54 -0400 (EDT)
+	id C8D0A6B0006; Wed, 24 Apr 2019 08:21:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B82756B0007; Wed, 24 Apr 2019 08:15:54 -0400 (EDT)
+	id B30C46B0007; Wed, 24 Apr 2019 08:21:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E4D96B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 08:15:54 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so11742011pfn.8
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 05:15:54 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 635716B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 08:21:59 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x21so7500140edx.23
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 05:21:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=vj3d8vRWRgl1TUYLwBnfGWFxKdoE7W/fi9Cn4NFB8No=;
-        b=oBYVJM4iUoyI+v/FlWFVQedluGSyPyAiB5borjk+CV2nI3QRIqKrrmre50vuy2azsV
-         vixww11C9eHnkwzMR7xwAAErBqFxSU3devv00bT8mnI0RF48bYGHxDsDE7Oi/7U3xqYr
-         TLT3q/RBkK82e351wqYZYBJ3VaNLXQcsOO/ELX3rhy8XGsW5GdMRnmxfwJaWJU4idwjr
-         1+QaAw8nqAPAa8PRyouwRbYqp539zwozaqerOZ8mRDSslnPrIMugZUdJTwYv10ny8aHu
-         Vvttbkq7GpBcPltHP4x6sF8JKvPhJB0FIWz5lkvZCt7B/uUYsr9gm4QZkwq3q/xNDho2
-         3P9g==
-X-Gm-Message-State: APjAAAUEY1LfphDOJGpHZ/L89Qb1csqGB5jRZRcvK55onsxpuFsWD09I
-	YT1HAR0hEO4CW5yzYxQqelkSAgSWRVDKTx/c9SHmDY7pHLM4t/saE8pE+G196O1H/L28xl2FFRX
-	uAtJeRfj8dzCsI2sAn7mC9wpHE62uudsi6tNpwA8IwniTiONkvrZ+pvjbwhJT5IX/Yg==
-X-Received: by 2002:a62:4649:: with SMTP id t70mr34140945pfa.100.1556108154143;
-        Wed, 24 Apr 2019 05:15:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwaN8sVcPbJdxGR+zQVDhKYdKrd2PuWRF3KJXiZRDeNEBAcqOtSfm/QFqKYfvSYaWHEbz9e
-X-Received: by 2002:a62:4649:: with SMTP id t70mr34140881pfa.100.1556108153415;
-        Wed, 24 Apr 2019 05:15:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556108153; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6WhskxsObSNh1saZcmrK2YNjE5IY2TOs+LSquGXjHIU=;
+        b=GeeKKsFLkc9ASt/PGGpXJ00RzkIoildB2ddUQsh3shh0PXhpGinkPHR107XrehUOl2
+         2OBqqevRpKWxH6cAFSg9jmRCd02KDETdrxZ3h6xkEOXPiAga+f8iYFH7XFMiNCvuZrCA
+         fePwsYJ4BGDCb10d1DsQqFVyG9xo2mwo9k+cDK9pwdXFCbvLxGtgSdYoA6Tbm/VrG+oK
+         PcYJoh7Wd7cbUK39g5AK6j0LerpFVKAYxJwStfF8xO5UEjn4NPqLwpthTUkBthj5+GVE
+         SUPe6lppQxcnfX9lcREEmBKMY61LRtTRDstP1/pufCvNkcfwhG47orvHvF25eZAUF42J
+         qPWw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVUNiiGG5Mg88wOvwef8otzTWJy124DEAV2AfyRqGZg/EsmxTYj
+	XfaUkpt06FWwO7iSvl+A8QXPBq9ID69s9Oh/x5h7yhekQ/aTA50pPB/gLVAsnoii4aSDDhrpKUs
+	kJ/tjUyCP9dyNTcIi8asmCP4ZodbY9Kg7ngF901kCOV2+cMcEebwt9piFkKkHSeUUhA==
+X-Received: by 2002:a17:906:3d31:: with SMTP id l17mr16205376ejf.67.1556108518904;
+        Wed, 24 Apr 2019 05:21:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOZqBwWmweOyU70ftDQ7i1HjkFUHi2bVvTkBrIEfntfN+zGlc1ml1f99N1tiiiOOLfVzbg
+X-Received: by 2002:a17:906:3d31:: with SMTP id l17mr16205341ejf.67.1556108518041;
+        Wed, 24 Apr 2019 05:21:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556108518; cv=none;
         d=google.com; s=arc-20160816;
-        b=qo5rjgL8cNft4YXuuOjPlANoVNYOoh3Ob4oUEls6yD5f1vYEV1HSCNIoual0tz+Dr7
-         wc/fgUQkJwIXjngWJd5mRB81iC3SGpKP1xgYbKNUOJlUxRl+dZ5YoLPxD0CaYMuDrAwK
-         zSs55tpv5h3yY/RvDpmafm4NiVPVID6TtjCCFPw8KhOW1M+F3uM/2puvWwrHhyw3FhuB
-         r7p96giP9MO+p2Kp1TdREc5J8HndTT+6wx85jls83vwSwttp9kbXFOZe2/ttrvOZ+8NP
-         WVFNGnvWms1hbaBSbhnC+ts9gqnGEBo28Gah2MxKhgQWvg+EpC0QlPFy6YkmUuXOwavx
-         LvLQ==
+        b=I0GDnhAIsOzw6VD9hxeRCCzHpQzVi7wZQlvKgQ+1H5GwXKUy+XraqQ3YqzWIVUVTKO
+         pYx1fWPrhAGghBOQ/wfN4foLbNNbzBhfPmKKguI7RUicAZVSirMimkO138vwV0xvbrNe
+         Xe+Oi9aEQURNYuAz8cDVm5gUaE3qsPkb4zfuX67hjbxYleXTu6HTjSNEQ2xVlXkorLHs
+         eA7mLYAAuJYy5PFVUyoi9Mlp4zNV4McjBMchBNIL5XXWcF5gXpt0rg2ImqRdiv/QVt1F
+         7yDOKg3YGQYYu5/tEhbpTbP8Mj5QBzydq9xFhYcz8m20jEtFdKUZyBZxBBuWKY+pqyKE
+         p91g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=vj3d8vRWRgl1TUYLwBnfGWFxKdoE7W/fi9Cn4NFB8No=;
-        b=siea7y77r6vI47UMg2I+7vr14YSm9dyYWW48wAsjRoa48hrOxcCNdZWRsrkp3U2POU
-         Xyex99JBvPzLIbRIks9v/045hkpe9YNoKVkw3vel3cfJgvqXOIixR5G3LxRiQUbEgZXY
-         gOxrASEvY4KESUyYGdat6Rc/VG9ROA+dnW3u4ilyPrUCs3xjnQO5gVkNECAvwR8iGYeO
-         VaH9FcL7PBEn3qKaBDD92nljHB0bhytGkWkgygQu/iTQeOpkpE3ctTKgSCTC8TFFAf1w
-         cVP/X7vSmISkHXD0QOTmAcxMAIF9bGk00HlC0KEmhxonYFE5/sjRNXgWcclta/uOHrYm
-         f00Q==
+         :message-id:subject:cc:to:from:date;
+        bh=6WhskxsObSNh1saZcmrK2YNjE5IY2TOs+LSquGXjHIU=;
+        b=FvNGNEnoZvqCaVegUd/Y1ALwO1f3iBUjQ6KfyZdLYQ7MV2xqFQCKWQKJ3gC1VD0/NE
+         blrDGQukxuh8fYWtuzXSBSH3WJC59LgfxM5uijlkO49Sz3SBYYSksGHRziSud7PCIqFl
+         eq9Qpo0lA28pfRFjJG5NpXMTYnegXNU8DrpsuEshpYDlSDBzZ1P2ZX03TFbUDQUu2Dgm
+         LwN+KBXiiyRsuz2MXtw4y/y5Z4LdeZMJ+fBrlO6k1Ts+qUmNE4VuBhk4kVAog57rjos2
+         MNHry6JoaH2AscE6/0l86ehKWArI+OxfZWi0S9HqN9xoYij2pW/3al5l1omN+GaUzVzD
+         nAqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=J8NPq1X7;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v12si910721pgr.454.2019.04.24.05.15.53
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id x27si1634295edb.256.2019.04.24.05.21.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Apr 2019 05:15:53 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 05:21:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=J8NPq1X7;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=vj3d8vRWRgl1TUYLwBnfGWFxKdoE7W/fi9Cn4NFB8No=; b=J8NPq1X7WmSDNtrLizSrfa18N
-	glrdrjtxQ84BeviuPHlUcWxnpwS5ifwUV8UrwJOwCe8jwYAahVStfF5QCj7r1SeCgfvG0puP4kR8e
-	kMNY1nHHZpt66U40Yfz/CtUV1mG7lAzp8cAAPmd/oxsAqgJ5RUZarP73PVhXo/AiXPcSiA1rBnYvi
-	aeXxqDYZqKWFsbTmnL1zJrVMuu7Qk912EloZedAFDKqCM0ab9VA0vCAkGjERb7JdZ0YlJzezzBXw5
-	P7+ByEpqDtNHMxgHAjDDQ0I2pFsyFmvxU1RXViI1sariHkEgsDRhy8HCFkgZ66M+Bxthf6jFllLcz
-	nsR030Thw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hJGoa-0001PG-Dz; Wed, 24 Apr 2019 12:15:52 +0000
-Date: Wed, 24 Apr 2019 05:15:52 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, frederic@kernel.org,
-	Christoph Lameter <cl@linux.com>, anna-maria@linutronix.de
-Subject: Re: [PATCH 0/4 v2] mm/swap: Add locking for pagevec
-Message-ID: <20190424121552.GD19031@bombadil.infradead.org>
-References: <20190424111208.24459-1-bigeasy@linutronix.de>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 8F8B31C1C49
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 13:21:57 +0100 (IST)
+Received: (qmail 20196 invoked from network); 24 Apr 2019 12:21:57 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 24 Apr 2019 12:21:57 -0000
+Date: Wed, 24 Apr 2019 13:21:56 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mikulas Patocka <mpatocka@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>,
+	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+Message-ID: <20190424122155.GT18914@techsingularity.net>
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190421063859.GA19926@rapoport-lnx>
+ <20190421132606.GJ7751@bombadil.infradead.org>
+ <20190421211604.GN18914@techsingularity.net>
+ <20190423071354.GB12114@infradead.org>
+ <20190424113352.GA6278@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190424111208.24459-1-bigeasy@linutronix.de>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190424113352.GA6278@rapoport-lnx>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 01:12:04PM +0200, Sebastian Andrzej Siewior wrote:
-> The swap code synchronizes its access to the (four) pagevec struct
-> (which is allocated per-CPU) by disabling preemption. This works and the
-> one struct needs to be accessed from interrupt context is protected by
-> disabling interrupts. This was manually audited and there is no lockdep
-> coverage for this.
-> There is one case where the per-CPU of a remote CPU needs to be accessed
-> and this is solved by started a worker on the remote CPU and waiting for
-> it to finish.
+On Wed, Apr 24, 2019 at 02:33:53PM +0300, Mike Rapoport wrote:
+> On Tue, Apr 23, 2019 at 12:13:54AM -0700, Christoph Hellwig wrote:
+> > On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
+> > > 32-bit NUMA systems should be non-existent in practice. The last NUMA
+> > > system I'm aware of that was both NUMA and 32-bit only died somewhere
+> > > between 2004 and 2007. If someone is running a 64-bit capable system in
+> > > 32-bit mode with NUMA, they really are just punishing themselves for fun.
+> > 
+> > Can we mark it as BROKEN to see if someone shouts and then remove it
+> > a year or two down the road?  Or just kill it off now..
 > 
-> In v1 [0] it was attempted to add per-CPU spinlocks for the access to
-> struct. This would add lockdep coverage and access from a remote CPU so
-> the worker wouldn't be required.
+> How about making SPARSEMEM default for x86-32?
+> 
 
-From my point of view, what is missing from this description is why we
-want to be able to access these structs from a remote CPU.  It's explained
-a little better in the 4/4 changelog, but I don't see any numbers that
-suggest what kinds of gains we might see (eg "reduces power consumption
-by x% on a particular setup", or even "average length of time in idle
-extended from x ms to y ms").
+While an improvement, I tend to agree with Christoph that marking it
+BROKEN as a patch on top of this makes sense and wait to see who, if
+anyone, screams. If it's quiet for long enough then we can remove it
+entirely.
+
+-- 
+Mel Gorman
+SUSE Labs
 
