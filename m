@@ -2,118 +2,132 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAAFFC10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 22:46:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D6CFC10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 23:40:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9788F214C6
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 22:46:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9788F214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 66165214AE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 23:40:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66165214AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E642B6B0005; Wed, 24 Apr 2019 18:46:28 -0400 (EDT)
+	id E3B576B0005; Wed, 24 Apr 2019 19:40:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E14E16B0006; Wed, 24 Apr 2019 18:46:28 -0400 (EDT)
+	id DEA286B0006; Wed, 24 Apr 2019 19:40:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D2AB76B0007; Wed, 24 Apr 2019 18:46:28 -0400 (EDT)
+	id D01896B0007; Wed, 24 Apr 2019 19:40:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A79326B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:46:28 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id b12so12723160pfj.5
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:46:28 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8433D6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 19:40:56 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h10so10721581edn.22
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 16:40:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=J2yLksByTGqGnfyPKOUKaClVqqEkMDyH728QW2cZHQ8=;
-        b=TatQ8vo6eyg7lVgNezW1DUJhG6O28HzwwSWreR4TpA4s1LeV1zKeFg9+/Izdhee2Kl
-         2ePVjtNUBprPhPIivsJ2mmnLDWUde7tl7Py0bRmPwXyU1lWgZ+u8BgsuqPPZou1yMP1w
-         2RC15Z9+CAZ9qjiwSd+fORgxoFx0+p65XEnVnnWmHQzFywHJqElpKlYEOSE75Y4SPKT+
-         3fzegHCUVOA+962OMSXjWU4ELl3Wn1HnK7rIcedfkh7QB2/OqqHgaHqP1I8Y+47Gx646
-         JeONKQ7QfdZtzw80IphPOPIEM53KC3/xxTn9vKGvlMKD6PYDAsKT7OWd6EAWT3hhgUA5
-         IKiw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUcc/GPP8gSEVxzTrHXgx2WYbTddZT/ayHJtwnuCoSitJF/PTZk
-	8SHPxSNBM8+0RAOeAPHKUk+OQoiH95FE7W4lJVbPV+QRydaXLyCXy1Q+SVJMtrfHcSI2zURUmF7
-	KNZn4b7itAT9rv+tdl02Zdpbm/RM9I5TxUYmo6hQhMQqHDjHOv4lMgkJEjQ7eSOu4Yw==
-X-Received: by 2002:a65:51c9:: with SMTP id i9mr33688615pgq.187.1556145988334;
-        Wed, 24 Apr 2019 15:46:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3qXRj3cX57RlPLzaHU/WuN5ZudCaGFmQC7CLESAbI39IQ67QfkIiTuQXQmE3qSREL1NYR
-X-Received: by 2002:a65:51c9:: with SMTP id i9mr33688574pgq.187.1556145987548;
-        Wed, 24 Apr 2019 15:46:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556145987; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=BlBTLW3u4QV0kYFDgPdZbW95f8FWGq2QONe4yySt1dM=;
+        b=KfD6dARgLvembUtbSyW4XwvIHkuPgvvRTxryISkRcxaVij/2Jnubj6DFVHN1uXUhtY
+         c/nyytU6jtGmEjEkBUDoKAYgqPxGEgmgxC1RTr5sIpd1ap0D+P311lAXCdunwJ2Qj8vf
+         xddZX0yJZTnePRQ933VQgc/jRPg+3IrqBZbTJzq/emqMcrrjGzC0AX51MTYEvMiZLad0
+         t5932HGmK9E4OskFtp2BQ8VQ9EGQC4fwCDFbAcsp3wnb8Njd5UMSzcn1pN1m20aipBkX
+         ghppU+yxP86zjSnofC7YN5PCKucxNp2P5xk5OGDdebc0eR/ZXlHO+SFaQrIyRTfZyvxp
+         ew0g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAUUyc8M3Ib/3WFvAbzSMjP3nBvHZt2nS38ceisv4DHLuJBj8+b+
+	sSKED82WxSquY8P1pJVJjlI9VSrE2fmcerHZlmVo2jPazdkcQhFJdsBbWWjZ75Q9LLAF3Eswyw0
+	Rbv3fHxy7iYmCOeIr0+fs08CJD1CMUk3NxL3t9RV4yO7MVOZ5+N4xOX546HlTSCkxTw==
+X-Received: by 2002:a17:906:3b47:: with SMTP id h7mr15470756ejf.15.1556149255984;
+        Wed, 24 Apr 2019 16:40:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyU7BsZepvVpSINPghsfTwisjuZn/fec+cigMf2ZRg8PJ8TBWJND5ged867TLz9dAezyVrU
+X-Received: by 2002:a17:906:3b47:: with SMTP id h7mr15470727ejf.15.1556149254937;
+        Wed, 24 Apr 2019 16:40:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556149254; cv=none;
         d=google.com; s=arc-20160816;
-        b=l4Z/hV47+dSFE3aL4dhvZtUDJLhoDZLAKdwv4R8KSEbm2iMLArHki8I+YgshUCjJo3
-         3GBs8TRpr2zf7tA3ECsfTdC3+uJQSPSotZM/cTcEKhVJvhteqm0YRSsHyvTX2Up6XNYh
-         w1LdYrpUo29gIKZxHx/PfQG9dJO1QT9E8HMsugjzt24aD4xg5S1ZGcosJDK4I04sBC8Z
-         LX/2DOrdQk5stRwh84juxUP3SQEQDmZ1QdSLFiA9N231bKkxKiokJNgAFZsCxeafPez3
-         HTVqFxFJ7UCEwzjDvgfs+82Z9nT45p5r489neMHT8IABqaFw+DjPNTIPit/ogRBdmCxi
-         bJ2A==
+        b=pG651EAK1IpAjd9eQURa552JklJQstELzdGszznfNv4sNYXhXN/yOWu4c76bj0dY7n
+         vzlr6c1X9165tgkxZSHcec7SF0B6HfJhJ6sSrnTDchULpSycAcCzc5L8vZs44x/VGZQ/
+         jvaNF/LhBQUceF9nAnkZ+Q4dlED/ADoOVPXdFSgha5hupM1z13US0BZDuz6VyCuWCnc1
+         45f8qDEJN/AOI0LUvXigjNlkSpelM+OqvBTh11K19lZ+367Htt5u5tgdhVLbF0E5G9mF
+         XC/13tFjnSJ4LVtx3OgvMIml+czP1wAFRcJ4esSwnwKRD2Ln8R/v3SreJ/z+I0px/zyw
+         YFgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=J2yLksByTGqGnfyPKOUKaClVqqEkMDyH728QW2cZHQ8=;
-        b=GkYXSHY9MyIieYNHMJHiBGs5l7DDOpEyLBwvoRt2dHOKqK3H6pRvDFqKG9L668xj73
-         CMIg9lU/ufKqn6cSz62EDkhLjcHp9CoKM+dTK8ekbZKIJLvtY3bM+0PBZT8Wi5MKSZ73
-         YW97MU72FvNxXadSB8325Xk751BtZ3CAymiVlrjkBZUVO62OYbOAZyuRBqYPdIOpHp+K
-         zLssWDwn3j7EJvMv7GLP0NBDwYIWTcfQMAEWUqtyM7Bj2gw5072rQBVxGS6rgRd2qvxy
-         yEeKrV/kT+Hhk5Cp2aEhHLB0rE7NSvs3uC2dheXQI3ttL7YxSscIKpUByjM+QeJ3Tbhv
-         bHIQ==
+        bh=BlBTLW3u4QV0kYFDgPdZbW95f8FWGq2QONe4yySt1dM=;
+        b=U9thzPDSRg9CiGO/229pcCjOFL+TrcGR1IyKcz8tYt+v9tCBiKp2U1DWxxwMBY8QQ7
+         PYC0dJ0LuM5j2F3EEuZHZS/5g0EwGhXQ1lNXHjnSrCq63BK3DTHVCaAIqgbs2NcU7MKV
+         lq4oIFWo55IQAU2M88Xns9G4NRSihq22nHw5BGXBjhPKfNdX5zV3LCZ4quYjQM0VHLnQ
+         iZ55oAkWAWf+ltO+BO7pN+LuKFGx3PJjpUqU49z7N4sBkl5YSGusTAI0m3hxlV2ka7P1
+         waNnn0tIsonbxBaXlMUg+IpoyGl92mbZ5Qu3hc3mHuPUUhK9fPdmNJ6TK5l0/r+hzHMh
+         b6uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z11si18478060pgu.285.2019.04.24.15.46.27
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
+        by mx.google.com with ESMTPS id j35si2729601ede.214.2019.04.24.16.40.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 15:46:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Wed, 24 Apr 2019 16:40:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) client-ip=81.17.249.192;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 66179B49;
-	Wed, 24 Apr 2019 22:46:25 +0000 (UTC)
-Date: Wed, 24 Apr 2019 15:46:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Mel Gorman <mgorman@techsingularity.net>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.192 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id 6FE80B887C
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 00:40:54 +0100 (IST)
+Received: (qmail 21671 invoked from network); 24 Apr 2019 23:40:54 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 24 Apr 2019 23:40:54 -0000
+Date: Thu, 25 Apr 2019 00:40:53 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
+	linux-kernel@vger.kernel.org
 Subject: Re: [PATCH 2/2] mm/page_alloc: fix never set ALLOC_NOFRAGMENT flag
-Message-Id: <20190424154624.f1084195c36684453a557718@linux-foundation.org>
-In-Reply-To: <20190424090403.GS18914@techsingularity.net>
+Message-ID: <20190424234052.GW18914@techsingularity.net>
 References: <20190423120806.3503-1-aryabinin@virtuozzo.com>
-	<20190423120806.3503-2-aryabinin@virtuozzo.com>
-	<20190423120143.f555f77df02a266ba2a7f1fc@linux-foundation.org>
-	<20190424090403.GS18914@techsingularity.net>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20190423120806.3503-2-aryabinin@virtuozzo.com>
+ <20190423120143.f555f77df02a266ba2a7f1fc@linux-foundation.org>
+ <20190424090403.GS18914@techsingularity.net>
+ <20190424154624.f1084195c36684453a557718@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190424154624.f1084195c36684453a557718@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Apr 2019 10:04:03 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> On Tue, Apr 23, 2019 at 12:01:43PM -0700, Andrew Morton wrote:
-> > On Tue, 23 Apr 2019 15:08:06 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> > 
-> > > Commit 0a79cdad5eb2 ("mm: use alloc_flags to record if kswapd can wake")
-> > > removed setting of the ALLOC_NOFRAGMENT flag. Bring it back.
-> > 
-> > What are the runtime effects of this fix?
+On Wed, Apr 24, 2019 at 03:46:24PM -0700, Andrew Morton wrote:
+> On Wed, 24 Apr 2019 10:04:03 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 > 
-> The runtime effect is that ALLOC_NOFRAGMENT behaviour is restored so
-> that allocations are spread across local zones to avoid fragmentation
-> due to mixing pageblocks as long as possible.
+> > On Tue, Apr 23, 2019 at 12:01:43PM -0700, Andrew Morton wrote:
+> > > On Tue, 23 Apr 2019 15:08:06 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> > > 
+> > > > Commit 0a79cdad5eb2 ("mm: use alloc_flags to record if kswapd can wake")
+> > > > removed setting of the ALLOC_NOFRAGMENT flag. Bring it back.
+> > > 
+> > > What are the runtime effects of this fix?
+> > 
+> > The runtime effect is that ALLOC_NOFRAGMENT behaviour is restored so
+> > that allocations are spread across local zones to avoid fragmentation
+> > due to mixing pageblocks as long as possible.
+> 
+> OK, thanks.  Is this worth a -stable backport?
 
-OK, thanks.  Is this worth a -stable backport?
+Yes, but only for 5.0 obviously and both should be included if that is
+the case. I did not push for it initially as problems in this area are
+hard for a general user to detect and people have not complained about
+5.0's fragmentation handling.
+
+-- 
+Mel Gorman
+SUSE Labs
 
