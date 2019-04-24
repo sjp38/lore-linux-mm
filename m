@@ -2,238 +2,206 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF8C1C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:59:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DDEDC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 06:54:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 687A92148D
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 05:59:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 687A92148D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 673CE20656
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 06:54:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 673CE20656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C29F56B0005; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
+	id DAC606B0005; Wed, 24 Apr 2019 02:54:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB11B6B0006; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
+	id D5CA46B0006; Wed, 24 Apr 2019 02:54:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A52076B0007; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
+	id C4B8A6B0007; Wed, 24 Apr 2019 02:54:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F8F76B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 01:59:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id e22so9238894edd.9
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 22:59:38 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A4BE86B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 02:54:31 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id 18so16900530qtw.20
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2019 23:54:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=iyaoBtjrf3Al6KtC2RbgldakEO39ShWQ0SV9Np35UIg=;
-        b=T/gcmbP99aEQ8XcI6syyamiUAtcCnt9bfVbQbSkzOU6sG+8PuC+d9INxS7wq3bVsPj
-         6Wp4UJERXp5KM50ukDgHa9FXMnc2oRDUTSB8v12DqgSkWZ1eUVsNsvNu9w2qXiF9l+g9
-         hCby6UKbzuHjXRg3sdPDaTtExdFDwShI2AwWFOy38YmMOx/xi2bTDSQYG8mjP3tKYPNk
-         4wCBTe42DEUiAa8KAvakBod7++KwXnuu4yzM/ZM/Yoi9fl070EKYic3k8cHT3vXuFuwZ
-         dKnDULJdF1R5Q3bNHZJoKS/hkEA39x2JViLxIaCJayTXLAlckojob4hr/EPsUlMNd2yn
-         WsgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVcw/bI1ml+IGyhEmiInRb5grE7EzzEgUr0Ap5FJ3/IZZY/+6PM
-	lzCqheF8INEQei38qUu7tGEqV2mou9vmZwIL0U5gRaSOdc9gZXAu+NZgW8Sc6qmIK88vxgvsG8T
-	EssLoEHmhnNorCfXSEIXCxLs1lHdmua8EDOcMjSDp0YZTBxxXrvajlteb4xlZg750EQ==
-X-Received: by 2002:a17:906:288f:: with SMTP id o15mr3352214ejd.282.1556085577748;
-        Tue, 23 Apr 2019 22:59:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0WPnGOzRE/MJfTl89EIuLdLFkrYuPkbzKH/Z/FUnx1/8V7ecHtc5gqe+OkWS+gSjl4vNd
-X-Received: by 2002:a17:906:288f:: with SMTP id o15mr3352173ejd.282.1556085576732;
-        Tue, 23 Apr 2019 22:59:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556085576; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=REIRljEnuZQ2EkF+IT6UHuLFU6vu2fSKptw3ZvZUD+I=;
+        b=hFbv8KuoMM40LbPpjbquwrI2krnnCYhgciXZFu+5j/VLjuApPEepxN8uvC6WjdgmCy
+         re7z/OVZjzc0FpF2KGFTMG1MwC5Yq6kGRYBmt8r4Gek8ExYAIdXQihNXGOmh16UXAAO4
+         7+HQNHcs9eWZheIFzZrFS1dm+1ovequsEof2ySW8HSlNuQ8c6DhftpU/jPPV6KXKpMGV
+         yeHK4nAXrolep9ZJMOmvkZXKxEDkgxoWRHnagDo3snIApdTeFMXwbJG3FgmM3YGf0uVa
+         mD+gP8bJyxR33QPHlRsGD1gdHciCtmFG9kHJumbTwz7ZjGBXCcJLCa1EOXOljtxmailI
+         J6Sw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXTGyW+JyFsBkfB9JPQSWAdORp0RxijuwXfNX0eKkOuU9dI7RkK
+	dUixeCq0MBWf4lFdSFLNzbVgIpkWTeyQuLC3MF5yy7NiOahVHkxB4cf3PHyXn9TmgU0OD0K8P9s
+	y7QBgvVTh2DPZNbkemNg3Msc2mR51p7eWfJngTtC8EeTVHjIxMlvHEO6FXAoT4Ckbgw==
+X-Received: by 2002:a37:74c5:: with SMTP id p188mr611705qkc.26.1556088871400;
+        Tue, 23 Apr 2019 23:54:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy204/mNpNOzDNqwUdALG0ZBvDVPSPJbfZ79Fwx35VDEskNSsDBKLxOzSpd+LYFnOk9KNcb
+X-Received: by 2002:a37:74c5:: with SMTP id p188mr611683qkc.26.1556088870788;
+        Tue, 23 Apr 2019 23:54:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556088870; cv=none;
         d=google.com; s=arc-20160816;
-        b=vEOAFedJAlR9ZFCBMMVGlgetf0co3SvrI4caTMb+hIHweiGlfoIXP5xkZ+1uh70jrd
-         1Phaa6uqnFn/IyXBtlkcSPKhczIIANIjUvUsWTxbIQb6j2qXDYvL/n4n8h9+cAxdBfKf
-         vg3cdIpLcCHgndHI9f1KHVnqXu4nsDN9rvg2zEVplP4eH6Mg0Ptgncm4DsbuBOYXtH1M
-         3vMbdj3+SS7cOlZpW2HDMUhPCD9ycZE4s1deWiQ9LT2BWjw+P9QgSCjO5PUKIsERe8Aw
-         WOYfyIWaP6aNfrUrf/dKTFqdD28NVoPxyWGe/S9J52rUSaZn4Geh9KCYZq5AUd4u3JgR
-         Ga5Q==
+        b=1EDcqj+1Ojdy4jF/Lf3QwPQpZG3ISJMPo6i0g+XSQEQmCs6xqoABI4dE66pVgIPp6y
+         DDwRkj4yOiEIJwFIOwU5U8DglUbA4oIZ1WmgNCERDRx8z0u6rhH+3zniMXW073WcOLIu
+         wfE6QTwKP9EE+FTWKXgOX1OMZZPg0xhEXaGNI3fMpNaDPPPnEVzCvcboLBU6jxu+PcG2
+         1/dVLLc9SwzeMQVgAJzAYkKG2J9KfViOUlx6I4vZ924I41FEhIEArxv8gpCMA0vTVEUN
+         dJi5qS+AgN2oTiU27I9Ftl18eJHQXal6sGfbu1SQ6R0Hd4jfHmcSxgzALwucjl4dETVL
+         Awig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=iyaoBtjrf3Al6KtC2RbgldakEO39ShWQ0SV9Np35UIg=;
-        b=Z7HWvbQMVv1j9g9LYZGbll9517+UsOzNgLLIpFtt/f8O6NvcYCjE+3zI9KcWE95iGZ
-         /LxMJ9VkSRPjm8WcgiD7iONNNFpbDF226LdRm0d5h3am21facQgAwU7U6TruysBk8fNS
-         0jau6al9JpVKo0/s5f55DDeWM/vC/16eQn5fAS1rVxPFszTPIhLu/Vavfw/B421H29vZ
-         9GhvjwXn1GpuSi1jG7o6y2PZp+OrZagoNiRS3j10Q6kYiqImZiZvY2oDvtooHlorSeej
-         ZsVoJgimDKoIw0h1xUpGIhrsFHxp27yWyCE4tEFPYmnX7Z9+PSp/Ocmg6suAVLsGkm5t
-         NIbw==
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=REIRljEnuZQ2EkF+IT6UHuLFU6vu2fSKptw3ZvZUD+I=;
+        b=jTLalMjxYhYX6827YaG3VZhPtArSqho0i7A0cvpyrOthKTcVmR+sls2Havk/XB8DW0
+         vKMibwF4tTKaNPbuuNz0ThpxMmq/gHa8ZgSBIq/cuGKxBcmujSgm02gkNRoCJPT+o7fo
+         2ViIYmSbx11A5uPGbHEg2xr1B1z7L9dmgntSm3j/3zcdUHLiR2gfUhAzc4UL/Y4SeVGr
+         t4kycJ4L56txDr92oLiciSfNNIlxfDoLAE6KxfvsL/nmALZf1G3kYZ+6o6HNGLxXJtem
+         JD7lxNtvBC6rXEjGx8umEyGSnQ7MO97uhyAjrImq1mv50XMQXUJkmGIjxPrAbO0isyNo
+         VWBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k9si149028ejd.118.2019.04.23.22.59.36
-        for <linux-mm@kvack.org>;
-        Tue, 23 Apr 2019 22:59:36 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n6si818580qkg.1.2019.04.23.23.54.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Apr 2019 23:54:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3AFDCA78;
-	Tue, 23 Apr 2019 22:59:35 -0700 (PDT)
-Received: from [10.163.1.68] (unknown [10.163.1.68])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 7260F3F5AF;
-	Tue, 23 Apr 2019 22:59:27 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH V2 2/2] arm64/mm: Enable memory hot remove
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
- catalin.marinas@arm.com, mhocko@suse.com, mgorman@techsingularity.net,
- james.morse@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
- david@redhat.com, cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
- <1555221553-18845-3-git-send-email-anshuman.khandual@arm.com>
- <20190415134841.GC13990@lakrids.cambridge.arm.com>
- <2faba38b-ab79-2dda-1b3c-ada5054d91fa@arm.com>
- <20190417142154.GA393@lakrids.cambridge.arm.com>
- <bba0b71c-2d04-d589-e2bf-5de37806548f@arm.com>
- <20190417173948.GB15589@lakrids.cambridge.arm.com>
- <1bdae67b-fcd6-7868-8a92-c8a306c04ec6@arm.com>
- <97413c39-a4a9-ea1b-7093-eb18f950aad7@arm.com>
- <20190423160525.GD56999@lakrids.cambridge.arm.com>
-Message-ID: <ebb9aba0-5ca3-41ed-4183-9d72a354f529@arm.com>
-Date: Wed, 24 Apr 2019 11:29:28 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id C64D230A8199;
+	Wed, 24 Apr 2019 06:54:29 +0000 (UTC)
+Received: from [10.36.116.45] (ovpn-116-45.ams2.redhat.com [10.36.116.45])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9A217648D9;
+	Wed, 24 Apr 2019 06:54:27 +0000 (UTC)
+Subject: Re: [PATCH v1 3/4] mm/memory_hotplug: Make __remove_section() never
+ fail
+To: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+ Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
+ Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
+References: <20190409100148.24703-1-david@redhat.com>
+ <20190409100148.24703-4-david@redhat.com> <1555509378.3139.35.camel@suse.de>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <bfa88494-6e4b-9139-21a1-e80546d2dac9@redhat.com>
+Date: Wed, 24 Apr 2019 08:54:26 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190423160525.GD56999@lakrids.cambridge.arm.com>
+In-Reply-To: <1555509378.3139.35.camel@suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 24 Apr 2019 06:54:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/23/2019 09:35 PM, Mark Rutland wrote:
-> On Tue, Apr 23, 2019 at 01:01:58PM +0530, Anshuman Khandual wrote:
->> Generic usage for init_mm.pagetable_lock
+On 17.04.19 15:56, Oscar Salvador wrote:
+> On Tue, 2019-04-09 at 12:01 +0200, David Hildenbrand wrote:
+>> Let's just warn in case a section is not valid instead of failing to
+>> remove somewhere in the middle of the process, returning an error
+>> that
+>> will be mostly ignored by callers.
 >>
->> Unless I have missed something else these are the generic init_mm kernel page table
->> modifiers at runtime (at least which uses init_mm.page_table_lock)
->>
->> 	1. ioremap_page_range()		/* Mapped I/O memory area */
->> 	2. apply_to_page_range()	/* Change existing kernel linear map */
->> 	3. vmap_page_range()		/* Vmalloc area */
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Oscar Salvador <osalvador@suse.de>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: David Hildenbrand <david@redhat.com>
+>> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+>> Cc: Qian Cai <cai@lca.pw>
+>> Cc: Wei Yang <richard.weiyang@gmail.com>
+>> Cc: Arun KS <arunks@codeaurora.org>
+>> Cc: Mathieu Malaterre <malat@debian.org>
+>> Signed-off-by: David Hildenbrand <david@redhat.com>
 > 
-> Internally, those all use the __p??_alloc() functions to handle racy
-> additions by transiently taking the PTL when installing a new table, but
-> otherwise walk kernel tables _without_ the PTL held. Note that none of
-> these ever free an intermediate level of table.
-
-Right they dont free intermediate level page table but I was curious about the
-only the leaf level modifications.
-
+> Just a nit:
 > 
-> I believe that the idea is that operations on separate VMAs should never
-
-I guess you meant kernel virtual range with 'VMA' but not the actual VMA which is
-vm_area_struct applicable only for the user space not the kernel.
-
-> conflict at the leaf level, and operations on the same VMA should be
-> serialised somehow w.r.t. that VMA.
-
-AFAICT see there is nothing other than hotplug lock i.e mem_hotplug_lock which
-prevents concurrent init_mm modifications and the current situation is only safe
-because some how these VA areas dont overlap with respect to intermediate page
-table level spans.
-
+> I think this could be combined with patch#2.
+> The only reason to fail in here is 1) !valid_section 2)
+> !present_section.
+> As I stated in patch#2, one cannot be without the other, so makes sense
+> to rip present_section check from unregister_mem_section() as well.
+> Then, you could combine both changelogs explaining the whole thing, and
+> why we do not need the present_section check either.
 > 
-> AFAICT, these functions are _never_ called on the linear/direct map or
-> vmemmap VA ranges, and whether or not these can conflict with hot-remove
-> is entirely dependent on whether those ranges can share a level of table
-> with the vmalloc region.
 
-Right but all these VA ranges (linear, vmemmap, vmalloc) are wired in on init_mm
-hence wondering if it is prudent to assume layout scheme which varies a lot based
-on different architectures while deciding possible race protections. Wondering why
-these user should not call [get|put]_online_mems() to prevent race with hotplug.
-Will try this out.
+If I have to resend the whole thing, I might do that. Otherwise we can
+drop the present_section() based on your explanation later.
 
-Unless generic MM expects these VA ranges (linear, vmemmap, vmalloc) layout to be
-in certain manner from the platform guaranteeing non-overlap at intermediate level
-page table spans. Only then we would not a lock.
- 
+Thanks!
+
+> But the change looks good to me:
 > 
-> Do you know how likely that is to occur? e.g. what proportion of the
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-TBH I dont know.
 
-> vmalloc region may share a level of table with the linear or vmemmap
-> regions in a typical arm64 or x86 configuration? Can we deliberately
-> provoke this failure case?
+-- 
 
-I have not enumerated those yet but there are multiple configs on arm64 and
-probably on x86 which decides kernel VA space layout causing these potential
-races. But regardless its not right to assume on vmalloc range span and not
-take a lock.
+Thanks,
 
-Not sure how to provoke this failure case from user space with simple hotplug
-because vmalloc physical allocation normally cannot be controlled without a
-hacked kernel change.
-
-> 
-> [...]
-> 
->> In all of the above.
->>
->> - Page table pages [p4d|pud|pmd|pte]_alloc_[kernel] settings are
->>   protected with init_mm.page_table_lock
-> 
-> Racy addition is protect in this manner.
-
-Right.
-
-> 
->> - Should not it require init_mm.page_table_lock for all leaf level
->>   (PUD|PMD|PTE) modification as well ?
-> 
-> As above, I believe that the PTL is assumed to not be necessary there
-> since other mutual exclusion should be in effect to prevent racy
-> modification of leaf entries.
-
-Wondering what are those mutual exclusions other than the memory hotplug lock.
-Again if its on kernel VA space layout assumptions its not a good idea.
-
-> 
->> - Should not this require init_mm.page_table_lock for page table walk
->>   itself ?
->>
->> Not taking an overall lock for all these three operations will
->> potentially race with an ongoing memory hot remove operation which
->> takes an overall lock as proposed. Wondering if this has this been
->> safe till now ?
-> 
-> I suspect that the answer is that hot-remove is not thoroughly
-> stress-tested today, and conflicts are possible but rare.
-
-Will make these generic modifiers call [get|put]_online_mems() in a separate
-patch at least to protect themselves from memory hot remove operation.
-
-> 
-> As above, can we figure out how likely conflicts are, and try to come up
-> with a stress test?
-
-Will try something out by hot plugging a memory range without actually onlining it
-while there is another vmalloc stress running on the system.
-
-> 
-> Is it possible to avoid these specific conflicts (ignoring ptdump) by
-> aligning VA regions such that they cannot share intermediate levels of
-> table?
-
-Kernel VA space layout is platform specific where core MM does not mandate much. 
-Hence generic modifiers should not make any assumptions regarding it but protect
-themselves with locks. Doing any thing other than that is just pushing the problem
-to future.
+David / dhildenb
 
