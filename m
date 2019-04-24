@@ -2,211 +2,113 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6D45C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 15:47:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA679C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 16:14:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D7BB20878
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 15:47:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D7BB20878
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id B45A721901
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 16:14:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B45A721901
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D07356B0005; Wed, 24 Apr 2019 11:47:58 -0400 (EDT)
+	id 43F7F6B0005; Wed, 24 Apr 2019 12:14:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB6A06B0006; Wed, 24 Apr 2019 11:47:58 -0400 (EDT)
+	id 3EE9A6B0006; Wed, 24 Apr 2019 12:14:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA66A6B0007; Wed, 24 Apr 2019 11:47:58 -0400 (EDT)
+	id 304956B0007; Wed, 24 Apr 2019 12:14:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 806206B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 11:47:58 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id c7so12654775plo.8
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 08:47:58 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 099B56B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:14:59 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h14so12359907pgn.23
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 09:14:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=6Dyg6P4LVPcLYhzDiJybhSFMUiH3oj6JY/r02xP+Bb8=;
-        b=H3EA/9TwV+96reAijHZF2U/Asc4ma7Pl/mL/7ZmuEvEDOIoATnLE2B2swh6JOzdfCZ
-         3i4bjDoDu/k6lM+EihxUk+z/zY9oM+cZjPBcvYE1S96GZvMcDEnsPZut3AeAmUam9nN+
-         BcBYy7IJeiAfvxNBaQWijrFyPnq/gDGCvNQmG51X3E8Isl8P9+dRT0P2sGENCV2+8NOX
-         ktx/HOp5MmfwIcu3J71hOmTddPZi8hVS8tEbPVM2zEqc680R+DVFSzYfWWsoVWr58u2D
-         7vt0Hso7KpzDMDmdvHeQQpJGBWULoVAf8SwxQE700WWHfKs5twWkUAlSsIENvxk9LRDZ
-         /i+Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVuAqms05rSWVEaRLulqz8RUfliy9Ukt5ww7EXkSHwGN677FQOM
-	0MeHIkeWvdA5pqA6SmTxA7jXSN2MLnJm3qejfJzV7ME6HmkY+KwmxwTKFenLgW+JdIUfe6/v+ld
-	pS0iXXvEORGo6r8/8+XUJv5ecyI0nFqDtKISEDOGkHmtPx979diXxn7r0b3LyWRas7g==
-X-Received: by 2002:a17:902:102a:: with SMTP id b39mr33471232pla.188.1556120878012;
-        Wed, 24 Apr 2019 08:47:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzmWccSzA5GdWX5kZ917PjlMCc9b8R/Z+ryuDpHqAoP0xQrb/2RSovU4NR4etmKqwOIkkT
-X-Received: by 2002:a17:902:102a:: with SMTP id b39mr33471153pla.188.1556120877129;
-        Wed, 24 Apr 2019 08:47:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556120877; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=k9zqLKiedwoTlErYQZEKQSxxUtNrFe7kZXxbcVHJny0=;
+        b=nR5dsSVisnPysgTculYf9veE/Eiut20TFdIThI54fYyXoiB7yTVv/bjzRUS3Klcz2z
+         pl8H2YxY7wIJVN1ZeAyskmlsNFYfCbei2FXw6DxeZZv292TVimcLO6WTzohOvrzruCqF
+         CqbtOumcaqkWvKJd4GViqFSo4bQgeSzjfjZ7CS7+UdIIFy70hfRLUyCD8sD713HXMmN8
+         ZrOW0JydtupuzGOI1AdzqRhnjyMKBFKiwKnRwCcmkq4Hf855VFXpFpXbR0nyU1pb//Tv
+         wNTQOZnUMkV+8zhqI9GL6yGUlmzdM2y9XqA1KX3cp3wioCs9rl1IDc1UGpxntBAF3Os5
+         znBA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+X-Gm-Message-State: APjAAAW/d3IdDSbHigz20+eKuxI38eoRMNsZGcZJIzhDaS5Ch0e6AS0+
+	1+hWBrhPCkPoz5x4LlZCmYOSydGsSZwuNN3qAPlZUUm5+DgOzDFSZ/S3KFKrYMyC9U2lI1utT40
+	R4NBGRSMva17RhsqKEoEFF83a/Z/gtETa5zvup2KlwCDJSkYUY6S6WwdmIXOpwKHY6g==
+X-Received: by 2002:a63:fa54:: with SMTP id g20mr31585334pgk.242.1556122498158;
+        Wed, 24 Apr 2019 09:14:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+7B4nmE87AIcke6olKhMxtd9R/HM15nWGJcNWVhMDRugUswlXU7RYAJ0kY9jwHibrj+8j
+X-Received: by 2002:a63:fa54:: with SMTP id g20mr31585279pgk.242.1556122497368;
+        Wed, 24 Apr 2019 09:14:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556122497; cv=none;
         d=google.com; s=arc-20160816;
-        b=s/qffcfevOJ9+7UtRoRGpyLtJ/zOdbHqsYeU2VTylScWvUfSalXUW87+DeaMZNAcms
-         7m/34kLnEdKGhOP6l1Tfs2NoUAUNQZ4TkBPUGwkOi1oBC5jBddk8l2aejojILO5OGdpc
-         QZqzOE9rY9NJC84s+NGOD7Hcsy+JxpmBxeujPVSNmmu1gfCjCO0f6k/o70FP+d5NLmPd
-         bvu4ZqedXj+zCkjaTNcWaRR9DbhsCqj7Pacu5n+L7RbIHMFkYKvFb4zJh6vEPH5+H+ac
-         QsrIrQZlw7b8bP+tMQsC1OaOw9ctdFb6ZeQg8tzCW+95r4eSYSr6eUB/EUl4MbFGhq61
-         mwZw==
+        b=Z0Sj/JxhREIXTGZ7P2zMsF63jiPkETebZ9Nieitrf296LsUu5yWpZKM5lEi6KLmNXJ
+         lgAoLAxJY8aSvp87YVuNa1ZrvFg+/53VwPa29B9OuSMbvY39pG0zR64rmUTbS4m76NoJ
+         d0EAWkB9N3+fYyvd3suMXxORFiEvaZsAOGqd870diMVULXyVbpWgiwCqMhDR1RCU2nh7
+         Yv46+qjVXuFX2oxyCYOYCgazvwNUvnzkknTGHceVF9EwXjqOiwV3iFNibqSGQnYVhvKf
+         +aNVAuMKvYENA9lYUbe+tQSpzuFElNdev02qC/8Pe76r5zr3oqIWttFoGdIiwY0M/vXZ
+         WGBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=6Dyg6P4LVPcLYhzDiJybhSFMUiH3oj6JY/r02xP+Bb8=;
-        b=Df5LxQrM5LfYvpwfqu8GOFG3750eZowZdvvW2udfO/aoC9UtI6vkbWNvbyZCgZXdZr
-         qoWvOXJPzGZemDjvvdSMtQTJcywUXpuUTcYQrwEg2kpeDQJVxovM47kf6E066J+HT4dD
-         THsVHN9HTIX0QETmIzYZyvvzRHabEjh3PZEsDAstoxOZtqiItWD0+C4NldzgOATbZO6s
-         t6e6nOedP8NYGUvVTZWWrwPD6IvQLhdTPL3RfqkE4H18FifdDrvuS3KhzkftxZMAKwL5
-         yp2w1hWdeS0oPeHx785SomWBYRJEtM2J+izvnXGnwnZn3lUgzeUMns/eXO0bF37jyhlP
-         zrWQ==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=k9zqLKiedwoTlErYQZEKQSxxUtNrFe7kZXxbcVHJny0=;
+        b=Pt4GqJqhnOlXOHFwpdp5EgPwXR8WSLQttqP0pcXx7dqqJxOeV6/c/n1z7CDiRgPAzi
+         8W98wTSb8RdwoRdEu3QCNWeu+RrQYSkiTkr8PvHU1wns0y+uHSBzN4iiXITAKxZEd5ax
+         MLr5UQ+6CJvy/a3QekEQZxlouG1IfLZIN/TKrT7PhtVcYgNE/Uxea9gK/30fDuJ2MQb3
+         Ps0ueW66H5F6k/4nyx0/LbtIhnrosEKqgD8OXRUw59OtuOtA6jfSR9PQa8BJ+aTWZd31
+         LQ7qBY5O65Pnczs0Y3tlVdk3do7ufSSfMIzOap3qUS8WKmECLubV5vycywkpz//UB/2L
+         by+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id u31si5307491pgl.438.2019.04.24.08.47.55
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id i33si18103504pld.374.2019.04.24.09.14.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 08:47:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        Wed, 24 Apr 2019 09:14:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R591e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TQ8p1V-_1556120859;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TQ8p1V-_1556120859)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 24 Apr 2019 23:47:41 +0800
-Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-To: Vlastimil Babka <vbabka@suse.cz>, mhocko@suse.com, rientjes@google.com,
- kirill@shutemov.name, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org__handle_mm_fault
-References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
- <a0fa99eb-0efa-25ac-9228-167e89179549@suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <cca0cab8-c1a5-2ea5-0433-964b8166f54a@linux.alibaba.com>
-Date: Wed, 24 Apr 2019 08:47:35 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from lwn.net (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ms.lwn.net (Postfix) with ESMTPSA id 8E6621AA;
+	Wed, 24 Apr 2019 16:14:56 +0000 (UTC)
+Date: Wed, 24 Apr 2019 10:14:55 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] docs/vm: add documentation of memory models
+Message-ID: <20190424101455.12cd407e@lwn.net>
+In-Reply-To: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
+References: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
+Organization: LWN.net
 MIME-Version: 1.0
-In-Reply-To: <a0fa99eb-0efa-25ac-9228-167e89179549@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 8bit
-Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 24 Apr 2019 13:28:35 +0300
+Mike Rapoport <rppt@linux.ibm.com> wrote:
 
+> Describe what {FLAT,DISCONTIG,SPARSE}MEM are and how they manage to
+> maintain pfn <-> struct page correspondence.
 
-On 4/24/19 6:10 AM, Vlastimil Babka wrote:
-> On 4/23/19 6:43 PM, Yang Shi wrote:
->> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each
->> vma") introduced THPeligible bit for processes' smaps. But, when checking
->> the eligibility for shmem vma, __transparent_hugepage_enabled() is
->> called to override the result from shmem_huge_enabled().  It may result
->> in the anonymous vma's THP flag override shmem's.  For example, running a
->> simple test which create THP for shmem, but with anonymous THP disabled,
->> when reading the process's smaps, it may show:
->>
->> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
->> Size:               4096 kB
->> ...
->> [snip]
->> ...
->> ShmemPmdMapped:     4096 kB
-> But how does this happen in the first place?
-> In __handle_mm_fault() we do:
->
->          if (pmd_none(*vmf.pmd) && __transparent_hugepage_enabled(vma)) {
->                  ret = create_huge_pmd(&vmf);
->                  if (!(ret & VM_FAULT_FALLBACK))
->                          return ret;
->
-> And __transparent_hugepage_enabled() checks the global THP settings.
-> If THP is not enabled / is only for madvise and the vma is not madvised,
-> then this should fail, and also khugepaged shouldn't either run at all,
-> or don't do its job for such non-madvised vma.
+Quick question: should this document perhaps mention that DISCONTIGMEM
+appears to be on its way out?
 
-If __transparent_hugepage_enabled() returns false, the code will not 
-reach create_huge_pmd() at all. If it returns true, create_huge_pmd() 
-actually will return VM_FAULT_FALLBACK for shmem since shmem doesn't 
-have huge_fault (or pmd_fault in earlier versions) method.
+Thanks,
 
-Then it will get into handle_pte_fault(), finally shmem_fault() is 
-called, which allocates THP by checking some global flag (i.e. 
-VM_NOHUGEPAGE and MMF_DISABLE_THP) and  shmem THP knobs.
-
-4.8 (the first version has shmem THP merged) behaves exactly in the same 
-way. So, I suspect this may be intended behavior.
-
->
-> What am I missing?
->
->> ...
->> [snip]
->> ...
->> THPeligible:    0
->>
->> And, /proc/meminfo does show THP allocated and PMD mapped too:
->>
->> ShmemHugePages:     4096 kB
->> ShmemPmdMapped:     4096 kB
->>
->> This doesn't make too much sense.  The anonymous THP flag should not
->> intervene shmem THP.  Calling shmem_huge_enabled() with checking
->> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
->> dax vma check since we already checked if the vma is shmem already.
->>
->> Fixes: 7635d9cbe832 ("mm, thp, proc: report THP eligibility for each vma")
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Vlastimil Babka <vbabka@suse.cz>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Kirill A. Shutemov <kirill@shutemov.name>
->> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->> ---
->> v2: Check VM_NOHUGEPAGE per Michal Hocko
->>
->>   mm/huge_memory.c | 4 ++--
->>   mm/shmem.c       | 3 +++
->>   2 files changed, 5 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 165ea46..5881e82 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -67,8 +67,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma)
->>   {
->>   	if (vma_is_anonymous(vma))
->>   		return __transparent_hugepage_enabled(vma);
->> -	if (vma_is_shmem(vma) && shmem_huge_enabled(vma))
->> -		return __transparent_hugepage_enabled(vma);
->> +	if (vma_is_shmem(vma))
->> +		return shmem_huge_enabled(vma);
->>   
->>   	return false;
->>   }
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 2275a0f..6f09a31 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -3873,6 +3873,9 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
->>   	loff_t i_size;
->>   	pgoff_t off;
->>   
->> +	if ((vma->vm_flags & VM_NOHUGEPAGE) ||
->> +	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
->> +		return false;
->>   	if (shmem_huge == SHMEM_HUGE_FORCE)
->>   		return true;
->>   	if (shmem_huge == SHMEM_HUGE_DENY)
->>
+jon
 
