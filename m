@@ -3,186 +3,155 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1CE7C282E1
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F14C5C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:51:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F84F20674
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:49:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F84F20674
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=linux.microsoft.com
+	by mail.kernel.org (Postfix) with ESMTP id A590720674
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 19:51:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A590720674
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F43A6B0005; Wed, 24 Apr 2019 15:49:00 -0400 (EDT)
+	id 412C26B0005; Wed, 24 Apr 2019 15:51:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17AA56B0006; Wed, 24 Apr 2019 15:49:00 -0400 (EDT)
+	id 3C21F6B0006; Wed, 24 Apr 2019 15:51:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 042666B0007; Wed, 24 Apr 2019 15:48:59 -0400 (EDT)
+	id 2B3A56B0007; Wed, 24 Apr 2019 15:51:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEE66B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:48:59 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b12so12462248pfj.5
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:48:59 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CEE026B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 15:51:19 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id j22so2099447wre.12
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:51:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RKjNePx9D/ECdRDdmO66lIWVGsVfD2+1fIN9qgzCcOg=;
-        b=bkBMTcup61vqjp/XgcoAuq7gpWTjZ4s2j37QbIZVXODTDF3fyeUtrSbx0laCj+Aaqj
-         FY2Hf1f8opm3HjHVO66BpRbKVNHJyIwbxfBbZQGaOubVnRgu1XhxKHujuBmQLZVgcRfh
-         HQnnOtN0MHZaJ+CDZxTV2FNMWA40rMeRFtf9XkOY50yt0v5bqGc7K22IVQrrNTedZ44F
-         2G+I33Ah3llZDeK9YKQmlKWvywQH6G+jjWZKh7IeqWHy1NTswX2bWaijCBuVDbOYBrLQ
-         /uPxe1YvC8YF24WSgLTdxIZ1QlbYylyIC3NzxFe9fPrRNkaFxZY5sr+fMmfM/P4pOPeW
-         h4aw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of patatash@linux.microsoft.com designates 13.77.154.182 as permitted sender) smtp.mailfrom=patatash@linux.microsoft.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=microsoft.com
-X-Gm-Message-State: APjAAAVai/lhSthnAn8frUsyWKgRVBf34VAGAnk8C0jDOUliozXGgovJ
-	j36lLJOQFQdjwu/rMR1JIxt1ewWBFQTX+IWlruBOs3+25UEbaWmHHxkSrf1uUAX9fhbEP8mdp9d
-	ickQ1aNKCaLlDFc2HA3zTQwdVk1WsBjmXCrNJ0nRoWsNPr/EJ+WePNn5zjL1J0desnQ==
-X-Received: by 2002:aa7:8392:: with SMTP id u18mr36379005pfm.217.1556135339388;
-        Wed, 24 Apr 2019 12:48:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdQDEjEbuAULNOZ0LaSSMQcPN7IPQo3gARQRz8n45dtVxD4jc5X8ofGHnjXPwro2iOiVYr
-X-Received: by 2002:aa7:8392:: with SMTP id u18mr36378946pfm.217.1556135338535;
-        Wed, 24 Apr 2019 12:48:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556135338; cv=none;
-        d=google.com; s=arc-20160816;
-        b=bzvWg9MjzKn+mqB9oiVcdQGlZwAfEwR8Ajt2+p031GEvo5SEnemeGLNZCsqYTdmhu8
-         rjoosFj9BtSSU0TRwE7Moc25g9aYqhjy0B0MCbTeo7sBzYRa1HI0LEdrR26cW72zvGFq
-         Qf2TDyCA0SsYIFnxR4RMJzh5B4pKk13/uvUnRuvEg+JLpXMfLnH8ShHTjSoXmDcD0mRr
-         /RiQLhig1SYJD5o0zjbitXYKHzIqalNIm3sadx4eCQPmpMaJe4o1FAUu/glHMscHuknz
-         THWj0qhiH2ETCQkst4WFOsCF29NvS9zfPB4y0SwMdY4+J4Fgih6KxkG2CC5os6F3RIGa
-         xY+A==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
          :mime-version;
-        bh=RKjNePx9D/ECdRDdmO66lIWVGsVfD2+1fIN9qgzCcOg=;
-        b=vacs1oyJX6UKjkFcaT9CyKfW6jxhJbk82J7g3k0KWHF9Z1EqAl4nHZlfiFNq+MSz6Q
-         vMqLKTFFaYEReKKIytIPOcU0JZSCny8LZI+WsmCA3antoG05PoAz4g9Ou/TviqeOZaJB
-         Jhihqffwrt4vYBxXCI0FuGgQEJ1JRsxdG9FLZ1rZE7QfPNQArljK89fz1DQlmWuK5QoP
-         QCF30C6KTnO05RNYecwXo96rySrIrAuC43hoKWBMzj/zTBUy18ltLv8b7taOjfNyrueN
-         gwRma63//Z2o7HGypVxhsYSbM7eQ9qnbHms7ZH9AbYKv0V8qE58bcsN816ZkIFkvCTK1
-         W4ow==
+        bh=WcwpYdXiXw/CQPBbfKfYuXWd8xPWqgN2d4maqJEk8aY=;
+        b=TQuzU855VCHseUn2Bqgk+xNcy76FexF9oSI01EPpUqIDjE2uNJgdCgGUZF4kmhPgtP
+         AlrVW9lkSQv8K5B8QqhDY4f3kQuVAY2EIOpXFAqFn0S316GN1hQwlXPuyJ+R6K2x0P9D
+         5LmkA4O2xSsvJIIF6aZZle7qbYz+aMoczwFLYhugfzOvtkakGeXT0957NzVlFctEYsFY
+         v6kmwYbieSjFx8zIpRCciBI0cAR39Yzg5o5SYpwf/5V+VJ3uyw6ucbNm1/pLy6VzztjS
+         G4ygB5weHOWVBq1MuovnQvJys4sdiSMywyn5Hu8kEjwd3D127ax9DZrJcgbu/o8QBnoX
+         AMUg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAVOUObHMR9PTpprulZvBBgro/iI2Fg/vMDk4wong0fDQnHzB5/j
+	UqLJDnipsgdk8d7vFYNuCR0v+zuBGZo1mLTPbc9wnIlt51Hpwd7YAT1OP1D9mXOyQNIMH+aOUJP
+	eBt1sGGmStanGQ1F956WqJUdp1hCDlrRiRvInddn+sevq4n0AK6Jocnzbo2D4MrNf/Q==
+X-Received: by 2002:a7b:cb58:: with SMTP id v24mr516467wmj.121.1556135479421;
+        Wed, 24 Apr 2019 12:51:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwu6yKK9G6xvv9lL6NIPCzYUjWIm8/d18mba8dM5rijSeMSQVSAcvC4DpX3+RVvxR0Whccz
+X-Received: by 2002:a7b:cb58:: with SMTP id v24mr516435wmj.121.1556135478666;
+        Wed, 24 Apr 2019 12:51:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556135478; cv=none;
+        d=google.com; s=arc-20160816;
+        b=nU1Hbl35IT2xxUMUXjYlxMbz/7lIPox5BrtRoykNSSf0WILl5dA596yBL076KrYBj+
+         Hsh3e86902rXIU52mZNE8AyXq1HMlqks4YAg+tv1eiJ8tnO1tQ3y+rZL4X+lPW3k4jq7
+         NJcdcom7+i7piBI134L/yB11bzq1f2Tur/ZrY5OzV7fsv+zFZT7A9KGsHKMVhS6NwX3p
+         XTJKDPcAZnUP9HRSnazFvPJm8aEfcS6cwTaJJtKvIhiWvmbeLO+KzvKVBbx1jgKwEXtM
+         4oHB+0XYJt5lzpChT9wDWKJ8oHV95UgB0Vk5HMtfrcjHCbkiTvsya4fYCpRB1I6R1k4T
+         1ISA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=WcwpYdXiXw/CQPBbfKfYuXWd8xPWqgN2d4maqJEk8aY=;
+        b=FCZWL677REU/s7F3AovVQ1Wr2e83Nt+GcQmYVwOlN2OqC46J4Jarm1sJm1v5CxzPS2
+         wli+ZEciHGPc8VgZyd3R1ndJ4DwffX7UVeQhtbNvSTSs6z2JZ5pUUyiVrspXsHpfNmi2
+         A2z2oLrwNGaE2x82cDvjrmnAjJbM+SNUNdHKyaXkRGR/0x0gt8DI2diQnEQImcLvPFoh
+         tS/cCoJK/4DlXJ7uZ2S3y+J+Y2tB5xVl2Y729X1iv9Fv+FR3HtWxzY+0Y2Ip0/xSxsMV
+         v6YslIIq4vGaQpnxBrnlzJvdKKCYk7pWIxnVr56Qqnk1SM50QN2n9XDxbaHWXcoQPq/c
+         1Wqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of patatash@linux.microsoft.com designates 13.77.154.182 as permitted sender) smtp.mailfrom=patatash@linux.microsoft.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=microsoft.com
-Received: from linux.microsoft.com ([13.77.154.182])
-        by mx.google.com with ESMTP id m10si908894pgp.478.2019.04.24.12.48.58
-        for <linux-mm@kvack.org>;
-        Wed, 24 Apr 2019 12:48:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of patatash@linux.microsoft.com designates 13.77.154.182 as permitted sender) client-ip=13.77.154.182;
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id l14si13774869wmc.80.2019.04.24.12.51.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Apr 2019 12:51:18 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of patatash@linux.microsoft.com designates 13.77.154.182 as permitted sender) smtp.mailfrom=patatash@linux.microsoft.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=microsoft.com
-Received: from mail-ed1-f44.google.com (mail-ed1-f44.google.com [209.85.208.44])
-	by linux.microsoft.com (Postfix) with ESMTPSA id 595C530CB914
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:48:57 -0700 (PDT)
-Received: by mail-ed1-f44.google.com with SMTP id y67so17052776ede.2
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 12:48:57 -0700 (PDT)
-X-Received: by 2002:a17:906:b291:: with SMTP id q17mr17493373ejz.56.1556135335559;
- Wed, 24 Apr 2019 12:48:55 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from p5de0b374.dip0.t-ipconnect.de ([93.224.179.116] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hJNv9-0005Zr-Gt; Wed, 24 Apr 2019 21:51:07 +0200
+Date: Wed, 24 Apr 2019 21:51:05 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+cc: LKML <linux-kernel@vger.kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, 
+    x86@kernel.org, Andy Lutomirski <luto@kernel.org>, 
+    Steven Rostedt <rostedt@goodmis.org>, 
+    Alexander Potapenko <glider@google.com>, 
+    Alexey Dobriyan <adobriyan@gmail.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, 
+    David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, 
+    Catalin Marinas <catalin.marinas@arm.com>, 
+    Dmitry Vyukov <dvyukov@google.com>, 
+    Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com, 
+    Mike Rapoport <rppt@linux.vnet.ibm.com>, 
+    Akinobu Mita <akinobu.mita@gmail.com>, iommu@lists.linux-foundation.org, 
+    Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, 
+    Marek Szyprowski <m.szyprowski@samsung.com>, 
+    Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>, 
+    Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, 
+    linux-btrfs@vger.kernel.org, dm-devel@redhat.com, 
+    Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>, 
+    intel-gfx@lists.freedesktop.org, 
+    Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, 
+    Maarten Lankhorst <maarten.lankhorst@linux.intel.com>, 
+    dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, 
+    Jani Nikula <jani.nikula@linux.intel.com>, Daniel Vetter <daniel@ffwll.ch>, 
+    Rodrigo Vivi <rodrigo.vivi@intel.com>, linux-arch@vger.kernel.org
+Subject: Re: [patch V2 18/29] lockdep: Move stack trace logic into
+ check_prev_add()
+In-Reply-To: <20190424194505.GR11158@hirez.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.21.1904242148480.1762@nanos.tec.linutronix.de>
+References: <20190418084119.056416939@linutronix.de> <20190418084254.729689921@linutronix.de> <20190424194505.GR11158@hirez.programming.kicks-ass.net>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <20190423203843.2898-1-pasha.tatashin@soleen.com> <7f7499bd-8d48-945b-6d69-60685a02c8da@arm.com>
-In-Reply-To: <7f7499bd-8d48-945b-6d69-60685a02c8da@arm.com>
-From: Pavel Tatashin <patatash@linux.microsoft.com>
-Date: Wed, 24 Apr 2019 15:48:44 -0400
-X-Gmail-Original-Message-ID: <CA+CK2bCD11x64pJj5gSnsu5jsUqJyU6o+=J4K8oYAsHqz9ULqQ@mail.gmail.com>
-Message-ID: <CA+CK2bCD11x64pJj5gSnsu5jsUqJyU6o+=J4K8oYAsHqz9ULqQ@mail.gmail.com>
-Subject: Re: [PATCH] arm64: configurable sparsemem section size
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>, 
-	Vishal L Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, 
-	Ross Zwisler <zwisler@kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
-	Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	catalin.marinas@arm.com, Will Deacon <will.deacon@arm.com>, rppt@linux.vnet.ibm.com, 
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>, andrew.murray@arm.com, james.morse@arm.com, 
-	Marc Zyngier <marc.zyngier@arm.com>, sboyd@kernel.org, 
-	linux-arm-kernel@lists.infradead.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 5:07 AM Anshuman Khandual
-<anshuman.khandual@arm.com> wrote:
->
-> On 04/24/2019 02:08 AM, Pavel Tatashin wrote:
-> > sparsemem section size determines the maximum size and alignment that
-> > is allowed to offline/online memory block. The bigger the size the less
-> > the clutter in /sys/devices/system/memory/*. On the other hand, however,
-> > there is less flexability in what granules of memory can be added and
-> > removed.
->
-> Is there any scenario where less than a 1GB needs to be added on arm64 ?
+On Wed, 24 Apr 2019, Peter Zijlstra wrote:
+> On Thu, Apr 18, 2019 at 10:41:37AM +0200, Thomas Gleixner wrote:
+> > There is only one caller of check_prev_add() which hands in a zeroed struct
+> > stack trace and a function pointer to save_stack(). Inside check_prev_add()
+> > the stack_trace struct is checked for being empty, which is always
+> > true. Based on that one code path stores a stack trace which is unused. The
+> > comment there does not make sense either. It's all leftovers from
+> > historical lockdep code (cross release).
+> 
+> I was more or less expecting a revert of:
+> 
+> ce07a9415f26 ("locking/lockdep: Make check_prev_add() able to handle external stack_trace")
+> 
+> And then I read the comment that went with the "static struct
+> stack_trace trace" that got removed (in the above commit) and realized
+> that your patch will consume more stack entries.
+> 
+> The problem is when the held lock stack in check_prevs_add() has multple
+> trylock entries on top, in that case we call check_prev_add() multiple
+> times, and this patch will then save the exact same stack-trace multiple
+> times, consuming static resources.
+> 
+> Possibly we should copy what stackdepot does (but we cannot use it
+> directly because stackdepot uses locks; but possible we can share bits),
+> but that is a patch for another day I think.
+> 
+> So while convoluted, perhaps we should retain this code for now.
 
-Yes, DAX hotplug loses 1G of memory without allowing smaller sections.
-Machines on which we are going to be using this functionality have 8G
-of System RAM, therefore losing 1G is a big problem.
-
-For details about using scenario see this cover letter:
-https://lore.kernel.org/lkml/20190421014429.31206-1-pasha.tatashin@soleen.com/
-
->
-> >
-> > Recently, it was enabled in Linux to hotadd persistent memory that
-> > can be either real NV device, or reserved from regular System RAM
-> > and has identity of devdax.
->
-> devdax (even ZONE_DEVICE) support has not been enabled on arm64 yet.
-
-Correct, I use your patches to enable ZONE_DEVICE, and  thus devdax on ARM64:
-https://lore.kernel.org/lkml/1554265806-11501-1-git-send-email-anshuman.khandual@arm.com/
-
->
-> >
-> > The problem is that because ARM64's section size is 1G, and devdax must
-> > have 2M label section, the first 1G is always missed when device is
-> > attached, because it is not 1G aligned.
->
-> devdax has to be 2M aligned ? Does Linux enforce that right now ?
-
-Unfortunately, there is no way around this. Part of the memory can be
-reserved as persistent memory via device tree.
-        memory@40000000 {
-                device_type = "memory";
-                reg = < 0x00000000 0x40000000
-                        0x00000002 0x00000000 >;
-        };
-
-        pmem@1c0000000 {
-                compatible = "pmem-region";
-                reg = <0x00000001 0xc0000000
-                       0x00000000 0x80000000>;
-                volatile;
-                numa-node-id = <0>;
-        };
-
-So, while pmem is section aligned, as it should be, the dax device is
-going to be pmem start address + label size, which is 2M. The actual
-DAX device starts at:
-0x1c0000000 + 2M.
-
-Because section size is 1G, the hotplug will able to add only memory
-starting from
-0x1c0000000 + 1G
-
-> 27 and 28 do not even compile for ARM64_64_PAGES because of MAX_ORDER and
-> SECTION_SIZE mismatch.
-
-Can you please elaborate what configs are you using? I have no
-problems compiling with 27 and 28 bit.
-
-Thank you,
-Pasha
+Uurg, what a mess.
 
