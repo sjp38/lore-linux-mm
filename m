@@ -2,111 +2,110 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56043C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 18:08:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DFB3C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 18:14:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B04620652
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 18:08:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 03E142089F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 18:14:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="n35r7HLE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B04620652
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="jydYgmEc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03E142089F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 991176B0005; Wed, 24 Apr 2019 14:08:05 -0400 (EDT)
+	id 4F8A36B0007; Wed, 24 Apr 2019 14:14:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 93FC56B0006; Wed, 24 Apr 2019 14:08:05 -0400 (EDT)
+	id 4A8AD6B0008; Wed, 24 Apr 2019 14:14:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8579C6B0007; Wed, 24 Apr 2019 14:08:05 -0400 (EDT)
+	id 287C96B000A; Wed, 24 Apr 2019 14:14:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6906B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 14:08:05 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id w33so1899881otb.23
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 11:08:05 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F3F286B0007
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 14:14:00 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id j5so7935926oif.14
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 11:14:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=8q9yPvjgU1Dmc3BqSRsYFTk9ExzQt5bmVmZcuF82af8=;
-        b=d1JHcC4BHLUWq4kroyZbzqFs5MHXXkT5C4jO77y4DdeR218bO3AyIPwDQyWZ2Rgz0t
-         uMy3Owugdn4p7dp6ZFyN4YuqbjRtvbT963NyulFm7KM7YOUDUKr6BZJ5L72I/jLcFQXB
-         JFxGkJHiJIkeTRuHpIqwdh3C1TSyoFP+h/op2ny8GEjrBYODTw/oeDJrklp9cx27CMq6
-         9kHPs6wPgt3161WQWxraONDJsMyN4qpKftvvHjj2pty7QrQFJVQEtfnvmmEbWNQ7TqQA
-         CoxzgGjDowtYpixPdrE6OnUqlXNUbL7NUZ8FTVTemhSUk+ah0W+j9v0iTDanU+S0ibCx
-         e+mg==
-X-Gm-Message-State: APjAAAUXVL63foL3ImOvIRwp1BscSe6396HPfmpxziXE13wOUe07y2Wt
-	2flZJZpkGmGV/bmNPTI1b3NQqOnaAC13iXZT+IiyovluLG25qXzgNjWnvrmgTwm2UQsZk9QOYcl
-	85F4HSMYlv/GAagXsXP505mnIpWCju3l3Wbmsdd6OsmZTnIyGtyQkmlcNdMJcUHem2w==
-X-Received: by 2002:aca:f086:: with SMTP id o128mr228869oih.101.1556129285062;
-        Wed, 24 Apr 2019 11:08:05 -0700 (PDT)
-X-Received: by 2002:aca:f086:: with SMTP id o128mr228834oih.101.1556129284400;
-        Wed, 24 Apr 2019 11:08:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556129284; cv=none;
+        bh=BhVsIoAU0KmMQwQooFIbVLABg6RqRAt0bXCVdPk8wQg=;
+        b=bL3XdnyKQueANoCP6GjFpX85oBHrZDn3r/wVgLTME9utIsXritsNeainyQlmjccy/F
+         YME2LKRmYAfi0rXUKvFjCfg0UViMEcSYFsjfKr6eqn/H2f1jVEzyy8ccW0nhgdZrEcrA
+         PKST/307iBMQSYfOVtr3yYAXzpypjURRsbiWKXY7HMpfEr4HqT7BgEPuv+2sIWTjF/C0
+         fGX75X+oC3vvLNn49rCv31aJG10gXbVnefRK8/JZZIoc4DsjoPWmBMUdmJFA4U7LwC4g
+         KmAhf1CjfXgdx/9jLWbH1KY/ACbFhQAyUnysJmuYlP87kefkkUlHlV9rSNgKMkAP6/6G
+         QPTA==
+X-Gm-Message-State: APjAAAWAQCuvXWqPVa2GHFM/5zJbaLEtBCT5XJeLkLQ5fNv355FDucH9
+	wQleAAe2hUozwo7Nwwmu+KOULen78Myj8rcgl/cBYatMgR34n5+UlqSoFt61KK7piN75X33Bf9u
+	W1OWLbFUs91ujK+mbhtpv7iMjPs6UWw8Q3jH7uHP4LcZ2CwKqSDhWNyMim+lfDRExJw==
+X-Received: by 2002:a9d:7dda:: with SMTP id k26mr21270092otn.354.1556129640389;
+        Wed, 24 Apr 2019 11:14:00 -0700 (PDT)
+X-Received: by 2002:a9d:7dda:: with SMTP id k26mr21270005otn.354.1556129639187;
+        Wed, 24 Apr 2019 11:13:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556129639; cv=none;
         d=google.com; s=arc-20160816;
-        b=G8UYrCMLsR2J62amqeGF0WrOzuCgN2z2HYfPKjvxJaxYYppANa/WLUTITvqV/P3ElY
-         AQklrlTbT+gUNQ2F7SsvYifZ0+hNu8dTPIsoPysuqrji98Nix2twLIFStudsPk/1226i
-         99CmammE7cxhpaX7eM5qHiRX+hBbHwoLt6RzCmIfjUF3l2dRLm02TKUQDONPeeT3w1YW
-         zHJ9BUOdYWFkHRj+YJpkUdvCE1wawp5/p7WTeo0vbOu7hA0oPTWIgEgUrnF001sGPupZ
-         g3GoM1f85h0sVJjvRYfhEmHLyLrX3e55MzvKsmUhHosDA1nv+qNoH9MSbBLm/7r1nxKm
-         1w5A==
+        b=KdXgrHA/nMmtDnIXJIMlMT52DRnZROj9LsfQSHt9fNVkr4ttGLCoC4i17eEaKfAurQ
+         jQMCUJIxsVezTc6dJ5Pfm7NAHbFmIVUlwn/HuVs+V3UJoKAGDvq8px76jFIamZNCPcmm
+         ucIU5z38Y/VtERlaNRoqrKhFE3Uh4CUmcvF3zEM3FqkdtFuiTWEUEWo+pJF10rz58UqD
+         erb60DnZ3RIS6fi5fjPFnyLamBf5scfyqJp3hrgmpIVar8M8KbaFaMowyLYcJqTKbAlS
+         eWh25qeBWBZ+Yf7ZOq0QsAZnuBIahV6JFbghKbmhm2LYKLV3MoCau38H/m2WKA+VIj2f
+         1Gew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=8q9yPvjgU1Dmc3BqSRsYFTk9ExzQt5bmVmZcuF82af8=;
-        b=shyAygs5Na4mZ5l1hI+7oM8z6D7T4W3Br9yhD3y+tPU7y+P7RSoIIlHu9/+NYt8tu7
-         3pFCjAu3ZhO3MdcNv5/ZFyM54Qmu4P7XaozIHueY/r2Tt/1B460SFHtgfWWLxDSOK25m
-         CfHFyGK4USp1IZTVE9YAnJJdbZpiIyW1UYNY+1puXHPxw+3tPoyUmzS9eWeSNXxLxxkC
-         c36Wc2K/01rCg5zxYX7NarRQ2XMXSQ6hFgzFnBGN4OLdG5vKwYpeuoHZT7ZSTqnhkLPp
-         Q5DBa4YdrX7llwl1pEe175vTwoTpHrYzYaoA99j6WVavCQclLi6jOz4/DkjMF6Cuz6uE
-         qG5w==
+        bh=BhVsIoAU0KmMQwQooFIbVLABg6RqRAt0bXCVdPk8wQg=;
+        b=eLDY58cQdIuKCpBdcmbViE7ZtgEDnNfMvk12eUVz7Bj9xTBcZ+CahplHyGRXntQJRD
+         6QRHrNYL8boMZASTHiipf/zdtrvzFXHTtro670gu7GuOwgIuEnfCDpnZsL0qp1n0IKH2
+         u8jj10ZR31EJFG6VgJ2zHmOelYJXztsS/892bqFQkfvbgAUA6fu3AfLChGnC1SfX92Ls
+         cECChwfPmVMUMebnaxz1Yygoi1ThTlsHvN1a29U3F1kCoqACyLjhPCx53485KEeAWiBj
+         VXGFEJNnKsfa82Y1IEYoR5ZihIqvevpEVb5Oo5KP+2lGq7S16knMjwDzcdZ9b8TkNhdO
+         Z39Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=n35r7HLE;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=jydYgmEc;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h11sor8559813oib.114.2019.04.24.11.08.03
+        by mx.google.com with SMTPS id q206sor9058422oib.172.2019.04.24.11.13.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Apr 2019 11:08:04 -0700 (PDT)
+        Wed, 24 Apr 2019 11:13:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=n35r7HLE;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=jydYgmEc;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=8q9yPvjgU1Dmc3BqSRsYFTk9ExzQt5bmVmZcuF82af8=;
-        b=n35r7HLELoguC4+CDnNmcyHD93QJUumktU3TTYTT85K1K93kZndcMpl7JZesyoPmNR
-         jExL9hZ2+RXj4TANemwSx12DYO6BcMPdE5APBpgYQAQodtB0+JR+vmO82L0DVaUiA6Qo
-         quxRikkZsR9RQUFUFtxbtBnY+a1yYn2QZqOnZ4yPEh2uZl2+Bl3jQihIzoRRIP2TqP3O
-         WY3tx1QeXl1tl8V14appaRj2bC+66o204Bey5C/7QXCdJJv7BONvI7a+8z8BLSVRI4oB
-         T8P5fgoJKdXi2KNELRKXOGkWm5p5MiNBceHQv5mw5z2c4ID9RPWjLk0oy43G3O5Q+zNz
-         zG7w==
-X-Google-Smtp-Source: APXvYqwUscsee1H3tWh0LwutS4rgxqlReQCcuMcrIVSy6LAXYPTW+nyIjR2WiohPRoNbvVXrkWOUWHNWNhknw/nsrb8=
-X-Received: by 2002:aca:b108:: with SMTP id a8mr297824oif.0.1556129283720;
- Wed, 24 Apr 2019 11:08:03 -0700 (PDT)
+        bh=BhVsIoAU0KmMQwQooFIbVLABg6RqRAt0bXCVdPk8wQg=;
+        b=jydYgmEcLg5IMUxEQPjYpc4DgbIaXE24fhOcITjx0qkXUHk//riuR0/LhemjcKcSWP
+         RP4GtyjPGwp9EuPB5qNyFUVayVB4P9BiMkogYrUvmsoydY+ojeDF/VVh/Q/DKJOBflVi
+         T31b0QzpIuB4I+iapiWeXld/gFrM22Nl9lTAPBwohGpDQz2Jly6tCAfI0ncKMwrK36VQ
+         9bE8rrq4w/wPkzhIaBkY3t08nM3VlvUDYfP2BcAGGPuuBLy6nGWigDas69mhU3FzJbjg
+         0KFRWfoDP7SOk6RkLZJppbZYEdvO2izZTiRoZEGJ2ADyq3lPGpHdXTbEvR74ESSr8DIX
+         dBVg==
+X-Google-Smtp-Source: APXvYqwN3H2piW0geeJm1fy7MdumeKyfzQXRx8tCi9JDjwMK7cOgh+Mt7+7fybL28IH9qG0F0B+c8mreTuoq/TY1uPQ=
+X-Received: by 2002:aca:de57:: with SMTP id v84mr272169oig.149.1556129638917;
+ Wed, 24 Apr 2019 11:13:58 -0700 (PDT)
 MIME-Version: 1.0
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155552636696.2015392.12612320706815016081.stgit@dwillia2-desk3.amr.corp.intel.com>
- <3dda9d08-a572-65b9-2f2f-da978a008deb@redhat.com>
-In-Reply-To: <3dda9d08-a572-65b9-2f2f-da978a008deb@redhat.com>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com> <20190424173833.GE19031@bombadil.infradead.org>
+In-Reply-To: <20190424173833.GE19031@bombadil.infradead.org>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 24 Apr 2019 11:07:52 -0700
-Message-ID: <CAPcyv4imzm5reh7d-p4Xyt=Sdoi5WDFC6t9FgLaZVexbWfGG5Q@mail.gmail.com>
-Subject: Re: [PATCH v6 06/12] mm/hotplug: Add mem-hotplug restrictions for remove_memory()
-To: David Hildenbrand <david@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Logan Gunthorpe <logang@deltatee.com>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Date: Wed, 24 Apr 2019 11:13:48 -0700
+Message-ID: <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by insert_pfn_pmd()
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, stable <stable@vger.kernel.org>, 
+	Chandan Rajendra <chandan@linux.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,58 +113,29 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 2:21 PM David Hildenbrand <david@redhat.com> wrote:
+On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
 >
-> On 17.04.19 20:39, Dan Williams wrote:
-> > Teach the arch_remove_memory() path to consult the same 'struct
-> > mhp_restrictions' context as was specified at arch_add_memory() time.
+> On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+> > I think unaligned addresses have always been passed to
+> > vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+> > the only change needed is the following, thoughts?
 > >
-> > No functional change, this is a preparation step for teaching
-> > __remove_pages() about how and when to allow sub-section hot-remove, and
-> > a cleanup for an unnecessary "is_dev_zone()" special case.
->
-> I am not yet sure if this is the right thing to do. When adding memory,
-> we obviously have to specify the "how". When removing memory, we usually
-> should be able to look such stuff up.
-
-True, the implementation can just use find_memory_block(), and no need
-to plumb this flag.
-
->
->
-> >  void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-> > -                 unsigned long nr_pages, struct vmem_altmap *altmap)
-> > +             unsigned long nr_pages, struct mhp_restrictions *restrictions)
-> >  {
-> >       unsigned long i;
-> > -     unsigned long map_offset = 0;
-> >       int sections_to_remove;
-> > +     unsigned long map_offset = 0;
-> > +     struct vmem_altmap *altmap = restrictions->altmap;
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index ca0671d55aa6..82aee9a87efa 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+> > vm_fault *vmf, pfn_t *pfnp,
+> >                 }
 > >
-> > -     /* In the ZONE_DEVICE case device driver owns the memory region */
-> > -     if (is_dev_zone(zone)) {
-> > -             if (altmap)
-> > -                     map_offset = vmem_altmap_offset(altmap);
-> > -     }
-> > +     if (altmap)
-> > +             map_offset = vmem_altmap_offset(altmap);
-> >
+> >                 trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+> > -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+> > +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+> >                                             write);
 >
-> Why weren't we able to use this exact same hunk before? (after my
-> resource deletion cleanup of course)
->
-> IOW, do we really need struct mhp_restrictions here?
+> We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+> that need to change too?
 
-We don't need it. It was only the memblock info why I added the
-"restrictions" argument.
-
-> After I factor out memory device handling into the caller of
-> arch_remove_memory(), also the next patch ("mm/sparsemem: Prepare for
-> sub-section ranges") should no longer need it. Or am I missing something?
-
-That patch is still needed for the places where it adds the @nr_pages
-argument, but the mhp_restrictions related bits can be dropped. The
-subsection_check() helper needs to be refactored a bit to not rely on
-mhp_restrictions.
+It wasn't clear to me that it was a problem. I think that one already
+happens to be pmd-aligned.
 
