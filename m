@@ -2,111 +2,116 @@ Return-Path: <SRS0=qZKM=S2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F6C5C10F11
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 21:10:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77CD3C10F11
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 21:34:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B2789217D7
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 21:10:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 031DA20835
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Apr 2019 21:34:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="R4yWrQJj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2789217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="cAwbB9Jr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 031DA20835
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 538C46B0005; Wed, 24 Apr 2019 17:10:51 -0400 (EDT)
+	id 636916B0007; Wed, 24 Apr 2019 17:34:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E6BD6B0006; Wed, 24 Apr 2019 17:10:51 -0400 (EDT)
+	id 5E6046B0008; Wed, 24 Apr 2019 17:34:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AF886B0007; Wed, 24 Apr 2019 17:10:51 -0400 (EDT)
+	id 4AEC36B000A; Wed, 24 Apr 2019 17:34:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1846E6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 17:10:51 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id v22so9036203vkv.12
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 14:10:51 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D796B0007
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 17:34:58 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r8so1559878edd.21
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 14:34:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=EEx6KKB2U0RJZ21EFlDN1R7C1ruUVShWYlcQvFlcO3Y=;
-        b=LOfSbEDW6KBU0iEc06Y4tAq+bVjlHjfmKxGax9EiuzTWyKNH1XyZO1sp4CtkgLL3ye
-         Enxl2Dsk5cn8ddIizpMnfjAii8AMgNFx36lp/TyOSs+TtWbP4wSNGC4cICnmHL1t6Fk5
-         FHVYJ3YzIjsGvoZWHRJ++RwYgfuj0AhdyB2ezco1AaEZnW7oT0LwXmICMwrMTY3w23t7
-         38/FLEqXu2U/ZqiKbQWudsE3/bUifAjp4U9uEeZLeiJZjlmKbn0d3ATXFPNLw8Adx1La
-         g7mU7/Azn3b3dc56ct96j5yiUU0m97j8Mcp4N5C7CUz5xHfgJvcyv3JpAHOegzJH8DBJ
-         6DqQ==
-X-Gm-Message-State: APjAAAUM5LgPiqsY7d18gULjBm4AdAPn8Efzvzt8v0kq8+78oda4asth
-	7MVNuNAFVoasyCaVXIewWE4vEEStqlUCQ6UE2YTYQPA+klgpcoTos9130gsdBhXtwP3v8cBhgnz
-	l6/LLnXD5tw8FiSxR8taV1yOpmYELiZRUSbRy9OyTjge5AfjQvAZAX5H91YDu6uYgbkzpU4PjjB
-	uW8l/VAMA94CFM0vdLNDmyi+P4wo0gqSWTd3AnKHo9MX9fFmx/EZ/VVk8oL0nZY0BBtSlBvd/8m
-	H4FUvnwPk9+w4stsWDQSRCiT6j0zQ==
-X-Received: by 2002:a05:6102:38e:: with SMTP id m14mr6677277vsq.129.1556140250785;
-        Wed, 24 Apr 2019 14:10:50 -0700 (PDT)
-X-Received: by 2002:a05:6102:38e:: with SMTP id m14mr6677236vsq.129.1556140250003;
-        Wed, 24 Apr 2019 14:10:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556140250; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Y/Haum+Q0Tq67LT+lgDVhjDSLBZNQProc5ALAzxiJIE=;
+        b=oD0wz/Rl09spyCig8etW1jQ9pmgeU/qb8/ebiVElr+hRnrd9IqsikIlShM4amNqS6J
+         /RgBQlyMTH5MtK6RS/hWQBgX9deV+xi6BBaYvqWH+S8XTpQI8iaCkiNpd9m+GYHHAwj0
+         A0/keWapDgOT8y2JIpK7pQrfvWeCXkqkme4lao7ybw5a8McrlguDmOjg4uv9ItYb+Yc8
+         5B4RVipcjutnEGG1ZlIg7KEMPRvkfXKxbb4wxMEMtyV70flM+u6ZMhikVG3Ut8uwzlXq
+         x1l6t81RhSkmXYPrOx2Fg6pbSGfDn9Z8FuA7ftgB5RKenBcIuupa43gQBFrf1Qyhi6R1
+         gNCQ==
+X-Gm-Message-State: APjAAAVQoX8Jfx8dHGO6EkRGAjxNcIbynoikghKJgsI7on7aq51oCraw
+	NUwn7P9DQUpp2+miiToAVXdQNK/ey1e5wCrxwbKz2EDKyHzg1woCNHOuSA3A+GFZ3yBz01xDtda
+	JKj4moSty82/8h9xobo91351KfgoePX8eLn2zV+HaE54dMh9b4geYPtINqH6cn/tRMg==
+X-Received: by 2002:a17:906:944b:: with SMTP id z11mr1125050ejx.151.1556141697522;
+        Wed, 24 Apr 2019 14:34:57 -0700 (PDT)
+X-Received: by 2002:a17:906:944b:: with SMTP id z11mr1125023ejx.151.1556141696701;
+        Wed, 24 Apr 2019 14:34:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556141696; cv=none;
         d=google.com; s=arc-20160816;
-        b=WM5AF2kbxKl9s1TjkJe50WXKeF92kmZQG64dzH5j+u7GGd7D/VKpvrMfk7Tp5/gmJX
-         QMA/YuJB5O1Qlll2ZrQHgU1B5tW02m1KNmi4eIOL78qJozitMYHrPYhU6aiZEUHrM8Kr
-         mtsESMtBK6G3w7a4ncCGTFZzw4Zt2yT2JrkkZU9p1ChwC6JurwSqgzpTvTm5Lh0ntWHK
-         Lx/DOYuVCq2scqHkFVfFEQHKQRAcLgZ8q5ysoKhl9yR04auqJWFhyJ72Hi3BdBH3XnBT
-         Ua7t9LU1wdDo9CENEnBZwwEXnq71Ja5C+8j+wLfQ362Zh9zTukfVNK6DAAx2EbgMriba
-         ecRQ==
+        b=heAROnKHoibv7+ktzU9elkB6AX86qW0p5G9/XBkISbSyqOeAneChC9/9XIHKEDzre7
+         kymH+vf0sIW9rlscBHxAa/080sfF+pBvmuDCK+/JHVX1pUdroarEVjMVREbRi/WY1Y8t
+         2ZIPTas+cp4fCj7gitsxEfA1N4Op86dGzpH9oLawtacDP0zoU3zXGV6/+6+4usUfVyzG
+         yatlu0RC5xO15Qqpp8H7+gzPl/r6t44vNquXAcNyOs6sML0rOzKz/oQ9yQVhoncOo4+O
+         1lsBBlgrhAGDTGDCyziKQfcpZeas6UjmJ/cgofPtnRvxq90QKQVJTcloyZ9a2pt0qz4d
+         aVnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=EEx6KKB2U0RJZ21EFlDN1R7C1ruUVShWYlcQvFlcO3Y=;
-        b=eJpb+qIqJ+GbxaR8F3ZJTLOsIcW6+5eBG/IhFOV7G8YfGGPLgJSR02v96hjWsTOJWi
-         wA9fbeutvsiFxqBeHLwFcM/TJEfGVIcAtAwr40u93alAzGdeuH+3LGijNnic2/QNI4lC
-         hMCOFVQxZ4BBGvO3iOCJJ8AX/oTS4qpmFWJ2Ydbf+8v2a25eAw5mWviUss9c1o+6YHCb
-         9FeRFvPaCBClFAUynPwEW0QzzI4IdMt5bXAl1QNthnoqhDePumVoaA8ZR+F8Sdk6z6iU
-         NtwqLQ6om7yI0XfpPnHqLXrhoJ/hu3wfPTZ+hNfms3cgJWfUSIT1zmhUiR7NqFlDnKet
-         cMEg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Y/Haum+Q0Tq67LT+lgDVhjDSLBZNQProc5ALAzxiJIE=;
+        b=qDti0WAtrhWrm0LrKzZs9vtm6+ErLnayl1scYwDI+m30YWuhB3fmBkSF8UqJ7zeejr
+         L89tDHgBsMy420+zJFAZRbovpWUExYBxBYyfJ06Mr+pVQ2qQ8VITEjMLK0WHF90Wnqvq
+         BuHoismg2404v/MI+qgf6fyhmdRCloK5tZBvm0ojR3SZQmscLuheT3ALfV0tmwiu9BLt
+         0o6qYuhctUk8a2PxZrqpjQM0uGVog5/EjaT/ploe7zvvvC6X9LI7EMvFsqlNemdxHTVv
+         I9S9Nl9OjOCfWb/KLcReNa5yxYLiLrbw4muY6CApOFSAikVzI5PFndxTk6bFBklrNbWD
+         fUqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=R4yWrQJj;
-       spf=pass (google.com: domain of 32ddaxa4kcgouibbpmeoizzmbbowwotm.kwutqvcf-uusdiks.wzo@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=32dDAXA4KCGoUIbbPMeOIZZMbbOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--matthewgarrett.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id i3sor10790257vsm.120.2019.04.24.14.10.49
+       dkim=pass header.i=@soleen.com header.s=google header.b=cAwbB9Jr;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e25sor1603308ejc.18.2019.04.24.14.34.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Apr 2019 14:10:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 32ddaxa4kcgouibbpmeoizzmbbowwotm.kwutqvcf-uusdiks.wzo@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 24 Apr 2019 14:34:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=R4yWrQJj;
-       spf=pass (google.com: domain of 32ddaxa4kcgouibbpmeoizzmbbowwotm.kwutqvcf-uusdiks.wzo@flex--matthewgarrett.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=32dDAXA4KCGoUIbbPMeOIZZMbbOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--matthewgarrett.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@soleen.com header.s=google header.b=cAwbB9Jr;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=EEx6KKB2U0RJZ21EFlDN1R7C1ruUVShWYlcQvFlcO3Y=;
-        b=R4yWrQJjCJ8Bn88/SOwrmAKIiYFKv2Ld/L1gosT676YETZR3g9s1zjAw+XfRBUFxUt
-         yYONprmgp2eEy+5GwASlKDn6gwSGZ0K3BrnVJoIFcb+QwADtHOu+KbAC7dIlloZXv2zF
-         InmrO+sJenQD3LDR7GFPk1TMvt2RpsFfAYIYGXpWrLIKvULclDqbRCFRJwtDNItMrOI8
-         ImsP/SuHDwn3Z/5R6WU3lbRAI/gTXNTev2yRr3j9qut3+t+F1PFYVIGFC7djLq6dqM3f
-         vkIjbcwDmU4DyBgpuufndPDpRyb2Mz6pZ85CKWVlgD6Y6JJtcYNhFX0c8qNlKKRe5Tbs
-         sshw==
-X-Google-Smtp-Source: APXvYqw3/8N6LovTbNOp1ehALE5NeruleVVSOs7bs/5NswFdHy3I9YUuHyhfGtlNzfboNB550I7lH7TLlEGNraFjTGXpbQ==
-X-Received: by 2002:a67:c895:: with SMTP id v21mr855019vsk.5.1556140249661;
- Wed, 24 Apr 2019 14:10:49 -0700 (PDT)
-Date: Wed, 24 Apr 2019 14:10:39 -0700
-In-Reply-To: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
-Message-Id: <20190424211038.204001-1-matthewgarrett@google.com>
-Mime-Version: 1.0
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
-X-Mailer: git-send-email 2.21.0.593.g511ec345e18-goog
-Subject: [PATCH V2] mm: Allow userland to request that the kernel clear memory
- on release
-From: Matthew Garrett <matthewgarrett@google.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Matthew Garrett <mjg59@google.com>
+        bh=Y/Haum+Q0Tq67LT+lgDVhjDSLBZNQProc5ALAzxiJIE=;
+        b=cAwbB9JrYP5QxhlwvuMdvdpA/ZsEiPfp9Oo18cK5lc1PLwGEuU52GQ5fgDi7K9on6l
+         /VnQBR8ptusfL7wNOtbygpxerdwYUYrO+4a/VaSSSD/weFcWpLVTmaIZlhOUq3ehQGlW
+         hSYXwrddTV4ayCT07Suk56HCGoGeNg+YXSnNd33lPboBbs98njPt7+JEfTQbv/es4Iji
+         R91OTj1zR1fJNbeDlcVyuAJ3fqsG6Fv1AlVNh5k5TkhqSXFYMVoVmHo/eFPvb6YlC900
+         mVArULVKGxcnY620A6h8WEBJ1JA7yMNtfccwIARWCHT48RM0hX+SWfTSiw+5ze9XmIoY
+         nBkA==
+X-Google-Smtp-Source: APXvYqyw22yehyfckHGABFZjJ9k6UmdAua6ix/uaYi0Qv9TrVQhsLWKpvHjhVIsMkfhz6j7gMzL0YwmKiJYpYflTGzk=
+X-Received: by 2002:a17:906:944b:: with SMTP id z11mr1125008ejx.151.1556141696280;
+ Wed, 24 Apr 2019 14:34:56 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190421014429.31206-1-pasha.tatashin@soleen.com>
+ <20190421014429.31206-3-pasha.tatashin@soleen.com> <4ad3c587-6ab8-1307-5a13-a3e73cf569a5@redhat.com>
+ <CAPcyv4h3+hU=MmB=RCc5GZmjLW_ALoVg_C4Z7aw8NQ=1LzPKaw@mail.gmail.com>
+In-Reply-To: <CAPcyv4h3+hU=MmB=RCc5GZmjLW_ALoVg_C4Z7aw8NQ=1LzPKaw@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Wed, 24 Apr 2019 17:34:45 -0400
+Message-ID: <CA+CK2bDB5o4+NMc7==_ipVAZoEo7fdrkjZ4etU0LUCqxnmN-Rg@mail.gmail.com>
+Subject: Re: [v2 2/2] device-dax: "Hotremove" persistent memory that is used
+ like normal RAM
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: David Hildenbrand <david@redhat.com>, James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Keith Busch <keith.busch@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, 
+	Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <zwisler@kernel.org>, 
+	Tom Lendacky <thomas.lendacky@amd.com>, "Huang, Ying" <ying.huang@intel.com>, 
+	Fengguang Wu <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,136 +119,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Matthew Garrett <mjg59@google.com>
+> > > +static int
+> > > +offline_memblock_cb(struct memory_block *mem, void *arg)
+> >
+> > Function name suggests that you are actually trying to offline memory
+> > here. Maybe check_memblocks_offline_cb(), just like we have in
+> > mm/memory_hotplug.c.
 
-Applications that hold secrets and wish to avoid them leaking can use
-mlock() to prevent the page from being pushed out to swap and
-MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-can also use atexit() handlers to overwrite secrets on application exit.
-However, if an attacker can reboot the system into another OS, they can
-dump the contents of RAM and extract secrets. We can avoid this by setting
-CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-firmware wipe the contents of RAM before booting another OS, but this means
-rebooting takes a *long* time - the expected behaviour is for a clean
-shutdown to remove the request after scrubbing secrets from RAM in order to
-avoid this.
+Makes sense, I will rename to check_memblocks_offline_cb()
 
-Unfortunately, if an application exits uncleanly, its secrets may still be
-present in RAM. This can't be easily fixed in userland (eg, if the OOM
-killer decides to kill a process holding secrets, we're not going to be able
-to avoid that), so this patch adds a new flag to madvise() to allow userland
-to request that the kernel clear the covered pages whenever the page
-reference count hits zero. Since vm_flags is already full on 32-bit, it
-will only work on 64-bit systems.
+> > > +     lock_device_hotplug();
+> > > +     rc = walk_memory_range(start_pfn, end_pfn, dev, offline_memblock_cb);
+> > > +     unlock_device_hotplug();
+> > > +
+> > > +     /*
+> > > +      * If admin has not offlined memory beforehand, we cannot hotremove dax.
+> > > +      * Unfortunately, because unbind will still succeed there is no way for
+> > > +      * user to hotremove dax after this.
+> > > +      */
+> > > +     if (rc)
+> > > +             return rc;
+> >
+> > Can't it happen that there is a race between you checking if memory is
+> > offline and an admin onlining memory again? maybe pull the
+> > remove_memory() into the locked region, using __remove_memory() instead.
+>
+> I think the race is ok. The admin gets to keep the pieces of allowing
+> racing updates to the state and the kernel will keep the range active
+> until the next reboot.
 
-Signed-off-by: Matthew Garrett <mjg59@google.com>
----
+Thank you for noticing this. I will pull it into locking region.
+Because, __remove_memory() has this code:
 
-Modified to wipe when the VMA is released rather than on page freeing
+1868   ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+1869   check_memblock_offlined_cb);
+1870   if (ret)
+1871      BUG();
 
- include/linux/mm.h                     |  6 ++++++
- include/uapi/asm-generic/mman-common.h |  2 ++
- mm/madvise.c                           | 21 +++++++++++++++++++++
- mm/memory.c                            |  3 +++
- 4 files changed, 32 insertions(+)
+Basically, panic if at least something is not offlined.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6b10c21630f5..64bdab679275 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -257,6 +257,8 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
- #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
-+
-+#define VM_WIPEONRELEASE BIT(37)       /* Clear pages when releasing them */
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
- 
- #ifdef CONFIG_ARCH_HAS_PKEYS
-@@ -298,6 +300,10 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_GROWSUP	VM_NONE
- #endif
- 
-+#ifndef VM_WIPEONRELEASE
-+# define VM_WIPEONRELEASE VM_NONE
-+#endif
-+
- /* Bits set in the VMA until the stack is in its final location */
- #define VM_STACK_INCOMPLETE_SETUP	(VM_RAND_READ | VM_SEQ_READ)
- 
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index abd238d0f7a4..82dfff4a8e3d 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -64,6 +64,8 @@
- #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
- #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
- 
-+#define MADV_WIPEONRELEASE 20
-+#define MADV_DONTWIPEONRELEASE 21
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 21a7881a2db4..989c2fde15cf 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -92,6 +92,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	case MADV_KEEPONFORK:
- 		new_flags &= ~VM_WIPEONFORK;
- 		break;
-+	case MADV_WIPEONRELEASE:
-+		/* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-+		if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-+		    vma->vm_flags & VM_SHARED) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		new_flags |= VM_WIPEONRELEASE;
-+		break;
-+	case MADV_DONTWIPEONRELEASE:
-+		if (VM_WIPEONRELEASE == 0) {
-+			error = -EINVAL;
-+			goto out;
-+		}
-+		new_flags &= ~VM_WIPEONRELEASE;
-+		break;
- 	case MADV_DONTDUMP:
- 		new_flags |= VM_DONTDUMP;
- 		break;
-@@ -727,6 +743,8 @@ madvise_behavior_valid(int behavior)
- 	case MADV_DODUMP:
- 	case MADV_WIPEONFORK:
- 	case MADV_KEEPONFORK:
-+	case MADV_WIPEONRELEASE:
-+	case MADV_DONTWIPEONRELEASE:
- #ifdef CONFIG_MEMORY_FAILURE
- 	case MADV_SOFT_OFFLINE:
- 	case MADV_HWPOISON:
-@@ -785,6 +803,9 @@ madvise_behavior_valid(int behavior)
-  *  MADV_DONTDUMP - the application wants to prevent pages in the given range
-  *		from being included in its core dump.
-  *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
-+ *  MADV_WIPEONRELEASE - clear the contents of the memory after the last
-+ *		reference to it has been released
-+ *  MADV_DONTWIPEONRELEASE - cancel MADV_WIPEONRELEASE
-  *
-  * return values:
-  *  zero    - success
-diff --git a/mm/memory.c b/mm/memory.c
-index ab650c21bccd..ff78b527660e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1091,6 +1091,9 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 			page_remove_rmap(page, false);
- 			if (unlikely(page_mapcount(page) < 0))
- 				print_bad_pte(vma, addr, ptent, page);
-+			if (unlikely(vma->vm_flags & VM_WIPEONRELEASE) &&
-+			    page_mapcount(page) == 0)
-+				clear_highpage(page);
- 			if (unlikely(__tlb_remove_page(tlb, page))) {
- 				force_flush = 1;
- 				addr += PAGE_SIZE;
--- 
-2.21.0.593.g511ec345e18-goog
+Pasha
 
