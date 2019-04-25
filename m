@@ -2,219 +2,153 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1591C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 03:26:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED4F9C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 04:34:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8459E218B0
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 03:26:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8459E218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 8EB69217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 04:34:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Occ+ZVvn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EB69217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26FD56B0007; Wed, 24 Apr 2019 23:26:16 -0400 (EDT)
+	id E71576B0005; Thu, 25 Apr 2019 00:34:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21F146B0008; Wed, 24 Apr 2019 23:26:16 -0400 (EDT)
+	id E21A56B0006; Thu, 25 Apr 2019 00:34:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 134406B000A; Wed, 24 Apr 2019 23:26:16 -0400 (EDT)
+	id CE90E6B0007; Thu, 25 Apr 2019 00:34:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CEF676B0007
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 23:26:15 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id f7so13409968pgi.20
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 20:26:15 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A05236B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 00:34:02 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id f11so11945313otl.20
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:34:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject
-         :references:from:cc:to:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=TX92CL/CDmUqLoMD6stW+zzKukdD+1/ai2dcpyQ53II=;
-        b=BZYnlLantEjbo4KnmR/jjSVElAHKQgF0KNh8vWG1GbwR8WrBeXIAmn8OUYXefS+IS6
-         0Kgi8gaFCgn5py2PwLtOYPpUVqthUR84Q4yBQ6Xo1v0CYdqoRpact92d4I1uK+5t0pxR
-         +jQAuRlRmGvBzp1Rm/54+814TR+Q50wm/nm0w93ngYtts16XERKyg+YpgcK5zcNHPep5
-         JK41ddlD3X2OS5tve9UcCromDI5QwbcZDF/JsF64O1RmS275BwPdfg72GF7z+LlBTzyI
-         NNmpY3TMHhO125nPIf5vBbrVvFhsHfi3oXEKOpKMB679FVJ8KRQs9d3hfr8GOY5eeOB5
-         y3rw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of qiuxishi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=qiuxishi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUSx5Qwli1WHfLH2llI/Ls5yQ3DIeEEbIguta40qjQkMdeVltt4
-	maox3i0ItBNwGKfp7HXNm/A1H+CUXv5A+XsPSMdHvUzI/5EcisWPSL1BjztRNFmRMN/N5SLEx2F
-	vz0IbxzT4W17sh8oaXMdQMBsIeXOpDbH7uewmcA+4QSG/YtgoSRYKKI53YqY9xPrR1w==
-X-Received: by 2002:a65:6088:: with SMTP id t8mr34754002pgu.2.1556162775461;
-        Wed, 24 Apr 2019 20:26:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxUoTsp+1v3mwo8xtrIrhXkwqJwVA8RF9GXIKTPrw2x0/QpPjYNxoPCV6HVvM2B/YDa4jBH
-X-Received: by 2002:a65:6088:: with SMTP id t8mr34753944pgu.2.1556162774640;
-        Wed, 24 Apr 2019 20:26:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556162774; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=jJtlgM+LwfAvNu2EDOj4s3A18h6lrPGqDuRQRlrYCbc=;
+        b=QAwzxpIfsN9C2m8Zl+BJUcLacXZXREXyHfrb5BThQURTliWWJc2PcEOdk5jfl9xk3z
+         Q3nQ7arGZJWeuQJ8tL8HSFbssmbPiMFW2xB54Q6N8B/9XRVIqIvfSWDXnIaWRgAnQnO5
+         msNU4Gl3wC0chGlPLzCppdvEB3PirXa3doGQhq0GIJMGlVUItGyNDStAgEswfEWVg2Gt
+         WQSSoZWzubi9KWC3ofrEexMwcyxgTjgzM8ucCnddLM8X1kSKKOX4z9fk3X7VIZn280n2
+         JQSI8KvOMHeW3zPikFF5jm8GdVQE15/SSVNNLsxa534TTdT2KwqXT+XEstRg3Zh9cOZY
+         43cg==
+X-Gm-Message-State: APjAAAVzUCE9P304zuPr7izRYVpTbBVEENqFNq9A/ciDA43jnY1V4lVL
+	ipJyWVPUvP5aUVQ+upkSFEAjUu0OniNpL1LyL4sT18iy11zIgq/BGSObnp8Lva1uAQqQGo4EWh/
+	+coEhR7+WwwAW3s7jYTsHV7w5QKrp1OauKiB93iVRDFokB2AbokXIvGU9IYRPgHKMhw==
+X-Received: by 2002:a9d:4d91:: with SMTP id u17mr17924499otk.356.1556166842222;
+        Wed, 24 Apr 2019 21:34:02 -0700 (PDT)
+X-Received: by 2002:a9d:4d91:: with SMTP id u17mr17924457otk.356.1556166841261;
+        Wed, 24 Apr 2019 21:34:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556166841; cv=none;
         d=google.com; s=arc-20160816;
-        b=vMLjBk8UZxTz8lQWkrdQ7S1GU3XQiUVipTGWa9CzvB1gMKW0cKhrSqhU7zI3z1jh5U
-         QmSkmSrvIeKwH3kEgNOxXfdNibDie5pdZoofyIa5a+CIF7uFoo0tOdSVRQYcI2hhTsPq
-         m30fXRYdysiPBUYUNX7fVJnQUWrQpFxawd4EYoDn50do46GQsMggisbzzHxmTWUjAKRr
-         H3i2/BYwDtx8TrDu/ygOcU5Vfh7PZUkSf/xuEXZlf30A0RoVAhuVx6wdVFbGF3Y1zq8m
-         06ZqXg1Jadiwa0Zzdvu0QuRMhI/A40wZJqxArIixYmYE1dr2EKyOh7s78PQ2Mndr5POB
-         b3Kw==
+        b=w1QFRtDOgJWTOQ/99LUoGY4AFYxPaHRcR727baU598FNrkPvDtBZrF/7kwQ1pIERIJ
+         z17zeQujiRQ40wX20l7GRsij+uOxhETEyU25toplUqZ/szTGeNUiNGM7WTnQgXTHq720
+         b3I3KfY3B4RVg9Vzz2+1EJHoTBdjxaztzdrS+I3gfafHoRp0r/yzi63H4EA3G8vYzNdN
+         2+h7YNwgADo2WmuHW+0wBE6TydXEwr8G5oKgLb41FwkrTYKl+OaMqwqC8agEYTLBz84Y
+         B62VfuP3dRFo27saoSp4DCq5gUA90bbqJhFhbKPhrRFsv1NxQM/aBCW9MWzy3VLIlp+q
+         Q+nQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:to:cc:from:references:subject;
-        bh=TX92CL/CDmUqLoMD6stW+zzKukdD+1/ai2dcpyQ53II=;
-        b=T3hhkCCjU1bqI8mzn97X8k7Iy6NGFtniZdw0S0moa6zMCFzy1Cd+VRirqENS3Eh2t7
-         3cVIDmaJxDsqcpF9QYGl2zcRduNBNSwr4hyWCh9xYKyp7knRxT8tTDMgheP9axo1ORjR
-         VZTRocsANXcIz0moz/YMIxOLJfxRwWqvmw4fA9iLO8TXh9wQWVRufBkCmYscQkBum8sn
-         ywql+O1hVBT3cCV+kYMQ+bLCFhrYZ4ej736Esc1YQqm8Qbea5c+YV9dcH1uM3utgGbnV
-         mcN3zal4+vHGcyofNRYls0LINPumJ8wM5h/C2Vx/bx2KnzR7Drpv08VpsGRP+CR1s1tG
-         fzig==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=jJtlgM+LwfAvNu2EDOj4s3A18h6lrPGqDuRQRlrYCbc=;
+        b=QZ5rXQIC2XSlatOuloOsEJCJhJP2jhfArXY2nWzrbFUU0mW0ZbcBoWGz+H7TieGFyf
+         cGACRcH/mkBmh836rjv9EbO16urBcfORsw9xz8Pb0ilaT5umHlYF7DL/RbRbmxBWEaFy
+         r6THsvuW4aVGdXJnpx/oE9Vffo1L091ckpvZq5QS6yLXpMTGkQjrvbN7HOtFrs+41nCj
+         YEuwOmSmFi4BbrK4wL34CqY+plGIkwzjOsPFwhQEfbheZ3RxEEe5ANoTwOiaRVA/G91n
+         MOsOjilcR3BS+FCUFxLYj+4bRwST/YN6pjUw9rUAFa4atJ+T/r8Zh/rjrBPi3S5Cke+T
+         md8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of qiuxishi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=qiuxishi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id y4si18931620pgv.154.2019.04.24.20.26.13
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Occ+ZVvn;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q63sor9572966oig.92.2019.04.24.21.34.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 20:26:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of qiuxishi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        (Google Transport Security);
+        Wed, 24 Apr 2019 21:34:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of qiuxishi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=qiuxishi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=qiuxishi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TQAj6H9_1556162771;
-Received: from 10.211.55.3(mailfrom:qiuxishi@linux.alibaba.com fp:SMTPD_---0TQAj6H9_1556162771)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 25 Apr 2019 11:26:12 +0800
-Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
- ZONELIST_FALLBACK_SAME_TYPE fallback list
-References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
- <1556155295-77723-6-git-send-email-fan.du@intel.com>
- <a0728518-a067-4f89-a8ae-3fa279f768f2.xishi.qiuxishi@alibaba-inc.com>
-From: Xishi Qiu <qiuxishi@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
- Dan Williams <dan.j.williams@intel.com>, dave.hansen@intel.com,
- ying.huang@intel.com, linux-mm@kvack.org,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-To: Fengguang Wu <fengguang.wu@intel.com>, fan.du@intel.com
-Message-ID: <2158298b-d4db-671e-6cff-395e9184ecf3@linux.alibaba.com>
-Date: Thu, 25 Apr 2019 11:26:11 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Occ+ZVvn;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=jJtlgM+LwfAvNu2EDOj4s3A18h6lrPGqDuRQRlrYCbc=;
+        b=Occ+ZVvnra0nOKbAXzS/qYzJINSE/JVG8Gm5SbhA3iX31jg0J/gz91Hh7K4tzFENwo
+         7ZNjfnL0zwM7Fie5yIU2/mGcD5/Rx5LNy1kREspLapy+AWMB9zWO5O3uin8BAjpDZmah
+         K/uSqWRZz1EhT9WzAyyDEOW4/VFjSAsFoC/yBvWRHB8cVVABJbBDZnBxK9BzXLHQzsSr
+         5bQwW4tn5dvOnhHmoTpCGYBdc8OfjLHTf8ekfo+O6k9byftz+zs1L6QaW+97Tp95mdw9
+         w/jJuFE7b64TJXdR9mUgeImjxKCS31YpCOSYHGlFhCCTKwhABoy50ex+7HRCHA+gpGh9
+         R+iA==
+X-Google-Smtp-Source: APXvYqx4X1rED4ag/iCBqdoQfuMFALGSYZtppDpW7HxJZCfMthGgpn5KlRxa9nhY2r/51Mm2aPykjEFyhXiur/X1vYc=
+X-Received: by 2002:aca:d513:: with SMTP id m19mr1852513oig.73.1556166840821;
+ Wed, 24 Apr 2019 21:34:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <a0728518-a067-4f89-a8ae-3fa279f768f2.xishi.qiuxishi@alibaba-inc.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
+ <20190424173833.GE19031@bombadil.infradead.org> <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+ <444ca26b-ec38-ae4b-512b-7e915c575098@linux.ibm.com>
+In-Reply-To: <444ca26b-ec38-ae4b-512b-7e915c575098@linux.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 24 Apr 2019 21:33:49 -0700
+Message-ID: <CAPcyv4isw_qht_BGUmTcawLD4YYFQVztF1EAn_m8WHKHZcbphw@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by insert_pfn_pmd()
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Jan Kara <jack@suse.cz>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, stable <stable@vger.kernel.org>, 
+	Chandan Rajendra <chandan@linux.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Fan Du,
+On Wed, Apr 24, 2019 at 6:37 PM Aneesh Kumar K.V
+<aneesh.kumar@linux.ibm.com> wrote:
+>
+> On 4/24/19 11:43 PM, Dan Williams wrote:
+> > On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
+> >>
+> >> On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+> >>> I think unaligned addresses have always been passed to
+> >>> vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+> >>> the only change needed is the following, thoughts?
+> >>>
+> >>> diff --git a/fs/dax.c b/fs/dax.c
+> >>> index ca0671d55aa6..82aee9a87efa 100644
+> >>> --- a/fs/dax.c
+> >>> +++ b/fs/dax.c
+> >>> @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+> >>> vm_fault *vmf, pfn_t *pfnp,
+> >>>                  }
+> >>>
+> >>>                  trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+> >>> -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+> >>> +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+> >>>                                              write);
+> >>
+> >> We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+> >> that need to change too?
+> >
+> > It wasn't clear to me that it was a problem. I think that one already
+> > happens to be pmd-aligned.
+> >
+>
+> How about vmf_insert_pfn_pud()?
 
-I think we should change the print in mminit_verify_zonelist too.
-
-This patch changes the order of ZONELIST_FALLBACK, so the default numa policy can
-alloc DRAM first, then PMEM, right?
-
-Thanks,
-Xishi Qiu
->     On system with heterogeneous memory, reasonable fall back lists woul be:
->     a. No fall back, stick to current running node.
->     b. Fall back to other nodes of the same type or different type
->        e.g. DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3
->     c. Fall back to other nodes of the same type only.
->        e.g. DRAM node 0 -> DRAM node 1
-> 
->     a. is already in place, previous patch implement b. providing way to
->     satisfy memory request as best effort by default. And this patch of
->     writing build c. to fallback to the same node type when user specify
->     GFP_SAME_NODE_TYPE only.
-> 
->     Signed-off-by: Fan Du <fan.du@intel.com>
->     ---
->      include/linux/gfp.h    |  7 +++++++
->      include/linux/mmzone.h |  1 +
->      mm/page_alloc.c        | 15 +++++++++++++++
->      3 files changed, 23 insertions(+)
-> 
->     diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->     index fdab7de..ca5fdfc 100644
->     --- a/include/linux/gfp.h
->     +++ b/include/linux/gfp.h
->     @@ -44,6 +44,8 @@
->      #else
->      #define ___GFP_NOLOCKDEP 0
->      #endif
->     +#define ___GFP_SAME_NODE_TYPE 0x1000000u
->     +
->      /* If the above are modified, __GFP_BITS_SHIFT may need updating */
->      
->      /*
->     @@ -215,6 +217,7 @@
->      
->      /* Disable lockdep for GFP context tracking */
->      #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
->     +#define __GFP_SAME_NODE_TYPE ((__force gfp_t)___GFP_SAME_NODE_TYPE)
->      
->      /* Room for N __GFP_FOO bits */
->      #define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
->     @@ -301,6 +304,8 @@
->          __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
->      #define GFP_TRANSHUGE (GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
->      
->     +#define GFP_SAME_NODE_TYPE (__GFP_SAME_NODE_TYPE)
->     +
->      /* Convert GFP flags to their corresponding migrate type */
->      #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
->      #define GFP_MOVABLE_SHIFT 3
->     @@ -438,6 +443,8 @@ static inline int gfp_zonelist(gfp_t flags)
->      #ifdef CONFIG_NUMA
->       if (unlikely(flags & __GFP_THISNODE))
->        return ZONELIST_NOFALLBACK;
->     + if (unlikely(flags & __GFP_SAME_NODE_TYPE))
->     +  return ZONELIST_FALLBACK_SAME_TYPE;
->      #endif
->       return ZONELIST_FALLBACK;
->      }
->     diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->     index 8c37e1c..2f8603e 100644
->     --- a/include/linux/mmzone.h
->     +++ b/include/linux/mmzone.h
->     @@ -583,6 +583,7 @@ static inline bool zone_intersects(struct zone *zone,
->      
->      enum {
->       ZONELIST_FALLBACK, /* zonelist with fallback */
->     + ZONELIST_FALLBACK_SAME_TYPE, /* zonelist with fallback to the same type node */
->      #ifdef CONFIG_NUMA
->       /*
->        * The NUMA zonelists are doubled because we need zonelists that
->     diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->     index a408a91..de797921 100644
->     --- a/mm/page_alloc.c
->     +++ b/mm/page_alloc.c
->     @@ -5448,6 +5448,21 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
->       }
->       zonerefs->zone = NULL;
->       zonerefs->zone_idx = 0;
->     +
->     + zonerefs = pgdat->node_zonelists[ZONELIST_FALLBACK_SAME_TYPE]._zonerefs;
->     +
->     + for (i = 0; i < nr_nodes; i++) {
->     +  int nr_zones;
->     +
->     +  pg_data_t *node = NODE_DATA(node_order[i]);
->     +
->     +  if (!is_node_same_type(node->node_id, pgdat->node_id))
->     +   continue;
->     +  nr_zones = build_zonerefs_node(node, zonerefs);
->     +  zonerefs += nr_zones;
->     + }
->     + zonerefs->zone = NULL;
->     + zonerefs->zone_idx = 0;
->      }
->      
->      /*
->     -- 
->     1.8.3.1
-> 
-> 
+That is currently not used by fsdax, only devdax, but it does seem
+that it passes the unaligned fault address rather than the pud aligned
+address. I'll add that to the proposed fix.
 
