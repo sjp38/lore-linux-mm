@@ -2,147 +2,146 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46288C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:01:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FFF5C43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:09:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 44269206BF
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:01:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44269206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 377252077C
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:09:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="hwCGJgJL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 377252077C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06BF46B0005; Thu, 25 Apr 2019 17:01:31 -0400 (EDT)
+	id 7438B6B0003; Thu, 25 Apr 2019 17:09:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 01CBC6B0006; Thu, 25 Apr 2019 17:01:30 -0400 (EDT)
+	id 6F10A6B0005; Thu, 25 Apr 2019 17:09:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFF266B0008; Thu, 25 Apr 2019 17:01:30 -0400 (EDT)
+	id 609856B0006; Thu, 25 Apr 2019 17:09:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 97BB26B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:01:30 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y2so684275pfl.16
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:01:30 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 23EDC6B0003
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:09:10 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e12so530467pgh.2
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:09:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=SnFcpSmkz5a6x3twze3pIYCh8fD9bTaUkFtrJOVpJRE=;
-        b=TZTLy05/qaI18EZ6IDwQGVA4XwzU5wp3p5AcZqFqMX6D9mpIXjt2L8n5/JgSxj411N
-         YUS8z9OP8d7lMkkBp1s3svfVLaWcugS/VNyOoI2/Hc1xa+geGhjmQmgTKuFgmxisimwe
-         8KLZ5VOVMZJSJ6EAQFQ326qvj6iAGjk7iD6ivpD9BSz2MqBIoyk+p74lug5zzAB8gmW3
-         kUrNcyrr/WfJMvJa1w/gjMa/5JzzRjeRE+E2pFUOLqzBpcVhlG7eF9BVLFEDf9xeG7li
-         HPhjXOAnjRLRWXdm2HvJr6caj/UCi5jaovO2TuwKQWwAKXHq/xi+5OlQS/P/f0SjGurI
-         xBXw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVrJCIud1zDsW9GRRbn4Keh36HPNe8Joxog3CETGioWu4Q4sWn1
-	GzpePBLcMrfZPC3EOGMFUoLVJUblJRpulPihgTYUkLwzLF9XjcYxfMatcJjjnvqZvhvgJ4VJy8U
-	0UxTWHRndsap1I2LPs7k6FSn6rBr+mOWCzV+2/mK6qhMw65GFvmlTXZGjV7cmxX5dCA==
-X-Received: by 2002:a65:4689:: with SMTP id h9mr39263925pgr.295.1556226090249;
-        Thu, 25 Apr 2019 14:01:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8TUZL0k8q38HogTcouT/QUZmK6EFMCVyAs5PlHaVa7IK5zaG6KoMDKiRO6bBpSx5lWA7I
-X-Received: by 2002:a65:4689:: with SMTP id h9mr39263828pgr.295.1556226089380;
-        Thu, 25 Apr 2019 14:01:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556226089; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=aaJkYEA6VyDdQHuuWqfQer9DDNRHbyTQjCC7r2fnf54=;
+        b=M4NePnUiadJbTHEMLHrge1PTdPKIUMWEyDZ8qkLRJQdHYiJft7Hbqe9Yo0H9gSLv07
+         kTqjv2c8s6QtzQE4gI0/6paLqy41eH8kD7tUZE5vJUJ71oxwGDu3hS4OKKuwwHtY9EHB
+         s2+f/RODpGgISC8PO9ZEkODMgyLSRSoN3MgaNUTc2FJ7308/59yonSgyMVHWposdmoaf
+         R9xxwLxs4Jzlv9pqmGkWYJpY92NMgznQ+RMe4IFVnp9uyK2hPifHW6UaN5tsXdW5Mgaq
+         LU3UB8WxSFoDhLYmpkdJoIzn0BY0BYX2/o+jSgGLukJ0rb3QNURNR57qqts6sKyLDNcE
+         ftcg==
+X-Gm-Message-State: APjAAAXvGnvVZtJ+17nEDYEfoDOrDkQTSNYkJCDDtybUdnDTcOHE2maX
+	yPYncuqFC+EZ8SPOUPAL+nVQCwIijk3GgpWfFof5TvtC/WxE6WTyQ0rDSqL4D9cccaKMYYNVscS
+	NXbl80feX+31iw3wRQOiggrUgf7rXvKh61iv3ahqwgnu3SXhqAtGIm1tfc2hIHNR/cw==
+X-Received: by 2002:aa7:90ca:: with SMTP id k10mr41579622pfk.144.1556226549752;
+        Thu, 25 Apr 2019 14:09:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx6gFOq1CbuB1YSAFnI9JpKdyGV28BNQXeOx0W3B/8oz4KRbrxWpyv+qSb6StcgjpwkoHb4
+X-Received: by 2002:aa7:90ca:: with SMTP id k10mr41579564pfk.144.1556226548990;
+        Thu, 25 Apr 2019 14:09:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556226548; cv=none;
         d=google.com; s=arc-20160816;
-        b=u/b87r+flCQOsWJeQC4q+mXw+JFtP02hBJKEpEL+igsfY4LM6wvJ5IankA4NMRsvDv
-         ohBpd0g4xHIW46THEkCnIhAsOTh2q9fZivwgHAgWd8SSkVM2I3I+QVoHmj8GwAiJvU5A
-         KGvyBUX54pIBHkbEnVyAhYG2eX0GFvvlFeUZPSH9NmzQF2xvS7jbgm7w9sogJ27VpBjd
-         +VKsHweW1I33O4W0uHzF8QkDF4G1Be7/uZMtF0aSFNtVAx07TMH6o/quYI0O/O61R/Wz
-         L1v2p7tv/m1cBcm1tE2g3E4kpq+6QTE//5YVMTaODNxNHupaMRmDdCfjfVcA5zA5mcPC
-         fGzg==
+        b=favJl3NgGNIElkR6jrWIiKLkl8J9xDjVwGjbv3BlvAmVer7Uu0HQzFFLEQoN4s8zRl
+         L4Uj2nyJSu/vb0E0fU/nk0pxDcuPeGX9kOJN+bx0VZJj06Mel4ZnoVWPdA8AkMRmevkg
+         Au4pFdAlPAX7XMPVCOaNBf3TW+nipSnZv0L2PWn4zaxknPAQOPQqk5o8xOh49lY5oWLr
+         JkNH9Z+U6B8o+NU1FQyVjuJPe672JLH6JeaxxXR6O9wzjm25O4drzEQAY50JR3EyrN8Y
+         hCF7wXHd/Z3P7JS8HK7VVnDBahizI4895Vpu2iUyG/w0zmNJ/Qv8SO+y28QRa1Cq19tU
+         OErg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=SnFcpSmkz5a6x3twze3pIYCh8fD9bTaUkFtrJOVpJRE=;
-        b=KN+1OuxwRNlbTBMABFO/5+frhQsvUK3Bkt7IQF+p8VOgMwHDQ99ClqKKp2FFn50VXq
-         vtotX+B90AWKecG8nnSN8jWgECzsp1Px106iWGKsHEyJpfkS+vzxd0zXeYDLYemgdDde
-         RKyORFMMubv8d3f7hqDnzrHmImBeS1g6XliugB7x/t0fCUEHgfv+dWqDS7XeLCicUMLh
-         qDPyv6NBqx5iMlhNiA39uXrXIRAiET3LPPdanR6eEpZhDRE5jAL7owLb6p2x5N8i9vqZ
-         OCxiO02pOr6e2DVCcpZi0qTxFFAnaPJ2978oBtSSCAExuK3xdkzKIq3fO2fSo1//QrGT
-         raqg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=aaJkYEA6VyDdQHuuWqfQer9DDNRHbyTQjCC7r2fnf54=;
+        b=pxf6AvoWAUcRJKWYpGPJMVrpXlRepBNGfnFD6lPdZ7NVRm/Bzn2vCMxSjH8FK62RKb
+         zQpGZK51e/uCA1SWD0IF4if8cxeI4dsne3sag9TU0vtWBqFmYd4FARhCydMRVr7zeJtN
+         YdE7aVtK5FDYghrm5utYEc/TaClvHr/Jt4hNGOlDrGLasj+gFzKoRNAxoVqv9UfESyJ9
+         cOJHXd9kxJxIXNnywX7qc3gilyRpKd5Nrx8afa3drjxaH8svJnqpidt4kwpLeiiZffQA
+         /D833mXeEKLTyEBUK2nC0jtVz68CeNgluVSzCEtPSXwXQu1PDDDycXoZPg2GAhN81TVP
+         Fmsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id l62si24152614pfc.65.2019.04.25.14.01.29
+       dkim=pass header.i=@kernel.org header.s=default header.b=hwCGJgJL;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f16si9319114pgi.496.2019.04.25.14.09.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 14:01:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lkp@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Thu, 25 Apr 2019 14:09:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=lkp@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Apr 2019 14:01:28 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,394,1549958400"; 
-   d="scan'208";a="153793563"
-Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
-  by orsmga002.jf.intel.com with ESMTP; 25 Apr 2019 14:01:26 -0700
-Received: from kbuild by lkp-server01 with local (Exim 4.89)
-	(envelope-from <lkp@intel.com>)
-	id 1hJlUj-0005Qk-DX; Fri, 26 Apr 2019 05:01:25 +0800
-Date: Fri, 26 Apr 2019 05:01:19 +0800
-From: kbuild test robot <lkp@intel.com>
-To: Andreas Gruenbacher <agruenba@redhat.com>
-Cc: kbuild-all@01.org, cluster-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Bob Peterson <rpeterso@redhat.com>,
-	Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>,
-	Ross Lagerwall <ross.lagerwall@citrix.com>,
-	Mark Syms <Mark.Syms@citrix.com>,
-	Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	Andreas Gruenbacher <agruenba@redhat.com>
-Subject: Re: [PATCH v3 2/2] gfs2: Fix iomap write page reclaim deadlock
-Message-ID: <201904260441.Ps3XKLKe%lkp@intel.com>
-References: <20190425160913.1878-2-agruenba@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190425160913.1878-2-agruenba@redhat.com>
-X-Patchwork-Hint: ignore
-User-Agent: Mutt/1.5.23 (2014-03-12)
+       dkim=pass header.i=@kernel.org header.s=default header.b=hwCGJgJL;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id B70E0206A3;
+	Thu, 25 Apr 2019 21:09:08 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1556226548;
+	bh=WpmCo0Eolh7ocNua2jKlJaDc65LagGI+szT8NXdlDyI=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=hwCGJgJLgap2sUcaotmg2GU3j2hAAro/ij+TdeK6m1lWq8XFJuzwuuIjvpKGfVhbm
+	 UD4cSWul8/LRGi3W/6wnjPlPNmsQJjnzUYoBYU+ANMKe24twKNEkaj5q7jzC1wW3Sw
+	 1aTtd63UZ1hCSFe8WEnDMt/XxyrkFTGKvz3wEooc=
+Date: Thu, 25 Apr 2019 14:09:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/2] mm/page_alloc: fix never set ALLOC_NOFRAGMENT flag
+Message-Id: <20190425140908.7da3c4e52663196c7b914b00@linux-foundation.org>
+In-Reply-To: <20190424234052.GW18914@techsingularity.net>
+References: <20190423120806.3503-1-aryabinin@virtuozzo.com>
+	<20190423120806.3503-2-aryabinin@virtuozzo.com>
+	<20190423120143.f555f77df02a266ba2a7f1fc@linux-foundation.org>
+	<20190424090403.GS18914@techsingularity.net>
+	<20190424154624.f1084195c36684453a557718@linux-foundation.org>
+	<20190424234052.GW18914@techsingularity.net>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andreas,
+On Thu, 25 Apr 2019 00:40:53 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-I love your patch! Perhaps something to improve:
+> On Wed, Apr 24, 2019 at 03:46:24PM -0700, Andrew Morton wrote:
+> > On Wed, 24 Apr 2019 10:04:03 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+> > 
+> > > On Tue, Apr 23, 2019 at 12:01:43PM -0700, Andrew Morton wrote:
+> > > > On Tue, 23 Apr 2019 15:08:06 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> > > > 
+> > > > > Commit 0a79cdad5eb2 ("mm: use alloc_flags to record if kswapd can wake")
+> > > > > removed setting of the ALLOC_NOFRAGMENT flag. Bring it back.
+> > > > 
+> > > > What are the runtime effects of this fix?
+> > > 
+> > > The runtime effect is that ALLOC_NOFRAGMENT behaviour is restored so
+> > > that allocations are spread across local zones to avoid fragmentation
+> > > due to mixing pageblocks as long as possible.
+> > 
+> > OK, thanks.  Is this worth a -stable backport?
+> 
+> Yes, but only for 5.0 obviously and both should be included if that is
+> the case. I did not push for it initially as problems in this area are
+> hard for a general user to detect and people have not complained about
+> 5.0's fragmentation handling.
 
-[auto build test WARNING on gfs2/for-next]
-[also build test WARNING on v5.1-rc6 next-20190424]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+Ah, OK.  0a79cdad5eb2 didn't have a -stable tag so I suppose we can
+leave this patch un-stabled.
 
-url:    https://github.com/0day-ci/linux/commits/Andreas-Gruenbacher/iomap-Add-a-page_prepare-callback/20190426-020018
-base:   https://git.kernel.org/pub/scm/linux/kernel/git/gfs2/linux-gfs2.git for-next
-reproduce:
-        # apt-get install sparse
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
-
-If you fix the issue, kindly add following tag
-Reported-by: kbuild test robot <lkp@intel.com>
-
-
-sparse warnings: (new ones prefixed by >>)
-
->> fs/gfs2/bmap.c:1014:29: sparse: sparse: symbol 'gfs2_iomap_page_ops' was not declared. Should it be static?
-
-Please review and possibly fold the followup patch.
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+If they went and backported 0a79cdad5eb2 anyway, let's hope the scripts
+are smart enough to catch this patch's Fixes: link.
 
