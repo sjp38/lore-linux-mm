@@ -6,105 +6,105 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84EFDC4321B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C366C43219
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74EFD206C0
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74EFD206C0
+	by mail.kernel.org (Postfix) with ESMTP id 6C3E0206C0
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C3E0206C0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D23FE6B000A; Thu, 25 Apr 2019 17:46:26 -0400 (EDT)
+	id B6B996B000C; Thu, 25 Apr 2019 17:46:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CAA786B000C; Thu, 25 Apr 2019 17:46:26 -0400 (EDT)
+	id B1ACA6B000D; Thu, 25 Apr 2019 17:46:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA62C6B000D; Thu, 25 Apr 2019 17:46:26 -0400 (EDT)
+	id A361F6B000E; Thu, 25 Apr 2019 17:46:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B056B000A
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:26 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id s22so582001plq.1
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:46:26 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB976B000C
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:30 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id u78so757419pfa.12
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:46:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:message-id;
-        bh=i1bfsZjFrXVP5RwntuUxVyAAkzjjd/96go1WsZXyan0=;
-        b=llFuxEMUbLCDKiHsZBWjd3KoCAWEhjgUcdb8cezOmZgHrDfQ+RwBazc/8AsRYhA+tN
-         Mb2L6++AsIY9YUE4Bg2kvMHWc1UT1OemumYXH9KerD6uzHjIVspLyAAgx/F8skQLCeh0
-         nBYOkmoIqQkMFE0zL8F4saDl/BksXZqIwGAtHwKd7sjwhABiVBRS6gGh5w+6kZa6bTTf
-         cfkHOagZHG/4Ympe6uuzOtMwD7pdrSAxKFSrdiK1gz7hMnu8z1nsS4HuZnHf1EnL84Mc
-         CgeM3qfEzHxmM/IAeYwe9RNffQzNO3C7mI7ABmfS8a6LEqVrpxLCXGYmqdPSVTRdYDkM
-         6DZw==
+        bh=eOsJDCQYnDhxIgZUo3pOOqasW3JRJUKG00CA3rD/iBs=;
+        b=YUtdWJcSnv32iG90BZfxEU5MxPeNI8AzVajDClCkLHQMDxzrpz/SBlgL249S2/wPH/
+         D8CMHIZLo1NmNCCNv1bu9Spb2tF/giRryWSEhMR2u5WwF9J6XBB8Nc2xQrPEpAyHf04/
+         DcMDUTDUIsjoYwoGOvBSKJCyEMH20rdajgsjQcyVvFh5EX5pwviUCSwoXHtJ5uWEvnlQ
+         MmCxJKuKBOSiVOy/2U+fK1zx5juEwOFp99YtITIECWuDc+vfCGfFsVLWrz93i5s159S/
+         gDeC79cF61BmlXNs4Yp/IG9csA7zD7cw71CdmVGcw6VcHkxV4nHwnaLPxGqDIt0TLRwN
+         IbFQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWaTKFZ9ORlvTNXEUnJYNuoJNdxN0ZVS47o8WnevH6bUN8LpkQW
-	QR2ChCs3k5ZFJzktDr3EbTuq/zBq31BfsE6E2R2RWYY627Mr2xSsWANw1/sBMaCs3kMZVYck0RF
-	avNA2uPwxRzR216Vd/qeuWQfIQ8VBzFVJGIT5jBzwcnuLHgoAUd4BqyAiKU2u7Axbgg==
-X-Received: by 2002:a17:902:2:: with SMTP id 2mr42319825pla.61.1556228786090;
-        Thu, 25 Apr 2019 14:46:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy7jzOkJQb3H/C5ogKFXZBLVADj/j6pJb2QMXH6DNi9D1HLboMuGt2ZOmG/FRaaOMTGfteW
-X-Received: by 2002:a17:902:2:: with SMTP id 2mr42319732pla.61.1556228784858;
-        Thu, 25 Apr 2019 14:46:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556228784; cv=none;
+X-Gm-Message-State: APjAAAUQ/Y0NzgaLO+/4oIx7ezAdIYCYY/u/4CCP805XnK2VJb3K805U
+	Om/Qb55OkC0jh5G89IMJj2Z9nTdzwRjEUO8UBPrvDke/My5caSxsRWsEjkUqOjZOG6GCiXKNg85
+	HowPIMCioXbcGaVehxUBzrbi7R60ouqVbei55X8tDztLIbf70tte+hMZ91dH+3ZIGQw==
+X-Received: by 2002:a63:5560:: with SMTP id f32mr40041509pgm.334.1556228790091;
+        Thu, 25 Apr 2019 14:46:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOLoZm21SXQikx/kYeT0v+qMw2mR/nn+1sqQsnMUUKpmZJse98FqXnQCGDWA4VMFSIzzn9
+X-Received: by 2002:a63:5560:: with SMTP id f32mr40041457pgm.334.1556228789276;
+        Thu, 25 Apr 2019 14:46:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556228789; cv=none;
         d=google.com; s=arc-20160816;
-        b=sYv+7/YWOhQqE839sdWSBOqDVD6bXraLElmf5A/qWny0EKHAIDuBl41c1WDigomBA1
-         NIVNfxovmtM4w3tdaVLP0fozbmPuLvfZ5iqPHOtUWzpFNbtsDALBLWN0uxRRpZqc6+A7
-         qA/1/r/2taHqetvFC3T4XyPHak5CNN1VgYLWpRuE3c86MtwO9P0s21LOPacweHGhRck6
-         mq30YP5kG9xsTLkGvGKM4odhZyQt+bYMXoX5akmRZB5tinPfSQbtue5lR6MHJnpUeBs4
-         LNsuG9B7sY9VKAWSjZ4IKhD0K+br1YeXwrV17UJaRcRhU0yMObspvQz2EgrYmS7HC/iq
-         m64g==
+        b=wWifL32evRmEfgVyDEECnApqMfECUjIrS9cF+KZXq27yNK6XalNMTMdefDd7FnxGTO
+         nr396QUL/dpDYqOQzalsXBxIauo81Is8dClBiEnsJpWpNgn54oigd/SzDMIYdU+RRiwn
+         bVNLQojwyOIwlIgyVlGihj2LRKF7kG45z+Syo53HgRNOiu3KAN7/7xx+/YB7xLRUubxr
+         3Npt1mHliggEP0jiD4hxsflgann3FQarSiBgV0cf2t+8zcAse/XjdejR69bebEgVEA7r
+         sh5lQO+zI7NkBuwx1/umysy0i9buMNZXBs3XYx1ZQO/t/MRzRraxhXKr3CYf1CpooYN4
+         goiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=i1bfsZjFrXVP5RwntuUxVyAAkzjjd/96go1WsZXyan0=;
-        b=ZACYhQ+PJlVNbp6rmu3UrtjXU1pixKsyL1nDeew4mEliQHR4sDOkwgYh0Bk7IW9yLX
-         5uk202izVhGFzBpBKgqqrI+8e8MgLK4NIw9qLTGUHRQl65RLWefNUiNnlY1Z8z2sr/nN
-         MZ8SAvEpR4fSaPd1E/77mdeHuuSfG5LECs4sDcir3XIMuPGKbz6bhhF5MdxBMzV01oBH
-         cRSWH4RBZoQLSkrlQ0wcJyFpmk8BDZ72j4fToZdXjFPL4463xXpDrB+zcs9esVP98UJQ
-         5nYUAdK7xdzR6brHdhlZESFcvqKx0Pwi91yZAjhgnq/4xFX8bX5f6tsNnnTGlnkrKPzc
-         /QWQ==
+        bh=eOsJDCQYnDhxIgZUo3pOOqasW3JRJUKG00CA3rD/iBs=;
+        b=jFQNVPnCgSt2DaryiyYLJFmt0fq7bhSpxISV0pmuH5zzOwOENFdzSSjkbhsP8gMqRq
+         z8cdSVmpTnAVRdcMBjCRY7H2dQK57EYu3sSFNYIm0HEvq5l7UWW0RMCD19euiARKyz0T
+         q8VIYslII4M7QUfKlVpkXHqRDnYD21fvt1NHDVbtwlpn0NEeqrfA4m4iqVgUP0WEnGXd
+         vp9T8CWfor0pH6fx3sjX2hq2yh21JRfhxp11ls7FKW1SoXK0G9efgswlGkd0hT1AbSsH
+         hwoF2qOeHlPI4ULyOMzmp/9WPV/U9s0e9hkXCiZwGS55Cyb2zhkG+/QaV796+qbHgriO
+         mOLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 6si3433453pgl.470.2019.04.25.14.46.24
+        by mx.google.com with ESMTPS id 14si21584636pgv.248.2019.04.25.14.46.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 14:46:24 -0700 (PDT)
+        Thu, 25 Apr 2019 14:46:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3PLZJV1079832
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:24 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2s3k8jv6tb-1
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3PLdOi4090774
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:28 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s3hf9r74g-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:24 -0400
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:28 -0400
 Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 25 Apr 2019 22:46:21 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Thu, 25 Apr 2019 22:46:26 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 25 Apr 2019 22:46:17 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3PLkGbB52494340
+	Thu, 25 Apr 2019 22:46:20 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3PLkJQT61538416
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 25 Apr 2019 21:46:16 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 74A6311C052;
-	Thu, 25 Apr 2019 21:46:16 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 00CAC11C04C;
-	Thu, 25 Apr 2019 21:46:14 +0000 (GMT)
+	Thu, 25 Apr 2019 21:46:19 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CA28142041;
+	Thu, 25 Apr 2019 21:46:19 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 50F4B42049;
+	Thu, 25 Apr 2019 21:46:17 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.204.209])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 25 Apr 2019 21:46:13 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Fri, 26 Apr 2019 00:46:13 +0300
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 25 Apr 2019 21:46:17 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Fri, 26 Apr 2019 00:46:16 +0300
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: linux-kernel@vger.kernel.org
 Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
@@ -117,22 +117,22 @@ Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
         Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
         linux-security-module@vger.kernel.org, x86@kernel.org,
         Mike Rapoport <rppt@linux.ibm.com>
-Subject: [RFC PATCH 4/7] x86/sci: hook up isolated system call entry and exit
-Date: Fri, 26 Apr 2019 00:45:51 +0300
+Subject: [RFC PATCH 5/7] x86/mm/fault: hook up SCI verification
+Date: Fri, 26 Apr 2019 00:45:52 +0300
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
 References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
 X-TM-AS-GCONF: 00
-x-cbid: 19042521-4275-0000-0000-0000032E1ABE
+x-cbid: 19042521-0016-0000-0000-000002750F36
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19042521-4276-0000-0000-0000383D6915
-Message-Id: <1556228754-12996-5-git-send-email-rppt@linux.ibm.com>
+x-cbparentid: 19042521-0017-0000-0000-000032D18954
+Message-Id: <1556228754-12996-6-git-send-email-rppt@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-25_18:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=858 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=450 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1904250133
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -140,158 +140,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a system call is required to run in an isolated context, the CR3 will
-be switched to the SCI page table a per-cpu variable will contain and
-offset from the original CR3. This offset is used to switch back to the
-full kernel context when a trap occurs during isolated system call.
+If a system call runs in isolated context, it's accesses to kernel code and
+data will be verified by SCI susbsytem.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- arch/x86/entry/common.c      | 61 ++++++++++++++++++++++++++++++++++++++++++++
- arch/x86/kernel/process_64.c |  5 ++++
- kernel/exit.c                |  3 +++
- 3 files changed, 69 insertions(+)
+ arch/x86/mm/fault.c | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
 
-diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 7bc105f..8f2a6fd 100644
---- a/arch/x86/entry/common.c
-+++ b/arch/x86/entry/common.c
-@@ -25,12 +25,14 @@
- #include <linux/uprobes.h>
- #include <linux/livepatch.h>
- #include <linux/syscalls.h>
-+#include <linux/sci.h>
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 9d5c75f..baa2a2f 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -18,6 +18,7 @@
+ #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
+ #include <linux/efi.h>			/* efi_recover_from_page_fault()*/
+ #include <linux/mm_types.h>
++#include <linux/sci.h>			/* sci_verify_and_map()		*/
  
- #include <asm/desc.h>
- #include <asm/traps.h>
- #include <asm/vdso.h>
- #include <linux/uaccess.h>
- #include <asm/cpufeature.h>
-+#include <asm/tlbflush.h>
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/syscalls.h>
-@@ -269,6 +271,50 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
+ #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
+ #include <asm/traps.h>			/* dotraplinkage, ...		*/
+@@ -1254,6 +1255,30 @@ static int fault_in_kernel_space(unsigned long address)
+ 	return address >= TASK_SIZE_MAX;
  }
  
- #ifdef CONFIG_X86_64
-+
 +#ifdef CONFIG_SYSCALL_ISOLATION
-+static inline bool sci_required(unsigned long nr)
++static int sci_fault(struct pt_regs *regs, unsigned long hw_error_code,
++		     unsigned long address)
 +{
-+	return false;
-+}
++	struct task_struct *tsk = current;
 +
-+static inline unsigned long sci_syscall_enter(unsigned long nr)
-+{
-+	unsigned long sci_cr3, kernel_cr3;
-+	unsigned long asid;
++	if (!tsk->in_isolated_syscall)
++		return 0;
 +
-+	kernel_cr3 = __read_cr3();
-+	asid = kernel_cr3 & ~PAGE_MASK;
-+
-+	sci_cr3 = build_cr3(current->sci->pgd, 0) & PAGE_MASK;
-+	sci_cr3 |= (asid | (1 << X86_CR3_SCI_PCID_BIT));
-+
-+	current->in_isolated_syscall = 1;
-+	current->sci->cr3_offset = kernel_cr3 - sci_cr3;
-+
-+	this_cpu_write(cpu_sci.sci_syscall, 1);
-+	this_cpu_write(cpu_sci.sci_cr3_offset, current->sci->cr3_offset);
-+
-+	write_cr3(sci_cr3);
-+
-+	return kernel_cr3;
-+}
-+
-+static inline void sci_syscall_exit(unsigned long cr3)
-+{
-+	if (cr3) {
-+		write_cr3(cr3);
-+		current->in_isolated_syscall = 0;
++	if (!sci_verify_and_map(regs, address, hw_error_code)) {
 +		this_cpu_write(cpu_sci.sci_syscall, 0);
-+		sci_clear_data();
++		no_context(regs, hw_error_code, address, SIGKILL, 0);
 +	}
++
++	return 1;
 +}
 +#else
-+static inline bool sci_required(unsigned long nr) { return false; }
-+static inline unsigned long sci_syscall_enter(unsigned long nr) { return 0; }
-+static inline void sci_syscall_exit(unsigned long cr3) {}
++static inline int sci_fault(struct pt_regs *regs, unsigned long hw_error_code,
++			    unsigned long address)
++{
++	return 0;
++}
 +#endif
 +
- __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
- {
- 	struct thread_info *ti;
-@@ -286,10 +332,25 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
- 	 */
- 	nr &= __SYSCALL_MASK;
- 	if (likely(nr < NR_syscalls)) {
-+		unsigned long sci_cr3 = 0;
-+
- 		nr = array_index_nospec(nr, NR_syscalls);
-+
-+		if (sci_required(nr)) {
-+			int err = sci_init(current);
-+
-+			if (err) {
-+				regs->ax = err;
-+				goto err_return_from_syscall;
-+			}
-+			sci_cr3 = sci_syscall_enter(nr);
-+		}
-+
- 		regs->ax = sys_call_table[nr](regs);
-+		sci_syscall_exit(sci_cr3);
- 	}
+ /*
+  * Called for all faults where 'address' is part of the kernel address
+  * space.  Might get called for faults that originate from *code* that
+@@ -1301,6 +1326,9 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
+ 	if (kprobes_fault(regs))
+ 		return;
  
-+err_return_from_syscall:
- 	syscall_return_slowpath(regs);
- }
- #endif
-diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index 6a62f4a..b8aa624 100644
---- a/arch/x86/kernel/process_64.c
-+++ b/arch/x86/kernel/process_64.c
-@@ -55,6 +55,8 @@
- #include <asm/resctrl_sched.h>
- #include <asm/unistd.h>
- #include <asm/fsgsbase.h>
-+#include <asm/sci.h>
++	if (sci_fault(regs, hw_error_code, address))
++		return;
 +
- #ifdef CONFIG_IA32_EMULATION
- /* Not included via unistd.h */
- #include <asm/unistd_32_ia32.h>
-@@ -581,6 +583,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
- 
- 	switch_to_extra(prev_p, next_p);
- 
-+	/* update syscall isolation per-cpu data */
-+	sci_switch_to(next_p);
-+
- #ifdef CONFIG_XEN_PV
  	/*
- 	 * On Xen PV, IOPL bits in pt_regs->flags have no effect, and
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 2639a30..8e81353 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -62,6 +62,7 @@
- #include <linux/random.h>
- #include <linux/rcuwait.h>
- #include <linux/compat.h>
-+#include <linux/sci.h>
- 
- #include <linux/uaccess.h>
- #include <asm/unistd.h>
-@@ -859,6 +860,8 @@ void __noreturn do_exit(long code)
- 	tsk->exit_code = code;
- 	taskstats_exit(tsk, group_dead);
- 
-+	sci_exit(tsk);
-+
- 	exit_mm();
- 
- 	if (group_dead)
+ 	 * Note, despite being a "bad area", there are quite a few
+ 	 * acceptable reasons to get here, such as erratum fixups
 -- 
 2.7.4
 
