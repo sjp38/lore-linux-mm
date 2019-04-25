@@ -2,76 +2,76 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF31FC282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2689CC282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 88C01214C6
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88C01214C6
+	by mail.kernel.org (Postfix) with ESMTP id E3F8C206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3F8C206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 099566B0005; Wed, 24 Apr 2019 21:42:44 -0400 (EDT)
+	id 5092F6B0006; Wed, 24 Apr 2019 21:42:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 049136B0006; Wed, 24 Apr 2019 21:42:43 -0400 (EDT)
+	id 3A47A6B0007; Wed, 24 Apr 2019 21:42:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA2866B0007; Wed, 24 Apr 2019 21:42:43 -0400 (EDT)
+	id 2BC216B0008; Wed, 24 Apr 2019 21:42:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B32B26B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:42:43 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b12so12991745pfj.5
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:42:43 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E72356B0006
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:42:44 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id g1so13000151pfo.2
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:42:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=cah/q1jvVVujCnwnWh0QHWDEt4UM1VYQ6RdhbZoS3MQ=;
-        b=oYlNuWuDHQumYMZpxo85tMjHfdNLBOj5jbiXtwplgnJF/9I/sP4+tjT83X8RSd9wQF
-         UUohMTaUm9g0LEBj8XKmdAnr6VbeO+b0pr0MUYG3WCIzgjyzD+F7vQ7fb9+StgkWdr+3
-         kI2bNpwenHciJRGayulNl3g6Sn4gcKnx0eVWjMNertYa8pi5XGfMZXEyhDZ8YjVukZw+
-         dDyayC0axW5AYIQsSWar2yXVoDsVSlatIpQVgAzB/AcLJf22/F1s0Y7wxdfh7GvlOLK2
-         DG0my93D28czm4TNz0pAVRkdkj9tl2lZQ3h7EnJ40Xb2aaz5tHqei380gRD030zRIZvj
-         SJaw==
+         :subject:date:message-id:in-reply-to:references;
+        bh=0yqiQlK/8S9jDfOWBw0HKH7+HNI4EnlVsdp6B0GH1hI=;
+        b=CLhar1HQDlBra7vyNCAJQqaJErNkRC3sOFnwyMoQPFpxtDQ5hbHnLc2EnaXPg6NWkb
+         gvUmUrO2+vFE8zwJl5e8ojc1uHBCzLa+X2n1QJm1yIoe2yH/LJjbxqaq+h9TpDuHzJtV
+         /d/k9c3/VwY4mabZhEmWXTjVCGdaosBacKH2kx52qhhu/7KANIy0UiNytfhb/JUXKiH1
+         jknooz+85T/w+EgiL+dWNU6UlayLMk5o8oV+aPZUk2Fu9MliSDEnt/CdO0ywJIS1n8rW
+         ySTEYFll+anMHVCqa/Kar1UBoJOMme5JyJpTj015Xn82BtOeVJPevMl6NBgxhbRPvvk4
+         RjwA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUKbJoBdNhz9/X0UL91O3+MgHSzvU6fMWcKzGufAtu6WHxJtYkp
-	P33jFH8OVEIHHKBqFiVjsl/BA3FwYL7IUGwzKZkQOyEH0497vgrQhvu1vHxbd8fZjHEiU60VDx7
-	HD5yRfFRUh4SdGwxOypaiJWXXHXWQMoJq5ZsCvePrlPRriHTdBFKOItdPeDXdhksWbw==
-X-Received: by 2002:a62:5582:: with SMTP id j124mr37111874pfb.53.1556156563382;
+X-Gm-Message-State: APjAAAVas0cKErDljNs1R3+t4S52dAks1adSLIL5Esx6Zn6XodxpEdkz
+	+YYDNGqGWonH4kKBFQhOjm5+rMeM3astd/D6g7MHPdH597VIwvfr7hVggLIe4mH1aeXs+AjvsH5
+	2LaPV6h7EZljntIIKgpQz7TzdJnc646KitTkAoPZvmn9r04P1NnwsRsVifMThaCi1lQ==
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19220232pls.11.1556156564639;
+        Wed, 24 Apr 2019 18:42:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYTLqyQ5vmw/pfTxog3MShb+qCKhi4nSix5K7NThssNwJ+MsZQVq0bk9MYG79yz9orbNNQ
+X-Received: by 2002:a17:902:be12:: with SMTP id r18mr19220180pls.11.1556156563922;
         Wed, 24 Apr 2019 18:42:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwmTTZqcIue+Xfhdg8s8+YTzsTfUbv7VmuOa6mAl9umqHti+ruw4Y6zRhZXK5/3Zmdik6cx
-X-Received: by 2002:a62:5582:: with SMTP id j124mr37111820pfb.53.1556156562547;
-        Wed, 24 Apr 2019 18:42:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556156562; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556156563; cv=none;
         d=google.com; s=arc-20160816;
-        b=IyFOPIAoxwlK/x4YXL4y9kZ16TR03/jOX5L0YqmEvaYFFZbOsQnFDgZa2Zg0a3T64w
-         phJF5h3ik/fkHQa2ya+z7SvheYytqEEB0qF4jU3Hgd7WkIFhLfLc6Ij2Cnnp0Ex7vN9h
-         aneLBVfoSNr3QrJyMmYwbQX35RVzWA2a/dM6lOGDQY0bF/aN3QE9PpCt2TgIiJ9tFiYH
-         any6lmDe61jjmUsbE9dWIgUgKNRMepD0EAIF57XvodGgnQvOGJ40lVAL6xbNSAv79LsC
-         LYfcEEvQEsWhHBl7UVS5i0RDBZFMK7XEX5tIuzDu+xyYlZCf8dGrGF2oqQIJl+POdAJR
-         Ahkg==
+        b=vPrd2XKBevWe2UERm5JRN4e2IggPlEpHafhGVCxF5cyXa2g/n66tAqtIXAND3gaj+S
+         +J0AGc5+DLIludIsqKFeVV4a46uOVDdVa9kbGLuxijI3S/o1sSGVEmfPbgxE9DU01qkz
+         BCITgR4Gr416szTyYLjdf5im01AEvTdwMO9jnggaMp1aqMyntaxrVxjyWYIsr6CcVaft
+         Tv1T3gyS5V85OID5nq3ysCgaxZU4hv1LAUdPiS/bjLOjiR9OoejX2KwZTvQNuamsT7mY
+         bd0Tov13DIOIwQjveuRe17S2Rlg6EiHysJzuWxJ6ACPqIQd9EdklU8v/XnMRs579H9U4
+         TYpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=cah/q1jvVVujCnwnWh0QHWDEt4UM1VYQ6RdhbZoS3MQ=;
-        b=Ddh9pRe+p44EF1WMpWktkbpDchUnNg8WnwNF1cfMm2XTy7m3QApXtCD6I/JfwAyEiu
-         bU905lOKPloQrlmcEC4vJRMPZmnB5tNceu7aXwzeLVVDu9p8TD5UdjKj78Zkel2Pp1W6
-         +JxgFcrGgTqtZBUjEZEiEGPn8L1JzSLzFluk8Ktmq9rc2b8PgVZxlcXJiNv5mgbaejbs
-         XuvDM7FCAlJvXA3UPqkb2xkCif1pg068t2UQZc0Sy1+GsM1lDufXMyfz6GpKj/zSex6f
-         rFaaBYgMJB72We+lDU8nze1QmaatYjolbmABAqMzAvLidrH7FiKkFGCvKxSvFqemrvno
-         sVsg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=0yqiQlK/8S9jDfOWBw0HKH7+HNI4EnlVsdp6B0GH1hI=;
+        b=D2LhsONwX2p7+MUpdKEwJ7eI2kzMBF71ZddbCu5FMYxKg2C5MOBswrInEa4axDOXTh
+         iXO2p+kr6kKOsXAiD/p0phrz25Dbmuxp5YUo1NpeTQgHByAjKtqcJ0q6/9rTiROxhMSJ
+         15KZDp89WaX4j0j4sQRLZu6zOXv1/S8ygz6A4283H2CiN2uPyxD04vvGL5dXiPz4mXkK
+         nLopsAHepqQAxuPoJMgeFvzpg9oKYzaV+il221fcftCZL1fT5FYE9xT1R1nYjT9cwDTq
+         rst0wByN0jne7SH8N5aaSqMetCbjB+mQr8kwA71PiqJdjgytn19/TvCdCODOXdztgKCx
+         rPfA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d3si21134661pfc.278.2019.04.24.18.42.42
+        by mx.google.com with ESMTPS id d3si21134661pfc.278.2019.04.24.18.42.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 18:42:42 -0700 (PDT)
+        Wed, 24 Apr 2019 18:42:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Apr 2019 18:42:41 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Apr 2019 18:42:43 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,391,1549958400"; 
-   d="scan'208";a="152134204"
+   d="scan'208";a="152134215"
 Received: from zz23f_aep_wp03.sh.intel.com ([10.239.85.39])
-  by FMSMGA003.fm.intel.com with ESMTP; 24 Apr 2019 18:42:40 -0700
+  by FMSMGA003.fm.intel.com with ESMTP; 24 Apr 2019 18:42:42 -0700
 From: Fan Du <fan.du@intel.com>
 To: akpm@linux-foundation.org,
 	mhocko@suse.com,
@@ -96,77 +96,76 @@ To: akpm@linux-foundation.org,
 Cc: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Fan Du <fan.du@intel.com>
-Subject: [RFC PATCH 0/5] New fallback workflow for heterogeneous memory system
-Date: Thu, 25 Apr 2019 09:21:30 +0800
-Message-Id: <1556155295-77723-1-git-send-email-fan.du@intel.com>
+Subject: [RFC PATCH 1/5] acpi/numa: memorize NUMA node type from SRAT table
+Date: Thu, 25 Apr 2019 09:21:31 +0800
+Message-Id: <1556155295-77723-2-git-send-email-fan.du@intel.com>
 X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1556155295-77723-1-git-send-email-fan.du@intel.com>
+References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is another approach of building zonelist based on patch #10 of
-patchset[1].
+Mark NUMA node as DRAM or PMEM.
 
-For systems with heterogeneous DRAM and PMEM (persistent memory),
+This could happen in boot up state (see the e820 pmem type
+override patch), or on fly when bind devdax device with kmem
+driver.
 
-1) change ZONELIST_FALLBACK to first fallback to same type nodes,
-   then the other types
+It depends on BIOS supplying PMEM NUMA proximity in SRAT table,
+that's current production BIOS does.
 
-2) add ZONELIST_FALLBACK_SAME_TYPE to fallback only same type nodes.
-   To be explicitly selected by __GFP_SAME_NODE_TYPE.
+Signed-off-by: Fan Du <fan.du@intel.com>
+---
+ arch/x86/include/asm/numa.h | 2 ++
+ arch/x86/mm/numa.c          | 2 ++
+ drivers/acpi/numa.c         | 5 +++++
+ 3 files changed, 9 insertions(+)
 
-For example, a 2S DRAM+PMEM system may have NUMA distances:
-node   0   1   2   3 
-  0:  10  21  17  28 
-  1:  21  10  28  17 
-  2:  17  28  10  28 
-  3:  28  17  28  10
-
-Node 0,1 are DRAM nodes, node 2, 3 are PMEM nodes.
-
-ZONELIST_FALLBACK
-=================
-Current zoned fallback lists are based on numa distance only,
-which means page allocation request from node 0 will iterate zone order
-like: DRAM node 0 -> PMEM node 2 -> DRAM node 1 -> PMEM node 3.
-
-However PMEM has different characteristics from DRAM,
-the more reasonable or desirable fallback style would be:
-DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3.
-When DRAM is exhausted, try PMEM then. 
-
-ZONELIST_FALLBACK_SAME_TYPE
-===========================
-Some cases are more suitable to fit PMEM characteristics, like page is
-read more frequently than written. Other cases may prefer DRAM only.
-It doesn't matter page is from local node, or remote.
-
-Create __GFP_SAME_NODE_TYPE to request page of same node type,
-either we got DRAM(from node 0, 1) or PMEM (from node 2, 3), it's kind
-of extension to the nofallback list, but with the same node type. 
-
-This patchset is self-contained, and based on Linux 5.1-rc6.
-
-[1]:
-https://lkml.org/lkml/2018/12/26/138
-
-Fan Du (5):
-  acpi/numa: memorize NUMA node type from SRAT table
-  mmzone: new pgdat flags for DRAM and PMEM
-  x86,numa: update numa node type
-  mm, page alloc: build fallback list on per node type basis
-  mm, page_alloc: Introduce ZONELIST_FALLBACK_SAME_TYPE fallback list
-
- arch/x86/include/asm/numa.h |  2 ++
- arch/x86/mm/numa.c          |  3 +++
- drivers/acpi/numa.c         |  5 ++++
- include/linux/gfp.h         |  7 ++++++
- include/linux/mmzone.h      | 35 ++++++++++++++++++++++++++++
- mm/page_alloc.c             | 57 ++++++++++++++++++++++++++++++++-------------
- 6 files changed, 93 insertions(+), 16 deletions(-)
-
+diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
+index bbfde3d..5191198 100644
+--- a/arch/x86/include/asm/numa.h
++++ b/arch/x86/include/asm/numa.h
+@@ -30,6 +30,8 @@
+  */
+ extern s16 __apicid_to_node[MAX_LOCAL_APIC];
+ extern nodemask_t numa_nodes_parsed __initdata;
++extern nodemask_t numa_nodes_pmem;
++extern nodemask_t numa_nodes_dram;
+ 
+ extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
+ extern void __init numa_set_distance(int from, int to, int distance);
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index dfb6c4d..3c3a1f5 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -20,6 +20,8 @@
+ 
+ int numa_off;
+ nodemask_t numa_nodes_parsed __initdata;
++nodemask_t numa_nodes_pmem;
++nodemask_t numa_nodes_dram;
+ 
+ struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
+ EXPORT_SYMBOL(node_data);
+diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+index 867f6e3..ec4b7a7e 100644
+--- a/drivers/acpi/numa.c
++++ b/drivers/acpi/numa.c
+@@ -298,6 +298,11 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+ 
+ 	node_set(node, numa_nodes_parsed);
+ 
++	if (ma->flags & ACPI_SRAT_MEM_NON_VOLATILE)
++		node_set(node, numa_nodes_pmem);
++	else
++		node_set(node, numa_nodes_dram);
++
+ 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+ 		node, pxm,
+ 		(unsigned long long) start, (unsigned long long) end - 1,
 -- 
 1.8.3.1
 
