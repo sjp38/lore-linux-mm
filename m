@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 358C3C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5B10C43219
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50F922077C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50F922077C
+	by mail.kernel.org (Postfix) with ESMTP id 0C73B206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C73B206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96B946B000A; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
+	id D66056B0005; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 941F56B000C; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
+	id CF8F36B000D; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7BF9A6B000D; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
+	id 87ED96B0005; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 408926B000A
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 477E66B000C
 	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:14:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z7so364830pgc.1
+Received: by mail-pf1-f200.google.com with SMTP id u78so532359pfa.12
         for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:14:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=Qomb4bQrj0FpHocZBe5A1sgLN2lWduvhJqbmQ7wL5d8=;
-        b=l/o6rXNSLaP5y2btfdZ3NJCx3j4HnFUotICxkUGeNh9wH46EczYO3XG9JnzNCQ4SrM
-         zPnP0fsEvBmFEPbQ9GH91S95Y5N4iBiUd5QE8IkpkATHsmS042BLxsmWFSR6A3TprXZv
-         HitwTiqz1tSPayIaagNC/3ynXVGZGnAJFPZASOJVLj0qZVc62LAcrs12fC3tbtf7w59K
-         nSVvo6CE1ZlTaki7gZ/pO1JOv4ihS19wD57nbAi93HktPo3pK/NQ2rHC2qlxb/ZW4tkw
-         9cFiVGT3g6M2c+cxnbn2FKlwgqXDrOcn3r/piAd8zVqu7G9ZRLIPhSFCsES2FDPxAgU5
-         0Nng==
+        bh=A57QNDTm9gEfuLcDlXJiL+105CCH9ZSoNTY8WY5zPdc=;
+        b=UqzweRDt0qEl52tv1fBYL4fRXz6IXyrghFJowujSCpnCKa0pKBZidrh/YlI2Wdc858
+         jc3QIGyyzGr6gIimiNY54srI16TCnubC9CkElrjKYejkFn9cKZe8cE22uLFh6i08Oucs
+         oN0alGRzrpqHxYzB441oEsbB8DJI64+OphN5oXw0+weaFd3vR+neCLkC3w7N4mw8sfgl
+         UiaO6JHKXSxICzg04Ln8V6JO+6t24wY0MFhBbp2mLMa1c8J6sJIcsMyvzFWvCbQT63iF
+         qKxRhNY+V53EU+HrT4TvqL0HGc7fMSEPm9Gg3zcQJDcXU/WOjVgcZj5zTq4QY4BJNIOU
+         JrgA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-X-Gm-Message-State: APjAAAWzLRNyDRpU2JQVMiJ5AHEiAOEQz8aAxUhrOxnmc1MUEDWKz0jC
-	ISAYthDUWfkRGGaeylsge4KjqtNSLrRCBvxYxNYB79EdSDCNfJbFzqYh2BNMQjNEn5G2qqkPytE
-	tgiZB9nRWX69YsejYJpk1CYiOHCPpdzUtQo1axW5mnqYsh0Sv3soGThqjqI5CFhed5Q==
-X-Received: by 2002:a17:902:bd92:: with SMTP id q18mr41657054pls.136.1556219674887;
+X-Gm-Message-State: APjAAAUD9NnBUTqDdLHwtVn6hsFdCrE+/ADvVzWX0g6uQDjVT1qS655T
+	tqFFXakwZhpnDpXCKWZ+1WthnwgZY77luwbzRb+7chOW5opNLTXJFFJMvhSIYiYg1+xtzlDPiju
+	jvgnNUENLJX/LCUscvURn0z10ga8dyYXsPipUBV5NaC5qp+BRC6R9Bp0flQ/7U48Q/g==
+X-Received: by 2002:a63:f707:: with SMTP id x7mr38562856pgh.343.1556219674896;
         Thu, 25 Apr 2019 12:14:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxthX64Nz5rQpQVg45aqN1Y/nsC1rfuZFroP1TBPMARqPsQo+bMvXJXwIcs/ccIVSmlZXu0
-X-Received: by 2002:a17:902:bd92:: with SMTP id q18mr41656924pls.136.1556219673193;
+X-Google-Smtp-Source: APXvYqzEuwFuRMf13wYfE+TmPDq8FB3d1D/RH+p+Ihyyck7k7w3OQduXYTerNbV4cmTODzX4KFet
+X-Received: by 2002:a63:f707:: with SMTP id x7mr38562761pgh.343.1556219673659;
         Thu, 25 Apr 2019 12:14:33 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1556219673; cv=none;
         d=google.com; s=arc-20160816;
-        b=LFQLoUGtS3Fok7owiYR1cLBEwpoyCnID1CCSimlh6NarDz5Y5MMTChaZAq2E7ye18d
-         sHRdXkEtcjPOLYF05bfEcatmQkcBJSJM0XEVRwlGDOkS1OiMZk4FuiLt7FCif3s386m8
-         RgR6GyQ2zV0d1QHeGAMbR6EFArXQ7Hxf5zj00SabTHsqbMVS5tfjcZdnj6aJ7ON0d1BY
-         u8Gl5yca9vQyjy7mdVoKHpE8GFzebQVkpIDCJxS3581uKYvuj9+PV+sJIcwPXKviL4Sj
-         mKRnzB2B/auAUEEnH/EXuoTtroO2xTpbi6xhy9KzFyWib2yzMAMD255wxaH1J0fFrWVv
-         hksA==
+        b=wY8fFYM2iSxtTcpnR08cxLW0OFG30E6jyhQkanog/ZIYmhRwDsxd9H/I5Dgr47vtiE
+         IK/5jZMNpXjbYTn69pzas9lV+N5eEFsOFwI0ghRnuR7t3PyPaMjU/BYq8hWYXLiHxX8J
+         iaKsgvLJQ+ZbXeX0N7/UEjbTTNpn1iahIZlC8MDeH52ivfJ4CwbWorM4fNraSWCmuyXg
+         hIbGMF/qdRk6sK3Bw9BRDo+teWiFiO3a5uua0zWeji44reTDC2gM/8/8TM8nqeAAbTD6
+         1SVazoPQFCrHUrYdLXKExA9ymH3+b1OisIKp6nBvkGSRNBu5eU7SEGbIEKvGezqkyb5U
+         cneg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from;
-        bh=Qomb4bQrj0FpHocZBe5A1sgLN2lWduvhJqbmQ7wL5d8=;
-        b=sbukAmH5Oh0J1nPeEUyDFK4C5rXtoh5hysfjDQkyHLhxEGQWN1PaUBe2yZdyfbn0KH
-         PJt+XhGAuEmBAkie2gRxSjuTxm0XD+fj3O/BRSyMZ6l9WSAVuxsLqm5mMiBx6PoD+Np7
-         lEBGUFqIk1lQ5nv4360HTZwSHLNI6a/9ySussWqTmL06pHax/09uUM3FCt2k2sGvtmsE
-         avAxVk36Vb0pBB0sKmbc0lIkYHeQ4STUWKFHfy7M5m9Y2PgkdRchRY12gkMuGCA1kNTL
-         5k154bCGRh0UJwLGNhqMxzm5Lhl1mOYyCVHWvotvgbuLlZKxt1wsT006ECl3qGbA58m+
-         zyhg==
+        bh=A57QNDTm9gEfuLcDlXJiL+105CCH9ZSoNTY8WY5zPdc=;
+        b=stYpMsvdivDfidVeyQWI60h82HNkOk3jDhRzLvK80tce2/gDuiaefGJHvi3CN74b9s
+         dn+l1nUAnuHDZEkyVuJ6x3Kh4gMkb1ROzFg5Yn3RwUKpk4YlkI/3y4mv6PfqTY7lRsjm
+         Eu/+BkoWEoX8wwco8kMIRyiBzwhcp4HFbkWEUtuP029hlF/VKnyb9Dx1J0igG7TWGX8u
+         Uub7LkVI+A4xEc9Zt/Y8bROXx+0spWXRWz/4/kwFGQEedl/yX/jBvNW8GA/B5s+FUQPs
+         xmPRBHoPn+uOc2a3P6dvuuhOfAXpuzjrn/gy9jj/kfA6JKPCUCi625HtSJ7zMVSghhoR
+         z5BQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
 Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
-        by mx.google.com with ESMTPS id a85si23305392pfj.12.2019.04.25.12.14.32
+        by mx.google.com with ESMTPS id a85si23305392pfj.12.2019.04.25.12.14.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Thu, 25 Apr 2019 12:14:33 -0700 (PDT)
@@ -81,7 +81,7 @@ Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
  EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP Server id
  15.0.1156.6; Thu, 25 Apr 2019 12:14:31 -0700
 Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
-	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 6D288412C9;
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 5F9AD412C3;
 	Thu, 25 Apr 2019 12:14:32 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Michael S. Tsirkin"
@@ -90,9 +90,9 @@ CC: Arnd Bergmann <arnd@arndb.de>, Julien Freche <jfreche@vmware.com>,
 	"VMware, Inc." <pv-drivers@vmware.com>, Jason Wang <jasowang@redhat.com>,
 	<linux-kernel@vger.kernel.org>, <virtualization@lists.linux-foundation.org>,
 	<linux-mm@kvack.org>, Nadav Amit <namit@vmware.com>
-Subject: [PATCH v4 3/4] vmw_balloon: Add memory shrinker
-Date: Thu, 25 Apr 2019 04:54:44 -0700
-Message-ID: <20190425115445.20815-4-namit@vmware.com>
+Subject: [PATCH v4 1/4] mm/balloon_compaction: List interfaces
+Date: Thu, 25 Apr 2019 04:54:42 -0700
+Message-ID: <20190425115445.20815-2-namit@vmware.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190425115445.20815-1-namit@vmware.com>
 References: <20190425115445.20815-1-namit@vmware.com>
@@ -106,236 +106,218 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add a shrinker to the VMware balloon to prevent out-of-memory events.
-We reuse the deflate logic for this matter. Deadlocks should not happen,
-as no memory allocation is performed while the locks of the
-communication (batch/page) and page-list are taken. In the unlikely
-event in which the configuration semaphore is taken for write we bail
-out and fail gracefully (causing processes to be killed).
+Introduce interfaces for ballooning enqueueing and dequeueing of a list
+of pages. These interfaces reduce the overhead of storing and restoring
+IRQs by batching the operations. In addition they do not panic if the
+list of pages is empty.
 
-Once the shrinker is called, inflation is postponed for few seconds.
-The timeout is updated without any lock, but this should not cause any
-races, as it is written and read atomically.
-
-This feature is disabled by default, since it might cause performance
-degradation.
-
+Cc: Jason Wang <jasowang@redhat.com>
+Cc: linux-mm@kvack.org
+Cc: virtualization@lists.linux-foundation.org
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
 Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 ---
- drivers/misc/vmw_balloon.c | 133 ++++++++++++++++++++++++++++++++++++-
- 1 file changed, 131 insertions(+), 2 deletions(-)
+ include/linux/balloon_compaction.h |   4 +
+ mm/balloon_compaction.c            | 144 +++++++++++++++++++++--------
+ 2 files changed, 110 insertions(+), 38 deletions(-)
 
-diff --git a/drivers/misc/vmw_balloon.c b/drivers/misc/vmw_balloon.c
-index 2136f6ad97d3..4b5e939ff4c8 100644
---- a/drivers/misc/vmw_balloon.c
-+++ b/drivers/misc/vmw_balloon.c
-@@ -40,6 +40,15 @@ MODULE_ALIAS("dmi:*:svnVMware*:*");
- MODULE_ALIAS("vmware_vmmemctl");
- MODULE_LICENSE("GPL");
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index f111c780ef1d..430b6047cef7 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -64,6 +64,10 @@ extern struct page *balloon_page_alloc(void);
+ extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+ 				 struct page *page);
+ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
++extern size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
++				      struct list_head *pages);
++extern size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
++				     struct list_head *pages, size_t n_req_pages);
  
-+static bool __read_mostly vmwballoon_shrinker_enable;
-+module_param(vmwballoon_shrinker_enable, bool, 0444);
-+MODULE_PARM_DESC(vmwballoon_shrinker_enable,
-+	"Enable non-cooperative out-of-memory protection. Disabled by default as it may degrade performance.");
-+
-+/* Delay in seconds after shrink before inflation. */
-+#define VMBALLOON_SHRINK_DELAY		(5)
-+
-+/* Maximum number of refused pages we accumulate during inflation cycle */
- #define VMW_BALLOON_MAX_REFUSED		16
+ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+ {
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index ef858d547e2d..b7bd72612c5a 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -10,6 +10,105 @@
+ #include <linux/export.h>
+ #include <linux/balloon_compaction.h>
  
- /* Magic number for the balloon mount-point */
-@@ -217,12 +226,13 @@ enum vmballoon_stat_general {
- 	VMW_BALLOON_STAT_TIMER,
- 	VMW_BALLOON_STAT_DOORBELL,
- 	VMW_BALLOON_STAT_RESET,
--	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_RESET
-+	VMW_BALLOON_STAT_SHRINK,
-+	VMW_BALLOON_STAT_SHRINK_FREE,
-+	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_SHRINK_FREE
- };
- 
- #define VMW_BALLOON_STAT_NUM		(VMW_BALLOON_STAT_LAST + 1)
- 
--
- static DEFINE_STATIC_KEY_TRUE(vmw_balloon_batching);
- static DEFINE_STATIC_KEY_FALSE(balloon_stat_enabled);
- 
-@@ -321,6 +331,15 @@ struct vmballoon {
- 	 */
- 	struct page *page;
- 
-+	/**
-+	 * @shrink_timeout: timeout until the next inflation.
-+	 *
-+	 * After an shrink event, indicates the time in jiffies after which
-+	 * inflation is allowed again. Can be written concurrently with reads,
-+	 * so must use READ_ONCE/WRITE_ONCE when accessing.
-+	 */
-+	unsigned long shrink_timeout;
-+
- 	/* statistics */
- 	struct vmballoon_stats *stats;
- 
-@@ -361,6 +380,20 @@ struct vmballoon {
- 	 * Lock ordering: @conf_sem -> @comm_lock .
- 	 */
- 	spinlock_t comm_lock;
-+
-+	/**
-+	 * @shrinker: shrinker interface that is used to avoid over-inflation.
-+	 */
-+	struct shrinker shrinker;
-+
-+	/**
-+	 * @shrinker_registered: whether the shrinker was registered.
-+	 *
-+	 * The shrinker interface does not handle gracefully the removal of
-+	 * shrinker that was not registered before. This indication allows to
-+	 * simplify the unregistration process.
-+	 */
-+	bool shrinker_registered;
- };
- 
- static struct vmballoon balloon;
-@@ -935,6 +968,10 @@ static int64_t vmballoon_change(struct vmballoon *b)
- 	    size - target < vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE))
- 		return 0;
- 
-+	/* If an out-of-memory recently occurred, inflation is disallowed. */
-+	if (target > size && time_before(jiffies, READ_ONCE(b->shrink_timeout)))
-+		return 0;
-+
- 	return target - size;
- }
- 
-@@ -1430,6 +1467,90 @@ static void vmballoon_work(struct work_struct *work)
- 
- }
- 
-+/**
-+ * vmballoon_shrinker_scan() - deflate the balloon due to memory pressure.
-+ * @shrinker: pointer to the balloon shrinker.
-+ * @sc: page reclaim information.
-+ *
-+ * Returns: number of pages that were freed during deflation.
-+ */
-+static unsigned long vmballoon_shrinker_scan(struct shrinker *shrinker,
-+					     struct shrink_control *sc)
++static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
++				     struct page *page)
 +{
-+	struct vmballoon *b = &balloon;
-+	unsigned long deflated_frames;
-+
-+	pr_debug("%s - size: %llu", __func__, atomic64_read(&b->size));
-+
-+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_SHRINK);
-+
 +	/*
-+	 * If the lock is also contended for read, we cannot easily reclaim and
-+	 * we bail out.
++	 * Block others from accessing the 'page' when we get around to
++	 * establishing additional references. We should be the only one
++	 * holding a reference to the 'page' at this point. If we are not, then
++	 * memory corruption is possible and we should stop execution.
 +	 */
-+	if (!down_read_trylock(&b->conf_sem))
-+		return 0;
-+
-+	deflated_frames = vmballoon_deflate(b, sc->nr_to_scan, true);
-+
-+	vmballoon_stats_gen_add(b, VMW_BALLOON_STAT_SHRINK_FREE,
-+				deflated_frames);
-+
-+	/*
-+	 * Delay future inflation for some time to mitigate the situations in
-+	 * which balloon continuously grows and shrinks. Use WRITE_ONCE() since
-+	 * the access is asynchronous.
-+	 */
-+	WRITE_ONCE(b->shrink_timeout, jiffies + HZ * VMBALLOON_SHRINK_DELAY);
-+
-+	up_read(&b->conf_sem);
-+
-+	return deflated_frames;
++	BUG_ON(!trylock_page(page));
++	list_del(&page->lru);
++	balloon_page_insert(b_dev_info, page);
++	unlock_page(page);
++	__count_vm_event(BALLOON_INFLATE);
 +}
 +
 +/**
-+ * vmballoon_shrinker_count() - return the number of ballooned pages.
-+ * @shrinker: pointer to the balloon shrinker.
-+ * @sc: page reclaim information.
++ * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
++ *				 list.
++ * @b_dev_info: balloon device descriptor where we will insert a new page to
++ * @pages: pages to enqueue - allocated using balloon_page_alloc.
 + *
-+ * Returns: number of 4k pages that are allocated for the balloon and can
-+ *	    therefore be reclaimed under pressure.
++ * Driver must call it to properly enqueue a balloon pages before definitively
++ * removing it from the guest system.
++ *
++ * Return: number of pages that were enqueued.
 + */
-+static unsigned long vmballoon_shrinker_count(struct shrinker *shrinker,
-+					      struct shrink_control *sc)
++size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
++				 struct list_head *pages)
 +{
-+	struct vmballoon *b = &balloon;
++	struct page *page, *tmp;
++	unsigned long flags;
++	size_t n_pages = 0;
 +
-+	return atomic64_read(&b->size);
++	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
++	list_for_each_entry_safe(page, tmp, pages, lru) {
++		balloon_page_enqueue_one(b_dev_info, page);
++		n_pages++;
++	}
++	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++	return n_pages;
 +}
++EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
 +
-+static void vmballoon_unregister_shrinker(struct vmballoon *b)
++/**
++ * balloon_page_list_dequeue() - removes pages from balloon's page list and
++ *				 returns a list of the pages.
++ * @b_dev_info: balloon device decriptor where we will grab a page from.
++ * @pages: pointer to the list of pages that would be returned to the caller.
++ * @n_req_pages: number of requested pages.
++ *
++ * Driver must call this function to properly de-allocate a previous enlisted
++ * balloon pages before definetively releasing it back to the guest system.
++ * This function tries to remove @n_req_pages from the ballooned pages and
++ * return them to the caller in the @pages list.
++ *
++ * Note that this function may fail to dequeue some pages temporarily empty due
++ * to compaction isolated pages.
++ *
++ * Return: number of pages that were added to the @pages list.
++ */
++size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
++				 struct list_head *pages, size_t n_req_pages)
 +{
-+	if (b->shrinker_registered)
-+		unregister_shrinker(&b->shrinker);
-+	b->shrinker_registered = false;
++	struct page *page, *tmp;
++	unsigned long flags;
++	size_t n_pages = 0;
++
++	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
++	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
++		if (n_pages == n_req_pages)
++			break;
++
++		/*
++		 * Block others from accessing the 'page' while we get around to
++		 * establishing additional references and preparing the 'page'
++		 * to be released by the balloon driver.
++		 */
++		if (!trylock_page(page))
++			continue;
++
++		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
++		    PageIsolated(page)) {
++			/* raced with isolation */
++			unlock_page(page);
++			continue;
++		}
++		balloon_page_delete(page);
++		__count_vm_event(BALLOON_DEFLATE);
++		list_add(&page->lru, pages);
++		unlock_page(page);
++		n_pages++;
++	}
++	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++
++	return n_pages;
 +}
-+
-+static int vmballoon_register_shrinker(struct vmballoon *b)
-+{
-+	int r;
-+
-+	/* Do nothing if the shrinker is not enabled */
-+	if (!vmwballoon_shrinker_enable)
-+		return 0;
-+
-+	b->shrinker.scan_objects = vmballoon_shrinker_scan;
-+	b->shrinker.count_objects = vmballoon_shrinker_count;
-+	b->shrinker.seeks = DEFAULT_SEEKS;
-+
-+	r = register_shrinker(&b->shrinker);
-+
-+	if (r == 0)
-+		b->shrinker_registered = true;
-+
-+	return r;
-+}
++EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
 +
  /*
-  * DEBUGFS Interface
-  */
-@@ -1447,6 +1568,8 @@ static const char * const vmballoon_stat_names[] = {
- 	[VMW_BALLOON_STAT_TIMER]		= "timer",
- 	[VMW_BALLOON_STAT_DOORBELL]		= "doorbell",
- 	[VMW_BALLOON_STAT_RESET]		= "reset",
-+	[VMW_BALLOON_STAT_SHRINK]		= "shrink",
-+	[VMW_BALLOON_STAT_SHRINK_FREE]		= "shrinkFree"
- };
- 
- static int vmballoon_enable_stats(struct vmballoon *b)
-@@ -1780,6 +1903,10 @@ static int __init vmballoon_init(void)
- 
- 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
- 
-+	error = vmballoon_register_shrinker(&balloon);
-+	if (error)
-+		goto fail;
-+
- 	error = vmballoon_debugfs_init(&balloon);
- 	if (error)
- 		goto fail;
-@@ -1805,6 +1932,7 @@ static int __init vmballoon_init(void)
- 
- 	return 0;
- fail:
-+	vmballoon_unregister_shrinker(&balloon);
- 	vmballoon_compaction_deinit(&balloon);
- 	return error;
- }
-@@ -1819,6 +1947,7 @@ late_initcall(vmballoon_init);
- 
- static void __exit vmballoon_exit(void)
+  * balloon_page_alloc - allocates a new page for insertion into the balloon
+  *			  page list.
+@@ -43,17 +142,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
  {
-+	vmballoon_unregister_shrinker(&balloon);
- 	vmballoon_vmci_cleanup(&balloon);
- 	cancel_delayed_work_sync(&balloon.dwork);
+ 	unsigned long flags;
+ 
+-	/*
+-	 * Block others from accessing the 'page' when we get around to
+-	 * establishing additional references. We should be the only one
+-	 * holding a reference to the 'page' at this point.
+-	 */
+-	BUG_ON(!trylock_page(page));
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	balloon_page_insert(b_dev_info, page);
+-	__count_vm_event(BALLOON_INFLATE);
++	balloon_page_enqueue_one(b_dev_info, page);
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+-	unlock_page(page);
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+ 
+@@ -70,36 +161,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+  */
+ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+ {
+-	struct page *page, *tmp;
+ 	unsigned long flags;
+-	bool dequeued_page;
++	LIST_HEAD(pages);
++	int n_pages;
+ 
+-	dequeued_page = false;
+-	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+-		/*
+-		 * Block others from accessing the 'page' while we get around
+-		 * establishing additional references and preparing the 'page'
+-		 * to be released by the balloon driver.
+-		 */
+-		if (trylock_page(page)) {
+-#ifdef CONFIG_BALLOON_COMPACTION
+-			if (PageIsolated(page)) {
+-				/* raced with isolation */
+-				unlock_page(page);
+-				continue;
+-			}
+-#endif
+-			balloon_page_delete(page);
+-			__count_vm_event(BALLOON_DEFLATE);
+-			unlock_page(page);
+-			dequeued_page = true;
+-			break;
+-		}
+-	}
+-	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
+ 
+-	if (!dequeued_page) {
++	if (n_pages != 1) {
+ 		/*
+ 		 * If we are unable to dequeue a balloon page because the page
+ 		 * list is empty and there is no isolated pages, then something
+@@ -112,9 +180,9 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+ 			     !b_dev_info->isolated_pages))
+ 			BUG();
+ 		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+-		page = NULL;
++		return NULL;
+ 	}
+-	return page;
++	return list_first_entry(&pages, struct page, lru);
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
  
 -- 
 2.19.1
