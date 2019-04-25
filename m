@@ -2,129 +2,220 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35E18C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:03:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 979CCC43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:15:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 481632081C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:03:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 481632081C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id AB26F2067D
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:15:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB26F2067D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EEF66B000A; Thu, 25 Apr 2019 11:03:57 -0400 (EDT)
+	id E3CF56B000A; Thu, 25 Apr 2019 11:15:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89DE76B000C; Thu, 25 Apr 2019 11:03:57 -0400 (EDT)
+	id E14EB6B000C; Thu, 25 Apr 2019 11:15:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 790BA6B000D; Thu, 25 Apr 2019 11:03:57 -0400 (EDT)
+	id D2AF96B000D; Thu, 25 Apr 2019 11:15:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3B86B000A
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 11:03:57 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id a18so97598wrs.21
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:03:57 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CF426B000A
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 11:15:05 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d21so161138pfr.3
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:15:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VJRE3UxZ7UlpWqD1mOw1SJXr//OiyL+W/hvV//itOks=;
-        b=o2AYMGEX+D3LUgwkFVSDWGwnZUZf1di826dFjiELLI5x5IUWfLay0i2zHhRQuilE/S
-         vpeY3Y1Oc0pa+qKApDCR+ChnIXomVSO98bge4+BhdIkCkJLTQBIL/Po5s6itEwgijMKw
-         n+TTQGX7wZkjhW7PXhO+rmqG8b9cq97z/DUD+mb7aE4rs3LeaLHfRsNUpFo1GCaONjsc
-         LhzFGqjkOffUhPy1UbVDsH90TR17HWOCibFaBlz7WgTlNLgJg2lZSm1msxosSiy8b/SA
-         HgRRJarIrU5CxCZWjLnkO4TN6SovXhs9v9/RZEGcD5NlmOXcvMjVRhiKQdHRaSGU358A
-         CczA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAV3PS/7sTIpHNcAsw6Mt4maN0Owrru1n4P295pwoRi7aCv5ZEeO
-	6vopuxwq3UpbyeJG6fYW+W9ngkBjFmPdzuZX/6uNe0eNtDb3pYHi2OgftvqtvWwA8IJAnS8mLXE
-	kA+ChZt0LQg03JuQCx91D7HFgJo6B+R++o6L8qg2+nCGBfO0s2XXjUmfI75tzs9TKiA==
-X-Received: by 2002:a1c:9950:: with SMTP id b77mr3590813wme.133.1556204636810;
-        Thu, 25 Apr 2019 08:03:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxRn5JpNwcSUKllrO0Ize8nyANcNyN41nNUYG6c3Ve15QNvmu2ziYLapj08slJczmGToK5I
-X-Received: by 2002:a1c:9950:: with SMTP id b77mr3590750wme.133.1556204635763;
-        Thu, 25 Apr 2019 08:03:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556204635; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=2DbBLv0DXv4u7HvOi587w4iwb3NYWEgoW0IaFGYc2Pg=;
+        b=qzY8dgDszFsisxVdnbenOCIxb1Yxj0ZkK1LDZ30g4KUNe2gYbQsnuUs1NyoBuAdnEE
+         7TBRneLfWohCWCG/kv5CgYWzYW9zNinHcM6W6Dgi83kiVb4NE6B3aIn2EjzyncfI33gG
+         lw6MXPv7jzEC6CiGwDqanwMDdd70BZSIfA4T5puGrsaKV0AvHSSZvF5JsZdjb3y8x6iF
+         LMiwgTL8AAL1yubINXtd3WytmCNank/TDY4JI7GiJjtyo/XXSPdcwb1bsaOlj2dZxWmu
+         5XoVO2OOekpSymIedb4kv3kMA7jOYKKysBgqsU80EDokZHjgRu/iIrJsU3Cxm2/yjgXx
+         Fp4A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUxUxl8PQMElpS0xr/3lh2wCEeqd3tDiu93jkIycucmoAJRYe5x
+	cikc1IJ4EwhN2t73K2jdqOEecD/egKtYvxczmN9hTaI6ajTyn9L0PlQIRPRuXPk6P7imeimf0nO
+	Nd0traMq7DQ4PWOsmWVCXCn5gopjABedVLhv43mdwuyqn+0OMZQ9PruhmxqRAZxahBQ==
+X-Received: by 2002:a62:604:: with SMTP id 4mr40792184pfg.38.1556205305282;
+        Thu, 25 Apr 2019 08:15:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJIg9GxoSM5xd5lxzjixyM8SNBsNSg+ptbCqvCn5P5hpUhhbJKcurPo8/kRlIVnAU/Iy/R
+X-Received: by 2002:a62:604:: with SMTP id 4mr40792102pfg.38.1556205304455;
+        Thu, 25 Apr 2019 08:15:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556205304; cv=none;
         d=google.com; s=arc-20160816;
-        b=LB4tPkEqQmKjx3arhVoL5F12JIC35SnQMKJGZdsNrfDJ+0ZWCNMJiqp5Tjy31Pm6lB
-         gNkI04Hrv/MHppyMs2fZEcRGE28OTRPo8RqONWmZNeDZ4t1o9uk5B5U75HKRKBo8G9D/
-         VE5k7Mrp5+/TLuMxDiSnXDK0FpaqLSrBL4l42QWkG1k6aifcOWHP6vwsEj4jjsrXrXIk
-         aOW0vAeTkS8B24yRTjGgetCgVIEF2fUuHOB39erc3CgZaN6DfA4S0lpa4n8pLk5L9HMG
-         MI5wiOsjp9ur/XZ1XLQLn3w9w73bvjXkslaF3ORpx77I1leSnp8eL2TKweZgWq1Rw+nR
-         9sfA==
+        b=qpVdZCVAxzWqS6MvDTn4jvW3R6yE2i53ZKS4aIXKHmhA+jvk0Z/QVGvfLlbK4BZfnD
+         b+o3kP3dP62bgZ/HfwNt828gC2NcUQ3eej/SaCsLVtpDVqXZYUnhQfvqpUfvEHT1v1tX
+         kvoCbBGhfIfzUADDXqB8WCH0BjuZVM3YUr/bEuMAi+RCXmU2N1Yo6oCvb+z4fUTC0W+X
+         czYrzb8EDzmGRUA1s9Ycl2+6cq2f7Sq0RzQJgKhLQt0RYC8HSpm/7ZSUa1xH4DF85ejX
+         xVl6dQfpl4qwt1vnkBlWPo00W9KfQZN3ZKFAz2Fd6QXiXkyPuWPJ5GO/MI7Mr6JDnpyf
+         2RqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VJRE3UxZ7UlpWqD1mOw1SJXr//OiyL+W/hvV//itOks=;
-        b=BwhUuiVXAuZD2GpXl7KaO/c6vZrdYWovNHA7k6e1oSLCdwee7ccSS8WMUe9/kZF8TI
-         6MSzqwYbVS0nLz93VNiJD6Q2pmYu3oeGbYjARrK+svmbnrhdEtPP3VaKcF2MUN9CdSNS
-         6+WOY/zxhlpkjJ+lxHDt6T/XVY6me4MFuCscP83cwwBAaprVdnyncdZwtkUv7FO0ONQL
-         0KxWziRGvFHOOQRJhWpNjt8LxMtkiAG6hkzVhM/8+6lz2WnaRAEIhwX0NIBq/JwOFB5V
-         HmUnxKTjRvE/S3sFpEt1yuUK6ZwuPNhRmFlMrtViXmkUL7n0mifQfdma8XzQ2XHFa4f8
-         Cqew==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=2DbBLv0DXv4u7HvOi587w4iwb3NYWEgoW0IaFGYc2Pg=;
+        b=Ee/E4qF9dl2KGt/s3YNBaW32ejDGRV8L0hWZ6dAIpDNRwqiW4a7vmnRe4hbgTSrSlD
+         JcbpwDq0s/7JVNc/IDgsTICxfO1gL8XiYL3qvWA20OyGgNzJxDMcBcpQlZZMpWMoavEo
+         YJQ6wwyl6Mb1xb553ip8NhoEg3b2aLkcfIpka/IELb6VxAKqXMF1lV1pFEh7osQu7qn1
+         3C5sud4TkDIXdM8AsPZqTpYVBCHiELx2be2CrK9Ek04acJLrWZAAv5NIU+4J66U/4D7J
+         n8HDOT+7Tty8zA3yqOUPUuY02UxzhjIZ+Nycn1diai+OTy0LzCUnG+kg0zMpL1udt+n5
+         vwZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id v18si16517202wri.292.2019.04.25.08.03.55
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id k131si21953573pga.267.2019.04.25.08.15.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 08:03:55 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Thu, 25 Apr 2019 08:15:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 7866168B20; Thu, 25 Apr 2019 17:03:40 +0200 (CEST)
-Date: Thu, 25 Apr 2019 17:03:40 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jan Kara <jack@suse.cz>
-Cc: Andreas Gruenbacher <agruenba@redhat.com>, cluster-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Bob Peterson <rpeterso@redhat.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Ross Lagerwall <ross.lagerwall@citrix.com>,
-	Mark Syms <Mark.Syms@citrix.com>,
-	Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH 1/2] iomap: Add a page_prepare callback
-Message-ID: <20190425150340.GA17504@lst.de>
-References: <20190424171804.4305-1-agruenba@redhat.com> <20190425083252.GB21215@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190425083252.GB21215@quack2.suse.cz>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Apr 2019 08:15:03 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,394,1549958400"; 
+   d="scan'208";a="340728748"
+Received: from yyu32-desk1.sc.intel.com ([10.144.155.177])
+  by fmsmga005.fm.intel.com with ESMTP; 25 Apr 2019 08:15:02 -0700
+Message-ID: <e7bbb51291434a9c8526d7b617929465d5784121.camel@intel.com>
+Subject: Re: [RFC PATCH v6 22/26] x86/cet/shstk: ELF header parsing of
+ Shadow Stack
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+ linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
+ Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov
+ <esyr@redhat.com>,  Florian Weimer <fweimer@redhat.com>, "H.J. Lu"
+ <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
+ <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
+ <mike.kravetz@oracle.com>,  Nadav Amit <nadav.amit@gmail.com>, Oleg
+ Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
+ <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
+ Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
+ <vedvyas.shanbhogue@intel.com>
+Date: Thu, 25 Apr 2019 08:14:52 -0700
+In-Reply-To: <20190425110211.GZ3567@e103592.cambridge.arm.com>
+References: <20181119214809.6086-1-yu-cheng.yu@intel.com>
+	 <20181119214809.6086-23-yu-cheng.yu@intel.com>
+	 <20190425110211.GZ3567@e103592.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 10:32:52AM +0200, Jan Kara wrote:
-> Also just looking at the code I was wondering about the following. E.g. in
-> iomap_write_end() we have code like:
+On Thu, 2019-04-25 at 12:02 +0100, Dave Martin wrote:
+> On Mon, Nov 19, 2018 at 01:48:05PM -0800, Yu-cheng Yu wrote:
+> > Look in .note.gnu.property of an ELF file and check if Shadow Stack needs
+> > to be enabled for the task.
 > 
->         if (iomap->type == IOMAP_INLINE) {
-> 		foo
-> 	} else if (iomap->flags & IOMAP_F_BUFFER_HEAD) {
-> 		bar
-> 	} else {
-> 		baz
-> 	}
+> What's the status of this series?  I don't see anything in linux-next
+> yet.
 > 
-> 	if (iomap->page_done)
-> 		iomap->page_done(...);
+> For describing ELF features, Arm has recently adopted
+> NT_GNU_PROPERTY_TYPE_0, with properties closely modelled on
+> GNU_PROPERTY_X86_FEATURE_1_AND etc. [1]
 > 
-> And now something very similar is in iomap_write_begin(). So won't it be
-> more natural to just mandate ->page_prepare() and ->page_done() callbacks
-> and each filesystem would set it to a helper function it needs? Probably we
-> could get rid of IOMAP_F_BUFFER_HEAD flag that way...
+> So, arm64 will be need something like this patch for supporting new
+> features (such as the Branch Target Identification feature of ARMv8.5-A
+> [2]).
+> 
+> If this series isn't likely to merge soon, can we split this patch into
+> generic and x86-specific parts and handle them separately?
+> 
+> It would be good to see the generic ELF note parsing move to common
+> code -- I'll take a look and comment in more detail.
 
-I don't want pointless indirect calls for the default, non-buffer
-head case.  Also inline really is a special case independent of
-what the caller could pass in as flags or callbacks.  We could try to
-hide the buffer_head stuff in there, but then again I'd rather kill
-that off sooner than later.
+Yes, I will work on that.
+
+> 
+> [...]
+> 
+> > diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+> > index 69c0f892e310..557ed0ba71c7 100644
+> > --- a/arch/x86/include/asm/elf.h
+> > +++ b/arch/x86/include/asm/elf.h
+> > @@ -381,4 +381,9 @@ struct va_alignment {
+> >  
+> >  extern struct va_alignment va_align;
+> >  extern unsigned long align_vdso_addr(unsigned long);
+> > +
+> > +#ifdef CONFIG_ARCH_HAS_PROGRAM_PROPERTIES
+> > +extern int arch_setup_features(void *ehdr, void *phdr, struct file *file,
+> > +			       bool interp);
+> > +#endif
+> >  #endif /* _ASM_X86_ELF_H */
+> > diff --git a/arch/x86/include/uapi/asm/elf_property.h
+> > b/arch/x86/include/uapi/asm/elf_property.h
+> > new file mode 100644
+> > index 000000000000..af361207718c
+> > --- /dev/null
+> > +++ b/arch/x86/include/uapi/asm/elf_property.h
+> > @@ -0,0 +1,15 @@
+> > +/* SPDX-License-Identifier: GPL-2.0 */
+> > +#ifndef _UAPI_ASM_X86_ELF_PROPERTY_H
+> > +#define _UAPI_ASM_X86_ELF_PROPERTY_H
+> > +
+> > +/*
+> > + * pr_type
+> > + */
+> > +#define GNU_PROPERTY_X86_FEATURE_1_AND (0xc0000002)
+> > +
+> > +/*
+> > + * Bits for GNU_PROPERTY_X86_FEATURE_1_AND
+> > + */
+> > +#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	(0x00000002)
+> > +
+> 
+> Generally we seem to collect all ELF definitions in <linux/uapi/elf.h>,
+> including arch-specific ones.
+
+Agree.
+
+> 
+> Is a new header really needed here?
+> 
+> [...]
+> 
+> > diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> > index 54207327f98f..007ff0fbae84 100644
+> > --- a/fs/binfmt_elf.c
+> > +++ b/fs/binfmt_elf.c
+> > @@ -1081,6 +1081,21 @@ static int load_elf_binary(struct linux_binprm *bprm)
+> >  		goto out_free_dentry;
+> >  	}
+> >  
+> > +#ifdef CONFIG_ARCH_HAS_PROGRAM_PROPERTIES
+> > +	if (interpreter) {
+> > +		retval = arch_setup_features(&loc->interp_elf_ex,
+> > +					     interp_elf_phdata,
+> > +					     interpreter, true);
+> 
+> Can we dummy no-op functions in the common headers to avoid this
+> ifdeffery?  Logically all arches will always do this step, even if it's
+> a no-op today.
+
+Sure.
+
+Thanks,
+
+Yu-cheng
 
