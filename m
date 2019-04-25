@@ -2,181 +2,232 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5D70C10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:44:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06D7CC282E3
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:02:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7010D20679
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:44:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7010D20679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 1E85820679
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:02:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="qxaAfMIy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E85820679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C4F66B0010; Thu, 25 Apr 2019 08:44:11 -0400 (EDT)
+	id 4194E6B0006; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46BF26B0266; Thu, 25 Apr 2019 08:44:11 -0400 (EDT)
+	id 3C92B6B0007; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33E276B026A; Thu, 25 Apr 2019 08:44:11 -0400 (EDT)
+	id 2B8606B0008; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D4AEF6B0010
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:44:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e22so11590615edd.9
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:44:10 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 085096B0006
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id k8so11277380qkj.20
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:02:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=ILAYvl5P62HuFXpTCKMfPQtpPIQM9qwGJlZS8adTqeY=;
-        b=cmo3diuNw/tJTrmojBQyUBW0t06yNktI9XbCuvkoO0vZ56/b8js1ciVnI85vZ9o0L8
-         bp/BKnSMXkOvYGAGdHL9zdGg1CV1NvlE2oWUelggJ13lFaw9HVGAMna5YuWIOkCrv/5Q
-         iR7er1mNfUEGtLAvFScWJzqBMvax/m2GBfR9NSmD8Ls1oxdTdDgUGKksgb+Axs2BN4h7
-         VbdfCNE9PDogzEaSnKBTiBlKJIfQnU0czrnDnrxlf3crjXJLvhuQpC6gM9v34AVZrIdJ
-         DEc/baChPAUA9jDzbsWK5nIJ1SDQeiYtU4GbvWQyVBKKjcIo++YcIZzLe9KpsVk23lgG
-         jTIw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWK9CBexRMlWj0WUsdZGDlAqAikV+mqDqnEFdKuHEpia/1L1kPk
-	BoKHWigEkyWsQCZQBNaCRhY/eDKYZQKl0ki+oFHHpqo0TYcNbOV5uXeZpKpu+M5KoQjG0eSVogY
-	28RbPtt+rSIf5I8bH9SF/AN7jHsLgNHq5ojq/NOZ7DhfB+ranJqgd+hqWi4CYEQ828w==
-X-Received: by 2002:a50:bd85:: with SMTP id y5mr24321382edh.112.1556196250375;
-        Thu, 25 Apr 2019 05:44:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxChHbo00hivbaZz6mtqLnYe6S8V8K8eFzCQcysBAVg0BQAQ2Xcan+ksXRkEHnzpSI6UtUC
-X-Received: by 2002:a50:bd85:: with SMTP id y5mr24321353edh.112.1556196249634;
-        Thu, 25 Apr 2019 05:44:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556196249; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
+        b=Cghb8farpwQWwe7DxwqzjfdXD8l+BzNO15yoTE3uy2+FhnGwLdUAntlXEbWfIi6W7n
+         rYDOfkK07QNJiQ8YU3eKXee1rHnl+KBhKfgufBBTuNNjDfhRAknUjPaqnk8cGfxAXDyC
+         tQV6+OptYj8x6xRSbHoXI8D5Nb7qVs1P6qJLMCQ2vNyMsCRiPuWENfn1Dh4QT7TvZRPm
+         IFdD/weCNIJl8SRukcPwkEaNmgLS/2EkTIr+UJaF4+wIhBwDKoDQL9oQshJuRM7l6FQ4
+         zjXqFnVJeVe0vBjQr6jROFkzwr5UvFSf/jS6LIhY515OhT23J53sBOr9q+IDMp+hN4xI
+         5fQw==
+X-Gm-Message-State: APjAAAW7oNZQB3Z+f7qZDJcP+lhYnS23Rk5cez3Hw1KmWgd4ML+0L1NP
+	p2dQR9U7I6JBkKU/vdHgj11AUzPJjNAB1AuDMWmdvYFkNKc/4/sv4amV5pZKbOosgQNO0Gm/bm6
+	6WimB9I5lEHN3QqrEoC1lr/vOGwbV/VdWwNlQVck2UQXyJFUCdG2Ooj76ZM3Ejji7Tw==
+X-Received: by 2002:ac8:24ea:: with SMTP id t39mr31145855qtt.376.1556197363732;
+        Thu, 25 Apr 2019 06:02:43 -0700 (PDT)
+X-Received: by 2002:ac8:24ea:: with SMTP id t39mr31145744qtt.376.1556197362721;
+        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556197362; cv=none;
         d=google.com; s=arc-20160816;
-        b=aRzTJkaE+n43jszSG/F27Xsof5DL6bQ3uqwKpJPPsBlujcWBHduO6X8mXlyzPuYj3u
-         T+xH1ykvoJ8+1WOIfHxDKzc3d3Nqqtiy1PyfQdYZRlVt1I1FY95D9/GlZLr8j1LldGL8
-         usTMANk+ZXl3jH7eBwdvVmW0tW7uNgVGeDmCe7IAAsAzRFSscou4koCqGEDtYG6ZFm+f
-         VdaC09LFH0LMqku4zMSzmaaFBSitasgCMEvdH2SSe6TnjuXJl6A8FJsE3UG69fcupBst
-         vraMuSzuJyBpasOTUTiil43ggdJIuv7flIGBYEUqY0ovi/VNvZNDptphTNWJpN2KCy1F
-         WCTA==
+        b=qSAhwZByh8WD+4Yzj4MYFOfxOjUeIxaIypLfCVToq3EiM0fx9rrUqlZ5pxrcUz3Vb4
+         KI/hJxHjY+bdgpOwTv4zTYcjmAFLWfiGvaKPLw9ef9PUdLdiRrCVK9ZTuG22v6Jz56lI
+         R7rOG0DJtTA5p6Ct/cEKBb+zqQnC/tuHnAawHLy/e7BousFsrMevlmawVMCTBipFMRj/
+         2VDAUerX7a6ZDO4ItfHeQKw4NMpbT1BA6Ijq1ReYz7sLDACvNJ5b3c+VAM5W3QqalEyw
+         Vx0jHTRNR2m/MBBsctWL/4wHxlY7owWSx1KjAKCxTkHz6hzABCNWtMy32qaGMZdzGD7w
+         4kvg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=ILAYvl5P62HuFXpTCKMfPQtpPIQM9qwGJlZS8adTqeY=;
-        b=Xw+ouhMMIMAajhKXdvVZoazyCdW7xHYPjH3T6mO9dYDn0SwMsPcANuDRsSbL0xXjF4
-         oWrre7iO1vHW1i2qlLwWx1ZMFeXAPV3Ss0vPCVrFqweVQRRnnGx1L38yQJSitMW8+bhw
-         HQw2n4dopmg0pjSH7nHvZZPTT944vLJ/qQVpnRhfmy4/2htrOaPW/ZEdgEZEnV8Z7y6a
-         E8q1DFIw+QGSXEFtBYWhHuztTDUUwyEy/h0FjDaqC4cgdcD8TNDVKmzjqkvEXXtMoVoH
-         EMqahFbD5cqSzPLW5IpdNtaYLHW3XsWpzuy3Dk4XnEQwf+Et15UtjkbP7y/RbxYmUfhP
-         VkAg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
+        b=sWYveBdyykvGimAfXUeGGU6yt/gP0GMYNbACUxLppgShBtZVoXpHOeGdAyJwFer+rY
+         O+f46QdYwEfd+ZOOMA+ydW7OjOkQ79cvTl4b8HkpPh+Ov7+HVLDaMQpo5x7+PoyQ8jj5
+         //ksamhC4wIua380fuzXl8vtWekur1V9/1ZfUiHLirWUsFq0FMUT7ExpzVjSMR1PPKov
+         fVz2INg08wE40ccikXryNf6YYhFuf3fA99P/EBudSvmYU++vGG7ZEGnsBiwRN8oSFV0f
+         JFFP4NluM+vdxENMsZMGkd5jYrBSXd985Qr+TLjpy4ZRVl5132QZkOnsBU66RaIMr2O1
+         iyKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p25si734042edi.240.2019.04.25.05.44.09
+       dkim=pass header.i=@lca.pw header.s=google header.b=qxaAfMIy;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x4sor30930155qto.38.2019.04.25.06.02.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 05:44:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B1790AC3D;
-	Thu, 25 Apr 2019 12:44:08 +0000 (UTC)
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-To: Michal Hocko <mhocko@kernel.org>,
- Matthew Garrett <matthewgarrett@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Matthew Garrett <mjg59@google.com>, linux-api@vger.kernel.org
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com>
- <20190425121410.GC1144@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <1df0ef0c-4219-c259-18a2-9abfb2782c08@suse.cz>
-Date: Thu, 25 Apr 2019 14:40:48 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190425121410.GC1144@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@lca.pw header.s=google header.b=qxaAfMIy;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
+        b=qxaAfMIyKYHlle3VEEYUbn1n6SkmraS0hGY3XRZc85e8UAKtTedVMkO8YbxfZ9Clm9
+         SquNBtGJqsQR35uJDL9ybre7ScBA/sqf66LYc0cej5Ae1U+DNxHYy7//gbHap6CHAkli
+         07p/0FmCAWPTU/lXbMgJ4J3nv9XLxVPgiObE2Ncc4i5dYOrwbDRU1iTUfjYPE1GfXsvH
+         EihHH+Dswv+chz1//hzv4dwPXBo2AyEHvdKORkneIZ6fGV/fXi7l4xvFL4tigYHVVD5H
+         GDqA6uG1y944GsxQ4ja473S5xoRb0fM1jawGW46f1udR5vgAGkgW+LBd3EcACVHAsuGq
+         kUNQ==
+X-Google-Smtp-Source: APXvYqyh5r8KkohsRUySMiD9/d/TioZ/eW5WfI/YXkGE3MnYQ3KFch0EEtDGfvtS2Fr8OjGQcHbOOA==
+X-Received: by 2002:ac8:28f4:: with SMTP id j49mr30851971qtj.310.1556197362203;
+        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id w58sm10048612qtw.93.2019.04.25.06.02.40
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Apr 2019 06:02:41 -0700 (PDT)
+Message-ID: <1556197359.6132.2.camel@lca.pw>
+Subject: Re: bio_iov_iter_get_pages() + page_alloc.shuffle=1 migrating
+ failures
+From: Qian Cai <cai@lca.pw>
+To: Ming Lei <tom.leiming@gmail.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>,
+ linux-block <linux-block@vger.kernel.org>, Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Williams
+ <dan.j.williams@intel.com>
+Date: Thu, 25 Apr 2019 09:02:39 -0400
+In-Reply-To: <CACVXFVO_9KOkC=A-uz-NjUOxs_r771yibnKaCPs0z1VuK=QRtw@mail.gmail.com>
+References: <38bef24c-3839-11b0-a192-6cf511d8b268@lca.pw>
+	 <CACVXFVO_9KOkC=A-uz-NjUOxs_r771yibnKaCPs0z1VuK=QRtw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/25/19 2:14 PM, Michal Hocko wrote:
-> Please cc linux-api for user visible API proposals (now done). Keep the
-> rest of the email intact for reference.
+On Thu, 2019-04-25 at 16:15 +0800, Ming Lei wrote:
+> On Thu, Apr 25, 2019 at 4:13 PM Qian Cai <cai@lca.pw> wrote:
+> > 
+> > Memory offline [1] starts to fail on linux-next on ppc64le with
+> > page_alloc.shuffle=1 where the "echo offline" command hangs with lots of
+> > migrating failures below. It seems in migrate_page_move_mapping()
+> > 
+> >         if (!mapping) {
+> >                 /* Anonymous page without mapping */
+> >                 if (page_count(page) != expected_count)
+> >                         return -EAGAIN;
+> > 
+> > It expected count=1 but actual count=2.
+> > 
+> > There are two ways to make the problem go away. One is to remove this line
+> > in
+> > __shuffle_free_memory(),
+> > 
+> >         shuffle_zone(z);
+> > 
+> > The other is reverting some bio commits. Bisecting so far indicates the
+> > culprit
+> > is in one of those (the 3rd commit looks more suspicious than the others).
+> > 
+> > block: only allow contiguous page structs in a bio_vec
+> > block: don't allow multiple bio_iov_iter_get_pages calls per bio
+> > block: change how we get page references in bio_iov_iter_get_pages
+> > 
+> > [  446.578064] migrating pfn 2003d5eaa failed ret:22
+> > [  446.578066] page:c00a00800f57aa80 count:2 mapcount:0
+> > mapping:c000001db4c827e9
+> > index:0x13c08a
+> > [  446.578220] anon
+> > [  446.578222] flags:
+> > 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
+> > [  446.578347] raw: 083fffc00008002e c00a00800f57f808 c00a00800f579f88
+> > c000001db4c827e9
+> > [  446.944807] raw: 000000000013c08a 0000000000000000 00000002ffffffff
+> > c00020141a738008
+> > [  446.944883] page dumped because: migration failure
+> > [  446.944948] page->mem_cgroup:c00020141a738008
+> > [  446.945024] page allocated via order 0, migratetype Movable, gfp_mask
+> > 0x100cca(GFP_HIGHUSER_MOVABLE)
+> > [  446.945148]  prep_new_page+0x390/0x3a0
+> > [  446.945228]  get_page_from_freelist+0xd9c/0x1bf0
+> > [  446.945292]  __alloc_pages_nodemask+0x1cc/0x1780
+> > [  446.945335]  alloc_pages_vma+0xc0/0x360
+> > [  446.945401]  do_anonymous_page+0x244/0xb20
+> > [  446.945472]  __handle_mm_fault+0xcf8/0xfb0
+> > [  446.945532]  handle_mm_fault+0x1c0/0x2b0
+> > [  446.945615]  __get_user_pages+0x3ec/0x690
+> > [  446.945652]  get_user_pages_unlocked+0x104/0x2f0
+> > [  446.945693]  get_user_pages_fast+0xb0/0x200
+> > [  446.945762]  iov_iter_get_pages+0xf4/0x6a0
+> > [  446.945802]  bio_iov_iter_get_pages+0xc0/0x450
+> > [  446.945876]  blkdev_direct_IO+0x2e0/0x630
+> > [  446.945941]  generic_file_read_iter+0xbc/0x230
+> > [  446.945990]  blkdev_read_iter+0x50/0x80
+> > [  446.946031]  aio_read+0x128/0x1d0
+> > [  446.946082] migrating pfn 2003d5fe0 failed ret:22
+> > [  446.946084] page:c00a00800f57f800 count:2 mapcount:0
+> > mapping:c000001db4c827e9
+> > index:0x13c19e
+> > [  446.946239] anon
+> > [  446.946241] flags:
+> > 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
+> > [  446.946384] raw: 083fffc00008002e c000200deb3dfa28 c00a00800f57aa88
+> > c000001db4c827e9
+> > [  446.946497] raw: 000000000013c19e 0000000000000000 00000002ffffffff
+> > c00020141a738008
+> > [  446.946605] page dumped because: migration failure
+> > [  446.946662] page->mem_cgroup:c00020141a738008
+> > [  446.946724] page allocated via order 0, migratetype Movable, gfp_mask
+> > 0x100cca(GFP_HIGHUSER_MOVABLE)
+> > [  446.946846]  prep_new_page+0x390/0x3a0
+> > [  446.946899]  get_page_from_freelist+0xd9c/0x1bf0
+> > [  446.946959]  __alloc_pages_nodemask+0x1cc/0x1780
+> > [  446.947047]  alloc_pages_vma+0xc0/0x360
+> > [  446.947101]  do_anonymous_page+0x244/0xb20
+> > [  446.947143]  __handle_mm_fault+0xcf8/0xfb0
+> > [  446.947200]  handle_mm_fault+0x1c0/0x2b0
+> > [  446.947256]  __get_user_pages+0x3ec/0x690
+> > [  446.947306]  get_user_pages_unlocked+0x104/0x2f0
+> > [  446.947366]  get_user_pages_fast+0xb0/0x200
+> > [  446.947458]  iov_iter_get_pages+0xf4/0x6a0
+> > [  446.947515]  bio_iov_iter_get_pages+0xc0/0x450
+> > [  446.947588]  blkdev_direct_IO+0x2e0/0x630
+> > [  446.947636]  generic_file_read_iter+0xbc/0x230
+> > [  446.947703]  blkdev_read_iter+0x50/0x80
+> > [  446.947758]  aio_read+0x128/0x1d0
+> > 
+> > [1]
+> > i=0
+> > found=0
+> > for mem in $(ls -d /sys/devices/system/memory/memory*); do
+> >         i=$((i + 1))
+> >         echo "iteration: $i"
+> >         echo offline > $mem/state
+> >         if [ $? -eq 0 ] && [ $found -eq 0 ]; then
+> >                 found=1
+> >                 continue
+> >         fi
+> >         echo online > $mem/state
+> > done
 > 
-> On Wed 24-04-19 14:10:39, Matthew Garrett wrote:
->> From: Matthew Garrett <mjg59@google.com>
->>
->> Applications that hold secrets and wish to avoid them leaking can use
->> mlock() to prevent the page from being pushed out to swap and
->> MADV_DONTDUMP to prevent it from being included in core dumps. Applications
+> Please try the following patch:
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git/commit/?
+> h=for-5.2/block&id=0257c0ed5ea3de3e32cb322852c4c40bc09d1b97
 
-So, do we really need a new madvise() flag and VMA flag, or can we just
-infer this page clearing from mlock+MADV_DONTDUMP being both applied?
+It works great so far!
 
