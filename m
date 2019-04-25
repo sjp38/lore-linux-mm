@@ -2,187 +2,148 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3727BC10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:13:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FFA1C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:32:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C6A96217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:13:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rIMwM2ro"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6A96217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id A9F02217FA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:32:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9F02217FA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74E9B6B0007; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
+	id F26176B0005; Thu, 25 Apr 2019 03:32:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FE816B0008; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
+	id EFC036B0006; Thu, 25 Apr 2019 03:32:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EDA36B000A; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
+	id E12196B0007; Thu, 25 Apr 2019 03:32:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 293CC6B0007
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j12so7025096pgl.14
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 22:13:49 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD136B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 03:32:25 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id j3so11190892edb.14
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 00:32:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
-        b=aecKU9LVwL/fT4awGzGc7ASe7ylwWw0EdERu/1jSBA7slFsnXSobQIM8a6/Yllm1+g
-         eExNV/Uv3wYsWYQwrfaWZqUDe1ERlhUyKcwSnXWOls0kvMYzqRHk/6IpE15S0gtagXgK
-         rP0X/ng2pq6sGzyL3ZRgNeMXh0KA+awdyZDhf+76oIDQUvsL5udL9eyuURLgLMPG9gM8
-         NvlTpLLK5ppXXo9VjhHLbUTaqPO8fgbrFHATUwJ9N7w8GQMK9vghr9p7M6s+FGknAtWj
-         2rGczeNriz7Xf4P4V/hKRGSV8tT1pJhYFIshGth5DnmLkz8ZcaYs38bLMvODo+dIt463
-         joqQ==
-X-Gm-Message-State: APjAAAVXgtcs4fHjA+tEFxy9un4xapHiFsArNvu4B+WNXOU0HwpM7QwM
-	rMF/eoLnuoEBGDneuCNBHssQtwHO5z7Bs3shbUwzTCiSO900e4NtNynRVzNX3KxvF2CkTJ3tUd3
-	L0SFvYgssWCtKo4NwIwNzCDVzXDRlLLQKxE2xLThiCJ4YCHCcNPrk9R/u74aQQmYegA==
-X-Received: by 2002:a62:47d0:: with SMTP id p77mr37136170pfi.95.1556169228195;
-        Wed, 24 Apr 2019 22:13:48 -0700 (PDT)
-X-Received: by 2002:a62:47d0:: with SMTP id p77mr37136073pfi.95.1556169226971;
-        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556169226; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=BWy7dkVN1mFmVbP72FdnEMwROG1g6t7h+4pXn95ko0o=;
+        b=OY6OJlXe29zwf3PEKi4L36Qpy46wJmj1vPF2C6gJjDoACJRJz8pRSY/nC+PwhB66wC
+         XN5EdQ4SSxbfDNMS8rV9IhWR0q8y6xevGWflh4rLboQdO8e7CW9CRvbMUeHUonkHnTIq
+         OCtXgv29x1fw/UTUux+rrFGL+WUbhk3LQNBZ5dTSKAoIyA7KfYy4JK2rH/bfMmNW/6HS
+         oBay1HjQvyoReLnRIQ38Mu17VS4KpihISGYeQD3Wqyyaj44kv+9K3u6frSmSDKoYESrx
+         16JM8A0va//h+chZ3XcThE85Bwzct/hSwN9HHZbr+GpX5MvjkOOOVgvHOlYtx1Tb7PeC
+         zfQQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAXWeeZwjdlxkuw8hQKqAUxfvgGtHhp+FtDnG8ZZRFZbCMN3D4eD
+	23ohY+WzcoFKQqp5gjMYpNPcx0OHbmJLU8FtQcAnYmrGCTZYBOPTHBJkTYCmWrahbkKcV0rgDKT
+	Ihx8LNKF40pbrWh2k9ypXSi6MtOHNq1soLSz34nF7Ni7IIB7mSyU20N03fLlCNKQN2g==
+X-Received: by 2002:a17:906:4ec6:: with SMTP id i6mr16227319ejv.92.1556177514070;
+        Thu, 25 Apr 2019 00:31:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjsit7FssbAooKpCcKAf1fYWnKmaTyLTutTHr4RcxxJY8wcSl7+nsjv+m9KSdEQVIHOVnW
+X-Received: by 2002:a17:906:4ec6:: with SMTP id i6mr16227283ejv.92.1556177513044;
+        Thu, 25 Apr 2019 00:31:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556177513; cv=none;
         d=google.com; s=arc-20160816;
-        b=qqkdFzAFsxoCAOZnD9eLmZPOnNrqZM6MLykEpIbVGQ8Ln1d320xwYgcO8aK3Oyxdyr
-         b0dcQ9KNPUXRlNUSuRxTQTqccHM5dNDuqU1g3U89syCB1QzuPPrM4y7E5VtbQBhTI0rr
-         7KblMrDag7gtby1Hj75wXInlqhjedBS2xxfq5XUO9xEOilxqj/rRG9wpcywVXVKOqd8u
-         zWv8yMDVo30On5IcJtHaP7YtX/F3SpkgdSAarn2/vDWb0uFPe9DHe7DP2V1wNvFr5ZIf
-         gB9QGPQtwdtSCYQsVAJKgBQX+6kfoE0JlKvut69YZvmsl521Pk09lCOEKEPCEanx+jkQ
-         3S8A==
+        b=IBMjeJII0CGw0fl/DH/OuGQUBJGBab9eUoj6EYi5aSHxxQH9gKpZcRnCPQ7ZtyNCk+
+         1QSAnS0PWs2E6+9ld+pWETzXeuNm0d1xs6F7w92QBlMy+P1GYbe5EoedAo07aOrTeFAy
+         txp2KBKla2LvNiq/BG4fIaq0oanb7i5Ei1gqplIQova5ZFDrxRANU693ZeDQ+Eg8d/uT
+         0OvlxH2ctaayETqWOPLYbUQhg67K1neBC9Qr668duv9V2EspMjzXOhHpnxDSjZdOkIS1
+         /q0IW/FIapyvniaaHdNRhw9c4ZQC52k129Xj1HKsMnpIaiXs4Kk+Lm+1OFVI63r0P6Ej
+         kiTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
-        b=dwRwOEpNRZXuIZkY60kdMTaBjchQ/psgUECckvrufRcOdi8uKuzLFKTTOC8VsfmnZP
-         aG949Qe/+tekKP2g7ZiuAmIi1G7PUONy965cEGaBNjGVnAoU/QD4NGcMdg9UO5Jhfjca
-         26gUd1vMvkJwQvUxjrMBESK5uerzBHszls5wo9BK/yAil79eJv17XKR7/KUVDb7yQcQW
-         KmIAVlgvBxJJecYRkuhpX3WcHsPozgohKDPIQ532EJDyTW3QNJtijprIPo7dxVLo4Ghy
-         7hZ3kPeE9hg2JlNU8AkTZWFdt0/KAyKoSTgdrRIeddgbI6O0Lq3KtHCewSUQnIL2pf6/
-         IB1w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=BWy7dkVN1mFmVbP72FdnEMwROG1g6t7h+4pXn95ko0o=;
+        b=UORf0v6I33T9D71GQGR/FCOJgKCCilKQalrbLx0JrwdcDmaypGDmO6NbOguh8mSiFD
+         XR8/dzc3tkFsH9i8dsvzsMrVrTItpaPub4hLPNbCA3rKB2jcJoncgD84w0K+RmrMjDSm
+         sqdkboz/7xRUxj4zr+96x6cpNmRvySQa/pIUoxqeMSajEq+uyE59Ed9Wg6MiTbJNx/XV
+         ZziUpZ4Sczqoaxl9/IXzL5lSCDG3AELZ7G3EHghEP7c/pU32OkZQjf5gCJCrldui09EI
+         44ndgf29eNx/8gqmQAPazAfUJ/9Kjzl4QAgkJ5+NWRJD2WuB1TvRpdqy/zSuCfSL/adi
+         ++ww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rIMwM2ro;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r10sor8213962pga.28.2019.04.24.22.13.46
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k29si1506638edb.395.2019.04.25.00.31.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rIMwM2ro;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
-        b=rIMwM2roMP5wQd3x+4LAzNc1V/1eC48DZyWzDM2OBLnclVP3lifOwmbv+NP8zBxu7p
-         NjOiIl3nj8eyOOgzFPfm2GlH85tKTs+7cVhyxJTFwQEZoUZLAHFsyaKgXOXSjYIJQ/Qn
-         czztyvN5639E/4iQLZjNS10GcOf4GABcsdSUNJrypwioJPxt/VrwSxNQMA75eo+O4iIy
-         FZo/9pgrt8Gam90DIBO9R1wYj5/dSA3wriW2uMirZ8OWJg5D7uw85H8OwzZCmBn1vLa4
-         LlcscLOOVhTEUuvMh9aNTDVZBDUAUvvRBwRvQPoENmIschLqwB7/R0SjmAWSf78Dp7k8
-         scmw==
-X-Google-Smtp-Source: APXvYqxrJMqcuE49i2pPLtaiuqRFXwVZY6uIhda7Gtt5PG92xTC5DPGWp2or/ePy26UlKwNxRcQY2Q==
-X-Received: by 2002:a63:5715:: with SMTP id l21mr7190062pgb.279.1556169226468;
-        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
-Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id n26sm37408045pfi.165.2019.04.24.22.13.44
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 22:13:45 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: mhocko@suse.com,
-	hannes@cmpxchg.org,
-	akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	shaoyafang@didiglobal.com,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH] mm/vmscan: simplify trace_reclaim_flags and trace_shrink_flags
-Date: Thu, 25 Apr 2019 13:13:23 +0800
-Message-Id: <1556169203-5858-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        Thu, 25 Apr 2019 00:31:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1040DAE5A;
+	Thu, 25 Apr 2019 07:31:52 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id EC0681E15BE; Thu, 25 Apr 2019 09:31:49 +0200 (CEST)
+Date: Thu, 25 Apr 2019 09:31:49 +0200
+From: Jan Kara <jack@suse.cz>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	Linux MM <linux-mm@kvack.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	stable <stable@vger.kernel.org>,
+	Chandan Rajendra <chandan@linux.ibm.com>
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by
+ insert_pfn_pmd()
+Message-ID: <20190425073149.GA21215@quack2.suse.cz>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
+ <20190424173833.GE19031@bombadil.infradead.org>
+ <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-trace_reclaim_flags and trace_shrink_flags are almost the same.
-We can simplify them to avoid redundant code.
+On Wed 24-04-19 11:13:48, Dan Williams wrote:
+> On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
+> >
+> > On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+> > > I think unaligned addresses have always been passed to
+> > > vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+> > > the only change needed is the following, thoughts?
+> > >
+> > > diff --git a/fs/dax.c b/fs/dax.c
+> > > index ca0671d55aa6..82aee9a87efa 100644
+> > > --- a/fs/dax.c
+> > > +++ b/fs/dax.c
+> > > @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+> > > vm_fault *vmf, pfn_t *pfnp,
+> > >                 }
+> > >
+> > >                 trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+> > > -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+> > > +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+> > >                                             write);
+> >
+> > We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+> > that need to change too?
+> 
+> It wasn't clear to me that it was a problem. I think that one already
+> happens to be pmd-aligned.
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
----
- include/trace/events/vmscan.h | 20 ++++++++------------
- 1 file changed, 8 insertions(+), 12 deletions(-)
+Why would it need to be? The address is taken from vmf->address and that's
+set up in __handle_mm_fault() like .address = address & PAGE_MASK. So I
+don't see anything forcing PMD alignment of the virtual address...
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index c27a563..57f7923 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -27,17 +27,11 @@
- 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
- 		) : "RECLAIM_WB_NONE"
- 
--#define trace_reclaim_flags(page) ( \
--	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
-+#define trace_reclaim_flags(file) ( \
-+	(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
- 	(RECLAIM_WB_ASYNC) \
- 	)
- 
--#define trace_shrink_flags(file) \
--	( \
--		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
--		(RECLAIM_WB_ASYNC) \
--	)
--
- TRACE_EVENT(mm_vmscan_kswapd_sleep,
- 
- 	TP_PROTO(int nid),
-@@ -328,7 +322,8 @@
- 
- 	TP_fast_assign(
- 		__entry->pfn = page_to_pfn(page);
--		__entry->reclaim_flags = trace_reclaim_flags(page);
-+		__entry->reclaim_flags = trace_reclaim_flags(
-+						page_is_file_cache(page));
- 	),
- 
- 	TP_printk("page=%p pfn=%lu flags=%s",
-@@ -374,7 +369,7 @@
- 		__entry->nr_ref_keep = stat->nr_ref_keep;
- 		__entry->nr_unmap_fail = stat->nr_unmap_fail;
- 		__entry->priority = priority;
--		__entry->reclaim_flags = trace_shrink_flags(file);
-+		__entry->reclaim_flags = trace_reclaim_flags(file);
- 	),
- 
- 	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_anon=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
-@@ -413,7 +408,7 @@
- 		__entry->nr_deactivated = nr_deactivated;
- 		__entry->nr_referenced = nr_referenced;
- 		__entry->priority = priority;
--		__entry->reclaim_flags = trace_shrink_flags(file);
-+		__entry->reclaim_flags = trace_reclaim_flags(file);
- 	),
- 
- 	TP_printk("nid=%d nr_taken=%ld nr_active=%ld nr_deactivated=%ld nr_referenced=%ld priority=%d flags=%s",
-@@ -452,7 +447,8 @@
- 		__entry->total_active = total_active;
- 		__entry->active = active;
- 		__entry->ratio = ratio;
--		__entry->reclaim_flags = trace_shrink_flags(file) & RECLAIM_WB_LRU;
-+		__entry->reclaim_flags = trace_reclaim_flags(file) &
-+					 RECLAIM_WB_LRU;
- 	),
- 
- 	TP_printk("nid=%d reclaim_idx=%d total_inactive=%ld inactive=%ld total_active=%ld active=%ld ratio=%ld flags=%s",
+								Honza
 -- 
-1.8.3.1
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
