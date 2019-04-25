@@ -6,88 +6,86 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EBF5C10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB324C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C1381206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1381206BA
+	by mail.kernel.org (Postfix) with ESMTP id 8DA7A206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DA7A206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 656726B0273; Thu, 25 Apr 2019 05:59:39 -0400 (EDT)
+	id 2F8356B0274; Thu, 25 Apr 2019 05:59:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5DB186B0274; Thu, 25 Apr 2019 05:59:39 -0400 (EDT)
+	id 2AA5F6B0275; Thu, 25 Apr 2019 05:59:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CC3C6B0275; Thu, 25 Apr 2019 05:59:39 -0400 (EDT)
+	id 0FB256B0276; Thu, 25 Apr 2019 05:59:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F214A6B0273
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:38 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id u6so5302112wml.3
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:38 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B3B566B0274
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:40 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id t9so20481995wrs.16
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=RsuC700IyFocvKBWm+t5JYl3HGqgBnb9GUExX2P7h50=;
-        b=QKwc2jjmoMkikQ8TV00wkKsyyRMK7+iwKK4p/Hxw5KxGkH+ruYKNojh3JknoKBkVxb
-         30ZHu7Rti0DruNJpghIL6x+x5S6BXQ5hM4ztcFtF+DnjI+eBjRXwbv2NvnnDPYh2r4/+
-         8sSwaiMGGEXa+oxi+960YKOhlKFx2SqkOjWRGJ7uWvTajtsFJP2xrfl8ItU4/0d8hsjC
-         E5H5652DLv8c6pBUJ12wF+24vhiff+d//6snj8NmoxOjykAFy9K98LMlNdRYxjo3qJhx
-         +ZRxVxrOSsmREsVbJ8nWqLg9bJMoWaJ0TVWhAIaFvtMifHA0BQzKuujMuA55AgqbRtcj
-         6GEg==
+        bh=YyoaysuntdWse+rzlTM8zXy679ccU9UxwPcaNstXB8E=;
+        b=IVYvX7UlRLj97Se8dsWxNszEKse5U1Pk3Cgxcs0CF9Cx4VGElwDv8najCxnkEPq85h
+         PawmrmqGdBDi3Gjqh3s6iJCzwkkMITyhZPDNPbYVX00kWFmJlprCuqhTCH+aCW5s27eS
+         p+Om3LNCcX883OPlGm8Byg7ztYVpxl9ASpYHYuqw/zhzvkFCs68CLZEP5msiolXkEWhI
+         KsHXEYntfKGrZ3hCkJLQnSwzfyUDrBECHPXMTOxlYMuDWtrQyDcVAS2AkZX9m4Ul9G3Y
+         HCyIkN+2PGugOF3YLM5er6O2PLRditBfF5Q7dFedrFMTauk0HU8F+DBUUxnTAedJozcW
+         4QsA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAVe1TwZIvKkiO1OVLzw6khx1ggyFEpQnQrtTIA6HyOp+cpcyoYY
-	ppjIB5cHSxDwgvyvkczBFFz6ikD2xre4PBtgmXLk05Ull8PKcYNzBlCQ2R2a4MiDCz1Ycwug5LI
-	ubT7/58bQv6l8Y35VW1PSkzM7SryvGSLPqGojfzykY1m8rcJ5ml2dBHOQpi2jcmmj9g==
-X-Received: by 2002:adf:dbce:: with SMTP id e14mr24745711wrj.249.1556186378529;
-        Thu, 25 Apr 2019 02:59:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz2YuNmmrQwXeR4UKtzm84x8sQ45gO6qQi6Ki/a0T2TEcsH+Ed1dhMoTGvsl/bpr1pE5Es6
-X-Received: by 2002:adf:dbce:: with SMTP id e14mr24745649wrj.249.1556186377434;
-        Thu, 25 Apr 2019 02:59:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556186377; cv=none;
+X-Gm-Message-State: APjAAAVEOGhqr8ojAAwLNdZmh6hqBufawM+e71NTwK68xqajCDxfwvf7
+	jG/dfIqNbebrWrd6gdSMDqbYd3Na2XESZAYQvK/YXel55SsQ3Wo0bGRErZzEIqK5FaWVGu0Gakh
+	bDO1/cEtCmkbr94Jr/xTF5EXzLidSLo4BurKHY+TaFZoFhKzs7iEjMw+EB+zebW/ZSQ==
+X-Received: by 2002:a5d:6291:: with SMTP id k17mr26240628wru.223.1556186380272;
+        Thu, 25 Apr 2019 02:59:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUrVvrvyrP3UPcI8V03waNwPXXdPhNr7GD8te+hngnaHFbwutLll6QrRk9xWpE09D6npgx
+X-Received: by 2002:a5d:6291:: with SMTP id k17mr26240585wru.223.1556186379435;
+        Thu, 25 Apr 2019 02:59:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556186379; cv=none;
         d=google.com; s=arc-20160816;
-        b=UEEMPvseGF3oqU+BlpT3nmjq7R1Kbl53vBbG0b7uDxk/YMiiM6rdGsnOFcpr31S8sG
-         6oEyyu2DlIVjPBkYt1k0Y9lOJJ/qdDuM1EsB2KKbDd6ULKKtr04iz85371egj65UyAn/
-         FZiFdrq5g3s5c7VtiGqiTs3uraaN/Tm6LimFhPLhlxpZxTxrkndRLtViN7UrSEkJCrkw
-         ZI8ew4GGnovt45dM6ZfFHQ8rdnA6Vvq0gHXTn31BXpAIia0UXQOEwie0f2ZpITXEpy/d
-         rlH07ECYQwOKUfV0f4s3JqgIJc3MXza9d0AlTeW+vQPEX4YIzyt6yQssSS2XYPQMo766
-         nVIw==
+        b=V5U9rEx2Z+VAftvvpEqGNavjS30KVQz+XEKmYJJgTSpxEmy9OvWTIHJt6DafsQAp1e
+         olmO51pBWs/htSXWDFPUbvfw03i8aUK5N1OabG3IbXcLONV8qKB67hHzuyGd1nGTtfpx
+         ZvynEky6EPOX5Ownfkj2DJRJgY0B4AewPY6iMU9H1xkpS74BOkGUtd2zKxQrS9PGOjN8
+         702HmOStEKPOAE7Itvpgeb4PTPmWju7JcjieGASmdLxgfGxgSe9OQJNX5z8fj1TmEtL6
+         8uisiC8AfPA/6pOZvjqXDFouErdX3S/zY8xFd0RXaHS0FwVC3wGgOIbnOFv2taLRLbrp
+         fi4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=RsuC700IyFocvKBWm+t5JYl3HGqgBnb9GUExX2P7h50=;
-        b=bQ/wNFg82Qw3EK3cPR5O2X+RenXja/rvheDDPMUcFt/RKavcaqX5L+sGGzna7+hRDl
-         8vCvkmwymM+eemxY25siI9IVMvu3Xy/30iP6bHkAa8h4+DJFcdj7AUPtItOZc4DdczTt
-         N3NnS0sZmD0Jjs1JtXvmh/P2vEIiYG5hMu0cDhiq6BaldveqR0T+N0B7BGTx/0oDrE9Y
-         /Nrl1sHxtfj4LzUxvQJFHOe722038HLAxTHbujrxKDHLZNFrovlIZIxtrCD5nNuRSgET
-         cGCyMAC3A7iksYrbEHRvh50QDtecHktAFTKckzU/HHcq1higUXTMRDeS7DDfkl2m/Xam
-         97RA==
+        bh=YyoaysuntdWse+rzlTM8zXy679ccU9UxwPcaNstXB8E=;
+        b=QVIz4/o/5JDxgqIXVY5pJzci6gBjRup7HRL9WuvznoKpYWE/QncxHouGoiUWvE5KBY
+         UUz6YExD6XVbtUYC1lnjVNNmvCHBJf9S0i3Y4ZiiWwKS3QuREIo6BRN+vlMNm8mXFx2h
+         28w+3zSc95dViKm564GVCKO/KNAPMEjHmOq7pFdOGMzgtM2e+HSfkodbWbX+fUeRbQX/
+         E5EykEIRCjQ1+XrxLFp9ticrPQ30lzlNbJd/USSX35OchDhh/pgVRnVI3XEzTJ1JmP4a
+         rj4Os1h7KKYo9JCk7TjL4Mm+hCSKGt9d+/G0Qau67My40px7YSdL/h2PTao24cwYkngA
+         J8Bw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 88si15749706wra.283.2019.04.25.02.59.37
+        by mx.google.com with ESMTPS id v7si15802782wrw.367.2019.04.25.02.59.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Apr 2019 02:59:37 -0700 (PDT)
+        Thu, 25 Apr 2019 02:59:39 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hJbAB-0001vz-NK; Thu, 25 Apr 2019 11:59:32 +0200
-Message-Id: <20190425094802.979089273@linutronix.de>
+	id 1hJbAF-0001xP-E1; Thu, 25 Apr 2019 11:59:35 +0200
+Message-Id: <20190425094803.162400595@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 25 Apr 2019 11:45:13 +0200
+Date: Thu, 25 Apr 2019 11:45:15 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
- Andy Lutomirski <luto@kernel.org>,
- Tom Zanussi <tom.zanussi@linux.intel.com>,
- Steven Rostedt <rostedt@goodmis.org>,
+ Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
  Alexander Potapenko <glider@google.com>,
  Alexey Dobriyan <adobriyan@gmail.com>,
  Andrew Morton <akpm@linux-foundation.org>,
@@ -109,9 +107,11 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
  dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
  Jani Nikula <jani.nikula@linux.intel.com>,
- Rodrigo Vivi <rodrigo.vivi@intel.com>, Miroslav Benes <mbenes@suse.cz>,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>,
+ Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
  linux-arch@vger.kernel.org
-Subject: [patch V3 20/29] tracing: Simplify stacktrace retrieval in histograms
+Subject: [patch V3 22/29] tracing: Make ftrace_trace_userstack() static and
+ conditional
 References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -121,44 +121,76 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The indirection through struct stack_trace is not necessary at all. Use the
-storage array based interface.
+It's only used in trace.c and there is absolutely no point in compiling it
+in when user space stack traces are not supported.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Tested-by: Tom Zanussi <tom.zanussi@linux.intel.com>
-Reviewed-by: Tom Zanussi <tom.zanussi@linux.intel.com>
-Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
 ---
- kernel/trace/trace_events_hist.c |   12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ kernel/trace/trace.c |   14 ++++++++------
+ kernel/trace/trace.h |    8 --------
+ 2 files changed, 8 insertions(+), 14 deletions(-)
 
---- a/kernel/trace/trace_events_hist.c
-+++ b/kernel/trace/trace_events_hist.c
-@@ -5186,7 +5186,6 @@ static void event_hist_trigger(struct ev
- 	u64 var_ref_vals[TRACING_MAP_VARS_MAX];
- 	char compound_key[HIST_KEY_SIZE_MAX];
- 	struct tracing_map_elt *elt = NULL;
--	struct stack_trace stacktrace;
- 	struct hist_field *key_field;
- 	u64 field_contents;
- 	void *key = NULL;
-@@ -5198,14 +5197,9 @@ static void event_hist_trigger(struct ev
- 		key_field = hist_data->fields[i];
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -159,6 +159,8 @@ static union trace_eval_map_item *trace_
+ #endif /* CONFIG_TRACE_EVAL_MAP_FILE */
  
- 		if (key_field->flags & HIST_FIELD_FL_STACKTRACE) {
--			stacktrace.max_entries = HIST_STACKTRACE_DEPTH;
--			stacktrace.entries = entries;
--			stacktrace.nr_entries = 0;
--			stacktrace.skip = HIST_STACKTRACE_SKIP;
+ static int tracing_set_tracer(struct trace_array *tr, const char *buf);
++static void ftrace_trace_userstack(struct ring_buffer *buffer,
++				   unsigned long flags, int pc);
+ 
+ #define MAX_TRACER_SIZE		100
+ static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
+@@ -2905,9 +2907,10 @@ void trace_dump_stack(int skip)
+ }
+ EXPORT_SYMBOL_GPL(trace_dump_stack);
+ 
++#ifdef CONFIG_USER_STACKTRACE_SUPPORT
+ static DEFINE_PER_CPU(int, user_stack_count);
+ 
+-void
++static void
+ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
+ {
+ 	struct trace_event_call *call = &event_user_stack;
+@@ -2958,13 +2961,12 @@ ftrace_trace_userstack(struct ring_buffe
+  out:
+ 	preempt_enable();
+ }
 -
--			memset(stacktrace.entries, 0, HIST_STACKTRACE_SIZE);
--			save_stack_trace(&stacktrace);
+-#ifdef UNUSED
+-static void __trace_userstack(struct trace_array *tr, unsigned long flags)
++#else /* CONFIG_USER_STACKTRACE_SUPPORT */
++static void ftrace_trace_userstack(struct ring_buffer *buffer,
++				   unsigned long flags, int pc)
+ {
+-	ftrace_trace_userstack(tr, flags, preempt_count());
+ }
+-#endif /* UNUSED */
++#endif /* !CONFIG_USER_STACKTRACE_SUPPORT */
+ 
+ #endif /* CONFIG_STACKTRACE */
+ 
+--- a/kernel/trace/trace.h
++++ b/kernel/trace/trace.h
+@@ -782,17 +782,9 @@ void update_max_tr_single(struct trace_a
+ #endif /* CONFIG_TRACER_MAX_TRACE */
+ 
+ #ifdef CONFIG_STACKTRACE
+-void ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags,
+-			    int pc);
 -
-+			memset(entries, 0, HIST_STACKTRACE_SIZE);
-+			stack_trace_save(entries, HIST_STACKTRACE_DEPTH,
-+					 HIST_STACKTRACE_SKIP);
- 			key = entries;
- 		} else {
- 			field_contents = key_field->fn(key_field, elt, rbe, rec);
+ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
+ 		   int pc);
+ #else
+-static inline void ftrace_trace_userstack(struct ring_buffer *buffer,
+-					  unsigned long flags, int pc)
+-{
+-}
+-
+ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
+ 				 int skip, int pc)
+ {
 
 
