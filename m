@@ -2,417 +2,419 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 700E5C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:05:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59D4BC43219
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:08:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9767520693
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:05:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 76002206A3
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:08:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="RayElyVi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9767520693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="crdakZE8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76002206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C59056B000A; Thu, 25 Apr 2019 15:05:04 -0400 (EDT)
+	id 96F5D6B000A; Thu, 25 Apr 2019 15:08:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE2196B000C; Thu, 25 Apr 2019 15:05:04 -0400 (EDT)
+	id 91E556B000C; Thu, 25 Apr 2019 15:08:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A838D6B000D; Thu, 25 Apr 2019 15:05:04 -0400 (EDT)
+	id 810746B000D; Thu, 25 Apr 2019 15:08:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E76B6B000A
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:05:04 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j1so325894pll.13
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:05:04 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 618116B000A
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:08:25 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id f20so734242qtf.3
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:08:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=oa+bDTxy+GEWuMo4ctv0CAjOtzvX3qgl2j9Ubq0RakE=;
-        b=Mmv9902bRgCqpIZAkCg9rkBRAhiKGAmXS8/O/c2wXdom/eyyxZXQr3MUVwMZRnExvI
-         qUPUy1qF8D0F4iOpAxSe1fEHCBSkAi2g8CNw1LENVPiFv3+4HvlfXJ+EGsonAaUj9paF
-         4koJ0VOLZqJQvirvS0S5MLLdWjWCt1KDkF5/KyjpFNGieOUcsy+96RGPltGTQSbJuIeO
-         xhMTZNuAmnhwCrxAjFHZTotOLe8cLLQ+EkeChCl3+ZWwsADvkk/tLDy6g60RTDDGHlGQ
-         UILFZoaqvX8gRRNtRo4hkv2CV6YfKIZGUguiLVuCpoQAUbX2yR6wO2CrTPc9cTcri00F
-         y0LA==
-X-Gm-Message-State: APjAAAUX02mfH3Rv562zDQAQFCeldczijcwR/nkZpU0yFuiz3WUID7Tb
-	p1d5ZvkDwl9LtrmOwqyTytUO1dhlTNabatxk6OY1Y3ed3CBfp2HVdgBDWEhPh4Htq0+zlVzEkn8
-	yHEeSEh1Y3ofFfdueukYPrUCSjADXcVprn6JgifAzZ46kgId8BEUOu/kbzPdzjdKDJQ==
-X-Received: by 2002:a63:c702:: with SMTP id n2mr99517pgg.255.1556219103938;
-        Thu, 25 Apr 2019 12:05:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7gzAWDoz4+vAyf9huHdVxe8EdnAtb5Xy327rxLW+wmOndksmQLOrGXzHSPGRAFBQxGCCR
-X-Received: by 2002:a63:c702:: with SMTP id n2mr99403pgg.255.1556219102880;
-        Thu, 25 Apr 2019 12:05:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556219102; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=cGN+2eGnFRjQKKRet0DhCtdHwhr+g4OStM4ZwhGCD9I=;
+        b=m5KwIo+y4f0JCEewIkqfnV75bfUeuMw3yQtaEJ457+WhRMuc+3OuydJpbhZl9yk8q1
+         Apq9Z/V1BtIYRUJEKoZluA8HimAeQjl37wT7w/DbGdybPs3Al0rugyLLAe/IT2tcchR1
+         wOUmvHLj/WBkyG0Nco90yMUFDMGEmvf2CrPVsryg5pOS7zyVkkJBPuLXKQGcXgoaxrNA
+         QJnsH2HRPtKDS1rQwM92svFyxEMvG1at6YBaBcOawRRR8FwQIUNUJU1CHi+zRXiKK6x8
+         hn1p7iiDVsxAjKB7lzVeVV0YIDMIxOVviIkg4v7C4N2giIX/PjVldX3BrBdZPK6LFlJ9
+         z8bg==
+X-Gm-Message-State: APjAAAXLDskFz/Mra461CLh4Y6sc5GHncAJe7xJXNLMtZPv7/Jv7VLS7
+	jaJcjZV02DZtMlk25CyDw3T1Fsl+3Gr115tmZycYNh2UKetGz5LLW7zZgGLcjstWSpvYNbCIvqL
+	8PqoyqJbn+5nWAMyrD6nOuylqxN9ian4sKjFy29DxOsENmG0+pLjCqcQDdpDIpRNghw==
+X-Received: by 2002:ac8:260d:: with SMTP id u13mr32725845qtu.32.1556219305060;
+        Thu, 25 Apr 2019 12:08:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxnBspMhFSKsWBa7vvjgVDyx/KHajfMlsb56oj0BTqBLgyPunRqweJFcIxcEsu2YV2bEaz
+X-Received: by 2002:ac8:260d:: with SMTP id u13mr32725756qtu.32.1556219304095;
+        Thu, 25 Apr 2019 12:08:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556219304; cv=none;
         d=google.com; s=arc-20160816;
-        b=IYqqgSo7z1n6Lat8CNZaf/59fPKbHVqioxieoydzsEkJ7jPOIOZU8DMJZnrSunEy8r
-         n1PAK4mK0N4ppfuZEzvVkPou5ABJNLRozvoiExQqfE4kb/8FhUH1LAVRJy63S9Wfwy9d
-         CJSUY3Mb5MXZ61OmDVXgL+bJLOCVcFr3l+zLRclcs0p5BmwJzOfrArsLko39HZpYyLoZ
-         OLmsp/ZSZiFKZYDJH1RZ7Mw2dlbT4NA6NeEXo9G+hIbrjScCM6cKnNMAy2VMhKEBtuCF
-         qLMVqofsA3o7I9cKBK6BIiO9d7oBnWrbgvuFef7HJ4Wn2y2DYUoTXBaCwFIH4XwNLQJ4
-         H9AQ==
+        b=xY+vo/jUvX9xlpePO4TT2BxWr5tZEy6j5bR1fHiI2mmzKiCHZ2rkC5yAOBX3knRv45
+         GXWwTtWXHOsIoPSYv8oBBRqmVZFKFEXk14So6yd5v7QUk5WZ8+3jSTCuokx9HR8UKodp
+         ydaO3IHlkCh14J0Stlf07zeTxXiGRsQnwQymNdyxeAOfWfIpC2fZZOmhWXsoZ3rbzRJd
+         +sSTDtzhhDMggLcpodRh7xw2xUag7n+qilEb1pjmJXLPsuAjJ+V3orZGBmTUY+ji0Cra
+         oNoyAhHmZRkeJ5F8ZQ9MLjK8hrwDy5A6K0qWi6GjbFb2W1Xnu8pbNncvXlGJ/VpqF6R2
+         Rh+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=oa+bDTxy+GEWuMo4ctv0CAjOtzvX3qgl2j9Ubq0RakE=;
-        b=clhp7b4IUa7Bx1rhkZFi8bLKVapnfKyKu905Wmk/DkMVBEg5bGU6lelhUt/toULqFv
-         MK8CVjfoWkfrAnwz4gvcYmiBvB6qTmPKUjjhCQ5v1vTWwA0kGFfub4lYTVbQgFRo+fQA
-         ZnlCL4XTwChIgDQMqB7n88TovdeqSZFhrzNHVszxygwMk0OgbqRlGCd+p87oBAVYbqE5
-         eCko0U3C5TayPc8VRR/JHM0ZPlVA1upNHuK0PN77nKCOgSU6ThhjEXcvNOMPMTUK9Bov
-         HKyNpLevdrUUwuiAa1/xXfVJJcpAH+wvPCzbTzjl5OOJLZZX7k8VUh4zuOV4Mz0jq1hl
-         fkYQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=cGN+2eGnFRjQKKRet0DhCtdHwhr+g4OStM4ZwhGCD9I=;
+        b=fhxwB/SSFF8Mn4KyPBwc6wyi1Uq+QT4FokL8rdga9vtZpoHdCHg3LXXZyQdzSCkdxZ
+         mi+22IHETzWLNaa8GTokRVUDhtKfYOvY8SIQNbVVTyXrxL0sFJUtTeWTaXnryaua0t0F
+         MpPIsHBXo8/ZLpEQmo8qnWmOLWlJ41Ki11l2JmR2lQNJdZinGy0MlhpTWGmLZzi4itmf
+         kzrX0RRRwxy8cy5p27dVXeqMej8ihsFYHF30xEoYUjUP8jGvGvnlopaOT5eHxX6ib6FG
+         rV0+05PmUCaKYDhoArGS//b6gw7okHLTOA4i6uauIBb+07cvEM4qRvtgd6QjGRv+KnvJ
+         OT3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RayElyVi;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id h11si21433210pgv.163.2019.04.25.12.05.02
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=crdakZE8;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.74.40 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-eopbgr740040.outbound.protection.outlook.com. [40.107.74.40])
+        by mx.google.com with ESMTPS id p53si1252164qtk.343.2019.04.25.12.08.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 12:05:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Thu, 25 Apr 2019 12:08:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.74.40 as permitted sender) client-ip=40.107.74.40;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RayElyVi;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cc204e40001>; Thu, 25 Apr 2019 12:05:08 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Thu, 25 Apr 2019 12:05:02 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Thu, 25 Apr 2019 12:05:02 -0700
-Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 25 Apr
- 2019 19:05:01 +0000
-From: <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-doc@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
-	Jonathan Corbet <corbet@lwn.net>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH] docs/vm: Minor editorial changes in the THP and hugetlbfs documentation.
-Date: Thu, 25 Apr 2019 12:04:26 -0700
-Message-ID: <20190425190426.10051-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
-MIME-Version: 1.0
-X-NVConfidentiality: public
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
+       dkim=pass header.i=@vmware.com header.s=selector1 header.b=crdakZE8;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.74.40 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=cGN+2eGnFRjQKKRet0DhCtdHwhr+g4OStM4ZwhGCD9I=;
+ b=crdakZE8t1c58kfX53aUFY+7aG1ypFDGu7WYjfYvFVrIAbcyYtu021d2Zh82nuC0Tor5SLUDimkQKTYvkAUe40a7XXtToxDblsEa2IcoN/i4eZSR1rUwBB/rCS459xM8FJ85Z0TbtG1+pBxalDLr9An6BgNJR7IYTVbtEyp79wU=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB4662.namprd05.prod.outlook.com (52.135.233.76) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1835.9; Thu, 25 Apr 2019 19:08:17 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::e862:1b1b:7665:8094]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::e862:1b1b:7665:8094%3]) with mapi id 15.20.1835.010; Thu, 25 Apr 2019
+ 19:08:17 +0000
+From: Nadav Amit <namit@vmware.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+CC: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Arnd Bergmann
+	<arnd@arndb.de>, Julien Freche <jfreche@vmware.com>, Pv-drivers
+	<Pv-drivers@vmware.com>, Jason Wang <jasowang@redhat.com>, LKML
+	<linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org"
+	<virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>
+Subject: Re: [PATCH v3 1/4] mm/balloon_compaction: list interfaces
+Thread-Topic: [PATCH v3 1/4] mm/balloon_compaction: list interfaces
+Thread-Index: AQHU+mwdinHS3UiOtEKcnmatxdvta6ZLVFgAgAHrSAA=
+Date: Thu, 25 Apr 2019 19:08:17 +0000
+Message-ID: <77127A20-8B02-4C1F-A746-6378A160D12B@vmware.com>
+References: <20190423234531.29371-1-namit@vmware.com>
+ <20190423234531.29371-2-namit@vmware.com>
+ <20190424092829-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190424092829-mutt-send-email-mst@kernel.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 77370d01-82c2-4c89-81c8-08d6c9b16023
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB4662;
+x-ms-traffictypediagnostic: BYAPR05MB4662:
+x-ld-processed: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0,ExtAddr
+x-microsoft-antispam-prvs:
+ <BYAPR05MB46626B388BEF9A0A7B0C1976D03D0@BYAPR05MB4662.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:10000;
+x-forefront-prvs: 0018A2705B
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(366004)(396003)(376002)(39860400002)(136003)(189003)(199004)(4326008)(305945005)(68736007)(316002)(14444005)(26005)(446003)(102836004)(186003)(66066001)(14454004)(5660300002)(33656002)(6506007)(478600001)(25786009)(53546011)(97736004)(36756003)(99286004)(6246003)(76176011)(66946007)(76116006)(73956011)(64756008)(66446008)(11346002)(82746002)(81156014)(86362001)(3846002)(6512007)(71200400001)(83716004)(66556008)(66476007)(71190400001)(53936002)(6436002)(7736002)(256004)(81166006)(6916009)(229853002)(8936002)(6486002)(486006)(8676002)(6116002)(54906003)(2616005)(476003)(2906002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB4662;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ DzjKMmLSinPfv+4M/fs6qfqOT0w5c75ymM0cGb8xCZzI+WEW+tJy335Ie6a1p129rXHF3MP9Z7WIyVihCUH/VucE/OQotZRQfMFFpExUywwYIjomsEy/YLFt37rKCLJUzzSRy6ottqUUPfz8NAx20FO5NL93b8ntdfyXAsFf6A2bi6mb1gAThSYN/CSAl0gxZlKcHlI2vKV62bQmZHlqXIi3DhghdsGqGEOSZS6Dj+hXceihZHKZOXyKmbuNgn2l+7FnPRypLjbRUajPfy9kkNtdT0ByglHCRkIsfeXV1XnBpGGbQJowbwfQKhMPrsJ8hIhAL+WDYsGussKGD6UvmluTcuCScTpuD/7jIzwbxDlol+C3s0bKdihoyWpD72RfFenw8VfvYt/Drmsjsa0HkT7k7dvnxJ2j4rwMzSHfofM=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6DCBC4D19BB59F4481A64E7CC85E0804@namprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1556219108; bh=oa+bDTxy+GEWuMo4ctv0CAjOtzvX3qgl2j9Ubq0RakE=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Transfer-Encoding:Content-Type;
-	b=RayElyVitVO/Kglh+ZThYLs++/ZMmYV/aesX3Z8eiE/V10e5psIIOTeR3nSlQuJp4
-	 kyDoq13992PUs+rrEF39YXP5KKCUXHbX7r+Er0Ur911VMrJao483ZAD0UeIiQnwBu3
-	 xvqOAwF8519Bz2MqvtMQtJOKwFMnjpAvPnwO860J8ulB2Jvx+0Fyf5mTkyvGPOY0VB
-	 8rJlZh3yFAg7PsyhyvtJNPLcg89h8t+AuDZQ+iPtAfB0szrvSRYnt68wc0hk7ojTji
-	 IOm0zqBhrA49IyTkqgRkA1b86FSaQWIRuSe89iUbKkIncIXaVgaSfFncs6fY9zPrJy
-	 YNExOpfc+0n1Q==
+MIME-Version: 1.0
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 77370d01-82c2-4c89-81c8-08d6c9b16023
+X-MS-Exchange-CrossTenant-originalarrivaltime: 25 Apr 2019 19:08:17.6759
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB4662
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ralph Campbell <rcampbell@nvidia.com>
+> On Apr 24, 2019, at 6:49 AM, Michael S. Tsirkin <mst@redhat.com> wrote:
+>=20
+> On Tue, Apr 23, 2019 at 04:45:28PM -0700, Nadav Amit wrote:
+>> Introduce interfaces for ballooning enqueueing and dequeueing of a list
+>> of pages. These interfaces reduce the overhead of storing and restoring
+>> IRQs by batching the operations. In addition they do not panic if the
+>> list of pages is empty.
+>>=20
+>> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+>> Cc: Jason Wang <jasowang@redhat.com>
+>> Cc: linux-mm@kvack.org
+>> Cc: virtualization@lists.linux-foundation.org
+>> Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+>> Signed-off-by: Nadav Amit <namit@vmware.com>
+>=20
+>=20
+> Looks good overall. Two minor comments below.
+>=20
+>=20
+>> ---
+>> include/linux/balloon_compaction.h |   4 +
+>> mm/balloon_compaction.c            | 144 +++++++++++++++++++++--------
+>> 2 files changed, 110 insertions(+), 38 deletions(-)
+>>=20
+>> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_=
+compaction.h
+>> index f111c780ef1d..430b6047cef7 100644
+>> --- a/include/linux/balloon_compaction.h
+>> +++ b/include/linux/balloon_compaction.h
+>> @@ -64,6 +64,10 @@ extern struct page *balloon_page_alloc(void);
+>> extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+>> 				 struct page *page);
+>> extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_=
+info);
+>> +extern size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_=
+info,
+>> +				      struct list_head *pages);
+>> +extern size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_=
+info,
+>> +				     struct list_head *pages, size_t n_req_pages);
+>>=20
+>> static inline void balloon_devinfo_init(struct balloon_dev_info *balloon=
+)
+>> {
+>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+>> index ef858d547e2d..a2995002edc2 100644
+>> --- a/mm/balloon_compaction.c
+>> +++ b/mm/balloon_compaction.c
+>> @@ -10,6 +10,105 @@
+>> #include <linux/export.h>
+>> #include <linux/balloon_compaction.h>
+>>=20
+>> +static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_inf=
+o,
+>> +				     struct page *page)
+>> +{
+>> +	/*
+>> +	 * Block others from accessing the 'page' when we get around to
+>> +	 * establishing additional references. We should be the only one
+>> +	 * holding a reference to the 'page' at this point. If we are not, the=
+n
+>> +	 * memory corruption is possible and we should stop execution.
+>> +	 */
+>> +	BUG_ON(!trylock_page(page));
+>> +	list_del(&page->lru);
+>> +	balloon_page_insert(b_dev_info, page);
+>> +	unlock_page(page);
+>> +	__count_vm_event(BALLOON_INFLATE);
+>> +}
+>> +
+>> +/**
+>> + * balloon_page_list_enqueue() - inserts a list of pages into the ballo=
+on page
+>> + *				 list.
+>> + * @b_dev_info: balloon device descriptor where we will insert a new pa=
+ge to
+>> + * @pages: pages to enqueue - allocated using balloon_page_alloc.
+>> + *
+>> + * Driver must call it to properly enqueue a balloon pages before defin=
+itively
+>> + * removing it from the guest system.
+>> + *
+>> + * Return: number of pages that were enqueued.
+>> + */
+>> +size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+>> +				 struct list_head *pages)
+>> +{
+>> +	struct page *page, *tmp;
+>> +	unsigned long flags;
+>> +	size_t n_pages =3D 0;
+>> +
+>> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>> +	list_for_each_entry_safe(page, tmp, pages, lru) {
+>> +		balloon_page_enqueue_one(b_dev_info, page);
+>> +		n_pages++;
+>> +	}
+>> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>> +	return n_pages;
+>> +}
+>> +EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
+>> +
+>> +/**
+>> + * balloon_page_list_dequeue() - removes pages from balloon's page list=
+ and
+>> + *				 returns a list of the pages.
+>> + * @b_dev_info: balloon device decriptor where we will grab a page from=
+.
+>> + * @pages: pointer to the list of pages that would be returned to the c=
+aller.
+>> + * @n_req_pages: number of requested pages.
+>> + *
+>> + * Driver must call this function to properly de-allocate a previous en=
+listed
+>> + * balloon pages before definetively releasing it back to the guest sys=
+tem.
+>> + * This function tries to remove @n_req_pages from the ballooned pages =
+and
+>> + * return them to the caller in the @pages list.
+>> + *
+>> + * Note that this function may fail to dequeue some pages temporarily e=
+mpty due
+>> + * to compaction isolated pages.
+>> + *
+>> + * Return: number of pages that were added to the @pages list.
+>> + */
+>> +size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
+>> +				 struct list_head *pages, size_t n_req_pages)
+>> +{
+>> +	struct page *page, *tmp;
+>> +	unsigned long flags;
+>> +	size_t n_pages =3D 0;
+>> +
+>> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>> +	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+>> +		if (n_pages =3D=3D n_req_pages)
+>> +			break;
+>> +
+>> +		/*
+>> +		 * Block others from accessing the 'page' while we get around
+>=20
+> should be "get around to" - same as in other places
+>=20
+>=20
+>> +		 * establishing additional references and preparing the 'page'
+>> +		 * to be released by the balloon driver.
+>> +		 */
+>> +		if (!trylock_page(page))
+>> +			continue;
+>> +
+>> +		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
+>> +		    PageIsolated(page)) {
+>> +			/* raced with isolation */
+>> +			unlock_page(page);
+>> +			continue;
+>> +		}
+>> +		balloon_page_delete(page);
+>> +		__count_vm_event(BALLOON_DEFLATE);
+>> +		unlock_page(page);
+>> +		list_add(&page->lru, pages);
+>=20
+> I'm not sure whether this list_add must be under the page lock,
+> but enqueue does list_del under page lock, so I think it's
+> a good idea to keep dequeue consistent, operating in the
+> reverse order of enqueue.
+>=20
+>> +		++n_pages;
+>> +	}
+>> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>> +
+>> +	return n_pages;
+>> +}
+>> +EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+>> +
+>> /*
+>>  * balloon_page_alloc - allocates a new page for insertion into the ball=
+oon
+>>  *			  page list.
+>> @@ -43,17 +142,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b=
+_dev_info,
+>> {
+>> 	unsigned long flags;
+>>=20
+>> -	/*
+>> -	 * Block others from accessing the 'page' when we get around to
+>> -	 * establishing additional references. We should be the only one
+>> -	 * holding a reference to the 'page' at this point.
+>> -	 */
+>> -	BUG_ON(!trylock_page(page));
+>> 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>> -	balloon_page_insert(b_dev_info, page);
+>> -	__count_vm_event(BALLOON_INFLATE);
+>> +	balloon_page_enqueue_one(b_dev_info, page);
+>> 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>> -	unlock_page(page);
+>> }
+>> EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>>=20
+>> @@ -70,36 +161,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>>  */
+>> struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>> {
+>> -	struct page *page, *tmp;
+>> 	unsigned long flags;
+>> -	bool dequeued_page;
+>> +	LIST_HEAD(pages);
+>> +	int n_pages;
+>>=20
+>> -	dequeued_page =3D false;
+>> -	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+>> -	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+>> -		/*
+>> -		 * Block others from accessing the 'page' while we get around
+>> -		 * establishing additional references and preparing the 'page'
+>> -		 * to be released by the balloon driver.
+>> -		 */
+>> -		if (trylock_page(page)) {
+>> -#ifdef CONFIG_BALLOON_COMPACTION
+>> -			if (PageIsolated(page)) {
+>> -				/* raced with isolation */
+>> -				unlock_page(page);
+>> -				continue;
+>> -			}
+>> -#endif
+>> -			balloon_page_delete(page);
+>> -			__count_vm_event(BALLOON_DEFLATE);
+>> -			unlock_page(page);
+>> -			dequeued_page =3D true;
+>> -			break;
+>> -		}
+>> -	}
+>> -	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>> +	n_pages =3D balloon_page_list_dequeue(b_dev_info, &pages, 1);
+>>=20
+>> -	if (!dequeued_page) {
+>> +	if (n_pages !=3D 1) {
+>> 		/*
+>> 		 * If we are unable to dequeue a balloon page because the page
+>> 		 * list is empty and there is no isolated pages, then something
+>> @@ -112,9 +180,9 @@ struct page *balloon_page_dequeue(struct balloon_dev=
+_info *b_dev_info)
+>> 			     !b_dev_info->isolated_pages))
+>> 			BUG();
+>> 		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+>> -		page =3D NULL;
+>> +		return NULL;
+>> 	}
+>> -	return page;
+>> +	return list_first_entry(&pages, struct page, lru);
+>> }
+>> EXPORT_SYMBOL_GPL(balloon_page_dequeue);
+>>=20
+>> --=20
+>> 2.19.1
+>=20
+>=20
+> With above addressed:
+>=20
+> Acked-by: Michael S. Tsirkin <mst@redhat.com>
 
-Some minor wording changes and typo corrections.
+Thank you, Michael.
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
----
- Documentation/vm/hugetlbfs_reserv.rst | 17 +++---
- Documentation/vm/transhuge.rst        | 77 ++++++++++++++-------------
- 2 files changed, 48 insertions(+), 46 deletions(-)
-
-diff --git a/Documentation/vm/hugetlbfs_reserv.rst b/Documentation/vm/huget=
-lbfs_reserv.rst
-index 9d200762114f..f143954e0d05 100644
---- a/Documentation/vm/hugetlbfs_reserv.rst
-+++ b/Documentation/vm/hugetlbfs_reserv.rst
-@@ -85,10 +85,10 @@ Reservation Map Location (Private or Shared)
- A huge page mapping or segment is either private or shared.  If private,
- it is typically only available to a single address space (task).  If share=
-d,
- it can be mapped into multiple address spaces (tasks).  The location and
--semantics of the reservation map is significantly different for two types
-+semantics of the reservation map is significantly different for the two ty=
-pes
- of mappings.  Location differences are:
-=20
--- For private mappings, the reservation map hangs off the the VMA structur=
-e.
-+- For private mappings, the reservation map hangs off the VMA structure.
-   Specifically, vma->vm_private_data.  This reserve map is created at the
-   time the mapping (mmap(MAP_PRIVATE)) is created.
- - For shared mappings, the reservation map hangs off the inode.  Specifica=
-lly,
-@@ -109,15 +109,15 @@ These operations result in a call to the routine huge=
-tlb_reserve_pages()::
- 				  struct vm_area_struct *vma,
- 				  vm_flags_t vm_flags)
-=20
--The first thing hugetlb_reserve_pages() does is check for the NORESERVE
-+The first thing hugetlb_reserve_pages() does is check if the NORESERVE
- flag was specified in either the shmget() or mmap() call.  If NORESERVE
--was specified, then this routine returns immediately as no reservation
-+was specified, then this routine returns immediately as no reservations
- are desired.
-=20
- The arguments 'from' and 'to' are huge page indices into the mapping or
- underlying file.  For shmget(), 'from' is always 0 and 'to' corresponds to
- the length of the segment/mapping.  For mmap(), the offset argument could
--be used to specify the offset into the underlying file.  In such a case
-+be used to specify the offset into the underlying file.  In such a case,
- the 'from' and 'to' arguments have been adjusted by this offset.
-=20
- One of the big differences between PRIVATE and SHARED mappings is the way
-@@ -138,7 +138,8 @@ to indicate this VMA owns the reservations.
-=20
- The reservation map is consulted to determine how many huge page reservati=
-ons
- are needed for the current mapping/segment.  For private mappings, this is
--always the value (to - from).  However, for shared mappings it is possible=
- that some reservations may already exist within the range (to - from).  Se=
-e the
-+always the value (to - from).  However, for shared mappings it is possible=
- that
-+some reservations may already exist within the range (to - from).  See the
- section :ref:`Reservation Map Modifications <resv_map_modifications>`
- for details on how this is accomplished.
-=20
-@@ -165,7 +166,7 @@ these counters.
- If there were enough free huge pages and the global count resv_huge_pages
- was adjusted, then the reservation map associated with the mapping is
- modified to reflect the reservations.  In the case of a shared mapping, a
--file_region will exist that includes the range 'from' 'to'.  For private
-+file_region will exist that includes the range 'from' - 'to'.  For private
- mappings, no modifications are made to the reservation map as lack of an
- entry indicates a reservation exists.
-=20
-@@ -239,7 +240,7 @@ subpool accounting when the page is freed.
- The routine vma_commit_reservation() is then called to adjust the reserve
- map based on the consumption of the reservation.  In general, this involve=
-s
- ensuring the page is represented within a file_region structure of the reg=
-ion
--map.  For shared mappings where the the reservation was present, an entry
-+map.  For shared mappings where the reservation was present, an entry
- in the reserve map already existed so no change is made.  However, if ther=
-e
- was no reservation in a shared mapping or this was a private mapping a new
- entry must be created.
-diff --git a/Documentation/vm/transhuge.rst b/Documentation/vm/transhuge.rs=
-t
-index a8cf6809e36e..0be61b0d75d3 100644
---- a/Documentation/vm/transhuge.rst
-+++ b/Documentation/vm/transhuge.rst
-@@ -4,8 +4,9 @@
- Transparent Hugepage Support
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D
-=20
--This document describes design principles Transparent Hugepage (THP)
--Support and its interaction with other parts of the memory management.
-+This document describes design principles for Transparent Hugepage (THP)
-+support and its interaction with other parts of the memory management
-+system.
-=20
- Design principles
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-@@ -35,27 +36,27 @@ Design principles
- get_user_pages and follow_page
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D
-=20
--get_user_pages and follow_page if run on a hugepage, will return the
-+get_user_pages and follow_page, if run on a hugepage, will return the
- head or tail pages as usual (exactly as they would do on
--hugetlbfs). Most gup users will only care about the actual physical
-+hugetlbfs). Most GUP users will only care about the actual physical
- address of the page and its temporary pinning to release after the I/O
- is complete, so they won't ever notice the fact the page is huge. But
- if any driver is going to mangle over the page structure of the tail
- page (like for checking page->mapping or other bits that are relevant
- for the head page and not the tail page), it should be updated to jump
--to check head page instead. Taking reference on any head/tail page would
--prevent page from being split by anyone.
-+to check head page instead. Taking a reference on any head/tail page would
-+prevent the page from being split by anyone.
-=20
- .. note::
-    these aren't new constraints to the GUP API, and they match the
--   same constrains that applies to hugetlbfs too, so any driver capable
-+   same constraints that apply to hugetlbfs too, so any driver capable
-    of handling GUP on hugetlbfs will also work fine on transparent
-    hugepage backed mappings.
-=20
- In case you can't handle compound pages if they're returned by
--follow_page, the FOLL_SPLIT bit can be specified as parameter to
-+follow_page, the FOLL_SPLIT bit can be specified as a parameter to
- follow_page, so that it will split the hugepages before returning
--them. Migration for example passes FOLL_SPLIT as parameter to
-+them. Migration for example passes FOLL_SPLIT as a parameter to
- follow_page because it's not hugepage aware and in fact it can't work
- at all on hugetlbfs (but it instead works fine on transparent
- hugepages thanks to FOLL_SPLIT). migration simply can't deal with
-@@ -72,11 +73,11 @@ pmd_offset. It's trivial to make the code transparent h=
-ugepage aware
- by just grepping for "pmd_offset" and adding split_huge_pmd where
- missing after pmd_offset returns the pmd. Thanks to the graceful
- fallback design, with a one liner change, you can avoid to write
--hundred if not thousand of lines of complex code to make your code
-+hundreds if not thousands of lines of complex code to make your code
- hugepage aware.
-=20
- If you're not walking pagetables but you run into a physical hugepage
--but you can't handle it natively in your code, you can split it by
-+that you can't handle natively in your code, you can split it by
- calling split_huge_page(page). This is what the Linux VM does before
- it tries to swapout the hugepage for example. split_huge_page() can fail
- if the page is pinned and you must handle this correctly.
-@@ -103,18 +104,18 @@ split_huge_page() or split_huge_pmd() has a cost.
-=20
- To make pagetable walks huge pmd aware, all you need to do is to call
- pmd_trans_huge() on the pmd returned by pmd_offset. You must hold the
--mmap_sem in read (or write) mode to be sure an huge pmd cannot be
-+mmap_sem in read (or write) mode to be sure a huge pmd cannot be
- created from under you by khugepaged (khugepaged collapse_huge_page
- takes the mmap_sem in write mode in addition to the anon_vma lock). If
- pmd_trans_huge returns false, you just fallback in the old code
- paths. If instead pmd_trans_huge returns true, you have to take the
- page table lock (pmd_lock()) and re-run pmd_trans_huge. Taking the
--page table lock will prevent the huge pmd to be converted into a
-+page table lock will prevent the huge pmd being converted into a
- regular pmd from under you (split_huge_pmd can run in parallel to the
- pagetable walk). If the second pmd_trans_huge returns false, you
- should just drop the page table lock and fallback to the old code as
--before. Otherwise you can proceed to process the huge pmd and the
--hugepage natively. Once finished you can drop the page table lock.
-+before. Otherwise, you can proceed to process the huge pmd and the
-+hugepage natively. Once finished, you can drop the page table lock.
-=20
- Refcounts and transparent huge pages
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-@@ -122,61 +123,61 @@ Refcounts and transparent huge pages
- Refcounting on THP is mostly consistent with refcounting on other compound
- pages:
-=20
--  - get_page()/put_page() and GUP operate in head page's ->_refcount.
-+  - get_page()/put_page() and GUP operate on head page's ->_refcount.
-=20
-   - ->_refcount in tail pages is always zero: get_page_unless_zero() never
--    succeed on tail pages.
-+    succeeds on tail pages.
-=20
-   - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
-     on relevant sub-page of the compound page.
-=20
--  - map/unmap of the whole compound page accounted in compound_mapcount
-+  - map/unmap of the whole compound page is accounted for in compound_mapc=
-ount
-     (stored in first tail page). For file huge pages, we also increment
-     ->_mapcount of all sub-pages in order to have race-free detection of
-     last unmap of subpages.
-=20
- PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
-=20
--For anonymous pages PageDoubleMap() also indicates ->_mapcount in all
-+For anonymous pages, PageDoubleMap() also indicates ->_mapcount in all
- subpages is offset up by one. This additional reference is required to
- get race-free detection of unmap of subpages when we have them mapped with
- both PMDs and PTEs.
-=20
--This is optimization required to lower overhead of per-subpage mapcount
--tracking. The alternative is alter ->_mapcount in all subpages on each
-+This optimization is required to lower the overhead of per-subpage mapcoun=
-t
-+tracking. The alternative is to alter ->_mapcount in all subpages on each
- map/unmap of the whole compound page.
-=20
--For anonymous pages, we set PG_double_map when a PMD of the page got split
--for the first time, but still have PMD mapping. The additional references
--go away with last compound_mapcount.
-+For anonymous pages, we set PG_double_map when a PMD of the page is split
-+for the first time, but still have a PMD mapping. The additional reference=
-s
-+go away with the last compound_mapcount.
-=20
--File pages get PG_double_map set on first map of the page with PTE and
--goes away when the page gets evicted from page cache.
-+File pages get PG_double_map set on the first map of the page with PTE and
-+goes away when the page gets evicted from the page cache.
-=20
- split_huge_page internally has to distribute the refcounts in the head
- page to the tail pages before clearing all PG_head/tail bits from the page
- structures. It can be done easily for refcounts taken by page table
--entries. But we don't have enough information on how to distribute any
-+entries, but we don't have enough information on how to distribute any
- additional pins (i.e. from get_user_pages). split_huge_page() fails any
--requests to split pinned huge page: it expects page count to be equal to
--sum of mapcount of all sub-pages plus one (split_huge_page caller must
--have reference for head page).
-+requests to split pinned huge pages: it expects page count to be equal to
-+the sum of mapcount of all sub-pages plus one (split_huge_page caller must
-+have a reference to the head page).
-=20
- split_huge_page uses migration entries to stabilize page->_refcount and
--page->_mapcount of anonymous pages. File pages just got unmapped.
-+page->_mapcount of anonymous pages. File pages just get unmapped.
-=20
--We safe against physical memory scanners too: the only legitimate way
--scanner can get reference to a page is get_page_unless_zero().
-+We are safe against physical memory scanners too: the only legitimate way
-+a scanner can get a reference to a page is get_page_unless_zero().
-=20
- All tail pages have zero ->_refcount until atomic_add(). This prevents the
- scanner from getting a reference to the tail page up to that point. After =
-the
--atomic_add() we don't care about the ->_refcount value. We already known h=
-ow
-+atomic_add() we don't care about the ->_refcount value. We already know ho=
-w
- many references should be uncharged from the head page.
-=20
- For head page get_page_unless_zero() will succeed and we don't mind. It's
--clear where reference should go after split: it will stay on head page.
-+clear where references should go after split: it will stay on the head pag=
-e.
-=20
--Note that split_huge_pmd() doesn't have any limitation on refcounting:
-+Note that split_huge_pmd() doesn't have any limitations on refcounting:
- pmd can be split at any point and never fails.
-=20
- Partial unmap and deferred_split_huge_page()
-@@ -188,10 +189,10 @@ in page_remove_rmap() and queue the THP for splitting=
- if memory pressure
- comes. Splitting will free up unused subpages.
-=20
- Splitting the page right away is not an option due to locking context in
--the place where we can detect partial unmap. It's also might be
-+the place where we can detect partial unmap. It also might be
- counterproductive since in many cases partial unmap happens during exit(2)=
- if
- a THP crosses a VMA boundary.
-=20
--Function deferred_split_huge_page() is used to queue page for splitting.
-+The function deferred_split_huge_page() is used to queue a page for splitt=
-ing.
- The splitting itself will happen when we get memory pressure via shrinker
- interface.
---=20
-2.20.1
+I addressed your feedback and I will send another version shortly.
 
