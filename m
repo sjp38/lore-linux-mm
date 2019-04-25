@@ -2,208 +2,212 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C5C4C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 894A9C10F11
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:46:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEA4E206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:42:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEA4E206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 35E4A214C6
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:46:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="A56APE8o"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35E4A214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 81C446B000C; Wed, 24 Apr 2019 21:42:52 -0400 (EDT)
+	id C7ED36B0005; Wed, 24 Apr 2019 21:46:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7274F6B000D; Wed, 24 Apr 2019 21:42:52 -0400 (EDT)
+	id C2D056B0006; Wed, 24 Apr 2019 21:46:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 556DE6B000E; Wed, 24 Apr 2019 21:42:52 -0400 (EDT)
+	id AF4FB6B0007; Wed, 24 Apr 2019 21:46:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF536B000C
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:42:52 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r5so6856852pgb.11
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:42:52 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B3C46B0005
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:46:52 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id b16so17191013iot.5
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:46:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=R8qhdg+2AWOPlfSzyMslwEMBF9euYTiSJ41K7L0E3wQ=;
-        b=dq+L2wGHCpyOKlO0EvNVoDpswapmk2DgM/W1CZHB3m+yjKrjC9z7+iMBMEVVkXyiAz
-         R6zLkKjwjCmSroW92SSNK8g8nsSCdMCEcL4+Le8olL8j5tTg1bJd2qwLuFg1ouObvarB
-         Q8TqBFuEDLi8GtAJyrB2QY64VQvjqlMfNyo90SZPvFU8F+bX3pyKn6MUwKwMSeOxeC2e
-         2INntPRgOUvFBPV5QIfT7Kh9nIjFMNaN9W31nt240uidPxSwWbkh7OSV/iJPIJEazbzn
-         x7QEEezrGEb1x7q3CcOQ0x8G77YhOY56sF/Sz6hTRLQQbHijkMIPFLycgqvNJEvKk8H2
-         twGg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWzU7l+/cILIqCVfy2XKTgevMywqgkZlB4mPRUVjXSEt5U2rpXH
-	iC4u+SrTBXZeQXyrp+8shvg8PYsjK47qUHQFJM06t/2ntzThc6pJfwGEcG8DysCGeQk+w07j9fJ
-	XPNMHGaso85Px1snDGMa17HqjWRrP3gT6h9vaHqjgjCN3LKAdNchYV4wksPwaHh2RcA==
-X-Received: by 2002:a63:c54a:: with SMTP id g10mr10468829pgd.71.1556156571761;
-        Wed, 24 Apr 2019 18:42:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRw9+kkPK85Rt2LCnz9xxehq4NV8zhocSVdEC/M/b1gMJORbTsXCwGIznDbSKeDu6R+UEj
-X-Received: by 2002:a63:c54a:: with SMTP id g10mr10468756pgd.71.1556156570712;
-        Wed, 24 Apr 2019 18:42:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556156570; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=m5ftTYRrPOj/N3lOffaOsUs8i/+eGVM1j6ISGW9DwEo=;
+        b=Qmj2rPJCq1l3Dh5CbrOcn9Miu3G+oj9h4XEfg1D0MYXvMONRa+eVg3bLz5nhXj6TPS
+         vrqiPcpKN9tbwBmtuzs4gSsuUd+r2fxvpTN9Ljrl9Xyz2atwagIkFlqsHMDSZHcYvQNL
+         10LqhZpi6L2SzPOtchclU5ciQfeSPVWUwcdYhQFCXIuy7b5ZlkpBw+sjY42ckLn5aHJr
+         VL7w52KywDzfgYkreWADf911foO4rdlETZYNNAzTVEQ0ODOXSh6CN4fM8VjbNRwpgIZF
+         ljqGBY2li0pgixRKEYvlUT4/yycqfj2I+KJbuF1fO0jebKrObdGCnBhTJ0L7EiWxTozk
+         FRRg==
+X-Gm-Message-State: APjAAAVPfB6dem1Hnlyi3kDCDMvq/pDMA/H5i5cXGJQ55ADHdZdlozwG
+	FfM52wEvY7QdEOStWQPN/8h7scQeEN0hpZc1nabN3r28c6/xetHUh5AoszU6+iucvUAjMbBJY6K
+	dgp3ZAa9wqby6ff/Sq6tyhMkDCqxgqhMrbxd0sFunM1J6NJw9vF7EB1NBjnzE4hSmjQ==
+X-Received: by 2002:a24:554e:: with SMTP id e75mr1900927itb.151.1556156812273;
+        Wed, 24 Apr 2019 18:46:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz2K6BGvGQgkKSeZh+meOaOHEpspOTOEaNdMuTjuNV4NXyLuvl+4cRDg1jNx8kOsuSiJp1S
+X-Received: by 2002:a24:554e:: with SMTP id e75mr1900886itb.151.1556156811488;
+        Wed, 24 Apr 2019 18:46:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556156811; cv=none;
         d=google.com; s=arc-20160816;
-        b=y6sB7pnpyJWHVfO4rlu5R/rjAxrMGU6u4E5Magu6JlB/anykIBChIelo/os1af/AcW
-         VegDtIBHU2fw+MFldrBYIBERZ86dldmJS5xQ79qC0CFjEnin5DsCp17EnpmGhmeU7WxZ
-         S1GT4eKmnnHx1ZqIp596864SCRGu/77ldkrHAqzhPBL0P9NnZ23gAAUAK3lvHb8gLnmR
-         fIYb1a8m6yhJuSUMP48eJ7DatNtomv4dGDLt3jbn0jvE/IMM8H01nRV2uHu3h6zE+dT4
-         vXUDCO1/wEaY6z6aF+EXH6TcqSf0eXYoS8Em9QPPGJs4RCDPFZN3kuGa9Mr6h1t/me2e
-         KVhw==
+        b=0i8Sq0bbH86+WJSRwr6Fz87hfpc0AYCrPygJ9AW9emgoJQNv36ChjKWJYwLFRux4ri
+         VHEwYMx7UljHwYyD8phA4QXzqCtw6XIUItToI4QLgH9aKLMqVHkGqHFN58/bqPjaAI6z
+         oegPXT7DLJaNquZKCIAaCKFqen/CQNDOB/aEWSltutwrXklA9+u/0p/yksf7ynOif0v0
+         5Ybd5OycLe4BXRcuOAH2CcsfS5xizU4T0u0wgb72Nk9D7B9mCw+UfeOwYulE06WpJZFa
+         MzoFcvaOXavWNivIOIW8l00zxLX+LW8zNJetZVeSpRCwdkMIdpAVMgD/RupgMjn4snED
+         hsWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=R8qhdg+2AWOPlfSzyMslwEMBF9euYTiSJ41K7L0E3wQ=;
-        b=tqXCPINkNh5nILy03ayHKb9U54iHRpqUgM9UQB7N94/nmcirHoPvcHFapNRK6Q8+wr
-         j8qXCFvC+Miq7eyojI7BJkfFkAsjQD0fzRMaj2dVrau4IaVV58n0lIyV7G6k7FTMmf67
-         6jEI1aHmnant5ARrjNn3f0wHLqhia07soXvvxqE7LZDAfuiwhqyGcHHGP5Lxl3BhO7UZ
-         dSm0f62xuq8q8xGk9cPimT4HBhif0dczE9F+HKQ+UWY/6EZ/+cjZEmSarN91TmRRoiUw
-         LEfF0I/DhEiGVMlEQKSXMRkzLA2OyZCXj0ypudr542n3fIaIKUuxVF6zen596LCeAG0L
-         0GZw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=m5ftTYRrPOj/N3lOffaOsUs8i/+eGVM1j6ISGW9DwEo=;
+        b=QmIBsasvXO7GVfktuNx44ZxN+WKHkmsxFEKA1dkNEwOSdDL+nHCTS25im5tBvpSogC
+         ieshtSt7gueQqT8vJnbZJL6+kAhR4xsfs/e1fmyXbDNdwtneivwQSxu0e7dFodFpuyCM
+         OSTDFj8Dds/+Ao9k6rwCQbuxrAZv04X2ye6Yc+4YyiRtlvchneFtyxQv6sua9j3n8CAp
+         A4pHZMUQhSeXAiCBYbJtjiLoCZ47Np/TgyfWkRvAOSQszPtsoSFSsKkMDtaKhEU8Y29x
+         mTTRMacf0IsL4Rt1fF28G3Zrooxm1lbB8FYgq0Dj8loB9v7k3dKlOepm+mNbY0x2BPAz
+         RZWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d3si21134661pfc.278.2019.04.24.18.42.50
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=A56APE8o;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id j81si13345534itj.49.2019.04.24.18.46.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 18:42:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Wed, 24 Apr 2019 18:46:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Apr 2019 18:42:50 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,391,1549958400"; 
-   d="scan'208";a="152134261"
-Received: from zz23f_aep_wp03.sh.intel.com ([10.239.85.39])
-  by FMSMGA003.fm.intel.com with ESMTP; 24 Apr 2019 18:42:48 -0700
-From: Fan Du <fan.du@intel.com>
-To: akpm@linux-foundation.org,
-	mhocko@suse.com,
-	fengguang.wu@intel.com,
-	dan.j.williams@intel.com,
-	dave.hansen@intel.com,
-	xishi.qiuxishi@alibaba-inc.com,
-	ying.huang@intel.com
-Cc: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Fan Du <fan.du@intel.com>
-Subject: [RFC PATCH 5/5] mm, page_alloc: Introduce ZONELIST_FALLBACK_SAME_TYPE fallback list
-Date: Thu, 25 Apr 2019 09:21:35 +0800
-Message-Id: <1556155295-77723-6-git-send-email-fan.du@intel.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1556155295-77723-1-git-send-email-fan.du@intel.com>
-References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=A56APE8o;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3P1hPbe192509;
+	Thu, 25 Apr 2019 01:46:46 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=m5ftTYRrPOj/N3lOffaOsUs8i/+eGVM1j6ISGW9DwEo=;
+ b=A56APE8ofC8SCuRSVB99zB7aiTYX92gYK342Y0bfoIG+UKXrHFPXBIiu29i2XI9+nR9j
+ 9kk+YGbtjxA0rBaTcrqMygEZ1kIoRDwRw1OO/0QFM2ibOEEFIDFn05HDA6f4kW4KRQib
+ 82Kvu4qvwja6mR4cZaLnc34sPR8YLhPk8YnsmomT3nC5feMY5NtcOm3+cGRmSDus+Hq4
+ AgY/I+MzKnvZhANi530l362688ZQWSqr93r+cof3XuuLlmVjU/0Qt+AdKedmia0dCyN9
+ UVXhFNWMVFScl6GqKsiK4OgTUaFkbifggefTHZyYo4S8E33y7XyQHOIxoZde1A3NBx+6 2g== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by userp2130.oracle.com with ESMTP id 2rytut5hra-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 01:46:46 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3P1kkuG079991;
+	Thu, 25 Apr 2019 01:46:46 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3020.oracle.com with ESMTP id 2s0dwf50tu-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 01:46:46 +0000
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3P1kaV7005547;
+	Thu, 25 Apr 2019 01:46:36 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 24 Apr 2019 18:46:35 -0700
+Date: Wed, 24 Apr 2019 21:47:05 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
+        Christophe Leroy <christophe.leroy@c-s.fr>,
+        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+        Alexey Kardashevskiy <aik@ozlabs.ru>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>,
+        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+Subject: Re: [PATCH 5/6] powerpc/mmu: drop mmap_sem now that locked_vm is
+ atomic
+Message-ID: <20190425014705.k5twrldr5n5a5gsz@ca-dmjordan1.us.oracle.com>
+References: <20190402204158.27582-1-daniel.m.jordan@oracle.com>
+ <20190402204158.27582-6-daniel.m.jordan@oracle.com>
+ <964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr>
+ <20190403164002.hued52o4mga4yprw@ca-dmjordan1.us.oracle.com>
+ <20190424021544.ygqa4hvwbyb6nuxp@linux-r8p5>
+ <20190424111018.GA16077@mellanox.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190424111018.GA16077@mellanox.com>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9237 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904250010
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9237 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904250010
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On system with heterogeneous memory, reasonable fall back lists woul be:
-a. No fall back, stick to current running node.
-b. Fall back to other nodes of the same type or different type
-   e.g. DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3
-c. Fall back to other nodes of the same type only.
-   e.g. DRAM node 0 -> DRAM node 1
+On Wed, Apr 24, 2019 at 11:10:24AM +0000, Jason Gunthorpe wrote:
+> On Tue, Apr 23, 2019 at 07:15:44PM -0700, Davidlohr Bueso wrote:
+> > Wouldn't the cmpxchg alternative also be exposed the locked_vm changing between
+> > validating the new value and the cmpxchg() and we'd bogusly fail even when there
+> > is still just because the value changed (I'm assuming we don't hold any locks,
+> > otherwise all this is pointless).
 
-a. is already in place, previous patch implement b. providing way to
-satisfy memory request as best effort by default. And this patch of
-writing build c. to fallback to the same node type when user specify
-GFP_SAME_NODE_TYPE only.
+That's true, I hadn't considered that we could retry even when there's enough
+locked_vm.  Seems like another one is that RLIMIT_MEMLOCK could change after
+it's read.  I guess nothing's going to be perfect.  :/
 
-Signed-off-by: Fan Du <fan.du@intel.com>
----
- include/linux/gfp.h    |  7 +++++++
- include/linux/mmzone.h |  1 +
- mm/page_alloc.c        | 15 +++++++++++++++
- 3 files changed, 23 insertions(+)
+> Well it needs a loop..
+> 
+> again:
+>    current_locked = atomic_read(&mm->locked_vm);
+>    new_locked = current_locked + npages;
+>    if (new_locked < lock_limit)
+>       if (cmpxchg(&mm->locked_vm, current_locked, new_locked) != current_locked)
+>             goto again;
+> 
+> So it won't have bogus failures as there is no unwind after
+> error. Basically this is a load locked/store conditional style of
+> locking pattern.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index fdab7de..ca5fdfc 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -44,6 +44,8 @@
- #else
- #define ___GFP_NOLOCKDEP	0
- #endif
-+#define ___GFP_SAME_NODE_TYPE	0x1000000u
-+
- /* If the above are modified, __GFP_BITS_SHIFT may need updating */
- 
- /*
-@@ -215,6 +217,7 @@
- 
- /* Disable lockdep for GFP context tracking */
- #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
-+#define __GFP_SAME_NODE_TYPE ((__force gfp_t)___GFP_SAME_NODE_TYPE)
- 
- /* Room for N __GFP_FOO bits */
- #define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
-@@ -301,6 +304,8 @@
- 			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
- #define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
- 
-+#define GFP_SAME_NODE_TYPE (__GFP_SAME_NODE_TYPE)
-+
- /* Convert GFP flags to their corresponding migrate type */
- #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
- #define GFP_MOVABLE_SHIFT 3
-@@ -438,6 +443,8 @@ static inline int gfp_zonelist(gfp_t flags)
- #ifdef CONFIG_NUMA
- 	if (unlikely(flags & __GFP_THISNODE))
- 		return ZONELIST_NOFALLBACK;
-+	if (unlikely(flags & __GFP_SAME_NODE_TYPE))
-+		return ZONELIST_FALLBACK_SAME_TYPE;
- #endif
- 	return ZONELIST_FALLBACK;
- }
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 8c37e1c..2f8603e 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -583,6 +583,7 @@ static inline bool zone_intersects(struct zone *zone,
- 
- enum {
- 	ZONELIST_FALLBACK,	/* zonelist with fallback */
-+	ZONELIST_FALLBACK_SAME_TYPE,	/* zonelist with fallback to the same type node */
- #ifdef CONFIG_NUMA
- 	/*
- 	 * The NUMA zonelists are doubled because we need zonelists that
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a408a91..de797921 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5448,6 +5448,21 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
- 	}
- 	zonerefs->zone = NULL;
- 	zonerefs->zone_idx = 0;
-+
-+	zonerefs = pgdat->node_zonelists[ZONELIST_FALLBACK_SAME_TYPE]._zonerefs;
-+
-+	for (i = 0; i < nr_nodes; i++) {
-+		int nr_zones;
-+
-+		pg_data_t *node = NODE_DATA(node_order[i]);
-+
-+		if (!is_node_same_type(node->node_id, pgdat->node_id))
-+			continue;
-+		nr_zones = build_zonerefs_node(node, zonerefs);
-+		zonerefs += nr_zones;
-+	}
-+	zonerefs->zone = NULL;
-+	zonerefs->zone_idx = 0;
- }
- 
- /*
--- 
-1.8.3.1
+This is basically what I have so far.
+
+> > > That's a good idea, and especially worth doing considering that an arbitrary
+> > > number of threads that charge a low amount of locked_vm can fail just because
+> > > one thread charges lots of it.
+> > 
+> > Yeah but the window for this is quite small, I doubt it would be a real issue.
+>
+> > What if before doing the atomic_add_return(), we first did the racy new_locked
+> > check for ENOMEM, then do the speculative add and cleanup, if necessary. This
+> > would further reduce the scope of the window where false ENOMEM can occur.
+
+So the upside of this is that there's no retry loop so tasks don't spin under
+heavy contention?  Seems better to always guard against false ENOMEM, at least
+from the locked_vm side if not from the rlimit changing.
+
+> > > pinned_vm appears to be broken the same way, so I can fix it too unless someone
+> > > beats me to it.
+> > 
+> > This should not be a surprise for the rdma folks. Cc'ing Jason nonetheless.
+> 
+> I think we accepted this tiny race as a side effect of removing the
+> lock, which was very beneficial. Really the time window between the
+> atomic failing and unwind is very small, and there are enough other
+> ways a hostile user could DOS locked_vm that I don't think it really
+> matters in practice..
+> 
+> However, the cmpxchg seems better, so a helper to implement that would
+> probably be the best thing to do.
+
+I've collapsed all the locked_vm users into such a helper and am now working on
+converting the pinned_vm users to the same helper.  Taking longer than I
+thought.
 
