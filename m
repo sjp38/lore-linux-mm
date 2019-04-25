@@ -6,86 +6,93 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FDB4C282E3
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CD1BC10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E52D7218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E52D7218D3
+	by mail.kernel.org (Postfix) with ESMTP id 5C318206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C318206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D31136B0270; Thu, 25 Apr 2019 05:59:35 -0400 (EDT)
+	id 78CA46B0271; Thu, 25 Apr 2019 05:59:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE1976B0271; Thu, 25 Apr 2019 05:59:35 -0400 (EDT)
+	id 73C206B0272; Thu, 25 Apr 2019 05:59:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B5C4A6B0272; Thu, 25 Apr 2019 05:59:35 -0400 (EDT)
+	id 5B47C6B0273; Thu, 25 Apr 2019 05:59:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D7876B0270
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:35 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id u19so3838283wmj.5
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:35 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1916B0271
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:36 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id b12so5715112wmj.0
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=2k7lB3zYSqZ589filPfBZRV80I08rj+3gKaU91f/H30=;
-        b=KynXkcsYLx6l/vACjoHkGe98r7SSW8Z8/DhiL338CKmK8Z/kGIKMn4tRIR0/VCx77w
-         RlYdCsXzR7P+MVUNy0VnvJf0YL6OOZPD/ITrJAdENH7efLbwQIWUxEvqYgWVl4KGijXk
-         Rp3m7TgbQjnJogBbu4EQbvD9nToH2+RViBSXmREbwTvG0qQu84clRjWpw9jcEyx4dqRo
-         aCrStAmejzHzXC5N/uzqAeUsSpXyB4esVZTx1uFnqUIJra1DcBOq/14AIgc2tlhcJkpq
-         Yn+oYIJxLOIZ06gvKPidUup6HPhQ3qIH+kNP0cs67OtOwNRtSsftl9qYogK6dsjAIe0A
-         jfYg==
+        bh=a3gSsDswxxkaod1waPwbx4k12fNeIbCoQTluUl86z/c=;
+        b=TpveH84JCGnuTxB+qIQVlAxIZfSG83ccXjcGhnqam6j0pJ484hYqeyrJv5kPErPB3C
+         z7aNh/i9eVPdZIcQaODBAxxeePWStP3zVJnhdOJciU4Tuvh+SafRVw1q1NYxdJm0JYqo
+         BqyP9uKFjhxLqtdAhUMNe+GuPl/bYeiRSU+CZ3BLULwtGM60ttCJtHRYLbSBPBodDkMW
+         QitDxQyZYvbruFOQ+ze5skcsNWBxPsg5PaUIDQLGCk/sP4aSqByNb5+xnpac6N2/3X2J
+         o9Odz/di4iFj18tm7Xas2MGtfewoHuAdsEnbndG7kB5w1fT/wUxIQD+a8mOhtVH9mvHG
+         /raw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAWDAIMx4hM6emHh13Ju9o89HUHrhzdDD679aqL57ZYmx9r+n1dI
-	4s/bmav9H+Ofan24zEN7ZCoorADI8PAU+DuRAQH4O0KmvX8pU+FE6azpSgOmkYFjBsoT1FhMxPM
-	I8mpu/z9u4fnZnkaUFVrPpwXvkFBRrHtwPHt53WmapV8H7B4g67WX6htnq5r6sr7QiA==
-X-Received: by 2002:a05:6000:cc:: with SMTP id q12mr14285544wrx.251.1556186374933;
-        Thu, 25 Apr 2019 02:59:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJ4XTLAy0T42SZ7d20gu4KYdDN4rN7HKSYkltRw08iJ7iZSp3Y8EJVNCQdDGgATX61mhWg
-X-Received: by 2002:a05:6000:cc:: with SMTP id q12mr14285492wrx.251.1556186374107;
-        Thu, 25 Apr 2019 02:59:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556186374; cv=none;
+X-Gm-Message-State: APjAAAWONypdY9IAIeLS2W112/E/Z6JbOTImSgluJqsSaOBCoxJntXPg
+	Rn0d0MfiTGf0comsPJ7fQhdtwTIaqxD2roCczlBZ8IwnkvdzceAu1z6lSBdT0Pl6/ofejW5lEPN
+	Ck0D4IEfqCTp747BqShmgcxRKJ9nwYFKM1rYoM3jha7qowgnBNv2cHToik4y1L/iKWA==
+X-Received: by 2002:a1c:6783:: with SMTP id b125mr2731419wmc.79.1556186375505;
+        Thu, 25 Apr 2019 02:59:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxUZ2/B/E7lOwVOuLOLIMbPKoWg+vMN88CO3tiG9dSBg5+S7gGDJduEJ54a3HpHzdT8dL4x
+X-Received: by 2002:a1c:6783:: with SMTP id b125mr2731334wmc.79.1556186373748;
+        Thu, 25 Apr 2019 02:59:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556186373; cv=none;
         d=google.com; s=arc-20160816;
-        b=UOC+/JMi1qJSsH8NHpnz1EDioDLk86ZfbaOGnoMh1y8EiwRCDb7j7s9LcKCZ7zzPuw
-         AsGq0ZGuTCqN0+oTCR9q4VO2TbfK4xnFtlGyhjNoujBsjrvnTF3Y+FiLfPu7ZJUFpIhQ
-         2fHHZQaplv3bD3Nuh8++kQJwSRk4wJqyevItq2W1Yj79HUzLpwUG1u99qeybonV80bLE
-         Mm/36lN6915cHTU9SttWUy8Syt45Qh+64/2omjSAgwcsYIWaDam+ENbDz6Ht9XObDWjD
-         aqFJ1sRicu4JlzRzRGNTSw+172kWUJ5peDl+Pli5auGfCSONRBNQ0otFvsjrZfV6+iLp
-         v88g==
+        b=dYDyewPZaaxV6KpCkiwfG61GLJCSjWS5TfeNUA2btnAoQBPreowbWyKr755YZU4ZJy
+         1AV983uIfbMVqhhdjifYb65uLDlDGsXqDDuJoGPZufKPKtAJ/ltyxkJXfb/06JOrnjKm
+         ReXQHstcEjsb/UQ26O1d81KZdc96R/bN4PNGl+o6ZvRHHoTyPW63KH3LwDh1BejrUetq
+         vjXT2Uffjjoy5x/R4JyjlGwxf/ZTff3u0R/GJnFylsPhD6Wtv4vhAQZniaAKffmgp5US
+         Vul/Od7C9x/38UTKzcD4EFL6IQGjXpg+SfwlFBCHoi7Vwa0+1zORgg51zPgGSIuoHCt9
+         lMrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=2k7lB3zYSqZ589filPfBZRV80I08rj+3gKaU91f/H30=;
-        b=VJp7jHrw2ZuLhan+OuTXwNlE3zsFVFkjsSgUd/NfKD3Tpq0SG9FKSUaskDD8WMXked
-         7MVdldctptS5l41CFqBZe9P/k03seG7l4WBmHW+7xpYSfc0UWIXjYOZziO6x3A6OJF2y
-         UovY4am8tE5c7MzaTGqwHaiJo13mVjUMoxpgES9C4p77B3IDdQmq7LuEKTxSiZjXTsHp
-         BrBlyXGZYa0o95mZqtHWp1LIJoqNMU6jpS9zsfbEoUNEu5b5PBykhf1AkGGu9v0DyVN/
-         nS0aNuwGGq2/MJ4EJcxZHiCwfwlVyO+2B0bmuCfr+muQlxdtTxqvMNLcJLJnWmI0E7Ih
-         QPEA==
+        bh=a3gSsDswxxkaod1waPwbx4k12fNeIbCoQTluUl86z/c=;
+        b=eha6Hqi7niguaiRgoJQ6bv3IMNf+Z9XrdQOqpAzuamDj3skBVWUjD6Y21hgVOcw9O2
+         n3vKpnxgu5/p9CxaiFn3CkLKXXumqX8vL/5YbwSw+qDMgp3V1U8FfkM6RrLLygPfMXzh
+         XDyla/Uxlu2ohmjXACVdgorWS0RiopAaUrEUOn393OR6qQ9wxsfgNvDcot/VLt+Kw/2/
+         c6Rctmfw38ZqHZ809FhD8frYe6ypl/kP3KV47yS4PbeKfluMB+OrLzpVWkorX0WJW+FU
+         kj+A/xapQ2Ufwip2NjYGVl7xfrDiNNaq8a6pSGxWB4dDp7BPJbaTnV6oKV9vOk0FbmmO
+         /cJw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id b144si1903237wmd.20.2019.04.25.02.59.33
+        by mx.google.com with ESMTPS id r2si10610591wrn.398.2019.04.25.02.59.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Apr 2019 02:59:34 -0700 (PDT)
+        Thu, 25 Apr 2019 02:59:33 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hJbA8-0001us-4y; Thu, 25 Apr 2019 11:59:28 +0200
-Message-Id: <20190425094802.803362058@linutronix.de>
+	id 1hJbA4-0001to-VQ; Thu, 25 Apr 2019 11:59:25 +0200
+Message-Id: <20190425094802.622094226@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 25 Apr 2019 11:45:11 +0200
+Date: Thu, 25 Apr 2019 11:45:09 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
- Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
+ Andy Lutomirski <luto@kernel.org>, Daniel Vetter <daniel@ffwll.ch>,
+ intel-gfx@lists.freedesktop.org,
+ Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+ Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+ Jani Nikula <jani.nikula@linux.intel.com>,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>,
+ Steven Rostedt <rostedt@goodmis.org>,
  Alexander Potapenko <glider@google.com>,
  Alexey Dobriyan <adobriyan@gmail.com>,
  Andrew Morton <akpm@linux-foundation.org>,
@@ -102,15 +109,9 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
  linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
  Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
- Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
- Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
- dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
- Jani Nikula <jani.nikula@linux.intel.com>,
- Rodrigo Vivi <rodrigo.vivi@intel.com>,
  Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
  linux-arch@vger.kernel.org
-Subject: [patch V3 18/29] lockdep: Remove save argument from check_prev_add()
+Subject: [patch V3 16/29] drm: Simplify stacktrace handling
 References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -120,59 +121,144 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is only one caller which hands in save_trace as function pointer.
+Replace the indirection through struct stack_trace by using the storage
+array based interfaces.
+
+The original code in all printing functions is really wrong. It allocates a
+storage array on stack which is unused because depot_fetch_stack() does not
+store anything in it. It overwrites the entries pointer in the stack_trace
+struct so it points to the depot storage.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Acked-by: Daniel Vetter <daniel@ffwll.ch>
+Cc: intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
+Cc: dri-devel@lists.freedesktop.org
+Cc: David Airlie <airlied@linux.ie>
+Cc: Jani Nikula <jani.nikula@linux.intel.com>
+Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
 ---
- kernel/locking/lockdep.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+ drivers/gpu/drm/drm_mm.c                |   22 +++++++---------------
+ drivers/gpu/drm/i915/i915_vma.c         |   11 ++++-------
+ drivers/gpu/drm/i915/intel_runtime_pm.c |   21 +++++++--------------
+ 3 files changed, 18 insertions(+), 36 deletions(-)
 
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -2158,8 +2158,7 @@ check_deadlock(struct task_struct *curr,
-  */
- static int
- check_prev_add(struct task_struct *curr, struct held_lock *prev,
--	       struct held_lock *next, int distance, struct stack_trace *trace,
--	       int (*save)(struct stack_trace *trace))
-+	       struct held_lock *next, int distance, struct stack_trace *trace)
+--- a/drivers/gpu/drm/drm_mm.c
++++ b/drivers/gpu/drm/drm_mm.c
+@@ -106,22 +106,19 @@
+ static noinline void save_stack(struct drm_mm_node *node)
  {
- 	struct lock_list *uninitialized_var(target_entry);
- 	struct lock_list *entry;
-@@ -2199,11 +2198,11 @@ check_prev_add(struct task_struct *curr,
- 	if (unlikely(!ret)) {
- 		if (!trace->entries) {
- 			/*
--			 * If @save fails here, the printing might trigger
--			 * a WARN but because of the !nr_entries it should
--			 * not do bad things.
-+			 * If save_trace fails here, the printing might
-+			 * trigger a WARN but because of the !nr_entries it
-+			 * should not do bad things.
- 			 */
--			save(trace);
-+			save_trace(trace);
+ 	unsigned long entries[STACKDEPTH];
+-	struct stack_trace trace = {
+-		.entries = entries,
+-		.max_entries = STACKDEPTH,
+-		.skip = 1
+-	};
++	unsigned int n;
+ 
+-	save_stack_trace(&trace);
++	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
+ 
+ 	/* May be called under spinlock, so avoid sleeping */
+-	node->stack = depot_save_stack(&trace, GFP_NOWAIT);
++	node->stack = stack_depot_save(entries, n, GFP_NOWAIT);
+ }
+ 
+ static void show_leaks(struct drm_mm *mm)
+ {
+ 	struct drm_mm_node *node;
+-	unsigned long entries[STACKDEPTH];
++	unsigned long *entries;
++	unsigned int nr_entries;
+ 	char *buf;
+ 
+ 	buf = kmalloc(BUFSZ, GFP_KERNEL);
+@@ -129,19 +126,14 @@ static void show_leaks(struct drm_mm *mm
+ 		return;
+ 
+ 	list_for_each_entry(node, drm_mm_nodes(mm), node_list) {
+-		struct stack_trace trace = {
+-			.entries = entries,
+-			.max_entries = STACKDEPTH
+-		};
+-
+ 		if (!node->stack) {
+ 			DRM_ERROR("node [%08llx + %08llx]: unknown owner\n",
+ 				  node->start, node->size);
+ 			continue;
  		}
- 		return print_circular_bug(&this, target_entry, next, prev);
+ 
+-		depot_fetch_stack(node->stack, &trace);
+-		snprint_stack_trace(buf, BUFSZ, &trace, 0);
++		nr_entries = stack_depot_fetch(node->stack, &entries);
++		stack_trace_snprint(buf, BUFSZ, entries, nr_entries, 0);
+ 		DRM_ERROR("node [%08llx + %08llx]: inserted at\n%s",
+ 			  node->start, node->size, buf);
  	}
-@@ -2253,7 +2252,7 @@ check_prev_add(struct task_struct *curr,
- 		return print_bfs_bug(ret);
+--- a/drivers/gpu/drm/i915/i915_vma.c
++++ b/drivers/gpu/drm/i915/i915_vma.c
+@@ -36,11 +36,8 @@
  
+ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
+ {
+-	unsigned long entries[12];
+-	struct stack_trace trace = {
+-		.entries = entries,
+-		.max_entries = ARRAY_SIZE(entries),
+-	};
++	unsigned long *entries;
++	unsigned int nr_entries;
+ 	char buf[512];
  
--	if (!trace->entries && !save(trace))
-+	if (!trace->entries && !save_trace(trace))
- 		return 0;
+ 	if (!vma->node.stack) {
+@@ -49,8 +46,8 @@ static void vma_print_allocator(struct i
+ 		return;
+ 	}
  
- 	/*
-@@ -2318,7 +2317,8 @@ check_prevs_add(struct task_struct *curr
- 		 * added:
- 		 */
- 		if (hlock->read != 2 && hlock->check) {
--			int ret = check_prev_add(curr, hlock, next, distance, &trace, save_trace);
-+			int ret = check_prev_add(curr, hlock, next, distance,
-+						 &trace);
- 			if (!ret)
- 				return 0;
+-	depot_fetch_stack(vma->node.stack, &trace);
+-	snprint_stack_trace(buf, sizeof(buf), &trace, 0);
++	nr_entries = stack_depot_fetch(vma->node.stack, &entries);
++	stack_trace_snprint(buf, sizeof(buf), entries, nr_entries, 0);
+ 	DRM_DEBUG_DRIVER("vma.node [%08llx + %08llx] %s: inserted at %s\n",
+ 			 vma->node.start, vma->node.size, reason, buf);
+ }
+--- a/drivers/gpu/drm/i915/intel_runtime_pm.c
++++ b/drivers/gpu/drm/i915/intel_runtime_pm.c
+@@ -60,27 +60,20 @@
+ static noinline depot_stack_handle_t __save_depot_stack(void)
+ {
+ 	unsigned long entries[STACKDEPTH];
+-	struct stack_trace trace = {
+-		.entries = entries,
+-		.max_entries = ARRAY_SIZE(entries),
+-		.skip = 1,
+-	};
++	unsigned int n;
  
+-	save_stack_trace(&trace);
+-	return depot_save_stack(&trace, GFP_NOWAIT | __GFP_NOWARN);
++	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
++	return stack_depot_save(entries, n, GFP_NOWAIT | __GFP_NOWARN);
+ }
+ 
+ static void __print_depot_stack(depot_stack_handle_t stack,
+ 				char *buf, int sz, int indent)
+ {
+-	unsigned long entries[STACKDEPTH];
+-	struct stack_trace trace = {
+-		.entries = entries,
+-		.max_entries = ARRAY_SIZE(entries),
+-	};
++	unsigned long *entries;
++	unsigned int nr_entries;
+ 
+-	depot_fetch_stack(stack, &trace);
+-	snprint_stack_trace(buf, sz, &trace, indent);
++	nr_entries = stack_depot_fetch(stack, &entries);
++	stack_trace_snprint(buf, sz, entries, nr_entries, indent);
+ }
+ 
+ static void init_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 
 
