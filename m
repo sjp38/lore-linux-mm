@@ -5,83 +5,83 @@ X-Spam-Level:
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA801C10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:48:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66844C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:53:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A673217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:48:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A673217D7
+	by mail.kernel.org (Postfix) with ESMTP id 139B9217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 07:53:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 139B9217D7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 494BE6B000C; Thu, 25 Apr 2019 03:48:44 -0400 (EDT)
+	id 923896B000A; Thu, 25 Apr 2019 03:53:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 441096B000D; Thu, 25 Apr 2019 03:48:44 -0400 (EDT)
+	id 8D1106B000C; Thu, 25 Apr 2019 03:53:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 30A0B6B000E; Thu, 25 Apr 2019 03:48:44 -0400 (EDT)
+	id 798D96B000D; Thu, 25 Apr 2019 03:53:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF8056B000C
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 03:48:43 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id e22so11220522edd.9
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 00:48:43 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 269266B000A
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 03:53:56 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f41so272932ede.1
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 00:53:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=vlwgYT+kNZGNtlhgcPt6OaoKxXU+/F17Asts9ky7DrU=;
-        b=hdNmDGKhlO5jD6xSfsgm5K/sC79AyoLTBjdj9yCRC3sEbV88lXQVGO/0LTfmsLWnD5
-         PjwO7UNbUzDZKGadDpd1iC/or20+i+7h0cCcZmhwEuwGlbtOJT9Fr/nnltxB+GKIy22T
-         dlRIDItAz9xBJvJ18yqnk8J6yi+iY158YHuuJmpw1UkEBl+lHfbngvyDbGueOMhiarRP
-         v5Z5s0NzWc/RLZ2ztQfSSXn44jajf6HPoRLpP7jHJBvo2EGoDIPQ8MdX4ATSmjRJUE/J
-         0E+XMTzX1YoEJrc7LWxlcLaF7hIFhcCDhblP8nX07iQsW2txi/PDtuvmC0XkP1UBAKhA
-         DjeA==
+        bh=fL2qqlWSLrmSIKAQesaWTIjh48Stn5l7NGtIShgdXME=;
+        b=gaTFGTwRf9ggtXmKE8y/r7MhH34oQ7SRmZh90fXlwVT2VaPci4ATYBHfW3T2sMfaS6
+         BkCs2E4KOOWXRDfP02pzqwveh/eMOHhjrn4aytyJbZoxNYFSdNxkQ7clcwgatjLyUEn7
+         In1ipDpc049aj7GIPA2ohOC7OVDm2RcKNkZDhfFA7mGsA9X3+c0Hd/wL1tN7z6JxYiAY
+         5RiPmG/aijzEQjR8iKSo4cgKBJKF2t2G7Q61+Gl2choX24pwrDQhm7x9koUjNhOXYMwX
+         EANGnpobkvpxtDCZUtzt/S/vakDiDdaaYeRAKFEgShWDmo1BALhqQ6hSVsDNmEyh929h
+         jcVw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWV6rTKrKim5LSQv0rcfQsoGWXLnujgp4cg19QkptwiuO+yYMP+
-	hUY3LOcrAMkh82zJ916lUJEI6FiooSoqgqwfwxeXCac1epd8JZZ7r8vbrgsc7w8g8aCw6ne6VII
-	fxT9XvL7u8mTDwZYPHSkLE/0SWPW+6SZb3UKRkPdFYuZLf/ISNfkqV3+lMd1n3IY=
-X-Received: by 2002:a17:906:3e91:: with SMTP id a17mr18815289ejj.73.1556178523395;
-        Thu, 25 Apr 2019 00:48:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcbCal2/EwsfwLGLG/2uXE7qYo8K5rzLHIx5rmLy2JJJAEoZLrKGlnbKPolkoe4RWrLU/E
-X-Received: by 2002:a17:906:3e91:: with SMTP id a17mr18815265ejj.73.1556178522668;
-        Thu, 25 Apr 2019 00:48:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556178522; cv=none;
+X-Gm-Message-State: APjAAAVsomoejaFxql8tmJLr5o9ZBTiUD3Riwolgg5/fxbUErXeNcid/
+	0v9tlr0xAng2nVsVob3y3Ut0H3HB2OExNhGReonx9Vvn54ERkzVmhJOPKQ5f/DwA5PQUbtc74Vq
+	ejrzg7YTvMXrl1NNbd/JreYVsgaMh6qyH5AWMRigCcUalfGrhfv7pawfiLLlXj8U=
+X-Received: by 2002:a17:906:29c1:: with SMTP id y1mr17932586eje.251.1556178835648;
+        Thu, 25 Apr 2019 00:53:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwii+GrRgQs4daiuIj9oUJIXgRRGuiTUQrZlOC+b0h+HkwPsp3pAhOUp9Er+xx6LM/Z7p3
+X-Received: by 2002:a17:906:29c1:: with SMTP id y1mr17932557eje.251.1556178834863;
+        Thu, 25 Apr 2019 00:53:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556178834; cv=none;
         d=google.com; s=arc-20160816;
-        b=E5fLXB2CwrL0aaPBInY72xRpXVOx4cohaSEaH0A/CvU6JBrMy1NrPJhNk7K8V9MT2K
-         DuFyV31+i5A5ymU5AW0O27Wn3Wi1M9WQB6pV8zwX074vrewzMMrUlRxiIO7VFeYv/sTv
-         DtcJiSEGN8zIFsu6Zpz5xSKcnAsG6uu2y0SHVQm6z9thgvOAqLVyATD5/IqkzEDGEiIQ
-         ckWrPkIVe54Cazmtrzmhjh+ki63sFiFWE26MkldoelseTG31hSWeBzCvEjqaIkKgAVej
-         sJZqLEHxka5QPWP1uDLVo0vIq4Hqjz3GcuK4itcIjlwo2inGDGi0hMMOmkGSRg2rSO2x
-         7QbQ==
+        b=nMvpTI9h7SOBBwd949Bf699OPz/LkQyzjHR1FQQH67jmdcUGsc9iCaFbEjTfwQSyeG
+         vCIJC9OP5QIh5OFwB1gBEZikq2vH0dqID6gJiUiieQvPqYbs7Iv0m9qwpfqnXJnT/9v5
+         a+es3zCJOd6n8hrX/dk+ob/YD6XFF87po63YiPF75Te79HKk9hJ8ApgyFM7i+QoyBQjw
+         HjU27nXR4/ZBNer/udT25+9opKK2qSlUiFPkBzmq18JB8eJLsKIqRc4idUzGvjIclf5Z
+         yXLahxIN6EdqvpcJB3zmUREh1zAY1vuGAR22q1zl6kqJQOVXya6QNePQODZI7UYCcPVv
+         Vsfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=vlwgYT+kNZGNtlhgcPt6OaoKxXU+/F17Asts9ky7DrU=;
-        b=fU0Vc+ay4EEH7FNuiwmOfp6/jdlS+oUal7ud6uWEJ5PjJa3qIlcVhaFCqP9JpHOopK
-         M5YSUmeeLiK2O7GylyVyV1a7tponyjBrpVRlNEm5meRqj3VpzwfXhI/u8ch8mOXIHcN/
-         6iUap05GJk8N3HSWDpQMVIEKAaGu3ndByIrDecghr5DGxPaCNp4TeiWmLSNuHfMP1lcI
-         Xs6wgc1DvYgVM+nYLu2fb1y5h9fbQCoHXg+AXmALce4OVbLUaUCQiE8I7uWqU0HlDDnJ
-         wsHrz5SR/I9EfcmKHGPtLozP2ZH/biV4WRIHWPTYJKW3OEGIxxtgT+weO90CVj2lkT3q
-         REYg==
+        bh=fL2qqlWSLrmSIKAQesaWTIjh48Stn5l7NGtIShgdXME=;
+        b=QBwEcx6C7maCNhp2uFDtGp86sU/N/YJAbuY1lL3I++Fq8Upa0JNDwkOc8ElNGFDP2D
+         j0ZbHHMs8R4gKUywcSHULWAroIqg3IAi+qikptkYjjYxX1Q0rwowdhC8reH0XiCPHKeM
+         XcLmcZehXVB03zC5jYd4yEKxIkCkASSfopghtArAIzjjjP60NQkcYn1zWJCRDSa9W4Wu
+         r4yt0mYU2DAZmyUo3xEbSu+lVETN8uKBDAcZ3KpUu7ayV7oGFpxWsLw89vSniKx4/3hD
+         QPHmNTyz1UW3j9B6vttsvgIPGdhmTMwQDITJheaX7dazppPoEQHEsxfS5HIZ8WZgG+yw
+         L02w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g5si1043192eje.144.2019.04.25.00.48.42
+        by mx.google.com with ESMTPS id d9si3241027edq.270.2019.04.25.00.53.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 00:48:42 -0700 (PDT)
+        Thu, 25 Apr 2019 00:53:54 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 23A2AAF60;
-	Thu, 25 Apr 2019 07:48:42 +0000 (UTC)
-Date: Thu, 25 Apr 2019 09:48:41 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 66B4DAD7B;
+	Thu, 25 Apr 2019 07:53:54 +0000 (UTC)
+Date: Thu, 25 Apr 2019 09:53:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: "Du, Fan" <fan.du@intel.com>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
@@ -92,17 +92,16 @@ Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
 	"Huang, Ying" <ying.huang@intel.com>,
 	"linux-mm@kvack.org" <linux-mm@kvack.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
- ZONELIST_FALLBACK_SAME_TYPE fallback list
-Message-ID: <20190425074841.GN12751@dhcp22.suse.cz>
+Subject: Re: [RFC PATCH 0/5] New fallback workflow for heterogeneous memory
+ system
+Message-ID: <20190425075353.GO12751@dhcp22.suse.cz>
 References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
- <1556155295-77723-6-git-send-email-fan.du@intel.com>
- <20190425063807.GK12751@dhcp22.suse.cz>
- <5A90DA2E42F8AE43BC4A093BF067884825785F04@SHSMSX104.ccr.corp.intel.com>
+ <20190425063727.GJ12751@dhcp22.suse.cz>
+ <5A90DA2E42F8AE43BC4A093BF067884825785EE8@SHSMSX104.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5A90DA2E42F8AE43BC4A093BF067884825785F04@SHSMSX104.ccr.corp.intel.com>
+In-Reply-To: <5A90DA2E42F8AE43BC4A093BF067884825785EE8@SHSMSX104.ccr.corp.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -110,45 +109,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 25-04-19 07:43:09, Du, Fan wrote:
+On Thu 25-04-19 07:41:40, Du, Fan wrote:
 > 
 > 
 > >-----Original Message-----
 > >From: Michal Hocko [mailto:mhocko@kernel.org]
-> >Sent: Thursday, April 25, 2019 2:38 PM
+> >Sent: Thursday, April 25, 2019 2:37 PM
 > >To: Du, Fan <fan.du@intel.com>
 > >Cc: akpm@linux-foundation.org; Wu, Fengguang <fengguang.wu@intel.com>;
 > >Williams, Dan J <dan.j.williams@intel.com>; Hansen, Dave
 > ><dave.hansen@intel.com>; xishi.qiuxishi@alibaba-inc.com; Huang, Ying
 > ><ying.huang@intel.com>; linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> >Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
-> >ZONELIST_FALLBACK_SAME_TYPE fallback list
+> >Subject: Re: [RFC PATCH 0/5] New fallback workflow for heterogeneous
+> >memory system
 > >
-> >On Thu 25-04-19 09:21:35, Fan Du wrote:
-> >> On system with heterogeneous memory, reasonable fall back lists woul be:
-> >> a. No fall back, stick to current running node.
-> >> b. Fall back to other nodes of the same type or different type
-> >>    e.g. DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3
-> >> c. Fall back to other nodes of the same type only.
-> >>    e.g. DRAM node 0 -> DRAM node 1
-> >>
-> >> a. is already in place, previous patch implement b. providing way to
-> >> satisfy memory request as best effort by default. And this patch of
-> >> writing build c. to fallback to the same node type when user specify
-> >> GFP_SAME_NODE_TYPE only.
+> >On Thu 25-04-19 09:21:30, Fan Du wrote:
+> >[...]
+> >> However PMEM has different characteristics from DRAM,
+> >> the more reasonable or desirable fallback style would be:
+> >> DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3.
+> >> When DRAM is exhausted, try PMEM then.
 > >
-> >So an immediate question which should be answered by this changelog. Who
-> >is going to use the new gfp flag? Why cannot all allocations without an
-> >explicit numa policy fallback to all existing nodes?
+> >Why and who does care? NUMA is fundamentally about memory nodes with
+> >different access characteristics so why is PMEM any special?
 > 
-> PMEM is good for frequently read accessed page, e.g. page cache(implicit page
-> request), or user space data base (explicit page request)
-> For now this patch create GFP_SAME_NODE_TYPE for such cases, additional
-> Implementation will be followed up.
+> Michal, thanks for your comments!
+> 
+> The "different" lies in the local or remote access, usually the underlying
+> memory is the same type, i.e. DRAM.
+> 
+> By "special", PMEM is usually in gigantic capacity than DRAM per dimm, 
+> while with different read/write access latency than DRAM.
 
-Then simply configure that NUMA node as movable and you get these
-allocations for any movable allocation. I am not really convinced a new
-gfp flag is really justified.
+You are describing a NUMA in general here. Yes access to different NUMA
+nodes has a different read/write latency. But that doesn't make PMEM
+really special from a regular DRAM. There are few other people trying to
+work with PMEM as NUMA nodes and these kind of arguments are repeating
+again and again. So far I haven't really heard much beyond hand waving.
+Please go and read through those discussion so that we do not have to go
+throug the same set of arguments again.
+
+I absolutely do see and understand people want to find a way to use
+their shiny NVIDIMs but please step back and try to think in more
+general terms than PMEM is special and we have to treat it that way.
+We currently have ways to use it as DAX device and a NUMA node then
+focus on how to improve our NUMA handling so that we can get maximum out
+of the HW rather than make a PMEM NUMA node a special snow flake.
+
+Thank you.
+
 -- 
 Michal Hocko
 SUSE Labs
