@@ -2,148 +2,163 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3086C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:03:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 574CAC10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:03:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90DFA2084B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:03:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90DFA2084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EBFB12084B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 12:03:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="h44Q9GKC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBFB12084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 002BF6B0010; Thu, 25 Apr 2019 08:03:27 -0400 (EDT)
+	id A38996B0266; Thu, 25 Apr 2019 08:03:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF2DD6B0266; Thu, 25 Apr 2019 08:03:26 -0400 (EDT)
+	id 9EA9A6B0269; Thu, 25 Apr 2019 08:03:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E08DA6B0269; Thu, 25 Apr 2019 08:03:26 -0400 (EDT)
+	id 8DC196B026A; Thu, 25 Apr 2019 08:03:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F1C16B0010
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:03:26 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id 18so149748eds.5
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:03:26 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 57BCC6B0266
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:03:49 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id j1so14523377pll.13
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:03:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=RGAVzvZSkV8LPLPRKkdPt/OtQ1NbJz40SrbDp5kvUzA=;
-        b=B1L+4ZMdEPDdMoiBU+6wxjGem//7m1HgZ8XsFRVwQCjyzMf0CoIDcno0CyYnANNcu1
-         UUbr68SUpZdxTH2X5CsuaiKvVnwcdpqMb5sopJhsEjYXmLWIuHoZqaC3ruvx3nYxmLPG
-         /tAdtYXNfAHFehSB6QQbPxBwWWRf85hYpD8Ua9/xtwFbR5yujqJ1KndklqGFQQ1wbgYY
-         wSLs1mOux/FKxrODXX+OlkZgquhTBU+5bqQb+6a8PK6ET0NmfUNhbWRYq3CS7GUaLCDM
-         9T/6eKwfDHDLdXvU7UKKp1KOAbh8MlrKff/LWFK4YH2ebP7+QdnXD4M44aIAXdrgv+z6
-         8krw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXxlhY4a2Q63/r15+Z5EIGUL3NteFzhgcDV+02TJXWOqnj5W1yv
-	tXvyl2CH++PemnVxmwz+Fw4KIR4f/FDk2A8T4m4zRVq1Mpt+HvgRgoQ0Ire28BYtnNQQYm4nCtm
-	jB5BUbRcY5A65JNJlrvzOj41nUH5wareknoXJ8lS4VM3md//l5ZIUqVldoBqX3Hc=
-X-Received: by 2002:a17:906:bc1:: with SMTP id y1mr15940967ejg.110.1556193806026;
-        Thu, 25 Apr 2019 05:03:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzlYreFpClTYz60uAg4VWp914F8MPKkjJ1tkcuh+z+Z3C6JTn42O8A3G3GQVW0Jrbr+3XE9
-X-Received: by 2002:a17:906:bc1:: with SMTP id y1mr15940924ejg.110.1556193805026;
-        Thu, 25 Apr 2019 05:03:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556193805; cv=none;
+        h=x-gm-message-state:dkim-signature:to:cc:subject:from:organization
+         :references:date:in-reply-to:message-id:user-agent:mime-version;
+        bh=OaQXF2xxVWVnUHUhb2JG+w385O56qSOrtvzv3Jg//pg=;
+        b=Bi8yXivTiL43zPJ4GsdbWhPrD8CDQfptp4yJKFgY5+oXQaf7vZdyYuX1I7X8p3L1fR
+         sHrh8QKEy5EGp/iz3+FQRUE0ZajPqlE8AnXL8OZaFzC21Ct5R6rIG0yEfFk9T9T0I7ND
+         9DeXmk8ZEDimMhDghH3Lro+ivitCfADHS8eMT9x284H/hT7NC0Gkx7v2TcM/ZQcxT+w+
+         wI/CnLXVpohlO3kxOQZ3X+rAEOPxYauRljXTzxFJZN+GR6mAlaBH5CFNd5KqJH9guO1B
+         VVQJiysClBIgmHwMn7O381wvaJYcqMd4MVOIyT1tQXx1VJvx+GHORVynGLaF6i4wAiIr
+         KCnw==
+X-Gm-Message-State: APjAAAWPR4E3F81Ts2afs4qfQDRfrHJ/6lgYzJ7hv7aA8WbVMiWQMVWc
+	Is95BWm9M5wqd0TCRUOOAd7tSm/gqapkB1g1ZAboJPrQdQCyTZiPHOvPPd+Pz4ytuqV3ERBW7Mi
+	/NuXkwkxjKvau8VfJq2pXa6Q33L8BGZf2xym6yWqVAy63Wmd/UnpqlroVElid6k6YRA==
+X-Received: by 2002:a63:6804:: with SMTP id d4mr36898075pgc.240.1556193828913;
+        Thu, 25 Apr 2019 05:03:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw5/nACg1oGljTh3NeXVJTCqvDiyPk4lADvaDVrKVd09AgJ/CDGccXHZNa6w57GHe0BZ+aw
+X-Received: by 2002:a63:6804:: with SMTP id d4mr36897905pgc.240.1556193827307;
+        Thu, 25 Apr 2019 05:03:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556193827; cv=none;
         d=google.com; s=arc-20160816;
-        b=byqcwbkQD/699zbObivMfgBKaeHAtNT9Y/Jy9ipiZOa9Kj56yhJWJK1Nq5kizqH3hu
-         4WIX4EWeZBPpJC0+liBCtg2izponE3TflUZAWZOOLw+AXIRcaL993+bm9cOQD8X5rAvx
-         hKMBvTRDwLVXkQk3suy57WxR2eOk25zRYPlcmjxg39CAgxwlm2Ri9/enYB3DzC7YSjLg
-         5S7moNjAc99rcd1pcb1CNbrmYNa/yUKsOhgri4TjT5McxWQWtyUYvr3b+XcwpGZG9wA3
-         GC5YoWlW2gzUKpnU/3udiouWibjaZoJZlD57TgiqEKvVdB4hCEUgNz5iDgO9/AZdNzrN
-         o+jg==
+        b=hlp6krzOMd0lbFOUTfEb8+mWSl3jqdV21SP0HhqPELHGU2JXaKJxtMD5/BNb7l5Gdg
+         yOr8GeqWADz5UXXGNB20xyNKxQc/QyCR7br5NE021o+QDH+LFnVWwlKOsPCQO2UMrTtI
+         CDreRJbdAz8L7DcmuhmqN0+pikjxaebgrZfyJ8jsAdptaLbVpOtTfOzvT7tlvxXaOkMx
+         j2TFNQEcHgT5zOGSyHxZCSoc3oEnqsQi77WJsAW7eZb6u3Xn7EFg2e1xjL6dfVwiw0HX
+         ZtV84L2gBgx8fiqab7Oo7hKq9ncv6JFp1cf3hOG6x8gvthx5jwaEb7DqgJcGeIBTpS55
+         F0Iw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=RGAVzvZSkV8LPLPRKkdPt/OtQ1NbJz40SrbDp5kvUzA=;
-        b=RXCyQQtYVb5rKqp79uNXlWid9uOwRUAQ4gfbUK1yT6+XcCOpjD9fl8PkKdN+xLOQFT
-         pHLArVCueWHqZS5Xz9eNazNq9+QsltUEah0J/9vailQULvc+dsBMr/2FBNwaXp48IQqB
-         xkqo3SUcSsU9r9H8l6pJGykiCsUVLOFRSPdc133zCxZb4EJua14DpjGiRlzzBmua24oU
-         3B/Yhl6foQ77Q6YcL7idjgz6wSfP/kTPxVnvzrveJBVjTh/zgMNWZzTMFhludi6+ixyQ
-         By4Dgr172gYKsLj4sM3Tu4FCSvR+0Xe9g8FmKksPlyMGrJJQs2BoGkKBSuco9pJabEKp
-         C6yQ==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :organization:from:subject:cc:to:dkim-signature;
+        bh=OaQXF2xxVWVnUHUhb2JG+w385O56qSOrtvzv3Jg//pg=;
+        b=Jduw0fHD2amle40jpv7dAkiNwF/HuZCIlixOMGnMwNcA+/O2ItGSdgJw6sjgLVFxzY
+         p8Vf7q/Yor6ZsOpNl2W1jWaf2PfSjGR4FtPPfro/z0VIVc2XW+VdahU5+ETxKD/6PWz+
+         aIHGTT1tClK9glrpeXs7eYI9FeAC5cFu4KXZmk84stHrKFB69M3+WwvGHyBVDMhP7LnT
+         NKFLlxuZLXVuPwo+zQPO3FiW3uTVazs1ObDjYqyMPbBjZf//XX4p3BK8q1eH6ivEuuxC
+         LuGxQoC4iKx6CJxTiuS6vzuqA8+oKFmJsyTCO/RCW4vkZWFvNGC12Q8zFgEtCdy+HnM1
+         fj5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i31si823889ede.429.2019.04.25.05.03.24
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=h44Q9GKC;
+       spf=pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=martin.petersen@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id p66si23810843pfp.228.2019.04.25.05.03.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 05:03:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 25 Apr 2019 05:03:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 43961AD45;
-	Thu, 25 Apr 2019 12:03:24 +0000 (UTC)
-Date: Thu, 25 Apr 2019 14:03:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=h44Q9GKC;
+       spf=pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=martin.petersen@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3PBxF7t071723;
+	Thu, 25 Apr 2019 12:03:15 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=to : cc : subject :
+ from : references : date : in-reply-to : message-id : mime-version :
+ content-type; s=corp-2018-07-02;
+ bh=OaQXF2xxVWVnUHUhb2JG+w385O56qSOrtvzv3Jg//pg=;
+ b=h44Q9GKCE9DpIDwyNlDyxU+KU19sLHa6VO1D4lCcWzv+h3G41sUuivZ35l+LZU68EvXz
+ iIhk6iGarH454XZQLpTzBVVHhKi0vOZIRR90/w5owa9zp/E0QiFlqZ9lb5ny4H8tFVmj
+ ILCMQglLlBKgskiRSIcH/lwStZgpRgeUc+KbTtRmGtrUFYuCZacVVZPtfUahoBHHO8O0
+ cJhN+ldTaD4I/H/QzTwvlPY2PBjqZkN/gv61Old8RqgZpHyoJVpH/ykcpfXDlgEe9P+I
+ cXQxIkc25DqEjBzP1V4kzO52i+VbcMfG+l30DKqP8cYvVPTh0JvnmPm/kptb+sTiw/Y1 kw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2130.oracle.com with ESMTP id 2ryrxd83hu-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 12:03:15 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3PC1MUA187819;
+	Thu, 25 Apr 2019 12:03:15 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2ryrht5vh7-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 12:03:14 +0000
+Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3PC3AfS025228;
+	Thu, 25 Apr 2019 12:03:11 GMT
+Received: from ca-mkp.ca.oracle.com (/10.159.214.123)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 25 Apr 2019 05:03:10 -0700
 To: Matthew Wilcox <willy@infradead.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, lsf-pc@lists.linux-foundation.org,
-	Linux-FSDevel <linux-fsdevel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>, linux-block@vger.kernel.org,
-	Christoph Lameter <cl@linux.com>,
-	David Rientjes <rientjes@google.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Ming Lei <ming.lei@redhat.com>, linux-xfs@vger.kernel.org,
-	Christoph Hellwig <hch@infradead.org>,
-	Dave Chinner <david@fromorbit.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>
+        Linux-FSDevel <linux-fsdevel@vger.kernel.org>,
+        linux-mm <linux-mm@kvack.org>, linux-block@vger.kernel.org,
+        Michal Hocko <mhocko@kernel.org>, Christoph Lameter <cl@linux.com>,
+        David Rientjes <rientjes@google.com>,
+        Pekka Enberg <penberg@kernel.org>,
+        Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ming Lei <ming.lei@redhat.com>,
+        linux-xfs@vger.kernel.org, Christoph Hellwig <hch@infradead.org>,
+        Dave Chinner <david@fromorbit.com>,
+        "Darrick J . Wong" <darrick.wong@oracle.com>
 Subject: Re: [LSF/MM TOPIC] guarantee natural alignment for kmalloc()?
-Message-ID: <20190425120322.GW12751@dhcp22.suse.cz>
+From: "Martin K. Petersen" <martin.petersen@oracle.com>
+Organization: Oracle Corporation
 References: <790b68b7-3689-0ff6-08ae-936728bc6458@suse.cz>
- <20190411132819.GB22763@bombadil.infradead.org>
- <20190425113358.GI19031@bombadil.infradead.org>
+	<20190411132819.GB22763@bombadil.infradead.org>
+	<20190425113358.GI19031@bombadil.infradead.org>
+Date: Thu, 25 Apr 2019 08:03:06 -0400
+In-Reply-To: <20190425113358.GI19031@bombadil.infradead.org> (Matthew Wilcox's
+	message of "Thu, 25 Apr 2019 04:33:59 -0700")
+Message-ID: <yq1zhoe70n9.fsf@oracle.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1.92 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190425113358.GI19031@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9237 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=824
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904250077
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9237 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=846 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904250077
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 25-04-19 04:33:59, Matthew Wilcox wrote:
-> On Thu, Apr 11, 2019 at 06:28:19AM -0700, Matthew Wilcox wrote:
-> > On Thu, Apr 11, 2019 at 02:52:08PM +0200, Vlastimil Babka wrote:
-> > > In the session I hope to resolve the question whether this is indeed the
-> > > right thing to do for all kmalloc() users, without an explicit alignment
-> > > requests, and if it's worth the potentially worse
-> > > performance/fragmentation it would impose on a hypothetical new slab
-> > > implementation for which it wouldn't be optimal to split power-of-two
-> > > sized pages into power-of-two-sized objects (or whether there are any
-> > > other downsides).
-> > 
-> > I think this is exactly the kind of discussion that LSFMM is for!  It's
-> > really a whole-system question; is Linux better-off having the flexibility
-> > for allocators to return non-power-of-two aligned memory, or allowing
-> > consumers of the kmalloc API to assume that "sufficiently large" memory
-> > is naturally aligned.
-> 
-> This has been scheduled for only the MM track.  I think at least the
-> filesystem people should be involved in this discussion since it's for
-> their benefit.
 
-Agreed. I have marked it as a MM/IO/FS track, we just haven't added it
-to the schedule that way. I still plan to go over all topics again and
-consolidate the current (very preliminary) schedule. Thanks for catching
-this up.
+Matthew,
 
 > Do we have an lsf-discuss mailing list this year?  Might be good to
 > coordinate arrivals / departures for taxi sharing purposes.
 
-Yes, the list should be established AFAIK and same address as last
-years.
+lsf@lists.linux-foundation.org
 
 -- 
-Michal Hocko
-SUSE Labs
+Martin K. Petersen	Oracle Linux Engineering
 
