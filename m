@@ -2,148 +2,277 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91BE8C43219
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:19:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E53E8C43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:35:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B436B2077C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:19:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B436B2077C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D47A220685
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:35:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D47A220685
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E98176B0003; Thu, 25 Apr 2019 15:19:17 -0400 (EDT)
+	id 0354C6B0003; Thu, 25 Apr 2019 15:35:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E484C6B0005; Thu, 25 Apr 2019 15:19:17 -0400 (EDT)
+	id F282A6B0005; Thu, 25 Apr 2019 15:35:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D367B6B000A; Thu, 25 Apr 2019 15:19:17 -0400 (EDT)
+	id E3B576B0006; Thu, 25 Apr 2019 15:35:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CBBA6B0003
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:19:17 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a17so365972plm.5
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:19:17 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C37606B0003
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:35:47 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id i124so843397qkf.14
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:35:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=fy87ulryHMdmydci7ol/E7XLf7+K9X8Z79SvdCHMjQ0=;
-        b=c0YMe9oh0ZNdd9i7zb2binC4yg1tRvpeayXWs4/z6WDph8JUxX+pjPgsFt91M47l1H
-         DMvaXbU2Fcs2cm/g5aeqmhmuwtaVGls2aYDIdYpopeeLZMe1X+YJeRu1NVGKLw1zs7nY
-         XgxUnvDAbXL3NG/OJTGQ+KSyr6ywhsPBKR2jpYAcT25GVPpQJTuyYe2nA4fcIp9RmOwC
-         P5Q3Jb9fTCE1hXv7/BDaWgmQHhnrjq+x6OkktTLp/oZitVwI1PdqWIxqNDqLucf2A18O
-         oVSjU63IUUH2zEdGaE3hm78zeXPkhHnZWFPmLqGEqv6fiPipXYdtkoyGP5onuxd4KXsG
-         KpOg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUooWRx6bENOuFvjdSt6OwJ1wTpEI3b7plQFlTtzKvijCru0oOs
-	t12lqrAEiwY8q7kAWgp/oz4VD4+BF24mimTuwy5+GhHM354Bknal3qpGpw3G1JaQrmWV56+fqhO
-	a91M4ANXSSxmmJm9WjpL1t0jipZacoTcutSMV3XIVGbqUCWH/sjHzm9bIMqksnLUtuw==
-X-Received: by 2002:a17:902:e709:: with SMTP id co9mr23805971plb.86.1556219957316;
-        Thu, 25 Apr 2019 12:19:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzA78EfT10RLa5TKkWzxeBVyQVjOncbpJQNdp3eF4VZhxYDwhakOT7WFH1lfHuxvaDvYA+3
-X-Received: by 2002:a17:902:e709:: with SMTP id co9mr23805909plb.86.1556219956562;
-        Thu, 25 Apr 2019 12:19:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556219956; cv=none;
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=XjZxVnTvKHgAcOp0hpy7ikW8MjvNV39uxt972bUzcuw=;
+        b=rqUT1dqZnq+pS2/r5QDRrg8ITsUe+8rWShazwMcIVrasiaxQTEL5iynHjO49ZBnMJX
+         KNhT6+z3RGZXBKxt8ducI3JPFyyNsXDz3IW87YIqXWVBEXroaicbQdbmfMa4bOKJwvog
+         UO0r1xnkPoeLibi4Yg/7gniv71qj+5WdRD8De5PZsVxCEvQloZ/9rYXLN38fRXizxjo8
+         v5bykTtDp1CHmwFAID6X65z97Bw/xd8qMi8ctbCtt3uFoW7Oqs6LWlb7bRG51h16e8q5
+         3fchAcfQ859TIs5/u3M/NbCforHI48K6wVBKq7BYVMv+jF4gF1FWQJRdDlsydzqMSZgT
+         vHLg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVAGDc97j3/deX6Y52+7VhAMujXsW23pupIA8lfVqMN6AsLbB8F
+	XZ7+P5MakvrJTnTFIIyrq3M5dLZOyzxYGPULTr7oe1J0RZj++o9+gh5kWbkMOZp1We9A3SsqI1L
+	zvXaoyjsbV1nlLPmUOkrJcBd4AV0bulSpgtSYDYzPDbf/9R1rNbaolXv0pq2qsNIXjA==
+X-Received: by 2002:ae9:c005:: with SMTP id u5mr20690566qkk.179.1556220947499;
+        Thu, 25 Apr 2019 12:35:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygQtUa5CAL52LzWzl5s7uHyfXDzLjSZDAdS4X8qBYKkwDk+o1ajV7KrWIYK4pps1Aq7e35
+X-Received: by 2002:ae9:c005:: with SMTP id u5mr20690493qkk.179.1556220946455;
+        Thu, 25 Apr 2019 12:35:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556220946; cv=none;
         d=google.com; s=arc-20160816;
-        b=TwUdQ45Xb9KuAW+98WcKBIdQj/UTSPFNPc4ecYRHT+ZxKi1akROKDwxoktbnQJ6CXw
-         ciiUxo2V9d9YBFHk1BIZQoQKl0LyX/BOkwFxhYSjGCyxxnhZyMe3xe4uJEw6j9LtEBz+
-         ep/Bz6qXkUQwDdBJgl8XGBAKwbquxM1SP1Ew4zT0z2O3Qq2FzNToz0YiWRY4GByitKy5
-         b9pvmzBCne7Q40aloli8j5MJmicbOrZmc4u1SdlyfYtFdjVnH3W3FYNtCChjZROACyij
-         0wWn3XqGgn++rKisdg4pmkmiBPHzv+FG8ffeAG/uKpCXoPS+81PVX0A5fU6dGB9cNWQR
-         ePkg==
+        b=ReM7HSLBxTv8KM3xOcNkCdWUTzxl/4zeXLu3ijVTnk9mED8aL0kyq4vRYmagaDNRDE
+         9SIRl7WZoEZZfs4igMbKjiJtPypP+lBHr5m73469kRKhJhmPFH966FQMI1bD4CnxQZrt
+         9zdgkN+fFqcVzSs3pAgN65GylCX9PEqejg6362PDeBnBkDGTjscrgybpg0cmR3U9yze/
+         Lqovlu6L0hOfoYMZ0gl5tO2YBa8DM70Rtyk7810H1/jASWaPBqervGAdX99wJ6VdmLo+
+         CHbAY3ab+Q0cXrmn9+L67s1QD4s43SxhFP1eW3VTSQWBmKCLa5gEbNYyhEwQamPphSWa
+         xT2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=fy87ulryHMdmydci7ol/E7XLf7+K9X8Z79SvdCHMjQ0=;
-        b=WIbTYNWBeHJ1AIU8IPy2sjfPsIY7AIFbk9c5+MotQMPRSEQ9qbeyUY9z3VZ3FcS/jE
-         O+LwWb/njeJcSw3ABqbETPVqzlmyi13nXLvoNHtvbhaLDYguoxxJ3YC7aR/VFFTHIJTd
-         DEdw2lvtfXpzoUe8F2RtXZ3rmj8tf2NXNG3eS82Jj14jUQeC1ScOg4moMDqFlSyTyUez
-         p5YGFyTgrxh0S3/TZ0QQGtInhbYpcF0wyyGTfRZRJV9KqvN9SAAH0+Cg0ssy70PZZ3PR
-         9oEwrdQQd2nj3t444YEycZJ6IsL0eL6gf4U6MBn8qOpsqiFN5+P9ix16XbhkRhcPp9X9
-         X5Vg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=XjZxVnTvKHgAcOp0hpy7ikW8MjvNV39uxt972bUzcuw=;
+        b=H35zZfb9JubR97ALAh+TzEFdRsop3pfJMp/Z0hvSfNJdr/JU791pDB/Kwn2/10+U00
+         mUOx4N0sYT/qFdCmWhnEn2Nc8Xr9zPBoXmCuHqQuyB9H3yxD57NI1P9j0/OtvplnBsph
+         Y9LcsgDVJ7jVRAgJ4ls4FdNnfbFJF76fZ44yE9XqHNNCjbpWPerezdz8jbuT73uyU3Am
+         dng2q1s1Hnlx+VTdIDtxExumFzELaLlc3oOYsuGVVcKyxG1995KPrQXxrVR2uvIj/knd
+         tj5vKyaU1X2d69zTiRerKujyUI1UHL5xeMu7bnNW1SNfCogpjTgY5ujBdyMQ8tTPFceG
+         5H8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b74si23250700pfj.121.2019.04.25.12.19.16
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w20si2229414qtw.318.2019.04.25.12.35.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 12:19:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Thu, 25 Apr 2019 12:35:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Apr 2019 12:19:15 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,394,1549958400"; 
-   d="scan'208";a="226718970"
-Received: from orsmsx101.amr.corp.intel.com ([10.22.225.128])
-  by orsmga001.jf.intel.com with ESMTP; 25 Apr 2019 12:19:15 -0700
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.109]) by
- ORSMSX101.amr.corp.intel.com ([169.254.8.212]) with mapi id 14.03.0415.000;
- Thu, 25 Apr 2019 12:19:15 -0700
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "rostedt@goodmis.org" <rostedt@goodmis.org>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>,
-	"linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>,
-	"ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "tglx@linutronix.de"
-	<tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nadav.amit@gmail.com" <nadav.amit@gmail.com>, "dave.hansen@linux.intel.com"
-	<dave.hansen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>,
-	"linux-security-module@vger.kernel.org"
-	<linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com"
-	<hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>,
-	"mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com"
-	<linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>,
-	"will.deacon@arm.com" <will.deacon@arm.com>, "bp@alien8.de" <bp@alien8.de>,
-	"kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
-Subject: Re: [PATCH v4 19/23] x86/ftrace: Use vmalloc special flag
-Thread-Topic: [PATCH v4 19/23] x86/ftrace: Use vmalloc special flag
-Thread-Index: AQHU+T1q49bvmRxIpk2PRaAn55zB0aZNrBqAgAAONIA=
-Date: Thu, 25 Apr 2019 19:19:14 +0000
-Message-ID: <e07ed452377e9c48fc50c08fc80b6893d2b26ead.camel@intel.com>
-References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
-	 <20190422185805.1169-20-rick.p.edgecombe@intel.com>
-	 <20190425142803.4f2e354a@gandalf.local.home>
-In-Reply-To: <20190425142803.4f2e354a@gandalf.local.home>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.54.75.11]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B35D9A494A9B654C884ED7C35585F23C@intel.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 86C4D2CE902;
+	Thu, 25 Apr 2019 19:35:45 +0000 (UTC)
+Received: from max.home.com (unknown [10.40.205.80])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0447A1001E94;
+	Thu, 25 Apr 2019 19:35:40 +0000 (UTC)
+From: Andreas Gruenbacher <agruenba@redhat.com>
+To: cluster-devel@redhat.com,
+	Christoph Hellwig <hch@lst.de>
+Cc: Bob Peterson <rpeterso@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Chinner <david@fromorbit.com>,
+	Ross Lagerwall <ross.lagerwall@citrix.com>,
+	Mark Syms <Mark.Syms@citrix.com>,
+	=?UTF-8?q?Edwin=20T=C3=B6r=C3=B6k?= <edvin.torok@citrix.com>,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Andreas Gruenbacher <agruenba@redhat.com>
+Subject: [PATCH v4 1/2] iomap: Add a page_prepare callback
+Date: Thu, 25 Apr 2019 21:35:37 +0200
+Message-Id: <20190425193538.5416-1-agruenba@redhat.com>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 25 Apr 2019 19:35:45 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCAyMDE5LTA0LTI1IGF0IDE0OjI4IC0wNDAwLCBTdGV2ZW4gUm9zdGVkdCB3cm90ZToN
-Cj4gT24gTW9uLCAyMiBBcHIgMjAxOSAxMTo1ODowMSAtMDcwMA0KPiBSaWNrIEVkZ2Vjb21iZSA8
-cmljay5wLmVkZ2Vjb21iZUBpbnRlbC5jb20+IHdyb3RlOg0KPiANCj4gPiBVc2UgbmV3IGZsYWcg
-Vk1fRkxVU0hfUkVTRVRfUEVSTVMgZm9yIGhhbmRsaW5nIGZyZWVpbmcgb2Ygc3BlY2lhbA0KPiA+
-IHBlcm1pc3Npb25lZCBtZW1vcnkgaW4gdm1hbGxvYyBhbmQgcmVtb3ZlIHBsYWNlcyB3aGVyZSBt
-ZW1vcnkgd2FzIHNldCBOWA0KPiA+IGFuZCBSVyBiZWZvcmUgZnJlZWluZyB3aGljaCBpcyBubyBs
-b25nZXIgbmVlZGVkLg0KPiA+IA0KPiA+IENjOiBTdGV2ZW4gUm9zdGVkdCA8cm9zdGVkdEBnb29k
-bWlzLm9yZz4NCj4gPiBBY2tlZC1ieTogU3RldmVuIFJvc3RlZHQgKFZNd2FyZSkgPHJvc3RlZHRA
-Z29vZG1pcy5vcmc+DQo+ID4gU2lnbmVkLW9mZi1ieTogUmljayBFZGdlY29tYmUgPHJpY2sucC5l
-ZGdlY29tYmVAaW50ZWwuY29tPg0KPiANCj4gVGVzdGVkLWJ5OiBTdGV2ZW4gUm9zdGVkdCAoVk13
-YXJlKSA8cm9zdGVkdEBnb29kbWlzLm9yZz4NCj4gQWNrZWQtYnk6IFN0ZXZlbiBSb3N0ZWR0IChW
-TXdhcmUpIDxyb3N0ZWR0QGdvZG9taXMub3JnPg0KPiANCj4gLS0gU3RldmUNCg0KVGhhbmtzIQ0K
-DQpSaWNrDQo=
+Move the page_done callback into a separate iomap_page_ops structure and
+add a page_prepare calback to be called before a page is written to.  In
+gfs2, we'll want to start a transaction in page_prepare and end it in
+page_done, and other filesystems that implement data journaling will
+require the same kind of mechanism.
+
+Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
+---
+ fs/gfs2/bmap.c        | 22 +++++++++++++++++-----
+ fs/iomap.c            | 22 ++++++++++++++++++----
+ include/linux/iomap.h | 18 +++++++++++++-----
+ 3 files changed, 48 insertions(+), 14 deletions(-)
+
+diff --git a/fs/gfs2/bmap.c b/fs/gfs2/bmap.c
+index 5da4ca9041c0..281d739da652 100644
+--- a/fs/gfs2/bmap.c
++++ b/fs/gfs2/bmap.c
+@@ -991,15 +991,27 @@ static void gfs2_write_unlock(struct inode *inode)
+ 	gfs2_glock_dq_uninit(&ip->i_gh);
+ }
+ 
+-static void gfs2_iomap_journaled_page_done(struct inode *inode, loff_t pos,
+-				unsigned copied, struct page *page,
+-				struct iomap *iomap)
++static int gfs2_iomap_page_prepare(struct inode *inode, loff_t pos,
++				   unsigned len, struct iomap *iomap)
++{
++	return 0;
++}
++
++static void gfs2_iomap_page_done(struct inode *inode, loff_t pos,
++				 unsigned copied, struct page *page,
++				 struct iomap *iomap)
+ {
+ 	struct gfs2_inode *ip = GFS2_I(inode);
+ 
+-	gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
++	if (page)
++		gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
+ }
+ 
++const struct iomap_page_ops gfs2_iomap_page_ops = {
++	.page_prepare = gfs2_iomap_page_prepare,
++	.page_done = gfs2_iomap_page_done,
++};
++
+ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
+ 				  loff_t length, unsigned flags,
+ 				  struct iomap *iomap,
+@@ -1077,7 +1089,7 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
+ 		}
+ 	}
+ 	if (!gfs2_is_stuffed(ip) && gfs2_is_jdata(ip))
+-		iomap->page_done = gfs2_iomap_journaled_page_done;
++		iomap->page_ops = &gfs2_iomap_page_ops;
+ 	return 0;
+ 
+ out_trans_end:
+diff --git a/fs/iomap.c b/fs/iomap.c
+index 97cb9d486a7d..667a822ecb7d 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -665,6 +665,7 @@ static int
+ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
+ 		struct page **pagep, struct iomap *iomap)
+ {
++	const struct iomap_page_ops *page_ops = iomap->page_ops;
+ 	pgoff_t index = pos >> PAGE_SHIFT;
+ 	struct page *page;
+ 	int status = 0;
+@@ -674,9 +675,17 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
+ 	if (fatal_signal_pending(current))
+ 		return -EINTR;
+ 
++	if (page_ops) {
++		status = page_ops->page_prepare(inode, pos, len, iomap);
++		if (status)
++			return status;
++	}
++
+ 	page = grab_cache_page_write_begin(inode->i_mapping, index, flags);
+-	if (!page)
+-		return -ENOMEM;
++	if (!page) {
++		status = -ENOMEM;
++		goto no_page;
++	}
+ 
+ 	if (iomap->type == IOMAP_INLINE)
+ 		iomap_read_inline_data(inode, page, iomap);
+@@ -684,12 +693,16 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
+ 		status = __block_write_begin_int(page, pos, len, NULL, iomap);
+ 	else
+ 		status = __iomap_write_begin(inode, pos, len, page, iomap);
++
+ 	if (unlikely(status)) {
+ 		unlock_page(page);
+ 		put_page(page);
+ 		page = NULL;
+ 
+ 		iomap_write_failed(inode, pos, len);
++no_page:
++		if (page_ops)
++			page_ops->page_done(inode, pos, 0, NULL, iomap);
+ 	}
+ 
+ 	*pagep = page;
+@@ -769,6 +782,7 @@ static int
+ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
+ 		unsigned copied, struct page *page, struct iomap *iomap)
+ {
++	const struct iomap_page_ops *page_ops = iomap->page_ops;
+ 	int ret;
+ 
+ 	if (iomap->type == IOMAP_INLINE) {
+@@ -780,8 +794,8 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
+ 		ret = __iomap_write_end(inode, pos, len, copied, page, iomap);
+ 	}
+ 
+-	if (iomap->page_done)
+-		iomap->page_done(inode, pos, copied, page, iomap);
++	if (page_ops)
++		page_ops->page_done(inode, pos, copied, page, iomap);
+ 
+ 	if (ret < len)
+ 		iomap_write_failed(inode, pos, len);
+diff --git a/include/linux/iomap.h b/include/linux/iomap.h
+index 0fefb5455bda..fd65f27d300e 100644
+--- a/include/linux/iomap.h
++++ b/include/linux/iomap.h
+@@ -53,6 +53,8 @@ struct vm_fault;
+  */
+ #define IOMAP_NULL_ADDR -1ULL	/* addr is not valid */
+ 
++struct iomap_page_ops;
++
+ struct iomap {
+ 	u64			addr; /* disk offset of mapping, bytes */
+ 	loff_t			offset;	/* file offset of mapping, bytes */
+@@ -63,12 +65,18 @@ struct iomap {
+ 	struct dax_device	*dax_dev; /* dax_dev for dax operations */
+ 	void			*inline_data;
+ 	void			*private; /* filesystem private */
++	const struct iomap_page_ops *page_ops;
++};
+ 
+-	/*
+-	 * Called when finished processing a page in the mapping returned in
+-	 * this iomap.  At least for now this is only supported in the buffered
+-	 * write path.
+-	 */
++/*
++ * Called before / after processing a page in the mapping returned in this
++ * iomap.  At least for now, this is only supported in the buffered write path.
++ * When page_prepare returns 0, page_done is called as well
++ * (possibly with page == NULL).
++ */
++struct iomap_page_ops {
++	int (*page_prepare)(struct inode *inode, loff_t pos, unsigned len,
++			struct iomap *iomap);
+ 	void (*page_done)(struct inode *inode, loff_t pos, unsigned copied,
+ 			struct page *page, struct iomap *iomap);
+ };
+-- 
+2.20.1
 
