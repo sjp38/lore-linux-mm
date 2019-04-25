@@ -2,100 +2,115 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7C70C43219
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 14:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C708C43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:01:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A12012081C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 14:43:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A12012081C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 25A512081C
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 15:01:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bvQI9jRK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25A512081C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BBF076B0003; Thu, 25 Apr 2019 10:43:39 -0400 (EDT)
+	id 6A80A6B0006; Thu, 25 Apr 2019 11:01:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B92D76B0005; Thu, 25 Apr 2019 10:43:39 -0400 (EDT)
+	id 655AC6B0008; Thu, 25 Apr 2019 11:01:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A37586B0006; Thu, 25 Apr 2019 10:43:39 -0400 (EDT)
+	id 4F7476B000A; Thu, 25 Apr 2019 11:01:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6607C6B0003
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 10:43:39 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l13so14521853pgp.3
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 07:43:39 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1721F6B0006
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 11:01:44 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id a5so2777454plh.14
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 08:01:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=3BsmjSW1Ew9VxV27JLqXrd6TtR+GWM6ZUAqugTKz1WY=;
-        b=rbiPhan8M6B/DXKasMPDakLyoFMdDrA2pz8f0wqmNB3b9CwjgZ9UQpxcBim9iucjWs
-         nzxt48MXybec4PIdjlnD8KF4DTTxtgJhFhiXSRAadsKTPsFe+nsI0XQbwho1ePadkDUo
-         uzfgQLeGlblQK3JHbc+ZFhfOcpj6a0GcaIZZt3nUpYtXHFnhC7j06aPFbN3bROzAfVhI
-         J6CsWxnJ0X49ZFk0p4/JVUe2t3hgr/S9qxadbFhxlvIt612BcDOIQsZXZI2TnBy3VV6t
-         G3upzm9dYha7r/RHKOGXWiCY0c7rfZqPtiDmV3DhNNa1ZwaUjeCIZdcpUwSWmz4D0FfG
-         NueA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVqQALQt9BHaxkzjIDWCI/QozYm6zWeWme2wQVHr6DMjMNxuT5g
-	ZiPRKf/Q1wu6WIK1HnvilcUayznceAL18RPkWuD8bSz4WKlK6tDg2vG34yNkPAmN/DTVpqBQRN6
-	34xV8kW5RPDVC+Q+CthJD9h+NWQu64K5DJ54VZsKppZ035XVZszTheS39+Y+S6jl1gA==
-X-Received: by 2002:aa7:9813:: with SMTP id e19mr18179937pfl.159.1556203419022;
-        Thu, 25 Apr 2019 07:43:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy9cq3HxRPCIabJkRnCBK/xTkTu/RHSFYqQjOTaPXq7ixgqwW31KCYTlqM77h8GbFPCqowL
-X-Received: by 2002:aa7:9813:: with SMTP id e19mr18179858pfl.159.1556203418193;
-        Thu, 25 Apr 2019 07:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556203418; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UHTIv2bYWCMmrceWnwUo0Fh9FKFnrseI4vreb5e9FKc=;
+        b=dWiQwpdUusv3zIz7YV05CehgDpVoJjfh6niXsGVqk03EDGK+RAughWEHSKkRMk6FgK
+         OY8f8DMiLnG1HXpK5HAqI9wvnKMPnZIsbiLC7eUtsMKI8d9WZHUAuNEhmNFNe/ndMt5q
+         KscyQzjs5r51uLk3wNuDasq396e+oTDquNHfBFEU62A3nthFE8Ryts070UXt9Ge1eyub
+         Ihu0Qu/ziNI0gmtEEUC7TeLW0MlA2kxmxPiZFtKU3p7yjc2DLnp2EojryVTh2r6JsUG2
+         fAxqB1a7VvT15nBPck0xk7m4q2MPvZrh2SghnacVkDMAhwXLgmU1Gh0vTR7zVVwRGCRl
+         2ozQ==
+X-Gm-Message-State: APjAAAW9s5jakkC2tHcvZ51MLd8tGkePSBRaYqhtPNzabVL97n3CsSFc
+	yLJ/Edg4eGzyfLgfUse2Gkx1YTQMh6t34hnjSViogaDyZxd0in6yHgMvho66vtDnf3ykeDEtodr
+	lccGnhbgWD5w5SUBTIoDyFHSaEYU46rtdZNdF+iu6AycC658jVG1jJlwiphJ9RMaghg==
+X-Received: by 2002:aa7:8719:: with SMTP id b25mr1679119pfo.90.1556204503712;
+        Thu, 25 Apr 2019 08:01:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzLKvyllavyZSHo2hPahfmxxozzqjjctPOhU0wB9NT8crTrPYSX4TgGKgzL09LX41KKbLri
+X-Received: by 2002:aa7:8719:: with SMTP id b25mr1679001pfo.90.1556204502712;
+        Thu, 25 Apr 2019 08:01:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556204502; cv=none;
         d=google.com; s=arc-20160816;
-        b=0OU2imH7c017yudvjD1k5KqCTrTCqbShS/3IYs5Tjy3rjDvqLgRkdkMP7ntDhRgqYU
-         RDLCBb5y8tZqLWNuUuqr9IwZ+4Rmap1CoOzIQcVaQjvZHq+WdMEuUGzhYsw82Kw30EMU
-         38ePyFrlDOyRKFVs/3I5VZwNJYbkgukCj4cAau7CXFeuQORtuJqVYkDS8CGF+4C05+Rw
-         TqWaVAfmOMsK15m47EbA1P8wlt/ScRlMieUjhbsHmhd5+1mu7dLNilrR3iq9qs6LgF3g
-         cwz4paE03NBxMDXqrUwiMy6Uo50Ld0yhGnsV3e1Hfng9wlHtDurt+bVCQpU7MtEuAaBV
-         nsoA==
+        b=lJHRrgYgBFax1MMY32SJgNbpHz9rykgojIw1sjoIliqIqHp+IwYyeTEa1+Cz4wciNj
+         0TIqSTtduPZM0+O3zeni0fC2LGn/UHA79DVIL0xDtVZwQO9NmBl+fvECQhFLZoLVB7yG
+         aRZx3r1wRg0kkgZ+r1JKrvp2oV+r9zNLGcVhG2Ph4mdqoGLGZkYJ/VDFTQ+q2fgcPs1R
+         RkUPxqBKUPAFc5Ljz4lgYjB+BMmA/KbRi2Wba+xR7JRgtf0n8hnB1BK4sYswtuiiXGU/
+         I94WC0QsXOcnOtvJyazW6Igok22MKAb8sjmPLkuT2a3fhI50rSQgTSXPeY8M3QTWG7ae
+         XawA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=3BsmjSW1Ew9VxV27JLqXrd6TtR+GWM6ZUAqugTKz1WY=;
-        b=SaLBD3oRU0gl92U76xdWihiIcURWDj7qCizADkBT7ZO9QOa7u0dfilaiSXDTiJ9O+o
-         rOcssrTI2ipXYvxvvmhQxzb0qVJlQwpiF22DGX8SbTAUXJwkric2yjwfP5qXlbIHlqJt
-         RY6MAlRCFnUG/D3SF+X5WMsE41HpGF6yRQyvT2nQO1jUyqd1jy6P8yzNFenvpMjIyoeA
-         hBvsjSw2KQUd+aVUDK4DEpZYsPys6rSsNO2ULTORWcs9wBb6pRmutiVc1GHB5nTbpDpx
-         yBRehx/XSZix1vJg0R+AKjRofUGGlGQl6C2mEXFemRigA4+tpL6Z7NAyC9Gah02VHi/z
-         bbng==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=UHTIv2bYWCMmrceWnwUo0Fh9FKFnrseI4vreb5e9FKc=;
+        b=ZLC70sgc3GtRZD2yGobLGaGZyZHWw9wTFBJb8zT3aOvdI+kDd2M35ONIx73ehoIrC6
+         wMAVgyjDSV7QTKtSZUoVoKIAisY1MzXyUa/+33wnGtd/JDdi2+1H14QEG8IwY1dh63Vh
+         aafugUmwbbcBU6myP5cnjPqw95CFH9jqgcz0DQ7780Jm4slP865RbRz7J+bri7KxsjdA
+         cgJiNRX1+bPfikfr+HTK2v+l8LPNlrBorxCvDhNPpamNLDsGr9jQzM53t/7XrwBguqO1
+         VUBDN3V07H+dzLOEfVcw2iKOCfDLsEKpD3+RXGyWEa2vFEPAA+d+aBr/o+ruytn8V8u0
+         sMKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g123si22201603pfc.58.2019.04.25.07.43.37
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bvQI9jRK;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s189si7146665pgb.346.2019.04.25.08.01.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 07:43:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 25 Apr 2019 08:01:42 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9078BAEF6;
-	Thu, 25 Apr 2019 14:43:32 +0000 (UTC)
-Message-ID: <1556203394.3587.4.camel@suse.de>
-Subject: Re: [PATCH v6 03/12] mm/sparsemem: Add helpers track active
- portions of a section at boot
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Logan
- Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
- linux-nvdimm@lists.01.org,  linux-kernel@vger.kernel.org, david@redhat.com
-Date: Thu, 25 Apr 2019 16:43:14 +0200
-In-Reply-To: <155552635098.2015392.5460028594173939000.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: 
-	<155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
-	 <155552635098.2015392.5460028594173939000.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.1 
-Mime-Version: 1.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bvQI9jRK;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=UHTIv2bYWCMmrceWnwUo0Fh9FKFnrseI4vreb5e9FKc=; b=bvQI9jRKJKedhApGQGL7NC7Us
+	ZTmouNizaDjyj/BFyna/0u54CTi/1wmbXgavf7Q+B7ARBQBne4dlXFL2pNCBauGrzvLiU05/W7wOO
+	ZyZgJSVDU0U5W9XdFs4Wb9J4Ejlq4ZW+68Te8Szx5Vxz3a37YDHnzmxIsP8S2LU0u4mOmTphrGeiX
+	fpuuBC69Gbvs+yjGC1GN/LtJlniccf+WmkfxyOqCoBkGD+nd7IgVYcoY6t0eVf1lEJzjUFCgvUBlc
+	yKqIt2ZIREwAPWIdBcF+zvIwaKjYjz1mru5T3SoOoGGh5xd7cYT8bfc/mWtaHP6OfEqFgA01bpSlP
+	jWoO65ebw==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hJfsb-0002iU-TR; Thu, 25 Apr 2019 15:01:41 +0000
+Subject: Re: [PATCH] docs/vm: add documentation of memory models
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
+ <a4def881-1df0-6835-4b9a-dc957c979683@infradead.org>
+ <20190425082239.GC10625@rapoport-lnx>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <2b97f4db-78c0-1cad-bdf5-948720e8094f@infradead.org>
+Date: Thu, 25 Apr 2019 08:01:39 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190425082239.GC10625@rapoport-lnx>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,93 +118,64 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-04-17 at 11:39 -0700, Dan Williams wrote:
-> Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
-> section active bitmask, each bit representing 2MB (SECTION_SIZE
-> (128M) /
-> map_active bitmask length (64)). If it turns out that 2MB is too
-> large
-> of an active tracking granularity it is trivial to increase the size
-> of
-> the map_active bitmap.
+On 4/25/19 1:22 AM, Mike Rapoport wrote:
+> Hi Randy,
 > 
-> The implications of a partially populated section is that pfn_valid()
-> needs to go beyond a valid_section() check and read the sub-section
-> active ranges from the bitmask.
+> On Wed, Apr 24, 2019 at 06:08:46PM -0700, Randy Dunlap wrote:
+>> On 4/24/19 3:28 AM, Mike Rapoport wrote:
+>>> Describe what {FLAT,DISCONTIG,SPARSE}MEM are and how they manage to
+>>> maintain pfn <-> struct page correspondence.
+>>>
+>>> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+>>> ---
+>>>  Documentation/vm/index.rst        |   1 +
+>>>  Documentation/vm/memory-model.rst | 171 ++++++++++++++++++++++++++++++++++++++
+>>>  2 files changed, 172 insertions(+)
+>>>  create mode 100644 Documentation/vm/memory-model.rst
+>>>
+>>
+>> Hi Mike,
+>> I have a few minor edits below...
 > 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-Hi Dan,
-
-I am still going through the patchset but:
- 
-> +static unsigned long section_active_mask(unsigned long pfn,
-> +		unsigned long nr_pages)
-> +{
-> +	int idx_start, idx_size;
-> +	phys_addr_t start, size;
-> +
-> +	if (!nr_pages)
-> +		return 0;
-> +
-> +	start = PFN_PHYS(pfn);
-> +	size = PFN_PHYS(min(nr_pages, PAGES_PER_SECTION
-> +				- (pfn & ~PAGE_SECTION_MASK)));
-
-We already picked the lowest value in section_active_init, didn't we?
-This min() operations seems redundant to me here.
-
-> +	size = ALIGN(size, SECTION_ACTIVE_SIZE);
-> +
-> +	idx_start = section_active_index(start);
-> +	idx_size = section_active_index(size);
-> +
-> +	if (idx_size == 0)
-> +		return -1;
-> +	return ((1UL << idx_size) - 1) << idx_start;
-> +}
-> +
-> +void section_active_init(unsigned long pfn, unsigned long nr_pages)
-> +{
-> +	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-> +	int i, start_sec = pfn_to_section_nr(pfn);
-> +
-> +	if (!nr_pages)
-> +		return;
-> +
-> +	for (i = start_sec; i <= end_sec; i++) {
-> +		struct mem_section *ms;
-> +		unsigned long mask;
-> +		unsigned long pfns;
-
-s/pfns/nr_pfns/ instead?
-
-> +		pfns = min(nr_pages, PAGES_PER_SECTION
-> +				- (pfn & ~PAGE_SECTION_MASK));
-> +		mask = section_active_mask(pfn, pfns);
-> +
-> +		ms = __nr_to_section(i);
-> +		pr_debug("%s: sec: %d mask: %#018lx\n", __func__, i,
-> mask);
-> +		ms->usage->map_active = mask;
-> +
-> +		pfn += pfns;
-> +		nr_pages -= pfns;
-> +	}
-> +}
-
-Although the code is not very complicated, it could use some comments
-here and there I think.
-
-> +
->  /* Record a memory area against a node. */
->  void __init memory_present(int nid, unsigned long start, unsigned
-> long end)
->  {
+> I kinda expected those ;-)
 > 
+>>> diff --git a/Documentation/vm/memory-model.rst b/Documentation/vm/memory-model.rst
+>>> new file mode 100644
+>>> index 0000000..914c52a
+>>> --- /dev/null
+>>> +++ b/Documentation/vm/memory-model.rst
+> 
+> ...
+> 
+>>> +
+>>> +With FLATMEM, the conversion between a PFN and the `struct page` is
+>>> +straightforward: `PFN - ARCH_PFN_OFFSET` is an index to the
+>>> +`mem_map` array.
+>>> +
+>>> +The `ARCH_PFN_OFFSET` defines the first page frame number for
+>>> +systems that their physical memory does not start at 0.
+>>
+>> s/that/when/ ?  Seems awkward as is.
+> 
+> Yeah, it is awkward. How about
+> 
+> The `ARCH_PFN_OFFSET` defines the first page frame number for
+> systems with physical memory starting at address different from 0.
+
+OK.  Thanks.
+
+>>> +
+>>> +DISCONTIGMEM
+>>> +============
+>>> +
+>>
+>> thanks.
+>> -- 
+>> ~Randy
+>>
+> 
+
+
 -- 
-Oscar Salvador
-SUSE L3
+~Randy
 
