@@ -6,86 +6,87 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB279C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E207CC282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A089206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A089206BA
+	by mail.kernel.org (Postfix) with ESMTP id 9D535206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D535206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0ADB06B0277; Thu, 25 Apr 2019 05:59:45 -0400 (EDT)
+	id 08DC46B0278; Thu, 25 Apr 2019 05:59:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F2C1D6B0278; Thu, 25 Apr 2019 05:59:44 -0400 (EDT)
+	id F2C6D6B0279; Thu, 25 Apr 2019 05:59:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E199F6B0279; Thu, 25 Apr 2019 05:59:44 -0400 (EDT)
+	id DF7DA6B027A; Thu, 25 Apr 2019 05:59:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EC9D6B0277
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:44 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id v5so15998694wru.4
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8FC6C6B0278
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:46 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id u14so20601064wrr.9
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=iIZ12KmXgTMRqrmPXZq94HRmBBw6/nFl7NjLs7VR6aM=;
-        b=KtVKnTzUVhrU7mx0bbJv5nhQwIXkP6VyRhufvZNSojkBIool0Taa9jwPqR7DogSwRb
-         GUB7fXQdeqeDs//I50TMvVtM9mGDzbjZpaLNvp5eo8zC8BS+HzoFOyh36fVoV/0dfgyg
-         Pw7ZRbJhBT+5/H4JJjw5JaUhFMOCUuJXeIQ1T+9KzZsmD6/tcIzpJkqUOrcwLMX1LYDX
-         AmDHZMTK3CJtdhbEfef094PYVtAuX+w4g/KBJLpeoA4wBehH406DvjAqByQEGkR/xH7R
-         N3zOuqyZ18/pX2B4S2TH9ifoeSiDjQ4vkmoySR6Zs7GU2sydoqtrSTdAka6U0W/4DRK1
-         veVw==
+        bh=Du/uj/cd28Qr7pRRJQwOs0SgQerLJnpQKao5Hutj7cE=;
+        b=KM/z8zaYzFJq0APPoapgMt7STu5G+hMK6mSn207FSVr0AYYes4alGUVypgL4EJIDCw
+         r7fM302UFKjzneg07wfb17Pk70IHS2X9unpAsQw97W4XMD2ouECkgJ2N83UIvxbCx5/K
+         Hm3l2WmUGQeUm1VgWN4sbOREXTfJcX2RsVn0wFp9+wRlFanYuk+XsBNh8XRvc9MP08ts
+         ILJdyBht1xZyDUICK5oP4ACRP+f1ACPlk+zed78h8jVjkIsIcPcHEvJ/ucPDuEf5NuES
+         pEdL5uaudN3iFMXwwNmrupcLAhfNrRkKTQ7n6jb0y47+ntLMjZI3W5nkqd2BKrMoMvSh
+         ZhuQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAVHLaGFv7AwunbkbgrYb7i3wLNmO5cAkO1lJWxsmdYTxXPWOdAV
-	hKMVn3bm1Br3yieirS0WT/GqVv+1VXxr/4gSWnUvbcARKVEL/UJt7KBGikMUpy+wNy10WB7/1Oc
-	niDCM22Vfy+1qAcpihpFNKaNUOWT04avTbBL4YzkU4X5GtkqIfltjLUlVMy3Y/hRoZw==
-X-Received: by 2002:a5d:6352:: with SMTP id b18mr10312368wrw.24.1556186384119;
-        Thu, 25 Apr 2019 02:59:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwNzIQKvx5Wg4AslR95Odf/E5q5/pQyHiOMNJMO4SsLlRLcfU5ow7bY4vT2hgjYr99N63mo
-X-Received: by 2002:a5d:6352:: with SMTP id b18mr10312292wrw.24.1556186382786;
-        Thu, 25 Apr 2019 02:59:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556186382; cv=none;
+X-Gm-Message-State: APjAAAW3Jk4GXK3rVZWRZFvRJOoLIjLUshlL3YGwte9zZjVLZPUJ0ijZ
+	lS3qGYNOAmeE7en8gsqWqq/DDoMZkBk7tfkU/jGaO4lX+TvUb5b9rALwUwKszuSJQKlotqLu6tG
+	r3/Ga327GwGmAodg3JjBhkWtt7cYpgE5xt6GQO+qtO0tcjahG2Hzd+A3R0VvkQiOSkw==
+X-Received: by 2002:a1c:7518:: with SMTP id o24mr2817228wmc.42.1556186386123;
+        Thu, 25 Apr 2019 02:59:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzOI/dLX81SrdhJli7aCsK/ivYD7VXp3uDSYB5IZjCmlMdcyEm4x4d5iu7UU3VXPznvL110
+X-Received: by 2002:a1c:7518:: with SMTP id o24mr2817186wmc.42.1556186385371;
+        Thu, 25 Apr 2019 02:59:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556186385; cv=none;
         d=google.com; s=arc-20160816;
-        b=w3nd5d1MyyJgYo8AI5XBLEImMWBuFt6rURXhaw2y+Ido16zVOn6pHm+o1+oE4PbIlS
-         zdm0NDK6FGR7JF8+WCCZENei65B5ijzAwRYF9cfDf2zXePA7f4nHPY6Od+mEBhvDYiKo
-         9E59/YWpYgtECgSGf7CIW90l3h+XQmhUDMVuQ3yQ/9nrj/vD4oz+s0ZxwHkDPlONaFQj
-         uQNbJPvtQ1oLK7dKrVoFwM5eElb4ASStmrs0FE2Whoh3np6bRzDO936H/gNNpItVYE0u
-         Nyl+wHaLe5iYcy9atQz5XmM5dQVnIavQDqaL+w9RvwHHgc4RzLWxCy1VSUdEciF9EDLI
-         Tzng==
+        b=K8Hqa8QBSu8iJYKNC3iuQcumS+KubUVpslDpP0wczex9Pjj8HvHUUwe/08ySJlLjWy
+         Wc6Hm01ZNRwiDW84oR4lOzpWGvXsMkMgFxE19k3eZyq5jlX9FWbeg/FsGRu8ppxN88ep
+         4+FhMmJZI24clBWusOMCeLd9SS0CykredCn16cHQe2bkhN9FM3BQGBj4XHBbCtzhcyTv
+         jE55kQo21zUypmWXizr3on4ua5UnM0FUwgYb1vk+TH9vUaOOxOgDhNBOO42ibAio+F2M
+         i6AvQwCVOi+Efq+h3IFvHD7tVFapB2IDNpa1zwji8xx98fmPMbY9VXRSltiFT+ZsAtNF
+         cqYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=iIZ12KmXgTMRqrmPXZq94HRmBBw6/nFl7NjLs7VR6aM=;
-        b=FpQPNYeUVe9pYY6Asq+8M3V1mZQeJbav+H+S4xeZi1Dd4Z4PDk5i1h7OFl5S5Us/fU
-         0sMNiIkE6uSm7dWl7W8z7w5uET8usVsDgDkdw2SvHXmbdDBBdjca/mr8/O89fYraugL5
-         A4N6E6bMbprcsvSm7NSMFcaJp02YiLThaIiU3debzEe/gyobv/K6fhDD1iet5P7VbuCA
-         /ZBze0bo6Pe95DJpU8xwubcDFFjUu/siQposLK+7hG5y3b+WeX2um9O6vwYK10N+PNwT
-         juMq9GBZra8PJpxmDHSaTZsrFvaEAoh7UYvIzshxR/pHnztwlFlnPVEmZZtes8PRbewF
-         Tl7g==
+        bh=Du/uj/cd28Qr7pRRJQwOs0SgQerLJnpQKao5Hutj7cE=;
+        b=Jcb/90stK/WizTM0YwCu/OYuNX+Wj6848cS8Sl6CtrNFSEa/c/G/GWmEmjkZi/GhAf
+         cehNi3S8TthKY0VeKlIfKD14EpZB/TODsZNTrcqTr2FfwTLOo3oD4Ulmqx+jlZ0I5dc7
+         hBY2rueuITKfmThva4sxVWp2c1VX9JxY8PYztxSmbEwXndkXf8Y4rMEREv+ZoSdm+VI8
+         K0fRq2jXcyM69yV35jiELQOw9EVuWoU2K0ALuvJI8BcAebsYgJYyjNH6vfg/y24tlbzf
+         jKie62G8bXn45NwWsvSqIy1vbD3h2MMOjhsbcxFy5YEbW1Ih1zlERtJEEiFvLL/WH0bt
+         vhfA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id a8si798242wrr.413.2019.04.25.02.59.42
+        by mx.google.com with ESMTPS id t6si10491435wri.430.2019.04.25.02.59.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Apr 2019 02:59:42 -0700 (PDT)
+        Thu, 25 Apr 2019 02:59:45 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hJbAI-0001yH-Jz; Thu, 25 Apr 2019 11:59:38 +0200
-Message-Id: <20190425094803.340000461@linutronix.de>
+	id 1hJbAK-0001yx-7e; Thu, 25 Apr 2019 11:59:40 +0200
+Message-Id: <20190425094803.437950229@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 25 Apr 2019 11:45:17 +0200
+Date: Thu, 25 Apr 2019 11:45:18 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
- Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
+ Andy Lutomirski <luto@kernel.org>, Miroslav Benes <mbenes@suse.cz>,
+ Steven Rostedt <rostedt@goodmis.org>,
  Alexander Potapenko <glider@google.com>,
  Alexey Dobriyan <adobriyan@gmail.com>,
  Andrew Morton <akpm@linux-foundation.org>,
@@ -108,9 +109,8 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
  Jani Nikula <jani.nikula@linux.intel.com>,
  Rodrigo Vivi <rodrigo.vivi@intel.com>,
- Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
- linux-arch@vger.kernel.org
-Subject: [patch V3 24/29] tracing: Remove the last struct stack_trace usage
+ Tom Zanussi <tom.zanussi@linux.intel.com>, linux-arch@vger.kernel.org
+Subject: [patch V3 25/29] livepatch: Simplify stack trace retrieval
 References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -120,126 +120,71 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Simplify the stack retrieval code by using the storage array based
-interface.
+Replace the indirection through struct stack_trace by using the storage
+array based interfaces.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Acked-by: Miroslav Benes <mbenes@suse.cz>
 ---
- kernel/trace/trace_stack.c |   37 ++++++++++++++++---------------------
- 1 file changed, 16 insertions(+), 21 deletions(-)
+ kernel/livepatch/transition.c |   22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 
---- a/kernel/trace/trace_stack.c
-+++ b/kernel/trace/trace_stack.c
-@@ -23,11 +23,7 @@
- static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES];
- static unsigned stack_trace_index[STACK_TRACE_ENTRIES];
- 
--struct stack_trace stack_trace_max = {
--	.max_entries		= STACK_TRACE_ENTRIES,
--	.entries		= &stack_dump_trace[0],
--};
--
-+static unsigned int stack_trace_entries;
- static unsigned long stack_trace_max_size;
- static arch_spinlock_t stack_trace_max_lock =
- 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
-@@ -44,10 +40,10 @@ static void print_max_stack(void)
- 
- 	pr_emerg("        Depth    Size   Location    (%d entries)\n"
- 			   "        -----    ----   --------\n",
--			   stack_trace_max.nr_entries);
-+			   stack_trace_entries);
- 
--	for (i = 0; i < stack_trace_max.nr_entries; i++) {
--		if (i + 1 == stack_trace_max.nr_entries)
-+	for (i = 0; i < stack_trace_entries; i++) {
-+		if (i + 1 == stack_trace_entries)
- 			size = stack_trace_index[i];
- 		else
- 			size = stack_trace_index[i] - stack_trace_index[i+1];
-@@ -93,13 +89,12 @@ static void check_stack(unsigned long ip
- 
- 	stack_trace_max_size = this_size;
- 
--	stack_trace_max.nr_entries = 0;
--	stack_trace_max.skip = 0;
--
--	save_stack_trace(&stack_trace_max);
-+	stack_trace_entries = stack_trace_save(stack_dump_trace,
-+					       ARRAY_SIZE(stack_dump_trace) - 1,
-+					       0);
- 
- 	/* Skip over the overhead of the stack tracer itself */
--	for (i = 0; i < stack_trace_max.nr_entries; i++) {
-+	for (i = 0; i < stack_trace_entries; i++) {
- 		if (stack_dump_trace[i] == ip)
- 			break;
- 	}
-@@ -108,7 +103,7 @@ static void check_stack(unsigned long ip
- 	 * Some archs may not have the passed in ip in the dump.
- 	 * If that happens, we need to show everything.
- 	 */
--	if (i == stack_trace_max.nr_entries)
-+	if (i == stack_trace_entries)
- 		i = 0;
- 
- 	/*
-@@ -126,13 +121,13 @@ static void check_stack(unsigned long ip
- 	 * loop will only happen once. This code only takes place
- 	 * on a new max, so it is far from a fast path.
- 	 */
--	while (i < stack_trace_max.nr_entries) {
-+	while (i < stack_trace_entries) {
- 		int found = 0;
- 
- 		stack_trace_index[x] = this_size;
- 		p = start;
- 
--		for (; p < top && i < stack_trace_max.nr_entries; p++) {
-+		for (; p < top && i < stack_trace_entries; p++) {
- 			/*
- 			 * The READ_ONCE_NOCHECK is used to let KASAN know that
- 			 * this is not a stack-out-of-bounds error.
-@@ -163,7 +158,7 @@ static void check_stack(unsigned long ip
- 			i++;
- 	}
- 
--	stack_trace_max.nr_entries = x;
-+	stack_trace_entries = x;
- 
- 	if (task_stack_end_corrupted(current)) {
- 		print_max_stack();
-@@ -265,7 +260,7 @@ static void *
+--- a/kernel/livepatch/transition.c
++++ b/kernel/livepatch/transition.c
+@@ -202,15 +202,15 @@ void klp_update_patch_state(struct task_
+  * Determine whether the given stack trace includes any references to a
+  * to-be-patched or to-be-unpatched function.
+  */
+-static int klp_check_stack_func(struct klp_func *func,
+-				struct stack_trace *trace)
++static int klp_check_stack_func(struct klp_func *func, unsigned long *entries,
++				unsigned int nr_entries)
  {
- 	long n = *pos - 1;
+ 	unsigned long func_addr, func_size, address;
+ 	struct klp_ops *ops;
+ 	int i;
  
--	if (n >= stack_trace_max.nr_entries)
-+	if (n >= stack_trace_entries)
- 		return NULL;
+-	for (i = 0; i < trace->nr_entries; i++) {
+-		address = trace->entries[i];
++	for (i = 0; i < nr_entries; i++) {
++		address = entries[i];
  
- 	m->private = (void *)n;
-@@ -329,7 +324,7 @@ static int t_show(struct seq_file *m, vo
- 		seq_printf(m, "        Depth    Size   Location"
- 			   "    (%d entries)\n"
- 			   "        -----    ----   --------\n",
--			   stack_trace_max.nr_entries);
-+			   stack_trace_entries);
+ 		if (klp_target_state == KLP_UNPATCHED) {
+ 			 /*
+@@ -254,29 +254,25 @@ static int klp_check_stack_func(struct k
+ static int klp_check_stack(struct task_struct *task, char *err_buf)
+ {
+ 	static unsigned long entries[MAX_STACK_ENTRIES];
+-	struct stack_trace trace;
+ 	struct klp_object *obj;
+ 	struct klp_func *func;
+-	int ret;
++	int ret, nr_entries;
  
- 		if (!stack_tracer_enabled && !stack_trace_max_size)
- 			print_disabled(m);
-@@ -339,10 +334,10 @@ static int t_show(struct seq_file *m, vo
+-	trace.skip = 0;
+-	trace.nr_entries = 0;
+-	trace.max_entries = MAX_STACK_ENTRIES;
+-	trace.entries = entries;
+-	ret = save_stack_trace_tsk_reliable(task, &trace);
++	ret = stack_trace_save_tsk_reliable(task, entries, ARRAY_SIZE(entries));
+ 	WARN_ON_ONCE(ret == -ENOSYS);
+-	if (ret) {
++	if (ret < 0) {
+ 		snprintf(err_buf, STACK_ERR_BUF_SIZE,
+ 			 "%s: %s:%d has an unreliable stack\n",
+ 			 __func__, task->comm, task->pid);
+ 		return ret;
+ 	}
++	nr_entries = ret;
  
- 	i = *(long *)v;
- 
--	if (i >= stack_trace_max.nr_entries)
-+	if (i >= stack_trace_entries)
- 		return 0;
- 
--	if (i + 1 == stack_trace_max.nr_entries)
-+	if (i + 1 == stack_trace_entries)
- 		size = stack_trace_index[i];
- 	else
- 		size = stack_trace_index[i] - stack_trace_index[i+1];
+ 	klp_for_each_object(klp_transition_patch, obj) {
+ 		if (!obj->patched)
+ 			continue;
+ 		klp_for_each_func(obj, func) {
+-			ret = klp_check_stack_func(func, &trace);
++			ret = klp_check_stack_func(func, entries, nr_entries);
+ 			if (ret) {
+ 				snprintf(err_buf, STACK_ERR_BUF_SIZE,
+ 					 "%s: %s:%d is sleeping on function %s\n",
 
 
