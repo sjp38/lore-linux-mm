@@ -2,217 +2,141 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48FFAC10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 08:05:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9CC7C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 08:09:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F25B217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 08:05:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F25B217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 92D69217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 08:09:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92D69217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B9736B0005; Thu, 25 Apr 2019 04:05:44 -0400 (EDT)
+	id 40E296B0005; Thu, 25 Apr 2019 04:09:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76A536B0006; Thu, 25 Apr 2019 04:05:44 -0400 (EDT)
+	id 395176B0006; Thu, 25 Apr 2019 04:09:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 656CD6B0007; Thu, 25 Apr 2019 04:05:44 -0400 (EDT)
+	id 2374C6B0007; Thu, 25 Apr 2019 04:09:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E9806B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 04:05:44 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id x2so13841116pge.16
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 01:05:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BE46F6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 04:09:39 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f42so11251647edd.0
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 01:09:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=IXDD4yGDXPNkBlxG8ErFca22EuijYJuS/nkJ3gL9njM=;
-        b=eVWwGJG8IJ/rQylTGzOx/bg9pe/95RxM1ZMgglz7OD0D0q+1jj7VLLhZB7QDwHEnya
-         lq9SUFOID9Wxb9Q3cMp7xYM6TgSCglGmpUUvaf2HoPF7AFGt8JPxanhtW30jNa/a3dNz
-         VOHNx2S8kvlZKpkK0gAGPYizlAeeePbOqN7d665mNXKJTIk7HRHrHUM0zr03T4hHvRhf
-         RidsxTYRXhra8A3gTVf4m8LYqz9otl/4zgPjW/MZLBWPAo92Ec3oByDgwkCwHdcLa14o
-         +HjyG9h4dW7JIeKWvrZGnViNpMZPFz1f67QTYzWiWHws2bvSsktnMcu9QRhQgI2meZ4S
-         K7lw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fan.du@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fan.du@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWPcugGTOoWxfKNUT/evQVwOrH1hUEwwpZs2w1PdKvoHXdYV04J
-	FNE62+XUoeTFPGVDJGNguaujnHBJOI23lvwVKVFxNcLGGJ7q9ZQa8MntYhG6SKGS/duvslfU6Rn
-	3yfEMYr577RfVBTILOihSVkt1VhQiyzHjQklugSDYHkTrh+3KZ6GcNhOlnBI2te3akA==
-X-Received: by 2002:a63:2b41:: with SMTP id r62mr35735632pgr.403.1556179543739;
-        Thu, 25 Apr 2019 01:05:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPzsbB/iLf0JkIw2J+l7zGuGG+6TQ3VUFsnOePQ2GTQIeGq+0rH6irj5udFOuW1m0G0Fsy
-X-Received: by 2002:a63:2b41:: with SMTP id r62mr35735568pgr.403.1556179542985;
-        Thu, 25 Apr 2019 01:05:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556179542; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=7gkg/7Xeis9rc+EVTWp9bsr+pgBSXPMB56OaXhmvYhM=;
+        b=q43XyXrggGe1HG+6xy1JMUe0ziXSevNgyOwaS1HTuvlIm9QXCit2kiD44M6XRcbarN
+         8uHkXL9SXOwReC8L6Tv8S4AWcxnMTzS9lAIjDizuw9yPxNtQMw+BOLEBmyOFILaIh4e1
+         H4i/Y242CBDejDMjWz+LKnpd6qgzsu57WO+qLZ1kuU8wdBjWFStH48NApc8Fa/LLctmp
+         b9ibnBo3W/U7M/S7r/RCXTAgL0b2qsnNwPG5ns6PZ8ZvUnweaKn97IbL8Ld4sSsQze0p
+         ABeNMxa7Ze1FNb4qqGI4Ta5pg5Xiqr8Ujh4qgCsaJgpx7bzi+WcfCUlr/lD7QJEa8Fj4
+         W0kQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUOgVYdMlMPia20PYW1b7vZB/yLpeOwaSkpVhCbCfFezKm7ekKz
+	eE+AOupZIjpkncnFoe0Sdw2rq1bd2qLhAP6LzM4e24kwSdXBSXdAnqJfk9V8HGsgwnNEPUjCgtC
+	mtM78Lw6l9iAAaX6c+1ouKwi2WI0uihnmFcOR9RfrPA/XRMiumLEe1/F+9davfNA=
+X-Received: by 2002:a05:6402:6d9:: with SMTP id n25mr23504419edy.288.1556179779136;
+        Thu, 25 Apr 2019 01:09:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9QqGyixH9/+301Z5d2KtV9WhyKaMjBYQzJrLVN9Ew/TdKOiCpjUlBvWKv2lFVuRYprVGm
+X-Received: by 2002:a05:6402:6d9:: with SMTP id n25mr23504385edy.288.1556179778376;
+        Thu, 25 Apr 2019 01:09:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556179778; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zw62ovlqwBEokoAK8ZXX1yJYOABRhKhJBONIiePvQyp8mK1gaVuRBKo47fH2eLlIMd
-         v7Q/tdiAQnXvwa0QBUkwV1VmMKqnoUuL6jMNep7LBI1Wzx4oG0n9/LhwO0VUbX/Kxdg+
-         B+gchNhp9Fzd+jYDiWdoMZyAU9AkuRVgqOe43jY441F9c/4aUoA3yDXLYed8SpmO/Rk/
-         hag7Rp+D2VjlW+Vuptvkg4Pl1THA/Q5EO9fEaSqU0W7TRch+WG8eZFMKSijt0sHUFOtl
-         CVyzbQMiaw+K96q7Rr7WdNcWlyha4mUcERucgydEbJ2t53ItFeGPtF8tDrOD7y1u/IGl
-         jTNQ==
+        b=JW9jPnt6uTN8W7o6d+xgRt6gi/kjJ4oGQ1yTB5vELPS3b7Up9mm3RMNrYy/3ttEEgK
+         cS8h526eZVAUuViUR+O/AIzSp2GqToC8gnq8bjoCSQrSUW53uhKgkc+q0tkXBYpD2w2S
+         hwJxVGmJBc3jxC/LyOgJvmpi8fkiyXdQEoqDSyA0Iq1kkvJJRA8/ujNV5YWr0xZ0Msfz
+         ZalqGZ+sjgcw9egrBZ9AZ4AOijbBPwjI0Rrk8TJoqGXyspVDBOdanSGo/LpmmsarCTJW
+         ufbOXPDoHBhjM22Gdt/biR30IwR1utxCzg8pTSUgjtvqZs8SZBQy/Yrdt7dbMwZWdP5v
+         gKIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=IXDD4yGDXPNkBlxG8ErFca22EuijYJuS/nkJ3gL9njM=;
-        b=O9ieRGtSTEHSGavHKpl6jMxdSArs/iuNnZubSd5JTOymKnVHGM9dFYzjLoVxG1fSOB
-         nPSRhuxB0DdilBy92VEhKVwHjlls8NcAsJHpHRIZI/W36ZCnWj8GoJ77Z8Lcu9dBE/3a
-         yku7utd6Ed9ALU86bd63W/KIDMopU9R5xhWchfCio1HPoN1c4SOT49+6XPjD2XLhAaze
-         BQL7uxv5Ple+eSdhjj0L1Wyeubp0V9OX4q+zKO/eDzd70PrX0y+6pQvVP+8ggQdWw/kC
-         /q4G7UNHY60EABaKoq4neVV5/AF9ToPKAblvhEf1vq1etmmHtiVLEH3/IlN1pAbso7rx
-         nThA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=7gkg/7Xeis9rc+EVTWp9bsr+pgBSXPMB56OaXhmvYhM=;
+        b=ZQI6tyvi6m+FGsMYgCVUfXLmXCeGSy4JmMCkrIlOSt/6pCJZ8gX2nYPmabvkxFySsm
+         4dPJp52TDM0d5NVsZLUkPSNvP2C6SgW/tkG9VRkyFZgqq+WIn19nPxzs7xj4UMAPNb30
+         thMfBHQ9fTFG304F51ZMOHWEcYTwOQlyeOEqqOKlsLO8oL0HzZBRy7KoBkyjFkhBbaOD
+         S0YtHIZc360Cs7zPI+ez1c5ArxVfIQtZJF8+sq2FYZ9Cxjr4SpP8RculXV9xOwSKPg1l
+         mKG5WQp0SyHOuVJn80xXv9CEMWw8dMP/LLJmzhxVMjmUFuTskjp0RrIer9JJt7RAv3OM
+         KKRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id v25si21335254pfe.22.2019.04.25.01.05.42
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s6si2947449eju.160.2019.04.25.01.09.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 01:05:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of fan.du@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Thu, 25 Apr 2019 01:09:38 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Apr 2019 01:05:42 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,393,1549958400"; 
-   d="scan'208";a="145575472"
-Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
-  by orsmga003.jf.intel.com with ESMTP; 25 Apr 2019 01:05:42 -0700
-Received: from fmsmsx115.amr.corp.intel.com (10.18.116.19) by
- FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 25 Apr 2019 01:05:41 -0700
-Received: from shsmsx103.ccr.corp.intel.com (10.239.4.69) by
- fmsmsx115.amr.corp.intel.com (10.18.116.19) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 25 Apr 2019 01:05:41 -0700
-Received: from shsmsx104.ccr.corp.intel.com ([169.254.5.92]) by
- SHSMSX103.ccr.corp.intel.com ([169.254.4.93]) with mapi id 14.03.0415.000;
- Thu, 25 Apr 2019 16:05:39 +0800
-From: "Du, Fan" <fan.du@intel.com>
-To: Michal Hocko <mhocko@kernel.org>
-CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang"
-	<fengguang.wu@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>,
-	"Hansen, Dave" <dave.hansen@intel.com>, "xishi.qiuxishi@alibaba-inc.com"
-	<xishi.qiuxishi@alibaba-inc.com>, "Huang, Ying" <ying.huang@intel.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "Du, Fan" <fan.du@intel.com>
-Subject: RE: [RFC PATCH 0/5] New fallback workflow for heterogeneous memory
- system
-Thread-Topic: [RFC PATCH 0/5] New fallback workflow for heterogeneous memory
- system
-Thread-Index: AQHU+wguqC0/BskpLkaHU1TotE//DKZL5oWAgACMEvD//4lJgIAAhy/Q
-Date: Thu, 25 Apr 2019 08:05:38 +0000
-Message-ID: <5A90DA2E42F8AE43BC4A093BF067884825785F6E@SHSMSX104.ccr.corp.intel.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8E5FCAF58;
+	Thu, 25 Apr 2019 08:09:37 +0000 (UTC)
+Date: Thu, 25 Apr 2019 10:09:36 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: "Du, Fan" <fan.du@intel.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"Wu, Fengguang" <fengguang.wu@intel.com>,
+	"Williams, Dan J" <dan.j.williams@intel.com>,
+	"Hansen, Dave" <dave.hansen@intel.com>,
+	"xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
+	"Huang, Ying" <ying.huang@intel.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
+ ZONELIST_FALLBACK_SAME_TYPE fallback list
+Message-ID: <20190425080936.GP12751@dhcp22.suse.cz>
 References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
- <20190425063727.GJ12751@dhcp22.suse.cz>
- <5A90DA2E42F8AE43BC4A093BF067884825785EE8@SHSMSX104.ccr.corp.intel.com>
- <20190425075353.GO12751@dhcp22.suse.cz>
-In-Reply-To: <20190425075353.GO12751@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiYjQzYjI5MDEtYzA0OC00YjFhLWExZWQtNjI0ZDFlYWYwMGU5IiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiOGxlSk84SDgyWVM3akFtZ2ozbkpSdXh2SlhoaEh1ZmJpaE13cjJCa1wvWlZzNFwvd1NTZlJqRXZlVFdaMTEzS0lGIn0=
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [10.239.127.40]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+ <1556155295-77723-6-git-send-email-fan.du@intel.com>
+ <20190425063807.GK12751@dhcp22.suse.cz>
+ <5A90DA2E42F8AE43BC4A093BF067884825785F04@SHSMSX104.ccr.corp.intel.com>
+ <20190425074841.GN12751@dhcp22.suse.cz>
+ <5A90DA2E42F8AE43BC4A093BF067884825785F50@SHSMSX104.ccr.corp.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5A90DA2E42F8AE43BC4A093BF067884825785F50@SHSMSX104.ccr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu 25-04-19 07:55:58, Du, Fan wrote:
+> >> PMEM is good for frequently read accessed page, e.g. page cache(implicit
+> >> page
+> >> request), or user space data base (explicit page request)
+> >> For now this patch create GFP_SAME_NODE_TYPE for such cases, additional
+> >> Implementation will be followed up.
+> >
+> >Then simply configure that NUMA node as movable and you get these
+> >allocations for any movable allocation. I am not really convinced a new
+> >gfp flag is really justified.
+> 
+> Case 1: frequently write and/or read accessed page deserved to DRAM
 
+NUMA balancing
 
->-----Original Message-----
->From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
->Behalf Of Michal Hocko
->Sent: Thursday, April 25, 2019 3:54 PM
->To: Du, Fan <fan.du@intel.com>
->Cc: akpm@linux-foundation.org; Wu, Fengguang <fengguang.wu@intel.com>;
->Williams, Dan J <dan.j.williams@intel.com>; Hansen, Dave
-><dave.hansen@intel.com>; xishi.qiuxishi@alibaba-inc.com; Huang, Ying
-><ying.huang@intel.com>; linux-mm@kvack.org; linux-kernel@vger.kernel.org
->Subject: Re: [RFC PATCH 0/5] New fallback workflow for heterogeneous
->memory system
->
->On Thu 25-04-19 07:41:40, Du, Fan wrote:
->>
->>
->> >-----Original Message-----
->> >From: Michal Hocko [mailto:mhocko@kernel.org]
->> >Sent: Thursday, April 25, 2019 2:37 PM
->> >To: Du, Fan <fan.du@intel.com>
->> >Cc: akpm@linux-foundation.org; Wu, Fengguang
-><fengguang.wu@intel.com>;
->> >Williams, Dan J <dan.j.williams@intel.com>; Hansen, Dave
->> ><dave.hansen@intel.com>; xishi.qiuxishi@alibaba-inc.com; Huang, Ying
->> ><ying.huang@intel.com>; linux-mm@kvack.org;
->linux-kernel@vger.kernel.org
->> >Subject: Re: [RFC PATCH 0/5] New fallback workflow for heterogeneous
->> >memory system
->> >
->> >On Thu 25-04-19 09:21:30, Fan Du wrote:
->> >[...]
->> >> However PMEM has different characteristics from DRAM,
->> >> the more reasonable or desirable fallback style would be:
->> >> DRAM node 0 -> DRAM node 1 -> PMEM node 2 -> PMEM node 3.
->> >> When DRAM is exhausted, try PMEM then.
->> >
->> >Why and who does care? NUMA is fundamentally about memory nodes
->with
->> >different access characteristics so why is PMEM any special?
->>
->> Michal, thanks for your comments!
->>
->> The "different" lies in the local or remote access, usually the underlyi=
-ng
->> memory is the same type, i.e. DRAM.
->>
->> By "special", PMEM is usually in gigantic capacity than DRAM per dimm,
->> while with different read/write access latency than DRAM.
->
->You are describing a NUMA in general here. Yes access to different NUMA
->nodes has a different read/write latency. But that doesn't make PMEM
->really special from a regular DRAM.=20
+> Case 2: frequently read accessed page deserved to PMEM
 
-Not the numa distance b/w cpu and PMEM node make PMEM different than
-DRAM. The difference lies in the physical layer. The access latency charact=
-eristics
-comes from media level.
+memory reclaim to move those pages to a more distant node (e.g. a PMEM).
 
->There are few other people trying to
->work with PMEM as NUMA nodes and these kind of arguments are repeating
->again and again. So far I haven't really heard much beyond hand waving.
->Please go and read through those discussion so that we do not have to go
->throug the same set of arguments again.
->
->I absolutely do see and understand people want to find a way to use
->their shiny NVIDIMs but please step back and try to think in more
->general terms than PMEM is special and we have to treat it that way.
->We currently have ways to use it as DAX device and a NUMA node then
->focus on how to improve our NUMA handling so that we can get maximum
->out
->of the HW rather than make a PMEM NUMA node a special snow flake.
->
->Thank you.
->
->--
->Michal Hocko
->SUSE Labs
+Btw. none of the above is a static thing you would easily know at the
+allocation time.
+
+Please spare some time reading surrounding discussions - e.g.
+http://lkml.kernel.org/r/1554955019-29472-1-git-send-email-yang.shi@linux.alibaba.com
+-- 
+Michal Hocko
+SUSE Labs
 
