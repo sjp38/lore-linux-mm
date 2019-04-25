@@ -2,231 +2,265 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D20BEC43219
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:31:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F688C4321A
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:37:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 028CF206BF
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:31:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8F9F8206C1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:37:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="OqHCggXL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 028CF206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GHKEYO7H"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F9F8206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3E756B0003; Thu, 25 Apr 2019 13:31:57 -0400 (EDT)
+	id 658806B0003; Thu, 25 Apr 2019 13:37:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEE4F6B0005; Thu, 25 Apr 2019 13:31:57 -0400 (EDT)
+	id 5E1286B0005; Thu, 25 Apr 2019 13:37:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9DC636B0006; Thu, 25 Apr 2019 13:31:57 -0400 (EDT)
+	id 45BF66B0006; Thu, 25 Apr 2019 13:37:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 486466B0003
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 13:31:57 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id g18so487498wrs.17
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 10:31:57 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 080DD6B0003
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 13:37:42 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m35so199705pgl.6
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 10:37:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=LRdmWJDsSG1mH9oOmG3B0hE4NTtss8p86N1SZSmbqRw=;
-        b=UpNGfDpcIXtG5gJ72AoMrApEvfzrTQEYBEEfVd5n6LBEQAe6/V0Ya+r/bPSXbkTCBY
-         lLE/HQpLBl3PN0TTbInkHt6C4ig0y+8Ma5GUd3UdDqE3Wki6J1GRuhdp9ICJO+uzqjw3
-         ejq7ejrCrQibwNCyW2Xg0/J/wv1QZJjfDCA22NfWXycUBAZJ574l3WDbETyoPtzB60GF
-         VX+y1Q6kMZnYsQGi+fSqS/4T2YzhihUmxMZ4aUG+HecpA69Iy/nqjbOFftY+upXRa7IX
-         AyQAFDzgnEUVXqGUCObf9y9Rw3g4ZVkoRDNpInMrxUHmc6UI+PTT2owil1tTMl1CqUBh
-         8SrQ==
-X-Gm-Message-State: APjAAAUkHmi0BTD0LEhotKvV6Xd86E4pqW2OJ7yo3tJqAH5lNiNI1Yj3
-	AigKSDTKW/wIoxJ4pms5dqiT7wFn3Opxy++p20wV++RQUYr1vivbF3Jgp/8SU5NHWNUowYEVBDn
-	ZNMWd9uQNxGPeLywpxCgoaS2gPylMS9if41wWR/cvT/Rn1ws8LtKpG2+RKQITRahh2g==
-X-Received: by 2002:a05:6000:1242:: with SMTP id j2mr5933034wrx.274.1556213516526;
-        Thu, 25 Apr 2019 10:31:56 -0700 (PDT)
-X-Received: by 2002:a05:6000:1242:: with SMTP id j2mr5932974wrx.274.1556213515275;
-        Thu, 25 Apr 2019 10:31:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556213515; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=raW0oogZ5EfoBzQqtBVYoEmvtzxY1VisvL2Lbh5qQDQ=;
+        b=l1CJmecpdp42svMZiBOHepn9UM6cMTtukX/fYRscdzuYfJ9HUWXSAfvUwD13EdtVFA
+         pADXqJn2FbRRf3gMrHcI0l/TOiXrdvBsSDRqGno02EN9pze4Bs7kArBa6rxlHZ2KA/nc
+         wZNjIOaulSuRsqHucMb3KG85sC4KdicQK6iblcs+SxOzJHcz7fV3peXSprADiv51ioe2
+         VsR4A0ihwpW0XmDkjREIDkgtvbDRs6lq4K1jqgO3JI4ThBJ7DgdpJYbiyFSx8PNPEI1H
+         NAVSTbSwVVXdAN6WSRLNogBOnUoxIfVqQW9N9kw7MlabQhMjuRUoPw+pOnJq1Qq1kYs4
+         yBnA==
+X-Gm-Message-State: APjAAAXWrrOfsg89vOlopGhaUEDVvj0/OBu2R1IFNB6QpiLwzyK53LFa
+	jrnqwKdaDZ2TZovH5VuFj3RZEJBhceckZgZKe+QwH5MBo/ZgyJPUKEwBfYu0b4bUj9jRldTQb2B
+	nOmuU4HOYYcISJuAB/R5kVngfOT2s9r39AJijEzCFCdWZem1VZb++Oy/Wp/UvVpIByA==
+X-Received: by 2002:a63:4b20:: with SMTP id y32mr38719958pga.244.1556213861511;
+        Thu, 25 Apr 2019 10:37:41 -0700 (PDT)
+X-Received: by 2002:a63:4b20:: with SMTP id y32mr38719882pga.244.1556213860630;
+        Thu, 25 Apr 2019 10:37:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556213860; cv=none;
         d=google.com; s=arc-20160816;
-        b=qhXs9LL91lRDJw+JBFs0jQuvrKtIKWk/be4L613Jc0xpFb2ADPIMTNRchn6K0yFrJv
-         sM0woOZpqyLlUm/4+/wCWr8VP8zUy6NxH78hmGd8ebt8oE/ivJ05/kdfBNJkR+GKSIsN
-         SDl0sSY2lL1heds/zm00yxLXa7k+ZgPD2WDXbaL/nFpbudojs63b26L351TxeFtvJVAY
-         atConR9uFBq5rMlgKX86PEwpZ7QRI9r5741SuXTvdV6XWtNCQUW4fiesj33Zm/McmVev
-         O52muDItE4XvLWv4heImaCHeunpQZA5U+AwisZz40uK0BbKqggQsnJRO0Z00fJpbxz9j
-         AUJw==
+        b=y/91RwW5JOt4HfyNT7QCmZjXcsC3MqV6C/tP8NrjmLvm/TN0F6grW3UPPpvIsVUO6O
+         KORoetmizTFWgWWqG9AohnN7L+lxq7xLlce4lLRvyQWj3rCUjHiZ1Nf58KG1LWTLUOtE
+         0b7LamrJJ6QtYiRiVwbF9+H/mY03oQTjZ6tvrb17icRRLa3JRaBItubU+qEvsusMWlLE
+         Tgq1hyh7JMQAq1SZfBvNShXEDgZ3mTX1PWbWTB6BZ3Df2wBN5U3tGnRLcSbDxLUz01gr
+         ZRrJFW/iUpRvfpC11S0nZ8Vdy9Td3n5KzaXMxNzZ9ZMK3X5ZTv/tWDvHJH+1KvjvQtQg
+         rI5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=LRdmWJDsSG1mH9oOmG3B0hE4NTtss8p86N1SZSmbqRw=;
-        b=xtiqr9XK622hgOkYv9p3AQ/gFECbfF5s+X+5YBPrKEMg/QrpmxGJOFNG/2CTm55RUG
-         1lJ8DSOYE2+WXOYWNaU4LBC0tUdXKnQ+tYD5lOZS5yZbQFA3IgiFg9LvFM2Wn9XAjZRe
-         jV+9YRGOQzpOJYkwmdr29298bANIGXCJ9p/bCwfAqO0bOVdpgFVGyHyF/oFD/zcLsQIf
-         jAxy1pl/FTkKYhbvTAQcVJ/PQaPJ5T4Jokg4I/YapqAjF4sdckRkJITEnA1zrZvY+HnQ
-         KTflogZb/plddPJvogDy8xScaSz9ouo6g7KcwC0lTzEKZabGOqG8SBPDzZZnGG8UIK4+
-         Bo4g==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=raW0oogZ5EfoBzQqtBVYoEmvtzxY1VisvL2Lbh5qQDQ=;
+        b=QaY0MH3XQYSLr/ORjSI+hGWkf+I+xoTMVQStINS0v25piWBmSQSoL8ao3MP+wUnESr
+         3Pr7O3Vs9GQLf2RZRoufWmAnjy/kCH6lMtaMJeUEHvIPvljuTFFTOM/1GVmZSm8F+P0o
+         O1Pedzn7UYMQSgm2dEqIpjcKoC2grE6Kgw6sL4l0ReWbSnvdvQGS3BLA+frgQemP7jdw
+         EnjmNcPefpOEK7gJFwJ9baMxQs+shbdMgYIndcoatMBm+LMAubnoEaHldsroKu7vIMmN
+         16p3zCiV+L63zRJinar1Ci/0+TyN49iymd8fzyJjdqLy7zCvCeTXub2wYbmbiI6jFt5V
+         GNyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=OqHCggXL;
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GHKEYO7H;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f187sor9773418wme.18.2019.04.25.10.31.55
+        by mx.google.com with SMTPS id 186sor26208558pff.48.2019.04.25.10.37.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 25 Apr 2019 10:31:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 25 Apr 2019 10:37:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=OqHCggXL;
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GHKEYO7H;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=LRdmWJDsSG1mH9oOmG3B0hE4NTtss8p86N1SZSmbqRw=;
-        b=OqHCggXLWkWK1r+i5DT0AzuoThvi9oEvSsIPEqCVFhk8sNuabDiGSmU6ckNAmL38o7
-         dHg+MO4X/zge04tQVHwJIVrsOMhnybIcOmzbZ0xpMTFAu10r/jkeOrG07GEGeDqDoAIf
-         z0Tq+XlsMt8xpWUPVS15of2maH727ld5o8Rk56nluIcqCZgOrRWDgcDkmhdEiU7QxBXE
-         0RP+O36Il3IASCld40ZdsuvGBn3xYotjlBj0XQ+0i2zBSjVq9QOhxtJRf6e5HvGgr3Gy
-         vnWYNFC9fn9cKv54d/kIncV1SsOnYNiLrLumFaMqj6tUMVI/86cXkN3BY8d3+EF8Va6Y
-         ocag==
-X-Google-Smtp-Source: APXvYqz6wqcuA3aMH0WchKbaDYRwTCOmRdBM1kTmPVhuXJ9Xn87LMTXGNdMPQzp7FyXuH352H6ebF1dsbumW7vzYD20=
-X-Received: by 2002:a1c:5459:: with SMTP id p25mr4394437wmi.20.1556213514291;
- Thu, 25 Apr 2019 10:31:54 -0700 (PDT)
-MIME-Version: 1.0
-References: <CAA25o9TV7B5Cej_=snuBcBnNFpfixBEQduTwQZOH0fh5iyXd=A@mail.gmail.com>
- <CAJuCfpHGcDM8c19g_AxWa4FSx++YbTSE70CGW4TiKvrdAg3R+w@mail.gmail.com>
- <CAA25o9Rzcqts7oCpwyRq2yBALkHQVwgzgFDVYv08Z0UUhY+qhw@mail.gmail.com> <CAJuCfpHMEVHYpodjsote2Gp0y_G1=Hi66xzdhXfOgtcMMiiL9g@mail.gmail.com>
-In-Reply-To: <CAJuCfpHMEVHYpodjsote2Gp0y_G1=Hi66xzdhXfOgtcMMiiL9g@mail.gmail.com>
-From: Luigi Semenzato <semenzato@google.com>
-Date: Thu, 25 Apr 2019 10:31:40 -0700
-Message-ID: <CAA25o9Qc6A_v_ehDDen_AyDJHNR4ymEAvpoqCbvWzWzp0caUYA@mail.gmail.com>
-Subject: Re: PSI vs. CPU overhead for client computing
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=raW0oogZ5EfoBzQqtBVYoEmvtzxY1VisvL2Lbh5qQDQ=;
+        b=GHKEYO7Hfz3LD3x/OJtBtYafcNSP/eBGEq8b9UEohZ9A9EqBhU748ryEYgrRj1nPBx
+         vavnGtoV21bO3swFep50I8HLbGnU5+U3B81339HhBERUhShBzIjMW/vuUJ78YrgnnM1n
+         o3diHuAMm1etRfzo5V3W4ysJcEeQ1Vf953S5EWWqJQQ0a+IGl6ALKbqH7+OuANIvjKm1
+         zzxsb5TTLJWFYIjADFbHOZsMdnWSy69x+xBHmXfcFE2gtRKisKjx3oU0IR5sNGlYwLc2
+         BnACN1D7n757knfMqHlWoJNozKXC6/PZmo6sjS/NqY7zxcWMOm4pxzVK3FYjEwl4i42v
+         fSqw==
+X-Google-Smtp-Source: APXvYqxxCV+yXEWx+CQIRWWY23uYyNk79Hmhkp2bBTz26LTpZKzM5snNCcv7HqoRrFxgafIhMhGIew==
+X-Received: by 2002:a62:e304:: with SMTP id g4mr17979717pfh.71.1556213859361;
+        Thu, 25 Apr 2019 10:37:39 -0700 (PDT)
+Received: from [10.2.189.129] ([66.170.99.2])
+        by smtp.gmail.com with ESMTPSA id s9sm30512271pfe.183.2019.04.25.10.37.37
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Apr 2019 10:37:38 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.8\))
+Subject: Re: [PATCH v4 03/23] x86/mm: Introduce temporary mm structs
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190425162620.GA5199@zn.tnic>
+Date: Thu, 25 Apr 2019 10:37:35 -0700
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ Ingo Molnar <mingo@redhat.com>,
+ LKML <linux-kernel@vger.kernel.org>,
+ X86 ML <x86@kernel.org>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Damian Tometzki <linux_dti@icloud.com>,
+ linux-integrity <linux-integrity@vger.kernel.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Will Deacon <will.deacon@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Kristen Carlson Accardi <kristen@linux.intel.com>,
+ "Dock, Deneen T" <deneen.t.dock@intel.com>,
+ Kees Cook <keescook@chromium.org>,
+ Dave Hansen <dave.hansen@intel.com>,
+ Borislav Petkov <bp@alien8.de>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <B7809434-CEBE-4664-ACE7-BA2412163CC4@gmail.com>
+References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
+ <20190422185805.1169-4-rick.p.edgecombe@intel.com>
+ <20190425162620.GA5199@zn.tnic>
+To: Andy Lutomirski <luto@kernel.org>
+X-Mailer: Apple Mail (2.3445.104.8)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Thank you, I can try to do that.
+> On Apr 25, 2019, at 9:26 AM, Borislav Petkov <bp@alien8.de> wrote:
+>=20
+> On Mon, Apr 22, 2019 at 11:57:45AM -0700, Rick Edgecombe wrote:
+>> From: Andy Lutomirski <luto@kernel.org>
+>>=20
+>> Using a dedicated page-table for temporary PTEs prevents other cores
+>> from using - even speculatively - these PTEs, thereby providing two
+>> benefits:
+>>=20
+>> (1) Security hardening: an attacker that gains kernel memory writing
+>> abilities cannot easily overwrite sensitive data.
+>>=20
+>> (2) Avoiding TLB shootdowns: the PTEs do not need to be flushed in
+>> remote page-tables.
+>>=20
+>> To do so a temporary mm_struct can be used. Mappings which are =
+private
+>> for this mm can be set in the userspace part of the address-space.
+>> During the whole time in which the temporary mm is loaded, interrupts
+>> must be disabled.
+>>=20
+>> The first use-case for temporary mm struct, which will follow, is for
+>> poking the kernel text.
+>>=20
+>> [ Commit message was written by Nadav Amit ]
+>>=20
+>> Cc: Kees Cook <keescook@chromium.org>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>> Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+>> Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
+>> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+>> Signed-off-by: Nadav Amit <namit@vmware.com>
+>> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+>> ---
+>> arch/x86/include/asm/mmu_context.h | 33 =
+++++++++++++++++++++++++++++++
+>> 1 file changed, 33 insertions(+)
+>>=20
+>> diff --git a/arch/x86/include/asm/mmu_context.h =
+b/arch/x86/include/asm/mmu_context.h
+>> index 19d18fae6ec6..d684b954f3c0 100644
+>> --- a/arch/x86/include/asm/mmu_context.h
+>> +++ b/arch/x86/include/asm/mmu_context.h
+>> @@ -356,4 +356,37 @@ static inline unsigned long =
+__get_current_cr3_fast(void)
+>> 	return cr3;
+>> }
+>>=20
+>> +typedef struct {
+>> +	struct mm_struct *prev;
+>> +} temp_mm_state_t;
+>> +
+>> +/*
+>> + * Using a temporary mm allows to set temporary mappings that are =
+not accessible
+>> + * by other cores. Such mappings are needed to perform sensitive =
+memory writes
+>=20
+> s/cores/CPUs/g
+>=20
+> Yeah, the concept of a thread of execution we call a CPU in the =
+kernel,
+> I'd say. No matter if it is one of the hyperthreads or a single thread
+> in core.
+>=20
+>> + * that override the kernel memory protections (e.g., W^X), without =
+exposing the
+>> + * temporary page-table mappings that are required for these write =
+operations to
+>> + * other cores.
+>=20
+> Ditto.
+>=20
+>> Using temporary mm also allows to avoid TLB shootdowns when the
+>=20
+> Using a ..
+>=20
+>> + * mapping is torn down.
+>> + *
+>=20
+> Nice commenting.
+>=20
+>> + * Context: The temporary mm needs to be used exclusively by a =
+single core. To
+>> + *          harden security IRQs must be disabled while the =
+temporary mm is
+> 			      ^
+> 			      ,
+>=20
+>> + *          loaded, thereby preventing interrupt handler bugs from =
+overriding
+>> + *          the kernel memory protection.
+>> + */
+>> +static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
+>> +{
+>> +	temp_mm_state_t state;
+>> +
+>> +	lockdep_assert_irqs_disabled();
+>> +	state.prev =3D this_cpu_read(cpu_tlbstate.loaded_mm);
+>> +	switch_mm_irqs_off(NULL, mm, current);
+>> +	return state;
+>> +}
+>> +
+>> +static inline void unuse_temporary_mm(temp_mm_state_t prev)
+>> +{
+>> +	lockdep_assert_irqs_disabled();
+>> +	switch_mm_irqs_off(NULL, prev.prev, current);
+>=20
+> I think this code would be more readable if you call that
+> temp_mm_state_t variable "temp_state" and the mm_struct pointer "mm" =
+and
+> then you have:
+>=20
+> 	switch_mm_irqs_off(NULL, temp_state.mm, current);
+>=20
+> And above you'll have:
+>=20
+> 	temp_state.mm =3D ...
 
-It's not trivial to get right though.  I have to find the right
-compromise.  A horribly wrong patch won't be taken seriously, but a
-completely correct one would be a bit too much work, given the
-probability that it will get rejected.
-
-Thanks also to Johannes for the clarification!
-
-On Wed, Apr 24, 2019 at 7:49 AM Suren Baghdasaryan <surenb@google.com> wrote:
->
-> On Tue, Apr 23, 2019 at 9:54 PM Luigi Semenzato <semenzato@google.com> wrote:
-> >
-> > Thank you very much Suren.
-> >
-> > On Tue, Apr 23, 2019 at 3:04 PM Suren Baghdasaryan <surenb@google.com> wrote:
-> > >
-> > > Hi Luigi,
-> > >
-> > > On Tue, Apr 23, 2019 at 11:58 AM Luigi Semenzato <semenzato@google.com> wrote:
-> > > >
-> > > > I and others are working on improving system behavior under memory
-> > > > pressure on Chrome OS.  We use zram, which swaps to a
-> > > > statically-configured compressed RAM disk.  One challenge that we have
-> > > > is that the footprint of our workloads is highly variable.  With zram,
-> > > > we have to set the size of the swap partition at boot time.  When the
-> > > > (logical) swap partition is full, we're left with some amount of RAM
-> > > > usable by file and anonymous pages (we can ignore the rest).  We don't
-> > > > get to control this amount dynamically.  Thus if the workload fits
-> > > > nicely in it, everything works well.  If it doesn't, then the rate of
-> > > > anonymous page faults can be quite high, causing large CPU overhead
-> > > > for compression/decompression (as well as for other parts of the MM).
-> > > >
-> > > > In Chrome OS and Android, we have the luxury that we can reduce
-> > > > pressure by terminating processes (tab discard in Chrome OS, app kill
-> > > > in Android---which incidentally also runs in parallel with Chrome OS
-> > > > on some chromebooks).  To help decide when to reduce pressure, we
-> > > > would like to have a reliable and device-independent measure of MM CPU
-> > > > overhead.  I have looked into PSI and have a few questions.  I am also
-> > > > looking for alternative suggestions.
-> > > >
-> > > > PSI measures the times spent when some and all tasks are blocked by
-> > > > memory allocation.  In some experiments, this doesn't seem to
-> > > > correlate too well with CPU overhead (which instead correlates fairly
-> > > > well with page fault rates).  Could this be because it includes
-> > > > pressure from file page faults?
-> > >
-> > > This might be caused by thrashing (see:
-> > > https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1114).
-> > >
-> > > >  Is there some way of interpreting PSI
-> > > > numbers so that the pressure from file pages is ignored?
-> > >
-> > > I don't think so but I might be wrong. Notice here
-> > > https://elixir.bootlin.com/linux/v5.1-rc6/source/mm/filemap.c#L1111
-> > > you could probably use delayacct to distinguish file thrashing,
-> > > however remember that PSI takes into account the number of CPUs and
-> > > the number of currently non-idle tasks in its pressure calculations,
-> > > so the raw delay numbers might not be very useful here.
-> >
-> > OK.
-> >
-> > > > What is the purpose of "some" and "full" in the PSI measurements?  The
-> > > > chrome browser is a multi-process app and there is a lot of IPC.  When
-> > > > process A is blocked on memory allocation, it cannot respond to IPC
-> > > > from process B, thus effectively both processes are blocked on
-> > > > allocation, but we don't see that.
-> > >
-> > > I don't think PSI would account such an indirect stall when A is
-> > > waiting for B and B is blocked on memory access. B's stall will be
-> > > accounted for but I don't think A's blocked time will go into PSI
-> > > calculations. The process inter-dependencies are probably out of scope
-> > > for PSI.
-> >
-> > Right, that's what I was also saying.  It would be near impossible to
-> > figure it out.  It may also be that statistically it doesn't matter,
-> > as long as the workload characteristics don't change dramatically.
-> > Which unfortunately they might...
-> >
-> > > > Also, there are situations in
-> > > > which some "uninteresting" process keep running.  So it's not clear we
-> > > > can rely on "full".  Or maybe I am misunderstanding?  "Some" may be a
-> > > > better measure, but again it doesn't measure indirect blockage.
-> > >
-> > > Johannes explains the SOME and FULL calculations here:
-> > > https://elixir.bootlin.com/linux/v5.1-rc6/source/kernel/sched/psi.c#L76
-> > > and includes couple examples with the last one showing FULL>0 and some
-> > > tasks still running.
-> >
-> > Thank you, yes, those are good explanation.  I am still not sure how
-> > to use this in our case.
-> >
-> > I thought about using the page fault rate as a proxy for the
-> > allocation overhead.  Unfortunately it is difficult to figure out the
-> > baseline, because: 1. it is device-dependent (that's not
-> > insurmountable: we could compute a per-device baseline offline); 2.
-> > the CPUs can go in and out of turbo mode, or temperature-throttling,
-> > and the notion of a constant "baseline" fails miserably.
-> >
-> > > > The kernel contains various cpustat measurements, including some
-> > > > slightly esoteric ones such as CPUTIME_GUEST and CPUTIME_GUEST_NICE.
-> > > > Would adding a CPUTIME_MEM be out of the question?
-> >
-> > Any opinion on CPUTIME_MEM?
->
-> I guess some description of how you plan to calculate it would be
-> helpful. A simple raw delay counter might not be very useful, that's
-> why PSI performs more elaborate calculations.
-> Maybe posting a small RFC patch with code would get more attention and
-> you can collect more feedback.
->
-> > Thanks again!
-> >
-> > > > Thanks!
-> > > >
-> > >
-> > > Just my 2 cents and Johannes being the author might have more to say here.
+Andy, please let me know whether you are fine with this change and =
+I=E2=80=99ll
+incorporate it.=
 
