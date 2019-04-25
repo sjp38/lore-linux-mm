@@ -2,139 +2,143 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94115C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:57:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2C44C4321A
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 18:17:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10287206BF
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 17:57:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 27994206C0
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 18:17:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="S8gasJAV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10287206BF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="a2ZfRHVi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27994206C0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0570B6B0003; Thu, 25 Apr 2019 13:57:39 -0400 (EDT)
+	id 046FF6B0003; Thu, 25 Apr 2019 14:17:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 006336B0005; Thu, 25 Apr 2019 13:57:38 -0400 (EDT)
+	id 01D956B0005; Thu, 25 Apr 2019 14:17:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E11806B0006; Thu, 25 Apr 2019 13:57:38 -0400 (EDT)
+	id E60136B0006; Thu, 25 Apr 2019 14:17:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AD396B0003
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 13:57:38 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x21so143022edx.23
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 10:57:38 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBA86B0003
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:17:54 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a3so437421pfi.17
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 11:17:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=/lfFoLZ1bSmGmdUbBHFXNJ+M6oegr5l9R4TFlcxu7Mw=;
-        b=keK69tov1z12At0tisP3etuxcmORpOSscGZeCHF4svghi6khkRGPwBXgLgAy0wkU0T
-         zPRDTSfLX5Wg73+coNZwGyQF+eWFRIx3D8FCxdpuYDU958c6gb6lqTA7koaZsZAv5a+g
-         GcZwDfmEUmJ9JbJRG1r2wuJfLYrhqiypR2pIox2ZtomH/BK/Yr3Zrlcql1210bhRqI7D
-         RwOvqsuKXfS3jfNY4Wz6yAtZXOPDhi6FBTgN3ZaM1TFLrebwr+5bEpljjg9t9qhLc/RO
-         C2/CTSQZI4lCKKpc7J3MIxgCWDCaoVUWB2OpQo5d9Pp/MUgWeLVEMkxDFo2/8pUwCKPX
-         i7Xg==
-X-Gm-Message-State: APjAAAXMr7TVRrr74Vrel44CsjMlz3x909ST3P1XSi4bINCkAg1YOfAE
-	ODL/mtIKdFA5Rp3LL1a9d9Rf3M1RBB7dpgCs+wyMOMzDGxk/cW+kI9Y0ClqWW2TYcf++/j08DE2
-	XNXvMYOCQIpwgTSGBJ41Bfpj0Ekp0HeQBMxrjDWIANJx2PKGSSD8on8f+h0e+99aL+w==
-X-Received: by 2002:a17:906:25ce:: with SMTP id n14mr20498532ejb.115.1556215058018;
-        Thu, 25 Apr 2019 10:57:38 -0700 (PDT)
-X-Received: by 2002:a17:906:25ce:: with SMTP id n14mr20498499ejb.115.1556215057179;
-        Thu, 25 Apr 2019 10:57:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556215057; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=tRoNJ8c4cbN57uzpVjJsLti1b65Ha0XS4q1OKT5SUhc=;
+        b=axlaaLx27vmmwj8tA/WWkrVE0dNHrDAdRRob/vMIQTcT7GbABLmYFsUs7XikltKrvJ
+         BLylsFsqy171zswRV6ju8Aa37W57ewolYHWsyXAvM5D9sFBEovrRJkhMbyQF49qzVjjD
+         IvbxpQAsUwRo9YKnRK5XZ4xc7sw4V8ltGg8oHDtNafhezf3Y30Fgxy9+uMsQcwqjPxLY
+         HoEr/wVSl1QsAiDrcSfR8oolUVeZbBkFpH4OVUilW8HVrXOZ9eMN9WejdxYM36G+2XEj
+         pQ0S0S8dBCcTqghSbDpHrqJTbogqOBO9wv8GNZtkIAN0tBaWlAPBuxmqNvmXmP57Z5Sw
+         dGWA==
+X-Gm-Message-State: APjAAAVzY+gdot1ahbllqDde34FYCZQyFZKFD1l/KZCnW9LH8rCx7W/M
+	OoZDYHvmY0+Y89XnmVzYA9TI1Xv61vpjYtzstbCk1vLQAhon1ZZtv/Pwrv15i+Yf2LRW/ZFT6b4
+	YltqNT4BRcNvQzTBVKk2S+O3PyihM4fvwU4XnG9Ss7o/UVfmqbbO93ctdvOn8SQODeA==
+X-Received: by 2002:a17:902:801:: with SMTP id 1mr39164243plk.14.1556216274106;
+        Thu, 25 Apr 2019 11:17:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhmzf8eW6+WVOUiOl9Dpg1HQO2jfnqqX8g2GOkdKLBckrEwEwPHvinWTOWNDmn+jQhm5OR
+X-Received: by 2002:a17:902:801:: with SMTP id 1mr39164166plk.14.1556216273371;
+        Thu, 25 Apr 2019 11:17:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556216273; cv=none;
         d=google.com; s=arc-20160816;
-        b=cKb9dujUn6k0erJ7SaJagDLmLOuGiou2iIxSRNJpvVhV+SmrLzFhKJHs/4Ie88AJ0V
-         AswhVFeTh9DW726btzoCar+PU39kSFWI3cSufpY1bUrDy9FdkjFvqf4q7btFDnrdZQT5
-         aflkY86ULy4LEiGfGtnlyq2xMeRXfzeVKknwJWt3NxTW0j+gYhxUkduLUv9QrU9mu/y9
-         BUCh9ycYjj7YTMpwxRVafdLO/3eUOMOeJQFXcy8nllq7vzCl7u37jnn4qX9IqAX9jgDZ
-         vwcanY/4wdqcCdQRi9IjL5kXhq1WA7J8vSE76jvI8Fvf4jS28VxYXv4DfwZqrUlQUgUg
-         +6rA==
+        b=D1KlTOUSpEOKUFUCIBvsCYxKayS7Bh428LXJSPloztfT/0UoRwWxdy4K1GwGMyoYJw
+         tKaW3uGNOapzAIubHkKSYkyNZIJS1RkqHYqnPUkFqB4b7aW5laPEf1m9UFntmuaUMSkr
+         AceoZmt/Dsxq4lv3fj1YGQ8BU6C+GLpqgmtUcnMNyk+rekRMJFa2MWZz//cKZ+bNQsxw
+         neT7FT7b6ltSlHw+VEAh25V9cxhv2zACOuSz/xr64mC7au3X4NfIaJzOxrUwo5SdBGDE
+         5m/pEP620xrBfI9ZlEYLG5RMc/yqUkjH9VP0YHuGw13JJ40/ZjMEDqNwyY2Z+abZ/0nJ
+         UxVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=/lfFoLZ1bSmGmdUbBHFXNJ+M6oegr5l9R4TFlcxu7Mw=;
-        b=B7nBF6Xgc8timlxw/DHUdAtMnL2yFiw17g84Fb6GxpwUe0Ni/QPXaX1ijxf6IxVut8
-         /rI12vCIm2tUn2SCKFbNLsoTTt9n69XOE2eVqJDKj6wFrlZAnTtYuJQBVKLPPEskiNaN
-         fncT4EEWwsH286LKchJ2YbOUJrXtz+LIyxsjdzEKr3egkhGboIaLPyJ7pn8+evXC8aNa
-         0JsPU3AZR2iHoPkkxWFHDAP/xWYdPsJ8uT1U53Xot66t57tbmdegLNXfMJETK4uowcDI
-         YYPJtj0d9veDuWdAi743h0KSzNzkdv7DoQDpcnOqKG6dnPfDwhxIKLFS0+6gb7Q6zk+0
-         pmRA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=tRoNJ8c4cbN57uzpVjJsLti1b65Ha0XS4q1OKT5SUhc=;
+        b=r2vUo9fpBlwwO9ycQp/G2bfGDaJOZ3tvvYY6xSaflu6SBYIIR8ktWzGnHPt7Mw1oLN
+         CAKEoxrHgBjQC/9hK/nR3XETWDMMabewqfLLdO2rbvjsmUG6A8wgt2ijtdt8Z8z3GUCm
+         skya74OT6sfc1q+1lbUIUgdyc1CKftCkk4LuAZKYO1NuIYjiDAeO4SlhFOW5QCX8dUDk
+         dkwZyxdMz6sT5pZ4ojeQAZpS580hH8LUSHu1243+7sTbGBomABdBvnAA5M9xdrZmwnQV
+         Q7Hz6FBfj9kBkfMzUTUHz+1h+uFef7pR2d/wTzYtdMYhRW/PODu1BE6GxclvWdyJJfcW
+         ACHA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=S8gasJAV;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m19sor5165224ejd.6.2019.04.25.10.57.37
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=a2ZfRHVi;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h69si23590535pfc.100.2019.04.25.11.17.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Apr 2019 10:57:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 25 Apr 2019 11:17:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=S8gasJAV;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=/lfFoLZ1bSmGmdUbBHFXNJ+M6oegr5l9R4TFlcxu7Mw=;
-        b=S8gasJAVn+ZWmiT/2uWvL9vkKwOoktSsgWDJ2pt28Jwb8U3hd4RYZILlgs1ZJSbb32
-         E8pkwIX2WZ5U7s0jN5OFpHJANArcLfSTG2WfhU0d/yE03quAyfTD+ozv8EsylrGARl0T
-         Q47fyZiS5Uwz5G+0wsjfnj+2u2oPWY05lYUanIDY7LgNL4FubQm9/F7oW4oEqNThrg84
-         gLONpjU+mkfLCeD5a8uQeIbLsAUPMjwvrtbFH/bnTAbaqEuYWZAP012PG9WJeaoH5kLo
-         K72nQU2oKXRez7H4b59QLM2pnJhyW8VIp8FGqSBLbgfBlnZF9Iex1qPjic/qyWHcnHbT
-         3/XQ==
-X-Google-Smtp-Source: APXvYqw1cnJsUKvmbES+9b09tCQYh+M//QuIDsABsPOCGjahHfAnSjITfrASIQUqNSCPM/SZxSQ7kryctJSAM+dJY2g=
-X-Received: by 2002:a17:906:944b:: with SMTP id z11mr3858668ejx.151.1556215056839;
- Thu, 25 Apr 2019 10:57:36 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=a2ZfRHVi;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=tRoNJ8c4cbN57uzpVjJsLti1b65Ha0XS4q1OKT5SUhc=; b=a2ZfRHViaari4YLFzrqFZ4Xcv
+	pPtn0t/Ikwnz+zDeTwk5ZwWrGRVlT58S1XUXFSR8UgdTWRWewHdmfi4Subbyk8BKZwyNIG9unYqRE
+	ALVHeVhS1e7uwc9LiONexeLx6a1SPYdmNRcLVe9GKIvDolsrpFXatNsNNIdTw21e/BJU5Dzhgy5ka
+	2lkgXtDWh8vQ0B1s4dKgSvZ/lZT23l0RSn0J3QDJjFMaHw2aIPTeZ+Ug3Pe6X1dqSAuPRxjAc55Yb
+	zKoCB0V6hKaeSVzY626itIKuX52IEH2PzF9nn3cwyYwucKNtPk/jTGTHqzLOiQgxvd7UEy1pISpqQ
+	iPcq7BOgw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hJiwK-0008P9-UW; Thu, 25 Apr 2019 18:17:45 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id E5895203C072C; Thu, 25 Apr 2019 20:17:42 +0200 (CEST)
+Date: Thu, 25 Apr 2019 20:17:42 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>, linux_dti@icloud.com,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	will.deacon@arm.com, ard.biesheuvel@linaro.org,
+	kristen@linux.intel.com, deneen.t.dock@intel.com,
+	Nadav Amit <namit@vmware.com>
+Subject: Re: [PATCH v4 04/23] x86/mm: Save DRs when loading a temporary mm
+Message-ID: <20190425181742.GZ11158@hirez.programming.kicks-ass.net>
+References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
+ <20190422185805.1169-5-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-References: <20190423203843.2898-1-pasha.tatashin@soleen.com>
- <20190425152550.GY12751@dhcp22.suse.cz> <20190425153138.GC25193@fuggles.cambridge.arm.com>
- <20190425154156.GZ12751@dhcp22.suse.cz>
-In-Reply-To: <20190425154156.GZ12751@dhcp22.suse.cz>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 25 Apr 2019 13:57:25 -0400
-Message-ID: <CA+CK2bDLkSTdrYx+zth9=EJxigQR1-nMt52avt7-NpguAWwoVw@mail.gmail.com>
-Subject: Re: [PATCH] arm64: configurable sparsemem section size
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Will Deacon <will.deacon@arm.com>, James Morris <jmorris@namei.org>, 
-	Sasha Levin <sashal@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>, 
-	Vishal L Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, 
-	Ross Zwisler <zwisler@kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
-	Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Catalin Marinas <catalin.marinas@arm.com>, rppt@linux.vnet.ibm.com, 
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>, andrew.murray@arm.com, james.morse@arm.com, 
-	Marc Zyngier <marc.zyngier@arm.com>, sboyd@kernel.org, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190422185805.1169-5-rick.p.edgecombe@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > I gave *vague* memories of running out of bits in the page flags if we
-> > changed this, but that was a while back. If that's no longer the case,
-> > then I'm open to changing the value, but I really don't want to expose
-> > it as a Kconfig option as proposed in this patch. People won't have a
-> > clue what to set and it doesn't help at all with the single-Image effort.
->
-> Ohh, I absolutely agree about the config option part JFTR. 1GB section
-> loos quite excessive. I am not really sure a standard arm64 memory
-> layout looks though.
+On Mon, Apr 22, 2019 at 11:57:46AM -0700, Rick Edgecombe wrote:
+> From: Nadav Amit <namit@vmware.com>
+> 
+> Prevent user watchpoints from mistakenly firing while the temporary mm
+> is being used. As the addresses that of the temporary mm might overlap
+> those of the user-process, this is necessary to prevent wrong signals
+> or worse things from happening.
 
-I am now looking to use Dan's patches "mm: Sub-section memory hotplug
-support" to solve this problem. I think this patch can be ignored.
+Ooh, goody, that would be fun indeed.
 
-Pasha
+> Cc: Andy Lutomirski <luto@kernel.org>
+
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 
