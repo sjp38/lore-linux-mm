@@ -6,69 +6,69 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D4DB7C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F109C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99CF9206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99CF9206BA
+	by mail.kernel.org (Postfix) with ESMTP id E1EC4206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:00:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1EC4206BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F3D46B026F; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
+	id A21B16B026E; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 47B646B0271; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
+	id 9FB276B0270; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 394366B0270; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
+	id 910126B0271; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E39FA6B026E
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:33 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id x9so20463660wrw.20
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:33 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4072B6B026E
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:34 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id s18so233583wmj.1
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=jB9SA5hdGExIFIDrZWtnR9KIYGIDvN3B6de51Ujrkgo=;
-        b=baZfy2EtMBUdPrfnVvEdMdG7EG4k5ewGCC793lut3rX0j35Vwa/rkjwLupcyks726k
-         JtrHQ+ggHDM8bi7ZztlBzarY9l7BQw1v51paVGdR+FPwrmK+U4+e2HK7Oh4Ek6TC3+df
-         gaUfP9RgLwnZwDxi5USLaFYkrT7yaIOcvwNmYTI1KgGSewX1TJmku4Rpv1PzIr5n0lSS
-         rrniIzIOWz/SG4z/ylU7DCCpmO4b22DBCqtyjqLkcZu74W3nqH9zN0oEWsmlgKFhQse4
-         ybvTdeev6xKHEQP7XW+h53aoHghtF5CZ+85lEszOqwb5uOITOczQhfRb1rAG0BI1S/s3
-         8Uzw==
+        bh=/+X3jSHweuVn+GxUpQY/TlAKbGiIavnKcuifhQFvNYY=;
+        b=BFhEcNMaiKNUQ9iTu7Uj+7MoGu6/pxNhQX9iwJkaC7rihTYpZngfBFrZBLFH6ww6ep
+         yzECAO+np36qFWVPFh70v3uk/EWAXv+FPzs0gnoyA2va588MpkWa+o/ePL4J0NsZdifd
+         NJ83g7hqaPsoXYY7xMZVjCVtyY12p7Bu0opnJ7fh3Zub98UQyRrDeDsfkIIN50NH2I4f
+         7O1DQ3JSja1SkOSg8t7n8Iahq2LC6Tf7SZ/C2/ZaHIJFoJwA7J2t6VYuhrxIyInD6SRt
+         JC/kFU9mg7So5zTcW8ZE6GOQ+uTOSrLqQ2qNrWTL/RLIx5YAmU4VwEhey4JpSznpfLgA
+         C9Rg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAUTkR9ngMgZA2v7Hx3u1VycAkWI6CYxD8QxNOFGZWPhP1/TYMdl
-	PQdhRqUtY2SFGRRL0pVQFfAiMx1WO6iaBfVnEgam354JW5lglHFDaXqd4ZhYAyLpcBSoiXX4Oxe
-	gBIVqzgNjgiz63F9kuwlWjzvqCRPArh25iG5UypueZwkR0VJ6sVaJcT5quGilIcgAnA==
-X-Received: by 2002:a1c:9950:: with SMTP id b77mr2589899wme.133.1556186373464;
+X-Gm-Message-State: APjAAAVIVlYKDFw/eAkGCMMbIEjwz9jicJsDaK7+F5uVhJcPztaye0fI
+	zvNVKwTOEFPE79+ikmV0yGBWvTo3xuTk0xUFmYe9FileXyoWP4GpVQAB5PrHwtkWda/7ah1GqKJ
+	kaZpMj/8VPzmo+HLxu2bjkxcrsBFRq4rN2167FAEO2x7rYczLl5z4vJyEwO7udoRHMQ==
+X-Received: by 2002:a1c:80c1:: with SMTP id b184mr2841344wmd.109.1556186373790;
         Thu, 25 Apr 2019 02:59:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzj8Izz9ICHCbUCysEraF/HZK04aVhdtPYarRJECqCCFPbOotD+ls1IhebUCwXGXDJdGjb3
-X-Received: by 2002:a1c:9950:: with SMTP id b77mr2589825wme.133.1556186372204;
+X-Google-Smtp-Source: APXvYqxNHCLLrhVLjD9kEyNuxxO+1GlCy3/taIOOLdF2M6i8TS/5AXWPwT9GPEt6OyihTdkeRmGs
+X-Received: by 2002:a1c:80c1:: with SMTP id b184mr2841282wmd.109.1556186372543;
         Thu, 25 Apr 2019 02:59:32 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1556186372; cv=none;
         d=google.com; s=arc-20160816;
-        b=FOcmv9jtuJ1tWeITsYl7LlXrRXEvfsujTLg+TeXGgFe1vdu69bs39nKSMiD+pC2Y+z
-         fkjuFSUX0dfPTLsCIdgAn7tBL80oH3IC5uEFsNZzG0kTN1iXD8TrcAWAvEQWABfESK+L
-         6kvKz2UzIoag58O5kjdyzw9Nky1hOgRK2rpPgmSsDzTXWYgn2Pb9KBuPZTa2S+acyCAU
-         gWG6HD0bl5mBugbz6bMyZvyp/ZYe1IbQrd5x1UsYurngyR7aAHKyQGkOpIDHFJaJ25AY
-         v8NGG+2uf86O35JWOHiTcNXq+zehm7aRFI2Oyn6QzYIH8EyL+aYi29dAaARM7TXzp8fo
-         YZiw==
+        b=uDpxwpl0lhP2JsSfdw8cW/yRRs8ndCdW2KEtMUdRsdvW2m9xG4ZGqL6LSF2NQR71jq
+         +CSa3RSYxpwC8RwncjSiQ1nxea0mVLR+Pg7QNYe8WJlPDUzT57kWm60xnP6ixtb2j2T4
+         qIBd7wOgtvB12IeN6Oaf1cmJEfVp2Pwsw3A2eZnF0L6/mP556kP4C5QbSkTsa9PVMQGI
+         rIe1DXs9fOpadZQ4P4IBpmbcZLTTTgZlL4gYEMeLs0oTkDH1fxeqWff50St04nOtQdIl
+         7RDCWwud9q/5pVnhMzjB3hcJYk0OFHLiObkHsI5C0hbKimXt5JA4cX/6P/VrP90O2Lss
+         whOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=jB9SA5hdGExIFIDrZWtnR9KIYGIDvN3B6de51Ujrkgo=;
-        b=nYS0DxvgvqriCTQQNV3E4KP2QHi3kVchSxRzmJISHVhO1Vj+NksFWRPgCHLstX86uU
-         qSSIkDbkvAoZaIZV3qF49lwNDxeUdMpv+PMWmfUc38VpqvRRSarOdtzfyabTfEcnH3Ku
-         b67+sUU0Vk76pFWaeLtIuLs4cxZ4gc22gTCKIJvf5mr1YY/JRVZM90fg5j0+uSq2U90h
-         fgwuoJ+nBDcX9Ul8JLIy0Vj2OLrjdP4jmV4pzoHsKmcGnz1TX+LMxjvINQIkoK+ubJwo
-         yq7RNUUOzoBKHTlqbFYR1uIQH/szYa+DQKMFN3jBSHIezYykVuTnZwyXCTK7wtcf44il
-         jl7Q==
+        bh=/+X3jSHweuVn+GxUpQY/TlAKbGiIavnKcuifhQFvNYY=;
+        b=lN4XzsL9dBaC1x0DZdEP0ub+9L7s3LJONlSYHaCXXMWH86ZD8oTPlKhFNWdRUrxcrT
+         p9jiwkn7Xa8YJZEn8b49sZnecm0QWeySZ+FVFHPZXgg3aoEhRLaxWLXc8xH7WlqkrpZi
+         2GwS/TLHh+Y2fUXQUEpomGRwGmWQ3FShgolmsuhOh7+oCx2DMruLtIniqez0ZjnUUJNl
+         c5bEdn8ShjDoF6apJOM0X000waQFQH6Prguv55J+pE+VS1P8ogk1iEWGxGdUchokZcoo
+         vY3ce8mxnafX/WK3iD4av2qwccnsJsxWBiMlHrdZuKH4JizIqEAg5lFAhkrlvbC0j1JT
+         E3kA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o14si16519334wra.84.2019.04.25.02.59.31
+        by mx.google.com with ESMTPS id w7si15061518wmc.15.2019.04.25.02.59.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Thu, 25 Apr 2019 02:59:32 -0700 (PDT)
@@ -78,14 +78,16 @@ Authentication-Results: mx.google.com;
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hJbA6-0001uB-F4; Thu, 25 Apr 2019 11:59:26 +0200
-Message-Id: <20190425094802.716274532@linutronix.de>
+	id 1hJbA3-0001t5-BV; Thu, 25 Apr 2019 11:59:23 +0200
+Message-Id: <20190425094802.533968922@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 25 Apr 2019 11:45:10 +0200
+Date: Thu, 25 Apr 2019 11:45:08 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
- Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
+ Andy Lutomirski <luto@kernel.org>, dm-devel@redhat.com,
+ Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
+ Steven Rostedt <rostedt@goodmis.org>,
  Alexander Potapenko <glider@google.com>,
  Alexey Dobriyan <adobriyan@gmail.com>,
  Andrew Morton <akpm@linux-foundation.org>,
@@ -100,9 +102,8 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Marek Szyprowski <m.szyprowski@samsung.com>,
  Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>,
  Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
- linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
- Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
- Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
+ linux-btrfs@vger.kernel.org, Daniel Vetter <daniel@ffwll.ch>,
+ intel-gfx@lists.freedesktop.org,
  Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
  Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
  dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
@@ -110,8 +111,7 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Rodrigo Vivi <rodrigo.vivi@intel.com>,
  Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
  linux-arch@vger.kernel.org
-Subject: [patch V3 17/29] lockdep: Remove unused trace argument from
- print_circular_bug()
+Subject: [patch V3 15/29] dm persistent data: Simplify stack trace handling
 References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -121,35 +121,73 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- kernel/locking/lockdep.c |    9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+Replace the indirection through struct stack_trace with an invocation of
+the storage array based interface. This results in less storage space and
+indirection.
 
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -1522,10 +1522,9 @@ static inline int class_equal(struct loc
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: dm-devel@redhat.com
+Cc: Mike Snitzer <snitzer@redhat.com>
+Cc: Alasdair Kergon <agk@redhat.com>
+---
+ drivers/md/persistent-data/dm-block-manager.c |   19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
+
+--- a/drivers/md/persistent-data/dm-block-manager.c
++++ b/drivers/md/persistent-data/dm-block-manager.c
+@@ -35,7 +35,10 @@
+ #define MAX_HOLDERS 4
+ #define MAX_STACK 10
+ 
+-typedef unsigned long stack_entries[MAX_STACK];
++struct stack_store {
++	unsigned int	nr_entries;
++	unsigned long	entries[MAX_STACK];
++};
+ 
+ struct block_lock {
+ 	spinlock_t lock;
+@@ -44,8 +47,7 @@ struct block_lock {
+ 	struct task_struct *holders[MAX_HOLDERS];
+ 
+ #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+-	struct stack_trace traces[MAX_HOLDERS];
+-	stack_entries entries[MAX_HOLDERS];
++	struct stack_store traces[MAX_HOLDERS];
+ #endif
+ };
+ 
+@@ -73,7 +75,7 @@ static void __add_holder(struct block_lo
+ {
+ 	unsigned h = __find_holder(lock, NULL);
+ #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+-	struct stack_trace *t;
++	struct stack_store *t;
+ #endif
+ 
+ 	get_task_struct(task);
+@@ -81,11 +83,7 @@ static void __add_holder(struct block_lo
+ 
+ #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+ 	t = lock->traces + h;
+-	t->nr_entries = 0;
+-	t->max_entries = MAX_STACK;
+-	t->entries = lock->entries[h];
+-	t->skip = 2;
+-	save_stack_trace(t);
++	t->nr_entries = stack_trace_save(t->entries, MAX_STACK, 2);
+ #endif
  }
  
- static noinline int print_circular_bug(struct lock_list *this,
--				struct lock_list *target,
--				struct held_lock *check_src,
--				struct held_lock *check_tgt,
--				struct stack_trace *trace)
-+				       struct lock_list *target,
-+				       struct held_lock *check_src,
-+				       struct held_lock *check_tgt)
- {
- 	struct task_struct *curr = current;
- 	struct lock_list *parent;
-@@ -2206,7 +2205,7 @@ check_prev_add(struct task_struct *curr,
- 			 */
- 			save(trace);
- 		}
--		return print_circular_bug(&this, target_entry, next, prev, trace);
-+		return print_circular_bug(&this, target_entry, next, prev);
- 	}
- 	else if (unlikely(ret < 0))
- 		return print_bfs_bug(ret);
+@@ -106,7 +104,8 @@ static int __check_holder(struct block_l
+ 			DMERR("recursive lock detected in metadata");
+ #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+ 			DMERR("previously held here:");
+-			print_stack_trace(lock->traces + i, 4);
++			stack_trace_print(lock->traces[i].entries,
++					  lock->traces[i].nr_entries, 4);
+ 
+ 			DMERR("subsequent acquisition attempted here:");
+ 			dump_stack();
 
 
