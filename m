@@ -2,186 +2,162 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE6A3C43218
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 20:48:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E917FC43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 20:48:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9F0520717
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 20:48:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CDAB620717
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 20:48:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nvO/Luk1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9F0520717
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="i7Hq0H2F"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDAB620717
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F8646B0003; Thu, 25 Apr 2019 16:48:24 -0400 (EDT)
+	id 41CF46B0005; Thu, 25 Apr 2019 16:48:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37EF56B0005; Thu, 25 Apr 2019 16:48:24 -0400 (EDT)
+	id 3A5E66B0006; Thu, 25 Apr 2019 16:48:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 21FA26B0006; Thu, 25 Apr 2019 16:48:24 -0400 (EDT)
+	id 247146B0008; Thu, 25 Apr 2019 16:48:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 011E76B0003
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 16:48:24 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id w53so920050qtj.22
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 13:48:23 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DC4636B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 16:48:27 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id b8so462326pls.22
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 13:48:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=7AlnxCGIjlH/KpFm0fw4ExsvnAh/aAKXQoDjEwnLD/w=;
-        b=mhByGqf8HNZA8jrYlFydj6kq9cb2fF8+NFUjPhHI7X9ArkjEyJvmuZ3WQ6YazTvRsN
-         pWIAzGd5Oe2uLltEKdjUnOCuxei+o+SPkZXSy0f0o4WUj4j/Gq0ucVgTo2oFgFMXZ6f+
-         fvyxrvjEH5ifiaObtyL/PhkexPbYtriEJ+ucL/PzKnd0B5yvvMKrh4IhzOZsQheMoI+u
-         odjfSnVy8LEVzIW82pKivpsOLucOptguYHZ5DdCtEnjg5upl33A1+vUnBO9IdikcDyyn
-         tqRW2MFGwrwMVyVFRZ7u/644g7nxFX8TIAn2yYdV/PpbF//n1ZBX04oMtPicQrcFheCq
-         JDQA==
-X-Gm-Message-State: APjAAAUOsoS5xibUuuVkTp4jBjVnkKamUlf7k0/ah0Y2u8WOBUKLIdh+
-	7S+IMb93vESrLJBPkOogdyW/SaipkCoFAnGW0fd8jsaGHtSrTDrKBbXgNLGNu0NSL+F0PlBt02N
-	qDMrLdP4TpzQfJfoQvGaC2NY7Ku4gC+9oRX1mbLES/BuImhUZEtECefVCA9V39GdxlQ==
-X-Received: by 2002:aed:3fee:: with SMTP id w43mr32953698qth.40.1556225303742;
-        Thu, 25 Apr 2019 13:48:23 -0700 (PDT)
-X-Received: by 2002:aed:3fee:: with SMTP id w43mr32953652qth.40.1556225303078;
-        Thu, 25 Apr 2019 13:48:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556225303; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=FitD4X1vPtPf9AaJyZflnefh5ZXat3I/abaTtFAMS7o=;
+        b=dgAmC+JZOX74ydOZPppGhwj/FEzsB0a2NWP1/Ynn/spD3Rlmlow43mTUoSIxr5PD88
+         Ze6n7NJPPPLF85I8zTSjC2EGkM2c+pDTfkp/DoO9CIVJCp/BWZ3fseAkpBGEjTZyA5c3
+         riN6x0XxzEeo1x8hkDULytDVRfWtfwV8rO26OcmbMU3zRKeH5+bkHstK3dFgzrRBfGM6
+         DtevJYzSOncJqfjAESnBdaulvsrxij1mM+hR3OwCE5d1LFPnXGErNOEKfOyWxzzxhQCy
+         gawTBnSam4PJ+IDwz+15YZ3lpse1jpTk7uA7rwz9ktPCQWWMH6aDPZXDYTHIZemQpgaN
+         ko1w==
+X-Gm-Message-State: APjAAAUn5k3tZmr75BgFpmkqUVl02VoKmZLaxjoaqyEU+tPOe88VPFCE
+	HjL8nePPbJBb36C90cuc9OZzr3DpbjG1aFHny+hKTmXE+u+nM/Rrz3KGV8gmEEideIWaBKyhpTa
+	AxmzMLAkJHnt6XhocYI1wt2AuDvncAQen4c+glreBhNvubGr+BuPgzWC3YKlJFSfPUg==
+X-Received: by 2002:a63:1b11:: with SMTP id b17mr320115pgb.207.1556225307439;
+        Thu, 25 Apr 2019 13:48:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztGNtgyzSWwDFE8yCuo6KCMu7y/QydLt0832nre8LrEkvgluaPeuo47CI2NQoDacA1KUeE
+X-Received: by 2002:a63:1b11:: with SMTP id b17mr320067pgb.207.1556225306638;
+        Thu, 25 Apr 2019 13:48:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556225306; cv=none;
         d=google.com; s=arc-20160816;
-        b=zYC4bxicRPFa71jBt+M8PcZnRHLqB4wxK3YOtRcObJDBYx9J8zuPB3L2CMx7e+yUNy
-         XifhBlaZEfsxm65reS5rtDA74Lm2malp3ejJgp13QJBD/kwlzPBJ3qLCdK1EfAbg7xaF
-         4NqVaCH4Rz9iJq4R3p3EzYZltzy6jLep0fcA9NFiV296UWlEX8KhvuzTDfBqRWrAaKg+
-         Ogc7LxDCsU/1KmOep9eJC4xpdtCSo2OKYcMss+mjG8eA8dUWrl+Q7MtquJiRuzYGQhLj
-         Gs+O7FeyvbBIbw1US6oPZJAhlo0Zjf5NzQb/PPX/T2sd8ykWPWvSMZjdfxj/BQILT5GO
-         YUrA==
+        b=JpsQmI/p3TyjICdk6NP/n0cFX4zY7zUscvTBCZ76dR0qpJyvq57gq4Y6h+Mp9bHAMY
+         7XR+zhhG34c5AvqWJMwiP/02QLYDOaWM1aCttHlKI8Gq/YSNwVf4hoP7VdkqpobWzvm5
+         nxnByFu/ZCTGVKl5h0hx1MD7VTV2H7yO93fEyAF0QesgeOXCTzOj6emy+lNN3ea0EgtR
+         LhrYeOW2wq2IG5hM8fEDxSzY+PSOf1W+QcrZMDJN+oMoM7FG86hut4+fZ3utxpV5acKX
+         Pamoca6zKavMZX1TjmKBf7iGSAsghzLxXuwJup3fyH7ZXz/nZEIZUNSmhWUX/+q9yte7
+         j1qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=7AlnxCGIjlH/KpFm0fw4ExsvnAh/aAKXQoDjEwnLD/w=;
-        b=VrVxq6nAJhHVJkzZsO3NScWvwkYFVuQuAcIMfaFxuSyW8vjvOH0AYwR5N1vaF9JWfJ
-         8fOryXsr0jX6USAw7wJjAWe8r8tlpsdufhUIMwz6nj+mBN2q5Ted8sbWLZMtbh642s4J
-         ZBFY+O7N6ILhCW9CM2hb16Dc8+sSj70cwDNioBaZhl66ynZDbvoJ64+0X0F46kRq+8cs
-         Na5U++R63tfcu4RFJU5/JyKADYG9DUBHUkKkP0fclQTKJWfMAmckLupDfERy/Bob5CFC
-         mccb/lBDUDXapBOxEfkeZlJgWFP1Z9P4XJE1ligTqsostLXPXRzrPDKGQRTzI23l1a5F
-         WDfw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=FitD4X1vPtPf9AaJyZflnefh5ZXat3I/abaTtFAMS7o=;
+        b=D/jFgtcQtn4669sZ43tKka57qHZ89Kgd8piSRGBAQYOwUB3HJpeabtATvmkXmRFNKo
+         j7UWrw08IgZeuclAWekmz082yAatMytjj0x/sESnU6ucg2CjZAZclifidIcn7jIAS7TY
+         xOkE0QThPRNLJtcUu6PvjX9uSMgkVyq0jLCU7Y7AbKf6QOyZiJmFrBrUBCFbIduuB8jg
+         XxZ6M4mNHmI96rI0R4tIQ5TcYkm/mjy/m3teFre1rUw7G3zo4Gn2Ibk4pdN39EVNmMD4
+         gqhZhdHT2zBVT/YzArMmkfaT+8+eSoAXz8O9wmOb33vHbL3OLbKPS9ylb644ip5LrsoG
+         4bHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nvO/Luk1";
-       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jwadams@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b18sor32405622qta.66.2019.04.25.13.48.23
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=i7Hq0H2F;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h3si5279340pgg.83.2019.04.25.13.48.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Apr 2019 13:48:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 25 Apr 2019 13:48:26 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nvO/Luk1";
-       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jwadams@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=7AlnxCGIjlH/KpFm0fw4ExsvnAh/aAKXQoDjEwnLD/w=;
-        b=nvO/Luk1xBiGvOryynLy6hbr7PLo9qTFTdr84ki7wcMCzEMz8Z16xWfNgArtT2I5W9
-         jkpTFALxMZlRGFO4/6wwtfepEu3IA8RxZElxra0lOeIStmPNG0a9O0v/N8Qqt4St7snL
-         pr9kZfuRaaVv+pRT3C7sKCmLxykXt3mzjj1zLjwkP2UCUA3IdD3mI9H8wZ+RRkDrVSu1
-         iXAJba7aER90gTmjU4bQX+OMpsGVI994bLSqGIzbUkv1WeIP5zTTjTQw//HdOLZhw3wx
-         nLgy/dvEzouejzd0eHsWP8aX2LYss8YH7lWK5k8AUsRRMe3j0x8h4An0G7CosiMx15Ci
-         PllA==
-X-Google-Smtp-Source: APXvYqxZxsQua8p9ane+xm1bSJUSycp6LE8vco6Y+xEs9KC9MJcAvtUBP9LPewiDPauyDtXT9gmTycxFopmsKMzIk9s=
-X-Received: by 2002:aed:3b4a:: with SMTP id q10mr33419952qte.383.1556225302324;
- Thu, 25 Apr 2019 13:48:22 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=i7Hq0H2F;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=FitD4X1vPtPf9AaJyZflnefh5ZXat3I/abaTtFAMS7o=; b=i7Hq0H2F0STZhj0SbYPU9kQNf
+	yXzbfggcqkI1DmqjyE4zkvAQBey/AeHaQSKy5gSbwKkLTwv/FT04TvnIrvxoYqSNGJVJJWdMtTTQQ
+	ZcfCSB6ucpcUXEcRxhfmRXEXntN3RoWa5wUxEQv1+JmF9Qy8PHR9FBVHKLLhTrA5p3yZQtkolmkVW
+	ZIlhF1hrp9QUzLO1OIox4w7fuAzYgpy60cawbqqe9L3Dq3cQeVsABBJkHqSY1z8O86LBog6oknxGO
+	JsbvmCIIwxF8uUxIR5t3ckfNmiE6XKhttFT2UJgruUV9acrrrYFEm3mAYeaPIBKlCrhCvxF5bTduV
+	Ne8RFT5Tg==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hJlI6-0001R8-2x; Thu, 25 Apr 2019 20:48:22 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 6AB02203C0A58; Thu, 25 Apr 2019 22:48:20 +0200 (CEST)
+Date: Thu, 25 Apr 2019 22:48:20 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>, linux_dti@icloud.com,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	will.deacon@arm.com, ard.biesheuvel@linaro.org,
+	kristen@linux.intel.com, deneen.t.dock@intel.com
+Subject: Re: [PATCH v4 00/23] Merge text_poke fixes and executable lockdowns
+Message-ID: <20190425204820.GB12232@hirez.programming.kicks-ass.net>
+References: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-References: <20190207072421.GA9120@rapoport-lnx> <CA+VK+GOpjXQ2-CLZt6zrW6m-=WpWpvcrXGSJ-723tRDMeAeHmg@mail.gmail.com>
- <CAPM31RKpR0EZoeXZMXciTxvjBEeu3Jf3ks4Dn9gERxXghoB67w@mail.gmail.com>
-In-Reply-To: <CAPM31RKpR0EZoeXZMXciTxvjBEeu3Jf3ks4Dn9gERxXghoB67w@mail.gmail.com>
-From: Jonathan Adams <jwadams@google.com>
-Date: Thu, 25 Apr 2019 13:47:46 -0700
-Message-ID: <CA+VK+GOOv4Vpfv+yMwHGwyf_a5tvcY9_0naGR=LgzxTFbDkBnQ@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Address space isolation inside the kernel
-To: Paul Turner <pjt@google.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, 
-	James Bottomley <James.Bottomley@hansenpartnership.com>, Mike Rapoport <rppt@linux.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000006, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190422185805.1169-1-rick.p.edgecombe@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It looks like the MM track isn't full, and I think this topic is an
-important thing to discuss.
+On Mon, Apr 22, 2019 at 11:57:42AM -0700, Rick Edgecombe wrote:
+> Andy Lutomirski (1):
+>   x86/mm: Introduce temporary mm structs
+> 
+> Nadav Amit (15):
+>   Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+>   x86/jump_label: Use text_poke_early() during early init
+>   x86/mm: Save DRs when loading a temporary mm
+>   fork: Provide a function for copying init_mm
+>   x86/alternative: Initialize temporary mm for patching
+>   x86/alternative: Use temporary mm for text poking
+>   x86/kgdb: Avoid redundant comparison of patched code
+>   x86/ftrace: Set trampoline pages as executable
+>   x86/kprobes: Set instruction page as executable
+>   x86/module: Avoid breaking W^X while loading modules
+>   x86/jump-label: Remove support for custom poker
+>   x86/alternative: Remove the return value of text_poke_*()
+>   x86/alternative: Comment about module removal races
+>   tlb: provide default nmi_uaccess_okay()
+>   bpf: Fail bpf_probe_write_user() while mm is switched
+> 
+> Rick Edgecombe (7):
+>   x86/mm/cpa: Add set_direct_map_ functions
+>   mm: Make hibernate handle unmapped pages
+>   vmalloc: Add flag for free of special permsissions
+>   modules: Use vmalloc special flag
+>   bpf: Use vmalloc special flag
+>   x86/ftrace: Use vmalloc special flag
+>   x86/kprobes: Use vmalloc special flag
 
-Cheers,
-- Jonathan
+This all looks good to me, I'll queue them tomorrow when I'm awake
+again. I'll move the last two patches to early in the series, since it
+appears to me they're fixes and should be in place before we make the
+situation worse with the temporary mm swizzling for text_poke.
 
-On Sat, Feb 16, 2019 at 3:14 AM Paul Turner <pjt@google.com> wrote:
->
-> I wanted to second the proposal for address space isolation.
->
-> We have some new techniques to introduce her also, built around some new =
-ideas using page-faults that we believe are interesting.
->
-> To wit, page faults uniquely allow us to fork speculative and non-specula=
-tive execution as we can control the retired path within the fault itself (=
-which as it turns out, will obviously never be executed speculatively).
->
-> This lets us provide isolation against variant1 gadgets, as well as guara=
-ntee what data may or may not be cache present for the purposes of L1TF and=
- Meltdown mitigation.
->
-> I'm not sure whether or not I'll be able to attend (I have a newborn and =
-there's a lot of other scheduling I'm trying to work out).  But Jonathan Ad=
-ams (cc'd) has been working on this and can speak to it.  We also have some=
- write-ups to publish independently of this.
->
-> Thanks,
->
-> - Paul
->
->> (Joint proposal with James Bottomley)
->>
->> Address space isolation has been used to protect the kernel from the
->> userspace and userspace programs from each other since the invention of
->> the virtual memory.
->>
->> Assuming that kernel bugs and therefore vulnerabilities are inevitable
->> it might be worth isolating parts of the kernel to minimize damage
->> that these vulnerabilities can cause.
->>
->> There is already ongoing work in a similar direction, like XPFO [1] and
->> temporary mappings proposed for the kernel text poking [2].
->>
->> We have several vague ideas how we can take this even further and make
->> different parts of kernel run in different address spaces:
->> * Remove most of the kernel mappings from the syscall entry and add a
->>   trampoline when the syscall processing needs to call the "core
->>   kernel".
->> * Make the parts of the kernel that execute in a namespace use their
->>   own mappings for the namespace private data
->> * Extend EXPORT_SYMBOL to include a trampoline so that the code
->>   running in modules won't map the entire kernel
->> * Execute BFP programs in a dedicated address space
->>
->> These are very general possible directions. We are exploring some of
->> them now to understand if the security value is worth the complexity
->> and the performance impact.
->>
->> We believe it would be helpful to discuss the general idea of address
->> space isolation inside the kernel, both from the technical aspect of
->> how it can be achieved simply and efficiently and from the isolation
->> aspect of what actual security guarantees it usefully provides.
->>
->> [1] https://lore.kernel.org/lkml/cover.1547153058.git.khalid.aziz@oracle=
-.com/
->> [2] https://lore.kernel.org/lkml/20190129003422.9328-4-rick.p.edgecombe@=
-intel.com/
->>
->> --
->> Sincerely yours,
->> Mike.
+If you want to post a new version of patch 4 before then, that'd be
+awesome, otherwise I'll see if I can do those few edits myself.
 
