@@ -1,178 +1,231 @@
 Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7443CC10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:09:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E267AC10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:35:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 292AD20651
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:09:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kAxXHkZY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 292AD20651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A0A872084B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 10:35:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0A872084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C3E116B0005; Thu, 25 Apr 2019 06:09:39 -0400 (EDT)
+	id 3ECF56B0283; Thu, 25 Apr 2019 06:35:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C13896B0006; Thu, 25 Apr 2019 06:09:39 -0400 (EDT)
+	id 39BAC6B0284; Thu, 25 Apr 2019 06:35:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B03DB6B0007; Thu, 25 Apr 2019 06:09:39 -0400 (EDT)
+	id 28B6A6B0285; Thu, 25 Apr 2019 06:35:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C2C6B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:09:39 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id y189so5688922wmd.4
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 03:09:39 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 091116B0283
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:35:44 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id i203so16982508ywa.5
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 03:35:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=qDXe8aInWx7rrUFbUzdCjPGqVvpdtP3z9EWwVfzbZc0=;
-        b=eUzQGCZ0tfSuoaht4ZMrt3gDWLK2oTNLUQJVSK1hPQBiKEYz4CgyuZjj1iDbHxDesw
-         MfE43cN1VvoB0ffo3ypzwkDv8uc8fRNFFm1NGnom2ozYFBYQ2tcG1uQ8uFe+2mi9wvKX
-         9AETkLR6rVRnuMzzNKqGl1lqfOAoyU80fM08v9UZQAr+oa3j/xPlUIr6VbY6HXRAPDkr
-         VjJTdKgAj2Pp5U/TcUGyA6X+c/Y9QWrdIKQ03oZzC+OutU7mXflt0Q9a4CTdVjOpwI2E
-         4tszFADgqFT3Jk0pg7u5mDvZ0D1TjiIN6ECJLwcd8yHCz1yIn7RMPfcgndV/guV3qHPM
-         GTzw==
-X-Gm-Message-State: APjAAAU+zUSgCWw2WXTv27LwUpUL4/4mP+v6rFRrxUKcLxoAmWjYkf39
-	l5ZnAcD3cCfyTFBPVlC/0NUB5QzTAeBjFOMde8ITBNd2EcuIYzzJAxGG1z8whYYNtUsZKrK5hA+
-	061cygnOuiYT+JEIF3vApm0rs2Ifputqfq2W4mycg6W18t/MhU6DQC8BAtN65U5I=
-X-Received: by 2002:a5d:484d:: with SMTP id n13mr2576604wrs.219.1556186978995;
-        Thu, 25 Apr 2019 03:09:38 -0700 (PDT)
-X-Received: by 2002:a5d:484d:: with SMTP id n13mr2576549wrs.219.1556186978172;
-        Thu, 25 Apr 2019 03:09:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556186978; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=Yr3JYa8dA/Ihr6gaI+B4EHrIoHpzW04FGLodGEdGgio=;
+        b=e9OCI8/meRv/x9D/2neDccx6jE6zZ/l1F5cCrHgH4R9IUzg/AFbtn4CVzxN4Agt6nM
+         oJtcI57ogIWB8htI/J9JsmHhlyZwhaTkXzU9Fg9N+SHrT3BlEuODF8KjVBNoxsneYUTr
+         aqqHbdy6snlYwQVyVuQxDtqdrKVSjHTquotrYoPSNp8AQ4hIil+MZ6uJ3o8P08umJpH1
+         Yx5/VrRAmY6Ni2fzurVyNLmNscrjSkgBHlwzsT+O+q9Er+x1Z/ZQM/ML0MXffzMN9RQG
+         8rb0yi1TVNQDm7bgxe/bsNceVyP8kYiUElbR0EJSPEbZSXAcBvMbAXE9BT/N5oab8HnE
+         Q1Ew==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUkh+jmCunC06S1z6IdVQTtt5dfdVlO2ysLi9yaIArpvxyuXQbX
+	iZmsVtonkhvtjnI1OApvZx+CVEKI0KpQuvOI0TZT4vJQP7WPcyauwex2KVVERED2yB4qYuX9rgi
+	JoggE7VuANh7V+kZEAc1slHzqkLr5CRRCA4xORaEO3ZWsAaAGOVE2YYuMgxO8zOzc0g==
+X-Received: by 2002:a81:9211:: with SMTP id j17mr23353333ywg.31.1556188543691;
+        Thu, 25 Apr 2019 03:35:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyn5/huwaTQdGtc+7X8MFo4wCpfxsp/zGBn2lq3XelTSrDdMrFM63/xNwgggPXj3+LqZKHC
+X-Received: by 2002:a81:9211:: with SMTP id j17mr23353232ywg.31.1556188542326;
+        Thu, 25 Apr 2019 03:35:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556188542; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y7bmch9DYxXDinqZQsOPa/FhiM4DjC+zadw2xSClREnUqYPZK4aTXfAR+8Cuud2gt6
-         4Bf0CKdTWNXvgqUXmWiTXYpuHiA4JfeKxu8ZgLSfTurznNdhUxXKTu89MgTomaanqn32
-         xu875QBdEIkwHXC6s7JpqBemXDoTbANGcGzsYn1PXPIOt0Ea200xifKMWGOl+tl2ZDdQ
-         VdivEkW/wX+IGF9FF3Hwy0poQr6pCsbMJznV1Xo+emZHy7Sp+e5Lyv3K3S4Vn5nQI4Rm
-         sddZzD5ZXOKC/Hshfd3ZC7TKfGD4xo5oh+w3JA/lzahbOk9DI7yCmNZWOkDgylWMWUzl
-         DROA==
+        b=n09JEaDXZ/28M86C+5O+SAj4Hsdxux6nrxqMZIFjzFGHWmR2varbsozXUi/R23EVzH
+         3yIrbmeHC+YV0SmKb0zAlIJ8XTvXelboEGLpS5dEjbD6ysK6C7A/zgfg1gkRCzDbuLsD
+         1R+WShd6L6tzzyhmMf/+4Q3KadLqB0kqnTBB6U1CqMEvSzxD/S6JC0T+geBxLeRN0Jso
+         9LhqFx5N8sZPKsmhDzLUtKbUoviSOuSi7UMHzofKlV4NOOpL2QeexHubIFXabC5OBHYP
+         k7gYZ+E9mv8iIwWKlFx796CHzqjjODC3w+aVeEyd6LY0vVBg1WcHYXNVbuiAeuiIpOZ+
+         Y69g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=qDXe8aInWx7rrUFbUzdCjPGqVvpdtP3z9EWwVfzbZc0=;
-        b=oJuJ5tMdy9NgJglcpbFZfySOuMQDP4x5mbsIkFBtOKqScscnPIMjo2V6fTy7VKTT4n
-         f6QpyTVUeJdYhcCyVsaxWYrRYm3H49yrIP0bXYmwItWdXAxZfDln521WuJ8DKMfpEyKR
-         233vGPqLztWjRd2r8bmC8wTWf/ILe2d05qWKGN1iWLN6jLBca8wtjWHZxPYA+u4j3pf7
-         7xyqsshUkp7GEri4RRx7Il97RVJco6drbAtsNj4k/adztV3Zyq+HiYoXSJ28Qg73VUln
-         uylrw+GSBFQhd9IN/lf3b4eVjrTGp1syXEmfy7pGExytQojiQ41cXr/rprEML79FtYBH
-         HUgg==
+        h=message-id:date:subject:cc:to:from;
+        bh=Yr3JYa8dA/Ihr6gaI+B4EHrIoHpzW04FGLodGEdGgio=;
+        b=qgzhhMRmg0oOTQW+7ppwGKJVlVoUzQh6zY/xiuBwgPa2iMqg/+P++0FTBcqCIv90md
+         azAsaq3JMBqwlZc/P8VL01ofwRQpC9FxkVHBjwvFZUoDraAZoC8La3W2hRO8+WeXzFvK
+         F05Ll8uueSmLugckffeik6GDYk8RvBOVZ0bPxfj0kmdxDUHTaO3up999SYlgz1hbxlol
+         rYKVbHsKeipXjFeApC7LFo3y0zjhCpIfLtExaOmV4O6mxtraDV7Ns0aIKjc8ITChiLJG
+         0ki+4/5ylfMUVSR7qz5+9ZcwOWgAOHCJuutdWotCa598IKqo7ETqSWs8BJm8+kUIjYz5
+         DO6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kAxXHkZY;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l26sor12210019wmg.26.2019.04.25.03.09.38
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x60si16923407ybh.387.2019.04.25.03.35.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Apr 2019 03:09:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Apr 2019 03:35:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kAxXHkZY;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=qDXe8aInWx7rrUFbUzdCjPGqVvpdtP3z9EWwVfzbZc0=;
-        b=kAxXHkZYy9zXKuU1mD/GV24mrHOTRf2dSE1dytqyDTE9UDI6Qs03UeV4nB5Yquf+nl
-         1tep2U7T3Sryt2ngffH0HbGnWoldhLQYMgCmjjSkzwRogMPhe3prjnuLu6GRBIQdgUmP
-         FO9A7NNqPP+fSPIriO0PBVmQlihNr+lRUE9kN3TizxGphIMjD0dAZh3pX8+TVTBIlEGM
-         NvtAJ9V68fpOVi2Lsx5HMiib5OaOfiymoKlY6eqWti6BEHTZMF6SWGNJ9IBt5/IKPWow
-         QfTd69DVj5A06mVnuB2nERuOjY3Jq4M3TbOja1rBzuWUVL+Z+FGC8ZLEkNP4i5JfSmzV
-         aAvg==
-X-Google-Smtp-Source: APXvYqx2GAh1uv+m48koOKK3YSqfB/7bnkVhISaxrxFGwOyRBo5NQ9XpO4CFxCAJqjHa83cweimVmQ==
-X-Received: by 2002:a1c:6c04:: with SMTP id h4mr2890302wmc.135.1556186977884;
-        Thu, 25 Apr 2019 03:09:37 -0700 (PDT)
-Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
-        by smtp.gmail.com with ESMTPSA id c2sm19739225wrr.13.2019.04.25.03.09.35
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 25 Apr 2019 03:09:37 -0700 (PDT)
-Date: Thu, 25 Apr 2019 12:09:33 +0200
-From: Ingo Molnar <mingo@kernel.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: LKML <linux-kernel@vger.kernel.org>,
-	Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
-	Andy Lutomirski <luto@kernel.org>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Alexander Potapenko <glider@google.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	linux-mm@kvack.org, David Rientjes <rientjes@google.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Akinobu Mita <akinobu.mita@gmail.com>,
-	Christoph Hellwig <hch@lst.de>, iommu@lists.linux-foundation.org,
-	Robin Murphy <robin.murphy@arm.com>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
-	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
-	Alasdair Kergon <agk@redhat.com>, Daniel Vetter <daniel@ffwll.ch>,
-	intel-gfx@lists.freedesktop.org,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Tom Zanussi <tom.zanussi@linux.intel.com>,
-	Miroslav Benes <mbenes@suse.cz>, linux-arch@vger.kernel.org
-Subject: Re: [patch V3 00/29] stacktrace: Consolidate stack trace usage
-Message-ID: <20190425100933.GB8387@gmail.com>
-References: <20190425094453.875139013@linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190425094453.875139013@linutronix.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3PAPYsC135574
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:35:41 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s3b4hgcgx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:35:41 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 25 Apr 2019 11:35:40 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 25 Apr 2019 11:35:37 +0100
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3PAZahC49676394
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 10:35:36 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 05C94A4059;
+	Thu, 25 Apr 2019 10:35:36 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 85E66A4053;
+	Thu, 25 Apr 2019 10:35:34 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.17])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 25 Apr 2019 10:35:34 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Thu, 25 Apr 2019 13:35:33 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] mm/Kconfig: update "Memory Model" help text
+Date: Thu, 25 Apr 2019 13:35:31 +0300
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19042510-0012-0000-0000-000003146FF6
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042510-0013-0000-0000-0000214CC968
+Message-Id: <1556188531-20728-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-25_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=935 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904250067
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+The help describing the memory model selection is outdated. It still says
+that SPARSEMEM is experimental and DISCONTIGMEM is a preferred over
+SPARSEMEM.
 
-* Thomas Gleixner <tglx@linutronix.de> wrote:
+Update the help text for the relevant options:
+* add a generic help for the "Memory Model" prompt
+* add description for FLATMEM
+* reduce the description of DISCONTIGMEM and add a deprecation note
+* prefer SPARSEMEM over DISCONTIGMEM
 
-> -	if (unlikely(!ret))
-> +	if (unlikely(!ret)) {
-> +		if (!trace->nr_entries) {
-> +			/*
-> +			 * If save_trace fails here, the printing might
-> +			 * trigger a WARN but because of the !nr_entries it
-> +			 * should not do bad things.
-> +			 */
-> +			save_trace(trace);
-> +		}
->  		return print_circular_bug(&this, target_entry, next, prev);
-> +	}
->  	else if (unlikely(ret < 0))
->  		return print_bfs_bug(ret);
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ mm/Kconfig | 48 +++++++++++++++++++++++-------------------------
+ 1 file changed, 23 insertions(+), 25 deletions(-)
 
-Just a minor style nit: the 'else' should probably on the same line as 
-the '}' it belongs to, to make it really obvious that the 'if' has an 
-'else' branch?
-
-At that point the condition should probably also use balanced curly 
-braces.
-
-Interdiff looks good otherwise.
-
-Thanks,
-
-	Ingo
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7db..8f7ae4d71b77 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -11,23 +11,24 @@ choice
+ 	default DISCONTIGMEM_MANUAL if ARCH_DISCONTIGMEM_DEFAULT
+ 	default SPARSEMEM_MANUAL if ARCH_SPARSEMEM_DEFAULT
+ 	default FLATMEM_MANUAL
++	help
++	  This option allows you to change some of the ways that
++	  Linux manages its memory internally. Most users will
++	  only have one option here selected by the architecture
++	  configuration. This is normal.
+ 
+ config FLATMEM_MANUAL
+ 	bool "Flat Memory"
+ 	depends on !(ARCH_DISCONTIGMEM_ENABLE || ARCH_SPARSEMEM_ENABLE) || ARCH_FLATMEM_ENABLE
+ 	help
+-	  This option allows you to change some of the ways that
+-	  Linux manages its memory internally.  Most users will
+-	  only have one option here: FLATMEM.  This is normal
+-	  and a correct option.
+-
+-	  Some users of more advanced features like NUMA and
+-	  memory hotplug may have different options here.
+-	  DISCONTIGMEM is a more mature, better tested system,
+-	  but is incompatible with memory hotplug and may suffer
+-	  decreased performance over SPARSEMEM.  If unsure between
+-	  "Sparse Memory" and "Discontiguous Memory", choose
+-	  "Discontiguous Memory".
++	  This option is best suited for non-NUMA systems with
++	  flat address space. The FLATMEM is the most efficient
++	  system in terms of performance and resource consumption
++	  and it is the best option for smaller systems.
++
++	  For systems that have holes in their physical address
++	  spaces and for features like NUMA and memory hotplug,
++	  choose "Sparse Memory"
+ 
+ 	  If unsure, choose this option (Flat Memory) over any other.
+ 
+@@ -38,29 +39,26 @@ config DISCONTIGMEM_MANUAL
+ 	  This option provides enhanced support for discontiguous
+ 	  memory systems, over FLATMEM.  These systems have holes
+ 	  in their physical address spaces, and this option provides
+-	  more efficient handling of these holes.  However, the vast
+-	  majority of hardware has quite flat address spaces, and
+-	  can have degraded performance from the extra overhead that
+-	  this option imposes.
++	  more efficient handling of these holes.
+ 
+-	  Many NUMA configurations will have this as the only option.
++	  Although "Discontiguous Memory" is still used by several
++	  architectures, it is considered deprecated in favor of
++	  "Sparse Memory".
+ 
+-	  If unsure, choose "Flat Memory" over this option.
++	  If unsure, choose "Sparse Memory" over this option.
+ 
+ config SPARSEMEM_MANUAL
+ 	bool "Sparse Memory"
+ 	depends on ARCH_SPARSEMEM_ENABLE
+ 	help
+ 	  This will be the only option for some systems, including
+-	  memory hotplug systems.  This is normal.
++	  memory hot-plug systems.  This is normal.
+ 
+-	  For many other systems, this will be an alternative to
+-	  "Discontiguous Memory".  This option provides some potential
+-	  performance benefits, along with decreased code complexity,
+-	  but it is newer, and more experimental.
++	  This option provides efficient support for systems with
++	  holes is their physical address space and allows memory
++	  hot-plug and hot-remove.
+ 
+-	  If unsure, choose "Discontiguous Memory" or "Flat Memory"
+-	  over this option.
++	  If unsure, choose "Flat Memory" over this option.
+ 
+ endchoice
+ 
+-- 
+2.7.4
 
