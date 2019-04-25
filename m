@@ -6,95 +6,96 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC677C282E3
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FC05C282E3
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 968332054F
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 968332054F
+	by mail.kernel.org (Postfix) with ESMTP id CDAE6218DE
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDAE6218DE
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD2CF6B0008; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
+	id 0AC726B000C; Thu, 25 Apr 2019 05:59:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA8BF6B000D; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
+	id 036146B000D; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A46C16B0010; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
+	id DF0A16B0010; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 586976B0008
+	by kanga.kvack.org (Postfix) with ESMTP id 8F4996B000E
 	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:18 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id n6so335735wre.18
+Received: by mail-wr1-f71.google.com with SMTP id o16so20463515wrp.8
         for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :user-agent:date:from:to:cc:subject:references:mime-version;
-        bh=gI0lw/Aq38cqAHkWGoFTdkB2SUTaV8zZIWgmwzBAOqU=;
-        b=evN5dQe0vj9BbhLqI9zzjoPr7GBGgbdNf1OiyXVe3AV5Bt6Fi/NJNuVG+2WcNJoUsW
-         Md2TDKyU/FWiYSy0qNq3DZi9FFkbK/BGjOKJK6i6L890plQfiYvB72O9UwyRlXvXgyL4
-         ZQumZ3vVkRwp33+JEFL4sIAeDaOZ66x0MFqyio/cyXSfPmBNbtuTlcLrz97m2kIJyS4H
-         KcVmqv/AJKwqA4SogSfR5k0fmpHs5nFK5g9K57JFlwkzIOKH/qcBLZsTkfdC6ztCKSI9
-         IiriCBYICkPvSKDWujz+0jMdrb9rup+l4v6BFeOyvhAZguE7ROoKkL7kOmxS0y8Wws1/
-         7SnA==
+        bh=0y/QyUdaOvECJaR4ueRYQdFEB+ebIhDutCtUQ6iFeT4=;
+        b=D4kUwv+Ekm5xrPSSxIYGgj6m7dCylJvfZ474xwGMXCv6Z/HtPM0eyIs1zkZ8TCr4+g
+         4o2RaVC++C9nnwqrs8QNdBlfft7+usVUPVml7Gn8BR7zOZqHrqsB+Qp7Y0hYokLRBkM/
+         B8ARoRaze9csxgJSkvdV09OK35M2R1tdRKm2iXnI/YhyOr/QMgBP7JSINoDg3mH/UJnQ
+         AIXkepzq9sTa3ZbFruCiX3C5Nyq7B34CRViGD+Gi/SA4PLgO84c6tqT47CpYLGplagMX
+         P8eiW73XC6YSeWIQqUZ9qgnczWQYZmWt0LX2FiPBgYHUXauwQjIZcWZ44XkSogG5C5kA
+         l5QQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAX4rRili/JpF9OUc6JtpgLT94VMYGHJSWtsdX8vBiQE4dzma6NX
-	soo3P5PJ+ScjZURM4aDa+uv+s/dT4INHYqSb5pzlz7qpyVquDTNIhcYQYMhSaFPq24Ro9NW1JIA
-	v9Ank6hRGwMgPj4KbGY9amQPNI2s8hx2zjSYRj+gTaHxgCsrWnRdn3OEvDhbq5ElAgA==
-X-Received: by 2002:a05:6000:12c7:: with SMTP id l7mr23728396wrx.4.1556186357871;
+X-Gm-Message-State: APjAAAWbp1cnlcirZdSnldci2DkGv2bAMt46PG1PCcEYzgz9ayy2taEG
+	k0lVD7HUs0pKPApFgOhnx4yRsVNYBpNbj2KF4UP3XczoxnSMzkdQYylHpWT2BRQuDWaiL5yYheV
+	WyfIdMzv0UfrW3FclubAqM1TcT6+Z5UhYVgumR6AEHCY4ipW/V2nvblvxST0dS4W0ZA==
+X-Received: by 2002:a5d:624d:: with SMTP id m13mr1458096wrv.305.1556186358115;
+        Thu, 25 Apr 2019 02:59:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy2T3U+r5nKczI31XcbLDNzkeGchVGNK1wt976iiC6z4ZMQ9VWJgMsPGMiQygS18/GRFZGu
+X-Received: by 2002:a5d:624d:: with SMTP id m13mr1458049wrv.305.1556186357239;
         Thu, 25 Apr 2019 02:59:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzaU7HsGeVkufgNySs42O1zz23hgUEWfTD5hfmx3lYpcLAbFheKvbZL/eBRPCOoiWuTulR6
-X-Received: by 2002:a05:6000:12c7:: with SMTP id l7mr23728298wrx.4.1556186355976;
-        Thu, 25 Apr 2019 02:59:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556186355; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556186357; cv=none;
         d=google.com; s=arc-20160816;
-        b=PYsItyJcUrtjrNc9KP1dC9dQGBtY8C2DdwYHIzDY42445b+CCnxYicXv/mpD/QIwGB
-         5fzqqiSmd0YK8oEJphUQeFZPvYP5Pne4D3nWcVp+kUJ3ufbv8DBVKaFFD+wlH28yUgfU
-         5d7+0aCCNIPD+shNBVm9t0qbdbGPPlc/NfD+fWXq9RrI1aPwQUf8VviACOjKE1YA8bPH
-         FBb5iqloZfmQS34PZAwKnIo8UWJYYC4jyDv+w3mt/mGIqBtTt3mJdXubjK6kNR98ST69
-         SzvMYHTOnu2ahTQGZG6cRCr1AF7zkohVz7Yy57Rq2x5ROhAlACaktj+C6Qd36AcrzcVu
-         tIcw==
+        b=jlbNTJYYnajdWi6xTu0w029Py+LRliHTnGp80W2Ji/8JRaVl64p3ZLkbwwWg04kJHy
+         2gYjSRM3nuZL7ploZEXuSyTiD11WdOzKBPKgkwM1NMeKHJoxUsvz8aYe9EBG+tkrOcMC
+         xpCJ04dlY9ICxEFsGi+yk5vrcCyWbihfpGdTrvjZiY4mXFD3cvwouG4KwgLravGMQcql
+         JhXJpSiyL3eu2/QHP1pOjiG9PAcvZkET/XAqyg9hY+lg9JuL05PP8nnnDV1Q1fG9lnZK
+         s9qEcWhWsraSo/zTc3jEqaW/Vr+gH+VI86Yt3Zs3iLOJH89gOqHOunFhOHfPRgtBhO4g
+         tM8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id;
-        bh=gI0lw/Aq38cqAHkWGoFTdkB2SUTaV8zZIWgmwzBAOqU=;
-        b=n+J4w0ce/QJTBzqF0A6cwRFK/X9cTHASR3/BDSHsRkXsUOr4ZrNB1liFFP+J+TNsC3
-         MSzfoHoXOl7SMvbo0MgvlaBXW+IyAPFq0grEUWaWWUzY8Rn04SDFtAX1BDEjx2EU05Ss
-         V7GqXN1mSTNl08laGs6DUiKjnVIrN9E1tVxwhqJUrcJxMppdNhCK8yiye2NB8BO7myJf
-         N/UBI8lGbzBpsw639+ntE7S+OL1KTviCnKRkwoisRyTSBwNZyCWQKSpXHACI87eSNhtQ
-         +e4sHVO8XL4TJtOEIxZb45SWR2lr/D5i/N0JS0vqnA48AgwRyQ1BInIWPtY+9b9ofgCg
-         IJqA==
+        bh=0y/QyUdaOvECJaR4ueRYQdFEB+ebIhDutCtUQ6iFeT4=;
+        b=efdg/4UtvEuoEyxyYBilLf5WWA38ns5PIcImyhqdxu8bTRmF0svpox6no/4WyxNOuJ
+         0WCkZyjLWGX+2yoxSewHLoClUppw6fX2YPzNGf9vk0stZ/unorLsAekb8qIGPi4vTU2N
+         yMgz291aZVLcVPmBeMSYGCU8duUogIFq/QVTM18Wi/oqbzqBBJl7ymJmFmO03OFVTXpG
+         EDuUDUhe5zrGHzYDsd5WPUTqy5odvQi5EPKGHbhIwBy8q0yd2IcbsqQG8ebfYtH7qY2+
+         6b9iHqd9lvsTsakEayH3YYOona6+Now8QMnn8o7A6PTDbbt2/Gs2mMXCV/SezqNemRUW
+         IWjg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id d18si11376954wre.185.2019.04.25.02.59.15
+        by mx.google.com with ESMTPS id n21si11690141wmc.171.2019.04.25.02.59.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Apr 2019 02:59:15 -0700 (PDT)
+        Thu, 25 Apr 2019 02:59:17 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
 Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
 	by Galois.linutronix.de with esmtp (Exim 4.80)
 	(envelope-from <tglx@linutronix.de>)
-	id 1hJb9k-0001qX-9I; Thu, 25 Apr 2019 11:59:04 +0200
-Message-Id: <20190425094801.230654524@linutronix.de>
+	id 1hJb9w-0001rd-FT; Thu, 25 Apr 2019 11:59:16 +0200
+Message-Id: <20190425094802.067210525@linutronix.de>
 User-Agent: quilt/0.65
-Date: Thu, 25 Apr 2019 11:44:54 +0200
+Date: Thu, 25 Apr 2019 11:45:03 +0200
 From: Thomas Gleixner <tglx@linutronix.de>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
- Andy Lutomirski <luto@kernel.org>, Steven Rostedt <rostedt@goodmis.org>,
- Alexander Potapenko <glider@google.com>,
- Alexey Dobriyan <adobriyan@gmail.com>,
+ Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ David Rientjes <rientjes@google.com>,
  Andrew Morton <akpm@linux-foundation.org>,
- Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
- linux-mm@kvack.org, David Rientjes <rientjes@google.com>,
+ Steven Rostedt <rostedt@goodmis.org>,
+ Alexander Potapenko <glider@google.com>,
+ Alexey Dobriyan <adobriyan@gmail.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>,
  Catalin Marinas <catalin.marinas@arm.com>,
  Dmitry Vyukov <dvyukov@google.com>,
  Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
  Akinobu Mita <akinobu.mita@gmail.com>, Christoph Hellwig <hch@lst.de>,
  iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
  Marek Szyprowski <m.szyprowski@samsung.com>,
@@ -110,7 +111,7 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
  Rodrigo Vivi <rodrigo.vivi@intel.com>,
  Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
  linux-arch@vger.kernel.org
-Subject: [patch V3 01/29] tracing: Cleanup stack trace code
+Subject: [patch V3 10/29] mm/page_owner: Simplify stack trace handling
 References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -120,159 +121,167 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-- Remove the extra array member of stack_dump_trace[] along with the
-  ARRAY_SIZE - 1 initialization for struct stack_trace :: max_entries.
+Replace the indirection through struct stack_trace by using the storage
+array based interfaces.
 
-  Both are historical leftovers of no value. The stack tracer never exceeds
-  the array and there is no extra storage requirement either.
-
-- Make variables which are only used in trace_stack.c static.
-
-- Simplify the enable/disable logic.
-
-- Rename stack_trace_print() as it's using the stack_trace_ namespace. Free
-  the name up for stack trace related functions.
+The original code in all printing functions is really wrong. It allocates a
+storage array on stack which is unused because depot_fetch_stack() does not
+store anything in it. It overwrites the entries pointer in the stack_trace
+struct so it points to the depot storage.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
-V3: Remove the -1 init and split the variable declaration as requested by Steven.
-V2: Add more cleanups and use print_max_stack() as requested by Steven.
----
- include/linux/ftrace.h     |   18 ++++--------------
- kernel/trace/trace_stack.c |   42 +++++++++++++-----------------------------
- 2 files changed, 17 insertions(+), 43 deletions(-)
+ mm/page_owner.c |   79 +++++++++++++++++++-------------------------------------
+ 1 file changed, 28 insertions(+), 51 deletions(-)
 
---- a/include/linux/ftrace.h
-+++ b/include/linux/ftrace.h
-@@ -241,21 +241,11 @@ static inline void ftrace_free_mem(struc
- 
- #ifdef CONFIG_STACK_TRACER
- 
--#define STACK_TRACE_ENTRIES 500
--
--struct stack_trace;
--
--extern unsigned stack_trace_index[];
--extern struct stack_trace stack_trace_max;
--extern unsigned long stack_trace_max_size;
--extern arch_spinlock_t stack_trace_max_lock;
--
- extern int stack_tracer_enabled;
--void stack_trace_print(void);
--int
--stack_trace_sysctl(struct ctl_table *table, int write,
--		   void __user *buffer, size_t *lenp,
--		   loff_t *ppos);
-+
-+int stack_trace_sysctl(struct ctl_table *table, int write,
-+		       void __user *buffer, size_t *lenp,
-+		       loff_t *ppos);
- 
- /* DO NOT MODIFY THIS VARIABLE DIRECTLY! */
- DECLARE_PER_CPU(int, disable_stack_tracer);
---- a/kernel/trace/trace_stack.c
-+++ b/kernel/trace/trace_stack.c
-@@ -18,30 +18,26 @@
- 
- #include "trace.h"
- 
--static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES + 1];
--unsigned stack_trace_index[STACK_TRACE_ENTRIES];
-+#define STACK_TRACE_ENTRIES 500
-+
-+static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES];
-+static unsigned stack_trace_index[STACK_TRACE_ENTRIES];
- 
--/*
-- * Reserve one entry for the passed in ip. This will allow
-- * us to remove most or all of the stack size overhead
-- * added by the stack tracer itself.
-- */
- struct stack_trace stack_trace_max = {
--	.max_entries		= STACK_TRACE_ENTRIES - 1,
-+	.max_entries		= STACK_TRACE_ENTRIES,
- 	.entries		= &stack_dump_trace[0],
- };
- 
--unsigned long stack_trace_max_size;
--arch_spinlock_t stack_trace_max_lock =
-+static unsigned long stack_trace_max_size;
-+static arch_spinlock_t stack_trace_max_lock =
- 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
- 
- DEFINE_PER_CPU(int, disable_stack_tracer);
- static DEFINE_MUTEX(stack_sysctl_mutex);
- 
- int stack_tracer_enabled;
--static int last_stack_tracer_enabled;
- 
--void stack_trace_print(void)
-+static void print_max_stack(void)
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -58,15 +58,10 @@ static bool need_page_owner(void)
+ static __always_inline depot_stack_handle_t create_dummy_stack(void)
  {
- 	long i;
- 	int size;
-@@ -61,16 +57,7 @@ void stack_trace_print(void)
+ 	unsigned long entries[4];
+-	struct stack_trace dummy;
++	unsigned int nr_entries;
+ 
+-	dummy.nr_entries = 0;
+-	dummy.max_entries = ARRAY_SIZE(entries);
+-	dummy.entries = &entries[0];
+-	dummy.skip = 0;
+-
+-	save_stack_trace(&dummy);
+-	return depot_save_stack(&dummy, GFP_KERNEL);
++	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 0);
++	return stack_depot_save(entries, nr_entries, GFP_KERNEL);
+ }
+ 
+ static noinline void register_dummy_stack(void)
+@@ -120,46 +115,39 @@ void __reset_page_owner(struct page *pag
  	}
  }
  
--/*
-- * When arch-specific code overrides this function, the following
-- * data should be filled up, assuming stack_trace_max_lock is held to
-- * prevent concurrent updates.
-- *     stack_trace_index[]
-- *     stack_trace_max
-- *     stack_trace_max_size
-- */
--void __weak
--check_stack(unsigned long ip, unsigned long *stack)
-+static void check_stack(unsigned long ip, unsigned long *stack)
+-static inline bool check_recursive_alloc(struct stack_trace *trace,
+-					unsigned long ip)
++static inline bool check_recursive_alloc(unsigned long *entries,
++					 unsigned int nr_entries,
++					 unsigned long ip)
  {
- 	unsigned long this_size, flags; unsigned long *p, *top, *start;
- 	static int tracer_frame;
-@@ -179,7 +166,7 @@ check_stack(unsigned long ip, unsigned l
- 	stack_trace_max.nr_entries = x;
+-	int i;
++	unsigned int i;
  
- 	if (task_stack_end_corrupted(current)) {
--		stack_trace_print();
-+		print_max_stack();
- 		BUG();
+-	if (!trace->nr_entries)
+-		return false;
+-
+-	for (i = 0; i < trace->nr_entries; i++) {
+-		if (trace->entries[i] == ip)
++	for (i = 0; i < nr_entries; i++) {
++		if (entries[i] == ip)
+ 			return true;
+ 	}
+-
+ 	return false;
+ }
+ 
+ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+ {
+ 	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+-	struct stack_trace trace = {
+-		.nr_entries = 0,
+-		.entries = entries,
+-		.max_entries = PAGE_OWNER_STACK_DEPTH,
+-		.skip = 2
+-	};
+ 	depot_stack_handle_t handle;
++	unsigned int nr_entries;
+ 
+-	save_stack_trace(&trace);
++	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 2);
+ 
+ 	/*
+-	 * We need to check recursion here because our request to stackdepot
+-	 * could trigger memory allocation to save new entry. New memory
+-	 * allocation would reach here and call depot_save_stack() again
+-	 * if we don't catch it. There is still not enough memory in stackdepot
+-	 * so it would try to allocate memory again and loop forever.
++	 * We need to check recursion here because our request to
++	 * stackdepot could trigger memory allocation to save new
++	 * entry. New memory allocation would reach here and call
++	 * stack_depot_save_entries() again if we don't catch it. There is
++	 * still not enough memory in stackdepot so it would try to
++	 * allocate memory again and loop forever.
+ 	 */
+-	if (check_recursive_alloc(&trace, _RET_IP_))
++	if (check_recursive_alloc(entries, nr_entries, _RET_IP_))
+ 		return dummy_handle;
+ 
+-	handle = depot_save_stack(&trace, flags);
++	handle = stack_depot_save(entries, nr_entries, flags);
+ 	if (!handle)
+ 		handle = failure_handle;
+ 
+@@ -337,16 +325,10 @@ print_page_owner(char __user *buf, size_
+ 		struct page *page, struct page_owner *page_owner,
+ 		depot_stack_handle_t handle)
+ {
+-	int ret;
+-	int pageblock_mt, page_mt;
++	int ret, pageblock_mt, page_mt;
++	unsigned long *entries;
++	unsigned int nr_entries;
+ 	char *kbuf;
+-	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+-	struct stack_trace trace = {
+-		.nr_entries = 0,
+-		.entries = entries,
+-		.max_entries = PAGE_OWNER_STACK_DEPTH,
+-		.skip = 0
+-	};
+ 
+ 	count = min_t(size_t, count, PAGE_SIZE);
+ 	kbuf = kmalloc(count, GFP_KERNEL);
+@@ -375,8 +357,8 @@ print_page_owner(char __user *buf, size_
+ 	if (ret >= count)
+ 		goto err;
+ 
+-	depot_fetch_stack(handle, &trace);
+-	ret += snprint_stack_trace(kbuf + ret, count - ret, &trace, 0);
++	nr_entries = stack_depot_fetch(handle, &entries);
++	ret += stack_trace_snprint(kbuf + ret, count - ret, entries, nr_entries, 0);
+ 	if (ret >= count)
+ 		goto err;
+ 
+@@ -407,14 +389,9 @@ void __dump_page_owner(struct page *page
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 	struct page_owner *page_owner;
+-	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+-	struct stack_trace trace = {
+-		.nr_entries = 0,
+-		.entries = entries,
+-		.max_entries = PAGE_OWNER_STACK_DEPTH,
+-		.skip = 0
+-	};
+ 	depot_stack_handle_t handle;
++	unsigned long *entries;
++	unsigned int nr_entries;
+ 	gfp_t gfp_mask;
+ 	int mt;
+ 
+@@ -438,10 +415,10 @@ void __dump_page_owner(struct page *page
+ 		return;
  	}
  
-@@ -412,23 +399,21 @@ stack_trace_sysctl(struct ctl_table *tab
- 		   void __user *buffer, size_t *lenp,
- 		   loff_t *ppos)
- {
-+	int was_enabled;
- 	int ret;
+-	depot_fetch_stack(handle, &trace);
++	nr_entries = stack_depot_fetch(handle, &entries);
+ 	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
+ 		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
+-	print_stack_trace(&trace, 0);
++	stack_trace_print(entries, nr_entries, 0);
  
- 	mutex_lock(&stack_sysctl_mutex);
-+	was_enabled = !!stack_tracer_enabled;
- 
- 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
- 
--	if (ret || !write ||
--	    (last_stack_tracer_enabled == !!stack_tracer_enabled))
-+	if (ret || !write || (was_enabled == !!stack_tracer_enabled))
- 		goto out;
- 
--	last_stack_tracer_enabled = !!stack_tracer_enabled;
--
- 	if (stack_tracer_enabled)
- 		register_ftrace_function(&trace_ops);
- 	else
- 		unregister_ftrace_function(&trace_ops);
--
-  out:
- 	mutex_unlock(&stack_sysctl_mutex);
- 	return ret;
-@@ -444,7 +429,6 @@ static __init int enable_stacktrace(char
- 		strncpy(stack_trace_filter_buf, str + len, COMMAND_LINE_SIZE);
- 
- 	stack_tracer_enabled = 1;
--	last_stack_tracer_enabled = 1;
- 	return 1;
- }
- __setup("stacktrace", enable_stacktrace);
+ 	if (page_owner->last_migrate_reason != -1)
+ 		pr_alert("page has been migrated, last migrate reason: %s\n",
 
 
