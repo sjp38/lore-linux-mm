@@ -2,209 +2,188 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNWANTED_LANGUAGE_BODY,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B02D3C10F03
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:18:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FF05C10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6975D218B0
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:18:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6975D218B0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id ADFE6218B0
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 09:59:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADFE6218B0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 055EB6B0005; Thu, 25 Apr 2019 05:18:09 -0400 (EDT)
+	id 010DD6B0005; Thu, 25 Apr 2019 05:59:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 006B86B0006; Thu, 25 Apr 2019 05:18:08 -0400 (EDT)
+	id F03216B0007; Thu, 25 Apr 2019 05:59:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5E306B0007; Thu, 25 Apr 2019 05:18:08 -0400 (EDT)
+	id E19F86B0008; Thu, 25 Apr 2019 05:59:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8A66B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:18:08 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id j18so13678753pfi.20
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:18:08 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 94B9F6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 05:59:16 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id b12so5714688wmj.0
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 02:59:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=hrqBoE1YwE3mWKEoyTaF/RUYLJzLU8tBFqETEAgrjtA=;
-        b=IkjSrfsabKrL7yAbBSHooQXJC7g6C5AyvjUu64SP+75LwFPjQqRVRqTcu+HdgWWF/G
-         iSi38N66ryHenGjpGuYU7z74D/emSwQPpPObXr62O90GqumloaIblfGDFjAXaNQ4+VpH
-         5W7P/n7LKy5BnBC1suA9I7/MzAsyMYPc/QZzmAdhMf5SRCTYMwlRTx75bgXwss8fTk0p
-         1G+UHSJuC4EePdTr0m1KapqRkilKdW2Hvnn/c8V0bJbFv0pr2eocHSVu2npLhdGJ96dR
-         P1D7ktUBz22x/qiPa2o/2HRK5V5pJacwuJgDfmakgi/3m2HKoeDaJucFRJSWYIOlykxR
-         TG4A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fan.du@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXr7A+9NT79HtHePUyOzwwpFSTudfobopqW33qk5y4jfGgh8l09
-	LQuv2oQ1QN8ZhsluPzqhBGA08FK8U1g1WyUHvd54t7QMIVei898HOj47d35ivtMvWFXK+Nw2YHh
-	GajwIX3q5e3DyDgyUfABQ3HMGnEgggco5DA84LPeT2zfPk0M+5aQkdHySp6Do7Dttiw==
-X-Received: by 2002:a63:ff05:: with SMTP id k5mr23417372pgi.342.1556183888088;
-        Thu, 25 Apr 2019 02:18:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweGDdsNiXN2oPIaOI0QZF2apQFBq7Jr3oTo3sfgQA2Onw2/GImICLch+fcfnoXxlkhU+Sl
-X-Received: by 2002:a63:ff05:: with SMTP id k5mr23417312pgi.342.1556183887272;
-        Thu, 25 Apr 2019 02:18:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556183887; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :user-agent:date:from:to:cc:subject:references:mime-version;
+        bh=YabZpxn7mRZSzbNRVFW/2KaxGhb8DuUKqYC4gVtFav0=;
+        b=YuTecPbdIcBN51NiNMLHuZOiI9pncdrgBOdg1TLlQhdOiSFVl49bvFDcNl7DbzWXOZ
+         PwrzLUZ7gG/PpMDBNR+Qt7HM6pU8AGZTRcdoUGQVoWM+lVFnawC6tMPYTHFnTZXiwBgJ
+         rugsShF6lQ40DTX3he013c8TGpB6wihaabyGMd+w8f45VGDWkELtp01g7t/t0q3+VL3i
+         z0ylDRqzh4IblZM1OuYBxmAy1Tnc3yH59y5QOmnRoRnxCCU/11BhvhKl46fm9GYuV03S
+         qLZd+f39s10bf9SDyh4KP/cn0w3OLT22jM8LamzETkHb4DfPC1jwoV5dxDK6Bz2yu6dN
+         bFIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAUaWdrwDnEF5fCValwWsiuJ+PJxSAiolHKR+XI7fFK8ULYPJ6AU
+	vB1Y7K5xIGARsT2UheZHOEDpj+zPJg9ge2C6W6qGtcKOpt2ov9SgC7fImwIIa/5KGgyNOlb+Ecw
+	FYYgGNYzqhX7yM11diwvd2bVljJTOD9MAEUeQosWqmzzbtXeGIkjzJI37mWJLgfUpUg==
+X-Received: by 2002:a1c:d1c5:: with SMTP id i188mr2852258wmg.8.1556186356103;
+        Thu, 25 Apr 2019 02:59:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQqcuDPACjbMbb4QxWUxAl4UZfkGtffPJ5Tx5g0fOBJeDTuSgES7EhL8Hd0hB8sxnGuSc0
+X-Received: by 2002:a1c:d1c5:: with SMTP id i188mr2852182wmg.8.1556186354473;
+        Thu, 25 Apr 2019 02:59:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556186354; cv=none;
         d=google.com; s=arc-20160816;
-        b=seeOCR2jobihm+nB3K+4Qt93Ijg8np3NI3vSRWhSezHNrBBeqBtx7FWOjTi88yfZC2
-         BYG9iJCxgEUyABXRlVHfEJrSKtwC75esb1ErzuNTdAtuVRGvtwPn/DYYHRX0toncJbsi
-         AufYNxGrjxLjIHiZzo8S6509bDAeDwpEiziFSs/ia0sj4nmXVE90CyYOkMx3LPygzH86
-         B93foaWNnddLfCzVfxJqoa7AZwf2xtULpddIspEPXK3Q7qEjq0ZvTm/wY3W8V/cqnsgI
-         qI9eZX2Es1ySfsE3WVBYYKbvLfrzOM2qoHfLlbOGB4zLv5thP1+GXaoiUHkHP8fxhOOc
-         dF5A==
+        b=0wJWOl74aMiyb7jKHPVlBYVpMVg6KiHdy3XTLVUA7+jgQh2oKD/p+JsO/G+2yt+hQU
+         9O529LZ/tm0M6uEMCe97zyL5fxkM6EjycfoHG5YUj3/oUDwe4mcArxso2HgOww3eMDMS
+         x0MJvxePHhImPnGTAws0JC/1LCjtvnZQXr3zZYDloj04uWERy8LyCXnEQ/8S/ouM/LeZ
+         O1jV8/bUFBe6XtaaJaUkAM0CqVrOlsriDpxee/BGTY/7y14aASqF2qAfGj7oZ10+IA9m
+         9OGKqudakdYgvsas76OHLcRv+/izS7LhgWbeScDy64LsDhpcv1lSt+gpC7zubzAni9jI
+         +ByQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=hrqBoE1YwE3mWKEoyTaF/RUYLJzLU8tBFqETEAgrjtA=;
-        b=Vyhj994fABozbMHABsgxRy1xCHbFCY1T9n8SSzMk8FajzbGAWscCKiLMotvct45t9k
-         7O7ydEGinOZ2pBAbtMgqcFH8Mc3dChqg/0E1mTcf8N3QJy18Kw91XKqqSQBslwFir0Cg
-         vP1knv+3xSCMLg1LhCKSZqYlOYVDR8oy2KoVclLdlpfN1KdW5CKYpCCVHklniYSVNDCL
-         pahqcFEig/mbHfRmojIvLVyXEitpAovqkhN+BzhRINJPjznDVLdNX81PJKuW2bRZBKYk
-         wpkQXNLi9OW45DGFOq4xqlK1uyBze1JoNt4EbkXZ0ZYh8i+PNANWvXqU574075QZXqAU
-         jJkw==
+        h=mime-version:references:subject:cc:to:from:date:user-agent
+         :message-id;
+        bh=YabZpxn7mRZSzbNRVFW/2KaxGhb8DuUKqYC4gVtFav0=;
+        b=yyRFoqXrPJn88kKBe3VgyZ4Aoad7xv5OIPWwYsPZpBmLduy7US/htf5cuE+hwDQzHH
+         k6TfzyfHoS2skBWeyu3Bf9Ge3pmMQiQW+BffxJvY3+WNWNYg8Dbikwi3yOlXlkCyvko3
+         qToOXuwIgJcqjtMxNKzTXCS66FjjDQdDSzgEAWsQAZfLGe9flNdbVyF6RfdxNP0tD+iR
+         LbZVeyvuNBE9oiOtnDc/AxFwqP6BTzj5fAqhDogO2OVbW309PV8PC+cJfjnppmh9eGpb
+         FjDW7L717JOMLeNQwxKd7/qyrOGUrS3mTNpWkwoRcqqHkBaTD8sieg/BOHL8CS88FBM6
+         0hmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h3si3607378pgg.83.2019.04.25.02.18.07
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id x7si14932980wmj.16.2019.04.25.02.59.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 02:18:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of fan.du@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Apr 2019 02:59:14 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fan.du@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=fan.du@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Apr 2019 02:18:06 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,393,1549958400"; 
-   d="scan'208";a="167792309"
-Received: from fmsmsx107.amr.corp.intel.com ([10.18.124.205])
-  by fmsmga001.fm.intel.com with ESMTP; 25 Apr 2019 02:18:06 -0700
-Received: from fmsmsx162.amr.corp.intel.com (10.18.125.71) by
- fmsmsx107.amr.corp.intel.com (10.18.124.205) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 25 Apr 2019 02:18:06 -0700
-Received: from shsmsx152.ccr.corp.intel.com (10.239.6.52) by
- fmsmsx162.amr.corp.intel.com (10.18.125.71) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 25 Apr 2019 02:18:05 -0700
-Received: from shsmsx104.ccr.corp.intel.com ([169.254.5.92]) by
- SHSMSX152.ccr.corp.intel.com ([169.254.6.42]) with mapi id 14.03.0415.000;
- Thu, 25 Apr 2019 17:18:04 +0800
-From: "Du, Fan" <fan.du@intel.com>
-To: Michal Hocko <mhocko@kernel.org>
-CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Wu, Fengguang"
-	<fengguang.wu@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>,
-	"Hansen, Dave" <dave.hansen@intel.com>, "xishi.qiuxishi@alibaba-inc.com"
-	<xishi.qiuxishi@alibaba-inc.com>, "Huang, Ying" <ying.huang@intel.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "Du, Fan" <fan.du@intel.com>
-Subject: RE: [RFC PATCH 5/5] mm, page_alloc: Introduce
- ZONELIST_FALLBACK_SAME_TYPE fallback list
-Thread-Topic: [RFC PATCH 5/5] mm, page_alloc: Introduce
- ZONELIST_FALLBACK_SAME_TYPE fallback list
-Thread-Index: AQHU+wg4wWYFBheblUa8IPBSvnCJwqZL5rWAgACUV7D//39ggIAAhyuw//9+rQCAAIghcP//gTcAABHkxSA=
-Date: Thu, 25 Apr 2019 09:18:03 +0000
-Message-ID: <5A90DA2E42F8AE43BC4A093BF067884825786020@SHSMSX104.ccr.corp.intel.com>
-References: <1556155295-77723-1-git-send-email-fan.du@intel.com>
- <1556155295-77723-6-git-send-email-fan.du@intel.com>
- <20190425063807.GK12751@dhcp22.suse.cz>
- <5A90DA2E42F8AE43BC4A093BF067884825785F04@SHSMSX104.ccr.corp.intel.com>
- <20190425074841.GN12751@dhcp22.suse.cz>
- <5A90DA2E42F8AE43BC4A093BF067884825785F50@SHSMSX104.ccr.corp.intel.com>
- <20190425080936.GP12751@dhcp22.suse.cz>
- <5A90DA2E42F8AE43BC4A093BF067884825785FA5@SHSMSX104.ccr.corp.intel.com>
- <20190425084302.GQ12751@dhcp22.suse.cz>
-In-Reply-To: <20190425084302.GQ12751@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiODQwNThjYmYtYmNiNi00Y2IxLTllY2QtZmFlNWEzYWU0OWM5IiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiMDM5V281XC94Zm1Yc2dwc1lqZnJCTDhmckFrZFBId2Rpc0t6TTJva1hJOTJJMk9acWZNRVZ1NHBrZ2JURWJMVVMifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [10.239.127.40]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from localhost ([127.0.0.1] helo=nanos.tec.linutronix.de)
+	by Galois.linutronix.de with esmtp (Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hJb9t-0001rM-4A; Thu, 25 Apr 2019 11:59:13 +0200
+Message-Id: <20190425094801.863716911@linutronix.de>
+User-Agent: quilt/0.65
+Date: Thu, 25 Apr 2019 11:45:01 +0200
+From: Thomas Gleixner <tglx@linutronix.de>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, x86@kernel.org,
+ Andy Lutomirski <luto@kernel.org>,
+ Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org,
+ Steven Rostedt <rostedt@goodmis.org>,
+ Alexander Potapenko <glider@google.com>,
+ Alexey Dobriyan <adobriyan@gmail.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+ David Rientjes <rientjes@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev@googlegroups.com,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Akinobu Mita <akinobu.mita@gmail.com>, Christoph Hellwig <hch@lst.de>,
+ iommu@lists.linux-foundation.org, Robin Murphy <robin.murphy@arm.com>,
+ Marek Szyprowski <m.szyprowski@samsung.com>,
+ Johannes Thumshirn <jthumshirn@suse.de>, David Sterba <dsterba@suse.com>,
+ Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
+ linux-btrfs@vger.kernel.org, dm-devel@redhat.com,
+ Mike Snitzer <snitzer@redhat.com>, Alasdair Kergon <agk@redhat.com>,
+ Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
+ Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+ Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+ dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+ Jani Nikula <jani.nikula@linux.intel.com>,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>,
+ Tom Zanussi <tom.zanussi@linux.intel.com>, Miroslav Benes <mbenes@suse.cz>,
+ linux-arch@vger.kernel.org
+Subject: [patch V3 08/29] mm/kmemleak: Simplify stacktrace handling
+References: <20190425094453.875139013@linutronix.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Replace the indirection through struct stack_trace by using the storage
+array based interfaces.
 
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org
+---
+ mm/kmemleak.c |   24 +++---------------------
+ 1 file changed, 3 insertions(+), 21 deletions(-)
 
->-----Original Message-----
->From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
->Behalf Of Michal Hocko
->Sent: Thursday, April 25, 2019 4:43 PM
->To: Du, Fan <fan.du@intel.com>
->Cc: akpm@linux-foundation.org; Wu, Fengguang <fengguang.wu@intel.com>;
->Williams, Dan J <dan.j.williams@intel.com>; Hansen, Dave
-><dave.hansen@intel.com>; xishi.qiuxishi@alibaba-inc.com; Huang, Ying
-><ying.huang@intel.com>; linux-mm@kvack.org; linux-kernel@vger.kernel.org
->Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
->ZONELIST_FALLBACK_SAME_TYPE fallback list
->
->On Thu 25-04-19 08:20:28, Du, Fan wrote:
->>
->>
->> >-----Original Message-----
->> >From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
->> >Behalf Of Michal Hocko
->> >Sent: Thursday, April 25, 2019 4:10 PM
->> >To: Du, Fan <fan.du@intel.com>
->> >Cc: akpm@linux-foundation.org; Wu, Fengguang
-><fengguang.wu@intel.com>;
->> >Williams, Dan J <dan.j.williams@intel.com>; Hansen, Dave
->> ><dave.hansen@intel.com>; xishi.qiuxishi@alibaba-inc.com; Huang, Ying
->> ><ying.huang@intel.com>; linux-mm@kvack.org;
->linux-kernel@vger.kernel.org
->> >Subject: Re: [RFC PATCH 5/5] mm, page_alloc: Introduce
->> >ZONELIST_FALLBACK_SAME_TYPE fallback list
->> >
->> >On Thu 25-04-19 07:55:58, Du, Fan wrote:
->> >> >> PMEM is good for frequently read accessed page, e.g. page
->cache(implicit
->> >> >> page
->> >> >> request), or user space data base (explicit page request)
->> >> >> For now this patch create GFP_SAME_NODE_TYPE for such cases,
->> >additional
->> >> >> Implementation will be followed up.
->> >> >
->> >> >Then simply configure that NUMA node as movable and you get these
->> >> >allocations for any movable allocation. I am not really convinced a =
-new
->> >> >gfp flag is really justified.
->> >>
->> >> Case 1: frequently write and/or read accessed page deserved to DRAM
->> >
->> >NUMA balancing
->>
->> Sorry, I mean page cache case here.
->> Numa balancing works for pages mapped in pagetable style.
->
->I would still expect that a remote PMEM node access latency is
->smaller/comparable to the real storage so a promoting part is not that
->important for the unmapped pagecache. Maybe I am wrong here but that
->really begs for some experiments before we start adding special casing.
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -410,11 +410,6 @@ static void print_unreferenced(struct se
+  */
+ static void dump_object_info(struct kmemleak_object *object)
+ {
+-	struct stack_trace trace;
+-
+-	trace.nr_entries = object->trace_len;
+-	trace.entries = object->trace;
+-
+ 	pr_notice("Object 0x%08lx (size %zu):\n",
+ 		  object->pointer, object->size);
+ 	pr_notice("  comm \"%s\", pid %d, jiffies %lu\n",
+@@ -424,7 +419,7 @@ static void dump_object_info(struct kmem
+ 	pr_notice("  flags = 0x%x\n", object->flags);
+ 	pr_notice("  checksum = %u\n", object->checksum);
+ 	pr_notice("  backtrace:\n");
+-	print_stack_trace(&trace, 4);
++	stack_trace_print(object->trace, object->trace_len, 4);
+ }
+ 
+ /*
+@@ -553,15 +548,7 @@ static struct kmemleak_object *find_and_
+  */
+ static int __save_stack_trace(unsigned long *trace)
+ {
+-	struct stack_trace stack_trace;
+-
+-	stack_trace.max_entries = MAX_TRACE;
+-	stack_trace.nr_entries = 0;
+-	stack_trace.entries = trace;
+-	stack_trace.skip = 2;
+-	save_stack_trace(&stack_trace);
+-
+-	return stack_trace.nr_entries;
++	return stack_trace_save(trace, MAX_TRACE, 2);
+ }
+ 
+ /*
+@@ -2019,13 +2006,8 @@ early_param("kmemleak", kmemleak_boot_co
+ 
+ static void __init print_log_trace(struct early_log *log)
+ {
+-	struct stack_trace trace;
+-
+-	trace.nr_entries = log->trace_len;
+-	trace.entries = log->trace;
+-
+ 	pr_notice("Early log backtrace:\n");
+-	print_stack_trace(&trace, 2);
++	stack_trace_print(log->trace, log->trace_len, 2);
+ }
+ 
+ /*
 
-I understand your concern :), please refer to following summary from 3rd pa=
-rty.
-https://arxiv.org/pdf/1903.05714.pdf
-
-
->--
->Michal Hocko
->SUSE Labs
 
