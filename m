@@ -2,232 +2,208 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06D7CC282E3
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:02:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C19EC4321A
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:29:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E85820679
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:02:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="qxaAfMIy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E85820679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 137A0212F5
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 13:29:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 137A0212F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4194E6B0006; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
+	id 7D5716B0008; Thu, 25 Apr 2019 09:29:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C92B6B0007; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
+	id 785C66B000A; Thu, 25 Apr 2019 09:29:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B8606B0008; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
+	id 6746A6B000C; Thu, 25 Apr 2019 09:29:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 085096B0006
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 09:02:44 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id k8so11277380qkj.20
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:02:44 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4169F6B0008
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 09:29:53 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id k7so4103487qtg.7
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 06:29:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
-        b=Cghb8farpwQWwe7DxwqzjfdXD8l+BzNO15yoTE3uy2+FhnGwLdUAntlXEbWfIi6W7n
-         rYDOfkK07QNJiQ8YU3eKXee1rHnl+KBhKfgufBBTuNNjDfhRAknUjPaqnk8cGfxAXDyC
-         tQV6+OptYj8x6xRSbHoXI8D5Nb7qVs1P6qJLMCQ2vNyMsCRiPuWENfn1Dh4QT7TvZRPm
-         IFdD/weCNIJl8SRukcPwkEaNmgLS/2EkTIr+UJaF4+wIhBwDKoDQL9oQshJuRM7l6FQ4
-         zjXqFnVJeVe0vBjQr6jROFkzwr5UvFSf/jS6LIhY515OhT23J53sBOr9q+IDMp+hN4xI
-         5fQw==
-X-Gm-Message-State: APjAAAW7oNZQB3Z+f7qZDJcP+lhYnS23Rk5cez3Hw1KmWgd4ML+0L1NP
-	p2dQR9U7I6JBkKU/vdHgj11AUzPJjNAB1AuDMWmdvYFkNKc/4/sv4amV5pZKbOosgQNO0Gm/bm6
-	6WimB9I5lEHN3QqrEoC1lr/vOGwbV/VdWwNlQVck2UQXyJFUCdG2Ooj76ZM3Ejji7Tw==
-X-Received: by 2002:ac8:24ea:: with SMTP id t39mr31145855qtt.376.1556197363732;
-        Thu, 25 Apr 2019 06:02:43 -0700 (PDT)
-X-Received: by 2002:ac8:24ea:: with SMTP id t39mr31145744qtt.376.1556197362721;
-        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556197362; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=dOXWWWDkOJL9gmPvZN+tjdw5yq9s62smKpoaJgbFSeU=;
+        b=rDObsfYzwzoo3xgKFokX3pe1LnqtxNavO5i0r4f/jt0k3aVrcho+BouJSHMl3kGejA
+         XrfaD5BAYQbYTDrUw36O22ec9RXQFNHKQYEbBDIenVNa2RPnb7+C17V0BAuQtozknuU5
+         ZnjSaI0HuT381W3AGSZehqIHxpMu/kzuO7wA8x1siOghChk+l8jHCetTDio1r1oCZIO6
+         i05taCvKhEiz0Y0ufXF/jEGVpaH50zrAGDgqNlZtkU3ku8F2QQRlieNr3QkNyCmtSqYM
+         riD4fzUrKhYvpSi4v/l3Cdb7Vf9kPTppUOU0WuoNv1DjiJJToQUNLOHSZAOzHRH+faws
+         jezQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAULf4OH8DHCPmYAtCkb+F6kmLog2iuEJIxjTzDJ2zUnkZFaE6MY
+	pwzsozEHYvHOmqCPPu/CR41prCq54r/edHsCG8wb56fKx0tRN6RigIs48Ip4vHcv86rnMxAV80O
+	Pcmi2Gu3pREiPmMUZk66gpxK/94IPGHOPZKfw5q2l7Adpa491gAx+DlfvoI3vsgB9MQ==
+X-Received: by 2002:ac8:3758:: with SMTP id p24mr17504846qtb.3.1556198993004;
+        Thu, 25 Apr 2019 06:29:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVlm4fHNo9qGVA3mWUxy0+F9MFTAgUOVxXu4yQv9Cy918jOxsGS1PYPCqRotHyoLOZtjH4
+X-Received: by 2002:ac8:3758:: with SMTP id p24mr17504788qtb.3.1556198992159;
+        Thu, 25 Apr 2019 06:29:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556198992; cv=none;
         d=google.com; s=arc-20160816;
-        b=qSAhwZByh8WD+4Yzj4MYFOfxOjUeIxaIypLfCVToq3EiM0fx9rrUqlZ5pxrcUz3Vb4
-         KI/hJxHjY+bdgpOwTv4zTYcjmAFLWfiGvaKPLw9ef9PUdLdiRrCVK9ZTuG22v6Jz56lI
-         R7rOG0DJtTA5p6Ct/cEKBb+zqQnC/tuHnAawHLy/e7BousFsrMevlmawVMCTBipFMRj/
-         2VDAUerX7a6ZDO4ItfHeQKw4NMpbT1BA6Ijq1ReYz7sLDACvNJ5b3c+VAM5W3QqalEyw
-         Vx0jHTRNR2m/MBBsctWL/4wHxlY7owWSx1KjAKCxTkHz6hzABCNWtMy32qaGMZdzGD7w
-         4kvg==
+        b=G5WlXQ77ZUdhWqr3wqDrdyg3R+GBfuysYcbV5y4O1Z/r7jmejmSwYBy9xYe/3+rbIj
+         +zvV/F2qYVbcVg1Eh3lxSz9yPQJncmQ24HGGfQwleBPWcTU6X6QA9oDREXzxsgN1bkVK
+         Ewz+4MYJmLZ4bR1K1y41wx7BkPqlYwbremGvBD4YW6xut46t4MTBNQJOyqmdbLrIUaem
+         miRhnQBLqolyyv6kr+K6FcZx0YsGBPmfRTD5YCWJsiFPsfMljs3xgA73txeQZ0aiwz1X
+         tufOW0gB85AdRhbXRtRWQPU8bi2llutR9JOD0/Nud5L9t2IDxQGscsqG+ehZ88/Gv1AF
+         4R8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
-        b=sWYveBdyykvGimAfXUeGGU6yt/gP0GMYNbACUxLppgShBtZVoXpHOeGdAyJwFer+rY
-         O+f46QdYwEfd+ZOOMA+ydW7OjOkQ79cvTl4b8HkpPh+Ov7+HVLDaMQpo5x7+PoyQ8jj5
-         //ksamhC4wIua380fuzXl8vtWekur1V9/1ZfUiHLirWUsFq0FMUT7ExpzVjSMR1PPKov
-         fVz2INg08wE40ccikXryNf6YYhFuf3fA99P/EBudSvmYU++vGG7ZEGnsBiwRN8oSFV0f
-         JFFP4NluM+vdxENMsZMGkd5jYrBSXd985Qr+TLjpy4ZRVl5132QZkOnsBU66RaIMr2O1
-         iyKw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=dOXWWWDkOJL9gmPvZN+tjdw5yq9s62smKpoaJgbFSeU=;
+        b=du+uk/EMkBTsgcaxF6i/r448pIrabpVkMEACJkNu7uqqrLfc+zGnV2aeDFMRk90CQC
+         WjzvQETSZgnZSlGpnRwuKPdu6DIeBO4ODEv/xUeQXqbe2jRBiBEX8Q+k57fSCDewc1RL
+         YoOYJegAW6Kpc0WdGoZk1NHCsQtS1rxCud5GUi//A3zUcVEYXar/S1NR77XR7qbHOlNs
+         UXv2gtq94c9D4HLYXJ/OFk74tdiaouziS65CuMYzvPZEF+gDP7lrt5B3moLxTWl9HrKM
+         vsJaukK+wK5kKlfCy2E2xLfnFTFd+g8d8Iubx8vrFMQXoXwFKH5GOUls+Pv6OWgQdTVx
+         W6ew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=qxaAfMIy;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x4sor30930155qto.38.2019.04.25.06.02.42
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x22si1088778qvc.42.2019.04.25.06.29.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=qxaAfMIy;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=96rStI40ThtBmGcWqYI3X4FkM6ZOQSu6lIf8l+fiVRo=;
-        b=qxaAfMIyKYHlle3VEEYUbn1n6SkmraS0hGY3XRZc85e8UAKtTedVMkO8YbxfZ9Clm9
-         SquNBtGJqsQR35uJDL9ybre7ScBA/sqf66LYc0cej5Ae1U+DNxHYy7//gbHap6CHAkli
-         07p/0FmCAWPTU/lXbMgJ4J3nv9XLxVPgiObE2Ncc4i5dYOrwbDRU1iTUfjYPE1GfXsvH
-         EihHH+Dswv+chz1//hzv4dwPXBo2AyEHvdKORkneIZ6fGV/fXi7l4xvFL4tigYHVVD5H
-         GDqA6uG1y944GsxQ4ja473S5xoRb0fM1jawGW46f1udR5vgAGkgW+LBd3EcACVHAsuGq
-         kUNQ==
-X-Google-Smtp-Source: APXvYqyh5r8KkohsRUySMiD9/d/TioZ/eW5WfI/YXkGE3MnYQ3KFch0EEtDGfvtS2Fr8OjGQcHbOOA==
-X-Received: by 2002:ac8:28f4:: with SMTP id j49mr30851971qtj.310.1556197362203;
-        Thu, 25 Apr 2019 06:02:42 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id w58sm10048612qtw.93.2019.04.25.06.02.40
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 06:02:41 -0700 (PDT)
-Message-ID: <1556197359.6132.2.camel@lca.pw>
-Subject: Re: bio_iov_iter_get_pages() + page_alloc.shuffle=1 migrating
- failures
-From: Qian Cai <cai@lca.pw>
-To: Ming Lei <tom.leiming@gmail.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@lst.de>,
- linux-block <linux-block@vger.kernel.org>, Linux Kernel Mailing List
- <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Williams
- <dan.j.williams@intel.com>
-Date: Thu, 25 Apr 2019 09:02:39 -0400
-In-Reply-To: <CACVXFVO_9KOkC=A-uz-NjUOxs_r771yibnKaCPs0z1VuK=QRtw@mail.gmail.com>
-References: <38bef24c-3839-11b0-a192-6cf511d8b268@lca.pw>
-	 <CACVXFVO_9KOkC=A-uz-NjUOxs_r771yibnKaCPs0z1VuK=QRtw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 25 Apr 2019 06:29:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jpoimboe@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jpoimboe@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4B577307B4B0;
+	Thu, 25 Apr 2019 13:29:50 +0000 (UTC)
+Received: from treble (ovpn-123-99.rdu2.redhat.com [10.10.123.99])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 390A060141;
+	Thu, 25 Apr 2019 13:29:39 +0000 (UTC)
+Date: Thu, 25 Apr 2019 08:29:35 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org,
+	Andy Lutomirski <luto@kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Alexander Potapenko <glider@google.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	linux-mm@kvack.org, David Rientjes <rientjes@google.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	kasan-dev@googlegroups.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Akinobu Mita <akinobu.mita@gmail.com>,
+	Christoph Hellwig <hch@lst.de>, iommu@lists.linux-foundation.org,
+	Robin Murphy <robin.murphy@arm.com>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	David Sterba <dsterba@suse.com>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, linux-btrfs@vger.kernel.org,
+	dm-devel@redhat.com, Mike Snitzer <snitzer@redhat.com>,
+	Alasdair Kergon <agk@redhat.com>, Daniel Vetter <daniel@ffwll.ch>,
+	intel-gfx@lists.freedesktop.org,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Tom Zanussi <tom.zanussi@linux.intel.com>,
+	Miroslav Benes <mbenes@suse.cz>, linux-arch@vger.kernel.org
+Subject: Re: [patch V3 21/29] tracing: Use percpu stack trace buffer more
+ intelligently
+Message-ID: <20190425132935.ae35l5oybby5ddgl@treble>
+References: <20190425094453.875139013@linutronix.de>
+ <20190425094803.066064076@linutronix.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190425094803.066064076@linutronix.de>
+User-Agent: NeoMutt/20180716
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 25 Apr 2019 13:29:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-04-25 at 16:15 +0800, Ming Lei wrote:
-> On Thu, Apr 25, 2019 at 4:13 PM Qian Cai <cai@lca.pw> wrote:
-> > 
-> > Memory offline [1] starts to fail on linux-next on ppc64le with
-> > page_alloc.shuffle=1 where the "echo offline" command hangs with lots of
-> > migrating failures below. It seems in migrate_page_move_mapping()
-> > 
-> >         if (!mapping) {
-> >                 /* Anonymous page without mapping */
-> >                 if (page_count(page) != expected_count)
-> >                         return -EAGAIN;
-> > 
-> > It expected count=1 but actual count=2.
-> > 
-> > There are two ways to make the problem go away. One is to remove this line
-> > in
-> > __shuffle_free_memory(),
-> > 
-> >         shuffle_zone(z);
-> > 
-> > The other is reverting some bio commits. Bisecting so far indicates the
-> > culprit
-> > is in one of those (the 3rd commit looks more suspicious than the others).
-> > 
-> > block: only allow contiguous page structs in a bio_vec
-> > block: don't allow multiple bio_iov_iter_get_pages calls per bio
-> > block: change how we get page references in bio_iov_iter_get_pages
-> > 
-> > [  446.578064] migrating pfn 2003d5eaa failed ret:22
-> > [  446.578066] page:c00a00800f57aa80 count:2 mapcount:0
-> > mapping:c000001db4c827e9
-> > index:0x13c08a
-> > [  446.578220] anon
-> > [  446.578222] flags:
-> > 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
-> > [  446.578347] raw: 083fffc00008002e c00a00800f57f808 c00a00800f579f88
-> > c000001db4c827e9
-> > [  446.944807] raw: 000000000013c08a 0000000000000000 00000002ffffffff
-> > c00020141a738008
-> > [  446.944883] page dumped because: migration failure
-> > [  446.944948] page->mem_cgroup:c00020141a738008
-> > [  446.945024] page allocated via order 0, migratetype Movable, gfp_mask
-> > 0x100cca(GFP_HIGHUSER_MOVABLE)
-> > [  446.945148]  prep_new_page+0x390/0x3a0
-> > [  446.945228]  get_page_from_freelist+0xd9c/0x1bf0
-> > [  446.945292]  __alloc_pages_nodemask+0x1cc/0x1780
-> > [  446.945335]  alloc_pages_vma+0xc0/0x360
-> > [  446.945401]  do_anonymous_page+0x244/0xb20
-> > [  446.945472]  __handle_mm_fault+0xcf8/0xfb0
-> > [  446.945532]  handle_mm_fault+0x1c0/0x2b0
-> > [  446.945615]  __get_user_pages+0x3ec/0x690
-> > [  446.945652]  get_user_pages_unlocked+0x104/0x2f0
-> > [  446.945693]  get_user_pages_fast+0xb0/0x200
-> > [  446.945762]  iov_iter_get_pages+0xf4/0x6a0
-> > [  446.945802]  bio_iov_iter_get_pages+0xc0/0x450
-> > [  446.945876]  blkdev_direct_IO+0x2e0/0x630
-> > [  446.945941]  generic_file_read_iter+0xbc/0x230
-> > [  446.945990]  blkdev_read_iter+0x50/0x80
-> > [  446.946031]  aio_read+0x128/0x1d0
-> > [  446.946082] migrating pfn 2003d5fe0 failed ret:22
-> > [  446.946084] page:c00a00800f57f800 count:2 mapcount:0
-> > mapping:c000001db4c827e9
-> > index:0x13c19e
-> > [  446.946239] anon
-> > [  446.946241] flags:
-> > 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
-> > [  446.946384] raw: 083fffc00008002e c000200deb3dfa28 c00a00800f57aa88
-> > c000001db4c827e9
-> > [  446.946497] raw: 000000000013c19e 0000000000000000 00000002ffffffff
-> > c00020141a738008
-> > [  446.946605] page dumped because: migration failure
-> > [  446.946662] page->mem_cgroup:c00020141a738008
-> > [  446.946724] page allocated via order 0, migratetype Movable, gfp_mask
-> > 0x100cca(GFP_HIGHUSER_MOVABLE)
-> > [  446.946846]  prep_new_page+0x390/0x3a0
-> > [  446.946899]  get_page_from_freelist+0xd9c/0x1bf0
-> > [  446.946959]  __alloc_pages_nodemask+0x1cc/0x1780
-> > [  446.947047]  alloc_pages_vma+0xc0/0x360
-> > [  446.947101]  do_anonymous_page+0x244/0xb20
-> > [  446.947143]  __handle_mm_fault+0xcf8/0xfb0
-> > [  446.947200]  handle_mm_fault+0x1c0/0x2b0
-> > [  446.947256]  __get_user_pages+0x3ec/0x690
-> > [  446.947306]  get_user_pages_unlocked+0x104/0x2f0
-> > [  446.947366]  get_user_pages_fast+0xb0/0x200
-> > [  446.947458]  iov_iter_get_pages+0xf4/0x6a0
-> > [  446.947515]  bio_iov_iter_get_pages+0xc0/0x450
-> > [  446.947588]  blkdev_direct_IO+0x2e0/0x630
-> > [  446.947636]  generic_file_read_iter+0xbc/0x230
-> > [  446.947703]  blkdev_read_iter+0x50/0x80
-> > [  446.947758]  aio_read+0x128/0x1d0
-> > 
-> > [1]
-> > i=0
-> > found=0
-> > for mem in $(ls -d /sys/devices/system/memory/memory*); do
-> >         i=$((i + 1))
-> >         echo "iteration: $i"
-> >         echo offline > $mem/state
-> >         if [ $? -eq 0 ] && [ $found -eq 0 ]; then
-> >                 found=1
-> >                 continue
-> >         fi
-> >         echo online > $mem/state
-> > done
-> 
-> Please try the following patch:
-> 
-> https://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git/commit/?
-> h=for-5.2/block&id=0257c0ed5ea3de3e32cb322852c4c40bc09d1b97
+On Thu, Apr 25, 2019 at 11:45:14AM +0200, Thomas Gleixner wrote:
+> @@ -2788,29 +2798,32 @@ static void __ftrace_trace_stack(struct
+>  	 */
+>  	preempt_disable_notrace();
+>  
+> -	use_stack = __this_cpu_inc_return(ftrace_stack_reserve);
+> +	stackidx = __this_cpu_inc_return(ftrace_stack_reserve);
+> +
+> +	/* This should never happen. If it does, yell once and skip */
+> +	if (WARN_ON_ONCE(stackidx >= FTRACE_KSTACK_NESTING))
+> +		goto out;
+> +
+>  	/*
+> -	 * We don't need any atomic variables, just a barrier.
+> -	 * If an interrupt comes in, we don't care, because it would
+> -	 * have exited and put the counter back to what we want.
+> -	 * We just need a barrier to keep gcc from moving things
+> -	 * around.
+> +	 * The above __this_cpu_inc_return() is 'atomic' cpu local. An
+> +	 * interrupt will either see the value pre increment or post
+> +	 * increment. If the interrupt happens pre increment it will have
+> +	 * restored the counter when it returns.  We just need a barrier to
+> +	 * keep gcc from moving things around.
+>  	 */
+>  	barrier();
+> -	if (use_stack == 1) {
+> -		trace.entries		= this_cpu_ptr(ftrace_stack.calls);
+> -		trace.max_entries	= FTRACE_STACK_MAX_ENTRIES;
+> -
+> -		if (regs)
+> -			save_stack_trace_regs(regs, &trace);
+> -		else
+> -			save_stack_trace(&trace);
+> -
+> -		if (trace.nr_entries > size)
+> -			size = trace.nr_entries;
+> -	} else
+> -		/* From now on, use_stack is a boolean */
+> -		use_stack = 0;
+> +
+> +	fstack = this_cpu_ptr(ftrace_stacks.stacks) + (stackidx - 1);
 
-It works great so far!
+nit: it would be slightly less surprising if stackidx were 0-based:
+
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index d3f6ec7eb729..4fc93004feab 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -2798,10 +2798,10 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
+ 	 */
+ 	preempt_disable_notrace();
+ 
+-	stackidx = __this_cpu_inc_return(ftrace_stack_reserve);
++	stackidx = __this_cpu_inc_return(ftrace_stack_reserve) - 1;
+ 
+ 	/* This should never happen. If it does, yell once and skip */
+-	if (WARN_ON_ONCE(stackidx >= FTRACE_KSTACK_NESTING))
++	if (WARN_ON_ONCE(stackidx > FTRACE_KSTACK_NESTING))
+ 		goto out;
+ 
+ 	/*
+@@ -2813,7 +2813,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
+ 	 */
+ 	barrier();
+ 
+-	fstack = this_cpu_ptr(ftrace_stacks.stacks) + (stackidx - 1);
++	fstack = this_cpu_ptr(ftrace_stacks.stacks) + stackidx;
+ 	trace.entries		= fstack->calls;
+ 	trace.max_entries	= FTRACE_KSTACK_ENTRIES;
+ 
 
