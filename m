@@ -2,327 +2,185 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C343BC282CE
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:08:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BAD4C282CE
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:37:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4375C206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:08:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Y5heAHpw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4375C206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id E7AE4214AE
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 01:37:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7AE4214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AC6126B0005; Wed, 24 Apr 2019 21:08:51 -0400 (EDT)
+	id 756EF6B0007; Wed, 24 Apr 2019 21:37:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A74BA6B0006; Wed, 24 Apr 2019 21:08:51 -0400 (EDT)
+	id 6DC486B0008; Wed, 24 Apr 2019 21:37:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98BF16B0007; Wed, 24 Apr 2019 21:08:51 -0400 (EDT)
+	id 558466B000A; Wed, 24 Apr 2019 21:37:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9116B0005
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:08:51 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d21so748969pfr.3
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:08:51 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 194A16B0007
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:37:23 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m9so8807549pge.7
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 18:37:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=u0+f+5W55gCaYe2hCoPvwjObKNxtQ8YzSGTEv/ShQIA=;
-        b=hHTU1P2v2VXsvABUrstJELbFnFUZwfA51QJUQxkHVsAWiGAbvgLtg6wwf5s1VEGaKB
-         SnmNdor9uc7gsO0CmE0qUW+xPWWwXqwByC+Doe412Ud9u2Hy2ksMlUE4SzX3cAhQSSuY
-         F+uvc2iTyFBi+zPfFact25BMM7bcB2of2ey5mQDWOuAyaZ0GOLUdp1UIJhQtUi8cq4F5
-         JDawbJ9nMq3L+InbQCc4dyfR/VP/Nn9iOfg+LsP57mh7gzlNdQfrT//5DMY0UeYZ8TAw
-         u9TCauMQDNa8FYF6JyOA9qQS/FjdeI/tcisRxLPl3uMzQk7v087jHbRa6+3PrD4jJopz
-         IOwA==
-X-Gm-Message-State: APjAAAV4VOQ5hoA6VqVljST1xT4Z0HudG0Lw1dVcoRUUA9NcVBlqz8wv
-	wr8XLfpIOncjgJYe1pebErigPoMVz8TAZILfCF8L8i62AzxiDBqk7HrT7q/hK4iXaJpDZ1O1WyJ
-	cDLwrt9YaJo+y8yxfOh9auXnVKrfnGan8QyzOo+Suzc5BJxGSHgVf36gjWzIfvuaIfA==
-X-Received: by 2002:a62:6490:: with SMTP id y138mr37340351pfb.230.1556154530944;
-        Wed, 24 Apr 2019 18:08:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxCYlTm8CShgiT02ICqrHestNkul+tBktOQvDv83yCiSu6KoWKtxk0QrYmTMUmOOVdA6NpF
-X-Received: by 2002:a62:6490:: with SMTP id y138mr37340234pfb.230.1556154529802;
-        Wed, 24 Apr 2019 18:08:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556154529; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=ThahsPJbwX9VKxo4yL0I2uQw4SlHGTygqhHiridxrTM=;
+        b=kGeYK1agSm5iusBFPmJb3DZ9y4I39ZW30jzO0d+Lh7QDK+IjIRgwu7jwjzRLypGy/X
+         2rOUlkwqosJUDwbnW5TyyP9vovr88aVX3SMAHn45HypT0yoybhxseaEPZrWcNOSXGk5I
+         hN6VoEcpXm/rTBwkozY5CmlmdpKsKl6uuJHrPvbxFMiaMc13iAa+hPpIAphmkDCRk+TE
+         TLVJu4d07Wn95geDEtQ6ypuPs5M2B0yJRgZEOU68Bq+mKhnIBi+aWY9PxZrXw+a249e6
+         EsfSYjVOkrVRFPgUmEmjjGoRk1Mkd/ibERXVgTEpMnXFBadekLbrbJvrsvmvO7gAyWSJ
+         8+vA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUkFU9Dz1y87dlM5rY6s7w0yWRBuhld5/2DNw/pgL0+Sq9geXky
+	2ujFkm5vFaSCmrYvesgtl9grNzV72guxmDlljTp9PWORJLfI4fvfPDuJeCFX+h7EmjO12uINMlX
+	K98e+dxkfal14vr8PtIXFMUzwVl4l5Kuoxnyg4d85zLo684ggIO9Zt8abYfoJm461RA==
+X-Received: by 2002:a63:4a45:: with SMTP id j5mr34613907pgl.426.1556156242710;
+        Wed, 24 Apr 2019 18:37:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkPJgtBdduzZnAQHEdYGPYtrpYJL0LP3P98DvOSjrZQZh8lws2k4N27YAHUXYH9i76SMED
+X-Received: by 2002:a63:4a45:: with SMTP id j5mr34613854pgl.426.1556156241854;
+        Wed, 24 Apr 2019 18:37:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556156241; cv=none;
         d=google.com; s=arc-20160816;
-        b=DHbEDw9/38pl87hYDBuT7pnoG7G9/wcb0TI94u2+3qeJ81L4kx/dvX36cwuPZvizpO
-         1/ZokVBznJ8mV+e8GNAF8zFi4R0TJTfFY7sg7JQ/3vSADKmsvaEsKUIQJPvN/0kGTi1x
-         JdfmHArKLYqLbv8cr7DwyVcGmqXqJ3zTlAQAcDnsI+vFJx7M6F4qCXnaNYroLXOQ9OFQ
-         vB7WRGxepXVDnc1mkkmcdJPdwrxLzLUsCdCYMN4Af5SK+uJ9WziOCBXvczE6xIcfcnUL
-         ldrcnH5fj9XW2JKOw4Wklomf6sixrNz4dnkQUo1hJ9pP23VKueygl/Jo9IClZAEfmeUZ
-         ojYA==
+        b=D6rsySw0LeBPdjPVzZZBa8XX1mGuvU0usFLbm7IvF6YOkympqRuNNpaxky1Ev5fK6a
+         1hPmLjjfaUUXJ+wFWU/hT5ZU7U7N3LXcVs08hMmPR6y1UAzbQS2TspIzRQrfqiCJ+csm
+         epRUksNOnoxluGJ4Tre9pCjUQ74iJ64u6QqnUuLKVkHOfSRFwsGhRW0GvAo7h7hUrUir
+         Q6r0tMo/br4D8m9mZlQYO0H9Yw9FNTyD/Lgj6si7VwCJGTVZvAeUF9fdy6Yy6l+gy5AO
+         Zk2JSNReyW5JrXnl9fTNHCBLCy4XaPylOG+5Fug3EHBWWLJW1bhmfpELyWruyXF3MLJQ
+         P8TA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=u0+f+5W55gCaYe2hCoPvwjObKNxtQ8YzSGTEv/ShQIA=;
-        b=SY7vVryzgNFiy8ALXXiO7fxG1K/q39u6O4xb+KlQBMSR5cvmaEm5XerXsn7fk7f19L
-         B7yMQLrsurbk1b7L0RrO787Y1QSnOPI9VWa5x//6f/RYtDbcoLHUDdxf4hHPyjnyccYc
-         GufiXNtaKF7dipjU//4qSijZHvp6ip2VGzgNX3PO2qNcSVHQqPMpwE1q6C+idg3Yrpir
-         xAt168dLxtc+ONs+uX9WuugQtNYI9pyW8zEHb7W90k0wNjIcsvkI5c/VdNw6ks7Q0UQF
-         x20rG0MDziGkPSfT6bqqDsftwpvD56glwon6kZ8+HM1/UZNxjQee25HcZdYHGid2XXdf
-         qGxw==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=ThahsPJbwX9VKxo4yL0I2uQw4SlHGTygqhHiridxrTM=;
+        b=X+VVtDhaoEX/0d3yxw7NSYtvRNnpbEZi5WAuQkEG2bL4/u//DRzQyKy4NLOSIxKgeP
+         YEFKQwbmmSwJWgp45qfPRcOOWLar7DnGkpo/kZfflmOcPSDHDEgQBk/fpf7/QjvMc6Fv
+         VwGt1P5JM/apFcgQnmXgNmkFrti+ar/720NG7JJNil64VkEYea3HJU/AhaPcDSnX9lxQ
+         wBGvQh22MVi5vDTMWUwPGZWnEXece/KzX9gPL53MnnSNooYqlZ6xrTRRQd2E+/JCq3H9
+         JThNuSt+zJ/myf+8gwxKf7ks+FO+yJc7OIBpEqUe0n0/VM6DRo7WvhEakbiqFwj6eXRq
+         jfmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Y5heAHpw;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a13si19189992pgh.139.2019.04.24.18.08.49
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w2si2049043plp.26.2019.04.24.18.37.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Apr 2019 18:08:49 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Apr 2019 18:37:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Y5heAHpw;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
-	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=u0+f+5W55gCaYe2hCoPvwjObKNxtQ8YzSGTEv/ShQIA=; b=Y5heAHpw11mspH2GORkrEjdW8
-	p1uIDMXCODEL7KAgz+ReFtoh1NiL6MheZckwyQl2e3LIwa1IXW3gpP5qJ4QCU6VdZ3oDXbs28eHrr
-	0y2QsnjaOtVUVqW2rteTa1kXWK9YxLqKGKQ8VV1QjXdaXi9FfXyNruX9VSiOuor+Yfh/j7iz68ZFo
-	xjG3xIoop3KqxetcpPeeXMD7OgJTVY2hvj5MBkvy1CD/ZmwddO/ppICOdh/qZgexNNV4sxgAWqkik
-	KIpCsPQwC7ZJGrCE/QDnG6qG8hbvYBnLWOzDI4FIBWP5PkAIrofzfyGjOmTah6Zqo2tr6n/ZI2mtS
-	u3ZxUDHHA==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hJSsa-0005rc-OY; Thu, 25 Apr 2019 01:08:48 +0000
-Subject: Re: [PATCH] docs/vm: add documentation of memory models
-To: Mike Rapoport <rppt@linux.ibm.com>, Jonathan Corbet <corbet@lwn.net>
-Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <a4def881-1df0-6835-4b9a-dc957c979683@infradead.org>
-Date: Wed, 24 Apr 2019 18:08:46 -0700
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3P1UaHA039879
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:37:21 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s30jawk1x-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2019 21:37:20 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 25 Apr 2019 02:37:19 +0100
+Received: from b01cxnp22033.gho.pok.ibm.com (9.57.198.23)
+	by e17.ny.us.ibm.com (146.89.104.204) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 25 Apr 2019 02:37:17 +0100
+Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
+	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3P1bGRI20644004
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Apr 2019 01:37:16 GMT
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 44D9AB2064;
+	Thu, 25 Apr 2019 01:37:16 +0000 (GMT)
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id C969DB205F;
+	Thu, 25 Apr 2019 01:37:13 +0000 (GMT)
+Received: from [9.85.69.165] (unknown [9.85.69.165])
+	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
+	Thu, 25 Apr 2019 01:37:13 +0000 (GMT)
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by
+ insert_pfn_pmd()
+To: Dan Williams <dan.j.williams@intel.com>,
+        Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>,
+        linux-nvdimm <linux-nvdimm@lists.01.org>,
+        Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+        stable
+ <stable@vger.kernel.org>,
+        Chandan Rajendra <chandan@linux.ibm.com>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
+ <20190424173833.GE19031@bombadil.infradead.org>
+ <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Thu, 25 Apr 2019 07:07:12 +0530
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <1556101715-31966-1-git-send-email-rppt@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19042501-0040-0000-0000-000004E5C17C
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00010990; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000285; SDB=6.01193953; UDB=6.00625937; IPR=6.00974777;
+ MB=3.00026582; MTD=3.00000008; XFM=3.00000015; UTC=2019-04-25 01:37:19
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042501-0041-0000-0000-000008F0D197
+Message-Id: <444ca26b-ec38-ae4b-512b-7e915c575098@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-25_01:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904250008
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/24/19 3:28 AM, Mike Rapoport wrote:
-> Describe what {FLAT,DISCONTIG,SPARSE}MEM are and how they manage to
-> maintain pfn <-> struct page correspondence.
+On 4/24/19 11:43 PM, Dan Williams wrote:
+> On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
+>>
+>> On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+>>> I think unaligned addresses have always been passed to
+>>> vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+>>> the only change needed is the following, thoughts?
+>>>
+>>> diff --git a/fs/dax.c b/fs/dax.c
+>>> index ca0671d55aa6..82aee9a87efa 100644
+>>> --- a/fs/dax.c
+>>> +++ b/fs/dax.c
+>>> @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+>>> vm_fault *vmf, pfn_t *pfnp,
+>>>                  }
+>>>
+>>>                  trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+>>> -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+>>> +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+>>>                                              write);
+>>
+>> We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+>> that need to change too?
 > 
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  Documentation/vm/index.rst        |   1 +
->  Documentation/vm/memory-model.rst | 171 ++++++++++++++++++++++++++++++++++++++
->  2 files changed, 172 insertions(+)
->  create mode 100644 Documentation/vm/memory-model.rst
-> 
-
-Hi Mike,
-I have a few minor edits below...
-
-> diff --git a/Documentation/vm/memory-model.rst b/Documentation/vm/memory-model.rst
-> new file mode 100644
-> index 0000000..914c52a
-> --- /dev/null
-> +++ b/Documentation/vm/memory-model.rst
-> @@ -0,0 +1,171 @@
-> +.. SPDX-License-Identifier: GPL-2.0
-> +
-> +.. _physical_memory_model:
-> +
-> +=====================
-> +Physical Memory Model
-> +=====================
-> +
-> +Physical memory in a system may be addressed in different ways. The
-> +simplest case is when the physical memory starts at address 0 and
-> +spans a contiguous range up to the maximal address. It could be,
-> +however, that this range contains small holes that are not accessible
-> +for the CPU. Then there could be several contiguous ranges at
-> +completely distinct addresses. And, don't forget about NUMA, where
-> +different memory banks are attached to different CPUs.
-> +
-> +Linux abstracts this diversity using one of the three memory models:
-> +FLATMEM, DISCONTIGMEM and SPARSEMEM. Each architecture defines what
-> +memory models it supports, what is the default memory model and
-> +whether it possible to manually override that default.
-> +
-> +All the memory models track the status of physical page frames using
-> +:c:type:`struct page` arranged in one or more arrays.
-> +
-> +Regardless of the selected memory model, there exists one-to-one
-> +mapping between the physical page frame number (PFN) and the
-> +corresponding `struct page`.
-> +
-> +Each memory model defines :c:func:`pfn_to_page` and :c:func:`page_to_pfn`
-> +helpers that allow the conversion from PFN to `struct page` and vise
-
-                                                                   vice
-
-> +versa.
-> +
-> +FLATMEM
-> +=======
-> +
-> +The simplest memory model is FLATMEM. This model is suitable for
-> +non-NUMA systems with contiguous, or mostly contiguous, physical
-> +memory.
-> +
-> +In the FLATMEM memory model, there is a global `mem_map` array that
-> +maps the entire physical memory. For most architectures, the holes
-> +have entries in the `mem_map` array. The `struct page` objects
-> +corresponding to the holes are never fully initialized.
-> +
-> +To allocate the `mem_map` array, architecture specific setup code
-> +should call :c:func:`free_area_init_node` function or its convenience
-> +wrapper :c:func:`free_area_init`. Yet, the mappings array is not
-> +usable until the call to :c:func:`memblock_free_all` that hands all
-> +the memory to the page allocator.
-> +
-> +If an architecture enables `CONFIG_ARCH_HAS_HOLES_MEMORYMODEL` option,
-> +it may free parts of the `mem_map` array that do not cover the
-> +actual physical pages. In such case, the architecture specific
-> +:c:func:`pfn_valid` implementation should take the holes in the
-> +`mem_map` into account.
-> +
-> +With FLATMEM, the conversion between a PFN and the `struct page` is
-> +straightforward: `PFN - ARCH_PFN_OFFSET` is an index to the
-> +`mem_map` array.
-> +
-> +The `ARCH_PFN_OFFSET` defines the first page frame number for
-> +systems that their physical memory does not start at 0.
-
-s/that/when/ ?  Seems awkward as is.
-
-> +
-> +DISCONTIGMEM
-> +============
-> +
-> +The DISCONTIGMEM model treats the physical memory as a collection of
-> +`nodes` similarly to how Linux NUMA support does. For each node Linux
-> +constructs an independent memory management subsystem represented by
-> +`struct pglist_data` (or `pg_data_t` for short). Among other
-> +things, `pg_data_t` holds the `node_mem_map` array that maps
-> +physical pages belonging to that node. The `node_start_pfn` field of
-> +`pg_data_t` is the number of the first page frame belonging to that
-> +node.
-> +
-> +The architecture setup code should call :c:func:`free_area_init_node` for
-> +each node in the system to initialize the `pg_data_t` object and its
-> +`node_mem_map`.
-> +
-> +Every `node_mem_map` behaves exactly as FLATMEM's `mem_map` -
-> +every physical page frame in a node has a `struct page` entry in the
-> +`node_mem_map` array. When DISCONTIGMEM is enabled, a portion of the
-> +`flags` field of the `struct page` encodes the node number of the
-> +node hosting that page.
-> +
-> +The conversion between a PFN and the `struct page` in the
-> +DISCONTIGMEM model became slightly more complex as it has to determine
-> +which node hosts the physical page and which `pg_data_t` object
-> +holds the `struct page`.
-> +
-> +Architectures that support DISCONTIGMEM provide :c:func:`pfn_to_nid`
-> +to convert PFN to the node number. The opposite conversion helper
-> +:c:func:`page_to_nid` is generic as it uses the node number encoded in
-> +page->flags.
-> +
-> +Once the node number is known, the PFN can be used to index
-> +appropriate `node_mem_map` array to access the `struct page` and
-> +the offset of the `struct page` from the `node_mem_map` plus
-> +`node_start_pfn` is the PFN of that page.
-> +
-> +SPARSEMEM
-> +=========
-> +
-> +SPARSEMEM is the most versatile memory model available in Linux and it
-> +is the only memory model that supports several advanced features such
-> +as hot-plug and hot-remove of the physical memory, alternative memory
-> +maps for non-volatile memory devices and deferred initialization of
-> +the memory map for larger systems.
-> +
-> +The SPARSEMEM model presents the physical memory as a collection of
-> +sections. A section is represented with :c:type:`struct mem_section`
-> +that contains `section_mem_map` that is, logically, a pointer to an
-> +array of struct pages. However, it is stored with some other magic
-> +that aids the sections management. The section size and maximal number
-> +of section is specified using `SECTION_SIZE_BITS` and
-> +`MAX_PHYSMEM_BITS` constants defined by each architecture that
-> +supports SPARSEMEM. While `MAX_PHYSMEM_BITS` is an actual width of a
-> +physical address that an architecture supports, the
-> +`SECTION_SIZE_BITS` is an arbitrary value.
-> +
-> +The maximal number of sections is denoted `NR_MEM_SECTIONS` and
-> +defined as
-> +
-> +.. math::
-> +
-> +   NR\_MEM\_SECTIONS = 2 ^ {(MAX\_PHYSMEM\_BITS - SECTION\_SIZE\_BITS)}
-> +
-> +The `mem_section` objects are arranged in a two dimensional array
-
-                                               two-dimensional
-
-> +called `mem_sections`. The size and placement of this array depend
-> +on `CONFIG_SPARSEMEM_EXTREME` and the maximal possible number of
-> +sections:
-> +
-> +* When `CONFIG_SPARSEMEM_EXTREME` is disabled, the `mem_sections`
-> +  array is static and has `NR_MEM_SECTIONS` rows. Each row holds a
-> +  single `mem_section` object.
-> +* When `CONFIG_SPARSEMEM_EXTREME` is enabled, the `mem_sections`
-> +  array is dynamically allocated. Each row contains PAGE_SIZE worth of
-> +  `mem_section` objects and the number of rows is calculated to fit
-> +  all the memory sections.
-> +
-> +The architecture setup code should call :c:func:`memory_present` for
-> +each active memory range or use :c:func:`memblocks_present` or
-> +:c:func:`sparse_memory_present_with_active_regions` wrappers to
-> +initialize the memory sections. Next, the actual memory maps should be
-> +set up using :c:func:`sparse_init`.
-> +
-> +With SPARSEMEM there are two possible ways to convert a PFN to the
-> +corresponding `struct page` - a "classic sparse" and "sparse
-> +vmemmap". The selection is made at build time and it is determined by
-> +the value of `CONFIG_SPARSEMEM_VMEMMAP`.
-> +
-> +The classic sparse encodes the section number of a page in page->flags
-> +and uses high bits of a PFN to access the section that maps that page
-> +frame. Inside a section, the PFN is the index to the array of pages.
-> +
-> +The sparse vmemmap uses a virtually mapped memory map to optimize
-> +pfn_to_page and page_to_pfn operations. There is a global `struct
-> +page *vmemmap` pointer that points to a virtually contiguous array of
-> +`struct page` objects. A PFN is an index to that array and the the
-> +offset of the `struct page` from `vmemmap` is the PFN of that
-> +page.
-> +
-> +To use vmemmap, an architecture has to reserve a range of virtual
-> +addresses that will map the physical pages containing the memory
-> +map. and make sure that `vmemmap` points to that range. In addition,
-
-   map and
-
-> +the architecture should implement :c:func:`vmemmap_populate` method
-> +that will allocate the physical memory and create page tables for the
-> +virtual memory map. If an architecture does not have any special
-> +requirements for the vmemmap mappings, it can use default
-> +:c:func:`vmemmap_populate_basepages` provided by the generic memory
-> +management.
+> It wasn't clear to me that it was a problem. I think that one already
+> happens to be pmd-aligned.
 > 
 
-thanks.
--- 
-~Randy
+How about vmf_insert_pfn_pud()?
+
+-aneesh
 
