@@ -2,255 +2,170 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECFFBC43219
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FAB2C43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:56:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9091206C0
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:46:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9091206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FE49206C1
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 21:56:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="tcH6Or/a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FE49206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52A3D6B000E; Thu, 25 Apr 2019 17:46:37 -0400 (EDT)
+	id 792706B0005; Thu, 25 Apr 2019 17:56:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5014F6B0010; Thu, 25 Apr 2019 17:46:37 -0400 (EDT)
+	id 743206B0006; Thu, 25 Apr 2019 17:56:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F0566B0266; Thu, 25 Apr 2019 17:46:37 -0400 (EDT)
+	id 657506B0007; Thu, 25 Apr 2019 17:56:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 064A06B000E
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:37 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n5so576006pgk.9
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:46:36 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A73A6B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:56:30 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id 7so1076789wmj.9
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 14:56:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:message-id;
-        bh=UUXtBSBOzxuFMcQrn8ir4/fAjl8E5MhWLJKi7bnLtb8=;
-        b=s+mdHttvfkc7KiudZNO6saW0Edc5dsYIfiIR1JiuM+xJusFLpZd9GOBncY241Q0Ucb
-         W73HCEY275TfZQxQr1IU1lM31LbpsbXyf2yG6xyTvQElykuil4z+i/gBfsmrW/zKlQhX
-         1xDntx3Bp9N4ape7H4MRVB5DxrzDGSN1ZwLJ/24Mth85o+SXz5CjyxnuEdiv7m7KR85H
-         Ch5hETKnpeaFOFqeX6kBeT664xl4gKllLvVvywpmwe8NqkoZHjnOTU/4ULUxTJhPp82F
-         P7YvvCWfOvD+spR4oJUwrEm43q0s5JoBx1bu8bAaaMqc0VG5NDiDve1Tii7yMZXe5Svt
-         b/pQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWHk2JWluZA57vJ80zFesgf4REyNACWr3AAGba8LenEqivrpUHR
-	/3/Ti3lDljPQQICjbhelFkuwjSZ+firlab8QH8dw2SsRZwlBhCQOvThquIGqEyyn6vGCaDcLyo9
-	hFtt51xoD1uknU6S3lYdKnYwnWJ8d5MpSqEmFwh5iIcFzi7/hMSWWZs+ujxB1Jfm6wg==
-X-Received: by 2002:a17:902:1003:: with SMTP id b3mr42192772pla.306.1556228796654;
-        Thu, 25 Apr 2019 14:46:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzmALmJT7U4UZMDOqwJT8BT6eXL1rjdjtLXRSAzCYsVV2hmMgPOdaAycSaZL/5+csbGEdhJ
-X-Received: by 2002:a17:902:1003:: with SMTP id b3mr42192714pla.306.1556228795772;
-        Thu, 25 Apr 2019 14:46:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556228795; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=GEgbleUXiftEFa1b6/nUBQ/7QI0Sg4jIX3OywJ4O6ss=;
+        b=JNWNUGHkiQzd2v5048iW4cEOcU4u6HG4zgi9r02bU/y5rqgL/iJpF9nL2t0j21kGDb
+         Zn/SWUTl0DC0x/2yKbY6wldCmEcoSlY732OjLhdUYcgDw2ijH3eDwSItfPGvVn73u0UX
+         khR9iQTlZfvNQXmBZImEsjD8LoEmM+w+2irL575mIj3GSObOh9rUZLLrAsY42T1l3XLV
+         fRHMjzgTBllTBRoRfH/vgaKoRdXNTKTVDskA0XRcDUH7AJaFq0k2BZ8SYmDzR/vPPEtM
+         aC8a7VOhHy2RMB90yWL4gi/q3YOkCvaIGGp5Faq6Yej9G8Xl5yvOVntesYJQoJVA/7rv
+         lypw==
+X-Gm-Message-State: APjAAAUZSSJiEcgEVNPf5za1lD/faVH0SknygS/O3QldDEnUv9X++M2i
+	qvhVImjByvwc5g7NILP/HCFRtw6CJaFio/BK+Apvi3MLv2OAfklByfvA0iFUeF9qi7MRiG+YlTm
+	f8IyS9IPipK9dVyokM2A+kDJrGKYFYQtGHZ7TKaq4dRvhAgMnwHyL4itJ5FrMcJZLlg==
+X-Received: by 2002:a7b:c3d7:: with SMTP id t23mr4983554wmj.62.1556229389558;
+        Thu, 25 Apr 2019 14:56:29 -0700 (PDT)
+X-Received: by 2002:a7b:c3d7:: with SMTP id t23mr4983520wmj.62.1556229388721;
+        Thu, 25 Apr 2019 14:56:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556229388; cv=none;
         d=google.com; s=arc-20160816;
-        b=QYSlCdjIAlxufzabni/WBnz1u18sO+hTIaNCJ/jD+7WYymcVOewGLflX21uC8aBx6t
-         OaPeftVZYmLruKGDXa/Y3j8yM4Hd0m5sfMaWnBeGWSaWOzDS27WUci3DNN0v0EJvjC+z
-         CVL3nXkD5GCD6Mm1geUpzqX1WlXE7wYIMQ0c1PXpBUdcolPo1i22LQICB2lSXQ7SAtrS
-         dzskosvoVuL2BRDmNFMSWVE/domoYh1uEA07xMkH5Ue1KMw5HNXO0WFTZ0U84ZpNRyhc
-         66kKixz2QiiSLUp26DtcsnrGKg412gc+TaqNy1DpJFfXChdnnZSI6AtXaDzga3L6Svsw
-         QZsQ==
+        b=QMoV0bhpk57P96S7n0Cl6SSY7Bo2t3p24OgSBNyVlIyXfism1MLU0wuOicux+zQ8Zx
+         MGJxgthGr/qB3QM3MW5zTZE2MuYFkVaUj/tSQe96rJzpkIqMPRyccEc6j9987f/1D9l+
+         B8j95XFvA0hamFFjAFHMpVocXkf5mnDTBbS0vWK1Pj1m4C1F3LPJ/mU7CwM+DIew/bqJ
+         /NW62zJ+Nv6Dby1cC+wb8ZPvKPlxTf5dwX7Ry8509MTgO4rz7/xeiy6NITLUqIpnZ1+1
+         qjQkz7MwZh7C4BZr2Q4S/QXhPPcROFjsJYwT/ximCVSfp89AA/aCJvCWn/NWDXRph/3Y
+         4pnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=UUXtBSBOzxuFMcQrn8ir4/fAjl8E5MhWLJKi7bnLtb8=;
-        b=DTWwl/bVrOrc0ulE/XwsWbWzDnMXBefvSoWvuxObjYToGiUWwn9Me9OGFj25ecut5e
-         1MWd7hEucMVoBMuCoJaorW7VHC0/RJKRryFKd91gGOICdTkmwWp+BV0oNNN18JxJahmU
-         WioFgdRQFLqd6HfqYfl4jZZWkLho+sXJ73DB6YvegjQvXivnzKPzVpTM/At2Org1MRk8
-         zbFVl1subeNtb5jblZ0Jvx3NUUaU6ZFtrdlSGJsbbkHMiyXG96GSK6s8p6teyIBTfG6s
-         u22iPX8Ui5tQQWIC4wN39ZbvywUCI2fmhE3AMx28BEAF6E49U1T82VZ/VHaofLPRio+s
-         NMtA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=GEgbleUXiftEFa1b6/nUBQ/7QI0Sg4jIX3OywJ4O6ss=;
+        b=sc5b4MC9Nwgei7FiLongBa21IvGa97oBGInDMF/j9WDZGV4UsWr6vPE04hVBoDV9O0
+         6g9YxqU3GOouK+DYo3S2AF+vX2jPmXXRakapE2hjx0GY5ro9Sl/8Qhwpp2QDeutd8Uyd
+         eWBDWZEsDT52RIzcexaYRP4nGvPO10atFwkA1JJSnqmJjw2mycJaMwUgjtIKM3nAANI9
+         Bus9ToeJGd0ofigjbkZmkxdlpQQ2DMLmZhuiYxNzSibKgonKrBKm743HkXYZx36k4v+c
+         q8Ehx8Ognafpad6SEsDWUoaxrSpvltWAIjeJPZpqUC/Ly65mFkW9fFhZ+Q6UYczzTWFc
+         SJgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b5si10168267pge.550.2019.04.25.14.46.35
+       dkim=pass header.i=@google.com header.s=20161025 header.b="tcH6Or/a";
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t5sor13527378wri.42.2019.04.25.14.56.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 14:46:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Thu, 25 Apr 2019 14:56:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3PLY9IC084362
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:35 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2s3hu3yx2t-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:46:35 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 25 Apr 2019 22:46:32 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 25 Apr 2019 22:46:27 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3PLkQoE46923988
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 25 Apr 2019 21:46:26 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 6F4B3AE04D;
-	Thu, 25 Apr 2019 21:46:26 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id EECBFAE051;
-	Thu, 25 Apr 2019 21:46:23 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.209])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 25 Apr 2019 21:46:23 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Fri, 26 Apr 2019 00:46:23 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: linux-kernel@vger.kernel.org
-Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
-        Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-        James Bottomley <James.Bottomley@hansenpartnership.com>,
-        Jonathan Adams <jwadams@google.com>, Kees Cook <keescook@chromium.org>,
-        Paul Turner <pjt@google.com>, Peter Zijlstra <peterz@infradead.org>,
-        Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-        linux-security-module@vger.kernel.org, x86@kernel.org,
-        Mike Rapoport <rppt@linux.ibm.com>
-Subject: [RFC PATCH 7/7] sci: add example system calls to exercse SCI
-Date: Fri, 26 Apr 2019 00:45:54 +0300
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
-X-TM-AS-GCONF: 00
-x-cbid: 19042521-0020-0000-0000-000003360C05
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19042521-0021-0000-0000-000021887A43
-Message-Id: <1556228754-12996-8-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-25_18:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1904250133
+       dkim=pass header.i=@google.com header.s=20161025 header.b="tcH6Or/a";
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=GEgbleUXiftEFa1b6/nUBQ/7QI0Sg4jIX3OywJ4O6ss=;
+        b=tcH6Or/aUj2gN2lZ+ilpm9QvEleYeL5nv+beBZyu5quvO7K0VU1A9U3qLFUEluKpEu
+         Y1Ll+DSw/qgyJFUAUisuVrVxhkvCTOmW4gJeglXkWJggKF62oymkWwR+Ie5uRSFrjUF2
+         k8Wmel3W9KzeQ5RuK/SWkRgsB3pQaIQzk5lLkiKt0yYu3MmIyMK0PuPN0InqZrsKnfzm
+         RzMxVSdFj48PUqcTlJgGpZupP3AmqzhLHoMmwN9hoB6LUywsovrRZGD2R53ON8S7GRft
+         V+t4nQpJNlvZBhAhgFWaA/9qneaTzyviepc/XTlKG3nrV0j15Rlr0hojFhKsS36Jwl1q
+         Iq6A==
+X-Google-Smtp-Source: APXvYqyMwEjv55C5T76qTTC8HI998zMaiRIQFxwC2X83mO0xhC+T72nf95L5ZLJIS/AdipIWQnRCB4DsPuraplN4L08=
+X-Received: by 2002:adf:9144:: with SMTP id j62mr29511655wrj.320.1556229387867;
+ Thu, 25 Apr 2019 14:56:27 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190411014353.113252-1-surenb@google.com> <20190411014353.113252-2-surenb@google.com>
+ <c745df86-b95c-e82b-42ba-519da4f448ab@i-love.sakura.ne.jp>
+In-Reply-To: <c745df86-b95c-e82b-42ba-519da4f448ab@i-love.sakura.ne.jp>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Thu, 25 Apr 2019 14:56:16 -0700
+Message-ID: <CAJuCfpH-SnFQT=3qy3VANsgJsxK+vV6=G=WPkt11qG_2RpYAcQ@mail.gmail.com>
+Subject: Re: [RFC 1/2] mm: oom: expose expedite_reclaim to use oom_reaper
+ outside of oom_kill.c
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	David Rientjes <rientjes@google.com>, Matthew Wilcox <willy@infradead.org>, yuzhoujian@didichuxing.com, 
+	Souptick Joarder <jrdr.linux@gmail.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	"Eric W. Biederman" <ebiederm@xmission.com>, Shakeel Butt <shakeelb@google.com>, 
+	Christian Brauner <christian@brauner.io>, Minchan Kim <minchan@kernel.org>, 
+	Tim Murray <timmurray@google.com>, Daniel Colascione <dancol@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Jann Horn <jannh@google.com>, linux-mm <linux-mm@kvack.org>, 
+	lsf-pc@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>, 
+	kernel-team <kernel-team@android.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/x86/entry/common.c                |  6 +++-
- arch/x86/entry/syscalls/syscall_64.tbl |  3 ++
- kernel/Makefile                        |  2 +-
- kernel/sci-examples.c                  | 52 ++++++++++++++++++++++++++++++++++
- 4 files changed, 61 insertions(+), 2 deletions(-)
- create mode 100644 kernel/sci-examples.c
+On Thu, Apr 25, 2019 at 2:13 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> On 2019/04/11 10:43, Suren Baghdasaryan wrote:
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 3a2484884cfd..6449710c8a06 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -1102,6 +1102,21 @@ bool out_of_memory(struct oom_control *oc)
+> >       return !!oc->chosen;
+> >  }
+> >
+> > +bool expedite_reclaim(struct task_struct *task)
+> > +{
+> > +     bool res = false;
+> > +
+> > +     task_lock(task);
+> > +     if (task_will_free_mem(task)) {
+>
+> mark_oom_victim() needs to be called under oom_lock mutex after
+> checking that oom_killer_disabled == false. Since you are trying
+> to trigger this function from signal handler, you might want to
+> defer until e.g. WQ context.
 
-diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 8f2a6fd..be0e1a7 100644
---- a/arch/x86/entry/common.c
-+++ b/arch/x86/entry/common.c
-@@ -275,7 +275,11 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
- #ifdef CONFIG_SYSCALL_ISOLATION
- static inline bool sci_required(unsigned long nr)
- {
--	return false;
-+	if (!static_cpu_has(X86_FEATURE_SCI))
-+		return false;
-+	if (nr < __NR_get_answer)
-+		return false;
-+	return true;
- }
- 
- static inline unsigned long sci_syscall_enter(unsigned long nr)
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index f0b1709..a25e838 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -343,6 +343,9 @@
- 332	common	statx			__x64_sys_statx
- 333	common	io_pgetevents		__x64_sys_io_pgetevents
- 334	common	rseq			__x64_sys_rseq
-+335	64	get_answer		__x64_sys_get_answer
-+336	64	sci_write_dmesg		__x64_sys_sci_write_dmesg
-+337	64	sci_write_dmesg_bad	__x64_sys_sci_write_dmesg_bad
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 6aa7543..d6441d0 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -10,7 +10,7 @@ obj-y     = fork.o exec_domain.o panic.o \
- 	    extable.o params.o \
- 	    kthread.o sys_ni.o nsproxy.o \
- 	    notifier.o ksysfs.o cred.o reboot.o \
--	    async.o range.o smpboot.o ucount.o
-+	    async.o range.o smpboot.o ucount.o sci-examples.o
- 
- obj-$(CONFIG_MODULES) += kmod.o
- obj-$(CONFIG_MULTIUSER) += groups.o
-diff --git a/kernel/sci-examples.c b/kernel/sci-examples.c
-new file mode 100644
-index 0000000..9bfaad0
---- /dev/null
-+++ b/kernel/sci-examples.c
-@@ -0,0 +1,52 @@
-+#include <linux/kernel.h>
-+#include <linux/pid.h>
-+#include <linux/syscalls.h>
-+#include <linux/hugetlb.h>
-+#include <asm/special_insns.h>
-+
-+SYSCALL_DEFINE0(get_answer)
-+{
-+	return 42;
-+}
-+
-+#define BUF_SIZE 1024
-+
-+typedef void (*foo)(void);
-+
-+SYSCALL_DEFINE2(sci_write_dmesg, const char __user *, ubuf, size_t, count)
-+{
-+	char buf[BUF_SIZE];
-+
-+	if (!ubuf || count >= BUF_SIZE)
-+		return -EINVAL;
-+
-+	buf[count] = '\0';
-+	if (copy_from_user(buf, ubuf, count))
-+		return -EFAULT;
-+
-+	printk("%s\n", buf);
-+
-+	return count;
-+}
-+
-+SYSCALL_DEFINE2(sci_write_dmesg_bad, const char __user *, ubuf, size_t, count)
-+{
-+	unsigned long addr = (unsigned long)(void *)hugetlb_reserve_pages;
-+	char buf[BUF_SIZE];
-+	foo func1;
-+
-+	addr += 0xc5;
-+	func1 = (foo)(void *)addr;
-+	func1();
-+
-+	if (!ubuf || count >= BUF_SIZE)
-+		return -EINVAL;
-+
-+	buf[count] = '\0';
-+	if (copy_from_user(buf, ubuf, count))
-+		return -EFAULT;
-+
-+	printk("%s\n", buf);
-+
-+	return count;
-+}
--- 
-2.7.4
+Thanks for the tip! I'll take this into account in the new design.
+Just thinking out loud... AFAIU oom_lock is there to protect against
+multiple concurrent out_of_memory calls from different contexts and
+prevent overly-aggressive process killing. For my purposes when
+reaping memory of a killed process we don't have this concern (we did
+not initiate the killing, SIGKILL was explicitly requested). I'll
+probably need some synchronization there but not for purposes of
+preventing multiple concurrent reapers. In any case, thank you for the
+feedback!
+
+>
+> > +             mark_oom_victim(task);
+> > +             wake_oom_reaper(task);
+> > +             res = true;
+> > +     }
+> > +     task_unlock(task);
+> > +
+> > +     return res;
+> > +}
+> > +
+> >  /*
+> >   * The pagefault handler calls here because it is out of memory, so kill a
+> >   * memory-hogging task. If oom_lock is held by somebody else, a parallel oom
+> >
 
