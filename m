@@ -2,212 +2,187 @@ Return-Path: <SRS0=RcsE=S3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E28DAC282E3
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:06:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3727BC10F03
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:13:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E664217FA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:06:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C6A96217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 05:13:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="raQQIWLl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E664217FA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rIMwM2ro"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6A96217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24DF76B0005; Thu, 25 Apr 2019 01:06:16 -0400 (EDT)
+	id 74E9B6B0007; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D38E6B0006; Thu, 25 Apr 2019 01:06:16 -0400 (EDT)
+	id 6FE816B0008; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09C686B0007; Thu, 25 Apr 2019 01:06:16 -0400 (EDT)
+	id 5EDA36B000A; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3FE6B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 01:06:15 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p26so19801108qtq.21
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 22:06:15 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 293CC6B0007
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 01:13:49 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id j12so7025096pgl.14
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2019 22:13:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:to:cc:from:subject:message-id
-         :date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=RFHcL3/I5oViWNDB29N5Vv3s3iXZS3vLHz926lnu8dY=;
-        b=K/RrkrAo4cHq11gPTqYsj3XzoZbOEgHGB//rxRKqHWtJ71Y5cCEZPTXVOAOMwuAJBb
-         JqjvwPae8Ih1o3LGrqqy7kGFewW4wRb3Uude6vMAohtU//ysXi1Y9S0eUZBYEotZjqfn
-         ZCSKjt8uyCxgZagVRQW5NzhwsHGRGXyoLTRvKN/05SyfuLLLrLDCCk+/trWp1UVjpAM1
-         GYwRPvKnd+q4Xui5z3oX87HtysCEukz0kq5yBwLZPQXVtSm2NUnws00zFU8HBuwhPuRV
-         DNbaJV33gdfWQ4NJot17tSxE4GwAeGB9FYL+todoJ7g8mVZd3EwKNmmvtuoFrmr2jYZH
-         wDAg==
-X-Gm-Message-State: APjAAAV0JiATS0RJWTFS6uPhcorj3amPUI/P6jqv24xqfmH9Mxd9q8R7
-	fOzQ/iCVFBZku5SHmu2/ihNiLNnWs0LWQnqwi8I+NN2B+SKHbix3MMPiwMiZeRIqKhKtcVKS4XK
-	EOSMETt5X9PR/IF7k1Yy5i4XkpQMy85POCOam+thi2Ko4+2R/Glp1FYl5/edr6lbVgg==
-X-Received: by 2002:a0c:c581:: with SMTP id a1mr3330968qvj.79.1556168775448;
-        Wed, 24 Apr 2019 22:06:15 -0700 (PDT)
-X-Received: by 2002:a0c:c581:: with SMTP id a1mr3330926qvj.79.1556168774494;
-        Wed, 24 Apr 2019 22:06:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556168774; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
+        b=aecKU9LVwL/fT4awGzGc7ASe7ylwWw0EdERu/1jSBA7slFsnXSobQIM8a6/Yllm1+g
+         eExNV/Uv3wYsWYQwrfaWZqUDe1ERlhUyKcwSnXWOls0kvMYzqRHk/6IpE15S0gtagXgK
+         rP0X/ng2pq6sGzyL3ZRgNeMXh0KA+awdyZDhf+76oIDQUvsL5udL9eyuURLgLMPG9gM8
+         NvlTpLLK5ppXXo9VjhHLbUTaqPO8fgbrFHATUwJ9N7w8GQMK9vghr9p7M6s+FGknAtWj
+         2rGczeNriz7Xf4P4V/hKRGSV8tT1pJhYFIshGth5DnmLkz8ZcaYs38bLMvODo+dIt463
+         joqQ==
+X-Gm-Message-State: APjAAAVXgtcs4fHjA+tEFxy9un4xapHiFsArNvu4B+WNXOU0HwpM7QwM
+	rMF/eoLnuoEBGDneuCNBHssQtwHO5z7Bs3shbUwzTCiSO900e4NtNynRVzNX3KxvF2CkTJ3tUd3
+	L0SFvYgssWCtKo4NwIwNzCDVzXDRlLLQKxE2xLThiCJ4YCHCcNPrk9R/u74aQQmYegA==
+X-Received: by 2002:a62:47d0:: with SMTP id p77mr37136170pfi.95.1556169228195;
+        Wed, 24 Apr 2019 22:13:48 -0700 (PDT)
+X-Received: by 2002:a62:47d0:: with SMTP id p77mr37136073pfi.95.1556169226971;
+        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556169226; cv=none;
         d=google.com; s=arc-20160816;
-        b=sNxR90wxIPnmD3XfraHKRmWQJVh0e62DRe3GNULadiNiCla6xCbojszaZjZe52sZV6
-         K7wvScJVMR2Eo5klhf3NeG5C0kUi7XcDVPnhZehBwNdVigoUNZN3ebN5dBoBNcNVzXDL
-         0XWH36Wb4ndhVtmIrFySUFgV23Zxi5k1Rzwd8c9L8U2Z7UuuXNtSKhHIhIPhgRnibTxw
-         3gTxctmCAGy6ahthQxSh+FTNA7xwBG96vLPaREbav7B5zdHUKM0XX9AP66UdpCWlJz9c
-         PJNNPIdaDLUFvbG2ycCmPJKaMLncSAvs4L9mO6rbVSdaSd+bRsBUyWadn97PUSEVZiHo
-         Q9PA==
+        b=qqkdFzAFsxoCAOZnD9eLmZPOnNrqZM6MLykEpIbVGQ8Ln1d320xwYgcO8aK3Oyxdyr
+         b0dcQ9KNPUXRlNUSuRxTQTqccHM5dNDuqU1g3U89syCB1QzuPPrM4y7E5VtbQBhTI0rr
+         7KblMrDag7gtby1Hj75wXInlqhjedBS2xxfq5XUO9xEOilxqj/rRG9wpcywVXVKOqd8u
+         zWv8yMDVo30On5IcJtHaP7YtX/F3SpkgdSAarn2/vDWb0uFPe9DHe7DP2V1wNvFr5ZIf
+         gB9QGPQtwdtSCYQsVAJKgBQX+6kfoE0JlKvut69YZvmsl521Pk09lCOEKEPCEanx+jkQ
+         3S8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:subject:from:cc:to:dkim-signature;
-        bh=RFHcL3/I5oViWNDB29N5Vv3s3iXZS3vLHz926lnu8dY=;
-        b=WA3531VgfSn8ce4LlRAu3z8AddjnVrfKWlimx0s3OAI8ea9wC+WiJWYs5UaQSDnPf2
-         9tms2rNnEmMDl3Kdleox9DviG1USbEQ2nziGdX4d845TMWEuTEB5630LpwBih/U1D2TG
-         UJvUJrIecjviTCdm9R+4XA+bRG3nNGYAXKOkRsPLHfmT03MqWNeunBjMnhQYQfqMTXJn
-         p8KvBp2k+dmAlnp7bF1pPgjGzyX9KP6bxxwIfbmNERvjAT/KVlhw7MvXD3vtvwKzNPWF
-         UpQIfuLCv3G2E+rJsg35ivnYrQCXU72jh46gkldHNDbNmDwwsdlQUyLl2WOWt8rBNzPi
-         hI8g==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
+        b=dwRwOEpNRZXuIZkY60kdMTaBjchQ/psgUECckvrufRcOdi8uKuzLFKTTOC8VsfmnZP
+         aG949Qe/+tekKP2g7ZiuAmIi1G7PUONy965cEGaBNjGVnAoU/QD4NGcMdg9UO5Jhfjca
+         26gUd1vMvkJwQvUxjrMBESK5uerzBHszls5wo9BK/yAil79eJv17XKR7/KUVDb7yQcQW
+         KmIAVlgvBxJJecYRkuhpX3WcHsPozgohKDPIQ532EJDyTW3QNJtijprIPo7dxVLo4Ghy
+         7hZ3kPeE9hg2JlNU8AkTZWFdt0/KAyKoSTgdrRIeddgbI6O0Lq3KtHCewSUQnIL2pf6/
+         IB1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=raQQIWLl;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i3sor11245650qkd.109.2019.04.24.22.06.14
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rIMwM2ro;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r10sor8213962pga.28.2019.04.24.22.13.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Apr 2019 22:06:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=raQQIWLl;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rIMwM2ro;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=to:cc:from:subject:message-id:date:user-agent:mime-version
-         :content-language:content-transfer-encoding;
-        bh=RFHcL3/I5oViWNDB29N5Vv3s3iXZS3vLHz926lnu8dY=;
-        b=raQQIWLl3ZVWFZPAq2ChQx8oBHR6CzyZSpOrVFMO//pEN1XQJvZ/zhaLhuDoRJ2JxM
-         3Tng4pQ+bP5xY9oTLY8W6/7hec5pOK4THU+8VMJ8GnOlAq9pX+wFy2onyl8OPOpAo9oq
-         05nUl9cEtUu7BTPrXX44uuVdKhaCUcxlfX343JebiSS1jc1A4GWqc3jcOIz/pw5mgYH8
-         IfYGEGFVRu3ckRKf+vpMvUFJyfn8EEFkJL0ZyGecLO9fTeH51cqB+kHqEHGp9UYOS4KA
-         Vaec0jpx7pc/8Jmgl+jDvqfhj3USv+r7mlvCFOusmurA1lCeHvYPsxJi/SIVTYl5aS4l
-         s/0A==
-X-Google-Smtp-Source: APXvYqxUMu+OqZjph/dbZarDsgd5i+hqlV71t0YgzIN4bwMZuUdWtLrjpLgui0bh/7lV3TtMUl+ikQ==
-X-Received: by 2002:a37:4814:: with SMTP id v20mr28284942qka.36.1556168774051;
-        Wed, 24 Apr 2019 22:06:14 -0700 (PDT)
-Received: from ovpn-121-162.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id m31sm14030646qtm.46.2019.04.24.22.06.12
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=A8io2vWFKu5lSiWar06Xe80lZwFq0HaeVGqBJrIMHbY=;
+        b=rIMwM2roMP5wQd3x+4LAzNc1V/1eC48DZyWzDM2OBLnclVP3lifOwmbv+NP8zBxu7p
+         NjOiIl3nj8eyOOgzFPfm2GlH85tKTs+7cVhyxJTFwQEZoUZLAHFsyaKgXOXSjYIJQ/Qn
+         czztyvN5639E/4iQLZjNS10GcOf4GABcsdSUNJrypwioJPxt/VrwSxNQMA75eo+O4iIy
+         FZo/9pgrt8Gam90DIBO9R1wYj5/dSA3wriW2uMirZ8OWJg5D7uw85H8OwzZCmBn1vLa4
+         LlcscLOOVhTEUuvMh9aNTDVZBDUAUvvRBwRvQPoENmIschLqwB7/R0SjmAWSf78Dp7k8
+         scmw==
+X-Google-Smtp-Source: APXvYqxrJMqcuE49i2pPLtaiuqRFXwVZY6uIhda7Gtt5PG92xTC5DPGWp2or/ePy26UlKwNxRcQY2Q==
+X-Received: by 2002:a63:5715:: with SMTP id l21mr7190062pgb.279.1556169226468;
+        Wed, 24 Apr 2019 22:13:46 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id n26sm37408045pfi.165.2019.04.24.22.13.44
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Apr 2019 22:06:13 -0700 (PDT)
-To: Jens Axboe <axboe@kernel.dk>, hch@lst.de
-Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
- Linux-MM <linux-mm@kvack.org>, dan.j.williams@intel.com
-From: Qian Cai <cai@lca.pw>
-Subject: bio_iov_iter_get_pages() + page_alloc.shuffle=1 migrating failures
-Message-ID: <38bef24c-3839-11b0-a192-6cf511d8b268@lca.pw>
-Date: Thu, 25 Apr 2019 01:06:11 -0400
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.6.1
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 24 Apr 2019 22:13:45 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: mhocko@suse.com,
+	hannes@cmpxchg.org,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/vmscan: simplify trace_reclaim_flags and trace_shrink_flags
+Date: Thu, 25 Apr 2019 13:13:23 +0800
+Message-Id: <1556169203-5858-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Memory offline [1] starts to fail on linux-next on ppc64le with
-page_alloc.shuffle=1 where the "echo offline" command hangs with lots of
-migrating failures below. It seems in migrate_page_move_mapping()
+trace_reclaim_flags and trace_shrink_flags are almost the same.
+We can simplify them to avoid redundant code.
 
-	if (!mapping) {
-		/* Anonymous page without mapping */
-		if (page_count(page) != expected_count)
-			return -EAGAIN;
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ include/trace/events/vmscan.h | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
 
-It expected count=1 but actual count=2.
-
-There are two ways to make the problem go away. One is to remove this line in
-__shuffle_free_memory(),
-
-	shuffle_zone(z);
-
-The other is reverting some bio commits. Bisecting so far indicates the culprit
-is in one of those (the 3rd commit looks more suspicious than the others).
-
-block: only allow contiguous page structs in a bio_vec
-block: don't allow multiple bio_iov_iter_get_pages calls per bio
-block: change how we get page references in bio_iov_iter_get_pages
-
-[  446.578064] migrating pfn 2003d5eaa failed ret:22
-[  446.578066] page:c00a00800f57aa80 count:2 mapcount:0 mapping:c000001db4c827e9
-index:0x13c08a
-[  446.578220] anon
-[  446.578222] flags: 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
-[  446.578347] raw: 083fffc00008002e c00a00800f57f808 c00a00800f579f88
-c000001db4c827e9
-[  446.944807] raw: 000000000013c08a 0000000000000000 00000002ffffffff
-c00020141a738008
-[  446.944883] page dumped because: migration failure
-[  446.944948] page->mem_cgroup:c00020141a738008
-[  446.945024] page allocated via order 0, migratetype Movable, gfp_mask
-0x100cca(GFP_HIGHUSER_MOVABLE)
-[  446.945148]  prep_new_page+0x390/0x3a0
-[  446.945228]  get_page_from_freelist+0xd9c/0x1bf0
-[  446.945292]  __alloc_pages_nodemask+0x1cc/0x1780
-[  446.945335]  alloc_pages_vma+0xc0/0x360
-[  446.945401]  do_anonymous_page+0x244/0xb20
-[  446.945472]  __handle_mm_fault+0xcf8/0xfb0
-[  446.945532]  handle_mm_fault+0x1c0/0x2b0
-[  446.945615]  __get_user_pages+0x3ec/0x690
-[  446.945652]  get_user_pages_unlocked+0x104/0x2f0
-[  446.945693]  get_user_pages_fast+0xb0/0x200
-[  446.945762]  iov_iter_get_pages+0xf4/0x6a0
-[  446.945802]  bio_iov_iter_get_pages+0xc0/0x450
-[  446.945876]  blkdev_direct_IO+0x2e0/0x630
-[  446.945941]  generic_file_read_iter+0xbc/0x230
-[  446.945990]  blkdev_read_iter+0x50/0x80
-[  446.946031]  aio_read+0x128/0x1d0
-[  446.946082] migrating pfn 2003d5fe0 failed ret:22
-[  446.946084] page:c00a00800f57f800 count:2 mapcount:0 mapping:c000001db4c827e9
-index:0x13c19e
-[  446.946239] anon
-[  446.946241] flags: 0x83fffc00008002e(referenced|uptodate|dirty|active|swapbacked)
-[  446.946384] raw: 083fffc00008002e c000200deb3dfa28 c00a00800f57aa88
-c000001db4c827e9
-[  446.946497] raw: 000000000013c19e 0000000000000000 00000002ffffffff
-c00020141a738008
-[  446.946605] page dumped because: migration failure
-[  446.946662] page->mem_cgroup:c00020141a738008
-[  446.946724] page allocated via order 0, migratetype Movable, gfp_mask
-0x100cca(GFP_HIGHUSER_MOVABLE)
-[  446.946846]  prep_new_page+0x390/0x3a0
-[  446.946899]  get_page_from_freelist+0xd9c/0x1bf0
-[  446.946959]  __alloc_pages_nodemask+0x1cc/0x1780
-[  446.947047]  alloc_pages_vma+0xc0/0x360
-[  446.947101]  do_anonymous_page+0x244/0xb20
-[  446.947143]  __handle_mm_fault+0xcf8/0xfb0
-[  446.947200]  handle_mm_fault+0x1c0/0x2b0
-[  446.947256]  __get_user_pages+0x3ec/0x690
-[  446.947306]  get_user_pages_unlocked+0x104/0x2f0
-[  446.947366]  get_user_pages_fast+0xb0/0x200
-[  446.947458]  iov_iter_get_pages+0xf4/0x6a0
-[  446.947515]  bio_iov_iter_get_pages+0xc0/0x450
-[  446.947588]  blkdev_direct_IO+0x2e0/0x630
-[  446.947636]  generic_file_read_iter+0xbc/0x230
-[  446.947703]  blkdev_read_iter+0x50/0x80
-[  446.947758]  aio_read+0x128/0x1d0
-
-[1]
-i=0
-found=0
-for mem in $(ls -d /sys/devices/system/memory/memory*); do
-        i=$((i + 1))
-        echo "iteration: $i"
-        echo offline > $mem/state
-        if [ $? -eq 0 ] && [ $found -eq 0 ]; then
-                found=1
-                continue
-        fi
-        echo online > $mem/state
-done
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index c27a563..57f7923 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -27,17 +27,11 @@
+ 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
+ 		) : "RECLAIM_WB_NONE"
+ 
+-#define trace_reclaim_flags(page) ( \
+-	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
++#define trace_reclaim_flags(file) ( \
++	(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+ 	(RECLAIM_WB_ASYNC) \
+ 	)
+ 
+-#define trace_shrink_flags(file) \
+-	( \
+-		(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+-		(RECLAIM_WB_ASYNC) \
+-	)
+-
+ TRACE_EVENT(mm_vmscan_kswapd_sleep,
+ 
+ 	TP_PROTO(int nid),
+@@ -328,7 +322,8 @@
+ 
+ 	TP_fast_assign(
+ 		__entry->pfn = page_to_pfn(page);
+-		__entry->reclaim_flags = trace_reclaim_flags(page);
++		__entry->reclaim_flags = trace_reclaim_flags(
++						page_is_file_cache(page));
+ 	),
+ 
+ 	TP_printk("page=%p pfn=%lu flags=%s",
+@@ -374,7 +369,7 @@
+ 		__entry->nr_ref_keep = stat->nr_ref_keep;
+ 		__entry->nr_unmap_fail = stat->nr_unmap_fail;
+ 		__entry->priority = priority;
+-		__entry->reclaim_flags = trace_shrink_flags(file);
++		__entry->reclaim_flags = trace_reclaim_flags(file);
+ 	),
+ 
+ 	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_anon=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
+@@ -413,7 +408,7 @@
+ 		__entry->nr_deactivated = nr_deactivated;
+ 		__entry->nr_referenced = nr_referenced;
+ 		__entry->priority = priority;
+-		__entry->reclaim_flags = trace_shrink_flags(file);
++		__entry->reclaim_flags = trace_reclaim_flags(file);
+ 	),
+ 
+ 	TP_printk("nid=%d nr_taken=%ld nr_active=%ld nr_deactivated=%ld nr_referenced=%ld priority=%d flags=%s",
+@@ -452,7 +447,8 @@
+ 		__entry->total_active = total_active;
+ 		__entry->active = active;
+ 		__entry->ratio = ratio;
+-		__entry->reclaim_flags = trace_shrink_flags(file) & RECLAIM_WB_LRU;
++		__entry->reclaim_flags = trace_reclaim_flags(file) &
++					 RECLAIM_WB_LRU;
+ 	),
+ 
+ 	TP_printk("nid=%d reclaim_idx=%d total_inactive=%ld inactive=%ld total_active=%ld active=%ld ratio=%ld flags=%s",
+-- 
+1.8.3.1
 
