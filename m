@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2905FC43219
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F281C43218
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51358206BA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51358206BA
+	by mail.kernel.org (Postfix) with ESMTP id BA3C6206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Apr 2019 19:14:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA3C6206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85A206B000D; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
+	id B1D116B000C; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BF676B000C; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
+	id A30CF6B0010; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5805E6B0010; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
+	id 720276B0266; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 089906B000C
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABB26B000D
 	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 15:14:36 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id w9so345291plz.11
+Received: by mail-pg1-f197.google.com with SMTP id m35so353832pgl.6
         for <linux-mm@kvack.org>; Thu, 25 Apr 2019 12:14:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=MJ2/+qJkQoCzOEhqSSUNBJImKDLsp06Ga689ZYuXD/0=;
-        b=c0Un+pLBeBleS2Eal23BhtSol6+sgalLNFxIturnJY87nSGfMQ3mfOIZOAX7ZyNb5G
-         3h5rFjN5qUZKuyqR19f8ZJT6idOJ+G7CODm30ABNXx4UKGto1hY9Tm0MVC0KfgVj9Xel
-         ISu/E2EPPCQpb+j4NtZaCjlL9QmXQiPJPQQ5M4UouipDhK3q+gD1bEI47Lt9MViNFHVP
-         dliDedOVvSBNXWjlmWDE8CfbI7SUCfMBRo0l0pypFfk+q7C5QtLK66QGTouN4ae2ajmk
-         X9m6r5j9iSoJ3ooRbwAtESyRqwlxs9HXLxBmLo9eQj/rmXQZMx1UYI5Eh93DH/1Oyi0H
-         2sjg==
+        bh=yWAUhIXNJL73/EZGrKHESCQJPbjNfYR6LxwmblUx9PA=;
+        b=m30+HPEu5FtLic7CgMqHOarbr7d6YFBJbdOm2JL6R30Pd6et6V2hS2Qp/w69FEKC4l
+         OUTbJ3uyc4UdbqJ1JIpYsxLLIxvfEKa9OZTXdvIRo9i6Q5L7LwBd4aJMKnwNiOv4x73K
+         LeOnmwvJqh5ecAC8KZCJ7xMH/1ve6TBCT9MT241HtfCmnkakQkXu8m7OkoUu56skEVG5
+         07AaVGdguZfR3K+BQ1Rl9NRzDtKbCKsH8vAp0joykqKodg8ozAuzwwJb+laTHevFtpy4
+         Z6f7X0NcmCfd+Q3DzIUDFYpJznOOX5qv7QBmSYD3mBi0diuqu9H7dWmf67GzE1IVlfcP
+         so7g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-X-Gm-Message-State: APjAAAVCKM+4clj6ye/K1HM+3g7LJT/rCtCZ7remDUmB1hEIoxzWy/2X
-	BC3yh6dhDZY9PUJT/fPdy5MWw4yoplQV+bc9hWyc+pyLIjn7R+2oIwO49D7LSQBg4lNX83oJ8fI
-	u++IwREeVH5c8Dk8GuIWrO/EGTmKF0MdDRpHuAf6Qm5Jc63m8rrqyxlIPk6Oikj9Nlw==
-X-Received: by 2002:a63:5349:: with SMTP id t9mr2188048pgl.327.1556219675682;
+X-Gm-Message-State: APjAAAWsB/wvUXg21R7m4xBUbvfbJmk6E+8vEjgBkyCHIeiM8+VvH2gq
+	dk0Mefl5KBGoTYkFbM4T0z7tz4q+BEC62OrAv7CvTndJcKY8ZHi085TpKgdtXkNFef8PoC4X1GU
+	qX3FzXKgBI0UxJjzHSy/AVylaJBLWY4UFA+Rjzc4o6xRZcHsPfwzFTQJXXfOiHnf2ow==
+X-Received: by 2002:a65:6144:: with SMTP id o4mr38393642pgv.247.1556219675776;
         Thu, 25 Apr 2019 12:14:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqww7+dn9kbX1T9G4mmiZMfcj4kHQ/oT1a3LN3kBdmeyz+KoHvocQhu8a+/u2uKGxKA4Quby
-X-Received: by 2002:a63:5349:: with SMTP id t9mr2187937pgl.327.1556219674139;
-        Thu, 25 Apr 2019 12:14:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556219674; cv=none;
+X-Google-Smtp-Source: APXvYqxiaURs98Q/FNQKz+mrMCObLS8I7TNJ8B1nNUItts++3IgaOr8IyOYz/FLYlRU6HAhzKOjo
+X-Received: by 2002:a65:6144:: with SMTP id o4mr38393498pgv.247.1556219673882;
+        Thu, 25 Apr 2019 12:14:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556219673; cv=none;
         d=google.com; s=arc-20160816;
-        b=YzkcUuvRaEgyBrzsoHfmv7mJQoO88ke4KHDm3EalWUdaythwrmhDy6tpFTUimP8c3g
-         SVCffVdXGs7xbahHNUfNde0FqeBdRsxvX/Pmtb+03ZjfUlsJVJHbpHRJVudIemk9YHyh
-         FMH1trqe7sb/XxD2A32LlpiYLLWA3p8+BlHlwYHDpTI4CFEE1NrLNWovnGVWCRnwBlRo
-         2QJ8FKcb2MODgh3HXjQiFyfU3QGlkyyfJciP+2CSB+/zTdxaYWONnXpDWuABNIG5VMOt
-         wn9i7IzLtdbFqg1nD4yqyrDMqP4tYkkkGSLfnRdIF88cCXitPpNoiGzNSmhoRnvkqfU+
-         21mg==
+        b=bKzbYvsRTQYSI06wpVWrl//gPwbdH6XUHbz7eOqNvhefUtDEXwaDtBveRaf3bSCPqg
+         t3Ne1fHIeHDG0ib49FSgPHrLzgpxGtKfJS20mbFfUDmAScgx1bW7Es9kcJWfmLQKEc33
+         6qEXe5OysCK4uBH8MhPC52IcfgynjCgWg/7CXvtQ+G4Ml0Q4t+rp3gd0IBsQ4Pw7qb2b
+         6RKqn26iodqXVG2cIgBkW0kq+9ZQClK28U1/71WLkPB0EiD+optB4ylh7TcHWt/iEq6U
+         FSbWNyiZSJt/MFIEkrn5LPIwHtIGxp4XptjxLs+jhgz71qtyVy+wrRxM6ChObPhyoJD8
+         xMmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from;
-        bh=MJ2/+qJkQoCzOEhqSSUNBJImKDLsp06Ga689ZYuXD/0=;
-        b=W6Xd/xkC+gaUFR5u+nbJ1fbNalAQ77Cc8idnAg63LuHSTuprjQTBLW08qVkjEwevlG
-         INdyasVnRnwxnZbGMiRcnuMOuCFNniZ7Vyb4JY+Z10BevHsHNrpo9OHCiUHCOLkVlVmw
-         wtkO4M8G5lbVTctzTzN5mQwzclZFu7iwXAHrTO2LcOSSPbAR60pbd6l9mpylLIOpLpxE
-         TS7n8+yUT+edjUZzQguDAEnN1+rvCPfraigVrrdsnRI9tuVsqRGQLW8Ze/F5gKYmz1BQ
-         LEkH7PvuPw1dwybgGDHjacQpLC3TLZ8qxSlAehQEW8TiVQfWollO7i/cKRXcWi/tyYBw
-         rdIQ==
+        bh=yWAUhIXNJL73/EZGrKHESCQJPbjNfYR6LxwmblUx9PA=;
+        b=wiOBa6kURvFzGMHn+UcF4xa47qSSEeR4wpjH7gmozxBXEbn5tTLlkF+NTY/VsssxNO
+         oD1/diEcBoRu38B6LgbW4rh7I5y3PpFham8ExvwLRXhyDtQI9IPES25NVYafVNkMi7RY
+         dNQteKim+h+p1r5kfTjUH+eSXftldcHo7tBB2yRUN6SSCdHsfVr4AvKSotjViTWhypDy
+         EQv1kGSsY6iOekLuX49zl/uRMjTHLNsvGIEH8XKHj4xeUytuLAn/QPawDsI5YRPI8WhG
+         Vs1iYmdTpElabm/XQh1I4tUtahGq5a0qwjNgFX0Jej5YRs+3n8RJ3Sxw6X249x3/L7q9
+         R6kQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
 Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
-        by mx.google.com with ESMTPS id a85si23305392pfj.12.2019.04.25.12.14.34
+        by mx.google.com with ESMTPS id a85si23305392pfj.12.2019.04.25.12.14.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 25 Apr 2019 12:14:34 -0700 (PDT)
+        Thu, 25 Apr 2019 12:14:33 -0700 (PDT)
 Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) client-ip=208.91.0.190;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
@@ -81,7 +81,7 @@ Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
  EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP Server id
  15.0.1156.6; Thu, 25 Apr 2019 12:14:31 -0700
 Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
-	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 74328412D1;
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 665A9412CB;
 	Thu, 25 Apr 2019 12:14:32 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Michael S. Tsirkin"
@@ -90,9 +90,9 @@ CC: Arnd Bergmann <arnd@arndb.de>, Julien Freche <jfreche@vmware.com>,
 	"VMware, Inc." <pv-drivers@vmware.com>, Jason Wang <jasowang@redhat.com>,
 	<linux-kernel@vger.kernel.org>, <virtualization@lists.linux-foundation.org>,
 	<linux-mm@kvack.org>, Nadav Amit <namit@vmware.com>
-Subject: [PATCH v4 4/4] vmw_balloon: Split refused pages
-Date: Thu, 25 Apr 2019 04:54:45 -0700
-Message-ID: <20190425115445.20815-5-namit@vmware.com>
+Subject: [PATCH v4 2/4] vmw_balloon: Compaction support
+Date: Thu, 25 Apr 2019 04:54:43 -0700
+Message-ID: <20190425115445.20815-3-namit@vmware.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190425115445.20815-1-namit@vmware.com>
 References: <20190425115445.20815-1-namit@vmware.com>
@@ -106,141 +106,446 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The hypervisor might refuse to inflate pages. While the balloon driver
-handles this scenario correctly, a refusal to inflate a 2MB pages might
-cause the same page to be allocated again later just for its inflation
-to be refused again. This wastes energy and time.
+Add support for compaction for VMware balloon. Since unlike the virtio
+balloon, we also support huge-pages, which are not going through
+compaction, we keep these pages in vmballoon and handle this list
+separately. We use the same lock to protect both lists, as this lock is
+not supposed to be contended.
 
-To avoid this situation, split the 2MB page to 4KB pages, and then try
-to inflate each one individually. Most of the 4KB pages out of the 2MB
-should be inflated successfully, and the balloon is likely to prevent
-the scenario of repeated refused inflation.
+Doing so also eliminates the need for the page_size lists. We update the
+accounting as needed to reflect inflation, deflation and migration to be
+reflected in vmstat.
+
+Since VMware balloon now provides statistics for inflation, deflation
+and migration in vmstat, select MEMORY_BALLOON in Kconfig.
 
 Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 ---
- drivers/misc/vmw_balloon.c | 63 +++++++++++++++++++++++++++++++-------
- 1 file changed, 52 insertions(+), 11 deletions(-)
+ drivers/misc/Kconfig       |   1 +
+ drivers/misc/vmw_balloon.c | 301 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 264 insertions(+), 38 deletions(-)
 
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 42ab8ec92a04..427cf10579b4 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -420,6 +420,7 @@ config SPEAR13XX_PCIE_GADGET
+ config VMWARE_BALLOON
+ 	tristate "VMware Balloon Driver"
+ 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
++	select MEMORY_BALLOON
+ 	help
+ 	  This is VMware physical memory management driver which acts
+ 	  like a "balloon" that can be inflated to reclaim physical pages
 diff --git a/drivers/misc/vmw_balloon.c b/drivers/misc/vmw_balloon.c
-index 4b5e939ff4c8..043eed845246 100644
+index ad807d5a3141..2136f6ad97d3 100644
 --- a/drivers/misc/vmw_balloon.c
 +++ b/drivers/misc/vmw_balloon.c
-@@ -239,6 +239,7 @@ static DEFINE_STATIC_KEY_FALSE(balloon_stat_enabled);
- struct vmballoon_ctl {
- 	struct list_head pages;
- 	struct list_head refused_pages;
-+	struct list_head prealloc_pages;
- 	unsigned int n_refused_pages;
- 	unsigned int n_pages;
- 	enum vmballoon_page_size_type page_size;
-@@ -668,15 +669,25 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
- 	unsigned int i;
+@@ -28,6 +28,8 @@
+ #include <linux/rwsem.h>
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
++#include <linux/mount.h>
++#include <linux/balloon_compaction.h>
+ #include <linux/vmw_vmci_defs.h>
+ #include <linux/vmw_vmci_api.h>
+ #include <asm/hypervisor.h>
+@@ -38,25 +40,11 @@ MODULE_ALIAS("dmi:*:svnVMware*:*");
+ MODULE_ALIAS("vmware_vmmemctl");
+ MODULE_LICENSE("GPL");
+ 
+-/*
+- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't allow wait
+- * (__GFP_RECLAIM) for huge page allocations. Use __GFP_NOWARN, to suppress page
+- * allocation failure warnings. Disallow access to emergency low-memory pools.
+- */
+-#define VMW_HUGE_PAGE_ALLOC_FLAGS	(__GFP_HIGHMEM|__GFP_NOWARN|	\
+-					 __GFP_NOMEMALLOC)
+-
+-/*
+- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We allow lightweight
+- * reclamation (__GFP_NORETRY). Use __GFP_NOWARN, to suppress page allocation
+- * failure warnings. Disallow access to emergency low-memory pools.
+- */
+-#define VMW_PAGE_ALLOC_FLAGS		(__GFP_HIGHMEM|__GFP_NOWARN|	\
+-					 __GFP_NOMEMALLOC|__GFP_NORETRY)
+-
+-/* Maximum number of refused pages we accumulate during inflation cycle */
+ #define VMW_BALLOON_MAX_REFUSED		16
+ 
++/* Magic number for the balloon mount-point */
++#define BALLOON_VMW_MAGIC		0x0ba11007
++
+ /*
+  * Hypervisor communication port definitions.
+  */
+@@ -247,11 +235,6 @@ struct vmballoon_ctl {
+ 	enum vmballoon_op op;
+ };
+ 
+-struct vmballoon_page_size {
+-	/* list of reserved physical pages */
+-	struct list_head pages;
+-};
+-
+ /**
+  * struct vmballoon_batch_entry - a batch entry for lock or unlock.
+  *
+@@ -266,8 +249,6 @@ struct vmballoon_batch_entry {
+ } __packed;
+ 
+ struct vmballoon {
+-	struct vmballoon_page_size page_sizes[VMW_BALLOON_NUM_PAGE_SIZES];
+-
+ 	/**
+ 	 * @max_page_size: maximum supported page size for ballooning.
+ 	 *
+@@ -348,8 +329,20 @@ struct vmballoon {
+ 	struct dentry *dbg_entry;
+ #endif
+ 
++	/**
++	 * @b_dev_info: balloon device information descriptor.
++	 */
++	struct balloon_dev_info b_dev_info;
++
+ 	struct delayed_work dwork;
+ 
++	/**
++	 * @huge_pages - list of the inflated 2MB pages.
++	 *
++	 * Protected by @b_dev_info.pages_lock .
++	 */
++	struct list_head huge_pages;
++
+ 	/**
+ 	 * @vmci_doorbell.
+ 	 *
+@@ -643,10 +636,10 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
  
  	for (i = 0; i < req_n_pages; i++) {
--		if (ctl->page_size == VMW_BALLOON_2M_PAGE)
--			page = alloc_pages(__GFP_HIGHMEM|__GFP_NOWARN|
+ 		if (ctl->page_size == VMW_BALLOON_2M_PAGE)
+-			page = alloc_pages(VMW_HUGE_PAGE_ALLOC_FLAGS,
+-					   VMW_BALLOON_2M_ORDER);
++			page = alloc_pages(__GFP_HIGHMEM|__GFP_NOWARN|
++					__GFP_NOMEMALLOC, VMW_BALLOON_2M_ORDER);
+ 		else
+-			page = alloc_page(VMW_PAGE_ALLOC_FLAGS);
++			page = balloon_page_alloc();
+ 
+ 		/* Update statistics */
+ 		vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
+@@ -961,9 +954,22 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
+ 					unsigned int *n_pages,
+ 					enum vmballoon_page_size_type page_size)
+ {
+-	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
++	unsigned long flags;
++
++	if (page_size == VMW_BALLOON_4K_PAGE) {
++		balloon_page_list_enqueue(&b->b_dev_info, pages);
++	} else {
 +		/*
-+		 * First check if we happen to have pages that were allocated
-+		 * before. This happens when 2MB page rejected during inflation
-+		 * by the hypervisor, and then split into 4KB pages.
++		 * Keep the huge pages in a local list which is not available
++		 * for the balloon compaction mechanism.
 +		 */
-+		if (!list_empty(&ctl->prealloc_pages)) {
-+			page = list_first_entry(&ctl->prealloc_pages,
-+						struct page, lru);
-+			list_del(&page->lru);
-+		} else {
-+			if (ctl->page_size == VMW_BALLOON_2M_PAGE)
-+				page = alloc_pages(__GFP_HIGHMEM|__GFP_NOWARN|
- 					__GFP_NOMEMALLOC, VMW_BALLOON_2M_ORDER);
--		else
--			page = balloon_page_alloc();
-+			else
-+				page = balloon_page_alloc();
++		spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
++		list_splice_init(pages, &b->huge_pages);
++		__count_vm_events(BALLOON_INFLATE, *n_pages *
++				  vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE));
++		spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
++	}
  
--		/* Update statistics */
--		vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
--					 ctl->page_size);
-+			vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
-+						 ctl->page_size);
-+		}
- 
- 		if (page) {
- 			vmballoon_mark_page_offline(page, ctl->page_size);
-@@ -922,7 +933,8 @@ static void vmballoon_release_page_list(struct list_head *page_list,
- 		__free_pages(page, vmballoon_page_order(page_size));
- 	}
- 
--	*n_pages = 0;
-+	if (n_pages)
-+		*n_pages = 0;
+-	list_splice_init(pages, &page_size_info->pages);
+ 	*n_pages = 0;
  }
  
+@@ -986,15 +992,28 @@ static void vmballoon_dequeue_page_list(struct vmballoon *b,
+ 					enum vmballoon_page_size_type page_size,
+ 					unsigned int n_req_pages)
+ {
+-	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
+ 	struct page *page, *tmp;
+ 	unsigned int i = 0;
++	unsigned long flags;
  
-@@ -1054,6 +1066,32 @@ static void vmballoon_dequeue_page_list(struct vmballoon *b,
+-	list_for_each_entry_safe(page, tmp, &page_size_info->pages, lru) {
++	/* In the case of 4k pages, use the compaction infrastructure */
++	if (page_size == VMW_BALLOON_4K_PAGE) {
++		*n_pages = balloon_page_list_dequeue(&b->b_dev_info, pages,
++						     n_req_pages);
++		return;
++	}
++
++	/* 2MB pages */
++	spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
++	list_for_each_entry_safe(page, tmp, &b->huge_pages, lru) {
+ 		list_move(&page->lru, pages);
+ 		if (++i == n_req_pages)
+ 			break;
+ 	}
++
++	__count_vm_events(BALLOON_DEFLATE,
++			  i * vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE));
++	spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
  	*n_pages = i;
  }
  
-+/**
-+ * vmballoon_split_refused_pages() - Split the 2MB refused pages to 4k.
-+ *
-+ * If inflation of 2MB pages was denied by the hypervisor, it is likely to be
-+ * due to one or few 4KB pages. These 2MB pages may keep being allocated and
-+ * then being refused. To prevent this case, this function splits the refused
-+ * pages into 4KB pages and adds them into @prealloc_pages list.
-+ *
-+ * @ctl: pointer for the %struct vmballoon_ctl, which defines the operation.
-+ */
-+static void vmballoon_split_refused_pages(struct vmballoon_ctl *ctl)
+@@ -1552,9 +1571,204 @@ static inline void vmballoon_debugfs_exit(struct vmballoon *b)
+ 
+ #endif	/* CONFIG_DEBUG_FS */
+ 
++
++#ifdef CONFIG_BALLOON_COMPACTION
++
++static struct dentry *vmballoon_mount(struct file_system_type *fs_type,
++				      int flags, const char *dev_name,
++				      void *data)
 +{
-+	struct page *page, *tmp;
-+	unsigned int i, order;
++	static const struct dentry_operations ops = {
++		.d_dname = simple_dname,
++	};
 +
-+	order = vmballoon_page_order(ctl->page_size);
-+
-+	list_for_each_entry_safe(page, tmp, &ctl->refused_pages, lru) {
-+		list_del(&page->lru);
-+		split_page(page, order);
-+		for (i = 0; i < (1 << order); i++)
-+			list_add(&page[i].lru, &ctl->prealloc_pages);
-+	}
-+	ctl->n_refused_pages = 0;
++	return mount_pseudo(fs_type, "balloon-vmware:", NULL, &ops,
++			    BALLOON_VMW_MAGIC);
 +}
 +
- /**
-  * vmballoon_inflate() - Inflate the balloon towards its target size.
-  *
-@@ -1065,6 +1103,7 @@ static void vmballoon_inflate(struct vmballoon *b)
- 	struct vmballoon_ctl ctl = {
- 		.pages = LIST_HEAD_INIT(ctl.pages),
- 		.refused_pages = LIST_HEAD_INIT(ctl.refused_pages),
-+		.prealloc_pages = LIST_HEAD_INIT(ctl.prealloc_pages),
- 		.page_size = b->max_page_size,
- 		.op = VMW_BALLOON_INFLATE
- 	};
-@@ -1112,10 +1151,10 @@ static void vmballoon_inflate(struct vmballoon *b)
- 				break;
- 
- 			/*
--			 * Ignore errors from locking as we now switch to 4k
--			 * pages and we might get different errors.
-+			 * Split the refused pages to 4k. This will also empty
-+			 * the refused pages list.
- 			 */
--			vmballoon_release_refused_pages(b, &ctl);
-+			vmballoon_split_refused_pages(&ctl);
- 			ctl.page_size--;
- 		}
- 
-@@ -1129,6 +1168,8 @@ static void vmballoon_inflate(struct vmballoon *b)
- 	 */
- 	if (ctl.n_refused_pages != 0)
- 		vmballoon_release_refused_pages(b, &ctl);
++static struct file_system_type vmballoon_fs = {
++	.name           = "balloon-vmware",
++	.mount          = vmballoon_mount,
++	.kill_sb        = kill_anon_super,
++};
 +
-+	vmballoon_release_page_list(&ctl.prealloc_pages, NULL, ctl.page_size);
++static struct vfsmount *vmballoon_mnt;
++
++/**
++ * vmballoon_migratepage() - migrates a balloon page.
++ * @b_dev_info: balloon device information descriptor.
++ * @newpage: the page to which @page should be migrated.
++ * @page: a ballooned page that should be migrated.
++ * @mode: migration mode, ignored.
++ *
++ * This function is really open-coded, but that is according to the interface
++ * that balloon_compaction provides.
++ *
++ * Return: zero on success, -EAGAIN when migration cannot be performed
++ *	   momentarily, and -EBUSY if migration failed and should be retried
++ *	   with that specific page.
++ */
++static int vmballoon_migratepage(struct balloon_dev_info *b_dev_info,
++				 struct page *newpage, struct page *page,
++				 enum migrate_mode mode)
++{
++	unsigned long status, flags;
++	struct vmballoon *b;
++	int ret;
++
++	b = container_of(b_dev_info, struct vmballoon, b_dev_info);
++
++	/*
++	 * If the semaphore is taken, there is ongoing configuration change
++	 * (i.e., balloon reset), so try again.
++	 */
++	if (!down_read_trylock(&b->conf_sem))
++		return -EAGAIN;
++
++	spin_lock(&b->comm_lock);
++	/*
++	 * We must start by deflating and not inflating, as otherwise the
++	 * hypervisor may tell us that it has enough memory and the new page is
++	 * not needed. Since the old page is isolated, we cannot use the list
++	 * interface to unlock it, as the LRU field is used for isolation.
++	 * Instead, we use the native interface directly.
++	 */
++	vmballoon_add_page(b, 0, page);
++	status = vmballoon_lock_op(b, 1, VMW_BALLOON_4K_PAGE,
++				   VMW_BALLOON_DEFLATE);
++
++	if (status == VMW_BALLOON_SUCCESS)
++		status = vmballoon_status_page(b, 0, &page);
++
++	/*
++	 * If a failure happened, let the migration mechanism know that it
++	 * should not retry.
++	 */
++	if (status != VMW_BALLOON_SUCCESS) {
++		spin_unlock(&b->comm_lock);
++		ret = -EBUSY;
++		goto out_unlock;
++	}
++
++	/*
++	 * The page is isolated, so it is safe to delete it without holding
++	 * @pages_lock . We keep holding @comm_lock since we will need it in a
++	 * second.
++	 */
++	balloon_page_delete(page);
++
++	put_page(page);
++
++	/* Inflate */
++	vmballoon_add_page(b, 0, newpage);
++	status = vmballoon_lock_op(b, 1, VMW_BALLOON_4K_PAGE,
++				   VMW_BALLOON_INFLATE);
++
++	if (status == VMW_BALLOON_SUCCESS)
++		status = vmballoon_status_page(b, 0, &newpage);
++
++	spin_unlock(&b->comm_lock);
++
++	if (status != VMW_BALLOON_SUCCESS) {
++		/*
++		 * A failure happened. While we can deflate the page we just
++		 * inflated, this deflation can also encounter an error. Instead
++		 * we will decrease the size of the balloon to reflect the
++		 * change and report failure.
++		 */
++		atomic64_dec(&b->size);
++		ret = -EBUSY;
++	} else {
++		/*
++		 * Success. Take a reference for the page, and we will add it to
++		 * the list after acquiring the lock.
++		 */
++		get_page(newpage);
++		ret = MIGRATEPAGE_SUCCESS;
++	}
++
++	/* Update the balloon list under the @pages_lock */
++	spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
++
++	/*
++	 * On inflation success, we already took a reference for the @newpage.
++	 * If we succeed just insert it to the list and update the statistics
++	 * under the lock.
++	 */
++	if (ret == MIGRATEPAGE_SUCCESS) {
++		balloon_page_insert(&b->b_dev_info, newpage);
++		__count_vm_event(BALLOON_MIGRATE);
++	}
++
++	/*
++	 * We deflated successfully, so regardless to the inflation success, we
++	 * need to reduce the number of isolated_pages.
++	 */
++	b->b_dev_info.isolated_pages--;
++	spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
++
++out_unlock:
++	up_read(&b->conf_sem);
++	return ret;
++}
++
++/**
++ * vmballoon_compaction_deinit() - removes compaction related data.
++ *
++ * @b: pointer to the balloon.
++ */
++static void vmballoon_compaction_deinit(struct vmballoon *b)
++{
++	if (!IS_ERR(b->b_dev_info.inode))
++		iput(b->b_dev_info.inode);
++
++	b->b_dev_info.inode = NULL;
++	kern_unmount(vmballoon_mnt);
++	vmballoon_mnt = NULL;
++}
++
++/**
++ * vmballoon_compaction_init() - initialized compaction for the balloon.
++ *
++ * @b: pointer to the balloon.
++ *
++ * If during the initialization a failure occurred, this function does not
++ * perform cleanup. The caller must call vmballoon_compaction_deinit() in this
++ * case.
++ *
++ * Return: zero on success or error code on failure.
++ */
++static __init int vmballoon_compaction_init(struct vmballoon *b)
++{
++	vmballoon_mnt = kern_mount(&vmballoon_fs);
++	if (IS_ERR(vmballoon_mnt))
++		return PTR_ERR(vmballoon_mnt);
++
++	b->b_dev_info.migratepage = vmballoon_migratepage;
++	b->b_dev_info.inode = alloc_anon_inode(vmballoon_mnt->mnt_sb);
++
++	if (IS_ERR(b->b_dev_info.inode))
++		return PTR_ERR(b->b_dev_info.inode);
++
++	b->b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
++	return 0;
++}
++
++#else /* CONFIG_BALLOON_COMPACTION */
++
++static void vmballoon_compaction_deinit(struct vmballoon *b)
++{
++}
++
++static int vmballoon_compaction_init(struct vmballoon *b)
++{
++	return 0;
++}
++
++#endif /* CONFIG_BALLOON_COMPACTION */
++
+ static int __init vmballoon_init(void)
+ {
+-	enum vmballoon_page_size_type page_size;
+ 	int error;
+ 
+ 	/*
+@@ -1564,17 +1778,22 @@ static int __init vmballoon_init(void)
+ 	if (x86_hyper_type != X86_HYPER_VMWARE)
+ 		return -ENODEV;
+ 
+-	for (page_size = VMW_BALLOON_4K_PAGE;
+-	     page_size <= VMW_BALLOON_LAST_SIZE; page_size++)
+-		INIT_LIST_HEAD(&balloon.page_sizes[page_size].pages);
+-
+-
+ 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
+ 
+ 	error = vmballoon_debugfs_init(&balloon);
+ 	if (error)
+-		return error;
++		goto fail;
+ 
++	/*
++	 * Initialization of compaction must be done after the call to
++	 * balloon_devinfo_init() .
++	 */
++	balloon_devinfo_init(&balloon.b_dev_info);
++	error = vmballoon_compaction_init(&balloon);
++	if (error)
++		goto fail;
++
++	INIT_LIST_HEAD(&balloon.huge_pages);
+ 	spin_lock_init(&balloon.comm_lock);
+ 	init_rwsem(&balloon.conf_sem);
+ 	balloon.vmci_doorbell = VMCI_INVALID_HANDLE;
+@@ -1585,6 +1804,9 @@ static int __init vmballoon_init(void)
+ 	queue_delayed_work(system_freezable_wq, &balloon.dwork, 0);
+ 
+ 	return 0;
++fail:
++	vmballoon_compaction_deinit(&balloon);
++	return error;
  }
  
- /**
+ /*
+@@ -1609,5 +1831,8 @@ static void __exit vmballoon_exit(void)
+ 	 */
+ 	vmballoon_send_start(&balloon, 0);
+ 	vmballoon_pop(&balloon);
++
++	/* Only once we popped the balloon, compaction can be deinit */
++	vmballoon_compaction_deinit(&balloon);
+ }
+ module_exit(vmballoon_exit);
 -- 
 2.19.1
 
