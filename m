@@ -8,96 +8,96 @@ X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 26285C43218
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48FC7C43218
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D12C720B7C
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F0DA8208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZcHDpG5o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D12C720B7C
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JScJif31"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0DA8208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B22CA6B0277; Sat, 27 Apr 2019 02:43:37 -0400 (EDT)
+	id CA3E06B0278; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA9CC6B0278; Sat, 27 Apr 2019 02:43:37 -0400 (EDT)
+	id C54656B0279; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 948786B0279; Sat, 27 Apr 2019 02:43:37 -0400 (EDT)
+	id AD4A46B027A; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 537DF6B0277
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:37 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id b7so3226347plb.17
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 728B86B0278
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id l13so3503920pgp.3
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=Mq726et3FUsm8L5SG93p+KUhd7ShOgthVM8qUN29ytY=;
-        b=m3ukOiXvW4man29I9owjO1iSQ36kmb2yNDXYurZ8SsWOr0Aaqu/pMaVNTj/Kpm41DU
-         9oYujswiv+Sy//rt34oqVKRahQzGRtK0zwJ3xj4m5YjfH0t2GkF75Y4gI8vXQIrv27gt
-         uk2XEafXe4cvaNW2y1gxmNJj071lVaIFfEDcMtuMmDS9wSz2ptUFyHS69DntH12eZKff
-         bQ4jUuskp1BnWUx+4ZDO2a9u80YO3LAdr09fRlN7tc29OxvaKwXgxLZRfMWtJxef+rn1
-         KTd1Qx/WhL6YWGHsHKFutGgy5N0XT8TJp0Xq7CbGWJx5HatJAROlsfUMOQAq/7aiyYJg
-         GBNw==
-X-Gm-Message-State: APjAAAWBL9GitW51NqtAriftBULOvHuQIrUcsSPdvWiFJ7yHVekIdAj+
-	rYQQvdnIvFzyL16E+OaDnjuA0gPSwr3DkbLN0gFqd2Fozf5f4RcyyWl5K0PuCoDRc3XmSU0rcPE
-	FY4MiJN7pdZ+peiFxcwcsN7EEnjRT0wooKsgLaPCTyl/MQYFdwo8wvQlMXqcSzyCNvQ==
-X-Received: by 2002:a63:5041:: with SMTP id q1mr24951430pgl.386.1556347417027;
+        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
+        b=RTcpy+NiC7R7PpBw+ceRfAGSTppaDldn2RDmHu9JdKrcXLuTv7mw/Somu/uBJHLWjg
+         qTczf1mEKbL88YbVt3zoztYaTkrSZjWCNcMKdz/yNZxKW79kSkl/8/RuxisgRTojd9EU
+         dT8k8lcdrv7ak8dTrR4HUtS2nSkXy8Z3jHBfLpwqQssEchhb90wHu8JVEmCqS0mCRAMW
+         IrKehKihLntPKPE3Uxmm00Vu9IyemujRN17smK8ScQuGX1ArXnJ+2kFdRHxkfOKM/GJc
+         +iwx9u6qSrmMvMfuZghHSBH5q+yaqy2XJaaucnjsJTfMG6ntJ9EpK1cNngGJfvH0eju/
+         krGQ==
+X-Gm-Message-State: APjAAAWO7PKC99ofUHDBDR1pPe4kCPnjlxpWjw1ILy3F75060Y8xRp0O
+	k/0RBj4VDTGROVJ+ukMFJ8Y+KfXAf47V9NGKLC0eImrpZp607FclC+nSAF05VpP8ZfqEedwZLkB
+	LpnDr91Vd5EsibdCUL4Vi2f74cd33l05KflBhO6N0GXyBiblvRj0wJCkLwS00gjq28g==
+X-Received: by 2002:a63:5166:: with SMTP id r38mr7836282pgl.429.1556347418155;
+        Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
+X-Received: by 2002:a63:5166:: with SMTP id r38mr7836252pgl.429.1556347417503;
         Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
-X-Received: by 2002:a63:5041:: with SMTP id q1mr24951391pgl.386.1556347416101;
-        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347416; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347417; cv=none;
         d=google.com; s=arc-20160816;
-        b=0ihllf0orVZUtxx/bIPAhjmW4iD0H/qXjOo4NgdHZsWscV+19PX4y9r6jDkR2xQ62l
-         AaSo4n+Pnc/E3Isrn4dA/upoZY2xgUpIVl2g6yvuejE4Q25PZHpve3PDvfWs5ys5vjN4
-         O3tfKMEmisWLbz5JR3uP5kuaswAZnik+2sKbJ9XtayigIfvv26vON0VmCaiX1jyrQ4MT
-         uJvsZ9J08BCPekKJWCTSxp6jmpZthvpxSXrSSI27jj6JTu+GCnVzX2JaNuTqyuDCFHlS
-         MIUBnubDmrLxCzFuPB8i7uYVtR1fdV8MBLPCrY9faglBYWapqlpskjn7Py2C34w1zWy9
-         VnXw==
+        b=KEnpMbqyOGnwZudvoXbs8vNZ0854cG1ExsVWLUyQ2QcKpcDqOVa7iJjN6/5NEWQ2N/
+         kJndYRwlGEIh4LH6X98oIWAhJ2erL27ji0PinbwI1Y6GpS1VKDr9lTjhNhv6/eAhHlpq
+         5KHgn3fic/eDAtyV/qUskwlmJxCdROCVRfJ3FReig2b/toUZ07I/o2R5n8Hqls/CDSMv
+         h2KU/HAywlkv5wyfiI0WW0B0PF1mf1DdwPiRAesI566E+dvogSHKfRXDj5uCr/2OchLq
+         QF8SUdsL4x/3nIPo+L12UrcGyI/wK2oPUGgbmIQoM00lGEMpLCV6EoDQhh9rBahgg5W2
+         PDeA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=Mq726et3FUsm8L5SG93p+KUhd7ShOgthVM8qUN29ytY=;
-        b=pSM/sLdOozy2nMpcytew7z5BhteeEr5sCPol1GOWcKfi3JloaefMMHaCPksnRaZmSD
-         HLWyivLcn2KGXBkFUEz3OFfzATxpACtuT9vpEVHH3k/4MgTVL501KYw9Kdc7siInhYnf
-         oZRrSFjQiCindC1eW1HAWyd0UQrQfYnLvuHOLhR5s7ldTWD5wASQ4zuyEWz7aEzxgquW
-         hXb4rvl9JsNwarpS39DdiZB3foJY7XQZUCG8L12HMIigqH52y/wea4RNBLpbgEVbtuyS
-         Ce7yNt19qrTWFFC840s6ehR+Z4ojQ4y2Ap7gbrWbLnC+n6srT1yJXcrvyBYbJvojNkD3
-         lWUg==
+        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
+        b=UZzoysDNTOglg2FvotNOaH+KdUGRhhtr2uG4jdQ3HJcnyAYccyCLD8kgc8W9VHyyo6
+         KR8e1290s0Ur+hukRIQKQ3yF9G7MZsIEpb7sfQOzZuJKWZUZndTPL2fGMJc+dOVbeafR
+         CyemrbJosLxaFPwA9nzKhHtFUwINMuLpvwZROBoes82iCMQDZTVlo9VJmgqbdlpKrSJ/
+         xikrW9ZYttBEjZVydH952iBB+TJ2UZbN5PK4jqQdznl7e8MtM0whHNC+uLWIBhAWHIBO
+         3Rygw1pX095T3c8J2g+ForuHJeemwi8Co8RMTgCCEd/YY986PJsSrlsHqb8xPz6bQaos
+         wKEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZcHDpG5o;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JScJif31;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d63sor28993657pgc.2.2019.04.26.23.43.36
+        by mx.google.com with SMTPS id i36sor26615136plb.39.2019.04.26.23.43.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZcHDpG5o;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JScJif31;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=Mq726et3FUsm8L5SG93p+KUhd7ShOgthVM8qUN29ytY=;
-        b=ZcHDpG5oI881U7Ra0/L2O5huO2cwDn2YrdsQ5hiAWkm6WdBzN67nlkJvfLDLJC5q+X
-         UOCeP+9RydbCT4dO6iGp4lZQdm3+sXHNSQC0G0grGB6NOlnyKbwZn5NdDqZwDHIXRDud
-         3mNZu1J6RFiZozyuuSJ7f0wBAoiYQFhmUfj5tGkTm8jduQKjEFGn6AF04k5qQYjIWsXY
-         4YzLX+ZgfiYxaYFVUDUXXbJdfkkMMJKkcbeIB+VGTLlKKEI2dS4TTD29m/lBt3TdxyYa
-         a4fp8LYLp6QEbTAIinVcBUAwlwg+TwtnzyGC3pPfhsUXM3/E24y9pQ9Ah5nWVdchzhK2
-         LMJw==
-X-Google-Smtp-Source: APXvYqz6QdLKu0nIIJYQFhptNQ/c9BRHYqidvmm2brorovTM3Ggu9E591UYxGE1lKlV0dGgfmeOtWg==
-X-Received: by 2002:a63:e051:: with SMTP id n17mr5092049pgj.19.1556347415619;
-        Fri, 26 Apr 2019 23:43:35 -0700 (PDT)
+        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
+        b=JScJif310IMh72ZohwOauSCAwdoUkuEv8bR6xdhJcKtk1RynLwO3Yk/O8uL4tZE53n
+         NrQxpNK4N1uzjciA1sdkWWtPp8ycpHXFn7qqLzJr7tYIRLsxhiosMqxmPVmHzIChx8+N
+         dySb7k6fhrhmrpcilrlJoW9blvaY3Q+PCSiONh6FBKvoxbL7qSMy7/IzPS7lXjYYk3R/
+         KYc3BtX2zUuYUpbQToVTJQ3xLcXFtZGa0gKnazTNuB9oRgES+e5Dt6lyOMWvmuEim8L6
+         0oOzDDk8SIoEGUBtvVZ7G2upgHOvvdwFGoH6Y4DMveFflSyOioLkC8F7etEF6M59+eVc
+         h1Dg==
+X-Google-Smtp-Source: APXvYqy73yIN4FITPLecL8eRrrVFTQfYnIM8wwU5XCBZXYl3CE93cW/V+JNeu8zKe2r7aDykFyaZUg==
+X-Received: by 2002:a17:902:d83:: with SMTP id 3mr52113119plv.125.1556347416975;
+        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.34
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.35
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:35 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -120,11 +120,10 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Nadav Amit <namit@vmware.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: [PATCH v6 22/24] x86/alternative: Comment about module removal races
-Date: Fri, 26 Apr 2019 16:23:01 -0700
-Message-Id: <20190426232303.28381-23-nadav.amit@gmail.com>
+	Nadav Amit <namit@vmware.com>
+Subject: [PATCH v6 23/24] mm/tlb: Provide default nmi_uaccess_okay()
+Date: Fri, 26 Apr 2019 16:23:02 -0700
+Message-Id: <20190426232303.28381-24-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -136,32 +135,55 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Add a comment to clarify that users of text_poke() must ensure that
-no races with module removal take place.
+x86 has an nmi_uaccess_okay(), but other architectures do not.
+Arch-independent code might need to know whether access to user
+addresses is ok in an NMI context or in other code whose execution
+context is unknown.  Specifically, this function is needed for
+bpf_probe_write_user().
 
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Add a default implementation of nmi_uaccess_okay() for architectures
+that do not have such a function.
+
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/alternative.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ arch/x86/include/asm/tlbflush.h | 2 ++
+ include/asm-generic/tlb.h       | 9 +++++++++
+ 2 files changed, 11 insertions(+)
 
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 18f959975ea0..7b9b49dfc05a 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -810,6 +810,11 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
-  * It means the size must be writable atomically and the address must be aligned
-  * in a way that permits an atomic write. It also makes sure we fit on a single
-  * page.
-+ *
-+ * Note that the caller must ensure that if the modified code is part of a
-+ * module, the module would not be removed during poking. This can be achieved
-+ * by registering a module notifier, and ordering module removal and patching
-+ * trough a mutex.
-  */
- void *text_poke(void *addr, const void *opcode, size_t len)
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 90926e8dd1f8..dee375831962 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -274,6 +274,8 @@ static inline bool nmi_uaccess_okay(void)
+ 	return true;
+ }
+ 
++#define nmi_uaccess_okay nmi_uaccess_okay
++
+ /* Initialize cr4 shadow for this CPU. */
+ static inline void cr4_init_shadow(void)
  {
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index b9edc7608d90..480e5b2a5748 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -21,6 +21,15 @@
+ #include <asm/tlbflush.h>
+ #include <asm/cacheflush.h>
+ 
++/*
++ * Blindly accessing user memory from NMI context can be dangerous
++ * if we're in the middle of switching the current user task or switching
++ * the loaded mm.
++ */
++#ifndef nmi_uaccess_okay
++# define nmi_uaccess_okay() true
++#endif
++
+ #ifdef CONFIG_MMU
+ 
+ /*
 -- 
 2.17.1
 
