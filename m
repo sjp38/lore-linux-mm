@@ -1,220 +1,172 @@
 Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09501C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:11:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED4F6C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:58:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5ED420675
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:11:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5ED420675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8EED02146E
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:58:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="K85URiHS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EED02146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54B286B000A; Fri, 26 Apr 2019 05:11:32 -0400 (EDT)
+	id E50A96B0005; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4FA576B000C; Fri, 26 Apr 2019 05:11:32 -0400 (EDT)
+	id E00946B0006; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 375266B000D; Fri, 26 Apr 2019 05:11:32 -0400 (EDT)
+	id CC6C46B0007; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 132946B000A
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 05:11:32 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id f48so2305706qtk.17
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 02:11:32 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ED7F6B0005
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id l1so2889321wme.1
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 02:58:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=xp1Xe7BemYvtnysjtOSUfNR+tTsvmjpaL+t5Rf9FtBw=;
-        b=JPsEpYae9n7FgRKXyQvtijFfTC72vWG0mnSsKL4W0uh9Tn4mT1P1ADyNa7JsQUBY4o
-         X7y/ScbHiMSvc1mGixgaiE1ZfwUCeX+S4lOg+/S+t5qc76u5j9+Wia+rxTAEOe6xOJqW
-         LJthBeuN/Dl9ZBY/SbYj95vrYfgyJ4AEzXylth4WDcplzhiBpcMpw9orF2eDq1xyAmRr
-         AfHYeVKVNq+j1JBtAK0xoi5TtIRxckrXT6R0O8WoMMMkF8FnTq81yXA0Bb24mu6eveeG
-         Gv8vZvupHSMQI6y7dMqz6l2h2lD6FPQIBFlDBzwEQBFhzz6Pv3vF6j9fn8M5Vp+A57Zp
-         ECQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW5ICd2ovxzUce9bUuqo/u5FtRWN1DY5V3VhOqBVau4ZzbErfzS
-	6a7KMW52B/61pVuG1pCQsm1Zx8xewbEpo31utq92oBiPHupOKnV9cLHEZl9sQCzZi/VfkAhYySE
-	YgmIgug9W/ZcI4SsEjHp0fi7jU3ThvCfgUi12V+uc3nAsOKyJBxvcf4x88Pt0sjWJpg==
-X-Received: by 2002:a37:9103:: with SMTP id t3mr34883043qkd.78.1556269891830;
-        Fri, 26 Apr 2019 02:11:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwegF8Y6MuAs62b93uqEhcbKrGeoFn+UvnBo0mdU7/Y60fPHEgNaM/EBbe0WIpPuAo9OIQ6
-X-Received: by 2002:a37:9103:: with SMTP id t3mr34883021qkd.78.1556269891180;
-        Fri, 26 Apr 2019 02:11:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556269891; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
+        b=LbPjTJc0RSEtB3m8qXlis68oebjVfZGoaGPL0I+df1JZ7TuSDgR8+KPBqDFii86EM9
+         xH6/f7jHGscNth5W9PrYGTe6L0koC5ZOmnGU08+v4IWGGlbXUsW7YxsgjBMudmfFleea
+         mJ8OLcVbLwwZ3Ta4/PVVCpxqIXmYm1wawYFQlBidgRyw0p/P4KK8ZPgZoFUxaqvDkkqG
+         7RLUasRAY3AC0BqNF7Gp0kLHje3J0C1bx57+YFjeI+70cOGSb0Hqd77oPnWZwQNDgA8N
+         wqev7ypj3NP9H5tAMFA8+tEqdzUhjj/JXrlE2Q8qDmWGvCM3E7AxtDYfNmGrJ4JMQxYi
+         haig==
+X-Gm-Message-State: APjAAAXP3hFEbxzOkRonIuX+gQj2uJPRHSrIy810E4geOAFzYa+Rib/o
+	Vxgci1GQl3wVbxSawdokuWycpI8Tu0oxhRbu1qt6If2l0clHXIHWCQh2s37jPGr7nsZ0oZwzWKW
+	SRSfY22zuTgNX+uKafoaeMkO8Pnt0jHSPsGVQLb4pDBHiES5YjoMcviintjx96zE=
+X-Received: by 2002:adf:ec4e:: with SMTP id w14mr6623436wrn.53.1556272687851;
+        Fri, 26 Apr 2019 02:58:07 -0700 (PDT)
+X-Received: by 2002:adf:ec4e:: with SMTP id w14mr6623309wrn.53.1556272685868;
+        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556272685; cv=none;
         d=google.com; s=arc-20160816;
-        b=i/fS2W3e7cAlgF4NqpuSw7/1ezVuXZprrwlzy4Z3DCSIkd1+5iBvDbk3StI6URQbtw
-         3Ugqeh/Iz3XQiYXDeMYPwjow9I6jDrFNkQJxMAzwieuL7WTK0vlkRXd8pmnVUTtCB5pi
-         FIvvKitHSzSNFlqTl6CBx6N5hZvMkNbGo3Jc56+OYad5TB4FBCtE0t/F1XRGRhb31s6n
-         BYUVKBeixoSvUuLS+8t8EZUp8JAW9VjfAcnv5+UUYE6XEi1IP3R6C8qnsVgE4pMI4DBO
-         DWolxi1U6CDlKICkg3R7PPII6fpVHCuGeYbq9ErBnDklOYu4Oby+YVzPfP2pgQRsZgyQ
-         UT7g==
+        b=YUAqMw+6/L37JqY6jW8yZcNupL+ogZRkc9FixP3jBHzIe5fCQW5ZxF9pd87YbCaF56
+         xs1wKVGIjaq30GBe0gK5ogVkOyvZcCjIgkU4lXIWqQLBmN6dzzJmpSd8IaBwDbmBvRgM
+         UDgPGDo4C0xffppWabP5EGtL6mJMXCMY5YsiXiMpK5HO3rZZG0TO6RiTl3eWpC/Nyfao
+         hCW/6UNy/DU77FZC4RzNztKxlTpn7clPrY5GakwRKA3NZPwlT9aTZCk56vh6HUt0Byxx
+         h20Aw880v47efCo36MHObq5Hnp/G6lBtoYvQuOSjSmVoSVRkWfyy9GK8OEsaN5O6W3zI
+         Jejw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=xp1Xe7BemYvtnysjtOSUfNR+tTsvmjpaL+t5Rf9FtBw=;
-        b=rW6ftXew1qn4kTSydcGWM8cejAJmmmgs59uhYG+ZH6+6IBfIall9AqtRF0OxFJa9vv
-         jwdorJIYaFT6f7lxQJ6FnMquAxbdIkMD8W9ktVW1AznWCHJefg/DhK3HZSL5myEpsnPv
-         cPW65swGVZHLPYZPhdBnudZ+bpZ/7RXfjB6WboH7a/PnXYgBQ9DxZ9E59lzGnLdtEM/n
-         JhA+J7l+UIN0FrG7o4XI91R2rD4ULYBG2GBY+kb85rUN5djn9TDYPJORnZLmm/Fq9r0H
-         Q/cuJvB9iC739Ypz2OgA1YZ7o4bixndTUOjuVIhKjpy7A5hZT22MrgGTDe7EZBDrMeLJ
-         u2SA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
+        b=OtUw9M02ZmmBsUMEmhYkGH63AiWPDJ6F3NCIL0xxg2UzVxTswl7od1h1Mwu+7Jxnto
+         exrJzDPV115aRHV4GJltO+yyVoQv1sDdFP0xswyxwEyll+jE+Ejcu1HJaCcry3Z3rvkz
+         IpfLdgEsw+efHQCWwYflOXi5lFYqpmRtAajch0Mt0r7nzItR6rTnswVHIcA07gINsDsg
+         57XsBwn0giWyrU8JQFUO1z68dzG1VTP2OEQGlsJ7YcsgKTj6pEwSOvqZTlVwU0uRNYv9
+         EyBBGfZYkXJ2hT99Gdr1wSJvzhWsH//h27wlfOWqq2qJ5ZyejED5XLlyBUgjTPYNydMo
+         ju/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y6si13636856qkf.93.2019.04.26.02.11.30
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K85URiHS;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o67sor10869026wma.12.2019.04.26.02.58.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 02:11:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1FAC631475F2;
-	Fri, 26 Apr 2019 09:11:30 +0000 (UTC)
-Received: from [10.36.117.165] (ovpn-117-165.ams2.redhat.com [10.36.117.165])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8C88A60F8E;
-	Fri, 26 Apr 2019 09:11:25 +0000 (UTC)
-Subject: Re: [PATCH v1 2/7] s390x/mm: Implement arch_remove_memory()
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, akpm@linux-foundation.org,
- Dan Williams <dan.j.williams@intel.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
- Oscar Salvador <osalvador@suse.com>
-References: <20190424102511.29318-1-david@redhat.com>
- <20190424102511.29318-3-david@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <e4f92602-4eb8-2096-33ef-29ce5714a379@redhat.com>
-Date: Fri, 26 Apr 2019 11:11:24 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K85URiHS;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
+        b=K85URiHSmAJ1R+AeUwGYyucXzeBGpSgFJxfInaFSv6ntKK/zvtuQaZaAHMqosXdqCQ
+         PSwdwnK8AfCbRsW/xqF3cWnqK+cd8FYKwm1lw4QCJH13elJblsFe8d0B4rJmiaypHx2V
+         BPKTRORhHEpvy4fMFoXLQACGi5sY1E9IPfW7Gus8e0NvyirHI1shKtQemU1+usuMcDvY
+         yN+f5fiDh8kXry7A7CVvtVKcIK+17pib8MkhZzdPsM+nfv/EpYuyK3O/gTwUr/EbM0oj
+         VIpstDsdgthviqEU9Rm/RpgvIMDfui0KeJJYGLxqA7m8pSj8BmzEJj7hUPmI0hkzSEgV
+         0w/Q==
+X-Google-Smtp-Source: APXvYqxU4xRSO//2LeLOAQNJAxp8x2iYJV7YGaHBJl6zzDXEGkhWiOOILZ/XwIJJg56oj/prXk8sRw==
+X-Received: by 2002:a1c:f204:: with SMTP id s4mr7232803wmc.51.1556272685405;
+        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
+Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
+        by smtp.gmail.com with ESMTPSA id 4sm20102389wmg.12.2019.04.26.02.58.03
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 26 Apr 2019 02:58:04 -0700 (PDT)
+Date: Fri, 26 Apr 2019 11:58:02 +0200
+From: Ingo Molnar <mingo@kernel.org>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-kernel@vger.kernel.org,
+	Alexandre Chartre <alexandre.chartre@oracle.com>,
+	Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	Jonathan Adams <jwadams@google.com>,
+	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org, x86@kernel.org,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Peter Zijlstra <a.p.zijlstra@chello.nl>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
+ isolation
+Message-ID: <20190426095802.GA35515@gmail.com>
+References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
+ <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+ <20190426083144.GA126896@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190424102511.29318-3-david@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Fri, 26 Apr 2019 09:11:30 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190426083144.GA126896@gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.04.19 12:25, David Hildenbrand wrote:
-> Will come in handy when wanting to handle errors after
-> arch_add_memory().
+
+* Ingo Molnar <mingo@kernel.org> wrote:
+
+> I really don't like it where this is going. In a couple of years I 
+> really want to be able to think of PTI as a bad dream that is mostly 
+> over fortunately.
 > 
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Vasily Gorbik <gor@linux.ibm.com>
-> Cc: Oscar Salvador <osalvador@suse.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  arch/s390/mm/init.c | 13 +++++++------
->  1 file changed, 7 insertions(+), 6 deletions(-)
+> I have the feeling that compiler level protection that avoids 
+> corrupting the stack in the first place is going to be lower overhead, 
+> and would work in a much broader range of environments. Do we have 
+> analysis of what the compiler would have to do to prevent most ROP 
+> attacks, and what the runtime cost of that is?
 > 
-> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-> index 31b1071315d7..2636d62df04e 100644
-> --- a/arch/s390/mm/init.c
-> +++ b/arch/s390/mm/init.c
-> @@ -237,12 +237,13 @@ int arch_add_memory(int nid, u64 start, u64 size,
->  void arch_remove_memory(int nid, u64 start, u64 size,
->  			struct vmem_altmap *altmap)
->  {
-> -	/*
-> -	 * There is no hardware or firmware interface which could trigger a
-> -	 * hot memory remove on s390. So there is nothing that needs to be
-> -	 * implemented.
-> -	 */
-> -	BUG();
-> +	unsigned long start_pfn = start >> PAGE_SHIFT;
-> +	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +	struct zone *zone;
-> +
-> +	vmem_remove_mapping(start, size);
-> +	zone = page_zone(pfn_to_page(start_pfn));
-> +	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> I mean, C# and Java programs aren't able to corrupt the stack as long 
+> as the language runtime is corect. Has to be possible, right?
 
-I guess the correct way is to remove the mapping after __remove_pages.
-But as the pages should not be touched by anybody, it shouldn't really
-matter. Will change when I resend.
+So if such security feature is offered then I'm afraid distros would be 
+strongly inclined to enable it - saying 'yes' to a kernel feature that 
+can keep your product off CVE advisories is a strong force.
 
->  }
->  #endif
->  #endif /* CONFIG_MEMORY_HOTPLUG */
-> 
+To phrase the argument in a bit more controversial form:
 
+   If the price of Linux using an insecure C runtime is to slow down 
+   system calls with immense PTI-alike runtime costs, then wouldn't it be 
+   the right technical decision to write the kernel in a language runtime 
+   that doesn't allow stack overflows and such?
 
--- 
+I.e. if having Linux in C ends up being slower than having it in Java, 
+then what's the performance argument in favor of using C to begin with? 
+;-)
+
+And no, I'm not arguing for Java or C#, but I am arguing for a saner 
+version of C.
 
 Thanks,
 
-David / dhildenb
+	Ingo
 
