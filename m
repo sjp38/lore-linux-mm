@@ -2,142 +2,132 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1B73C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:50:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37E36C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:00:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3960206E0
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:50:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Op/BtNTT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3960206E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 05E33206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:00:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05E33206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DB916B028F; Fri, 26 Apr 2019 03:50:03 -0400 (EDT)
+	id 8B6656B0290; Fri, 26 Apr 2019 04:00:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B0A96B0292; Fri, 26 Apr 2019 03:50:03 -0400 (EDT)
+	id 83CDD6B0292; Fri, 26 Apr 2019 04:00:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A0936B0293; Fri, 26 Apr 2019 03:50:03 -0400 (EDT)
+	id 705136B0293; Fri, 26 Apr 2019 04:00:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E32D66B028F
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:50:02 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id n10so405284pgg.11
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:50:02 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9036B0290
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 04:00:58 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id z128so466313wmb.7
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:00:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=slE4aT5ZNj8dJtxH+FhGBwyu8kafNxlAmX6nDldrcS4=;
-        b=CxOnKQUxQKy23vU9BJwCi+KgCZjlW+FJvS8o7WZ6LoAHcyR39Xpz/oWn8EmxxylNOE
-         Wj6LT4smWqt9jceiQG2meEpKmwAY0q41wf85g3Kj+rTJJqzlK/KQayWFHr2hI0ZPrP7Q
-         I7CYm1TxEhsr4pIPKT0S1NHao4IL5sGhLdzd3DmATkJHHZjC72hsGiuLzDnwWdECoqCH
-         lVaoTMsJLmWYldQN2qvVsnlM1k3mp0ELi+nJAHIPEf2DxaxxLKvOs5RXKfLoR4PPxNFr
-         xOXZ1JZH/fcZ3CpVqyPK3rSCEqJeCUWVvgIWYe1iKsBmgfGoa5JnTySzmPJswctV1rJP
-         F2tQ==
-X-Gm-Message-State: APjAAAWFkcLZbCCA0w4Qh+1Rf7LaUkSmtd2sorwnV0p5F+gUBXoLl0Bc
-	Mq/4dGrUudVkOxj7RMBlUdiiWJoF5Kjq3f6IncGjCpgpq6dNtVDFWm7atiy89gefofAixyX1Vos
-	OKU6aPe4RHruYUfiGdLzHZ43YSw5qxbMK78eXgtTfc16B80Kqh7lcfQe7NEB4qxB8Ow==
-X-Received: by 2002:a17:902:bd92:: with SMTP id q18mr44908141pls.136.1556265002588;
-        Fri, 26 Apr 2019 00:50:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx0OxPTBWyYoQKQuVHJw5BUowS5Z23TJwQLB4e1pFEnpZ/U8WQ28rKLoqOomj45ZSDFLXJ3
-X-Received: by 2002:a17:902:bd92:: with SMTP id q18mr44908097pls.136.1556265001843;
-        Fri, 26 Apr 2019 00:50:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556265001; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=eKQdDnzy8s3CfI9TPC7yczN/fZ/VaNERNg/U8SFMREo=;
+        b=QR0w1jazWENlUtgb6+mtnQwpUlKQzM8S6SSFhBYNcrigWFJN6NqQIWdqYRWa6prblm
+         CFp0o1UoHs9DZyXURyugS7lxx7lSoAkTPtpa6E1BjNn9A8XtZBTnKKxGFnaMeU9qtGSw
+         Rk0+noThoUMaqtc7pT/6YnRyWXhgf4ei3lbi0SvXzBeSMFAJX6GRuw0FgWsKtBTEUdy8
+         3gBhCvCcAIpYXFEM3qeWneCfmt6LZHiamBxgn6t1vaZt+GNwEDdNAZadJyswgowfITAP
+         QZSsFmU4SO1K7NNpsQGdwFUwkd2MF2uxbCGbDppqpUpTqRa6ALr21TdCogr7dndvivAH
+         peLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAVDvTUx9ewtxn99zF2tXNQl6zOgDjBycKjRDOJk46y1J62b0M5j
+	7wZn7/tz7nzpJnx0PkAzbpjwLNNTw8pdVsSMVo3wguNkd/Pmqc2VUZItalXNWUz4kD1df8P4msa
+	35faFjMMvja0h5c3mQ7gDBIFq3wEZEilmeJcN2CSDpITObAJOac/W36SVcZZuJYIh5g==
+X-Received: by 2002:a7b:c111:: with SMTP id w17mr6960149wmi.6.1556265657663;
+        Fri, 26 Apr 2019 01:00:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwEJQVtntyh/+CEXYKf+Innz66tZ/aX/mOyBUY+uLN2aNqGEPcLhsV2THLXJKpHmWeuTuDY
+X-Received: by 2002:a7b:c111:: with SMTP id w17mr6960084wmi.6.1556265656729;
+        Fri, 26 Apr 2019 01:00:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556265656; cv=none;
         d=google.com; s=arc-20160816;
-        b=xi0J+WCJzcsTdpbp+jjQ0VnwnGpjxd6KT7csHS+YSsyT5MThIgipm6EZbNUPjzLGig
-         D1WlcfFc75bRz3FxVkL4bhHAh8IxHJG49fvTWxzyvOaikh9XIkqS9/Ii2l586WkzcDI5
-         UkU41f/LpRlLDm1x3fiv6GZA20Y1wzGPWC28MU2RYT1kNYn/wyf/lSDMc+ag5O4tSdJH
-         41vW/1qGWGvb+ug/ZN70FMFsHXG8p5WZsgue6qi6Na4Oh/cvYvBzFOmIbMQt1Fp9wCj5
-         bQrmvCbuCx0zbrOgRbDIIVa4fymzrTUdOgDiXIDERI8+Plq0XaB+TTISbhdexm/vWq3U
-         9Jnw==
+        b=lagDoUPYxL9stxvv6RLECPDTPHo6D0BnPYCR6phE+HCNu3uRGUod3YLZmjbyOpv+3m
+         7j6BM84MSqSx2dVTgxwDYf3G/WsuJh0pGyH8dur2JSVVwmKmIOY0xhLIEAH9Dh/V//lq
+         kQNWIiNpOb7zkWYjv7hczLgNF6ozK6oS9JC3Jc6KBhWFgB5sz/gUMpXV2SAZ4Qn7M78L
+         QBwc7cTf9Z5eoIL/KitV94f99/8fnJh0qnUQbQ/BEpPnoe+8DqC3kHw6ccNASjm9Xu+L
+         BKfNKYleAzkusIpoqfDIZXXrlqUKOIin4QqFDYqClg6UykJUDNcb95SPk9ZxVrc5Zom3
+         Vweg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=slE4aT5ZNj8dJtxH+FhGBwyu8kafNxlAmX6nDldrcS4=;
-        b=nA76w4Hmg52O4rezFVflMOx6VbZuE5kXezLnHHj7KaiQvLnMSkOasxBFTewoLiZIcl
-         MvYPZGy0TadMooAEn0ujsiMcaRXk+1MQvOfpJAIZbSdDOXuQEvbIztBENe2VqJ2WfiGy
-         SK/4yl90ABwIGhtE+yf4ADv04CYDdx1W+b3IkLbaEPcrwHZWYxjPQfYXtz2VO/u22lLP
-         aGhGL5rPiEcza6BG+RKBY40oafVfmKahJTYwb3a9CTheWZ6S4wxl0t4ivJrucQKLk2YV
-         q0hG4duXUIEXPpQVnhavdhnJbwTwb5N91yr7kJoHLeQGVc9GBT/cuz+MyJ9SQUNH6kBx
-         jMXw==
+         :message-id:subject:cc:to:from:date;
+        bh=eKQdDnzy8s3CfI9TPC7yczN/fZ/VaNERNg/U8SFMREo=;
+        b=O2BubvlBeIeBBWQpYlowVo4OZML8xWhaMc/sU6hIoAWaCGmNjWOz5Q97t151OT5sup
+         PXhMUgNTjoSVUUsuQW9dwweBU8QNi3vdmEbtnlqDidiScreL7T8H9WF1Qo3JYKxkmN4L
+         Ze4YOXC0ehETUvrvSUov75S7qh2IUYeDveHOvzzHxwBI51WHxL4FMTUGV9Z/XDaYxmOK
+         0paoCpgXtBE94bVoxuTyUX6n8vPO9UC3l9pWXO+5O0dju5TsMawznvwGUFv2GZfy62Bx
+         x9OdSGPqoXeYrid58oDCS5yO7Ig6lHahcI9p4mWi74Z4eq2bDB5nBlRbg6rxRYRGwdOz
+         39rQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Op/BtNTT";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q1si25013786pgh.396.2019.04.26.00.50.01
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id y4si16752224wmj.189.2019.04.26.01.00.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Apr 2019 00:50:01 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Apr 2019 01:00:56 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Op/BtNTT";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=slE4aT5ZNj8dJtxH+FhGBwyu8kafNxlAmX6nDldrcS4=; b=Op/BtNTTdoi+lOukFcWX4choG
-	882I7O1OKUeSfugw5FDEE8frhdfBaCMcWl7hiSMX4nAWztIGM/B8ibBqKFJCnPoXp3/kDy8rx4YhC
-	uvUqRvrvrWFh2fq+KduiKrBv0H3yBWK9oBjFXVmqQdGZjrNASCAJ2og1IxUQGRcYMRhDFVfDSZfT+
-	4VC6UmQw9hJk/NJjOjl6W/Xu0rWytUIlcVnGCFV7+DZT3hSVyFwowHpwdkK1vdxZB0t5myzQODMOg
-	8HwgOCiydPFYEFjDX9PDp1qRkAhAtoU1oxTNk4Jif8MITPXfuFbirlP9K0Wd7JE+ALAjgNBoFEtto
-	wg1bodvqA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hJvcM-0000zs-Bl; Fri, 26 Apr 2019 07:49:58 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id B4A6F29D1A323; Fri, 26 Apr 2019 09:49:56 +0200 (CEST)
-Date: Fri, 26 Apr 2019 09:49:56 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org,
-	Alexandre Chartre <alexandre.chartre@oracle.com>,
-	Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	Jonathan Adams <jwadams@google.com>,
-	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org, x86@kernel.org
-Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
- isolation
-Message-ID: <20190426074956.GZ4038@hirez.programming.kicks-ass.net>
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
- <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hJvmw-0004S4-Ru; Fri, 26 Apr 2019 10:00:55 +0200
+Date: Fri, 26 Apr 2019 10:00:54 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, tglx@linutronix.de, frederic@kernel.org,
+	Christoph Lameter <cl@linux.com>, anna-maria@linutronix.de
+Subject: Re: [PATCH 0/4 v2] mm/swap: Add locking for pagevec
+Message-ID: <20190426080054.6ngpnz2plqr4mwt2@linutronix.de>
+References: <20190424111208.24459-1-bigeasy@linutronix.de>
+ <20190424121552.GD19031@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190424121552.GD19031@bombadil.infradead.org>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 12:45:49AM +0300, Mike Rapoport wrote:
-> The initial SCI implementation allows access to any kernel data, but it
-> limits access to the code in the following way:
-> * calls and jumps to known code symbols without offset are allowed
-> * calls and jumps into a known symbol with offset are allowed only if that
-> symbol was already accessed and the offset is in the next page
-> * all other code access are blocked
+On 2019-04-24 05:15:52 [-0700], Matthew Wilcox wrote:
+> On Wed, Apr 24, 2019 at 01:12:04PM +0200, Sebastian Andrzej Siewior wrote:
+> > The swap code synchronizes its access to the (four) pagevec struct
+> > (which is allocated per-CPU) by disabling preemption. This works and the
+> > one struct needs to be accessed from interrupt context is protected by
+> > disabling interrupts. This was manually audited and there is no lockdep
+> > coverage for this.
+> > There is one case where the per-CPU of a remote CPU needs to be accessed
+> > and this is solved by started a worker on the remote CPU and waiting for
+> > it to finish.
+> > 
+> > In v1 [0] it was attempted to add per-CPU spinlocks for the access to
+> > struct. This would add lockdep coverage and access from a remote CPU so
+> > the worker wouldn't be required.
+> 
+> >From my point of view, what is missing from this description is why we
+> want to be able to access these structs from a remote CPU.  It's explained
+> a little better in the 4/4 changelog, but I don't see any numbers that
+> suggest what kinds of gains we might see (eg "reduces power consumption
+> by x% on a particular setup", or even "average length of time in idle
+> extended from x ms to y ms").
 
-So if you have a large function and an in-function jump skips a page
-you're toast.
+Pulling out a CPU from idle or userland computation looks bad. In the
+first series I had numbers how long it takes to compute the loop for all
+per-CPU data from one CPU vs the workqueue. Somehow the uncontended lock
+was bad as per krobot report while I never got stable numbers from that
+test.
+The other motivation is RT where we need proper locking and can't use
+that preempt-disable based locking.
 
-Why not employ the instruction decoder we have and unconditionally allow
-all direct JMP/CALL but verify indirect JMP/CALL and RET ?
-
-Anyway, I'm fearing the overhead of this one, this cannot be fast.
+Sebastian
 
