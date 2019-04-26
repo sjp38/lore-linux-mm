@@ -4,153 +4,216 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F4F1C43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51E94C43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5421B206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 019E9206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="CWKohPih"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5421B206C1
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="fS4TAjwz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 019E9206C1
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 235FD6B000D; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
+	id 34B3B6B000E; Fri, 26 Apr 2019 12:23:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E8A06B000E; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
+	id 2D1186B0010; Fri, 26 Apr 2019 12:23:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05EC76B0010; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
+	id 0D9916B0266; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B064E6B000D
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 12:23:32 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id j22so3851028wre.12
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:23:32 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A1C896B000E
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id o16so3859908wrp.8
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:23:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
-        b=eUCvR67GJxMoANQ57yNWp2zCW6WjFve5QJ12rzvd6xx0oB7wiPBBT5mLjR5+udsdXh
-         KDtVBCVzPzimjPOPfslzvcoL8ErvtWyNwnDzbvxzci2RbBro9u6v3iI/DJax1QfnvH+Y
-         RCsBQ/b1IySOHNA8XonUBR6EwMCfdCDxiBf9p/bt3twDeQKI8nMu56F2ClzQjT0+7gkG
-         0SBuM69nQtY12fKz0D1vE5ISkuRPsIUwiIN9EAVD3lPCWl/vfcwpcqiFLTk71sD4dOAu
-         mtt5JEdi9V5vDbcGQgr7NZ6F1lglugW49AQsyJbZQnxSltKPVGn1x1pBnCLXT0bPVuLG
-         Bpkg==
-X-Gm-Message-State: APjAAAWZlQEiEtx3YlVA+rWyB0lggAuCild9roJggWPb5ZSaf/OVcTQm
-	742gH+zzHt7QVzjLctnZND9VSlR0FZfgdXsB5E/GW2zo47tvsm4WO1LrA9uVk7UQz+4Jyt9FZu6
-	Aasss2MInoF464SKGRJYgTftFj7/y6KOjtTk3szkpn0VvFS1CPzw7hNBZyctdWfN76Q==
-X-Received: by 2002:a1c:6c19:: with SMTP id h25mr8124496wmc.119.1556295812258;
+        bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
+        b=axqlchajej1yDbWMWuZpu+LHR9G6VuOCkL0CD1Yh1EdhTYQUcnod5wxs01TbroFI0o
+         xOE5P6VHKUQzMvZuPmqCCXI9jf+CbSj3RZkbonRztEov8bxj0qpedwv+cYZ6QH6UMu8e
+         W+ivNQ9wmUwJBL4wiI/AAitCO5lxh14j2S90fHj5S0O5ibGTPClcUMp1VrmqbQQG6ZDh
+         OfQv1JvgPwO+05K0v2ySNLKex6YPvmF7Ryw9dXdn8ZEd9Ho2XxAblH/+aHcvNh1ZkbaI
+         xVencMoTf69lOponHBk128pmuzk/t7/b70oZNA/UzcvZhrhLSO7qBoGBxHMQTM5RcwTr
+         gPDQ==
+X-Gm-Message-State: APjAAAWqeDoFs5fKOWVKsSI4tYm9ufLvO4nyMS+CH3T8MMsQ7O0UH+rx
+	D2lK7vaiL7ouM2C+Y/6yNKJV94sVtkMvwIbQlsRYRU9GNCx61tLSGa5131gN+BrNtolgyztHrvU
+	aFd0M3ZUrpUNnGOfHUXIC6t7eNtp1r5sX0VD9ppERHMCp09DqDA7OKua1jEtu511/ZQ==
+X-Received: by 2002:a7b:c40c:: with SMTP id k12mr8160179wmi.2.1556295813183;
+        Fri, 26 Apr 2019 09:23:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2YYDQyAmMCYDU/0SX8XiuySh59HX9eQyLhOhfn791CYwewXBoNPRwAhdDJPW5Fsh18WfW
+X-Received: by 2002:a7b:c40c:: with SMTP id k12mr8160120wmi.2.1556295812221;
         Fri, 26 Apr 2019 09:23:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzO+CJnrysYuLVuzqvVDRjlp0cUU6UWAmFqKDcpB2cFJxMWR/1enGnF9v+/DV1GLIb1X4DD
-X-Received: by 2002:a1c:6c19:: with SMTP id h25mr8124428wmc.119.1556295811247;
-        Fri, 26 Apr 2019 09:23:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556295811; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556295812; cv=none;
         d=google.com; s=arc-20160816;
-        b=N2UgIv99msfaOITYFiLpjsvB+lJ31li4gC14fWTAMgoTq5t+1wH2RkZ7eumSyeY2Ne
-         jUkzOnUEjZEY2flgOsYrvw3Z/hrhshQb7YUlNJ4KqRfX/axoieTiZ5ayXrMNnVc5QqXV
-         PDHvIi8y8EWjLstW9GZ0+8N9xNLp6YRHm8KhNiNb3KWR8QR+MMuomyfPVT8OQn9MAVAu
-         U+LFSpbYZ1Z6ixAy8Eona4tUcpYyXXDnWSZzCKJfLZmkzD8QP2aJ0xakWXmUozCPmUEa
-         KhDQsaV0cnEcOPUVwRyGNx/qH22azHJLClkiQz492O1cHzvhNidjlIcuvj72fWUE3UJo
-         aN/A==
+        b=K9MlP8M1DR4KrogLzkIpFA5V05UeLfPVsx8N5waYACy37hV/DGciGtJHqk0Be+HHw8
+         5F+JhGfJeZ//l+wu2VbJhYinR8xdTOGfog23lmbbFnd65ceyEo5FcCAfYlgrHjU81zWi
+         GbAL0aIGJnpUYjsa94lPSi9fl1VHHtF/eD2JWQZyYhFUQmRKpxeghfqBuLFB9Prg3KwW
+         H4lMoaiVNllKDdM4fvweXA1eKQ/JuvhtGo2C2/kAIJCX/zdiBLJ8MgjN+sbWm115fXHZ
+         T3DlEealIYU5/v6yhbVhJRg/+Rk0eUyv69Y58FSwXah2A9O3+sfI9YVxiXuOa/LdRVNk
+         u+CQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
-        b=i2MeFJ1WFEstT3k69rgUYH+d3oIVBehbLJmVy2zahO4PmS/SYgdu/P/wJsh6Euehpk
-         lIn3Nt/xUXqGPYscQLuGgYts5aWByBxrWq8ytaYpohIXZ7A5nGZ3sujKB4PeSr2LIW+0
-         neVaFwVfM6c7E8cB5EZZoJozoA+kapIUFPQ7+Bz1uHZDV9THVbJtULdbsqzoeEiezSgP
-         3XEUhqDDkw0T3Yxmb746TYT/FpViMrUObWvsVrTzt3mGiQLJEr3WAM7E6wOY/jJsm2ma
-         LJOgjfS+2Pvlye/pKoFwRzuDc4q0UY7+GNK9zmB/HI+Cy6Xd1hrykbN+59nxC7RIc808
-         VCcA==
+        bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
+        b=epfHgAYkNXK9+p8DvEpWV5zgeSkRg5YOzbt4+Op1YPrRdDrd3HCcrjct33Do06QeyX
+         G5oaPstuTnGu3rOIhAjjHRIitSPSFQoKSBqJn6t5xS9Nhjyl7RxUbd3CouE8tf3szQnY
+         S0pwkxV+f9zSYr/NGDGFuh9usHRuU+getBQsjs5mP9ysFW6CpI1Akjw2N2Ywx56B1739
+         ZQOFyLVliT0PotZyIXmVxiPzZoOcfZX0Uk1ZTpUxEdVJ7lHcgxB/A+HDmJ/gIhThzUAz
+         EI5GQ4XxfBWZWDucMAsN/tSEJysrmlIq3dLommUiJItOyAqlhXdffFLmWHc0WMw5UvaI
+         XaaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=CWKohPih;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=fS4TAjwz;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id t203si17874084wmt.200.2019.04.26.09.23.31
+        by mx.google.com with ESMTPS id j67si17490996wmb.92.2019.04.26.09.23.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 09:23:31 -0700 (PDT)
+        Fri, 26 Apr 2019 09:23:32 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=CWKohPih;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=fS4TAjwz;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44rK9Y0d6qz9v17r;
-	Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
+	by localhost (Postfix) with ESMTP id 44rK9Z1Ks0z9v17w;
+	Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=CWKohPih; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=fS4TAjwz; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id zvDUJSSKbulo; Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
+	with ESMTP id gwA0PTIrOIMs; Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9X6WYqz9v0yk;
-	Fri, 26 Apr 2019 18:23:28 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1556295808; bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
-	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=CWKohPihsdb0jglNX43CKSEZX1O4lA7Kl//zCMT6EZI96CNrRow3BZOYL+ofDglXm
-	 ZloFDW67U+LDBkFf/qcXQJpMKLyDfxulM1JYGM2aQpI40oF0xEWxo1F4IaesKwBdVP
-	 zZCvDK+FH8+6jF1+z2NkSpFz4TJWz4Jljmk/dr5E=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 92ED48B950;
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9Z02rbz9v17t;
 	Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1556295810; bh=T5roomQKloe+Cr1IT+Xg0/TzN2EQ/rbW1mXIN5nYL+c=;
+	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
+	b=fS4TAjwzTicw/PUlQxOzcTBcJWoAgSLee/JkoM02O9SX9kqJf+NtFvrjUoySYCaBw
+	 9ZIKcPUED7JwQC0VKuTlyclCGMOASmCWAMHF0j+Nra2R6/xoeKWfu7y98NcSybCLjn
+	 N6vG6KypL9alARPP0Kg3feEZLF3+Od69rVeXv1NI=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id A667C8B950;
+	Fri, 26 Apr 2019 18:23:31 +0200 (CEST)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id AFBRwVLZioMP; Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
+	with ESMTP id Hp1PCONqW6O8; Fri, 26 Apr 2019 18:23:31 +0200 (CEST)
 Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.6])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 7172C8B82F;
-	Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 78E758B82F;
+	Fri, 26 Apr 2019 18:23:31 +0200 (CEST)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 61A7F666FE; Fri, 26 Apr 2019 16:23:30 +0000 (UTC)
-Message-Id: <f8cf3904971fa6b0f90ff9f2c2c1551b0cab4f14.1556295460.git.christophe.leroy@c-s.fr>
+	id 68403666FE; Fri, 26 Apr 2019 16:23:31 +0000 (UTC)
+Message-Id: <1e92f048b27d26473b822ef6663d4a0eb004f5c3.1556295460.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1556295459.git.christophe.leroy@c-s.fr>
 References: <cover.1556295459.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v11 06/13] powerpc/32: use memset() instead of memset_io() to
- zero BSS
+Subject: [PATCH v11 07/13] powerpc/32: make KVIRT_TOP dependent on
+ FIXMAP_START
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Fri, 26 Apr 2019 16:23:30 +0000 (UTC)
+Date: Fri, 26 Apr 2019 16:23:31 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
-enabled"), memset() can be used before activation of the cache,
-so no need to use memset_io() for zeroing the BSS.
+When we add KASAN shadow area, KVIRT_TOP can't be anymore fixed
+at 0xfe000000.
 
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
+This patch uses FIXADDR_START to define KVIRT_TOP.
+
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/kernel/early_32.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/powerpc/include/asm/book3s/32/pgtable.h | 13 ++++++++++---
+ arch/powerpc/include/asm/nohash/32/pgtable.h | 13 ++++++++++---
+ 2 files changed, 20 insertions(+), 6 deletions(-)
 
-diff --git a/arch/powerpc/kernel/early_32.c b/arch/powerpc/kernel/early_32.c
-index cf3cdd81dc47..3482118ffe76 100644
---- a/arch/powerpc/kernel/early_32.c
-+++ b/arch/powerpc/kernel/early_32.c
-@@ -21,8 +21,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
- {
- 	unsigned long offset = reloc_offset();
+diff --git a/arch/powerpc/include/asm/book3s/32/pgtable.h b/arch/powerpc/include/asm/book3s/32/pgtable.h
+index aa8406b8f7ba..838de59f6754 100644
+--- a/arch/powerpc/include/asm/book3s/32/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/32/pgtable.h
+@@ -134,15 +134,24 @@ static inline bool pte_user(pte_t pte)
+ #define PGDIR_MASK	(~(PGDIR_SIZE-1))
  
--	/* First zero the BSS -- use memset_io, some platforms don't have caches on yet */
--	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
-+	/* First zero the BSS */
-+	memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
+ #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
++
++#ifndef __ASSEMBLY__
++
++int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
++
++#endif /* !__ASSEMBLY__ */
++
+ /*
+  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
+  * value (for now) on others, from where we can start layout kernel
+  * virtual space that goes below PKMAP and FIXMAP
+  */
++#include <asm/fixmap.h>
++
+ #ifdef CONFIG_HIGHMEM
+ #define KVIRT_TOP	PKMAP_BASE
+ #else
+-#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
++#define KVIRT_TOP	FIXADDR_START
+ #endif
  
- 	/*
- 	 * Identify the CPU type and fix up code sections
+ /*
+@@ -373,8 +382,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
+ #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
+ 
+-int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
+-
+ /* Generic accessors to PTE bits */
+ static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
+ static inline int pte_read(pte_t pte)		{ return 1; }
+diff --git a/arch/powerpc/include/asm/nohash/32/pgtable.h b/arch/powerpc/include/asm/nohash/32/pgtable.h
+index bed433358260..0284f8f5305f 100644
+--- a/arch/powerpc/include/asm/nohash/32/pgtable.h
++++ b/arch/powerpc/include/asm/nohash/32/pgtable.h
+@@ -64,15 +64,24 @@ extern int icache_44x_need_flush;
+ #define pgd_ERROR(e) \
+ 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+ 
++#ifndef __ASSEMBLY__
++
++int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
++
++#endif /* !__ASSEMBLY__ */
++
++
+ /*
+  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
+  * value (for now) on others, from where we can start layout kernel
+  * virtual space that goes below PKMAP and FIXMAP
+  */
++#include <asm/fixmap.h>
++
+ #ifdef CONFIG_HIGHMEM
+ #define KVIRT_TOP	PKMAP_BASE
+ #else
+-#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
++#define KVIRT_TOP	FIXADDR_START
+ #endif
+ 
+ /*
+@@ -379,8 +388,6 @@ static inline int pte_young(pte_t pte)
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
+ #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
+ 
+-int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
+-
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* __ASM_POWERPC_NOHASH_32_PGTABLE_H */
 -- 
 2.13.3
 
