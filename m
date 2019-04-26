@@ -2,115 +2,112 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41270C43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:46:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5625C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:48:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC6122084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:46:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 832782084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:48:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="kCr3+EHQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC6122084F
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Xu1YD8L3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 832782084F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 527966B0005; Fri, 26 Apr 2019 00:46:19 -0400 (EDT)
+	id 1A5A46B0007; Fri, 26 Apr 2019 00:48:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D6D36B0006; Fri, 26 Apr 2019 00:46:19 -0400 (EDT)
+	id 12D046B0008; Fri, 26 Apr 2019 00:48:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3EDBE6B0007; Fri, 26 Apr 2019 00:46:19 -0400 (EDT)
+	id F0F086B000A; Fri, 26 Apr 2019 00:48:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0827C6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:46:19 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id s19so1201421plp.6
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:46:18 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B363F6B0007
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:48:47 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id b7so1183570plb.17
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:48:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=06muS+VdG0qVduapDlZPxR/tXvMQCCq++FI4ubKSySU=;
-        b=P/5AivVx5nGa/TZJOCrbBY1q3dmIaKkPG67KZoXPnYF27JXiWZIWwhlCzvZi7iSVov
-         kQzWrZCungNo0pq+jiJcvnJTSjZdvxZc1G7SLaW1JWzmAVLHyAa8yYm3fXlx5y0l+qxR
-         1KatALbYWtQZ1RgbjeCCuWyin4rQw0NX6+WxVCxEwAh7X6aipT78LYKjCxNYj5y1QEpU
-         0KCJRtOrb6bqnwYEkauh4A4+BRpVXbCOlVgjq/22EDshCFoX19XLfTHhm/lPQWkKnqsZ
-         eP6u5yz91Rud3VxJ9KKjHzGCuNw//yO71IWDK8foO7V5UHBXxL+pXhk8t9vkptA65nF0
-         69Mw==
-X-Gm-Message-State: APjAAAXOpE4DNbdASvt1OKse92Cu3CWM786IkFHfb96xiyCfItAl1SPW
-	aZLWVAIFi4EjqidfSgr2W9gmhJ7zhsfSh17YuVCYfIdll1y+2f7X+eH0Zcq+PlpkY5GxjMHDEge
-	nJjrU6waGx0+O2whLswUzT18wjSxItH4Ki6q0M4QOwFqCeHiD7fRiWHOuCI2RXbrofg==
-X-Received: by 2002:a17:902:904a:: with SMTP id w10mr1773349plz.156.1556253978503;
-        Thu, 25 Apr 2019 21:46:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYo2Aa28geNCnf/1XuH1Jp0Dzmys5+tGryaD1tVTwwfZcg/gwh60G0YGJ3D3rhlOZZmfJ0
-X-Received: by 2002:a17:902:904a:: with SMTP id w10mr1773301plz.156.1556253977650;
-        Thu, 25 Apr 2019 21:46:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556253977; cv=none;
+        bh=19ht8iIxjpdUCy46Bwuc2JuWjKgwjDNE0u0Rezv/IEc=;
+        b=XHWPITKRwpAqGm448dNN+03pul3T7rCRE8NxaxLPqzxQNaDq+xPpe90JJ/HtV7dtGb
+         fnRen2NJMP36JFaKkd7asxP6YzCT9eVfzkBNu/jjjQVUtmSnvh3yYWxd4sIKQwO0dxhB
+         DPp4mgOJiguBE29fx5fpiv6Qez6jkgJkQYAjlQW0zvL17b4X8P0M2HuZ8KKYVQAM5OIm
+         +xpcv4kmCu6pORrkSIgUz24wQhudNdM2abqej7GCADLG6LSkf+LahKjInMYx0+vhpp5s
+         kXjC5BqHyP53fKGVRFzfnqE3RYPyTGQpilfdau2Ep47PNrnr2vatVq/oZ447VzEKOPHi
+         cedA==
+X-Gm-Message-State: APjAAAV5niixmBrMtN9iQhfLj6RxM7ycdnip55vy+yd8rdsEoe8r17OV
+	KMzaZY1W4hWuM6kcU9lRBnmn4F1H/FFidJRDomfIwfoSs++Rq5rHAt4sP/7YJlOE/VZkrTIaw0t
+	PS72viEXSxVnu8Age5CnIkAoxuOb7i8DYqObcfu7SoB/7ANpMIH7DMhWdK6ej5GGtRw==
+X-Received: by 2002:a17:902:758b:: with SMTP id j11mr6395781pll.87.1556254127371;
+        Thu, 25 Apr 2019 21:48:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzckWI56WHq27pzbI/QvJQZbRibLduEOkHQ2YsD+lzGNihHwD3ZVEuDqwIseqga/QIdsUMH
+X-Received: by 2002:a17:902:758b:: with SMTP id j11mr6395730pll.87.1556254126558;
+        Thu, 25 Apr 2019 21:48:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556254126; cv=none;
         d=google.com; s=arc-20160816;
-        b=NAkKITpqO88ACvq9fx3SgIzWiNGnw/Kg01OOaHgdXt3ITmpmgZlu5KqOXruXBpMVbW
-         gXujxuvoT3vBVJ/f75u70PN0FVkcTbz4sY9FfXDe9IIKM13HMl9VnvD7JIXa4WUcwc4H
-         6gO7EL+MfN2DfEQtE+kg1XvVduEh8LVSnoiiZ4xXUbbeA75QDZgWeigQ5TYaygYh4GPx
-         0XiyTlwty+GL0UhrMFcwV5L0oxsn2O+yC85QHwK63AZ0pjAnvj/1W/v20w8D65uqL48L
-         9IzhL8ScTgR1hguzR7kqOvgB/prpmR9QUjBHmQABuYYfyr7TSKjyn9gZz6NCrie57arG
-         mTRg==
+        b=08JFoDyYRFL2LYyoDgx531iNBSt1T+m1TijczsDps69/LxuKe1VswGttgG3bGpeRGo
+         xtGgHVWi7M2WEIDPnyC0hjwya+ccM2BBAm1nUXWDSRRqI4ZucERZacd0J05PIKw8NGgE
+         yW36E3TdtospyLQr+vFXJms7MK3Xg94R/uE5Rh0oOXWs56k9O2GPPn6fppeN9Z0Te5wD
+         1R49/JLpg484GDqczyl36RmmcXP+5fatcbv/qJXgdIW9GpTJSgXtU2C3r9kZ8ey6jHDd
+         CUDaf96jYzphHX6cRZoG/5udC4yIpwvU3Da4uttgmbXYXZVLu6qsj0vV2iI2BmYPednB
+         2xAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=06muS+VdG0qVduapDlZPxR/tXvMQCCq++FI4ubKSySU=;
-        b=lLP6brrqR0otCItCAm8CkZ12W/Ofk1B3dO8El5bClnjsoHJ1BKDWy36D/jHP2OOV8G
-         suacRoqHWNxBJnp+qjqn5Lu9CPaCr5n17ZnjHJsj0SfUofYwKbhg/xSwz9N3AQE2HJfi
-         MmP3B+ZJr2I8TrzUCsmxHOn6aMCG+vBBCkfDDf0yRD1p4aOa4iHsd7l8ohwtZ5IVFgR9
-         QKpy1OUOKH6PwEAKqxcvSFI9Z1A1Nn7D7Cm/fzJYDDYi+kRaQaYgGGiYqu5aFUGGpEqf
-         hHRFvF2QaoB2KvxRIaAdidmIm/ssGfPqrCOEskbbDrlOooRo95ghefTLIrHAWv2k7cL2
-         1Jlg==
+        bh=19ht8iIxjpdUCy46Bwuc2JuWjKgwjDNE0u0Rezv/IEc=;
+        b=wCvww8PoQc7NXqEEJzldq9jfmSuipV5t0hsJZkTTBG8E2LdXE6OF9W+2Wkp2phXbnZ
+         +MDtAZ3M2ZhoR6q7zfcneKJZlnifatV1DH7J1w6Jx3cogOt0+NSGCVNcbjM5ljTKNHFv
+         uPLYgv8oVOp9FdbGB7osKS7/HsaIyibYG5W1m206CHrGeKlRCeKzrnx/sxECM+gExkwf
+         jvdXhM1AZqi+3wIOcNZQDFCp7lN23+kFoQaUIfcq+1sQnyYXIXRHCaAmQ79o3gjRyWDA
+         tNB0koVQ1FFAdgnwEiQxXAdNL2xZja99wQF7FXaKWh2ZDJXiZolWrC4so4SYVmbdkkAc
+         ySTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=kCr3+EHQ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Xu1YD8L3;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v2si22498576pgr.41.2019.04.25.21.46.17
+        by mx.google.com with ESMTPS id p87si24683393pfa.77.2019.04.25.21.48.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 21:46:17 -0700 (PDT)
+        Thu, 25 Apr 2019 21:48:46 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=kCr3+EHQ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Xu1YD8L3;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2547A206A3;
-	Fri, 26 Apr 2019 04:46:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id C5340206BF;
+	Fri, 26 Apr 2019 04:48:45 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1556253977;
-	bh=bJxctbgGf3dtGdt4mLGuedt/VO75j69L5QbuMWJ/oRc=;
+	s=default; t=1556254126;
+	bh=Ox+Y5IVzZOibAizInYePC8HNxAhtSsNglxPm0imJqsw=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=kCr3+EHQRSnBmG4q62p7w7C9i1Pi2UmYAxMy1ZGrPULtAoufQff8furAAh76tL3fk
-	 xVX/Fvhuzm5i13yAjDx1VD2lb8pWZkceg7mAQ2MK84xUYf5cnmeFstW3q1XInTxBGr
-	 BiN5+K0iVIdD8k35g9T4srM+jE1MsVUbi7IKBz7Q=
-Date: Thu, 25 Apr 2019 21:46:15 -0700
+	b=Xu1YD8L32ot7k/kZjyHf4o5i2M9MLdf0U+K2crR7e4/Dr+EADl1vEEi2ztXu3NPzV
+	 tU4SLUX2H/5Uunbi0YvJWmyECZ7QNrFBGrhNjaFnCMBnBgWerCXDb6WdhE03HuiRZm
+	 r8aerdE0gSm8hWuPsLskDSX1UWTSyLbKr6eIgBCw=
+Date: Thu, 25 Apr 2019 21:48:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Christopher Lameter <cl@linux.com>, mm-commits@vger.kernel.org,
- yong.wu@mediatek.com, yingjoe.chen@mediatek.com, yehs1@lenovo.com,
- willy@infradead.org, will.deacon@arm.com, vbabka@suse.cz, tfiga@google.com,
- stable@vger.kernel.org, rppt@linux.vnet.ibm.com, robin.murphy@arm.com,
- rientjes@google.com, penberg@kernel.org, mgorman@techsingularity.net,
- matthias.bgg@gmail.com, joro@8bytes.org, iamjoonsoo.kim@lge.com,
- hsinyi@chromium.org, hch@infradead.org, Alexander.Levin@microsoft.com,
- drinkcat@chromium.org, linux-mm@kvack.org
-Subject: Re: + mm-add-sys-kernel-slab-cache-cache_dma32.patch added to -mm
- tree
-Message-Id: <20190425214615.b46db647b6a6a82db92e4143@linux-foundation.org>
-In-Reply-To: <20190320070516.GD30433@dhcp22.suse.cz>
-References: <20190319183751.rWqkf%akpm@linux-foundation.org>
-	<20190319191721.GC30433@dhcp22.suse.cz>
-	<01000169988825c0-df946577-83d4-4fc5-a329-52b65bec9735-000000@email.amazonses.com>
-	<20190320070516.GD30433@dhcp22.suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, zhong jiang
+ <zhongjiang@huawei.com>, syzkaller-bugs@googlegroups.com,
+ syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com, Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Peter Xu
+ <peterx@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+Subject: Re: [PATCH 1/2] userfaultfd: use RCU to free the task struct when
+ fork fails
+Message-Id: <20190425214845.92be0f66d59121543a87bd09@linux-foundation.org>
+In-Reply-To: <20190327084912.GC11927@dhcp22.suse.cz>
+References: <20190325225636.11635-1-aarcange@redhat.com>
+	<20190325225636.11635-2-aarcange@redhat.com>
+	<20190326085643.GG28406@dhcp22.suse.cz>
+	<20190327001616.GB15679@redhat.com>
+	<20190327084912.GC11927@dhcp22.suse.cz>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -121,128 +118,125 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is presently in limbo.   Should we just drop it?
+
+This patch is presently stuck.  AFAICT we just need a changelog update
+to reflect Michal's observations?
 
 
-From: Nicolas Boichat <drinkcat@chromium.org>
-Subject: mm: add /sys/kernel/slab/cache/cache_dma32
 
-The patch "mm: add support for kmem caches in DMA32 zone" added support
-for SLAB_CACHE_DMA32 kmem caches.  This patch adds the corresponding
-/sys/kernel/slab/cache/cache_dma32 entries, and updates the slabinfo tool.
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: userfaultfd: use RCU to free the task struct when fork fails
 
-Link: http://lkml.kernel.org/r/20181210011504.122604-4-drinkcat@chromium.org
-Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
-Cc: Christoph Hellwig <hch@infradead.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Hsin-Yi Wang <hsinyi@chromium.org>
-Cc: Huaisheng Ye <yehs1@lenovo.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Matthias Brugger <matthias.bgg@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@suse.com>
+MEMCG depends on the task structure not to be freed under rcu_read_lock()
+in get_mem_cgroup_from_mm() after it dereferences mm->owner.
+
+An alternate possible fix would be to defer the delivery of the
+userfaultfd contexts to the monitor until after fork() is guaranteed to
+succeed.  Such a change would require more changes because it would create
+a strict ordering dependency where the uffd methods would need to be
+called beyond the last potentially failing branch in order to be safe. 
+This solution as opposed only adds the dependency to common code to set
+mm->owner to NULL and to free the task struct that was pointed by
+mm->owner with RCU, if fork ends up failing.  The userfaultfd methods can
+still be called anywhere during the fork runtime and the monitor will keep
+discarding orphaned "mm" coming from failed forks in userland.
+
+This race condition couldn't trigger if CONFIG_MEMCG was set =n at build
+time.
+
+Link: http://lkml.kernel.org/r/20190325225636.11635-2-aarcange@redhat.com
+Fixes: 893e26e61d04 ("userfaultfd: non-cooperative: Add fork() event")
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Tested-by: zhong jiang <zhongjiang@huawei.com>
+Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Jann Horn <jannh@google.com>
+Cc: Hugh Dickins <hughd@google.com>
 Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Robin Murphy <robin.murphy@arm.com>
-Cc: Sasha Levin <Alexander.Levin@microsoft.com>
-Cc: Tomasz Figa <tfiga@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Yingjoe Chen <yingjoe.chen@mediatek.com>
-Cc: Yong Wu <yong.wu@mediatek.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Peter Xu <peterx@redhat.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
 Cc: <stable@vger.kernel.org>
+Cc: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- Documentation/ABI/testing/sysfs-kernel-slab |    9 +++++++++
- mm/slub.c                                   |   11 +++++++++++
- tools/vm/slabinfo.c                         |    7 ++++++-
- 3 files changed, 26 insertions(+), 1 deletion(-)
+ kernel/fork.c |   34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)
 
---- a/Documentation/ABI/testing/sysfs-kernel-slab~mm-add-sys-kernel-slab-cache-cache_dma32
-+++ a/Documentation/ABI/testing/sysfs-kernel-slab
-@@ -106,6 +106,15 @@ Description:
- 		are from ZONE_DMA.
- 		Available when CONFIG_ZONE_DMA is enabled.
- 
-+What:		/sys/kernel/slab/cache/cache_dma32
-+Date:		December 2018
-+KernelVersion:	4.21
-+Contact:	Nicolas Boichat <drinkcat@chromium.org>
-+Description:
-+		The cache_dma32 file is read-only and specifies whether objects
-+		are from ZONE_DMA32.
-+		Available when CONFIG_ZONE_DMA32 is enabled.
-+
- What:		/sys/kernel/slab/cache/cpu_slabs
- Date:		May 2007
- KernelVersion:	2.6.22
---- a/mm/slub.c~mm-add-sys-kernel-slab-cache-cache_dma32
-+++ a/mm/slub.c
-@@ -5112,6 +5112,14 @@ static ssize_t cache_dma_show(struct kme
- SLAB_ATTR_RO(cache_dma);
+--- a/kernel/fork.c~userfaultfd-use-rcu-to-free-the-task-struct-when-fork-fails
++++ a/kernel/fork.c
+@@ -952,6 +952,15 @@ static void mm_init_aio(struct mm_struct
  #endif
+ }
  
-+#ifdef CONFIG_ZONE_DMA32
-+static ssize_t cache_dma32_show(struct kmem_cache *s, char *buf)
++static __always_inline void mm_clear_owner(struct mm_struct *mm,
++					   struct task_struct *p)
 +{
-+	return sprintf(buf, "%d\n", !!(s->flags & SLAB_CACHE_DMA32));
++#ifdef CONFIG_MEMCG
++	if (mm->owner == p)
++		WRITE_ONCE(mm->owner, NULL);
++#endif
 +}
-+SLAB_ATTR_RO(cache_dma32);
-+#endif
 +
- static ssize_t usersize_show(struct kmem_cache *s, char *buf)
+ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
  {
- 	return sprintf(buf, "%u\n", s->usersize);
-@@ -5452,6 +5460,9 @@ static struct attribute *slab_attrs[] =
- #ifdef CONFIG_ZONE_DMA
- 	&cache_dma_attr.attr,
- #endif
-+#ifdef CONFIG_ZONE_DMA32
-+	&cache_dma32_attr.attr,
-+#endif
- #ifdef CONFIG_NUMA
- 	&remote_node_defrag_ratio_attr.attr,
- #endif
---- a/tools/vm/slabinfo.c~mm-add-sys-kernel-slab-cache-cache_dma32
-+++ a/tools/vm/slabinfo.c
-@@ -29,7 +29,7 @@ struct slabinfo {
- 	char *name;
- 	int alias;
- 	int refs;
--	int aliases, align, cache_dma, cpu_slabs, destroy_by_rcu;
-+	int aliases, align, cache_dma, cache_dma32, cpu_slabs, destroy_by_rcu;
- 	unsigned int hwcache_align, object_size, objs_per_slab;
- 	unsigned int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-@@ -534,6 +534,8 @@ static void report(struct slabinfo *s)
- 		printf("** Hardware cacheline aligned\n");
- 	if (s->cache_dma)
- 		printf("** Memory is allocated in a special DMA zone\n");
-+	if (s->cache_dma32)
-+		printf("** Memory is allocated in a special DMA32 zone\n");
- 	if (s->destroy_by_rcu)
- 		printf("** Slabs are destroyed via RCU\n");
- 	if (s->reclaim_account)
-@@ -602,6 +604,8 @@ static void slabcache(struct slabinfo *s
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->cache_dma32)
-+		*p++ = 'D';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -1208,6 +1212,7 @@ static void read_slab_dir(void)
- 			slab->aliases = get_obj("aliases");
- 			slab->align = get_obj("align");
- 			slab->cache_dma = get_obj("cache_dma");
-+			slab->cache_dma32 = get_obj("cache_dma32");
- 			slab->cpu_slabs = get_obj("cpu_slabs");
- 			slab->destroy_by_rcu = get_obj("destroy_by_rcu");
- 			slab->hwcache_align = get_obj("hwcache_align");
+ #ifdef CONFIG_MEMCG
+@@ -1331,6 +1340,7 @@ static struct mm_struct *dup_mm(struct t
+ free_pt:
+ 	/* don't put binfmt in mmput, we haven't got module yet */
+ 	mm->binfmt = NULL;
++	mm_init_owner(mm, NULL);
+ 	mmput(mm);
+ 
+ fail_nomem:
+@@ -1662,6 +1672,24 @@ static inline void rcu_copy_process(stru
+ #endif /* #ifdef CONFIG_TASKS_RCU */
+ }
+ 
++#ifdef CONFIG_MEMCG
++static void __delayed_free_task(struct rcu_head *rhp)
++{
++	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
++
++	free_task(tsk);
++}
++#endif /* CONFIG_MEMCG */
++
++static __always_inline void delayed_free_task(struct task_struct *tsk)
++{
++#ifdef CONFIG_MEMCG
++	call_rcu(&tsk->rcu, __delayed_free_task);
++#else /* CONFIG_MEMCG */
++	free_task(tsk);
++#endif /* CONFIG_MEMCG */
++}
++
+ /*
+  * This creates a new process as a copy of the old one,
+  * but does not actually start it yet.
+@@ -2123,8 +2151,10 @@ bad_fork_cleanup_io:
+ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+-	if (p->mm)
++	if (p->mm) {
++		mm_clear_owner(p->mm, p);
+ 		mmput(p->mm);
++	}
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+ 		free_signal_struct(p->signal);
+@@ -2155,7 +2185,7 @@ bad_fork_cleanup_count:
+ bad_fork_free:
+ 	p->state = TASK_DEAD;
+ 	put_task_stack(p);
+-	free_task(p);
++	delayed_free_task(p);
+ fork_out:
+ 	spin_lock_irq(&current->sighand->siglock);
+ 	hlist_del_init(&delayed.node);
 _
 
