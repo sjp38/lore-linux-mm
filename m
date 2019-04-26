@@ -5,99 +5,99 @@ X-Spam-Level:
 X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A507C4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6AFF6C43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E531208C2
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1BA17208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="c8S+0Eig"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E531208C2
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IhMsROzO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BA17208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94E256B026B; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
+	id C82D76B026D; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D4306B026C; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
+	id C09976B026E; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7065C6B026D; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
+	id A5B8D6B026F; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9D26B026B
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id s26so3555564pfm.18
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:24 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 597056B026D
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id r13so3486702pga.13
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
-        b=qhyygjg4RJM24OYfFTjZaupfDJ+o1dMgUGdKMjMGKQr689R0n0L+WfVpqhRmdMlGLv
-         cPZzYkeJVW7fs92kZT75crDHq4YAiC+CUW3WGUr9Dpx4NibZcCk4K3oK6G/jc1qSwQAT
-         GO6C5e3n8HII/YlPX1OMAcB9ARgGNcCLPjrEe2CK9nObtWz1ZGoQ+FY4R+fP9BfaHRBt
-         oTpaOjze1QXROVyetRLzDFMcGX4jamLzoxmL1+GzbhuR/tgQIPIwWd3Cy9nLH6OSkJo6
-         FBJjqKmgJFT8/0Z6ZT1LrPN5QwOZ6l7pAdHPmzklRwY+NF7BVrvwy6b513uWAgVJRaTv
-         6Tcw==
-X-Gm-Message-State: APjAAAUhnrNZ1iH0UtWnWdM6PZfXGSjnhtuBfOVy7K/KW+3k0jzcPXsy
-	wgefLRNzeKRQZj0fFry3PBlJJlKmDfSkx0pFBUzj41L0w75bRwt/qbWDVNIHsDh41r2ZGCvMLUn
-	3KjE1grjrahbGOBrY9b199dbNFWDBMa9h1VqIcSLYyaMzdlg/vEvqbcrkupkh9pJ+mg==
-X-Received: by 2002:a63:161d:: with SMTP id w29mr25050122pgl.395.1556347403860;
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=jUBCRYiFnxYIhnlMJpjoZXVPqYJsutcG5NDECHOcUsINkWIqoREs54xNPjxgumcX00
+         TFPBeBgcVeMyuDk0pqW5GJZezew+r6I2/sA9ydC0pTLBytKRfIgi3OGt3fuHjaTcUBbY
+         OKkp6d4EE/lQfB3g2Of2ZBTWFAamcMs1qxY/OWWcy1yPESVEEIVt+AHmeHh/HWu6NCFm
+         9Dej5RYDUovR1fbAO3Q1UfHBX3xzOGkUge5tNNUngGyJowVel/Nb6flTgL8BDZX2Pi6i
+         /LBD5QBSs8EtbfSKsj5Fpuk4/b1OseDc+U1NxM5JVLzOJ42IP9o8vMFsDwYpae+OD0IY
+         OPjA==
+X-Gm-Message-State: APjAAAV9sX2EjUPq8tTHBKLn1jjIobfewqCpeABHO8hZtCCV5m2UazIh
+	yUtYdV+elfAfuZ14LqtPzrrCBWE5YTI9rWaiKhdF93kBq7dQ7dGtqSlnqPBJpMkD8IjE8Xv+GHJ
+	FNZk+x/8TG2lA8IT6X9PoeYtXx4yl9fvpqMOdjrepQDZtVyvgIPEYRF0X4vkaw4Oc4Q==
+X-Received: by 2002:a62:1b8a:: with SMTP id b132mr50797154pfb.19.1556347405039;
+        Fri, 26 Apr 2019 23:43:25 -0700 (PDT)
+X-Received: by 2002:a62:1b8a:: with SMTP id b132mr50797082pfb.19.1556347403859;
         Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
-X-Received: by 2002:a63:161d:: with SMTP id w29mr25050068pgl.395.1556347402553;
-        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347402; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347403; cv=none;
         d=google.com; s=arc-20160816;
-        b=tqLYQojMRIuwoE5/MfWjzprmB1YaYNB6D9wxdw7snuM/Q9FTOC2cumw5yrw6mDt0l8
-         BqT0EL9KcJK/gM7Tm7OSpGKSixkv+zxVCfEUlh7YZSrXFyla5ngFo6eC/1Nxxt9OHLv5
-         6Q2qPUQXuiLWnKQzNILot+pc9UhUt6sxvFydUJQLx0p38+H3W0l7Zi6FCofTXNLyhO7d
-         OlCFsD3Z4gKO31IS5YJFro3hDYbryN62CE0wj7qMcYKa9XUdfk3GfIVkcb0+sqImYjGe
-         293wODY3mZZkloMSXNhbjRmNer03ie6hwkkXKVBh1N9NC6L80s9v9PRqk62dzZwPtM+g
-         GwLA==
+        b=Mn2TQVsrI6Kf5b2JZ4I9J1dXfECi48Mdxr1pe947lMy3+iPKdEH7HbF3HZGE0wYFpr
+         qPzK92dvNsn5qj8uDaLlZsV/GwMCqR6hXfvTX5/7QgfMmmttKAYj5QtwdPO1cHqd2zB7
+         UVUjv+jrOSVCqcao9Ki3QZvx6xz+G1bda+oIxWGrpWs0kMX/6LiU7ZdylyuWln3GS1rb
+         CbvSTuso8n8FfyJqu4MHpWRhns/SCeOKXdzzBIAD+zOCVxLQD9ftux4XM2edwvvikTa0
+         dZ7XMcnM1561Voz8QHGnTweo8gzNA82wAPFzKLbOyNMit0yhNbArUjsh406PM7KQVPh/
+         4nLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
-        b=lpOcdu/Sao0aRCKoqpZwt8PsiwuubAHW/311VYK/ovflClcxI0dm7ySEjP1mX3D3/Q
-         Zh31jMM3OEvs2Icj4jUni5O2nzi4GGJ4YryQKqrYNF5yX1PeVQ7F+YvvHmj/0M1OZNqw
-         rBHjiUS3vBaWCDZg1LglPUaIkpivycF3bjXMxhWP/dDA9Sai89DxMqx3BOwWZPFcD22m
-         ZczMzUxtijG5xwfUCc6kc8IXsDHGSRWtNaGg0ew50fgGagCkGvG9JzDvQYUCADS1uYWX
-         uCuNplc6BjSiMrhZpEv1NAlkTBsDYLQTfBrjX08cweOH4i2jRBc9Uu0jhGsVM1dchOCF
-         JVkw==
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=MiJuegQw9Apl1GGFIWx6wtyjVq6jYmgLlVZ98s2Zo3OezsS7wBnuBvhO0/a7UYmIyb
+         Ux/Hhyb10Gk65o6KU8MYmADq0+Yow/BVt5CpMT/YGp7McBpx7NVFXkd8oBIeWJ0qZnTg
+         qTydfhhfx7mR+2kaUjq4xWiYLDF1WFXBU2ff1+cNyON+eGKS7Fe7vd4iN+kZOwRDwkQu
+         KCUhIjKoCFmU08Ya2XuKtHjrBDa/UXxJxW/zCZItb7IHO9pojLXN2IQKqxFzGxxxn9aS
+         foDMwot0mpLyII96OBJsLn5M7t2czy0QMTPuxCTWGsFxMrKzxCApbburBw1FAYeI7wNh
+         SFOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=c8S+0Eig;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IhMsROzO;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g95sor26343843plb.5.2019.04.26.23.43.22
+        by mx.google.com with SMTPS id j7sor9239414pfa.29.2019.04.26.23.43.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=c8S+0Eig;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IhMsROzO;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
-        b=c8S+0EigCS6E8XvKa358lLe6LCVfzSFVuNJOVAHrtcVTOWv87dH8gGM88UuaQDW1Ql
-         IEkRJXiL08aosg7wFKjOifGHvdFqqFOyIVAPTy32+RTxwh4obVo1hvSc3VrfhbIWeRKu
-         ZJA1hj0UwfXTRnrJeU5WqlBmd3LvGogakdG6r5O5HCHdIZ01YxMYWq3GzL7qFIqoHj+M
-         ImxYzSZVWsC/5XsbT15MbduZoaGGNML2WLcc4snNS8OhI4V0R2fmhxvtsFVBQg8hBw68
-         V9bB/2b3yhVaonMZdGNuWp1CujPDm/DoQRIcyXEO1I8gk21/7x6PmT++18rtH9HSkyQc
-         PS4g==
-X-Google-Smtp-Source: APXvYqwD3aMW9+fxSDptS7zjHtrUL6axD8ahdhvdTbAECEHQ3uOfUvnD7wIP6ssynsnm5EaQ/VhgYw==
-X-Received: by 2002:a17:902:20c6:: with SMTP id v6mr48012719plg.276.1556347402023;
-        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=IhMsROzOX/uvsuQybijdR85Kqaxq4yWzjUoagIOqk1LVY6OLTEXQbjBmXHD5WxbAzP
+         cmCoo1zMlycyEW/HfwZCgn/X+0dMFPFHyqqtEUKq6AZF6jWZrRVIUAiE8jxYjY0M9MT3
+         Ik7ZKhQeM7kg+3gB06XcTjx2xBZpPGhS55GH7o8s674YL85Zg5fEINa05kjxM9iG+Kfo
+         SEIwp8JxZ7vs+rhoqI+mg8MouUQf2Zul6cu4rspQPkk8FxQa/9RXPXX4OwkD3jy0+Z/+
+         SBrns4/qvGYQvjrl9OPoH7DBVBfA0arFpsKvUBwFWEn4L2+Z7qiKOGh0M4x1w7s8Fe9M
+         Y7uQ==
+X-Google-Smtp-Source: APXvYqyXozv8RJ3un5KRfku6J9oOZngaXmf1Y0t3bUJMwzL1TSTEhjmbFCgyEeDgaxJqumt2ZQ+7aA==
+X-Received: by 2002:a62:5fc7:: with SMTP id t190mr50793424pfb.191.1556347403359;
+        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.20
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.22
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:21 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -123,11 +123,10 @@ Cc: linux-kernel@vger.kernel.org,
 	Nadav Amit <namit@vmware.com>,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
-	Jessica Yu <jeyu@kernel.org>
-Subject: [PATCH v6 12/24] x86/module: Avoid breaking W^X while loading modules
-Date: Fri, 26 Apr 2019 16:22:51 -0700
-Message-Id: <20190426232303.28381-13-nadav.amit@gmail.com>
+	Masami Hiramatsu <mhiramat@kernel.org>
+Subject: [PATCH v6 13/24] x86/jump-label: Remove support for custom poker
+Date: Fri, 26 Apr 2019 16:22:52 -0700
+Message-Id: <20190426232303.28381-14-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -139,123 +138,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-When modules and BPF filters are loaded, there is a time window in
-which some memory is both writable and executable. An attacker that has
-already found another vulnerability (e.g., a dangling pointer) might be
-able to exploit this behavior to overwrite kernel code. Prevent having
-writable executable PTEs in this stage.
+There are only two types of poking: early and breakpoint based. The use
+of a function pointer to perform poking complicates the code and is
+probably inefficient due to the use of indirect branches.
 
-In addition, avoiding having W+X mappings can also slightly simplify the
-patching of modules code on initialization (e.g., by alternatives and
-static-key), as would be done in the next patch. This was actually the
-main motivation for this patch.
-
-To avoid having W+X mappings, set them initially as RW (NX) and after
-they are set as RO set them as X as well. Setting them as executable is
-done as a separate step to avoid one core in which the old PTE is cached
-(hence writable), and another which sees the updated PTE (executable),
-which would break the W^X protection.
-
+Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Cc: Jessica Yu <jeyu@kernel.org>
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-Suggested-by: Andy Lutomirski <luto@amacapital.net>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/alternative.c | 28 +++++++++++++++++++++-------
- arch/x86/kernel/module.c      |  2 +-
- include/linux/filter.h        |  1 +
- kernel/module.c               |  5 +++++
- 4 files changed, 28 insertions(+), 8 deletions(-)
+ arch/x86/kernel/jump_label.c | 26 ++++++++++----------------
+ 1 file changed, 10 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 599203876c32..3d2b6b6fb20c 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -668,15 +668,29 @@ void __init alternative_instructions(void)
-  * handlers seeing an inconsistent instruction while you patch.
-  */
- void *__init_or_module text_poke_early(void *addr, const void *opcode,
--					      size_t len)
-+				       size_t len)
- {
- 	unsigned long flags;
--	local_irq_save(flags);
--	memcpy(addr, opcode, len);
--	local_irq_restore(flags);
--	sync_core();
--	/* Could also do a CLFLUSH here to speed up CPU recovery; but
--	   that causes hangs on some VIA CPUs. */
-+
-+	if (boot_cpu_has(X86_FEATURE_NX) &&
-+	    is_module_text_address((unsigned long)addr)) {
-+		/*
-+		 * Modules text is marked initially as non-executable, so the
-+		 * code cannot be running and speculative code-fetches are
-+		 * prevented. Just change the code.
-+		 */
-+		memcpy(addr, opcode, len);
-+	} else {
-+		local_irq_save(flags);
-+		memcpy(addr, opcode, len);
-+		local_irq_restore(flags);
-+		sync_core();
-+
-+		/*
-+		 * Could also do a CLFLUSH here to speed up CPU recovery; but
-+		 * that causes hangs on some VIA CPUs.
-+		 */
-+	}
- 	return addr;
- }
+diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
+index e7d8c636b228..e631c358f7f4 100644
+--- a/arch/x86/kernel/jump_label.c
++++ b/arch/x86/kernel/jump_label.c
+@@ -37,7 +37,6 @@ static void bug_at(unsigned char *ip, int line)
  
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index b052e883dd8c..cfa3106faee4 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -87,7 +87,7 @@ void *module_alloc(unsigned long size)
- 	p = __vmalloc_node_range(size, MODULE_ALIGN,
- 				    MODULES_VADDR + get_module_load_offset(),
- 				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-+				    PAGE_KERNEL, 0, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
-diff --git a/include/linux/filter.h b/include/linux/filter.h
-index 6074aa064b54..14ec3bdad9a9 100644
---- a/include/linux/filter.h
-+++ b/include/linux/filter.h
-@@ -746,6 +746,7 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
- static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
+ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 					 enum jump_label_type type,
+-					 void *(*poker)(void *, const void *, size_t),
+ 					 int init)
  {
- 	set_memory_ro((unsigned long)hdr, hdr->pages);
-+	set_memory_x((unsigned long)hdr, hdr->pages);
- }
+ 	union jump_code_union jmp;
+@@ -50,14 +49,6 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 	jmp.offset = jump_entry_target(entry) -
+ 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
  
- static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
-diff --git a/kernel/module.c b/kernel/module.c
-index 0b9aa8ab89f0..2b2845ae983e 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -1950,8 +1950,13 @@ void module_enable_ro(const struct module *mod, bool after_init)
+-	/*
+-	 * As long as only a single processor is running and the code is still
+-	 * not marked as RO, text_poke_early() can be used; Checking that
+-	 * system_state is SYSTEM_BOOTING guarantees it.
+-	 */
+-	if (system_state == SYSTEM_BOOTING)
+-		poker = text_poke_early;
+-
+ 	if (type == JUMP_LABEL_JMP) {
+ 		if (init) {
+ 			expect = default_nop; line = __LINE__;
+@@ -80,16 +71,19 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 		bug_at((void *)jump_entry_code(entry), line);
+ 
+ 	/*
+-	 * Make text_poke_bp() a default fallback poker.
++	 * As long as only a single processor is running and the code is still
++	 * not marked as RO, text_poke_early() can be used; Checking that
++	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
++	 * SYSTEM_SCHEDULING before other cores are awaken and before the
++	 * code is write-protected.
+ 	 *
+ 	 * At the time the change is being done, just ignore whether we
+ 	 * are doing nop -> jump or jump -> nop transition, and assume
+ 	 * always nop being the 'currently valid' instruction
+-	 *
+ 	 */
+-	if (poker) {
+-		(*poker)((void *)jump_entry_code(entry), code,
+-			 JUMP_LABEL_NOP_SIZE);
++	if (init || system_state == SYSTEM_BOOTING) {
++		text_poke_early((void *)jump_entry_code(entry), code,
++				JUMP_LABEL_NOP_SIZE);
  		return;
+ 	}
  
- 	frob_text(&mod->core_layout, set_memory_ro);
-+	frob_text(&mod->core_layout, set_memory_x);
-+
- 	frob_rodata(&mod->core_layout, set_memory_ro);
-+
- 	frob_text(&mod->init_layout, set_memory_ro);
-+	frob_text(&mod->init_layout, set_memory_x);
-+
- 	frob_rodata(&mod->init_layout, set_memory_ro);
+@@ -101,7 +95,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
+ 			       enum jump_label_type type)
+ {
+ 	mutex_lock(&text_mutex);
+-	__jump_label_transform(entry, type, NULL, 0);
++	__jump_label_transform(entry, type, 0);
+ 	mutex_unlock(&text_mutex);
+ }
  
- 	if (after_init)
+@@ -131,5 +125,5 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
+ 			jlstate = JL_STATE_NO_UPDATE;
+ 	}
+ 	if (jlstate == JL_STATE_UPDATE)
+-		__jump_label_transform(entry, type, text_poke_early, 1);
++		__jump_label_transform(entry, type, 1);
+ }
 -- 
 2.17.1
 
