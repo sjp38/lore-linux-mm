@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F2DCC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A6E8C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24DCF2084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24DCF2084F
+	by mail.kernel.org (Postfix) with ESMTP id 0DCDF2084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DCDF2084F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D03C86B026B; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
+	id 21F636B0271; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4FB56B026A; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
+	id DF7B16B026C; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 85FCE6B026E; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
+	id AA23E6B026D; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B566B0010
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E624E6B026B
 	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:31:48 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z7so1526531pgc.1
+Received: by mail-pf1-f198.google.com with SMTP id s26so1646146pfm.18
         for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:31:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=n/B3+n3f5xXPTebK3I1nT05hBod2ytL0DtnQ9iVLEbk=;
-        b=bKN5d+IFg0nIRjryPbcikns5iRjBGXZAImSfB3CtK/1gG5gIowJvq518vxEvOWQ/tH
-         1Xbqxzwcb4PvntOTptzcAyYbD0EWNEOrmkUJIFM2qApXv7UJdtW+w0eHHWyt4IIgaPhC
-         h7baicCZU9Hx4fBjurLfz/8b7dd/6KhE+HGRf0zXdDTgdqg+z154/ZCQU5CHjv58Y3Y9
-         NcqRse5xeF1UpF4p7dwjmP0SbV5SJBN1xDwdCJObjAUUaTo5SMiuLKHVll73IGsYujbx
-         crXpDIyz8/89AypdJ/K/35fXc6whPn7yWd9WFTwBaAi1X01wyWq30Nvb8ABfp/cLXhOA
-         1+hw==
+        bh=RIE66crRSFais2XMEreovT7cuc4aWzwk2c6XjFrsy1k=;
+        b=sO3PEOEu0zMwHfobvo/GIOgY/Kfk2z+Gp/Lfh3htVxppUgAFLdUbN9d3homGNR55Yo
+         m+qar2aZJMPtyMgRwS+h+3zQMC/r9PppdpIGW4+Km/eRoG7LecnfkyAD06/k/4lG9FRS
+         g+1wmZYWGQgMW91VLC1h3XBbHkaZLi4YGoIvcbj+FkKPybB8Ofy+bZnpW0uWUe0Qhu53
+         p8Qi4amuQzmGP9CViUnPOGZBFNZC+lbBX2XqWnDd5zy7vjUo1D8R4L/qEi0O1mvLtlaE
+         z1nZLIMIIlC1i+KjzLcZv8gbR+5UqUEOB/V8mbGjP+4ADVu2VESOd+G+nHfEEl1djtI3
+         mX9A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-X-Gm-Message-State: APjAAAXiC/mmmtvaZK14zCwBlWaSOHyYTxr/aOSbQXOzlp9AMxWqL9oM
-	VONQ3jg3Tg6se2ppH9HfIAqsWFApswdP3OuHe4V/NQ176V/wA1Z+ShEMRmcMIE/31wXTJh6QRCp
-	KCNsc6vNowFqFAf60n6KAnPrTXuS60LvajIv95f9ENfcQ6TfFl2Z7pry2Z1whfwQ2dw==
-X-Received: by 2002:a62:1c87:: with SMTP id c129mr20611441pfc.113.1556263908314;
+X-Gm-Message-State: APjAAAVEctG1BSO00Hrm4yq7QPVgqJGkYN1Z6SGmPgeHlK4Gv8jkGCbE
+	lHR97GDbWKZbOMQy5l5DUHHV4D7XlMxPo38Bk17tNesIY5eP+Mz4VU7On+b5IrqycSXVoQK2Po+
+	HcBeEUnKl/LU147OAmhKCICb8mRHQX8pgZ0y/pp9L/OwP7zB53ZTmrva0rfHVEscDAg==
+X-Received: by 2002:a63:f448:: with SMTP id p8mr42207797pgk.50.1556263908581;
         Fri, 26 Apr 2019 00:31:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy6ewiujwcoLTCfMrT68M6wGAt72XmDo0iew7rIeeELWOI8LK2GigqHCTmDco6HGCqrKIga
-X-Received: by 2002:a62:1c87:: with SMTP id c129mr20611339pfc.113.1556263906881;
-        Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556263906; cv=none;
+X-Google-Smtp-Source: APXvYqzu3cjqKi8CgTRqqdft5ubUUxrPPTBrYsfd49GmA87QBn6VwaEMmwqMG5P28PH8Be5k02dN
+X-Received: by 2002:a63:f448:: with SMTP id p8mr42207710pgk.50.1556263907273;
+        Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556263907; cv=none;
         d=google.com; s=arc-20160816;
-        b=LXd0VlzG8bQ5O+BLzGKX2l/DzDqlcwEI34mdMMbwUb8hd8sNDcrYr8l+ergr303UF4
-         Q6yKSitGvVstyjm8WX0pbdWqAYjZ79Yazn8EYk55nMTm/jQ+1Zi0bVgVvivsNI9htU7r
-         ogY+JOnomGPzZcBsPDaQufhUY4UdtEKHVv1gzAREBM1bYQ6KFFnc/rSpqZdxoEi1JZgN
-         EZ8eo3F7NJw+worhwAKlBxpfSJ0XFnpcEVgLE3lNCZry5k/PzCGhjPdECO3SeMxxTTTP
-         bCJP4gtlBJ+v8Dvj2o2cKCMaxKp19fzr7dnC5UE74C1KyUIh83VC6zgIcEzEKKC3IdSb
-         7Dbw==
+        b=b7MMLCn1I8omPuvRsqzkP/x6g9OXst7Z28rdl+ghF4+ONBhPVl6Kys9w5tXTjjAzDP
+         5SRkbSiwM2/GIPjAo5pYm5/Hj4nwE3x4XW7uwZyANgcOCv3s84sqesRgbveEDm0lRztr
+         IqdzjbRl0BqeMlE5VUP83siR2wTjlJGHNHGJgCZJtgSu1+tFk/nIyeAkXpFKFp/aowrz
+         TBH9UrD0Brfs7HWrrEMQy0KJCrP4nNIMHEcdoLLKUm7tzdpMdx28ibpJk2MPW6nXAwqm
+         y8y9Sa3skXNw0K0gsFieGXyZ0sbI40YtgJgqBGSIFlzvla+nMdgpigLv+HAmK/JSIskO
+         ZPtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from;
-        bh=n/B3+n3f5xXPTebK3I1nT05hBod2ytL0DtnQ9iVLEbk=;
-        b=f3VSrroOqoE+2xZ0MFXNo52mS5hzz+AMZxkHEDlnPVNPbn2i1slRTakXEfTod2K9uW
-         10vVjgytxAs6qhhfEFD09A01w4GVY0JC5K/6xXdCE9qLu21t/UNkA7MyZ52FTJUA4jQg
-         Qa4VHnKjCjvPH2Q+Juygzr+iFkKF5t7XUUYmX8g4hy63UNHynUVJg5iolTfEjn43s5lk
-         r4RKBwbZUYy2ZbVDNrBNTZ8lCzQtyOG/HaEQyF7qszoc1SNWimxUD9YMgAafcIWYz+dt
-         p1Q4YC0UpdlJYoAFAG81N6sG1Z3zhBJbmtPM3ENz6X76sGn9STeET4DOkc88qYktlc1E
-         NyOA==
+        bh=RIE66crRSFais2XMEreovT7cuc4aWzwk2c6XjFrsy1k=;
+        b=WMuWdgzpFtSZg+UDbkmfLIreLp1Yg+M+BZ/uGB2kbnN9rR+t/z+bbLSwXCIfYYFj5F
+         msMBzYnAFm0TSDCATsueOToIamV4bFGUlcVNCEj2EdRr/mI7wxbCTtY1Tc3zLsge4VPx
+         Sx+v0R0RBvzL2VBdpkk2af49Jf6dpBM/p51DipXXpOXuNI8YFjzrLBpyFyi6A90Ptznq
+         ldjQbPYwO067cldw7B1gdmf/X5sJUzm1VUZZ/39uhjZ/l47DiOXhKzP29n1cZAyQGrkR
+         ohOyjFi73DWcYK5CCDln3/uqUGlX0OulSW7cULn4ZdUfr3ssA2sCjjVP/UkTCYPwfKIR
+         sb8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
 Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
-        by mx.google.com with ESMTPS id v82si25417769pfa.42.2019.04.26.00.31.46
+        by mx.google.com with ESMTPS id v82si25417769pfa.42.2019.04.26.00.31.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
+        Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
 Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) client-ip=208.91.0.189;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
@@ -81,8 +81,8 @@ Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
  EX13-EDG-OU-001.vmware.com (10.113.208.155) with Microsoft SMTP Server id
  15.0.1156.6; Fri, 26 Apr 2019 00:31:40 -0700
 Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
-	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id BC4EC412A4;
-	Fri, 26 Apr 2019 00:31:45 -0700 (PDT)
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 1086741299;
+	Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
 To: Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>,
 	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
@@ -93,12 +93,10 @@ CC: <linux-kernel@vger.kernel.org>, <x86@kernel.org>, <hpa@zytor.com>, Thomas
 	<akpm@linux-foundation.org>, <kernel-hardening@lists.openwall.com>,
 	<linux-mm@kvack.org>, <will.deacon@arm.com>, <ard.biesheuvel@linaro.org>,
 	<kristen@linux.intel.com>, <deneen.t.dock@intel.com>, Rick Edgecombe
-	<rick.p.edgecombe@intel.com>, Nadav Amit <namit@vmware.com>, Kees Cook
-	<keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami
- Hiramatsu <mhiramat@kernel.org>, Jessica Yu <jeyu@kernel.org>
-Subject: [PATCH v5 11/23] x86/module: Avoid breaking W^X while loading modules
-Date: Thu, 25 Apr 2019 17:11:31 -0700
-Message-ID: <20190426001143.4983-12-namit@vmware.com>
+	<rick.p.edgecombe@intel.com>
+Subject: [PATCH v5 19/23] x86/ftrace: Use vmalloc special flag
+Date: Thu, 25 Apr 2019 17:11:39 -0700
+Message-ID: <20190426001143.4983-20-namit@vmware.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426001143.4983-1-namit@vmware.com>
 References: <20190426001143.4983-1-namit@vmware.com>
@@ -112,123 +110,73 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When modules and BPF filters are loaded, there is a time window in
-which some memory is both writable and executable. An attacker that has
-already found another vulnerability (e.g., a dangling pointer) might be
-able to exploit this behavior to overwrite kernel code. Prevent having
-writable executable PTEs in this stage.
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-In addition, avoiding having W+X mappings can also slightly simplify the
-patching of modules code on initialization (e.g., by alternatives and
-static-key), as would be done in the next patch. This was actually the
-main motivation for this patch.
+Use new flag VM_FLUSH_RESET_PERMS for handling freeing of special
+permissioned memory in vmalloc and remove places where memory was set NX
+and RW before freeing which is no longer needed.
 
-To avoid having W+X mappings, set them initially as RW (NX) and after
-they are set as RO set them as X as well. Setting them as executable is
-done as a separate step to avoid one core in which the old PTE is cached
-(hence writable), and another which sees the updated PTE (executable),
-which would break the W^X protection.
-
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Cc: Jessica Yu <jeyu@kernel.org>
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-Suggested-by: Andy Lutomirski <luto@amacapital.net>
-Signed-off-by: Nadav Amit <namit@vmware.com>
+Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Tested-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/alternative.c | 28 +++++++++++++++++++++-------
- arch/x86/kernel/module.c      |  2 +-
- include/linux/filter.h        |  1 +
- kernel/module.c               |  5 +++++
- 4 files changed, 28 insertions(+), 8 deletions(-)
+ arch/x86/kernel/ftrace.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 599203876c32..3d2b6b6fb20c 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -668,15 +668,29 @@ void __init alternative_instructions(void)
-  * handlers seeing an inconsistent instruction while you patch.
-  */
- void *__init_or_module text_poke_early(void *addr, const void *opcode,
--					      size_t len)
-+				       size_t len)
+diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
+index 53ba1aa3a01f..0caf8122d680 100644
+--- a/arch/x86/kernel/ftrace.c
++++ b/arch/x86/kernel/ftrace.c
+@@ -678,12 +678,8 @@ static inline void *alloc_tramp(unsigned long size)
  {
- 	unsigned long flags;
--	local_irq_save(flags);
--	memcpy(addr, opcode, len);
--	local_irq_restore(flags);
--	sync_core();
--	/* Could also do a CLFLUSH here to speed up CPU recovery; but
--	   that causes hangs on some VIA CPUs. */
+ 	return module_alloc(size);
+ }
+-static inline void tramp_free(void *tramp, int size)
++static inline void tramp_free(void *tramp)
+ {
+-	int npages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+-
+-	set_memory_nx((unsigned long)tramp, npages);
+-	set_memory_rw((unsigned long)tramp, npages);
+ 	module_memfree(tramp);
+ }
+ #else
+@@ -692,7 +688,7 @@ static inline void *alloc_tramp(unsigned long size)
+ {
+ 	return NULL;
+ }
+-static inline void tramp_free(void *tramp, int size) { }
++static inline void tramp_free(void *tramp) { }
+ #endif
+ 
+ /* Defined as markers to the end of the ftrace default trampolines */
+@@ -808,6 +804,8 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+ 	/* ALLOC_TRAMP flags lets us know we created it */
+ 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
+ 
++	set_vm_flush_reset_perms(trampoline);
 +
-+	if (boot_cpu_has(X86_FEATURE_NX) &&
-+	    is_module_text_address((unsigned long)addr)) {
-+		/*
-+		 * Modules text is marked initially as non-executable, so the
-+		 * code cannot be running and speculative code-fetches are
-+		 * prevented. Just change the code.
-+		 */
-+		memcpy(addr, opcode, len);
-+	} else {
-+		local_irq_save(flags);
-+		memcpy(addr, opcode, len);
-+		local_irq_restore(flags);
-+		sync_core();
-+
-+		/*
-+		 * Could also do a CLFLUSH here to speed up CPU recovery; but
-+		 * that causes hangs on some VIA CPUs.
-+		 */
-+	}
- 	return addr;
+ 	/*
+ 	 * Module allocation needs to be completed by making the page
+ 	 * executable. The page is still writable, which is a security hazard,
+@@ -816,7 +814,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+ 	set_memory_x((unsigned long)trampoline, npages);
+ 	return (unsigned long)trampoline;
+ fail:
+-	tramp_free(trampoline, *tramp_size);
++	tramp_free(trampoline);
+ 	return 0;
  }
  
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index b052e883dd8c..cfa3106faee4 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -87,7 +87,7 @@ void *module_alloc(unsigned long size)
- 	p = __vmalloc_node_range(size, MODULE_ALIGN,
- 				    MODULES_VADDR + get_module_load_offset(),
- 				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-+				    PAGE_KERNEL, 0, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
-diff --git a/include/linux/filter.h b/include/linux/filter.h
-index 6074aa064b54..14ec3bdad9a9 100644
---- a/include/linux/filter.h
-+++ b/include/linux/filter.h
-@@ -746,6 +746,7 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
- static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
- {
- 	set_memory_ro((unsigned long)hdr, hdr->pages);
-+	set_memory_x((unsigned long)hdr, hdr->pages);
- }
- 
- static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
-diff --git a/kernel/module.c b/kernel/module.c
-index 0b9aa8ab89f0..2b2845ae983e 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -1950,8 +1950,13 @@ void module_enable_ro(const struct module *mod, bool after_init)
+@@ -947,7 +945,7 @@ void arch_ftrace_trampoline_free(struct ftrace_ops *ops)
+ 	if (!ops || !(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
  		return;
  
- 	frob_text(&mod->core_layout, set_memory_ro);
-+	frob_text(&mod->core_layout, set_memory_x);
-+
- 	frob_rodata(&mod->core_layout, set_memory_ro);
-+
- 	frob_text(&mod->init_layout, set_memory_ro);
-+	frob_text(&mod->init_layout, set_memory_x);
-+
- 	frob_rodata(&mod->init_layout, set_memory_ro);
+-	tramp_free((void *)ops->trampoline, ops->trampoline_size);
++	tramp_free((void *)ops->trampoline);
+ 	ops->trampoline = 0;
+ }
  
- 	if (after_init)
 -- 
 2.17.1
 
