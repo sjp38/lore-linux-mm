@@ -8,96 +8,96 @@ X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C047EC43218
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85E4AC43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 741AC208CB
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 45EB4214C6
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XKJ4fAeB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 741AC208CB
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dLUUcPuc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45EB4214C6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 703FB6B000C; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
+	id 491896B000D; Sat, 27 Apr 2019 02:43:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63AB96B000D; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
+	id 417C96B000E; Sat, 27 Apr 2019 02:43:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4DE5A6B000E; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
+	id 292916B0010; Sat, 27 Apr 2019 02:43:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 130EB6B000C
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id m9so3485820pge.7
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:12 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E2B8F6B000D
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:13 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a141so1877347pfa.13
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
-        b=TSNETXkcIL5LN33ffyTWb2kuml3Xwsq6BVz1JxEDnv39mk2UXrfLp8WI1VgRLrPXe8
-         hcHy+I/Vrk/JrcL8roCx0VmBYao+dchnGXaLWiysyJ+x+p4p+JWqccp3FHoO6vyAjDy4
-         MAfHwQTsVcOLpblYjTZscxfkGktAsTMUgtHc3x13ZXPBtbFgMpLJr+nO6w/+Tkbt2nFQ
-         iF+WBh7tEnOO+KShlqZ/FGdO6pWqbR6krijQP+hT2y5kM3Uj087FxxQGtV40hx3Ai/NC
-         ix9OT/j7pbM0BBn0KJCY3U1EuOhv+4+DQ8S419roeqFjA/Dmz6D/ip5DxbDSmC7LRPmg
-         nYXQ==
-X-Gm-Message-State: APjAAAWQI9yRPgg2tMSQag3/Z8Y2Oi9XrBhjpoTzqNtEyUyM5Egcz5zz
-	u0R55tmqKXN/0hvL+vad0sKmZlKhD9BwMwsS714pSBBvsdQj25t1WMBRjWDq9VvwqNkKrvLt/aK
-	SRYobXgRclGEmiMy2vSjweA/E8eHQirazgv8DJS0Vao64i2zAuJkkc0t4kBDvtwN77w==
-X-Received: by 2002:a17:902:778b:: with SMTP id o11mr27413285pll.333.1556347391745;
-        Fri, 26 Apr 2019 23:43:11 -0700 (PDT)
-X-Received: by 2002:a17:902:778b:: with SMTP id o11mr27413245pll.333.1556347390559;
-        Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347390; cv=none;
+        bh=PqX9u33LMatWrF2rdzOLAo8PTOZ3S7r/OUOEdwJc/wY=;
+        b=bBjkvi6cSBcHFF5q+MuxOePWH2MW63t4/XLoRmYru1jIgsfZQVGUTaNY1jDqNOsU6g
+         iTbzRixBnbBp3b3TcKRcu/eSYSifXfUp6hNo5O4AxOW+bt7ufqwANbKfk0q1mONTWcCh
+         Dk4HfBFS51SwaaZnB04SLed2g1e5ggKNJgI5DmlgBN3AeOxfZGX1+DkyAa7lzR+kM1at
+         XHTbbnU9nZetoY5C+jPsy80QVeT5uTnPLys76i0Q0+wcoRhDqxuWDp07DLI41yfYoepN
+         Mdzwv1iWQPS8EVrjLTEa5DPdKHUzD9ZdRYfsRT61DX4nMfo6+zxB2AVU/Vw6XxPK1lsW
+         JSwg==
+X-Gm-Message-State: APjAAAXHXvKvhkLTWqjO0Q+ftv51Or3JP50ibnAdQjhuRyPa6v5PF/1F
+	h1zZd0ocMlnW7/OlaLeThCMuUiCVvQScco3kUdpuHHECi+iZTrD3dKcAIeCjX8E1a6KJI6D9AT0
+	PK7G4d533njqJ5B6X4frrlfA+MXcAjllwU9P6n2dYvs688ThzkSpCgBZQ8MVy4QaNRg==
+X-Received: by 2002:a63:6942:: with SMTP id e63mr47115634pgc.102.1556347393603;
+        Fri, 26 Apr 2019 23:43:13 -0700 (PDT)
+X-Received: by 2002:a63:6942:: with SMTP id e63mr47115588pgc.102.1556347392539;
+        Fri, 26 Apr 2019 23:43:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556347392; cv=none;
         d=google.com; s=arc-20160816;
-        b=c1iSuTMqRJdyenF6UV4EavVoZQZ9orKGTVW1MFAPX38VkLNmG7CyE5Ngb0wxfCKDEG
-         mSqKSdr1NZcP0Y1t5vxdUIs5oUfwIwrVnELg9B9cNP8GiDFWcDbXYC4/RFQdd0jIl1kd
-         qJ/ucBqbxZp4pZR8Ou2ls8ypkekepGRUj/xSn2vuZhgySGG1yKOim9WEMYQNFx/so3Zm
-         QxMUJnnoRfes+9ObrSs5O6CBATfJhuu6ir5x37iuEIaXHCuJ7+dnTXm4vO4kx0emZEnb
-         yFVmxft/vO0iyHAPIwYj5lL6+nlqhuNVfV+EbOwwcD+OwvHKKLCk14NxB0U7mLA3aEdt
-         PPqg==
+        b=ipZyNPV9hKHE0z7ebIX9hFgbbr9XiKI6+EcdUan70OKGyauFy8a6QVhDoaxNahplHh
+         jSQ9VcF2/mTEbTGYgs3pcurYIi2l5ge6/tnSV5bwkN8jpORtrD+n6tRsVkO/mM8OJ8e6
+         36tzo/1IMN6/XUZoFqNTPC8Qkblbmolz/jAVawpZzyS9FTzJypCzXGtDl2vYl6fLyZ48
+         8eBNKw+1v+Tx5gAfGxareByxKeojAc2NdSqKhYQyr8M7+/dYKdow98J4CKOx+N9cobXe
+         dZ20mfGF3lMg+v7aVvn2Ryrg7DKObnmdCPViYlk6Gb/cF6Fk3T0UKTtVfQKQaNJpVJrT
+         YupQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
-        b=Buv84Mfe0upw8tJNe3rVLCaKbMvamHxgGDnnsgSISga6Vyzn0noHBjhvXmm7PHjOyb
-         MuPTxQHNX330qo0ydPA3JR0IHlFgqxMa4S/pB2HkfaqUEhNkkuT3GklUMg7lVeNk8QZu
-         KEdZcEFnbMDtu5iNIEt9EPsTR4KV6AVWryLkmbXnf8Ye09fdRZa23ymUJhL0S0XPfeYu
-         lsRqhv8JmSgwEAyqrzDCbaBxEgbStfcYh8QCFJsK/7gO9Kw9kbPYtByyNrWdFhXOkVY0
-         tLXlPSfISVvxzLyz2qi6Rr0E2t9Phqb6XKbLd7PBlUHuQ2+8jvzpeFjo0IdUEz0Rhqb6
-         gOiQ==
+        bh=PqX9u33LMatWrF2rdzOLAo8PTOZ3S7r/OUOEdwJc/wY=;
+        b=ExWfzxX1dKCiqpLrVO7azJWQPHLfBdDHy4WNjDx/N1ehL9E1jM2IfPEp5fCLt2HqDA
+         /gRFDdgtXVua3+LAgP1DWj2K9QpM6spRV1+LfFsddEWDxt7I/li0Y/5LWXXWQD04H43I
+         Dyq36t11RN7dk9TGTZx1FnyJHvEtJlzldj/hYlPFJ1M6y0PkacdWhW5j5Wg1sr2kBoy9
+         s6K3bF7yZ/+MFgmzXRuvMdg2bsugnfnV66im5shdLejyEvIjfrkLUrlXEFf1ZEGbL9co
+         aZOa4Ro+tKul2gO3kudDGT1Kc+4ipeRlZBTqf3yQpA6j7J0XZ3Bcp0Elma92+cj/ZV2Z
+         psyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKJ4fAeB;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dLUUcPuc;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s6sor18562958plq.62.2019.04.26.23.43.10
+        by mx.google.com with SMTPS id c12sor30517841pfr.33.2019.04.26.23.43.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:12 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKJ4fAeB;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dLUUcPuc;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
-        b=XKJ4fAeBY8aGdbJDn84dW83HzgSvQACPuhXWJHvF1CWt6rAKSo0+tUCXqeDEYn8KGx
-         u3zXII+RSuYhdLmlbo5/0feDTgEEs6/tOmzti0w5Pevv/8Nua7dmelg2Hg1YTOM0HPNp
-         IuB1XxBtPV5C1LDrt4HWOamCYTjBpu9Uc9bqXu6wh2x58Sr/Usj1f74P/vpY9jMFSCFS
-         THBbi+fo5P15SNYnnZLc+khNDUp7StdyPifYfNcqKpXcU/HGBdU106YbtBqZ2gBNSvKt
-         YTZSQ/QqPm8CwczIhg2BokKOhThemqJ36d1wwJl1ZB93G6rLPD545DygLOMnvs67gNXF
-         w1Rg==
-X-Google-Smtp-Source: APXvYqwk9lLXQyc9bNgKLLm6YtZMcI1PVJ4KR2rM1C+cN3nT9zotDQcbIXGbwEvAmUupbSpfYScE8w==
-X-Received: by 2002:a17:902:a7:: with SMTP id a36mr50206141pla.111.1556347390037;
-        Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
+        bh=PqX9u33LMatWrF2rdzOLAo8PTOZ3S7r/OUOEdwJc/wY=;
+        b=dLUUcPucbWSjI0KF0GYdfa3//vc9Trf9GNL1Jxgol/lAzL/Qif+nwieAhan1enOtj9
+         IEvF0toGPmi5evSU5LGqWY70kCiO3p7KKseN+96U+aK7PFiGt1LmM5YwgAU+lA6dRruQ
+         txGFF06hrpSSsexZDBeyJTD8iZpafmkscb7dw3FJPuVKduR/83ccqIn9U64Bhl7mXai2
+         QvPXBsrBhxIENhDIjXt5l8fioHpUH4RBLdAlGLQjejsyatNlX3PJPjeZX8AdLYgJMv+s
+         txk3ENcm6pNvFPMHYkZ9djMndR8b2wvyhfIPdTbE4Wq/3iIH/ChGjSPLA1uzJUN9rbuN
+         8qpw==
+X-Google-Smtp-Source: APXvYqwtiOYLXN6z+omvr9q5XmanCyE26RTxB/9RLJMeynpzcv4zb2Q6alFcE2kD+WU/ILJ0eVx92Q==
+X-Received: by 2002:aa7:920b:: with SMTP id 11mr49825084pfo.3.1556347392003;
+        Fri, 26 Apr 2019 23:43:12 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.08
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.10
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:09 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:11 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -121,10 +121,11 @@ Cc: linux-kernel@vger.kernel.org,
 	deneen.t.dock@intel.com,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>,
 	Nadav Amit <namit@vmware.com>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>
-Subject: [PATCH v6 05/24] uprobes: Initialize uprobes earlier
-Date: Fri, 26 Apr 2019 16:22:44 -0700
-Message-Id: <20190426232303.28381-6-nadav.amit@gmail.com>
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: [PATCH v6 06/24] fork: Provide a function for copying init_mm
+Date: Fri, 26 Apr 2019 16:22:45 -0700
+Message-Id: <20190426232303.28381-7-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -136,88 +137,85 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-In order to have a separate address space for text poking, we need to
-duplicate init_mm early during start_kernel(). This, however, introduces
-a problem since uprobes functions are called from dup_mmap(), but
-uprobes is still not initialized in this early stage.
+Provide a function for copying init_mm. This function will be later used
+for setting a temporary mm.
 
-Since uprobes initialization is necassary for fork, and since all the
-dependant initialization has been done when fork is initialized (percpu
-and vmalloc), move uprobes initialization to fork_init(). It does not
-seem uprobes introduces any security problem for the poking_mm.
-
-Crash and burn if uprobes initialization fails, similarly to other early
-initializations. Change the init_probes() name to probes_init() to match
-other early initialization functions name convention.
-
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
-Reported-by: kernel test robot <lkp@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- include/linux/uprobes.h | 5 +++++
- kernel/events/uprobes.c | 8 +++-----
- kernel/fork.c           | 1 +
- 3 files changed, 9 insertions(+), 5 deletions(-)
+ include/linux/sched/task.h |  1 +
+ kernel/fork.c              | 24 ++++++++++++++++++------
+ 2 files changed, 19 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-index 103a48a48872..12bf0b68ed92 100644
---- a/include/linux/uprobes.h
-+++ b/include/linux/uprobes.h
-@@ -115,6 +115,7 @@ struct uprobes_state {
- 	struct xol_area		*xol_area;
- };
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index 2e97a2227045..f1227f2c38a4 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -76,6 +76,7 @@ extern void exit_itimers(struct signal_struct *);
+ extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
+ extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
+ struct task_struct *fork_idle(int);
++struct mm_struct *copy_init_mm(void);
+ extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+ extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
  
-+extern void __init uprobes_init(void);
- extern int set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern int set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
- extern bool is_swbp_insn(uprobe_opcode_t *insn);
-@@ -154,6 +155,10 @@ extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
- struct uprobes_state {
- };
- 
-+static inline void uprobes_init(void)
-+{
-+}
-+
- #define uprobe_get_trap_addr(regs)	instruction_pointer(regs)
- 
- static inline int
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index c5cde87329c7..e6a0d6be87e3 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -2294,16 +2294,14 @@ static struct notifier_block uprobe_exception_nb = {
- 	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
- };
- 
--static int __init init_uprobes(void)
-+void __init uprobes_init(void)
- {
- 	int i;
- 
- 	for (i = 0; i < UPROBES_HASH_SZ; i++)
- 		mutex_init(&uprobes_mmap_mutex[i]);
- 
--	if (percpu_init_rwsem(&dup_mmap_sem))
--		return -ENOMEM;
-+	BUG_ON(percpu_init_rwsem(&dup_mmap_sem));
- 
--	return register_die_notifier(&uprobe_exception_nb);
-+	BUG_ON(register_die_notifier(&uprobe_exception_nb));
- }
--__initcall(init_uprobes);
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 9dcd18aa210b..44fba5e5e916 100644
+index 44fba5e5e916..fbe9dfcd8680 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -815,6 +815,7 @@ void __init fork_init(void)
- #endif
- 
- 	lockdep_init_task(&init_task);
-+	uprobes_init();
+@@ -1299,13 +1299,20 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+ 		complete_vfork_done(tsk);
  }
  
- int __weak arch_dup_task_struct(struct task_struct *dst,
+-/*
+- * Allocate a new mm structure and copy contents from the
+- * mm structure of the passed in task structure.
++/**
++ * dup_mm() - duplicates an existing mm structure
++ * @tsk: the task_struct with which the new mm will be associated.
++ * @oldmm: the mm to duplicate.
++ *
++ * Allocates a new mm structure and duplicates the provided @oldmm structure
++ * content into it.
++ *
++ * Return: the duplicated mm or NULL on failure.
+  */
+-static struct mm_struct *dup_mm(struct task_struct *tsk)
++static struct mm_struct *dup_mm(struct task_struct *tsk,
++				struct mm_struct *oldmm)
+ {
+-	struct mm_struct *mm, *oldmm = current->mm;
++	struct mm_struct *mm;
+ 	int err;
+ 
+ 	mm = allocate_mm();
+@@ -1372,7 +1379,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
+ 	}
+ 
+ 	retval = -ENOMEM;
+-	mm = dup_mm(tsk);
++	mm = dup_mm(tsk, current->mm);
+ 	if (!mm)
+ 		goto fail_nomem;
+ 
+@@ -2187,6 +2194,11 @@ struct task_struct *fork_idle(int cpu)
+ 	return task;
+ }
+ 
++struct mm_struct *copy_init_mm(void)
++{
++	return dup_mm(NULL, &init_mm);
++}
++
+ /*
+  *  Ok, this is the main fork-routine.
+  *
 -- 
 2.17.1
 
