@@ -2,117 +2,112 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1609FC43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:30:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53771C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:33:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE3C9206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:30:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 124DF206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:33:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="XPVgj3+q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE3C9206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="yxMG00XR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 124DF206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08F5D6B0005; Thu, 25 Apr 2019 20:30:29 -0400 (EDT)
+	id 743EB6B0007; Thu, 25 Apr 2019 20:33:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 041246B0006; Thu, 25 Apr 2019 20:30:29 -0400 (EDT)
+	id 6F3866B0008; Thu, 25 Apr 2019 20:33:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E97C46B0007; Thu, 25 Apr 2019 20:30:28 -0400 (EDT)
+	id 5E26D6B000A; Thu, 25 Apr 2019 20:33:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B12936B0005
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 20:30:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id a17so1004438pff.6
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:30:28 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3475C6B0007
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 20:33:17 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id d198so719564oih.6
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:33:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=112d0Xs8rSgYB+ol4sBKoXelDAYKs2aw8MYQMbZsz4M=;
-        b=gNI+FDdg740Ht5pICjE/Pk9KiEi0QY9YtZCEX2veHKSc9GHiGH2U1pPo6+2N6KHKLb
-         WlFU7IyAGH6SYSCNMg1csXrBjqI3iJFagi38p6g4/AW8PQ3rAEpssPVnkTwqzRqgjvaw
-         hNr1GS74WVyoRSRcUpWV3TS0zuSU9hmOnEY1pft7c8zwXY0Jo7J2+RAQ4NoTczFSlQFI
-         /MK1HbyWT1E1eGngFhEaHA1LRzdxHRT0ZnPU10Osl+FAy2P69p/RnFUGYEPvXENC6T96
-         DIpLIGE5yLt9kmcs9QxklTIIbsDQc1xrlG5QW1X+9hBnlTIG9A8Czm0TfKPNX9yCQP5A
-         uYTA==
-X-Gm-Message-State: APjAAAUK3K2riubkXX1xdKhVptlx2lfkneh/QEfyiZfS/CCDri17JdyN
-	FzckuisHB0XqxiCsVD/xYffN3fT14/yIAS5scViZVFyJRQiNooqaZdOY5qa1lJtciG/bBSH9Vyp
-	JyQuJDmcj6qNkga2s2ZxHFW8fg/PKfdiW3WCXj06gqm0fXTIO/I7BulNm8M1J/G3msw==
-X-Received: by 2002:a17:902:f83:: with SMTP id 3mr22296011plz.55.1556238628276;
-        Thu, 25 Apr 2019 17:30:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztkaxmbtV9mRa4pCOPS5pZxafVJdjvxpJorsak9+0BB5HJpzbLemTudxNQKNC9Tym0IN9C
-X-Received: by 2002:a17:902:f83:: with SMTP id 3mr22295924plz.55.1556238627300;
-        Thu, 25 Apr 2019 17:30:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556238627; cv=none;
+        bh=husfLeAUYRUpmyxx/IOBfWRF88c+2Bw6W/zLaIXEA5s=;
+        b=sVkCVTxdSFKV1UevjihsoWzvQOC4LSTsEFHc2WDArm13Vl60tbkLYMQS61OmlYmt1T
+         2ZCuBakuwkzVXcLtesAQDgQ16aRLIvngQ95nQ92sXcNe5miYm/aHai1PhWxZW0+SRImq
+         vyaHoK6gztMI6/OqHBztH+upBYW7S41Rb7jtYGQ3oShlyMvpJ7G8kJZRq1/IZjQzwWcc
+         HRwtk6Sus5eQZpiA4FQnikRUSbS15CQzluyFnXML9L2yvfCgE/XmI1F4o/dXw2Ic1xnk
+         zIgOD+K6Czsgopl4DxyNfSdFTS/5ne4YdpYvOgsDNLAv67UFn3ZnDGK+nb1RIfMtOWfk
+         Mb+w==
+X-Gm-Message-State: APjAAAWnC6XxD5Q2Xq0AyP58WHFnBCxZ0VyVa6jEUg1ROAK9S406t7ad
+	fq6Ikz4g30RtIU6UEMMESdrgnsfhz3DyBu4naFMacgw1fZmDVuBYgprW6LFBmEMUpSxDDTYjoOY
+	pQQT1Er971fo6rNdwQIV7Sy8CNv3wugt+m4xqCEszKCRTvbGu/YJq8+EOu7KtMsmouQ==
+X-Received: by 2002:a9d:841:: with SMTP id 59mr24317119oty.15.1556238796806;
+        Thu, 25 Apr 2019 17:33:16 -0700 (PDT)
+X-Received: by 2002:a9d:841:: with SMTP id 59mr24317099oty.15.1556238796105;
+        Thu, 25 Apr 2019 17:33:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556238796; cv=none;
         d=google.com; s=arc-20160816;
-        b=WwgRQlLy/rdp3+uCB21QXIbsdmwjfx3H6VoXPJIt68twVOfN3PtuBdg4R7DSCuhdWe
-         eT2/zprRuhtO9s+FYQYV2r3EYO1iVPj19QHcvjkvCc5qodwqSwtcM/boqod1hL95uNH+
-         6KEbFXxj6NpWgrWEHsoFdS626q/HgcTOPPbfR/CxwpcUaUt53m87EAtfoKuEdM1Qre+Z
-         +kXZS8lLPBH1X+PIJesYiOErUoLfVYv3jXKCKGWBqjYYa08ZNdA2NY1dsZhM0To0RhFS
-         X06jWyoH6b3RV5Q0UUgqZiZ8w3MLUWLVT8jlkGe6MaLyg4VPs0XXk300ViN3cFIlv2gP
-         6zWg==
+        b=CjxDCB1AdARZ6KLMTWFDDCIos5e9kLLpdB0I8piSffsX78mh6854/eKCeRAgzVV7IY
+         phXJdzx7Jl9FXnefSDStntRnv+pG072t/PMpK178LDGKexDAUnssDQpT3eYD3yQjolRt
+         56Ofs666fjVSWbYx9hqoaXUE5XyuHD7GGuOrs+Fr+VxuskCfbBWG7/dXXikNzcQAhNEq
+         jk/vIie2tMdr2ZsyQiLo+VS5edd2XgC4HcDGPH1zsffdP3oqu537snb5fj7hBZth7fX0
+         c6E9W0FxW358o5nelB+MwftDeGFeLCUwtg/5M//4flFWC40ke7E0vFLPWlDO6RZ0zqm8
+         xuTg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=112d0Xs8rSgYB+ol4sBKoXelDAYKs2aw8MYQMbZsz4M=;
-        b=Kj/TwCvf+RglXXTPlQIP5yNOJ/KqVVj2wBJiYcV6a6tRaXSYPNf5J4gvUDV7Oa1/4P
-         oYsVxvxmkaFgbTzxJ3kB/8IfqHh5MAJqFxSdRjG/eHI7Z52ToBy6YLCO8SEH7HU6kfLl
-         fdXwCitDEZxlQZcl1PADSJNWmyjjcbYwJr5Uu02PKyyB12X7lWUJirFUSgoqwrdvDgzl
-         vkszP1OhR+0n2LtBlX3lukF9zIqEZescouW/tYMRVbZNBzjzVhVu/NeAq5W32kPNDTzF
-         Udk7qgMWVCbKanbDWia7w2x8+ToI3zEl7Uh14AIdBEbXG784qv1fnZtxnB09+0fDQn6n
-         WbzA==
+        bh=husfLeAUYRUpmyxx/IOBfWRF88c+2Bw6W/zLaIXEA5s=;
+        b=UQS3uKczzYYFsI7HQYs61cJsUFHM1PzzJb32fxOf8cUghtfX/wXcqBUb8JFwEHdu6a
+         AHosBR5VlDGVsmt4Z15IlRf3cF/iJy14UqhvDder60x0K5qrqUxdZku4Tl5e8Ez364se
+         tIWc6ZupSqvjQaxnnRkd+b51KsnFy9rIO8QB2XrjnG4XZ7xJSbWfYCWPNT8Bjrr9/5qz
+         3S6kSjuIBVnmc6+DGtSLr0wWNfLrco5+oaxjmWz+SlTNvin0DKGNCbZn5nKr9PxUcipf
+         KusUtdEDd5xDIN+WkEh1v57RLFIXMWdMr/9OBda2xjgnvkPCR4cV63LM1og/uXhE21Cc
+         2XvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=XPVgj3+q;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r124si22267678pgr.201.2019.04.25.17.30.27
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=yxMG00XR;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c127sor2747358oif.94.2019.04.25.17.33.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 17:30:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 25 Apr 2019 17:33:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=XPVgj3+q;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f54.google.com (mail-wr1-f54.google.com [209.85.221.54])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B2912212F5
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:30:26 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1556238627;
-	bh=ZsIbUeLOxUI7bxZ1I5VzBXBiV9Win2BFl2iIJvXToNg=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=XPVgj3+qb+Ykb0MjNHKhNcV3Yo9b7Oh8+K4gAy33Im/oRgNOCSVgtwla7/2VYGvA7
-	 7XZU2rkWj1/g4+Ifz2JGp6nZfJbSva/pRSNhUX4xbErQ3YzyJ3apIdcwE6dO7TFu04
-	 GHSqHZvCo/ZbCqBSb7qZRx7OySOrA0h4CSc5WPc0=
-Received: by mail-wr1-f54.google.com with SMTP id c12so1852147wrt.8
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:30:26 -0700 (PDT)
-X-Received: by 2002:a5d:63c7:: with SMTP id c7mr12902589wrw.199.1556238625152;
- Thu, 25 Apr 2019 17:30:25 -0700 (PDT)
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=yxMG00XR;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=husfLeAUYRUpmyxx/IOBfWRF88c+2Bw6W/zLaIXEA5s=;
+        b=yxMG00XRw8W8gPUsSvOidLXP7LF3BedxzpWzi1PTS4ri+eYU8v80sONYvSsjtJM2GW
+         wFTOb6JqEVuH7DzSurkgHYEdEr3Q5zeBmpl84g+jca74K1GKrF7Xor93CJEIvFdldwmq
+         En26Ux164dU7E+aT12PHHdcVIAIvrnsPs17DGqKrKxLJbHi8/eWFI24goDhTUHKiGjmm
+         uJr1VWdSaFqAnpl3ZmXcYvoGsODlF/zfcC/FgybwVBvOqVGSOyFep/PP9tb1hDt/wcgX
+         ZtyPCD8w+mPd1oiSGTqPEpbwpi4lxpVcmZZ7m6genkJjL6QG8Qx2OhHahDQqhdSOK6jn
+         gwqA==
+X-Google-Smtp-Source: APXvYqw1+ZJvz+ZxUUyq0eqW43gC2WMrQ8d3BXIt3dl9j88+0wZGDtOHhjZNKsuCANGX8D3bycXuRTYIAelS2XRy3HE=
+X-Received: by 2002:aca:e64f:: with SMTP id d76mr5550827oih.105.1556238795714;
+ Thu, 25 Apr 2019 17:33:15 -0700 (PDT)
 MIME-Version: 1.0
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
-In-Reply-To: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 25 Apr 2019 17:30:13 -0700
-X-Gmail-Original-Message-ID: <CALCETrWkYYh=L1nSO7GYt0FvMhjCcEaQiM2JEi3FfkJbYJFh2g@mail.gmail.com>
-Message-ID: <CALCETrWkYYh=L1nSO7GYt0FvMhjCcEaQiM2JEi3FfkJbYJFh2g@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/7] x86: introduce system calls addess space isolation
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, 
-	Alexandre Chartre <alexandre.chartre@oracle.com>, Andy Lutomirski <luto@kernel.org>, 
-	Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, 
-	James Bottomley <James.Bottomley@hansenpartnership.com>, Jonathan Adams <jwadams@google.com>, 
-	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>, 
-	LSM List <linux-security-module@vger.kernel.org>, X86 ML <x86@kernel.org>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
+ <20190424173833.GE19031@bombadil.infradead.org> <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+ <20190425073149.GA21215@quack2.suse.cz>
+In-Reply-To: <20190425073149.GA21215@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 25 Apr 2019 17:33:04 -0700
+Message-ID: <CAPcyv4iYMP4NWxa08zTdRxtc4UcbFFOCwbMZijB0bc2WcawggQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by insert_pfn_pmd()
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <willy@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
+	stable <stable@vger.kernel.org>, Chandan Rajendra <chandan@linux.ibm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,47 +115,42 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 2:46 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+On Thu, Apr 25, 2019 at 12:32 AM Jan Kara <jack@suse.cz> wrote:
 >
-> Hi,
+> On Wed 24-04-19 11:13:48, Dan Williams wrote:
+> > On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
+> > >
+> > > On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+> > > > I think unaligned addresses have always been passed to
+> > > > vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+> > > > the only change needed is the following, thoughts?
+> > > >
+> > > > diff --git a/fs/dax.c b/fs/dax.c
+> > > > index ca0671d55aa6..82aee9a87efa 100644
+> > > > --- a/fs/dax.c
+> > > > +++ b/fs/dax.c
+> > > > @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+> > > > vm_fault *vmf, pfn_t *pfnp,
+> > > >                 }
+> > > >
+> > > >                 trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+> > > > -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+> > > > +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+> > > >                                             write);
+> > >
+> > > We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+> > > that need to change too?
+> >
+> > It wasn't clear to me that it was a problem. I think that one already
+> > happens to be pmd-aligned.
 >
-> Address space isolation has been used to protect the kernel from the
-> userspace and userspace programs from each other since the invention of the
-> virtual memory.
->
-> Assuming that kernel bugs and therefore vulnerabilities are inevitable it
-> might be worth isolating parts of the kernel to minimize damage that these
-> vulnerabilities can cause.
->
-> The idea here is to allow an untrusted user access to a potentially
-> vulnerable kernel in such a way that any kernel vulnerability they find to
-> exploit is either prevented or the consequences confined to their isolated
-> address space such that the compromise attempt has minimal impact on other
-> tenants or the protected structures of the monolithic kernel.  Although we
-> hope to prevent many classes of attack, the first target we're looking at
-> is ROP gadget protection.
->
-> These patches implement a "system call isolation (SCI)" mechanism that
-> allows running system calls in an isolated address space with reduced page
-> tables to prevent ROP attacks.
->
-> ROP attacks involve corrupting the stack return address to repoint it to a
-> segment of code you know exists in the kernel that can be used to perform
-> the action you need to exploit the system.
->
-> The idea behind the prevention is that if we fault in pages in the
-> execution path, we can compare target address against the kernel symbol
-> table.  So if we're in a function, we allow local jumps (and simply falling
-> of the end of a page) but if we're jumping to a new function it must be to
-> an external label in the symbol table.
+> Why would it need to be? The address is taken from vmf->address and that's
+> set up in __handle_mm_fault() like .address = address & PAGE_MASK. So I
+> don't see anything forcing PMD alignment of the virtual address...
 
-That's quite an assumption.  The entry code at least uses .L labels.
-Do you get that right?
-
-As far as I can see, most of what's going on here has very little to
-do with jumps and calls.  The benefit seems to come from making sure
-that the RET instruction actually goes somewhere that's already been
-faulted in.  Am I understanding right?
-
---Andy
+True. So now I'm wondering if the masking should be done internal to
+the routine. Given it's prefixed vmf_ it seems to imply the api is
+prepared to take raw 'struct vm_fault' parameters. I think I'll go
+that route unless someone sees a reason to require the caller to
+handle this responsibility.
 
