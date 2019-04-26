@@ -2,241 +2,366 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5625C43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:48:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20783C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:52:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 832782084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:48:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Xu1YD8L3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 832782084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id CB4C9206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:52:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB4C9206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A5A46B0007; Fri, 26 Apr 2019 00:48:48 -0400 (EDT)
+	id 374D36B0007; Fri, 26 Apr 2019 00:52:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12D046B0008; Fri, 26 Apr 2019 00:48:48 -0400 (EDT)
+	id 325476B0008; Fri, 26 Apr 2019 00:52:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F0F086B000A; Fri, 26 Apr 2019 00:48:47 -0400 (EDT)
+	id 1EF946B000A; Fri, 26 Apr 2019 00:52:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B363F6B0007
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:48:47 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id b7so1183570plb.17
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:48:47 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EDA316B0007
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:52:09 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k8so1812197qkj.20
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:52:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=19ht8iIxjpdUCy46Bwuc2JuWjKgwjDNE0u0Rezv/IEc=;
-        b=XHWPITKRwpAqGm448dNN+03pul3T7rCRE8NxaxLPqzxQNaDq+xPpe90JJ/HtV7dtGb
-         fnRen2NJMP36JFaKkd7asxP6YzCT9eVfzkBNu/jjjQVUtmSnvh3yYWxd4sIKQwO0dxhB
-         DPp4mgOJiguBE29fx5fpiv6Qez6jkgJkQYAjlQW0zvL17b4X8P0M2HuZ8KKYVQAM5OIm
-         +xpcv4kmCu6pORrkSIgUz24wQhudNdM2abqej7GCADLG6LSkf+LahKjInMYx0+vhpp5s
-         kXjC5BqHyP53fKGVRFzfnqE3RYPyTGQpilfdau2Ep47PNrnr2vatVq/oZ447VzEKOPHi
-         cedA==
-X-Gm-Message-State: APjAAAV5niixmBrMtN9iQhfLj6RxM7ycdnip55vy+yd8rdsEoe8r17OV
-	KMzaZY1W4hWuM6kcU9lRBnmn4F1H/FFidJRDomfIwfoSs++Rq5rHAt4sP/7YJlOE/VZkrTIaw0t
-	PS72viEXSxVnu8Age5CnIkAoxuOb7i8DYqObcfu7SoB/7ANpMIH7DMhWdK6ej5GGtRw==
-X-Received: by 2002:a17:902:758b:: with SMTP id j11mr6395781pll.87.1556254127371;
-        Thu, 25 Apr 2019 21:48:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzckWI56WHq27pzbI/QvJQZbRibLduEOkHQ2YsD+lzGNihHwD3ZVEuDqwIseqga/QIdsUMH
-X-Received: by 2002:a17:902:758b:: with SMTP id j11mr6395730pll.87.1556254126558;
-        Thu, 25 Apr 2019 21:48:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556254126; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=pMrnsgc8GMFAZwkxnv5cNTJbIJKrUT+WZF40ft/6P6w=;
+        b=XMmkw6sNE91W1CmpnsMQfMFapNjOObYLdOUBprgxYreA5heHY1U3YJs2sV/rZ2K7Ai
+         kEyKtWD1Y55ahQFB7ZDPbF6QKw5enAYPv64FYAdHQ6dHQ1lL6+sfFIxA+XqGcyqYI7hs
+         4oI3HxV3tEeQSxScpS6nlNIsLSYmLyBuORX9bDAcQS+FVSNe/LOlN6yK46FMHQ5O0L4k
+         1Ny2AUWm1Vc8ObqyESLy7v9FG2Jhc2u1uv0YPbD0FSugmFXKjjOpI7QzBD9A51orIPBG
+         HRFrEpT6Jtj2BtobwCDRXGF9T7eNhu3Ye+s7zzOUFhY44FxOeyz5uZlsx9YQfJyN4AAk
+         107Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWDW6SAtqAt/kwKkSRZRgOpRcsj4s73FbPoKLdFJz4iAzH+noM+
+	70jcb1aI4lCSO1iwC0SZ62tiaoxKA6RaYgTDym2sztd95/3VXvyn6OBPEikiQqd2SNSPdYlny3d
+	KAMUBzpDrte4yhUcMhlPoF6R64wbC78gaJ8debgiepi6nFVNQesnIacSwFKkFM8RmzA==
+X-Received: by 2002:a0c:b096:: with SMTP id o22mr34201748qvc.170.1556254329667;
+        Thu, 25 Apr 2019 21:52:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz1MTIFt5QXQdrvugVBHuwOZZD6CAtrV8I2SdbW1ru/dKsI5TDHiyMXA0q344Kkyns5LiVL
+X-Received: by 2002:a0c:b096:: with SMTP id o22mr34201694qvc.170.1556254328391;
+        Thu, 25 Apr 2019 21:52:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556254328; cv=none;
         d=google.com; s=arc-20160816;
-        b=08JFoDyYRFL2LYyoDgx531iNBSt1T+m1TijczsDps69/LxuKe1VswGttgG3bGpeRGo
-         xtGgHVWi7M2WEIDPnyC0hjwya+ccM2BBAm1nUXWDSRRqI4ZucERZacd0J05PIKw8NGgE
-         yW36E3TdtospyLQr+vFXJms7MK3Xg94R/uE5Rh0oOXWs56k9O2GPPn6fppeN9Z0Te5wD
-         1R49/JLpg484GDqczyl36RmmcXP+5fatcbv/qJXgdIW9GpTJSgXtU2C3r9kZ8ey6jHDd
-         CUDaf96jYzphHX6cRZoG/5udC4yIpwvU3Da4uttgmbXYXZVLu6qsj0vV2iI2BmYPednB
-         2xAw==
+        b=iJsNN7tScHJRRcxWbZcJr6WYZOj0PfNmP5fPxx0PvPh/5zGp93NmumZ6uaYz7dBk2J
+         Eoq8CSVJAT7rfk1Pago8cn3XRKkqpafPKaTcoQC7qPVZJyGp2rPnRVyRdLCfLVLvDcS6
+         Y9jZ156DcahfbxlV6NdRmkFuYk3RyltvisrS6btfFt9JNOadU5owdZwODFpAKsZuJzhr
+         wNl7mUky/1xAy8z/Z7AzcsXMTu1CcLXUUmL9SQ/QaIo6lKfslhTSUdvyaf4AZXvmQ8cO
+         KTIBEsNGBHcarQdsKAmLsnHMhiQUO2Gx2kjCnNXamHV0H2y92N2FI8FZAqrYGSr/PdIN
+         HldA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=19ht8iIxjpdUCy46Bwuc2JuWjKgwjDNE0u0Rezv/IEc=;
-        b=wCvww8PoQc7NXqEEJzldq9jfmSuipV5t0hsJZkTTBG8E2LdXE6OF9W+2Wkp2phXbnZ
-         +MDtAZ3M2ZhoR6q7zfcneKJZlnifatV1DH7J1w6Jx3cogOt0+NSGCVNcbjM5ljTKNHFv
-         uPLYgv8oVOp9FdbGB7osKS7/HsaIyibYG5W1m206CHrGeKlRCeKzrnx/sxECM+gExkwf
-         jvdXhM1AZqi+3wIOcNZQDFCp7lN23+kFoQaUIfcq+1sQnyYXIXRHCaAmQ79o3gjRyWDA
-         tNB0koVQ1FFAdgnwEiQxXAdNL2xZja99wQF7FXaKWh2ZDJXiZolWrC4so4SYVmbdkkAc
-         ySTg==
+        h=message-id:date:subject:cc:to:from;
+        bh=pMrnsgc8GMFAZwkxnv5cNTJbIJKrUT+WZF40ft/6P6w=;
+        b=tjpV4+LMSPvCBYHFKQC8U3mrZnvT7tJtzr1078nFXV6697AqmKxNsNtX1v4gh4IA0n
+         OrdZe9cHs8EFxjQCXlTSNvaPmlvuCul5JbFfjLgp+1pP1Gm4hmpWaoQxJRKmPh3RWPSX
+         4HpxfZA6sPfe5HxF02W7JOGxlApn6KMocYe0+tIlOFPDEewREBD1ZgJAdogiQrtOKvxH
+         9tGNkxNsFWhGVVfxLSTH97uIHPR1r+0U3m0WqgcvcalM1axgYlSg898Y/EeLqRPEKEhb
+         y1ZpXIu0Y1VQm7hzuVk3Lc2GGLt3GlHOTAMMQ1myEN1UP8Q/NXTCofl7Q9z3sPF3AvTW
+         EJvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Xu1YD8L3;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p87si24683393pfa.77.2019.04.25.21.48.46
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z65si5791376qkd.238.2019.04.25.21.52.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 21:48:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 25 Apr 2019 21:52:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Xu1YD8L3;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C5340206BF;
-	Fri, 26 Apr 2019 04:48:45 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1556254126;
-	bh=Ox+Y5IVzZOibAizInYePC8HNxAhtSsNglxPm0imJqsw=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=Xu1YD8L32ot7k/kZjyHf4o5i2M9MLdf0U+K2crR7e4/Dr+EADl1vEEi2ztXu3NPzV
-	 tU4SLUX2H/5Uunbi0YvJWmyECZ7QNrFBGrhNjaFnCMBnBgWerCXDb6WdhE03HuiRZm
-	 r8aerdE0gSm8hWuPsLskDSX1UWTSyLbKr6eIgBCw=
-Date: Thu, 25 Apr 2019 21:48:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, zhong jiang
- <zhongjiang@huawei.com>, syzkaller-bugs@googlegroups.com,
- syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com, Mike Rapoport
- <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Peter Xu
- <peterx@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
-Subject: Re: [PATCH 1/2] userfaultfd: use RCU to free the task struct when
- fork fails
-Message-Id: <20190425214845.92be0f66d59121543a87bd09@linux-foundation.org>
-In-Reply-To: <20190327084912.GC11927@dhcp22.suse.cz>
-References: <20190325225636.11635-1-aarcange@redhat.com>
-	<20190325225636.11635-2-aarcange@redhat.com>
-	<20190326085643.GG28406@dhcp22.suse.cz>
-	<20190327001616.GB15679@redhat.com>
-	<20190327084912.GC11927@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by mx1.redhat.com (Postfix) with ESMTPS id 8F43930832DC;
+	Fri, 26 Apr 2019 04:52:06 +0000 (UTC)
+Received: from xz-x1.nay.redhat.com (dhcp-15-205.nay.redhat.com [10.66.15.205])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2DDD7194A0;
+	Fri, 26 Apr 2019 04:51:52 +0000 (UTC)
+From: Peter Xu <peterx@redhat.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>,
+	Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	peterx@redhat.com,
+	Martin Cracauer <cracauer@cons.org>,
+	Shaohua Li <shli@fb.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: [PATCH v4 00/27] userfaultfd: write protection support
+Date: Fri, 26 Apr 2019 12:51:24 +0800
+Message-Id: <20190426045151.19556-1-peterx@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Fri, 26 Apr 2019 04:52:07 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This series implements initial write protection support for
+userfaultfd.  Currently both shmem and hugetlbfs are not supported
+yet, but only anonymous memory.  This is the 4nd version of it.
 
-This patch is presently stuck.  AFAICT we just need a changelog update
-to reflect Michal's observations?
+The latest code can also be found at:
 
+  https://github.com/xzpeter/linux/tree/uffd-wp-merged
 
+v4 changelog:
+- add r-bs
+- use kernel-doc format for fault_flag_allow_retry_first [Jerome]
+- drop "export wp_page_copy", add new patch to split do_wp_page(), use
+  it in change_pte_range() to replace the wp_page_copy(). [Jerome] (I
+  thought about different ways to do this but I still can't find a
+  100% good way for all... in this version I still used the
+  do_wp_page_cont naming.  We can still discuss this and how we should
+  split do_wp_page)
+- make sure uffd-wp will also apply to device private entries which
+  HMM uses [Jerome]
 
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: userfaultfd: use RCU to free the task struct when fork fails
+v3 changelog:
+- take r-bs
+- patch 1: fix typo [Jerome]
+- patch 2: use brackets where proper around (flags & VM_FAULT_RETRY)
+  (there're three places to change, not four...) [Jerome]
+- patch 4: make sure TRIED is applied correctly on all archs, add more
+  comment to explain the new page fault mechanism [Jerome]
+- patch 7: in do_swap_page() remove the two lines to remove
+  FAULT_FLAG_WRITE flag [Jerome]
+- patch 10: another brackets change like above, and in
+  mfill_atomic_pte return -EINVAL when detected wp_copy==1 upon shared
+  memories [Jerome]
+- patch 12: move _PAGE_CHG_MASK change to patch 8 [Jerome]
+- patch 14: wp_page_copy() - fix write bit; change_pte_range() -
+  detect PTE change after COW [Jerome]
+- patch 17: remove last paragraph of commit message, no need to drop
+  the two lines in do_swap_page() since they've been directly dropped
+  in patch 7; touch up remove_migration_pte() to only detect uffd-wp
+  bit if it's read migration entry [Jerome]
+- add patch: "userfaultfd: wp: declare _UFFDIO_WRITEPROTECT
+  conditionally", which remove _UFFDIO_WRITEPROTECT bit if detected
+  non-anonymous memory during REGISTER; meanwhile fixup the test case
+  for shmem too for expected ioctls returned from REGISTER [Mike]
+- add patch: "userfaultfd: wp: fixup swap entries in
+  change_pte_range", the new patch will allow to apply the uffd-wp
+  bits upon swap entries directly (e.g., when the page is during
+  migration or the page was swapped out).  Please see the patch for
+  detail information.
 
-MEMCG depends on the task structure not to be freed under rcu_read_lock()
-in get_mem_cgroup_from_mm() after it dereferences mm->owner.
+v2 changelog:
+- add some r-bs
+- split the patch "mm: userfault: return VM_FAULT_RETRY on signals"
+  into two: one to focus on the signal behavior change, the other to
+  remove the NOPAGE special path in handle_userfault().  Removing the
+  ARC specific change and remove that part of commit message since
+  it's fixed in 4d447455e73b already [Jerome]
+- return -ENOENT when VMA is invalid for UFFDIO_WRITEPROTECT to match
+  UFFDIO_COPY errno [Mike]
+- add a new patch to introduce helper to find valid VMA for uffd
+  [Mike]
+- check against VM_MAYWRITE instead of VM_WRITE when registering UFFD
+  WP [Mike]
+- MM_CP_DIRTY_ACCT is used incorrectly, fix it up [Jerome]
+- make sure the lock_page behavior will not be changed [Jerome]
+- reorder the whole series, introduce the new ioctl last. [Jerome]
+- fix up the uffdio_writeprotect() following commit df2cc96e77011cf79
+  to return -EAGAIN when detected mm layout changes [Mike]
 
-An alternate possible fix would be to defer the delivery of the
-userfaultfd contexts to the monitor until after fork() is guaranteed to
-succeed.  Such a change would require more changes because it would create
-a strict ordering dependency where the uffd methods would need to be
-called beyond the last potentially failing branch in order to be safe. 
-This solution as opposed only adds the dependency to common code to set
-mm->owner to NULL and to free the task struct that was pointed by
-mm->owner with RCU, if fork ends up failing.  The userfaultfd methods can
-still be called anywhere during the fork runtime and the monitor will keep
-discarding orphaned "mm" coming from failed forks in userland.
+v1 can be found at: https://lkml.org/lkml/2019/1/21/130
 
-This race condition couldn't trigger if CONFIG_MEMCG was set =n at build
-time.
+Any comment would be greatly welcomed.   Thanks.
 
-Link: http://lkml.kernel.org/r/20190325225636.11635-2-aarcange@redhat.com
-Fixes: 893e26e61d04 ("userfaultfd: non-cooperative: Add fork() event")
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Tested-by: zhong jiang <zhongjiang@huawei.com>
-Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Jann Horn <jannh@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Peter Xu <peterx@redhat.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: <stable@vger.kernel.org>
-Cc: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+Overview
+====================
 
- kernel/fork.c |   34 ++++++++++++++++++++++++++++++++--
- 1 file changed, 32 insertions(+), 2 deletions(-)
+The uffd-wp work was initialized by Shaohua Li [1], and later
+continued by Andrea [2]. This series is based upon Andrea's latest
+userfaultfd tree, and it is a continuous works from both Shaohua and
+Andrea.  Many of the follow up ideas come from Andrea too.
 
---- a/kernel/fork.c~userfaultfd-use-rcu-to-free-the-task-struct-when-fork-fails
-+++ a/kernel/fork.c
-@@ -952,6 +952,15 @@ static void mm_init_aio(struct mm_struct
- #endif
- }
- 
-+static __always_inline void mm_clear_owner(struct mm_struct *mm,
-+					   struct task_struct *p)
-+{
-+#ifdef CONFIG_MEMCG
-+	if (mm->owner == p)
-+		WRITE_ONCE(mm->owner, NULL);
-+#endif
-+}
-+
- static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
- {
- #ifdef CONFIG_MEMCG
-@@ -1331,6 +1340,7 @@ static struct mm_struct *dup_mm(struct t
- free_pt:
- 	/* don't put binfmt in mmput, we haven't got module yet */
- 	mm->binfmt = NULL;
-+	mm_init_owner(mm, NULL);
- 	mmput(mm);
- 
- fail_nomem:
-@@ -1662,6 +1672,24 @@ static inline void rcu_copy_process(stru
- #endif /* #ifdef CONFIG_TASKS_RCU */
- }
- 
-+#ifdef CONFIG_MEMCG
-+static void __delayed_free_task(struct rcu_head *rhp)
-+{
-+	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
-+
-+	free_task(tsk);
-+}
-+#endif /* CONFIG_MEMCG */
-+
-+static __always_inline void delayed_free_task(struct task_struct *tsk)
-+{
-+#ifdef CONFIG_MEMCG
-+	call_rcu(&tsk->rcu, __delayed_free_task);
-+#else /* CONFIG_MEMCG */
-+	free_task(tsk);
-+#endif /* CONFIG_MEMCG */
-+}
-+
- /*
-  * This creates a new process as a copy of the old one,
-  * but does not actually start it yet.
-@@ -2123,8 +2151,10 @@ bad_fork_cleanup_io:
- bad_fork_cleanup_namespaces:
- 	exit_task_namespaces(p);
- bad_fork_cleanup_mm:
--	if (p->mm)
-+	if (p->mm) {
-+		mm_clear_owner(p->mm, p);
- 		mmput(p->mm);
-+	}
- bad_fork_cleanup_signal:
- 	if (!(clone_flags & CLONE_THREAD))
- 		free_signal_struct(p->signal);
-@@ -2155,7 +2185,7 @@ bad_fork_cleanup_count:
- bad_fork_free:
- 	p->state = TASK_DEAD;
- 	put_task_stack(p);
--	free_task(p);
-+	delayed_free_task(p);
- fork_out:
- 	spin_lock_irq(&current->sighand->siglock);
- 	hlist_del_init(&delayed.node);
-_
+Besides the old MISSING register mode of userfaultfd, the new uffd-wp
+support provides another alternative register mode called
+UFFDIO_REGISTER_MODE_WP that can be used to listen to not only missing
+page faults but also write protection page faults, or even they can be
+registered together.  At the same time, the new feature also provides
+a new userfaultfd ioctl called UFFDIO_WRITEPROTECT which allows the
+userspace to write protect a range or memory or fixup write permission
+of faulted pages.
+
+Please refer to the document patch "userfaultfd: wp:
+UFFDIO_REGISTER_MODE_WP documentation update" for more information on
+the new interface and what it can do.
+
+The major workflow of an uffd-wp program should be:
+
+  1. Register a memory region with WP mode using UFFDIO_REGISTER_MODE_WP
+
+  2. Write protect part of the whole registered region using
+     UFFDIO_WRITEPROTECT, passing in UFFDIO_WRITEPROTECT_MODE_WP to
+     show that we want to write protect the range.
+
+  3. Start a working thread that modifies the protected pages,
+     meanwhile listening to UFFD messages.
+
+  4. When a write is detected upon the protected range, page fault
+     happens, a UFFD message will be generated and reported to the
+     page fault handling thread
+
+  5. The page fault handler thread resolves the page fault using the
+     new UFFDIO_WRITEPROTECT ioctl, but this time passing in
+     !UFFDIO_WRITEPROTECT_MODE_WP instead showing that we want to
+     recover the write permission.  Before this operation, the fault
+     handler thread can do anything it wants, e.g., dumps the page to
+     a persistent storage.
+
+  6. The worker thread will continue running with the correctly
+     applied write permission from step 5.
+
+Currently there are already two projects that are based on this new
+userfaultfd feature.
+
+QEMU Live Snapshot: The project provides a way to allow the QEMU
+                    hypervisor to take snapshot of VMs without
+                    stopping the VM [3].
+
+LLNL umap library:  The project provides a mmap-like interface and
+                    "allow to have an application specific buffer of
+                    pages cached from a large file, i.e. out-of-core
+                    execution using memory map" [4][5].
+
+Before posting the patchset, this series was smoke tested against QEMU
+live snapshot and the LLNL umap library (by doing parallel quicksort
+using 128 sorting threads + 80 uffd servicing threads).  My sincere
+thanks to Marty Mcfadden and Denis Plotnikov for the help along the
+way.
+
+TODO
+=============
+
+- hugetlbfs/shmem support
+- performance
+- more architectures
+- cooperate with mprotect()-allowed processes (???)
+- ...
+
+References
+==========
+
+[1] https://lwn.net/Articles/666187/
+[2] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/log/?h=userfault
+[3] https://github.com/denis-plotnikov/qemu/commits/background-snapshot-kvm
+[4] https://github.com/LLNL/umap
+[5] https://llnl-umap.readthedocs.io/en/develop/
+[6] https://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git/commit/?h=userfault&id=b245ecf6cf59156966f3da6e6b674f6695a5ffa5
+[7] https://lkml.org/lkml/2018/11/21/370
+[8] https://lkml.org/lkml/2018/12/30/64
+
+Andrea Arcangeli (5):
+  userfaultfd: wp: hook userfault handler to write protection fault
+  userfaultfd: wp: add WP pagetable tracking to x86
+  userfaultfd: wp: userfaultfd_pte/huge_pmd_wp() helpers
+  userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+  userfaultfd: wp: add the writeprotect API to userfaultfd ioctl
+
+Martin Cracauer (1):
+  userfaultfd: wp: UFFDIO_REGISTER_MODE_WP documentation update
+
+Peter Xu (18):
+  mm: gup: rename "nonblocking" to "locked" where proper
+  mm: userfault: return VM_FAULT_RETRY on signals
+  userfaultfd: don't retake mmap_sem to emulate NOPAGE
+  mm: allow VM_FAULT_RETRY for multiple times
+  mm: gup: allow VM_FAULT_RETRY for multiple times
+  mm: merge parameters for change_protection()
+  userfaultfd: wp: apply _PAGE_UFFD_WP bit
+  mm: introduce do_wp_page_cont()
+  userfaultfd: wp: handle COW properly for uffd-wp
+  userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
+  userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
+  userfaultfd: wp: support swap and page migration
+  khugepaged: skip collapse if uffd-wp detected
+  userfaultfd: introduce helper vma_find_uffd
+  userfaultfd: wp: don't wake up when doing write protect
+  userfaultfd: wp: declare _UFFDIO_WRITEPROTECT conditionally
+  userfaultfd: selftests: refactor statistics
+  userfaultfd: selftests: add write-protect test
+
+Shaohua Li (3):
+  userfaultfd: wp: add helper for writeprotect check
+  userfaultfd: wp: support write protection for userfault vma range
+  userfaultfd: wp: enabled write protection in userfaultfd API
+
+ Documentation/admin-guide/mm/userfaultfd.rst |  51 +++++
+ arch/alpha/mm/fault.c                        |   4 +-
+ arch/arc/mm/fault.c                          |  12 +-
+ arch/arm/mm/fault.c                          |   9 +-
+ arch/arm64/mm/fault.c                        |  11 +-
+ arch/hexagon/mm/vm_fault.c                   |   3 +-
+ arch/ia64/mm/fault.c                         |   3 +-
+ arch/m68k/mm/fault.c                         |   5 +-
+ arch/microblaze/mm/fault.c                   |   3 +-
+ arch/mips/mm/fault.c                         |   3 +-
+ arch/nds32/mm/fault.c                        |   7 +-
+ arch/nios2/mm/fault.c                        |   5 +-
+ arch/openrisc/mm/fault.c                     |   3 +-
+ arch/parisc/mm/fault.c                       |   6 +-
+ arch/powerpc/mm/fault.c                      |   8 +-
+ arch/riscv/mm/fault.c                        |   9 +-
+ arch/s390/mm/fault.c                         |  14 +-
+ arch/sh/mm/fault.c                           |   5 +-
+ arch/sparc/mm/fault_32.c                     |   4 +-
+ arch/sparc/mm/fault_64.c                     |   4 +-
+ arch/um/kernel/trap.c                        |   6 +-
+ arch/unicore32/mm/fault.c                    |   8 +-
+ arch/x86/Kconfig                             |   1 +
+ arch/x86/include/asm/pgtable.h               |  67 ++++++
+ arch/x86/include/asm/pgtable_64.h            |   8 +-
+ arch/x86/include/asm/pgtable_types.h         |  11 +-
+ arch/x86/mm/fault.c                          |   8 +-
+ arch/xtensa/mm/fault.c                       |   4 +-
+ drivers/gpu/drm/ttm/ttm_bo_vm.c              |  12 +-
+ fs/userfaultfd.c                             | 130 +++++++----
+ include/asm-generic/pgtable.h                |   1 +
+ include/asm-generic/pgtable_uffd.h           |  66 ++++++
+ include/linux/huge_mm.h                      |   2 +-
+ include/linux/mm.h                           |  62 ++++-
+ include/linux/swapops.h                      |   2 +
+ include/linux/userfaultfd_k.h                |  42 +++-
+ include/trace/events/huge_memory.h           |   1 +
+ include/uapi/linux/userfaultfd.h             |  40 +++-
+ init/Kconfig                                 |   5 +
+ mm/filemap.c                                 |   2 +-
+ mm/gup.c                                     |  61 ++---
+ mm/huge_memory.c                             |  28 ++-
+ mm/hugetlb.c                                 |  14 +-
+ mm/khugepaged.c                              |  23 ++
+ mm/memory.c                                  |  39 +++-
+ mm/mempolicy.c                               |   2 +-
+ mm/migrate.c                                 |   6 +
+ mm/mprotect.c                                | 124 +++++++---
+ mm/rmap.c                                    |   6 +
+ mm/shmem.c                                   |   2 +-
+ mm/userfaultfd.c                             | 148 +++++++++---
+ tools/testing/selftests/vm/userfaultfd.c     | 225 +++++++++++++++----
+ 52 files changed, 1031 insertions(+), 294 deletions(-)
+ create mode 100644 include/asm-generic/pgtable_uffd.h
+
+-- 
+2.17.1
 
