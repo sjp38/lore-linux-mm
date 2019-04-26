@@ -2,132 +2,190 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78FFFC43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 12:36:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BA5BC43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 12:39:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38B9C2077B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 12:36:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3F316206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 12:39:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="op8cY6PD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38B9C2077B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="m26A6N93"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F316206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2A306B0007; Fri, 26 Apr 2019 08:36:26 -0400 (EDT)
+	id E4ABA6B0007; Fri, 26 Apr 2019 08:39:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD93C6B0008; Fri, 26 Apr 2019 08:36:26 -0400 (EDT)
+	id DD29E6B0008; Fri, 26 Apr 2019 08:39:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC8346B000A; Fri, 26 Apr 2019 08:36:26 -0400 (EDT)
+	id C9A1F6B000A; Fri, 26 Apr 2019 08:39:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5546B0007
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 08:36:26 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id w9so2497741ior.11
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 05:36:26 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FD686B0007
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 08:39:56 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id k78so1406540vkk.17
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 05:39:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=oL8TTwWf1lScK+P2aI8yHUzecgCr0tD4qW+nChTl00s=;
-        b=juAkcPyNQ2ZAPefn1/gZexQFybOK9a/HAFBeShaCMkowlUyA5GQuYJQPzphSpDcPfz
-         5rGcHO1lEp8kHCDUNFCmVMGKR3JgBN8wPQr7+4NFfVAA2iRXtrAtUoQ2GlZKnMXyIbxm
-         GXCd+3TfiMW58yLYGlLyAA2o/WjjX2uB2eVdDoAUFmFxt74LGANf5sfU+sKRRAIrnpNX
-         BZqItcI80DB4M8QBGwX5cQY6RuILsBYEdiTJA5HpoZovsSaW36G+4LefxDUtGqGlO06y
-         LggGmUUqRrn5I15yrrY9tZtZdcVEXW56SuBh2+84zLrulPB7GoyQtloasK0z4U+wR5PK
-         J6BQ==
-X-Gm-Message-State: APjAAAWJw1fRnNhDPC9fhErt25b+tE8YvwcMbENGHdi3J5ZFpuSSBwE9
-	dYgvXz4Mijr1hZNBFY7DphL1cs1BitFGC0i2qBeHUPoiBKXR6+5ae99f+6LCnJjCn3dJ/zuHSHJ
-	HqcyfRnSkrJvQWs1JRLFuFp2QzMRkKRRTZ546YbGp7x/IVvGV/pIO3Xxvib7zArbQDg==
-X-Received: by 2002:a5d:8717:: with SMTP id u23mr30534727iom.93.1556282186337;
-        Fri, 26 Apr 2019 05:36:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwpYFLQPavykZVdK3ro2UDTnCZtjkhee5fGjThxiKJkLR2WtzqfI7rmrJCYT+H4ndHGgCUd
-X-Received: by 2002:a5d:8717:: with SMTP id u23mr30534670iom.93.1556282185443;
-        Fri, 26 Apr 2019 05:36:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556282185; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=O7AawR3O9LUFS8kj7n0V35j45u1KfiRyWzvO/3OxrAE=;
+        b=Z2aF7GSshdzaG8iVmeP87L5hqRPJG33A/fL+JwgIQbC64nOfzMxffOdYfZDOriCXIs
+         RHn4XSUy7JkdscqCwtrfxgS1MxK5MasHkdfS7IVK2hXDTgdQktwPS5PGJFPN0MqE+XnI
+         RAi90M1wtjWWsz/K59dDB6nB3Z0fTqZ6sdH+xCYplDFQEOLLEcfzcTcbmjw8KIu2HCjo
+         ZSy6pNnyBsP+wNQa5RZzBLpJngMsx/h8bavisaheWna1CBzVzk6i7OdKf1/sQS9iO8Ac
+         KDWEFEvy87AHCCWj8xEXtep7NUsCkprcgv6NtTbHSmGtGqsO2kaz0ht+3pjd1+zzfEOr
+         IC+Q==
+X-Gm-Message-State: APjAAAUhuhqj2TSJT5FG11Y65n31vKDN36vjCF/Y6ZvxlN2yaKRcGGDG
+	3rOxnYVdbEWcuRgmVabhfWOl/1/ISjeigr0QlWYzLaNVN3uYY4/UnJWDTwxc5y8CXaeVnnCMOhA
+	MlJTUYOxfsy1+UkI0Gsk90z8g6PKcJfJRVElC6oDOG3X4l0i1lqxvxSt4Pmkwb9crKg==
+X-Received: by 2002:a67:fbc2:: with SMTP id o2mr23916806vsr.78.1556282396309;
+        Fri, 26 Apr 2019 05:39:56 -0700 (PDT)
+X-Received: by 2002:a67:fbc2:: with SMTP id o2mr23916779vsr.78.1556282395539;
+        Fri, 26 Apr 2019 05:39:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556282395; cv=none;
         d=google.com; s=arc-20160816;
-        b=JC15PtDfDfw5XiWRnKssYDcljKvytoN3hz37pXAi/kjtLuxTJqBQ/o8q+OxNWOQHLp
-         jMVgi5CX+roNCH6+feqUIx2TQBvAsu25GgYH1ziHOr4IWtXmLJlRFOr8yUoHmbYoN2q5
-         ZwzutJoyHgLnwvdoukUqeBUyrQVowpoFwBtiNMfVx+ghHS01krVoFgLvj/lN1eLbO2rZ
-         tG6zTRHyltK583k1NqPrBdLw9K4/C819Xldl2daapqKRbzl/0NMB7usCZ7mHSaBHBcAM
-         YSqMA186O1Ben/Zw5OJZyvVnROYjt1GdIjv+LRcDAk9/gp/emARf0LEgIYKAfP+m4S78
-         +5vw==
+        b=QIcu1nEsaI5OyCrm/ICHuYQhVx0QHng9tnVyt9iq6e1JH5UaQDzz93R/RhvCRP1tBY
+         2wkVk5WOj8NZrAPSZpt85sXl98oN/r1UnmOG+J5abxJZixWd1aZu+ejOlNQDEm1tAc5o
+         yxXv02Y9ShV/6XyU8we/1NM4mGkv1Tc1+H0T/ss+CiH1Xa+4mY0gOs5/Kdt7hRBSH71X
+         GYtSE4GEqC8sn9A5W+TE7aEtYvKY9LRT1zovWuQGIt3VhU0aTr8JuyXVkd6adB3ZaT4b
+         ndoT7JIIjzUTBrqgDgDeR2ZukYYe2ZLQTfcxQ7SPLHdgXOkj+9VfuR7NDXxv4nQg3v8o
+         WdAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=oL8TTwWf1lScK+P2aI8yHUzecgCr0tD4qW+nChTl00s=;
-        b=j63RYQRuTL4Tf6CA55RcchP5Ux7glRyEJxJ88eFIxzjW7YyIuWwD3fht4jlD2ghe3z
-         Lld28X9DXCOVkEdDRmGWqTYLEwhw4O+SI4VW2OO1vgZMu4EC2m0+T0h4n1tqprZwsUZE
-         nGg8A0nu7n10oo78bnYMg5KcVJGGlgiPoun5iQOH/TSb2FCBYqRjpfT47cP9aubunV4O
-         RqjQjkDtObP6R3xNa6ASWo7YOrOHoxQLJXGtfCP2whPCc9on64LS+oEddGtCIt5/kPu5
-         w5cZw56i1eTBtnBSYIfKUSYkqAmLOIufGNO1/UT8LIkSRtMQ7k1ayUXJ+r4H+odrvWrx
-         b+7A==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=O7AawR3O9LUFS8kj7n0V35j45u1KfiRyWzvO/3OxrAE=;
+        b=a1PPupmTxPpefLYv8nUmjr6aX8JRrfZT/pFkPTOtS0t1pLe8gQtAy1w/bEcRgznpo4
+         bGN1LsC8UMPwY+3bAlO7ez5w7P4r67odtDztBIuzrmypAfW/fz2J3cSG1D+7bdIGhRT5
+         Ap0LqltrEw+GD2ObSmykcmdGy7GN7F1M552yJCFMwUZ/3XYT+MGbP+xXF9LvgGjzfq8/
+         lGoNPKQoPiu56BM8jS6ZGiIvsUBSGSPQw5FxvUG3DfYTwP9fdq8ZuMWnpiguCz2j5IgI
+         NEpNdU/lX9oyvP4zi7cHW8bq3yQCSztvkW74NVIOcvjGeHnATzWZdBO7OjgQVcFjPYfu
+         A6+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=op8cY6PD;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id r10si15225885ioh.31.2019.04.26.05.36.23
+       dkim=pass header.i=@google.com header.s=20161025 header.b=m26A6N93;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w3sor12592103uan.28.2019.04.26.05.39.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Apr 2019 05:36:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Fri, 26 Apr 2019 05:39:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=op8cY6PD;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=oL8TTwWf1lScK+P2aI8yHUzecgCr0tD4qW+nChTl00s=; b=op8cY6PDBfokaJTi0IoRoXdKK
-	wAZ+Ad6aX6IxVamFRPcS1dcY7bMX4xn6KYbwmRYjeSZx1kzjsbYVtjeEKMn5g+I9jRqpc7NsKcl6d
-	ipfvVSItPtEe0044dQwTYDEc6vLU7ATUKEjAawkv8oXsUc4nkHkux0vwu44fc0rbg6exJwzeMUIuI
-	+T60zYaYG8yV90PEW69dsOOyNJTIGvdf1/HpT1FSTkOa89UzHU5BYAtjh3K0ciOahUKydkJ6uNSmR
-	FqBuByl34lt3kovjo4NkyejsIlQJVyp0YBHCDnRz5chrwTtPogDXKqFUmgN1aa99n2k9uVbrXQfF5
-	p6HK9g99Q==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hK05F-0000L5-Q4; Fri, 26 Apr 2019 12:36:05 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 060DA29D23253; Fri, 26 Apr 2019 14:36:04 +0200 (CEST)
-Date: Fri, 26 Apr 2019 14:36:03 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>, linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	will.deacon@arm.com, ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com, deneen.t.dock@intel.com,
-	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: Re: [PATCH v5 00/23] x86: text_poke() fixes and executable lockdowns
-Message-ID: <20190426123603.GD12232@hirez.programming.kicks-ass.net>
-References: <20190426001143.4983-1-namit@vmware.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=m26A6N93;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=O7AawR3O9LUFS8kj7n0V35j45u1KfiRyWzvO/3OxrAE=;
+        b=m26A6N93bZJXT6UlaTWtTMsI53w5OVL8HSRwdT1/cquOlHa70Nuz69k33IlTgtWpoc
+         HMUj8YpAX3lQQ8mb/nXQA5am3IQVjQhjxstTjFfh8iScQEvro47qgn/8MjDcuPHb9jkf
+         6GqXBu2DYardxU8i3XS+9z3AkNDQCCrdNxx0NxX0+Qnxy75R3c9nHUouW1QC7XIW3wmL
+         WEETj+ZHkC+ouC8JHRvDRX582jx8YtJ72o5lkDOZI2RpmQx3ZMgQTSUr5c4rM1AceOAl
+         WN4nluwmMQkSJRukq5vSC3uX7OsMNRSPKCuuWAKOSxcW7FmYWVXz6qeFUjljTnPPcvww
+         Z0sQ==
+X-Google-Smtp-Source: APXvYqzYTr1kpS8dYgBhDfPdqedl7565LwdCIfJCzPIpaGiHrI2c19+u7oNKWzbrOaBScV3cHo/Y8XKYWKFwwcEK1Lo=
+X-Received: by 2002:ab0:d95:: with SMTP id i21mr14349633uak.110.1556282394874;
+ Fri, 26 Apr 2019 05:39:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190426001143.4983-1-namit@vmware.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190418154208.131118-1-glider@google.com> <CAGXu5j+tJJbyoZ=nSpSeiihD=NHwFJ6G9Ku5c21G5nQfEiKPwQ@mail.gmail.com>
+In-Reply-To: <CAGXu5j+tJJbyoZ=nSpSeiihD=NHwFJ6G9Ku5c21G5nQfEiKPwQ@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 26 Apr 2019 14:39:43 +0200
+Message-ID: <CAG_fn=WmTh8hesU0RDpbdYDf0iYSdmAWH1dMkejRg5sBnaCw3g@mail.gmail.com>
+Subject: Re: [PATCH 0/3] RFC: add init_allocations=1 boot option
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 05:11:20PM -0700, Nadav Amit wrote:
-> Yet another version, per PeterZ request, addressing the latest feedback.
-> 
+On Tue, Apr 23, 2019 at 8:49 PM Kees Cook <keescook@chromium.org> wrote:
+>
+> On Thu, Apr 18, 2019 at 8:42 AM Alexander Potapenko <glider@google.com> w=
+rote:
+> >
+> > Following the recent discussions here's another take at initializing
+> > pages and heap objects with zeroes. This is needed to prevent possible
+> > information leaks and make the control-flow bugs that depend on
+> > uninitialized values more deterministic.
+> >
+> > The patchset introduces a new boot option, init_allocations, which
+> > makes page allocator and SL[AOU]B initialize newly allocated memory.
+> > init_allocations=3D0 doesn't (hopefully) add any overhead to the
+> > allocation fast path (no noticeable slowdown on hackbench).
+>
+> I continue to prefer to have a way to both at-allocation
+> initialization _and_ poison-on-free, so let's not redirect this to
+> doing it only at free time.
+There's a problem with poison-on-free.
+By default SLUB stores the freelist pointer (not sure if it's the only
+piece of data) in the memory chunk itself, so newly allocated memory
+is dirty despite it has been zeroed out previously.
+We could probably zero out the bits used by the allocator when
+allocating the memory chunk, but it sounds hacky (yet saves us 8 bytes
+on every allocation)
+A cleaner solution would be to unconditionally relocate the free
+pointer by short-circuiting
+https://elixir.bootlin.com/linux/latest/source/mm/slub.c#L3531
+Surprisingly, this doesn't work, because now the sizes of slub caches
+are a bit off, and create_unique_id() in slub.c returns clashing sysfs
+names.
 
-Well, I would've been OK with just an updated to the one patch, but
-thanks. Let me see if I can get all that to apply :-)
+> We're going to need both hooks when doing
+> Memory Tagging, so let's just get it in place now. The security
+> benefits on tagging, IMO, easily justify a 1-2% performance hit. And
+> likely we'll see this improve with new hardware.
+>
+> > With only the the first of the proposed patches the slowdown numbers ar=
+e:
+> >  - 1.1% (stdev 0.2%) sys time slowdown building Linux kernel
+> >  - 3.1% (stdev 0.3%) sys time slowdown on af_inet_loopback benchmark
+> >  - 9.4% (stdev 0.5%) sys time slowdown on hackbench
+> >
+> > The second patch introduces a GFP flag that allows to disable
+> > initialization for certain allocations. The third page is an example of
+> > applying it to af_unix.c, which helps hackbench greatly.
+> >
+> > Slowdown numbers for the whole patchset are:
+> >  - 1.8% (stdev 0.8%) on kernel build
+> >  - 6.5% (stdev 0.2%) on af_inet_loopback
+>
+> Any idea why thes two went _up_?
+>
+> >  - 0.12% (stdev 0.6%) on hackbench
+>
+> Well that's quite an improvement. :)
+>
+> --
+> Kees Cook
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
