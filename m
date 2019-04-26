@@ -2,177 +2,276 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D125BC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 06:28:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35B26C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:31:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 98EE3206BA
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 06:28:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98EE3206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id C2C3B21744
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:31:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2C3B21744
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 291E26B0005; Fri, 26 Apr 2019 02:28:23 -0400 (EDT)
+	id 0DB046B0005; Fri, 26 Apr 2019 03:31:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 240ED6B0006; Fri, 26 Apr 2019 02:28:23 -0400 (EDT)
+	id 08BD86B0008; Fri, 26 Apr 2019 03:31:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 157796B0007; Fri, 26 Apr 2019 02:28:23 -0400 (EDT)
+	id EE2EA6B000A; Fri, 26 Apr 2019 03:31:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C126B0005
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 02:28:22 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id ba11so1325333plb.21
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 23:28:22 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B66A76B0005
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:31:47 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d12so1664062pfn.9
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=GM/AyfiDdVPnH6Ntvyi8pR1gr2NlYEpRMclicwXOzxo=;
-        b=faWpfXD6r5/+AU6G53xMzXA9WlvPMn2l+BPMXBzS0noZwhubq3WKYuYFcHhpsfeQJs
-         5vy1E4r9nSf+7RmusUl2/qdiLOt9/a7TwKv8OGhD8hDS5ZG/0G9TOtulEoHBoQnVoCdC
-         jKUxIym+/b0pqf6PWdBQeIz53415hCm8JMScCbUgxJDNlCKhU/4IXCc6WZT5vgKP6Bfe
-         LCfMPltd75y85Di0OmIiIZgKvo7cdR9LVVJkAU+9aCyB/dO8HYaH5zpnCX+oHgh83nd4
-         pnfZUciXlNAq/QfTGhxZg4VZ4mT6Lbi9f2CbQFsjEswWd7t6zyhwj6sLeFA1RQzSCJUb
-         9jng==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAXnWsoYqzv5eeByKVVwQ3nXpL5nMeRsedQl40tDR7hiKcXatQ4O
-	SjNq61q4OXop6KhKE4p/YgxdQasfi4HYOgPduebZDQoNhMqMtHmu/jaBmbsVmFEeW9dLrVxLjf9
-	kbdEivAp0xMFjB7IGrTa/xQq4phMASfL/+ZkTcWOtiEXhAiATxTnLbcRcBc/HVoY=
-X-Received: by 2002:a17:902:2907:: with SMTP id g7mr44227291plb.238.1556260102490;
-        Thu, 25 Apr 2019 23:28:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzuf369FOFpOvY15yv5+1nXt2VT94tvra/aMWXY4nC2TOjgrlgHu8cAuIrNPbbr5F/3o8ss
-X-Received: by 2002:a17:902:2907:: with SMTP id g7mr44227230plb.238.1556260101515;
-        Thu, 25 Apr 2019 23:28:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556260101; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version;
+        bh=T5NHMQswvskeKED0v6CftpEeZQL9SAjl2YkW83FLHxE=;
+        b=RuH0tUUvvB9gNGkFaFAhLlCYdqyqnZAPxBgqzWe4J8aD0ZGEavJM8KB7AiS2lSaC/Q
+         xF008ZDSS1BBctRRtx1xTk/4j0tE1MdbBr4vLC58mrdmk/trG+tQhA4hDzJm14x7ISmT
+         60AsorKwVmGFkpigFmaQUHI+7bVMN4WWVSpdTFH3SduT5yO+K/LSHKqg3yDHc7Izzzkg
+         Zz3BrlTC87uXZ+WYAD5733CvpIz32ME7JT52F33wDbUfB3caqPFJm8xxWMuDHsQrCznk
+         DgaaSi2lRHucxT6bFedrpnshQgVZVExQGFEAI2Hi1b0hj8yC1oOyVFEVN5pQuJvusyQF
+         LKUg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+X-Gm-Message-State: APjAAAXZYL3TR26DXTDBvfJd0vGH50YpBlRj+wpRnV+U2Suw5wsG2RAQ
+	BAj2sgo5RDjvQX0aIsRf15PQqc3MWE9cyyUd7H5ourrL4D51f0n9fOaq9cL9WmpEze+OSP2Fjmy
+	sr39DxjH7fVTH9St1NKyrRlswMwFN09CDFvwUn/4T+IYwwxQqOafl7dw0lz7asVZSmQ==
+X-Received: by 2002:a17:902:8ecc:: with SMTP id x12mr44655209plo.0.1556263907272;
+        Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYaNbW5mb7k3eyXLIyMCr5zRv4DL+mc1yilrMp+fwRimLh/oec6QaFR7wB+0MKhlPBACcT
+X-Received: by 2002:a17:902:8ecc:: with SMTP id x12mr44655128plo.0.1556263906234;
+        Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556263906; cv=none;
         d=google.com; s=arc-20160816;
-        b=bYitpIK1ZJXPfTO54hnD1+s8ml8SSUjotN/ky+9b0HsTsrbpxcSj8y8eny77oWWpXA
-         j+bxSKJnAd1cfCNHqMKovrShcG6UbvV7XDJ8BaqZ1+3RbeXVLu4K4NLQ8JowUAyBKNnK
-         6POVV7vDMErbfcci4S/IRvv9djEU7cHTpmBEaz4GJ9vb41Dy2jbrPbbP5gtE9ZrlM9/S
-         I+JlnKY3APgNxlMf0gZA6Z0N/wpgZq2kdAohnkI1MN1SpUbS6ex0OTLZWC3MGqb8Ps2O
-         wfVMSAp2En0/loD3ypNYNW29LG+LO7Wltr3r59XU9evhoxEnoUh4oqTW9M8UKOsGorhM
-         S2bQ==
+        b=C8/XhZiblIDUF9ddCfhgz/R+zbb/NZhy/tGYt+4ynsvGq/4D8MxkfBxb76XuFf3KG5
+         7n5VuttvpefIhO6RZy3YLsWSpflGnRyDaPM3PibLXA8ZpbZPVkbqQCx5Y09ym3YjAx1K
+         5at3yrhMZW4Exy16LWI5SYav0CcWKZmSY3glzyomaeqYS7N/VJrZlpTrzNFQkv1PjFYW
+         6iq2JIZNERHskmLA6rwUFLV1N9YqY3rV9eXOjm+B5+pLbHCN7vHo038WeA8HNMcUtidi
+         LDnJFRR+nTunWO1fwaq087JD7MMr3egv0dUFw6Qrdm36YvXEjvekh1A4KLWAS+0msJpU
+         ZemQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=GM/AyfiDdVPnH6Ntvyi8pR1gr2NlYEpRMclicwXOzxo=;
-        b=gy3CsqpjoEoDt2FetelYNo0GbB9yTd73O2yY2goFvxK0A9kebxKx7lUHiMGd692yfT
-         aSSh9VvZ9JWMYBvkh7qRoqcSVP48auad6BkE8nc/ota89jR+7xScxNE+4ssQvDq3ZsaJ
-         Em8LhI3HgNCKTGkD8YdL71yW4cVqU/+eKHSLU7vawPMoonuqxtKVko1VH+pB/dT0zRPr
-         WOp7+sTYk+N2pQUWA99CCIfC9v4RS47QfjfBukcNPMpYoGcCjlB585aCTR6devZJZuaB
-         IViCOXPnu7tqZ6JIjGICF5qd6fxL9uL1V/tjJd/iXeXXJYrE0ztXboAaSdwgQbIh8EZY
-         5Pkg==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from;
+        bh=T5NHMQswvskeKED0v6CftpEeZQL9SAjl2YkW83FLHxE=;
+        b=VKm83iuUZ+iZrrlxdt8KvuQnwNiBwut78gqeYErnARYesvdRxyoLNVD7x/REqMNY4u
+         hNZCXfjkhKzVOSEnad5bebkA/ivIeQO8Pj5FZmrlCl3EMdZO1ltAr/RzTLAc//eaLHVa
+         l63JTea+0BJ+Z1ZKelyV/lrqkJ8SWIqGU3TmkPMQuU69eagDPRij5+6EI9slIFW6X+tw
+         Eo3KCkdEc/A7/JPPoQvCNBo+N1gkefRZKGs4+0Mgb6cHA6oa/9ReMZSpQoeINDwQRvTh
+         ovd8/+PjHXk0vC0ugJyFVpcQuGWitADbWLUgeh+RyoYmP76Q8973H+m7n0XPckL6bthM
+         tsag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
-        by mx.google.com with ESMTP id n7si4421985pga.446.2019.04.25.23.28.20
-        for <linux-mm@kvack.org>;
-        Thu, 25 Apr 2019 23:28:21 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
+       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
+        by mx.google.com with ESMTPS id v82si25417769pfa.42.2019.04.26.00.31.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) client-ip=208.91.0.189;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-181-171-240.pa.nsw.optusnet.com.au [49.181.171.240])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 8E06D43C0BA;
-	Fri, 26 Apr 2019 16:28:18 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hJuLJ-0006GU-0F; Fri, 26 Apr 2019 16:28:17 +1000
-Date: Fri, 26 Apr 2019 16:28:16 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC] Direct block mapping through fs for device
-Message-ID: <20190426062816.GG1454@dread.disaster.area>
-References: <20190426013814.GB3350@redhat.com>
+       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
+ EX13-EDG-OU-001.vmware.com (10.113.208.155) with Microsoft SMTP Server id
+ 15.0.1156.6; Fri, 26 Apr 2019 00:31:40 -0700
+Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 631F24129A;
+	Fri, 26 Apr 2019 00:31:45 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
+To: Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
+CC: <linux-kernel@vger.kernel.org>, <x86@kernel.org>, <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, Nadav Amit <nadav.amit@gmail.com>, Dave Hansen
+	<dave.hansen@linux.intel.com>, <linux_dti@icloud.com>,
+	<linux-integrity@vger.kernel.org>, <linux-security-module@vger.kernel.org>,
+	<akpm@linux-foundation.org>, <kernel-hardening@lists.openwall.com>,
+	<linux-mm@kvack.org>, <will.deacon@arm.com>, <ard.biesheuvel@linaro.org>,
+	<kristen@linux.intel.com>, <deneen.t.dock@intel.com>, Rick Edgecombe
+	<rick.p.edgecombe@intel.com>, Nadav Amit <namit@vmware.com>, Kees Cook
+	<keescook@chromium.org>, Dave Hansen <dave.hansen@intel.com>, Masami
+ Hiramatsu <mhiramat@kernel.org>
+Subject: [PATCH v5 01/23] Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+Date: Thu, 25 Apr 2019 17:11:21 -0700
+Message-ID: <20190426001143.4983-2-namit@vmware.com>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190426001143.4983-1-namit@vmware.com>
+References: <20190426001143.4983-1-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190426013814.GB3350@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
-	a=LhzQONXuMOhFZtk4TmSJIw==:117 a=LhzQONXuMOhFZtk4TmSJIw==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=oexKYjalfGEA:10
-	a=7-415B0cAAAA:8 a=VUkQmcHZEWhioDgAkr4A:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+Content-Type: text/plain
+Received-SPF: None (EX13-EDG-OU-001.vmware.com: namit@vmware.com does not
+ designate permitted sender hosts)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 09:38:14PM -0400, Jerome Glisse wrote:
-> I see that they are still empty spot in LSF/MM schedule so i would like to
-> have a discussion on allowing direct block mapping of file for devices (nic,
-> gpu, fpga, ...). This is mm, fs and block discussion, thought the mm side
-> is pretty light ie only adding 2 callback to vm_operations_struct:
+text_mutex is currently expected to be held before text_poke() is
+called, but kgdb does not take the mutex, and instead *supposedly*
+ensures the lock is not taken and will not be acquired by any other core
+while text_poke() is running.
 
-The filesystem already has infrastructure for the bits it needs to
-provide. They are called file layout leases (how many times do I
-have to keep telling people this!), and what you do with the lease
-for the LBA range the filesystem maps for you is then something you
-can negotiate with the underlying block device.
+The reason for the "supposedly" comment is that it is not entirely clear
+that this would be the case if gdb_do_roundup is zero.
 
-i.e. go look at how xfs_pnfs.c works to hand out block mappings to
-remote pNFS clients so they can directly access the underlying
-storage. Basically, anyone wanting to map blocks needs a file layout
-lease and then to manage the filesystem state over that range via
-these methods in the struct export_operations:
+Create two wrapper functions, text_poke() and text_poke_kgdb(), which do
+or do not run the lockdep assertion respectively.
 
-        int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
-        int (*map_blocks)(struct inode *inode, loff_t offset,
-                          u64 len, struct iomap *iomap,
-                          bool write, u32 *device_generation);
-        int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
-                             int nr_iomaps, struct iattr *iattr);
+While we are at it, change the return code of text_poke() to something
+meaningful. One day, callers might actually respect it and the existing
+BUG_ON() when patching fails could be removed. For kgdb, the return
+value can actually be used.
 
-Basically, before you read/write data, you map the blocks. if you've
-written data, then you need to commit the blocks (i.e. tell the fs
-they've been written to).
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Fixes: 9222f606506c ("x86/alternatives: Lockdep-enforce text_mutex in text_poke*()")
+Suggested-by: Peter Zijlstra <peterz@infradead.org>
+Acked-by: Jiri Kosina <jkosina@suse.cz>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+Signed-off-by: Nadav Amit <namit@vmware.com>
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+---
+ arch/x86/include/asm/text-patching.h |  1 +
+ arch/x86/kernel/alternative.c        | 52 ++++++++++++++++++++--------
+ arch/x86/kernel/kgdb.c               | 11 +++---
+ 3 files changed, 45 insertions(+), 19 deletions(-)
 
-The iomap will give you a contiguous LBA range and the block device
-they belong to, and you can then use that to whatever smart DMA stuff
-you need to do through the block device directly.
-
-If the filesystem wants the space back (e.g. because truncate) then
-the lease will be revoked. The client then must finish off it's
-outstanding operations, commit them and release the lease. To access
-the file range again, it must renew the lease and remap the file
-through ->map_blocks....
-
-> So i would like to gather people feedback on general approach and few things
-> like:
->     - Do block device need to be able to invalidate such mapping too ?
-> 
->       It is easy for fs the to invalidate as it can walk file mappings
->       but block device do not know about file.
-
-If you are needing the block device to invalidate filesystem level
-information, then your model is all wrong.
-
->     - Do we want to provide some generic implementation to share accross
->       fs ?
-
-We already have a generic interface, filesystems other than XFS will
-need to implement them.
-
->     - Maybe some share helpers for block devices that could track file
->       corresponding to peer mapping ?
-
-If the application hasn't supplied the peer with the file it needs
-to access, get a lease from and then map an LBA range out of, then
-you are doing it all wrong.
-
-Cheers,
-
-Dave.
+diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
+index e85ff65c43c3..f8fc8e86cf01 100644
+--- a/arch/x86/include/asm/text-patching.h
++++ b/arch/x86/include/asm/text-patching.h
+@@ -35,6 +35,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
+  * inconsistent instruction while you patch.
+  */
+ extern void *text_poke(void *addr, const void *opcode, size_t len);
++extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
+ extern int poke_int3_handler(struct pt_regs *regs);
+ extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+ extern int after_bootmem;
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index 9a79c7808f9c..0a814d73547a 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -679,18 +679,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+ 	return addr;
+ }
+ 
+-/**
+- * text_poke - Update instructions on a live kernel
+- * @addr: address to modify
+- * @opcode: source of the copy
+- * @len: length to copy
+- *
+- * Only atomic text poke/set should be allowed when not doing early patching.
+- * It means the size must be writable atomically and the address must be aligned
+- * in a way that permits an atomic write. It also makes sure we fit on a single
+- * page.
+- */
+-void *text_poke(void *addr, const void *opcode, size_t len)
++static void *__text_poke(void *addr, const void *opcode, size_t len)
+ {
+ 	unsigned long flags;
+ 	char *vaddr;
+@@ -703,8 +692,6 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+ 	 */
+ 	BUG_ON(!after_bootmem);
+ 
+-	lockdep_assert_held(&text_mutex);
+-
+ 	if (!core_kernel_text((unsigned long)addr)) {
+ 		pages[0] = vmalloc_to_page(addr);
+ 		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
+@@ -733,6 +720,43 @@ void *text_poke(void *addr, const void *opcode, size_t len)
+ 	return addr;
+ }
+ 
++/**
++ * text_poke - Update instructions on a live kernel
++ * @addr: address to modify
++ * @opcode: source of the copy
++ * @len: length to copy
++ *
++ * Only atomic text poke/set should be allowed when not doing early patching.
++ * It means the size must be writable atomically and the address must be aligned
++ * in a way that permits an atomic write. It also makes sure we fit on a single
++ * page.
++ */
++void *text_poke(void *addr, const void *opcode, size_t len)
++{
++	lockdep_assert_held(&text_mutex);
++
++	return __text_poke(addr, opcode, len);
++}
++
++/**
++ * text_poke_kgdb - Update instructions on a live kernel by kgdb
++ * @addr: address to modify
++ * @opcode: source of the copy
++ * @len: length to copy
++ *
++ * Only atomic text poke/set should be allowed when not doing early patching.
++ * It means the size must be writable atomically and the address must be aligned
++ * in a way that permits an atomic write. It also makes sure we fit on a single
++ * page.
++ *
++ * Context: should only be used by kgdb, which ensures no other core is running,
++ *	    despite the fact it does not hold the text_mutex.
++ */
++void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
++{
++	return __text_poke(addr, opcode, len);
++}
++
+ static void do_sync_core(void *info)
+ {
+ 	sync_core();
+diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
+index 4ff6b4cdb941..2b203ee5b879 100644
+--- a/arch/x86/kernel/kgdb.c
++++ b/arch/x86/kernel/kgdb.c
+@@ -759,13 +759,13 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+ 	if (!err)
+ 		return err;
+ 	/*
+-	 * It is safe to call text_poke() because normal kernel execution
++	 * It is safe to call text_poke_kgdb() because normal kernel execution
+ 	 * is stopped on all cores, so long as the text_mutex is not locked.
+ 	 */
+ 	if (mutex_is_locked(&text_mutex))
+ 		return -EBUSY;
+-	text_poke((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
+-		  BREAK_INSTR_SIZE);
++	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
++		       BREAK_INSTR_SIZE);
+ 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+ 	if (err)
+ 		return err;
+@@ -784,12 +784,13 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
+ 	if (bpt->type != BP_POKE_BREAKPOINT)
+ 		goto knl_write;
+ 	/*
+-	 * It is safe to call text_poke() because normal kernel execution
++	 * It is safe to call text_poke_kgdb() because normal kernel execution
+ 	 * is stopped on all cores, so long as the text_mutex is not locked.
+ 	 */
+ 	if (mutex_is_locked(&text_mutex))
+ 		goto knl_write;
+-	text_poke((void *)bpt->bpt_addr, bpt->saved_instr, BREAK_INSTR_SIZE);
++	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
++		       BREAK_INSTR_SIZE);
+ 	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
+ 	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
+ 		goto knl_write;
 -- 
-Dave Chinner
-david@fromorbit.com
+2.17.1
 
