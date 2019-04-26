@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67123C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:55:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3AD5C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:56:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35E9A206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:55:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35E9A206C1
+	by mail.kernel.org (Postfix) with ESMTP id 5AED3206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 04:56:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AED3206C1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC0726B028A; Fri, 26 Apr 2019 00:55:49 -0400 (EDT)
+	id EE3156B028C; Fri, 26 Apr 2019 00:56:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C70D46B028C; Fri, 26 Apr 2019 00:55:49 -0400 (EDT)
+	id E95B06B028E; Fri, 26 Apr 2019 00:56:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B87406B028D; Fri, 26 Apr 2019 00:55:49 -0400 (EDT)
+	id D832B6B028F; Fri, 26 Apr 2019 00:56:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 965316B028A
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:55:49 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id g28so1569502qtk.7
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:55:49 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B91596B028C
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:56:00 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id t67so1831821qkd.15
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:56:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=q9EArJHlwfMAuKhsKXQeuL6ijYZfZ9vQpvzHYfctpTk=;
-        b=jwzCw290gwN1pcHAGG7z2IcSkhFUpgD6mKE1HUbwIwijERtBgy/ES30imtmidEDHmE
-         dqKRljM1ugGkerGcBn/UmxsK+RkQxMpNMNtnwgyGOJfmW+/SLRaM3xrMgoPLPwTExSx8
-         3FGLvUghBvaik0aThqse9lb31UGa/bNP8fJgC6M12RXUheRf81s+jTeqGNGUvaqDkki1
-         CEqcOxUL565OKqNGaO1pbt6O7eEWJASlyHTx3F1oXS8B5gdY2aYdjZyCUEXwPst70tSe
-         nkrP7rl063cHc0FTzyCzSStINtz9aaiFF7nyShJ9MfdJINon63Bdy/R+ZIXegNnCuLUZ
-         ZVSg==
+        bh=YoZxjejxwXU5vKpbAmaSLSE1AnavbqmoKueYd5KBa1k=;
+        b=Q1bTMCmFJ4dg9s2nTQijDurx9XU+6FwxAPgoN3CzYK8n4B5pF7vSclvW/vVmPLGBXX
+         SSB7Cuw+TQfT+9uz76a4nN/s9VtnNpFE6kCHceEq3qBgT2wYks1LEyVlxB6PKYglDJTR
+         Fh6kT8l3wFP+itmF1LC8zFDP56xrAZO37BQGLH0Zxxljf3vX+StvQ+Roo77Y926R/maC
+         pe9MYOfUSsL8szsm7WGjhbp2C3labfIRxu28+4NhlQrtVQqgEZ3VZeABCYWqPGnxTMdK
+         a0cofe+RFMvaq6ksr1LQCdDrgtBTPYr7WT2rU1UIA/gyWFDahxyMo84hM8a7aS2ueNHV
+         DCbg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX5cFjozfCiU/397FDODzI3PLCgrmvyFvJ8EpMQTzs9ez0n63Tq
-	FmaT/1gW+3+CKQ6vPciNIPCw5DSkbVbELQKtuQ1HLGWsGAjdIPI3Z1sfg0sPwK/+/JH/zvIM1Mh
-	M+MVDnsElCXtiL+v/QTCPl3vPLroJ9+r7FdoPS65hFJCvOAIjbdcqUX2uq3Wz6qYR8w==
-X-Received: by 2002:ac8:2649:: with SMTP id v9mr34918097qtv.275.1556254549407;
-        Thu, 25 Apr 2019 21:55:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuxMweeYAtd2b/wojLKZB0tsm2eTUZeZQw1EQoRkgjbl57ygBvh5MgqpsSPqOc1g4zkx/k
-X-Received: by 2002:ac8:2649:: with SMTP id v9mr34918068qtv.275.1556254548625;
-        Thu, 25 Apr 2019 21:55:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556254548; cv=none;
+X-Gm-Message-State: APjAAAVWUucHEjvQwulML2VG8DljVl0UmGjLkHvxKBFezcs+p/4BtW7C
+	KVuU9JOtjbzcvrRj/2mhTcgRF38ej2gbvgPyHkGn71IiPq+tt7nVbUzNT429zovqIDgC07ce/1Z
+	BR3TseubG90iaJCVDhVRSOvLPqSmGgcxPXkVr/PkEOcEU7buF0Qe5tEEECaYUAINQwQ==
+X-Received: by 2002:ae9:df41:: with SMTP id t62mr14065765qkf.150.1556254560523;
+        Thu, 25 Apr 2019 21:56:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxL+Jtu9HzwxJjIzj5kmraM0GOomCw97DMJDcm3DKPqmTt+e3r1s66EDGaQa0neED4sOWE4
+X-Received: by 2002:ae9:df41:: with SMTP id t62mr14065741qkf.150.1556254559749;
+        Thu, 25 Apr 2019 21:55:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556254559; cv=none;
         d=google.com; s=arc-20160816;
-        b=iz48OPV6Hu7cGUs1tl+AtxF+v96j7rkPgrVUMHyH4MuR5wgowSq+KhxXmpTz3nTRO6
-         RmM1EUInsSxWUYxlafISgoWCzdDT331NmAU+AKGZlmqPiHc9i0z+L5K4FgDI3vMv5xkZ
-         skNanK09ufgixKxBSQZ6sHVPlkxTT4XilqbNM87CM0m6O+kynuF9mKCT5gA6tkaFfJWf
-         T592H68+BXhOZlYOu1qyMFT1Sz7/aLcMpcCJFvVlb1k6YlfLdoR3slqnsgfXLeJZRvqR
-         BuHB4Jyis87dvBGCvZGmR1OCCHsrBAXOj86Ev2E8xOdIbvNIOLlvDvFLSaep3uKjbBvd
-         y7cg==
+        b=qaPKti3DSDAqEWgio0cIbGR+ZoHkf2NdEKr6FbDtuf8ieBRby8MMOOV9Lcdju8llUt
+         HkD3qr7CFefHx4QOxlnGYwu4JHUEz3K/zke8AGmZNs/L5ZXmP2t0yffdQvkTbM70k7uv
+         z9Vja8AXqRhhHzV2TEGUg+k4d8LzFAPRllvbSwXSEP4T27vS/GXVM0NtNB3GkyVQxDQV
+         7O/9kYSSQCAGJGrw1Rq3N3Np1mWDRrHTfKHrgkG36QkYckTUle7qu57ZdhsH0K6OV9WO
+         sO6xHmS2hgXU2nlG+PFC4ng/kobEQkYYRirEKYpNIofqx+joBP6LIUsCDM7MnaAE8g3l
+         KfTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=q9EArJHlwfMAuKhsKXQeuL6ijYZfZ9vQpvzHYfctpTk=;
-        b=CDWmb6wzXCU0JfbsQKOuZjOk0fiYBzkk1N+w4Rc5CLU4FVK5onaJPDbndKuz+qCI5u
-         e617C7a+OgNTwr149pZ2K0WjkfUgIbBtAPhuQ1Nn0msgCQUWdByn2s6WpJjO7qkYB0Bg
-         Yyvfz7l4cGRE5MBaxBywWtcTWOZYTZ2UjkCrP6f2HUvEBP5n8GjFlezCcFmblLH9GEWh
-         SibaDaXJJD/HL5KAsimxmm2rYXxNcZSeZUfRsHTV0/AKbV9BQ8rusEgMzUV9niC23AFR
-         qP5bM9vLRWVItyFEatWyHphGwfEpxpR6Idv+gZJHu9s2T1/StmJjIQh+bwpW6T96irR1
-         dtFA==
+        bh=YoZxjejxwXU5vKpbAmaSLSE1AnavbqmoKueYd5KBa1k=;
+        b=0FylnBpVPdKaGUBr0xsQbOAIbQPImF7nBwEpFEn5tj+WHSCahOxqEIagnvTuHKGyhO
+         W/X5WOEnFNInt1EIq8pEsM/ap617iibOXQ7713P3M9L1l5yKXSYmDAy7nn0JujNYSmaq
+         920j6AjX8eyVgNmczlMPuNm61N4ih9HIj38Y6a2Dskukv0ZvEXWL8TsQv9YuqH5u1JW0
+         aNkYkpzk4rp3hcOW6rozw/imbHM86DC6fQZ/FTmElw2Out/o5LDzznyfNssmLbDAxD5v
+         uEToBk8floHa+vfdFnBgFPJMRZab3q7MJHGF9MGPyoEGfd7nYvaCbgK1jDceJi1wY2s+
+         Ypmw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v33si3681742qvf.120.2019.04.25.21.55.48
+        by mx.google.com with ESMTPS id k11si6970316qtk.81.2019.04.25.21.55.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 21:55:48 -0700 (PDT)
+        Thu, 25 Apr 2019 21:55:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BF56A11DBA7;
-	Fri, 26 Apr 2019 04:55:47 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id D1E2681227;
+	Fri, 26 Apr 2019 04:55:58 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-15-205.nay.redhat.com [10.66.15.205])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 3088818500;
-	Fri, 26 Apr 2019 04:55:41 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 4501518500;
+	Fri, 26 Apr 2019 04:55:48 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -104,63 +104,280 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v4 25/27] userfaultfd: wp: declare _UFFDIO_WRITEPROTECT conditionally
-Date: Fri, 26 Apr 2019 12:51:49 +0800
-Message-Id: <20190426045151.19556-26-peterx@redhat.com>
+Subject: [PATCH v4 26/27] userfaultfd: selftests: refactor statistics
+Date: Fri, 26 Apr 2019 12:51:50 +0800
+Message-Id: <20190426045151.19556-27-peterx@redhat.com>
 In-Reply-To: <20190426045151.19556-1-peterx@redhat.com>
 References: <20190426045151.19556-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 26 Apr 2019 04:55:47 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 26 Apr 2019 04:55:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Only declare _UFFDIO_WRITEPROTECT if the user specified
-UFFDIO_REGISTER_MODE_WP and if all the checks passed.  Then when the
-user registers regions with shmem/hugetlbfs we won't expose the new
-ioctl to them.  Even with complete anonymous memory range, we'll only
-expose the new WP ioctl bit if the register mode has MODE_WP.
+Introduce uffd_stats structure for statistics of the self test, at the
+same time refactor the code to always pass in the uffd_stats for either
+read() or poll() typed fault handling threads instead of using two
+different ways to return the statistic results.  No functional change.
+
+With the new structure, it's very easy to introduce new statistics.
 
 Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- fs/userfaultfd.c | 16 +++++++++++++---
- 1 file changed, 13 insertions(+), 3 deletions(-)
+ tools/testing/selftests/vm/userfaultfd.c | 76 +++++++++++++++---------
+ 1 file changed, 49 insertions(+), 27 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index f1f61a0278c2..7f87e9e4fb9b 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -1456,14 +1456,24 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 	up_write(&mm->mmap_sem);
- 	mmput(mm);
- 	if (!ret) {
-+		__u64 ioctls_out;
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index 5d1db824f73a..e5d12c209e09 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -88,6 +88,12 @@ static char *area_src, *area_src_alias, *area_dst, *area_dst_alias;
+ static char *zeropage;
+ pthread_attr_t attr;
+ 
++/* Userfaultfd test statistics */
++struct uffd_stats {
++	int cpu;
++	unsigned long missing_faults;
++};
 +
-+		ioctls_out = basic_ioctls ? UFFD_API_RANGE_IOCTLS_BASIC :
-+		    UFFD_API_RANGE_IOCTLS;
+ /* pthread_mutex_t starts at page offset 0 */
+ #define area_mutex(___area, ___nr)					\
+ 	((pthread_mutex_t *) ((___area) + (___nr)*page_size))
+@@ -127,6 +133,17 @@ static void usage(void)
+ 	exit(1);
+ }
+ 
++static void uffd_stats_reset(struct uffd_stats *uffd_stats,
++			     unsigned long n_cpus)
++{
++	int i;
 +
-+		/*
-+		 * Declare the WP ioctl only if the WP mode is
-+		 * specified and all checks passed with the range
-+		 */
-+		if (!(uffdio_register.mode & UFFDIO_REGISTER_MODE_WP))
-+			ioctls_out &= ~((__u64)1 << _UFFDIO_WRITEPROTECT);
++	for (i = 0; i < n_cpus; i++) {
++		uffd_stats[i].cpu = i;
++		uffd_stats[i].missing_faults = 0;
++	}
++}
 +
- 		/*
- 		 * Now that we scanned all vmas we can already tell
- 		 * userland which ioctls methods are guaranteed to
- 		 * succeed on this range.
- 		 */
--		if (put_user(basic_ioctls ? UFFD_API_RANGE_IOCTLS_BASIC :
--			     UFFD_API_RANGE_IOCTLS,
--			     &user_uffdio_register->ioctls))
-+		if (put_user(ioctls_out, &user_uffdio_register->ioctls))
- 			ret = -EFAULT;
+ static int anon_release_pages(char *rel_area)
+ {
+ 	int ret = 0;
+@@ -469,8 +486,8 @@ static int uffd_read_msg(int ufd, struct uffd_msg *msg)
+ 	return 0;
+ }
+ 
+-/* Return 1 if page fault handled by us; otherwise 0 */
+-static int uffd_handle_page_fault(struct uffd_msg *msg)
++static void uffd_handle_page_fault(struct uffd_msg *msg,
++				   struct uffd_stats *stats)
+ {
+ 	unsigned long offset;
+ 
+@@ -485,18 +502,19 @@ static int uffd_handle_page_fault(struct uffd_msg *msg)
+ 	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
+ 	offset &= ~(page_size-1);
+ 
+-	return copy_page(uffd, offset);
++	if (copy_page(uffd, offset))
++		stats->missing_faults++;
+ }
+ 
+ static void *uffd_poll_thread(void *arg)
+ {
+-	unsigned long cpu = (unsigned long) arg;
++	struct uffd_stats *stats = (struct uffd_stats *)arg;
++	unsigned long cpu = stats->cpu;
+ 	struct pollfd pollfd[2];
+ 	struct uffd_msg msg;
+ 	struct uffdio_register uffd_reg;
+ 	int ret;
+ 	char tmp_chr;
+-	unsigned long userfaults = 0;
+ 
+ 	pollfd[0].fd = uffd;
+ 	pollfd[0].events = POLLIN;
+@@ -526,7 +544,7 @@ static void *uffd_poll_thread(void *arg)
+ 				msg.event), exit(1);
+ 			break;
+ 		case UFFD_EVENT_PAGEFAULT:
+-			userfaults += uffd_handle_page_fault(&msg);
++			uffd_handle_page_fault(&msg, stats);
+ 			break;
+ 		case UFFD_EVENT_FORK:
+ 			close(uffd);
+@@ -545,28 +563,27 @@ static void *uffd_poll_thread(void *arg)
+ 			break;
+ 		}
  	}
- out:
+-	return (void *)userfaults;
++
++	return NULL;
+ }
+ 
+ pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+ static void *uffd_read_thread(void *arg)
+ {
+-	unsigned long *this_cpu_userfaults;
++	struct uffd_stats *stats = (struct uffd_stats *)arg;
+ 	struct uffd_msg msg;
+ 
+-	this_cpu_userfaults = (unsigned long *) arg;
+-	*this_cpu_userfaults = 0;
+-
+ 	pthread_mutex_unlock(&uffd_read_mutex);
+ 	/* from here cancellation is ok */
+ 
+ 	for (;;) {
+ 		if (uffd_read_msg(uffd, &msg))
+ 			continue;
+-		(*this_cpu_userfaults) += uffd_handle_page_fault(&msg);
++		uffd_handle_page_fault(&msg, stats);
+ 	}
+-	return (void *)NULL;
++
++	return NULL;
+ }
+ 
+ static void *background_thread(void *arg)
+@@ -582,13 +599,12 @@ static void *background_thread(void *arg)
+ 	return NULL;
+ }
+ 
+-static int stress(unsigned long *userfaults)
++static int stress(struct uffd_stats *uffd_stats)
+ {
+ 	unsigned long cpu;
+ 	pthread_t locking_threads[nr_cpus];
+ 	pthread_t uffd_threads[nr_cpus];
+ 	pthread_t background_threads[nr_cpus];
+-	void **_userfaults = (void **) userfaults;
+ 
+ 	finished = 0;
+ 	for (cpu = 0; cpu < nr_cpus; cpu++) {
+@@ -597,12 +613,13 @@ static int stress(unsigned long *userfaults)
+ 			return 1;
+ 		if (bounces & BOUNCE_POLL) {
+ 			if (pthread_create(&uffd_threads[cpu], &attr,
+-					   uffd_poll_thread, (void *)cpu))
++					   uffd_poll_thread,
++					   (void *)&uffd_stats[cpu]))
+ 				return 1;
+ 		} else {
+ 			if (pthread_create(&uffd_threads[cpu], &attr,
+ 					   uffd_read_thread,
+-					   &_userfaults[cpu]))
++					   (void *)&uffd_stats[cpu]))
+ 				return 1;
+ 			pthread_mutex_lock(&uffd_read_mutex);
+ 		}
+@@ -639,7 +656,8 @@ static int stress(unsigned long *userfaults)
+ 				fprintf(stderr, "pipefd write error\n");
+ 				return 1;
+ 			}
+-			if (pthread_join(uffd_threads[cpu], &_userfaults[cpu]))
++			if (pthread_join(uffd_threads[cpu],
++					 (void *)&uffd_stats[cpu]))
+ 				return 1;
+ 		} else {
+ 			if (pthread_cancel(uffd_threads[cpu]))
+@@ -910,11 +928,11 @@ static int userfaultfd_events_test(void)
+ {
+ 	struct uffdio_register uffdio_register;
+ 	unsigned long expected_ioctls;
+-	unsigned long userfaults;
+ 	pthread_t uffd_mon;
+ 	int err, features;
+ 	pid_t pid;
+ 	char c;
++	struct uffd_stats stats = { 0 };
+ 
+ 	printf("testing events (fork, remap, remove): ");
+ 	fflush(stdout);
+@@ -941,7 +959,7 @@ static int userfaultfd_events_test(void)
+ 			"unexpected missing ioctl for anon memory\n"),
+ 			exit(1);
+ 
+-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
++	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+ 		perror("uffd_poll_thread create"), exit(1);
+ 
+ 	pid = fork();
+@@ -957,13 +975,13 @@ static int userfaultfd_events_test(void)
+ 
+ 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+ 		perror("pipe write"), exit(1);
+-	if (pthread_join(uffd_mon, (void **)&userfaults))
++	if (pthread_join(uffd_mon, NULL))
+ 		return 1;
+ 
+ 	close(uffd);
+-	printf("userfaults: %ld\n", userfaults);
++	printf("userfaults: %ld\n", stats.missing_faults);
+ 
+-	return userfaults != nr_pages;
++	return stats.missing_faults != nr_pages;
+ }
+ 
+ static int userfaultfd_sig_test(void)
+@@ -975,6 +993,7 @@ static int userfaultfd_sig_test(void)
+ 	int err, features;
+ 	pid_t pid;
+ 	char c;
++	struct uffd_stats stats = { 0 };
+ 
+ 	printf("testing signal delivery: ");
+ 	fflush(stdout);
+@@ -1006,7 +1025,7 @@ static int userfaultfd_sig_test(void)
+ 	if (uffd_test_ops->release_pages(area_dst))
+ 		return 1;
+ 
+-	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
++	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+ 		perror("uffd_poll_thread create"), exit(1);
+ 
+ 	pid = fork();
+@@ -1032,6 +1051,7 @@ static int userfaultfd_sig_test(void)
+ 	close(uffd);
+ 	return userfaults != 0;
+ }
++
+ static int userfaultfd_stress(void)
+ {
+ 	void *area;
+@@ -1040,7 +1060,7 @@ static int userfaultfd_stress(void)
+ 	struct uffdio_register uffdio_register;
+ 	unsigned long cpu;
+ 	int err;
+-	unsigned long userfaults[nr_cpus];
++	struct uffd_stats uffd_stats[nr_cpus];
+ 
+ 	uffd_test_ops->allocate_area((void **)&area_src);
+ 	if (!area_src)
+@@ -1169,8 +1189,10 @@ static int userfaultfd_stress(void)
+ 		if (uffd_test_ops->release_pages(area_dst))
+ 			return 1;
+ 
++		uffd_stats_reset(uffd_stats, nr_cpus);
++
+ 		/* bounce pass */
+-		if (stress(userfaults))
++		if (stress(uffd_stats))
+ 			return 1;
+ 
+ 		/* unregister */
+@@ -1213,7 +1235,7 @@ static int userfaultfd_stress(void)
+ 
+ 		printf("userfaults:");
+ 		for (cpu = 0; cpu < nr_cpus; cpu++)
+-			printf(" %lu", userfaults[cpu]);
++			printf(" %lu", uffd_stats[cpu].missing_faults);
+ 		printf("\n");
+ 	}
+ 
 -- 
 2.17.1
 
