@@ -8,96 +8,96 @@ X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AFD7DC4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C047EC43218
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66701208CB
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 741AC208CB
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="vdYahecr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66701208CB
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XKJ4fAeB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 741AC208CB
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE1B06B000A; Sat, 27 Apr 2019 02:43:10 -0400 (EDT)
+	id 703FB6B000C; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D6BFD6B000C; Sat, 27 Apr 2019 02:43:10 -0400 (EDT)
+	id 63AB96B000D; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBAEB6B000D; Sat, 27 Apr 2019 02:43:10 -0400 (EDT)
+	id 4DE5A6B000E; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 80AAE6B000A
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:10 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d1so3471562pgk.21
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 130EB6B000C
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:12 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id m9so3485820pge.7
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=wqvLZPneRcLgxY6Wjfk6EEQBPauaGcOxn9fq0yjJ9xE=;
-        b=iZd05zzNwB0Qflq7/jXw8BqypFhR2t19rGxqnoEAffhHcUlGvIIVf7PizbiQNfvitY
-         RSHoPYmVdjRWh61T39cAOtdSOY9kMgu6L2zln4pvAEWF41JFMThTNAfHA3HuuE+zYy2t
-         2Sn8DygHF7K2moorh2gtsECY7IdpA0gfow0fNNt9JrqGOUXDzc+jkWIRypHkrahEjdYL
-         vyV83mumOvK5PwFZjfEuAGTQ7SY8SqZeW/0gWS1iIqmJfOdEs9RKC8yPwj58MXM0IAjt
-         HzEDFOB8R1LExdHjZvi5LqdWg7TzDFwAvVsYkdQEjkSKq+dkxiJw3TaHoDHZOKTl6Qb+
-         y8qA==
-X-Gm-Message-State: APjAAAWSe1kYUAuyTWU7AIlyNWegohj9FXegFmlbncE70GCfho3WRtFN
-	toKS9ia0bSUN3kZEcBeh+8CAbJeTai7Wtbux9mrxTLoL6nb0P0u0JrRtGdsCigxG86elM4q/kLC
-	wtTw5dFuSi5K34lXkLpgVnYafXPdcpd5izcYLDQFpn3Dq+AR6cLi+8pVA5M77RyhKRw==
-X-Received: by 2002:a63:e850:: with SMTP id a16mr48266792pgk.195.1556347390210;
+        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
+        b=TSNETXkcIL5LN33ffyTWb2kuml3Xwsq6BVz1JxEDnv39mk2UXrfLp8WI1VgRLrPXe8
+         hcHy+I/Vrk/JrcL8roCx0VmBYao+dchnGXaLWiysyJ+x+p4p+JWqccp3FHoO6vyAjDy4
+         MAfHwQTsVcOLpblYjTZscxfkGktAsTMUgtHc3x13ZXPBtbFgMpLJr+nO6w/+Tkbt2nFQ
+         iF+WBh7tEnOO+KShlqZ/FGdO6pWqbR6krijQP+hT2y5kM3Uj087FxxQGtV40hx3Ai/NC
+         ix9OT/j7pbM0BBn0KJCY3U1EuOhv+4+DQ8S419roeqFjA/Dmz6D/ip5DxbDSmC7LRPmg
+         nYXQ==
+X-Gm-Message-State: APjAAAWQI9yRPgg2tMSQag3/Z8Y2Oi9XrBhjpoTzqNtEyUyM5Egcz5zz
+	u0R55tmqKXN/0hvL+vad0sKmZlKhD9BwMwsS714pSBBvsdQj25t1WMBRjWDq9VvwqNkKrvLt/aK
+	SRYobXgRclGEmiMy2vSjweA/E8eHQirazgv8DJS0Vao64i2zAuJkkc0t4kBDvtwN77w==
+X-Received: by 2002:a17:902:778b:: with SMTP id o11mr27413285pll.333.1556347391745;
+        Fri, 26 Apr 2019 23:43:11 -0700 (PDT)
+X-Received: by 2002:a17:902:778b:: with SMTP id o11mr27413245pll.333.1556347390559;
         Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
-X-Received: by 2002:a63:e850:: with SMTP id a16mr48266736pgk.195.1556347388908;
-        Fri, 26 Apr 2019 23:43:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347388; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347390; cv=none;
         d=google.com; s=arc-20160816;
-        b=lBNV+3IljuuybbAh36WqvAwoLhFjTattTmXJ6zaMvqLdvWTMnQH+SefTYrCWqPfqb8
-         JpeEpkMYHvTjYAcB1pCpc1JHLdFdp4Pco0Hk1xVOyE6BHmWMYo4rrtz7yfUoHzIQv7Hp
-         3qtTga4J357Hs/6rcQ5yd9t4qnj7bZ4UTK34UP4cGIKD7qZMzTgqXwOpS3q+i3mcunku
-         17yIRC4NnGJyhpuD+ENKAMlpVNJCWuB4ZOcrxeC8NFPkGAAC27W+G4OXspiKFzcdAmwY
-         Wnj+fqyzLoC6Jz7ME6C6KPhNG7vYGsOYQ0OCMj4iCU+cIAhWICIUb218fheDphMwRT9e
-         dwog==
+        b=c1iSuTMqRJdyenF6UV4EavVoZQZ9orKGTVW1MFAPX38VkLNmG7CyE5Ngb0wxfCKDEG
+         mSqKSdr1NZcP0Y1t5vxdUIs5oUfwIwrVnELg9B9cNP8GiDFWcDbXYC4/RFQdd0jIl1kd
+         qJ/ucBqbxZp4pZR8Ou2ls8ypkekepGRUj/xSn2vuZhgySGG1yKOim9WEMYQNFx/so3Zm
+         QxMUJnnoRfes+9ObrSs5O6CBATfJhuu6ir5x37iuEIaXHCuJ7+dnTXm4vO4kx0emZEnb
+         yFVmxft/vO0iyHAPIwYj5lL6+nlqhuNVfV+EbOwwcD+OwvHKKLCk14NxB0U7mLA3aEdt
+         PPqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=wqvLZPneRcLgxY6Wjfk6EEQBPauaGcOxn9fq0yjJ9xE=;
-        b=BcdyXQ50p8M5+U2zfIVgP09UPFapVK2UXa9+OrjUKBMmhDENuTYnt44qmrLeEjl7I6
-         xm2bl/YDRfQBM0Rax3rkoRFnLpLhGdQmVwkj29zG5S1Dmp1C02eR6qNIKjxe2EWgiuG9
-         GNQS6hK9y25XlfQ6ReoX+Ujclpa1Sq2iattiIy5mPw1AKhHEidi8zbPjGp3cZnwxDban
-         GTctkUnEXBVE3sSzQNtKCKMjFteMNAFeV7FpmgFqeWTMYmTrTteRYGUot7cHphUwerY7
-         v43lyWkt6D/CuAZEJEvjI5zySKn6o7Vq/wC3xFfsCdDMeBHEdeQekG1bCNm4KNAeKgBd
-         XuHQ==
+        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
+        b=Buv84Mfe0upw8tJNe3rVLCaKbMvamHxgGDnnsgSISga6Vyzn0noHBjhvXmm7PHjOyb
+         MuPTxQHNX330qo0ydPA3JR0IHlFgqxMa4S/pB2HkfaqUEhNkkuT3GklUMg7lVeNk8QZu
+         KEdZcEFnbMDtu5iNIEt9EPsTR4KV6AVWryLkmbXnf8Ye09fdRZa23ymUJhL0S0XPfeYu
+         lsRqhv8JmSgwEAyqrzDCbaBxEgbStfcYh8QCFJsK/7gO9Kw9kbPYtByyNrWdFhXOkVY0
+         tLXlPSfISVvxzLyz2qi6Rr0E2t9Phqb6XKbLd7PBlUHuQ2+8jvzpeFjo0IdUEz0Rhqb6
+         gOiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vdYahecr;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKJ4fAeB;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z18sor27018249plo.58.2019.04.26.23.43.08
+        by mx.google.com with SMTPS id s6sor18562958plq.62.2019.04.26.23.43.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:08 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vdYahecr;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKJ4fAeB;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=wqvLZPneRcLgxY6Wjfk6EEQBPauaGcOxn9fq0yjJ9xE=;
-        b=vdYahecrwl2Sp5UawSR3og0bnv/oKfDwV/Dqodp6SG75rtt3oI1BxkHqScjMRc/B0U
-         ndpm0CSM99X5DI5nXyZ0qilWlZ5y+YmffvE0rzTsPOh9Lg0wVC5gzIbXO3T2rI/43jKw
-         dSv/fQEMrgklgF9DfRp0UTkxOOmbTA2q76DVrniyNWh8V594RE3EBRYYfPR9C72DIbVe
-         QvUfF6WjCix52aEKKarcvG6J8JGMJ6kiAHPNxAecwgyTiM6P6ST8UlxjffLYXWC/UN5g
-         Hhv9thRtl94b6Emad3qIhmqwC571N8N4kkx/zbp3oEc24WAmffQk4ZXiiSSJrBGsI7VY
-         gu0w==
-X-Google-Smtp-Source: APXvYqyiprnnWU4rXtsHhhC4I5UqVMx78ccNfm1X35wazpAaZSJma1EHcKW1CFUxAhCYo5lEBNcLEA==
-X-Received: by 2002:a17:902:aa83:: with SMTP id d3mr8074837plr.108.1556347388411;
-        Fri, 26 Apr 2019 23:43:08 -0700 (PDT)
+        bh=gMfxobg7i1AP5PQ14JM+oGjrmklNXXx9IUFM/PW54zo=;
+        b=XKJ4fAeBY8aGdbJDn84dW83HzgSvQACPuhXWJHvF1CWt6rAKSo0+tUCXqeDEYn8KGx
+         u3zXII+RSuYhdLmlbo5/0feDTgEEs6/tOmzti0w5Pevv/8Nua7dmelg2Hg1YTOM0HPNp
+         IuB1XxBtPV5C1LDrt4HWOamCYTjBpu9Uc9bqXu6wh2x58Sr/Usj1f74P/vpY9jMFSCFS
+         THBbi+fo5P15SNYnnZLc+khNDUp7StdyPifYfNcqKpXcU/HGBdU106YbtBqZ2gBNSvKt
+         YTZSQ/QqPm8CwczIhg2BokKOhThemqJ36d1wwJl1ZB93G6rLPD545DygLOMnvs67gNXF
+         w1Rg==
+X-Google-Smtp-Source: APXvYqwk9lLXQyc9bNgKLLm6YtZMcI1PVJ4KR2rM1C+cN3nT9zotDQcbIXGbwEvAmUupbSpfYScE8w==
+X-Received: by 2002:a17:902:a7:: with SMTP id a36mr50206141pla.111.1556347390037;
+        Fri, 26 Apr 2019 23:43:10 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.07
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.08
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:07 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:09 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -120,10 +120,11 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Nadav Amit <namit@vmware.com>
-Subject: [PATCH v6 04/24] x86/mm: Save debug registers when loading a temporary mm
-Date: Fri, 26 Apr 2019 16:22:43 -0700
-Message-Id: <20190426232303.28381-5-nadav.amit@gmail.com>
+	Nadav Amit <namit@vmware.com>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>
+Subject: [PATCH v6 05/24] uprobes: Initialize uprobes earlier
+Date: Fri, 26 Apr 2019 16:22:44 -0700
+Message-Id: <20190426232303.28381-6-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -135,67 +136,88 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Prevent user watchpoints from mistakenly firing while the temporary mm
-is being used. As the addresses of the temporary mm might overlap those
-of the user-process, this is necessary to prevent wrong signals or worse
-things from happening.
+In order to have a separate address space for text poking, we need to
+duplicate init_mm early during start_kernel(). This, however, introduces
+a problem since uprobes functions are called from dup_mmap(), but
+uprobes is still not initialized in this early stage.
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Since uprobes initialization is necassary for fork, and since all the
+dependant initialization has been done when fork is initialized (percpu
+and vmalloc), move uprobes initialization to fork_init(). It does not
+seem uprobes introduces any security problem for the poking_mm.
+
+Crash and burn if uprobes initialization fails, similarly to other early
+initializations. Change the init_probes() name to probes_init() to match
+other early initialization functions name convention.
+
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Reported-by: kernel test robot <lkp@intel.com>
 Signed-off-by: Nadav Amit <namit@vmware.com>
-Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/mmu_context.h | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
+ include/linux/uprobes.h | 5 +++++
+ kernel/events/uprobes.c | 8 +++-----
+ kernel/fork.c           | 1 +
+ 3 files changed, 9 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 24dc3b810970..93dff1963337 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -13,6 +13,7 @@
- #include <asm/tlbflush.h>
- #include <asm/paravirt.h>
- #include <asm/mpx.h>
-+#include <asm/debugreg.h>
+diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+index 103a48a48872..12bf0b68ed92 100644
+--- a/include/linux/uprobes.h
++++ b/include/linux/uprobes.h
+@@ -115,6 +115,7 @@ struct uprobes_state {
+ 	struct xol_area		*xol_area;
+ };
  
- extern atomic64_t last_mm_ctx_id;
++extern void __init uprobes_init(void);
+ extern int set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
+ extern int set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
+ extern bool is_swbp_insn(uprobe_opcode_t *insn);
+@@ -154,6 +155,10 @@ extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
+ struct uprobes_state {
+ };
  
-@@ -380,6 +381,21 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
- 	lockdep_assert_irqs_disabled();
- 	temp_state.mm = this_cpu_read(cpu_tlbstate.loaded_mm);
- 	switch_mm_irqs_off(NULL, mm, current);
++static inline void uprobes_init(void)
++{
++}
 +
-+	/*
-+	 * If breakpoints are enabled, disable them while the temporary mm is
-+	 * used. Userspace might set up watchpoints on addresses that are used
-+	 * in the temporary mm, which would lead to wrong signals being sent or
-+	 * crashes.
-+	 *
-+	 * Note that breakpoints are not disabled selectively, which also causes
-+	 * kernel breakpoints (e.g., perf's) to be disabled. This might be
-+	 * undesirable, but still seems reasonable as the code that runs in the
-+	 * temporary mm should be short.
-+	 */
-+	if (hw_breakpoint_active())
-+		hw_breakpoint_disable();
-+
- 	return temp_state;
- }
+ #define uprobe_get_trap_addr(regs)	instruction_pointer(regs)
  
-@@ -387,6 +403,13 @@ static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
+ static inline int
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index c5cde87329c7..e6a0d6be87e3 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -2294,16 +2294,14 @@ static struct notifier_block uprobe_exception_nb = {
+ 	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
+ };
+ 
+-static int __init init_uprobes(void)
++void __init uprobes_init(void)
  {
- 	lockdep_assert_irqs_disabled();
- 	switch_mm_irqs_off(NULL, prev_state.mm, current);
-+
-+	/*
-+	 * Restore the breakpoints if they were disabled before the temporary mm
-+	 * was loaded.
-+	 */
-+	if (hw_breakpoint_active())
-+		hw_breakpoint_restore();
+ 	int i;
+ 
+ 	for (i = 0; i < UPROBES_HASH_SZ; i++)
+ 		mutex_init(&uprobes_mmap_mutex[i]);
+ 
+-	if (percpu_init_rwsem(&dup_mmap_sem))
+-		return -ENOMEM;
++	BUG_ON(percpu_init_rwsem(&dup_mmap_sem));
+ 
+-	return register_die_notifier(&uprobe_exception_nb);
++	BUG_ON(register_die_notifier(&uprobe_exception_nb));
+ }
+-__initcall(init_uprobes);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 9dcd18aa210b..44fba5e5e916 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -815,6 +815,7 @@ void __init fork_init(void)
+ #endif
+ 
+ 	lockdep_init_task(&init_task);
++	uprobes_init();
  }
  
- #endif /* _ASM_X86_MMU_CONTEXT_H */
+ int __weak arch_dup_task_struct(struct task_struct *dst,
 -- 
 2.17.1
 
