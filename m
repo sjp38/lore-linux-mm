@@ -7,83 +7,83 @@ X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 851A1C4321B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:33:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DF40C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:33:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4549F2089E
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:33:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4549F2089E
+	by mail.kernel.org (Postfix) with ESMTP id E3CFC2084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:33:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3CFC2084F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC7206B0287; Fri, 26 Apr 2019 03:33:23 -0400 (EDT)
+	id 8D2B36B0289; Fri, 26 Apr 2019 03:33:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B14A46B0289; Fri, 26 Apr 2019 03:33:23 -0400 (EDT)
+	id 804DB6B028B; Fri, 26 Apr 2019 03:33:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C7EB6B028A; Fri, 26 Apr 2019 03:33:23 -0400 (EDT)
+	id 5E47C6B028C; Fri, 26 Apr 2019 03:33:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A74F6B0289
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:33:23 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id x9so1464936pln.0
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:33:23 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 101466B028B
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:33:24 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id gn10so1422313plb.23
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:33:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=DXoaQOfmRoLFd3xwEem3ey63J4Sb1Jdcc0n/TAChKh8=;
-        b=YTA96CvEFQPhJEGCIBmYa59yc/G627Az7+q6Ot8zz79HGMRx6d/EkKCobSdHbu0YqD
-         FjHccP2JTmLf4pXszqFLmMq3STjtCfOpOjaJ0tk5Vjq1+5IrXpG8wKRN12sgHBTeX9qn
-         U0zWJcUxTw4oBiv9iauHbbL94N7fo8JgClQxFn5FsD3T82ClN4mEe6VQa+jWa2d0kf11
-         XWFNuHPWhUNeteCa5SY4/vYZhUDUludf/3f7MsIURdVq8fxoK5IGxSN5WrFXKNm8QIAz
-         Vaeuf8ttOfuYXA+trBgssHBz81juMRTXAVuoGuVkjj+/n2gggwBnF9vsX+nPmzoSpoKh
-         1KtA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-X-Gm-Message-State: APjAAAXM8IFRw7S1/rUFx4Z1Q8qbAp1c70YKqFG0PqOmCMoD2Bo2jFvH
-	WN9LXlWYqbQTdF8B6Ti6sNxA30XQa2EJnU9aiMEwWgcZxnkQsnNfpAFuqbakvA/wRFmqeFdgoVV
-	6ts+3wdlMp2XYHrLqAkNWoai5VE0LhHSEdK/fb9rda5KtCTbmshiD+jt9v3vVbV+KwA==
-X-Received: by 2002:a17:902:2a03:: with SMTP id i3mr45985430plb.229.1556264002960;
-        Fri, 26 Apr 2019 00:33:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGXzypBw6OltpnQmePY/F5N9S0sarW8Uq9pJwYGJF4jFFzlBdxgAKGtccB5xOrP+oye502
-X-Received: by 2002:a17:902:2a03:: with SMTP id i3mr45977889plb.229.1556263907348;
+        bh=PQm9c3rdPLBXTcMKjbO2GS15ACOI1ILM5Qbwtu4lFBw=;
+        b=Su0K+KneqvAgN0zSEc5aJQgpZhcjaHd6XKwH+acGKr5cbIxWb7gWdYSEnxt2QgifLS
+         9QLG+15v4SaBx7TLGl36lm9r6+xY1Zpa1/BEopp6pzXlVrkkRxfV86zyz08cgsZsV0AM
+         CuLL/rrjNNBnUkM6bz01nvuzQELUTIZ+LCyB+u83bZixxVoK+OsPj7LS0WG3yuAszq8f
+         NGHjpOQQ2OUwudXjw/p6K9Nzwgms1e1auyDowrEaSYjOkqFX35SRHis3u+tiyhWT/TcM
+         3lj9HCyQq8iji31OancL+aHZmrNqViwi2MEBjxkEJyF/oSH/cGICkbegrtftDoRaZRWc
+         vyLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+X-Gm-Message-State: APjAAAWHse0WMEHh22ZAsgn+nYh0F4T55dAJ/wxVDumnH5hBKJIrIwed
+	Do0ucFFAn8lAN4x5OyJdP+f78oOA10E3TbMg0IfKWycL6UYaCzSRxPCsbacMx9XMyJqWZx5Kx9j
+	aYIgUI6gUiN+Fq+P7l7xJ3OUtSyqFqM8p6UTts3WIuH/wIBFxMc34RkjbNSlPJv8Q4Q==
+X-Received: by 2002:a63:fa46:: with SMTP id g6mr42574663pgk.382.1556264003706;
+        Fri, 26 Apr 2019 00:33:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCB2ybfwR+m/jXvenxIHEBHDizQSKWN6uHx6/IBhJBeZTQQ9VuMecMMBDD//sO9rjPH5Db
+X-Received: by 2002:a63:fa46:: with SMTP id g6mr42567682pgk.382.1556263907475;
         Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1556263907; cv=none;
         d=google.com; s=arc-20160816;
-        b=1AK0nzzi5hz/aRGlqTvNv+9UtzHGGZqnD57sdIvs128VdwopN69na5aLARZWvoZWKN
-         mMOHmKw0kRqVAHG8XYzqWQir6ReGvnaM7+QngPtXXzmPpePz7X6OxMswa299n9IHotwx
-         yyzAEAW9PvEBhfHIPmehpAyxtvoC2s2xZFdcggtS0O4s2BLbS05gRZqo4YRHMboTD7W+
-         Tk0wmm8KqnqTld0l6R0TY9lKU94RroSJcLVb3aLqnCqlVOxdtBaxXt7dRpzv4qItoV2z
-         DI25A+pqKR8qAXFcJpjSWKQPuzF8ezNJMHcQmdLaTwHNynKhqm2PZqLI9KeoDcpF3C5d
-         nQTQ==
+        b=PxwtttOIZDgbVfPxiwNCMfVH1MifF4TW/Pcfi0qy7HgorUCcp1rnUSteSiklJ9REqR
+         i9UQcFeI4XiHvmAzh6I9v8tLcgPiMMhXxtEllXsdKdlTx4mQHbXX8Pm30rbnB/7Fu365
+         cibnlmh1U3I0vT/HvIDIZ+Y/lF3/WwJlAXBmyhtAbiJUgCr66uKbV0JESTNX7vlUUCDD
+         ePIbdYNoH4BG9yxr6NFsWeltqbz7qmQJzyez60AlDrYwd1zTtT7/2jgdUeSDvEcIlL+c
+         Rx1InGJ4PxvjRSpbgmr+z9S6NORHTGzrqbMEvi/CjCNY6U6AwT1XbERZHRQcNFk2gIvM
+         lHmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from;
-        bh=DXoaQOfmRoLFd3xwEem3ey63J4Sb1Jdcc0n/TAChKh8=;
-        b=C5qxUg88mrN0UGQdohRg0kXe15OBYycjGH+tAyFEIYqlpFlKjol2hHOUdk68W0OsfA
-         QIHGM45BqGPVrhpazjWZ28D+LeTJW6w68Ge3t/bKHbm9Jqw/wYgwQP0Htv+BV4BcvsL7
-         fkBXBmJBTKCPAMPM69BhSLZhSj+mMFH+HuTib9dehSgAUU8m7D+kxz66RKrE5KQnYNVs
-         q/0mwQploDAHajvUBeB40KejB5RWjWnRJqizAhNz81yUqX3fpaoZe64h992iSCoduska
-         YkUp0eE+09ILcAoZKyUAcOL1BEA8195XGMfuWbrO6H9A1PNeCbgG2963Qzt6cTgP2ffO
-         6f9w==
+        bh=PQm9c3rdPLBXTcMKjbO2GS15ACOI1ILM5Qbwtu4lFBw=;
+        b=o7hVE8cZZofekeDKLJhpQbkXOAINWrEarl9JoN5wEqSRSbho3Z4cPoMmurq08ptH/i
+         o5djp4FcdGsQFVXYBdz2mzm3o/P+hnH/TeYEd1gkXKa9maL0KESeTArpwAHUiOH5248G
+         A/WFcZsPtfBuqeSb3y74zwnqPXkuZprXP0Ii/nCs9nkF+5yJzR2FAey9lkz7ht+rAyr6
+         BHb8aMZvRo+HlM2ds5RKP9GS8gh86YhM25/YICqoWqeagJHznof2qgzXyxfkQ3iq8PZU
+         z0f21tVyrLred5+YuiEJQFeIiv80+ebArgG9TFL7UiW9tKWifUXNb/yt69WR6IDGHh8C
+         x/UA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
-        by mx.google.com with ESMTPS id f9si22844507pgq.347.2019.04.26.00.31.47
+Received: from EX13-EDG-OU-001.vmware.com (ex13-edg-ou-001.vmware.com. [208.91.0.189])
+        by mx.google.com with ESMTPS id v82si25417769pfa.42.2019.04.26.00.31.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) client-ip=208.91.0.190;
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) client-ip=208.91.0.189;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.189 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
 Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
- EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP Server id
- 15.0.1156.6; Fri, 26 Apr 2019 00:31:44 -0700
+ EX13-EDG-OU-001.vmware.com (10.113.208.155) with Microsoft SMTP Server id
+ 15.0.1156.6; Fri, 26 Apr 2019 00:31:41 -0700
 Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
-	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id A1013412A3;
-	Fri, 26 Apr 2019 00:31:45 -0700 (PDT)
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 296F2412A3;
+	Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
 To: Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>,
 	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
@@ -95,15 +95,15 @@ CC: <linux-kernel@vger.kernel.org>, <x86@kernel.org>, <hpa@zytor.com>, Thomas
 	<linux-mm@kvack.org>, <will.deacon@arm.com>, <ard.biesheuvel@linaro.org>,
 	<kristen@linux.intel.com>, <deneen.t.dock@intel.com>, Rick Edgecombe
 	<rick.p.edgecombe@intel.com>, Nadav Amit <namit@vmware.com>
-Subject: [PATCH v5 08/23] x86/kgdb: Avoid redundant comparison of patched code
-Date: Thu, 25 Apr 2019 17:11:28 -0700
-Message-ID: <20190426001143.4983-9-namit@vmware.com>
+Subject: [PATCH v5 22/23] mm/tlb: Provide default nmi_uaccess_okay()
+Date: Thu, 25 Apr 2019 17:11:42 -0700
+Message-ID: <20190426001143.4983-23-namit@vmware.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426001143.4983-1-namit@vmware.com>
 References: <20190426001143.4983-1-namit@vmware.com>
 MIME-Version: 1.0
 Content-Type: text/plain
-Received-SPF: None (EX13-EDG-OU-002.vmware.com: namit@vmware.com does not
+Received-SPF: None (EX13-EDG-OU-001.vmware.com: namit@vmware.com does not
  designate permitted sender hosts)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -111,63 +111,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-text_poke() already ensures that the written value is the correct one
-and fails if that is not the case. There is no need for an additional
-comparison. Remove it.
+x86 has an nmi_uaccess_okay(), but other architectures do not.
+Arch-independent code might need to know whether access to user
+addresses is ok in an NMI context or in other code whose execution
+context is unknown.  Specifically, this function is needed for
+bpf_probe_write_user().
 
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Add a default implementation of nmi_uaccess_okay() for architectures
+that do not have such a function.
+
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/kgdb.c | 14 +-------------
- 1 file changed, 1 insertion(+), 13 deletions(-)
+ arch/x86/include/asm/tlbflush.h | 2 ++
+ include/asm-generic/tlb.h       | 9 +++++++++
+ 2 files changed, 11 insertions(+)
 
-diff --git a/arch/x86/kernel/kgdb.c b/arch/x86/kernel/kgdb.c
-index 2b203ee5b879..13b13311b792 100644
---- a/arch/x86/kernel/kgdb.c
-+++ b/arch/x86/kernel/kgdb.c
-@@ -747,7 +747,6 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
- int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 90926e8dd1f8..dee375831962 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -274,6 +274,8 @@ static inline bool nmi_uaccess_okay(void)
+ 	return true;
+ }
+ 
++#define nmi_uaccess_okay nmi_uaccess_okay
++
+ /* Initialize cr4 shadow for this CPU. */
+ static inline void cr4_init_shadow(void)
  {
- 	int err;
--	char opc[BREAK_INSTR_SIZE];
+diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+index b9edc7608d90..480e5b2a5748 100644
+--- a/include/asm-generic/tlb.h
++++ b/include/asm-generic/tlb.h
+@@ -21,6 +21,15 @@
+ #include <asm/tlbflush.h>
+ #include <asm/cacheflush.h>
  
- 	bpt->type = BP_BREAKPOINT;
- 	err = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
-@@ -766,11 +765,6 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
- 		return -EBUSY;
- 	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
- 		       BREAK_INSTR_SIZE);
--	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
--	if (err)
--		return err;
--	if (memcmp(opc, arch_kgdb_ops.gdb_bpt_instr, BREAK_INSTR_SIZE))
--		return -EINVAL;
- 	bpt->type = BP_POKE_BREAKPOINT;
++/*
++ * Blindly accessing user memory from NMI context can be dangerous
++ * if we're in the middle of switching the current user task or switching
++ * the loaded mm.
++ */
++#ifndef nmi_uaccess_okay
++# define nmi_uaccess_okay() true
++#endif
++
+ #ifdef CONFIG_MMU
  
- 	return err;
-@@ -778,9 +772,6 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
- 
- int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
- {
--	int err;
--	char opc[BREAK_INSTR_SIZE];
--
- 	if (bpt->type != BP_POKE_BREAKPOINT)
- 		goto knl_write;
- 	/*
-@@ -791,10 +782,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
- 		goto knl_write;
- 	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,
- 		       BREAK_INSTR_SIZE);
--	err = probe_kernel_read(opc, (char *)bpt->bpt_addr, BREAK_INSTR_SIZE);
--	if (err || memcmp(opc, bpt->saved_instr, BREAK_INSTR_SIZE))
--		goto knl_write;
--	return err;
-+	return 0;
- 
- knl_write:
- 	return probe_kernel_write((char *)bpt->bpt_addr,
+ /*
 -- 
 2.17.1
 
