@@ -2,107 +2,101 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9356DC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 13:47:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC383C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 13:59:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39B372089E
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 13:47:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39B372089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9798821479
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 13:59:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9798821479
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B7ED56B0003; Fri, 26 Apr 2019 09:47:25 -0400 (EDT)
+	id 311BF6B0003; Fri, 26 Apr 2019 09:59:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B2DB86B0005; Fri, 26 Apr 2019 09:47:25 -0400 (EDT)
+	id 2C0F76B0005; Fri, 26 Apr 2019 09:59:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A1C7A6B0006; Fri, 26 Apr 2019 09:47:25 -0400 (EDT)
+	id 189076B0006; Fri, 26 Apr 2019 09:59:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 53D6E6B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:47:25 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id 18so1570377eds.5
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 06:47:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BF2A46B0003
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:59:17 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s21so1570162edd.10
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 06:59:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=JyVElu9d2UcuoITDXuegqggYW/29ppMUjVxkFJnZrEo=;
-        b=BlB5XGrTQxUMeRaq4gTx3yb9Yl4+AvXetRdOmZ8V8UcMub1o3LFX/MLQ+uUPRXVPCG
-         xW5893aua8d8+7SPLQo1VVcfYWqOpwfUauMdkj/FW3PuqMiOM6wLe6V4LVaUkvqWcXv+
-         dUoOeTNBhCdOQCntBH3ClfpYhmjDK7eJ3md0xlRn/MyHTPTUFuKIPBiu3iXwghOteH6j
-         T731wIWYWaHintOcncQBPAdrO7ZGt9b1M3hC+aG8xneh2DeDJIWQA7JoiyI0rO8pJElN
-         lBO9b7DWhCyHIFc+pUgRYwhVnlciLdcYZB6bJv9QS9qwlFTlnwW93IwnP2DoOkzJMG8B
-         D4yw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUcJoiGNhgsK8Ge1gZGv9d/xrOsWzacEo3Q2ryJRFPMTnxC/7B8
-	EKKQH2jccV13IQ9tq5PXXASnm9lCXJcKUUQW0wpPWbqXdAAmZL1TvKep2BDpIaMxDyraX6I7qD3
-	XmNtdDv9lCkIgvEIhcYXmr9tE/tmYlQnC+VWtL0W37mNSHyiaTinqJcCyPGVxWic=
-X-Received: by 2002:a50:b78a:: with SMTP id h10mr28708794ede.65.1556286444863;
-        Fri, 26 Apr 2019 06:47:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy7bx08lYpYlbojxTKhWcCupUe81s9KEQ2+trLn8x9dTpdiv3pK+zCfw5H/8JR9VkmtfN+6
-X-Received: by 2002:a50:b78a:: with SMTP id h10mr28708752ede.65.1556286443946;
-        Fri, 26 Apr 2019 06:47:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556286443; cv=none;
+        bh=/Rgruo12HANQEAsCQCr9iioNBVtY8Y+9VFWf2lzjo9s=;
+        b=UF1T4nJuuK1MnW8U5OwZcvEaAXzqbCqtScZjnbdH2Fpc32yYwW+l7Gljl5lGeL9isu
+         59yOGCagP+aDa9NWh2s6DX0lv9mrc7FGjEHWhgXBpZjjT+Dx2QlMUY/Nw0/irV3J8Aul
+         O/SYXtFSPvZYuQ77FnQPk4787fSbM7jbQ1zQhcwdepUyUaTxV66xa9+aUzxB/KXJgd/w
+         6S27HxJ6Y65Bs0zDTW4u4EOTWqluZ3fxFHjljejql8uK/dz+85P4ZD8mSnO3rLvv1U4k
+         CcJ8vhagJWH+oTQ+qkVfHZjej6orxD6zbpLEydhC5gN8WQAxHe1A4dw0Bd8eEK5tILOr
+         tXTw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUy/3VZ6PL5WxP4qTHuaaMjG7G7GEmLO1IrjSngMSutvXL5UMHZ
+	rH0BfiOWWAXBerpp/F7gUwa1X1AH/5/Yvx6kNFlow0N2d+G9TR80p0lXgNencMN5T6zq3IRGexM
+	t07Anf/t+d69/vtTpLpqexf0BDLpJNyySWixKlnK3ZOiwKLJ88MEHCW5JvyEtl3Vu6A==
+X-Received: by 2002:a50:9097:: with SMTP id c23mr29078949eda.119.1556287157347;
+        Fri, 26 Apr 2019 06:59:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqww3uzmSBttr9fvpfsVTTfpvmWBHZGBd5zxM/tLI5lrT8gppTliNe2GQuDS2d8w/z4lgA9Z
+X-Received: by 2002:a50:9097:: with SMTP id c23mr29078911eda.119.1556287156659;
+        Fri, 26 Apr 2019 06:59:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556287156; cv=none;
         d=google.com; s=arc-20160816;
-        b=Alo4B/5clQ64QnX0YqIQgr8Cb1Nuswoo4FK+DFXJ/4TKSqjDax9rsSv08BXVRKfxik
-         cgMG0TluswuKT1zJHHjQvEJWVp2VyGOIhKJtK3JCxU35NLFYbIjYgXVVj1WebwOocqAj
-         EyKSYWpa8+QmgFMInKj2puPxSs6/3r5w/tDGC+Wga7G/GF2nrgsrsz5wzt7gfMJX7lvO
-         /WbU+UiQaZCX38lZfofIONFyI+3awEBo6elo2VNHjPuv8InlVbahlo0EBJMy+Ire3kdG
-         lwVlD6loSGDdYdx181aG+XdebFxMbSVTUpy7/w+O8NfMyBTjGCTN5fd86vABusH5tPVT
-         eErw==
+        b=W11mX9tX47REXFRO4g/Md1FU0GrV+RrIkbnsgyUln3fVlprVlWcMsbyGTOQ273r0sP
+         I8t9Q1PZduyXt83RnIAPf0Akz8Nib0ijRhEYtuD5nKWNvCyIJbZNAamc5BrAJ1Woctu7
+         hghu7NE2YgHXotZgGPJvAfAM7vpjqWA+sPSPEOmFdNJ/lyIXUL1oTwAb7gMqUS3KnHTz
+         t8FT1tnpBWOPuWmPYWoheINchibjvVQt8ZeGzRoIz0LQVfBGCGdUtl2YwOWl1Qnx2sUp
+         lXtmGa7TPS4Cf9tBvO/NpXrhVKbQY+9LdIubsbRIjYo0zN4DFVDhrhpL+xAF2i23vFjp
+         KwKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=JyVElu9d2UcuoITDXuegqggYW/29ppMUjVxkFJnZrEo=;
-        b=N4NnCs4EQ91cVpL+9bplYjsIAK9foJw4dijDdSRxPb5QKh4LZeRN135dJaXcEKB+ii
-         LcQNPr/5DXsuOjW5Dbq3A+koT+/XlUSk9PcQjj4FF2O0mlymCgWApxysKjFl2F9pIvXS
-         soHNaQaCm4hicAo686ScMISPHeigSMayPGfdbd6w5VB7kXNiufJDpbYHkNF/DmQoM5VG
-         FCBpmmT5CDY6P7ZITccFJnxrSt2vXInOnzUFQJC/dYLIf57nIdd1q/683s7LaZYHmmNE
-         U708pH21EvNV4sgVpuEk9wuERjzcrVD6829rL9u9mPXlg9546pu9WuwQ6dWuPPzsMjB8
-         GHuw==
+        bh=/Rgruo12HANQEAsCQCr9iioNBVtY8Y+9VFWf2lzjo9s=;
+        b=flEkZy6C99+uCrSjy0K/bIsUhjXioqIn+CEl0PspGK0R8j1/nmrRvn6vqlk+QsqZzA
+         l3QQ49wNXLUCaiukPFtG6bQACGogKJBXq0L8rdwBgwudjQlfwAGrhljekFpYT7VToar3
+         5DBjmB4dZNJNAedHsi7xlBFhiR0BU85Xl1PRRUqdmrIUd6Kx2SQtrAkEbuVNbCaev6y9
+         jdVfM+6Zggaim7w9EJUczVtbnm9ocPgtc23Is4p3Eg49QzX1NsxUA06fcK80nRmVpI/B
+         stDHLU5WSgILPa/zmERzVxpuZoenBepFXzT5RY7/81bhmrFymfi398jTVE5YPIDNMVlM
+         6uDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jr18si2211786ejb.22.2019.04.26.06.47.23
+        by mx.google.com with ESMTPS id m27si2300139edc.433.2019.04.26.06.59.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 06:47:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 26 Apr 2019 06:59:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EB0DDAFBF;
-	Fri, 26 Apr 2019 13:47:22 +0000 (UTC)
-Date: Fri, 26 Apr 2019 15:47:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Jann Horn <jannh@google.com>
-Cc: Matthew Garrett <matthewgarrett@google.com>,
-	Linux-MM <linux-mm@kvack.org>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Matthew Garrett <mjg59@google.com>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-Message-ID: <20190426134722.GH22245@dhcp22.suse.cz>
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com>
- <20190425121410.GC1144@dhcp22.suse.cz>
- <CAG48ez0x6QiFpqXbimB9ZV-jS5UJJWhzg9XiAWncQL+phfKkPA@mail.gmail.com>
- <20190426053135.GC12337@dhcp22.suse.cz>
- <CAG48ez1MGyAd5tE=JLmjkFqou-VvsQHcJ5TU5f8_L43km9eoYA@mail.gmail.com>
+	by mx1.suse.de (Postfix) with ESMTP id B9654AEC2;
+	Fri, 26 Apr 2019 13:59:15 +0000 (UTC)
+Date: Fri, 26 Apr 2019 15:59:12 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org,
+	david@redhat.com
+Subject: Re: [PATCH v6 04/12] mm/hotplug: Prepare shrink_{zone, pgdat}_span
+ for sub-section removal
+Message-ID: <20190426135907.GA30513@linux>
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155552635609.2015392.6246305135559796835.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG48ez1MGyAd5tE=JLmjkFqou-VvsQHcJ5TU5f8_L43km9eoYA@mail.gmail.com>
+In-Reply-To: <155552635609.2015392.6246305135559796835.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -110,65 +104,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 26-04-19 15:33:25, Jann Horn wrote:
-> On Fri, Apr 26, 2019 at 7:31 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 25-04-19 14:42:52, Jann Horn wrote:
-> > > On Thu, Apr 25, 2019 at 2:14 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > [...]
-> > > > On Wed 24-04-19 14:10:39, Matthew Garrett wrote:
-> > > > > From: Matthew Garrett <mjg59@google.com>
-> > > > >
-> > > > > Applications that hold secrets and wish to avoid them leaking can use
-> > > > > mlock() to prevent the page from being pushed out to swap and
-> > > > > MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-> > > > > can also use atexit() handlers to overwrite secrets on application exit.
-> > > > > However, if an attacker can reboot the system into another OS, they can
-> > > > > dump the contents of RAM and extract secrets. We can avoid this by setting
-> > > > > CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-> > > > > firmware wipe the contents of RAM before booting another OS, but this means
-> > > > > rebooting takes a *long* time - the expected behaviour is for a clean
-> > > > > shutdown to remove the request after scrubbing secrets from RAM in order to
-> > > > > avoid this.
-> > > > >
-> > > > > Unfortunately, if an application exits uncleanly, its secrets may still be
-> > > > > present in RAM. This can't be easily fixed in userland (eg, if the OOM
-> > > > > killer decides to kill a process holding secrets, we're not going to be able
-> > > > > to avoid that), so this patch adds a new flag to madvise() to allow userland
-> > > > > to request that the kernel clear the covered pages whenever the page
-> > > > > reference count hits zero. Since vm_flags is already full on 32-bit, it
-> > > > > will only work on 64-bit systems.
-> > > [...]
-> > > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > > index 21a7881a2db4..989c2fde15cf 100644
-> > > > > --- a/mm/madvise.c
-> > > > > +++ b/mm/madvise.c
-> > > > > @@ -92,6 +92,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
-> > > > >       case MADV_KEEPONFORK:
-> > > > >               new_flags &= ~VM_WIPEONFORK;
-> > > > >               break;
-> > > > > +     case MADV_WIPEONRELEASE:
-> > > > > +             /* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-> > > > > +             if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-> > > > > +                 vma->vm_flags & VM_SHARED) {
-> > > > > +                     error = -EINVAL;
-> > > > > +                     goto out;
-> > > > > +             }
-> > > > > +             new_flags |= VM_WIPEONRELEASE;
-> > > > > +             break;
-> > >
-> > > An interesting effect of this is that it will be possible to set this
-> > > on a CoW anon VMA in a fork() child, and then the semantics in the
-> > > parent will be subtly different - e.g. if the parent vmsplice()d a
-> > > CoWed page into a pipe, then forked an unprivileged child, the child
-> >
-> > Maybe a stupid question. How do you fork an unprivileged child (without
-> > exec)? Child would have to drop priviledges on its own, no?
-> 
-> Sorry, yes, that's what I meant.
+On Wed, Apr 17, 2019 at 11:39:16AM -0700, Dan Williams wrote:
+> @@ -417,10 +417,10 @@ static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+>  	 * it check the zone has only hole or not.
+>  	 */
+>  	pfn = zone_start_pfn;
+> -	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SECTION) {
+> +	for (; pfn < zone_end_pfn; pfn += PAGES_PER_SUB_SECTION) {
+>  		ms = __pfn_to_section(pfn);
+>  
+> -		if (unlikely(!valid_section(ms)))
+> +		if (unlikely(!pfn_valid(pfn)))
+>  			continue;
+>  
+>  		if (page_zone(pfn_to_page(pfn)) != zone)
+> @@ -485,10 +485,10 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
+>  	 * has only hole or not.
+>  	 */
+>  	pfn = pgdat_start_pfn;
+> -	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
+> +	for (; pfn < pgdat_end_pfn; pfn += PAGES_PER_SUB_SECTION) {
+>  		ms = __pfn_to_section(pfn);
+>  
+> -		if (unlikely(!valid_section(ms)))
+> +		if (unlikely(!pfn_valid(pfn)))
+>  			continue;
+>  
+>  		if (pfn_to_nid(pfn) != nid)
 
-But then the VMA is gone along with the flag so why does it matter?
+The last loop from shrink_{pgdat,zone}_span can be reworked to unify both
+in one function, and both functions can be factored out a bit.
+Actually, I do have a patch that does that, I might dig it up.
+
+The rest looks good:
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
+> 
 
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
 
