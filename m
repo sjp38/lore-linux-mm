@@ -1,129 +1,111 @@
 Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83A05C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:31:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A646C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:36:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D405206E0
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:31:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="VkXjRe45"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D405206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 67B7B206E0
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 08:36:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67B7B206E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0CA56B000A; Fri, 26 Apr 2019 04:31:49 -0400 (EDT)
+	id 05F726B000A; Fri, 26 Apr 2019 04:36:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ABD776B000C; Fri, 26 Apr 2019 04:31:49 -0400 (EDT)
+	id 00CB46B000C; Fri, 26 Apr 2019 04:36:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9ADF56B000D; Fri, 26 Apr 2019 04:31:49 -0400 (EDT)
+	id DEFB56B000D; Fri, 26 Apr 2019 04:36:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EF5F6B000A
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 04:31:49 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id a18so2632391wrs.21
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:31:49 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB056B000A
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 04:36:57 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id o3so1153968edr.6
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:36:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/8yEHGmmpSB8zJvfnDs0qm8YJnL5/w4ezpyP4pzX7OU=;
-        b=BpAcCRhggV7q2tXY3iLy1NMUOuMlQED1ni7d6hA47IByIh/IKuFABFgejPMr4MBRYG
-         lkEjG/6YIz3gZHV+kxbRNsvMHsEBp7RWeDzaDLI4KeNa6JkpjDVT9j3WxA06qrcwRYXk
-         1EYKUCV4USEbVsIC8gCr91GCxuoTyLS3RiPh4Hsoeq01Hldzfi2X2eHCIck0DWfihsPw
-         bmBaFs+WTO91HkNiKfrBIDBZImnjNVV2lwScxwSeji5tufvqrlsmi/LNBaCPbCKyZl7N
-         JZL9FbvwlK982WDgMEEaT/zsrWqkpTiXz6rCSWm37A4JW9xzhFxRP6PAWjYaF/rJHJ9i
-         uMjw==
-X-Gm-Message-State: APjAAAUT6TneL4YFg1mOQy1XpL7xPfvo0/olGDad6iLkCK5n1J/ViU1m
-	Roige4DzasVeiC9rcNCPRsgRggTuyv3l3NB+Zzy+OAGyM5BMwmsAhBQY7cYxT4cyxpkNu5BOReV
-	qeld2fT4rkrdqRjcXATC1am0ePmoIUisMgbDecZfQ8Yw/fzwSIMT8mo7kjiwSJAY=
-X-Received: by 2002:adf:8062:: with SMTP id 89mr2626082wrk.107.1556267508802;
-        Fri, 26 Apr 2019 01:31:48 -0700 (PDT)
-X-Received: by 2002:adf:8062:: with SMTP id 89mr2626038wrk.107.1556267508079;
-        Fri, 26 Apr 2019 01:31:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556267508; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=1BdYGx4Gm0y5xvYhP5up8QXVzzwG2qa3NJwpUjBYwv4=;
+        b=KEqGOLcYpFs0NLSHhPrNX0jcZAA78oyICTWFGB8/7TieHMWazWTEHfhnCJjF68VWw3
+         yNxYqdmPugrXK0+Z5NR68g1C83gcIW5op9EnE/DDKLgUY9YyDdKTj1oq04kkLgDq3NWB
+         TfK0CtW9QsgkttrnNdXh9OUxAcKwr8Du327xAr/6odXJZX1+fMqE8SPA8fKZIIGWC19q
+         ABwMDb+ilsTjyT9NDO67D8QJvI6c4JUW6Il8akmqkKIPmrb7xSuBKJY+jAkhxrdZcLHx
+         qqBuINX45xienB5vFIcttD4fXmjYkrFiYHe3AenuC9nAEkvbwXcfjghBMOjnB9qWkWJf
+         vSJA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAVo3F1wJzRnTwbjvlzBQsVVr7IyKPSofYqTg/pxY1jK4s9uVVmS
+	wG6t2w5BLjDBR2aXfKqS6GqG+7XLuWMTvaGtmNix0FmTwVTRRMmG14UZgfwlsX0gYkB65NsLu3Y
+	xTP51/HcoNaWvvpHLtgdzD9emn+yD70GhzGBx83h/rbDp/kQtQVKZfcMP8GZJFB3YHQ==
+X-Received: by 2002:a50:c905:: with SMTP id o5mr28000297edh.252.1556267817060;
+        Fri, 26 Apr 2019 01:36:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjtUe25XYuAVBj8beU6BNiUGDeL+tCLxgcl1po5/eZobJjUCZdyVgRPlXu1CKqgEDOrvIF
+X-Received: by 2002:a50:c905:: with SMTP id o5mr28000257edh.252.1556267816180;
+        Fri, 26 Apr 2019 01:36:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556267816; cv=none;
         d=google.com; s=arc-20160816;
-        b=sjQ4yC6xKgq8RZZRLgFQJjCqezDMGPsZJJkXH5YEOt+mmURVvZpcPkKXS2MCOiGXXU
-         s65ZKCPDotPGP5cLJxFLmQ+KNkR/D1FDgJgy48fqYuSGmrTOpo1YPEqLfBaMZQ2uoJzH
-         EVotO8Fprc+uaRrqWXVKhY/ZJCaXWzH4d7b/J5uLEDWrZE4ahW66V9zpcpGvkUq/U2d+
-         /aXy/jSV/81moNxuE6n91avTU8PIeJxcmyr7TjxUOLJ2aD0WpS3e7a1q0TXohMPoyQ+u
-         54eHASmPuwX3uYFqJbDerc3jTtKc2qz9a8YqFXgEJ9ydQvHxZnccu1ld9bduymwSdEL5
-         EWPg==
+        b=T15ITJ/gjd18Y60moq39xPQs1w8HRrafMheCzcqboEyHkH1NREqDFLEWhhmTM7xN3A
+         uKbFjt3rstrNHCCUcMWOcnY1NUE1w7INLle8zidcN1eyorOheR8heUn4hupwCJYtYIBx
+         Lt0uDcWqLSnnKcA03Ob+ZqPZGmIwRD3Rnyz+OPNhZ1+dIr4JFFmFkZtcpgC1cmfTB4Ne
+         rWGCxneHGgVkjDEkTMVs2E6HUPVmUizd93NVB8zNAlCkyDwHivtgByHSuQnKSoujV/o5
+         SZ5W8JCzkrFLtnL538lhqG/wbiYVvOBvNRg4ph6Pxz6i3SqB9uG5DKJ22Apae+jfNDkg
+         ZuaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=/8yEHGmmpSB8zJvfnDs0qm8YJnL5/w4ezpyP4pzX7OU=;
-        b=YnHZAzHAS3819wcw31sDPwgfmGk4lYQuW0GyB9vKLysVnoIynN7n6cSAP6eTvcVZM1
-         Ft5w0vDjw6L3BXJv2vrxMjjSBdEUUkaqom0xWfiLLejJvuValGhTtZbQkOaQma6aWtXF
-         DAjjlMZM8JJWY70ThfRtcpvPqPAU/ykH22hDk955MLy+JcHiIw2UEbdBo7O0P5vA1fNF
-         yUQPQDHC1FyQ1O5UsGt2no7RtttcrJAC5BL+CUjrYafBa8FhrtYQmmajZ5dYrWIhshqA
-         A7dWlA0DGPRh2my2Lej4qZeQ9MHd1roTJ+UM3eYqNMt5o9NEJmWFDNRnZpSeFn3YhSp/
-         zYXw==
+         :message-id:subject:cc:to:from:date;
+        bh=1BdYGx4Gm0y5xvYhP5up8QXVzzwG2qa3NJwpUjBYwv4=;
+        b=fb/4KZ8A1MzqLSesP5xX1SyNDkz9A/zz76WoZPbP9SLaScLb5XvSKdqZDe8s5mGRwo
+         mI5Tt45FcD4B1VtSSjgDbxj1H8iFS9ZNTqFNo8H0tTT4b651eSEDHP5efYVMx9Sk9XG0
+         oiMTpP1QYr1HnoYsSmLpjQiSBt6fZg9XcONnoTbfLDYUmRBrM6v/IWGSi1xCxqObUgwf
+         zRN7LDQCaAEbBQ8XxE0inmsyldQLCJD7Z9a2oXyGxF8eetIRKOD1AAtKJ4F5pQsiK5oJ
+         w3dg9FSo7rVgh+EKodsWnZU/Xlabv507TYDAO6iM4iNC0nQ5mbua0kHD0hSCAS4bXbgY
+         SI2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VkXjRe45;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r13sor7231829wrl.38.2019.04.26.01.31.47
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t6si105184ejq.25.2019.04.26.01.36.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Apr 2019 01:31:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 01:36:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VkXjRe45;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/8yEHGmmpSB8zJvfnDs0qm8YJnL5/w4ezpyP4pzX7OU=;
-        b=VkXjRe45hyNXVj6ZfWoXHr6MTHjtWL9wxGXVZSzLMcje4P0FbuT/Q7Jd+vA1p9zEB/
-         8RqkOkiJthWGtNBekTaSFZY4oXZh1GyFrxsJ68xk0BZzJnK06NtdNo3O+axMJWfCl1qE
-         GyHF+8T/9FBm0+DjXetmbgG3M0v8zroVHiOtLPRpaT6MrSmy9XOu160qeULDV180k0xa
-         kY+zWM78luJUpw4oMLsj3nAbD5QeSMjPf76uIIhHD82smYQ4sa2Gw/bOFqlaYzMnrmOq
-         /DJvD0YVbwD+SffY8PXAy25ufW7lJrslVydjKCvITbMXQredlQKDjMDmHDbLgT49Ymtn
-         CxwQ==
-X-Google-Smtp-Source: APXvYqz7R4wqcBRnF5mLwlUAgAYn64tt07z4jLjy3OlElfpQAtlWfTSEl2f9ae5ADnCd69ZUlZdi4A==
-X-Received: by 2002:a5d:654a:: with SMTP id z10mr3402530wrv.153.1556267507780;
-        Fri, 26 Apr 2019 01:31:47 -0700 (PDT)
-Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
-        by smtp.gmail.com with ESMTPSA id v16sm20304256wru.76.2019.04.26.01.31.46
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Apr 2019 01:31:46 -0700 (PDT)
-Date: Fri, 26 Apr 2019 10:31:44 +0200
-From: Ingo Molnar <mingo@kernel.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org,
-	Alexandre Chartre <alexandre.chartre@oracle.com>,
-	Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	Jonathan Adams <jwadams@google.com>,
-	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org, x86@kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Peter Zijlstra <a.p.zijlstra@chello.nl>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
- isolation
-Message-ID: <20190426083144.GA126896@gmail.com>
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
- <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 76901AF35;
+	Fri, 26 Apr 2019 08:36:54 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id F01381E3618; Fri, 26 Apr 2019 10:36:53 +0200 (CEST)
+Date: Fri, 26 Apr 2019 10:36:53 +0200
+From: Jan Kara <jack@suse.cz>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>,
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	Linux MM <linux-mm@kvack.org>,
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+	stable <stable@vger.kernel.org>,
+	Chandan Rajendra <chandan@linux.ibm.com>
+Subject: Re: [PATCH v2] mm: Fix modifying of page protection by
+ insert_pfn_pmd()
+Message-ID: <20190426083653.GB11637@quack2.suse.cz>
+References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
+ <20190424173833.GE19031@bombadil.infradead.org>
+ <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
+ <20190425073149.GA21215@quack2.suse.cz>
+ <CAPcyv4iYMP4NWxa08zTdRxtc4UcbFFOCwbMZijB0bc2WcawggQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+In-Reply-To: <CAPcyv4iYMP4NWxa08zTdRxtc4UcbFFOCwbMZijB0bc2WcawggQ@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -131,64 +113,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-* Mike Rapoport <rppt@linux.ibm.com> wrote:
-
-> When enabled, the system call isolation (SCI) would allow execution of 
-> the system calls with reduced page tables. These page tables are almost 
-> identical to the user page tables in PTI. The only addition is the code 
-> page containing system call entry function that will continue 
-> exectution after the context switch.
+On Thu 25-04-19 17:33:04, Dan Williams wrote:
+> On Thu, Apr 25, 2019 at 12:32 AM Jan Kara <jack@suse.cz> wrote:
+> >
+> > On Wed 24-04-19 11:13:48, Dan Williams wrote:
+> > > On Wed, Apr 24, 2019 at 10:38 AM Matthew Wilcox <willy@infradead.org> wrote:
+> > > >
+> > > > On Wed, Apr 24, 2019 at 10:13:15AM -0700, Dan Williams wrote:
+> > > > > I think unaligned addresses have always been passed to
+> > > > > vmf_insert_pfn_pmd(), but nothing cared until this patch. I *think*
+> > > > > the only change needed is the following, thoughts?
+> > > > >
+> > > > > diff --git a/fs/dax.c b/fs/dax.c
+> > > > > index ca0671d55aa6..82aee9a87efa 100644
+> > > > > --- a/fs/dax.c
+> > > > > +++ b/fs/dax.c
+> > > > > @@ -1560,7 +1560,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct
+> > > > > vm_fault *vmf, pfn_t *pfnp,
+> > > > >                 }
+> > > > >
+> > > > >                 trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+> > > > > -               result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
+> > > > > +               result = vmf_insert_pfn_pmd(vma, pmd_addr, vmf->pmd, pfn,
+> > > > >                                             write);
+> > > >
+> > > > We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
+> > > > that need to change too?
+> > >
+> > > It wasn't clear to me that it was a problem. I think that one already
+> > > happens to be pmd-aligned.
+> >
+> > Why would it need to be? The address is taken from vmf->address and that's
+> > set up in __handle_mm_fault() like .address = address & PAGE_MASK. So I
+> > don't see anything forcing PMD alignment of the virtual address...
 > 
-> Unlike PTI page tables, there is no sharing at higher levels and all 
-> the hierarchy for SCI page tables is cloned.
-> 
-> The SCI page tables are created when a system call that requires 
-> isolation is executed for the first time.
-> 
-> Whenever a system call should be executed in the isolated environment, 
-> the context is switched to the SCI page tables. Any further access to 
-> the kernel memory will generate a page fault. The page fault handler 
-> can verify that the access is safe and grant it or kill the task 
-> otherwise.
-> 
-> The initial SCI implementation allows access to any kernel data, but it
-> limits access to the code in the following way:
-> * calls and jumps to known code symbols without offset are allowed
-> * calls and jumps into a known symbol with offset are allowed only if that
-> symbol was already accessed and the offset is in the next page
-> * all other code access are blocked
-> 
-> After the isolated system call finishes, the mappings created during its
-> execution are cleared.
-> 
-> The entire SCI page table is lazily freed at task exit() time.
+> True. So now I'm wondering if the masking should be done internal to
+> the routine. Given it's prefixed vmf_ it seems to imply the api is
+> prepared to take raw 'struct vm_fault' parameters. I think I'll go
+> that route unless someone sees a reason to require the caller to
+> handle this responsibility.
 
-So this basically uses a similar mechanism to the horrendous PTI CR3 
-switching overhead whenever a syscall seeks "protection", which overhead 
-is only somewhat mitigated by PCID.
+Yeah, that sounds good to me. Thanks for fixing this.
 
-This might work on PTI-encumbered CPUs.
-
-While AMD CPUs don't need PTI, nor do they have PCID.
-
-So this feature is hurting the CPU maker who didn't mess up, and is 
-hurting future CPUs that don't need PTI ..
-
-I really don't like it where this is going. In a couple of years I really 
-want to be able to think of PTI as a bad dream that is mostly over 
-fortunately.
-
-I have the feeling that compiler level protection that avoids corrupting 
-the stack in the first place is going to be lower overhead, and would 
-work in a much broader range of environments. Do we have analysis of what 
-the compiler would have to do to prevent most ROP attacks, and what the 
-runtime cost of that is?
-
-I mean, C# and Java programs aren't able to corrupt the stack as long as 
-the language runtime is corect. Has to be possible, right?
-
-Thanks,
-
-	Ingo
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
