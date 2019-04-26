@@ -1,172 +1,211 @@
 Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED4F6C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:58:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1276C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 10:27:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EED02146E
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 09:58:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 95860206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 10:27:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="K85URiHS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EED02146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DLbwRPHC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95860206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E50A96B0005; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
+	id 3169B6B0005; Fri, 26 Apr 2019 06:27:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E00946B0006; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
+	id 2C6596B0006; Fri, 26 Apr 2019 06:27:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC6C46B0007; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
+	id 1B5766B0007; Fri, 26 Apr 2019 06:27:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ED7F6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 05:58:08 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id l1so2889321wme.1
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 02:58:08 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D860C6B0005
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 06:27:20 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id c7so1746508plo.8
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:27:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
-        b=LbPjTJc0RSEtB3m8qXlis68oebjVfZGoaGPL0I+df1JZ7TuSDgR8+KPBqDFii86EM9
-         xH6/f7jHGscNth5W9PrYGTe6L0koC5ZOmnGU08+v4IWGGlbXUsW7YxsgjBMudmfFleea
-         mJ8OLcVbLwwZ3Ta4/PVVCpxqIXmYm1wawYFQlBidgRyw0p/P4KK8ZPgZoFUxaqvDkkqG
-         7RLUasRAY3AC0BqNF7Gp0kLHje3J0C1bx57+YFjeI+70cOGSb0Hqd77oPnWZwQNDgA8N
-         wqev7ypj3NP9H5tAMFA8+tEqdzUhjj/JXrlE2Q8qDmWGvCM3E7AxtDYfNmGrJ4JMQxYi
-         haig==
-X-Gm-Message-State: APjAAAXP3hFEbxzOkRonIuX+gQj2uJPRHSrIy810E4geOAFzYa+Rib/o
-	Vxgci1GQl3wVbxSawdokuWycpI8Tu0oxhRbu1qt6If2l0clHXIHWCQh2s37jPGr7nsZ0oZwzWKW
-	SRSfY22zuTgNX+uKafoaeMkO8Pnt0jHSPsGVQLb4pDBHiES5YjoMcviintjx96zE=
-X-Received: by 2002:adf:ec4e:: with SMTP id w14mr6623436wrn.53.1556272687851;
-        Fri, 26 Apr 2019 02:58:07 -0700 (PDT)
-X-Received: by 2002:adf:ec4e:: with SMTP id w14mr6623309wrn.53.1556272685868;
-        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556272685; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=HsfT0F7SEIuKtfrkNzRXb7iLrCtKcJShqeMLFZsVtjY=;
+        b=CuoqBa6/qZutgO99P5WCMVPDNgk0dff2Qm51l4R2zbYlzmnpQIiVXyIW7K57snnwNQ
+         oJr2nZe19n2FOCBRVCRk4yuRyOMn47RAvKfa4BC3HjqjtmMWPv3AGpm5Tyf6UD+sexHr
+         NRDTDyqRB+IV2ZHsXja90ZBcYxmw68hsoZRZD3u97ZET6a7XYscZZS6C3mV+kWLw9TPK
+         GiRbKF7UFQv7Vl2E+l7XQTiRDew3G3ZhgczA/LxGou+OEpdjvzCdTAibjKiSPyTbc/Au
+         etSXXedFwvh/OfLjyH/FyJ2OVIIfSeVNWMSsTPW3rIZZc189pax9C+vWoPQngILOYHiU
+         CtjA==
+X-Gm-Message-State: APjAAAVBpzGweupYkpC4V5r8apmb7MOafQ/7KkKj4HXLTZlHiQXtQoso
+	bVOCGZYh+VLFJyW0P1EtfoLyni5sky03d5XtZaTlSmuKSee5ll/ZwB3F7u96fkp7t4XenVbxTBL
+	/YUokXO8kfHGfpX2ioCGPpox/mNnLnBG4jABDyndTAW29jeyHiOpp0/zGwOw+WyUpTA==
+X-Received: by 2002:a62:e118:: with SMTP id q24mr1885475pfh.95.1556274440431;
+        Fri, 26 Apr 2019 03:27:20 -0700 (PDT)
+X-Received: by 2002:a62:e118:: with SMTP id q24mr1885378pfh.95.1556274439019;
+        Fri, 26 Apr 2019 03:27:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556274439; cv=none;
         d=google.com; s=arc-20160816;
-        b=YUAqMw+6/L37JqY6jW8yZcNupL+ogZRkc9FixP3jBHzIe5fCQW5ZxF9pd87YbCaF56
-         xs1wKVGIjaq30GBe0gK5ogVkOyvZcCjIgkU4lXIWqQLBmN6dzzJmpSd8IaBwDbmBvRgM
-         UDgPGDo4C0xffppWabP5EGtL6mJMXCMY5YsiXiMpK5HO3rZZG0TO6RiTl3eWpC/Nyfao
-         hCW/6UNy/DU77FZC4RzNztKxlTpn7clPrY5GakwRKA3NZPwlT9aTZCk56vh6HUt0Byxx
-         h20Aw880v47efCo36MHObq5Hnp/G6lBtoYvQuOSjSmVoSVRkWfyy9GK8OEsaN5O6W3zI
-         Jejw==
+        b=kiuXANR6yVl65gaqv2OFc0fkQ8JY0BHt+97T9A2FRnuWUoCL7rfUx15i8ZQ1klE9Yl
+         lLw5x8Qi2sqhrC0N7OatFaoZQJhHNifGKQOOfxiOJEAz1NkAEWS2XJBk98gKMgpKanVe
+         +RSCBqm70qTjIKESEdsTAm5HqpHA6Q98IKrABJuwPhUeJPszV9MsAUv8MJV88BT576Za
+         A3To3QNaRbhZ+lYqmm/K2E48eQnZ/60TExA8e64r0FGYcQCsHYxf0Boecf2612a0+xZb
+         PcDhOr+p/vGbHBCWoaRgWe4fECmpbmuR1Bfp5JJt/dXnwfsTalLKQlWOl06/sGaDV+pL
+         SMvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
-        b=OtUw9M02ZmmBsUMEmhYkGH63AiWPDJ6F3NCIL0xxg2UzVxTswl7od1h1Mwu+7Jxnto
-         exrJzDPV115aRHV4GJltO+yyVoQv1sDdFP0xswyxwEyll+jE+Ejcu1HJaCcry3Z3rvkz
-         IpfLdgEsw+efHQCWwYflOXi5lFYqpmRtAajch0Mt0r7nzItR6rTnswVHIcA07gINsDsg
-         57XsBwn0giWyrU8JQFUO1z68dzG1VTP2OEQGlsJ7YcsgKTj6pEwSOvqZTlVwU0uRNYv9
-         EyBBGfZYkXJ2hT99Gdr1wSJvzhWsH//h27wlfOWqq2qJ5ZyejED5XLlyBUgjTPYNydMo
-         ju/Q==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=HsfT0F7SEIuKtfrkNzRXb7iLrCtKcJShqeMLFZsVtjY=;
+        b=V7ionsBtxIkRL6ew9Pg70zy49uFI+qpScKpH+rTz/xYzqOFIjKZJKVT6uWeeIG7OAj
+         bbin0FaioAa1/qkT9zP6za/8b5ZzZwjkuDthbrFQlx+nz3Qo3gPl4dcMcwqbDsEbJsh9
+         pJ9I3MuzGz3uupztiOGr0yXHjczbwYrvS6NTINGUzPsW3ZyBSq+n6LXSTKzbSabT/sW4
+         3m4w2wf+v4DP/r2azq/F/lbFQV0hjDZjdyOQ/dYVgN9v8z+m+t/D+RCmvEOHYrNXwXpV
+         w11Ij+4I+uJ22YqvBUcwZuQeEpo9BuJWlwnRgxepHXFeWPVBn4THRK6y6wRYJzBSA9WG
+         A50A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K85URiHS;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DLbwRPHC;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o67sor10869026wma.12.2019.04.26.02.58.05
+        by mx.google.com with SMTPS id g1sor23749972plp.57.2019.04.26.03.27.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 26 Apr 2019 03:27:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K85URiHS;
-       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DLbwRPHC;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=YJCStWT0dNYPW3ntuISaTY+7m2TzWui5U3rbJsecnt4=;
-        b=K85URiHSmAJ1R+AeUwGYyucXzeBGpSgFJxfInaFSv6ntKK/zvtuQaZaAHMqosXdqCQ
-         PSwdwnK8AfCbRsW/xqF3cWnqK+cd8FYKwm1lw4QCJH13elJblsFe8d0B4rJmiaypHx2V
-         BPKTRORhHEpvy4fMFoXLQACGi5sY1E9IPfW7Gus8e0NvyirHI1shKtQemU1+usuMcDvY
-         yN+f5fiDh8kXry7A7CVvtVKcIK+17pib8MkhZzdPsM+nfv/EpYuyK3O/gTwUr/EbM0oj
-         VIpstDsdgthviqEU9Rm/RpgvIMDfui0KeJJYGLxqA7m8pSj8BmzEJj7hUPmI0hkzSEgV
-         0w/Q==
-X-Google-Smtp-Source: APXvYqxU4xRSO//2LeLOAQNJAxp8x2iYJV7YGaHBJl6zzDXEGkhWiOOILZ/XwIJJg56oj/prXk8sRw==
-X-Received: by 2002:a1c:f204:: with SMTP id s4mr7232803wmc.51.1556272685405;
-        Fri, 26 Apr 2019 02:58:05 -0700 (PDT)
-Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
-        by smtp.gmail.com with ESMTPSA id 4sm20102389wmg.12.2019.04.26.02.58.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Apr 2019 02:58:04 -0700 (PDT)
-Date: Fri, 26 Apr 2019 11:58:02 +0200
-From: Ingo Molnar <mingo@kernel.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-kernel@vger.kernel.org,
-	Alexandre Chartre <alexandre.chartre@oracle.com>,
-	Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	Jonathan Adams <jwadams@google.com>,
-	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org, x86@kernel.org,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Peter Zijlstra <a.p.zijlstra@chello.nl>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
- isolation
-Message-ID: <20190426095802.GA35515@gmail.com>
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
- <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
- <20190426083144.GA126896@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190426083144.GA126896@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+        h=from:to:cc:subject:date:message-id;
+        bh=HsfT0F7SEIuKtfrkNzRXb7iLrCtKcJShqeMLFZsVtjY=;
+        b=DLbwRPHCCBq2AY9Ju+1832yOc/qglRFP6wWbmqv++wmt7vke5hCZIXp9KmAHzoZUnM
+         xz2VyeGcWiugxa1EvZMrwcNV9Mghp9QofZ58UBaMapYHK+7TcV/1YhgyzWiObXHwzlOe
+         bX4tXz1g4l2kiOgSFVf6aPxxpvH2KlTBfmQQcDlUMqh3+wJi1bOuJL9jVY/ca9qaaGKv
+         RhdNRYnSR4R2l1GUSHshbVKqw/C7Zqlo2HlKe0y8qQ0IdVGjx94/dFjuPEFVPPbDRSzH
+         czL6L/MFTIEwJ8v7wHvCeA38AgGg5I91fYPeB0JTowMU8jw4a8oxDNn29i41p4m+aFgY
+         tugg==
+X-Google-Smtp-Source: APXvYqwtd6r9ekCJkqgFQfdyJXwvPZvIH8qmXgVf/Ak6rdmJ8aqH7Sr6YwOSEm47kLVzxmXFpMybUw==
+X-Received: by 2002:a17:902:54c:: with SMTP id 70mr45630943plf.210.1556274438215;
+        Fri, 26 Apr 2019 03:27:18 -0700 (PDT)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id n65sm61297572pfb.160.2019.04.26.03.27.15
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 03:27:17 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: jack@suse.cz,
+	mhocko@suse.com,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm/page-writeback: introduce tracepoint for wait_on_page_writeback
+Date: Fri, 26 Apr 2019 18:26:42 +0800
+Message-Id: <1556274402-19018-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Recently there're some hungtasks on our server due to
+wait_on_page_writeback, and we want to know the details of this
+PG_writeback, i.e. this page is writing back to which device.
+But it is not so convenient to get the details.
 
-* Ingo Molnar <mingo@kernel.org> wrote:
+I think it would be better to introduce a tracepoint for diagnosing
+the writeback details.
 
-> I really don't like it where this is going. In a couple of years I 
-> really want to be able to think of PTI as a bad dream that is mostly 
-> over fortunately.
-> 
-> I have the feeling that compiler level protection that avoids 
-> corrupting the stack in the first place is going to be lower overhead, 
-> and would work in a much broader range of environments. Do we have 
-> analysis of what the compiler would have to do to prevent most ROP 
-> attacks, and what the runtime cost of that is?
-> 
-> I mean, C# and Java programs aren't able to corrupt the stack as long 
-> as the language runtime is corect. Has to be possible, right?
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ include/linux/pagemap.h          | 10 +---------
+ include/trace/events/writeback.h | 16 +++++++++++++++-
+ mm/page-writeback.c              | 12 ++++++++++++
+ 3 files changed, 28 insertions(+), 10 deletions(-)
 
-So if such security feature is offered then I'm afraid distros would be 
-strongly inclined to enable it - saying 'yes' to a kernel feature that 
-can keep your product off CVE advisories is a strong force.
-
-To phrase the argument in a bit more controversial form:
-
-   If the price of Linux using an insecure C runtime is to slow down 
-   system calls with immense PTI-alike runtime costs, then wouldn't it be 
-   the right technical decision to write the kernel in a language runtime 
-   that doesn't allow stack overflows and such?
-
-I.e. if having Linux in C ends up being slower than having it in Java, 
-then what's the performance argument in favor of using C to begin with? 
-;-)
-
-And no, I'm not arguing for Java or C#, but I am arguing for a saner 
-version of C.
-
-Thanks,
-
-	Ingo
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index f939e00..0f26c38 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -537,15 +537,7 @@ static inline int wait_on_page_locked_killable(struct page *page)
+ 
+ extern void put_and_wait_on_page_locked(struct page *page);
+ 
+-/* 
+- * Wait for a page to complete writeback
+- */
+-static inline void wait_on_page_writeback(struct page *page)
+-{
+-	if (PageWriteback(page))
+-		wait_on_page_bit(page, PG_writeback);
+-}
+-
++void wait_on_page_writeback(struct page *page);
+ extern void end_page_writeback(struct page *page);
+ void wait_for_stable_page(struct page *page);
+ 
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index 32db72c..aa7f3ae 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -53,7 +53,7 @@
+ 
+ struct wb_writeback_work;
+ 
+-TRACE_EVENT(writeback_dirty_page,
++DECLARE_EVENT_CLASS(writeback_page_template,
+ 
+ 	TP_PROTO(struct page *page, struct address_space *mapping),
+ 
+@@ -79,6 +79,20 @@
+ 	)
+ );
+ 
++DEFINE_EVENT(writeback_page_template, writeback_dirty_page,
++
++	TP_PROTO(struct page *page, struct address_space *mapping),
++
++	TP_ARGS(page, mapping)
++);
++
++DEFINE_EVENT(writeback_page_template, wait_on_page_writeback,
++
++	TP_PROTO(struct page *page, struct address_space *mapping),
++
++	TP_ARGS(page, mapping)
++);
++
+ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
+ 
+ 	TP_PROTO(struct inode *inode, int flags),
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 9f61dfe..0765648 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2808,6 +2808,18 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ }
+ EXPORT_SYMBOL(__test_set_page_writeback);
+ 
++/*
++ * Wait for a page to complete writeback
++ */
++void wait_on_page_writeback(struct page *page)
++{
++	if (PageWriteback(page)) {
++		trace_wait_on_page_writeback(page, page_mapping(page));
++		wait_on_page_bit(page, PG_writeback);
++	}
++}
++EXPORT_SYMBOL_GPL(wait_on_page_writeback);
++
+ /**
+  * wait_for_stable_page() - wait for writeback to finish, if necessary.
+  * @page:	The page to wait on.
+-- 
+1.8.3.1
 
