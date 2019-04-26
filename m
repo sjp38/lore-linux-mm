@@ -8,96 +8,96 @@ X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6AFF6C43219
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A304FC43218
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1BA17208C2
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5D309208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IhMsROzO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BA17208C2
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sZ/qLuZJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D309208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C82D76B026D; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
+	id 26D4C6B026E; Sat, 27 Apr 2019 02:43:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C09976B026E; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
+	id 1F6336B026F; Sat, 27 Apr 2019 02:43:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A5B8D6B026F; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
+	id 0C97E6B0270; Sat, 27 Apr 2019 02:43:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 597056B026D
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:25 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id r13so3486702pga.13
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:25 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3BF6B026E
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:26 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v9so3485392pgg.8
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
-        b=jUBCRYiFnxYIhnlMJpjoZXVPqYJsutcG5NDECHOcUsINkWIqoREs54xNPjxgumcX00
-         TFPBeBgcVeMyuDk0pqW5GJZezew+r6I2/sA9ydC0pTLBytKRfIgi3OGt3fuHjaTcUBbY
-         OKkp6d4EE/lQfB3g2Of2ZBTWFAamcMs1qxY/OWWcy1yPESVEEIVt+AHmeHh/HWu6NCFm
-         9Dej5RYDUovR1fbAO3Q1UfHBX3xzOGkUge5tNNUngGyJowVel/Nb6flTgL8BDZX2Pi6i
-         /LBD5QBSs8EtbfSKsj5Fpuk4/b1OseDc+U1NxM5JVLzOJ42IP9o8vMFsDwYpae+OD0IY
-         OPjA==
-X-Gm-Message-State: APjAAAV9sX2EjUPq8tTHBKLn1jjIobfewqCpeABHO8hZtCCV5m2UazIh
-	yUtYdV+elfAfuZ14LqtPzrrCBWE5YTI9rWaiKhdF93kBq7dQ7dGtqSlnqPBJpMkD8IjE8Xv+GHJ
-	FNZk+x/8TG2lA8IT6X9PoeYtXx4yl9fvpqMOdjrepQDZtVyvgIPEYRF0X4vkaw4Oc4Q==
-X-Received: by 2002:a62:1b8a:: with SMTP id b132mr50797154pfb.19.1556347405039;
+        bh=RkWBxdSztj8rR+UGwRQ8u46DAnXrPhDoGJsRNKYizGU=;
+        b=bmWTaZ90OrJcMeQdhb/axqnoYxiC25pLO+eERU26KvVnwaTmFrPb4CodLmE2KjY09M
+         1np2OFnnRUr4kPNUM4WLmh3R1Q9HzRE6GxYFy1T0mHgq9wmbzYDplTTMqGja9VGhyqRS
+         Tjva+yZShtggvdeJAM6L4pFoZggUJfFANzeZbV6AgkQVbv4stxLSzY8W5ti40IKmlW2t
+         R25uFrl8DX83f86KLwc4LWaqW1W97a1PQ0wmBEsEgX6fw6w2XyVsx/X/afjezrXjuolV
+         hqToZQqGvQjh3gGuK841necUs7Idvi5uC8asba/nH+f7e0HAb8DYKEh7EfKq5sryhkDk
+         UL+Q==
+X-Gm-Message-State: APjAAAVB09xDKnMkvYEJfgqBO6fHULapcdjmekplSBcSI0AAixTOUEpT
+	LXz2URvyn1mpKku2xup6zxzOeKQsruoP3PrVimrpfCcGagi2BdbAPKDYh/W+BWoI97yWXexwk6H
+	/9Bm83HVzjQ0epapbeDS86HopSM/4Y6Vk6b69oJ2HIs8F67ZzqBqdZShsaTPMXEHM9w==
+X-Received: by 2002:a17:902:1024:: with SMTP id b33mr49035262pla.46.1556347406438;
+        Fri, 26 Apr 2019 23:43:26 -0700 (PDT)
+X-Received: by 2002:a17:902:1024:: with SMTP id b33mr49035210pla.46.1556347405369;
         Fri, 26 Apr 2019 23:43:25 -0700 (PDT)
-X-Received: by 2002:a62:1b8a:: with SMTP id b132mr50797082pfb.19.1556347403859;
-        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347403; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347405; cv=none;
         d=google.com; s=arc-20160816;
-        b=Mn2TQVsrI6Kf5b2JZ4I9J1dXfECi48Mdxr1pe947lMy3+iPKdEH7HbF3HZGE0wYFpr
-         qPzK92dvNsn5qj8uDaLlZsV/GwMCqR6hXfvTX5/7QgfMmmttKAYj5QtwdPO1cHqd2zB7
-         UVUjv+jrOSVCqcao9Ki3QZvx6xz+G1bda+oIxWGrpWs0kMX/6LiU7ZdylyuWln3GS1rb
-         CbvSTuso8n8FfyJqu4MHpWRhns/SCeOKXdzzBIAD+zOCVxLQD9ftux4XM2edwvvikTa0
-         dZ7XMcnM1561Voz8QHGnTweo8gzNA82wAPFzKLbOyNMit0yhNbArUjsh406PM7KQVPh/
-         4nLQ==
+        b=vHJwbTjoFEepOle0F0Ssxz7nwWzuZFuT2yLHuVbv9TLcpIHs31cqgjbNn9PZHr19+E
+         DJFwnQtWnTZkLypbzafONZtV4dFOXTruOW+w/ui3q7/l3RJ3hFsGd9Kaf1/HSG8bBNd4
+         UmK5V8BYwkBLE+vCOkdS9qtPvAw9bARnbtASJCT7QRRDd2FrlpeeF8mkQGnXQo2SJFjJ
+         uONpKMa2jWLJBMEkaWDMYvWC2LZMUEdr+qHHS2GY5b7ckdXPmjj4jiu+YS1gwfL3kBo9
+         SqlqbhlHmp+L43IbdHm1bUzNIR/+FeDF6dIPMavsX3zSBu1kBe6qCm8kMthC+RUvlEIf
+         jE6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
-        b=MiJuegQw9Apl1GGFIWx6wtyjVq6jYmgLlVZ98s2Zo3OezsS7wBnuBvhO0/a7UYmIyb
-         Ux/Hhyb10Gk65o6KU8MYmADq0+Yow/BVt5CpMT/YGp7McBpx7NVFXkd8oBIeWJ0qZnTg
-         qTydfhhfx7mR+2kaUjq4xWiYLDF1WFXBU2ff1+cNyON+eGKS7Fe7vd4iN+kZOwRDwkQu
-         KCUhIjKoCFmU08Ya2XuKtHjrBDa/UXxJxW/zCZItb7IHO9pojLXN2IQKqxFzGxxxn9aS
-         foDMwot0mpLyII96OBJsLn5M7t2czy0QMTPuxCTWGsFxMrKzxCApbburBw1FAYeI7wNh
-         SFOA==
+        bh=RkWBxdSztj8rR+UGwRQ8u46DAnXrPhDoGJsRNKYizGU=;
+        b=WkaTzNjnJ2vUoXU/BZ23J7b+ojRWmCJ5RsXbfR/hiVjqYLoBQ/B/i2AkQlccnDLGJS
+         bfEYajikSCLm0aMcNtLDQh5/NXnVaO+2kWPQABLIoJTnCoKpzwue3w9CPVuJPNYIhOWB
+         kQIjcpS0yvC6dZt8LROn6Fcc0eaFaY5UReKTE4Vjd+lIGJ3muf9p6rf5ZOjuQG5htAQ6
+         qIuvJN0GQGt1XBPccB8T10ufemCw4XWSEMVWTmhJwScBoYM1zFkSt3zWMaiEMC2/6AyX
+         Mmb0Hjxo3H7s/dxMS6mp0InBjZJXYYSHXdiIZknGl6UB/2yjSi1sr7guPRPlPDqTK7pg
+         8pmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IhMsROzO;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="sZ/qLuZJ";
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j7sor9239414pfa.29.2019.04.26.23.43.23
+        by mx.google.com with SMTPS id f24sor30579014pfn.22.2019.04.26.23.43.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IhMsROzO;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="sZ/qLuZJ";
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
-        b=IhMsROzOX/uvsuQybijdR85Kqaxq4yWzjUoagIOqk1LVY6OLTEXQbjBmXHD5WxbAzP
-         cmCoo1zMlycyEW/HfwZCgn/X+0dMFPFHyqqtEUKq6AZF6jWZrRVIUAiE8jxYjY0M9MT3
-         Ik7ZKhQeM7kg+3gB06XcTjx2xBZpPGhS55GH7o8s674YL85Zg5fEINa05kjxM9iG+Kfo
-         SEIwp8JxZ7vs+rhoqI+mg8MouUQf2Zul6cu4rspQPkk8FxQa/9RXPXX4OwkD3jy0+Z/+
-         SBrns4/qvGYQvjrl9OPoH7DBVBfA0arFpsKvUBwFWEn4L2+Z7qiKOGh0M4x1w7s8Fe9M
-         Y7uQ==
-X-Google-Smtp-Source: APXvYqyXozv8RJ3un5KRfku6J9oOZngaXmf1Y0t3bUJMwzL1TSTEhjmbFCgyEeDgaxJqumt2ZQ+7aA==
-X-Received: by 2002:a62:5fc7:: with SMTP id t190mr50793424pfb.191.1556347403359;
-        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
+        bh=RkWBxdSztj8rR+UGwRQ8u46DAnXrPhDoGJsRNKYizGU=;
+        b=sZ/qLuZJUAyo8qbKkeTMfaDU5l+q5915X9t7GRxTKJHbpjNKTHl8pciE33HsZyKxMj
+         FHDGynPK6j9EMARDmUngJuJvUrJzSdZ856tWm7M07XqPW/SWzM6ZNX5zl88lma+UJQTP
+         glz3jYPedES7CBs45n1TgBVlpwj8P8UlUX7TYH4J9CMC1SwMSQqAcgs/6v2TrFDCMTCc
+         9+WmCz+Xk4CqkdBn0hJ5YGF1/DTIcg/k9CSmxM2My4drnNNp3ITpwY4FI+yvE/59hq2C
+         LbPH5HAGU5SG85yKGAzKgHwuQvpQ2iezoip/gl/Zm0v6Wm0PDoU46D9nD3GQpDAmdtBS
+         P0cQ==
+X-Google-Smtp-Source: APXvYqymwtMNRBHdVQWTPWr7iZe7bQ6p95NnoQCCbzB15xIf0gFL50JmokfCH/M9gUZzJVqeF2oaxg==
+X-Received: by 2002:aa7:81d0:: with SMTP id c16mr50378631pfn.132.1556347404841;
+        Fri, 26 Apr 2019 23:43:24 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.22
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:24 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -124,9 +124,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: [PATCH v6 13/24] x86/jump-label: Remove support for custom poker
-Date: Fri, 26 Apr 2019 16:22:52 -0700
-Message-Id: <20190426232303.28381-14-nadav.amit@gmail.com>
+Subject: [PATCH v6 14/24] x86/alternative: Remove the return value of text_poke_*()
+Date: Fri, 26 Apr 2019 16:22:53 -0700
+Message-Id: <20190426232303.28381-15-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -138,9 +138,8 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-There are only two types of poking: early and breakpoint based. The use
-of a function pointer to perform poking complicates the code and is
-probably inefficient due to the use of indirect branches.
+The return value of text_poke_early() and text_poke_bp() is useless.
+Remove it.
 
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
@@ -150,77 +149,81 @@ Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/jump_label.c | 26 ++++++++++----------------
- 1 file changed, 10 insertions(+), 16 deletions(-)
+ arch/x86/include/asm/text-patching.h |  4 ++--
+ arch/x86/kernel/alternative.c        | 11 ++++-------
+ 2 files changed, 6 insertions(+), 9 deletions(-)
 
-diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
-index e7d8c636b228..e631c358f7f4 100644
---- a/arch/x86/kernel/jump_label.c
-+++ b/arch/x86/kernel/jump_label.c
-@@ -37,7 +37,6 @@ static void bug_at(unsigned char *ip, int line)
+diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
+index a75eed841eed..c90678fd391a 100644
+--- a/arch/x86/include/asm/text-patching.h
++++ b/arch/x86/include/asm/text-patching.h
+@@ -18,7 +18,7 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
+ #define __parainstructions_end	NULL
+ #endif
  
- static void __ref __jump_label_transform(struct jump_entry *entry,
- 					 enum jump_label_type type,
--					 void *(*poker)(void *, const void *, size_t),
- 					 int init)
+-extern void *text_poke_early(void *addr, const void *opcode, size_t len);
++extern void text_poke_early(void *addr, const void *opcode, size_t len);
+ 
+ /*
+  * Clear and restore the kernel write-protection flag on the local CPU.
+@@ -37,7 +37,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
+ extern void *text_poke(void *addr, const void *opcode, size_t len);
+ extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
+ extern int poke_int3_handler(struct pt_regs *regs);
+-extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
++extern void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
+ extern int after_bootmem;
+ extern __ro_after_init struct mm_struct *poking_mm;
+ extern __ro_after_init unsigned long poking_addr;
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index 3d2b6b6fb20c..18f959975ea0 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -265,7 +265,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
+ 
+ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
+ extern s32 __smp_locks[], __smp_locks_end[];
+-void *text_poke_early(void *addr, const void *opcode, size_t len);
++void text_poke_early(void *addr, const void *opcode, size_t len);
+ 
+ /*
+  * Are we looking at a near JMP with a 1 or 4-byte displacement.
+@@ -667,8 +667,8 @@ void __init alternative_instructions(void)
+  * instructions. And on the local CPU you need to be protected again NMI or MCE
+  * handlers seeing an inconsistent instruction while you patch.
+  */
+-void *__init_or_module text_poke_early(void *addr, const void *opcode,
+-				       size_t len)
++void __init_or_module text_poke_early(void *addr, const void *opcode,
++				      size_t len)
  {
- 	union jump_code_union jmp;
-@@ -50,14 +49,6 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
- 	jmp.offset = jump_entry_target(entry) -
- 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
+ 	unsigned long flags;
  
--	/*
--	 * As long as only a single processor is running and the code is still
--	 * not marked as RO, text_poke_early() can be used; Checking that
--	 * system_state is SYSTEM_BOOTING guarantees it.
--	 */
--	if (system_state == SYSTEM_BOOTING)
--		poker = text_poke_early;
--
- 	if (type == JUMP_LABEL_JMP) {
- 		if (init) {
- 			expect = default_nop; line = __LINE__;
-@@ -80,16 +71,19 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
- 		bug_at((void *)jump_entry_code(entry), line);
+@@ -691,7 +691,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+ 		 * that causes hangs on some VIA CPUs.
+ 		 */
+ 	}
+-	return addr;
+ }
  
- 	/*
--	 * Make text_poke_bp() a default fallback poker.
-+	 * As long as only a single processor is running and the code is still
-+	 * not marked as RO, text_poke_early() can be used; Checking that
-+	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
-+	 * SYSTEM_SCHEDULING before other cores are awaken and before the
-+	 * code is write-protected.
- 	 *
- 	 * At the time the change is being done, just ignore whether we
- 	 * are doing nop -> jump or jump -> nop transition, and assume
- 	 * always nop being the 'currently valid' instruction
--	 *
+ __ro_after_init struct mm_struct *poking_mm;
+@@ -893,7 +892,7 @@ NOKPROBE_SYMBOL(poke_int3_handler);
+  *	  replacing opcode
+  *	- sync cores
+  */
+-void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
++void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+ {
+ 	unsigned char int3 = 0xcc;
+ 
+@@ -935,7 +934,5 @@ void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+ 	 * the writing of the new instruction.
  	 */
--	if (poker) {
--		(*poker)((void *)jump_entry_code(entry), code,
--			 JUMP_LABEL_NOP_SIZE);
-+	if (init || system_state == SYSTEM_BOOTING) {
-+		text_poke_early((void *)jump_entry_code(entry), code,
-+				JUMP_LABEL_NOP_SIZE);
- 		return;
- 	}
- 
-@@ -101,7 +95,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
- 			       enum jump_label_type type)
- {
- 	mutex_lock(&text_mutex);
--	__jump_label_transform(entry, type, NULL, 0);
-+	__jump_label_transform(entry, type, 0);
- 	mutex_unlock(&text_mutex);
+ 	bp_patching_in_progress = false;
+-
+-	return addr;
  }
  
-@@ -131,5 +125,5 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
- 			jlstate = JL_STATE_NO_UPDATE;
- 	}
- 	if (jlstate == JL_STATE_UPDATE)
--		__jump_label_transform(entry, type, text_poke_early, 1);
-+		__jump_label_transform(entry, type, 1);
- }
 -- 
 2.17.1
 
