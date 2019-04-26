@@ -2,130 +2,120 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8C8CC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 17:53:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4493EC43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:02:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 531D42077B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 17:53:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ED4EB20679
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:02:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="XKuqRw4V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 531D42077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="LO2yBP/4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED4EB20679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A33A76B0003; Fri, 26 Apr 2019 13:53:13 -0400 (EDT)
+	id 8F1AB6B0006; Fri, 26 Apr 2019 14:02:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B8CD6B0005; Fri, 26 Apr 2019 13:53:13 -0400 (EDT)
+	id 8789D6B0008; Fri, 26 Apr 2019 14:02:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 866F26B0006; Fri, 26 Apr 2019 13:53:13 -0400 (EDT)
+	id 71A736B000A; Fri, 26 Apr 2019 14:02:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 422516B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 13:53:13 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id j12so2520322pgl.14
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:53:13 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 371EC6B0006
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 14:02:56 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id m9so2540038pge.7
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 11:02:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=XD4vTM697L/7+bwf8z9pZXV17Y42tWRnZ5Z11cF4DY8=;
-        b=G08/Gj0Ts2EETHBkQff8rZBRzSlmIf14WaA34Ug7lUhoGEKtA/iMXOP/GikX49KBwM
-         JMgw2qKQEjXnx0NJKFF4AWg4smgvy7QYvooowTkJvzPPPdn6/qL0MZ9YV5Q3bgiBr4qt
-         aPgdGD/KlbCewBpRNS/qQfxbgvBjrVzWUrRnXqok1LF3iWSzydXq23+4mslk/nJW2+ZE
-         eJjoVBTpSZHZQ6/hvUXlSg6ws+sQtkPWok2JIpC3wqNNqcfsW+joSTXYeaL1pwCTXeGv
-         /UNDqRgZie8+TLpLLW9hhxs+niZaBuVxvYzOXN5jTBdmorZsa4YJDQTsyzZfRcm5K3ZM
-         LKyA==
-X-Gm-Message-State: APjAAAUZ1XcoZ1TjHLZt5RUUjDOSQW34NIWGk8t0blyf4lMnXbIILAWG
-	tiTK+n2Xn0FKNTtdq/cDiNafoqFQ6NIzwhsxgJTOwDAJo37ERO3dZ77QiUpJYjg+TFIqVUvrqlt
-	WHh3a88D3p652JX5vO0H+dLCVzOwkR6lIxhbCW9rhkZdoutX5/+S6KJDnvYtBUo/zyg==
-X-Received: by 2002:a65:448b:: with SMTP id l11mr44547534pgq.185.1556301192714;
-        Fri, 26 Apr 2019 10:53:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHuOpIXMIKUKUE7NEjI1TKk/rCjwfJLJVcXZSXkmPpmfT4bDwJlukTF1wzWQvw7EudEU25
-X-Received: by 2002:a65:448b:: with SMTP id l11mr44547418pgq.185.1556301191393;
-        Fri, 26 Apr 2019 10:53:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556301191; cv=none;
+        h=x-gm-message-state:dkim-signature:content-transfer-encoding:from
+         :mime-version:date:message-id:subject:references:in-reply-to:to:cc;
+        bh=uf9+Gc4IGjm5bXfQmbt+aGr/dzzLVRS2xZVZ9HE9m58=;
+        b=T2zaTArpk1rtYsPhF+lwZNthjO/ULy4Q7BYU5uxt662b7OGEvkLsI54Z2dTEfU6lcI
+         hZE8ySVquFHbU66GhbQ9jiVbSsU19lt8fl/4GayAzKR46bPRDEbQHCfb73PYblk4w3uT
+         y72WMYwJIvoW68kZ7DLehBOe/HxE+MZxyUbE8yVUZBgpr7QFDZci1bVdJEeWAnzJzwUI
+         n+m1TeqeOuVLMqQUPXZwutNkD8J48nzoSPvpgGSGbQDaMrfpqQJSgq+uszBn702aiqUN
+         NZRr9+8/XxJr43fNG1mk6WhslbZ/tgVS+UWa8LPbybvcepFTfMCFqNhc5Fg1nIJZbVPT
+         ajzA==
+X-Gm-Message-State: APjAAAUbERbc9BJ546Klpu0ZUSxLSBSwxMPV1MGnDaRQa2kXfRWyxIZY
+	LB6+g5xaZ/tmoW3UkmZ3Dhv7WBKMAiDQFWLmC/nolcXTeEfaO4oNPCYIgUyhVwEKffXoD6Vge45
+	Hz5/PpQR+CtFcvKBAfspWt8C/JLAN7wG1C9/lzDFupoy3gRspCM8WNOX9eF+nowigtA==
+X-Received: by 2002:a17:902:1e2:: with SMTP id b89mr45614267plb.278.1556301775826;
+        Fri, 26 Apr 2019 11:02:55 -0700 (PDT)
+X-Received: by 2002:a17:902:1e2:: with SMTP id b89mr45614184plb.278.1556301774899;
+        Fri, 26 Apr 2019 11:02:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556301774; cv=none;
         d=google.com; s=arc-20160816;
-        b=JYZq7wp57v3p77YbBZ0VamPVfvW0I21p6NyetKJTLhAa1MGMS3+jl0MoW5nIPsngI4
-         fDl9NfV77ABkLTI01VK94s+ZSeYB89miXCittERYZ+EdRYLDw5XO608WloNeopjd7Iok
-         O16sPETFaOfNHvgNF4Jgvvg+JcsE0Q+U2AorZWFm9UzFeeu6NTFZJtd3GVBeXUQru48t
-         YdR8qDU2Wbd+qzkBsRsfLuxSw5yPzkk2I2yYYrT7HHGAw+zypTBlkPGxClx7xF4DCzXl
-         pTs8GuTpv9SQJqzoEDvxTq53yc+3xVwdTG2iMzNkGDtPWq84kICxeIwUmKz9deD+27z1
-         ly2A==
+        b=W/I/kS63m9VJSP2CO2BWROsU21ZAiko4194dnZlIq95/qJ9oFPTjS7AXsexR5vnsc3
+         d0PHORyfwenWixvzHtCDnPgQcQLjanSV2mam0s72aXtzK0jFXfAhhkZhiKl6fBn0by9P
+         BzoLT43hzsoDW4jonF3ktT/XuxMmK9jyXvNvwgna7keGj0YxZHkwRL3gitFX2X0/9TTc
+         FZI7Iuu/zRRUaJaQFnn0ce2sDl7IHRGO5rU10tSOA4iNUpSuqNaOhOfyNxjA67fmCf+V
+         5I/VNxpSICcGl3/zSAjapTq/wYmaDDl9x/zfApLeVv7gtn2+Q7YAaqvqeY3hBWucoEDb
+         DTQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=XD4vTM697L/7+bwf8z9pZXV17Y42tWRnZ5Z11cF4DY8=;
-        b=Y7hMXvLJlty61dOfmGFBIu6uUBDp/TkJsF0bWuoyNbTg3F2zIYOfoNi+3lDpKNkH6t
-         dWFkEJYk/9Bbksszj8nD92nN0f04mUicutJqVy4lyC8WnDaBrOi8ibybRCSEjplUxMMf
-         8sdRAO2/NOiO1lG+QSDYewY7yXwsSUtZ0mMn23Tt99t++4k1rSETcAGu7xxoAc20Ix95
-         KSvjSTIibHLW4Iz8ORlCe1TV5ztsVyO2tPXvx1EoYB0QiHuvSdWJy8S9ni/LRylmMjlE
-         TZD9oMGDaLjhwPV6GSGyL9QfX6ywL6KrA7QJFpjCmVZaz4BOpipU51cy1NtepEWjRRC2
-         u9Aw==
+        h=cc:to:in-reply-to:references:subject:message-id:date:mime-version
+         :from:content-transfer-encoding:dkim-signature;
+        bh=uf9+Gc4IGjm5bXfQmbt+aGr/dzzLVRS2xZVZ9HE9m58=;
+        b=PrUhsCtAiuZgAdxSrnNFQBhhCPgLFRmGBzbc2CTQzS1dmhT4PTLgPjh6eA+9H3fXuU
+         vBhlgCbdvpattMRgQX73FCJKI4XNM0s++7k5jDN/WebAFVzE5IWJyiT1eUXdM2Niagam
+         X979mxf6a/oIo/4rxNjiLA4YyGpwsCEfwA1lbkYPimr4NvDCGsT0pWtRiOpmOE3yHDtS
+         CFdQC+RdF5WctN5U4HmL77EZfS1TlBx7OJz5FOGieFxjRWKY92Nvs3ohxQoBby1U+zNB
+         vJ8x8eWqDpp/ZtBG1qVuKKAF0k2rUSKBIlk0siNTpYL8zBAP5ZOuFbD0uqlzQePeDUHW
+         6kWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=XKuqRw4V;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id l26si6165131pgb.73.2019.04.26.10.53.10
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b="LO2yBP/4";
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g18sor29496737pfi.1.2019.04.26.11.02.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 10:53:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        (Google Transport Security);
+        Fri, 26 Apr 2019 11:02:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=XKuqRw4V;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cc345830000>; Fri, 26 Apr 2019 10:53:07 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 26 Apr 2019 10:53:10 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 26 Apr 2019 10:53:10 -0700
-Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 26 Apr
- 2019 17:53:10 +0000
-Subject: Re: [PATCH] docs/vm: Minor editorial changes in the THP and hugetlbfs
- documentation.
-To: Yang Shi <shy828301@gmail.com>
-CC: Linux MM <linux-mm@kvack.org>, <linux-doc@vger.kernel.org>, Jonathan
- Corbet <corbet@lwn.net>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike
- Kravetz <mike.kravetz@oracle.com>
-References: <20190425190426.10051-1-rcampbell@nvidia.com>
- <CAHbLzkojmk73xsHXtteiMif5_=Cqo13M1HeQedyuV4MTCEEk+Q@mail.gmail.com>
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <d25da167-8f8d-acbe-64a6-b9722a6697ed@nvidia.com>
-Date: Fri, 26 Apr 2019 10:53:09 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
-MIME-Version: 1.0
-In-Reply-To: <CAHbLzkojmk73xsHXtteiMif5_=Cqo13M1HeQedyuV4MTCEEk+Q@mail.gmail.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1556301187; bh=XD4vTM697L/7+bwf8z9pZXV17Y42tWRnZ5Z11cF4DY8=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=XKuqRw4V290DArXBw/r6gHe4DxhUhDzoqBig2+/ADAO3Vh91lYfxwoLgr6DkYy0PU
-	 7a8+QB344fVzHDkOQPjWSJIVR4rRND6qRdwm1jTFsNt4DpB9xUiDBAp1sinjCGTLqF
-	 K7isFiAAne7qpyGRdo/Dbs/MGjcgvVPyRQ4btx3d5/gB/9S0nKREk7Y6SVVNpF92TK
-	 zjiaTYPoFIxU9hdykJ3Rb+YTsugw+BNuc0tcttM4TdkcoOw/nTGEo3ushLrqik4zFF
-	 k9LEA/IJMv3+zTelAOBKtKoMnf+Qc5gNsF2ndXwQ2C/29tAFE5K2QUe6cxHvmnQs7t
-	 P+tTTr/wf7c2w==
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b="LO2yBP/4";
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=content-transfer-encoding:from:mime-version:date:message-id:subject
+         :references:in-reply-to:to:cc;
+        bh=uf9+Gc4IGjm5bXfQmbt+aGr/dzzLVRS2xZVZ9HE9m58=;
+        b=LO2yBP/43Gaxq2G427F4quiP0FFiCIk+EbiXVQe5DTb0hxctE2AttHWb6tWuexLs3L
+         ZkgG1bwlvK7lyTAodQcHTtnOIHnbCFp9kz0q5A0+btCGRUTPSe0ZDv/yUcUGoaI4Rnlk
+         POZD7BlXQwFPt1fFpDSqeXtHETEWLhggiXmUS7fRcPEHbEKMnALPeB2xOwiFoJBB6XqV
+         doRFYnnnMI40ZmQb8mE1Lgw+qjcbkk2g59wZvyeOR7s+5xpjLqhxr0BhfZT+vtLzmeT2
+         pNJbsy6DDny9FxIJnnFyBwYu1AkprSd5oSgpU/8x9kx6LPOL9cmTqq+QBhTSJsDQVwa+
+         NiJQ==
+X-Google-Smtp-Source: APXvYqzBEXuTEM05o6uGn8vlD4CMCKRLEInJ6zCYpq9KPk9r3ASAk9h3Sp5XQ3azdexwEX66AO8sKw==
+X-Received: by 2002:a62:e213:: with SMTP id a19mr46999249pfi.85.1556301774455;
+        Fri, 26 Apr 2019 11:02:54 -0700 (PDT)
+Received: from ?IPv6:2601:647:5803:15b9:2926:d41b:33e7:d8df? ([2601:647:5803:15b9:2926:d41b:33e7:d8df])
+        by smtp.gmail.com with ESMTPSA id f8sm8533429pfk.88.2019.04.26.11.02.53
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 11:02:53 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+From: Andy Lutomirski <luto@amacapital.net>
+Mime-Version: 1.0 (1.0)
+Date: Fri, 26 Apr 2019 10:40:18 -0700
+Message-Id: <8E695557-1CD2-431A-99CC-49A4E8247BAE@amacapital.net>
+Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call isolation
+References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com> <1556228754-12996-3-git-send-email-rppt@linux.ibm.com> <627d9321-466f-c4ed-c658-6b8567648dc6@intel.com> <1556290658.2833.28.camel@HansenPartnership.com> <54090243-E4C7-4C66-8025-AFE0DF5DF337@amacapital.net> <1556291961.2833.42.camel@HansenPartnership.com>
+In-Reply-To: <1556291961.2833.42.camel@HansenPartnership.com>
+To: James Bottomley <James.Bottomley@hansenpartnership.com>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+ Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+ Alexandre Chartre <alexandre.chartre@oracle.com>,
+ Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+ Jonathan Adams <jwadams@google.com>, Kees Cook <keescook@chromium.org>,
+ Paul Turner <pjt@google.com>, Peter Zijlstra <peterz@infradead.org>,
+ Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
+ linux-security-module@vger.kernel.org, x86@kernel.org
+X-Mailer: iPhone Mail (16E227)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -134,149 +124,83 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 4/25/19 12:38 PM, Yang Shi wrote:
-> On Thu, Apr 25, 2019 at 12:05 PM <rcampbell@nvidia.com> wrote:
->>
->> From: Ralph Campbell <rcampbell@nvidia.com>
->>
->> Some minor wording changes and typo corrections.
->>
->> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
->> Cc: Jonathan Corbet <corbet@lwn.net>
->> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
->> Cc: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>   Documentation/vm/hugetlbfs_reserv.rst | 17 +++---
->>   Documentation/vm/transhuge.rst        | 77 ++++++++++++++-------------
->>   2 files changed, 48 insertions(+), 46 deletions(-)
->>
->> diff --git a/Documentation/vm/hugetlbfs_reserv.rst b/Documentation/vm/hugetlbfs_reserv.rst
->> index 9d200762114f..f143954e0d05 100644
->> --- a/Documentation/vm/hugetlbfs_reserv.rst
->> +++ b/Documentation/vm/hugetlbfs_reserv.rst
->> @@ -85,10 +85,10 @@ Reservation Map Location (Private or Shared)
->>   A huge page mapping or segment is either private or shared.  If private,
->>   it is typically only available to a single address space (task).  If shared,
->>   it can be mapped into multiple address spaces (tasks).  The location and
->> -semantics of the reservation map is significantly different for two types
->> +semantics of the reservation map is significantly different for the two types
->>   of mappings.  Location differences are:
->>
->> -- For private mappings, the reservation map hangs off the the VMA structure.
->> +- For private mappings, the reservation map hangs off the VMA structure.
->>     Specifically, vma->vm_private_data.  This reserve map is created at the
->>     time the mapping (mmap(MAP_PRIVATE)) is created.
->>   - For shared mappings, the reservation map hangs off the inode.  Specifically,
->> @@ -109,15 +109,15 @@ These operations result in a call to the routine hugetlb_reserve_pages()::
->>                                    struct vm_area_struct *vma,
->>                                    vm_flags_t vm_flags)
->>
->> -The first thing hugetlb_reserve_pages() does is check for the NORESERVE
->> +The first thing hugetlb_reserve_pages() does is check if the NORESERVE
->>   flag was specified in either the shmget() or mmap() call.  If NORESERVE
->> -was specified, then this routine returns immediately as no reservation
->> +was specified, then this routine returns immediately as no reservations
->>   are desired.
->>
->>   The arguments 'from' and 'to' are huge page indices into the mapping or
->>   underlying file.  For shmget(), 'from' is always 0 and 'to' corresponds to
->>   the length of the segment/mapping.  For mmap(), the offset argument could
->> -be used to specify the offset into the underlying file.  In such a case
->> +be used to specify the offset into the underlying file.  In such a case,
->>   the 'from' and 'to' arguments have been adjusted by this offset.
->>
->>   One of the big differences between PRIVATE and SHARED mappings is the way
->> @@ -138,7 +138,8 @@ to indicate this VMA owns the reservations.
->>
->>   The reservation map is consulted to determine how many huge page reservations
->>   are needed for the current mapping/segment.  For private mappings, this is
->> -always the value (to - from).  However, for shared mappings it is possible that some reservations may already exist within the range (to - from).  See the
->> +always the value (to - from).  However, for shared mappings it is possible that
->> +some reservations may already exist within the range (to - from).  See the
->>   section :ref:`Reservation Map Modifications <resv_map_modifications>`
->>   for details on how this is accomplished.
->>
->> @@ -165,7 +166,7 @@ these counters.
->>   If there were enough free huge pages and the global count resv_huge_pages
->>   was adjusted, then the reservation map associated with the mapping is
->>   modified to reflect the reservations.  In the case of a shared mapping, a
->> -file_region will exist that includes the range 'from' 'to'.  For private
->> +file_region will exist that includes the range 'from' - 'to'.  For private
->>   mappings, no modifications are made to the reservation map as lack of an
->>   entry indicates a reservation exists.
->>
->> @@ -239,7 +240,7 @@ subpool accounting when the page is freed.
->>   The routine vma_commit_reservation() is then called to adjust the reserve
->>   map based on the consumption of the reservation.  In general, this involves
->>   ensuring the page is represented within a file_region structure of the region
->> -map.  For shared mappings where the the reservation was present, an entry
->> +map.  For shared mappings where the reservation was present, an entry
->>   in the reserve map already existed so no change is made.  However, if there
->>   was no reservation in a shared mapping or this was a private mapping a new
->>   entry must be created.
->> diff --git a/Documentation/vm/transhuge.rst b/Documentation/vm/transhuge.rst
->> index a8cf6809e36e..0be61b0d75d3 100644
->> --- a/Documentation/vm/transhuge.rst
->> +++ b/Documentation/vm/transhuge.rst
->> @@ -4,8 +4,9 @@
->>   Transparent Hugepage Support
->>   ============================
->>
->> -This document describes design principles Transparent Hugepage (THP)
->> -Support and its interaction with other parts of the memory management.
->> +This document describes design principles for Transparent Hugepage (THP)
->> +support and its interaction with other parts of the memory management
->> +system.
->>
->>   Design principles
->>   =================
->> @@ -35,27 +36,27 @@ Design principles
->>   get_user_pages and follow_page
->>   ==============================
->>
->> -get_user_pages and follow_page if run on a hugepage, will return the
->> +get_user_pages and follow_page, if run on a hugepage, will return the
->>   head or tail pages as usual (exactly as they would do on
->> -hugetlbfs). Most gup users will only care about the actual physical
->> +hugetlbfs). Most GUP users will only care about the actual physical
->>   address of the page and its temporary pinning to release after the I/O
->>   is complete, so they won't ever notice the fact the page is huge. But
->>   if any driver is going to mangle over the page structure of the tail
->>   page (like for checking page->mapping or other bits that are relevant
->>   for the head page and not the tail page), it should be updated to jump
->> -to check head page instead. Taking reference on any head/tail page would
->> -prevent page from being split by anyone.
->> +to check head page instead. Taking a reference on any head/tail page would
->> +prevent the page from being split by anyone.
->>
->>   .. note::
->>      these aren't new constraints to the GUP API, and they match the
->> -   same constrains that applies to hugetlbfs too, so any driver capable
->> +   same constraints that apply to hugetlbfs too, so any driver capable
->>      of handling GUP on hugetlbfs will also work fine on transparent
->>      hugepage backed mappings.
->>
->>   In case you can't handle compound pages if they're returned by
->> -follow_page, the FOLL_SPLIT bit can be specified as parameter to
->> +follow_page, the FOLL_SPLIT bit can be specified as a parameter to
->>   follow_page, so that it will split the hugepages before returning
->> -them. Migration for example passes FOLL_SPLIT as parameter to
->> +them. Migration for example passes FOLL_SPLIT as a parameter to
-> 
-> The migration example has been removed by me. The patch has been on
-> linux-next. Please check "doc: mm: migration doesn't use FOLL_SPLIT
-> anymore" out.
-> 
-> Thanks,
-> Yang
+> On Apr 26, 2019, at 8:19 AM, James Bottomley <James.Bottomley@hansenpartne=
+rship.com> wrote:
+>=20
+> On Fri, 2019-04-26 at 08:07 -0700, Andy Lutomirski wrote:
+>>> On Apr 26, 2019, at 7:57 AM, James Bottomley <James.Bottomley@hanse
+>>> npartnership.com> wrote:
+>>>=20
+>>>>> On Fri, 2019-04-26 at 07:46 -0700, Dave Hansen wrote:
+>>>>> On 4/25/19 2:45 PM, Mike Rapoport wrote:
+>>>>> After the isolated system call finishes, the mappings created
+>>>>> during its execution are cleared.
+>>>>=20
+>>>> Yikes.  I guess that stops someone from calling write() a bunch
+>>>> of times on every filesystem using every block device driver and
+>>>> all the DM code to get a lot of code/data faulted in.  But, it
+>>>> also means not even long-running processes will ever have a
+>>>> chance of behaving anything close to normally.
+>>>>=20
+>>>> Is this something you think can be rectified or is there
+>>>> something fundamental that would keep SCI page tables from being
+>>>> cached across different invocations of the same syscall?
+>>>=20
+>>> There is some work being done to look at pre-populating the
+>>> isolated address space with the expected execution footprint of the
+>>> system call, yes.  It lessens the ROP gadget protection slightly
+>>> because you might find a gadget in the pre-populated code, but it
+>>> solves a lot of the overhead problem.
+>>=20
+>> I=E2=80=99m not even remotely a ROP expert, but: what stops a ROP payload=
 
-Thanks, I will send out a v2 with this correction.
+>> from using all the =E2=80=9Cfault-in=E2=80=9D gadgets that exist =E2=80=94=
+ any function that
+>> can return on an error without doing to much will fault in the whole
+>> page containing the function.
+>=20
+> The address space pre-population is still per syscall, so you don't get
+> access to the code footprint of a different syscall.  So the isolated
+> address space is created anew for every system call, it's just pre-
+> populated with that system call's expected footprint.
 
+That=E2=80=99s not what I mean. Suppose I want to use a ROP gadget in vmallo=
+c(), but vmalloc isn=E2=80=99t in the page tables. Then first push vmalloc i=
+tself into the stack. As long as RDI contains a sufficiently ridiculous valu=
+e, it should just return without doing anything. And it can return right bac=
+k into the ROP gadget, which is now available.
 
------------------------------------------------------------------------------------
-This email message is for the sole use of the intended recipient(s) and may contain
-confidential information.  Any unauthorized review, use, disclosure or distribution
-is prohibited.  If you are not the intended recipient, please contact the sender by
-reply email and destroy all copies of the original message.
------------------------------------------------------------------------------------
+>=20
+>> To improve this, we would want some thing that would try to check
+>> whether the caller is actually supposed to call the callee, which is
+>> more or less the hard part of CFI.  So can=E2=80=99t we just do CFI and c=
+all
+>> it a day?
+>=20
+> By CFI you mean control flow integrity?  In theory I believe so, yes,
+> but in practice doesn't it require a lot of semantic object information
+> which is easy to get from higher level languages like java but a bit
+> more difficult for plain C.
+
+Yes. As I understand it, grsecurity instruments gcc to create some kind of h=
+ash of all function signatures. Then any indirect call can effectively verif=
+y that it=E2=80=99s calling a function of the right type. And every return v=
+erified a cookie.
+
+On CET CPUs, RET gets checked directly, and I don=E2=80=99t see the benefit o=
+f SCI.
+
+>=20
+>> On top of that, a robust, maintainable implementation of this thing
+>> seems very complicated =E2=80=94 for example, what happens if vfree() get=
+s
+>> called?
+>=20
+> Address space Local vs global object tracking is another thing on our
+> list.  What we'd probably do is verify the global object was allowed to
+> be freed and then hand it off safely to the main kernel address space.
+>=20
+>=20
+
+This seems exceedingly complicated.=
 
