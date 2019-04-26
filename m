@@ -5,99 +5,98 @@ X-Spam-Level:
 X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48FC7C43218
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B6E3C43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0DA8208C2
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 511AA208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:44:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JScJif31"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0DA8208C2
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fTkRQ/Y6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 511AA208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA3E06B0278; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
+	id 7C8FE6B0279; Sat, 27 Apr 2019 02:43:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C54656B0279; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
+	id 726076B027A; Sat, 27 Apr 2019 02:43:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD4A46B027A; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
+	id 581926B027B; Sat, 27 Apr 2019 02:43:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 728B86B0278
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:38 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l13so3503920pgp.3
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 194356B0279
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:40 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id u2so3488250pgi.10
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
-        b=RTcpy+NiC7R7PpBw+ceRfAGSTppaDldn2RDmHu9JdKrcXLuTv7mw/Somu/uBJHLWjg
-         qTczf1mEKbL88YbVt3zoztYaTkrSZjWCNcMKdz/yNZxKW79kSkl/8/RuxisgRTojd9EU
-         dT8k8lcdrv7ak8dTrR4HUtS2nSkXy8Z3jHBfLpwqQssEchhb90wHu8JVEmCqS0mCRAMW
-         IrKehKihLntPKPE3Uxmm00Vu9IyemujRN17smK8ScQuGX1ArXnJ+2kFdRHxkfOKM/GJc
-         +iwx9u6qSrmMvMfuZghHSBH5q+yaqy2XJaaucnjsJTfMG6ntJ9EpK1cNngGJfvH0eju/
-         krGQ==
-X-Gm-Message-State: APjAAAWO7PKC99ofUHDBDR1pPe4kCPnjlxpWjw1ILy3F75060Y8xRp0O
-	k/0RBj4VDTGROVJ+ukMFJ8Y+KfXAf47V9NGKLC0eImrpZp607FclC+nSAF05VpP8ZfqEedwZLkB
-	LpnDr91Vd5EsibdCUL4Vi2f74cd33l05KflBhO6N0GXyBiblvRj0wJCkLwS00gjq28g==
-X-Received: by 2002:a63:5166:: with SMTP id r38mr7836282pgl.429.1556347418155;
+        bh=TdxUBqKvjD04gvlVW2fqTrr9rgpG7ttN99ifXgy4wJ0=;
+        b=sUqBBWn2auYRVKdhvXMd4oCVm8tD4AA920v/2LpbNARfyEPKYUyDtdoSttd2kGggO5
+         4b3/B+Bgf8+v6s4tN+C1/Jkcpw9lkKNKzQOBENgTr4pzXJjduEg0/4IAqrs0xLEzGpJM
+         MpqbbvG65OIZ/2/NecDiA86eQ1lvvf1QKr3lbet0XRQA3iEGFqe19Wobz8VnmWAHCf4+
+         gEuxnhjvq7Y1OJV7DVbyLo/eHNpZEO5YwGnFixaj/0HaAv6CQSo160Kmmmhz4nY0WnDR
+         uSLI3GmsVA5E851W/AEdR2gOnnxOihn5P77Oym0Tvj21pgws0X1xc7kNFqTEvBBt0TwJ
+         wK9A==
+X-Gm-Message-State: APjAAAW6XeJ+NOPrdb8PzPc4eZc3xOBHK63S+odwuhcqawWp87Fupqmn
+	MbjN3b3apTn9PwClxnFEE96xTwNbMwNQgoWAeNK/EtgvioLxSlzlOZGgNQbXPDvnF2WMUM3i49E
+	8gCjBDm4KTtcaOtG3LnNQ/W+gAMz0tDF1HezPYQNnJckI+AYhRdsWnIw9kYu8XO/Gxw==
+X-Received: by 2002:a62:fb0a:: with SMTP id x10mr17643831pfm.179.1556347419780;
+        Fri, 26 Apr 2019 23:43:39 -0700 (PDT)
+X-Received: by 2002:a62:fb0a:: with SMTP id x10mr17643787pfm.179.1556347418778;
         Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
-X-Received: by 2002:a63:5166:: with SMTP id r38mr7836252pgl.429.1556347417503;
-        Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347417; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347418; cv=none;
         d=google.com; s=arc-20160816;
-        b=KEnpMbqyOGnwZudvoXbs8vNZ0854cG1ExsVWLUyQ2QcKpcDqOVa7iJjN6/5NEWQ2N/
-         kJndYRwlGEIh4LH6X98oIWAhJ2erL27ji0PinbwI1Y6GpS1VKDr9lTjhNhv6/eAhHlpq
-         5KHgn3fic/eDAtyV/qUskwlmJxCdROCVRfJ3FReig2b/toUZ07I/o2R5n8Hqls/CDSMv
-         h2KU/HAywlkv5wyfiI0WW0B0PF1mf1DdwPiRAesI566E+dvogSHKfRXDj5uCr/2OchLq
-         QF8SUdsL4x/3nIPo+L12UrcGyI/wK2oPUGgbmIQoM00lGEMpLCV6EoDQhh9rBahgg5W2
-         PDeA==
+        b=akuT8apVCEsz6sM6iqxfM0x1aBJMnvjpk2gEqUq3B25YgWGy3dvv7jfipBQbBN680O
+         kr5mcWREyx0+n2vbvDGXi0JIkh1xMGPTTV+Ub46gZ3tfe/OfHAy3xfGR1/HMcmDgUq+h
+         Dp6OOgoD1ZpD8FLhfg6tLJxyY8a8Wme5O7SYW0HeeaLO07/T6VieRXRpdRgXaOI3RljA
+         VXlpLvCGQnxpD86fTFKkAlrcMAjrFshZX9zcBpv2zrMcFupsYCB6GnrYB5zP86ER5OTp
+         ZUpdnjCzi3TgFbC7gXSGdH8JTC/8U3b3foy6nSo0009tsivlLX7s+357bDhNPAoNsrpL
+         7M7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
-        b=UZzoysDNTOglg2FvotNOaH+KdUGRhhtr2uG4jdQ3HJcnyAYccyCLD8kgc8W9VHyyo6
-         KR8e1290s0Ur+hukRIQKQ3yF9G7MZsIEpb7sfQOzZuJKWZUZndTPL2fGMJc+dOVbeafR
-         CyemrbJosLxaFPwA9nzKhHtFUwINMuLpvwZROBoes82iCMQDZTVlo9VJmgqbdlpKrSJ/
-         xikrW9ZYttBEjZVydH952iBB+TJ2UZbN5PK4jqQdznl7e8MtM0whHNC+uLWIBhAWHIBO
-         3Rygw1pX095T3c8J2g+ForuHJeemwi8Co8RMTgCCEd/YY986PJsSrlsHqb8xPz6bQaos
-         wKEg==
+        bh=TdxUBqKvjD04gvlVW2fqTrr9rgpG7ttN99ifXgy4wJ0=;
+        b=Td4PmaCxQhau0PAdygVojgj5LmN8TW3m+EK4Mfa30y3++uB/M8mfyg6zjsX+yI6rMz
+         jh/34I/74+G58nkk3k5gNrEF+VlFmtUHtmPnn2s0rXCuHzR84FemRDtNEgmyrJ+agjJY
+         iY9a5LS8oxamueTrOVuA7X6hHvQOUQpAi8Q+6x4e2md0QdIuSa2U3XRS0sFbbmE+/Erq
+         25NMERT4jQxV+gBfn7+2m99QIno/ggHtzDat4HOhBst3ENiOJ4V0MqFcFu5loIq3rRN1
+         2j7hDoiioVtwicu5t7wb31eJqBeeZInrFtOVnYYIzYHneYphkpaXYav0RS4YssxFVC0N
+         s/JA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JScJif31;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="fTkRQ/Y6";
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i36sor26615136plb.39.2019.04.26.23.43.37
+        by mx.google.com with SMTPS id m32sor26803551pld.7.2019.04.26.23.43.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JScJif31;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="fTkRQ/Y6";
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=p6XVxxmeId6Fyrw7m3B0ifgQzW6nhwdk5H1SAhfRKS0=;
-        b=JScJif310IMh72ZohwOauSCAwdoUkuEv8bR6xdhJcKtk1RynLwO3Yk/O8uL4tZE53n
-         NrQxpNK4N1uzjciA1sdkWWtPp8ycpHXFn7qqLzJr7tYIRLsxhiosMqxmPVmHzIChx8+N
-         dySb7k6fhrhmrpcilrlJoW9blvaY3Q+PCSiONh6FBKvoxbL7qSMy7/IzPS7lXjYYk3R/
-         KYc3BtX2zUuYUpbQToVTJQ3xLcXFtZGa0gKnazTNuB9oRgES+e5Dt6lyOMWvmuEim8L6
-         0oOzDDk8SIoEGUBtvVZ7G2upgHOvvdwFGoH6Y4DMveFflSyOioLkC8F7etEF6M59+eVc
-         h1Dg==
-X-Google-Smtp-Source: APXvYqy73yIN4FITPLecL8eRrrVFTQfYnIM8wwU5XCBZXYl3CE93cW/V+JNeu8zKe2r7aDykFyaZUg==
-X-Received: by 2002:a17:902:d83:: with SMTP id 3mr52113119plv.125.1556347416975;
-        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
+        bh=TdxUBqKvjD04gvlVW2fqTrr9rgpG7ttN99ifXgy4wJ0=;
+        b=fTkRQ/Y6ekEQNK89awlPXt7h4NxMjoecNBAMoo9ta42p80ijXkGhM1UL/BQmQFyWo6
+         LJfDPrdOvXO5UvSlwALV9jzgVbZ3dPkOetjmwgngrd6Xv4mjhDuVn4pVdt7q+ACp200R
+         xHDNjHe63z2eq8GDtYLwE09uCfrsylk7ZaSgnWZyDkP/bBrVBZQ5DR2PNo0INMO0nJJB
+         A8319czkJRDzqjy/YpDHiQ5QMkoO+Q0Ds/GWZq+ooXRPBqH7Yybl6d/xzosC6sOQZDv0
+         Hev5YYonTqwLdIPLk/p3TqQ3UvgcH8BaYIQHch4ej87FxDr5lyTtZXPQ+va/opGvDk71
+         04vw==
+X-Google-Smtp-Source: APXvYqwkqefi+5wlFbKz/qeJ/65fu9i/qlczB3LZREQFaY/+lFjrw+S/8uXGcd/aBtDXpy5vBsJ5Xg==
+X-Received: by 2002:a17:902:b715:: with SMTP id d21mr50699394pls.103.1556347418251;
+        Fri, 26 Apr 2019 23:43:38 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.35
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.37
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:36 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:37 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -120,10 +119,12 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Nadav Amit <namit@vmware.com>
-Subject: [PATCH v6 23/24] mm/tlb: Provide default nmi_uaccess_okay()
-Date: Fri, 26 Apr 2019 16:23:02 -0700
-Message-Id: <20190426232303.28381-24-nadav.amit@gmail.com>
+	Nadav Amit <namit@vmware.com>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Alexei Starovoitov <ast@kernel.org>
+Subject: [PATCH v6 24/24] bpf: Fail bpf_probe_write_user() while mm is switched
+Date: Fri, 26 Apr 2019 16:23:03 -0700
+Message-Id: <20190426232303.28381-25-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -135,55 +136,54 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-x86 has an nmi_uaccess_okay(), but other architectures do not.
-Arch-independent code might need to know whether access to user
-addresses is ok in an NMI context or in other code whose execution
-context is unknown.  Specifically, this function is needed for
-bpf_probe_write_user().
+When using a temporary mm, bpf_probe_write_user() should not be able to
+write to user memory, since user memory addresses may be used to map
+kernel memory.  Detect these cases and fail bpf_probe_write_user() in
+such cases.
 
-Add a default implementation of nmi_uaccess_okay() for architectures
-that do not have such a function.
-
+Cc: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Alexei Starovoitov <ast@kernel.org>
+Reported-by: Jann Horn <jannh@google.com>
+Suggested-by: Jann Horn <jannh@google.com>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/tlbflush.h | 2 ++
- include/asm-generic/tlb.h       | 9 +++++++++
- 2 files changed, 11 insertions(+)
+ kernel/trace/bpf_trace.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 90926e8dd1f8..dee375831962 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -274,6 +274,8 @@ static inline bool nmi_uaccess_okay(void)
- 	return true;
- }
+diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
+index d64c00afceb5..94b0e37d90ef 100644
+--- a/kernel/trace/bpf_trace.c
++++ b/kernel/trace/bpf_trace.c
+@@ -14,6 +14,8 @@
+ #include <linux/syscalls.h>
+ #include <linux/error-injection.h>
  
-+#define nmi_uaccess_okay nmi_uaccess_okay
++#include <asm/tlb.h>
 +
- /* Initialize cr4 shadow for this CPU. */
- static inline void cr4_init_shadow(void)
- {
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index b9edc7608d90..480e5b2a5748 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -21,6 +21,15 @@
- #include <asm/tlbflush.h>
- #include <asm/cacheflush.h>
+ #include "trace_probe.h"
+ #include "trace.h"
  
-+/*
-+ * Blindly accessing user memory from NMI context can be dangerous
-+ * if we're in the middle of switching the current user task or switching
-+ * the loaded mm.
-+ */
-+#ifndef nmi_uaccess_okay
-+# define nmi_uaccess_okay() true
-+#endif
-+
- #ifdef CONFIG_MMU
+@@ -163,6 +165,10 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
+ 	 * access_ok() should prevent writing to non-user memory, but in
+ 	 * some situations (nommu, temporary switch, etc) access_ok() does
+ 	 * not provide enough validation, hence the check on KERNEL_DS.
++	 *
++	 * nmi_uaccess_okay() ensures the probe is not run in an interim
++	 * state, when the task or mm are switched. This is specifically
++	 * required to prevent the use of temporary mm.
+ 	 */
  
- /*
+ 	if (unlikely(in_interrupt() ||
+@@ -170,6 +176,8 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
+ 		return -EPERM;
+ 	if (unlikely(uaccess_kernel()))
+ 		return -EPERM;
++	if (unlikely(!nmi_uaccess_okay()))
++		return -EPERM;
+ 	if (!access_ok(unsafe_ptr, size))
+ 		return -EPERM;
+ 
 -- 
 2.17.1
 
