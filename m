@@ -2,149 +2,195 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DEA74C43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:51:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AE2F3C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 01:38:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A71482084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 00:51:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E0F6hjuo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A71482084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 5A509206BF
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 01:38:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A509206BF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DAB16B0007; Thu, 25 Apr 2019 20:51:31 -0400 (EDT)
+	id ABED96B0005; Thu, 25 Apr 2019 21:38:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38B286B0008; Thu, 25 Apr 2019 20:51:31 -0400 (EDT)
+	id A6D9C6B0006; Thu, 25 Apr 2019 21:38:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 279C46B000A; Thu, 25 Apr 2019 20:51:31 -0400 (EDT)
+	id 95CBF6B0007; Thu, 25 Apr 2019 21:38:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EB1846B0007
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 20:51:30 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id r13so857969pga.13
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 17:51:30 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC256B0005
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2019 21:38:19 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id w53so1517508qtj.22
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 18:38:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ZPxMilL55F88OfnrEUq9EeEkyqqENOE39GSG+Um9TxI=;
-        b=St5yeHudpCKFbgdNS5cr7MaR3Dnh2sn13n+oybyH7UUu4vS6GjCyLbVMc/f11/paV7
-         RKT6BKSBw4WEBM2+kUwQjAERbtJDn9h+hzWnJEyk8ckhOcRH3jI/76KvFQfrpdRJiOHP
-         hurV9eRsHSRTfpG7xlFi5vJGsyiMUKdFv5guTQLeZ9dGMMb3Z4LkNhIm06YTnbYjQmBn
-         3Qrp078+tMEQRELxvyC48L8LRom7KjhhhfzwtEBPEsSz7GQ3b3bFfPrwrfNukdwP6Ymm
-         XsLPI3O7EQyDHFiU8g5KA7w+aNAhxJAgcBK5Zc6xuVvH9wbapSA4JGNYKVU9ZNCRFbas
-         3QtQ==
-X-Gm-Message-State: APjAAAVGp3dkt5iKcr+3U08cvcky2696eDqVCbDMf2eaSFjvzmad5Hus
-	2AOWNZh1Dh2Q3ZtSeXfvy99EThFn5aV3xuFwTGGlZhwcD3pahgEtf6rMDF+p2da4ktzGDOqUY1z
-	oSIJc45hxd50fTFOnAKvDMAFS+jU0RH0vvTtnKbY99tudpZAAy7nD7PwyXkYooKV1IA==
-X-Received: by 2002:a17:902:2d04:: with SMTP id o4mr43239463plb.88.1556239890195;
-        Thu, 25 Apr 2019 17:51:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxTITPWxrYKCsiGQrjYufch/jY07vEGKquo9VbVvKc8yM5FUVSD8CVMm5uVj6NkjGrIeSF
-X-Received: by 2002:a17:902:2d04:: with SMTP id o4mr43239409plb.88.1556239889345;
-        Thu, 25 Apr 2019 17:51:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556239889; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition
+         :content-transfer-encoding:user-agent;
+        bh=7W6Qk+TWealOeFDjILGAXqwEa4Zhorp75rw4BuTGpZk=;
+        b=BF8GFmxqvEvRdaOHScBy8fN23lu+aHtIVtT2NSMbRcb6R4HL8sc6tX2Y93abDAGEuX
+         IhRhbLyt2OQ2IMt46nfN20VxRQYhGeg/RLAB/3d7m2WB7siQZa16B6vVn76Z7geyuj0n
+         7MwvCOXJf4gGje4ZA7GpMYZjqlArF8aYxlMZSbHOQAudusQ3zO/srg4lCq2T5Oz1KQf1
+         BoTUXLLvtB26Y3wxW5Y4Et4ebOIRLQv0n/isXCVB+QY7O8mQ/l6G6j8UhRuqJhAOtwc+
+         qJNS/SKIPXt+PcVE6UamskPihLFk2zqnQfVYP0tqPimMkHDYueGMTF/Yg3C4ebisGZY1
+         VXRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAViCNDWklxpYUhC5QqR5YKAnWyOQAj1ayjGvH3hn6z8i/Q4Jl1y
+	RNVxqFLVFjGN5mutRXjmjC8Gdi1C6w5RwyYOfxFmwmD/a9mcClfvWd2uJT/hu93322tzYUo3tqE
+	0MbB4ZBwHFBATYC17pYwQPVt353ATqI1HeIOQ68NlXQ6xgjIEGKFHnbH6u0HJJCrE9Q==
+X-Received: by 2002:ac8:810:: with SMTP id u16mr31976734qth.254.1556242699113;
+        Thu, 25 Apr 2019 18:38:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrx8yZle0a+F3K3lk2YNrRSbmsDxHoae/k171nl92tK8G0SHxocQaJ2Woi7zRcr5PdEyfU
+X-Received: by 2002:ac8:810:: with SMTP id u16mr31976680qth.254.1556242698170;
+        Thu, 25 Apr 2019 18:38:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556242698; cv=none;
         d=google.com; s=arc-20160816;
-        b=zdTJ3NNl+j2Z5Ismjv8nABhqj/xPVsjT244hWoMnLl1uvC2wPS39Cb0NHQRMADfxuS
-         4qgVSZg8zc6Fe1+Y9JiTn3w6rTvB1Lrz/sKDFBvWg2cQFCvI9bwdwj9aSF3vwcWN8ySt
-         xiOmfjRM8tLA1asDNPWR4YMkIAgOqcoytSrHIZNr9DlncM1bbFwxfh8bD3yc29ylCLA/
-         WXADU+CdtOL2F0i/6ZiAqD5Gjy+XaGgMixuOJYODn//+SOuxrh1lZzRF4IYilozyFYET
-         1fEHfJ/p5tMKIL8yR1mxOybs+pA9/LsD5ddoZByGY4jsyggW5OM8oIX/GauyrfdHcD28
-         cueA==
+        b=hBXKxZ/8GQw+ZmXnf3A5qrbprqAR1VBH+L2Ra5GUiCgD7fcTp0RjD5a1F+jC9kID15
+         uJJCR9QDFuc8ld45L0MnUakhK7FzQT5aLTWiSRUfZ8HFELH2JJyQi3B6XIk8ZmUEGkK1
+         Otxoyn4sd83fj/MjYTO9gdg/XiHPt3bDHaWs0VihKFnYW7fiZWSGq+9Bh/VTqYVYioZB
+         8tyuwHbA8tBP6l19pV7xTT1z8pOKsssLRABMvbUIe0GXUCHzHuA8p1QnA7ZZwwKWvu0d
+         +48gDig191V5xjEbsnktRV30+yTQ/jykDKu/E3qK16crAb4XsIIverE32mzdjw6Z6Hq7
+         Fvng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ZPxMilL55F88OfnrEUq9EeEkyqqENOE39GSG+Um9TxI=;
-        b=KC9mtwMD5TWxZsQAlM+R1x0d5hArqU015EwAw1dijqmMXxCmO3inTNOA53k8Zf73wP
-         BP6QTawdfJItv7Qfvhhtf9eJ5QMw1X3uo9SO7cZkoz1Xg+BLqCHxIBwBVpD9Q6QZaalh
-         lxu/rMo++2CUXVIM6fMPZDdJeuA6Psl4Wk7JplZqnVw5w2OPE/6gRTLrPnQ48AxEH4T4
-         +zmJVtGE8boVYVRM/qtCNpZ25fBtsi5aKU/ttnLeOx7R75+qX8nEjbirIWtvCj1GMX0T
-         IVrMlJDf63IQRZf6gtNXEGxfRqgZZa9lE4e2BDU6dMIVE+WjDd4qdnqjo/xqt73exKYn
-         z6Nw==
+        h=user-agent:content-transfer-encoding:content-disposition
+         :mime-version:message-id:subject:cc:to:from:date;
+        bh=7W6Qk+TWealOeFDjILGAXqwEa4Zhorp75rw4BuTGpZk=;
+        b=l0ac1egbG2vT0ccUEy4cMA2NW4pSNIaAVgWAS/ZruI5fYcXEwPO3tPW7LA4w0TWRjR
+         coD0aODHFN3hfoO3kDiKYXxV9W2dKgDWGT4J624mDYXUoOrjYR1XeTZZD27TjODOvM8+
+         WPN0XAAB8fDf6xkFBZaE/EbYDUaZj6Z4QiK2KQqB9kZnOw8xtzdb2gz6E4jeQtiVAI5u
+         SwY7dsyZV43qEm29ZSrewCVaEP05lxxIBxRL9CCpAs3jfkhNfAqn/LgxEA8N2ZskQ2TY
+         VDALyjs7Qjy2Vvd4ErnEgh9oXKLK77sCTUTEMOTQbd6Ea1oYiquA4d13pGaSuc9AK5MD
+         ogbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E0F6hjuo;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id p9si23754172plo.49.2019.04.25.17.51.29
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o70si5550908qka.91.2019.04.25.18.38.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 25 Apr 2019 17:51:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Apr 2019 18:38:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E0F6hjuo;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=ZPxMilL55F88OfnrEUq9EeEkyqqENOE39GSG+Um9TxI=; b=E0F6hjuoTiAbr23o8nn5Dpddz
-	W2QnBTSDLijahKTNq51dB36Q26RPSHKGDMcbHl3mNZ7/2TB6PcDitNtwEsUH4qjhfqb8NruFV5Bdl
-	Zjqr+j73L7y/6aiZCiWrVn1GhBSnczo24TZGBrkITbqsS8D63JOkFxwnhUIDhKlLMD9IVKKfSLHzx
-	gFmt8CBd4G4CcrHR5wj3+QsIKwHD7Y49lwsayA6YTkmZ94uV8MHLFIN4ZBtC2M6EEyR2oQ7kcWoLf
-	3rayZelRy2skZeQ7D8uS7667hcWZ6TIALxdtMaZlyKVjJ6aAHyJVmXKT0ei21HN6FUBiVyhaDKMU9
-	hqLRXyD8A==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hJp5J-0000Zp-2k; Fri, 26 Apr 2019 00:51:25 +0000
-Date: Thu, 25 Apr 2019 17:51:24 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>,
-	Linux MM <linux-mm@kvack.org>,
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-	stable <stable@vger.kernel.org>,
-	Chandan Rajendra <chandan@linux.ibm.com>
-Subject: Re: [PATCH v2] mm: Fix modifying of page protection by
- insert_pfn_pmd()
-Message-ID: <20190426005124.GA25606@bombadil.infradead.org>
-References: <20190402115125.18803-1-aneesh.kumar@linux.ibm.com>
- <CAPcyv4hzRj5yxVJ5-7AZgzzBxEL02xf2xwhDv-U9_osWFm9kiA@mail.gmail.com>
- <20190424173833.GE19031@bombadil.infradead.org>
- <CAPcyv4gLGUa69svQnwjvruALZ0ChqUJZHQJ1Mt_Cjr1Jh_6vbQ@mail.gmail.com>
- <20190425073149.GA21215@quack2.suse.cz>
- <CAPcyv4iYMP4NWxa08zTdRxtc4UcbFFOCwbMZijB0bc2WcawggQ@mail.gmail.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 447E63005FE7;
+	Fri, 26 Apr 2019 01:38:17 +0000 (UTC)
+Received: from redhat.com (ovpn-120-47.rdu2.redhat.com [10.10.120.47])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5865F1820F;
+	Fri, 26 Apr 2019 01:38:16 +0000 (UTC)
+Date: Thu, 25 Apr 2019 21:38:14 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: [LSF/MM TOPIC] Direct block mapping through fs for device
+Message-ID: <20190426013814.GB3350@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4iYMP4NWxa08zTdRxtc4UcbFFOCwbMZijB0bc2WcawggQ@mail.gmail.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+Content-Transfer-Encoding: 8bit
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 26 Apr 2019 01:38:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 05:33:04PM -0700, Dan Williams wrote:
-> On Thu, Apr 25, 2019 at 12:32 AM Jan Kara <jack@suse.cz> wrote:
-> > > > We also call vmf_insert_pfn_pmd() in dax_insert_pfn_mkwrite() -- does
-> > > > that need to change too?
-> > >
-> > > It wasn't clear to me that it was a problem. I think that one already
-> > > happens to be pmd-aligned.
-> >
-> > Why would it need to be? The address is taken from vmf->address and that's
-> > set up in __handle_mm_fault() like .address = address & PAGE_MASK. So I
-> > don't see anything forcing PMD alignment of the virtual address...
-> 
-> True. So now I'm wondering if the masking should be done internal to
-> the routine. Given it's prefixed vmf_ it seems to imply the api is
-> prepared to take raw 'struct vm_fault' parameters. I think I'll go
-> that route unless someone sees a reason to require the caller to
-> handle this responsibility.
+I see that they are still empty spot in LSF/MM schedule so i would like to
+have a discussion on allowing direct block mapping of file for devices (nic,
+gpu, fpga, ...). This is mm, fs and block discussion, thought the mm side
+is pretty light ie only adding 2 callback to vm_operations_struct:
 
-The vmf_ prefix was originally used to indicate 'returns a vm_fault_t'
-instead of 'returns an errno'.  That said, I like the interpretation
-you're coming up with here, and it makes me wonder if we shouldn't
-change vmf_insert_pfn_pmd() to take (vmf, pfn, write) as arguments
-instead of separate vma, address & pmd arguments.
+    int (*device_map)(struct vm_area_struct *vma,
+                      struct device *importer,
+                      struct dma_buf **bufp,
+                      unsigned long start,
+                      unsigned long end,
+                      unsigned flags,
+                      dma_addr_t *pa);
+
+    // Some flags i can think of:
+    DEVICE_MAP_FLAG_PIN // ie return a dma_buf object
+    DEVICE_MAP_FLAG_WRITE // importer want to be able to write
+    DEVICE_MAP_FLAG_SUPPORT_ATOMIC_OP // importer want to do atomic operation
+                                      // on the mapping
+
+    void (*device_unmap)(struct vm_area_struct *vma,
+                         struct device *importer,
+                         unsigned long start,
+                         unsigned long end,
+                         dma_addr_t *pa);
+
+Each filesystem could add this callback and decide wether or not to allow
+the importer to directly map block. Filesystem can use what ever logic they
+want to make that decision. For instance if they are page in the page cache
+for the range then it can say no and the device would fallback to main
+memory. Filesystem can also update its internal data structure to keep
+track of direct block mapping.
+
+If filesystem decide to allow the direct block mapping then it forward the
+request to the block device which itself can decide to forbid the direct
+mapping again for any reasons. For instance running out of BAR space or
+peer to peer between block device and importer device is not supported or
+block device does not want to allow writeable peer mapping ...
+
+
+So event flow is:
+    1  program mmap a file (end never intend to access it with CPU)
+    2  program try to access the mmap from a device A
+    3  device A driver see device_map callback on the vma and call it
+    4a on success device A driver program the device to mapped dma address
+    4b on failure device A driver fallback to faulting so that it can use
+       page from page cache
+
+This API assume that the importer does support mmu notifier and thus that
+the fs can invalidate device mapping at _any_ time by sending mmu notifier
+to all mapping of the file (for a given range in the file or for the whole
+file). Obviously you want to minimize disruption and thus only invalidate
+when necessary.
+
+The dma_buf parameter can be use to add pinning support for filesystem who
+wish to support that case too. Here the mapping lifetime get disconnected
+from the vma and is transfer to the dma_buf allocated by filesystem. Again
+filesystem can decide to say no as pinning blocks has drastic consequence
+for filesystem and block device.
+
+
+This has some similarities to the hmmap and caching topic (which is mapping
+block directly to CPU AFAIU) but device mapping can cut some corner for
+instance some device can forgo atomic operation on such mapping and thus
+can work over PCIE while CPU can not do atomic to PCIE BAR.
+
+Also this API here can be use to allow peer to peer access between devices
+when the vma is a mmap of a device file and thus vm_operations_struct come
+from some exporter device driver. So same 2 vm_operations_struct call back
+can be use in more cases than what i just described here.
+
+
+So i would like to gather people feedback on general approach and few things
+like:
+    - Do block device need to be able to invalidate such mapping too ?
+
+      It is easy for fs the to invalidate as it can walk file mappings
+      but block device do not know about file.
+
+    - Do we want to provide some generic implementation to share accross
+      fs ?
+
+    - Maybe some share helpers for block devices that could track file
+      corresponding to peer mapping ?
+
+
+Cheers,
+Jérôme
 
