@@ -5,118 +5,106 @@ X-Spam-Level:
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01CCDC43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:33:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EC0DC4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:48:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C33EC2084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:33:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C33EC2084F
+	by mail.kernel.org (Postfix) with ESMTP id 4B56E206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:48:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B56E206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 578F16B026D; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
+	id 9DBB36B026D; Fri, 26 Apr 2019 01:48:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5017D6B026E; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
+	id 98A7A6B026E; Fri, 26 Apr 2019 01:48:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A3AE6B026F; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
+	id 87B1F6B026F; Fri, 26 Apr 2019 01:48:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DF66A6B026D
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:33:39 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m57so928357edc.7
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 22:33:39 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A18A6B026D
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:48:06 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o3so940954edr.6
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 22:48:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=fiyROoKbPqBHPWL9Ror7UG8X3l3uq/7N3aRkoVxuRE0=;
-        b=Smgeo/1eCDi13C5r7kjdjfJA2Ki4nf7a0RbLyREUaugyXUJL0uUXEDVwLQd9U/ec+S
-         eRzTFb3d2p40vvTnnaYnGAi/BPDl/FuXbz3XIeht5C6cQuF5Ox2UmRvjdtK3HND4ih9o
-         io5F4TWeVrIaAokP6L41ZqWvfhsuP+2u+ipYW2q8CQQQx8obcwPBhm0K6pA3hHo7pcqm
-         fi/ME6EFOQnd+WfJHyO0OnIDfIYmDRMhzCsc/zkBho/srnqsGHitUJexPdRPC1Zd6bmi
-         864J75qUPJchDZRgYU3Saj41HTSFthrQvFibDJS7ANHVFZY1GGNIeVyi5cfPNnjd4FHW
-         S8Bw==
+        bh=I+rfU/9FO2xyRwSEjUrDDCSFV49nsTTpaH3YoH9ujj8=;
+        b=k4Sb473JNeICfXJauqSk8+OHrD7xFKou0JU7mPQjCtAFwKiLwF8ZVh6dCzVHowYC2I
+         MkoFny/0UDdqeYj4ls/h4dBj1bj4p0McUwAZw75Hmg5kwJNQsVp0h5RwA0QeGZS4A0fR
+         XHkBwoW5LrfDVM/gXVBg+CCdoCSOq7naVDiZxtq/l2LU65sjP3Iw8J4yK9RwUJ86utye
+         /RgD9MB7wvOvcR8tXzITwCe7xo+qZguUsrgv96Lc6L4+t8xImRatdktG+uFCWdmByG3k
+         EYShG7VJ/+/L8e4hDQN2t0WeZaZSlvzI0P5UGYBgP9+ywf0MgycPqlaOE2LiC3grOTa+
+         ByfA==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXRfVEieOyngM7UChm/4MDAv38xwR/MkDazDwMfSVCE/IJBgpU0
-	JIsDBwrREIEsvzRMEH4OCwZdLwkZ7YVkCL/GmRkFvzOP3jJp2QPXRyjAE2VLcD8vNbmA5PRUR/i
-	fh6Yf48pZFAAoNnRziDsqFAIO9yWjB7D68EU89tl9VbQCBIu4AFCApn2ghlpfOHU=
-X-Received: by 2002:a17:906:1f53:: with SMTP id d19mr587019ejk.12.1556256819469;
-        Thu, 25 Apr 2019 22:33:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxiItXbC88aLQmJVqofwMZfJrek6uK/zz29MrhP4zhXu7tcM+3MM0G2eICUrVHqBzt8kr6T
-X-Received: by 2002:a17:906:1f53:: with SMTP id d19mr586982ejk.12.1556256818679;
-        Thu, 25 Apr 2019 22:33:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556256818; cv=none;
+X-Gm-Message-State: APjAAAXpeCmd44NBMC80Px9THGObFybAXDVC4NI57Whz2v5m7FrszfPf
+	cGWmCdbCIZm56+WjYfcnJ9VZS/5wr9BnAFoNHUmG92/ZaY1P6VFNZ0buiQPGxYDHY2BhRXO2uIe
+	Dvoxd4VX/gfOphIBaJ+B2Gs+hkXM5uv59p9Q3DAT8iEbLRGaRAkft7o7ffhp1Cow=
+X-Received: by 2002:a50:b69c:: with SMTP id d28mr26822566ede.126.1556257685735;
+        Thu, 25 Apr 2019 22:48:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxqUKulDR6mDpbIdwIKV0MvDv7tzrL4gJaoE0ucDiBSr+4t1EmLlSswEjTZB0+ExVDGT9Wl
+X-Received: by 2002:a50:b69c:: with SMTP id d28mr26822530ede.126.1556257685083;
+        Thu, 25 Apr 2019 22:48:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556257685; cv=none;
         d=google.com; s=arc-20160816;
-        b=XBuVcRU8MhZLcH3uf0kHOR8QDaIuIT8VVHdLo/ROwErlthr/kGYMUPFU77sOGgKtr5
-         Ns7RwuYDL2oXt1Pj/9kK2xbe/kH+I3Q6Pah3hrGX63ybzoM5oQWyx2WXMHEc46hYDMX4
-         wqphQFTvUPQBRvzLyi6MSrEGlv5pu0+3e+wQJotbxbMuEdlPc+RyjLfZKrTPMXtls5II
-         CkrUSTk3RK6nEJPZmzQF1RHCImzhRQZ6a4UNBvgdq+dcX+s8+dV5O19Oy7xw7QllF313
-         IvBqBRc+Z7vXVdKVvKyz/poBILT0wGbiMace1J/oOAPtCu5U1lScKd6sMiuCk5OUqOcb
-         D8pA==
+        b=LwG6XAGRsH5vJCYElvD1lpnDhzMRlWoS5vd9M56gwxxIe0/Bpc1aqzSEaVSg6iNKfE
+         xQPTcQhtnV0NR25x+6PPptiaezXUCZoCHryQ6HGtMXe7do+96LSWttVsbLsvyj1VDXmG
+         PEbQbhFp/SI7BlvTMIXoYCjAcvBIjgdNk4ayQEHcDC6eFNR6dwdhXSMC3hoDeMIGbngI
+         aoLLq5hwtse7whlLtxDAl9kd0jQzwO9ozdxqHdjx2A9m4J+Ed8M+urmplbD5n/9LqXkb
+         7zyaWmgxbnKJUdnZFQrZuZvZDx8JV4SVSI5HL1LNcxX+3Lgc/ZxuKArdrYj2QOTbp/xB
+         wdwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=fiyROoKbPqBHPWL9Ror7UG8X3l3uq/7N3aRkoVxuRE0=;
-        b=XyPDEnyUhy9yspoHDbiylnhTun1plfa48IdFwVq9FhID2uozOt5pSngOr572oYLX07
-         /+EB3Ni9GTWUx4+B5DEQywYpA5mqjXEeWdvVezck8Yre3ZgbcNBHIUtQXQ0nIpQauQeI
-         f8opW8aivc5nPvWJFa1N5G8xzcJajrVUttgNAjID60d4mXDSUnFlBy/Y+k6D8iMdMS6S
-         WSt729PDBsK/OA+GdnlWjk9N4+7atRCC/R71KMVf988qZ+rRpW3o4AfpFXASeAnKUmNN
-         T+TwXOcZj5Jio8c/FClDngaRyUotB3CT8pb+2XAJcd2XPQKSusHWHYAPl3lWqYQxPrcg
-         SkNw==
+        bh=I+rfU/9FO2xyRwSEjUrDDCSFV49nsTTpaH3YoH9ujj8=;
+        b=NWUuUwqaB2wPMq/IqZePcGgRgzsq+JCrU8D6S7KBgcACsBsnJiPcBKHOHjofjGjL0Q
+         T1hS2Bu/ROxw0lwZ8T9XtKmMNqYi8v5ON51qDpnuYSL20nv/gtmt7BeTIlooiWKN0oN1
+         hZHR95IftsNBvK1JWbQq/iwb+ffyWYI5da2SYp09mPabmqjDcB6BCfaoJMtI3Mr9n6q7
+         lUCQhrgAaRATgeOCS0iOMAb5n4JkFhzYTgGAB02QIfKJNCr5FNAlNF9A/4sbeLHPTSQU
+         C2o1zdbFuEGSJIVfDc6AcHZ9C5jXVdTZ7HmTtAFNBc+ACb52HDug3IFsEazS5Z2UE5dD
+         n8Rw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c18si1276947edc.21.2019.04.25.22.33.38
+        by mx.google.com with ESMTPS id s17si4166008eda.250.2019.04.25.22.48.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 22:33:38 -0700 (PDT)
+        Thu, 25 Apr 2019 22:48:05 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EB6C6AD64;
-	Fri, 26 Apr 2019 05:33:37 +0000 (UTC)
-Date: Fri, 26 Apr 2019 07:33:35 +0200
+	by mx1.suse.de (Postfix) with ESMTP id F2779AD8C;
+	Fri, 26 Apr 2019 05:48:03 +0000 (UTC)
+Date: Fri, 26 Apr 2019 07:47:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Will Deacon <will.deacon@arm.com>, James Morris <jmorris@namei.org>,
-	Sasha Levin <sashal@kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	linux-nvdimm <linux-nvdimm@lists.01.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Keith Busch <keith.busch@intel.com>,
-	Vishal L Verma <vishal.l.verma@intel.com>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Tom Lendacky <thomas.lendacky@amd.com>,
-	"Huang, Ying" <ying.huang@intel.com>,
-	Fengguang Wu <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>,
-	Bjorn Helgaas <bhelgaas@google.com>,
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
-	Takashi Iwai <tiwai@suse.de>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Catalin Marinas <catalin.marinas@arm.com>, rppt@linux.vnet.ibm.com,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>, andrew.murray@arm.com,
-	james.morse@arm.com, Marc Zyngier <marc.zyngier@arm.com>,
-	sboyd@kernel.org, Linux ARM <linux-arm-kernel@lists.infradead.org>
-Subject: Re: [PATCH] arm64: configurable sparsemem section size
-Message-ID: <20190426053335.GD12337@dhcp22.suse.cz>
-References: <20190423203843.2898-1-pasha.tatashin@soleen.com>
- <20190425152550.GY12751@dhcp22.suse.cz>
- <20190425153138.GC25193@fuggles.cambridge.arm.com>
- <20190425154156.GZ12751@dhcp22.suse.cz>
- <CA+CK2bDLkSTdrYx+zth9=EJxigQR1-nMt52avt7-NpguAWwoVw@mail.gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christopher Lameter <cl@linux.com>, mm-commits@vger.kernel.org,
+	yong.wu@mediatek.com, yingjoe.chen@mediatek.com, yehs1@lenovo.com,
+	willy@infradead.org, will.deacon@arm.com, vbabka@suse.cz,
+	tfiga@google.com, stable@vger.kernel.org, rppt@linux.vnet.ibm.com,
+	robin.murphy@arm.com, rientjes@google.com, penberg@kernel.org,
+	mgorman@techsingularity.net, matthias.bgg@gmail.com,
+	joro@8bytes.org, iamjoonsoo.kim@lge.com, hsinyi@chromium.org,
+	hch@infradead.org, Alexander.Levin@microsoft.com,
+	drinkcat@chromium.org, linux-mm@kvack.org
+Subject: Re: + mm-add-sys-kernel-slab-cache-cache_dma32.patch added to -mm
+ tree
+Message-ID: <20190426054758.GE12337@dhcp22.suse.cz>
+References: <20190319183751.rWqkf%akpm@linux-foundation.org>
+ <20190319191721.GC30433@dhcp22.suse.cz>
+ <01000169988825c0-df946577-83d4-4fc5-a329-52b65bec9735-000000@email.amazonses.com>
+ <20190320070516.GD30433@dhcp22.suse.cz>
+ <20190425214615.b46db647b6a6a82db92e4143@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+CK2bDLkSTdrYx+zth9=EJxigQR1-nMt52avt7-NpguAWwoVw@mail.gmail.com>
+In-Reply-To: <20190425214615.b46db647b6a6a82db92e4143@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,23 +112,14 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 25-04-19 13:57:25, Pavel Tatashin wrote:
-> > > I gave *vague* memories of running out of bits in the page flags if we
-> > > changed this, but that was a while back. If that's no longer the case,
-> > > then I'm open to changing the value, but I really don't want to expose
-> > > it as a Kconfig option as proposed in this patch. People won't have a
-> > > clue what to set and it doesn't help at all with the single-Image effort.
-> >
-> > Ohh, I absolutely agree about the config option part JFTR. 1GB section
-> > loos quite excessive. I am not really sure a standard arm64 memory
-> > layout looks though.
-> 
-> I am now looking to use Dan's patches "mm: Sub-section memory hotplug
-> support" to solve this problem. I think this patch can be ignored.
+On Thu 25-04-19 21:46:15, Andrew Morton wrote:
+> This patch is presently in limbo.   Should we just drop it?
 
-Even if the subsection memory hotplug is going to be used then the
-underlying question remains. If there is no real reason to use large
-memsections then it would be better to use smaller ones.
+There was no strong justification for it except "we alredy do export dma
+cache so why not dma32". Christopher was arguing that slabinfo (in tree
+tool) is going to use it but that merely prints it without any
+additional considerations. So I would just drop it until there is a real
+use case (aka somebody is going to use it for something _useful_).
 -- 
 Michal Hocko
 SUSE Labs
