@@ -4,190 +4,153 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05362C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F4F1C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ADD47206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5421B206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="sXNJ1RJy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADD47206C1
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="CWKohPih"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5421B206C1
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 281F46B000C; Fri, 26 Apr 2019 12:23:32 -0400 (EDT)
+	id 235FD6B000D; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 231D96B000D; Fri, 26 Apr 2019 12:23:32 -0400 (EDT)
+	id 1E8A06B000E; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 14AF56B000E; Fri, 26 Apr 2019 12:23:32 -0400 (EDT)
+	id 05EC76B0010; Fri, 26 Apr 2019 12:23:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E92F6B000C
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 12:23:31 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id x1so3851995wrd.15
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:23:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B064E6B000D
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 12:23:32 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id j22so3851028wre.12
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:23:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=ctAbUIG29RjpHeVTI4ljbxurfZcpTtykFHhM/QW4LDg=;
-        b=DSnMGO4cjtcVxBsjnxFuz0jSTb8LwA4l3XIOmmiSWUFdnl4WaDSJ9Sj813AYSXZwOL
-         gselv3fI9re2Ms6nxX9Bnu9a6Xf0hXbNMJ2N7I/pYlWAi/G3JfmY0tjyecF10oMtlfg7
-         8kRjeOMQZRwd4IMxBXWeQQn8sRU890/tzUY4zo2W6FbftXh+4/MhpvMvReZByQfVgo7z
-         x2mFk+c3BE56u41olQl4vsPQHVSNGtFqc9s7XcWbMxCyQOsRutVvcHU602swOjcLfxgb
-         yl0761oLuNGcVj7WLQxn9c/EDpNYL9xwgW6kOpr6qNJAFz/d6rXv2a9Qmtle1DZ10zyx
-         NJkQ==
-X-Gm-Message-State: APjAAAWMsJN/2G/IwMiY6Yybnh2U8qlAL6/b2XKSngJFtyZ5TuW/99bx
-	FwHR3MErpj7WHaZ2gW1vVGSu/NHQH4nj/D46Prwu881ehO+IMx+vcUqHUirIW9TW3YcDLy7jXf9
-	4ZpQWXtTbExhRJeiKikueB5GSsPd2IIq6LbacF9LfccyNwFVoYJ9Mwh/72mFQnzycDQ==
-X-Received: by 2002:a1c:f719:: with SMTP id v25mr8599693wmh.90.1556295811173;
+        bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
+        b=eUCvR67GJxMoANQ57yNWp2zCW6WjFve5QJ12rzvd6xx0oB7wiPBBT5mLjR5+udsdXh
+         KDtVBCVzPzimjPOPfslzvcoL8ErvtWyNwnDzbvxzci2RbBro9u6v3iI/DJax1QfnvH+Y
+         RCsBQ/b1IySOHNA8XonUBR6EwMCfdCDxiBf9p/bt3twDeQKI8nMu56F2ClzQjT0+7gkG
+         0SBuM69nQtY12fKz0D1vE5ISkuRPsIUwiIN9EAVD3lPCWl/vfcwpcqiFLTk71sD4dOAu
+         mtt5JEdi9V5vDbcGQgr7NZ6F1lglugW49AQsyJbZQnxSltKPVGn1x1pBnCLXT0bPVuLG
+         Bpkg==
+X-Gm-Message-State: APjAAAWZlQEiEtx3YlVA+rWyB0lggAuCild9roJggWPb5ZSaf/OVcTQm
+	742gH+zzHt7QVzjLctnZND9VSlR0FZfgdXsB5E/GW2zo47tvsm4WO1LrA9uVk7UQz+4Jyt9FZu6
+	Aasss2MInoF464SKGRJYgTftFj7/y6KOjtTk3szkpn0VvFS1CPzw7hNBZyctdWfN76Q==
+X-Received: by 2002:a1c:6c19:: with SMTP id h25mr8124496wmc.119.1556295812258;
+        Fri, 26 Apr 2019 09:23:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzO+CJnrysYuLVuzqvVDRjlp0cUU6UWAmFqKDcpB2cFJxMWR/1enGnF9v+/DV1GLIb1X4DD
+X-Received: by 2002:a1c:6c19:: with SMTP id h25mr8124428wmc.119.1556295811247;
         Fri, 26 Apr 2019 09:23:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz2Sucs7rlVJ2DQ9V2OSsqZzddo9n0R9c4ukav20d+Cbw674vluaB1BaeDqswCXvrvUvF0l
-X-Received: by 2002:a1c:f719:: with SMTP id v25mr8599624wmh.90.1556295810190;
-        Fri, 26 Apr 2019 09:23:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556295810; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556295811; cv=none;
         d=google.com; s=arc-20160816;
-        b=DiIj9oyeygt6haR88DtNcZ/AuhU5BMhhT/m2Yztfi9YWSUp5VKAd03R5UWGPOMoYbk
-         AQUPFQETgxolx7RSK0IEzhX393jKbxIpTtupq4R1ce79BBdOAQDAhCslCCYl4Aun6zmN
-         1LiiAW4ViqlvSJawDyOyNiHxFFDlW8MEZK9WM7SOdUC77ZWo6hUkXQffGv6p27w/42pq
-         o6Wx/1zd6NASIvZ5yjrHk6y/RHQ3I2LcA9KlEc3sCHA1W39jV/1NTbhAfGE+SFaJM2Iv
-         jvIvHpd7YYXkI8/VA4/YpnwynE7hihpC6B5jMlMfiQzCDukzFR1oU1YcHN40uMcGop35
-         p20Q==
+        b=N2UgIv99msfaOITYFiLpjsvB+lJ31li4gC14fWTAMgoTq5t+1wH2RkZ7eumSyeY2Ne
+         jUkzOnUEjZEY2flgOsYrvw3Z/hrhshQb7YUlNJ4KqRfX/axoieTiZ5ayXrMNnVc5QqXV
+         PDHvIi8y8EWjLstW9GZ0+8N9xNLp6YRHm8KhNiNb3KWR8QR+MMuomyfPVT8OQn9MAVAu
+         U+LFSpbYZ1Z6ixAy8Eona4tUcpYyXXDnWSZzCKJfLZmkzD8QP2aJ0xakWXmUozCPmUEa
+         KhDQsaV0cnEcOPUVwRyGNx/qH22azHJLClkiQz492O1cHzvhNidjlIcuvj72fWUE3UJo
+         aN/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=ctAbUIG29RjpHeVTI4ljbxurfZcpTtykFHhM/QW4LDg=;
-        b=OSdKjgKM+gvw41KAXWi2IPnIEdukecsfCajH8cJavQMruJw6woOQIeH5N6mcT/6dye
-         7Lm9BsiO3Bo99xDXoaoaLSSxT6KJE/uL4ZnHmBveFHWeEIsaz6Sdd+oAiXqLuYcfzm/c
-         UgncGgea+AmJh0mIhQv7l5PmNvAnk3CzGEPsrPAlZSYHxNvduAtGXqmiXlk1eMy/FqVE
-         EYHk7vlIzh2NMKaD/5yZu6n7Qo73+EqoxyMElPNdH6BiZiMpRsCKQvafN47IyKDrqO9D
-         gyDxTlYon+cJrvkb1wKieeCVNIJ7LuW6klGDa+hnrKx97S+ZoJJSu3bAxlBIYq59Y6zF
-         M1Ag==
+        bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
+        b=i2MeFJ1WFEstT3k69rgUYH+d3oIVBehbLJmVy2zahO4PmS/SYgdu/P/wJsh6Euehpk
+         lIn3Nt/xUXqGPYscQLuGgYts5aWByBxrWq8ytaYpohIXZ7A5nGZ3sujKB4PeSr2LIW+0
+         neVaFwVfM6c7E8cB5EZZoJozoA+kapIUFPQ7+Bz1uHZDV9THVbJtULdbsqzoeEiezSgP
+         3XEUhqDDkw0T3Yxmb746TYT/FpViMrUObWvsVrTzt3mGiQLJEr3WAM7E6wOY/jJsm2ma
+         LJOgjfS+2Pvlye/pKoFwRzuDc4q0UY7+GNK9zmB/HI+Cy6Xd1hrykbN+59nxC7RIc808
+         VCcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=sXNJ1RJy;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=CWKohPih;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id 188si17841865wme.63.2019.04.26.09.23.30
+        by mx.google.com with ESMTPS id t203si17874084wmt.200.2019.04.26.09.23.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 09:23:30 -0700 (PDT)
+        Fri, 26 Apr 2019 09:23:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=sXNJ1RJy;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=CWKohPih;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44rK9X08lbz9v0yq;
-	Fri, 26 Apr 2019 18:23:28 +0200 (CEST)
+	by localhost (Postfix) with ESMTP id 44rK9Y0d6qz9v17r;
+	Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=sXNJ1RJy; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=CWKohPih; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id gOIgGEDQnVcg; Fri, 26 Apr 2019 18:23:27 +0200 (CEST)
+	with ESMTP id zvDUJSSKbulo; Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9W6BZ7z9v0yk;
-	Fri, 26 Apr 2019 18:23:27 +0200 (CEST)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9X6WYqz9v0yk;
+	Fri, 26 Apr 2019 18:23:28 +0200 (CEST)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1556295807; bh=ctAbUIG29RjpHeVTI4ljbxurfZcpTtykFHhM/QW4LDg=;
+	t=1556295808; bh=FcoH0MWZdtOBuC7W/yk0A9+bmiNTMQTCcIimrSkyq24=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=sXNJ1RJySc1t5BpAT+oYpyRRDpip0+eueVBMTRrcWzig9N0oMfAE7RJ7tqS1Geyh7
-	 mAlPR78drX1AT85Ic0cvroaN9YdvdREP0+V4+v66Sk/aESCTYcKoOMUJgsv2pifpxD
-	 WU/ztu/E9EETgZbKRpnRDHg0QAjhk6G7Xe7TeIQE=
+	b=CWKohPihsdb0jglNX43CKSEZX1O4lA7Kl//zCMT6EZI96CNrRow3BZOYL+ofDglXm
+	 ZloFDW67U+LDBkFf/qcXQJpMKLyDfxulM1JYGM2aQpI40oF0xEWxo1F4IaesKwBdVP
+	 zZCvDK+FH8+6jF1+z2NkSpFz4TJWz4Jljmk/dr5E=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 873518B950;
-	Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 92ED48B950;
+	Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id OIc1Ih9pEinJ; Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
+	with ESMTP id AFBRwVLZioMP; Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
 Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.6])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 697DE8B82F;
-	Fri, 26 Apr 2019 18:23:29 +0200 (CEST)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 7172C8B82F;
+	Fri, 26 Apr 2019 18:23:30 +0200 (CEST)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 5BBA2666FE; Fri, 26 Apr 2019 16:23:29 +0000 (UTC)
-Message-Id: <7f4aad95264a69d9e278845a31a63f323b498fdf.1556295460.git.christophe.leroy@c-s.fr>
+	id 61A7F666FE; Fri, 26 Apr 2019 16:23:30 +0000 (UTC)
+Message-Id: <f8cf3904971fa6b0f90ff9f2c2c1551b0cab4f14.1556295460.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1556295459.git.christophe.leroy@c-s.fr>
 References: <cover.1556295459.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v11 05/13] powerpc: don't use direct assignation during early
- boot.
+Subject: [PATCH v11 06/13] powerpc/32: use memset() instead of memset_io() to
+ zero BSS
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Fri, 26 Apr 2019 16:23:29 +0000 (UTC)
+Date: Fri, 26 Apr 2019 16:23:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In kernel/cputable.c, explicitly use memcpy() instead of *y = *x;
-This will allow GCC to replace it with __memcpy() when KASAN is
-selected.
+Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
+enabled"), memset() can be used before activation of the cache,
+so no need to use memset_io() for zeroing the BSS.
 
 Acked-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/kernel/cputable.c  | 13 ++++++++++---
- arch/powerpc/kernel/prom_init.c | 10 ++++++++--
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ arch/powerpc/kernel/early_32.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/kernel/cputable.c b/arch/powerpc/kernel/cputable.c
-index 1eab54bc6ee9..cd12f362b61f 100644
---- a/arch/powerpc/kernel/cputable.c
-+++ b/arch/powerpc/kernel/cputable.c
-@@ -2147,7 +2147,11 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
- 	struct cpu_spec *t = &the_cpu_spec;
+diff --git a/arch/powerpc/kernel/early_32.c b/arch/powerpc/kernel/early_32.c
+index cf3cdd81dc47..3482118ffe76 100644
+--- a/arch/powerpc/kernel/early_32.c
++++ b/arch/powerpc/kernel/early_32.c
+@@ -21,8 +21,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
+ {
+ 	unsigned long offset = reloc_offset();
  
- 	t = PTRRELOC(t);
--	*t = *s;
-+	/*
-+	 * use memcpy() instead of *t = *s so that GCC replaces it
-+	 * by __memcpy() when KASAN is active
-+	 */
-+	memcpy(t, s, sizeof(*t));
- 
- 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
- }
-@@ -2161,8 +2165,11 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
- 	t = PTRRELOC(t);
- 	old = *t;
- 
--	/* Copy everything, then do fixups */
--	*t = *s;
-+	/*
-+	 * Copy everything, then do fixups. Use memcpy() instead of *t = *s
-+	 * so that GCC replaces it by __memcpy() when KASAN is active
-+	 */
-+	memcpy(t, s, sizeof(*t));
+-	/* First zero the BSS -- use memset_io, some platforms don't have caches on yet */
+-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
++	/* First zero the BSS */
++	memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
  
  	/*
- 	 * If we are overriding a previous value derived from the real
-diff --git a/arch/powerpc/kernel/prom_init.c b/arch/powerpc/kernel/prom_init.c
-index 7017156168e8..d3b0d543d924 100644
---- a/arch/powerpc/kernel/prom_init.c
-+++ b/arch/powerpc/kernel/prom_init.c
-@@ -1264,8 +1264,14 @@ static void __init prom_check_platform_support(void)
- 	int prop_len = prom_getproplen(prom.chosen,
- 				       "ibm,arch-vec-5-platform-support");
- 
--	/* First copy the architecture vec template */
--	ibm_architecture_vec = ibm_architecture_vec_template;
-+	/*
-+	 * First copy the architecture vec template
-+	 *
-+	 * use memcpy() instead of *vec = *vec_template so that GCC replaces it
-+	 * by __memcpy() when KASAN is active
-+	 */
-+	memcpy(&ibm_architecture_vec, &ibm_architecture_vec_template,
-+	       sizeof(ibm_architecture_vec));
- 
- 	if (prop_len > 1) {
- 		int i;
+ 	 * Identify the CPU type and fix up code sections
 -- 
 2.13.3
 
