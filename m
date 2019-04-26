@@ -2,105 +2,121 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67447C43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:31:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01CCDC43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:33:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 27D862084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:31:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27D862084F
+	by mail.kernel.org (Postfix) with ESMTP id C33EC2084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 05:33:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C33EC2084F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0FD26B026D; Fri, 26 Apr 2019 01:31:38 -0400 (EDT)
+	id 578F16B026D; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 997856B026E; Fri, 26 Apr 2019 01:31:38 -0400 (EDT)
+	id 5017D6B026E; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8391F6B026F; Fri, 26 Apr 2019 01:31:38 -0400 (EDT)
+	id 3A3AE6B026F; Fri, 26 Apr 2019 01:33:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ECC96B026D
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:31:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f42so930035edd.0
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 22:31:38 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DF66A6B026D
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 01:33:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m57so928357edc.7
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2019 22:33:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=pLokakutnZIuZ75LtbduiMmabFTZGNAssEYKu5vYyto=;
-        b=uHovSvcc2yib8m1zA73U/uj154BINITEq1mtp7iUvZzPX5GmGNWyW8fdV6oRsmsarq
-         AsJHuEwH1imk8z3BREjj44JZLOfHkh5y9Z+vbkdqa2JcRam7+ZXnb49DdPQ1NIkfJAfO
-         q/XK8SO9IOyaPdDrVcXHuEVrelC6/0OrFcFHKMp4oS6wKnDyWiG9SuKPp1cIVrCRPfVp
-         dekpQtX5lVgBsDAtvmS4nxZYU5gW17IhuYb0XDG6g9m6ogUOpcD0VyK+Z1Kvkcz6DlnH
-         2Gs9nfZX4zcVOvD+IwoyTGXqPKGiVW4TNKMLncP0JO5BKH62KDyl4i+d3KbhHNVrPgmT
-         HH0Q==
+        bh=fiyROoKbPqBHPWL9Ror7UG8X3l3uq/7N3aRkoVxuRE0=;
+        b=Smgeo/1eCDi13C5r7kjdjfJA2Ki4nf7a0RbLyREUaugyXUJL0uUXEDVwLQd9U/ec+S
+         eRzTFb3d2p40vvTnnaYnGAi/BPDl/FuXbz3XIeht5C6cQuF5Ox2UmRvjdtK3HND4ih9o
+         io5F4TWeVrIaAokP6L41ZqWvfhsuP+2u+ipYW2q8CQQQx8obcwPBhm0K6pA3hHo7pcqm
+         fi/ME6EFOQnd+WfJHyO0OnIDfIYmDRMhzCsc/zkBho/srnqsGHitUJexPdRPC1Zd6bmi
+         864J75qUPJchDZRgYU3Saj41HTSFthrQvFibDJS7ANHVFZY1GGNIeVyi5cfPNnjd4FHW
+         S8Bw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWtS5RdtHq0oaYVB4OEm4FFtglGI6pT+j/yVARZ57BRQeKnybo9
-	cCZl146/NQUseYmRrjE8ZKEvLt/wqCBHn+15E5EtRApCU4f79lvzw6yEHh3qUtf/V7+p1xg03bb
-	dI44TuVZovKgwb4hfxISbDPJSydvyhV2yrDk0KFNgzLPS7vL2AnlCj00x7ReoVcE=
-X-Received: by 2002:a50:b119:: with SMTP id k25mr27435526edd.240.1556256697714;
-        Thu, 25 Apr 2019 22:31:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwYAaBa47jKpUIum32VEOpzhyii6M9vdJRDAfnG/saoFUcqtjb7qDAC09Xi6e4bbcAUD8ZQ
-X-Received: by 2002:a50:b119:: with SMTP id k25mr27435486edd.240.1556256696829;
-        Thu, 25 Apr 2019 22:31:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556256696; cv=none;
+X-Gm-Message-State: APjAAAXRfVEieOyngM7UChm/4MDAv38xwR/MkDazDwMfSVCE/IJBgpU0
+	JIsDBwrREIEsvzRMEH4OCwZdLwkZ7YVkCL/GmRkFvzOP3jJp2QPXRyjAE2VLcD8vNbmA5PRUR/i
+	fh6Yf48pZFAAoNnRziDsqFAIO9yWjB7D68EU89tl9VbQCBIu4AFCApn2ghlpfOHU=
+X-Received: by 2002:a17:906:1f53:: with SMTP id d19mr587019ejk.12.1556256819469;
+        Thu, 25 Apr 2019 22:33:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxiItXbC88aLQmJVqofwMZfJrek6uK/zz29MrhP4zhXu7tcM+3MM0G2eICUrVHqBzt8kr6T
+X-Received: by 2002:a17:906:1f53:: with SMTP id d19mr586982ejk.12.1556256818679;
+        Thu, 25 Apr 2019 22:33:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556256818; cv=none;
         d=google.com; s=arc-20160816;
-        b=G7RrOvvCMXBuQZFv5um/GKhYn1Zmmc/QzuS9NaWgmFUWy1XVqLn4Pq1t+T/T/bJNqg
-         Ka5a5D2VicJcdly2uUEL+knAb/C8UKWYiVjeeYCOSChVEL3MFMEc1Kjrs58+VPecuKIM
-         xS2yoTqhix8NpMUmhqpqXgwpziPKnN6YeAUDJTpX3CtCVSqgjFeuiZLKuTKz+2NL5PTG
-         92ACDjbbQo91zAwP4+VD/wC54WWoW1vWIJIPMorxjzGUNW/mUdcTCxvt+rc2vM87mkrO
-         ZsrA7ejyWB07tdL/86go8vbcscPwsmogSojpBfzlAqAb16DC1pNF9ft8YadaScWJJeWr
-         lTrA==
+        b=XBuVcRU8MhZLcH3uf0kHOR8QDaIuIT8VVHdLo/ROwErlthr/kGYMUPFU77sOGgKtr5
+         Ns7RwuYDL2oXt1Pj/9kK2xbe/kH+I3Q6Pah3hrGX63ybzoM5oQWyx2WXMHEc46hYDMX4
+         wqphQFTvUPQBRvzLyi6MSrEGlv5pu0+3e+wQJotbxbMuEdlPc+RyjLfZKrTPMXtls5II
+         CkrUSTk3RK6nEJPZmzQF1RHCImzhRQZ6a4UNBvgdq+dcX+s8+dV5O19Oy7xw7QllF313
+         IvBqBRc+Z7vXVdKVvKyz/poBILT0wGbiMace1J/oOAPtCu5U1lScKd6sMiuCk5OUqOcb
+         D8pA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=pLokakutnZIuZ75LtbduiMmabFTZGNAssEYKu5vYyto=;
-        b=0d+jPyRM3iKegYXYiap6MgRUMTaakN1+xZ6J6uY+YQTO2kzbrJ2dnC7YpKGnNYiUx1
-         BMlx+Nq3s2Av3D+te5j00ajqVt2876rgjSsQ5/N+2daWiPAe8ShmJu2jogmOyOlhMohc
-         eVtS7BDwYfvAt7cJcEm8xXudz3rkaxe0FoX7s63J4FtkxRTOoyG16IWIc5WHd1HpVRpb
-         FfcUyiovqkdH/A3qCYRJd7moXhy/3N1V1CjTjQBtVVszvl53tNah99I+aQ+aVbOZLrRm
-         Yvr1k//i90MvVoIO6chRbDwlXslvylNoG9NZhCuQfHH9bZHSuXEnX0HkWJEmQI9cGSg0
-         kjRQ==
+        bh=fiyROoKbPqBHPWL9Ror7UG8X3l3uq/7N3aRkoVxuRE0=;
+        b=XyPDEnyUhy9yspoHDbiylnhTun1plfa48IdFwVq9FhID2uozOt5pSngOr572oYLX07
+         /+EB3Ni9GTWUx4+B5DEQywYpA5mqjXEeWdvVezck8Yre3ZgbcNBHIUtQXQ0nIpQauQeI
+         f8opW8aivc5nPvWJFa1N5G8xzcJajrVUttgNAjID60d4mXDSUnFlBy/Y+k6D8iMdMS6S
+         WSt729PDBsK/OA+GdnlWjk9N4+7atRCC/R71KMVf988qZ+rRpW3o4AfpFXASeAnKUmNN
+         T+TwXOcZj5Jio8c/FClDngaRyUotB3CT8pb+2XAJcd2XPQKSusHWHYAPl3lWqYQxPrcg
+         SkNw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m17si1824730ejs.241.2019.04.25.22.31.36
+        by mx.google.com with ESMTPS id c18si1276947edc.21.2019.04.25.22.33.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Apr 2019 22:31:36 -0700 (PDT)
+        Thu, 25 Apr 2019 22:33:38 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DF8F9AD64;
-	Fri, 26 Apr 2019 05:31:35 +0000 (UTC)
-Date: Fri, 26 Apr 2019 07:31:35 +0200
+	by mx1.suse.de (Postfix) with ESMTP id EB6C6AD64;
+	Fri, 26 Apr 2019 05:33:37 +0000 (UTC)
+Date: Fri, 26 Apr 2019 07:33:35 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Jann Horn <jannh@google.com>
-Cc: Matthew Garrett <matthewgarrett@google.com>,
-	Linux-MM <linux-mm@kvack.org>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Matthew Garrett <mjg59@google.com>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-Message-ID: <20190426053135.GC12337@dhcp22.suse.cz>
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com>
- <20190425121410.GC1144@dhcp22.suse.cz>
- <CAG48ez0x6QiFpqXbimB9ZV-jS5UJJWhzg9XiAWncQL+phfKkPA@mail.gmail.com>
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Will Deacon <will.deacon@arm.com>, James Morris <jmorris@namei.org>,
+	Sasha Levin <sashal@kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Keith Busch <keith.busch@intel.com>,
+	Vishal L Verma <vishal.l.verma@intel.com>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Ross Zwisler <zwisler@kernel.org>,
+	Tom Lendacky <thomas.lendacky@amd.com>,
+	"Huang, Ying" <ying.huang@intel.com>,
+	Fengguang Wu <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
+	Takashi Iwai <tiwai@suse.de>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Catalin Marinas <catalin.marinas@arm.com>, rppt@linux.vnet.ibm.com,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>, andrew.murray@arm.com,
+	james.morse@arm.com, Marc Zyngier <marc.zyngier@arm.com>,
+	sboyd@kernel.org, Linux ARM <linux-arm-kernel@lists.infradead.org>
+Subject: Re: [PATCH] arm64: configurable sparsemem section size
+Message-ID: <20190426053335.GD12337@dhcp22.suse.cz>
+References: <20190423203843.2898-1-pasha.tatashin@soleen.com>
+ <20190425152550.GY12751@dhcp22.suse.cz>
+ <20190425153138.GC25193@fuggles.cambridge.arm.com>
+ <20190425154156.GZ12751@dhcp22.suse.cz>
+ <CA+CK2bDLkSTdrYx+zth9=EJxigQR1-nMt52avt7-NpguAWwoVw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG48ez0x6QiFpqXbimB9ZV-jS5UJJWhzg9XiAWncQL+phfKkPA@mail.gmail.com>
+In-Reply-To: <CA+CK2bDLkSTdrYx+zth9=EJxigQR1-nMt52avt7-NpguAWwoVw@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,93 +124,23 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 25-04-19 14:42:52, Jann Horn wrote:
-> On Thu, Apr 25, 2019 at 2:14 PM Michal Hocko <mhocko@kernel.org> wrote:
-> [...]
-> > On Wed 24-04-19 14:10:39, Matthew Garrett wrote:
-> > > From: Matthew Garrett <mjg59@google.com>
-> > >
-> > > Applications that hold secrets and wish to avoid them leaking can use
-> > > mlock() to prevent the page from being pushed out to swap and
-> > > MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-> > > can also use atexit() handlers to overwrite secrets on application exit.
-> > > However, if an attacker can reboot the system into another OS, they can
-> > > dump the contents of RAM and extract secrets. We can avoid this by setting
-> > > CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-> > > firmware wipe the contents of RAM before booting another OS, but this means
-> > > rebooting takes a *long* time - the expected behaviour is for a clean
-> > > shutdown to remove the request after scrubbing secrets from RAM in order to
-> > > avoid this.
-> > >
-> > > Unfortunately, if an application exits uncleanly, its secrets may still be
-> > > present in RAM. This can't be easily fixed in userland (eg, if the OOM
-> > > killer decides to kill a process holding secrets, we're not going to be able
-> > > to avoid that), so this patch adds a new flag to madvise() to allow userland
-> > > to request that the kernel clear the covered pages whenever the page
-> > > reference count hits zero. Since vm_flags is already full on 32-bit, it
-> > > will only work on 64-bit systems.
-> [...]
-> > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > index 21a7881a2db4..989c2fde15cf 100644
-> > > --- a/mm/madvise.c
-> > > +++ b/mm/madvise.c
-> > > @@ -92,6 +92,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
-> > >       case MADV_KEEPONFORK:
-> > >               new_flags &= ~VM_WIPEONFORK;
-> > >               break;
-> > > +     case MADV_WIPEONRELEASE:
-> > > +             /* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-> > > +             if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-> > > +                 vma->vm_flags & VM_SHARED) {
-> > > +                     error = -EINVAL;
-> > > +                     goto out;
-> > > +             }
-> > > +             new_flags |= VM_WIPEONRELEASE;
-> > > +             break;
+On Thu 25-04-19 13:57:25, Pavel Tatashin wrote:
+> > > I gave *vague* memories of running out of bits in the page flags if we
+> > > changed this, but that was a while back. If that's no longer the case,
+> > > then I'm open to changing the value, but I really don't want to expose
+> > > it as a Kconfig option as proposed in this patch. People won't have a
+> > > clue what to set and it doesn't help at all with the single-Image effort.
+> >
+> > Ohh, I absolutely agree about the config option part JFTR. 1GB section
+> > loos quite excessive. I am not really sure a standard arm64 memory
+> > layout looks though.
 > 
-> An interesting effect of this is that it will be possible to set this
-> on a CoW anon VMA in a fork() child, and then the semantics in the
-> parent will be subtly different - e.g. if the parent vmsplice()d a
-> CoWed page into a pipe, then forked an unprivileged child, the child
+> I am now looking to use Dan's patches "mm: Sub-section memory hotplug
+> support" to solve this problem. I think this patch can be ignored.
 
-Maybe a stupid question. How do you fork an unprivileged child (without
-exec)? Child would have to drop priviledges on its own, no?
-
-> set MADV_WIPEONRELEASE on its VMA, the parent died somehow, and then
-> the child died, the page in the pipe would be zeroed out. A child
-> should not be able to affect its parent like this, I think. If this
-> was an mmap() flag instead of a madvise() command, that issue could be
-> avoided.
-
-With a VMA flag underneath, I think you can do an early CoW during fork
-to prevent from that.
-
-> Alternatively, if adding more mmap() flags doesn't work,
-> perhaps you could scan the VMA and ensure that it contains no pages
-> yet, or something like that?
-> 
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index ab650c21bccd..ff78b527660e 100644
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -1091,6 +1091,9 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
-> > >                       page_remove_rmap(page, false);
-> > >                       if (unlikely(page_mapcount(page) < 0))
-> > >                               print_bad_pte(vma, addr, ptent, page);
-> > > +                     if (unlikely(vma->vm_flags & VM_WIPEONRELEASE) &&
-> > > +                         page_mapcount(page) == 0)
-> > > +                             clear_highpage(page);
-> > >                       if (unlikely(__tlb_remove_page(tlb, page))) {
-> > >                               force_flush = 1;
-> > >                               addr += PAGE_SIZE;
-> 
-> Should something like this perhaps be added in page_remove_rmap()
-> instead? That's where the mapcount is decremented; and looking at
-> other callers of page_remove_rmap(), in particular the following ones
-> look interesting:
-
-Well spotted!
-
+Even if the subsection memory hotplug is going to be used then the
+underlying question remains. If there is no real reason to use large
+memsections then it would be better to use smaller ones.
 -- 
 Michal Hocko
 SUSE Labs
