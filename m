@@ -4,75 +4,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.9 required=3.0 tests=DATE_IN_PAST_06_12,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2419DC4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D692C43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D5BE42084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5BE42084F
+	by mail.kernel.org (Postfix) with ESMTP id 2E21121744
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 07:32:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E21121744
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C34106B026F; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
+	id 069B06B0266; Fri, 26 Apr 2019 03:31:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D3B66B0266; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
+	id B18916B0274; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D4DC6B026A; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
+	id 6A9626B0272; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D4F6B0266
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:31:49 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y2so1659966pfn.13
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:31:49 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CCFF6B0007
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 03:31:50 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id f7so1491694pgi.20
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 00:31:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version;
-        bh=KTT3A6U4NQUMX3UyJFnXteqziiXHIb6+tR0GZna3rFw=;
-        b=XEX0vJMTCC986W7GqL7WVQ5utVDAn7fsP6SAh3TnY7JffavQHCLsiZl4rX30UycqKy
-         tcNpS+5VNrABRnvg8Y2ZWoeIVkw3cEv4OR/fIh6wKU8cf7Tm/PXNPN7gMKde18LWFixG
-         bY1p3OyE6QhKnXmlziEY9aOvFbyOhLqfyROvzW0oale/Txal5Jtp1rr8hohMFgnwbk94
-         HQq/0mNJSEc6ZZpgXV0i7fa0vZwfpQHU+rGlRAaGuaTgEAUTNTHW3jnso5o5CMQO1LT2
-         Ch6XRkpl1GhXYzp99MreeizSG2fAVuZSGfsyMLs1xmRoWLZypLY6/OZg9W/AOO0eOqYv
-         YoXQ==
+        bh=03x8MyH4ONo6RL8TDAuJcYQYBUTk8Xfu5EMEl5vv8zs=;
+        b=KwQvd75x1sDx1bT4KwvVFnZGiftKeP7Ao+LoyDmfuYl/2OySHRzRyto9t7frjzLBGi
+         t3sK1JjMrbsOn1xnEKBirDN9FQDfq7e7/crlbqvCt5pRw5sdwtAW51JBzzvIb7I2H+oE
+         wd1RklG1YA1H7NZQXnt4m8eDyQ27+Ogk1ULDeQVEC11GVrpZtEk4wUslO//f5PGfBEfn
+         SPhG613zVgcXaVf7kCRO0xTlVD6iUwDgzQszhCJeSqMww2nbQWp0wvQnE4XE/qc0X3wn
+         5QDkQTd3FFPHG6rKrdZ/0Z7v7UGK8VN00ad58st7XGKpdM6phhEWzWySNSAmGw+Be96J
+         urGA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-X-Gm-Message-State: APjAAAUqXb2ot+XW6m9hLrYbifFQlvx2QYnINfvuqfReNHYB4n+Ha6Xw
-	jiHG06y3Q8pgAnSBAkuncz7wVztLzwW3WV47IzIfJiujBny2aGzffRLcfrzw49va0/lquWdqjBI
-	0Au+DedGl6y3oUoqNt7t86rLVbn0S1wqbrJQyK1H1ybkO3/gOS7PnPMqTDHPt/o1NRQ==
-X-Received: by 2002:a62:474a:: with SMTP id u71mr44164050pfa.87.1556263909418;
+X-Gm-Message-State: APjAAAV0ziiGBHjdgtMXyp6Wo1s9mLrKIfyh49hfXlRhq+jEioR9C2Ts
+	Lhf5S+CVkPCSbz+7cUEUnivpmxF2ajGtE+XaCwJCDZ2uV7V4vwdcB1AQz8RP56AkpS8EMIv6/08
+	nfCeXIhwYLkQWKuZPgudnta4qsK1PzwGcwIPgb4YZcvSy8RnDsPcguPOeLz3zojTjMQ==
+X-Received: by 2002:a17:902:201:: with SMTP id 1mr44722111plc.89.1556263909728;
         Fri, 26 Apr 2019 00:31:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwRYLjLGCR7EDAjtQi5NLvJXU/YK/939ExPOMraZEJx73r+tmAKQyXAwbYytNJRKSGrKTCx
-X-Received: by 2002:a62:474a:: with SMTP id u71mr44163940pfa.87.1556263907940;
-        Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556263907; cv=none;
+X-Google-Smtp-Source: APXvYqzRhoCC13X4g10o5nZfIWed4q3JdFpqSGvxYAkkG9NVs1PjSuAd5rmnHzL6nFN8rCcLk0oc
+X-Received: by 2002:a17:902:201:: with SMTP id 1mr44722009plc.89.1556263908548;
+        Fri, 26 Apr 2019 00:31:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556263908; cv=none;
         d=google.com; s=arc-20160816;
-        b=YjSpPH0zyeJfdD/BU+DCYTGFirPSadfamceFqJ5bf8HThsSxV4yrjnm7G7nzwcPQUQ
-         dwTQ0ieETVj4xpyaKTTd1ZZcVc2cuvPe7tYHumjN5+dGvZlZgKlbimjr1sc+2rgMzJ+c
-         Xp5/NzVkiaK4TTs5Jqn2QLrzXFQxbsu6KPrLkHeVJDrEwXac813T65EFm9rxS3MkL7EZ
-         P8N9PMHaT1AFj1Nu3X0AKkkeamQSGAsZnwlgcUvtsTvKfo3BmKf7fq/ERUG2TY5b112j
-         wo0Yn2GP6NuTNs6rokrSD8oTl67N8wfK8MBGfc32ldnEjbwhKZ2KNQnwVXsnVtL8CZTY
-         pzOA==
+        b=EbNHQmCYhkTfFH07IA4U5JIxWnaQPOhjNdxMGBcycWV3SSS1p6NPs+xNYYbn4P8KYB
+         oq+wQBIJ1m25UVFeWBneOrm+jUHrueAgJj5x+vrA+gaN+dUF1+VbTeX1S7pD/hZIEs6m
+         73a6lx9iVCjzBDk7Iv00gHglWu3oHzStY19ymZzz4sgfEQS0Sj6P6t41We0eLVQBXS8T
+         vbLm7FVbJ4loz9/QAI+03OCw+WuCK0Hc4yPiokYzme4W0pumALWaAW52EUFn9BNeR5XB
+         tgc5Hwu2BJD/mToghoH3N+OCz1MANpio1CIXdI7CN25zlHEVxqkCUbimZohqu+/wdWyC
+         8dDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from;
-        bh=KTT3A6U4NQUMX3UyJFnXteqziiXHIb6+tR0GZna3rFw=;
-        b=jsFprV6g5HwGE+pB153Lm0FyehL0l7puGnSqLApDe8W8jdzF/rtk4zqzLdXTKVnvoi
-         C5fa2jn8QEyTcoHOeJBLExXMX5TGAKutICTOi1WN+rO9E2fQiDnU7ufw9h4MYsSZxHom
-         PwSlG97H5obe3sfVFuH4rjTVKA9uLiJpxMhWz3FHypJ6YFbKbiHKF2gjAqU7BBbdYbop
-         Ic7IcprsTBd3tqypXI0zXtHuE16nq3gZbyn5Pxxvy9gbpAJm54RLAZHBFHOJvvfqht/O
-         w6JEqn1MOi+1ZyYAkuhbiSzq3xEOAvhOqdKVWDzBrjv2NkcohtsBpcp09Tl90ggdtdkq
-         h48A==
+        bh=03x8MyH4ONo6RL8TDAuJcYQYBUTk8Xfu5EMEl5vv8zs=;
+        b=gHi7VE3rO9tcb9Ele1xEdjm6Tsv43Un5rQaUF7mYhoOBTSlbuJ+V+13noSTjQo31y+
+         KciDlrtpTGEHrc8x/fxqmBHTOVmclxvz9U1903VmD1+0nvEKcXi88oL3O4WeyqHgE1Qg
+         pSj2gir9JG5RcQ8zhZy/nQcpmwNGoDwPQvPE/kYuPEioH001AcbmftAJxNwczrWKm0CO
+         9M5uQcQ2j8C1sA3Xb7OABXJG3zPUY9kyM62/c31PbGaytUsQhHMbhGE8wpAyGfItqJYG
+         s4oKgMEpVoDXIt+j5am+zC6+0fvVI7rvib1qu2uvbikOwvGlcE0ABKf8JNPidQDEzqo6
+         gr7w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
        dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
 Received: from EX13-EDG-OU-002.vmware.com (ex13-edg-ou-002.vmware.com. [208.91.0.190])
-        by mx.google.com with ESMTPS id f9si22844507pgq.347.2019.04.26.00.31.47
+        by mx.google.com with ESMTPS id f9si22844507pgq.347.2019.04.26.00.31.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Apr 2019 00:31:47 -0700 (PDT)
+        Fri, 26 Apr 2019 00:31:48 -0700 (PDT)
 Received-SPF: pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) client-ip=208.91.0.190;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of namit@vmware.com designates 208.91.0.190 as permitted sender) smtp.mailfrom=namit@vmware.com;
@@ -81,8 +81,8 @@ Received: from sc9-mailhost3.vmware.com (10.113.161.73) by
  EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP Server id
  15.0.1156.6; Fri, 26 Apr 2019 00:31:44 -0700
 Received: from sc2-haas01-esx0118.eng.vmware.com (sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
-	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id D96B44129C;
-	Fri, 26 Apr 2019 00:31:45 -0700 (PDT)
+	by sc9-mailhost3.vmware.com (Postfix) with ESMTP id 0758741298;
+	Fri, 26 Apr 2019 00:31:46 -0700 (PDT)
 From: Nadav Amit <namit@vmware.com>
 To: Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>,
 	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
@@ -93,10 +93,11 @@ CC: <linux-kernel@vger.kernel.org>, <x86@kernel.org>, <hpa@zytor.com>, Thomas
 	<akpm@linux-foundation.org>, <kernel-hardening@lists.openwall.com>,
 	<linux-mm@kvack.org>, <will.deacon@arm.com>, <ard.biesheuvel@linaro.org>,
 	<kristen@linux.intel.com>, <deneen.t.dock@intel.com>, Rick Edgecombe
-	<rick.p.edgecombe@intel.com>
-Subject: [PATCH v5 14/23] x86/mm/cpa: Add set_direct_map_ functions
-Date: Thu, 25 Apr 2019 17:11:34 -0700
-Message-ID: <20190426001143.4983-15-namit@vmware.com>
+	<rick.p.edgecombe@intel.com>, Daniel Borkmann <daniel@iogearbox.net>, Alexei
+ Starovoitov <ast@kernel.org>
+Subject: [PATCH v5 18/23] bpf: Use vmalloc special flag
+Date: Thu, 25 Apr 2019 17:11:38 -0700
+Message-ID: <20190426001143.4983-19-namit@vmware.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426001143.4983-1-namit@vmware.com>
 References: <20190426001143.4983-1-namit@vmware.com>
@@ -112,131 +113,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 
-Add two new functions set_direct_map_default_noflush() and
-set_direct_map_invalid_noflush() for setting the direct map alias for the
-page to its default valid permissions and to an invalid state that cannot
-be cached in a TLB, respectively. These functions do not flush the TLB.
+Use new flag VM_FLUSH_RESET_PERMS for handling freeing of special
+permissioned memory in vmalloc and remove places where memory was set RW
+before freeing which is no longer needed. Don't track if the memory is RO
+anymore because it is now tracked in vmalloc.
 
-Note, __kernel_map_pages() does something similar but flushes the TLB and
-doesn't reset the permission bits to default on all architectures.
-
-Also add an ARCH config ARCH_HAS_SET_DIRECT_MAP for specifying whether
-these have an actual implementation or a default empty one.
-
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Alexei Starovoitov <ast@kernel.org>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/Kconfig                      |  4 ++++
- arch/x86/Kconfig                  |  1 +
- arch/x86/include/asm/set_memory.h |  3 +++
- arch/x86/mm/pageattr.c            | 14 +++++++++++---
- include/linux/set_memory.h        | 11 +++++++++++
- 5 files changed, 30 insertions(+), 3 deletions(-)
+ include/linux/filter.h | 17 +++--------------
+ kernel/bpf/core.c      |  1 -
+ 2 files changed, 3 insertions(+), 15 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 3ab446bd12ef..5e43fcbad4ca 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -249,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
- config ARCH_HAS_SET_MEMORY
- 	bool
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index 14ec3bdad9a9..7d3abde3f183 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -20,6 +20,7 @@
+ #include <linux/set_memory.h>
+ #include <linux/kallsyms.h>
+ #include <linux/if_vlan.h>
++#include <linux/vmalloc.h>
  
-+# Select if arch has all set_direct_map_invalid/default() functions
-+config ARCH_HAS_SET_DIRECT_MAP
-+	bool
-+
- # Select if arch init_task must go in the __init_task_data section
- config ARCH_TASK_STRUCT_ON_STACK
-        bool
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 2ec5e850b807..45d788354376 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -66,6 +66,7 @@ config X86
- 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
- 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
- 	select ARCH_HAS_SET_MEMORY
-+	select ARCH_HAS_SET_DIRECT_MAP
- 	select ARCH_HAS_STRICT_KERNEL_RWX
- 	select ARCH_HAS_STRICT_MODULE_RWX
- 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
-diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
-index 07a25753e85c..ae7b909dc242 100644
---- a/arch/x86/include/asm/set_memory.h
-+++ b/arch/x86/include/asm/set_memory.h
-@@ -85,6 +85,9 @@ int set_pages_nx(struct page *page, int numpages);
- int set_pages_ro(struct page *page, int numpages);
- int set_pages_rw(struct page *page, int numpages);
+ #include <net/sch_generic.h>
  
-+int set_direct_map_invalid_noflush(struct page *page);
-+int set_direct_map_default_noflush(struct page *page);
-+
- extern int kernel_set_to_readonly;
- void set_kernel_text_rw(void);
- void set_kernel_text_ro(void);
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 4c570612e24e..3574550192c6 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -2209,8 +2209,6 @@ int set_pages_rw(struct page *page, int numpages)
- 	return set_memory_rw(addr, numpages);
+@@ -503,7 +504,6 @@ struct bpf_prog {
+ 	u16			pages;		/* Number of allocated pages */
+ 	u16			jited:1,	/* Is our filter JIT'ed? */
+ 				jit_requested:1,/* archs need to JIT the prog */
+-				undo_set_mem:1,	/* Passed set_memory_ro() checkpoint */
+ 				gpl_compatible:1, /* Is filter GPL compatible? */
+ 				cb_access:1,	/* Is control block accessed? */
+ 				dst_needed:1,	/* Do we need dst entry? */
+@@ -733,27 +733,17 @@ bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
+ 
+ static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
+ {
+-	fp->undo_set_mem = 1;
++	set_vm_flush_reset_perms(fp);
+ 	set_memory_ro((unsigned long)fp, fp->pages);
  }
  
--#ifdef CONFIG_DEBUG_PAGEALLOC
+-static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+-{
+-	if (fp->undo_set_mem)
+-		set_memory_rw((unsigned long)fp, fp->pages);
+-}
 -
- static int __set_pages_p(struct page *page, int numpages)
+ static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
  {
- 	unsigned long tempaddr = (unsigned long) page_address(page);
-@@ -2249,6 +2247,17 @@ static int __set_pages_np(struct page *page, int numpages)
- 	return __change_page_attr_set_clr(&cpa, 0);
++	set_vm_flush_reset_perms(hdr);
+ 	set_memory_ro((unsigned long)hdr, hdr->pages);
+ 	set_memory_x((unsigned long)hdr, hdr->pages);
  }
  
-+int set_direct_map_invalid_noflush(struct page *page)
-+{
-+	return __set_pages_np(page, 1);
-+}
-+
-+int set_direct_map_default_noflush(struct page *page)
-+{
-+	return __set_pages_p(page, 1);
-+}
-+
-+#ifdef CONFIG_DEBUG_PAGEALLOC
- void __kernel_map_pages(struct page *page, int numpages, int enable)
- {
- 	if (PageHighMem(page))
-@@ -2282,7 +2291,6 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
- }
- 
- #ifdef CONFIG_HIBERNATION
+-static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
+-{
+-	set_memory_rw((unsigned long)hdr, hdr->pages);
+-}
 -
- bool kernel_page_present(struct page *page)
+ static inline struct bpf_binary_header *
+ bpf_jit_binary_hdr(const struct bpf_prog *fp)
  {
- 	unsigned int level;
-diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
-index 2a986d282a97..b5071497b8cb 100644
---- a/include/linux/set_memory.h
-+++ b/include/linux/set_memory.h
-@@ -17,6 +17,17 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
- static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
- #endif
+@@ -789,7 +779,6 @@ void __bpf_prog_free(struct bpf_prog *fp);
  
-+#ifndef CONFIG_ARCH_HAS_SET_DIRECT_MAP
-+static inline int set_direct_map_invalid_noflush(struct page *page)
-+{
-+	return 0;
-+}
-+static inline int set_direct_map_default_noflush(struct page *page)
-+{
-+	return 0;
-+}
-+#endif
-+
- #ifndef set_mce_nospec
- static inline int set_mce_nospec(unsigned long pfn)
+ static inline void bpf_prog_unlock_free(struct bpf_prog *fp)
  {
+-	bpf_prog_unlock_ro(fp);
+ 	__bpf_prog_free(fp);
+ }
+ 
+diff --git a/kernel/bpf/core.c b/kernel/bpf/core.c
+index ff09d32a8a1b..c605397c79f0 100644
+--- a/kernel/bpf/core.c
++++ b/kernel/bpf/core.c
+@@ -848,7 +848,6 @@ void __weak bpf_jit_free(struct bpf_prog *fp)
+ 	if (fp->jited) {
+ 		struct bpf_binary_header *hdr = bpf_jit_binary_hdr(fp);
+ 
+-		bpf_jit_binary_unlock_ro(hdr);
+ 		bpf_jit_binary_free(hdr);
+ 
+ 		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(fp));
 -- 
 2.17.1
 
