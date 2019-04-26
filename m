@@ -2,196 +2,127 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B8ACC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:08:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06D60C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:14:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 495092084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:08:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 495092084F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id BA0A72084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:14:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="U4RFCPQW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA0A72084F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCDED6B0003; Fri, 26 Apr 2019 10:08:44 -0400 (EDT)
+	id 5043D6B0003; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7EE16B0005; Fri, 26 Apr 2019 10:08:44 -0400 (EDT)
+	id 4629A6B0005; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B44F16B0006; Fri, 26 Apr 2019 10:08:44 -0400 (EDT)
+	id 32D3D6B0006; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 637486B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:08:44 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r48so1581965eda.11
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:08:44 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A4E6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id k7so2548057qtg.8
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:14:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Gl4pDgsoTjXGZqZThKkrLaFex7Lx0Ph2eAdPNhjxdlM=;
-        b=mhSN3GJdqfX6M56ABTcbIS9ev8NCs/TXn/v1/V4N/r6RNEiHGgM0WOkUCGvL79qvT2
-         IXJtjkXSgNmlb1V4BMosKNzBYQCkn0ZRS3gg3XVGnlOqdBO/0dsBVNHzsmXrFuxeS/Fx
-         f/M+qsbfSexdWm2MmLjAAZoksH8gh+Dil+3N+oJi5GxdjHCcTPDQtL583ie3hmiEhDcn
-         pY827K/s5UWi4hlhgVR1p+dJ6q4jM05amZ97tVj5490YWN33kTRxjDrybkDKD329j5lC
-         DsWripPSWIjWfytFza7Z1uiwn8Ui7KyaGv2tFmkfwEFeaPm13+RC5O4K/MsitPZw6dwP
-         QvjA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXzni29DWuh4zfpWBTlaHzt3yYVw7sDQjHBo9jNg31sfjZGZ+as
-	gqPDA9gIo9EtgTDdpeV9lt9wCSw7D6jSfnRBYo7ojQrZzQLdUNYkvzK2biz9Ihw9nNAg9vtx1dY
-	Ir5DlMBSPi+lJrc86hyt4wSJOLykqmMrQO698lQVlYM5FrsspBM4eoRjdcGtr6aI=
-X-Received: by 2002:a50:8bbd:: with SMTP id m58mr28601632edm.42.1556287723955;
-        Fri, 26 Apr 2019 07:08:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/wdPxgcl0QvJgAniQchu7mr2+0NrcwD5p6F6tMWsLiROYWje9tTlc+tQoAU6q71EjmjXU
-X-Received: by 2002:a50:8bbd:: with SMTP id m58mr28601562edm.42.1556287722905;
-        Fri, 26 Apr 2019 07:08:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556287722; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
+        b=WJy2MGvZ3w/W2+LPwg1XBuASLvERjQyTGE5GZAUZkO0F0CZAaeSb8fNZZMeLBDBhd+
+         7+UM9Sx2A/A2DXtm1rYQP8Jqc7ma5vPB6M0aJVe1zpq7qG6jeGqlfZpV07E2uDQvbX/L
+         CzjrsedUnRdTYO/BWwS4V4kwjfH7JqfPiHGR4QT1m4yQO8N/iTDbumh5wFXtYT2a+N/8
+         eFzoTZFOiQsJddo7CSyiYZhlHJTf40lKRWyniXn29/kDkHr0WuSe/aRRNkOEjuBwCX5j
+         mit0KkTOutaiRkILf5t5AxJVRG0vRNhAKEUpZuowohNXMKqSgKsBvtM9iTIDe62dYgfS
+         csyw==
+X-Gm-Message-State: APjAAAUW1bRjmcuNKGdx4J8QiJjqiPBEfY9gph6BOCGxY48Bw2XsxAdU
+	4LnqBAv4CHKDSUqWyS1laFfNCqZgfikXu8+6q74IDd72vM0MoNPwpDLGCYWyL9968tnKw41gdpp
+	tnpXSotJUp4DRYJyJbABA5eRurg0AOUuLWfUSXgP73T/Y+NaGsX9LxZkuhVod7fo=
+X-Received: by 2002:ac8:3f38:: with SMTP id c53mr25912979qtk.152.1556288088799;
+        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrFyJCxBXo5P4/zwx4jmvRWmnNV69fza5Ehr2u4nj2YcyrquPwLp+mXarWnmUs/+XHwEXC
+X-Received: by 2002:ac8:3f38:: with SMTP id c53mr25912932qtk.152.1556288088179;
+        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556288088; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zw7/8tV/3c/HYjJCZZTAMKAj9CnV4MPNxL2Z3icW1YrlKHmoNjeXxPE8gXvJm2znSM
-         /DJZhZdEtTpgT5ZXr0Sx2LUm5jHjwEihF/wOPgR8N7ni4Tfky73Zi0i2FU98EVChabHj
-         5sA7waoXienCs56PxuvJ7U8iRhgri0BXfxPSr8yL5h695wosGOMydYo61YmbjArodot3
-         rQw0lFQpT0xUAiQTYGbujQnTdnByKr/57fI7PFVZGRLNhoehT2mnI531BARrNSaXFcZ2
-         6T/NOp4QuFKU46A9EuaUHh1ZIndtKAdEpXfF4Lt0B+wtdD3F2SmsozwIORsFTBD5nThq
-         s5Dg==
+        b=ANsOKKejXfKFsZ0zTr5ZOuQ0pUYMubJxTekGBPcZ7KKsHoUANfKRE1+la7tTGDP4s9
+         77SPMDi0R+NTB01dkHBHZWuJT0KbzHIHvuA6QUESNOgSv9Z4tSIOESGBjwXcG0n5n9KM
+         VHPjHhoSXOu0QTMXPoLd3Dhg+EOloLMzkhazzKNd2lWkCBer00fhyarlRw/Vg/Hu6F21
+         kr0VTBl/ujR/RLkd/kn4pK/h/vACxkNkBLEfH5huRmgqewj4AzOKSTwBIRAjysXxDxtm
+         +/xCVK+0MhpwY/pOgRPalGxV8yFwk9HbrrpCgZ0fTLn2VGEoyLORcH6wuTBqOVGxVwLH
+         qv9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Gl4pDgsoTjXGZqZThKkrLaFex7Lx0Ph2eAdPNhjxdlM=;
-        b=XrMofL3lgrggTKmmFphSYgBP6HbZGRkSEEH/++EM7euntlOoIqsw8DdnliwcNQhL9f
-         luYA79/Yub/KMAPxGNZSAhuOLujn88cygmFrgai8itHyLMv0RwTSAANRpHQ6We8pYmOZ
-         7rMSr0fCUyKkeFhRvETZ2fHlXuskNzP2C/EUUV/aPG6X3S1vtWXSy5DcGViwP3jVdXnZ
-         GOKtfQ7aS0H1Pu3ASjd7ErQ14na2q6VYFWD3t/dZrkDvrxzNM+LYVet5+dOLB85uvIWa
-         BpNztrWzveZkwwGBwVi7EfakjKGxSzTeu8D1SSSXQbO3ptPbqbehGLfpUHuExy8Y6VSF
-         hnSA==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
+        b=PRzVClZVRLHzRw5XhPIMwOjInxg0hW6WSLXJQz9CucUuOQL06MDdIs/uUCOsSd4rvH
+         JdM/TeZmtnwDaG7AOeR0hFA3lapZ0hFMXz8NZmDSSQhGL7PuaA3sZwmFaeO9ohslj4gf
+         nlZKJptRpujBdBdWGuLBzmcy8/pSZWxReCKPy6FipVHTl/8p4W1+HDDvX3MWF69tC9aT
+         pnHCFSJdDG7SBn1kicAtviqA3ozlJdyd0ahrZGanXI7ebuqWbrAohTQABWI5W6vhLgDS
+         zhZG9jmaRNLQjRzizwJqmul0TD5lSWde7VGofNjYErJK8fIgm0FeRAUhi469bSBXDpM+
+         O6GQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n10si9686257ejh.79.2019.04.26.07.08.42
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=U4RFCPQW;
+       spf=pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com
+Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
+        by mx.google.com with ESMTPS id b124si2648903qkd.1.2019.04.26.07.14.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 07:08:42 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 725D0AFFB;
-	Fri, 26 Apr 2019 14:08:42 +0000 (UTC)
-Date: Fri, 26 Apr 2019 16:08:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Jann Horn <jannh@google.com>
-Cc: Matthew Garrett <matthewgarrett@google.com>,
-	Linux-MM <linux-mm@kvack.org>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Matthew Garrett <mjg59@google.com>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-Message-ID: <20190426140841.GK22245@dhcp22.suse.cz>
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com>
- <20190425121410.GC1144@dhcp22.suse.cz>
- <CAG48ez0x6QiFpqXbimB9ZV-jS5UJJWhzg9XiAWncQL+phfKkPA@mail.gmail.com>
- <20190426053135.GC12337@dhcp22.suse.cz>
- <CAG48ez1MGyAd5tE=JLmjkFqou-VvsQHcJ5TU5f8_L43km9eoYA@mail.gmail.com>
- <20190426134722.GH22245@dhcp22.suse.cz>
- <CAG48ez1OS7DeeEtv5jhO6wtMA2M2A_Bp3-ndS+sP=UoFuMiREw@mail.gmail.com>
+       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=U4RFCPQW;
+       spf=pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1556288087;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
+	b=U4RFCPQWz4jXUFfMGOHX4HlHYj86E0xiwRKBsja0h5KkUEcbg030FIk1xEfdMOP+
+	6NtV8IjdnxUm+2JCNqWPJri0AwN8QzdR6rnn1ulMRWuJXoueQ1audlHWTtKSRf4JvwI
+	5yQTY0JYLP6FLFj/XbeqnIrsWlc9S/CnWTLeXbVs=
+Date: Fri, 26 Apr 2019 14:14:47 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Alexander Potapenko <glider@google.com>
+cc: akpm@linux-foundation.org, dvyukov@google.com, keescook@chromium.org, 
+    labbott@redhat.com, linux-mm@kvack.org, 
+    linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
+Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot
+ option
+In-Reply-To: <20190418154208.131118-2-glider@google.com>
+Message-ID: <0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@email.amazonses.com>
+References: <20190418154208.131118-1-glider@google.com> <20190418154208.131118-2-glider@google.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG48ez1OS7DeeEtv5jhO6wtMA2M2A_Bp3-ndS+sP=UoFuMiREw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.04.26-54.240.9.30
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 26-04-19 16:03:26, Jann Horn wrote:
-> On Fri, Apr 26, 2019 at 3:47 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > On Fri 26-04-19 15:33:25, Jann Horn wrote:
-> > > On Fri, Apr 26, 2019 at 7:31 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > On Thu 25-04-19 14:42:52, Jann Horn wrote:
-> > > > > On Thu, Apr 25, 2019 at 2:14 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > [...]
-> > > > > > On Wed 24-04-19 14:10:39, Matthew Garrett wrote:
-> > > > > > > From: Matthew Garrett <mjg59@google.com>
-> > > > > > >
-> > > > > > > Applications that hold secrets and wish to avoid them leaking can use
-> > > > > > > mlock() to prevent the page from being pushed out to swap and
-> > > > > > > MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-> > > > > > > can also use atexit() handlers to overwrite secrets on application exit.
-> > > > > > > However, if an attacker can reboot the system into another OS, they can
-> > > > > > > dump the contents of RAM and extract secrets. We can avoid this by setting
-> > > > > > > CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-> > > > > > > firmware wipe the contents of RAM before booting another OS, but this means
-> > > > > > > rebooting takes a *long* time - the expected behaviour is for a clean
-> > > > > > > shutdown to remove the request after scrubbing secrets from RAM in order to
-> > > > > > > avoid this.
-> > > > > > >
-> > > > > > > Unfortunately, if an application exits uncleanly, its secrets may still be
-> > > > > > > present in RAM. This can't be easily fixed in userland (eg, if the OOM
-> > > > > > > killer decides to kill a process holding secrets, we're not going to be able
-> > > > > > > to avoid that), so this patch adds a new flag to madvise() to allow userland
-> > > > > > > to request that the kernel clear the covered pages whenever the page
-> > > > > > > reference count hits zero. Since vm_flags is already full on 32-bit, it
-> > > > > > > will only work on 64-bit systems.
-> > > > > [...]
-> > > > > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > > > > index 21a7881a2db4..989c2fde15cf 100644
-> > > > > > > --- a/mm/madvise.c
-> > > > > > > +++ b/mm/madvise.c
-> > > > > > > @@ -92,6 +92,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
-> > > > > > >       case MADV_KEEPONFORK:
-> > > > > > >               new_flags &= ~VM_WIPEONFORK;
-> > > > > > >               break;
-> > > > > > > +     case MADV_WIPEONRELEASE:
-> > > > > > > +             /* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-> > > > > > > +             if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-> > > > > > > +                 vma->vm_flags & VM_SHARED) {
-> > > > > > > +                     error = -EINVAL;
-> > > > > > > +                     goto out;
-> > > > > > > +             }
-> > > > > > > +             new_flags |= VM_WIPEONRELEASE;
-> > > > > > > +             break;
-> > > > >
-> > > > > An interesting effect of this is that it will be possible to set this
-> > > > > on a CoW anon VMA in a fork() child, and then the semantics in the
-> > > > > parent will be subtly different - e.g. if the parent vmsplice()d a
-> > > > > CoWed page into a pipe, then forked an unprivileged child, the child
-> > > >
-> > > > Maybe a stupid question. How do you fork an unprivileged child (without
-> > > > exec)? Child would have to drop priviledges on its own, no?
-> > >
-> > > Sorry, yes, that's what I meant.
-> >
-> > But then the VMA is gone along with the flag so why does it matter?
-> 
-> But in theory, the page might still be used somewhere, e.g. as data in
-> a pipe (into which the parent wrote it) or whatever. Parent
-> vmsplice()s a page into a pipe, parent exits, child marks the VMA as
-> WIPEONRELEASE and exits, page gets wiped, someone else reads the page
-> from the pipe.
-> 
-> Yes, this is very theoretical, and you'd have to write some pretty
-> weird software for this to matter. But it doesn't seem clean to me to
-> allow a child to affect the data in e.g. a pipe that it isn't supposed
-> to have access to like this.
-> 
-> Then again, this could probably already happen, since do_wp_page()
-> reuses pages depending on only the mapcount, without looking at the
-> refcount.
+On Thu, 18 Apr 2019, Alexander Potapenko wrote:
 
-OK, now I see your point. I was confused about the unprivileged child.
-You are right that this looks weird but we have traditionally trusted
-child processes to not do a harm. I guess this falls down to the same
-bucket. An early CoW on these mapping should solve the problem AFAICS.
+> This option adds the possibility to initialize newly allocated pages and
+> heap objects with zeroes. This is needed to prevent possible information
+> leaks and make the control-flow bugs that depend on uninitialized values
+> more deterministic.
+>
+> Initialization is done at allocation time at the places where checks for
+> __GFP_ZERO are performed. We don't initialize slab caches with
+> constructors to preserve their semantics. To reduce runtime costs of
+> checking cachep->ctor we replace a call to memset with a call to
+> cachep->poison_fn, which is only executed if the memory block needs to
+> be initialized.
 
--- 
-Michal Hocko
-SUSE Labs
+Just check for a ctor and then zero or use whatever pattern ? Why add a
+new function?
 
