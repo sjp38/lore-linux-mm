@@ -7,485 +7,240 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAC73C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 554F4C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CBF7206C1
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0724B206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 16:23:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="aU163F3Z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CBF7206C1
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="RReb59vX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0724B206C1
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 010456B0269; Fri, 26 Apr 2019 12:23:38 -0400 (EDT)
+	id 4A40D6B026A; Fri, 26 Apr 2019 12:23:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F04A46B026B; Fri, 26 Apr 2019 12:23:37 -0400 (EDT)
+	id 487226B026B; Fri, 26 Apr 2019 12:23:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF9376B026C; Fri, 26 Apr 2019 12:23:37 -0400 (EDT)
+	id 2D0AC6B026C; Fri, 26 Apr 2019 12:23:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85C526B0269
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D1AD96B026A
 	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 12:23:37 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id j22so3851248wre.12
+Received: by mail-wm1-f71.google.com with SMTP id r21so3521940wmh.4
         for <linux-mm@kvack.org>; Fri, 26 Apr 2019 09:23:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=5zB1xndwVEdKlxuBMRMXMZPMBnm2wGcsd/LOMC08m7A=;
-        b=qqbsVMWTPP3F4407ZI9zWFrZMho2z/hfYRdMPhpMluZM6vtHmoD5uSg2xC7laT6+Z+
-         +1Q7gI0rcacbpb8tLtOPuw4y00BCI1N89EmMIlEWxCQ+UDah08iHfAD31O6p4WWqaXDa
-         ODdR51iW9qXS+XmMF56EIX6JoUTSmy6cwNIcCLS6bCGi5p73eT0YqELpblc0MOQUyQBR
-         sZHz+CKqEOMWkdEgxJtvIhXBGc6k95gJ/0UZJjMJdsS+8VyisbvWDLEpjRIJO5jqBQsG
-         yfcoy9POvGZ09pOC1xGMue6ZA1R0IigWyNsraGogA3U3dH+/PCG7UOf+jU0C0eNQO2ZJ
-         H0gQ==
-X-Gm-Message-State: APjAAAVbRN9920IMkJjKREzkjbVbiu9USNwlzIjfMkiLiRupCZuw1OtK
-	HdmhlpEySTmgwA5xVwLzwSRjcnkGaLXjh6vcyIV28bCIkTtykNi/Y4dMISdvtAPYBwKNOSBDGpw
-	mnYyJ5jUvlc318r40qssQ9Xa2mdQgRXAwMSYxmB1Lgh5MHPlVAVRZSQ1i6Eo/GXIg2A==
-X-Received: by 2002:adf:f488:: with SMTP id l8mr30848097wro.213.1556295817067;
+        bh=1mJSVzNKDD/Yewvby3vQjwYmfiN9I0dVahztYQpyLk4=;
+        b=CG+DWU8StkrfrpcqkhaQYeL0GuJN+abuDpFpRHURpeHrYuEtgmx1Or/lE9ra0r1FyX
+         IWZzFKMN0zWiSEZWNoSAfkll4NL1ORcTRFqlEmH/Cw56vlywswB9mQJCobGAx+6nMG+6
+         8PQKc6hrFXl4eAW0G8LkiwQBwJX3jl8hpPz7ouuZIfpYI1H6XHhEFqoRMOdXoSFKYx/2
+         sZyGTJQT/TfO96HWXmb38w3gsX3CVMswN+nmcVAVcIv9QWndi6pfE/ZhQgPMUfIUBPHx
+         h+U+ulLtV2ADhOiHme5eK5YUyxoA4rI7Z2z7ejII4h8g/dJjwg34HcKx+YdUQlRlnlSP
+         vxGQ==
+X-Gm-Message-State: APjAAAWuNu6T2sG4+1DoOI7JnTLasRdx2iYQRaR4201ka6zeIHpPyU1Z
+	R6bNXch8ofL/smfBSIm/UG8DSxsJtgEjhFn3TAw1rSYZNM1iCDxs1vHxS4FhTmMgSlA0OF/Di6j
+	OJ/h69AvhjL2Uylxngb/nE3SG2cOG9Ox1LLej9lteIeisxRXpl3l3gQkFgjVUQidDfw==
+X-Received: by 2002:a7b:cb58:: with SMTP id v24mr7021133wmj.107.1556295817380;
         Fri, 26 Apr 2019 09:23:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWSHATENy1i0Og9EBIDRC04MT4BnJHSaMs4h6V6hzlKn1wILizxh+Xaqz0NAK3eYnpSgL6
-X-Received: by 2002:adf:f488:: with SMTP id l8mr30847974wro.213.1556295815424;
-        Fri, 26 Apr 2019 09:23:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556295815; cv=none;
+X-Google-Smtp-Source: APXvYqwBzv8YrTPuHdxByqjo+7M8z2HPr1JRRfc+ViKTAcMH46boHOtEzwdL+3I6YNiVvDaGLYqb
+X-Received: by 2002:a7b:cb58:: with SMTP id v24mr7021065wmj.107.1556295816370;
+        Fri, 26 Apr 2019 09:23:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556295816; cv=none;
         d=google.com; s=arc-20160816;
-        b=F/yWe2JQfBDOWVehmGKhiu26UtqRVm/HqyClmCTjNJhIv6FV4Cn3bKw+CAHpUmGL/8
-         C4pIP14OmZJJSK5FDcoNC9oZ2QlVpxpdzt73ZhjdaaD6h6FmpCjJkK9uv+yJuHCNzMtx
-         rZpypT5XuiKctYiuSZdiZS5xmoLo5BBEipBnbWLZn76VJwwPpqsz4RbldWi1l7kJYPOd
-         /5zKCSKA6ZwsAXp8m7geKTLJhXNGVtjYThKGH4+YxKtvc5nXkxLX//7qpV2HiuRSlDf7
-         62tanhFk1MzgobLEsoXqX3X+gnR4DxC8/nO/hnTJcg1WyxnqRV19UgobLECYECmVGYrW
-         F7nQ==
+        b=CGWRx20i5SizlSkfYZmnfDI6UQGM2hqE3C4iupOlwJu78fnMoBylov0HHG/jgMnuVi
+         /Lbj9qpbKfcdosc5Xrx8vFz2cy0GliBlFlJPi2hIah97dWttDdPxYQDskVJKbOwzV5YJ
+         I2B6ukW2MncuPSVQdn5755Mue1thDpHg8rmhgk5QZRRQdA8zLi4mwsei14ZiHvEn2HBG
+         5Z9fdjJwRSbY3imTGgFpxZYhm9TK7dj7uDVCQZfeyCrjl8WMU6V0qUtl5QCe/BBd4xdL
+         BvpmQloCLMYaGl2+tNdA/VXvp2VtOTzgR886LaBzxIufolgYgnaoSMB2lVHfw9LssNr4
+         FLDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=5zB1xndwVEdKlxuBMRMXMZPMBnm2wGcsd/LOMC08m7A=;
-        b=VEKZPFDQS6dK1yimXvXpNb9qEBnr8zP/0t0F257c4VEUtTEJU6OYmXT/jrod/I2z1/
-         uMh/wwqvD2d5+3bC1mQMBrTPJa93f2a140cWOgkIJRpze4Zyxe7eJ+FF4Efc5aovMCeH
-         pwMAa1rSAXEmbiiDvINd4/jGZLwXw5qmX8oJTVGalrz/Bi81nVSG0+wgrwGWgsd9gXVk
-         vnvyz0WE/IjHV/wKHK5vzswg11BDhlUSbVBJCAMqXnNnqUE1gkFJz5f9BM90AxOJkRk7
-         bcUzSZhu1I4ZHcn68FwN9bJiTFBKb2DFjRyrLxrJvVCU22vY5KzUmeQeE5DmQmRgyovW
-         34TQ==
+        bh=1mJSVzNKDD/Yewvby3vQjwYmfiN9I0dVahztYQpyLk4=;
+        b=uAFHLQHQpMUsXFOlXGD6FyXl4m/kWOrSyGYAo+Gb8HA/ahu6s1JspgMyDsYGxqwr5V
+         FYKjVQjnVCrxFTtswztCkWfNxuAnC6VZ7sx7guUu/m5lrK82wSjNDL38FX8rTz0ZSCao
+         sMqG/2kpa/241jZzz8WgAM607ecEdTEYeaN6DfNIBmmHuvgIdYrLgaX1v4b0ryI+L0ay
+         VpjI7Zgjwki4yaK94go66xG/upAJgOcsgmnsBpK8122FWeG6iFdNKXpIwiw1Q1DAEurb
+         FZozwxWH+2O1feyQVfXrKHsYbkLorGr0mjWmcFZ7dneWYN/hyGgbrSp7oXXGAeXAzRAw
+         62XQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=aU163F3Z;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=RReb59vX;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id h6si440562wml.45.2019.04.26.09.23.35
+        by mx.google.com with ESMTPS id n18si15971914wro.455.2019.04.26.09.23.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 09:23:35 -0700 (PDT)
+        Fri, 26 Apr 2019 09:23:36 -0700 (PDT)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=aU163F3Z;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=RReb59vX;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 44rK9d24dyz9v180;
-	Fri, 26 Apr 2019 18:23:33 +0200 (CEST)
+	by localhost (Postfix) with ESMTP id 44rK9f2KGnz9v0yb;
+	Fri, 26 Apr 2019 18:23:34 +0200 (CEST)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=aU163F3Z; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=RReb59vX; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id cLQXdy5MQh01; Fri, 26 Apr 2019 18:23:33 +0200 (CEST)
+	with ESMTP id AWuolCdHIWQh; Fri, 26 Apr 2019 18:23:34 +0200 (CEST)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9d11Qqz9v17t;
-	Fri, 26 Apr 2019 18:23:33 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1556295813; bh=5zB1xndwVEdKlxuBMRMXMZPMBnm2wGcsd/LOMC08m7A=;
-	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=aU163F3ZExiqmRmzQ1hQ3czFyOvZxHVaAhMnORBy0Ko4jTeNuYbERmCrQbdWBn4hN
-	 lKVAboL7RFG/SsjAIAJHTBFqNWTGo9d6nIBHfrea28p3oVK1okMdivcIhEb7jo+mm/
-	 ++1BbtEp5VNcgSv1J2OqUisksFsC/WGxDn4fTztg=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id C8A8D8B950;
+	by pegase1.c-s.fr (Postfix) with ESMTP id 44rK9f1BGWz9v17t;
 	Fri, 26 Apr 2019 18:23:34 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1556295814; bh=1mJSVzNKDD/Yewvby3vQjwYmfiN9I0dVahztYQpyLk4=;
+	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
+	b=RReb59vXqq0AZCDDcuNWqtGN2iAx//z1t7ZkXoK4udlCQM+kUq9dSXvkyGJvtC84/
+	 D3ZvTnU2yo5ApLBFeCQF7QorAMg11Hny9YBRKaHXGFb+/S9FU5pnWh2DgdSxAHgN4a
+	 B5VhczygdXn2xxGApHdxqQcIfPKB8XiSSaRd5gl8=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id CDCA98B950;
+	Fri, 26 Apr 2019 18:23:35 +0200 (CEST)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id o5jRvG3zolbp; Fri, 26 Apr 2019 18:23:34 +0200 (CEST)
+	with ESMTP id 5YGjCKhSIj6u; Fri, 26 Apr 2019 18:23:35 +0200 (CEST)
 Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.6])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 9D51E8B82F;
-	Fri, 26 Apr 2019 18:23:34 +0200 (CEST)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id A5DCE8B82F;
+	Fri, 26 Apr 2019 18:23:35 +0200 (CEST)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 8841D666FE; Fri, 26 Apr 2019 16:23:34 +0000 (UTC)
-Message-Id: <c08fe3fee59343ebf76fd7ea0de11f4ad07a1d6e.1556295461.git.christophe.leroy@c-s.fr>
+	id 8EFDF666FE; Fri, 26 Apr 2019 16:23:35 +0000 (UTC)
+Message-Id: <5251637ee5e81788470cda83a6cbb88dd0a18b17.1556295461.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1556295459.git.christophe.leroy@c-s.fr>
 References: <cover.1556295459.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v11 10/13] powerpc/32: Add KASAN support
+Subject: [PATCH v11 11/13] powerpc/32s: move hash code patching out of
+ MMU_init_hw()
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Fri, 26 Apr 2019 16:23:34 +0000 (UTC)
+Date: Fri, 26 Apr 2019 16:23:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds KASAN support for PPC32. The following patch
-will add an early activation of hash table for book3s. Until
-then, a warning will be raised if trying to use KASAN on an
-hash 6xx.
+For KASAN, hash table handling will be activated early for
+accessing to KASAN shadow areas.
 
-To support KASAN, this patch initialises that MMU mapings for
-accessing to the KASAN shadow area defined in a previous patch.
-
-An early mapping is set as soon as the kernel code has been
-relocated at its definitive place.
-
-Then the definitive mapping is set once paging is initialised.
-
-For modules, the shadow area is allocated at module_alloc().
+In order to avoid any modification of the hash functions while
+they are still used with the early hash table, the code patching
+is moved out of MMU_init_hw() and put close to the big-bang switch
+to the final hash table.
 
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/Kconfig                  |   1 +
- arch/powerpc/include/asm/kasan.h      |   9 ++
- arch/powerpc/kernel/head_32.S         |   3 +
- arch/powerpc/kernel/head_40x.S        |   3 +
- arch/powerpc/kernel/head_44x.S        |   3 +
- arch/powerpc/kernel/head_8xx.S        |   3 +
- arch/powerpc/kernel/head_fsl_booke.S  |   3 +
- arch/powerpc/kernel/setup-common.c    |   3 +
- arch/powerpc/mm/Makefile              |   1 +
- arch/powerpc/mm/init_32.c             |   3 +
- arch/powerpc/mm/kasan/Makefile        |   5 ++
- arch/powerpc/mm/kasan/kasan_init_32.c | 156 ++++++++++++++++++++++++++++++++++
- 12 files changed, 193 insertions(+)
- create mode 100644 arch/powerpc/mm/kasan/Makefile
- create mode 100644 arch/powerpc/mm/kasan/kasan_init_32.c
+ arch/powerpc/kernel/head_32.S |  3 +++
+ arch/powerpc/mm/mmu_decl.h    |  1 +
+ arch/powerpc/mm/ppc_mmu_32.c  | 36 ++++++++++++++++++++++--------------
+ 3 files changed, 26 insertions(+), 14 deletions(-)
 
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index a7c80f2b08b5..1a2fb50126b2 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -173,6 +173,7 @@ config PPC
- 	select GENERIC_TIME_VSYSCALL
- 	select HAVE_ARCH_AUDITSYSCALL
- 	select HAVE_ARCH_JUMP_LABEL
-+	select HAVE_ARCH_KASAN			if PPC32
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_MMAP_RND_BITS
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
-diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
-index 05274dea3109..296e51c2f066 100644
---- a/arch/powerpc/include/asm/kasan.h
-+++ b/arch/powerpc/include/asm/kasan.h
-@@ -27,5 +27,14 @@
- 
- #define KASAN_SHADOW_SIZE	(KASAN_SHADOW_END - KASAN_SHADOW_START)
- 
-+#ifdef CONFIG_KASAN
-+void kasan_early_init(void);
-+void kasan_mmu_init(void);
-+void kasan_init(void);
-+#else
-+static inline void kasan_init(void) { }
-+static inline void kasan_mmu_init(void) { }
-+#endif
-+
- #endif /* __ASSEMBLY */
- #endif
 diff --git a/arch/powerpc/kernel/head_32.S b/arch/powerpc/kernel/head_32.S
-index 40aec3f00a05..6e85171e513c 100644
+index 6e85171e513c..5958ea685968 100644
 --- a/arch/powerpc/kernel/head_32.S
 +++ b/arch/powerpc/kernel/head_32.S
-@@ -969,6 +969,9 @@ start_here:
-  * Do early platform-specific initialization,
-  * and set up the MMU.
-  */
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	li	r3,0
- 	mr	r4,r31
+@@ -977,6 +977,9 @@ start_here:
  	bl	machine_init
-diff --git a/arch/powerpc/kernel/head_40x.S b/arch/powerpc/kernel/head_40x.S
-index a9c934f2319b..efa219d2136e 100644
---- a/arch/powerpc/kernel/head_40x.S
-+++ b/arch/powerpc/kernel/head_40x.S
-@@ -848,6 +848,9 @@ start_here:
+ 	bl	__save_cpu_setup
+ 	bl	MMU_init
++BEGIN_MMU_FTR_SECTION
++	bl	MMU_init_hw_patch
++END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
+ 
  /*
-  * Decide what sort of machine this is and initialize the MMU.
+  * Go back to running unmapped so we can load up new values
+diff --git a/arch/powerpc/mm/mmu_decl.h b/arch/powerpc/mm/mmu_decl.h
+index 74ff61dabcb1..d726ff776054 100644
+--- a/arch/powerpc/mm/mmu_decl.h
++++ b/arch/powerpc/mm/mmu_decl.h
+@@ -130,6 +130,7 @@ extern void wii_memory_fixups(void);
   */
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	li	r3,0
- 	mr	r4,r31
- 	bl	machine_init
-diff --git a/arch/powerpc/kernel/head_44x.S b/arch/powerpc/kernel/head_44x.S
-index 37117ab11584..34a5df827b38 100644
---- a/arch/powerpc/kernel/head_44x.S
-+++ b/arch/powerpc/kernel/head_44x.S
-@@ -203,6 +203,9 @@ _ENTRY(_start);
- /*
-  * Decide what sort of machine this is and initialize the MMU.
-  */
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	li	r3,0
- 	mr	r4,r31
- 	bl	machine_init
-diff --git a/arch/powerpc/kernel/head_8xx.S b/arch/powerpc/kernel/head_8xx.S
-index 03c73b4c6435..d25adb6ef235 100644
---- a/arch/powerpc/kernel/head_8xx.S
-+++ b/arch/powerpc/kernel/head_8xx.S
-@@ -853,6 +853,9 @@ start_here:
- /*
-  * Decide what sort of machine this is and initialize the MMU.
-  */
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	li	r3,0
- 	mr	r4,r31
- 	bl	machine_init
-diff --git a/arch/powerpc/kernel/head_fsl_booke.S b/arch/powerpc/kernel/head_fsl_booke.S
-index 32332e24e421..567e0ed45ca8 100644
---- a/arch/powerpc/kernel/head_fsl_booke.S
-+++ b/arch/powerpc/kernel/head_fsl_booke.S
-@@ -268,6 +268,9 @@ set_ivor:
- /*
-  * Decide what sort of machine this is and initialize the MMU.
-  */
-+#ifdef CONFIG_KASAN
-+	bl	kasan_early_init
-+#endif
- 	mr	r3,r30
- 	mr	r4,r31
- 	bl	machine_init
-diff --git a/arch/powerpc/kernel/setup-common.c b/arch/powerpc/kernel/setup-common.c
-index 1729bf409562..15afb01b4374 100644
---- a/arch/powerpc/kernel/setup-common.c
-+++ b/arch/powerpc/kernel/setup-common.c
-@@ -67,6 +67,7 @@
- #include <asm/livepatch.h>
- #include <asm/mmu_context.h>
- #include <asm/cpu_has_feature.h>
-+#include <asm/kasan.h>
- 
- #include "setup.h"
- 
-@@ -871,6 +872,8 @@ static void smp_setup_pacas(void)
-  */
- void __init setup_arch(char **cmdline_p)
- {
-+	kasan_init();
-+
- 	*cmdline_p = boot_command_line;
- 
- 	/* Set a half-reasonable default so udelay does something sensible */
-diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
-index dd945ca869b2..01afb10a7b33 100644
---- a/arch/powerpc/mm/Makefile
-+++ b/arch/powerpc/mm/Makefile
-@@ -53,6 +53,7 @@ obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
- obj-$(CONFIG_SPAPR_TCE_IOMMU)	+= mmu_context_iommu.o
- obj-$(CONFIG_PPC_PTDUMP)	+= ptdump/
- obj-$(CONFIG_PPC_MEM_KEYS)	+= pkeys.o
-+obj-$(CONFIG_KASAN)		+= kasan/
- 
- # Disable kcov instrumentation on sensitive code
- # This is necessary for booting with kcov enabled on book3e machines
-diff --git a/arch/powerpc/mm/init_32.c b/arch/powerpc/mm/init_32.c
-index 80cc97cd8878..5b61673e7eed 100644
---- a/arch/powerpc/mm/init_32.c
-+++ b/arch/powerpc/mm/init_32.c
-@@ -46,6 +46,7 @@
- #include <asm/sections.h>
- #include <asm/hugetlb.h>
- #include <asm/kup.h>
-+#include <asm/kasan.h>
- 
- #include "mmu_decl.h"
- 
-@@ -179,6 +180,8 @@ void __init MMU_init(void)
- 	btext_unmap();
+ #ifdef CONFIG_PPC32
+ extern void MMU_init_hw(void);
++void MMU_init_hw_patch(void);
+ unsigned long mmu_mapin_ram(unsigned long base, unsigned long top);
  #endif
  
-+	kasan_mmu_init();
-+
- 	setup_kup();
+diff --git a/arch/powerpc/mm/ppc_mmu_32.c b/arch/powerpc/mm/ppc_mmu_32.c
+index bf1de3ca39bc..8a21958484d8 100644
+--- a/arch/powerpc/mm/ppc_mmu_32.c
++++ b/arch/powerpc/mm/ppc_mmu_32.c
+@@ -39,6 +39,7 @@
+ struct hash_pte *Hash, *Hash_end;
+ unsigned long Hash_size, Hash_mask;
+ unsigned long _SDR1;
++static unsigned int hash_mb, hash_mb2;
  
- 	/* Shortly after that, the entire linear mapping will be available */
-diff --git a/arch/powerpc/mm/kasan/Makefile b/arch/powerpc/mm/kasan/Makefile
-new file mode 100644
-index 000000000000..6577897673dd
---- /dev/null
-+++ b/arch/powerpc/mm/kasan/Makefile
-@@ -0,0 +1,5 @@
-+# SPDX-License-Identifier: GPL-2.0
-+
-+KASAN_SANITIZE := n
-+
-+obj-$(CONFIG_PPC32)           += kasan_init_32.o
-diff --git a/arch/powerpc/mm/kasan/kasan_init_32.c b/arch/powerpc/mm/kasan/kasan_init_32.c
-new file mode 100644
-index 000000000000..42617fcad828
---- /dev/null
-+++ b/arch/powerpc/mm/kasan/kasan_init_32.c
-@@ -0,0 +1,156 @@
-+// SPDX-License-Identifier: GPL-2.0
-+
-+#define DISABLE_BRANCH_PROFILING
-+
-+#include <linux/kasan.h>
-+#include <linux/printk.h>
-+#include <linux/memblock.h>
-+#include <linux/sched/task.h>
-+#include <linux/vmalloc.h>
-+#include <asm/pgalloc.h>
-+#include <asm/code-patching.h>
-+#include <mm/mmu_decl.h>
-+
-+static void kasan_populate_pte(pte_t *ptep, pgprot_t prot)
-+{
-+	unsigned long va = (unsigned long)kasan_early_shadow_page;
-+	phys_addr_t pa = __pa(kasan_early_shadow_page);
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PTE; i++, ptep++)
-+		__set_pte_at(&init_mm, va, ptep, pfn_pte(PHYS_PFN(pa), prot), 0);
+ struct ppc_bat BATS[8][2];	/* 8 pairs of IBAT, DBAT */
+ 
+@@ -308,7 +309,6 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
+  */
+ void __init MMU_init_hw(void)
+ {
+-	unsigned int hmask, mb, mb2;
+ 	unsigned int n_hpteg, lg_n_hpteg;
+ 
+ 	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
+@@ -351,20 +351,30 @@ void __init MMU_init_hw(void)
+ 	       (unsigned long long)(total_memory >> 20), Hash_size >> 10, Hash);
+ 
+ 
+-	/*
+-	 * Patch up the instructions in hashtable.S:create_hpte
+-	 */
+-	if ( ppc_md.progress ) ppc_md.progress("hash:patch", 0x345);
+ 	Hash_mask = n_hpteg - 1;
+-	hmask = Hash_mask >> (16 - LG_HPTEG_SIZE);
+-	mb2 = mb = 32 - LG_HPTEG_SIZE - lg_n_hpteg;
++	hash_mb2 = hash_mb = 32 - LG_HPTEG_SIZE - lg_n_hpteg;
+ 	if (lg_n_hpteg > 16)
+-		mb2 = 16 - LG_HPTEG_SIZE;
++		hash_mb2 = 16 - LG_HPTEG_SIZE;
 +}
 +
-+static int kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_end)
++void __init MMU_init_hw_patch(void)
 +{
-+	pmd_t *pmd;
-+	unsigned long k_cur, k_next;
++	unsigned int hmask = Hash_mask >> (16 - LG_HPTEG_SIZE);
+ 
++	if (ppc_md.progress)
++		ppc_md.progress("hash:patch", 0x345);
++	if (ppc_md.progress)
++		ppc_md.progress("hash:done", 0x205);
 +
-+	pmd = pmd_offset(pud_offset(pgd_offset_k(k_start), k_start), k_start);
++	/* WARNING: Make sure nothing can trigger a KASAN check past this point */
 +
-+	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd++) {
-+		pte_t *new;
-+
-+		k_next = pgd_addr_end(k_cur, k_end);
-+		if ((void *)pmd_page_vaddr(*pmd) != kasan_early_shadow_pte)
-+			continue;
-+
-+		new = pte_alloc_one_kernel(&init_mm);
-+
-+		if (!new)
-+			return -ENOMEM;
-+		kasan_populate_pte(new, PAGE_KERNEL_RO);
-+		pmd_populate_kernel(&init_mm, pmd, new);
-+	}
-+	return 0;
-+}
-+
-+static void __ref *kasan_get_one_page(void)
-+{
-+	if (slab_is_available())
-+		return (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+
-+	return memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-+}
-+
-+static int __ref kasan_init_region(void *start, size_t size)
-+{
-+	unsigned long k_start = (unsigned long)kasan_mem_to_shadow(start);
-+	unsigned long k_end = (unsigned long)kasan_mem_to_shadow(start + size);
-+	unsigned long k_cur;
-+	int ret;
-+	void *block = NULL;
-+
-+	ret = kasan_init_shadow_page_tables(k_start, k_end);
-+	if (ret)
-+		return ret;
-+
-+	if (!slab_is_available())
-+		block = memblock_alloc(k_end - k_start, PAGE_SIZE);
-+
-+	for (k_cur = k_start; k_cur < k_end; k_cur += PAGE_SIZE) {
-+		pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(k_cur), k_cur), k_cur);
-+		void *va = block ? block + k_cur - k_start : kasan_get_one_page();
-+		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
-+
-+		if (!va)
-+			return -ENOMEM;
-+
-+		__set_pte_at(&init_mm, k_cur, pte_offset_kernel(pmd, k_cur), pte, 0);
-+	}
-+	flush_tlb_kernel_range(k_start, k_end);
-+	return 0;
-+}
-+
-+static void __init kasan_remap_early_shadow_ro(void)
-+{
-+	kasan_populate_pte(kasan_early_shadow_pte, PAGE_KERNEL_RO);
-+
-+	flush_tlb_kernel_range(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+}
-+
-+void __init kasan_mmu_init(void)
-+{
-+	int ret;
-+	struct memblock_region *reg;
-+
-+	for_each_memblock(memory, reg) {
-+		phys_addr_t base = reg->base;
-+		phys_addr_t top = min(base + reg->size, total_lowmem);
-+
-+		if (base >= top)
-+			continue;
-+
-+		ret = kasan_init_region(__va(base), top - base);
-+		if (ret)
-+			panic("kasan: kasan_init_region() failed");
-+	}
-+}
-+
-+void __init kasan_init(void)
-+{
-+	kasan_remap_early_shadow_ro();
-+
-+	clear_page(kasan_early_shadow_page);
-+
-+	/* At this point kasan is fully initialized. Enable error messages */
-+	init_task.kasan_depth = 0;
-+	pr_info("KASAN init done\n");
-+}
-+
-+#ifdef CONFIG_MODULES
-+void *module_alloc(unsigned long size)
-+{
-+	void *base = vmalloc_exec(size);
-+
-+	if (!base)
-+		return NULL;
-+
-+	if (!kasan_init_region(base, size))
-+		return base;
-+
-+	vfree(base);
-+
-+	return NULL;
-+}
-+#endif
-+
-+void __init kasan_early_init(void)
-+{
-+	unsigned long addr = KASAN_SHADOW_START;
-+	unsigned long end = KASAN_SHADOW_END;
-+	unsigned long next;
-+	pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(addr), addr), addr);
-+
-+	BUILD_BUG_ON(KASAN_SHADOW_START & ~PGDIR_MASK);
-+
-+	kasan_populate_pte(kasan_early_shadow_pte, PAGE_KERNEL);
-+
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		pmd_populate_kernel(&init_mm, pmd, kasan_early_shadow_pte);
-+	} while (pmd++, addr = next, addr != end);
-+
-+	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
-+		WARN(true, "KASAN not supported on hash 6xx");
-+}
++	/*
++	 * Patch up the instructions in hashtable.S:create_hpte
++	 */
+ 	modify_instruction_site(&patch__hash_page_A0, 0xffff,
+ 				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+-	modify_instruction_site(&patch__hash_page_A1, 0x7c0, mb << 6);
+-	modify_instruction_site(&patch__hash_page_A2, 0x7c0, mb2 << 6);
++	modify_instruction_site(&patch__hash_page_A1, 0x7c0, hash_mb << 6);
++	modify_instruction_site(&patch__hash_page_A2, 0x7c0, hash_mb2 << 6);
+ 	modify_instruction_site(&patch__hash_page_B, 0xffff, hmask);
+ 	modify_instruction_site(&patch__hash_page_C, 0xffff, hmask);
+ 
+@@ -373,11 +383,9 @@ void __init MMU_init_hw(void)
+ 	 */
+ 	modify_instruction_site(&patch__flush_hash_A0, 0xffff,
+ 				((unsigned int)Hash - PAGE_OFFSET) >> 16);
+-	modify_instruction_site(&patch__flush_hash_A1, 0x7c0, mb << 6);
+-	modify_instruction_site(&patch__flush_hash_A2, 0x7c0, mb2 << 6);
++	modify_instruction_site(&patch__flush_hash_A1, 0x7c0, hash_mb << 6);
++	modify_instruction_site(&patch__flush_hash_A2, 0x7c0, hash_mb2 << 6);
+ 	modify_instruction_site(&patch__flush_hash_B, 0xffff, hmask);
+-
+-	if ( ppc_md.progress ) ppc_md.progress("hash:done", 0x205);
+ }
+ 
+ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 -- 
 2.13.3
 
