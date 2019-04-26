@@ -2,201 +2,161 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A799C43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:50:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED060C43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:57:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A23962077B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:50:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A23962077B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id AC755206E0
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:57:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="qaIDOuC8";
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="IIFGf7Gv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC755206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1B3EF6B0006; Fri, 26 Apr 2019 10:50:39 -0400 (EDT)
+	id 4932A6B0005; Fri, 26 Apr 2019 10:57:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 162246B000A; Fri, 26 Apr 2019 10:50:39 -0400 (EDT)
+	id 443486B000C; Fri, 26 Apr 2019 10:57:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 02BE96B000C; Fri, 26 Apr 2019 10:50:38 -0400 (EDT)
+	id 333306B000D; Fri, 26 Apr 2019 10:57:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A28AB6B0006
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:50:38 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b22so599638edw.0
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:50:38 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1642B6B0005
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:57:44 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id n203so2685435ywd.20
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:57:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VMoU3VnhEPr8EnNHxaesfpMBJGBd7cYvGrJMkSUIGcQ=;
-        b=sYt3mpmTmADsGf9OlIK54Jug9Uk1uslEteyceiSe8s/xvBfvdZZcqRx/4T8VJYo3ay
-         ylNOCwtEkgzIRd3p+N3waZEHtMxlRN76lChwhO7XgbLRR/D605NezkYbyOggu3/GeIwg
-         KvlrOOOVzNFy3Cld6+BKbtrUHUHTOgtdWNh7Kk+L4Yg+DQLlTyccacaJGopcxkZpV6Am
-         kB0CRUOZgHmka9nfeB/hGJbP0Kebcs5vHsU9cFGHR0fHi9yYR10lgKpybtLG0ZlbaD7Y
-         N83p1DyAZk7IGBXmUoYjRUORiC4Esf84MdUfnt/rgw0qlvPJ7mG8rNR+egm0cXwk8zLz
-         L8Qw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAWYQmcUD4bx6u71vwo8IsePtLO6Oedz+ADci13iY1dqgSSryK70
-	vqG4dVThyC1ZR2rRKGU1XlHj5JpHZU03DfBzHnkzazw2FCZOO9n+NDZfsfUGFL5xznX0b83Axjd
-	BS+1Y1g6zC/T5iylyRE9WHaU8LZ471KsAXsUiUSSEa/yeAbsItTO7BGfbYyakZGXSrw==
-X-Received: by 2002:a50:98c2:: with SMTP id j60mr17676009edb.128.1556290238196;
-        Fri, 26 Apr 2019 07:50:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzaWMGao2Du+cP/S9fMVsW7Jd3Xn7qQDchddww3UGnIIvlVVRSQMEock3mGZhrJXV8arUWp
-X-Received: by 2002:a50:98c2:: with SMTP id j60mr17675965edb.128.1556290237358;
-        Fri, 26 Apr 2019 07:50:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556290237; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:message-id:subject
+         :from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=6p8CjruhjRNbBQYEm03bK5FWvpGTt1RHALQOrOT1VD4=;
+        b=rLZ0MhT3T1amCvXIc5TabiEPNH4STOyvbFDSVM0isEqCTgeoIMuGopdZObshetBrw2
+         3EXhuLDn73tqbtBzUgSnDuhVobtebBY3GYP71E6bAEJRp+Pg5ZEKNIIWvVGwQUmkuEbT
+         HTaUoceHr4dIl7e+Hqa63afsucCVM5rsm0wUnFFWtZJ1JoJLPCLgizAqKHNR4WjTgM7I
+         zx5i5eh+qMtva3jMWRrh2f+/+umLeKR4BBU4mUNsykA9+vgn18ZtwOEAgiroRNmBK2Cw
+         eUAlnP5ybwrsDCy7L9RmLoeG9HfqOzVFGxLnCFqjkLYZ1j+G4v3dz3BHM/ME7cKO44gw
+         qRaA==
+X-Gm-Message-State: APjAAAXfNDEbPN2rpbwu0U4BSldSSjOVMkPfDvPaB+zpm84hJvnMxXn4
+	D+Lh9yhv5hjDFa8b4awoxr1MLJtIDvZFsw41nFL3TmMwOx97B1+PKIxWZrFoafIDvlaLxmWIDmr
+	wD4ojDi6bx6Li0mYQran+k0fj8kJXsi45anlHKp/SIRKzAFc83vadxn2wFESUEjYr6A==
+X-Received: by 2002:a25:10d6:: with SMTP id 205mr37662646ybq.59.1556290663791;
+        Fri, 26 Apr 2019 07:57:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwsZlOyoXKZUxk3HpVp1joVFU0XCEa5LFHF4do4R9p5YaYGcdBigod2yt1UWM/Ncog0m758
+X-Received: by 2002:a25:10d6:: with SMTP id 205mr37662599ybq.59.1556290663214;
+        Fri, 26 Apr 2019 07:57:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556290663; cv=none;
         d=google.com; s=arc-20160816;
-        b=LcIAtWM2CFKFBoABTmgTObH8nwKhieYXd9pTTeU5Sg4FuObL3rvaEfCnygR21Z4OXJ
-         Wv6LriUGV7k+Sx9YvNnpCtQwFEfNgo4/an3uNDBKlCj7IXET60O/oqQa0kOhsG8SfaV8
-         aSIlXa2Q09MZuNJv1QfDbZQMEpQrMLf6TVPxi+m1VGsZKYqN9E/65P+uRWfVtPNnRPIQ
-         t67CGtQiz6wv1l3Jo3taZa39C4kS1GpHUEC4YNE3lDPp4uIzuAfAehPrCWVtZHrBiQ4/
-         JiTpY+/wzY2DdL7EcgjQ1PrkR52e2pc0d6hIV7ij5bJLDWuGeeffuZ0lwZa8mQB7oJNF
-         QQIQ==
+        b=BVwawnwajaTX9JBD0Y6Ojorgr4qcHqhs4uhJ/MNIr459tk5sD8+xrFigs2rSsmsrJB
+         M0HQeErKybsQWEAP3hSr+UF1vbxBXBR2cskZbh+3WtlTMiQPnl6PCqcnQnXnyytQjYNx
+         FS1JGXfDRMWmXTnsWfXGw9QrNyh50pomYrHC7Z5GGKk6iXIhDHCRkhJPsKa7EAdtM37F
+         otraFl7bU/5IJVXGfYcP4pOG6Wu5oPi4Y1tD/TE9R6u/tt7dy0I3cCEejPj0M0KTse5i
+         CKOp/TZx4fM52CogFMGFuESEvoA5MV4vv54Jb416x6DQYOPIc/Xj9OG/LFxxlUQ8tTe4
+         MVNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VMoU3VnhEPr8EnNHxaesfpMBJGBd7cYvGrJMkSUIGcQ=;
-        b=Iiq4p1xBx6fcIx/R4Jv1mF5bB19E6k6ntHuR5LB24mksacsD8vY+OrIOGUy+uQf+IH
-         pEi6a0F3e1PFyWCB8aIqdh8EC8LYBBTtIzg9CJhQXQnVXH5AJt1hYuMDE3wqaLOVy1j/
-         pJzd2Yv/ZYEGxlXLDUKowBP3o4usofngCnxf5XX3K0bZl6eWsH6Uoe24CnK43za+kmdZ
-         dFVnfL8io2q1B/l5RK8vYQFDezzKv0LJyANU+ldIv3EiIyHfxthckPILKFEf8Ih7ksYc
-         dXQRt4XZn1SrD3Up1DgCGV+oy1j6MmAPmAfIBC8Sd/l1kHQLYza3V0+O6gvIgHFqnJT8
-         2rjA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature:dkim-signature;
+        bh=6p8CjruhjRNbBQYEm03bK5FWvpGTt1RHALQOrOT1VD4=;
+        b=Z2MOxrqZisWd7e0PbozUfdmVbrm79hHTxeziSArB5w54NNxg9fTHoyhF+oTuGHvhOI
+         JWJYeHRBEdBfrXO8cuCyWLAW/1xLNtOuPqioCBNLPI2XL2RTgrNNY5TGQCMdBcpT8nq2
+         Eyp8n5hQyP2sWZskphxWQzigzIIgxKI4Zpcu0kLo7/gUhPTguRO3UvEj5ELUsbvuJLC4
+         FPBq+nYyCvt2fek4OJbqu56OprEf3ewouadw8sJPk5MHHL+p8tEwrqiT6Rt5R+4YK9u3
+         HSOyCgeUE9ZoX1fZJn7PWtmyNzqGtspEDflgnixmhSz63OMNq2uCOp/Hy5QrruJIPWTQ
+         q7rg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l20si4772378ejr.239.2019.04.26.07.50.36
-        for <linux-mm@kvack.org>;
-        Fri, 26 Apr 2019 07:50:37 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=qaIDOuC8;
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=IIFGf7Gv;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id v124si17076312ywv.383.2019.04.26.07.57.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 26 Apr 2019 07:57:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E922A80D;
-	Fri, 26 Apr 2019 07:50:35 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D44B83F5C1;
-	Fri, 26 Apr 2019 07:50:27 -0700 (PDT)
-Date: Fri, 26 Apr 2019 15:50:25 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ingo Molnar <mingo@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Shuah Khan <shuah@kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Eric Dumazet <edumazet@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Alexei Starovoitov <ast@kernel.org>,
-	Daniel Borkmann <daniel@iogearbox.net>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	"David (ChunMing) Zhou" <David1.Zhou@amd.com>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	linux-arch <linux-arch@vger.kernel.org>,
-	netdev <netdev@vger.kernel.org>, bpf <bpf@vger.kernel.org>,
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org,
-	kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in
- prctl_set_mm*
-Message-ID: <20190426145024.GC54863@arrakis.emea.arm.com>
-References: <cover.1553093420.git.andreyknvl@google.com>
- <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
- <20190322154136.GP13384@arrakis.emea.arm.com>
- <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=qaIDOuC8;
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=IIFGf7Gv;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 1D8068EE121;
+	Fri, 26 Apr 2019 07:57:40 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1556290660;
+	bh=MZ013Ph+lwQOoeohYQwwAPYLitvi2p0CBYiqPPjHpqI=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=qaIDOuC8aei1p/7IP9m9Fe7r3xqglUB9MVs7PdBCgZ558WNyEKGsDorTWf6PNNGxB
+	 BTCy/bnugUhZTtol9nQJKxUOW5moxnmy6Gtwb+BQs14FYokmStzrgIUIm+keNdtkd3
+	 r5f9oNC6yUkycIj3GOuPJLi7exfOyTK4AX48QUlM=
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id hitVsonP8-dL; Fri, 26 Apr 2019 07:57:39 -0700 (PDT)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 2A3368EE079;
+	Fri, 26 Apr 2019 07:57:39 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1556290659;
+	bh=MZ013Ph+lwQOoeohYQwwAPYLitvi2p0CBYiqPPjHpqI=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=IIFGf7GvQu8MCRHZXr1XtGW4XmqGJGBhgBm0P/VIYkiYQnktRNLrbXtK7lNWiswf4
+	 CKM8fUqVlquzGGDbVl94Z804nFWX6K13cOYwj/7elY9L73iANUBV0998IYN5LsYoUi
+	 OS2d0wMqqxyLuYMsxisTCzOk+GuvidU3cUz4dVWY=
+Message-ID: <1556290658.2833.28.camel@HansenPartnership.com>
+Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system
+ call isolation
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Dave Hansen <dave.hansen@intel.com>, Mike Rapoport <rppt@linux.ibm.com>,
+  linux-kernel@vger.kernel.org
+Cc: Alexandre Chartre <alexandre.chartre@oracle.com>, Andy Lutomirski
+ <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen
+ <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo
+ Molnar <mingo@redhat.com>, Jonathan Adams <jwadams@google.com>, Kees Cook
+ <keescook@chromium.org>, Paul Turner <pjt@google.com>, Peter Zijlstra
+ <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
+ linux-mm@kvack.org, linux-security-module@vger.kernel.org, x86@kernel.org
+Date: Fri, 26 Apr 2019 07:57:38 -0700
+In-Reply-To: <627d9321-466f-c4ed-c658-6b8567648dc6@intel.com>
+References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
+	 <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+	 <627d9321-466f-c4ed-c658-6b8567648dc6@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 01, 2019 at 06:44:34PM +0200, Andrey Konovalov wrote:
-> On Fri, Mar 22, 2019 at 4:41 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > On Wed, Mar 20, 2019 at 03:51:24PM +0100, Andrey Konovalov wrote:
-> > > @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
-> > >       if (opt == PR_SET_MM_AUXV)
-> > >               return prctl_set_auxv(mm, addr, arg4);
-> > >
-> > > -     if (addr >= TASK_SIZE || addr < mmap_min_addr)
-> > > +     if (untagged_addr(addr) >= TASK_SIZE ||
-> > > +                     untagged_addr(addr) < mmap_min_addr)
-> > >               return -EINVAL;
-> > >
-> > >       error = -EINVAL;
-> > >
-> > >       down_write(&mm->mmap_sem);
-> > > -     vma = find_vma(mm, addr);
-> > > +     vma = find_vma(mm, untagged_addr(addr));
-> > >
-> > >       prctl_map.start_code    = mm->start_code;
-> > >       prctl_map.end_code      = mm->end_code;
-> >
-> > Does this mean that we are left with tagged addresses for the
-> > mm->start_code etc. values? I really don't think we should allow this,
-> > I'm not sure what the implications are in other parts of the kernel.
-> >
-> > Arguably, these are not even pointer values but some address ranges. I
-> > know we decided to relax this notion for mmap/mprotect/madvise() since
-> > the user function prototypes take pointer as arguments but it feels like
-> > we are overdoing it here (struct prctl_mm_map doesn't even have
-> > pointers).
-> >
-> > What is the use-case for allowing tagged addresses here? Can user space
-> > handle untagging?
+On Fri, 2019-04-26 at 07:46 -0700, Dave Hansen wrote:
+> On 4/25/19 2:45 PM, Mike Rapoport wrote:
+> > After the isolated system call finishes, the mappings created
+> > during its execution are cleared.
 > 
-> I don't know any use cases for this. I did it because it seems to be
-> covered by the relaxed ABI. I'm not entirely sure what to do here,
-> should I just drop this patch?
+> Yikes.  I guess that stops someone from calling write() a bunch of
+> times on every filesystem using every block device driver and all the
+> DM code to get a lot of code/data faulted in.  But, it also means not
+> even long-running processes will ever have a chance of behaving
+> anything close to normally.
+> 
+> Is this something you think can be rectified or is there something
+> fundamental that would keep SCI page tables from being cached across
+> different invocations of the same syscall?
 
-If we allow tagged addresses to be passed here, we'd have to untag them
-before they end up in the mm->start_code etc. members.
+There is some work being done to look at pre-populating the isolated
+address space with the expected execution footprint of the system call,
+yes.  It lessens the ROP gadget protection slightly because you might
+find a gadget in the pre-populated code, but it solves a lot of the
+overhead problem.
 
-I know we are trying to relax the ABI here w.r.t. address ranges but
-mostly because we couldn't figure out a way to document unambiguously
-the difference between a user pointer that may be dereferenced by the
-kernel (tags allowed) and an address typically used for managing the
-address space layout. Suggestions welcomed.
-
-I'd say just drop this patch and capture it in the ABI document.
-
--- 
-Catalin
+James
 
