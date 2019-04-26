@@ -2,174 +2,284 @@ Return-Path: <SRS0=h8p8=S5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.8 required=3.0 tests=DATE_IN_PAST_06_12,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0985EC4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:18:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45797C4321B
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C523A208CB
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:18:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C523A208CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id DC6F9208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="P8lkxgGj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC6F9208C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 602D16B0003; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
+	id 776846B0003; Sat, 27 Apr 2019 02:43:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D7526B0005; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
+	id 723796B0005; Sat, 27 Apr 2019 02:43:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4ED116B0006; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
+	id 5C7596B0006; Sat, 27 Apr 2019 02:43:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0196C6B0003
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r7so5760291wrv.19
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:18:16 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EFD66B0003
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:05 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id n10so2347444pgg.11
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5bn7149UBqTO/bGoYDflR+GGrfgzfwoiCgZqrYPyQME=;
-        b=NZ1X1sJSPyABVC/T9B3f2YHPfjwiKyyzEBJ6g+qF124quFNGzEBggQkkZTGwqZ11Bz
-         Z5WFP80ujI01oOPPgZ6yNkrHv6GYry93oUTkKkyujbmTjONsKnki3Rm3OBMzByk1sHvT
-         uMPz8ojKaGND6yKvRqPNvKwdQolKew30HNxjyxxFkCufnoqxDpvZx19IAfrJupYYI6oq
-         /JUt4ItgUOyLOf8X61IaIIS4B6b5ywI4FbMh6JZfuGu8m4NKKyQBzOXCCmwd0qRyEY3U
-         7l+yylgDoOloAPhcnh3gfn8bd7BQJ5M4jhwSrt9WjRXzbrauqzmurmsK8vWIAa0CiQOw
-         FhGg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAVS30KdPQagwa+Y7dY0wGpXWqbHFW2I2zRnfypt5AFqfL748PbO
-	F85EJ4eU5b+A+n4Rp9XAhiLAKWAhTVsHFqFOcqxlsftCXt78gycEmiuX2/iRFO9/ZHA9/uKIOrw
-	Dduu1pDseRwT/66KeIJHp5OO01s90KYqDIY45QEIr79WSJSwZjI18PG4E01R4FTs1xQ==
-X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr10121344wmk.153.1556345896513;
-        Fri, 26 Apr 2019 23:18:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx/tCTpE6inqlDsKnL5gL+5YfSbjjLEv3CQq7Ew/7C1lpicTNJbFfGLcp9vA/VmYibCXFrZ
-X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr10121308wmk.153.1556345895640;
-        Fri, 26 Apr 2019 23:18:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556345895; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=eB6k5meLI0PLOK3mYE/JAtGJf13kBE3594LdTnKJT/c=;
+        b=fNGyf2KnXiAHnsSfBriojuirWppwLABAsZnO50C9/McP43ZDs/Oc08NpDbRXzKhwWm
+         0VHXiT3ISyt7phI0Awl7iPnbtnHgHi5lJnUa5OBWv35XfdZN4il5vSttnjNj2T6e0tqm
+         gSBBp+OcDCbTB1TvMe/fVsmEQtpRl74hAyTTyVddS48vpnDgSxKFES/NiPI+26xYTDBH
+         pPnJYQfHskTguGKTz6N4dTqy399CYG2ytLRXbb5D04dA6w+ndILSvjwExuCq1I+Y+o9+
+         3EXJ0QalPR1DfC7VdC6dW4eRHUJmKDH2CbAyxaaW4PVPnKkHSK0o3kUrW+eeHmrSehyX
+         OLZw==
+X-Gm-Message-State: APjAAAV3vOCRPds/ptUT0VQj0OnccyHDuaJoVvZ+I3lYS3LT7joXpfeZ
+	EHnBak90W7RNNkVOWqGBM2kIF0/NJB7jVcMxtTHfn9dfAi2atQfcYmq1KgISxLmVqbC+WMPDmoM
+	piR/ul4bbgWAgGcCzEGv+u70M6lxMHiI6Bop4hVgDkwr1qvzdoOnHGlbxXJprpN1KaA==
+X-Received: by 2002:a65:6656:: with SMTP id z22mr30235358pgv.333.1556347384591;
+        Fri, 26 Apr 2019 23:43:04 -0700 (PDT)
+X-Received: by 2002:a65:6656:: with SMTP id z22mr30235309pgv.333.1556347383549;
+        Fri, 26 Apr 2019 23:43:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556347383; cv=none;
         d=google.com; s=arc-20160816;
-        b=S9raZkQpn0atwzgAnHJVKifGtolPsk+qeinvXPadBfiVdjEyknQ45tr5qzZUpf4GyA
-         yfXmCL1L3ScIhZOzp5WLITjKZVYIK08j0/ZSuItnyVGh3SVaW54LirZzrski68Vsdbnn
-         ywZGXMrV4WnEerr7HkY56TefEalV0MK0zFhIpDGCo5VIlmOox7jVuYpV3/rEDsM8x2kR
-         NIhR3ps3OG3iAAOFA1TcuQiM3bw1qlHzqNQq4jKugbKbcsNeG0MY6PtIDffSLcNrGg87
-         gp1Lb2/o5DhHm8YMSA5FAuYwLRozKVsCsKzsMXmr4MWT2juAZ8PG6AiC5q5K9D9T+aY5
-         nkhQ==
+        b=qac0ZkUetbDel8Bb22rAJErFz9cnHFic1a6E+I8LBClVcLUOK8+ooQUIDEXpUoCng7
+         XAxv730WIpDHrg4WGPSkE/qnZ/Npq/jRwyyljiEpbcg3K8PhtEZWhKC75XcU4cCD01Ay
+         K8dkTfM4DwpCYdpTGwAsH45iCn0RW1nnldH2pk0XzQ4yhWWQ5GQrRhwHP7ZF/Z24mcma
+         JZUAqAjNLo+8GyvwfrxxVZv/xnf8cY4ndM+R6/BPWu0CFDSM2J1DeNMCkMo39iZmH6Vp
+         8yi9qmvhW3jtpVVmmdy4I2aUAvi/XYnDVBwWLquZ8RO8ZY49iQG6tZrbfKGXZKXu/z6k
+         8UJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5bn7149UBqTO/bGoYDflR+GGrfgzfwoiCgZqrYPyQME=;
-        b=dIQCP7sfZCKgvjALyvOIzQbcnj+Aa1VnFSwZTZyEEJB2ojcweK8xw+dDe6t2LYgZ8T
-         Y2gcMXxPrFWVmNTa6gdenZVDCHjwjmwXZw3Si1o16vzjHDVWwhFCUMti1PurWAXBOvrr
-         bSxUM+mLJENzNne4ZcexOj4Dpy7zfMzuARNUn+rQWDwzAFU2GRy5pb2oHI0MpykZaSBf
-         MOtTyIKufF0uoWgbIF+RSm9e6gdw+rUGUl7kazX2EQL+6ea87zJlGsT+8QS587jquFpp
-         pAWYrbWhNMSgB/Vyfo4N9gdiYuCTThH8GWW5ZamrJ9lylI37G5WW1pQla51h6C2Wcf+f
-         09sg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=eB6k5meLI0PLOK3mYE/JAtGJf13kBE3594LdTnKJT/c=;
+        b=G4GG/LKU8he+ZU10W9jDdEP4sX/phxSr62skvt/RSWqiWV2q97Oc+KCs8V5yxqXZmF
+         l5rWa5/cgGbkASOniFkU9Q1ucfWR8hpVaHygvmQJpZbQQo7M8z5oLC7IXpAA1F+ZGMKM
+         J7rNvj5zQ+wvxgOAmUc5+ZkSvAGBZ0d25bECFlqxlCqrksDWyYsUxY0J3xRa8GI1jTpk
+         mzqQxmmx0ER4ROm/SMU/pG0nYZfpWsq0k9Il9ngWYior78upbUL3pr7LAYM+NGiUSxLP
+         MPhyWcRfjEk7MmcMncWYZlQxpl7cwSkD2BqJGIPoH4FbFbC6Qic0Wd56wOtiZwprIy19
+         Ni4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 14si5883965wmi.49.2019.04.26.23.18.15
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P8lkxgGj;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11sor2804598pgh.79.2019.04.26.23.43.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:18:15 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Fri, 26 Apr 2019 23:43:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id DEBE668BFE; Sat, 27 Apr 2019 08:17:59 +0200 (CEST)
-Date: Sat, 27 Apr 2019 08:17:59 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Andreas Gruenbacher <agruenba@redhat.com>
-Cc: cluster-devel@redhat.com, Christoph Hellwig <hch@lst.de>,
-	Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	Ross Lagerwall <ross.lagerwall@citrix.com>,
-	Mark Syms <Mark.Syms@citrix.com>,
-	Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v5 1/3] iomap: Fix use-after-free error in page_done
- callback
-Message-ID: <20190427061759.GA21795@lst.de>
-References: <20190426131127.19164-1-agruenba@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190426131127.19164-1-agruenba@redhat.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P8lkxgGj;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=eB6k5meLI0PLOK3mYE/JAtGJf13kBE3594LdTnKJT/c=;
+        b=P8lkxgGjxqraib3dGi6LmdBMJFStrMGH5f7zRkLtPm0LyLdsCOatl1WplqSO6Vox5O
+         QgceEyMkcGUHaPWov9uf5imUGYag+m6YfoDuve+tQrWc9Lnzck+ild+pJLBgqvAg+s4t
+         tc2ZnLBudjA7+23D9apTsU8/5POeUm+9GGrBRc4Ff/HdRlJm0u0gfx3vlhknVKnRGfnO
+         EiWhEn2/3fkfvOg0UEWNN2QVFDU+EZVBysGn0ITmKf0LFOg1DzCFALBMm4mesHSuLeC+
+         J6TfDcCHfeBFtjn2od2kGVTzYa6WawY6jvV0lo/aa6bLxoGhvPKYoxlpD6UDLrUUf+Hb
+         t5Qg==
+X-Google-Smtp-Source: APXvYqyb+o0qcII6hqlSl8V9sdm+gHB13Znu6WUBjFKn+pUN45+xAXNqkdkIsB0zzQNru3DiagNjEA==
+X-Received: by 2002:a65:430a:: with SMTP id j10mr48510698pgq.143.1556347382897;
+        Fri, 26 Apr 2019 23:43:02 -0700 (PDT)
+Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.00
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 23:43:01 -0700 (PDT)
+From: nadav.amit@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org,
+	x86@kernel.org,
+	hpa@zytor.com,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	linux_dti@icloud.com,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org,
+	akpm@linux-foundation.org,
+	kernel-hardening@lists.openwall.com,
+	linux-mm@kvack.org,
+	will.deacon@arm.com,
+	ard.biesheuvel@linaro.org,
+	kristen@linux.intel.com,
+	deneen.t.dock@intel.com,
+	Rick Edgecombe <rick.p.edgecombe@intel.com>,
+	Nadav Amit <namit@vmware.com>
+Subject: [PATCH v6 00/24] x86: text_poke() fixes and executable lockdowns
+Date: Fri, 26 Apr 2019 16:22:39 -0700
+Message-Id: <20190426232303.28381-1-nadav.amit@gmail.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This looks ok to me, holding the page over the i_size update
-and mark_inode_dirty should be ok.  But I think it would be a lot
-cleaner if rebased ontop of this cleanup, which you could add to the
-front of the series:
+From: Nadav Amit <namit@vmware.com>
 
----
-From 908dbc5e7c26035f992fef84886976e0cda10b98 Mon Sep 17 00:00:00 2001
-From: Christoph Hellwig <hch@lst.de>
-Date: Sat, 27 Apr 2019 08:13:38 +0200
-Subject: iomap: cleanup __generic_write_end calling conventions
+*
+* This version fixes failed boots on 32-bit that were reported by 0day.
+* Patch 5 is added to initialize uprobes during fork initialization.
+* Patch 7 (which was 6 in the previous version) is updated - the code is
+* moved to common mm-init code with no further changes.
+*
 
-Move the call to __generic_write_end into the common code flow instead
-of duplicating it in each of the three branches.  This requires open
-coding the generic_write_end for the buffer_head case.
+This patchset improves several overlapping issues around stale TLB
+entries and W^X violations. It is combined from "x86/alternative:
+text_poke() enhancements v7" [1] and "Don't leave executable TLB entries
+to freed pages v2" [2] patchsets that were conflicting.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- fs/iomap.c | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+The related issues that this fixes:
+1. Fixmap PTEs that are used for patching are available for access from
+  other cores and might be exploited. They are not even flushed from
+  the TLB in remote cores, so the risk is even higher. Address this
+  issue by introducing a temporary mm that is only used during
+  patching. Unfortunately, due to init ordering, fixmap is still used
+  during boot-time patching. Future patches can eliminate the need for
+  it.
+2. Missing lockdep assertion to ensure text_mutex is taken. It is
+  actually not always taken, so fix the instances that were found not
+  to take the lock (although they should be safe even without taking
+  the lock).
+3. Module_alloc returning memory that is RWX until a module is finished
+  loading.
+4. Sometimes when memory is freed via the module subsystem, an
+  executable permissioned TLB entry can remain to a freed page. If the
+  page is re-used to back an address that will receive data from
+  userspace, it can result in user data being mapped as executable in
+  the kernel. The root of this behavior is vfree lazily flushing the
+  TLB, but not lazily freeing the underlying pages.
 
-diff --git a/fs/iomap.c b/fs/iomap.c
-index abdd18e404f8..cfc8a10b3fd8 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -738,13 +738,11 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
- 	 * uptodate page as a zero-length write, and force the caller to redo
- 	 * the whole thing.
- 	 */
--	if (unlikely(copied < len && !PageUptodate(page))) {
--		copied = 0;
--	} else {
--		iomap_set_range_uptodate(page, offset_in_page(pos), len);
--		iomap_set_page_dirty(page);
--	}
--	return __generic_write_end(inode, pos, copied, page);
-+	if (unlikely(copied < len && !PageUptodate(page)))
-+		return 0;
-+	iomap_set_range_uptodate(page, offset_in_page(pos), len);
-+	iomap_set_page_dirty(page);
-+	return copied;
- }
- 
- static int
-@@ -761,7 +759,6 @@ iomap_write_end_inline(struct inode *inode, struct page *page,
- 	kunmap_atomic(addr);
- 
- 	mark_inode_dirty(inode);
--	__generic_write_end(inode, pos, copied, page);
- 	return copied;
- }
- 
-@@ -774,12 +771,13 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
- 	if (iomap->type == IOMAP_INLINE) {
- 		ret = iomap_write_end_inline(inode, page, iomap, pos, copied);
- 	} else if (iomap->flags & IOMAP_F_BUFFER_HEAD) {
--		ret = generic_write_end(NULL, inode->i_mapping, pos, len,
--				copied, page, NULL);
-+		ret = block_write_end(NULL, inode->i_mapping, pos, len, copied,
-+				page, NULL);
- 	} else {
- 		ret = __iomap_write_end(inode, pos, len, copied, page, iomap);
- 	}
- 
-+	ret = __generic_write_end(inode, pos, ret, page);
- 	if (iomap->page_done)
- 		iomap->page_done(inode, pos, copied, page, iomap);
- 
+Changes v5 to v6:
+- Move poking_mm initialization to common x86 mm init [0day]
+- Initialize uprobes during fork initialization [0day]
+
+Changes v4 to v5:
+- Change temporary state variable name [Borislav]
+- Commit log and comment fixes [Borislav]
+
+Changes v3 to v4:
+- Remove the size parameter from tramp_free() [Steven]
+- Remove caching of hw_breakpoint_active() [Sean]
+- Prevent the use of bpf_probe_write_user() while using temporary mm [Jann]
+- Fix build issues on other archs
+
+Changes v2 to v3:
+- Fix commit messages and comments [Boris]
+- Rename VM_HAS_SPECIAL_PERMS [Boris]
+- Remove unnecessary local variables [Boris]
+- Rename set_alias_*() functions [Boris, Andy]
+- Save/restore DR registers when using temporary mm
+- Move line deletion from patch 10 to patch 17
+
+Changes v1 to v2:
+- Adding "Reviewed-by tag" [Masami]
+- Comment instead of code to warn against module removal while
+  patching [Masami]
+- Avoiding open-coded TLB flush [Andy]
+- Remove "This patch" [Borislav Petkov]
+- Not set global bit during text poking [Andy, hpa]
+- Add Ack from [Pavel Machek]
+- Split patch 16 "Plug in new special vfree flag" into 4 patches (16-19)
+  to make it easier to review. There were no code changes.
+
+The changes from "Don't leave executable TLB entries to freed pages
+v2" to v1:
+- Add support for case of hibernate trying to save an unmapped page
+  on the directmap. (Ard Biesheuvel)
+- No week arch breakout for vfree-ing special memory (Andy Lutomirski)
+- Avoid changing deferred free code by moving modules init free to work
+  queue (Andy Lutomirski)
+- Plug in new flag for kprobes and ftrace
+- More arch generic names for set_pages functions (Ard Biesheuvel)
+- Fix for TLB not always flushing the directmap (Nadav Amit)
+
+Changes from "x86/alternative: text_poke() enhancements v7" to v1
+- Fix build failure on CONFIG_RANDOMIZE_BASE=n (Rick)
+- Remove text_poke usage from ftrace (Nadav)
+
+[1] https://lkml.org/lkml/2018/12/5/200
+[2] https://lkml.org/lkml/2018/12/11/1571
+
+Andy Lutomirski (1):
+  x86/mm: Introduce temporary mm structs
+
+Nadav Amit (16):
+  Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+  x86/jump_label: Use text_poke_early() during early init
+  x86/mm: Save debug registers when loading a temporary mm
+  uprobes: Initialize uprobes earlier
+  fork: Provide a function for copying init_mm
+  x86/alternative: Initialize temporary mm for patching
+  x86/alternative: Use temporary mm for text poking
+  x86/kgdb: Avoid redundant comparison of patched code
+  x86/ftrace: Set trampoline pages as executable
+  x86/kprobes: Set instruction page as executable
+  x86/module: Avoid breaking W^X while loading modules
+  x86/jump-label: Remove support for custom poker
+  x86/alternative: Remove the return value of text_poke_*()
+  x86/alternative: Comment about module removal races
+  mm/tlb: Provide default nmi_uaccess_okay()
+  bpf: Fail bpf_probe_write_user() while mm is switched
+
+Rick Edgecombe (7):
+  x86/mm/cpa: Add set_direct_map_ functions
+  mm: Make hibernate handle unmapped pages
+  vmalloc: Add flag for free of special permsissions
+  modules: Use vmalloc special flag
+  bpf: Use vmalloc special flag
+  x86/ftrace: Use vmalloc special flag
+  x86/kprobes: Use vmalloc special flag
+
+ arch/Kconfig                         |   4 +
+ arch/x86/Kconfig                     |   1 +
+ arch/x86/include/asm/fixmap.h        |   2 -
+ arch/x86/include/asm/mmu_context.h   |  56 ++++++++
+ arch/x86/include/asm/pgtable.h       |   3 +
+ arch/x86/include/asm/set_memory.h    |   3 +
+ arch/x86/include/asm/text-patching.h |   7 +-
+ arch/x86/include/asm/tlbflush.h      |   2 +
+ arch/x86/kernel/alternative.c        | 201 ++++++++++++++++++++-------
+ arch/x86/kernel/ftrace.c             |  22 +--
+ arch/x86/kernel/jump_label.c         |  21 ++-
+ arch/x86/kernel/kgdb.c               |  25 +---
+ arch/x86/kernel/kprobes/core.c       |  19 ++-
+ arch/x86/kernel/module.c             |   2 +-
+ arch/x86/mm/init.c                   |  37 +++++
+ arch/x86/mm/pageattr.c               |  16 ++-
+ arch/x86/xen/mmu_pv.c                |   2 -
+ include/asm-generic/tlb.h            |   9 ++
+ include/linux/filter.h               |  18 +--
+ include/linux/mm.h                   |  18 +--
+ include/linux/sched/task.h           |   1 +
+ include/linux/set_memory.h           |  11 ++
+ include/linux/uprobes.h              |   5 +
+ include/linux/vmalloc.h              |  15 ++
+ init/main.c                          |   3 +
+ kernel/bpf/core.c                    |   1 -
+ kernel/events/uprobes.c              |   8 +-
+ kernel/fork.c                        |  25 +++-
+ kernel/module.c                      |  82 ++++++-----
+ kernel/power/snapshot.c              |   5 +-
+ kernel/trace/bpf_trace.c             |   8 ++
+ mm/page_alloc.c                      |   7 +-
+ mm/vmalloc.c                         | 113 ++++++++++++---
+ 33 files changed, 552 insertions(+), 200 deletions(-)
+
 -- 
-2.20.1
+2.17.1
 
