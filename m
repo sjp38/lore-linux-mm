@@ -2,192 +2,161 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52A8EC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:03:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21D1CC43218
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:04:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 055DC2077B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:03:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aCpmAYhL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 055DC2077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id D6C592077B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:04:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6C592077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A61126B0003; Fri, 26 Apr 2019 10:03:55 -0400 (EDT)
+	id 88BC56B0005; Fri, 26 Apr 2019 10:04:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A40FC6B0005; Fri, 26 Apr 2019 10:03:55 -0400 (EDT)
+	id 861096B0006; Fri, 26 Apr 2019 10:04:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94CA26B0006; Fri, 26 Apr 2019 10:03:55 -0400 (EDT)
+	id 751A16B0008; Fri, 26 Apr 2019 10:04:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2A96B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:03:55 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id 109so1669168oty.9
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:03:55 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 294E36B0005
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:04:44 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r8so1560020edd.21
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:04:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=fj+E7Rfrrp/lQ9+vFbFFdvs17RbI59m3xmdolzIfIm8=;
-        b=iywC9LQD5H92Rkpgp9LtTU6Jn9EV5P1/7VpHDN/qfIe0SMyDd9nRVVTYuENv+rvHwf
-         GvwTLKOJ/o/5RWhMYgkb7IhpiGToV4hmfyYtgvaIbbm0IPMX1dS7fojC/s56SehRnFpz
-         /IN7ezERE3dYLCebQ6L0jNuysDpisnio0I1Z3MXCWDExA+2I/FWJ4c1yysugaNVlEQrS
-         DRRkpU9/EkEYfPxrt+nfAZ9eJaxJQje95A/KOV+CdicrGHRGqsZE6kX9JoWzj3IFRHCE
-         zmg6qmCTYvAZ/Kp3cIHue8eb/u3ZzAz6eAjXGK35NS2+nMkmTq60dKhbTxHQGT69TbQA
-         t4Yg==
-X-Gm-Message-State: APjAAAV7G0elxlTcTTSzcuN6oVhG0HGB8gRExJTR/uW6HfCfRJpA0wbo
-	qzM877YPaUg7Y2NhKeR6oxZq53CP6Dx66FuPqhcME6kf38qT5KA2GhSUAEqb0Oco/kfxTTHrb/O
-	+SJ/5pRmX6CGnrsb6uZPVx9KLFdrtg42zi8t84Iv4Vrnf4pEgjRAJq0ShQw6pP4nM3w==
-X-Received: by 2002:aca:efc6:: with SMTP id n189mr7461106oih.34.1556287434754;
-        Fri, 26 Apr 2019 07:03:54 -0700 (PDT)
-X-Received: by 2002:aca:efc6:: with SMTP id n189mr7461050oih.34.1556287433914;
-        Fri, 26 Apr 2019 07:03:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556287433; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gJe3w0QjKk9/wtqkCDLvOIpFoBBTFN+6WG5P6TRG3Do=;
+        b=lxa2Uz2aThr+SXyQ21yJ7jhyQYe3WYIrYO8HqDSsuzgeQL/sshJvj9DQJVYBoLBKDp
+         ql15sbH4JqdVpbvPiMDTxKKdpcI6Pi5gTj/5DooYvhlTV7rRHHxf1UZJlIxbc/Cv2ShO
+         NiQQ9nuv/vJHe0ARkXAsfRqJUpCqTPqXLMNFzw+mlXj1S3kGifUhDKeGIGPa1lCsPLt4
+         TjfRqP8cMNrAFOSldYk+Pt7+h1h0q+r0C6RCu/hKBMzPrSNdyPjpLxPJVw1Q9htWEOMh
+         i2UGktqErQAa0MZOFes5RM1ukXToTkv0CxrgiazgbHs6jCCL/CBNcxOUS1nFY255717/
+         7exA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAUz6zgWqVGpHNxOAKX3RfPj8C+nXGW4JIstxYKB1IVszWt2O9qe
+	68biiNoT8+bqJZeolJaHIC7Hcoh+up254btMqQER4Fuq0THeWnJqOZEPMP+19NltMZjby9+vCQE
+	qmFi1EgnelHWjfiUJ8qZIQr+edJxIXN3v+i2hwvpn+k9z98ihp2kfFlt3+FTXsTQXxw==
+X-Received: by 2002:a50:d69c:: with SMTP id r28mr23441227edi.150.1556287483730;
+        Fri, 26 Apr 2019 07:04:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz3T5MqIsIO1dbh7b1n+HismlvpM2PVMF2K9YN8JsEtoqLc9z6JSRuMjv2pOEct7tA2GwNi
+X-Received: by 2002:a50:d69c:: with SMTP id r28mr23441187edi.150.1556287483089;
+        Fri, 26 Apr 2019 07:04:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556287483; cv=none;
         d=google.com; s=arc-20160816;
-        b=FERKOrze6Z34r6KIUk+KcA856hXspZ+L8LVoAhAENFWZrcSX54A+qxM0Z1++8bSsyL
-         cu/c0xFfH9IwOi7UCXA0J67bJ1yESRPTnEnSPrHhZSuWszgQ43q65i2l0OGUMN8CSO7B
-         /x8afDXWrymTVWFihuxXUdXcaq/e5J/1JZMY7l9YTpOEi54TXhbhcV5T1VNlim3ZRFjv
-         bTWFdPFJwKlhLQkiTr46hQ9Nkao9VCGCT9bXkOHR8IFwMV8TT2m/t+DtaZW+jr5qcm1m
-         4Ez87K/DI0CZqXZyPwvOH8vcguno5DTDfCsjctyNkanCBepAAQq7zpv3nORTkPD1yXGi
-         InKw==
+        b=tvom1Hc93ORihSSfDC2Q4T/Te5xiE7WMWpLbyybyJRvxPSgreQ5/12T47jVYmXoaBa
+         4iWXauQZV98BNdJgdwI+7juYPDegMFGT+G7AIt27nHIW5JY7xcCf/myzY016yefbMCbs
+         m2mxlfwX7Z3uptGv9/Spt0DQ8X4QBl48gxrFNM1cGqu0v6Oz9C5TX8B7Ct/X17IwXnJe
+         GNMp5k6aTdrlgga+0ayc9XXTtwIx3ki4NWKoQ/QU7s5SAgPsrZsYXkcDmB8PKnGj2yaa
+         k1KUKszdt72nXw2CwByNVrf9YsIjqxqeHYPT0GbcWOgyq+lQPG0dMwVV+LjGrD8vzrAj
+         UK1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=fj+E7Rfrrp/lQ9+vFbFFdvs17RbI59m3xmdolzIfIm8=;
-        b=bYRw9Y46z7udYkhKyAjPbWIEPpOPfch6vGs5zhPAFx4v7Zv23pW2a4VpYhXLXCh0iS
-         HSsLcvJgGo9o5g7Xvnvs7eBweE09LoMesckvhfvMCSLKIU797PmIOFq++2h9YKDYl4S6
-         02H2/Tz+nvvn902BpryuMwpIIs2wSyQTenL2BeMx6Or0TmFWProbL0PVXXqxt5RwgAyf
-         wVaPMroIXCBfAvQWlPFGde7e+ptRtjnweknEBHr1NX+/Wkrd/pa1cQLem+DQTlVRyyi6
-         CmOczjR9xDVA/Xa7xhU1caJ7NNaiwE/4ETK1yy5ecdxJ9sGD49yHYc2m6lDykdVI93tp
-         nkIg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gJe3w0QjKk9/wtqkCDLvOIpFoBBTFN+6WG5P6TRG3Do=;
+        b=KEakqjfgFtMxhSzIXseklo0Tju41zU95Fuk9gXH5mIqaGBNSOvw5UqEXhBRyvSDCde
+         KhBTzvN0A2pF18GvIRdUIZTUf8/SbRPEHJqwKrm5uRqB3YByy506DY6poVL0mJe//xmX
+         9nWh3VhdmFy9uNlPCFE8Pqml+PLW1l08KWcp3wb/P9W5yJksyg8z25kgEv5XBDl0p76k
+         v37aoOx7JqE86VlZzInxigm/GsR7tQLfWu4XC8vfCovP6D9yZvtpNbs1pPH4SIvY6/EX
+         ybLxZZP+io1jOTIN9vqHVQwtabEr1dhMZusbJ6GgyzmeOtsuBPINxM5D1qXPa9rnh3MW
+         TUOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aCpmAYhL;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v22sor12201060oth.85.2019.04.26.07.03.53
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v2si2790965ejb.101.2019.04.26.07.04.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Apr 2019 07:03:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 07:04:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aCpmAYhL;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=fj+E7Rfrrp/lQ9+vFbFFdvs17RbI59m3xmdolzIfIm8=;
-        b=aCpmAYhLDQFgKjQbSs9DSyGvCZ7CRQCaeKhAqizfNq4zHXSkKVAsq9fZ0TSqIsbZaV
-         8xMpt5Cc/ZiVgi3exUwI+kwPYufdFgP424g8sYliriJHamZ0ygYpDIVpZnc4/cT21Lx6
-         JfS7Im460+W5CUS5u+f7iLgopIFSZPbw5D4vIGW5tdE+QKX6PSCyIJQ41lsbjoXAI0bF
-         9xRQ1jXP/yePLi1koYbLvds3lQoMrJMxRUAW1UnJ7JCHgLtCbaAMSXTVzUh/ajzVVsdH
-         XiJKMppeSJUmHxhyWtVGZdMrTNsMKZHHz+nhgpnitX/1gJRfDOoT8nV/q1jAcSC3eND5
-         tDCw==
-X-Google-Smtp-Source: APXvYqxjiAcl5qURFr6b3nk5mClWU8gMLLWSzb+NH9lThqmIbuabMsfIIQn5/YXsnb0oIY9o3nzwe1ziUO8omgjBM14=
-X-Received: by 2002:a9d:53cc:: with SMTP id i12mr6737028oth.242.1556287433090;
- Fri, 26 Apr 2019 07:03:53 -0700 (PDT)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 37162AF3A;
+	Fri, 26 Apr 2019 14:04:42 +0000 (UTC)
+Date: Fri, 26 Apr 2019 16:04:39 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
+	David Hildenbrand <david@redhat.com>,
+	Logan Gunthorpe <logang@deltatee.com>, linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v6 07/12] mm: Kill is_dev_zone() helper
+Message-ID: <20190426140439.GC30513@linux>
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155552637207.2015392.16917498971420465931.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com> <20190425121410.GC1144@dhcp22.suse.cz>
- <CAG48ez0x6QiFpqXbimB9ZV-jS5UJJWhzg9XiAWncQL+phfKkPA@mail.gmail.com>
- <20190426053135.GC12337@dhcp22.suse.cz> <CAG48ez1MGyAd5tE=JLmjkFqou-VvsQHcJ5TU5f8_L43km9eoYA@mail.gmail.com>
- <20190426134722.GH22245@dhcp22.suse.cz>
-In-Reply-To: <20190426134722.GH22245@dhcp22.suse.cz>
-From: Jann Horn <jannh@google.com>
-Date: Fri, 26 Apr 2019 16:03:26 +0200
-Message-ID: <CAG48ez1OS7DeeEtv5jhO6wtMA2M2A_Bp3-ndS+sP=UoFuMiREw@mail.gmail.com>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Garrett <matthewgarrett@google.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Matthew Garrett <mjg59@google.com>, 
-	Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <155552637207.2015392.16917498971420465931.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 3:47 PM Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 26-04-19 15:33:25, Jann Horn wrote:
-> > On Fri, Apr 26, 2019 at 7:31 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Thu 25-04-19 14:42:52, Jann Horn wrote:
-> > > > On Thu, Apr 25, 2019 at 2:14 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > [...]
-> > > > > On Wed 24-04-19 14:10:39, Matthew Garrett wrote:
-> > > > > > From: Matthew Garrett <mjg59@google.com>
-> > > > > >
-> > > > > > Applications that hold secrets and wish to avoid them leaking can use
-> > > > > > mlock() to prevent the page from being pushed out to swap and
-> > > > > > MADV_DONTDUMP to prevent it from being included in core dumps. Applications
-> > > > > > can also use atexit() handlers to overwrite secrets on application exit.
-> > > > > > However, if an attacker can reboot the system into another OS, they can
-> > > > > > dump the contents of RAM and extract secrets. We can avoid this by setting
-> > > > > > CONFIG_RESET_ATTACK_MITIGATION on UEFI systems in order to request that the
-> > > > > > firmware wipe the contents of RAM before booting another OS, but this means
-> > > > > > rebooting takes a *long* time - the expected behaviour is for a clean
-> > > > > > shutdown to remove the request after scrubbing secrets from RAM in order to
-> > > > > > avoid this.
-> > > > > >
-> > > > > > Unfortunately, if an application exits uncleanly, its secrets may still be
-> > > > > > present in RAM. This can't be easily fixed in userland (eg, if the OOM
-> > > > > > killer decides to kill a process holding secrets, we're not going to be able
-> > > > > > to avoid that), so this patch adds a new flag to madvise() to allow userland
-> > > > > > to request that the kernel clear the covered pages whenever the page
-> > > > > > reference count hits zero. Since vm_flags is already full on 32-bit, it
-> > > > > > will only work on 64-bit systems.
-> > > > [...]
-> > > > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > > > index 21a7881a2db4..989c2fde15cf 100644
-> > > > > > --- a/mm/madvise.c
-> > > > > > +++ b/mm/madvise.c
-> > > > > > @@ -92,6 +92,22 @@ static long madvise_behavior(struct vm_area_struct *vma,
-> > > > > >       case MADV_KEEPONFORK:
-> > > > > >               new_flags &= ~VM_WIPEONFORK;
-> > > > > >               break;
-> > > > > > +     case MADV_WIPEONRELEASE:
-> > > > > > +             /* MADV_WIPEONRELEASE is only supported on anonymous memory. */
-> > > > > > +             if (VM_WIPEONRELEASE == 0 || vma->vm_file ||
-> > > > > > +                 vma->vm_flags & VM_SHARED) {
-> > > > > > +                     error = -EINVAL;
-> > > > > > +                     goto out;
-> > > > > > +             }
-> > > > > > +             new_flags |= VM_WIPEONRELEASE;
-> > > > > > +             break;
-> > > >
-> > > > An interesting effect of this is that it will be possible to set this
-> > > > on a CoW anon VMA in a fork() child, and then the semantics in the
-> > > > parent will be subtly different - e.g. if the parent vmsplice()d a
-> > > > CoWed page into a pipe, then forked an unprivileged child, the child
-> > >
-> > > Maybe a stupid question. How do you fork an unprivileged child (without
-> > > exec)? Child would have to drop priviledges on its own, no?
-> >
-> > Sorry, yes, that's what I meant.
->
-> But then the VMA is gone along with the flag so why does it matter?
+On Wed, Apr 17, 2019 at 11:39:32AM -0700, Dan Williams wrote:
+> Given there are no more usages of is_dev_zone() outside of 'ifdef
+> CONFIG_ZONE_DEVICE' protection, kill off the compilation helper.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-But in theory, the page might still be used somewhere, e.g. as data in
-a pipe (into which the parent wrote it) or whatever. Parent
-vmsplice()s a page into a pipe, parent exits, child marks the VMA as
-WIPEONRELEASE and exits, page gets wiped, someone else reads the page
-from the pipe.
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-Yes, this is very theoretical, and you'd have to write some pretty
-weird software for this to matter. But it doesn't seem clean to me to
-allow a child to affect the data in e.g. a pipe that it isn't supposed
-to have access to like this.
+> ---
+>  include/linux/mmzone.h |   12 ------------
+>  mm/page_alloc.c        |    2 +-
+>  2 files changed, 1 insertion(+), 13 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index b13f0cddf75e..3237c5e456df 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -855,18 +855,6 @@ static inline int local_memory_node(int node_id) { return node_id; };
+>   */
+>  #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
+>  
+> -#ifdef CONFIG_ZONE_DEVICE
+> -static inline bool is_dev_zone(const struct zone *zone)
+> -{
+> -	return zone_idx(zone) == ZONE_DEVICE;
+> -}
+> -#else
+> -static inline bool is_dev_zone(const struct zone *zone)
+> -{
+> -	return false;
+> -}
+> -#endif
+> -
+>  /*
+>   * Returns true if a zone has pages managed by the buddy allocator.
+>   * All the reclaim decisions have to use this function rather than
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c9ad28a78018..fd455bd742d5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5844,7 +5844,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
+>  	unsigned long start = jiffies;
+>  	int nid = pgdat->node_id;
+>  
+> -	if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
+> +	if (WARN_ON_ONCE(!pgmap || zone_idx(zone) != ZONE_DEVICE))
+>  		return;
+>  
+>  	/*
+> 
 
-Then again, this could probably already happen, since do_wp_page()
-reuses pages depending on only the mapcount, without looking at the
-refcount.
+-- 
+Oscar Salvador
+SUSE L3
 
