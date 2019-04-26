@@ -2,127 +2,194 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06D60C4321A
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:14:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4658EC43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:17:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA0A72084F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:14:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="U4RFCPQW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA0A72084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 02A6F206C1
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:17:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02A6F206C1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5043D6B0003; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
+	id 7E62E6B0003; Fri, 26 Apr 2019 10:17:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4629A6B0005; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
+	id 76E6A6B0005; Fri, 26 Apr 2019 10:17:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32D3D6B0006; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
+	id 638326B0006; Fri, 26 Apr 2019 10:17:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A4E6B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:14:49 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id k7so2548057qtg.8
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:14:49 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1113C6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:17:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x21so1586567edx.23
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:17:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
-        b=WJy2MGvZ3w/W2+LPwg1XBuASLvERjQyTGE5GZAUZkO0F0CZAaeSb8fNZZMeLBDBhd+
-         7+UM9Sx2A/A2DXtm1rYQP8Jqc7ma5vPB6M0aJVe1zpq7qG6jeGqlfZpV07E2uDQvbX/L
-         CzjrsedUnRdTYO/BWwS4V4kwjfH7JqfPiHGR4QT1m4yQO8N/iTDbumh5wFXtYT2a+N/8
-         eFzoTZFOiQsJddo7CSyiYZhlHJTf40lKRWyniXn29/kDkHr0WuSe/aRRNkOEjuBwCX5j
-         mit0KkTOutaiRkILf5t5AxJVRG0vRNhAKEUpZuowohNXMKqSgKsBvtM9iTIDe62dYgfS
-         csyw==
-X-Gm-Message-State: APjAAAUW1bRjmcuNKGdx4J8QiJjqiPBEfY9gph6BOCGxY48Bw2XsxAdU
-	4LnqBAv4CHKDSUqWyS1laFfNCqZgfikXu8+6q74IDd72vM0MoNPwpDLGCYWyL9968tnKw41gdpp
-	tnpXSotJUp4DRYJyJbABA5eRurg0AOUuLWfUSXgP73T/Y+NaGsX9LxZkuhVod7fo=
-X-Received: by 2002:ac8:3f38:: with SMTP id c53mr25912979qtk.152.1556288088799;
-        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrFyJCxBXo5P4/zwx4jmvRWmnNV69fza5Ehr2u4nj2YcyrquPwLp+mXarWnmUs/+XHwEXC
-X-Received: by 2002:ac8:3f38:: with SMTP id c53mr25912932qtk.152.1556288088179;
-        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556288088; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ZgdVh7jED4wTy2p8ZjKGVfYa1W7KTRIlFUaAyI4gHzk=;
+        b=n1OHkz9J22CA4cjUsD0cUn9U9p+cyHTthEUqEGNPyMTXSRDoAeSmysNbzfkPA/pnv0
+         H5+BRfmaet/yJbok6mlqHjNJ86iFPfHY2YkgZs3+DZuNoYd1A3SbkL9uaYpjtA7EA4EE
+         HYelTF+rVThrFIlvfEams58GDGDnj1n8dOndKy3UgBkd2tFO65EOzFqUo84U4z3JsYr7
+         xuxhBVW6qKly4C8dvCp7mCn7xufMHpIt55b1iuZnYqrHNmyGVq7+qPgWwsd7BJh/2sn1
+         n8WVep3rWoDcex4rHFStHhm6MFlYi7rEL68o2A1lqNn02bIuepfRj/+/mgJbCj/PoIIM
+         2+9g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAWFB7SAnCqYDwvUBtheKB9KD/zM63AByQ0PYe7ErVxWLOvga6xH
+	DiZJvMBB8/oL57c/noS3LkuV1Oyo5JPf6xtWipOJHvLPGTYOJw9Fd9wJJxVBnTpgtPocxPJLji8
+	9MgmlUrKgC6K3DQ9nQNwAzq6mwl40TUbbYxxMgMLXovfkcSsmJk5+BJshxu6l03M+NQ==
+X-Received: by 2002:a50:b7e4:: with SMTP id i33mr14119746ede.32.1556288272646;
+        Fri, 26 Apr 2019 07:17:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwAotYXKhhTopl3ajEY23w3dKSdA6ZNd7Q47gorGdf2gxY7JyzcBKKo/43Yi4eGUO3wl/bM
+X-Received: by 2002:a50:b7e4:: with SMTP id i33mr14119708ede.32.1556288271880;
+        Fri, 26 Apr 2019 07:17:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556288271; cv=none;
         d=google.com; s=arc-20160816;
-        b=ANsOKKejXfKFsZ0zTr5ZOuQ0pUYMubJxTekGBPcZ7KKsHoUANfKRE1+la7tTGDP4s9
-         77SPMDi0R+NTB01dkHBHZWuJT0KbzHIHvuA6QUESNOgSv9Z4tSIOESGBjwXcG0n5n9KM
-         VHPjHhoSXOu0QTMXPoLd3Dhg+EOloLMzkhazzKNd2lWkCBer00fhyarlRw/Vg/Hu6F21
-         kr0VTBl/ujR/RLkd/kn4pK/h/vACxkNkBLEfH5huRmgqewj4AzOKSTwBIRAjysXxDxtm
-         +/xCVK+0MhpwY/pOgRPalGxV8yFwk9HbrrpCgZ0fTLn2VGEoyLORcH6wuTBqOVGxVwLH
-         qv9w==
+        b=yK+cqRmTSahnTKlbpC4SlsNSD9wzf/TnGliVUDXxHMvbl8/PQSNPDgagkXqWcy5VT7
+         xDb1WH76+sRZ4oI7eI3HKtdG0xxIeILcXElSC8IkXBe7FMPkiD0gaHnpylKXBqaxdNNn
+         W8pD9x2+KS0qEgp8OqLiEQ0fXFFhigxbc+rdD15Oi/ye/KCKcUBk6GgEOSeLs2UmPfv4
+         eCnrmmScKvCezm2Dq4uOThKc5RVcSR9Q6hHZVV9nslPHHBDFsUxmHDt3OexLQ9j58oK1
+         G/oj6Cr/rfp5xVt51nZXYYwThbdsRrQiNH2AkTD7OGoKeVHwUUvqeGdBMVihtyrnexu6
+         cqMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
-        b=PRzVClZVRLHzRw5XhPIMwOjInxg0hW6WSLXJQz9CucUuOQL06MDdIs/uUCOsSd4rvH
-         JdM/TeZmtnwDaG7AOeR0hFA3lapZ0hFMXz8NZmDSSQhGL7PuaA3sZwmFaeO9ohslj4gf
-         nlZKJptRpujBdBdWGuLBzmcy8/pSZWxReCKPy6FipVHTl/8p4W1+HDDvX3MWF69tC9aT
-         pnHCFSJdDG7SBn1kicAtviqA3ozlJdyd0ahrZGanXI7ebuqWbrAohTQABWI5W6vhLgDS
-         zhZG9jmaRNLQjRzizwJqmul0TD5lSWde7VGofNjYErJK8fIgm0FeRAUhi469bSBXDpM+
-         O6GQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ZgdVh7jED4wTy2p8ZjKGVfYa1W7KTRIlFUaAyI4gHzk=;
+        b=gFYnIzv5ZytVglKU9ZDgSBZLHoLiJ0/uigtApdf0FRxCoJeizwHsOW01Pmeh/CxXUi
+         LiH7lJNufqPdGQjP0Ebwj+sidnsH9wo7eJQjBAe0m6ZFcFxTOah0r81IdmGH84mpqNXq
+         s+chyuuQu8yKY9RsJtJp+1NtW3L0BQAwSLcpOJGhnTq/dkx/CN2vICWCn2Bl8eZ4v0Dm
+         DnOEkwE2VesqezAikUGW5lq7srAOuG26zvMvu69bX+JP7z403w2GhM8JJzP7Aj2c2PRX
+         gh2mN1vhELaqhS1Cyx0FWdTrAb1PzEN4FtSk28OehYZi7tcMLP8C0RNv4w6eWtKhS/Wr
+         B8Eg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=U4RFCPQW;
-       spf=pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com
-Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
-        by mx.google.com with ESMTPS id b124si2648903qkd.1.2019.04.26.07.14.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Apr 2019 07:14:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j11si2177329edj.412.2019.04.26.07.17.51
+        for <linux-mm@kvack.org>;
+        Fri, 26 Apr 2019 07:17:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=U4RFCPQW;
-       spf=pass (google.com: domain of 0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1556288087;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=w9slGZvLHxuV7S3a5IfAzVKNyURT39PnsyVIpnGpH9A=;
-	b=U4RFCPQWz4jXUFfMGOHX4HlHYj86E0xiwRKBsja0h5KkUEcbg030FIk1xEfdMOP+
-	6NtV8IjdnxUm+2JCNqWPJri0AwN8QzdR6rnn1ulMRWuJXoueQ1audlHWTtKSRf4JvwI
-	5yQTY0JYLP6FLFj/XbeqnIrsWlc9S/CnWTLeXbVs=
-Date: Fri, 26 Apr 2019 14:14:47 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Alexander Potapenko <glider@google.com>
-cc: akpm@linux-foundation.org, dvyukov@google.com, keescook@chromium.org, 
-    labbott@redhat.com, linux-mm@kvack.org, 
-    linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com
-Subject: Re: [PATCH 1/3] mm: security: introduce the init_allocations=1 boot
- option
-In-Reply-To: <20190418154208.131118-2-glider@google.com>
-Message-ID: <0100016a59ffa618-56d49996-ecb0-481c-88c3-380495651623-000000@email.amazonses.com>
-References: <20190418154208.131118-1-glider@google.com> <20190418154208.131118-2-glider@google.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 84F23A78;
+	Fri, 26 Apr 2019 07:17:50 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2A5FE3F5C1;
+	Fri, 26 Apr 2019 07:17:45 -0700 (PDT)
+Date: Fri, 26 Apr 2019 15:17:42 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ingo Molnar <mingo@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Eric Dumazet <edumazet@google.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Alexei Starovoitov <ast@kernel.org>,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	linux-arch <linux-arch@vger.kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v13 04/20] mm, arm64: untag user pointers passed to
+ memory syscalls
+Message-ID: <20190426141742.GB54863@arrakis.emea.arm.com>
+References: <cover.1553093420.git.andreyknvl@google.com>
+ <44ad2d0c55dbad449edac23ae46d151a04102a1d.1553093421.git.andreyknvl@google.com>
+ <20190322114357.GC13384@arrakis.emea.arm.com>
+ <CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
+ <20190328141934.38960af0@gandalf.local.home>
+ <20190329103039.GA44339@arrakis.emea.arm.com>
+ <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.04.26-54.240.9.30
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Apr 2019, Alexander Potapenko wrote:
+On Tue, Apr 02, 2019 at 02:47:34PM +0200, Andrey Konovalov wrote:
+> On Fri, Mar 29, 2019 at 11:30 AM Catalin Marinas
+> <catalin.marinas@arm.com> wrote:
+> > On Thu, Mar 28, 2019 at 02:19:34PM -0400, Steven Rostedt wrote:
+> > > On Thu, 28 Mar 2019 19:10:07 +0100
+> > > Andrey Konovalov <andreyknvl@google.com> wrote:
+> > >
+> > > > > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > > > > ---
+> > > > > >  ipc/shm.c      | 2 ++
+> > > > > >  mm/madvise.c   | 2 ++
+> > > > > >  mm/mempolicy.c | 5 +++++
+> > > > > >  mm/migrate.c   | 1 +
+> > > > > >  mm/mincore.c   | 2 ++
+> > > > > >  mm/mlock.c     | 5 +++++
+> > > > > >  mm/mmap.c      | 7 +++++++
+> > > > > >  mm/mprotect.c  | 1 +
+> > > > > >  mm/mremap.c    | 2 ++
+> > > > > >  mm/msync.c     | 2 ++
+> > > > > >  10 files changed, 29 insertions(+)
+> > > > >
+> > > > > I wonder whether it's better to keep these as wrappers in the arm64
+> > > > > code.
+> > > >
+> > > > I don't think I understand what you propose, could you elaborate?
+> > >
+> > > I believe Catalin is saying that instead of placing things like:
+> > >
+> > > @@ -1593,6 +1593,7 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+> > >       unsigned long ret;
+> > >       long err;
+> > >
+> > > +     shmaddr = untagged_addr(shmaddr);
+> > >
+> > > To instead have the shmaddr set to the untagged_addr() before calling
+> > > the system call, and passing the untagged addr to the system call, as
+> > > that goes through the arm64 architecture specific code first.
+> >
+> > Indeed. For example, we already have a SYSCALL_DEFINE6(mmap, ...) in
+> > arch/arm64/kernel/sys.c, just add the untagging there. We could do
+> > something similar for the other syscalls. I don't mind doing this in the
+> > generic code but if it's only needed for arm64, I'd rather keep the
+> > generic changes to a minimum.
+> 
+> Do I understand correctly, that I'll need to add ksys_ wrappers for
+> each of the memory syscalls, and then redefine them in
+> arch/arm64/kernel/sys.c with arm64_ prefix, like it is done for the
+> personality syscall right now? This will require generic changes as
+> well.
 
-> This option adds the possibility to initialize newly allocated pages and
-> heap objects with zeroes. This is needed to prevent possible information
-> leaks and make the control-flow bugs that depend on uninitialized values
-> more deterministic.
->
-> Initialization is done at allocation time at the places where checks for
-> __GFP_ZERO are performed. We don't initialize slab caches with
-> constructors to preserve their semantics. To reduce runtime costs of
-> checking cachep->ctor we replace a call to memset with a call to
-> cachep->poison_fn, which is only executed if the memory block needs to
-> be initialized.
+Yes. My aim is to keep the number of untagged_addr() calls in the
+generic code to a minimum (rather than just keeping the generic code
+changes small).
 
-Just check for a ctor and then zero or use whatever pattern ? Why add a
-new function?
+-- 
+Catalin
 
