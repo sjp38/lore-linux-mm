@@ -6,105 +6,103 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF25FC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:08:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03BE0C43219
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:10:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9DF63208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:08:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BDE1F208CA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 18:10:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mM2gNYUi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DF63208CA
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="cOF+nEDn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDE1F208CA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E3B86B000A; Fri, 26 Apr 2019 14:08:58 -0400 (EDT)
+	id 715066B000D; Fri, 26 Apr 2019 14:10:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 391446B000C; Fri, 26 Apr 2019 14:08:58 -0400 (EDT)
+	id 69DE66B000E; Fri, 26 Apr 2019 14:10:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A72E6B000D; Fri, 26 Apr 2019 14:08:58 -0400 (EDT)
+	id 5682B6B0010; Fri, 26 Apr 2019 14:10:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D2186B000A
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 14:08:58 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id 73so3615994itl.2
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 11:08:58 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FEB36B000D
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 14:10:35 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id e126so3250199ioa.8
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 11:10:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=KSDUm6zaly7/6QejATEjb8e1RQYiq+vEm5C7j7vxPK4=;
-        b=L0K8KYtG6jiAd8G5gG7emmTpYTe2bGmVgm4YGXwftt1+PG52bD/gcSO7c4GNmGA9ds
-         TuT+fjIlckeGHZpcAfLWQ+jMSCEOOetYSZYFy5pIsYvC+NjvMwQUwnWgrnDrZMFx9Ym0
-         9xXeuZ04cd4ZjVU7xFX8ElgPlfdaF6yh1XBvaQvFkpH/rQJNf2ax8VCcGwA6v1jCNod7
-         BfAYfNNemEgpZSqrJysXnWf016BYSxxFdmhI8IY4VKAf2VzmaImLblkuSO1kwQv5ADOG
-         mBuFIAPmLoxfvmiCQ1hCSrsbaI9dLBippso4Fbx+apu+enHCizOOl1qj57b9FRVUrie7
-         RBHg==
-X-Gm-Message-State: APjAAAXWopjBz95/68ysp9fxFAXEOZVhb9RuvMeuc5a7TBjt06KXQpUA
-	qBUgz9z8OZ95nVni1HOa1qy86GLv1OvyTC0LS8sWUBf+fbbsXCgum+8KkWbCnwx7qBBCmxkA2mZ
-	Wq0mNp1sDPyaF3Y9o3QYtBrHOUCIqRsFn23ZwDsiz4WYRgYVf4kDXpVNn5DL+uO78Mg==
-X-Received: by 2002:a05:660c:248:: with SMTP id t8mr1081617itk.162.1556302137763;
-        Fri, 26 Apr 2019 11:08:57 -0700 (PDT)
-X-Received: by 2002:a05:660c:248:: with SMTP id t8mr1081579itk.162.1556302137192;
-        Fri, 26 Apr 2019 11:08:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556302137; cv=none;
+        bh=j+1TnrYeykZ4uHOkP1fnZ3zoGVUTu6KjEnh502A5YIM=;
+        b=tMMVUwoTKsg88qlurHGAbLVeyt+p5iWep6Hxe5RFq3BgqFKHQdVcwwWgIWxkhfFWK0
+         EhROQ4OqzVm8YW8Rr6zQ8VMKguVr0Zr0gRYDFIXO/30p+frWiE4IZQA/OsygDxE4S5Ob
+         Ymtv/AJyqnEIYR/fI1UAk/GYprnqHrU/TDaASPFNhZkl46O6lM3XISQv7XgPTp0mLp+X
+         b+M0DrlDTD1gzknxaqGLyxPwtS1bdBuXbtyCcBqjmuxA4uHxlXpek0mBmh7/hktSVUoA
+         /Sn2Pc5gMCHmjQ/uc2inDrmtyJu/JLFfA3Z7viKThqi/LkWr1O32r2kZ0GahUXlVw/5M
+         zmig==
+X-Gm-Message-State: APjAAAVZyCaJiGpOZ5bF7A/2jnO0UvG94ovA491I7BrHW0djdqkD8h/Z
+	e4bifQ/zUwx3L/aph3wVKh0a/sSqPNh6C3ADwhnKMA3QD7CGgSPT/SNx+a2Sad98xbvtL0W/d7r
+	ZbZAckp0a4ChYGSiD2gQDBoqY447ujrZ4p57NT2s2qHhnGYv6pol3m4AEb0cGHdW4hQ==
+X-Received: by 2002:a24:7688:: with SMTP id z130mr9294871itb.57.1556302234954;
+        Fri, 26 Apr 2019 11:10:34 -0700 (PDT)
+X-Received: by 2002:a24:7688:: with SMTP id z130mr9294822itb.57.1556302234383;
+        Fri, 26 Apr 2019 11:10:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556302234; cv=none;
         d=google.com; s=arc-20160816;
-        b=V3pwGFY8tWWdw4f6hMOxACDY3qYSDa0IUG4rl6tOgvS7ogCtNBr4HrLjn5FuB1h9IZ
-         h6YR9sFM3kvupU7bCxFjWRSKjoZQk5GX9nhacwjYE/pnYcsrHL9gNPk5+YCcu2xv55+5
-         TlxS1UDSRPyhVWTceiA5a6Wo7EJSTV5vbtIh6he/j5o/V+GxrGqHbwbOIZXiF25OK78+
-         cAl+Yw87vPtzmYy2e9WUWvjr8xAalK56vlotQCR8C8EOqgz+fOOObH8u6bss0Iy68UZB
-         qLafEz/aq7eRF2+Ru61Hm5fokZxAH54j7RblIq0WYrgIey5TWCQ5XkP5F7YWqi+BLKAH
-         N7/Q==
+        b=e/ImrM9L5p4eJqzjSigCUH2q4bunOr2F67FIUxT/Z4ks2PowIxuUZkd1cDZvSKCQmT
+         qgUsKIPMKwQo+qeQjD7Gt2F+cniC7OTC03oe4GsgVZg6sKndVo8ZKtAEL7saY5jNvxSX
+         vmOzz1rqU1cUaxQVhTmApv/rw8ewY/ISIVvOLOPSxvNKJM7R8PNScyJymcp8qkuxiAJ+
+         7pnkike/mAvwqKYpj8o5TaQlaDQGNXU4E8wHhU7P+74mRV9AqtPIZiFWoJQO2alnzx2I
+         cq1zEpnuB7BoXvptwgjO/AzlaYVU80evSuiZ+HzwB0LiZatyY9E7Sf1JoTofRGuCaA1e
+         Tesg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=KSDUm6zaly7/6QejATEjb8e1RQYiq+vEm5C7j7vxPK4=;
-        b=biJOu++4mwoa45uVmcyT+Yaf6LfIEkKaYKLpK97TqhpPa3YeNv6DToPYjcrtmupUHR
-         PcAj5funpEf6TAqci+TTnjcQcCa95HqdhP0uDI4/jG4EV7SzMu80d8zvvucEeh06wM2Q
-         wQmU0BcGlazevGbbjvxZ9SK4uqVf8cSlfMW7xXQbcxbSfY0QqtnJCFnQAlkZHNEKJtHn
-         2T0p+uhFfuuPViOxGrB1sOwHc3iRJFl+/oVPOnE4yCc/PM5A5rzgj2LqkRiikKtUs7jI
-         L1F8qbczEFfJOkm7e5ic5bcUnZTlG3mDUmImHpS+REBndmTU2Fve957OZEBRlfBEqNfv
-         jNPQ==
+        bh=j+1TnrYeykZ4uHOkP1fnZ3zoGVUTu6KjEnh502A5YIM=;
+        b=WHEZrHA5i2/J8Lb54gZreTNvL4n/RQs011ARy4UI6DLdoZqLjOgAe+W7IO0pCTUcvd
+         BJzohW6SZ2lizftpwxCMi4Ec86Fp3YE99WLmbZnLMCPwruWy5eQMOrQ7DFN1CifiRPOk
+         Cc3fAM7yjuLVmehzqjdMSrr4TGqcx9+KEPu15DdRZ2lK0HGdVDDkJ6bmePInU9qgknOS
+         ehH2BQq84mB4FR8jQifCm9Pn8Llbea0nF0HosvaQC9W0aSEjj9NB2C0202Crq4lnzBK+
+         ZeTM+kAMc5E21oLVLL9/LCwX60C3+E1z5+MF80agEb/6pS+84sAoSZ8UKxRFKgugq5e1
+         C8LA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=mM2gNYUi;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cOF+nEDn;
        spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w14sor18253253ita.13.2019.04.26.11.08.57
+        by mx.google.com with SMTPS id w6sor11027937iow.69.2019.04.26.11.10.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 11:08:57 -0700 (PDT)
+        Fri, 26 Apr 2019 11:10:34 -0700 (PDT)
 Received-SPF: pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=mM2gNYUi;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=cOF+nEDn;
        spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=KSDUm6zaly7/6QejATEjb8e1RQYiq+vEm5C7j7vxPK4=;
-        b=mM2gNYUi/70Hohs3RgWqrz/IAXrbekJ+xfzhbMuc83HLnonIIOAND8fNLzPeKY7OuX
-         zTZ2ysZFPHaq/GVmztzTKZpMaUVgb/a2UKfMV7n9uNEsnfJJpnoOIlObqAPabtxxM5BF
-         8EkrQ4g60BXzRK3XIivpMG6AUJWmUF7YNBMjXBlwvXzDninFtVk7kcZROUswKjpscx+S
-         k8FmnA06rbRfLjsHTVczdHxUFYFcdvCgt3MOHEPjiL0iwEqb+kqxeS6AyPfeUJFAeoEj
-         BwKjLi7+5pGLTI/Pt+0JEphCU0qFdZ0G0ONukVUui6NTbN0xkLJtSGm7UZbKvqf0UVBw
-         kAxA==
-X-Google-Smtp-Source: APXvYqx1qt1n85QyABwVrqqSHtIju7qNaLOVL6vf8Pqs1UiBmO+nbB9VvzxmxR7qT0ggofA6H7kWVyqXfSIUdYPiYTE=
-X-Received: by 2002:a24:eb04:: with SMTP id h4mr7779231itj.16.1556302136456;
- Fri, 26 Apr 2019 11:08:56 -0700 (PDT)
+        bh=j+1TnrYeykZ4uHOkP1fnZ3zoGVUTu6KjEnh502A5YIM=;
+        b=cOF+nEDnMUUOqxE73YvBiwt86yz8lSrgN7pJFcFltp7Szi/juxPAOUEjPFkZe0St7U
+         tfrBCfFodDqWr51SR3SPHuVR0ZEp5+2JiGpL+Th9c1wFPnGCRLzquk974x+tmBeaSM7u
+         DCvtl15T4RdTgXMnV4LkzxBThQm/I6NRmwUcQSHQWa1MeGJcdyM2a1IAueWcOI40lPBM
+         AsiOaGphER60exUeIGBFZ5uY7MU6oo6GdoiqDJp2EQ28fn23FlV2OHZPlJwxJInSbzHC
+         9p+aH6qWKQuAOz+gPW++vz5QKeqqTsHMFoAto/VhJsPqfPkvnyEtSd3zxojZFNFiccRp
+         6V+w==
+X-Google-Smtp-Source: APXvYqw9FqsrcyyRhofNPMOp0DaWFEzjGmXZ0ypA/9YtxC7xYINHKyX0ZOVcOKvPw9yYKmyTAEH16t3P1q/qOzodMVc=
+X-Received: by 2002:a5e:8348:: with SMTP id y8mr29478399iom.88.1556302233694;
+ Fri, 26 Apr 2019 11:10:33 -0700 (PDT)
 MIME-Version: 1.0
 References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com> <20190425121410.GC1144@dhcp22.suse.cz>
- <20190425123755.GX12751@dhcp22.suse.cz> <CACdnJuutwmBn_ASY1N1+ZK8g4MbpjTnUYbarR+CPhC5BAy0oZA@mail.gmail.com>
- <20190426052520.GB12337@dhcp22.suse.cz>
-In-Reply-To: <20190426052520.GB12337@dhcp22.suse.cz>
+ <20190425225828.212472-1-matthewgarrett@google.com> <d058d1ef-994f-ea6b-b6b4-bcd838a9fe2f@suse.cz>
+In-Reply-To: <d058d1ef-994f-ea6b-b6b4-bcd838a9fe2f@suse.cz>
 From: Matthew Garrett <mjg59@google.com>
-Date: Fri, 26 Apr 2019 11:08:44 -0700
-Message-ID: <CACdnJutweLKsir_r9EgP9g=Eih-hbhq20N8zHzKawR8=awnENw@mail.gmail.com>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
+Date: Fri, 26 Apr 2019 11:10:22 -0700
+Message-ID: <CACdnJuuVBb8bOUGGq0H+Ask_ufT3X9YH42o5nAGQK0TCf+aKWg@mail.gmail.com>
+Subject: Re: [PATCH V3] mm: Allow userland to request that the kernel clear
  memory on release
-To: Michal Hocko <mhocko@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
 Cc: linux-mm@kvack.org, 
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
@@ -114,18 +112,21 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 10:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+On Fri, Apr 26, 2019 at 12:45 AM Vlastimil Babka <vbabka@suse.cz> wrote:
 >
-> On Thu 25-04-19 13:39:01, Matthew Garrett wrote:
-> > Yes, given MADV_DONTDUMP doesn't imply mlock I thought it'd be more
-> > consistent to keep those independent.
+> On 4/26/19 12:58 AM, Matthew Garrett wrote:
+> > Updated based on feedback from Jann - for now let's just prevent setting
+> > the flag on anything that has already mapped some pages, which avoids
+> > child processes being able to interfere with the parent. In addition,
 >
-> Do we want to fail madvise call on VMAs that are not mlocked then? What
-> if the munlock happens later after the madvise is called?
+> That makes the API quite tricky and different from existing madvise()
+> modes that don't care. One would for example have to call
+> madvise(MADV_WIPEONRELEASE) before mlock(), otherwise mlock() would
+> fault the pages in (unless MLOCK_ONFAULT). As such it really looks like
+> a mmap() flag, but that's less flexible.
+>
+> How bout just doing the CoW on any such pre-existing pages as part of
+> the madvise(MADV_WIPEONRELEASE) call?
 
-I'm not sure if it's strictly necessary. We already have various
-combinations of features that only make sense when used together and
-which can be undermined by later actions. I can see the appeal of
-designing this in a way that makes it harder to misuse, but is that
-worth additional implementation complexity?
+I'll look into the easiest way to do that.
 
