@@ -2,184 +2,176 @@ Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84CFBC43219
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:45:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 531B5C4321A
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:46:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39D1E2077B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:45:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="XNRLx+/7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39D1E2077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 0E7F92084F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 14:46:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E7F92084F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D75906B0008; Fri, 26 Apr 2019 10:45:24 -0400 (EDT)
+	id D272F6B0006; Fri, 26 Apr 2019 10:46:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D266A6B000A; Fri, 26 Apr 2019 10:45:24 -0400 (EDT)
+	id CD6726B000A; Fri, 26 Apr 2019 10:46:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C15696B000C; Fri, 26 Apr 2019 10:45:24 -0400 (EDT)
+	id BC64D6B000C; Fri, 26 Apr 2019 10:46:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 847416B0008
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:45:24 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id g1so2357743pfo.2
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:45:24 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8127E6B0006
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 10:46:22 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id u191so2234614pgc.0
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 07:46:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=LE9A4smiUcCKHhSGSOEPiRFSN9l8MMhyxEeH0NKsxbs=;
-        b=a9EF6Siu97Lb8Kb1vf2kx2s9Z99Je679ODRkSoP7X17qUmJ3DY4NiKZNhWE3w/T0kn
-         cfo4+Y+Gutccw6621NM3vV8MMsNKjB2bXI4Uc1R1rtWzMERufB8Wcx7w7CIdCMjZ+RYS
-         XyWPjlggvM2eZyxDw7a+GIVn4BpIvlwfoA55h83qUlNaYeSz6XzxcY/Q1CliaqYplrnk
-         MUXHEb1woavYR4vnVVAVCebNv/pwvsv5PV5G6nGxQPFF6Inp/+tAIG8xSqckkh5rf7XD
-         hzMZJZ2Xq8od8f+KHNRy0w3JjCUdu9iky+UgzIByodfAUNUyvl5Xztr1MwanPedwNDHy
-         RwLg==
-X-Gm-Message-State: APjAAAVhJFB2Gv79K8aAGvlMbh0J/lp64UXiTiFp+xSJQEat+w/6R4PA
-	+9enoOUHEOwhU8RoXS2jzCYamvZUTXO3I6/6IW7lPgbHSuoQSp0c5MKH9sZR6McvV/8k2e8rytk
-	gi5gUBv9Zm2j9I+3Hr+7jyV4mLsxqh9kqAnU0UxdXaWin24AF4oLyS+1o2s3Ai4C2QA==
-X-Received: by 2002:a63:6941:: with SMTP id e62mr40027329pgc.99.1556289924132;
-        Fri, 26 Apr 2019 07:45:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnrpxUnuIoRyCuXU+UbQU+xPsrmKxXw4+GrSAT9+ipxXXC6ZbSs4VSrbIBFEvk08mkmvy0
-X-Received: by 2002:a63:6941:: with SMTP id e62mr40027273pgc.99.1556289923278;
-        Fri, 26 Apr 2019 07:45:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556289923; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=mdUP6r3s8Bj5vFbjihMOM2vWSrrPgMMVKPDIHYXk2Vw=;
+        b=R72IryVSVqe0A2o/J2uyxkkI869SVWPfOEye8tVXe8DauDtRKaIwg7ujJIwWZ42fq1
+         v5hOuY6gnBnPw7ROSxSHBcJmokNEqO89q90sI8qbGIrnMMopywicwfcEb9hSd7SJcysJ
+         PmJUjH8LoE1WcyT+Gx7Z+UHk530IiiQKdZf8xrR6N/neW2Br3di/Vk764Ixs8l2LXkvJ
+         a0Gyb1wNMMgTf5nmoVLxJdSPk3yAmdklELtuM8xwrDrpaFuPfy8WA+4wBXCwj0DlpLEi
+         LLiRagfh58/OZh3A8p2Dz1RWNt5hwpEk2+BxbI+S7NvI2qsY7GjX4hRieqo6T5JiEuB0
+         M96w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXfa2W48Tvbhog9SzMSYoGaBvK4sNAdibcg1/jauVx4XAPJgz+c
+	WYlPahoCEKgCkxdlS9exctZ+UoSNQtauBwd9CHgILRD7M8MA8Tez4uSS+yuMCb0T3XWLzWBqspv
+	k+nH0qLuZQPIJDA1H6+9m/oJS/Nueejup/5qrrP8Oe36YCI4R8TRLhbzYEL8JhVpleQ==
+X-Received: by 2002:a17:902:4481:: with SMTP id l1mr27624273pld.75.1556289982210;
+        Fri, 26 Apr 2019 07:46:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHRcXYO2RketGNZy+nETNhTSwYt1okTdThFNZ4rilIqlborqJKvHqhEYClu/HFQZhZHkiu
+X-Received: by 2002:a17:902:4481:: with SMTP id l1mr27624228pld.75.1556289981661;
+        Fri, 26 Apr 2019 07:46:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556289981; cv=none;
         d=google.com; s=arc-20160816;
-        b=vd1C6EYqwbcV7JqYb5Zf+A31V50t2nAQ3qaw/2uXpH+/Fcz73WvVQeQ+xVmEZRd/MV
-         /r4HY+DWGRcVB1WQ204QfGFRaDF4VnNEdFhlZn8MQGdwLY6f3cI4oBv6VB8KVueg3VP3
-         Taj/Kx1PkSkFD15c9cZ3PpH7MOFKmUaJVoZo5vy/GGnv5js+oj9NKAhymXlnv4XfjI4N
-         wqyrw3Pk5GTI0reOrDYNFpjchP6Ty11+JYvfUuu9p5y7s5cGP0JeThiVtc/kYcNy/nqi
-         t3uQWYkzGXJ3Dc3R8ZRRetP9vQ5DTpYJy35irXpKU5osoutpt18R1liZVyLpXJsf9eHp
-         wiIw==
+        b=URK8ARbNB4I4Q1cdSbncFamE3Fm39pHycasmwVQDhPB068GiTimVbaIt3MM7R9MF8o
+         gSAY9UMmgm2Ug5nlurUUr9crUTNrzzPzRj5FBton1wQvzTK44pCyQZGd3/CAiS3ox2P9
+         QxE+x2B2TF7YKCXVxDaiG6AVd49ZSi2SREdeX+WSE22zEGO+oxSRdZHrviOej+CRdfgw
+         m7fGFyj666wRlp18dAWSgkcy0kMe7rH9iTa5l9Ely/ZjwQ1LH9ghXPpXrNDJr6eMJSGf
+         73pUEuGuuQpftgdiZzGN2R15Hquf5kxketUOI+eSFlyf9Rr6qyChLobqeHl9Vr6fBNqP
+         P+jA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=LE9A4smiUcCKHhSGSOEPiRFSN9l8MMhyxEeH0NKsxbs=;
-        b=xVuhR1ggX4TxLAX+K9JJj7brOhi9LzHpagZUcrlVi69Rv2MZN7ZrrjaDlpEOuYXjle
-         zTMwVtFcdBkl1oVV6bUIgwtEi2kWnW2NbOuWo2HwNDloNCMKDrzaBLSBYe/VnSaJ6HKX
-         IWpsZSzMvvKZgHM1q3yz7qNSei42ftaFCcHr2lZ1ANmi3fIvZl38DjHRjsS8G/Yadkly
-         g20yZ9xRM/QkOAI0MfuOD29hp2yGpUifaqurIjZynENPTLlDSyixfv0dmutw/aNJFstX
-         fcKl6r2iANxfAiv7DSwWDKIpKRlBNPc4tP9VigPdqEnl/uZ6a9d9//XcjyPJOYHLkGDK
-         wnEA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=mdUP6r3s8Bj5vFbjihMOM2vWSrrPgMMVKPDIHYXk2Vw=;
+        b=OuhhvA4dCegqEy7xtFPGg1gub9qHqqL1iNLdY/xRbwMHT6sf/hVoW/bqc4/Zt9h+4C
+         uzKuNCjU+2bUs3MdbEycECR4xFDjnsGJYSt4BHzVmjSdCVFtT5rXex//1uiEnvooB64J
+         m2Vm23Ks5TQINVIScG7txPmcTID/ZMusUolvZKGOqNHfo9qkEH+cC7nRyE8a8ujZw9t5
+         chuJFSMRg/2v8AwInRTcSjvlOEmUXmEIgSCwTML77btWvSxJY/7YDBJyGoEFHyNAURVz
+         oPRmOFuG4PaBLWNFKowlHh+YHixtlQwIqu8NoifI67/kXJTuIruzs7eG0aplScFsn+yA
+         bPdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="XNRLx+/7";
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id bd9si25340644plb.208.2019.04.26.07.45.22
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f5si12070030pgs.86.2019.04.26.07.46.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 07:45:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Fri, 26 Apr 2019 07:46:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="XNRLx+/7";
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3QEYTmS120579;
-	Fri, 26 Apr 2019 14:45:10 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=LE9A4smiUcCKHhSGSOEPiRFSN9l8MMhyxEeH0NKsxbs=;
- b=XNRLx+/7PRD7ym+fUsYzMt4wfLPh6UCuLh8UnZvF78EJKnzruNlOdccbiJhgIe5kl7iY
- /9OEHv5GBUe4aq9tvnaP5wYY5IbDsy5yihOkZoZCkrAW7ZA1xqgEUUx+NajOUoPXuKJ9
- C2AMf75B4eucFzdtrJ7zycj0pu3kEKwUlztJlb3v84VlNwiqroxJ6fOvRI7FmTSAZIvF
- zMdqTAl0Z3VewQl2Ja7q9uniTaJIEhuHFZ+qwCCMXvMN8MyY/sD+80Vtope085wYE5sD
- nc+bGpF/Uv68G9ZIaDzryOOFJ2dpdAmebCxw9dP4Zl/qBP8mOQpadPQIboCcOl4IgIJM BA== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2ryrxder02-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 26 Apr 2019 14:45:10 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3QEipin179053;
-	Fri, 26 Apr 2019 14:45:09 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2s0dwg2app-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 26 Apr 2019 14:45:09 +0000
-Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x3QEj7FI016013;
-	Fri, 26 Apr 2019 14:45:07 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 26 Apr 2019 07:45:07 -0700
-Date: Fri, 26 Apr 2019 07:45:07 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, Jerome Glisse <jglisse@redhat.com>,
-        lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC] Direct block mapping through fs for device
-Message-ID: <20190426144507.GB178347@magnolia>
-References: <20190426013814.GB3350@redhat.com>
- <20190426062816.GG1454@dread.disaster.area>
- <20190426124553.GB12339@infradead.org>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Apr 2019 07:46:21 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,397,1549958400"; 
+   d="scan'208";a="165331429"
+Received: from gbotts-mobl.amr.corp.intel.com (HELO [10.254.86.96]) ([10.254.86.96])
+  by fmsmga004.fm.intel.com with ESMTP; 26 Apr 2019 07:46:19 -0700
+Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
+ isolation
+To: Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org
+Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
+ Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>,
+ James Bottomley <James.Bottomley@hansenpartnership.com>,
+ Jonathan Adams <jwadams@google.com>, Kees Cook <keescook@chromium.org>,
+ Paul Turner <pjt@google.com>, Peter Zijlstra <peterz@infradead.org>,
+ Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
+ linux-security-module@vger.kernel.org, x86@kernel.org
+References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
+ <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <627d9321-466f-c4ed-c658-6b8567648dc6@intel.com>
+Date: Fri, 26 Apr 2019 07:46:18 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190426124553.GB12339@infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9238 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904260101
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9238 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904260101
+In-Reply-To: <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 05:45:53AM -0700, Christoph Hellwig wrote:
-> On Fri, Apr 26, 2019 at 04:28:16PM +1000, Dave Chinner wrote:
-> > i.e. go look at how xfs_pnfs.c works to hand out block mappings to
-> > remote pNFS clients so they can directly access the underlying
-> > storage. Basically, anyone wanting to map blocks needs a file layout
-> > lease and then to manage the filesystem state over that range via
-> > these methods in the struct export_operations:
-> > 
-> >         int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
-> >         int (*map_blocks)(struct inode *inode, loff_t offset,
-> >                           u64 len, struct iomap *iomap,
-> >                           bool write, u32 *device_generation);
-> >         int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
-> >                              int nr_iomaps, struct iattr *iattr);
-> 
-> Nipick:  get_uuid isn't needed for the least itself, it just works
-> around the fact that the original pNFS/block protocol is braindead.
-> The pNFS/SCSI prototocol already switches to a device UUID, and other
-> users that work locally shouldn't need it either.
+On 4/25/19 2:45 PM, Mike Rapoport wrote:
+> After the isolated system call finishes, the mappings created during its
+> execution are cleared.
 
-Hmmm, this lease interface still doesn't support COW, right?
+Yikes.  I guess that stops someone from calling write() a bunch of times
+on every filesystem using every block device driver and all the DM code
+to get a lot of code/data faulted in.  But, it also means not even
+long-running processes will ever have a chance of behaving anything
+close to normally.
 
-(Right, xfs_pnfs.c bails out with -ENXIO for reflink files)
-
-It occurs to me that maybe we don't want Goldwyn's IOMAP_DAX_COW
-approach (hide the read address in the iomap->inline_data pointer); we
-just want two physical source addresses.  Then the dax code can turn
-that into a memory pointer and file lessees can do sector accesses or
-whatever they need to do to write the range before calling
-->commit_blocks.
-
-Oh, right, both of you commented about a dual iomap approach on the v2
-btrfs dax support series.
-
-/me goes back to drinking coffee.
-
---D
+Is this something you think can be rectified or is there something
+fundamental that would keep SCI page tables from being cached across
+different invocations of the same syscall?
 
