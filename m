@@ -5,99 +5,99 @@ X-Spam-Level:
 X-Spam-Status: No, score=-7.8 required=3.0 tests=DATE_IN_PAST_06_12,
 	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 990FFC4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A507C4321A
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D5FF208CB
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0E531208C2
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:43:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qfcv0jVy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D5FF208CB
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="c8S+0Eig"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E531208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 332076B026A; Sat, 27 Apr 2019 02:43:23 -0400 (EDT)
+	id 94E256B026B; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21EDE6B026B; Sat, 27 Apr 2019 02:43:23 -0400 (EDT)
+	id 8D4306B026C; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 04C7C6B026C; Sat, 27 Apr 2019 02:43:22 -0400 (EDT)
+	id 7065C6B026D; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D704D6B026A
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:22 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id p23so4901523itc.7
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9D26B026B
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:43:24 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id s26so3555564pfm.18
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:43:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=yNv4uuWY37+QDIo+8eJ5Cs1RQKFygWuhu/mUpTFc+50=;
-        b=r+fuLtQaqCYnkGPj7mv+XlxKjEEp6a9cXsQXvS7FNd2wf59zsQjVovhLQ2W32L2XoD
-         HUo44LRRWFk3B0H4PGkd1jmBnXDVFEo0bairyCpS5+1WwMwcMguXyPx2QQr1B/F81npE
-         0y5FpBjbulxyMJYhl0fgnXkX0yq9JXbPOg7WP+jiCx8x7Rmq+Z89MJoSDGFqCzadJC/p
-         lWHGXHsKLqomzUNh/kf/hMupiJ0W988gSU6B441uoU9da0e8nkStDwBSPJhRkK6C3ls3
-         kfuOCzKKZnws/XqHe7d0sGo6MdnnrLxbU0FRIHO8jNsQ5ZXch5Gro5LFaAC73sshtGNH
-         aRTg==
-X-Gm-Message-State: APjAAAXwGlxWWh9cCAht/FQP9Kvx1rRteoLF9HNFjJ8K6Nn1Sa7fZO2O
-	oDmWkrXy1OdGGDUxRF4XTSyvewy9oXUg6OwRV0tIfOBptni8I4+ipUKkEbjemdPMvA7cGL0LKRJ
-	CFOtUoIXj89LXVR+z8HYMN7IajcEqKy1+4YJs5YPx4BTOeGgTMYl3wBfwv6T5iyjXvg==
-X-Received: by 2002:a24:f8c7:: with SMTP id a190mr10805151ith.72.1556347402565;
+        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
+        b=qhyygjg4RJM24OYfFTjZaupfDJ+o1dMgUGdKMjMGKQr689R0n0L+WfVpqhRmdMlGLv
+         cPZzYkeJVW7fs92kZT75crDHq4YAiC+CUW3WGUr9Dpx4NibZcCk4K3oK6G/jc1qSwQAT
+         GO6C5e3n8HII/YlPX1OMAcB9ARgGNcCLPjrEe2CK9nObtWz1ZGoQ+FY4R+fP9BfaHRBt
+         oTpaOjze1QXROVyetRLzDFMcGX4jamLzoxmL1+GzbhuR/tgQIPIwWd3Cy9nLH6OSkJo6
+         FBJjqKmgJFT8/0Z6ZT1LrPN5QwOZ6l7pAdHPmzklRwY+NF7BVrvwy6b513uWAgVJRaTv
+         6Tcw==
+X-Gm-Message-State: APjAAAUhnrNZ1iH0UtWnWdM6PZfXGSjnhtuBfOVy7K/KW+3k0jzcPXsy
+	wgefLRNzeKRQZj0fFry3PBlJJlKmDfSkx0pFBUzj41L0w75bRwt/qbWDVNIHsDh41r2ZGCvMLUn
+	3KjE1grjrahbGOBrY9b199dbNFWDBMa9h1VqIcSLYyaMzdlg/vEvqbcrkupkh9pJ+mg==
+X-Received: by 2002:a63:161d:: with SMTP id w29mr25050122pgl.395.1556347403860;
+        Fri, 26 Apr 2019 23:43:23 -0700 (PDT)
+X-Received: by 2002:a63:161d:: with SMTP id w29mr25050068pgl.395.1556347402553;
         Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
-X-Received: by 2002:a24:f8c7:: with SMTP id a190mr10805121ith.72.1556347401264;
-        Fri, 26 Apr 2019 23:43:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556347401; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556347402; cv=none;
         d=google.com; s=arc-20160816;
-        b=wlN4H8Q48VuEb2TmuE5Mbr0lGmh+bGAJI/OuP9ignJhPRHzEPIMsg2aBIe1MX1LWML
-         RKceN9IcrSLyJROyrLomulNpbOBRgKX7LysQbC9bfwkumVeP1D8LyQvXmFAI3AHK0ddt
-         bbRWb9rYz86zej7GBmS9CbOn99BvnBTpFpkBPQkNYGpVUZi6we7DWxhz8etUTW9S+xAB
-         n9qreGioHp9/j6XcbLWrsQzKeltYuNWBjgkokOF4hvzZMpOC+jsbqVxD+j07HgsKKY10
-         0W0MUfBd4bHLwfooSv+/+YvOL/r/lw76pXGtMR2rcCURvp8zETSkNKEoWjJXR+0bTpE2
-         XwYw==
+        b=tqLYQojMRIuwoE5/MfWjzprmB1YaYNB6D9wxdw7snuM/Q9FTOC2cumw5yrw6mDt0l8
+         BqT0EL9KcJK/gM7Tm7OSpGKSixkv+zxVCfEUlh7YZSrXFyla5ngFo6eC/1Nxxt9OHLv5
+         6Q2qPUQXuiLWnKQzNILot+pc9UhUt6sxvFydUJQLx0p38+H3W0l7Zi6FCofTXNLyhO7d
+         OlCFsD3Z4gKO31IS5YJFro3hDYbryN62CE0wj7qMcYKa9XUdfk3GfIVkcb0+sqImYjGe
+         293wODY3mZZkloMSXNhbjRmNer03ie6hwkkXKVBh1N9NC6L80s9v9PRqk62dzZwPtM+g
+         GwLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=yNv4uuWY37+QDIo+8eJ5Cs1RQKFygWuhu/mUpTFc+50=;
-        b=E2CkCn+DAMmsWvLzV5GP1rwODgXOTt1Muy81wbkCLDjuWlI41g/J65q8zZqWYVv9bI
-         dZCkR049ikc4t4jOFnhmaDkoRFhTnpa/9ZEEUIAomkJNs2uv91KQYomOmF6RJum+3k6P
-         AfB7pky09B9kQcP5oXcV7in1C7RYOxSfbm9dUczGdpwkEADXrDrHxVmOOWVcvRrWKCwZ
-         cQQ1Wle/1W+IR3xiSYVF6TkHt5slW1uenknOSqQW4tcyWRHjVFXcvRmXRPdF18OLigy9
-         zGfuUcY+qyQHt7CbrnA1Gh89gcNYPm3EiujhMYhDVnD9eAT6ko+FG8O3mU+A+DOb6O4S
-         ivNA==
+        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
+        b=lpOcdu/Sao0aRCKoqpZwt8PsiwuubAHW/311VYK/ovflClcxI0dm7ySEjP1mX3D3/Q
+         Zh31jMM3OEvs2Icj4jUni5O2nzi4GGJ4YryQKqrYNF5yX1PeVQ7F+YvvHmj/0M1OZNqw
+         rBHjiUS3vBaWCDZg1LglPUaIkpivycF3bjXMxhWP/dDA9Sai89DxMqx3BOwWZPFcD22m
+         ZczMzUxtijG5xwfUCc6kc8IXsDHGSRWtNaGg0ew50fgGagCkGvG9JzDvQYUCADS1uYWX
+         uCuNplc6BjSiMrhZpEv1NAlkTBsDYLQTfBrjX08cweOH4i2jRBc9Uu0jhGsVM1dchOCF
+         JVkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qfcv0jVy;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=c8S+0Eig;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s135sor9184478itb.9.2019.04.26.23.43.21
+        by mx.google.com with SMTPS id g95sor26343843plb.5.2019.04.26.23.43.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Apr 2019 23:43:21 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qfcv0jVy;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=c8S+0Eig;
        spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=yNv4uuWY37+QDIo+8eJ5Cs1RQKFygWuhu/mUpTFc+50=;
-        b=qfcv0jVylRwgUSdFp0yVo6y3SoCAOjol9XbR7W5+lwraaEg2QoXyt+VrAjGp9wzdAn
-         BOm9G9cC4mrsWbrKkWfeWua0CLcUhNFX2UYmr160CAGJNRPhpKunjycWCJnpjaUptQXK
-         FymoezD52jYoCa9vw1d8DrTtNcDpUD3gesH2ZoYEwsgq0bZE6tTukM9zPOscjJPRRiHd
-         0d0EQKT1ASnMLtYxkgiq4MVCWAUZf/kjKC/u6ibFbPlbEhDhs/jBfSTvPAadE2T4MBPs
-         yoHMRLVUDfJJ0O31Q2uS3OPiszz2lAVHUHfzcDpTk8KxpsBn4aqr0vTCALbdk7a/EPYd
-         2uWQ==
-X-Google-Smtp-Source: APXvYqxCgMCnuubydaHXfJIDthz2u46RkKoNrhpM9xg9spe5Zm1Eq7YBRg8tloTlDMLwvkBDrQMPvQ==
-X-Received: by 2002:a63:7f0b:: with SMTP id a11mr44847434pgd.234.1556347400564;
-        Fri, 26 Apr 2019 23:43:20 -0700 (PDT)
+        bh=0/++kCIdz9NinK/+MFp07AkuSYwP6lr30tD8Xi+P1Ns=;
+        b=c8S+0EigCS6E8XvKa358lLe6LCVfzSFVuNJOVAHrtcVTOWv87dH8gGM88UuaQDW1Ql
+         IEkRJXiL08aosg7wFKjOifGHvdFqqFOyIVAPTy32+RTxwh4obVo1hvSc3VrfhbIWeRKu
+         ZJA1hj0UwfXTRnrJeU5WqlBmd3LvGogakdG6r5O5HCHdIZ01YxMYWq3GzL7qFIqoHj+M
+         ImxYzSZVWsC/5XsbT15MbduZoaGGNML2WLcc4snNS8OhI4V0R2fmhxvtsFVBQg8hBw68
+         V9bB/2b3yhVaonMZdGNuWp1CujPDm/DoQRIcyXEO1I8gk21/7x6PmT++18rtH9HSkyQc
+         PS4g==
+X-Google-Smtp-Source: APXvYqwD3aMW9+fxSDptS7zjHtrUL6axD8ahdhvdTbAECEHQ3uOfUvnD7wIP6ssynsnm5EaQ/VhgYw==
+X-Received: by 2002:a17:902:20c6:: with SMTP id v6mr48012719plg.276.1556347402023;
+        Fri, 26 Apr 2019 23:43:22 -0700 (PDT)
 Received: from sc2-haas01-esx0118.eng.vmware.com ([66.170.99.1])
-        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.19
+        by smtp.gmail.com with ESMTPSA id j22sm36460145pfn.129.2019.04.26.23.43.20
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 23:43:20 -0700 (PDT)
+        Fri, 26 Apr 2019 23:43:21 -0700 (PDT)
 From: nadav.amit@gmail.com
 To: Peter Zijlstra <peterz@infradead.org>,
 	Borislav Petkov <bp@alien8.de>,
@@ -120,10 +120,14 @@ Cc: linux-kernel@vger.kernel.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Nadav Amit <namit@vmware.com>
-Subject: [PATCH v6 11/24] x86/kprobes: Set instruction page as executable
-Date: Fri, 26 Apr 2019 16:22:50 -0700
-Message-Id: <20190426232303.28381-12-nadav.amit@gmail.com>
+	Nadav Amit <namit@vmware.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
+	Jessica Yu <jeyu@kernel.org>
+Subject: [PATCH v6 12/24] x86/module: Avoid breaking W^X while loading modules
+Date: Fri, 26 Apr 2019 16:22:51 -0700
+Message-Id: <20190426232303.28381-13-nadav.amit@gmail.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
 References: <20190426232303.28381-1-nadav.amit@gmail.com>
@@ -135,62 +139,123 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Set the page as executable after allocation.  This patch is a
-preparatory patch for a following patch that makes module allocated
-pages non-executable.
+When modules and BPF filters are loaded, there is a time window in
+which some memory is both writable and executable. An attacker that has
+already found another vulnerability (e.g., a dangling pointer) might be
+able to exploit this behavior to overwrite kernel code. Prevent having
+writable executable PTEs in this stage.
 
-While at it, do some small cleanup of what appears to be unnecessary
-masking.
+In addition, avoiding having W+X mappings can also slightly simplify the
+patching of modules code on initialization (e.g., by alternatives and
+static-key), as would be done in the next patch. This was actually the
+main motivation for this patch.
 
-Acked-by: Masami Hiramatsu <mhiramat@kernel.org>
+To avoid having W+X mappings, set them initially as RW (NX) and after
+they are set as RO set them as X as well. Setting them as executable is
+done as a separate step to avoid one core in which the old PTE is cached
+(hence writable), and another which sees the updated PTE (executable),
+which would break the W^X protection.
+
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Cc: Jessica Yu <jeyu@kernel.org>
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+Suggested-by: Andy Lutomirski <luto@amacapital.net>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/kprobes/core.c | 24 ++++++++++++++++++++----
- 1 file changed, 20 insertions(+), 4 deletions(-)
+ arch/x86/kernel/alternative.c | 28 +++++++++++++++++++++-------
+ arch/x86/kernel/module.c      |  2 +-
+ include/linux/filter.h        |  1 +
+ kernel/module.c               |  5 +++++
+ 4 files changed, 28 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
-index a034cb808e7e..1591852d3ac4 100644
---- a/arch/x86/kernel/kprobes/core.c
-+++ b/arch/x86/kernel/kprobes/core.c
-@@ -431,8 +431,20 @@ void *alloc_insn_page(void)
- 	void *page;
- 
- 	page = module_alloc(PAGE_SIZE);
--	if (page)
--		set_memory_ro((unsigned long)page & PAGE_MASK, 1);
-+	if (!page)
-+		return NULL;
-+
-+	/*
-+	 * First make the page read-only, and only then make it executable to
-+	 * prevent it from being W+X in between.
-+	 */
-+	set_memory_ro((unsigned long)page, 1);
-+
-+	/*
-+	 * TODO: Once additional kernel code protection mechanisms are set, ensure
-+	 * that the page was not maliciously altered and it is still zeroed.
-+	 */
-+	set_memory_x((unsigned long)page, 1);
- 
- 	return page;
- }
-@@ -440,8 +452,12 @@ void *alloc_insn_page(void)
- /* Recover page to RW mode before releasing it */
- void free_insn_page(void *page)
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index 599203876c32..3d2b6b6fb20c 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -668,15 +668,29 @@ void __init alternative_instructions(void)
+  * handlers seeing an inconsistent instruction while you patch.
+  */
+ void *__init_or_module text_poke_early(void *addr, const void *opcode,
+-					      size_t len)
++				       size_t len)
  {
--	set_memory_nx((unsigned long)page & PAGE_MASK, 1);
--	set_memory_rw((unsigned long)page & PAGE_MASK, 1);
-+	/*
-+	 * First make the page non-executable, and only then make it writable to
-+	 * prevent it from being W+X in between.
-+	 */
-+	set_memory_nx((unsigned long)page, 1);
-+	set_memory_rw((unsigned long)page, 1);
- 	module_memfree(page);
+ 	unsigned long flags;
+-	local_irq_save(flags);
+-	memcpy(addr, opcode, len);
+-	local_irq_restore(flags);
+-	sync_core();
+-	/* Could also do a CLFLUSH here to speed up CPU recovery; but
+-	   that causes hangs on some VIA CPUs. */
++
++	if (boot_cpu_has(X86_FEATURE_NX) &&
++	    is_module_text_address((unsigned long)addr)) {
++		/*
++		 * Modules text is marked initially as non-executable, so the
++		 * code cannot be running and speculative code-fetches are
++		 * prevented. Just change the code.
++		 */
++		memcpy(addr, opcode, len);
++	} else {
++		local_irq_save(flags);
++		memcpy(addr, opcode, len);
++		local_irq_restore(flags);
++		sync_core();
++
++		/*
++		 * Could also do a CLFLUSH here to speed up CPU recovery; but
++		 * that causes hangs on some VIA CPUs.
++		 */
++	}
+ 	return addr;
  }
  
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index b052e883dd8c..cfa3106faee4 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -87,7 +87,7 @@ void *module_alloc(unsigned long size)
+ 	p = __vmalloc_node_range(size, MODULE_ALIGN,
+ 				    MODULES_VADDR + get_module_load_offset(),
+ 				    MODULES_END, GFP_KERNEL,
+-				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
++				    PAGE_KERNEL, 0, NUMA_NO_NODE,
+ 				    __builtin_return_address(0));
+ 	if (p && (kasan_module_alloc(p, size) < 0)) {
+ 		vfree(p);
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index 6074aa064b54..14ec3bdad9a9 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -746,6 +746,7 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
+ static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
+ {
+ 	set_memory_ro((unsigned long)hdr, hdr->pages);
++	set_memory_x((unsigned long)hdr, hdr->pages);
+ }
+ 
+ static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
+diff --git a/kernel/module.c b/kernel/module.c
+index 0b9aa8ab89f0..2b2845ae983e 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -1950,8 +1950,13 @@ void module_enable_ro(const struct module *mod, bool after_init)
+ 		return;
+ 
+ 	frob_text(&mod->core_layout, set_memory_ro);
++	frob_text(&mod->core_layout, set_memory_x);
++
+ 	frob_rodata(&mod->core_layout, set_memory_ro);
++
+ 	frob_text(&mod->init_layout, set_memory_ro);
++	frob_text(&mod->init_layout, set_memory_x);
++
+ 	frob_rodata(&mod->init_layout, set_memory_ro);
+ 
+ 	if (after_init)
 -- 
 2.17.1
 
