@@ -1,122 +1,137 @@
 Return-Path: <SRS0=h8p8=S5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0483BC43219
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 10:32:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52D76C43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 10:46:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6BA720693
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 10:32:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F09ED2087C
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 10:46:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="d1C1qdVO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6BA720693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iHWAeykZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F09ED2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 25D926B0006; Sat, 27 Apr 2019 06:32:36 -0400 (EDT)
+	id 785CF6B0006; Sat, 27 Apr 2019 06:46:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20E286B0008; Sat, 27 Apr 2019 06:32:36 -0400 (EDT)
+	id 70D406B0008; Sat, 27 Apr 2019 06:46:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FD736B000A; Sat, 27 Apr 2019 06:32:36 -0400 (EDT)
+	id 5D4786B000A; Sat, 27 Apr 2019 06:46:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C72246B0006
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 06:32:35 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id f7so3819462pfd.7
-        for <linux-mm@kvack.org>; Sat, 27 Apr 2019 03:32:35 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 103396B0006
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 06:46:21 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id v5so6312846wrn.6
+        for <linux-mm@kvack.org>; Sat, 27 Apr 2019 03:46:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/wfN9cbY70jLMmaBiwAoTgOUu22N+b34JaAv4aDSiiM=;
-        b=Ai/9uZCsF9M5PAEzS+51MxGLEXAov7fKMueQH6/dEgGIHN72qwC/y4BClae4JrRHgQ
-         uoWY4SqNPYzVpbF4xfW3MM/T0ZkKoBQ0HkrpKpZfsr/6rKysDweg+nEHGdI7HQG1Ge1H
-         J8PYIw96rb23NPDhqWDVRbH/tVEFrC5KZHodRnxb36S7NYQBMnPFvvceKqN0wpaexGt+
-         ROZHvBb/o8beL+yiM5wE25ZSQPcVcLeAfSj1TNR+UCZsE8qEQSvKVbE/t0+rkRePjuXu
-         Z4oU2V7fKl4Ge418M6sCCqpf/l10LLOEu7yJzLj6rdieMDE5nBq6lnciV4UfcqNbvbsH
-         rooA==
-X-Gm-Message-State: APjAAAVVJEq0bEJwL1Yd8EhDyBezKu4TmwaySz7wDXpOdiwnJ6p8IUSH
-	2KLs6Jdv3/qa9K9zYtghdnoT5ZAeSpLRCGSqltXEGhyRn0X3PEqhwGlb764ZMfhFQugidH20DzU
-	59yM6Bt9G5W14sbH0mooQUvUf7Ee9q2GHStuxILH2sxpN43q7+Z/n2C196cRkn80TPg==
-X-Received: by 2002:a62:6490:: with SMTP id y138mr52938757pfb.230.1556361155410;
-        Sat, 27 Apr 2019 03:32:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzd8aTpzjmKNkDDJ5R9Gr1v4b/4iWZBq0wub08TOFQMRQ/QL2isNfIHmZtpCmPyagK7gsc0
-X-Received: by 2002:a62:6490:: with SMTP id y138mr52938709pfb.230.1556361154749;
-        Sat, 27 Apr 2019 03:32:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556361154; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=xPSO7oJ3TTHplWc4133d26O3LVrGQFrQK7ot/N5WKb8=;
+        b=P60MNJf4rzNjZL3tsrYtrywFOEZxFonbeQEx2MFUY8qoekl3nkEQlGPQx6lwE5pw/z
+         nEXDMj0h5x3m0n3Mx4BxsHfwtTw+cIjorU7h/asBdys0ujMTEevtKwSniVfx+4hfslWz
+         NVCfzqT/+4xDcm2AVpKKXdl0vvva0wS9TfbTUOkx85aPWgLNWeuL4eHQxD1a0NuGNQQe
+         DOdUvgkWg//U4h9zDwGSPFXQAzxMsSkV7x1An2ejE/P6jUPO+TUPHjs0pGSWAp3GH42g
+         8bco7kv8+CTE44h+ziVQGbdEAe6H9/la4z2Q4DZZ2nMMiQNAhwZnx8dd6p79kQtmSs8k
+         6s0Q==
+X-Gm-Message-State: APjAAAVXVilSieSEoe3bmddjivQJ85txiUonOKjJ0xbdc8Xjg7RkMLx7
+	a5zjK8keEiiQk87lEHUUEYznNiKxKrNYseQ5wJDGjk1ZEFvh59ZY0Zv9IhzxPLQSzvuyF/ynjTy
+	DG1K9H58ImuYza9wI7LLSKVymyk8cl1m/K21cGLG4IlbtLKVBzeyBP64hKk0rhrU=
+X-Received: by 2002:a5d:4eca:: with SMTP id s10mr17379577wrv.319.1556361980536;
+        Sat, 27 Apr 2019 03:46:20 -0700 (PDT)
+X-Received: by 2002:a5d:4eca:: with SMTP id s10mr17379540wrv.319.1556361979542;
+        Sat, 27 Apr 2019 03:46:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556361979; cv=none;
         d=google.com; s=arc-20160816;
-        b=CQBzHb5mwRmFAJ3CIrLkhkozN0q1hJ/eySsxc2Yww9a29ZZBDjfmpeUzWLhDfFESEo
-         3oeAZzGm0zF2Xucn+q0HNn182tug2X+B+Qk+6lyvkxOAxZ+4QUoA4LWZjJZdljSHs6sQ
-         mUIVOIQ8VH4YOUSKlsE2Hu5NyKcvlf0Bw+2Ivj0t0QLe/Qo/umG3iYbS9yaQ+UxqW1iI
-         uzI+ImsfRWTo9vC7wrJOaehLFd5A9q/3kokIgUZ4upyyj+piChiJuh6excxh5UJaYBYT
-         9LywhZvNqvIwI7OTFCKt7KzFy/a9VKXFVmPVnqrRy/5vkjmTdtuRh8o6pw1NK0hN58xy
-         xixw==
+        b=YgRV6KoVQZF17mEWFm26yHqRqkXtQfid3oo6te1G670AdnVxwkcVu6vslGdJSq1QH2
+         CQ49Y5AolJSSmZ99saCg5V6WFas0CmJoVRKi2rZrueo++3trXCC6mBCk3PeCvjIVmZph
+         aq9Ii4+mYVTfO6Ieo7BNYUSILhy6aFYeF+kLDD10bSEB0iO3eRz3P/q2/ftSE0HGaoJu
+         hhQvEDsYMS7bSvhGyytULkZUFClzzc819yUt4ZKDDJb/FhmL3L2i7maZxzDlXcehAlwt
+         ZK2KyfIb46q0IzDGxYl4yzbaT+3bWmrzhpxsLqvRlPac5cURwnDtOHKvqtUuFlUS0yFQ
+         uUGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/wfN9cbY70jLMmaBiwAoTgOUu22N+b34JaAv4aDSiiM=;
-        b=hB5e6j2X41sssBvTPYKlji2R5MB4nCJFA/7jKuYAp2FQ9MaEgGMchE/Z6/NzCPLGYd
-         Ylpb8RQ2z8nYe2a0iBTm2iLKRpOwxFQsBL0k3z/PxFpizat8kB1BJP41deTevlqDnL8i
-         TAsFTgq4S/UKSDOK1z9m+Q856VS1zXnvcdDuZGUX/S0rx0K77co+xQEHIQofOWi/neh1
-         VRuXIk4cSLxehFPc6cAnBOVZuQ4uE58FcR+CZa5zsb/wEpza/4u74tb7CJtQCRxX8ZI2
-         LpvDNx6bE0qggx2XKRQK6mIJEMuZEOAf39aAulPgkkjaxLLCpbnJ7Uv8cOjy/HaE5rEv
-         ahzA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:sender:dkim-signature;
+        bh=xPSO7oJ3TTHplWc4133d26O3LVrGQFrQK7ot/N5WKb8=;
+        b=I8lDEfWWAk5fRJbjOQPtxG/J979pYXCYH9xn769ufszC4kKB4r6oTq3FbXDRyVakXT
+         crY3iBJHlPqGwkz1VmgtYg+YQRYDdJYu1sAU826Ga4ZvrZTBtPu11aI1qyO89l+9Y39x
+         cQgTRcRz3e73YOfbkUTmCuSqtOAHW96pGOZTMno7bBj9AsNn9nuttVQmwKvmk5BAMVyz
+         VLAY3EGZiEbJ9ZG7qzt2J5xpUmsfxEU/VAvF/T3+1UGmvlvqlluFZyTwYZbr1uRBlh1H
+         juiU/SRihhoFjT0XM8olcLxny+x9IZ3ynubfpp0y1vbTmWG0caxJUDLPc9QQwPShc8Fy
+         hSHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=d1C1qdVO;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m79si28767404pfi.81.2019.04.27.03.32.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iHWAeykZ;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v7sor16755439wro.43.2019.04.27.03.46.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 27 Apr 2019 03:32:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Sat, 27 Apr 2019 03:46:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=d1C1qdVO;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=/wfN9cbY70jLMmaBiwAoTgOUu22N+b34JaAv4aDSiiM=; b=d1C1qdVOjLCTuijW+/UiQ9tUY
-	u2JXmjimTsgGi9pPouHXGSi+f0eSxX0HIH7HWyjHD2y24faIPOC4LiwlTeQlVCXXwbH52+wK2P9eq
-	yywoc+V3Gs/cQiwL8dgcGe75sw2HjavlRB57PNztNaUYzClj6YzlZMrjM04q4hUgigqLhYxdSJbxb
-	jeQuxl+5ANx0PaU2uwc7aLcQ72NXWvHAUBx2/u7X9KKyGjw7AJE3sQYMtfdJ/YUur1FQpoIwTn1Er
-	TXQQB6JzS3+BxL+eHmI18UWhjqcfLspCmuQ+hJBQiE5jEtCdrDhzwhLyK56zyuxFS/xnc9IAWvgY+
-	zs64p7GnA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hKKd8-0001Xn-GL; Sat, 27 Apr 2019 10:32:26 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 079E329D22409; Sat, 27 Apr 2019 12:32:25 +0200 (CEST)
-Date: Sat, 27 Apr 2019 12:32:24 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: nadav.amit@gmail.com
-Cc: Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	x86@kernel.org, hpa@zytor.com, Thomas Gleixner <tglx@linutronix.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>, linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	will.deacon@arm.com, ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com, deneen.t.dock@intel.com,
-	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH v6 00/24] x86: text_poke() fixes and executable lockdowns
-Message-ID: <20190427103224.GG2623@hirez.programming.kicks-ass.net>
-References: <20190426232303.28381-1-nadav.amit@gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iHWAeykZ;
+       spf=pass (google.com: domain of mingo.kernel.org@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mingo.kernel.org@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=xPSO7oJ3TTHplWc4133d26O3LVrGQFrQK7ot/N5WKb8=;
+        b=iHWAeykZHCFDxFy3680Aunv30P6sD1QDGJ2K2UX7UeCJZs4+FMT5RWJb7Hog4/R5r9
+         dm464UwSg9xMQ+y/Z5uVB2BGznF0SE9F8Kg3VXIWarHzUo2Zv1Wvbj/ZAtT1g6jIh9b7
+         y/3PLs3P3keba5yFj4miN1eRmesniXQJIk4eHjBfjfQoYfFitAejpaMGYBnli3jGX1lc
+         6U94wTq2CKBAYQ2kqNH2xUHuguqjvm5FdcCaujFsNqEHr1Y6JHrRclOlTD4kgUR+ogfH
+         UKNk7HQQDKIYlryRPWZXYC93srNNuZYpAYiUqhrBOsdQ05mCl/nJZnj/D+45V25B6rVL
+         o/RQ==
+X-Google-Smtp-Source: APXvYqxY/dnkrLpW/gF+xVDmMuF7QvDiCj7GAGdhfgtGKCgk/7ONprlc+TDqzgFDBPe+eG8Nb+V+zw==
+X-Received: by 2002:a5d:6b46:: with SMTP id x6mr32608036wrw.313.1556361978927;
+        Sat, 27 Apr 2019 03:46:18 -0700 (PDT)
+Received: from gmail.com (2E8B0CD5.catv.pool.telekom.hu. [46.139.12.213])
+        by smtp.gmail.com with ESMTPSA id x14sm9639485wmi.32.2019.04.27.03.46.17
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 27 Apr 2019 03:46:18 -0700 (PDT)
+Date: Sat, 27 Apr 2019 12:46:15 +0200
+From: Ingo Molnar <mingo@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, LKML <linux-kernel@vger.kernel.org>,
+	Alexandre Chartre <alexandre.chartre@oracle.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
+	James Bottomley <James.Bottomley@hansenpartnership.com>,
+	Jonathan Adams <jwadams@google.com>,
+	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>,
+	LSM List <linux-security-module@vger.kernel.org>,
+	X86 ML <x86@kernel.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Peter Zijlstra <a.p.zijlstra@chello.nl>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
+ isolation
+Message-ID: <20190427104615.GA55518@gmail.com>
+References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
+ <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
+ <20190426083144.GA126896@gmail.com>
+ <20190426095802.GA35515@gmail.com>
+ <CALCETrV3xZdaMn_MQ5V5nORJbcAeMmpc=gq1=M9cmC_=tKVL3A@mail.gmail.com>
+ <20190427084752.GA99668@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190426232303.28381-1-nadav.amit@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190427084752.GA99668@gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,19 +139,95 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 04:22:39PM -0700, nadav.amit@gmail.com wrote:
-> From: Nadav Amit <namit@vmware.com>
+
+* Ingo Molnar <mingo@kernel.org> wrote:
+
+> * Andy Lutomirski <luto@kernel.org> wrote:
 > 
-> *
-> * This version fixes failed boots on 32-bit that were reported by 0day.
-> * Patch 5 is added to initialize uprobes during fork initialization.
-> * Patch 7 (which was 6 in the previous version) is updated - the code is
-> * moved to common mm-init code with no further changes.
-> *
+> > > And no, I'm not arguing for Java or C#, but I am arguing for a saner
+> > > version of C.
+> > 
+> > IMO three are three credible choices:
+> > 
+> > 1. C with fairly strong CFI protection. Grsecurity has this (supposedly 
+> > — there’s a distinct lack of source code available), and clang is 
+> > gradually working on it.
+> > 
+> > 2. A safe language for parts of the kernel, e.g. drivers and maybe 
+> > eventually filesystems.  Rust is probably the only credible candidate. 
+> > Actually creating a decent Rust wrapper around the core kernel 
+> > facilities would be quite a bit of work.  Things like sysfs would be 
+> > interesting in Rust, since AFAIK few or even no drivers actually get 
+> > the locking fully correct.  This means that naive users of the API 
+> > cannot port directly to safe Rust, because all the races won't compile
+> > :)
+> > 
+> > 3. A sandbox for parts of the kernel, e.g. drivers.  The obvious 
+> > candidates are eBPF and WASM.
+> > 
+> > #2 will give very good performance.  #3 gives potentially stronger
+> > protection against a sandboxed component corrupting the kernel overall, 
+> > but it gives much weaker protection against a sandboxed component 
+> > corrupting itself.
+> > 
+> > In an ideal world, we could do #2 *and* #3.  Drivers could, for 
+> > example, be written in a language like Rust, compiled to WASM, and run 
+> > in the kernel.
+> 
+> So why not go for #1, which would still outperform #2/#3, right? Do we 
+> know what it would take, roughly, and how the runtime overhead looks 
+> like?
 
-I've added patch 5 and updated patch 7, I've left the rest of the
-patches from the previous series (and kept my re-ordering of the
-patches).
+BTW., CFI protection is in essence a compiler (or hardware) technique to 
+detect stack frame or function pointer corruption after the fact.
 
-I pushed it all out to 0day again. Let's see if it's happy now.
+So I'm wondering whether there's a 4th choice as well, which avoids 
+control flow corruption *before* it happens:
+
+ - A C language runtime that is a subset of current C syntax and 
+   semantics used in the kernel, and which doesn't allow access outside 
+   of existing objects and thus creates a strictly enforced separation 
+   between memory used for data, and memory used for code and control 
+   flow.
+
+ - This would involve, at minimum:
+
+    - tracking every type and object and its inherent length and valid 
+      access patterns, and never losing track of its type.
+
+    - being a lot more organized about initialization, i.e. no 
+      uninitialized variables/fields.
+
+    - being a lot more strict about type conversions and pointers in 
+      general.
+
+    - ... and a metric ton of other details.
+
+ - If such a runtime could co-exist without big complications with 
+   regular C kernel code then we could convert particular pieces of C 
+   code into this safe-C runtime step by step, and would also allow the 
+   compilation of a piece of code as regular C, or into the safe runtime.
+
+ - If a particular function can be formally proven to be safe, it can be 
+   compiled as C - otherwise it would be compiled as safe-C.
+
+ - ... or something like this.
+
+The advantage would be: data corruption could never be triggered by code 
+itself, if the compiler and runtime is correct. Return addresses and 
+stacks wouldn't have to be 'hardened' or 'checked', because they'd never 
+be corrupted in the first place. WX memory wouldn't be an issue as kernel 
+code could never jump into generated shell code or ROP gadgets.
+
+The disadvantage: the overhead of managing this, and any loss of 
+flexibility on the kernel programming side.
+
+Does this make sense, and if yes, does such a project exist already?
+(And no, I don't mean Java or C#.)
+
+Or would we in essence end up with a Java runtime, with C syntax?
+
+Thanks,
+
+	Ingo
 
