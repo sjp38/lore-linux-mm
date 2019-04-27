@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17219C43218
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 01:40:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFF6DC43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 01:40:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C3F4420B7C
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 01:40:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6F89320B7C
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 01:40:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="jDZ8BR4F"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3F4420B7C
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1GBxLr6s"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F89320B7C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 76D926B0005; Fri, 26 Apr 2019 21:40:43 -0400 (EDT)
+	id 10C0F6B0006; Fri, 26 Apr 2019 21:40:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 71D156B0006; Fri, 26 Apr 2019 21:40:43 -0400 (EDT)
+	id 067946B0008; Fri, 26 Apr 2019 21:40:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 634796B0008; Fri, 26 Apr 2019 21:40:43 -0400 (EDT)
+	id E9A4E6B000A; Fri, 26 Apr 2019 21:40:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 26DDC6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 21:40:43 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id g92so3036952plb.9
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 18:40:43 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADC596B0006
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 21:40:45 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b8so3008485pls.22
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 18:40:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=qH/zJ98hTYZOzaO4pEtkIQYKpIKXC4v608B1W2qN1qU=;
-        b=trj/wRxfbkcaAKEZUvauZ0155fBP3xcmPLXwF00sra0eR6WOPSte6fwUEAhgHR90Fk
-         fN1TFTlfG3GJaEFvXjJzTRnZQlGmid870ugjYNRieEyNJcVB+eimb/B+l83phdvduPrI
-         vjBdHk0fujvrNNLkfJtkDhiHPM+8H08YdobtkQIsnvAlkssdfaQJfUtQ+5vVX9BNX3zA
-         WckwLsy8cprfvO4pwl8JfzbDn1abN5290PEvxYy2w2YtIu6eKEia0cRXZ6pmx3+sqQRW
-         62F8C5xJT3ek7l+ojj21/XbgaQ5Zmcap3a6/Pwq2TiND0Qeme5XE5zlVU4ab87/ZndH3
-         /pog==
-X-Gm-Message-State: APjAAAUTU19d+r3wahbpTS27P8uQfjhLSHo54+coqKxrxnN9kkE4q3WM
-	tS7MB0euIo7ukjc8x1AamTcXkHKO1x+/FwDAdGVmuduYisV8io6hHLxNq41FZBx/ZwG8C2H4QvN
-	Jo0lZCDF+zQbOl6OZN4QimQDESeY64fjcavFa3mgcJS+X2jAOnRhkumP3w+4gKiFtag==
-X-Received: by 2002:aa7:8d8e:: with SMTP id i14mr3200918pfr.121.1556329242800;
-        Fri, 26 Apr 2019 18:40:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8ZFkd+IjKIWS0u5c174cgTL6vJsHnjX1G6aunlzo0w5nm7+ZBQiTWGFk1031kzR7gLfka
-X-Received: by 2002:aa7:8d8e:: with SMTP id i14mr3200880pfr.121.1556329242139;
-        Fri, 26 Apr 2019 18:40:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556329242; cv=none;
+        bh=N0a82VX9zm1dVGCHZg46u13qTa0hEHFDKHHc9ek8o2g=;
+        b=Q8FmMCX671qENhfg6rTLd/RDCvVuOCLcPyxZozOpmBxY4lMxdjM2qnJNRK6UoLhnNh
+         /dm4vevTYNZjmaMlnPHVQn3ygng1sQ7EwcWkd2CSwt97a4WztSCfxAV73h26XeQRQ3tF
+         ASaHC6JGyD2/Pu5oA8j+8nkIw6luSycqWkrpdMSYWiem9A2S6z+Hl1qZuGkXF5ujoK7t
+         OTVKxT0fe20bEduiuCsBFHUYmwWeJ9CRV9PzsgYoUB0fqkcJTFhm8KddRyKaqVSs2qvy
+         Iu+AUpIxWfWr+bLHXtJCVBZc31K6wXze8haqbZK6mBnOBNrp1F/I3ejk59vBSbRgqC7s
+         +gjg==
+X-Gm-Message-State: APjAAAXqDB3041iVfH1aIDwowtneVdbNiUNTfXCMSn9eef+7wKXJlhCr
+	gQPdOqX/Uyjg4AKKghGvuSDkZejuZ8zwZBRhJnWyf3to+3N9jIyQPfCVYYKynKYX8BCverCkS8x
+	mpepTnI2yMqGsjizfKiOINbxd9yVgt1KcX97Xzeqg89I2xQi2ijEZk1fKhX7ilYcsAQ==
+X-Received: by 2002:a17:902:e109:: with SMTP id cc9mr5125515plb.148.1556329245336;
+        Fri, 26 Apr 2019 18:40:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxQYspzPjNH7n2/j6YWwLHuaa7W++6ElxLzyGSpgErKXIdSrMa93OzgoQCnKjLcmQ62ULt
+X-Received: by 2002:a17:902:e109:: with SMTP id cc9mr5125484plb.148.1556329244696;
+        Fri, 26 Apr 2019 18:40:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556329244; cv=none;
         d=google.com; s=arc-20160816;
-        b=aMvVhTmSVgbd/yXdn0kr62jXX1MwsbOWle6dDHA6ciWwkivq7ZFMCTU96kynMmgcsF
-         12mSgoHerMGMNRZ+Li4DM/QxKpc3g/Bel3F7w2M1NPHJmv3dPXPeNSTT21EsJoxX1YDx
-         BAgw2+XvOFxTmcAxk4ikGaFkkXDuWuW60OFK3p1qkLsImCT01xXCcGGlxhZCDJe7z1El
-         aJJlbNqnqFfmGJaSxeA3d8N9ToTFEe7Guf/riovhpUie5qrhhQMMH57W9NMO7wnt9VcF
-         WAxPhK4g7hdZtr3eqljzRoPQHw11aE/m2xjAT+VoBtgyyy+kzkWZ7aJrdJJvh4PQ+pPt
-         wT6A==
+        b=Fxwo+XzCkc1ddxo4IT5oWAnJqONLJtrczbHRAKIxWjYPIkWa7zOttFo+OZ7C5xM3TL
+         tVgpb/G2JKwqDcj0LoQEVPofhP6Hwuae6pn2v0kc4Z0UOmDC1kWi8PYfHHbBNdPRe6a1
+         gkFx+0+0poNxSmeViMgYHKPSAnCJAhwF4bMw6YILFCM3wQSzK6ml3QqWt0IU6Wz3NxVh
+         5shHUjvlaEM0DMeMSsgpCcplHRWqIqlMLw6m1UDsJf4GGjaKFYm9Qvf6v9PblJM9fVM+
+         cUx9adgQjIOwTPVI3qdv492u/NupE5Jt6aIKrVSLNDI4jKA+I5wULr6ERqbVohBbo+y4
+         UGxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=qH/zJ98hTYZOzaO4pEtkIQYKpIKXC4v608B1W2qN1qU=;
-        b=cqZT6Pd7lcbCinTlmP9viPG9MJJm8lDDVfDhy+rlCIA/Owj5jrqW9biMfxzb/jGjdG
-         PuPUf7LRcwQRDbqR+ywGI5WejjN0YznpQwL+4PQSAYGfxVcjG/wzvAqMJH2xD2KL4Uxd
-         SJdGzdaQsPaVbQjBC0NFNjVSF2/No7s/x/aLZFVFlg60Gkn0kpMgHtWYgsCdFAD4eInM
-         AbJnrwt8nZaj6hlOIAt4kUz1k1AGw0zm2S56fjzd1q5NtUkR1hGTTZDRgLl9NAO6m08X
-         yikDI6n4lHFJdDLG6oE5JCDbc2Ds/yeIWUXtyy+Ob1Ch4sEWAKT28+/bcFF56TqT+X/v
-         jdCw==
+        bh=N0a82VX9zm1dVGCHZg46u13qTa0hEHFDKHHc9ek8o2g=;
+        b=wMAwsKdpbrEEJh+9dzjfkLhEnqG1E29wXFXGn8DXLlA831+NyVHrSKSlADloESRhZA
+         IeDEZsli/h/ljauY6EuY6XMsZU4k+oLu67Xxk5q0j6J7qV3ZrzW/aY2yM6XYuRV2Snyu
+         RG6W8YQnCoRy/EEDEbAyAf6RN2IsMXpU34vqPYjNEDknrOEwh2nelbKA7cNR8Havw6EM
+         AZ3qUziFupX8tKb0J2ywNmxV0Bbm/+6GPWihDTrHWuhKpO1QSXu0pV/EuX0IjwdjGbdA
+         n06InlDnBIRajiNRYQUaVY5xcs0T2Dh/wdZBvwxOvF0TKQ9CgrweMwmgIY5lSCFqxO27
+         jdAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=jDZ8BR4F;
+       dkim=pass header.i=@kernel.org header.s=default header.b=1GBxLr6s;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d20si26124822pll.322.2019.04.26.18.40.42
+        by mx.google.com with ESMTPS id 92si26693270pld.383.2019.04.26.18.40.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 18:40:42 -0700 (PDT)
+        Fri, 26 Apr 2019 18:40:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=jDZ8BR4F;
+       dkim=pass header.i=@kernel.org header.s=default header.b=1GBxLr6s;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 09CCD208CB;
-	Sat, 27 Apr 2019 01:40:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 936F120873;
+	Sat, 27 Apr 2019 01:40:43 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1556329241;
-	bh=Oi0TxYuDHBd93kuX9fo74E5Om1hd3KEPLC7F9JU9O7k=;
+	s=default; t=1556329244;
+	bh=R2rpl+9GTkX7UfwhQa+rgLmWIhB1wYRoWJDewNXmuRM=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=jDZ8BR4FV0etFXwiRas+bHOMFvY8AODs8wusc2k1iyA7iFclmg09OYEHpnhRJwQwh
-	 sPHdWqu8NJNUKFeQliDejfZfk6LiFyqc6URhqa/Ap5Xj6GOHmWKBt1ZaGZ5VKNDPCj
-	 nQ2sRz/q91PbeeLXD66KQkbbb59mXUtTanhtl0lo=
+	b=1GBxLr6sp6zvcdMMZNKcw8TUcb94l8vShN01ZWKA7w6rjnQsIaXTt/4JrrXkLkiQU
+	 nbTT7CXjfxhuUwNM24EraNPovBG4tfH6zvQ6pEy+PgfIw13MoeDdlN7UGBDHAxNL0T
+	 o7I4+ENdFjz7VZaveVijLimj8uCsDQBGRAjWdXYs=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
@@ -102,9 +102,9 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>,
 	stable@kernel.org,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.0 76/79] mm: make page ref count overflow check tighter and more explicit
-Date: Fri, 26 Apr 2019 21:38:35 -0400
-Message-Id: <20190427013838.6596-76-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.0 77/79] mm: add 'try_get_page()' helper function
+Date: Fri, 26 Apr 2019 21:38:36 -0400
+Message-Id: <20190427013838.6596-77-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <20190427013838.6596-1-sashal@kernel.org>
 References: <20190427013838.6596-1-sashal@kernel.org>
@@ -120,18 +120,26 @@ List-ID: <linux-mm.kvack.org>
 
 From: Linus Torvalds <torvalds@linux-foundation.org>
 
-[ Upstream commit f958d7b528b1b40c44cfda5eabe2d82760d868c3 ]
+[ Upstream commit 88b1a17dfc3ed7728316478fae0f5ad508f50397 ]
 
-We have a VM_BUG_ON() to check that the page reference count doesn't
-underflow (or get close to overflow) by checking the sign of the count.
+This is the same as the traditional 'get_page()' function, but instead
+of unconditionally incrementing the reference count of the page, it only
+does so if the count was "safe".  It returns whether the reference count
+was incremented (and is marked __must_check, since the caller obviously
+has to be aware of it).
 
-That's all fine, but we actually want to allow people to use a "get page
-ref unless it's already very high" helper function, and we want that one
-to use the sign of the page ref (without triggering this VM_BUG_ON).
+Also like 'get_page()', you can't use this function unless you already
+had a reference to the page.  The intent is that you can use this
+exactly like get_page(), but in situations where you want to limit the
+maximum reference count.
 
-Change the VM_BUG_ON to only check for small underflows (or _very_ close
-to overflowing), and ignore overflows which have strayed into negative
-territory.
+The code currently does an unconditional WARN_ON_ONCE() if we ever hit
+the reference count issues (either zero or negative), as a notification
+that the conditional non-increment actually happened.
+
+NOTE! The count access for the "safety" check is inherently racy, but
+that doesn't matter since the buffer we use is basically half the range
+of the reference count (ie we look at the sign of the count).
 
 Acked-by: Matthew Wilcox <willy@infradead.org>
 Cc: Jann Horn <jannh@google.com>
@@ -139,33 +147,29 @@ Cc: stable@kernel.org
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- include/linux/mm.h | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/linux/mm.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..541d99b86aea 100644
+index 541d99b86aea..7000ddd807e0 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -965,6 +965,10 @@ static inline bool is_pci_p2pdma_page(const struct page *page)
- }
- #endif /* CONFIG_DEV_PAGEMAP_OPS */
- 
-+/* 127: arbitrary random number, small enough to assemble well */
-+#define page_ref_zero_or_close_to_overflow(page) \
-+	((unsigned int) page_ref_count(page) + 127u <= 127u)
-+
- static inline void get_page(struct page *page)
- {
- 	page = compound_head(page);
-@@ -972,7 +976,7 @@ static inline void get_page(struct page *page)
- 	 * Getting a normal page or the head of a compound page
- 	 * requires to already have an elevated page->_refcount.
- 	 */
--	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
-+	VM_BUG_ON_PAGE(page_ref_zero_or_close_to_overflow(page), page);
+@@ -980,6 +980,15 @@ static inline void get_page(struct page *page)
  	page_ref_inc(page);
  }
  
++static inline __must_check bool try_get_page(struct page *page)
++{
++	page = compound_head(page);
++	if (WARN_ON_ONCE(page_ref_count(page) <= 0))
++		return false;
++	page_ref_inc(page);
++	return true;
++}
++
+ static inline void put_page(struct page *page)
+ {
+ 	page = compound_head(page);
 -- 
 2.19.1
 
