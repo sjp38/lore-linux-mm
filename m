@@ -1,194 +1,173 @@
-Return-Path: <SRS0=i6a/=S4=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=h8p8=S5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92B9BC43218
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 21:26:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3330C43219
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 00:32:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 41514206A3
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Apr 2019 21:26:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B9C6206C1
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 00:32:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KFqBx7lJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41514206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GRQvaMYd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B9C6206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFD636B0003; Fri, 26 Apr 2019 17:26:41 -0400 (EDT)
+	id 7EEBA6B0003; Fri, 26 Apr 2019 20:31:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAA736B0005; Fri, 26 Apr 2019 17:26:41 -0400 (EDT)
+	id 79E8C6B0005; Fri, 26 Apr 2019 20:31:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC2416B0006; Fri, 26 Apr 2019 17:26:41 -0400 (EDT)
+	id 68DB96B0006; Fri, 26 Apr 2019 20:31:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F5C26B0003
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 17:26:41 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f7so2836761pgi.20
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 14:26:41 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A93A6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 20:31:59 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id k17so3964917ior.4
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 17:31:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=VEK4EQKY+lHbgrInTqADydnKPftbhoL1fL3jVGMPkWw=;
-        b=GugBtXOH/MPTjcWGHyrfCQQhB1GpJFQmNwVtePMLJiR5dNTM2TluDFA6X7h8ZNmYo1
-         deNTqXCmkCMMl+z5O26P+C2bmumDUvJ/HjM9md3aVwHd+DR357R5UV4GzcT3ts3CFU7X
-         o6HYz0kVOlx6YtBcaO28ova85JppxJDbbD8qQnSK+wUzkuKEtBZf37UYnAD03bl1pJJD
-         /u/otu7gtpELpFfLFz+I2t5tiZlS4iZ3buxu8gE1d/fAsIVA4VLtD/gCKK+jLseWbzCy
-         3KjfrjHdYl/rUeKX6IP4sclOJQFBW3Oc2VgaqIvL2qYyIxxDiBIqTTk9ZK5hm/79gTZ/
-         DQ8w==
-X-Gm-Message-State: APjAAAX+mOn5lGZhuwAVtja2q555YT3VxTg18CHZk8YoreBud5bddIdV
-	ubx/ptrTf9ch/N70K4mmS03xcgnIpuaRalObtAJOEkiM9K/M8PAtT2naewfuUsBi5Yztkt6t3se
-	DMJWF+S3gQ9jzs4P4GYpym/jEsTMvJ6kPJGids+nX+AsYNhMcL53pfC6uzhRHJHFm+Q==
-X-Received: by 2002:a17:902:a5cb:: with SMTP id t11mr19155234plq.268.1556314001025;
-        Fri, 26 Apr 2019 14:26:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0xclf6sN+8Lb7AoqrClUXYGzmYwWSMSHOFaAHzoVkUUo/x8vKveJtdRnQSVdNA4nTzrQi
-X-Received: by 2002:a17:902:a5cb:: with SMTP id t11mr19155190plq.268.1556314000102;
-        Fri, 26 Apr 2019 14:26:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556314000; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=2QgVvbOTbiGvVrZQMKzKXcCYAFgho+lUOq5aSkENeLo=;
+        b=I/G214PQx3uu/ot13g1R12zi8aglpu1DLtmwDFd2rTi2tFF08J432ldFKkH2/vDb9L
+         5uT445qqbb3D0/xw0h6YBUJr0XJceUxY6/I384tsVwXhvttOOG+KudQrTACFiI3vmWcd
+         HjLKqRfNqvoZMSdvV/UZWpV1LD2d87QW4COF7H9Db+9PteNYPhHmO8lbL8FwBfuh/FFD
+         f92kA+ZSnbPUwyYy2zRs03VBj8Yj1SSg9nDfz+en+K5HObnIM7SP8Uc5N2KSdqDlaEb1
+         GJhQr7Nx5OIDxgcoZktq71Edd5IxA+f7qu7XmhiMlLlUZal6aEofi0ZBvJ03+4svv0HW
+         rCZg==
+X-Gm-Message-State: APjAAAWkXu8tFcjbgqN7GsGkKYuf3Svb8/9BOvNZ48yHFsj8GwsAvWG9
+	9pfQd3G/q6uF5bifZe/ikXcri3noQPE/YcM3Wpi8uHQZXogwj9jv4tjxgRMFKbjaNW3HvE1Ojbf
+	+HBIxNALKUuNl981W2+5nzvBKdS4jCrqSBt73LuC5MKT0iG+sA792O64C9LxOpcLe8A==
+X-Received: by 2002:a5d:9d48:: with SMTP id k8mr10475176iok.194.1556325118852;
+        Fri, 26 Apr 2019 17:31:58 -0700 (PDT)
+X-Received: by 2002:a5d:9d48:: with SMTP id k8mr10475129iok.194.1556325118128;
+        Fri, 26 Apr 2019 17:31:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556325118; cv=none;
         d=google.com; s=arc-20160816;
-        b=KlRFzhF4r5l71q+hBC9vyw2enGZSM7wKwvDH3zGh0ycLpCMizvZcX2JpqmJXVTg89F
-         Az176z+CyRHijYML5wh6oGACLXDWi1ZOScuX+frUs5Zr/eLY5mCy22iCqty1WVaCKtLv
-         tX7v4FDkIYXFvb6pMavMdukvbrePpaVEEm0DQRavQMGBqUyD7hFL+4HpmIst6qxBYMWF
-         B+yf/HJ+vh02/hLYzlOTI4jrm0pqsXsjOIyPR1z+PoTo7IAGLNw4rCVH/5E40B1OB2+B
-         dzt9m/PTP/pQBZwdUsiRY9zd9aBOuuuR7VweklRu0uwwfE4LJ6KuMFJNOPIbNDRBluuY
-         0vtA==
+        b=UmbEA3U82itvoMruMRVuSN3X39pPnBRRCoo8TjaTXQpI7hHdeqVQjoSSs/V0jEeKxU
+         zJkj2jNzdPB7Nw/dX12k3LUd/cJu/EH+/DtUaYvTnRpm+oE6f0cjVA++b0piaeBnOeub
+         rlLVSsoxQ8f+xR/eNQx2xtj+efNh8j8ydOyY+AucAjvxo9TVjOFKczBXuTRHvmYQJs6p
+         u/gXM7XBxie/Gx7KFNA+nt8AS1+pTN/MaZ+OvSIowcZTSc1soHdQ3MwXSL4kxW7VtONE
+         /IB/hAJ76/tyTxPixwboBxF3BcwRDu48heJsDT3HJdzcS8eotkvgIXfpd61+fSFCHWFX
+         XzzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=VEK4EQKY+lHbgrInTqADydnKPftbhoL1fL3jVGMPkWw=;
-        b=mdK3clhgM+k6Ra/KaFIa5ky8cJ+fjtnrzcVX95yy1a2jAueaiuUCGVQZP+oeuwu1EW
-         6M1k7sO1j+JTfv8iOBMi1u0TtN9dJvB4iyj4QlP2RVp1HOp6XkanKWmb/MEE4sgY2MvL
-         Z2SPATpOjXiD6iFKZclxSaBlAMtGVCJ+HJjq9KSwkSOS4pCNzefotlNI2sKE5BfJ4wOW
-         AzJ5mqRDuGZrR+89VmuI/vrF+N9fHTn3h6StcDOt9lPtfEXss0MOD7mVAMZwXzAEM7AB
-         8Ti0/Xl9+nItMY+1no5AVERoPM0u6IRYiN/QQ0U96A+Pngq4B0ZJccuRBz4KqK6HspAM
-         hOqg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=2QgVvbOTbiGvVrZQMKzKXcCYAFgho+lUOq5aSkENeLo=;
+        b=aJsJ8FVdnV5cbreoIQuVwoV5h/vwJoskrsp5zXSdpaB9FRHi//YYNckRvxOkUE3F0G
+         8dpWuwJTUQ6p4AQh/2UM6t1yxpsHA3errvQT8Xj4DODiqC+/ydWNHsqLq5+jq5bh6AOK
+         fRUqvJrR49xzK8/lIlKntnVO02KnpRNXWiSIexrc6vWZIF1BxISMfOqZ3o6trNQRTERu
+         HfI/Qtg79mNQkS8Ao52oeWez7b0cYfbsiTAqlIzZR3jevBRstlpo9Bw+TtCvVU3/5KGg
+         hwHB6RFUaQ884bLLjQLT52h2aggGo/02qtJHJjv5cDsuavUAgQttI75S0W8d4oc1MJN8
+         xADg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KFqBx7lJ;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y15si26370332plp.357.2019.04.26.14.26.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GRQvaMYd;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d11sor15123283ioq.48.2019.04.26.17.31.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Apr 2019 14:26:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 26 Apr 2019 17:31:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KFqBx7lJ;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f43.google.com (mail-wm1-f43.google.com [209.85.128.43])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 80B542077B
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2019 21:26:39 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1556313999;
-	bh=D0t+02sSwcut5ajzNNivlJU0Ro11fXksLOee2pRrCfg=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=KFqBx7lJ2xW/ZYaXv2tmORF55+e/veZZXqQxhZIbRAnePpvb1GCT5XYj1AD/huJEH
-	 iI1AgObnyI+W19QqZRYgfw/E6RYOX1P5dY0hC8gkxHhdUxRWBGcXxbO5JlStPsGXIr
-	 OWZIvKE14i9KB8xnl8JGYbKLum/88xqqSVfwjhAE=
-Received: by mail-wm1-f43.google.com with SMTP id c1so5435191wml.4
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 14:26:39 -0700 (PDT)
-X-Received: by 2002:a05:600c:211a:: with SMTP id u26mr9839645wml.74.1556313998090;
- Fri, 26 Apr 2019 14:26:38 -0700 (PDT)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GRQvaMYd;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=2QgVvbOTbiGvVrZQMKzKXcCYAFgho+lUOq5aSkENeLo=;
+        b=GRQvaMYd89KGckS1pHpP6tqOAL11CzuNh3uCFo5i2WlGp0J7SuHKnNADOSm2OB4ga1
+         PxuWwLb1xhy9Im1iGI99EpbquIzVWmLcGNM7e3CYUH7Alf6T0ZFFIxcQudgmkhZGLKNN
+         2bMaFfERZx/lv/HH03TiwbuLwC7iq+y0vl56KOCQFmz1KciED9xvStf0BrZOJStCzfZG
+         /VZmN3HIcJ1p1SOzDPzbG/PBoEA9aPpVQO9qIGOZ3qlnUzZHN/k1RTsoJNg5FYDJrk/d
+         M7gZB46NJ7m2l/pb8WQ7kxMwSvM2gZBo+UwMaQEfa3I0bytcoZr7LSyA60XdiaM/PbLo
+         0MHw==
+X-Google-Smtp-Source: APXvYqyxEKGXgzDcIfMQFY3G/X2LzeY/zhXeNH2wVvrkadH4IJQYFv/j/2aH6a/YIqdaXLJMN756YoXQbe1Vzy7YiGI=
+X-Received: by 2002:a5d:9a90:: with SMTP id c16mr3477445iom.295.1556325117664;
+ Fri, 26 Apr 2019 17:31:57 -0700 (PDT)
 MIME-Version: 1.0
-References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
- <1556228754-12996-3-git-send-email-rppt@linux.ibm.com> <20190426083144.GA126896@gmail.com>
- <20190426095802.GA35515@gmail.com>
-In-Reply-To: <20190426095802.GA35515@gmail.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 26 Apr 2019 14:26:26 -0700
-X-Gmail-Original-Message-ID: <CALCETrV3xZdaMn_MQ5V5nORJbcAeMmpc=gq1=M9cmC_=tKVL3A@mail.gmail.com>
-Message-ID: <CALCETrV3xZdaMn_MQ5V5nORJbcAeMmpc=gq1=M9cmC_=tKVL3A@mail.gmail.com>
-Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call isolation
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Alexandre Chartre <alexandre.chartre@oracle.com>, Andy Lutomirski <luto@kernel.org>, 
-	Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, 
-	James Bottomley <James.Bottomley@hansenpartnership.com>, Jonathan Adams <jwadams@google.com>, 
-	Kees Cook <keescook@chromium.org>, Paul Turner <pjt@google.com>, 
-	Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Linux-MM <linux-mm@kvack.org>, 
-	LSM List <linux-security-module@vger.kernel.org>, X86 ML <x86@kernel.org>, 
-	Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, 
-	Andrew Morton <akpm@linux-foundation.org>
+References: <1556274402-19018-1-git-send-email-laoar.shao@gmail.com> <20190426112542.bf1cd9fe8e9ed7a659642643@linux-foundation.org>
+In-Reply-To: <20190426112542.bf1cd9fe8e9ed7a659642643@linux-foundation.org>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Sat, 27 Apr 2019 08:31:42 +0800
+Message-ID: <CALOAHbDek6g7D+gK79_T-saTvT6gdbtd-ksb13BX3YqvV9TP5Q@mail.gmail.com>
+Subject: Re: [PATCH] mm/page-writeback: introduce tracepoint for wait_on_page_writeback
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, 
+	shaoyafang@didiglobal.com
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Apr 26, 2019, at 2:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
+On Sat, Apr 27, 2019 at 2:25 AM Andrew Morton <akpm@linux-foundation.org> wrote:
 >
+> On Fri, 26 Apr 2019 18:26:42 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
 >
-> * Ingo Molnar <mingo@kernel.org> wrote:
+> > Recently there're some hungtasks on our server due to
+> > wait_on_page_writeback, and we want to know the details of this
+> > PG_writeback, i.e. this page is writing back to which device.
+> > But it is not so convenient to get the details.
+> >
+> > I think it would be better to introduce a tracepoint for diagnosing
+> > the writeback details.
 >
->> I really don't like it where this is going. In a couple of years I
->> really want to be able to think of PTI as a bad dream that is mostly
->> over fortunately.
->>
->> I have the feeling that compiler level protection that avoids
->> corrupting the stack in the first place is going to be lower overhead,
->> and would work in a much broader range of environments. Do we have
->> analysis of what the compiler would have to do to prevent most ROP
->> attacks, and what the runtime cost of that is?
->>
->> I mean, C# and Java programs aren't able to corrupt the stack as long
->> as the language runtime is corect. Has to be possible, right?
+> Fair enough, I guess.
 >
-> So if such security feature is offered then I'm afraid distros would be
-> strongly inclined to enable it - saying 'yes' to a kernel feature that
-> can keep your product off CVE advisories is a strong force.
+> > --- a/include/linux/pagemap.h
+> > +++ b/include/linux/pagemap.h
+> > @@ -537,15 +537,7 @@ static inline int wait_on_page_locked_killable(struct page *page)
+> >
+> >  extern void put_and_wait_on_page_locked(struct page *page);
+> >
+> > -/*
+> > - * Wait for a page to complete writeback
+> > - */
+> > -static inline void wait_on_page_writeback(struct page *page)
+> > -{
+> > -     if (PageWriteback(page))
+> > -             wait_on_page_bit(page, PG_writeback);
+> > -}
+> > -
+> > +void wait_on_page_writeback(struct page *page);
+> >  extern void end_page_writeback(struct page *page);
+> >  void wait_for_stable_page(struct page *page);
+> >
+> > ...
+> >
+> > +/*
+> > + * Wait for a page to complete writeback
+> > + */
+> > +void wait_on_page_writeback(struct page *page)
+> > +{
+> > +     if (PageWriteback(page)) {
+> > +             trace_wait_on_page_writeback(page, page_mapping(page));
+> > +             wait_on_page_bit(page, PG_writeback);
+> > +     }
+> > +}
+> > +EXPORT_SYMBOL_GPL(wait_on_page_writeback);
 >
-> To phrase the argument in a bit more controversial form:
+> But this is a stealth change to the wait_on_page_writeback() licensing.
+> I will get sad emails from developers of accidentally-broken
+> out-of-tree filesystems.
 >
->   If the price of Linux using an insecure C runtime is to slow down
->   system calls with immense PTI-alike runtime costs, then wouldn't it be
->   the right technical decision to write the kernel in a language runtime
->   that doesn't allow stack overflows and such?
->
-> I.e. if having Linux in C ends up being slower than having it in Java,
-> then what's the performance argument in favor of using C to begin with?
-> ;-)
->
-> And no, I'm not arguing for Java or C#, but I am arguing for a saner
-> version of C.
->
+> We can discuss changing the licensing, but this isn't the way to do it!
 >
 
-IMO three are three credible choices:
+Got it.
+Thanks for your explatation.
 
-1. C with fairly strong CFI protection. Grsecurity has his (supposedly
-=E2=80=94 there=E2=80=99s a distinct lack of source code available), and cl=
-ang is
-gradually working on it.
-
-2. A safe language for parts of the kernel, e.g. drivers and maybe
-eventually filesystems.  Rust is probably the only credible candidate.
-Actually creating a decent Rust wrapper around the core kernel
-facilities would be quite a bit of work.  Things like sysfs would be
-interesting in Rust, since AFAIK few or even no drivers actually get
-the locking fully correct.  This means that naive users of the API
-cannot port directly to safe Rust, because all the races won't compile
-:)
-
-3. A sandbox for parts of the kernel, e.g. drivers.  The obvious
-candidates are eBPF and WASM.
-
-#2 will give very good performance.  #3 gives potentially stronger
-protection against a sandboxed component corrupting the kernel
-overall, but it gives much weaker protection against a sandboxed
-component corrupting itself.
-
-In an ideal world, we could do #2 *and* #3.  Drivers could, for
-example, be written in a language like Rust, compiled to WASM, and run
-in the kernel.
+Thanks
+Yafang
 
