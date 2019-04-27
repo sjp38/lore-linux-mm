@@ -2,203 +2,174 @@ Return-Path: <SRS0=h8p8=S5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 437D2C4321A
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:00:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0985EC4321A
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:18:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C6518208CA
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:00:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="sQgZM+n9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6518208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id C523A208CB
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Apr 2019 06:18:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C523A208CB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3EB956B0003; Sat, 27 Apr 2019 02:00:18 -0400 (EDT)
+	id 602D16B0003; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3735A6B0005; Sat, 27 Apr 2019 02:00:18 -0400 (EDT)
+	id 5D7526B0005; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EEF56B0006; Sat, 27 Apr 2019 02:00:18 -0400 (EDT)
+	id 4ED116B0006; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DA0046B0003
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:00:17 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id h14so3420569pgn.23
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:00:17 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0196C6B0003
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2019 02:18:17 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id r7so5760291wrv.19
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2019 23:18:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=9mSKg2SIvsOs/xLgAIl2pXj2eMJ9JaMiTd4MI5nAg04=;
-        b=VfKu+3kLNuYtd8A6NJppp4v32utQRDVKdgIOmYHS6Mji3W+6xENmBOEKYsg5rqi5jH
-         jPBr4n7iiMdYrIr9VSxDV0s3EIX054wZT8sILDG/ulxnY5WCsToHr0LJv6i5LsG/ZJ4Q
-         GOqH8MPjwJofbRR/JLMUhhAtXu+rLA7CiLT+e54Orx7+MpZ8WKFzNnYatBqgL+If/r2v
-         uMzC/3uqKiG2NJUCm65+jzEtcGkZTP+BHzpOqj02JuNa7W6DTl9YbWeLW2aypUY5tQEQ
-         zEjck0yOVXodvwHOsnIST742GDLeHk6rOA4sXiq9pynMRjsiqxmnTNC3z7kyCauBkHHl
-         FVow==
-X-Gm-Message-State: APjAAAX2XgKldABZXmEiCqaeSUSSK7OY7hC/MYi0t4t2RG2kUsgNZzLr
-	NRv8UKchyLtjxf9Qcq/BDOmRR8f0s3mRNc2K3PxfSnOgS/uZJPdg0Wat9+qPWV5cNp3TuhD7NvK
-	0v/cluw+7B5GFxytbsl3rOnLUUB6eht6JR8ygF97ndNcmxZ5ymCKw6QU4yswKHurfiA==
-X-Received: by 2002:a17:902:2aeb:: with SMTP id j98mr40526175plb.38.1556344816854;
-        Fri, 26 Apr 2019 23:00:16 -0700 (PDT)
-X-Received: by 2002:a17:902:2aeb:: with SMTP id j98mr40526100plb.38.1556344815817;
-        Fri, 26 Apr 2019 23:00:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556344815; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5bn7149UBqTO/bGoYDflR+GGrfgzfwoiCgZqrYPyQME=;
+        b=NZ1X1sJSPyABVC/T9B3f2YHPfjwiKyyzEBJ6g+qF124quFNGzEBggQkkZTGwqZ11Bz
+         Z5WFP80ujI01oOPPgZ6yNkrHv6GYry93oUTkKkyujbmTjONsKnki3Rm3OBMzByk1sHvT
+         uMPz8ojKaGND6yKvRqPNvKwdQolKew30HNxjyxxFkCufnoqxDpvZx19IAfrJupYYI6oq
+         /JUt4ItgUOyLOf8X61IaIIS4B6b5ywI4FbMh6JZfuGu8m4NKKyQBzOXCCmwd0qRyEY3U
+         7l+yylgDoOloAPhcnh3gfn8bd7BQJ5M4jhwSrt9WjRXzbrauqzmurmsK8vWIAa0CiQOw
+         FhGg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAVS30KdPQagwa+Y7dY0wGpXWqbHFW2I2zRnfypt5AFqfL748PbO
+	F85EJ4eU5b+A+n4Rp9XAhiLAKWAhTVsHFqFOcqxlsftCXt78gycEmiuX2/iRFO9/ZHA9/uKIOrw
+	Dduu1pDseRwT/66KeIJHp5OO01s90KYqDIY45QEIr79WSJSwZjI18PG4E01R4FTs1xQ==
+X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr10121344wmk.153.1556345896513;
+        Fri, 26 Apr 2019 23:18:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx/tCTpE6inqlDsKnL5gL+5YfSbjjLEv3CQq7Ew/7C1lpicTNJbFfGLcp9vA/VmYibCXFrZ
+X-Received: by 2002:a05:600c:28b:: with SMTP id 11mr10121308wmk.153.1556345895640;
+        Fri, 26 Apr 2019 23:18:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556345895; cv=none;
         d=google.com; s=arc-20160816;
-        b=SZBvP3mydTUaOvcWq1Ix/G7WA/EhrQ5eKcmlrjIHf+YqjRrDen3U06/z9gafjc00gT
-         LtFTK0+yDBI+4jTsTSa4nFdf1gl8bAXELFBIhGjC0auJGdUHdp0qCv9d7pU2G+WORC8o
-         AuAOx9Cx73czX07kxVpIlndXl1sFxifQbSlMakyHJqCP59gzHXeJ8Ok0tFMjb8y9HOzr
-         pM0qCKWBCifeq6qghFAscWrMPxc3EmpW2xGdgnXtqaQeNnQiWirgaylB2MMdNWdo3cTe
-         DjKbKMLpKwS7i1sbQcM39Ih9mIdoxAqoQ6eHME9/ikPk/YLoEfPcOpZP9oYq/w92vexL
-         HaJQ==
+        b=S9raZkQpn0atwzgAnHJVKifGtolPsk+qeinvXPadBfiVdjEyknQ45tr5qzZUpf4GyA
+         yfXmCL1L3ScIhZOzp5WLITjKZVYIK08j0/ZSuItnyVGh3SVaW54LirZzrski68Vsdbnn
+         ywZGXMrV4WnEerr7HkY56TefEalV0MK0zFhIpDGCo5VIlmOox7jVuYpV3/rEDsM8x2kR
+         NIhR3ps3OG3iAAOFA1TcuQiM3bw1qlHzqNQq4jKugbKbcsNeG0MY6PtIDffSLcNrGg87
+         gp1Lb2/o5DhHm8YMSA5FAuYwLRozKVsCsKzsMXmr4MWT2juAZ8PG6AiC5q5K9D9T+aY5
+         nkhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=9mSKg2SIvsOs/xLgAIl2pXj2eMJ9JaMiTd4MI5nAg04=;
-        b=PRWtQdscdDw+qypWqPNux2YVLx8isrUJB90OuwkpGvmZedNAgvVgdGDjhNi++uh4FB
-         SJ9uMkUhPvTQRQtUIgx+wMX/rq29yRimLTtuCzbDud70FPeKk8a+IX4WLt8pA2TfJSyT
-         ZSZjfjrBchtubQjuY16Qi4V7Bmh2VLmCwvV888sN9Z4UbdwF7hg4/HvgXY0HMWlkiYcY
-         wOt1SakaeF1ei5rQXkhkxJk+tBxq2p0W/Vq9GzI69CLKQfBoERCYTYFEt1azvqdQwIWA
-         sC8vMfl9Y3YcQxQ2/g3Fl0IlZosjakfxXdbMzHxZUf73WDzx+UT+M94JxGsxboZEKpZu
-         emzA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=5bn7149UBqTO/bGoYDflR+GGrfgzfwoiCgZqrYPyQME=;
+        b=dIQCP7sfZCKgvjALyvOIzQbcnj+Aa1VnFSwZTZyEEJB2ojcweK8xw+dDe6t2LYgZ8T
+         Y2gcMXxPrFWVmNTa6gdenZVDCHjwjmwXZw3Si1o16vzjHDVWwhFCUMti1PurWAXBOvrr
+         bSxUM+mLJENzNne4ZcexOj4Dpy7zfMzuARNUn+rQWDwzAFU2GRy5pb2oHI0MpykZaSBf
+         MOtTyIKufF0uoWgbIF+RSm9e6gdw+rUGUl7kazX2EQL+6ea87zJlGsT+8QS587jquFpp
+         pAWYrbWhNMSgB/Vyfo4N9gdiYuCTThH8GWW5ZamrJ9lylI37G5WW1pQla51h6C2Wcf+f
+         09sg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=sQgZM+n9;
-       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l18sor11892597pfd.66.2019.04.26.23.00.15
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 14si5883965wmi.49.2019.04.26.23.18.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Apr 2019 23:00:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Apr 2019 23:18:15 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=sQgZM+n9;
-       spf=pass (google.com: domain of walken@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=walken@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=9mSKg2SIvsOs/xLgAIl2pXj2eMJ9JaMiTd4MI5nAg04=;
-        b=sQgZM+n9Be/cWtzN8fNus9HazrNXXo2P9TnRXJ3OGXR/7LV1xuaW4rJA/roFhqf0TY
-         mQCS64dg1TtuGiotH0xCet3pe1hS8IOvRcqAhBIgfyzwhLE/9ZwL2Gwe40/zd/NnkU+7
-         VrpMs8JFZ+ZUVmL6NL9u579BqupyJRMM5thKTY4byen+ygGpp6uuta11/qVxM0mde7gT
-         NUJBfmXhweZUqn604h85jwvMEvFMmU1yG1Zy3ng8ZZlB4JTgg7O9/oy6VPt9CsqUZm4n
-         K+HJubSlTziMfSj9ObPIOHOr59uF1HZw9VN8rdH7MqooI+xJn3y98FDtNsW803OpqSrv
-         MhuA==
-X-Google-Smtp-Source: APXvYqxBrLQLYOhjC06ttH0oS4iTEZciWxGcpCjxLxO6REBckClVky6ibhEZSIdbT3pUDWmo5ZD8Gw==
-X-Received: by 2002:a65:408b:: with SMTP id t11mr8911128pgp.372.1556344814717;
-        Fri, 26 Apr 2019 23:00:14 -0700 (PDT)
-Received: from google.com ([2620:15c:2cd:202:668d:6035:b425:3a3a])
-        by smtp.gmail.com with ESMTPSA id u62sm44711410pfa.124.2019.04.26.23.00.12
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Apr 2019 23:00:13 -0700 (PDT)
-Date: Fri, 26 Apr 2019 23:00:10 -0700
-From: Michel Lespinasse <walken@google.com>
-To: Laurent Dufour <ldufour@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>,
-	Andi Kleen <ak@linux.intel.com>, dave@stgolabs.net,
-	Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>,
-	aneesh.kumar@linux.ibm.com,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	mpe@ellerman.id.au, Paul Mackerras <paulus@samba.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>,
-	sergey.senozhatsky.work@gmail.com,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Alexei Starovoitov <alexei.starovoitov@gmail.com>,
-	kemi.wang@intel.com, Daniel Jordan <daniel.m.jordan@oracle.com>,
-	David Rientjes <rientjes@google.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Ganesh Mahendran <opensource.ganesh@gmail.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Punit Agrawal <punitagrawal@gmail.com>,
-	vinayak menon <vinayakm.list@gmail.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	zhong jiang <zhongjiang@huawei.com>,
-	Haiyan Song <haiyanx.song@intel.com>,
-	Balbir Singh <bsingharora@gmail.com>, sj38.park@gmail.com,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	haren@linux.vnet.ibm.com, Nick Piggin <npiggin@gmail.com>,
-	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
-Subject: Re: [PATCH v12 00/31] Speculative page faults
-Message-ID: <20190427060010.GB174296@google.com>
-References: <20190416134522.17540-1-ldufour@linux.ibm.com>
- <CANN689F1h9XoHPzr_FQY2WfN5bb2TTd6M3HLqoJ-DQuHkNbA7g@mail.gmail.com>
- <aadc7b03-9121-6800-341b-6f2849088a09@linux.ibm.com>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id DEBE668BFE; Sat, 27 Apr 2019 08:17:59 +0200 (CEST)
+Date: Sat, 27 Apr 2019 08:17:59 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Andreas Gruenbacher <agruenba@redhat.com>
+Cc: cluster-devel@redhat.com, Christoph Hellwig <hch@lst.de>,
+	Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>,
+	Dave Chinner <david@fromorbit.com>,
+	Ross Lagerwall <ross.lagerwall@citrix.com>,
+	Mark Syms <Mark.Syms@citrix.com>,
+	Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v5 1/3] iomap: Fix use-after-free error in page_done
+ callback
+Message-ID: <20190427061759.GA21795@lst.de>
+References: <20190426131127.19164-1-agruenba@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <aadc7b03-9121-6800-341b-6f2849088a09@linux.ibm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190426131127.19164-1-agruenba@redhat.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 08:01:20PM +0200, Laurent Dufour wrote:
-> Le 22/04/2019 à 23:29, Michel Lespinasse a écrit :
-> > Hi Laurent,
-> > 
-> > Thanks a lot for copying me on this patchset. It took me a few days to
-> > go through it - I had not been following the previous iterations of
-> > this series so I had to catch up. I will be sending comments for
-> > individual commits, but before tat I would like to discuss the series
-> > as a whole.
-> 
-> Hi Michel,
-> 
-> Thanks for reviewing this series.
-> 
-> > I think these changes are a big step in the right direction. My main
-> > reservation about them is that they are additive - adding some complexity
-> > for speculative page faults - and I wonder if it'd be possible, over the
-> > long term, to replace the existing complexity we have in mmap_sem retry
-> > mechanisms instead of adding to it. This is not something that should
-> > block your progress, but I think it would be good, as we introduce spf,
-> > to evaluate whether we could eventually get all the way to removing the
-> > mmap_sem retry mechanism, or if we will actually have to keep both.
-> 
-> Until we get rid of the mmap_sem which seems to be a very long story, I
-> can't see how we could get rid of the retry mechanism.
+This looks ok to me, holding the page over the i_size update
+and mark_inode_dirty should be ok.  But I think it would be a lot
+cleaner if rebased ontop of this cleanup, which you could add to the
+front of the series:
 
-Short answer: I'd like spf to be extended to handle file vmas,
-populating page tables, and the vm_normal_page thing, so that we
-wouldn't have to fall back to the path that grabs (and possibly
-has to drop) the read side mmap_sem.
+---
+From 908dbc5e7c26035f992fef84886976e0cda10b98 Mon Sep 17 00:00:00 2001
+From: Christoph Hellwig <hch@lst.de>
+Date: Sat, 27 Apr 2019 08:13:38 +0200
+Subject: iomap: cleanup __generic_write_end calling conventions
 
-Even doing the above, there are still cases spf can't solve - for
-example, gup, or the occasional spf abort, or even the case of a large
-mmap/munmap delaying a smaller one. I think replacing mmap_sem with a
-reader/writer interval lock would be a very nice generic solution to
-this problem, allowing false conflicts to proceed in parallel, while
-synchronizing true conflicts which is exactly what we want. But I
-don't think such a lock can be implemented efficiently enough to be
-put on the page fault fast-path, so I think spf could be the solution
-there - it would allow us to skip taking that interval lock on most
-page faults. The other places where we use mmap_sem are not as critical
-for performance (they normally operate on a larger region at a time)
-so I think we could afford the interval lock in those places.
+Move the call to __generic_write_end into the common code flow instead
+of duplicating it in each of the three branches.  This requires open
+coding the generic_write_end for the buffer_head case.
 
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ fs/iomap.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/fs/iomap.c b/fs/iomap.c
+index abdd18e404f8..cfc8a10b3fd8 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -738,13 +738,11 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
+ 	 * uptodate page as a zero-length write, and force the caller to redo
+ 	 * the whole thing.
+ 	 */
+-	if (unlikely(copied < len && !PageUptodate(page))) {
+-		copied = 0;
+-	} else {
+-		iomap_set_range_uptodate(page, offset_in_page(pos), len);
+-		iomap_set_page_dirty(page);
+-	}
+-	return __generic_write_end(inode, pos, copied, page);
++	if (unlikely(copied < len && !PageUptodate(page)))
++		return 0;
++	iomap_set_range_uptodate(page, offset_in_page(pos), len);
++	iomap_set_page_dirty(page);
++	return copied;
+ }
+ 
+ static int
+@@ -761,7 +759,6 @@ iomap_write_end_inline(struct inode *inode, struct page *page,
+ 	kunmap_atomic(addr);
+ 
+ 	mark_inode_dirty(inode);
+-	__generic_write_end(inode, pos, copied, page);
+ 	return copied;
+ }
+ 
+@@ -774,12 +771,13 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
+ 	if (iomap->type == IOMAP_INLINE) {
+ 		ret = iomap_write_end_inline(inode, page, iomap, pos, copied);
+ 	} else if (iomap->flags & IOMAP_F_BUFFER_HEAD) {
+-		ret = generic_write_end(NULL, inode->i_mapping, pos, len,
+-				copied, page, NULL);
++		ret = block_write_end(NULL, inode->i_mapping, pos, len, copied,
++				page, NULL);
+ 	} else {
+ 		ret = __iomap_write_end(inode, pos, len, copied, page, iomap);
+ 	}
+ 
++	ret = __generic_write_end(inode, pos, ret, page);
+ 	if (iomap->page_done)
+ 		iomap->page_done(inode, pos, copied, page, iomap);
+ 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+2.20.1
 
