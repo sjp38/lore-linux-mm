@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F64DC43218
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:11:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F553C4321B
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:14:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32B142075D
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:11:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CF93E2075D
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:14:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="TFCG+qkP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32B142075D
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="eDzzAt6J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF93E2075D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB5DC6B0003; Sun, 28 Apr 2019 04:11:19 -0400 (EDT)
+	id 5BDDD6B0003; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B63436B0006; Sun, 28 Apr 2019 04:11:19 -0400 (EDT)
+	id 56CBD6B0006; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A037E6B0007; Sun, 28 Apr 2019 04:11:19 -0400 (EDT)
+	id 45DED6B0007; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 663DD6B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 04:11:19 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a141so3562005pfa.13
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:11:19 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 10F706B0003
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a8so5240804pgq.22
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=9cfzCZHsC8Z1URVhGFCxQrxINgq5TQBCpge+7Hexgeo=;
-        b=OknsrVBIbYQ+0GK2mZI1PI+Urnn8nvEJNScx/1cRXFd3JZs8lBBHhbyzwm0WcZb2yS
-         lD+JMXNNorveRyTQFxOhd0uhwe4XmrXo12qzMCt0YLgBusM0l3t1o/ROfW4iqsPGtAgG
-         63HV0/wISDN7Cn668x/hpZ3gAd49bk+dw8mMf+DmZKtT56rrZekQtolwVx/vJ5zGEgHb
-         uvI+m0sJzlTQ6Ym4u8uEk7tquV2O0YLm0lZ6OmiX+A0Kv0fqsftrWSLTJmKuf2ln1aGT
-         WaK3UgEyqQ57Z8qT5EWISve88PPDJfOwY15YCGreLsUNPgdaZW1f6ss9HEUFS3YY8s0O
-         21dQ==
-X-Gm-Message-State: APjAAAWHeJ0YzrIuWMnVka3bJhymqtPuvs+rICoA2iHw9hLBWJXiQWT4
-	ikrUp3nb02aXu2J6Ghn2qq4UYpqyNs9n8QRJuZvVJlGn2eZyS414DuPKKgsHqREQS5LJpqiFSI/
-	W6vi6/c4NCGdob0dGAzsP1rdqAUR+fpY4fEidT/FhPcotPw/m7HBfYoMYP9vSXxpo9w==
-X-Received: by 2002:a62:be1a:: with SMTP id l26mr2271386pff.201.1556439078921;
-        Sun, 28 Apr 2019 01:11:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGUriT9okm3CnnPZDV/TTyF7VdIYTJkyKAT98comhQWx2B/4A5d8Se424iLi5SxpKt0eZm
-X-Received: by 2002:a62:be1a:: with SMTP id l26mr2271352pff.201.1556439078171;
-        Sun, 28 Apr 2019 01:11:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556439078; cv=none;
+        bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=;
+        b=T4iAs7s1dWiV3SlffNURPFTBgjzohZSVYA6nYUKaV2CB69fDxDGm258La/ltxM57Zd
+         DbtBuJ+jS/x4Atdwvrc2/Dz3DMTkNlujOX6fK1QLXUJ6lnW1UaiBlTna+cFUwxc1+ZKE
+         0Na1tMVoB7pFynFPAt59vj6evEBGwOZZV1e6+kuX8lxQWZNlWx7gKxuhykaCDVNpxIS6
+         35qRBZXEbYIvmmejINHYQpj4+1pzI5rez638IsfUogmaR/8JAQNt5zmjMk1x5jsQtvx4
+         4eE7JsXoelT17d4GrrSABMU7ZkJaDGRsNNUgRtFczi55uyuwhmqdZyE5yPZjw2fnd5eY
+         ATIg==
+X-Gm-Message-State: APjAAAVJT7vK0wGaWX2+vreLY6bow/lXYlmFgQP2dhENGyEM2DFIf1Rb
+	mheAYCEelV/tgWwRZ074Vx3BIZzF5Rw/UP0mGqASHulhmKBWrXHC82/L/hNnzTwST9zloP2L7If
+	MStVBAymaJ7cBB+c9fC5Pke/iKN9B6Mikc4UXGnauaQvKe7+NzMThfdDSXjQw0iR8mQ==
+X-Received: by 2002:a17:902:b210:: with SMTP id t16mr55438070plr.84.1556439241643;
+        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHrjRJCGpfHg/1Sr2zMyREKnhkHkX+R36jxzD+4dQIeZb3ceVXjOyha+qQ3CxofYnpOq97
+X-Received: by 2002:a17:902:b210:: with SMTP id t16mr55438038plr.84.1556439241113;
+        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556439241; cv=none;
         d=google.com; s=arc-20160816;
-        b=bilowKyYjuhGw+DLSOzu8lsAP1whi+hdIwpZ7Y9JS+Z/5Su2cUneqmRSmjHtbQZ639
-         qazJhW/XLQpHweNXfX3ukHtXkWjHJeqMhWgM8fcHVAH3q/JMZWujtuDTfC69DU9DZntU
-         BIu6uzuPOdXwR2KAESIoGMdR7ZAVJHef5RfmMl9oQgr+QVZX0oSTuJ+vSXbTWdocw1md
-         O3TLmzMDU9acpUoRs192uDFiOAnXOky0L/qgjd2ur/7cTEj+sHplR8p0klyLsfHErkWp
-         enVxajC7eeiLtOQKyq/sv/PHBZ2P31YPVCqw1PPXHxBuHyo4lL6nB0+9XCPAw0JBAdjV
-         cYvQ==
+        b=M57Mo/PuEcInGndyOqP+tnosn7U/fdFBZJsGi/P8rG7fGJrnBSvmP790BCCqFVpqH4
+         PKBqwmH0k9TreRMrXJZQ2VgE5FpsU9SPcw6TlA529Gor1OQn4/5oqE3k/cYyHtC8pakT
+         RivVcbTYGtyagmBMpGMBpATJyGjSLMu/0sbj2CGTtEtB7yD3/Q6+kuTzIXT6bGpY3Ccz
+         rpatHtl4ppCqLn9cPdH6aatYxk84bzAZtcEaiUDT/saOqtmVS8IYzFv0AqhtA8C8yRWz
+         1cgMd6nScz8Ia04oivxIUgAQ/GbSk7T6gk79yFJNtSMxzNPpQEcRdFfn9iSd40gvoN1Q
+         MWJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9cfzCZHsC8Z1URVhGFCxQrxINgq5TQBCpge+7Hexgeo=;
-        b=ZfSyG2QBHL58WTIYqKrmZKlGKnjkKQNHRbr95Q9C/dq/hMYshIXMPuZ8CI/Pf9kQpi
-         bSd4h6qDD1Z6R0uJdJOJd1JPLzbIhwESX3K7xM/3OctyYnYJl7vVRFgyB2W/1jUmMURM
-         AK3IcPGLLSgYulnajkXyUeQ3SsZbjoOZi6SwySjCOUJ9UHknk46Hso+BuVCrTArmkj0r
-         7l9m2vrv6HEdAMZs7D1EZinBuaS0c1RjBGPNq0My5GTNLpQoMx4kP+0uoReqr5GpkLP2
-         qAzrEElAijBdOsIdL1Dds1rqv745cDJohopWOdSsfl1EObcblyS68f5iNnk3GpOpA4TZ
-         T1mw==
+        bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=;
+        b=AAx8uCxaWbJH1FnVA8N3kktqndRvdQrXPOPbErxCXFDYMKRien/YAi8odFEUp+i5VU
+         IndlL2jHvdYxu0LiziTpd1cy+8PmOAPY1jUYMcdccFmAzYBM3B1UdEH+Diyfw/iyroH5
+         Y/OCAGv95CoRMFgDuNExdXAjr8e7DmX/ruGcHTnhPNFcZq0bq3BWmxn+YI0JKjA8Zt/5
+         easihVYvnwQJLzB6B9T3J+/ld9GugxOROI7mtEYKrvNzMS5aIxkJAPeXWsksiTyeYRtq
+         am+nMygOyxbDdyjGu+JxHlIRIqIqKraVYFzdhTPRVMSs1j/5I+FKOv6nyfTGdYYCCvt/
+         Eljw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=TFCG+qkP;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eDzzAt6J;
        spf=pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j15si29948438pfi.8.2019.04.28.01.11.17
+        by mx.google.com with ESMTPS id f62si29147800plb.339.2019.04.28.01.14.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 28 Apr 2019 01:11:17 -0700 (PDT)
+        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=TFCG+qkP;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eDzzAt6J;
        spf=pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
@@ -85,39 +85,37 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=9cfzCZHsC8Z1URVhGFCxQrxINgq5TQBCpge+7Hexgeo=; b=TFCG+qkPsR1tZhgIZ7nDdAu0U
-	41Nj91cp2ngQL//A/7D/Qd/9wiELv5/cmOFeNyPyksBVKb+qMzDrmLMV4ybT5jMS9H+MF5ZsLts1l
-	lfKLPgcZ0ZX3lBjNfifZXvn/oylF71G4vYc2rkGFLX8tAm9OrHVcOVcOGG0fnOkbaFDAL4OM0KDPp
-	T8SYAMoCCLFGrrD8yxjawK2PBNYA0Xix+L43FIhjbTddeH2nGIBjguRfnkqeOg3LL21Kp+PkuxAh/
-	4bERD+PCrlUYLJtsUSZQ5FXKeu2DsZb8IsCRYAqtv3geoy0wDTwEDGjksVmGvGbPjksJtmYTcqLcr
-	1c0xSPqAg==;
+	 bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=; b=eDzzAt6Jd4hljvq3l+ATNeBe+
+	qpl0rfWEg5FVpeoaZDWvRC/hp+cIzXIHkW/+gK4+ZTECZUpwoOdHVdWoVy61+cZPde0uTLt5MD26Q
+	4+WAFs1pMnH2K2L93uAhBHF2T3CTL8KPCewNrSaE+G7PhP8SGWuK9rD7thPYwFKZRECdivq1SLlb/
+	9UCtNCQex5pXRPwOJZ5Me6Kksb1HFeZfMgirxHYgH/kJfiHy821EK+CeZq0NLkipSnCsLWfPZ91jx
+	tVLB2jnoZHjXPknEjE0AMLDfomVTv/9r6DBGjOawGM1NpR2q7lQA2O1IAGaN6oQEoFRpZPLdIzPNe
+	0dzcD+bsw==;
 Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hKetv-00011K-CV; Sun, 28 Apr 2019 08:11:07 +0000
-Date: Sun, 28 Apr 2019 01:11:07 -0700
+	id 1hKewb-00016d-NE; Sun, 28 Apr 2019 08:13:53 +0000
+Date: Sun, 28 Apr 2019 01:13:53 -0700
 From: Christoph Hellwig <hch@infradead.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>,
+To: Meelis Roos <mroos@linux.ee>
+Cc: Christopher Lameter <cl@linux.com>,
 	Mel Gorman <mgorman@techsingularity.net>,
-	Matthew Wilcox <willy@infradead.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Mikulas Patocka <mpatocka@redhat.com>,
 	James Bottomley <James.Bottomley@hansenpartnership.com>,
 	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
 	Vlastimil Babka <vbabka@suse.cz>,
-	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org,
+	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+	linux-ia64@vger.kernel.org
 Subject: Re: DISCONTIGMEM is deprecated
-Message-ID: <20190428081107.GA30901@infradead.org>
+Message-ID: <20190428081353.GB30901@infradead.org>
 References: <20190419094335.GJ18914@techsingularity.net>
  <20190419140521.GI7751@bombadil.infradead.org>
- <20190421063859.GA19926@rapoport-lnx>
- <20190421132606.GJ7751@bombadil.infradead.org>
- <20190421211604.GN18914@techsingularity.net>
- <20190423071354.GB12114@infradead.org>
- <20190424113352.GA6278@rapoport-lnx>
+ <0100016a461809ed-be5bd8fc-9925-424d-9624-4a325a7a8860-000000@email.amazonses.com>
+ <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190424113352.GA6278@rapoport-lnx>
+In-Reply-To: <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
 User-Agent: Mutt/1.9.2 (2017-12-15)
 X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -126,24 +124,24 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 02:33:53PM +0300, Mike Rapoport wrote:
-> On Tue, Apr 23, 2019 at 12:13:54AM -0700, Christoph Hellwig wrote:
-> > On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
-> > > 32-bit NUMA systems should be non-existent in practice. The last NUMA
-> > > system I'm aware of that was both NUMA and 32-bit only died somewhere
-> > > between 2004 and 2007. If someone is running a 64-bit capable system in
-> > > 32-bit mode with NUMA, they really are just punishing themselves for fun.
+On Tue, Apr 23, 2019 at 07:49:57PM +0300, Meelis Roos wrote:
+> > > ia64 (looks complicated ...)
 > > 
-> > Can we mark it as BROKEN to see if someone shouts and then remove it
-> > a year or two down the road?  Or just kill it off now..
+> > Well as far as I can tell it was not even used 12 or so years ago on
+> > Itanium when I worked on that stuff.
 > 
-> How about making SPARSEMEM default for x86-32?
+> My notes tell that on UP ia64 (RX2620), !NUMA was broken with both
+> SPARSEMEM and DISCONTIGMEM. NUMA+SPARSEMEM or !NUMA worked. Even
+> NUMA+DISCONTIGMEM worked, that was my config on 2-CPU RX2660.
 
-Sounds good.
+ia64 has a such a huge number of memory model choices.  Maybe we
+need to cut it down to a small set that actually work.
 
-Another question:  I always found the option to even select the memory
-models like a bad tradeoff.  Can we really expect a user to make a sane
-choice?  I'd rather stick to a relativelty optimal choice based on arch
-and maybe a few other parameters (NUMA or not for example) and stick to
-it, reducing the testing matrix.
+That includes fund bits like the 'VIRTUAL_MEM_MAP' option where the
+comment claims:
+
+# VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
+# VIRTUAL_MEM_MAP has been retained for historical reasons.
+
+but it still is selected as the default if sparsemem is not enabled..
 
