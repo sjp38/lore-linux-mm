@@ -2,111 +2,111 @@ Return-Path: <SRS0=7ROk=S6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2245C4321A
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 05:45:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31E72C43218
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 05:47:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6ED3920881
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 05:45:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6ED3920881
+	by mail.kernel.org (Postfix) with ESMTP id D77B220881
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 05:47:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D77B220881
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D06E06B0003; Sun, 28 Apr 2019 01:45:17 -0400 (EDT)
+	id 7FAE66B0006; Sun, 28 Apr 2019 01:47:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB5846B0006; Sun, 28 Apr 2019 01:45:17 -0400 (EDT)
+	id 7AAF16B0008; Sun, 28 Apr 2019 01:47:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B7DFC6B0007; Sun, 28 Apr 2019 01:45:17 -0400 (EDT)
+	id 675286B000A; Sun, 28 Apr 2019 01:47:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9434E6B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:45:17 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id f138so6335523yba.4
-        for <linux-mm@kvack.org>; Sat, 27 Apr 2019 22:45:17 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 304536B0006
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:47:25 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id p8so5153289pfd.4
+        for <linux-mm@kvack.org>; Sat, 27 Apr 2019 22:47:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:references:mime-version:content-disposition:in-reply-to
          :user-agent:message-id;
-        bh=Z1ZqanrjczSC6xp9Apv/ojFCg2xP/hoDAOgq+a9/JA4=;
-        b=rZTfPrRX63QmH026qNMXbh8kT3kzEnntPXyAJdKZjsoaBk9ADkFnbY6yt2zdaCKZ0A
-         6pG7rXVzxD4Fxt7nYP13jtmgCjkmZInibobznsKsx0iMqTCR/xB2Gn35L8WPPDyYc2sC
-         qn79FyQVdibHeoK3YUbg+I/W0zOlHcM2LSpKBBBuMYGzScsw7zQInUJsP5Eibmonh0k0
-         vmV7FmWt9hmzXX7yufBV3nwvegZJ3jqQ94Ep0qimowUnNezaK9ScdCGZYVOkvYKnBwbQ
-         +rpRiSkCht1/DbuhDW/4SfiJlv90/8Ocs4eoVLA4+CxILfvFRgqPuB5EZoSmBEL+l3/8
-         S32g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUUUG+klSn0W8NnXp0FEaSLb/KGTOPhReTy+zc/rKMcaUZdM6g0
-	eJvBxHs/qc2owO4usQHTyghseUM/E3k7SmwzTA6TgNuEr3k7ydS9Wi8tI/ySN9UfAljUW8jCC9m
-	Tkmz7y8+fFMFmJFsTWmtWRxKjXbcEVsi7gf9gnIhxLiqc2zBlIOKomAXO95mmNHD1sQ==
-X-Received: by 2002:a25:2591:: with SMTP id l139mr708141ybl.518.1556430317321;
-        Sat, 27 Apr 2019 22:45:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6QmntO28w+l0uqpyxnUfn5C1SfxdbW1LT6VMndSvX+ozb1di6X71bhMghkovk90xbujfu
-X-Received: by 2002:a25:2591:: with SMTP id l139mr708122ybl.518.1556430316601;
-        Sat, 27 Apr 2019 22:45:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556430316; cv=none;
+        bh=cFoXT26Ut5J38gNbrWm0ZX2oaBdIiGTgJzTQo+EfHms=;
+        b=RJ1K+bghcQXLwcutsCZ3kbBT7JfZ9eKIcRcJtr/UeTx2WyuS9rz/hKi/QiyM+AuGKe
+         gLy4jz87ayVk7GmuQkkRWqhIjYnshFGGEUMu4DWrtX1CXVH5N0wWe8gIsUyR6WduUByE
+         3IIah5rR2Oj0MtjQoWo0SuLE9iFj58+cNkEW13iiciCg3YJrnb2wjTiaCDa9DL94KjPz
+         uU6ZMxFPpv/1cC+IomeISKPb3FvhevyzP0JnqMj6INLiYxuu4ZPIcGEWVC9KS6crCVpF
+         Ms2IjX5uoHq7zlFNMgR9SH/bFMT7moatlzvB7negDkvyaHSODr/QA6LyD0QxCu3DjoLV
+         7Kxg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWl6IhrmIiLSpyrZKdRLXXbZ4ewCzjo3w88RtdFKpv6kWdBA3Cp
+	I4Kvdy7qTPoi1SnmXh1MOczF12TreCwsFIdGD5IqBFszwWRfuLCE0C39IPEZIPIgPotSyr+XJ8e
+	GMVgoVAq5WzySb5vqEfbHzKT9IUcXPup7PaT2dJAGRBgYBRqZT7iGdAFsZhYJmfv9cA==
+X-Received: by 2002:a17:902:42:: with SMTP id 60mr55320316pla.79.1556430444858;
+        Sat, 27 Apr 2019 22:47:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzGZ6wd1b+v6d0kTK3d1262BlmSCboowaUhvnaozEtTO2+2LllSJGihCoFfGn5leAUXY0iF
+X-Received: by 2002:a17:902:42:: with SMTP id 60mr55320281pla.79.1556430444175;
+        Sat, 27 Apr 2019 22:47:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556430444; cv=none;
         d=google.com; s=arc-20160816;
-        b=Axa7Dol/0Yv4LPWzUoEQxn5WKZ1nig7S000N0pppIMZdrrHVXjchE0//NwOuPMLD4Y
-         MoReJNWvU0/xzXIMVsh/aLiINzWxT+4Clug4Z6+EoylkabVd5hq6PkAHQbH0/MiOLoUT
-         rhOby65EtFXVXtY9GBdMP6buNgxEpaEXacUBvbbZrU8L/vmC3EQFJjr40PQjgUPDwinW
-         NqCJ7QNqsPJ/hY2BLdfWzXHLADjkGWZr2jW2Ku81p2/5EQgr9xq0nk2F+RNq4vHiTIBO
-         bzsObFSm6jB7scYxLdes4dHVk/pxr2xJlCtXFbY1W8SNvv1EuWaUhKkcL7BoI7FdRzUM
-         w+9Q==
+        b=rx0iP42SzA6/P8XJxvbu9AyIytYvD+PIOGpn6ErD71FPpHjyJdam0Twz1hw1BzQe6j
+         GJdu1CyH4n2pG+U+Em1PESGLSiWb3cHhdiAUrhAwlBGNseYgREYHumLbiEFJW9VqIlke
+         6yfUbxMxG4EkDDyinUiZ1LeyIfWoEKBDhpRw/1WFzQZ03xHbrLGhk+UvNz7euczfl9sB
+         GogzFxQtqZzyHE0Sz7qOZN9BCTFBc/Y8HY9Tsc+TMJJOUZx7ssuyPmpJY7padcZF66bY
+         DyQqpcWvTHpI7SFAAnLghKszhJTB7eVPdW1NgrrUBdVyNtKX1nHnLUdSyYQi87G32NeX
+         Lwzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:user-agent:in-reply-to:content-disposition:mime-version
          :references:subject:cc:to:from:date;
-        bh=Z1ZqanrjczSC6xp9Apv/ojFCg2xP/hoDAOgq+a9/JA4=;
-        b=bVEe/7tqRBS87klby9pYfJzZ4TCenhL/O5sHXxeZ627/JY+b5BecHf9he9zkluXuTH
-         t4xv3bIu2R5XBxWMaa7wPgfSL7Haa1T1TZi3xWxqXK6+Le5d3iX3YGeG/vawhSGcZHJc
-         GImcRCMY300u+sjFMCD9tH1LPuE/J1kRzAz9c+fgeyRj8fYFHEvBttS0Gd1fWrj45m78
-         bw2GaNWixwpCk2iOY8j7Tc0KDZUKJfQdNl/JPw+VoCsO9UZwNBJYwUbH6plc/H5tJYwt
-         fjBYIp/WPc6C3bAZGq6zfk/rc652O97v/vGz+b3MCXVsQAO3kmkWR0b2A9rcUL4Curr1
-         nedA==
+        bh=cFoXT26Ut5J38gNbrWm0ZX2oaBdIiGTgJzTQo+EfHms=;
+        b=hgeM1B5+7xnYt/NxOdpOacSFHKT4/Gn4Rr9qvDDN/wR5BcYCzS09lo8ccL3S61qzR0
+         hYdcWOqwS3Fk7qidiivgo7sgeXDM5HDVGXOeYkW75lPECBJqlQhsM1/HdIhi36Z3wWWD
+         vlE9+0HQRzr4SOWjdmCfFlutEbjLyVDq94c2ho6jGDu+vF9tfP1MhcEL2ad45my1rZKW
+         Pq1LLhBO8CTC1oXAJ0DTr26OiUjmQ8jX+OLaz82KzcQJiBskRh+VjIrDDepEdIendRC4
+         DjuQUr4oLXgzBwfFV+brxX9A3IlLjfCXd3vhz8Nf8YwkA6h+prCC2TvqAVytdRsuhI5d
+         rQsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l15si19098997ybp.11.2019.04.27.22.45.16
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k12si27190633pgo.429.2019.04.27.22.47.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Apr 2019 22:45:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Sat, 27 Apr 2019 22:47:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3S5cag4008142
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:45:16 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2s54h12drm-1
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3S5dTmJ055933
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:47:23 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s54kvt748-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:45:16 -0400
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:47:23 -0400
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 28 Apr 2019 06:45:14 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Sun, 28 Apr 2019 06:47:20 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sun, 28 Apr 2019 06:45:09 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3S5j8gi45023464
+	Sun, 28 Apr 2019 06:47:15 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3S5lE3355115962
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 28 Apr 2019 05:45:08 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A9A88AE055;
-	Sun, 28 Apr 2019 05:45:08 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7F4C9AE056;
-	Sun, 28 Apr 2019 05:45:07 +0000 (GMT)
+	Sun, 28 Apr 2019 05:47:14 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A6EF311C04C;
+	Sun, 28 Apr 2019 05:47:14 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7CB1D11C04A;
+	Sun, 28 Apr 2019 05:47:13 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Sun, 28 Apr 2019 05:45:07 +0000 (GMT)
-Date: Sun, 28 Apr 2019 08:45:05 +0300
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Sun, 28 Apr 2019 05:47:13 +0000 (GMT)
+Date: Sun, 28 Apr 2019 08:47:11 +0300
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: linux-kernel@vger.kernel.org,
@@ -119,27 +119,26 @@ Cc: linux-kernel@vger.kernel.org,
         Paul Turner <pjt@google.com>, Thomas Gleixner <tglx@linutronix.de>,
         linux-mm@kvack.org, linux-security-module@vger.kernel.org,
         x86@kernel.org
-Subject: Re: [RFC PATCH 2/7] x86/sci: add core implementation for system call
- isolation
+Subject: Re: [RFC PATCH 5/7] x86/mm/fault: hook up SCI verification
 References: <1556228754-12996-1-git-send-email-rppt@linux.ibm.com>
- <1556228754-12996-3-git-send-email-rppt@linux.ibm.com>
- <20190426074956.GZ4038@hirez.programming.kicks-ass.net>
+ <1556228754-12996-6-git-send-email-rppt@linux.ibm.com>
+ <20190426074223.GY4038@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190426074956.GZ4038@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190426074223.GY4038@hirez.programming.kicks-ass.net>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-x-cbid: 19042805-0016-0000-0000-00000276086A
+x-cbid: 19042805-0012-0000-0000-000003160447
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19042805-0017-0000-0000-000032D28A42
-Message-Id: <20190428054505.GC14896@rapoport-lnx>
+x-cbparentid: 19042805-0013-0000-0000-0000214E65F8
+Message-Id: <20190428054711.GD14896@rapoport-lnx>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-28_04:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=515 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=414 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1904280040
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -147,30 +146,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 09:49:56AM +0200, Peter Zijlstra wrote:
-> On Fri, Apr 26, 2019 at 12:45:49AM +0300, Mike Rapoport wrote:
-> > The initial SCI implementation allows access to any kernel data, but it
-> > limits access to the code in the following way:
-> > * calls and jumps to known code symbols without offset are allowed
-> > * calls and jumps into a known symbol with offset are allowed only if that
-> > symbol was already accessed and the offset is in the next page
-> > * all other code access are blocked
+On Fri, Apr 26, 2019 at 09:42:23AM +0200, Peter Zijlstra wrote:
+> On Fri, Apr 26, 2019 at 12:45:52AM +0300, Mike Rapoport wrote:
+> > If a system call runs in isolated context, it's accesses to kernel code and
+> > data will be verified by SCI susbsytem.
+> > 
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > ---
+> >  arch/x86/mm/fault.c | 28 ++++++++++++++++++++++++++++
+> >  1 file changed, 28 insertions(+)
 > 
-> So if you have a large function and an in-function jump skips a page
-> you're toast.
+> There's a distinct lack of touching do_double_fault(). It appears to me
+> that you'll instantly trigger #DF when you #PF, because the #PF handler
+> itself will not be able to run.
 
-Right :(
+The #PF handler is able to run. On interrupt/error entry the cr3 is
+switched to the full kernel page tables, pretty much like PTI does for
+user <-> kernel transitions. It's in the patch 3.
  
-> Why not employ the instruction decoder we have and unconditionally allow
-> all direct JMP/CALL but verify indirect JMP/CALL and RET ?
-
-Apparently I didn't dig deep enough to find the instruction decoder :)
-Surely I can use it.
-
-> Anyway, I'm fearing the overhead of this one, this cannot be fast.
-
-Well, I think that the verification itself is not what will slow things
-down the most. IMHO, the major overhead is coming from cr3 switch.
+> And then obviously you have to be very careful to make sure #DF can,
+> _at_all_times_ run, otherwise you'll tripple-fault and we all know what
+> that does.
+> 
 
 -- 
 Sincerely yours,
