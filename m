@@ -2,146 +2,354 @@ Return-Path: <SRS0=7ROk=S6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F553C4321B
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:14:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15FA3C43219
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 12:17:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF93E2075D
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 08:14:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="eDzzAt6J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF93E2075D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 9C1E62075D
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 12:17:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C1E62075D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BDDD6B0003; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
+	id E9EB16B0003; Sun, 28 Apr 2019 08:17:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56CBD6B0006; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
+	id E50A46B0006; Sun, 28 Apr 2019 08:17:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45DED6B0007; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
+	id D18006B0007; Sun, 28 Apr 2019 08:17:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 10F706B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 04:14:02 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id a8so5240804pgq.22
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 958536B0003
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 08:17:55 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d1so5477682pgk.21
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 05:17:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=;
-        b=T4iAs7s1dWiV3SlffNURPFTBgjzohZSVYA6nYUKaV2CB69fDxDGm258La/ltxM57Zd
-         DbtBuJ+jS/x4Atdwvrc2/Dz3DMTkNlujOX6fK1QLXUJ6lnW1UaiBlTna+cFUwxc1+ZKE
-         0Na1tMVoB7pFynFPAt59vj6evEBGwOZZV1e6+kuX8lxQWZNlWx7gKxuhykaCDVNpxIS6
-         35qRBZXEbYIvmmejINHYQpj4+1pzI5rez638IsfUogmaR/8JAQNt5zmjMk1x5jsQtvx4
-         4eE7JsXoelT17d4GrrSABMU7ZkJaDGRsNNUgRtFczi55uyuwhmqdZyE5yPZjw2fnd5eY
-         ATIg==
-X-Gm-Message-State: APjAAAVJT7vK0wGaWX2+vreLY6bow/lXYlmFgQP2dhENGyEM2DFIf1Rb
-	mheAYCEelV/tgWwRZ074Vx3BIZzF5Rw/UP0mGqASHulhmKBWrXHC82/L/hNnzTwST9zloP2L7If
-	MStVBAymaJ7cBB+c9fC5Pke/iKN9B6Mikc4UXGnauaQvKe7+NzMThfdDSXjQw0iR8mQ==
-X-Received: by 2002:a17:902:b210:: with SMTP id t16mr55438070plr.84.1556439241643;
-        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyHrjRJCGpfHg/1Sr2zMyREKnhkHkX+R36jxzD+4dQIeZb3ceVXjOyha+qQ3CxofYnpOq97
-X-Received: by 2002:a17:902:b210:: with SMTP id t16mr55438038plr.84.1556439241113;
-        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556439241; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=8ytr9mfB+3ADyDqCyHRH/M+Ov7q23lBmJ9jUVDNHihc=;
+        b=YKBTEo7C4d76cGmWBKIQRi/BSyzwN+/+ow5yIOuwhXneyeEBMvw+v1Bc3pLvkqRuea
+         n5JpkSwGnUnsR3xN1Db6Kz8p7lY6QMk81WX/ebSXQL+H0Qr1A+ymnsUXltauRdoh3gnL
+         mV3Lie3cOiQSv2KX40soj1K+18h9uvd6QZXnHEC9uNUzFtb9bwGeWnfRpMAhJc6Jyqw9
+         71FWnBUPHLah18QOFLti0lco0aBdjNR3Np9teM++8o25+fjoDs97r7KzPotbxQ0vEoS8
+         a5r48Tfwo2k3vA+k9f+THerYuK+JK6x6s7CpOlvEy21i1joQ7cm8VpEq2Kg5g6TPOK0d
+         llPg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAV/v3gXRCz3jNe0ORIE9Y26SpPl11XK0YY1+3eD+gShZ5bM3T6u
+	PZelH7ja+Jk4hfWbUg78esyVTgvZ3dScLdAIJ5RC9JHs/YPfpHFgSWuHE94aQyLvCFlq22anqpd
+	68ix1+YBDhIKiV9CV6HdBElyaipnrXaV1fzo+wSVRreKAS8+IRb59NdncccUdZ5qGrQ==
+X-Received: by 2002:a62:5582:: with SMTP id j124mr57658477pfb.53.1556453875176;
+        Sun, 28 Apr 2019 05:17:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy5MFEsz6RekbAyM57AIAW105vnOqKjIIlKGrR4zi5728x+DNN+5zDXWgxTyvuVIrCUPfMF
+X-Received: by 2002:a62:5582:: with SMTP id j124mr57658396pfb.53.1556453873771;
+        Sun, 28 Apr 2019 05:17:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556453873; cv=none;
         d=google.com; s=arc-20160816;
-        b=M57Mo/PuEcInGndyOqP+tnosn7U/fdFBZJsGi/P8rG7fGJrnBSvmP790BCCqFVpqH4
-         PKBqwmH0k9TreRMrXJZQ2VgE5FpsU9SPcw6TlA529Gor1OQn4/5oqE3k/cYyHtC8pakT
-         RivVcbTYGtyagmBMpGMBpATJyGjSLMu/0sbj2CGTtEtB7yD3/Q6+kuTzIXT6bGpY3Ccz
-         rpatHtl4ppCqLn9cPdH6aatYxk84bzAZtcEaiUDT/saOqtmVS8IYzFv0AqhtA8C8yRWz
-         1cgMd6nScz8Ia04oivxIUgAQ/GbSk7T6gk79yFJNtSMxzNPpQEcRdFfn9iSd40gvoN1Q
-         MWJg==
+        b=ZmowSRKfnW+Dz5Xk+/vEokKjNq2ZX6a/TIOp+zUVhGVWYCyyB1krGqIsJUg2VMfRUX
+         eaiXStX5skAE2aq4SaYsvIa/OjHgEbGy04wTQGdFRL/RlmZa1AQ4aQAdcEUSPX6QYP33
+         4xGxqFVR/IvvRqZy39Dujq27qzioBaDz5SV8lSxp9F1+FtzR6Yyq9wjvEe/cjhAJBpqx
+         PzZ+V+T+DK9gC/ctKaXAZnjN9NVUhDLB9yJTUB6HPAaUCL8A3YZ5VrT/mMWOundGU2wd
+         DNnvqsK8cH9AHdF7uHdl5vxnCeGrJ0bJaRxzOXspSz3v45ZsCZAGZAgpvQ7YrT9oT4Pi
+         fjyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=;
-        b=AAx8uCxaWbJH1FnVA8N3kktqndRvdQrXPOPbErxCXFDYMKRien/YAi8odFEUp+i5VU
-         IndlL2jHvdYxu0LiziTpd1cy+8PmOAPY1jUYMcdccFmAzYBM3B1UdEH+Diyfw/iyroH5
-         Y/OCAGv95CoRMFgDuNExdXAjr8e7DmX/ruGcHTnhPNFcZq0bq3BWmxn+YI0JKjA8Zt/5
-         easihVYvnwQJLzB6B9T3J+/ld9GugxOROI7mtEYKrvNzMS5aIxkJAPeXWsksiTyeYRtq
-         am+nMygOyxbDdyjGu+JxHlIRIqIqKraVYFzdhTPRVMSs1j/5I+FKOv6nyfTGdYYCCvt/
-         Eljw==
+        h=message-id:date:subject:cc:to:from;
+        bh=8ytr9mfB+3ADyDqCyHRH/M+Ov7q23lBmJ9jUVDNHihc=;
+        b=Gmwa3nhHtqbFbCjZLPQNVUmB+BxvHtHxtOhpg8cG1WhHG/brkEb8HUyXwxGEHqHdFI
+         DUSFXoH1qoKvR+wUdr2VgVkVj/UfFb+I412lmMLTV36YOhmMyaR8DbI2A6zlk7xBzTdO
+         TtWQHlKrwaruqf+OOj+kp41kYAvtsrmBZjfI5cQY4bODx6Cs77dXuBFgd4lxW+mCwsnL
+         vDrjHGMzIoWHALQw5pg2610sUeAOTqd2UEDBGe1IzvK9YbtRPOYNrq4hvHod7P4qQVPZ
+         t1Al9cnCFLxzjxq0+28oUw/Dmd+Du7ZAC3MT6bymGMZfY08Ljocwh7dWnfbEzgLsDFZ+
+         GujA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eDzzAt6J;
-       spf=pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f62si29147800plb.339.2019.04.28.01.14.01
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id f5si5737060pgj.491.2019.04.28.05.17.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 28 Apr 2019 01:14:01 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 28 Apr 2019 05:17:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=eDzzAt6J;
-       spf=pass (google.com: best guess record for domain of batv+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+6e876697d14fde6a77e3+5726+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=H7pSF8CSi3Mqest59wbgaWW0VcSYcjBW94HJQdX6LtQ=; b=eDzzAt6Jd4hljvq3l+ATNeBe+
-	qpl0rfWEg5FVpeoaZDWvRC/hp+cIzXIHkW/+gK4+ZTECZUpwoOdHVdWoVy61+cZPde0uTLt5MD26Q
-	4+WAFs1pMnH2K2L93uAhBHF2T3CTL8KPCewNrSaE+G7PhP8SGWuK9rD7thPYwFKZRECdivq1SLlb/
-	9UCtNCQex5pXRPwOJZ5Me6Kksb1HFeZfMgirxHYgH/kJfiHy821EK+CeZq0NLkipSnCsLWfPZ91jx
-	tVLB2jnoZHjXPknEjE0AMLDfomVTv/9r6DBGjOawGM1NpR2q7lQA2O1IAGaN6oQEoFRpZPLdIzPNe
-	0dzcD+bsw==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hKewb-00016d-NE; Sun, 28 Apr 2019 08:13:53 +0000
-Date: Sun, 28 Apr 2019 01:13:53 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Meelis Roos <mroos@linux.ee>
-Cc: Christopher Lameter <cl@linux.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mikulas Patocka <mpatocka@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	linux-parisc@vger.kernel.org, linux-mm@kvack.org,
-	Vlastimil Babka <vbabka@suse.cz>,
-	LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org,
-	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
-	linux-ia64@vger.kernel.org
-Subject: Re: DISCONTIGMEM is deprecated
-Message-ID: <20190428081353.GB30901@infradead.org>
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <0100016a461809ed-be5bd8fc-9925-424d-9624-4a325a7a8860-000000@email.amazonses.com>
- <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x3SBx96p127170
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 08:17:53 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s54nut0v9-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 08:17:52 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 28 Apr 2019 13:17:50 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sun, 28 Apr 2019 13:17:48 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x3SCHlO049283208
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sun, 28 Apr 2019 12:17:47 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 1C68942041;
+	Sun, 28 Apr 2019 12:17:47 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8A07B4203F;
+	Sun, 28 Apr 2019 12:17:45 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Sun, 28 Apr 2019 12:17:45 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Sun, 28 Apr 2019 15:17:44 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+        Randy Dunlap <rdunlap@infradead.org>, linux-doc@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH v3] docs/vm: add documentation of memory models
+Date: Sun, 28 Apr 2019 15:17:43 +0300
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19042812-0016-0000-0000-000002761A45
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19042812-0017-0000-0000-000032D29C8F
+Message-Id: <1556453863-16575-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-04-28_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1904280089
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 23, 2019 at 07:49:57PM +0300, Meelis Roos wrote:
-> > > ia64 (looks complicated ...)
-> > 
-> > Well as far as I can tell it was not even used 12 or so years ago on
-> > Itanium when I worked on that stuff.
-> 
-> My notes tell that on UP ia64 (RX2620), !NUMA was broken with both
-> SPARSEMEM and DISCONTIGMEM. NUMA+SPARSEMEM or !NUMA worked. Even
-> NUMA+DISCONTIGMEM worked, that was my config on 2-CPU RX2660.
+Describe what {FLAT,DISCONTIG,SPARSE}MEM are and how they manage to
+maintain pfn <-> struct page correspondence.
 
-ia64 has a such a huge number of memory model choices.  Maybe we
-need to cut it down to a small set that actually work.
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+v3 changes:
+* more spelling and grammar
 
-That includes fund bits like the 'VIRTUAL_MEM_MAP' option where the
-comment claims:
+v2 changes:
+* spelling/grammar fixes
+* added note about deprecation of DISCONTIGMEM
 
-# VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
-# VIRTUAL_MEM_MAP has been retained for historical reasons.
+ Documentation/vm/index.rst        |   1 +
+ Documentation/vm/memory-model.rst | 183 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 184 insertions(+)
+ create mode 100644 Documentation/vm/memory-model.rst
 
-but it still is selected as the default if sparsemem is not enabled..
+diff --git a/Documentation/vm/index.rst b/Documentation/vm/index.rst
+index b58cc3b..e8d943b 100644
+--- a/Documentation/vm/index.rst
++++ b/Documentation/vm/index.rst
+@@ -37,6 +37,7 @@ descriptions of data structures and algorithms.
+    hwpoison
+    hugetlbfs_reserv
+    ksm
++   memory-model
+    mmu_notifier
+    numa
+    overcommit-accounting
+diff --git a/Documentation/vm/memory-model.rst b/Documentation/vm/memory-model.rst
+new file mode 100644
+index 0000000..382f72a
+--- /dev/null
++++ b/Documentation/vm/memory-model.rst
+@@ -0,0 +1,183 @@
++.. SPDX-License-Identifier: GPL-2.0
++
++.. _physical_memory_model:
++
++=====================
++Physical Memory Model
++=====================
++
++Physical memory in a system may be addressed in different ways. The
++simplest case is when the physical memory starts at address 0 and
++spans a contiguous range up to the maximal address. It could be,
++however, that this range contains small holes that are not accessible
++for the CPU. Then there could be several contiguous ranges at
++completely distinct addresses. And, don't forget about NUMA, where
++different memory banks are attached to different CPUs.
++
++Linux abstracts this diversity using one of the three memory models:
++FLATMEM, DISCONTIGMEM and SPARSEMEM. Each architecture defines what
++memory models it supports, what the default memory model is and
++whether it is possible to manually override that default.
++
++.. note::
++   At time of this writing, DISCONTIGMEM is considered deprecated,
++   although it is still in use by several architectures.
++
++All the memory models track the status of physical page frames using
++:c:type:`struct page` arranged in one or more arrays.
++
++Regardless of the selected memory model, there exists one-to-one
++mapping between the physical page frame number (PFN) and the
++corresponding `struct page`.
++
++Each memory model defines :c:func:`pfn_to_page` and :c:func:`page_to_pfn`
++helpers that allow the conversion from PFN to `struct page` and vice
++versa.
++
++FLATMEM
++=======
++
++The simplest memory model is FLATMEM. This model is suitable for
++non-NUMA systems with contiguous, or mostly contiguous, physical
++memory.
++
++In the FLATMEM memory model, there is a global `mem_map` array that
++maps the entire physical memory. For most architectures, the holes
++have entries in the `mem_map` array. The `struct page` objects
++corresponding to the holes are never fully initialized.
++
++To allocate the `mem_map` array, architecture specific setup code
++should call :c:func:`free_area_init_node` function or its convenience
++wrapper :c:func:`free_area_init`. Yet, the mappings array is not
++usable until the call to :c:func:`memblock_free_all` that hands all
++the memory to the page allocator.
++
++If an architecture enables `CONFIG_ARCH_HAS_HOLES_MEMORYMODEL` option,
++it may free parts of the `mem_map` array that do not cover the
++actual physical pages. In such case, the architecture specific
++:c:func:`pfn_valid` implementation should take the holes in the
++`mem_map` into account.
++
++With FLATMEM, the conversion between a PFN and the `struct page` is
++straightforward: `PFN - ARCH_PFN_OFFSET` is an index to the
++`mem_map` array.
++
++The `ARCH_PFN_OFFSET` defines the first page frame number for
++systems with physical memory starting at address different from 0.
++
++DISCONTIGMEM
++============
++
++The DISCONTIGMEM model treats the physical memory as a collection of
++`nodes` similarly to how Linux NUMA support does. For each node Linux
++constructs an independent memory management subsystem represented by
++`struct pglist_data` (or `pg_data_t` for short). Among other
++things, `pg_data_t` holds the `node_mem_map` array that maps
++physical pages belonging to that node. The `node_start_pfn` field of
++`pg_data_t` is the number of the first page frame belonging to that
++node.
++
++The architecture setup code should call :c:func:`free_area_init_node` for
++each node in the system to initialize the `pg_data_t` object and its
++`node_mem_map`.
++
++Every `node_mem_map` behaves exactly as FLATMEM's `mem_map` -
++every physical page frame in a node has a `struct page` entry in the
++`node_mem_map` array. When DISCONTIGMEM is enabled, a portion of the
++`flags` field of the `struct page` encodes the node number of the
++node hosting that page.
++
++The conversion between a PFN and the `struct page` in the
++DISCONTIGMEM model became slightly more complex as it has to determine
++which node hosts the physical page and which `pg_data_t` object
++holds the `struct page`.
++
++Architectures that support DISCONTIGMEM provide :c:func:`pfn_to_nid`
++to convert PFN to the node number. The opposite conversion helper
++:c:func:`page_to_nid` is generic as it uses the node number encoded in
++page->flags.
++
++Once the node number is known, the PFN can be used to index
++appropriate `node_mem_map` array to access the `struct page` and
++the offset of the `struct page` from the `node_mem_map` plus
++`node_start_pfn` is the PFN of that page.
++
++SPARSEMEM
++=========
++
++SPARSEMEM is the most versatile memory model available in Linux and it
++is the only memory model that supports several advanced features such
++as hot-plug and hot-remove of the physical memory, alternative memory
++maps for non-volatile memory devices and deferred initialization of
++the memory map for larger systems.
++
++The SPARSEMEM model presents the physical memory as a collection of
++sections. A section is represented with :c:type:`struct mem_section`
++that contains `section_mem_map` that is, logically, a pointer to an
++array of struct pages. However, it is stored with some other magic
++that aids the sections management. The section size and maximal number
++of section is specified using `SECTION_SIZE_BITS` and
++`MAX_PHYSMEM_BITS` constants defined by each architecture that
++supports SPARSEMEM. While `MAX_PHYSMEM_BITS` is an actual width of a
++physical address that an architecture supports, the
++`SECTION_SIZE_BITS` is an arbitrary value.
++
++The maximal number of sections is denoted `NR_MEM_SECTIONS` and
++defined as
++
++.. math::
++
++   NR\_MEM\_SECTIONS = 2 ^ {(MAX\_PHYSMEM\_BITS - SECTION\_SIZE\_BITS)}
++
++The `mem_section` objects are arranged in a two-dimensional array
++called `mem_sections`. The size and placement of this array depend
++on `CONFIG_SPARSEMEM_EXTREME` and the maximal possible number of
++sections:
++
++* When `CONFIG_SPARSEMEM_EXTREME` is disabled, the `mem_sections`
++  array is static and has `NR_MEM_SECTIONS` rows. Each row holds a
++  single `mem_section` object.
++* When `CONFIG_SPARSEMEM_EXTREME` is enabled, the `mem_sections`
++  array is dynamically allocated. Each row contains PAGE_SIZE worth of
++  `mem_section` objects and the number of rows is calculated to fit
++  all the memory sections.
++
++The architecture setup code should call :c:func:`memory_present` for
++each active memory range or use :c:func:`memblocks_present` or
++:c:func:`sparse_memory_present_with_active_regions` wrappers to
++initialize the memory sections. Next, the actual memory maps should be
++set up using :c:func:`sparse_init`.
++
++With SPARSEMEM there are two possible ways to convert a PFN to the
++corresponding `struct page` - a "classic sparse" and "sparse
++vmemmap". The selection is made at build time and it is determined by
++the value of `CONFIG_SPARSEMEM_VMEMMAP`.
++
++The classic sparse encodes the section number of a page in page->flags
++and uses high bits of a PFN to access the section that maps that page
++frame. Inside a section, the PFN is the index to the array of pages.
++
++The sparse vmemmap uses a virtually mapped memory map to optimize
++pfn_to_page and page_to_pfn operations. There is a global `struct
++page *vmemmap` pointer that points to a virtually contiguous array of
++`struct page` objects. A PFN is an index to that array and the the
++offset of the `struct page` from `vmemmap` is the PFN of that
++page.
++
++To use vmemmap, an architecture has to reserve a range of virtual
++addresses that will map the physical pages containing the memory
++map and make sure that `vmemmap` points to that range. In addition,
++the architecture should implement :c:func:`vmemmap_populate` method
++that will allocate the physical memory and create page tables for the
++virtual memory map. If an architecture does not have any special
++requirements for the vmemmap mappings, it can use default
++:c:func:`vmemmap_populate_basepages` provided by the generic memory
++management.
++
++The virtually mapped memory map allows storing `struct page` objects
++for persistent memory devices in pre-allocated storage on those
++devices. This storage is represented with :c:type:`struct vmem_altmap`
++that is eventually passed to vmemmap_populate() through a long chain
++of function calls. The vmemmap_populate() implementation may use the
++`vmem_altmap` along with :c:func:`altmap_alloc_block_buf` helper to
++allocate memory map on the persistent memory device.
+-- 
+2.7.4
 
