@@ -2,108 +2,107 @@ Return-Path: <SRS0=7ROk=S6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC66FC43219
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:54:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83B86C43218
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:56:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7152D2067C
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:54:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2FF2B2067D
+	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:56:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vtb874mz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7152D2067C
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="t0IuUsXn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FF2B2067D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C92B16B0003; Sun, 28 Apr 2019 19:54:37 -0400 (EDT)
+	id ABD556B0003; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C43316B0006; Sun, 28 Apr 2019 19:54:37 -0400 (EDT)
+	id A6D586B0006; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B59AA6B0007; Sun, 28 Apr 2019 19:54:37 -0400 (EDT)
+	id 9849F6B0007; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91A516B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 19:54:37 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id d193so7755715ybh.13
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 16:54:37 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 776056B0003
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z34so8866708qtz.14
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 16:56:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=sJzmJt5dXSr46qHnoNS5EATc+3d/a2ElrqvTmuSBEdg=;
-        b=s/KWRZIq39dgW+gt5JqOJUHLuQ4Pma5gOJH2mVc1XVpRY6lFNyaJxumBRWaJsawaNA
-         o1q/fk+piZk3rHc8PJFkuDBJpVHkMWkPkuqrOjnrXz2rYLfjLcKJK3d3kql0ui20LHJb
-         1LrVo3t9xu2BZ1iP7Hbkrn5k21/M/mLqDFXW2VhMvSn8HAP/snvnFLuv6/rkqDXxBDhn
-         BpOA7nIqJlhSphmkce0dPENUULgHrfdGfwVqnTazUaaw6ttMLIzvkfO9QKQ52nTtbQ0S
-         l61ghLsw9sDXi2Mi1VRSXQ+FBGSegB0Bv7skOyO8G4Pk2f1lrOJxo9pq+vUVVNoiSSfo
-         AmnQ==
-X-Gm-Message-State: APjAAAU9XCxTQGjSeewazYKnWdfHabkoyrKq2O3XdMaR1O3lU4qaY4DK
-	R2x9TLuOZoLF01QlMkFvVvx5cdQnXOIkeFlR6yG2e/beOh4zC2tpaiJrOuToAjzjmoK+h3laNO4
-	/9g3JcIzK/h4bHcu7+h7BgqOyUl/nlRohVs0EMd47TkLic7DozffjGiUoKX/cFPGE/Q==
-X-Received: by 2002:a0d:cccb:: with SMTP id o194mr24509924ywd.506.1556495677281;
-        Sun, 28 Apr 2019 16:54:37 -0700 (PDT)
-X-Received: by 2002:a0d:cccb:: with SMTP id o194mr24509899ywd.506.1556495676524;
-        Sun, 28 Apr 2019 16:54:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556495676; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
+        b=TPNMaEyrZucD8ejdb+R85Mt0E/CvwMbMIU1QsdrGDpIS5zpXCIgkZlu8+6ssMixmmM
+         mp8Z6zrANEkkZgOV3Z23KgyvJCP+1gWVJ93VirbZTdafUJJkGyg04+51dSyTkQ/TmtF5
+         NY+e6qB7sr28A4OHz6SxPqu56d6SN2z+xf7D/TehTH0SeL5TiB12TT3Ur00/4Z4a/oWg
+         KeccdZmSJ3YUeBlKr0qz2Ah1sz8Ic+Bjl72SFaeMJ/oPjUfu377Hst8lOPd1rxKT0T7H
+         X+3AWgO8otO6KGEGjugEMPMWrJh6xd/OMuehbqh/usnrDekI5eych1yNZMkzFm0o7Www
+         s8RA==
+X-Gm-Message-State: APjAAAXdH+g0e5jU9l1KWDND7pmO32tB2kLHuHNefcVXPIaoi33/Ip7t
+	glMaxoF3mM0HD8qMvtb2jtUrF85HCOjeLyxIBGE2yMmOi0okGmlrxmPmmqUfOPHv9NQW/KuTFk0
+	F8TEBWSPPfSGYQK34Jlu7XMLUyY5yDi6tZhk2vBngnFIZit8nW6WeadE9wRTaaYAwbA==
+X-Received: by 2002:a37:a243:: with SMTP id l64mr28047379qke.235.1556495794256;
+        Sun, 28 Apr 2019 16:56:34 -0700 (PDT)
+X-Received: by 2002:a37:a243:: with SMTP id l64mr28047352qke.235.1556495793665;
+        Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556495793; cv=none;
         d=google.com; s=arc-20160816;
-        b=0TL4nemyy/yZQxXNiWETLuMGRzEr8mo6jDQkR9auVIOuFJcsLmZHjTnF1fjMSmT2lS
-         82xw8tx/eNjMQ6IoWeXB5miA6Nj0vP8DVCZ68ZvDBDEI8OlkfP7rEheQx9nw3OHslGhT
-         xYUQQkWdZRgjMTjUd/87KlPbYjnUcK8lV8R8fMWY+8xf/HOTiQvtzaH9gb9R9vQpIfb+
-         n7vaAccDVi0LFWw2zZDmvFOrfJoQDbBTQli9Hlxl3NwxRuhpO9FCgoDTnMfadkhpoS4A
-         8Dp0nzFd7EGI2tTs0cPYIJimwj//PDFKtnk3L2CWKWObd3N6gRq1ncMHH3Y3kPVlYrUK
-         6EqA==
+        b=oK28HoEEsvGqUjqn9AsR9NVAWiWGplbhP2fQZWLEfspd5/K+g8EBubKCH6ImC1d14c
+         islwZjswf06usqMRN5J+BtwfQQH3u0HJocP45076u9CQ8sUd1b7f1h7pQZ8GiZ9WQJ1a
+         rCVLdTlGfq95G+EushLHl044f/DDLFyu0mtVaodNX7Rdckx9eqXGIcZ5q535vQdwgR3L
+         YmZahYRVRLUexIqR6+z+UfHE6N+AJ5YSgBGwcKcxVp11cgquNF2LX0PlIyFaxueBXe52
+         BSnRsfOqnvDnpTM/2EsCwqKxDzIpoBgq8OShglonehYDieBx+ldSGTZQXgJ6HiBYxLyK
+         2cZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=sJzmJt5dXSr46qHnoNS5EATc+3d/a2ElrqvTmuSBEdg=;
-        b=euiFZ0N2p/6bP158vhgbhYz4Wf2uGshPpy39iye6/O6inAmp/BLofgkpZgTJNUvmXU
-         MyyEFnKbafu5+Rru0V4UXRQkaQGcnqFgsslKJdKKDYEYid0zobJuDc/J5SAYUOoenBsW
-         dd3zz8zds9OFW9j+2VjnKAlcymPo3P2Jj2451bMesNfCasmIqg+DJj8gy7IZdNSUyQ3X
-         9fjqrvnHECc+fcH2OAwBko+7kdIRmzh62kxfT/g8JwtbCmLWfsPItYUtUbDcXldPRnfz
-         qp933BsO1mJhRmUmKyneXiBw6VBQhqGSyVd8QmEvaS/P4d7abe6fGy9+Dq6qB6U092Ky
-         q4/g==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
+        b=dzrGI+z428lTZUzU+ylLySHpxGfyblr8cC6SW2Ei+i3ycjZLGkaGQcoNvzcZPTTGyr
+         A0Sas2PjrFCYU0OKiHNBZxvAmNsu6DZQji9lpfEOUXRvzkniGMXwYx71GkT8smO/HMlV
+         IFQD8qXv4sVXCTo8+rP19xlMutlESsRT2R0DbOfogXFH84jjn0zPQXDUszrbbEFruqCv
+         Nr14PTuPhGfeRKEBEZMUSYE5sEnwAm4+bbTOojQp0RzLzgGRE0W/y5FfSaec+G9YnX+3
+         EUEJmzL2n2E4B+9cWHUbpOQf3WAEdUQtQDjkOhZApK83ztWT2utBLRyIT9e8mHPT6ZYw
+         o+rw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vtb874mz;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=t0IuUsXn;
+       spf=pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sT3GXAgKCDIgVOYSSZPUccUZS.QcaZWbil-aaYjOQY.cfU@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s22sor6548459ybs.138.2019.04.28.16.54.36
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id b7sor44426283qtb.63.2019.04.28.16.56.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 28 Apr 2019 16:54:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vtb874mz;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=t0IuUsXn;
+       spf=pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sT3GXAgKCDIgVOYSSZPUccUZS.QcaZWbil-aaYjOQY.cfU@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=sJzmJt5dXSr46qHnoNS5EATc+3d/a2ElrqvTmuSBEdg=;
-        b=vtb874mzD79EZ4lK/FKahzxhVi0KRxJCPlqZoqswyk+2KOM5zWGrGYQuwyAm+T22Tw
-         owM7xGx6+2XBrBj5iKgttpXndlokSkCdXaHqUeHOFf+PlXlCZ2yp0uwBGU9kHmPDBaP3
-         NPMqftVpxG32Ym3soeW3UjOB6L1fPjZDBlyMdNqNwt9OVII2tfrlqfl/gnvIPU3bMaZn
-         cUVYDFNlR55+wB/mdDdGu/qVqcG7ro7bhCZ4ZElgyYQOn/W0/DI1IikYofKRbuRkkoiy
-         mESCGm4KqIGV5Jq0W0rf0Z4UcYiBTtc6ftKlNJ6VQTSglnjByMoBHVI/DsH9MW04d21q
-         MSfw==
-X-Google-Smtp-Source: APXvYqywcrtNm7hfKOwHEbWcro/mUsCfRRyw7no0aSBlNf48FzHe5zU0X1HlsmhnwnPpE8C1iDov7piwnmKx6YCRD8c=
-X-Received: by 2002:a25:f507:: with SMTP id a7mr46894022ybe.164.1556495676033;
- Sun, 28 Apr 2019 16:54:36 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190423154405.259178-1-shakeelb@google.com> <20190425064858.GL12751@dhcp22.suse.cz>
-In-Reply-To: <20190425064858.GL12751@dhcp22.suse.cz>
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
+        b=t0IuUsXn9gaq3SQut1xYfgcWiEy8RtkERl2pBXCiH9XceacJW0QWyY0WBZHCewi6u6
+         YRjtmVCPM0+qoQv1Z87j/N+3XJ6aoclitm6grIraYu8Y9Bqhjs/dhYKOjl3kFgZZJthp
+         pG7y7jAYeykyDXhBxasCXYScBOh8nNzAxjTMW89k/5W00JPfrgSZ9b5ObblARtA3d0rr
+         KacNMeGFpwmM7JL572xU2Rag7vO9sZNeLdQO7gbiSSqb9VOrg7HXmC04PDokV2Tk6AJU
+         C6mcwZUohipajKu8TC+IP/nEKyhgdFNNkhV+kO/BxejCC4n5s/0FpqjJ2o1Bvmw+R4+U
+         Husw==
+X-Google-Smtp-Source: APXvYqwscTyupsIoajguC2ll5HejrseWPsuQsoX13E2On/kwywEZi3TbpJQWePki5zziDZiwfyJTkIrJKlFGbA==
+X-Received: by 2002:ac8:33eb:: with SMTP id d40mr25801482qtb.263.1556495793414;
+ Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
+Date: Sun, 28 Apr 2019 16:56:13 -0700
+Message-Id: <20190428235613.166330-1-shakeelb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.593.g511ec345e18-goog
+Subject: [PATCH] memcg, oom: no oom-kill for __GFP_RETRY_MAYFAIL
 From: Shakeel Butt <shakeelb@google.com>
-Date: Sun, 28 Apr 2019 16:54:24 -0700
-Message-ID: <CALvZod5Peau7D-O1oi0jFfiOCJrSOMHDnr6TPrTxawt_jh9izw@mail.gmail.com>
-Subject: Re: [PATCH v2] memcg: refill_stock for kmem uncharging too
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, 
-	Cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	Shakeel Butt <shakeelb@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -111,22 +110,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 24, 2019 at 11:49 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 23-04-19 08:44:05, Shakeel Butt wrote:
-> > The commit 475d0487a2ad ("mm: memcontrol: use per-cpu stocks for socket
-> > memory uncharging") added refill_stock() for skmem uncharging path to
-> > optimize workloads having high network traffic. Do the same for the kmem
-> > uncharging as well. Though we can bypass the refill for the offlined
-> > memcgs but it may impact the performance of network traffic for the
-> > sockets used by other cgroups.
->
-> While the change makes sense, I would really like to see what kind of
-> effect on performance does it really have. Do you have any specific
-> workload that benefits from it?
->
+The documentation of __GFP_RETRY_MAYFAIL clearly mentioned that the
+OOM killer will not be triggered and indeed the page alloc does not
+invoke OOM killer for such allocations. However we do trigger memcg
+OOM killer for __GFP_RETRY_MAYFAIL. Fix that.
 
-Thanks for the review. I will run some benchmarks and report back later.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
+ mm/memcontrol.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-Shakeel
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2713b45ec3f0..99eca724ed3b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2294,7 +2294,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	unsigned long nr_reclaimed;
+ 	bool may_swap = true;
+ 	bool drained = false;
+-	bool oomed = false;
+ 	enum oom_status oom_status;
+ 
+ 	if (mem_cgroup_is_root(memcg))
+@@ -2381,7 +2380,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (nr_retries--)
+ 		goto retry;
+ 
+-	if (gfp_mask & __GFP_RETRY_MAYFAIL && oomed)
++	if (gfp_mask & __GFP_RETRY_MAYFAIL)
+ 		goto nomem;
+ 
+ 	if (gfp_mask & __GFP_NOFAIL)
+@@ -2400,7 +2399,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	switch (oom_status) {
+ 	case OOM_SUCCESS:
+ 		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-		oomed = true;
+ 		goto retry;
+ 	case OOM_FAILED:
+ 		goto force;
+-- 
+2.21.0.593.g511ec345e18-goog
 
