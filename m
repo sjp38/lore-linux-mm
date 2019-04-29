@@ -2,136 +2,143 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DC69C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:45:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83579C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:09:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37A3F2067D
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:45:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37A3F2067D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4A1952075E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:09:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A1952075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABA7C6B000E; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
+	id DB3D76B0003; Mon, 29 Apr 2019 18:09:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6A4F6B0010; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
+	id D63F96B0005; Mon, 29 Apr 2019 18:09:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9801F6B0266; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
+	id C7A3E6B0007; Mon, 29 Apr 2019 18:09:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A57E6B000E
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id p26so5416217edy.19
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:45:03 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3DCD6B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 18:09:44 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id z34so11621132qtz.14
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 15:09:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=i5aiNtFTFcmxdxwrKzK0L0MXrkvsougNq80KlI7MAxs=;
-        b=AglYi2pAxgC5SvrnRQ009FVyDJTQKSxqDOpByFxkC70hf0BS4OwvZLYyIVdzF+Zj8i
-         7iNCs4/E0O5e5D3GwRUR+3YssquP/20iBBDzEIo76UJs/sFWCWWDIprCvtdLU9SLZte1
-         QzN9WKt2Y8GYLe33mnAhB1p7I06eJ8EEH1d2WwBSdDfOZRagxfALr2mboQL6aDoYXeOe
-         eaflcHSNOGjXwf90haCGds32jZRILntIEoZEif7GMzHF5oR6XOJQeV26asDtDXfEb6mE
-         qWH8Y8BulQHMUBiI3cGGNlDTS3ffFo0QBmOsJSDhrkf4EdH1N44UGtDKHq+gcbIvYmCp
-         geIw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV+SehHekiw7Cj8eY9uedYCAMMoZ/UwXEBqj8QZB0j2WYfIFrB0
-	CBLDmZQSDKTQfpGKCwrhVCJNwi0fIXbXrw20V+0JVfmfc1LlFw14dRwZjqXrZKb75kYOmMK5IfZ
-	xc79N/FvJHKz+uvd+OqSYle+XONyrnbi8QZTjM/QtBFJ37Z+1j6eORxV3lCeERzc=
-X-Received: by 2002:a17:906:5c0f:: with SMTP id e15mr5813079ejq.151.1556574302817;
-        Mon, 29 Apr 2019 14:45:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzue9ukEG1tqWp3TrLW1yIOhFLO2a8rS8DmAeSyjbHU097KIZ76+TGmtpTQDchqDclx8yAo
-X-Received: by 2002:a17:906:5c0f:: with SMTP id e15mr5813062ejq.151.1556574301971;
-        Mon, 29 Apr 2019 14:45:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556574301; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=y2LLRr55rR5hKb1ApyqxI8Pgjml+ojJFgSzmMrLVeBk=;
+        b=N+LWqviDb6X1+7/GeNPN7R1zkImNsvJ5dMotnwQoHq6MChUMPfw+xzzayQeAAz8egQ
+         xWYHptqyvyrCZbBO52ejZ8IZhyBhrTpPrayEKNHhnTbTVFppB7ttP/t7D12E1z4ljnxn
+         GU4IOncLRrL2xWLdLlA4MHiA+zl8c9lLURFu5gXjk7trCMViBv3ZKYtnETdERsnLtZpC
+         TdvWN/jZHA0dJo8ogri+BhwSAHN4EJmsYEv0rHURA45aDmPB3UPDHvmjCl+Uhvis2NOX
+         BfN3qoOnqU2H0Wowm0sysHLIjsm+SWi3yHJ/KZM+4iGsuoa5Bt1redsGn3YlS9MZPG8q
+         Gu+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX8Jt8pvsxyo5Pvz0/oAPaFu+Dv8lzu0qMtDYKawdwvy0Wd1t0x
+	uejNZWOMzsmvNy2FjeMRDOD/RIekECfwQMFUQIaMFr/pzCS1CyNibwW+vXwozf2KQ7WU05GnL2L
+	kWG+Qbsj/9efw5+3XXxgHQ/WLSIIbdjpFZJtOTYFDTtct+HJCLW+wmoanCZS60ogChQ==
+X-Received: by 2002:a37:a285:: with SMTP id l127mr15913743qke.109.1556575784434;
+        Mon, 29 Apr 2019 15:09:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyzt4yZyxJ55Cc1P1R3IAqLDLbsU4g4X4ogq+euwbvUS5n4nnWJMUzTycQaOYA8HNE5DXNx
+X-Received: by 2002:a37:a285:: with SMTP id l127mr15913699qke.109.1556575783718;
+        Mon, 29 Apr 2019 15:09:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556575783; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vg8suBZve2ETRoIinw9VcfwtTYgNaAZPciO2WfdJ3GBKkgInID35gOnEP0R75lWSb8
-         zOWWOeZvNGpObfq688JC3ha2a8tubvcpdonQnUWRwprpwzYezfgVr+bMPbzbPO7eigk/
-         U3RC9y9BmkFlDZ02dFjp7+Bz+THl3tCCiFi8Zr8uSyRtJpqNpBs0YYflzIGYFGOgIHTe
-         636+9oULt2QFanIgAbIU8Qs+dVB86Hwb5TvQGTV26T3LMRfzZsBjcOHPaOGietnPYej8
-         0Fe+DgwYFVou1KYVtWKEIXCpPHscZOZVpBWjfJSALarvLKTVKJ1q86y4hyFhIis7gDQL
-         sAiQ==
+        b=YCwr9caXdKsvBXTJO4WRSpBnvP9bm+w9/cnlAk2RXcF2ZCUFY3Uq+Ypr46G3TZvUra
+         vo1bDPbK44/xFrjbcfxD82RtYGYNqCEft0x7BQSijOflA3lXcXQRr9FFyQGzMJYRuggx
+         mrzb5Ve2EfbNHMYKG199+wiGZ6zMFAdfD/wOFJk3/NrfWLvHKq23JUM2nn7ZcLhnXtPK
+         01YgMawZNRXiSJj/r+vCKcc7W2T6Aq3X4hR09UzWnCxwOLwrmYoocpMhjOh7hRKbNors
+         1GkqhRdwtb7gzSf2kv/dSU9V9SddDpEsDqQ+iyAx2clRfAoFJDg7JR1mVVqVacneD2Iv
+         iwIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=i5aiNtFTFcmxdxwrKzK0L0MXrkvsougNq80KlI7MAxs=;
-        b=SE2DVaZFuVsbKZ8wy/U/6GO1ayn5sfaZyupUpbR4Gwp6MpGyxYWT4uAHYLVRubShCA
-         lPLu67Kp+LVFK8OH69SxIIcZmMOXTHTOYFnmfP5PvAoRdS7KxW8TwZSXSIceGgCskAZ+
-         BDIo6hF8fOJAb0VPVnTWESe/HYYMO5bzNLJ8+otCek8yMh6e4PHa5XIVETHuEHLFVKKF
-         Zb02RZq2SsM3KN1pJZPQcZCuNBYeZ8/+IUVV4pTXIlcNPyh6OZ5SxHmaDjbbFSyAuJrr
-         kbNz1rKD5JFYFHjtDJqHrTmNjnfqIhIwKYRTW7B/xUiat2EntvBOn82gaUYJ9lfy0HnD
-         wS2Q==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=y2LLRr55rR5hKb1ApyqxI8Pgjml+ojJFgSzmMrLVeBk=;
+        b=tNFr3OvV759rNR0Zseds3WR6oCdzrO5nmBr5uYXYZj/T91vQUN/shlcjBbHuYs+6jo
+         LjtDJgCvGTsC35ki1nkARmexACnyUzo/uPtbnC8KF80leEJQE+lJuRUcitfaaVutCQmH
+         EEcpqGq0kg4F71ShLgpeuxW14m/iQw9H9WYa/K5YPPMjbFacCxZCnruja7vRyEFI0fN/
+         /gZY8P4GFMVR81KvOoVyVYEo4mdEZ4MHqDEXBAeuk+ktjizkaLbCgeFuyMbz4ep6HRIY
+         1M2JLPryje0nCpTrVHWYDHk/Tm4BvY9W6zTH1kOwDJm9Vu2Smg9Wj9a65QFiWe3x/poh
+         G5kA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t50si6012717edd.451.2019.04.29.14.45.01
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a15si3369895qkk.169.2019.04.29.15.09.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 14:45:01 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 29 Apr 2019 15:09:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 95B8DABD7;
-	Mon, 29 Apr 2019 21:45:01 +0000 (UTC)
-Date: Mon, 29 Apr 2019 17:44:58 -0400
-From: Michal Hocko <mhocko@kernel.org>
-To: Matthew Garrett <mjg59@google.com>
-Cc: linux-mm@kvack.org,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
- memory on release
-Message-ID: <20190429214458.GB3715@dhcp22.suse.cz>
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190424211038.204001-1-matthewgarrett@google.com>
- <20190425121410.GC1144@dhcp22.suse.cz>
- <20190425123755.GX12751@dhcp22.suse.cz>
- <CACdnJuutwmBn_ASY1N1+ZK8g4MbpjTnUYbarR+CPhC5BAy0oZA@mail.gmail.com>
- <20190426052520.GB12337@dhcp22.suse.cz>
- <CACdnJutweLKsir_r9EgP9g=Eih-hbhq20N8zHzKawR8=awnENw@mail.gmail.com>
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DA8C520260;
+	Mon, 29 Apr 2019 22:09:42 +0000 (UTC)
+Received: from max.home.com (unknown [10.40.205.80])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id EA30517CCB;
+	Mon, 29 Apr 2019 22:09:36 +0000 (UTC)
+From: Andreas Gruenbacher <agruenba@redhat.com>
+To: cluster-devel@redhat.com,
+	"Darrick J . Wong" <darrick.wong@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Bob Peterson <rpeterso@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Chinner <david@fromorbit.com>,
+	Ross Lagerwall <ross.lagerwall@citrix.com>,
+	Mark Syms <Mark.Syms@citrix.com>,
+	=?UTF-8?q?Edwin=20T=C3=B6r=C3=B6k?= <edvin.torok@citrix.com>,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Andreas Gruenbacher <agruenba@redhat.com>
+Subject: [PATCH v7 0/5] iomap and gfs2 fixes
+Date: Tue, 30 Apr 2019 00:09:29 +0200
+Message-Id: <20190429220934.10415-1-agruenba@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACdnJutweLKsir_r9EgP9g=Eih-hbhq20N8zHzKawR8=awnENw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Mon, 29 Apr 2019 22:09:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 26-04-19 11:08:44, Matthew Garrett wrote:
-> On Thu, Apr 25, 2019 at 10:25 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Thu 25-04-19 13:39:01, Matthew Garrett wrote:
-> > > Yes, given MADV_DONTDUMP doesn't imply mlock I thought it'd be more
-> > > consistent to keep those independent.
-> >
-> > Do we want to fail madvise call on VMAs that are not mlocked then? What
-> > if the munlock happens later after the madvise is called?
-> 
-> I'm not sure if it's strictly necessary. We already have various
-> combinations of features that only make sense when used together and
-> which can be undermined by later actions. I can see the appeal of
-> designing this in a way that makes it harder to misuse, but is that
-> worth additional implementation complexity?
+Here's another update of this patch queue, hopefully with all wrinkles
+ironed out now.
 
-If the complexity is not worth the usual usecases then this should be
-really documented and noted that without an mlock you are not getting
-the full semantic and you can leave memory behind on the swap partition.
+Darrick, I think Linus would be unhappy seeing the first four patches in
+the gfs2 tree; could you put them into the xfs tree instead like we did
+some time ago already?
 
-I cannot judge how much that matter but it certainly looks half feature
-to me but if nobody is going to use the madvise without mlock then it
-looks certainly much easier to implement.
+Thanks,
+Andreas
+
+Andreas Gruenbacher (4):
+  fs: Turn __generic_write_end into a void function
+  iomap: Fix use-after-free error in page_done callback
+  iomap: Add a page_prepare callback
+  gfs2: Fix iomap write page reclaim deadlock
+
+Christoph Hellwig (1):
+  iomap: Clean up __generic_write_end calling
+
+ fs/buffer.c           |   8 ++--
+ fs/gfs2/aops.c        |  14 ++++--
+ fs/gfs2/bmap.c        | 101 ++++++++++++++++++++++++------------------
+ fs/internal.h         |   2 +-
+ fs/iomap.c            |  55 ++++++++++++++---------
+ include/linux/iomap.h |  22 ++++++---
+ 6 files changed, 124 insertions(+), 78 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
 
