@@ -2,156 +2,160 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA902C04AA6
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:17:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E252C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:22:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78C4720578
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:17:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="ogISHwwq";
-	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="ogISHwwq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78C4720578
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
+	by mail.kernel.org (Postfix) with ESMTP id 34DD120449
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:22:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34DD120449
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0548B6B0007; Mon, 29 Apr 2019 08:17:25 -0400 (EDT)
+	id B75C16B0007; Mon, 29 Apr 2019 08:22:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 003D16B0008; Mon, 29 Apr 2019 08:17:24 -0400 (EDT)
+	id AFCE46B0008; Mon, 29 Apr 2019 08:22:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E34CB6B000A; Mon, 29 Apr 2019 08:17:24 -0400 (EDT)
+	id 9EE706B000A; Mon, 29 Apr 2019 08:22:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5F86B0007
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 08:17:24 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id o17so8426529ywd.22
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 05:17:24 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4456B0007
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 08:22:20 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f7so4739472edi.20
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 05:22:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:message-id:subject
-         :from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=EPvrtOPXbSqmMamLp7U6TjQ+DF8mn7HYnWgo0usVeV8=;
-        b=ppOurOxoRFmAh3RfI45PU22PPpu0lxrW/Z0khrm4y3tDaXKS1E1w+8LEsRx/3FlDQj
-         gbNJ01wvCR14TBoZjwoYxBGYJlTL2jPAyKsJxx0Ys/pf4dHTbhAJislWskVGf0M+YD58
-         7k/VoOXzyDj9MU2NlZAXcqUUSm+T3kXqQcBk+BdhJD4E35+xNATVJT0deiwtChNBFOS1
-         dBAkhhLnZs2pplEjCaYCNtpnxyeCXxKGSLsL340A1xkdrMpFn/YJW/tCqswVS8f3w8FV
-         ZcGF4PUOFbyAhRyiEzGIfLBJTxuLYgE5xe7xLym0ZB/hlFZKEcqPQnW8r0AymENqzrVy
-         lP7A==
-X-Gm-Message-State: APjAAAWjYEVB/5pcJu7hUWcg+55zpQYJV6IHl4yIdN8BYnsjQXknY+r6
-	z6UxV+NoJqHfVKpKvSI+BNzEkIRRABLzWGqtDVK+4jRGCnk1l7z22SSoi4mDtT9pjDyvn/UC25Y
-	hu4YmROEij+6Ym6PGmT/z8MowfGDgTnMlQvbCrVk1im4vw1O4wcac/dd2yLTXKb/KMw==
-X-Received: by 2002:a81:1390:: with SMTP id 138mr49211580ywt.230.1556540244345;
-        Mon, 29 Apr 2019 05:17:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5VqQeY2e07ShM5FYKpYuUZFjBLBRdYL71FOSNruttG5jq4AhQ7qpXL1t+xY8jLANgLqd8
-X-Received: by 2002:a81:1390:: with SMTP id 138mr49211533ywt.230.1556540243725;
-        Mon, 29 Apr 2019 05:17:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556540243; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=jUxNE42wbM4/6mW5jZrdyIqGDDXelc9NWJ1DVi6XnSo=;
+        b=ZDF1sG9rYQf4m4yBvSxaRAF+tfhI7MdV9q266USMxheqaV3f2Dmkr7yW1xUnEOmVie
+         8urP/AVJRRMQcoWQYQaDbdwFmbfAwEj5risXE3St7tYmKUAG8/mvsuKArF2UNXaFyMFp
+         oavVlGOEMlHhUr0cONNe6LhOvz3H2aujJJ7vUkDjx+ZqJM2EtszKuz0oqlGJaYEYu0h8
+         vMhKSw5tHrFedeLwzBmFpqD8z3JK7XTUtmVP9KDyf2jpD+LUqBgXoVWA5Z2Qr4eN0bk8
+         3qCQ1qx8Z5OOhJhVvVRF154d07sy1I40rUEY+fPFtcWO+GBn8E4i+8QhT7X7ZorFjhgn
+         jydg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWewgtl7hOlG2KjFCqbmQh7xeNt3NP39Aef8XE0ZlV5gPxCf6fv
+	f2i0R9ZKwQPA3DIJn587sGcrdY1Vhp9p5YlldVAnBjVt37E3xquFyuqZ8TUVotfmJew/8tstKPm
+	JgbeA2e3O+zlhevSBPDVXvuH6cSxlaQygfEAooqEAGayTtJ1E+HryONHVipYeysY=
+X-Received: by 2002:a50:87c7:: with SMTP id 7mr38038994edz.5.1556540539874;
+        Mon, 29 Apr 2019 05:22:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzW9+TUJKA0qDGOBKCuGE+pPf4kJclCmcvlBPCI1lFNUHp6RdFVlEQl5wABCAOWgMHTO16E
+X-Received: by 2002:a50:87c7:: with SMTP id 7mr38038948edz.5.1556540538978;
+        Mon, 29 Apr 2019 05:22:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556540538; cv=none;
         d=google.com; s=arc-20160816;
-        b=wmkKW0RXiUPIqWguPnnezB9jQb4/5sM2zMZ4ceCGE8ATMPhFv9i5QHekL7ORFlFs9M
-         +9wleL+hcqYj2tzJg11+L0pnfGJ8AJIA9te+NMIA28+zbYMXOBdLDSdJxV899E5wJdVu
-         TOJ0ZExBbKsbhviyD0885RRfOSmF6XudZTp7MmQReOMrW8gr53JgElkDYi6GvsrClpfv
-         Vp6KVO/fApIFRu0C8fH5e07bVNkWH2FBH9bCB9VY/6nzPsnzAXDfbOkk5L8ZLthQazT4
-         LbmQyeWew1Wrzc/pw8GNHuOKuA86gXEkYOjNt6tZo4lNihj0z3q3P1ZNKdK02gWov6dK
-         fyFA==
+        b=hkoPmhxuN5ImNJlmh/oYxXUloVohp6p21FabjRX8tQiFa336F4wziiuBpkjb6wWBBr
+         b76P4qheBpYC5/ndop3ZOeBRYESqX0YoyIkk+L928T2858K9J1VqpWiZzeahK8uUZ1cT
+         OnpHKVPlUrsdR3877JarCM/u73Ezkk/bHwK0entvu2T6aRiVsOK+If8Jqamdwd8EzKss
+         qimcW+Je3by2iIvQwpia5H7+RR0cJMFHDiPdeDO0+CM8XOhHsqeCDsy15kneLkE4BlMD
+         ZS0Zg87EBPFwKm6+p11ZK3NfT0F/PC9grPjFBALqfboYvk5YY8ItHADvfZvbicbLXq1j
+         oSdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature:dkim-signature;
-        bh=EPvrtOPXbSqmMamLp7U6TjQ+DF8mn7HYnWgo0usVeV8=;
-        b=q71lowGcHOsXq7oNbpnCRBO/DYoJKfZa3TkVBB4yHRtBmGt/omZyVBLsk32A3EArhH
-         4iQHent4/nr/pSRB36kPnmm0fs6tEUWxMYGP4zc6lPjmJ6mnEXnDrTlMiIAYWv8YlKoo
-         ep9SnrGOiDZM4Q5MoktN1vu9T9Z96zxFiBrsrKYY5bJW/uFkguzPbAkd5Rq8NDyYZf0q
-         uiOY7G62Tl9PboIjkU1pI2XU7EK+dn9u01dsJObPtLHIIe6AToSgQ0Idr7YvIuKKywoM
-         6+2zIT6L4KUyWSHRzmGPiGtQrToRpC9m5QOLj2f3XKe0d5P6oT54dmOadTfLYPsBmYEs
-         R3kg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=jUxNE42wbM4/6mW5jZrdyIqGDDXelc9NWJ1DVi6XnSo=;
+        b=pQIVRQLHXu5Jgk2rF7Hp/tl6a4LB8b/khqCivZ/CDZ7NMDzW+oeVwhU2qTx54+t4M4
+         VIj3hnbAPEKta1uibNE4pvuIZ1VYNMtm+/H8tfqFfOm4Namqioc9CqGPJ4boW2ks+2bv
+         F/HXPEQOptYIXdC6eyLFcbPndQ/2IkiS4FVsxaXVnFAr6emY6sUrRHSJhsReXqQqC1kn
+         PcK9hNEj4SXLlx3OOgxF4T7PV94n6I+eJfV/K3P5hB6XedpQECm+hginXFg2LO/1VFB8
+         sgGER8qt8hyA7DpH6Rd/kymtrJXMF56Bb5RCiUnJEILPfvxBAP5n8+u5Hrf0iH+vwDNw
+         6bYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=ogISHwwq;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=ogISHwwq;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id 142si11150372ybn.404.2019.04.29.05.17.23
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o5si163693ejj.63.2019.04.29.05.22.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Apr 2019 05:17:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Apr 2019 05:22:18 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=ogISHwwq;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=ogISHwwq;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from localhost (localhost [127.0.0.1])
-	by bedivere.hansenpartnership.com (Postfix) with ESMTP id 5EBF28EE1D8;
-	Mon, 29 Apr 2019 05:17:22 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1556540242;
-	bh=V8W4i17PSPDCdFQgaQ9datYSRuZ6HJF8DVD1l4ouvDk=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=ogISHwwqWQR46xjt+1BXFuVlmD/ievw37QJxSJbIs+glnx90FnZ+stHg6eYqOk1Xb
-	 rctKlGG5rAmGXfePLpiFcA27yJVAbeN8WjUk0pFm101/zHrbYEZ66fEW7yidn5un9H
-	 TclnOUVVeIjNrhPBHgoz44MCM1/Pyu/9mzlGebfc=
-Received: from bedivere.hansenpartnership.com ([127.0.0.1])
-	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id eMNwNV-9nJIS; Mon, 29 Apr 2019 05:17:22 -0700 (PDT)
-Received: from [192.168.100.227] (unknown [24.246.103.29])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 534438EE03B;
-	Mon, 29 Apr 2019 05:17:21 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1556540242;
-	bh=V8W4i17PSPDCdFQgaQ9datYSRuZ6HJF8DVD1l4ouvDk=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=ogISHwwqWQR46xjt+1BXFuVlmD/ievw37QJxSJbIs+glnx90FnZ+stHg6eYqOk1Xb
-	 rctKlGG5rAmGXfePLpiFcA27yJVAbeN8WjUk0pFm101/zHrbYEZ66fEW7yidn5un9H
-	 TclnOUVVeIjNrhPBHgoz44MCM1/Pyu/9mzlGebfc=
-Message-ID: <1556540228.3119.10.camel@HansenPartnership.com>
-Subject: Re: [Lsf] [LSF/MM] Preliminary agenda ? Anyone ... anyone ? Bueller
- ?
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org, 
- linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org,
- linux-mm@kvack.org,  Jerome Glisse <jglisse@redhat.com>,
- linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org, 
- Vlastimil Babka <vbabka@suse.cz>
-Date: Mon, 29 Apr 2019 08:17:08 -0400
-In-Reply-To: <yq1zho911sg.fsf@oracle.com>
-References: <20190425200012.GA6391@redhat.com>
-	 <83fda245-849a-70cc-dde0-5c451938ee97@kernel.dk>
-	 <503ba1f9-ad78-561a-9614-1dcb139439a6@suse.cz> <yq1v9yx2inc.fsf@oracle.com>
-	 <1556537518.3119.6.camel@HansenPartnership.com>
-	 <yq1zho911sg.fsf@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7349CAE1B;
+	Mon, 29 Apr 2019 12:22:18 +0000 (UTC)
+Date: Mon, 29 Apr 2019 08:22:14 -0400
+From: Michal Hocko <mhocko@kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Roman Gushchin <guro@fb.com>, linux-mm@kvack.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] memcg, oom: no oom-kill for __GFP_RETRY_MAYFAIL
+Message-ID: <20190429122214.GK21837@dhcp22.suse.cz>
+References: <20190428235613.166330-1-shakeelb@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190428235613.166330-1-shakeelb@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-04-29 at 07:36 -0400, Martin K. Petersen wrote:
-> James,
-> 
-> > Next year, simply expand the blurb to "sponsors, partners and
-> > attendees" to make it more clear ... or better yet separate them so
-> > people can opt out of partner spam and still be on the attendee
-> > list.
-> 
-> We already made a note that we need an "opt-in to be on the attendee
-> list" as part of the registration process next year. That's how other
-> conferences go about it...
+On Sun 28-04-19 16:56:13, Shakeel Butt wrote:
+> The documentation of __GFP_RETRY_MAYFAIL clearly mentioned that the
+> OOM killer will not be triggered and indeed the page alloc does not
+> invoke OOM killer for such allocations. However we do trigger memcg
+> OOM killer for __GFP_RETRY_MAYFAIL. Fix that.
 
-But for this year, I'd just assume the "event partners" checkbox covers
-publication of attendee data to attendees, because if you assume the
-opposite, since you've asked no additional permission of your speakers
-either, that would make publishing the agenda a GDPR violation.
+An example of __GFP_RETRY_MAYFAIL memcg OOM report would be nice. I
+thought we haven't been using that flag for memcg allocations yet.
+But this is definitely good to have addressed.
 
-James
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/memcontrol.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2713b45ec3f0..99eca724ed3b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2294,7 +2294,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	unsigned long nr_reclaimed;
+>  	bool may_swap = true;
+>  	bool drained = false;
+> -	bool oomed = false;
+>  	enum oom_status oom_status;
+>  
+>  	if (mem_cgroup_is_root(memcg))
+> @@ -2381,7 +2380,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	if (nr_retries--)
+>  		goto retry;
+>  
+> -	if (gfp_mask & __GFP_RETRY_MAYFAIL && oomed)
+> +	if (gfp_mask & __GFP_RETRY_MAYFAIL)
+>  		goto nomem;
+>  
+>  	if (gfp_mask & __GFP_NOFAIL)
+> @@ -2400,7 +2399,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	switch (oom_status) {
+>  	case OOM_SUCCESS:
+>  		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> -		oomed = true;
+>  		goto retry;
+>  	case OOM_FAILED:
+>  		goto force;
+> -- 
+> 2.21.0.593.g511ec345e18-goog
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
