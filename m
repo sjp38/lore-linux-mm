@@ -5,83 +5,83 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 722B4C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 09:25:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21412C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 10:09:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11CE920652
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 09:25:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11CE920652
+	by mail.kernel.org (Postfix) with ESMTP id CCC4F2084B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 10:09:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCC4F2084B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C90D6B0003; Mon, 29 Apr 2019 05:25:54 -0400 (EDT)
+	id 548206B0003; Mon, 29 Apr 2019 06:09:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 679B66B0006; Mon, 29 Apr 2019 05:25:54 -0400 (EDT)
+	id 4D5BE6B0006; Mon, 29 Apr 2019 06:09:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 566C26B0007; Mon, 29 Apr 2019 05:25:54 -0400 (EDT)
+	id 2FE0F6B0007; Mon, 29 Apr 2019 06:09:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0F46B0003
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 05:25:54 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id a18so12333546wrs.21
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 02:25:53 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF44E6B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 06:09:57 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id z128so9459605wmb.7
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 03:09:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:references:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=h3OFNZlc6AsyomiHCZN9csfMCoi5Fu5j7kwL8xvJ/EI=;
-        b=dVxeF2WE2cS1GBgElN4InOY3zgQKiohmAtXRhnGlzdARHZLSHNEO4GB+LwZiHT0+nu
-         CkantnAc9Nnw26xUYjtaU6NcF5wpFeziHA09UO4T0T5T9GIu2V+fBY5v1R7v/rCl7pr7
-         /GYfpPoED1V5U6VkvuAVNJkb/48F9glKFFPR6BOicmi1XzSjGfAfBIraQsxSymiYtPy8
-         5VzEOXSSxlA2yM6qfkDrHvuO8P/vW45wOkXO5/tV0l/yIfCb2FtpDMqRzKBU4TS8ABaT
-         9o5OX8RTwxor4wASPvBjOTaBrBN+veb+cTksJsWjHKrIrt1CTgGt7zsvVC8W0ur46PjJ
-         ifvQ==
+        bh=LlnFjg7cdPtMY68Qxa9DGaNp90LnLg5WJLNWEjaCUC4=;
+        b=UqwCxN255vvLmZyy6rdWFOwRcF5NK954yrUrC+lKQ7DEO7iiKpIG+ANNJo8OLXa9vd
+         H/oIs69H7ESvs/d9rc4foEFI/aPfc95Yv/Z6Od6lnU8RU2sqXml7HXg6FciBmlXtoDjs
+         Pri/pmD7+YYARxe1sqsEs/R6bhmaihLfqLxgdoIx59Mr20mdUgzbjErxQLA6aKwLE0yb
+         6Yfi5m/yE5RWOvFlKoSTE0PVvvjIrC6biTBaL3E/3oob1mokxNOvM26mat2nB+2PTNbO
+         nPuDyWAoFmUgbAZCXaiRk34bXXqyVzcTOmqbcwz6D/QVV3I8QkQaocjLXwma7W1VuSCQ
+         PcFA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Gm-Message-State: APjAAAVSWsIxTBzhTaK3Nacx03qpcEi+V1+aRo+iWH4G5i4rQNPlWsZz
-	ylOESbtDlRJG+XG9kLtXV+fTv50jvG6TEgbYH/npilviJ/msVDeK1WQa4EQv7AzhYWNEoWDZuK5
-	R1abp39tF39OxfAUrLE88G7pruZ966luge4wGyezhFAoiR1hfGMb4yt7A2/M03RI=
-X-Received: by 2002:a5d:4ec2:: with SMTP id s2mr25218396wrv.160.1556529953426;
-        Mon, 29 Apr 2019 02:25:53 -0700 (PDT)
-X-Received: by 2002:a5d:4ec2:: with SMTP id s2mr25218345wrv.160.1556529952442;
-        Mon, 29 Apr 2019 02:25:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556529952; cv=none;
+X-Gm-Message-State: APjAAAUmde/dSKxcSm/kK/NIJ+41qoG8gwdKeRf1TnP/Coo/rFwChR8o
+	G8/Sd3PpdtZPArEc2s+YJcjDo/U/smhvtpZJfAEXDf0zlcLIYpS+u8ElaqJmA+0FhZGJeXqps21
+	apBtVuVYtSw1xAYjWCb+nLunKvEpnBbZ8pEBL76df+v9WVKlihA8ud/36DgsFwEo=
+X-Received: by 2002:a1c:a914:: with SMTP id s20mr6916146wme.55.1556532597335;
+        Mon, 29 Apr 2019 03:09:57 -0700 (PDT)
+X-Received: by 2002:a1c:a914:: with SMTP id s20mr6916077wme.55.1556532596188;
+        Mon, 29 Apr 2019 03:09:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556532596; cv=none;
         d=google.com; s=arc-20160816;
-        b=jqn2R7aB6I8ZVy5hW2/MYIvO5iBlgTlFPfQTgBmPwS5gQBuYYBuhTynzt8nkMXE08m
-         vSEMytJT+k5RPqIPQCtvD07wTHiMJyt/qE0SlpDg/jHMqoQt4NMTw2TLYFblsCTuLgTd
-         1fGsA7M+g7T39Jiu9wo6odTIwnhA68nC1pzjLPyvA8rfDjczgTok85j16kKBOxBzaCyy
-         w/0KX3kYBKtKrb/+bk8Mg4faBrsJ18lErznsMfBVb6AMxnhlm27W3A/iJ/wn5Dy+GyOe
-         o8qjJFZvrmzbzXu5Ke/EIIH8HAV92q3ymR6lPJTf+WEFOGLawtNqjcR2LErv+FMkOvun
-         3RqA==
+        b=oG8wf8BLeNNG9i5SQ1/AMsrV3B7MtaS9XiXwSuULPEXrrzp8lqGqOOhkVkRG3wzEHh
+         o3YpgfmMVW6v9V7vVvLXgAhmntFtREdfbHYTBQtrB+yiatEFcLlmrIU1u54NgRru+D6j
+         4YVsm/auHNFrzHHO5zj5l8u4XzNoB7GGv1G8SSRQ/+l9FaXjebouwwetEuX7ADiSi3Rh
+         B8I17rrBHbtF1M3MrzrBLcZb5a0h8DBPKUU2w1ZW4uT2/9zueQLB9eThRQuaFG5lSPie
+         t/Qp5QP3w9iwj0nF66QHRCfMyn24HscL2yez23hIwhdzAoyKhXY2z/GRadWWrBJ2shnR
+         wi0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:references:to:from
          :subject;
-        bh=h3OFNZlc6AsyomiHCZN9csfMCoi5Fu5j7kwL8xvJ/EI=;
-        b=KE9dGlMWYuYUpKpH3luTnghjR5LOiDxgD0vmj3/NvzqujLwouIq+wa+DFDJckFwkIX
-         SCcyTzYy0YIYzGr8VG1JkFg/uqhCYkM8uaFaoDybwg0lWBIe46t+QDSV7VD6r01k6DuL
-         FZLvpGQ0OuCIZFm076eV9vhlpDUhuvyKuh0T/4/sQnZo9vYB74iswWiX0upYxBNkupov
-         hBCQFWRS9RY1VxGLiy6JpKLFFMqKjfMu/6U+qorSxb7o4azsink08zj7j1k4iH6GfsJR
-         3xe5iQkORM/iAKEq1gL1lhLASCjqGo4w/g6bs52+G593GKekIFUFsRaIthykWo9S69H+
-         KyHA==
+        bh=LlnFjg7cdPtMY68Qxa9DGaNp90LnLg5WJLNWEjaCUC4=;
+        b=WaAcPMiWcX40LgRS9svU7Qj+zFcr+WKdBEw+AuHtrJFfr/GFJ6Ssk0/Xd0Xvu+Y+p5
+         zZiyqI16w6Fz5JethOlSTKCnGm6v/mgouZkmBGmtGaLZ9eBviAXsTM7fkydLjiURVItn
+         s0mCnQSCf1M5/87XJsmZPVCNH0ldHZGMXZ4TsNRBHxsLFN3tRuVExyuEm5PTwYbHSjZS
+         zo7tervVFHweZBJCeHo/E2aX9PWwN9hT9spQjEHSGsNHjtIVg2AwC1nFCmH49a7Q+1Uy
+         EyNa4Lkr+1+XUY/Wpg930BXToaK04U9gpqtT1GI8MrTBefF/cgWhjvxhlFbHHmcjyYj3
+         uF4A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l8sor20012888wrv.46.2019.04.29.02.25.51
+        by mx.google.com with SMTPS id t12sor3797392wrn.28.2019.04.29.03.09.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 29 Apr 2019 02:25:52 -0700 (PDT)
+        Mon, 29 Apr 2019 03:09:56 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Google-Smtp-Source: APXvYqxOoG4OBatYmeSRwTce5Lf9o59n26SnyEGs0poOyhvWeg/ZZSa8RM28nQiZ1fD7lwtHWz1A+Q==
-X-Received: by 2002:a5d:4cd1:: with SMTP id c17mr4819108wrt.231.1556529951489;
-        Mon, 29 Apr 2019 02:25:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyQllye7cYKik/HsHVmOu+rnX3aOFJuOpS91pLvtihzNHOqYA8tSvhUlIwQGmNwi9UD/60WAA==
+X-Received: by 2002:a5d:5308:: with SMTP id e8mr9950716wrv.126.1556532595633;
+        Mon, 29 Apr 2019 03:09:55 -0700 (PDT)
 Received: from ?IPv6:2a0b:e7c0:0:107::49? ([2a0b:e7c0:0:107::49])
-        by smtp.gmail.com with ESMTPSA id v192sm32733168wme.24.2019.04.29.02.25.49
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 02:25:49 -0700 (PDT)
+        by smtp.gmail.com with ESMTPSA id s124sm13406184wmf.42.2019.04.29.03.09.54
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Apr 2019 03:09:54 -0700 (PDT)
 Subject: Re: memcg causes crashes in list_lru_add
 From: Jiri Slaby <jslaby@suse.cz>
 To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
@@ -89,6 +89,7 @@ To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
  mm <linux-mm@kvack.org>,
  Linux kernel mailing list <linux-kernel@vger.kernel.org>
 References: <f0cfcfa7-74d0-8738-1061-05d778155462@suse.cz>
+ <2cbfb8dc-31f0-7b95-8a93-954edb859cd8@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=jslaby@suse.cz; prefer-encrypt=mutual; keydata=
  mQINBE6S54YBEACzzjLwDUbU5elY4GTg/NdotjA0jyyJtYI86wdKraekbNE0bC4zV+ryvH4j
@@ -132,12 +133,12 @@ Autocrypt: addr=jslaby@suse.cz; prefer-encrypt=mutual; keydata=
  9HKkJqkN9xYEYaxtfl5pelF8idoxMZpTvCZY7jhnl2IemZCBMs6s338wS12Qro5WEAxV6cjD
  VSdmcD5l9plhKGLmgVNCTe8DPv81oDn9s0cIRLg9wNnDtj8aIiH8lBHwfUkpn32iv0uMV6Ae
  sLxhDWfOR4N+wu1gzXWgLel4drkCJcuYK5IL1qaZDcuGR8RPo3jbFO7Y
-Message-ID: <2cbfb8dc-31f0-7b95-8a93-954edb859cd8@suse.cz>
-Date: Mon, 29 Apr 2019 11:25:48 +0200
+Message-ID: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
+Date: Mon, 29 Apr 2019 12:09:53 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <f0cfcfa7-74d0-8738-1061-05d778155462@suse.cz>
+In-Reply-To: <2cbfb8dc-31f0-7b95-8a93-954edb859cd8@suse.cz>
 Content-Type: text/plain; charset=iso-8859-2
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
@@ -147,48 +148,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29. 04. 19, 10:16, Jiri Slaby wrote:
-> Hi,
-> 
-> with new enough systemd, one of our systems 100% crashes during boot.
-> Kernels I tried are all affected: 5.1-rc7, 5.0.10 stable, 4.12.14.
-> 
-> The 5.1-rc7 crash:
->> [   12.022637] systemd[1]: Starting Create list of required static device nodes for the current kernel...
->> [   12.023353] BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
->> [   12.041502] #PF error: [normal kernel read fault]
->> [   12.041502] PGD 0 P4D 0 
->> [   12.041502] Oops: 0000 [#1] SMP NOPTI
->> [   12.041502] CPU: 0 PID: 208 Comm: (kmod) Not tainted 5.1.0-rc7-1.g04c1966-default #1 openSUSE Tumbleweed (unreleased)
->> [   12.041502] Hardware name: Supermicro H8DSP-8/H8DSP-8, BIOS 080011  06/30/2006
->> [   12.041502] RIP: 0010:list_lru_add+0x94/0x170
->> [   12.041502] Code: c6 07 00 66 66 66 90 31 c0 5b 5d 41 5c 41 5d 41 5e 41 5f c3 49 8b 7c 24 20 49 8d 54 24 08 48 85 ff 74 07 e9 46 00 00 00 31 ff <48> 8b 42 08 4c 89 6a 08 49 89 55 00 49 89 45 08 4c 89 28 48 8b 42
->> [   12.041502] RSP: 0018:ffffb11b8091be50 EFLAGS: 00010202
->> [   12.041502] RAX: 0000000000000001 RBX: ffff930b35705a40 RCX: ffff9309cf21ade0
->> [   12.041502] RDX: 0000000000000000 RSI: ffff930ab61bc587 RDI: ffff930a17711000
->> [   12.041502] RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
->> [   12.041502] R10: 0000000000000000 R11: 0000000000000008 R12: ffff9309f5f86640
->> [   12.041502] R13: ffff930ab5705a40 R14: 0000000000000001 R15: ffff930a171dc4e0
->> [   12.041502] FS:  00007f42d6ea5940(0000) GS:ffff930ab7800000(0000) knlGS:0000000000000000
->> [   12.041502] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [   12.041502] CR2: 0000000000000008 CR3: 0000000057dec000 CR4: 00000000000006f0
->> [   12.041502] Call Trace:
->> [   12.041502]  d_lru_add+0x44/0x50
+On 29. 04. 19, 11:25, Jiri Slaby wrote:> memcg_update_all_list_lrus
+should take care about resizing the array.
 
-...
+It should, but:
+[    0.058362] Number of physical nodes 2
+[    0.058366] Skipping disabled node 0
 
-> and even makes the beast booting. memcg has very wrong assumptions on
-> 'memcg_nr_cache_ids'. It does not assume it can change later, despite it
-> does.
-...
-> I am not sure why this is machine-dependent. I cannot reproduce on any
-> other box.
-> 
-> Any idea how to fix this mess?
+So this should be the real fix:
+--- linux-5.0-stable1.orig/mm/list_lru.c
++++ linux-5.0-stable1/mm/list_lru.c
+@@ -37,11 +37,12 @@ static int lru_shrinker_id(struct list_l
 
-memcg_update_all_list_lrus should take care about resizing the array. So
-it looks like list_lru_from_memcg_idx returns a stale pointer to
-list_lru_from_kmem and then to list_lru_add. Still investigating.
+ static inline bool list_lru_memcg_aware(struct list_lru *lru)
+ {
+-       /*
+-        * This needs node 0 to be always present, even
+-        * in the systems supporting sparse numa ids.
+-        */
+-       return !!lru->node[0].memcg_lrus;
++       int i;
++
++       for_each_online_node(i)
++               return !!lru->node[i].memcg_lrus;
++
++       return false;
+ }
+
+ static inline struct list_lru_one *
+
+
+
+
+
+Opinions?
 
 thanks,
 -- 
