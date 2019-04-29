@@ -4,73 +4,73 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C61EC43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 19:58:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3E4CC43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 19:58:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE3662075E
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 19:58:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 552DC2075E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 19:58:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="Oujy3vVT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE3662075E
+	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="m9WkW3Cy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 552DC2075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 653876B000E; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
+	id AE7616B0008; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 510FB6B000C; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
+	id 9FC256B000C; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3DB7A6B000D; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
+	id 6505C6B0008; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 012766B0008
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AF526B000A
 	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 15:58:30 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id a8so7750954pgq.22
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 12:58:29 -0700 (PDT)
+Received: by mail-pf1-f200.google.com with SMTP id d21so7869161pfr.3
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 12:58:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:from:to
          :cc:subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=WtBjYoAHkWUE+EmE+Dj18Yw6Y6txgDPtaMz1TSW2Pbs=;
-        b=q2GDtuqEqEn9fbP67LFyUFdeR+vZSp3hyfReXDEGH0OTJ1GeWefMLog/Iyx7qqT2A2
-         idtMDrhaXT3KXTSVKDt73JiEXE2SZu0TyHf1d3PEDV/bxKZ06hMSAl5MRQNATLNL3it5
-         PZmpnAx1B+0hHvH3raU8JcB4D0+2693e/luR55guWeH6/6U7/9XLJopTr1BiZVa90sJ8
-         roWwc9MtTtsNcqpCYmO0Ir22APmGzaQpc7rL71nKUiJ3mnjgAgxoN9aLhEXWSlDFFvnZ
-         e5eGncVW8Ub+PqrRQAxxS+fK+lG83PJEFNC4as4SnYe8nPN/aLE2rD2VWp5Frd4dpDVS
-         lazw==
-X-Gm-Message-State: APjAAAXpsekeRz/yq520rogEsM1BrQh/Sl5A8DN8YNTNb9y8bL50Gknn
-	XjkBISwlCtwb1OkyituqJyfljcGFh/UzoB4RKWfgn7wPEomvMZkZq6bhl5Uhw623xVw+AK22n8f
-	z5R4kIflTXfbdPujz6CFDGP1VydeKF/K5LrzJLXsJAGPcCcYhOYzJd5L5MqX9gVHVMQ==
-X-Received: by 2002:a63:fa46:: with SMTP id g6mr61965016pgk.382.1556567909651;
+        bh=ENMwfs4sHluJwyT9doR8c5yMfngquoTFJE3lgUvSzmo=;
+        b=KVotaI5ntP1yA76BooRKUqOYg6bpczPvuASLK2yXxOf5rXXORgqLndtQAu7hmua7Jb
+         vV3e894W0YmmauVslUNzxZnaor74Yo6cUd7dhI51vvhsfD7Yl+7SGBGqWooc0pJP8BlG
+         h6CvcYVeuvzR4iyb3YhF28ivpEkN0bfmR1uDLWfIH8T1Kol5/wGM2yGF7WOM34EjVSpR
+         33Aw2mZqGR694kBoZMaIzQNT/CmBCZ9shmJj5OHQ1uYf2ty1B9kVzw1SrX9WauiKzFtR
+         fcI3pPEFzJtt5zT0rTIWv9zpclonvfT6uNWv99M5XIOPaoFigHXdh/KULD5vF0lhQ71Y
+         V3hw==
+X-Gm-Message-State: APjAAAV8BmnHagXPbmC+1xYudPOU80VeOLLn2nA+5R2V0/3/szA8ZdG8
+	INVF2/YGYAGQVf9IrBP6Kqu+LndgA+o93BtTpCWQ9DNNbes2w60hcfeHwx1krcDdm/0raVv4nYw
+	EIBqIL0k4xnsp4G7THfolNm1UwciyHczkVY5qitj93QSurmTaBK+kd3/I/WZdllxSmA==
+X-Received: by 2002:a62:ed05:: with SMTP id u5mr64099762pfh.63.1556567909739;
         Mon, 29 Apr 2019 12:58:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxw/codt//0Vd3/xSG19TA6mxHGMgwzNW43pvhR2YfDSspgjGvtiPJlRTUNlYoWAAVmj3bR
-X-Received: by 2002:a63:fa46:: with SMTP id g6mr61964931pgk.382.1556567908793;
+X-Google-Smtp-Source: APXvYqy3tKddr4N53AhczecSIJpwfqf4qhBdfGf4TuRkpPz5Ng8f0y9JoIl7iwIE7TDosR23V16+
+X-Received: by 2002:a62:ed05:: with SMTP id u5mr64099634pfh.63.1556567908472;
         Mon, 29 Apr 2019 12:58:28 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1556567908; cv=none;
         d=google.com; s=arc-20160816;
-        b=EwzKVlq9baxFBF22u24amiehSl3STpLHUY9ahIo9pC6hRrz7NTI2MI0Ylb+66rgQZ4
-         cz5DhE94TXu26JG5GQ0WQZSbtz1csTucTgwFxg0aGqgjtbSPYeLy4xzdfiFT73ImV4UZ
-         jD/uhr49zKKZZ1wkNstGZ+bg0VKD30jmPoGZilGE1iKcPa/ysZhHxU5yzxSjumITeoYp
-         qszTJ3wEBigIveLmyrA2rBazMcuI2YWbdyFHxXooNKWeCwaH3lbuA5jN3OgO2Jqj7AGB
-         o0QYmjM74pVIzuEdgvO1XixooNAX7rdFtGBipkGL6UcXY6zQfM2NVa850Q9QHfXykAZ7
-         Hxyg==
+        b=Pfk+i/lB7dTKWXYxhLKt3Z1G9AioUzZF0x1qwuriPJIW1BCy0VaD9YpmuXrzfL+Y+a
+         PeaGEgf76j3JZqsyVuvwwl6eVf9r1m+VaVRth1fuxCazbbMojdNsmuNNFNpBjll8GorC
+         IQFpun4gDg06ExAWdiPbKK0FiJyfqZs7PfhZOBg+In4WTeDyLwJP+rdAVWN2but43rbt
+         KevAT+nlcWQCw5C02nd8kWfoD5vIf0L7rh99gylFcDm0tGxjxZUzk+lnr1LWMah67irk
+         q3JCyMIZDyT+MbdelFdkZMUMgevX1cwoM0Lg7xGO8tecIMpNg3p4WijSseC+67yuzYHu
+         byew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:ironport-sdr:ironport-sdr
          :dkim-signature;
-        bh=WtBjYoAHkWUE+EmE+Dj18Yw6Y6txgDPtaMz1TSW2Pbs=;
-        b=EICu5HqT3j9KgS0SErvQiskMBwvfqMkML82drzSMR7uo+2qUeOlwu9rs+hqh3kBXPw
-         VtcMu6eGMozv5NIYNJ7gqjSZBJNcY446Mt9En9m1QCkyxeykuhfjpFi/XrMmdDO0A7bo
-         P2PZpRt2FXv4wQFBzWmnkaR+k72F4GRLks7Lim/7DgOF6Wlh6uS1jNaaylYxWc3RCPrB
-         ii8z5gLToIKWbJjmdiQS9RuI636ApLaNg/dzD8AYW1vaFpzf0g4TMSzMKwKod3sFu7Al
-         NXgvxo06DAc3g2xCJUkeJ9700WdHDCn5w+D8tDzq6QzrtfruQvXipRFGQQ7FlbAs+ETr
-         pO8Q==
+        bh=ENMwfs4sHluJwyT9doR8c5yMfngquoTFJE3lgUvSzmo=;
+        b=mdspPOABwsWzwztCF5OBk7m7bD5rzJDOKL3GB27GfMzvhCxIKc+iAXrJOILbk9Tqag
+         OSBuXCAlbgadar24h6/ryRrjDTkK52LiPZf8n9e3AFrpoJVv6hNGI8M5D0RYQETCL3jc
+         XDxt5UM3/K4A+mYMg4G8YOoCKlRRnC2SIkqaMHPHhSvi72neWVlIlzOgJ9FTfjx9EeQO
+         ruIHcnXBhqa+FMb3X6GqqPjBbOEHW3YQiUt/uHQmoGz/t1rP2aD2++Cr/R+Qm+mmGxyE
+         U1+kz833J7cjhPV97V0qrRbriA0A5OGEJuqPwRRCvZreWmzcBd9r3AUnrTLeISm14LIn
+         Moyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=Oujy3vVT;
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=m9WkW3Cy;
        spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 68.232.141.245 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
@@ -80,7 +80,7 @@ Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
         Mon, 29 Apr 2019 12:58:28 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 68.232.141.245 as permitted sender) client-ip=68.232.141.245;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=Oujy3vVT;
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=m9WkW3Cy;
        spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 68.232.141.245 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
 DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
@@ -88,30 +88,30 @@ DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
   t=1556567908; x=1588103908;
   h=from:to:cc:subject:date:message-id:in-reply-to:
    references:mime-version:content-transfer-encoding;
-  bh=674EX0iIftC/tP47ciQ2WAq8p0Blf4MJzfJ6YEpD/54=;
-  b=Oujy3vVTrTYWAj/seY8BIy620epPPCi27Y81ZFx7zhOATMEbRe8Z/lFC
-   oxprWO7nSt6o0n5pcbLH0xIq0Ve8a/gOj7r6Mq/o2RNQiA7iqxWykTYko
-   iHuMrMdCQbSURqtLV6viI6/pzdW5mM/l606ect5F4XlPPE65sD/vY+xWL
-   GrF2WxsyMy92m4n/YxMeVeBb+gbQnhr4pyuP5wSe682/4U5xdAsbhQgfO
-   RRwTJclLb0MLrHZI/Ea8n5u62gQdEoco/LQ6jtuEs5l5fOAGI+AkjuWKS
-   VSfnKc9XAqlImViAorgYHo30XsLG+T7+rPHLJ36Mjr+r5uARZGs9DQZMV
-   A==;
+  bh=GQpKXJ6rfJbjxybm+qOYB3z1XmPhKagdgdILF7N0WwA=;
+  b=m9WkW3CyoJ0xdoGw9nilS1jXk0EC9w4+iAIX7YTyk4IhawUfNuJ0LfyI
+   5zCtbtU5dbdzPru1A2aB8mQZqVdci11Of4IWgDHOxzdmEg6ztt1xuwIM6
+   Z0ZIzM6k1YKwIkA1bSaJybLWSevNJ7lQn6mqHEiPkwqhi4h3e3cHTwSmM
+   S+2Yllc/lQ7uXgWkUT4WoT8+IBak10DSdyWJij00LvPvskHrCShZvAOqg
+   lzjcWVynBkMUmgelbiBwWznoVG23fX76L8rTZjUMGBBb537+8aCCPOafQ
+   c5nvjj0Au/hKkeZNlInsmvtAEAo8mMFCneTmbUDh7/lq6bJk5Gs2dznpS
+   Q==;
 X-IronPort-AV: E=Sophos;i="5.60,410,1549900800"; 
-   d="scan'208";a="212999881"
+   d="scan'208";a="212999870"
 Received: from h199-255-45-14.hgst.com (HELO uls-op-cesaep01.wdc.com) ([199.255.45.14])
-  by ob1.hgst.iphmx.com with ESMTP; 30 Apr 2019 03:58:12 +0800
-IronPort-SDR: KuWhFv47et2z13s4ogsFydIuOHEUFbDE1H5YHCXxj4NfDq+KZzHYEVEcJQMz8xQKW9eH9uPC8A
- z50hSxMrHZud/+caVvYrkOs4WRFbqPfjdP8E5fiUv3LR80IKCHZ8SYZaqEbKIpoqY2AP6PEBcl
- cRKd9qF/baH9E304gOpH2aQ4FKzoAmmLKDwcBhY3GWBx0CJHd7JQkkEU4X0rEdRx8ZaURLE0Li
- odbp1pAhWh7W6nO/ewOr5Uywt+3wrsZ86wR0lhuqaI0qRA0NdPOBxWmnkXvmocrIiMOx6eTWFr
- pCKDGT6RqUPItX+jWyHzkvWj
+  by ob1.hgst.iphmx.com with ESMTP; 30 Apr 2019 03:58:11 +0800
+IronPort-SDR: jBjPovgmsobnZmrrksjuxix2kl6D7esOMHIhvxag0FPlRNBWDsDbkROf2CBhIFmUJS6eLu7V30
+ 2ZZ4feR9PB/wS6t5iiiXZK1w1UOtWFRMudD5G91akZJxKivfA3RCPY+x+3eSzPpmYPPgeU4sHC
+ mOM03NruN55doZhvRRMvJ9qKwpP+Bj2RnYxe4KGofEC8BGJXbGdN45DZnsnl1xiX2T/6x+kzBb
+ y0+bi6hkj62E8LjT5MJuGuHz0IOtteDJZnLs3ksnM/20xU9xBH66KiPmvEUWwyrjHMp3k++fdj
+ NDc+IbXr1hpa/9/e1vcvGXG1
 Received: from uls-op-cesaip01.wdc.com ([10.248.3.36])
-  by uls-op-cesaep01.wdc.com with ESMTP; 29 Apr 2019 12:34:35 -0700
-IronPort-SDR: Bt0jcdD1gm6d1cRvYD8xLZ7OUU/7ALDxMP8bBhd/gEWwUm0ZOsyuoXKhnV/Htgbmrf1RFmzG5a
- KdmEWUvthppVLvTA/Wn2Wuh9DNVRFYVw78A+JrkdrPf+GhM2TyGnTWr7XZAa/3XETeB0z6VmGW
- Nr8nyyN1U1289sezewNwGRjArVhMrC560i55lAnYqYS4xUqANmVFYO1xUWVEonuy8UVyPN4UZY
- SpvkvHtvLuG2nrfaNqKYpDrYj+YxmwOv76nBf9H3mxnpjf3yRS75QhSJzUH0vhLsZUtfAEVqHj
- T54=
+  by uls-op-cesaep01.wdc.com with ESMTP; 29 Apr 2019 12:34:34 -0700
+IronPort-SDR: wz9YGcayYviARxURW0XYZuUzYVCZFmYVx0XdGd5JZHZiNh02M12LMvPMG8IMYcAtZPZcy1EeDb
+ h3W9jYm/1FQlZZHxDvV7Prowbsd3Hyz1a/RTdWFHN0r5GMxoiiiDXhfxhLeiwqugDGnA05Ljq4
+ moiPxBN2X9YhDPIWKJYtQve9/hgsixthYTDEgtOkb23Yld3IOO/JdsyvvCGFG92A8VPkK75xXs
+ A9KKcfbWLwIjssH3PDU+LBp77MSbbrSFkbhUoC8pi5FigiTn+C/eTzzxNX9qF9uVZ00cmOxTce
+ epM=
 Received: from jedi-01.sdcorp.global.sandisk.com (HELO jedi-01.int.fusionio.com) ([10.11.143.218])
   by uls-op-cesaip01.wdc.com with ESMTP; 29 Apr 2019 12:58:11 -0700
 From: Atish Patra <atish.patra@wdc.com>
@@ -134,9 +134,9 @@ Cc: Atish Patra <atish.patra@wdc.com>,
 	Vlastimil Babka <vbabka@suse.cz>,
 	x86@kernel.org (maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)),
 	Christoph Hellwig <hch@infradead.org>
-Subject: [PATCH v2 2/3] RISC-V: Enable TLBFLUSH counters for debug kernel.
-Date: Mon, 29 Apr 2019 12:57:58 -0700
-Message-Id: <20190429195759.18330-3-atish.patra@wdc.com>
+Subject: [PATCH v2 1/3] x86: Move DEBUG_TLBFLUSH option.
+Date: Mon, 29 Apr 2019 12:57:57 -0700
+Message-Id: <20190429195759.18330-2-atish.patra@wdc.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190429195759.18330-1-atish.patra@wdc.com>
 References: <20190429195759.18330-1-atish.patra@wdc.com>
@@ -148,28 +148,90 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The TLB flush counters under vmstat seems to be very helpful while
-debugging TLB flush performance in RISC-V.
+CONFIG_DEBUG_TLBFLUSH was added in 'commit 3df3212f9722 ("x86/tlb: add
+tlb_flushall_shift knob into debugfs")' to support tlb_flushall_shift
+knob. The knob was removed in 'commit e9f4e0a9fe27 ("x86/mm: Rip out
+complicated, out-of-date, buggy TLB flushing")'.  However, the debug
+option was never removed from Kconfig. It was reused in commit
+'9824cf9753ec ("mm: vmstats: tlb flush counters")' but the commit text
+was never updated accordingly.
 
-Add the Kconfig option only for debug kernels.
+Update the Kconfig option description as per its current usage.
+
+Take this opprtunity to make this kconfig option a common option as it
+touches the common vmstat code. Introduce another arch specific config
+HAVE_ARCH_DEBUG_TLBFLUSH that can be selected to enable this config.
 
 Signed-off-by: Atish Patra <atish.patra@wdc.com>
 ---
- arch/riscv/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+ arch/x86/Kconfig       |  1 +
+ arch/x86/Kconfig.debug | 19 -------------------
+ mm/Kconfig.debug       | 13 +++++++++++++
+ 3 files changed, 14 insertions(+), 19 deletions(-)
 
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index eb56c82d8aa1..c1ee876d1e7f 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -49,6 +49,7 @@ config RISCV
- 	select GENERIC_IRQ_MULTI_HANDLER
- 	select ARCH_HAS_PTE_SPECIAL
- 	select HAVE_EBPF_JIT if 64BIT
-+	select HAVE_ARCH_DEBUG_TLBFLUSH if DEBUG_KERNEL
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 62fc3fda1a05..4c59f59e9491 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -132,6 +132,7 @@ config X86
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
+ 	select HAVE_ARCH_VMAP_STACK		if X86_64
+ 	select HAVE_ARCH_WITHIN_STACK_FRAMES
++	select HAVE_ARCH_DEBUG_TLBFLUSH		if DEBUG_KERNEL
+ 	select HAVE_CMPXCHG_DOUBLE
+ 	select HAVE_CMPXCHG_LOCAL
+ 	select HAVE_CONTEXT_TRACKING		if X86_64
+diff --git a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+index 15d0fbe27872..0c8f9931e901 100644
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -124,25 +124,6 @@ config DOUBLEFAULT
+ 	  option saves about 4k and might cause you much additional grey
+ 	  hair.
  
- config MMU
- 	def_bool y
+-config DEBUG_TLBFLUSH
+-	bool "Set upper limit of TLB entries to flush one-by-one"
+-	depends on DEBUG_KERNEL
+-	---help---
+-
+-	X86-only for now.
+-
+-	This option allows the user to tune the amount of TLB entries the
+-	kernel flushes one-by-one instead of doing a full TLB flush. In
+-	certain situations, the former is cheaper. This is controlled by the
+-	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+-	to -1, the code flushes the whole TLB unconditionally. Otherwise,
+-	for positive values of it, the kernel will use single TLB entry
+-	invalidating instructions according to the following formula:
+-
+-	flush_entries <= active_tlb_entries / 2^tlb_flushall_shift
+-
+-	If in doubt, say "N".
+-
+ config IOMMU_DEBUG
+ 	bool "Enable IOMMU debugging"
+ 	depends on GART_IOMMU && DEBUG_KERNEL
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index e3df921208c0..760c3fda8b57 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -111,3 +111,16 @@ config DEBUG_RODATA_TEST
+     depends on STRICT_KERNEL_RWX
+     ---help---
+       This option enables a testcase for the setting rodata read-only.
++
++config HAVE_ARCH_DEBUG_TLBFLUSH
++	bool
++	depends on DEBUG_KERNEL
++
++config DEBUG_TLBFLUSH
++	bool "Save tlb flush statstics to vmstat"
++	depends on HAVE_ARCH_DEBUG_TLBFLUSH
++	help
++
++	Add tlbflush statstics to vmstat. It is really helpful understand tlbflush
++	performance and behavior. It should be enabled only for debugging purpose
++	by individual architectures explicitly by selecting HAVE_ARCH_DEBUG_TLBFLUSH.
 -- 
 2.21.0
 
