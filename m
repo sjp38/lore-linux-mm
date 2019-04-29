@@ -2,103 +2,105 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48953C46470
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:44:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DC69C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:45:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 101BD2067D
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:44:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 101BD2067D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 37A3F2067D
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:45:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37A3F2067D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A45476B0008; Mon, 29 Apr 2019 17:44:43 -0400 (EDT)
+	id ABA7C6B000E; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F4C46B000E; Mon, 29 Apr 2019 17:44:43 -0400 (EDT)
+	id A6A4F6B0010; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E5986B0010; Mon, 29 Apr 2019 17:44:43 -0400 (EDT)
+	id 9801F6B0266; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 403786B0008
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:44:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id g36so1152022edg.8
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:44:43 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A57E6B000E
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:45:03 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id p26so5416217edy.19
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:45:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=8lRratGBW3Cv1VUXc207f1krtwK9gaDZv1xRcTehSm8=;
-        b=t6KzNE28tNQKUiIsNq9ALkL18Ws9DcxzjSO60/GIUxS+Mc4nK3jWoGf3L4rN8GfzX9
-         tSv9sK6Tiao6efMaslkhJmbrhBsXHhQO2UoKz438ggsFsa5h0S9uDKpjbMS+ZV9Tq83P
-         1uYLFyJi5rzit2gPuXyLO61uusItLs6fxOs+c4S2bm4+rWt3tC7YwDP+mpfh2u58xZaN
-         o41rCuo3VmOaNaSqcYoGgqoUvfEvsHhUeqVFr+OPawqAUugp3sHNtfuYUo4aiSnjsTsq
-         lL6SGBWOW33XDjuOI6zZYSMdgzcQGECVWX7I/lqPNgK+aOM/hdPhaiSVks++x3B95QGj
-         7AZA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAXPwjtvUXmng3SaSwjjechARdyZTdx2irfteLBpOcMr2D/R0KUE
-	iN5olw7wqbvze5UEc4aVK1DxKIHIE/ECP+uiCnxi7VtZerHL0DCMWWEFuclC6o1mC4ONGmyH1IC
-	cdJE2o3glyZrWUt04IhKb+b+SeNjAOT7wc/E0+eJ8iun8vY2QxjOdQIUBnSzqVi9Dxg==
-X-Received: by 2002:a17:906:b2c7:: with SMTP id cf7mr5764144ejb.128.1556574282792;
-        Mon, 29 Apr 2019 14:44:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPXNMmNhHD//h2eVkQkiWBN98V1RoTLkZY6hkarTovnQ2RC672o89Mfmi4u/iFe+S/xYLg
-X-Received: by 2002:a17:906:b2c7:: with SMTP id cf7mr5764119ejb.128.1556574282041;
-        Mon, 29 Apr 2019 14:44:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556574282; cv=none;
+        bh=i5aiNtFTFcmxdxwrKzK0L0MXrkvsougNq80KlI7MAxs=;
+        b=AglYi2pAxgC5SvrnRQ009FVyDJTQKSxqDOpByFxkC70hf0BS4OwvZLYyIVdzF+Zj8i
+         7iNCs4/E0O5e5D3GwRUR+3YssquP/20iBBDzEIo76UJs/sFWCWWDIprCvtdLU9SLZte1
+         QzN9WKt2Y8GYLe33mnAhB1p7I06eJ8EEH1d2WwBSdDfOZRagxfALr2mboQL6aDoYXeOe
+         eaflcHSNOGjXwf90haCGds32jZRILntIEoZEif7GMzHF5oR6XOJQeV26asDtDXfEb6mE
+         qWH8Y8BulQHMUBiI3cGGNlDTS3ffFo0QBmOsJSDhrkf4EdH1N44UGtDKHq+gcbIvYmCp
+         geIw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV+SehHekiw7Cj8eY9uedYCAMMoZ/UwXEBqj8QZB0j2WYfIFrB0
+	CBLDmZQSDKTQfpGKCwrhVCJNwi0fIXbXrw20V+0JVfmfc1LlFw14dRwZjqXrZKb75kYOmMK5IfZ
+	xc79N/FvJHKz+uvd+OqSYle+XONyrnbi8QZTjM/QtBFJ37Z+1j6eORxV3lCeERzc=
+X-Received: by 2002:a17:906:5c0f:: with SMTP id e15mr5813079ejq.151.1556574302817;
+        Mon, 29 Apr 2019 14:45:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzue9ukEG1tqWp3TrLW1yIOhFLO2a8rS8DmAeSyjbHU097KIZ76+TGmtpTQDchqDclx8yAo
+X-Received: by 2002:a17:906:5c0f:: with SMTP id e15mr5813062ejq.151.1556574301971;
+        Mon, 29 Apr 2019 14:45:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556574301; cv=none;
         d=google.com; s=arc-20160816;
-        b=fe3faDbYQBmao845CVGAQMl4UhnvHPY5P65ZeH3p7UEF0BpRvahL0ytEvLQwczuKUN
-         yLliSJSXnneZm1gkdfKxcmhczt4p77tHX43pXZFq9b6lUJQfYlgXR5a7SAY7OoZEOAug
-         gmopGx+1MrS0GLbehLm7GANysXOyRM3yoD7RSpeYQ5C3csH1ebtBCmmf/lLFvwOH0JRV
-         C+xMlF4L+GPPsiJi3Q+MgOtFLwR1riCyrmi+8gqWCCeCnvifaagPZ1NL3DnvnPfqYawc
-         muCdhCsz6b/Ga000PPd36qnFi+GxpyWv65zwfffc/PZ2tSOhFJXfIZX8Bh3GACaYmQgH
-         wzWA==
+        b=Vg8suBZve2ETRoIinw9VcfwtTYgNaAZPciO2WfdJ3GBKkgInID35gOnEP0R75lWSb8
+         zOWWOeZvNGpObfq688JC3ha2a8tubvcpdonQnUWRwprpwzYezfgVr+bMPbzbPO7eigk/
+         U3RC9y9BmkFlDZ02dFjp7+Bz+THl3tCCiFi8Zr8uSyRtJpqNpBs0YYflzIGYFGOgIHTe
+         636+9oULt2QFanIgAbIU8Qs+dVB86Hwb5TvQGTV26T3LMRfzZsBjcOHPaOGietnPYej8
+         0Fe+DgwYFVou1KYVtWKEIXCpPHscZOZVpBWjfJSALarvLKTVKJ1q86y4hyFhIis7gDQL
+         sAiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=8lRratGBW3Cv1VUXc207f1krtwK9gaDZv1xRcTehSm8=;
-        b=G71jAtNwdOBOXohzgh8YgeRvbz32kFrsGUtn2P5ba0b/OyPFAcGn6VNTp8CR45tfCA
-         PY2P23jCn+7IPx5564jI9ej0Zz+MGte2+pR5myGXjs9lz00RNs96nrwHHYG0fDJGgUXN
-         zAPoZ9kmWoLGjS7rLmF7K3eyMGmR2GVGoytThy+h56ndx1LIgOvMsnIkY9f9jxoHE9jY
-         hXDUHgP6G4plx+diqLp7h4DMKRKB/C2ifdILN7UmobfhNuVqtojhXVYwiRVCis3YMdk3
-         Krcro054hjN9qKckzsR95hBuiOLjced4l9g7TPzLHxTb3b2epsCM7ilzuUEiG4+WEALU
-         qm8Q==
+        bh=i5aiNtFTFcmxdxwrKzK0L0MXrkvsougNq80KlI7MAxs=;
+        b=SE2DVaZFuVsbKZ8wy/U/6GO1ayn5sfaZyupUpbR4Gwp6MpGyxYWT4uAHYLVRubShCA
+         lPLu67Kp+LVFK8OH69SxIIcZmMOXTHTOYFnmfP5PvAoRdS7KxW8TwZSXSIceGgCskAZ+
+         BDIo6hF8fOJAb0VPVnTWESe/HYYMO5bzNLJ8+otCek8yMh6e4PHa5XIVETHuEHLFVKKF
+         Zb02RZq2SsM3KN1pJZPQcZCuNBYeZ8/+IUVV4pTXIlcNPyh6OZ5SxHmaDjbbFSyAuJrr
+         kbNz1rKD5JFYFHjtDJqHrTmNjnfqIhIwKYRTW7B/xUiat2EntvBOn82gaUYJ9lfy0HnD
+         wS2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o12si2234819ejr.332.2019.04.29.14.44.41
+        by mx.google.com with ESMTPS id t50si6012717edd.451.2019.04.29.14.45.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 14:44:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 29 Apr 2019 14:45:01 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9DB26ABD7;
-	Mon, 29 Apr 2019 21:44:41 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 932171E3BEC; Mon, 29 Apr 2019 23:44:40 +0200 (CEST)
-Date: Mon, 29 Apr 2019 23:44:40 +0200
-From: Jan Kara <jack@suse.cz>
-To: Andreas Gruenbacher <agruenba@redhat.com>
-Cc: cluster-devel@redhat.com, Christoph Hellwig <hch@lst.de>,
-	Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	Ross Lagerwall <ross.lagerwall@citrix.com>,
-	Mark Syms <Mark.Syms@citrix.com>,
-	Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v6 1/4] iomap: Clean up __generic_write_end calling
-Message-ID: <20190429214440.GE1424@quack2.suse.cz>
-References: <20190429163239.4874-1-agruenba@redhat.com>
+	by mx1.suse.de (Postfix) with ESMTP id 95B8DABD7;
+	Mon, 29 Apr 2019 21:45:01 +0000 (UTC)
+Date: Mon, 29 Apr 2019 17:44:58 -0400
+From: Michal Hocko <mhocko@kernel.org>
+To: Matthew Garrett <mjg59@google.com>
+Cc: linux-mm@kvack.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Linux API <linux-api@vger.kernel.org>
+Subject: Re: [PATCH V2] mm: Allow userland to request that the kernel clear
+ memory on release
+Message-ID: <20190429214458.GB3715@dhcp22.suse.cz>
+References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
+ <20190424211038.204001-1-matthewgarrett@google.com>
+ <20190425121410.GC1144@dhcp22.suse.cz>
+ <20190425123755.GX12751@dhcp22.suse.cz>
+ <CACdnJuutwmBn_ASY1N1+ZK8g4MbpjTnUYbarR+CPhC5BAy0oZA@mail.gmail.com>
+ <20190426052520.GB12337@dhcp22.suse.cz>
+ <CACdnJutweLKsir_r9EgP9g=Eih-hbhq20N8zHzKawR8=awnENw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190429163239.4874-1-agruenba@redhat.com>
+In-Reply-To: <CACdnJutweLKsir_r9EgP9g=Eih-hbhq20N8zHzKawR8=awnENw@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,77 +108,30 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 29-04-19 18:32:36, Andreas Gruenbacher wrote:
-> From: Christoph Hellwig <hch@lst.de>
+On Fri 26-04-19 11:08:44, Matthew Garrett wrote:
+> On Thu, Apr 25, 2019 at 10:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Thu 25-04-19 13:39:01, Matthew Garrett wrote:
+> > > Yes, given MADV_DONTDUMP doesn't imply mlock I thought it'd be more
+> > > consistent to keep those independent.
+> >
+> > Do we want to fail madvise call on VMAs that are not mlocked then? What
+> > if the munlock happens later after the madvise is called?
 > 
-> Move the call to __generic_write_end into iomap_write_end instead of
-> duplicating it in each of the three branches.  This requires open coding
-> the generic_write_end for the buffer_head case.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
+> I'm not sure if it's strictly necessary. We already have various
+> combinations of features that only make sense when used together and
+> which can be undermined by later actions. I can see the appeal of
+> designing this in a way that makes it harder to misuse, but is that
+> worth additional implementation complexity?
 
-Looks good to me. You can add:
+If the complexity is not worth the usual usecases then this should be
+really documented and noted that without an mlock you are not getting
+the full semantic and you can leave memory behind on the swap partition.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  fs/iomap.c | 18 ++++++++----------
->  1 file changed, 8 insertions(+), 10 deletions(-)
-> 
-> diff --git a/fs/iomap.c b/fs/iomap.c
-> index 97cb9d486a7d..2344c662e6fc 100644
-> --- a/fs/iomap.c
-> +++ b/fs/iomap.c
-> @@ -738,13 +738,11 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
->  	 * uptodate page as a zero-length write, and force the caller to redo
->  	 * the whole thing.
->  	 */
-> -	if (unlikely(copied < len && !PageUptodate(page))) {
-> -		copied = 0;
-> -	} else {
-> -		iomap_set_range_uptodate(page, offset_in_page(pos), len);
-> -		iomap_set_page_dirty(page);
-> -	}
-> -	return __generic_write_end(inode, pos, copied, page);
-> +	if (unlikely(copied < len && !PageUptodate(page)))
-> +		return 0;
-> +	iomap_set_range_uptodate(page, offset_in_page(pos), len);
-> +	iomap_set_page_dirty(page);
-> +	return copied;
->  }
->  
->  static int
-> @@ -761,7 +759,6 @@ iomap_write_end_inline(struct inode *inode, struct page *page,
->  	kunmap_atomic(addr);
->  
->  	mark_inode_dirty(inode);
-> -	__generic_write_end(inode, pos, copied, page);
->  	return copied;
->  }
->  
-> @@ -774,12 +771,13 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
->  	if (iomap->type == IOMAP_INLINE) {
->  		ret = iomap_write_end_inline(inode, page, iomap, pos, copied);
->  	} else if (iomap->flags & IOMAP_F_BUFFER_HEAD) {
-> -		ret = generic_write_end(NULL, inode->i_mapping, pos, len,
-> -				copied, page, NULL);
-> +		ret = block_write_end(NULL, inode->i_mapping, pos, len, copied,
-> +				page, NULL);
->  	} else {
->  		ret = __iomap_write_end(inode, pos, len, copied, page, iomap);
->  	}
->  
-> +	ret = __generic_write_end(inode, pos, ret, page);
->  	if (iomap->page_done)
->  		iomap->page_done(inode, pos, copied, page, iomap);
->  
-> -- 
-> 2.20.1
-> 
+I cannot judge how much that matter but it certainly looks half feature
+to me but if nobody is going to use the madvise without mlock then it
+looks certainly much easier to implement.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
