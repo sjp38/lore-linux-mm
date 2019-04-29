@@ -2,166 +2,192 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1FB9C04AA6
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 14:20:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A03E5C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 14:22:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5D75D2084B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 14:20:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 504672084B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 14:22:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ft8P4O83"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D75D2084B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nSUn3qna"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 504672084B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACD3D6B0007; Mon, 29 Apr 2019 10:20:55 -0400 (EDT)
+	id CC7676B0007; Mon, 29 Apr 2019 10:22:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7BB16B0008; Mon, 29 Apr 2019 10:20:55 -0400 (EDT)
+	id C76BE6B0008; Mon, 29 Apr 2019 10:22:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 992046B000A; Mon, 29 Apr 2019 10:20:55 -0400 (EDT)
+	id B90A76B000A; Mon, 29 Apr 2019 10:22:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 615096B0007
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 10:20:55 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a5so5462019plh.14
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 07:20:55 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 80DD66B0007
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 10:22:22 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i14so7305830pfd.10
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 07:22:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=TO2quwiNR5yJblHIcZgxLZbgOYDCm0fx9p5rJ0zvPqM=;
-        b=ZkSuwXiWwajsai+0HRrydHDThXWDR5REIL4AOkMJU5twQrU6F5B6QlfRh2oBu+WSBr
-         /DixW4a12PNfS3heiJjA+aqZJC74aqodnPIcYRUHFHKwRdNLsW/Moc5xLXU309S2J8EA
-         YUy6y3sibwRgKhDzUgX3mfiJZkUJj3TfrbLJYZ3Zix4gkTnseJWKa75Xz89OXBLyqyl8
-         Sp7rtJNIEqiFm4OeZBMhQ/GqzPJGk57g/odLtD3KaSiKXKbpHRO0NU2LdAs2Me8Ha9tb
-         /IwI+/i+tpH6QDgYpQUiRJ4OnHQOZxlQ3jq3uLz7MFHSHd/NgPZerendfw+DsFh4bRi6
-         8Acw==
-X-Gm-Message-State: APjAAAXPPKkR17lZ7TGJh8DW31RhWo43VCHRtpYxzEQ6SgXdHaG+wG5u
-	sfXanEsd9JjLWd0aJRKZpd92xLbBwG1LPxAyAKa0wvRTWGRjaRaQpJ5qje1YSR3QpNtxchpTKLy
-	g+qLdHwOAzftOt0a+AQIN3T9IN2EDHG7VvJxL9vDjOXlbGCs4dRZqns6ragbjAhrtgw==
-X-Received: by 2002:a65:644e:: with SMTP id s14mr6128605pgv.290.1556547654956;
-        Mon, 29 Apr 2019 07:20:54 -0700 (PDT)
-X-Received: by 2002:a65:644e:: with SMTP id s14mr6128512pgv.290.1556547653813;
-        Mon, 29 Apr 2019 07:20:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556547653; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Q2RFfAyrf9RFoM43ktNZPcHmGWgFL8fnuov2nkBPWS8=;
+        b=kcyQze/FmWWEpLaCFw7dzyYLqkDVnA+DLPnGlA+TDEnAGvMAZWng0/oREQ0CyBpWMB
+         DcOJj4NR4TD9FvXZqNyMLz1cAG1+RpbH16BW7bxGsyP+ypkiKBV4+hNCWmid4y+7V4kn
+         /MznZj04Jzunp3I79m+Ujx8guQ9zUtBWSfaU7H+Xv/UaV9ciTUPNjqU+4pwSNyWiYZUM
+         GERBNK/iwizqnOxNc2G00aPjCwA2xAJ5ngN6WFmLEgCY6fbv2ggplU6YGUU3L0ArV3qq
+         LgTPi2yETQbNREgLuT1aBHhPQgA819+jkG3Xbb/EudsPiHYH7NqgESxYAkuPzNcwogZA
+         9keQ==
+X-Gm-Message-State: APjAAAX4cWiuWRrz1gVMaVGi8kk3k4GGTvHwefHSL7XCw5WCseOCpOir
+	WOfvsg6Nmgh77poy2RlsURA+h+V0O17aXgz99yChUy5/fl7bzJCtGCTa2/kWboTsOqzYc1FMv4g
+	AEqv3kemtIPOcMLT6owtcf5pdvzoXydL2ea8wEUw6HiNNHbUM02FQLCzwmjoPIcb+RA==
+X-Received: by 2002:a63:c54a:: with SMTP id g10mr35247772pgd.71.1556547742039;
+        Mon, 29 Apr 2019 07:22:22 -0700 (PDT)
+X-Received: by 2002:a63:c54a:: with SMTP id g10mr35247710pgd.71.1556547741173;
+        Mon, 29 Apr 2019 07:22:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556547741; cv=none;
         d=google.com; s=arc-20160816;
-        b=yIkgHUIPaMHq5zv3zJdhRFgmDnkp+DktxBE6xsJdjcrO1tWFCKw4k8k4Zy53GzVGCf
-         4ESzP/Rwu0+9gJMXlWdZxtKFoezAzaEghQ6Eu7yEge1PGYFM/3FtabT1I32zmYMr6Cxy
-         kP1ytYGxwDjPUTW7cim2reW9dAt+N7pd3V9rKcFFd0IKTLE+jDLpEzsiDvIHDwqYpsHK
-         IqmrsPPVFQY3LvF0lYe/y6+O0vhAjurDm1PQope29phBBZj2SMtYGnq9v3U/aU1nhd/W
-         CHgJaCdcoYoKTFNNwOwtfYyO9rcnOkfyvsS9DCTMC/O9Gw337hjTFoFldoA8aEHdSWvy
-         2+Cw==
+        b=JT2U4Z3GPny/x+N6YAmjW8FUF/NtAJ2kAXg9Hdk4bf5IqLNHO6snimfk0/wQ7PgUvY
+         z9HrAdghUm8a3/W05rw2fgVS3+mWiKsxEoo+HYfFuljA/wDy+euXJ5IkOOxep0YkCzQ0
+         axzr3Hum9Lf1xCBAo8pq1p4FtlVGeaEiuS+rmrqgs6L0ySGdB5TL73P5WZ11u5pJ0m5R
+         gX3GogyTUPqrBPpz338O0tslI+7Gg7cinBUOMvfUaTkmcoDE7imeHEqyC4uMoXIpeIz8
+         BLAc3tHal5lVRD2TvSZax1UmKxm+3Z5ufMaYvLcWxEh+CS3admbeuYYlkSLyq9bF8rJJ
+         tMVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TO2quwiNR5yJblHIcZgxLZbgOYDCm0fx9p5rJ0zvPqM=;
-        b=NqSfqeW6C69CMyLhd99L6C3I6XZJXVzyf4BSJjtY9fvrAV6k/yOFyWT9frsO6QDbZm
-         ZdaFGUjP8BNm9xNACcz1AAkZSh60YYxanP5YEr9189yjN6Lom+rDDYN+/SMOR1xPJQNa
-         m/BPQwAEGT/P23Hv7ypR5C3Ox2Yenhmond3Eeoy/zncToBjCVBhLZENKCT2oSEwMSH62
-         /hpmNl+il4S0+PDyTzUc/TkQKSEDP1AIhP0xaUPFVpSAaUT1dY+/zERm6K304SnkUQxl
-         64SPSCsZWip1Chl6Nz58bdGfOAYklHkT2dSF2jiNHKND+icAJss6qmnuEb1Jq7+flH/Q
-         ADNw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Q2RFfAyrf9RFoM43ktNZPcHmGWgFL8fnuov2nkBPWS8=;
+        b=tqkcbgHJemJZH4I0wsejBQYvKse8v8j19i1Up6zZ/zyKxdGYY5IbNQQqv+7kndYQOb
+         GD+Fg2D4sWOqPekRlxX3PrlBH9Y+OaJxeoAWRc9V7seyYLJ95fBb4RkRXdpJuROQ+rjO
+         xmS42fDkDYLzy01sr6YgbmpgpIisXQCSWSGPj4UPthTT9DbPleEDXYKBK/4ePZjSpSoj
+         wzYp0EQWqt5wea+67KKYdDz9vdNp/i20dT3hi99fMg7aOosDfpf/CwGM/6SqC/2Py7eD
+         lUJep66pGQfzNC3vEDtw+gKyE2qVB/ldncDuk1Jan3M2o1DwUTRJIG05LX9qAfelwRqE
+         lnIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ft8P4O83;
-       spf=pass (google.com: domain of nishadkamdar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nishadkamdar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=nSUn3qna;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id be4sor16595732plb.25.2019.04.29.07.20.53
+        by mx.google.com with SMTPS id p66sor37025184pfp.35.2019.04.29.07.22.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 29 Apr 2019 07:20:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nishadkamdar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 29 Apr 2019 07:22:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ft8P4O83;
-       spf=pass (google.com: domain of nishadkamdar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nishadkamdar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=nSUn3qna;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=TO2quwiNR5yJblHIcZgxLZbgOYDCm0fx9p5rJ0zvPqM=;
-        b=ft8P4O83KzFQvD8ubncSKWF2nbgiB3n/zTSGEm90HoxLKvrLSmOzTMyAal6sslq974
-         e/RikpOTnTFYfnGU9r2DUB97U41GWmg6+83w/oYIioXaP72rY9wTf4++qulVX0gfNQbE
-         xZkKOfxyrqXWTf3mqaDRjt57y+Lx/fAWtQjW1x5QVieTlerl6r3VCd2xyQbWQ79mh84N
-         zUs3DQ5wYh4irTUABN1Uxf05iE+lbLZlJ9QVm52bt8Cza/dQob7UJ+F2VD2L1UHy/TlX
-         GgSYNxyek47krautLrsCLiPUg2TXaUSGhtiwMlscJx5PFTP1O0EssJxg53wyCwu35s6C
-         iISQ==
-X-Google-Smtp-Source: APXvYqxhNAE4WrtTIHV/HhgiCDI91aTl3p/Pi2/ecloRq5bRRQn+vE4G9yQCBV/IqAJb96mzBGYcIQ==
-X-Received: by 2002:a17:902:2ba9:: with SMTP id l38mr210415plb.220.1556547652685;
-        Mon, 29 Apr 2019 07:20:52 -0700 (PDT)
-Received: from nishad ([106.51.235.3])
-        by smtp.gmail.com with ESMTPSA id h65sm110564714pfd.108.2019.04.29.07.20.46
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Apr 2019 07:20:52 -0700 (PDT)
-Date: Mon, 29 Apr 2019 19:50:36 +0530
-From: Nishad Kamdar <nishadkamdar@gmail.com>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Greentime Hu <green.hu@gmail.com>, Vincent Chen <deanbo422@gmail.com>,
-	Oleg Nesterov <oleg@redhat.com>, Will Deacon <will.deacon@arm.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Nick Piggin <npiggin@gmail.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Joe Perches <joe@perches.com>,
-	Uwe =?utf-8?Q?Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>,
-	linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v3 2/5] nds32: Use the correct style for SPDX License
- Identifier
-Message-ID: <20190429142013.GA12127@nishad>
-References: <cover.1555427418.git.nishadkamdar@gmail.com>
- <f6a7c31f4e8b743a2877875ac3fc49ecb8b9eb0c.1555427419.git.nishadkamdar@gmail.com>
- <alpine.DEB.2.21.1904162034260.1780@nanos.tec.linutronix.de>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Q2RFfAyrf9RFoM43ktNZPcHmGWgFL8fnuov2nkBPWS8=;
+        b=nSUn3qnawAssSs6MaxKqsGt7m2rQuwz8iuV7UDRO4XwagTQcUwQLKJChDfpo2Y42Xk
+         dLm04wkPLwmDDcGlfi33gt+mgTjEgazJ0pWoNgMCBCgvVwv5SPNGO+R0wOTcgS/YyTDI
+         MMCTRBCf6Y5X7Op946XZIErDxOVRLAN1uJUSs6b8aMjiipEdz924r1uFPAVVEONFnBC1
+         eRjcEW3uL1UMy4VUvg8gNA4Pg7nsW7DCRDuZC0iLpBAnBGkKHCDzwyf3Uq04LayvwlmL
+         Hgpedt4edzE9KmfV/TNfyjqaPwOmLbR2KI1O6u2H+6Cx6SK8d3Pu0MrHeMD38gdpjP27
+         JeSg==
+X-Google-Smtp-Source: APXvYqyjdyjRGlJ4AtmMgCZd/Nm8Zu8D+p70gtT5fOtGOIKXAcrI3uZOPLT4eOOdJOYGY3S3MZtVzM6xnMJJE/TXbvw=
+X-Received: by 2002:a62:51c5:: with SMTP id f188mr24041707pfb.239.1556547740003;
+ Mon, 29 Apr 2019 07:22:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.21.1904162034260.1780@nanos.tec.linutronix.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <cover.1553093420.git.andreyknvl@google.com> <44ad2d0c55dbad449edac23ae46d151a04102a1d.1553093421.git.andreyknvl@google.com>
+ <20190322114357.GC13384@arrakis.emea.arm.com> <CAAeHK+xE-ywfpVHRhBJVGiqOe0+BYW9awUa10ZP4P6Ggc8nxMg@mail.gmail.com>
+ <20190328141934.38960af0@gandalf.local.home> <20190329103039.GA44339@arrakis.emea.arm.com>
+ <CAAeHK+xe-zWn8WpCxUxBB2tXL8oiLkshkPi1J3Ly87mACaA4-A@mail.gmail.com> <20190426141742.GB54863@arrakis.emea.arm.com>
+In-Reply-To: <20190426141742.GB54863@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 29 Apr 2019 16:22:08 +0200
+Message-ID: <CAAeHK+xx_kB_U_ws8eUHOE8SkhGCcERNVcJoaMYbP9TGb+q2tg@mail.gmail.com>
+Subject: Re: [PATCH v13 04/20] mm, arm64: untag user pointers passed to memory syscalls
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Kees Cook <keescook@chromium.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Ingo Molnar <mingo@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Eric Dumazet <edumazet@google.com>, 
+	"David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, 
+	Daniel Borkmann <daniel@iogearbox.net>, Peter Zijlstra <peterz@infradead.org>, 
+	Arnaldo Carvalho de Melo <acme@kernel.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 16, 2019 at 08:35:38PM +0200, Thomas Gleixner wrote:
-> On Tue, 16 Apr 2019, Nishad Kamdar wrote:
-> 
-> > This patch corrects the SPDX License Identifier style
-> > in the nds32 Hardware Architecture related files.
-> > 
-> > Suggested-by: Joe Perches <joe@perches.com>
-> > Signed-off-by: Nishad Kamdar <nishadkamdar@gmail.com>
-> 
-> Actually instead of doing that we should fix the documentation. The
-> requirement came from older binutils because they barfed on // style
-> comments in ASM files. That's history as we upped the minimal binutil
-> requirement.
-> 
-> Thanks,
-> 
-> 	tglx
+On Fri, Apr 26, 2019 at 4:17 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Tue, Apr 02, 2019 at 02:47:34PM +0200, Andrey Konovalov wrote:
+> > On Fri, Mar 29, 2019 at 11:30 AM Catalin Marinas
+> > <catalin.marinas@arm.com> wrote:
+> > > On Thu, Mar 28, 2019 at 02:19:34PM -0400, Steven Rostedt wrote:
+> > > > On Thu, 28 Mar 2019 19:10:07 +0100
+> > > > Andrey Konovalov <andreyknvl@google.com> wrote:
+> > > >
+> > > > > > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > > > > > > ---
+> > > > > > >  ipc/shm.c      | 2 ++
+> > > > > > >  mm/madvise.c   | 2 ++
+> > > > > > >  mm/mempolicy.c | 5 +++++
+> > > > > > >  mm/migrate.c   | 1 +
+> > > > > > >  mm/mincore.c   | 2 ++
+> > > > > > >  mm/mlock.c     | 5 +++++
+> > > > > > >  mm/mmap.c      | 7 +++++++
+> > > > > > >  mm/mprotect.c  | 1 +
+> > > > > > >  mm/mremap.c    | 2 ++
+> > > > > > >  mm/msync.c     | 2 ++
+> > > > > > >  10 files changed, 29 insertions(+)
+> > > > > >
+> > > > > > I wonder whether it's better to keep these as wrappers in the arm64
+> > > > > > code.
+> > > > >
+> > > > > I don't think I understand what you propose, could you elaborate?
+> > > >
+> > > > I believe Catalin is saying that instead of placing things like:
+> > > >
+> > > > @@ -1593,6 +1593,7 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+> > > >       unsigned long ret;
+> > > >       long err;
+> > > >
+> > > > +     shmaddr = untagged_addr(shmaddr);
+> > > >
+> > > > To instead have the shmaddr set to the untagged_addr() before calling
+> > > > the system call, and passing the untagged addr to the system call, as
+> > > > that goes through the arm64 architecture specific code first.
+> > >
+> > > Indeed. For example, we already have a SYSCALL_DEFINE6(mmap, ...) in
+> > > arch/arm64/kernel/sys.c, just add the untagging there. We could do
+> > > something similar for the other syscalls. I don't mind doing this in the
+> > > generic code but if it's only needed for arm64, I'd rather keep the
+> > > generic changes to a minimum.
+> >
+> > Do I understand correctly, that I'll need to add ksys_ wrappers for
+> > each of the memory syscalls, and then redefine them in
+> > arch/arm64/kernel/sys.c with arm64_ prefix, like it is done for the
+> > personality syscall right now? This will require generic changes as
+> > well.
+>
+> Yes. My aim is to keep the number of untagged_addr() calls in the
+> generic code to a minimum (rather than just keeping the generic code
+> changes small).
 
-Ok.
+OK, will do in v14 (despite it still being unclear whether we should
+do untagging here or not).
 
-So according to license-rules.rst,
-which says
-
-"This has been fixed by now, but there are still older assembler
-tools which cannot handle C++ style comments."
-
-Now there are no assembler tools which cannot handle C++ comments ?
-and the document should be changed accordingly ?
-
-Thanks for the review.
-
-Regards,
-Nishad
-
+>
+> --
+> Catalin
 
