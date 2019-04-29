@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24EE9C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:09:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A648C04AA6
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:10:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D322F2075E
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:09:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D322F2075E
+	by mail.kernel.org (Postfix) with ESMTP id 467362075E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 22:10:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 467362075E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E8506B000A; Mon, 29 Apr 2019 18:09:57 -0400 (EDT)
+	id E77036B000C; Mon, 29 Apr 2019 18:10:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 797316B000C; Mon, 29 Apr 2019 18:09:57 -0400 (EDT)
+	id E25DA6B000D; Mon, 29 Apr 2019 18:10:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6ADC36B000D; Mon, 29 Apr 2019 18:09:57 -0400 (EDT)
+	id D3D0F6B000E; Mon, 29 Apr 2019 18:10:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 481DE6B000A
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 18:09:57 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id d39so6799326qtc.15
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 15:09:57 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2746B000C
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 18:10:02 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id u65so10192513qkd.17
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 15:10:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=VboLrhX6IZm0XCpFQw6CvpRSBiSYOxhg4MUyBAEKY4g=;
-        b=FhXUU1DFQtPBxBKOr4iuBarKjRq7YgxP4hNbotf9CnQrQWU3P21HXi6V3/FG3xKMIN
-         EdNWlC5IqvM4VHaewASFC5z9kqsBNPRFx6DqNdZwepQDtU4IwDPlPAYjpEjV1E+Nx9QO
-         IlaFH8PttqKPykgHeLzD9rekXizuXJYTbwfocHyWhJy6oYTf/r5kR8K61AqqXkhu1Ozw
-         WJOV8WXc27v7jB/KcnhYajhrNhK4s36Yr7XitOKJxcVw7UowJiA4gVEn+XWud45DVfZ0
-         XRTube0qtGtyE9SyE2fu4YHGDaMwrti5ES5sV+IJimPEwF12lbGBYiUvgNgw9ekoIZMB
-         7t9Q==
+        bh=v58+6ZMN9LUAKNi07d/G/1pAeuHeXGsQZky0Htelx9g=;
+        b=f3srz2fJJxLxlU7atgdrFjFgwQA9+segnvx/YPhD7whsHigdpl5eYXJja37tYrlThR
+         vzQgAd/TftycNACTvPaqfOCwEO7bj2TKby20vCMfAJNNxjera2+UGz1biyVtwAkunedx
+         yoYBY7yel+SfD2xnMadNmQywKGoHzw9xh1CCAuvvbvTepXiZtVPdLscpToUY27ty91tv
+         EjmjWwdk6RNZlj4ZV+uSvXEx7i90OBXy2XQfI5ZER8q4nie2v4yEL12QFUqqVsfLF9jK
+         h/MiAa5bcNjpUrhHrKBceRobXVj7Zb5FAlZ/wLM6CkirnkZTXRSLNC9+BcgdYZfRxKU6
+         +kWw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX0zZJi7iQP7odZHcfniiQG5RwWoG1zRX298xdwjTwfKapl6c7E
-	CWOOHPuLbfSdGNmjcKRhlKCB5iM58hoFGYZmFThwU1fL6165rJiUJnOsEThdQDMtlamRnJIMS6B
-	lhQ7NwQ+NLRqtFTjE/vm9/6HU7AcaM5l38dyWDqAnOWDJkPIuKoAkVNWC3tbnOKq3Ig==
-X-Received: by 2002:ac8:28f4:: with SMTP id j49mr51159745qtj.310.1556575797019;
-        Mon, 29 Apr 2019 15:09:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLnboyXT6k/YM9/Sm7IUNLpO1eIdnNf9tB2Mz0Nz0lTw0T6mdtiH+PbB8PbuKudrLvrwtO
-X-Received: by 2002:ac8:28f4:: with SMTP id j49mr51159681qtj.310.1556575796177;
-        Mon, 29 Apr 2019 15:09:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556575796; cv=none;
+X-Gm-Message-State: APjAAAUa8l9RlO4vdnSbcmhpMPZ67ivgEdn9U/R4PSfs35elW67R7GdG
+	vnfGIFBd0PlEO6ElIgNbxu7upBOkSyWstbDstVF5zI9Q+M1enJu9FaDRyapTjaM4bfQcg0gbo30
+	WHUF4z4QDpC7Ep3VrRPQ9nSP/jgwvm2xTpjaFvmB+tbp4JRAztkSKBNBD0YHTCyhSUA==
+X-Received: by 2002:ae9:c109:: with SMTP id z9mr10457250qki.309.1556575802439;
+        Mon, 29 Apr 2019 15:10:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwAPYWKdKXaLaSHiGJ6OMJGqcBjGurlptb1LOG7aa7D1eWr+f23FgiIUTIMdpOHPbe+hD2
+X-Received: by 2002:ae9:c109:: with SMTP id z9mr10457192qki.309.1556575801522;
+        Mon, 29 Apr 2019 15:10:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556575801; cv=none;
         d=google.com; s=arc-20160816;
-        b=tsZJNZuNhQMjDn6LUdcHjXHG+9piARcgIwn8xw5ICW0vT78u+FFv0LHpqCkw/XYeYi
-         L7mX4UahGF7XIsrhIsXR69edvqgZ2DmQPN6UImSgGPwWcBnui7iJn9pgxjJpy6+F1iXB
-         EF5g1vG+SoNxNyB8rqu3DBfSpZCPdWBKtPgFy5NmKYd87W7DgIssOcC3NrMvuq8O31m2
-         sJarwpzc8hhE2EYC/n9AOFgZhrgd/Z0PTDEEcnoPekwCDBWNTGfnKoMAdgea2VrtW/Ub
-         Sr7rx89IDtMJGtx5QJxJeJPGUuDD6zii5AHGxifJ5vFTaSUDIn0r0M6c/HxKDvndRI4z
-         VIaA==
+        b=EToR7eFuxHKjQTjUeLXJq2pXtBfa19Uyxq7DYquF2W8X2FPK7Pf1phhhWz71yU0alm
+         dvVoaXLJVr79jMxKOx2kN49GwDQ935G0VLEC5KB/cN9aNmtPaDXX0yGhdEaB/uiFdhnW
+         mCKiByqcovoSXceHWJelcSHLGdk9I4XP9jqCJe6QMtFpk1QrYNsREciJBFHdoRLGkCpq
+         uN/81OihRqo879Ms3yohYoPNu8TdmhJpF17JM1UcWlzQqMgORwQaVzETRosx002Aaygj
+         R6IK+RRBlweWtgFAB+msW7UZCZAZZS5PVYKoClOAWIfcrXGB2BuNlVgI7/Pw1ET+N4BJ
+         Apxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=VboLrhX6IZm0XCpFQw6CvpRSBiSYOxhg4MUyBAEKY4g=;
-        b=Pkx70urAxF6MABnzEmcEidZtoaWEtpAGVdvlZr1VV/hiUf3OrJUpOC9f0dUX62h9mC
-         reVy0sITIbscX+f1d5VOGJ543ne5Pbw5Pkh6lOaiVGzi05aOwbaJySDMzUaJXoxJt87j
-         HvLb5svConn1IbURptyHS5Y7BSBSOvX6yBJ/WFepcLDbliUTaH8n7gVUG6aB531KuzP1
-         /9rqNRhOqzJLvprThCvcQWKW4fT/dP862CJUubpfVuSd6jIFMlOlRPLslmXoFP8Uktmp
-         cN1ojfnI0p9IzA7UwiPvoQvEDRXAUvl9cTA1TzH0vnOBXCY60wblREHT/7lL/iPeUPKg
-         d8MQ==
+        bh=v58+6ZMN9LUAKNi07d/G/1pAeuHeXGsQZky0Htelx9g=;
+        b=WtoUV7QuOJ1hqNl+izeUIPaAGYTOmWLehR7/PQ831S5Fz8ncr2xo3Js4p2f4fDEjFs
+         S4OpITwcH5MlmUnyGUohJ1e7kgpDe5piRvjOt+yPW9NIcyZwsqoya/Z8gmdz2rZFGBaz
+         Vyju/qBOHgvzK+crKBlWIP/chkQ+X98oE7PwVwxoLERfOoWd7qAZoODAHU/ENvc/EP8K
+         ftUCfc6oLEehlEQ2/HH/gNKfSglkd8zIhZmB+AfQwCpQaiZ8iAqh9zvJGJPOkT22YpKj
+         UI7TDfwbNACytUJUWdXP6JCYS3LcsrwOs1dUX3RyG97HESsaVOcFbZ3n7ECyhOnIRdt0
+         0dmg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g9si1300029qkb.8.2019.04.29.15.09.55
+        by mx.google.com with ESMTPS id n186si1583769qkc.99.2019.04.29.15.10.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 15:09:56 -0700 (PDT)
+        Mon, 29 Apr 2019 15:10:01 -0700 (PDT)
 Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of agruenba@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4B936307EA86;
-	Mon, 29 Apr 2019 22:09:55 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 956E53082E70;
+	Mon, 29 Apr 2019 22:10:00 +0000 (UTC)
 Received: from max.home.com (unknown [10.40.205.80])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8C4C4891C;
-	Mon, 29 Apr 2019 22:09:52 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D3C4E891C;
+	Mon, 29 Apr 2019 22:09:55 +0000 (UTC)
 From: Andreas Gruenbacher <agruenba@redhat.com>
 To: cluster-devel@redhat.com,
 	"Darrick J . Wong" <darrick.wong@oracle.com>
@@ -99,194 +99,244 @@ Cc: Christoph Hellwig <hch@lst.de>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Andreas Gruenbacher <agruenba@redhat.com>
-Subject: [PATCH v7 4/5] iomap: Add a page_prepare callback
-Date: Tue, 30 Apr 2019 00:09:33 +0200
-Message-Id: <20190429220934.10415-5-agruenba@redhat.com>
+Subject: [PATCH v7 5/5] gfs2: Fix iomap write page reclaim deadlock
+Date: Tue, 30 Apr 2019 00:09:34 +0200
+Message-Id: <20190429220934.10415-6-agruenba@redhat.com>
 In-Reply-To: <20190429220934.10415-1-agruenba@redhat.com>
 References: <20190429220934.10415-1-agruenba@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 29 Apr 2019 22:09:55 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 29 Apr 2019 22:10:00 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Move the page_done callback into a separate iomap_page_ops structure and
-add a page_prepare calback to be called before the next page is written
-to.  In gfs2, we'll want to start a transaction in page_prepare and end
-it in page_done.  Other filesystems that implement data journaling will
-require the same kind of mechanism.
+Since commit 64bc06bb32ee ("gfs2: iomap buffered write support"), gfs2 is doing
+buffered writes by starting a transaction in iomap_begin, writing a range of
+pages, and ending that transaction in iomap_end.  This approach suffers from
+two problems:
 
+  (1) Any allocations necessary for the write are done in iomap_begin, so when
+  the data aren't journaled, there is no need for keeping the transaction open
+  until iomap_end.
+
+  (2) Transactions keep the gfs2 log flush lock held.  When
+  iomap_file_buffered_write calls balance_dirty_pages, this can end up calling
+  gfs2_write_inode, which will try to flush the log.  This requires taking the
+  log flush lock which is already held, resulting in a deadlock.
+
+Fix both of these issues by not keeping transactions open from iomap_begin to
+iomap_end.  Instead, start a small transaction in page_prepare and end it in
+page_done when necessary.
+
+Reported-by: Edwin Török <edvin.torok@citrix.com>
+Fixes: 64bc06bb32ee ("gfs2: iomap buffered write support")
 Signed-off-by: Andreas Gruenbacher <agruenba@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
+Signed-off-by: Bob Peterson <rpeterso@redhat.com>
 ---
- fs/gfs2/bmap.c        | 15 ++++++++++-----
- fs/iomap.c            | 36 ++++++++++++++++++++++++++----------
- include/linux/iomap.h | 22 +++++++++++++++++-----
- 3 files changed, 53 insertions(+), 20 deletions(-)
+ fs/gfs2/aops.c | 14 +++++---
+ fs/gfs2/bmap.c | 88 +++++++++++++++++++++++++++-----------------------
+ 2 files changed, 58 insertions(+), 44 deletions(-)
 
+diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
+index 05dd78f4b2b3..6210d4429d84 100644
+--- a/fs/gfs2/aops.c
++++ b/fs/gfs2/aops.c
+@@ -649,7 +649,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
+  */
+ void adjust_fs_space(struct inode *inode)
+ {
+-	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
++	struct gfs2_sbd *sdp = GFS2_SB(inode);
+ 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
+ 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
+ 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
+@@ -657,10 +657,13 @@ void adjust_fs_space(struct inode *inode)
+ 	struct buffer_head *m_bh, *l_bh;
+ 	u64 fs_total, new_free;
+ 
++	if (gfs2_trans_begin(sdp, 2 * RES_STATFS, 0) != 0)
++		return;
++
+ 	/* Total up the file system space, according to the latest rindex. */
+ 	fs_total = gfs2_ri_total(sdp);
+ 	if (gfs2_meta_inode_buffer(m_ip, &m_bh) != 0)
+-		return;
++		goto out;
+ 
+ 	spin_lock(&sdp->sd_statfs_spin);
+ 	gfs2_statfs_change_in(m_sc, m_bh->b_data +
+@@ -675,11 +678,14 @@ void adjust_fs_space(struct inode *inode)
+ 	gfs2_statfs_change(sdp, new_free, new_free, 0);
+ 
+ 	if (gfs2_meta_inode_buffer(l_ip, &l_bh) != 0)
+-		goto out;
++		goto out2;
+ 	update_statfs(sdp, m_bh, l_bh);
+ 	brelse(l_bh);
+-out:
++out2:
+ 	brelse(m_bh);
++out:
++	sdp->sd_rindex_uptodate = 0;
++	gfs2_trans_end(sdp);
+ }
+ 
+ /**
 diff --git a/fs/gfs2/bmap.c b/fs/gfs2/bmap.c
-index 5da4ca9041c0..aa014725f84a 100644
+index aa014725f84a..27c82f4aaf32 100644
 --- a/fs/gfs2/bmap.c
 +++ b/fs/gfs2/bmap.c
-@@ -991,15 +991,20 @@ static void gfs2_write_unlock(struct inode *inode)
+@@ -991,17 +991,28 @@ static void gfs2_write_unlock(struct inode *inode)
  	gfs2_glock_dq_uninit(&ip->i_gh);
  }
  
--static void gfs2_iomap_journaled_page_done(struct inode *inode, loff_t pos,
--				unsigned copied, struct page *page,
--				struct iomap *iomap)
-+static void gfs2_iomap_page_done(struct inode *inode, loff_t pos,
-+				 unsigned copied, struct page *page,
-+				 struct iomap *iomap)
++static int gfs2_iomap_page_prepare(struct inode *inode, loff_t pos,
++				   unsigned len, struct iomap *iomap)
++{
++	struct gfs2_sbd *sdp = GFS2_SB(inode);
++
++	return gfs2_trans_begin(sdp, RES_DINODE + (len >> inode->i_blkbits), 0);
++}
++
+ static void gfs2_iomap_page_done(struct inode *inode, loff_t pos,
+ 				 unsigned copied, struct page *page,
+ 				 struct iomap *iomap)
  {
  	struct gfs2_inode *ip = GFS2_I(inode);
++	struct gfs2_sbd *sdp = GFS2_SB(inode);
  
--	gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
-+	if (page)
-+		gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
+-	if (page)
++	if (page && !gfs2_is_stuffed(ip))
+ 		gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
++	gfs2_trans_end(sdp);
  }
  
-+static const struct iomap_page_ops gfs2_iomap_page_ops = {
-+	.page_done = gfs2_iomap_page_done,
-+};
+ static const struct iomap_page_ops gfs2_iomap_page_ops = {
++	.page_prepare = gfs2_iomap_page_prepare,
+ 	.page_done = gfs2_iomap_page_done,
+ };
+ 
+@@ -1057,31 +1068,45 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
+ 	if (alloc_required)
+ 		rblocks += gfs2_rg_blocks(ip, data_blocks + ind_blocks);
+ 
+-	ret = gfs2_trans_begin(sdp, rblocks, iomap->length >> inode->i_blkbits);
+-	if (ret)
+-		goto out_trans_fail;
++	if (unstuff || iomap->type == IOMAP_HOLE) {
++		struct gfs2_trans *tr;
+ 
+-	if (unstuff) {
+-		ret = gfs2_unstuff_dinode(ip, NULL);
++		ret = gfs2_trans_begin(sdp, rblocks,
++				       iomap->length >> inode->i_blkbits);
+ 		if (ret)
+-			goto out_trans_end;
+-		release_metapath(mp);
+-		ret = gfs2_iomap_get(inode, iomap->offset, iomap->length,
+-				     flags, iomap, mp);
+-		if (ret)
+-			goto out_trans_end;
+-	}
++			goto out_trans_fail;
+ 
+-	if (iomap->type == IOMAP_HOLE) {
+-		ret = gfs2_iomap_alloc(inode, iomap, flags, mp);
+-		if (ret) {
+-			gfs2_trans_end(sdp);
+-			gfs2_inplace_release(ip);
+-			punch_hole(ip, iomap->offset, iomap->length);
+-			goto out_qunlock;
++		if (unstuff) {
++			ret = gfs2_unstuff_dinode(ip, NULL);
++			if (ret)
++				goto out_trans_end;
++			release_metapath(mp);
++			ret = gfs2_iomap_get(inode, iomap->offset,
++					     iomap->length, flags, iomap, mp);
++			if (ret)
++				goto out_trans_end;
++		}
 +
- static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
- 				  loff_t length, unsigned flags,
- 				  struct iomap *iomap,
-@@ -1077,7 +1082,7 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
++		if (iomap->type == IOMAP_HOLE) {
++			ret = gfs2_iomap_alloc(inode, iomap, flags, mp);
++			if (ret) {
++				gfs2_trans_end(sdp);
++				gfs2_inplace_release(ip);
++				punch_hole(ip, iomap->offset, iomap->length);
++				goto out_qunlock;
++			}
  		}
++
++		tr = current->journal_info;
++		if (tr->tr_num_buf_new)
++			__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
++		else
++			gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[0]);
++
++		gfs2_trans_end(sdp);
  	}
- 	if (!gfs2_is_stuffed(ip) && gfs2_is_jdata(ip))
--		iomap->page_done = gfs2_iomap_journaled_page_done;
-+		iomap->page_ops = &gfs2_iomap_page_ops;
+-	if (!gfs2_is_stuffed(ip) && gfs2_is_jdata(ip))
++
++	if (gfs2_is_stuffed(ip) || gfs2_is_jdata(ip))
+ 		iomap->page_ops = &gfs2_iomap_page_ops;
  	return 0;
  
- out_trans_end:
-diff --git a/fs/iomap.c b/fs/iomap.c
-index 62e3461704ce..a3ffc83134ee 100644
---- a/fs/iomap.c
-+++ b/fs/iomap.c
-@@ -665,6 +665,7 @@ static int
- iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
- 		struct page **pagep, struct iomap *iomap)
- {
-+	const struct iomap_page_ops *page_ops = iomap->page_ops;
- 	pgoff_t index = pos >> PAGE_SHIFT;
- 	struct page *page;
- 	int status = 0;
-@@ -674,9 +675,17 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
- 	if (fatal_signal_pending(current))
- 		return -EINTR;
- 
-+	if (page_ops && page_ops->page_prepare) {
-+		status = page_ops->page_prepare(inode, pos, len, iomap);
-+		if (status)
-+			return status;
-+	}
-+
- 	page = grab_cache_page_write_begin(inode->i_mapping, index, flags);
--	if (!page)
--		return -ENOMEM;
-+	if (!page) {
-+		status = -ENOMEM;
-+		goto out_no_page;
-+	}
- 
- 	if (iomap->type == IOMAP_INLINE)
- 		iomap_read_inline_data(inode, page, iomap);
-@@ -684,15 +693,21 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
- 		status = __block_write_begin_int(page, pos, len, NULL, iomap);
- 	else
- 		status = __iomap_write_begin(inode, pos, len, page, iomap);
--	if (unlikely(status)) {
--		unlock_page(page);
--		put_page(page);
--		page = NULL;
- 
--		iomap_write_failed(inode, pos, len);
+@@ -1121,10 +1146,6 @@ static int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
+ 		    iomap->type != IOMAP_MAPPED)
+ 			ret = -ENOTBLK;
+ 	}
+-	if (!ret) {
+-		get_bh(mp.mp_bh[0]);
+-		iomap->private = mp.mp_bh[0];
 -	}
-+	if (unlikely(status))
-+		goto out_unlock;
+ 	release_metapath(&mp);
+ 	trace_gfs2_iomap_end(ip, iomap, ret);
+ 	return ret;
+@@ -1135,27 +1156,16 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
+ {
+ 	struct gfs2_inode *ip = GFS2_I(inode);
+ 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+-	struct gfs2_trans *tr = current->journal_info;
+-	struct buffer_head *dibh = iomap->private;
  
- 	*pagep = page;
-+	return 0;
-+
-+out_unlock:
-+	unlock_page(page);
-+	put_page(page);
-+	iomap_write_failed(inode, pos, len);
-+
-+out_no_page:
-+	if (page_ops && page_ops->page_done)
-+		page_ops->page_done(inode, pos, 0, NULL, iomap);
- 	return status;
+ 	if ((flags & (IOMAP_WRITE | IOMAP_DIRECT)) != IOMAP_WRITE)
+ 		goto out;
+ 
+-	if (iomap->type != IOMAP_INLINE) {
++	if (!gfs2_is_stuffed(ip))
+ 		gfs2_ordered_add_inode(ip);
+ 
+-		if (tr->tr_num_buf_new)
+-			__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+-		else
+-			gfs2_trans_add_meta(ip->i_gl, dibh);
+-	}
+-
+-	if (inode == sdp->sd_rindex) {
++	if (inode == sdp->sd_rindex)
+ 		adjust_fs_space(inode);
+-		sdp->sd_rindex_uptodate = 0;
+-	}
+ 
+-	gfs2_trans_end(sdp);
+ 	gfs2_inplace_release(ip);
+ 
+ 	if (length != written && (iomap->flags & IOMAP_F_NEW)) {
+@@ -1175,8 +1185,6 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
+ 	gfs2_write_unlock(inode);
+ 
+ out:
+-	if (dibh)
+-		brelse(dibh);
+ 	return 0;
  }
  
-@@ -766,6 +781,7 @@ static int
- iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
- 		unsigned copied, struct page *page, struct iomap *iomap)
- {
-+	const struct iomap_page_ops *page_ops = iomap->page_ops;
- 	int ret;
- 
- 	if (iomap->type == IOMAP_INLINE) {
-@@ -778,8 +794,8 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
- 	}
- 
- 	__generic_write_end(inode, pos, ret, page);
--	if (iomap->page_done)
--		iomap->page_done(inode, pos, copied, page, iomap);
-+	if (page_ops && page_ops->page_done)
-+		page_ops->page_done(inode, pos, copied, page, iomap);
- 	put_page(page);
- 
- 	if (ret < len)
-diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-index 0fefb5455bda..2103b94cb1bf 100644
---- a/include/linux/iomap.h
-+++ b/include/linux/iomap.h
-@@ -53,6 +53,8 @@ struct vm_fault;
-  */
- #define IOMAP_NULL_ADDR -1ULL	/* addr is not valid */
- 
-+struct iomap_page_ops;
-+
- struct iomap {
- 	u64			addr; /* disk offset of mapping, bytes */
- 	loff_t			offset;	/* file offset of mapping, bytes */
-@@ -63,12 +65,22 @@ struct iomap {
- 	struct dax_device	*dax_dev; /* dax_dev for dax operations */
- 	void			*inline_data;
- 	void			*private; /* filesystem private */
-+	const struct iomap_page_ops *page_ops;
-+};
- 
--	/*
--	 * Called when finished processing a page in the mapping returned in
--	 * this iomap.  At least for now this is only supported in the buffered
--	 * write path.
--	 */
-+/*
-+ * When a filesystem sets page_ops in an iomap mapping it returns, page_prepare
-+ * and page_done will be called for each page written to.  This only applies to
-+ * buffered writes as unbuffered writes will not typically have pages
-+ * associated with them.
-+ *
-+ * When page_prepare succeeds, page_done will always be called to do any
-+ * cleanup work necessary.  In that page_done call, @page will be NULL if the
-+ * associated page could not be obtained.
-+ */
-+struct iomap_page_ops {
-+	int (*page_prepare)(struct inode *inode, loff_t pos, unsigned len,
-+			struct iomap *iomap);
- 	void (*page_done)(struct inode *inode, loff_t pos, unsigned copied,
- 			struct page *page, struct iomap *iomap);
- };
 -- 
 2.20.1
 
