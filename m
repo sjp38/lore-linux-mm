@@ -2,149 +2,159 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C477C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 16:58:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B237C004C9
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 17:13:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDC0E2087B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 16:58:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDC0E2087B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0A58920675
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 17:13:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="FKmZgoHb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A58920675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7EBC6B0010; Mon, 29 Apr 2019 12:58:13 -0400 (EDT)
+	id 9AF6C6B0003; Mon, 29 Apr 2019 13:13:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2E016B0266; Mon, 29 Apr 2019 12:58:13 -0400 (EDT)
+	id 95F496B0005; Mon, 29 Apr 2019 13:13:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 944996B0269; Mon, 29 Apr 2019 12:58:13 -0400 (EDT)
+	id 84FF96B0007; Mon, 29 Apr 2019 13:13:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB376B0010
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 12:58:13 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id e128so7535570pfc.22
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 09:58:13 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 62FF76B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 13:13:49 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id g28so10493220qtk.7
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 10:13:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=9qAkDO1RCNBG4eZ+0iC96z5lxEkGnKRGUjbMisi9De4=;
-        b=EEvDwT+FaN32dBWSngB1h7yiYhHkMn4D5LAAJRkC4kQl5XGM+NJDC/eG0Lr/BOP2Ij
-         4BwK2jvBajlTAXd5OC0LHJ07AQgnB/aRqngwzATJacFjAlIE08Le71G6UzhxX/YJWkqc
-         X1HuidZTxxWsiU+HhT9A2SvUSQAimX/Wo/E9nS9MUVWkNy3Mi3o5Lvh1ZcqamwaAQXTb
-         H281RaTishVXaJm6RYQyID0SzT7oKeavgXbNcV1T3YneDdnlxny78xwR75Dowq5OBFK7
-         cq4tL+lIqQhHQ67bxs5GfygL0VD1jU7Kcnof0jTTAtAQntXzXdRzju2alP+6+r8vUI8e
-         akzQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tony.luck@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=tony.luck@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWWmZv/Z+0nHdqW3CKXe56JyEPSbap8MOK3LNkoAN3eX0o26mZX
-	GNU3KyVgkpLZeCn0NRnWTHYW5Qw36IRlm9ggG76P+NaiR6Ss8PhVKIiqD4oJ6ZK4ytSbeWY+pBF
-	vMAl/P3Kr0r9XU4zJuBCJ7R/u3ydBU/nok+M7gho/eapnIQ024Yfi02mrovE6W6M7Wg==
-X-Received: by 2002:a65:64d3:: with SMTP id t19mr25114585pgv.57.1556557092988;
-        Mon, 29 Apr 2019 09:58:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvIBkLNZvyS/AY7GPNuU7rjtvWM3a5xuL2b5qVIicPfbJRcxUyeCTfR8HvBv88IVbT53US
-X-Received: by 2002:a65:64d3:: with SMTP id t19mr25114473pgv.57.1556557091990;
-        Mon, 29 Apr 2019 09:58:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556557091; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=eAfjg0nGPcLWfxJJhGXBjl7FIwajcYkmLSUZC9BoAVo=;
+        b=RzjoBos97q1myDmpUasmCxkm6dRpyvIce330QpV1K7rqqbEN1qpbCs5+H9qtWW+zDe
+         KQIONSGKHf3mxZ02i+0iw4uw5gDpSOhYUXZUzHFS53pCzM2aj1N2/WbI8nEJyJ8FlKlh
+         fPsJ0hTJ9nGum+UfoIU0cfSgznUQK0bn55Gd6ZoyR7ULG9hlDdq8ngTtWM9Di7B/aFeZ
+         UXE6EiZmnA9NT9ypMZx1prdHXh7Zm0rB2F1SE0JXqtt6hbMdITFlbJwLsS41fg1532EQ
+         iTvxQab+30o42mCG/FDk8jrTtcoCQLHB/SIkIoBhIcus0eKm1rKOcnP/KNZOvKF57F49
+         EbhQ==
+X-Gm-Message-State: APjAAAUnVXK7Ex3Fqt3aB4pBwXb1dK93SlQBdR7HEEfF4VZrbFlMH5l/
+	ezqfEWvb5jB6CW0ih2BZB7eVJZ+kp1LsuMP9CkIg13k6u3DECUci8xTkgf/d3vUI9rtFkeuR6Qw
+	wI7pKdyU3KQK5Dr8QdHyEvon1Jd5YplRCSK7PsrPiBlka6Kacq96nTO8UWtAxWdL9YA==
+X-Received: by 2002:aed:3e93:: with SMTP id n19mr27154430qtf.345.1556558029131;
+        Mon, 29 Apr 2019 10:13:49 -0700 (PDT)
+X-Received: by 2002:aed:3e93:: with SMTP id n19mr27154375qtf.345.1556558028414;
+        Mon, 29 Apr 2019 10:13:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556558028; cv=none;
         d=google.com; s=arc-20160816;
-        b=aldIbyfK7mQzrJdhm/snppwE7Z3qNVdbuyn288CYhgqJXiilkgb1S5vx8FXEW5kUG3
-         fG0V6KFMsbRxrj/ZigQwCNVWquQpcWrdh6IY3t8xpShDZGUXu0lbBNd4y7ChjUcMSQF7
-         m8Sw0viLBkYxDBGbcveXfsiOr+xabyQQoAQvka7eVxjeUHLcTRo/uCTaJ7cSo2FE4cyf
-         TdfaBWHmfKJNwbauDb9EM9VAZszq3EbY1cCiRdKPNuAicriO/Fp6ZqyVW0yCwGirLV0F
-         Uw9pUT/1mkJbJ9kIW4AaNfMDiLUNmL66WeHT7Abj2FOxVc3QY5bb4U4Fs39OujMBPOXJ
-         QvWw==
+        b=bfN09b+UtfD93WlFwtaMnogRl/msZ9m1jCoS1Mldw5TDycn/EPJyksl4hvXCv/zvbz
+         Dq45RnbGT6HND5kx+Tdcv0TEFc+gzTmFe/L+w4Z5PdJqg1xxM0d8iGbB6z1hrSrV/oQk
+         NTCJ1f1KLzn+YSP/rtfTCqsLvqH31g1/hYKiaTaUN60OFXuk0uaE4UZT2tH7NUcx8ooB
+         X3jnFeTvdhTtbDE8AhcGmsA8enFw6ge1jIHk1se9HGE4iEAIkIMMt+zMKE8mLvSgkl2Z
+         nt1BEx8TWC4dIGNLyyUCzamlMSL7dEHwJb8skDvw6SvSEi5REKnmbhWKbPYkY32utHZN
+         zLiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=9qAkDO1RCNBG4eZ+0iC96z5lxEkGnKRGUjbMisi9De4=;
-        b=kcHNcs4cD0zHLMiIsPTg+b1BAR7Xn2YuqPUd+M6pFfsm1GK/BnGbKURsFSrWMTFSr6
-         tB0X386c3+OJh/EL1czu5Hqp3iH595NBB7Hi0jNx657sEzchtWfhUlb4VG6nPLkexg4C
-         tassLVQKSzETJXXfsy/IcoPSWLGmOGLK8n4qshpSGdIOvUVt5J8hRH0kaCxBmvkNlInd
-         E+UF1uEtfAawVlQyL93wJWOLpI9K9CItM2vxVFubm+QBK5UWixXXWjqqUde042b/B3gT
-         dtCkD9T5S/cYSMjTTDsmP3Re/RDWOeY/xHA/bhz2H6MyXTv1Qk1Roi9/ryPKQTpvRNrn
-         hGNQ==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=eAfjg0nGPcLWfxJJhGXBjl7FIwajcYkmLSUZC9BoAVo=;
+        b=rehevY1Y0iPKqL6FHfNl45FZ0esZj80cUG+rL5QL011oYxQl9SGNxtTKOpSeotZsl1
+         JCNymqSRfS84MF2XIGwf2Oj83++2yVMEbRVtFvUjt2A+IysmE9bAE5cOAfGSY2fm1mEv
+         ioYdLlVXzwdL0MRcMTn9lWFkpvvwMGuDG4ZbJUjikDehywxs3rtZltCvJIW32hJaJNJO
+         MlddzzhK1iWDl9nUWQtnmu3ITMx4ZiB0JV78upIZ+HXRB4T+H9bYkcMRd9PDn6qd2WM+
+         /ZGI86Ttl4AhksNTpm1QZpL5m0HPxGxYCPTgglEyN1C3dOePftPPBCmhDWHWmPC3XnmM
+         CPfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tony.luck@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=tony.luck@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u125si35063826pfb.112.2019.04.29.09.58.11
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FKmZgoHb;
+       spf=pass (google.com: domain of 3yzdhxagkcdykzscwwdtyggydw.ugedafmp-eecnsuc.gjy@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3yzDHXAgKCDYkZScWWdTYggYdW.Ugedafmp-eecnSUc.gjY@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id r12sor8445681qvq.10.2019.04.29.10.13.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 09:58:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tony.luck@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Mon, 29 Apr 2019 10:13:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3yzdhxagkcdykzscwwdtyggydw.ugedafmp-eecnsuc.gjy@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tony.luck@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=tony.luck@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Apr 2019 09:58:11 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,410,1549958400"; 
-   d="scan'208";a="169009686"
-Received: from orsmsx109.amr.corp.intel.com ([10.22.240.7])
-  by fmsmga001.fm.intel.com with ESMTP; 29 Apr 2019 09:58:10 -0700
-Received: from orsmsx104.amr.corp.intel.com ([169.254.4.183]) by
- ORSMSX109.amr.corp.intel.com ([169.254.11.52]) with mapi id 14.03.0415.000;
- Mon, 29 Apr 2019 09:58:09 -0700
-From: "Luck, Tony" <tony.luck@intel.com>
-To: Christoph Hellwig <hch@infradead.org>, Meelis Roos <mroos@linux.ee>
-CC: Christopher Lameter <cl@linux.com>, Mel Gorman
-	<mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>,
-	Mikulas Patocka <mpatocka@redhat.com>, James Bottomley
-	<James.Bottomley@hansenpartnership.com>, "linux-parisc@vger.kernel.org"
-	<linux-parisc@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
-	"linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "Yu, Fenghua"
-	<fenghua.yu@intel.com>, "linux-ia64@vger.kernel.org"
-	<linux-ia64@vger.kernel.org>
-Subject: RE: DISCONTIGMEM is deprecated
-Thread-Topic: DISCONTIGMEM is deprecated
-Thread-Index: AQHU/ZpXmcVCt4ADQUqjpwA1uPgMxaZTXO4w
-Date: Mon, 29 Apr 2019 16:58:09 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F7E9140BA@ORSMSX104.amr.corp.intel.com>
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <0100016a461809ed-be5bd8fc-9925-424d-9624-4a325a7a8860-000000@email.amazonses.com>
- <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
- <20190428081353.GB30901@infradead.org>
-In-Reply-To: <20190428081353.GB30901@infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiZDZlMGYwOWMtYjMxNC00ZDg2LWI2OTMtNDI5NjUwZDU1NzllIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiR3gxdGpVSlhOVlhRSWZVOExpNUk0emx1dkVMZzdGZ3QrK21zNE95d2g0a0VGR0tvWTVQY1lRUDBuMjkwVWNEZiJ9
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [10.22.254.140]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=FKmZgoHb;
+       spf=pass (google.com: domain of 3yzdhxagkcdykzscwwdtyggydw.ugedafmp-eecnsuc.gjy@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3yzDHXAgKCDYkZScWWdTYggYdW.Ugedafmp-eecnSUc.gjY@flex--shakeelb.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=eAfjg0nGPcLWfxJJhGXBjl7FIwajcYkmLSUZC9BoAVo=;
+        b=FKmZgoHbVGCO97K3BcQ+ic4v++s8rwzSXFy75ckZdej+bpKpVXnUNuY3AXrL33BVgJ
+         Hqz2qDXRzmxVtOoIbcV+h21LE3UduSmU2SvSZoF6iZ6fTU/Uda98vcUkpqI6iB9iB4m3
+         ts6v/RxvQwZAPpQgbA2bqqm1snmfVmcGk/alcHvia2mC0gY7WxDx3MzXcsdnuqA/gMZJ
+         XBYlW9aAVRGre8B6TOocT9qUo0Kl2vE6THP1e5dwTEiMa3I9hqxw/zuSjkYo1tPPGfr0
+         F47SccgEZEd4YLwQlE/5seZLLVVmyOrAhtyFNqs1W697mP3Z5oznCNev6CK6HYxdQwla
+         tG+g==
+X-Google-Smtp-Source: APXvYqwwgWs3zy3FLOkSJFSV4QCkVGyC8pGPoFtNLJRMe+t9+l0sHrdTDJroLj5qqsGFZEw5ucWIBmehPElR7Q==
+X-Received: by 2002:a0c:c18d:: with SMTP id n13mr19796452qvh.109.1556558027954;
+ Mon, 29 Apr 2019 10:13:47 -0700 (PDT)
+Date: Mon, 29 Apr 2019 10:13:31 -0700
+Message-Id: <20190429171332.152992-1-shakeelb@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.593.g511ec345e18-goog
+Subject: [PATCH 1/2] memcg, oom: no oom-kill for __GFP_RETRY_MAYFAIL
+From: Shakeel Butt <shakeelb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
+	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>, Jan Kara <jack@suse.cz>, Amir Goldstein <amir73il@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	linux-fsdevel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> ia64 has a such a huge number of memory model choices.  Maybe we
-> need to cut it down to a small set that actually work.
+The documentation of __GFP_RETRY_MAYFAIL clearly mentioned that the
+OOM killer will not be triggered and indeed the page alloc does not
+invoke OOM killer for such allocations. However we do trigger memcg
+OOM killer for __GFP_RETRY_MAYFAIL. Fix that. This flag will used later
+to not trigger oom-killer in the charging path for fanotify and inotify
+event allocations.
 
-SGI systems had extremely discontiguous memory (they used some high
-order physical address bits in the tens/hundreds of terabyte range for the
-node number ... so there would be a few GBytes of actual memory then
-a huge gap before the next node had a few more Gbytes).
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+Changelog since v1:
+- commit message updated.
 
-I don't know of anyone still booting upstream on an SN2, so if we start doi=
-ng
-serious hack and slash the chances are high that SN2 will be broken (if it =
-isn't
-already).
+ mm/memcontrol.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
--Tony
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2713b45ec3f0..99eca724ed3b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2294,7 +2294,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	unsigned long nr_reclaimed;
+ 	bool may_swap = true;
+ 	bool drained = false;
+-	bool oomed = false;
+ 	enum oom_status oom_status;
+ 
+ 	if (mem_cgroup_is_root(memcg))
+@@ -2381,7 +2380,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	if (nr_retries--)
+ 		goto retry;
+ 
+-	if (gfp_mask & __GFP_RETRY_MAYFAIL && oomed)
++	if (gfp_mask & __GFP_RETRY_MAYFAIL)
+ 		goto nomem;
+ 
+ 	if (gfp_mask & __GFP_NOFAIL)
+@@ -2400,7 +2399,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	switch (oom_status) {
+ 	case OOM_SUCCESS:
+ 		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-		oomed = true;
+ 		goto retry;
+ 	case OOM_FAILED:
+ 		goto force;
+-- 
+2.21.0.593.g511ec345e18-goog
 
