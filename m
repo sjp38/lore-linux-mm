@@ -2,78 +2,78 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,UNWANTED_LANGUAGE_BODY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C6BDC43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55EB5C004C9
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 570FF2087B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 570FF2087B
+	by mail.kernel.org (Postfix) with ESMTP id 06A162087B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06A162087B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34FB86B0269; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id 945056B026C; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2DDCA6B026C; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id 8F2896B026D; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F59B6B026D; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id 8072D6B026E; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C38286B0269
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id o1so6611203pgv.15
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 488936B026D
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f7so6652123pfd.7
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 21:54:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=xOq42QtP/+AsL0/tWauXucC4OF0frWRM/1KsTrSyUI4=;
-        b=X1N5SkCr7bTy4FudKpkf7maHk/NEhjboOHKZrQlTWuW3J9ciz/5s84iOVq+KOAwVFc
-         gYZREoCRbqr7bkUtDJ6gFFDjXJLd7b5v5sVyQjagtEwQIqUjYzpMB24NW1Ug29sqWeWc
-         R+4oV3S/VXiMBazZVGldVxH2WgE0WZZXVGJL/jCQZBU186a2p2ANCzzMs0MxpWQPRh7R
-         oiA7CPrBNnfq0FUuunNaTgOQ1UxC1scSwphR25pAtA4Nq7RC9PxmpKnbiZT8b+RcwLp0
-         7SiBx9GFATI9WJmZrpXO/NFC04I2gPEaGhZtho4pdxD+syFkE8AAspQyYrdSB3OAW3ZY
-         LJqw==
+        bh=DUvFDn7C5Eh34MdB6r7GUuxOF+hBXuSzGP9HXtCcuKI=;
+        b=JnLcDkOPidVw6ubB8gMAgrbhvKdj3bGQphFy8fh0tGyS8zPSSk1m3plHZXmslo/xfa
+         VlmzFD52TX84JDq4YwtVeL2jidwWh5Rh9w79yyimB7ljPb0GQIufUtZyse+UyNgPU0az
+         uiYjDkfYUsal8xgaWzP8vSa3EC9IGX1n5AX6Hc8O5OGcUZbCV74BKz1OBDnYjZCpJIcS
+         SnXVYoEm8F0pE9pwXWtLWjyEwTvHsqV47KXsc8Jz1tEdbuW4Gs4AupLTAiejMKYbTYq4
+         MuepCyJoYfoUK2wdJPdyUqvS+lVJhl7u/jxZdfkP1xT53OoRncUBI76mS6v//du23yKx
+         PacA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWbBiJpDhAVamDAB9dXdfkotPni5qW5kRHoQ4oXONESI20N83LY
-	X7Lwjd42hiMN4VWpgn1Kn6jfinVvQ6HQ1yIZ7WI3z1GXtSNuvC9YOa8IpQ+AfWaPQaT3ArNRC9+
-	YiU+uRKGea84AecdOlMaLcaKG+nP3LQxtldpt3oqood9/6yZanN6puCQcgLeTyeJTnw==
-X-Received: by 2002:a17:902:6b0b:: with SMTP id o11mr23484526plk.266.1556513651493;
+X-Gm-Message-State: APjAAAWpQDhSLbqyIASYYTa5Rb7h8yC6fL7Dy8M7gzO1fRXypRLXwzuv
+	lzL84EXdy0cRJyn3D+LQAgB2n44bP/6MXWSdhqDAR489T5bJUeLtqIJAm7SFrTSfSLdRzGOgt+t
+	59BeVfD2UrlcM+eCCAOAIqhDASQRE0Okl3DSV/P1q77W1Px2dMwtYKCJV/dYPac7JLg==
+X-Received: by 2002:a17:902:a7:: with SMTP id a36mr59731883pla.111.1556513651953;
         Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTF8GL/e9I19kF5feenZdUoOc5tztaCTS+8YWTTfmFAmRd0QbCMkVQtfCNjhUWHXae6+SA
-X-Received: by 2002:a17:902:6b0b:: with SMTP id o11mr23484492plk.266.1556513650780;
-        Sun, 28 Apr 2019 21:54:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556513650; cv=none;
+X-Google-Smtp-Source: APXvYqynEotcfbW0EDVn9v6KNgAT/kAbGkzVsSKTicFV1bZtSZS5FhMKv+f6uBBOnlDAsHshCa2r
+X-Received: by 2002:a17:902:a7:: with SMTP id a36mr59731858pla.111.1556513651276;
+        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556513651; cv=none;
         d=google.com; s=arc-20160816;
-        b=oXxd18q63xwurDsqxAsjYiFyqCuF3ZtirxFjUUdqALdmxBp6IPhiNApRp5jCicUCDt
-         cPyohsFCFvk45x8m4YX0yVs7mM25J2Kx4ML/qKwlVJf4qpmEuSYd+cokWbPRXc5HTTaz
-         wh+TsYFIdGZI4zuQr//evyyj688011lVSgqTXcJKf9X5W0eFW9Fsn0Y6RCvwZtMA0SKz
-         MVG8stIB1enYSrU5EK04l6hJWWuo2efEuz+WYj115tYMj+M/RNNEmZH8XbNTn/Ig1dnT
-         4PIv13YEh4oYDUK59DFFQMb183QMaWESZyu+rEnnsxpDJohr01TZvVU6C8B0TxgXpmd/
-         mdnQ==
+        b=G30uMN9h8M55W1+inzpLuaPM5ZU4YEs0j+/av0wwOJ5WqHT+29CKntjQ4UuqRk4M0i
+         +QDWo+lTcBRFSZVEJqx+RoX0zNUQYFVX0Ku0f1gGF+SULDY0BplokOPCWZXD5LXCaUP5
+         PKH4azSx131jYtZMrjwjtPMxGndzC6rjFsthL07F/w8fiyRvdLI+enBR8NNC2juGXEcY
+         6a6JQ6oLEddyXBaL1FqpUes77cIeoH+8ga8gCEvi8h4F60hIBOoNdxMLf5o4Uy7C8EeD
+         0ic5B5BtzTOa/VQj8YZlC33MiIeQ93v8kk2Nmv7il8sE4kJ8hPgtLUifAbqgET127KW7
+         rphg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=xOq42QtP/+AsL0/tWauXucC4OF0frWRM/1KsTrSyUI4=;
-        b=pWpauyK9dKw4KhVw8b2yn89vlC9njTLYDKtYxlyOg34AUpCcf5/tQpfZK+qRVnkNaE
-         +28OBGaKGEQUAnv7eom7Kd4Xw53/ZfvClc2nRTSQ1f6txZ92BN3u8rRV21EVZqLEGrkz
-         p3VKMswSoQbjUysiCkErqXVRwOw7zKWnKpuE7UhTmgXN42kz9S3uhVLVSVKldAleNf3S
-         30lsuF0fkREZhq2kdiLYPycFRyr8QM+qs/GIF+supx2fXtHGQ9sSZluBVtLVTSY+cdOG
-         XVD/1YvLGVXT+tcecWSttPhdtsH03KxSjGNByDwy6UEWoMs5j5Bt2Flr3IfpitGaadqg
-         7QtA==
+        bh=DUvFDn7C5Eh34MdB6r7GUuxOF+hBXuSzGP9HXtCcuKI=;
+        b=werc8iSjbkWJXK871rT+T+o9L6vYzz9s8fMzfrFKz6eGFjImf48BZq5RzSeTq1NTb5
+         +CIcjnAhjukT/T6+5ar2BT944ki/W3+7/uDX2aBJwME93tyb0tLVywdKVI/aGU648bWe
+         m/WT2X08aAZTIZ1WvrMqb3PjejhrhQMxEz/G19v3QLzDaWXVKXG3mLo200XEb7npTtPe
+         ZXOdwMOTJeO5RRP3wFN/RUmqAZ0+2LXaH9OSehc3BYD+eJgxGQnNjJ8M4PY4XKNU9zAD
+         BEFL7nClANFw1F1XjhQC0lbiadAtaMC2dPBkG4Aor8dn4s1AajZ5EgSUJ75H3fDOLDpE
+         3tqA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id m184si14181099pfb.166.2019.04.28.21.54.10
+        by mx.google.com with ESMTPS id m184si14181099pfb.166.2019.04.28.21.54.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Apr 2019 21:54:10 -0700 (PDT)
+        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
@@ -84,9 +84,9 @@ Received: from orsmga003.jf.intel.com ([10.7.209.27])
   by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Apr 2019 21:54:10 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,408,1549958400"; 
-   d="scan'208";a="146566315"
+   d="scan'208";a="146566319"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 28 Apr 2019 21:54:09 -0700
+  by orsmga003.jf.intel.com with ESMTP; 28 Apr 2019 21:54:10 -0700
 From: ira.weiny@intel.com
 To: lsf-pc@lists.linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org,
@@ -98,9 +98,9 @@ Cc: linux-fsdevel@vger.kernel.org,
 	John Hubbard <jhubbard@nvidia.com>,
 	Michal Hocko <mhocko@suse.com>,
 	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH 09/10] fs/locks: Add tracepoint for SIGBUS on LONGTERM expiration
-Date: Sun, 28 Apr 2019 21:53:58 -0700
-Message-Id: <20190429045359.8923-10-ira.weiny@intel.com>
+Subject: [RFC PATCH 10/10] mm/gup: Remove FOLL_LONGTERM DAX exclusion
+Date: Sun, 28 Apr 2019 21:53:59 -0700
+Message-Id: <20190429045359.8923-11-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190429045359.8923-1-ira.weiny@intel.com>
 References: <20190429045359.8923-1-ira.weiny@intel.com>
@@ -114,38 +114,128 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
----
- fs/locks.c                      | 1 +
- include/trace/events/filelock.h | 4 +++-
- 2 files changed, 4 insertions(+), 1 deletion(-)
+Now that there is a mechanism for users to safely take LONGTERM pins on
+FS DAX pages.  Remove the FS DAX exclusion from GUP with FOLL_LONGTERM.
 
-diff --git a/fs/locks.c b/fs/locks.c
-index c77eee081d11..42b96bfc71fa 100644
---- a/fs/locks.c
-+++ b/fs/locks.c
-@@ -1592,6 +1592,7 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
- 			if (fl->fl_flags & FL_LONGTERM) {
- 				tsk = find_task_by_vpid(fl->fl_pid);
- 				fl->fl_break_time = 1 + jiffies + lease_break_time * HZ;
-+				trace_longterm_sigbus(fl);
- 				lease_modify_longterm(fl, F_UNLCK, dispose);
- 				kill_pid(tsk->thread_pid, SIGBUS, 0);
- 			} else {
-diff --git a/include/trace/events/filelock.h b/include/trace/events/filelock.h
-index c6f39f03cb8b..626386dbe599 100644
---- a/include/trace/events/filelock.h
-+++ b/include/trace/events/filelock.h
-@@ -271,7 +271,9 @@ DEFINE_EVENT(longterm_lease, take_longterm_lease,
- DEFINE_EVENT(longterm_lease, release_longterm_lease,
- 	TP_PROTO(struct file_lock *fl),
- 	TP_ARGS(fl));
+Special processing remains in effect for CONFIG_CMA
+---
+ mm/gup.c | 65 ++++++--------------------------------------------------
+ 1 file changed, 6 insertions(+), 59 deletions(-)
+
+diff --git a/mm/gup.c b/mm/gup.c
+index 1ee17f2339f7..cf6863422cb9 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1324,26 +1324,6 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+ }
+ EXPORT_SYMBOL(get_user_pages_remote);
+ 
+-#if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
+-static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
+-{
+-	long i;
+-	struct vm_area_struct *vma_prev = NULL;
 -
-+DEFINE_EVENT(longterm_lease, longterm_sigbus,
-+	TP_PROTO(struct file_lock *fl),
-+	TP_ARGS(fl));
+-	for (i = 0; i < nr_pages; i++) {
+-		struct vm_area_struct *vma = vmas[i];
+-
+-		if (vma == vma_prev)
+-			continue;
+-
+-		vma_prev = vma;
+-
+-		if (vma_is_fsdax(vma))
+-			return true;
+-	}
+-	return false;
+-}
+-
+ #ifdef CONFIG_CMA
+ static struct page *new_non_cma_page(struct page *page, unsigned long private)
+ {
+@@ -1474,18 +1454,6 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
  
- #endif /* _TRACE_FILELOCK_H */
+ 	return nr_pages;
+ }
+-#else
+-static long check_and_migrate_cma_pages(struct task_struct *tsk,
+-					struct mm_struct *mm,
+-					unsigned long start,
+-					unsigned long nr_pages,
+-					struct page **pages,
+-					struct vm_area_struct **vmas,
+-					unsigned int gup_flags)
+-{
+-	return nr_pages;
+-}
+-#endif
  
+ /*
+  * __gup_longterm_locked() is a wrapper for __get_user_pages_locked which
+@@ -1499,49 +1467,28 @@ static long __gup_longterm_locked(struct task_struct *tsk,
+ 				  struct vm_area_struct **vmas,
+ 				  unsigned int gup_flags)
+ {
+-	struct vm_area_struct **vmas_tmp = vmas;
+ 	unsigned long flags = 0;
+-	long rc, i;
++	long rc;
+ 
+-	if (gup_flags & FOLL_LONGTERM) {
+-		if (!pages)
+-			return -EINVAL;
+-
+-		if (!vmas_tmp) {
+-			vmas_tmp = kcalloc(nr_pages,
+-					   sizeof(struct vm_area_struct *),
+-					   GFP_KERNEL);
+-			if (!vmas_tmp)
+-				return -ENOMEM;
+-		}
++	if (flags & FOLL_LONGTERM)
+ 		flags = memalloc_nocma_save();
+-	}
+ 
+ 	rc = __get_user_pages_locked(tsk, mm, start, nr_pages, pages,
+-				     vmas_tmp, NULL, gup_flags);
++				     vmas, NULL, gup_flags);
+ 
+ 	if (gup_flags & FOLL_LONGTERM) {
+ 		memalloc_nocma_restore(flags);
+ 		if (rc < 0)
+ 			goto out;
+ 
+-		if (check_dax_vmas(vmas_tmp, rc)) {
+-			for (i = 0; i < rc; i++)
+-				put_page(pages[i]);
+-			rc = -EOPNOTSUPP;
+-			goto out;
+-		}
+-
+ 		rc = check_and_migrate_cma_pages(tsk, mm, start, rc, pages,
+-						 vmas_tmp, gup_flags);
++						 vmas, gup_flags);
+ 	}
+ 
+ out:
+-	if (vmas_tmp != vmas)
+-		kfree(vmas_tmp);
+ 	return rc;
+ }
+-#else /* !CONFIG_FS_DAX && !CONFIG_CMA */
++#else /* !CONFIG_CMA */
+ static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
+ 						  struct mm_struct *mm,
+ 						  unsigned long start,
+@@ -1553,7 +1500,7 @@ static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
+ 	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
+ 				       NULL, flags);
+ }
+-#endif /* CONFIG_FS_DAX || CONFIG_CMA */
++#endif /* CONFIG_CMA */
+ 
+ /*
+  * This is the same as get_user_pages_remote(), just with a
 -- 
 2.20.1
 
