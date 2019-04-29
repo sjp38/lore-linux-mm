@@ -2,160 +2,175 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 379C2C46460
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 20:10:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50B7CC04AA6
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:27:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DBA9121655
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 20:10:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E6EF221734
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:27:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Bjpos/jn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBA9121655
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="Q5Q7snqK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6EF221734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6925A6B0003; Mon, 29 Apr 2019 16:10:10 -0400 (EDT)
+	id 4AC446B0003; Mon, 29 Apr 2019 17:27:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6422F6B0005; Mon, 29 Apr 2019 16:10:10 -0400 (EDT)
+	id 45B1F6B0005; Mon, 29 Apr 2019 17:27:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 530826B0007; Mon, 29 Apr 2019 16:10:10 -0400 (EDT)
+	id 371446B0007; Mon, 29 Apr 2019 17:27:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D68B6B0003
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 16:10:10 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f64so7857142pfb.11
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 13:10:10 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F39796B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:27:57 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id f7so7915342pgi.20
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:27:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=8bbZyLRBS7B6cXqeb9isQNcVt7Ubs7Me5nvL1c8Ic38=;
-        b=IT+H9ZuEykTKBA8nWsO8PDISbXvy8pG18sG3v8JnFFKSeL9If8U/pN8xx+VUDZ2zg9
-         CpspjPeGkm5V40m58uCw293oa56iUxJc/aKKf60ZF0bUsSTkVhZ9RzhKLekGQF+wGbMG
-         qOJsGVP2D2kEkwo7Viet28jQ7/FETEDt70Wtz0svwZqH82dn4yrr0jNWuV/VFE55/k0L
-         dmnvlUnDTi2SyAkZZZAFb3TM3t/OYnWojqKfAN8ysHD0XUEdha8lb6pMQ2xXJz8KWv3L
-         K0LFUWY86MfXQgkq+fcbHQeLyMLlwqGnzb7U90xO9g23ah5Z2FpRn/YicUbxHRhF3CNJ
-         RakQ==
-X-Gm-Message-State: APjAAAU9XclGvFPLHjoHwp2FI44FJtjUQgb993a18is5k1Yla9E2tSeg
-	ug2VjTLd/BB2bq5/BI0/BneFeCLKSVzdkAoCIG8eIxIpVMmEfAZleqhhZ19+3qpApyvcXtcqg3D
-	I2M+ujH4CM5RILZu/rpqHsp87ZLd187yKJNC7enmWxNXW4P6Y5B3XEp0wJsy74Ynz1w==
-X-Received: by 2002:a65:4341:: with SMTP id k1mr60051679pgq.88.1556568609724;
-        Mon, 29 Apr 2019 13:10:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxujYIudW4McLDxDsZ1TVZJ1gfdZf1KpEu4Et7CDe5Vhs+f0k4uDdrA2PJ1ZxUcABH49W2S
-X-Received: by 2002:a65:4341:: with SMTP id k1mr60051546pgq.88.1556568608594;
-        Mon, 29 Apr 2019 13:10:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556568608; cv=none;
+        h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:from:to
+         :cc:subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=IAMUbVAFvda4HCXownDLdR3GvSTTgiu6g0S5DIrxRq0=;
+        b=Ff/gmkeRDzouU5PQei4l+btXmrtYn6xQc/vyvs08Dty3QF04t9mQWk2FdbUZMuR30q
+         HO6Tt/uJlNu9XgUnRt/A1Ih261ZpZZ6Th274tjhoGsGedJoLKG09rF5ycYQgVX5iK8Sk
+         J743trg/Nime6Iislb0EdDiND+ws5SRkivgkQTl4/2XRLXowhkZdlw/+ag0lTt5t+46R
+         MCPcHg+AGIp6gVqhlBo5AC6wMVLjN+nDJWTbERrANCvaIuOANkEmCdfUzpmIgDXqU6Sc
+         ZmeRvm0kmFBtrD7dPJOc8nri0IjcZVmv3Thp3tAxV4Kan53y87abt2DjB7vE9BZPmLPe
+         YCGg==
+X-Gm-Message-State: APjAAAX86e/dNtOmNdeqo1VFMaRAd8/D/VSG8zX4C0ZUd6f0rOnMb8Hg
+	yV7E/aI6IXD1azhHPsb6TpEVI+Vm3G4yBYpywyffEIXaGvjGwVYc2E2gEiYu9SCrjXZ2g7psd35
+	wXhADs6+SOL17UnnwuBAgCNUwMuyJ7pJ6JB06yPPrreRfxLz+uMrPByRRIEaJ1Zom+A==
+X-Received: by 2002:a17:902:8b86:: with SMTP id ay6mr23895350plb.4.1556573277566;
+        Mon, 29 Apr 2019 14:27:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwFB2+LgVpAmcaEOIUqDwO0a3hpndieK+GXcTjSkX8f6OK84JT4fC3IvvAUIUCbCx5C46eR
+X-Received: by 2002:a17:902:8b86:: with SMTP id ay6mr23895295plb.4.1556573276633;
+        Mon, 29 Apr 2019 14:27:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556573276; cv=none;
         d=google.com; s=arc-20160816;
-        b=wEO03EZu99/SjM4c3xg7bv6SOB9DMEaQyVP9jR0WeQUgv3p9eXFoZ6OLy3qfOyVm8M
-         heum0+W8xSX3IHwFKKIK9AhKMgy9pbHbXQLlsBpGoYICgdRDveMZQCbVi4cYT8kbvuGx
-         IPA039SV+KvDLIUjl4Pu9F2NPzGoU/os0mmGloI17PtDQKFWzfR9DkDMXCe5ENCSGpz7
-         1xApUysUfr9Las8twtt0mJLN2qGMmCWJFv5zvJctK/BPOVNzA7FTaR9jTcx9sCwzFVgj
-         XTjY4wJj1/EbGSScaT8buxqmdmMDiq8DWAdmT+ObRQC0lgT3GTOM8kMMMMSbQjzsEqQZ
-         UQ+Q==
+        b=s89vU9YXcMU4j1lYk4g1Hzphy0KWruBHWaZIAH0ZCSKtpfV6xiwfMaq6qi4OOcqIE9
+         g1+y/rrjeMNpD2abZP7woej4XOaDKF+mZpLRff2OajkqLT4RNTvB/kS4Vi5MoChyEps4
+         x5oafDIWlUlRWlRx1oOZMjGHx7dRlg+TUH8d6acLIKOjPd/s2Qfu9rCSQtGtibgHNsI7
+         XCHQWyjUQSUYTRrVO0HxEvgzM17pV+9pOpATVIFolegzAcMvnMeJs+byXt8Uc04oktlR
+         6p6S/jfZXwbnuDZ2X9vow6oEVPnvKz1BpJeOHoGKuhrP5b59w1LjT3pekHE43frM7S8P
+         nLAg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=8bbZyLRBS7B6cXqeb9isQNcVt7Ubs7Me5nvL1c8Ic38=;
-        b=HKFCeFwEWo0ybcN1B+OfvskBqItOqxoAr4ir7imjM7HVJEZTtqRUFHRhRZsRUPmGPf
-         Y5SZzdSbKHPjLSdbfxhvRuWVpad1I4x4s/jz8XHLcOacUH5q/I0TozJCpHNeNELtn4F2
-         IzipK76KlpvJsmoOB5Y2OHm8aNUedNWf/u7DNj6Ks5mnT9818E9rO5Izs2WPZtLW5uCP
-         d00WmJSHpUCttfuvpp2e8pf9nCtdoga/EkSXjMFk9uFKYgQPBqkesjDsJVk5R5RJT/ks
-         yMdIlTG4JELhrmu5hPUDqDe9VSz8BwtUxJeLcqApQCeRTzLMdREVRnWfdU2EvoQa8xTg
-         6t5A==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:ironport-sdr:ironport-sdr:dkim-signature;
+        bh=IAMUbVAFvda4HCXownDLdR3GvSTTgiu6g0S5DIrxRq0=;
+        b=HdLud47cI0H6QjXgAy8Wwtu8sg1LkeBw7G+9KpSZ9R5JITt2CS3BFZ9YTtJUKOI/tA
+         dZBclSvCs8ynBFlEiYlODBMlRckmPGNycp8Atd/Tnxr4WKZe74ow1NfNtZaOs6Od5oFb
+         UUETRYGB62Y10fnkFQDvEadwaTNeHtOsP6RDQVv/Kj8UhXa4XsAdqcif0InEg3o3myhX
+         hIkLlNKpuVH33IJJDbc4FKaVK6bsNi0OAYMKQYvha0bfot25GCksKrpjMqNaSl28e8dx
+         Wx5KzmveF2MecPt3iJnNYNtJxS+jClMeQIq0L32ZsWZ++/k2yC3LHGx+PiFrM4AwX1Qw
+         NKTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Bjpos/jn";
-       spf=pass (google.com: best guess record for domain of batv+3f5cf76c63215fb3955b+5727+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+3f5cf76c63215fb3955b+5727+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x6si19469967pln.74.2019.04.29.13.10.06
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=Q5Q7snqK;
+       spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
+Received: from esa3.hgst.iphmx.com (esa3.hgst.iphmx.com. [216.71.153.141])
+        by mx.google.com with ESMTPS id r77si23694774pgr.140.2019.04.29.14.27.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Apr 2019 13:10:06 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+3f5cf76c63215fb3955b+5727+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Apr 2019 14:27:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) client-ip=216.71.153.141;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Bjpos/jn";
-       spf=pass (google.com: best guess record for domain of batv+3f5cf76c63215fb3955b+5727+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+3f5cf76c63215fb3955b+5727+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=8bbZyLRBS7B6cXqeb9isQNcVt7Ubs7Me5nvL1c8Ic38=; b=Bjpos/jnVGsgKNA3/A6QH5Fqv
-	3jAKzcTPg0LS0aG86fuHqbtUIILUir1hz6rBxB7r7d76Spl89Z8Gcv+dWrFTZI8otdOJIsCuWdGla
-	IsGgipLBTNfUaQmfJpybjgj5KZPwYQMNLsrgt41VqbtxdI1uyxgXqxQP/r9t7HTkpv2YTFFQFtjFj
-	c2/0WcjJjGr9y26IbUvGg3xsoMGxctAbpUyTmBJ8sWn5pt9/i7RgwGrSJulwzheWOBCwI233+GC5V
-	1ZhCLQYcffZvx8ZmGnTglQNAETu+5+3vvAuU+/8uDKGmOPm7ZReqSqA9LrrZIJhi2Lo2GoGhgj1Ek
-	g78xqD4+w==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hLCb7-0007U6-Fw; Mon, 29 Apr 2019 20:09:57 +0000
-Date: Mon, 29 Apr 2019 13:09:57 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Meelis Roos <mroos@linux.ee>,
-	Christopher Lameter <cl@linux.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
+       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=Q5Q7snqK;
+       spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.141 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
+  d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
+  t=1556573276; x=1588109276;
+  h=from:to:cc:subject:date:message-id:mime-version:
+   content-transfer-encoding;
+  bh=4UgYDqaqXewXdZpSjZRGrTp4ntBC/cMWJSLoGwmniTQ=;
+  b=Q5Q7snqKEbaeJw89dT4sxNt2mTiWTVM/sEiVVSUS/MewWKkdREICJwMZ
+   jaAWzH6kx51sUwQb4XA8Oapd2ULABrDiRRJ1McaP8kDM8KiFJ9SvkqEra
+   EZnEkbq0veFFsqKyZwrr7t/ADeRO6r6u9Q+F1bgG+/28PMaBzKANepcmH
+   6XIFMd6IX3kULrYw57ghuA2lST4q0RHHkUSJOgNzNK8V6UYM00ZfUfOJE
+   Oy8MjMp4bP74B9PuGPF0QWcqIMvhziB2pX6dgpsHitpeiWkAiRG89dLv8
+   39yF07q5/a8xAlmuQpGqLKKOuHUFHjj3UHHVCNrhwMa5Ift2xaGFDQfMd
+   Q==;
+X-IronPort-AV: E=Sophos;i="5.60,411,1549900800"; 
+   d="scan'208";a="112062152"
+Received: from h199-255-45-14.hgst.com (HELO uls-op-cesaep01.wdc.com) ([199.255.45.14])
+  by ob1.hgst.iphmx.com with ESMTP; 30 Apr 2019 05:27:56 +0800
+IronPort-SDR: AfXtqHxFPIEjiM/DNhVrI1HBCeUOA/Rn3H73FN59UoQKElJ5cehz3P8SXnQ6Ry3aAjLwVKtTI4
+ g/FiVTlEKydB8EgV6USnGg4HY50UCKXrBSSUuOc2XSxGacHLTrwU/OEw7wl7k5zotju5xrLNJv
+ 8+g/A1CYus3HaPxVvoTBpHmZi6RwIqFhWLyBrSy2I+L1WM/8rYyRP3WpeMe+/+NR18qYOnF9qI
+ CpjICWfKxRCtOnMurBjL1sZNeOWhq6kbJvtpry50tCa+ZtoPDn2wIAdsTM1pKRib3SNIijm/x3
+ jsDD0BZnyrLJdqmJbPx83VPq
+Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
+  by uls-op-cesaep01.wdc.com with ESMTP; 29 Apr 2019 14:04:18 -0700
+IronPort-SDR: L5YyWUfO1v3iSC0YLTmHGxOo0u8t1/ovWfGcPfXKWdd9zxyno6Wrw7LIYVTLxdypRM/NEMoO0n
+ 8flKqWEx5OXEU9UPpxTCSIOJ03DdKzYi6Csd/polE4HvD78O/iXdro9jhukq4E8cJwuOvkbUZr
+ fWcXQT/T5B+EOBGIfPXu+DydO38MQaREAnKH5WurpdXSeZOxvBpzzV9Ux2B7n/Jge+vygrGCSO
+ rT1kBqVqV7h7/H5TcI59TFOh6Wue39RytkiOck9YEBu+zF9WfhwZR1YdgLE5Xuby32fChh+60G
+ 374=
+Received: from jedi-01.sdcorp.global.sandisk.com (HELO jedi-01.int.fusionio.com) ([10.11.143.218])
+  by uls-op-cesaip02.wdc.com with ESMTP; 29 Apr 2019 14:27:56 -0700
+From: Atish Patra <atish.patra@wdc.com>
+To: linux-kernel@vger.kernel.org
+Cc: Atish Patra <atish.patra@wdc.com>,
+	Albert Ou <aou@eecs.berkeley.edu>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Mikulas Patocka <mpatocka@redhat.com>,
-	James Bottomley <James.Bottomley@hansenpartnership.com>,
-	"linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Anup Patel <anup@brainfault.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Changbin Du <changbin.du@intel.com>,
+	Gary Guo <gary@garyguo.net>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	linux-mm@kvack.org,
+	linux-riscv@lists.infradead.org,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Palmer Dabbelt <palmer@sifive.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
 	Vlastimil Babka <vbabka@suse.cz>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
-	"Yu, Fenghua" <fenghua.yu@intel.com>,
-	"linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>
-Subject: Re: DISCONTIGMEM is deprecated
-Message-ID: <20190429200957.GB27158@infradead.org>
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <0100016a461809ed-be5bd8fc-9925-424d-9624-4a325a7a8860-000000@email.amazonses.com>
- <25cabb7c-9602-2e09-2fe0-cad3e54595fa@linux.ee>
- <20190428081353.GB30901@infradead.org>
- <3908561D78D1C84285E8C5FCA982C28F7E9140BA@ORSMSX104.amr.corp.intel.com>
+	x86@kernel.org (maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)),
+	Christoph Hellwig <hch@infradead.org>
+Subject: [PATCH v3 0/3] TLB flush counters
+Date: Mon, 29 Apr 2019 14:27:47 -0700
+Message-Id: <20190429212750.26165-1-atish.patra@wdc.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F7E9140BA@ORSMSX104.amr.corp.intel.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 29, 2019 at 04:58:09PM +0000, Luck, Tony wrote:
-> > ia64 has a such a huge number of memory model choices.  Maybe we
-> > need to cut it down to a small set that actually work.
-> 
-> SGI systems had extremely discontiguous memory (they used some high
-> order physical address bits in the tens/hundreds of terabyte range for the
-> node number ... so there would be a few GBytes of actual memory then
-> a huge gap before the next node had a few more Gbytes).
-> 
-> I don't know of anyone still booting upstream on an SN2, so if we start doing
-> serious hack and slash the chances are high that SN2 will be broken (if it isn't
-> already).
+The RISC-V patch (2/3) is based on Gary's TLB flush patch series
 
-When I wrote this, I thought of
+https://patchwork.kernel.org/project/linux-riscv/list/?series=97315
 
-!NUMA:  flat mem
-NUMA:	sparsemem
-SN2:	discontig
+The x86 kconfig fix patch(1/3) can be applied separately.
 
-based on Meelis report.  But now that you mention it, I bet SN2 has
-already died slow death from bitrot.  It is so different in places, and
-it doesn't seem like anyone care - if people want room sized SGI
-machines the Origin is much more sexy (hello Thomas!) :)
+Chnages from v2->v3:
+1. Fixed typos and commit text formatting.
 
-So maybe it it time to mark SN2 broken and see if anyone screams?
+Changes from v1->v2:
+1. Move the arch specific config option to a common one as it touches
+   generic code.
+2. Introduced another config that architectures can select to enable
+   tlbflush option.
 
-Without SN2 the whole machvec mess could basically go away - the
-only real difference between the remaining machvecs is which iommu
-if any we set up.
+Atish Patra (3):
+x86: Move DEBUG_TLBFLUSH option.
+RISC-V: Enable TLBFLUSH counters for debug kernel.
+RISC-V: Update tlb flush counters
+
+arch/riscv/Kconfig                |  1 +
+arch/riscv/include/asm/tlbflush.h |  5 +++++
+arch/riscv/mm/tlbflush.c          | 12 ++++++++++++
+arch/x86/Kconfig                  |  1 +
+arch/x86/Kconfig.debug            | 19 -------------------
+mm/Kconfig.debug                  | 13 +++++++++++++
+6 files changed, 32 insertions(+), 19 deletions(-)
+
+--
+2.21.0
 
