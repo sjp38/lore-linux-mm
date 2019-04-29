@@ -3,77 +3,77 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85984C04A6B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0538CC43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 427EC2087B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 427EC2087B
+	by mail.kernel.org (Postfix) with ESMTP id B501D2087B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B501D2087B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A06B46B026B; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
+	id C116D6B0266; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 96F386B0266; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
+	id ACB3D6B026C; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 807766B026B; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
+	id 877806B026A; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 457BE6B0266
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FBFA6B0269
 	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 00:54:11 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id t5so5883755pfh.21
+Received: by mail-pf1-f197.google.com with SMTP id d21so6675825pfr.3
         for <linux-mm@kvack.org>; Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=hM+H6Xv3+Di+oM/qPT2dUWnf4wFEXXxrAobMtpZPNAE=;
-        b=cbFQVbA4DDT4eOFIaSgCgA2rTX3UaZJRmo3SPVy4aCkoAOtguBXxIKFO5EWbT42uQ3
-         wLA7db+N0Xy5Uzey3P9ogW41fgoFcTY9hauwQIyefjHUutRr+mAJUhEOANreg8rWC6So
-         Hqj1Kyy8qgbz+8belkaUOCkalAaSYHRBTnd+TLHQhde4H2fZ/4e2DzAZPE9CqAtNXF3R
-         KZTL/5JEJVcY5IALRKtwK601sE2AR24vaoYUuMoVv4JLQJcmPwVFNH5QNh56HQaIP3M4
-         YLf8PjTVmk6MRvrgUUKIJqv7wwST+BX/N1g+1zKv41Td9lnvvEcl+1FHhB4aTksHjCOM
-         SiKQ==
+        bh=pjBeeJZT6LdZUB1Re7wG7pjUntDc+ChdTNfWf20WHa0=;
+        b=FOQxJaBYRHF1k1eaHkhiwIf0IM4FW8I0+qAUMjP+you2qHkeRtslACjOCSlQw2FEln
+         hsHHTI0JGuIIE2pi3ycaoOGD0d7tWU7UbjcBAdk6T4aoVDMdcMNFiqJYn0XRGWKd6k2y
+         TbD891CK0UEaq7yWUcQ0Ueq9gfqHOZEPA6yueU17zn5A34dNJT85LdTaNVbdt+QTuqus
+         IjeTzVOgagEBRSsJsPBCOR/03SDknjN3tJm3aBg+BYA6hAWo0fwkdT0TNNdJM4YxT95M
+         1ctDqDmvAUbRVu//tUJKeCO2yD0AtfPyq9tPRGAZNwgifuQFNV60jmRXAnztpQr3/eUd
+         NY9Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW86DiqgUQLrqm0yKloV5zq3n1llnFv2jwMT74+W5lFhf46Tgn5
-	oXJn0wppwbKCDpnIdhmAk+CFwwKmcPUGOrczkBv730iZ6H53d8qHy7+NQYZUl57BPq4HrFaBquy
-	A5rag05GtYuTVD0SblECSkCJ3E8vWuss5ZLD8O4Z35RP88Z9jKZ7gAytXkYLJTczAqQ==
-X-Received: by 2002:a63:155d:: with SMTP id 29mr56560694pgv.389.1556513650955;
+X-Gm-Message-State: APjAAAVS9sxjgmI3GMrUBrThRAEWePbU5/vv5VnOQ4f9MXyK1ep10goT
+	cehTWJkP16lt3winRds8yMNDQ5fWHcPuxHfwMjM2KCvpEc4IlhxtijRCO5rLmYzg9TlW/EhIjWt
+	HjjvTc6xFRDiCnJ+fOSwYGsYmY6MTwhUJpBSXQVB4IIABF+kL9XaCBuPCTJhLktt9Tg==
+X-Received: by 2002:a63:4721:: with SMTP id u33mr26695927pga.199.1556513651003;
+        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzCtax7SBeg4htvSgqP+BqPN3RdPCtGBu2HPih1nBDamR0216BpEMjfyoqiu/Jh9rTBi02
+X-Received: by 2002:a63:4721:: with SMTP id u33mr26695888pga.199.1556513650244;
         Sun, 28 Apr 2019 21:54:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhM8bcEkfZ+2F/4CNS5dsePVfmjNiRg3bEUu9SgKbZAe3+uO3EMJ6eMFkyWRRjEMB9ZIw2
-X-Received: by 2002:a63:155d:: with SMTP id 29mr56560652pgv.389.1556513649779;
-        Sun, 28 Apr 2019 21:54:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556513649; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556513650; cv=none;
         d=google.com; s=arc-20160816;
-        b=di+iZCw2Gv4xf/mFh+P3A3z4dxnDfZfdfJdBuLpQEPEVh8HTwlXvRHIWcmhR9zgtyX
-         5ko163su8DxmQMMRt3DqZPK13LgicSyc1Zr4TgDcYSrI159ejuuPT3F9uWdHaOZuQAqd
-         McQUhEqKdKBpUef00TbmVk0BBvoUNP1qCpBhvud+TLNEynQ1a3lmlSdHxcAc3RHdmiYQ
-         S6VFqXWLC9UwjrxT3RxaD/8yylnwJEyIHyyXQ0E/QVFSpu4iT2ijh+8RwEC+r8Y8kCf4
-         xdYXsF52wNLieZ1ZLMy3aQPOqkNfD+jO3w8i6qJ536beEmxabtoEpjsk8Gh0d9vwLiLh
-         Rp2Q==
+        b=l/Kh8/lz0OtE8lFdT37Cg6Scj56Dqn9f5/Gp+8K3aIDPOElCPeJAgW/n76P8VmxQZZ
+         IQhaenUvj+VyEvBfOVK+PWUDc31edQ9X2caBT3qdeWmacY92y51PLoIwgzw7nGHf5jBJ
+         v0C5VmeXmnVzYVWsr4PqxKdzKHl8cizEhgF9Q2Nl50GLcLKMgTHMvSyYSM/GlAL/vK7y
+         Kg/N55B7qqBp/Nz4xJHV5NYeSB5mCzn4YIzVL5J38An0npDXOyqJGpAJo89SFBArscz6
+         qp/rmtCEir0gAWZZlKRdDbrxfANWVP3GlOKJxdMWX1pPHUvSrvvYJJGTjo8s9VAhK6we
+         fGhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=hM+H6Xv3+Di+oM/qPT2dUWnf4wFEXXxrAobMtpZPNAE=;
-        b=JqIgnFOVFyJ+vIjg3ne8ueesYCEBvLmkBEfWsRciiBGi+kYbIW8Sb+hQIVKfLR0ft/
-         MoZjM14xQj29ZrOEHoUZuM9YlQl0sfBNnq6ictK4pHUu3rZxVgcP5xQu0iHBBjaTpzXC
-         yTQndYtTuj7DhtqpEdZxZQmYwqQ2xtj7WGPL8fLZp2SCwylR/nfhJHz24rsX9BCD1/hj
-         LC/1So3uzht5kRiQCtXLr4GV4phBq/UPKgGA5rgTzuqG3xcgHXlHVyrbzNTIxOZeMTD+
-         ZZojNzp62IavTok/eC4wClAdlP46LcclTi9XXnQ2YFAe/H8bfrsIvQcqU1Nz8JsnGTRm
-         Zd0g==
+        bh=pjBeeJZT6LdZUB1Re7wG7pjUntDc+ChdTNfWf20WHa0=;
+        b=k0KluQij2RYAUZz7s3/zVogoE2CCK7WM5nAQMIFcmtMOMUS2SvgXvkHemJPyKFd6Am
+         9m9USOoLNEe99LD8RId8zzQQAcqbZMdes/Npn3pkTzxHnsoUmbyUMIIW2P3gCRZvzAIh
+         HEK8flLQFPyz6LnDEwUGMuw5R6cTu788X1XLoMaI+8yxEjph/2EzlTlJ/W5tJXhUkmYY
+         rPUlbujj71FG44cwPFkn1dkHELq2t8W9bMXwUrg9B31iT32Xc46l7MlkLIUOIAEUJOsV
+         MtV6i3R5KplEeomIEQpYmmj62jrtqM6ym1rJnqjQQQ0eARo3MTSrhbcpm6709FW083ZV
+         SMeA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id m184si14181099pfb.166.2019.04.28.21.54.09
+        by mx.google.com with ESMTPS id m184si14181099pfb.166.2019.04.28.21.54.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Apr 2019 21:54:09 -0700 (PDT)
+        Sun, 28 Apr 2019 21:54:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
@@ -84,9 +84,9 @@ Received: from orsmga003.jf.intel.com ([10.7.209.27])
   by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Apr 2019 21:54:09 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,408,1549958400"; 
-   d="scan'208";a="146566306"
+   d="scan'208";a="146566310"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 28 Apr 2019 21:54:08 -0700
+  by orsmga003.jf.intel.com with ESMTP; 28 Apr 2019 21:54:09 -0700
 From: ira.weiny@intel.com
 To: lsf-pc@lists.linux-foundation.org
 Cc: linux-fsdevel@vger.kernel.org,
@@ -98,9 +98,9 @@ Cc: linux-fsdevel@vger.kernel.org,
 	John Hubbard <jhubbard@nvidia.com>,
 	Michal Hocko <mhocko@suse.com>,
 	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH 07/10] fs/dax: Create function dax_mapping_is_dax()
-Date: Sun, 28 Apr 2019 21:53:56 -0700
-Message-Id: <20190429045359.8923-8-ira.weiny@intel.com>
+Subject: [RFC PATCH 08/10] mm/gup: fs: Send SIGBUS on truncate of active file
+Date: Sun, 28 Apr 2019 21:53:57 -0700
+Message-Id: <20190429045359.8923-9-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190429045359.8923-1-ira.weiny@intel.com>
 References: <20190429045359.8923-1-ira.weiny@intel.com>
@@ -114,80 +114,111 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-In order to support longterm lease breaking operations.  Lease break
-code in the file systems need to know if a mapping is DAX.
+Now that the taking of LONGTERM leases is in place we can now facilitate
+sending a SIGBUS to process if a file truncate or hole punch is
+performed and they do not respond by releasing the lease.
 
-Split out the logic to determine if a mapping is DAX and export it.
+The standard file lease_break_time is used to time out the LONGTERM
+lease which is in place on the inode.
 ---
- fs/dax.c            | 23 ++++++++++++++++-------
- include/linux/dax.h |  6 ++++++
- 2 files changed, 22 insertions(+), 7 deletions(-)
+ fs/ext4/inode.c    |  4 ++++
+ fs/locks.c         | 13 +++++++++++--
+ fs/xfs/xfs_file.c  |  4 ++++
+ include/linux/fs.h | 13 +++++++++++++
+ 4 files changed, 32 insertions(+), 2 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index ca0671d55aa6..c3a932235e88 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -551,6 +551,21 @@ static void *grab_mapping_entry(struct xa_state *xas,
- 	return xa_mk_internal(VM_FAULT_FALLBACK);
- }
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index b32a57bc5d5d..bee456c8c805 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -4237,6 +4237,10 @@ int ext4_break_layouts(struct inode *inode)
+ 	if (WARN_ON_ONCE(!rwsem_is_locked(&ei->i_mmap_sem)))
+ 		return -EINVAL;
  
-+bool dax_mapping_is_dax(struct address_space *mapping)
-+{
-+	/*
-+	 * In the 'limited' case get_user_pages() for dax is disabled.
-+	 */
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-+		return false;
++	/* Break longterm leases */
++	if (dax_mapping_is_dax(inode->i_mapping))
++		break_longterm(inode);
 +
-+	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
-+		return false;
-+
-+	return true;
-+}
-+EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
-+
- /**
-  * dax_layout_busy_page - find first pinned page in @mapping
-  * @mapping: address space to scan for a page with ref count > 1
-@@ -573,13 +588,7 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
- 	unsigned int scanned = 0;
- 	struct page *page = NULL;
- 
--	/*
--	 * In the 'limited' case get_user_pages() for dax is disabled.
--	 */
--	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
--		return NULL;
--
--	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
-+	if (!dax_mapping_is_dax(mapping))
- 		return NULL;
- 
- 	/*
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 0dd316a74a29..78fea21b990e 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -89,6 +89,7 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
- int dax_writeback_mapping_range(struct address_space *mapping,
- 		struct block_device *bdev, struct writeback_control *wbc);
- 
-+bool dax_mapping_is_dax(struct address_space *mapping);
- struct page *dax_layout_busy_page(struct address_space *mapping);
- dax_entry_t dax_lock_page(struct page *page);
- void dax_unlock_page(struct page *page, dax_entry_t cookie);
-@@ -113,6 +114,11 @@ static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
- 	return NULL;
- }
- 
-+bool dax_mapping_is_dax(struct address_space *mapping)
-+{
-+	return false;
-+}
-+
- static inline struct page *dax_layout_busy_page(struct address_space *mapping)
+ 	do {
+ 		page = dax_layout_busy_page(inode->i_mapping);
+ 		if (!page)
+diff --git a/fs/locks.c b/fs/locks.c
+index 58c6d7a411b6..c77eee081d11 100644
+--- a/fs/locks.c
++++ b/fs/locks.c
+@@ -1580,6 +1580,7 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
  {
- 	return NULL;
+ 	struct file_lock_context *ctx = inode->i_flctx;
+ 	struct file_lock *fl, *tmp;
++	struct task_struct *tsk;
+ 
+ 	lockdep_assert_held(&ctx->flc_lock);
+ 
+@@ -1587,8 +1588,16 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
+ 		trace_time_out_leases(inode, fl);
+ 		if (past_time(fl->fl_downgrade_time))
+ 			lease_modify(fl, F_RDLCK, dispose);
+-		if (past_time(fl->fl_break_time))
+-			lease_modify(fl, F_UNLCK, dispose);
++		if (past_time(fl->fl_break_time)) {
++			if (fl->fl_flags & FL_LONGTERM) {
++				tsk = find_task_by_vpid(fl->fl_pid);
++				fl->fl_break_time = 1 + jiffies + lease_break_time * HZ;
++				lease_modify_longterm(fl, F_UNLCK, dispose);
++				kill_pid(tsk->thread_pid, SIGBUS, 0);
++			} else {
++				lease_modify(fl, F_UNLCK, dispose);
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 1f2e2845eb76..ebd310f3ae65 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -739,6 +739,10 @@ xfs_break_dax_layouts(
+ 
+ 	ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
+ 
++	/* Break longterm leases */
++	if (dax_mapping_is_dax(inode->i_mapping))
++		break_longterm(inode);
++
+ 	page = dax_layout_busy_page(inode->i_mapping);
+ 	if (!page)
+ 		return 0;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index be2d08080aa5..0e8b21240a71 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2459,6 +2459,14 @@ static inline int break_layout(struct inode *inode, bool wait)
+ 	return 0;
+ }
+ 
++static inline int break_longterm(struct inode *inode)
++{
++	smp_mb();
++	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
++		return __break_lease(inode, O_WRONLY, FL_LONGTERM);
++	return 0;
++}
++
+ #else /* !CONFIG_FILE_LOCKING */
+ static inline int break_lease(struct inode *inode, unsigned int mode)
+ {
+@@ -2486,6 +2494,11 @@ static inline int break_layout(struct inode *inode, bool wait)
+ 	return 0;
+ }
+ 
++static inline int break_longterm(struct inode *inode, bool wait)
++{
++	return 0;
++}
++
+ #endif /* CONFIG_FILE_LOCKING */
+ 
+ /* fs/open.c */
 -- 
 2.20.1
 
