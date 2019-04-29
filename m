@@ -2,167 +2,228 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0978C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 02:41:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9ADBC43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 03:57:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E4B520693
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 02:41:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E4B520693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 803A1206BF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 03:57:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 803A1206BF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8B9F6B0003; Sun, 28 Apr 2019 22:41:25 -0400 (EDT)
+	id E501A6B0003; Sun, 28 Apr 2019 23:57:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3B4C6B0006; Sun, 28 Apr 2019 22:41:25 -0400 (EDT)
+	id DFD6A6B0006; Sun, 28 Apr 2019 23:57:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B29F16B0007; Sun, 28 Apr 2019 22:41:25 -0400 (EDT)
+	id CEE566B0007; Sun, 28 Apr 2019 23:57:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9285C6B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 22:41:25 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id 73so8491484itl.2
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 19:41:25 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB6F66B0003
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 23:57:57 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id e31so9224162qtb.0
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 20:57:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=sj9duyL67XmzCJ+e+ZEIr1/WHqTE26rk5V9yd8bmvhg=;
-        b=uBD/wgPYK1AATbyQQm2mOc5uDwpjDMhYw2cSz5EJQuVOKR+N/oB6V3zTJjAODRlY+H
-         tNIh4V1i5c/TDQMa7Z+HJo+qYM4GepXzq3bJ77lEglnpPpcdVWp5ltV9us2u4PKQPrDW
-         RHZtMIqvGdcRlphPpISI4g/X78Skmt8cPO2PM/whY6wFYPLElEvXzkojT9CmJMqS5yuM
-         OQcmsuCuzMEp2AA9wSyCBCIa2WBNpkDtpvmDCkRiosHCJZori99OfvolabObEVGnmcHg
-         7PcM9LIMOtNMi1WwSdv/il6byj149cZrZss20FR8xYEkayaPG43zR+hmiEANBUYu4v7M
-         vpvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVYfbonSrOeoiq0/Tn4KkSEKug38nlcFt7YykzlAEyYAtFw/ubn
-	cP4fe8dewIxv6WfZgS3QWd5loUFV2nITOKBhoVAgqqdqIyp77SClDQ4Bz7Q02ar2jEukUbD1yHc
-	20XEemEMDxaT7NhVRrgEm7RElP8xyaOVGUc5LimnxrUAdA8o2NJ2XOklmxdvdO0HrfQ==
-X-Received: by 2002:a24:953:: with SMTP id 80mr18390268itm.139.1556505685295;
-        Sun, 28 Apr 2019 19:41:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxaiCB1hClKrMGHkdbtdUN6mN06nyF2vkj0E3klVA2kDdLonKXYNkLVt2ZAkzfnY+53ieDd
-X-Received: by 2002:a24:953:: with SMTP id 80mr18390219itm.139.1556505684021;
-        Sun, 28 Apr 2019 19:41:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556505684; cv=none;
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=qw7LGc3PzWxRIfLm+S1LdNT7srQ75jXenKC/2hMbiHQ=;
+        b=nE2t8wAzV+RrGi+lHM0qDbZ4Rn1QhaQzwtSdrQ8fjq5zvmeKk5fQdV0wkpIpvZCC9q
+         1YlVOjevMnhH9+W/MzA8sI/nzoSajbos5prDAWWRrwhur/dxwGTyyMmTnC6m1K9lPSmw
+         vmk5a5tXYFpjApU5vDreOKNKxTqh8YrksQz1C0PmN1fPa//OnJ88r0KbrD2McPVSsfug
+         hKruArohGgtG9HruhpecvZYJaJJY9DMYpxxwKLtLyu+IQtIalh72uD4zhl0ltPzjunmN
+         iL6crgng/8wQlZLSsvocOpDVKKdaB3W/iXInKxttFqtYkYWTNG+/gy+IE1Zn1W+s49JS
+         8HkQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVlkZMWZck+VR3aaD9gRCu49KWGJzHfUrS5y7K6hZKV/CHo6V5l
+	nfmrINnCVfO22W5Wcy6GiLuok5S8bsUrZCmqebtCUMfgFIID6hVPUNk5MIxhP2d58uZ1ZKRQw/3
+	DRyRpfRLaPsVu5ZD0aUFXWFla0CK76hOBOFbB/uXOOYRyjrBoyOQvbKiO1AOcgcBsTg==
+X-Received: by 2002:a0c:9a43:: with SMTP id q3mr28869675qvd.68.1556510277359;
+        Sun, 28 Apr 2019 20:57:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnMmEg3JdKST3o0tr6q4oSbXVUXYkuYI2OeRC0L365z9n6pR00VCyUw7b0lmAlgZXLDd03
+X-Received: by 2002:a0c:9a43:: with SMTP id q3mr28869648qvd.68.1556510276548;
+        Sun, 28 Apr 2019 20:57:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556510276; cv=none;
         d=google.com; s=arc-20160816;
-        b=WJf8M/3DGqjveafMWo5hxVRxkp9KSdsH2zrDMgEtaIWNEayYYkDv/UwQFKJj5ssy1l
-         I9c5hxilv8M7QI/GjmtlgkpMxd2WG3IbY2fKzEs6bZXnMRKpqnpbZdmuOHFpM/Y+iz80
-         oyLfKkjTHsTdUlOn/ae149W02uQbYlP1TZlPdQdL9D4vBrSXinD50fs2QYqfWCAK00uu
-         Exmo14fIYm9viWp3pxm23hizUGc4vHS8VY2N3TkFBzxBKc59r55BlNyP/tn6k0LT/8Mn
-         AsBsvwL9sHO97gvbgWJB8WNFp3Iyd0O94cx5HWxowGWJY1CRggtE1t3gO1YHBT/1Cv+c
-         Veng==
+        b=rIXDtA9Uy7R8mvGzRrgNGxnlnlzyLCBSUtHebXmJqQ13LBQa9/vLc/aAQHiq5SfS0R
+         s5SwAgpIvxM/oOP3PRFBIzrKdKNNBI6EI6cE2pe6EVLwpN3//81YaF46GaugrDcOmpm8
+         BTEAj25REB6Q9j+zfcFWNko7uYl2rdXAConoCYubC8ZnF23oXI0d+To26XNdj3dFIDf/
+         SbIE6WKSOk1Rx5CebDuzDJlHobUEtyyApAGgJt61SKkS5t7z9vGCwsSZ4FDwvF+H6tVV
+         fkPKi6eGQxUk2zA/mLlf2mqtuBZcaYLyKvlEYVw4IpBDL5zhkefBeRxNVTG3PvCbTybE
+         vM/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=sj9duyL67XmzCJ+e+ZEIr1/WHqTE26rk5V9yd8bmvhg=;
-        b=O6ckgMQQ8bPMYTojW8ngjGu0TmxgXMMiSTvR3A80BlkfG+SN/tkmvJLOp+8KZbiSEK
-         HfrZQh6eNMRSiPhIJ7k1H2QvASV80kBvCuevpW8YGLiWVrICWSK/ODhXAWYOhV7ef+K1
-         FLLabNKx6+jj1Trf4nCdmzzXNGn+aD4/+PjWh7RD8YvO0XDMnduuyeGKoNam+ZXpOWaS
-         a8i5E2pJ8MUq/0E7rcJHZrcDN82YLhLrQNSVacNaRQy49LHdjIoNjyFebU9Sv0TBXWGJ
-         qxzLoCJV+ZWy/8bySIkdnVRpsJzdR/SpsDWWSSkv2qPkyXfpPPMi7tUbO5IAgGls0V0L
-         Dorg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=qw7LGc3PzWxRIfLm+S1LdNT7srQ75jXenKC/2hMbiHQ=;
+        b=Rg6JbIZBfEfwab9C2hsdS+ScOVA3xuJBL2ShBZaDh6HISxz0oOaD+6SD+bQBf1SsKv
+         doaXuIo+tRHgcNRLRx14qE6XdxunhIWNABIiMPZu5L0LIKHHwBw0g1nLIrDhvOALs8pv
+         zBpIvfVU/i/kgeT58PxNvApzEKX427Hh6V2+QHAzlqX7Z93Wxn5qjfMRXjfGFx3FP+hR
+         DU8ImMplic4+/u2KIBwdsHru1KiAPFTnT4JII7Iz//7jGWCUnAFVXK5gQo1vTX5mWjGG
+         3SKpznd3u5gcn9NqpOqROBXs5KRY2cBbe9oDagk1RH73FfhTlaQb0/DlGVEdnoczw7ev
+         HGvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
-        by mx.google.com with ESMTPS id q66si19245060itb.76.2019.04.28.19.41.22
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y66si78621qke.252.2019.04.28.20.57.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Apr 2019 19:41:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
+        Sun, 28 Apr 2019 20:57:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jiufei.xue@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=jiufei.xue@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R121e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=jiufei.xue@linux.alibaba.com;NM=1;PH=DS;RN=6;SR=0;TI=SMTPD_---0TQTIYpt_1556505668;
-Received: from localhost(mailfrom:jiufei.xue@linux.alibaba.com fp:SMTPD_---0TQTIYpt_1556505668)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Mon, 29 Apr 2019 10:41:08 +0800
-From: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-To: cgroups@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: tj@kernel.org,
-	akpm@linux-foundation.org,
-	joseph.qi@linux.alibaba.com,
-	bo.liu@linux.alibaba.com
-Subject: [PATCH v4 RESEND] fs/writeback: use rcu_barrier() to wait for inflight wb switches going into workqueue when umount
-Date: Mon, 29 Apr 2019 10:41:08 +0800
-Message-Id: <20190429024108.54150-1-jiufei.xue@linux.alibaba.com>
-X-Mailer: git-send-email 2.19.1.856.g8858448bb
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 745D83082162;
+	Mon, 29 Apr 2019 03:57:55 +0000 (UTC)
+Received: from ultra.random (ovpn-120-18.rdu2.redhat.com [10.10.120.18])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id D292645D6;
+	Mon, 29 Apr 2019 03:57:52 +0000 (UTC)
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>,
+	linux-mm@kvack.org,
+	zhong jiang <zhongjiang@huawei.com>,
+	syzkaller-bugs@googlegroups.com,
+	syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Peter Xu <peterx@redhat.com>,
+	Dmitry Vyukov <dvyukov@google.com>
+Subject: [PATCH 1/1 v2] userfaultfd: use RCU to free the task struct when fork fails
+Date: Sun, 28 Apr 2019 23:57:51 -0400
+Message-Id: <20190429035752.4508-1-aarcange@redhat.com>
+In-Reply-To: <20190327084912.GC11927@dhcp22.suse.cz>
+References: <20190327084912.GC11927@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Mon, 29 Apr 2019 03:57:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
-switch may not go to the workqueue after synchronize_rcu(). Thus
-previous scheduled switches was not finished even flushing the
-workqueue, which will cause a NULL pointer dereferenced followed below.
+The task structure is freed while get_mem_cgroup_from_mm() holds
+rcu_read_lock() and dereferences mm->owner.
 
-VFS: Busy inodes after unmount of vdd. Self-destruct in 5 seconds.  Have a nice day...
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000278
-[<ffffffff8126a303>] evict+0xb3/0x180
-[<ffffffff8126a760>] iput+0x1b0/0x230
-[<ffffffff8127c690>] inode_switch_wbs_work_fn+0x3c0/0x6a0
-[<ffffffff810a5b2e>] worker_thread+0x4e/0x490
-[<ffffffff810a5ae0>] ? process_one_work+0x410/0x410
-[<ffffffff810ac056>] kthread+0xe6/0x100
-[<ffffffff8173c199>] ret_from_fork+0x39/0x50
+get_mem_cgroup_from_mm()                failing fork()
+----                                    ---
+task = mm->owner
+                                        mm->owner = NULL;
+                                        free(task)
+if (task) *task; /* use after free */
 
-Replace the synchronize_rcu() call with a rcu_barrier() to wait for all
-pending callbacks to finish. And inc isw_nr_in_flight after call_rcu()
-in inode_switch_wbs() to make more sense.
+The fix consists in freeing the task with RCU also in the fork failure
+case, exactly like it always happens for the regular exit(2)
+path. That is enough to make the rcu_read_lock hold in
+get_mem_cgroup_from_mm() (left side above) effective to avoid a use
+after free when dereferencing the task structure.
 
-Suggested-by: Tejun Heo <tj@kernel.org>
-Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-Acked-by: Tejun Heo <tj@kernel.org>
+An alternate possible fix would be to defer the delivery of the
+userfaultfd contexts to the monitor until after fork() is guaranteed
+to succeed. Such a change would require more changes because it would
+create a strict ordering dependency where the uffd methods would need
+to be called beyond the last potentially failing branch in order to be
+safe. This solution as opposed only adds the dependency to common code
+to set mm->owner to NULL and to free the task struct that was pointed
+by mm->owner with RCU, if fork ends up failing. The userfaultfd
+methods can still be called anywhere during the fork runtime and the
+monitor will keep discarding orphaned "mm" coming from failed forks in
+userland.
+
+This race condition couldn't trigger if CONFIG_MEMCG was set =n at
+build time.
+
+v2: improved commit header and reduced #ifdef material suggested by
+Michal Hocko.
+
+Fixes: 893e26e61d04 ("userfaultfd: non-cooperative: Add fork() event")
 Cc: stable@kernel.org
+Tested-by: zhong jiang <zhongjiang@huawei.com>
+Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/fs-writeback.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+ kernel/fork.c | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 36855c1f8daf..b16645b417d9 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -523,8 +523,6 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 
- 	isw->inode = inode;
- 
--	atomic_inc(&isw_nr_in_flight);
--
- 	/*
- 	 * In addition to synchronizing among switchers, I_WB_SWITCH tells
- 	 * the RCU protected stat update paths to grab the i_page
-@@ -532,6 +530,9 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
- 	 */
- 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
-+
-+	atomic_inc(&isw_nr_in_flight);
-+
- 	goto out_unlock;
- 
- out_free:
-@@ -901,7 +902,11 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
- void cgroup_writeback_umount(void)
- {
- 	if (atomic_read(&isw_nr_in_flight)) {
--		synchronize_rcu();
-+		/*
-+		 * Use rcu_barrier() to wait for all pending callbacks to
-+		 * ensure that all in-flight wb switches are in the workqueue.
-+		 */
-+		rcu_barrier();
- 		flush_workqueue(isw_wq);
- 	}
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 9dcd18aa210b..2628f3773ca8 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -952,6 +952,15 @@ static void mm_init_aio(struct mm_struct *mm)
+ #endif
  }
--- 
-2.19.1.856.g8858448bb
+ 
++static __always_inline void mm_clear_owner(struct mm_struct *mm,
++					   struct task_struct *p)
++{
++#ifdef CONFIG_MEMCG
++	if (mm->owner == p)
++		WRITE_ONCE(mm->owner, NULL);
++#endif
++}
++
+ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+ {
+ #ifdef CONFIG_MEMCG
+@@ -1331,6 +1340,7 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
+ free_pt:
+ 	/* don't put binfmt in mmput, we haven't got module yet */
+ 	mm->binfmt = NULL;
++	mm_init_owner(mm, NULL);
+ 	mmput(mm);
+ 
+ fail_nomem:
+@@ -1662,6 +1672,21 @@ static inline void rcu_copy_process(struct task_struct *p)
+ #endif /* #ifdef CONFIG_TASKS_RCU */
+ }
+ 
++static void __delayed_free_task(struct rcu_head *rhp)
++{
++	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
++
++	free_task(tsk);
++}
++
++static __always_inline void delayed_free_task(struct task_struct *tsk)
++{
++	if (IS_ENABLED(CONFIG_MEMCG))
++		call_rcu(&tsk->rcu, __delayed_free_task);
++	else
++		free_task(tsk);
++}
++
+ /*
+  * This creates a new process as a copy of the old one,
+  * but does not actually start it yet.
+@@ -2123,8 +2148,10 @@ static __latent_entropy struct task_struct *copy_process(
+ bad_fork_cleanup_namespaces:
+ 	exit_task_namespaces(p);
+ bad_fork_cleanup_mm:
+-	if (p->mm)
++	if (p->mm) {
++		mm_clear_owner(p->mm, p);
+ 		mmput(p->mm);
++	}
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+ 		free_signal_struct(p->signal);
+@@ -2155,7 +2182,7 @@ static __latent_entropy struct task_struct *copy_process(
+ bad_fork_free:
+ 	p->state = TASK_DEAD;
+ 	put_task_stack(p);
+-	free_task(p);
++	delayed_free_task(p);
+ fork_out:
+ 	spin_lock_irq(&current->sighand->siglock);
+ 	hlist_del_init(&delayed.node);
 
