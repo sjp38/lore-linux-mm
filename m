@@ -2,240 +2,231 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55EB5C004C9
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 272EAC43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 06:36:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06A162087B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 04:54:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06A162087B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BA8802087B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 06:36:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA8802087B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 945056B026C; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id 0B92C6B0003; Mon, 29 Apr 2019 02:36:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F2896B026D; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id 0999A6B0006; Mon, 29 Apr 2019 02:36:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8072D6B026E; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
+	id EC0DB6B0007; Mon, 29 Apr 2019 02:36:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 488936B026D
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 00:54:12 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f7so6652123pfd.7
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 21:54:12 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6246B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 02:36:38 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id a2so5496573otk.13
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 23:36:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=DUvFDn7C5Eh34MdB6r7GUuxOF+hBXuSzGP9HXtCcuKI=;
-        b=JnLcDkOPidVw6ubB8gMAgrbhvKdj3bGQphFy8fh0tGyS8zPSSk1m3plHZXmslo/xfa
-         VlmzFD52TX84JDq4YwtVeL2jidwWh5Rh9w79yyimB7ljPb0GQIufUtZyse+UyNgPU0az
-         uiYjDkfYUsal8xgaWzP8vSa3EC9IGX1n5AX6Hc8O5OGcUZbCV74BKz1OBDnYjZCpJIcS
-         SnXVYoEm8F0pE9pwXWtLWjyEwTvHsqV47KXsc8Jz1tEdbuW4Gs4AupLTAiejMKYbTYq4
-         MuepCyJoYfoUK2wdJPdyUqvS+lVJhl7u/jxZdfkP1xT53OoRncUBI76mS6v//du23yKx
-         PacA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWpQDhSLbqyIASYYTa5Rb7h8yC6fL7Dy8M7gzO1fRXypRLXwzuv
-	lzL84EXdy0cRJyn3D+LQAgB2n44bP/6MXWSdhqDAR489T5bJUeLtqIJAm7SFrTSfSLdRzGOgt+t
-	59BeVfD2UrlcM+eCCAOAIqhDASQRE0Okl3DSV/P1q77W1Px2dMwtYKCJV/dYPac7JLg==
-X-Received: by 2002:a17:902:a7:: with SMTP id a36mr59731883pla.111.1556513651953;
-        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynEotcfbW0EDVn9v6KNgAT/kAbGkzVsSKTicFV1bZtSZS5FhMKv+f6uBBOnlDAsHshCa2r
-X-Received: by 2002:a17:902:a7:: with SMTP id a36mr59731858pla.111.1556513651276;
-        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556513651; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=K0/Rx02ib4tIOP0+YhfrvTX+aM2MX8pJ47m1TEJofSA=;
+        b=qDUXBdu9oUUs3KjaLxAHq1Ccm/AIqfrI9VlyUPaxLecixjecybINQQIUBWES0Dp2k8
+         DjVAWp7g/C5Hmv8e/Zw71Ao7HbAzbrsuW7sl0INFwsTPE+QEIO6lEwsirafTyFdUI2X6
+         Km2I7OVvI8TFtn0BjMrzovVBZcu5BXs9L9gpkr8lR4lGp9ZSsj5PQy+CxpgSnbZPeC7m
+         o1GGmu44ukgZ8u+tZQA1/6+jq1HlienAWiKJpP/znSVmUB9Xt9Dox7vX+mwDqvarYrvF
+         5tqciYWDBs7Eq29eXRoCgPDuX4bpBQdqydTt4cc+LuW4GR0I4Rw1YXjbaHIR+3Uaqyau
+         y4rQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+X-Gm-Message-State: APjAAAWmaSx0y1htFXVllRkl6xmHrtNFkkMlBdbT2MPNR/Uwckx1COpw
+	waupldJEg5y6bsTUJpc9FsJfGG0PmeddwUwMRzeMeCPDXhLnvdSd3GU7O6TJ+PpDHEIjxpxxUNC
+	ldoU2V78J+aFblgtecbe4yhc4U8oe72c2bUKPiiI5mf0zQLrogt2BtWSjMTqW1nJjFA==
+X-Received: by 2002:a9d:5a0d:: with SMTP id v13mr22099177oth.345.1556519798234;
+        Sun, 28 Apr 2019 23:36:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqythHv3bsWMjjfEMvo6/kzMOKrSxjCVywXDJCN90EhN35aqjyigHKaD8WK069t2wGEKvmA5
+X-Received: by 2002:a9d:5a0d:: with SMTP id v13mr22099147oth.345.1556519797284;
+        Sun, 28 Apr 2019 23:36:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556519797; cv=none;
         d=google.com; s=arc-20160816;
-        b=G30uMN9h8M55W1+inzpLuaPM5ZU4YEs0j+/av0wwOJ5WqHT+29CKntjQ4UuqRk4M0i
-         +QDWo+lTcBRFSZVEJqx+RoX0zNUQYFVX0Ku0f1gGF+SULDY0BplokOPCWZXD5LXCaUP5
-         PKH4azSx131jYtZMrjwjtPMxGndzC6rjFsthL07F/w8fiyRvdLI+enBR8NNC2juGXEcY
-         6a6JQ6oLEddyXBaL1FqpUes77cIeoH+8ga8gCEvi8h4F60hIBOoNdxMLf5o4Uy7C8EeD
-         0ic5B5BtzTOa/VQj8YZlC33MiIeQ93v8kk2Nmv7il8sE4kJ8hPgtLUifAbqgET127KW7
-         rphg==
+        b=u6rsXB3sMZgI//kBxS3qdTkqsF2dvSLZNgPsFi/nMa+MZXbbthgjm04rOonurXUiSM
+         EtYl0U4t8h/HxjeLXvhoWcFl4Mu5JSJ/2iRNY2kT2DMAqjzmHWaZ65DLD5lEDn5iZ9fp
+         i5ot8/s9ip9iRdWXoRV5/z0YVmvT2aSQCSZbSYrRurbDLO0dqBRmzsO23FqWOk2pNpYc
+         nD9eteiHy9ojueBgF7lc6+RxoMdE1STTIXNMFFgK9/JMs+iV8giLDLWy1lItlFnK0HVH
+         6mHPW1h/lh/Lz+JEjCigtZM2fQjFVe8SfVoBhC7zcoKOv9TfcIK4jbZxXZTIlUdahmtk
+         vEEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=DUvFDn7C5Eh34MdB6r7GUuxOF+hBXuSzGP9HXtCcuKI=;
-        b=werc8iSjbkWJXK871rT+T+o9L6vYzz9s8fMzfrFKz6eGFjImf48BZq5RzSeTq1NTb5
-         +CIcjnAhjukT/T6+5ar2BT944ki/W3+7/uDX2aBJwME93tyb0tLVywdKVI/aGU648bWe
-         m/WT2X08aAZTIZ1WvrMqb3PjejhrhQMxEz/G19v3QLzDaWXVKXG3mLo200XEb7npTtPe
-         ZXOdwMOTJeO5RRP3wFN/RUmqAZ0+2LXaH9OSehc3BYD+eJgxGQnNjJ8M4PY4XKNU9zAD
-         BEFL7nClANFw1F1XjhQC0lbiadAtaMC2dPBkG4Aor8dn4s1AajZ5EgSUJ75H3fDOLDpE
-         3tqA==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=K0/Rx02ib4tIOP0+YhfrvTX+aM2MX8pJ47m1TEJofSA=;
+        b=eARMXOZepMSPY6izyh1QyyLQsMtKwE9ibQ68XqLVt7F3yTdvzHhZmDchjGyqgCr6pH
+         bSuxoae0XEnKH9DonmRQGtOmawD0NmVUzoqDfZEogLtVGY53GDHmo2LqLDiedVYbKo1H
+         h4+2z/DvEO8prIXbv+DJqucXr2UC10XzXpF/OeZuVCLoz2Bts9ewWib8tUhlwRgi92Wl
+         gIdnlaHMGmy9ccCwEhkx2FuFA6pP4rsgyHQl9sa9qIw4EE+bV4Uhj6/TwNF/YRWRQ6LJ
+         JP+xe/aHFSQ4d6TNtitsaMJibLOpLgPSHH4ME4z5jctcqu65C+aaogRb7BoLRb/GxZlr
+         EVNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id m184si14181099pfb.166.2019.04.28.21.54.11
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id q203si17071291oif.179.2019.04.28.23.36.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Apr 2019 21:54:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Sun, 28 Apr 2019 23:36:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 28 Apr 2019 21:54:10 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,408,1549958400"; 
-   d="scan'208";a="146566319"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 28 Apr 2019 21:54:10 -0700
-From: ira.weiny@intel.com
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jan Kara <jack@suse.cz>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH 10/10] mm/gup: Remove FOLL_LONGTERM DAX exclusion
-Date: Sun, 28 Apr 2019 21:53:59 -0700
-Message-Id: <20190429045359.8923-11-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190429045359.8923-1-ira.weiny@intel.com>
-References: <20190429045359.8923-1-ira.weiny@intel.com>
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from DGGEMS403-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 4B282BDFA7E055B41855;
+	Mon, 29 Apr 2019 14:36:33 +0800 (CST)
+Received: from [127.0.0.1] (10.177.29.68) by DGGEMS403-HUB.china.huawei.com
+ (10.3.19.203) with Microsoft SMTP Server id 14.3.439.0; Mon, 29 Apr 2019
+ 14:36:29 +0800
+Message-ID: <5CC69B6C.9090608@huawei.com>
+Date: Mon, 29 Apr 2019 14:36:28 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+To: Andrea Arcangeli <aarcange@redhat.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
+	<mhocko@kernel.org>, <linux-mm@kvack.org>, <syzkaller-bugs@googlegroups.com>,
+	<syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>, Mike Rapoport
+	<rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Peter Xu
+	<peterx@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+Subject: Re: [PATCH 1/1 v2] userfaultfd: use RCU to free the task struct when
+ fork fails
+References: <20190327084912.GC11927@dhcp22.suse.cz> <20190429035752.4508-1-aarcange@redhat.com>
+In-Reply-To: <20190429035752.4508-1-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.29.68]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+ On 2019/4/29 11:57, Andrea Arcangeli wrote:
+> The task structure is freed while get_mem_cgroup_from_mm() holds
+> rcu_read_lock() and dereferences mm->owner.
+>
+> get_mem_cgroup_from_mm()                failing fork()
+> ----                                    ---
+> task = mm->owner
+>                                         mm->owner = NULL;
+>                                         free(task)
+> if (task) *task; /* use after free */
+>
+> The fix consists in freeing the task with RCU also in the fork failure
+> case, exactly like it always happens for the regular exit(2)
+> path. That is enough to make the rcu_read_lock hold in
+> get_mem_cgroup_from_mm() (left side above) effective to avoid a use
+> after free when dereferencing the task structure.
+>
+> An alternate possible fix would be to defer the delivery of the
+> userfaultfd contexts to the monitor until after fork() is guaranteed
+> to succeed. Such a change would require more changes because it would
+> create a strict ordering dependency where the uffd methods would need
+> to be called beyond the last potentially failing branch in order to be
+> safe. This solution as opposed only adds the dependency to common code
+> to set mm->owner to NULL and to free the task struct that was pointed
+> by mm->owner with RCU, if fork ends up failing. The userfaultfd
+> methods can still be called anywhere during the fork runtime and the
+> monitor will keep discarding orphaned "mm" coming from failed forks in
+> userland.
+>
+> This race condition couldn't trigger if CONFIG_MEMCG was set =n at
+> build time.
+>
+> v2: improved commit header and reduced #ifdef material suggested by
+> Michal Hocko.
+>
+> Fixes: 893e26e61d04 ("userfaultfd: non-cooperative: Add fork() event")
+> Cc: stable@kernel.org
+> Tested-by: zhong jiang <zhongjiang@huawei.com>
+> Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  kernel/fork.c | 31 +++++++++++++++++++++++++++++--
+>  1 file changed, 29 insertions(+), 2 deletions(-)
+>
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 9dcd18aa210b..2628f3773ca8 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -952,6 +952,15 @@ static void mm_init_aio(struct mm_struct *mm)
+>  #endif
+>  }
+>  
+> +static __always_inline void mm_clear_owner(struct mm_struct *mm,
+> +					   struct task_struct *p)
+> +{
+> +#ifdef CONFIG_MEMCG
+> +	if (mm->owner == p)
+> +		WRITE_ONCE(mm->owner, NULL);
+> +#endif
+> +}
+> +
+>  static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+>  {
+>  #ifdef CONFIG_MEMCG
+> @@ -1331,6 +1340,7 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
+>  free_pt:
+>  	/* don't put binfmt in mmput, we haven't got module yet */
+>  	mm->binfmt = NULL;
+> +	mm_init_owner(mm, NULL);
+>  	mmput(mm);
+>  
+>  fail_nomem:
+> @@ -1662,6 +1672,21 @@ static inline void rcu_copy_process(struct task_struct *p)
+>  #endif /* #ifdef CONFIG_TASKS_RCU */
+>  }
+>  
+> +static void __delayed_free_task(struct rcu_head *rhp)
+> +{
+> +	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+> +
+> +	free_task(tsk);
+> +}
+if we disable the CONFIG_MEMCG,  __delay_free_task will not to be used.
 
-Now that there is a mechanism for users to safely take LONGTERM pins on
-FS DAX pages.  Remove the FS DAX exclusion from GUP with FOLL_LONGTERM.
+Thanks,
+zhong jiang
+> +static __always_inline void delayed_free_task(struct task_struct *tsk)
+> +{
+> +	if (IS_ENABLED(CONFIG_MEMCG))
+> +		call_rcu(&tsk->rcu, __delayed_free_task);
+> +	else
+> +		free_task(tsk);
+> +}
+> +
+>  /*
+>   * This creates a new process as a copy of the old one,
+>   * but does not actually start it yet.
+> @@ -2123,8 +2148,10 @@ static __latent_entropy struct task_struct *copy_process(
+>  bad_fork_cleanup_namespaces:
+>  	exit_task_namespaces(p);
+>  bad_fork_cleanup_mm:
+> -	if (p->mm)
+> +	if (p->mm) {
+> +		mm_clear_owner(p->mm, p);
+>  		mmput(p->mm);
+> +	}
+>  bad_fork_cleanup_signal:
+>  	if (!(clone_flags & CLONE_THREAD))
+>  		free_signal_struct(p->signal);
+> @@ -2155,7 +2182,7 @@ static __latent_entropy struct task_struct *copy_process(
+>  bad_fork_free:
+>  	p->state = TASK_DEAD;
+>  	put_task_stack(p);
+> -	free_task(p);
+> +	delayed_free_task(p);
+>  fork_out:
+>  	spin_lock_irq(&current->sighand->siglock);
+>  	hlist_del_init(&delayed.node);
+>
+> .
+>
 
-Special processing remains in effect for CONFIG_CMA
----
- mm/gup.c | 65 ++++++--------------------------------------------------
- 1 file changed, 6 insertions(+), 59 deletions(-)
-
-diff --git a/mm/gup.c b/mm/gup.c
-index 1ee17f2339f7..cf6863422cb9 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1324,26 +1324,6 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(get_user_pages_remote);
- 
--#if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
--static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
--{
--	long i;
--	struct vm_area_struct *vma_prev = NULL;
--
--	for (i = 0; i < nr_pages; i++) {
--		struct vm_area_struct *vma = vmas[i];
--
--		if (vma == vma_prev)
--			continue;
--
--		vma_prev = vma;
--
--		if (vma_is_fsdax(vma))
--			return true;
--	}
--	return false;
--}
--
- #ifdef CONFIG_CMA
- static struct page *new_non_cma_page(struct page *page, unsigned long private)
- {
-@@ -1474,18 +1454,6 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
- 
- 	return nr_pages;
- }
--#else
--static long check_and_migrate_cma_pages(struct task_struct *tsk,
--					struct mm_struct *mm,
--					unsigned long start,
--					unsigned long nr_pages,
--					struct page **pages,
--					struct vm_area_struct **vmas,
--					unsigned int gup_flags)
--{
--	return nr_pages;
--}
--#endif
- 
- /*
-  * __gup_longterm_locked() is a wrapper for __get_user_pages_locked which
-@@ -1499,49 +1467,28 @@ static long __gup_longterm_locked(struct task_struct *tsk,
- 				  struct vm_area_struct **vmas,
- 				  unsigned int gup_flags)
- {
--	struct vm_area_struct **vmas_tmp = vmas;
- 	unsigned long flags = 0;
--	long rc, i;
-+	long rc;
- 
--	if (gup_flags & FOLL_LONGTERM) {
--		if (!pages)
--			return -EINVAL;
--
--		if (!vmas_tmp) {
--			vmas_tmp = kcalloc(nr_pages,
--					   sizeof(struct vm_area_struct *),
--					   GFP_KERNEL);
--			if (!vmas_tmp)
--				return -ENOMEM;
--		}
-+	if (flags & FOLL_LONGTERM)
- 		flags = memalloc_nocma_save();
--	}
- 
- 	rc = __get_user_pages_locked(tsk, mm, start, nr_pages, pages,
--				     vmas_tmp, NULL, gup_flags);
-+				     vmas, NULL, gup_flags);
- 
- 	if (gup_flags & FOLL_LONGTERM) {
- 		memalloc_nocma_restore(flags);
- 		if (rc < 0)
- 			goto out;
- 
--		if (check_dax_vmas(vmas_tmp, rc)) {
--			for (i = 0; i < rc; i++)
--				put_page(pages[i]);
--			rc = -EOPNOTSUPP;
--			goto out;
--		}
--
- 		rc = check_and_migrate_cma_pages(tsk, mm, start, rc, pages,
--						 vmas_tmp, gup_flags);
-+						 vmas, gup_flags);
- 	}
- 
- out:
--	if (vmas_tmp != vmas)
--		kfree(vmas_tmp);
- 	return rc;
- }
--#else /* !CONFIG_FS_DAX && !CONFIG_CMA */
-+#else /* !CONFIG_CMA */
- static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
- 						  struct mm_struct *mm,
- 						  unsigned long start,
-@@ -1553,7 +1500,7 @@ static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
- 	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
- 				       NULL, flags);
- }
--#endif /* CONFIG_FS_DAX || CONFIG_CMA */
-+#endif /* CONFIG_CMA */
- 
- /*
-  * This is the same as get_user_pages_remote(), just with a
--- 
-2.20.1
 
