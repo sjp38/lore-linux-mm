@@ -2,176 +2,146 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FEDCC43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:32:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC2ABC04AA6
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 13:15:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C577220673
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 12:32:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="EsykfS/V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C577220673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 8CFF02173E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 13:15:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CFF02173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 618126B0007; Mon, 29 Apr 2019 08:32:02 -0400 (EDT)
+	id D6FEC6B0003; Mon, 29 Apr 2019 09:15:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C5F36B0008; Mon, 29 Apr 2019 08:32:02 -0400 (EDT)
+	id D1E136B0005; Mon, 29 Apr 2019 09:15:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 441C36B000A; Mon, 29 Apr 2019 08:32:02 -0400 (EDT)
+	id C349A6B0007; Mon, 29 Apr 2019 09:15:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F2B0F6B0007
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 08:32:01 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id i35so5314149plb.7
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 05:32:01 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7179A6B0003
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 09:15:55 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s4so3861683eda.4
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 06:15:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:to:cc:subject:from:organization
-         :references:date:in-reply-to:message-id:user-agent:mime-version;
-        bh=YpLMQQrkPzj0xaZUB7vT4ZsT4KZR9loVYJdQY42icWA=;
-        b=tL88pANuIcv+b1H8TitIWSzxKdeUXd/oqY/1A1SD9KqeJ3klXxsql2JS9G4U+EgaCg
-         B4MGOPn9uk6MHl0V8wywSLliQl8nXaJVnbzskc9YQLgePKkj1P7MkjSai8UzTmMAhXwX
-         mToNGYuDMy6aaDkMN4konmqlFLWaYuE30oU3k3Uis2ddpXbmocRFt+VLaWB/v69YQmRT
-         +xgfqxREN1lmj1iAzBCIyq1BiVSiw2fDMnYkX9lgiR5CkPDQtIlIl/s3ROzuF4yCMTbj
-         nE74aeVFA8Yi8fgyUHQS32tJb4E9J9LZfOG31KVCKOcgCmcJ0PR/qp0Gnn/Cpnf/VQ3E
-         s4AQ==
-X-Gm-Message-State: APjAAAWYOiy8ehcs215DWhazgg0TntavPLax9Go7CZeI+YAFxf73ovMz
-	aO2E65aKbjGOwYfNgEPqW3Y57uFkueCV3cf/l8yEPQ7bPNqvfNTG9n1czIvphq1etjXVxg6wzH/
-	zlMgpqEXxwtaoshtxkuQYysz4VieTiienYFU1d9DHEQ942/DPQBARWUusj9HJJrD+QQ==
-X-Received: by 2002:a63:2325:: with SMTP id j37mr4254538pgj.137.1556541121562;
-        Mon, 29 Apr 2019 05:32:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjgRUBkAw9zjqUzzlkbgZ/Y7lOjAaMC+/kCBXh+xPuxBbaVf+Im+olEgB0/UTSbyy1MqGZ
-X-Received: by 2002:a63:2325:: with SMTP id j37mr4254488pgj.137.1556541120784;
-        Mon, 29 Apr 2019 05:32:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556541120; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=7gTeKKjyC5xRehCGJ3fDVsp6EDCweAatZ/YC0G+ZU0U=;
+        b=iKmOLdY7HwzAUh+gEoe2b1krCjHlo/olcjVlStYPNFJ2tbtc/8bU9gDi6dwl6iqX8g
+         ULz61QfvR7bCyXlUXLGfvS0cqxjLDt93alXcSQy1PVDSzwgXKfdOD8sGuXe8hFiCnu8q
+         BexfTkVQw2RopeWIv5E+dN/0v+ZGU9iMf+0tVfoaVRPTZXPYNebfqnmg403NjZQ/Rsnr
+         X7Uqxe9ZZowB3istRVHcqYOYWVcv0K+NL72czMj7d1P2CHSMOY/c5LPO9ASm6SJbdGS/
+         ML26EdISJXvCMJqWnfNqLOOeaK/rzaNPf0cElWLukzdPP3xriP1gYfP6U37MDInhvFBX
+         dhPQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVkDXwbQpmhFXQMKeT0WpndDKBzw2W2Wlc//ukk9QS1n8Dy+LZR
+	WHGjCiFyBM5tsrveLpgz7GMEj71Hq5pX17+q7zdKd4A7JRMPR6iyQIPzitVfZ6rtAXh869T5PsH
+	TIU+onG/yD70vxuce47Qr4AbG/Vu+4+SeCls82kjBvGwXMyWltN8BZE73cgmniyg=
+X-Received: by 2002:a17:906:d18e:: with SMTP id c14mr5851178ejz.13.1556543754994;
+        Mon, 29 Apr 2019 06:15:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx7uvdPdhZ+s7qthclqHcA95/lYI3qGYyPkIeJKS06I84t974gbMKl/IGuDpJIgZWXjf5Ba
+X-Received: by 2002:a17:906:d18e:: with SMTP id c14mr5851128ejz.13.1556543754037;
+        Mon, 29 Apr 2019 06:15:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556543754; cv=none;
         d=google.com; s=arc-20160816;
-        b=eocGfgcImu9DOJEKeOEeUO0VpMtkNZnJplPtI7PDBgnkIORv6sH8ELxKiLY+n8bmuj
-         AOcracmOhbxoyXybYfA0RzaAsVXh+89CJRulCAtaDeS/chH5rqCC9788s1MKLOREM54A
-         NND1AoVMQiKR0HZ07HtL6rnXMsDX2SGYQr/slAnWq2/51FFjRbSKnIohd3RyVeUEV734
-         EpZqBDN6u83OtM4rjG5Xq+ldDzXSdgDSNjwbQgbklaPEadfyEW1NnCB5JIpbhhA8MVqY
-         +x/3nlBP897Ci/BEcyE9XSekcjpp3ZK5OUUk1yMIy5pAJVJzlNuhjf/DiF6DzESywStZ
-         NdKQ==
+        b=I/yGhiq14QJTiInRckN8ctI/hURRvRo0Xiz5CnkIlY/LtlQhULR7tWVAJojCvr8/eS
+         GvM2pTpFLH7pc/6kh5gHXlwmDEoZU1k0AEiqb8/Xjef+XEVGhc84/XrgKXU6IbsDRzzq
+         JNn33rdYIkB8iAkdGrIIKT7t+A69V3tinSmiNAG+9rJy9puSV8wyeMJQcTDyIC1lLReP
+         81Ft1netM0RdWvXuFfrLuEwV750zhoW0/+AjO/qqhp6hpoj6aulgI67WM8OpWJfyn+rH
+         vJIeKR7Uy/fHxCXQVIb4J/AwHGBBs+7leqrvghMHW/LGa/OrLElnYoYgfa5L0aeFqnGP
+         xlFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :organization:from:subject:cc:to:dkim-signature;
-        bh=YpLMQQrkPzj0xaZUB7vT4ZsT4KZR9loVYJdQY42icWA=;
-        b=aSaabPk+3wrUoe0pXworXUUMnnff3F1jRn8Byx8bEaeZtod4TMNfZM0WXQ1plJyEPd
-         urV1yA/XPOp6UmIdWWETNAA3O1ywXjN8YetTc7lWkiO0w5x6SszsXABPUdjoHwlXh2UD
-         z2Ec+uyILVeCqy5zUoj9aC5vgktJ6+NM+/Zm4HECpaBd3bFsVRIiR2mjhsdMekgtoNrF
-         RZXxEgn+c68bzRI74E5stVSg8//bu/e1UKTmaObQTkcoHkA0t2dIvvgPIGZNK8UWyfjF
-         us0rkcCtJvatWpN5kz/YrQrp7DuNmOU9OoSl+iCUL4AYfF0jlZ88M3USzmJcfOk6x6ge
-         rCYg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=7gTeKKjyC5xRehCGJ3fDVsp6EDCweAatZ/YC0G+ZU0U=;
+        b=pbDxpZNC+LvQqLm/yn04xCW0RaM4elmBKlSRCKVUhiWjbFSRPTHXeqI7N1JnTMqG8E
+         EJaqfDblwhW4z4oXJhRcjI6VC1EA9z9ZcGG3bQ3GFC0n/gOn2p4CBkFcs3fWfLx4OL6r
+         IZUkY18vyi04toT4hahz9XaDX61jZubGl1EQhSChI/3mUUHRsRnnoztOuWWHVom4kx2p
+         qc7gKbec346hQs8SnRNHvMyBvd4deLRCim2hKSmqwDYXRjIthPNiZfH54FrcUwtGh/x6
+         1yutoQejcs5ho0rbtp+EgJFFaI+4txBjytFt+Gc63TEXpof+bwrfJNAvFVbZwZFHR8iD
+         FxjA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="EsykfS/V";
-       spf=pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=martin.petersen@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e92si34829489pld.308.2019.04.29.05.32.00
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w49si108657eda.30.2019.04.29.06.15.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 05:32:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 29 Apr 2019 06:15:54 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="EsykfS/V";
-       spf=pass (google.com: domain of martin.petersen@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=martin.petersen@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3TCJCh9004325;
-	Mon, 29 Apr 2019 12:31:58 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=to : cc : subject :
- from : references : date : in-reply-to : message-id : mime-version :
- content-type; s=corp-2018-07-02;
- bh=YpLMQQrkPzj0xaZUB7vT4ZsT4KZR9loVYJdQY42icWA=;
- b=EsykfS/VRtTiG1PT3w2/JyYHxbzIQTpln/YmGWDk5ntThTU/geQoO1SD48MdHk8A9HdN
- 5ZqsJGUnFMkz433YFcPCCfQX6H4uort4e6vlGrXXjfXEJAbfujEIjOHsoOHgaOGZIO1+
- oNpocLsQU22CiZ6YZ22v0+Ap5RBRe2Dm76oIKo5G5XfZXkTHKZemHTlCkhnWrxKF8DMF
- /g9d7kJ6btUGWhaZLVj9pPmohy8kv4KqhNCHhyHv+ivZFa8k6jkTNZsxZs8f58Ms+S3I
- HwNc9+O6bQqciEPTHjRhGwuReiGIP99fN3yeUzrhIZbsEcY3VgEBnuZFT5qzPnhD2Scd 6g== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2130.oracle.com with ESMTP id 2s4ckd67xx-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 29 Apr 2019 12:31:58 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3TCVXMN182219;
-	Mon, 29 Apr 2019 12:31:57 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2s4yy8xm6m-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 29 Apr 2019 12:31:57 +0000
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3TCVtt1008055;
-	Mon, 29 Apr 2019 12:31:55 GMT
-Received: from ca-mkp.ca.oracle.com (/10.159.214.123)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 29 Apr 2019 05:31:55 -0700
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>,
-        Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
-        linux-kernel@vger.kernel.org, lsf@lists.linux-foundation.org,
-        linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>,
-        linux-fsdevel@vger.kernel.org, lsf-pc@lists.linux-foundation.org,
-        Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [Lsf] [LSF/MM] Preliminary agenda ? Anyone ... anyone ? Bueller ?
-From: "Martin K. Petersen" <martin.petersen@oracle.com>
-Organization: Oracle Corporation
-References: <20190425200012.GA6391@redhat.com>
-	<83fda245-849a-70cc-dde0-5c451938ee97@kernel.dk>
-	<503ba1f9-ad78-561a-9614-1dcb139439a6@suse.cz>
-	<yq1v9yx2inc.fsf@oracle.com>
-	<1556537518.3119.6.camel@HansenPartnership.com>
-	<yq1zho911sg.fsf@oracle.com>
-	<1556540228.3119.10.camel@HansenPartnership.com>
-Date: Mon, 29 Apr 2019 08:31:52 -0400
-In-Reply-To: <1556540228.3119.10.camel@HansenPartnership.com> (James
-	Bottomley's message of "Mon, 29 Apr 2019 08:17:08 -0400")
-Message-ID: <yq11s1l0z7r.fsf@oracle.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1.92 (gnu/linux)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1E2D5AD31;
+	Mon, 29 Apr 2019 13:15:53 +0000 (UTC)
+Date: Mon, 29 Apr 2019 09:15:49 -0400
+From: Michal Hocko <mhocko@kernel.org>
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org,
+	Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
+Message-ID: <20190429131549.GL21837@dhcp22.suse.cz>
+References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
+ <20190429105939.11962-1-jslaby@suse.cz>
+ <20190429112916.GI21837@dhcp22.suse.cz>
+ <465a4b50-490c-7978-ecb8-d122b655f868@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9241 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904290089
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9241 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904290089
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <465a4b50-490c-7978-ecb8-d122b655f868@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon 29-04-19 13:55:26, Jiri Slaby wrote:
+> On 29. 04. 19, 13:30, Michal Hocko wrote:
+> > On Mon 29-04-19 12:59:39, Jiri Slaby wrote:
+> > [...]
+> >>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+> >>  {
+> >> -	/*
+> >> -	 * This needs node 0 to be always present, even
+> >> -	 * in the systems supporting sparse numa ids.
+> >> -	 */
+> >> -	return !!lru->node[0].memcg_lrus;
+> >> +	return !!lru->node[first_online_node].memcg_lrus;
+> >>  }
+> >>  
+> >>  static inline struct list_lru_one *
+> > 
+> > How come this doesn't blow up later - e.g. in memcg_destroy_list_lru
+> > path which does iterate over all existing nodes thus including the
+> > node 0.
+> 
+> If the node is not disabled (i.e. is N_POSSIBLE), lru->node is allocated
+> for that node too. It will also have memcg_lrus properly set.
+> 
+> If it is disabled, it will never be iterated.
+> 
+> Well, I could have used first_node. But I am not sure, if the first
+> POSSIBLE node is also ONLINE during boot?
 
-James,
+I dunno. I would have to think about this much more. The whole
+expectation that node 0 is always around is simply broken. But also
+list_lru_memcg_aware looks very suspicious. We should have a flag or
+something rather than what we have now.
 
-> But for this year, I'd just assume the "event partners" checkbox
-> covers publication of attendee data to attendees, because if you
-> assume the opposite, since you've asked no additional permission of
-> your speakers either, that would make publishing the agenda a GDPR
-> violation.
-
-Speakers have proposed a topic by posting a message to a public mailing
-list. Whereas not all attendees have indicated their desire to attend in
-a public forum.
-
-I don't think there's a problem publishing the list of people that sent
-an ATTEND. My concern is the ones that didn't. And if the attendee list
-is not comprehensive, I am not sure how helpful it is.
-
-From a more practical perspective, I also don't have access to whether
-people clicked the "event partners" box or not during registration.
-Although I can reach out to LF and see whether I can get access to that
-information.
-
+I am still not sure I have completely understood the problem though.
+I will try to get to this during the week but Vladimir should be much
+better fit to judge here.
 -- 
-Martin K. Petersen	Oracle Linux Engineering
+Michal Hocko
+SUSE Labs
 
