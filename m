@@ -2,205 +2,126 @@ Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-1.4 required=3.0 tests=DATE_IN_PAST_06_12,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3842C43219
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:29:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87CE0C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:32:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FC772075E
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:29:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=wdc.com header.i=@wdc.com header.b="c8jFQkMn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FC772075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=wdc.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FFE22075E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 21:32:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FFE22075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 371306B0008; Mon, 29 Apr 2019 17:29:46 -0400 (EDT)
+	id E475C6B0008; Mon, 29 Apr 2019 17:31:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 321B56B000E; Mon, 29 Apr 2019 17:29:46 -0400 (EDT)
+	id DCD166B000E; Mon, 29 Apr 2019 17:31:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E9F76B0010; Mon, 29 Apr 2019 17:29:46 -0400 (EDT)
+	id C704F6B0010; Mon, 29 Apr 2019 17:31:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3A16B0008
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:29:45 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 63so826968pga.18
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:29:45 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA59F6B0008
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 17:31:59 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id t63so10201111qkh.0
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 14:31:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:ironport-sdr:ironport-sdr:subject
-         :to:cc:references:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=WVLlGCQbe2LOl9ozrgg8MqoDBz+qdg2hl5qQ7dFn3n0=;
-        b=d7Q1aaPLiTecDueDdCrA2uV7ZPfO7C0s6vX9TSQkykRgGILHFPVNw+IdCDrR37vRel
-         gxgci8DiDajEP5B0jGYbQusQWAw38SNTIqtl3apKJ4PodLsIY2ehZ8FTkAvWcJjEFzse
-         SCSArelLG/5qzAewOWt/z43MLvR6DkttQYd94x9dztg1VyxK+wrnQWPhUHiq0Hoh+d85
-         NT2CLTaqbaDG2T/3/r7F3xwhyFEiqmFEGPmNfT25px24s/LbVf8hsYW4OD3uYvFoPX1U
-         NPJjpclInR0Qdr9coqtY4E+xv/D5n2P27KMzSnDzqB5y0zHJx8CA17DakvTPVT05Tkxz
-         VgEw==
-X-Gm-Message-State: APjAAAW68KOP5b+jRjJ1PnCkfYAKr9Z3tIGOc4+sl5PHLFbxwc80Tfii
-	fIFhXPapgWS8w8kRYxDCdKpWmg/2dySu0200pT09P1Yc0gyXlX3RtLm9s58+mcJ8MOc8trtj6/i
-	5WVLxxGoYc3WQVd2y0L6iCgFUp0qc8txahP/efo2BiR7+zkWEhjjNdHQa7SU3NP1aKQ==
-X-Received: by 2002:a65:5886:: with SMTP id d6mr8939541pgu.295.1556573385562;
-        Mon, 29 Apr 2019 14:29:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyeAieGbfi4T4zYsQRPN3d2FulQqm/iwgES6OG87wZZZY/QakmVO7hUFfkVgbXoacWt1vmg
-X-Received: by 2002:a65:5886:: with SMTP id d6mr8939506pgu.295.1556573384899;
-        Mon, 29 Apr 2019 14:29:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556573384; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=IJt5IAQjY0a+Q9eHHAinNnOWVMDs4eBkQV3mrl5omyw=;
+        b=GFS6P3TBo/sh3lYPqH1ini9T7dVc8In46YZBoIl+3ntMVbAB3I1cQQXjRtiqzQF4QC
+         +fKojGQfFVyKpy9EUjEUmcwaPjqIfzFAPr+YPGAYrat9LcigJy9NdfAz5v8Pu936XkuZ
+         vnXVTq0OdzsKkPRayCz6Id/VvZMTBLOHASxhSSEIetZpxePHPMPLIDvGLavtadtkvrK2
+         +wdr3XpF058FEKoVKKCVXbGq0a3rJyOEjal0IwMKafIygB9yXx1BxazSTAJ6nXNqJDZH
+         sJ3lPLtGvlok7z/yvgtLToKeSesiEsq7vt5teQG0IDGvRkyHujqYAG/6y9Kfc3ixMUB4
+         MWuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAX8ZWfoH4LcgYBGFqeC61/GTCwt53RU5ERbl4479Ka6/mYdQR1W
+	/PSsoVIOpVdZoykrH0dnE1UlTghap6nFMZCcq4iU+S3TBOf5uhJp2ceFYVOmsXfLitZOblC5Mal
+	0StOjjZpXv20yWt1lrJFa9OjD+tWB+xMWHTNIz3cIMOnIOh/sTYHwmrY0ISZN5nRUAQ==
+X-Received: by 2002:a0c:92f9:: with SMTP id c54mr20128544qvc.194.1556573519457;
+        Mon, 29 Apr 2019 14:31:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxuW8mJF6GFVebHmVkKLl9+efmWz/zHkIE0NgviL9BYOCFXnoD6Zfz/DFQcyj6xOOTq211v
+X-Received: by 2002:a0c:92f9:: with SMTP id c54mr20128515qvc.194.1556573518973;
+        Mon, 29 Apr 2019 14:31:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556573518; cv=none;
         d=google.com; s=arc-20160816;
-        b=apkaLTWxXnnXw7xDtzcc0I7yzTqAvxyMAC5UZj9i9HsPBgwKlbIb2lAfO9wCGLuGbe
-         gjRtDiZeLketi2k4jaO6axDoleo0Dl5g2xYnv6Mti51qY1+FS+KPpG/bEXw487Rav/Ct
-         wExB3Azh4xlMv0d+dMRgK9LW4GFuunwYeQaEOCjfIs0vRfWZ351jHJKxmPDljx9rQ7/K
-         jC2hLEklsI832aEvb78MtGVtGEaU6K6qljzz6fPpAcF2/6W5TXF9QR+pEmvP+zO+g9KN
-         gARM4SE3Hz8SQtisgiS2owOFSG9Fy1KZeXMwpULXwOWwSWkdg33U4SCYCyS6AqJwg0LY
-         NoIg==
+        b=WgXgm3DUeZ+hXjM7X8mV9gGpL+S2V0yWrHPqkcMsBEBuaVxCtP+jhzaVnvaRIB3wDO
+         wJgp0c+g+Q3QAIGiGuKbL4np/9Rc0Vrxf70otHEL3PYRrH9m8L6h+fGlUGIFvHDUrHcq
+         +9bU4e0/e1B5CXSWXnTF+8BTw/Zv9KaIg0Mz0JlthQMVDmr2fpmm1kIIKvMkv/oQMjRg
+         MXTBNnHGNzEsulu09sK93ihyvDAEfHScBLzUAg3/Nur3PVlHKSc28sZ/7cRUhbmkUXyV
+         OlQoLdc4I0DLV6sqK0qTR1qXNyh4VbKOfs0YzAwACI9Z0q9gz4pSjaaFcQkIRpYVSERa
+         HQdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :ironport-sdr:ironport-sdr:dkim-signature;
-        bh=WVLlGCQbe2LOl9ozrgg8MqoDBz+qdg2hl5qQ7dFn3n0=;
-        b=fJyIrtgm+95o27VQxAlXf7gLonWzarXcgpxK6nzWZeQams0c6cs+YINhTM3YG4vehI
-         DzO4Lr6+N5VCYkMX8pzYkQXgzagW+99/EnWwYYyBgcTU/u4U2kSmSCVZmHnzBlxbHpwq
-         841QxeJZqTUBx4PLQZf6icPgBl2K1eLS8aBjLL12hkyUNgN3RgaFoLqqxfLZrHGIZ2TE
-         i1jsSQW1nB5F4mVtCmMwFT0MaL/T1iLtadf6QSu/3SPeHvNfkk2hO2b4Pyr/GiUPdFwk
-         EnIDhMml3+0WG7iYo9Kdvut2FVabe0EmmEXy71CU/4CEP4yQewYVfy4RKLQMB+vkNIM0
-         Jopg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=IJt5IAQjY0a+Q9eHHAinNnOWVMDs4eBkQV3mrl5omyw=;
+        b=MWAiAHXVciARL5i9VqUKS3HzvXnbZqfUMYA/P4YOnIN01Mz3hBiyj3fTQm24CCjI9W
+         E12c8H6/X0Ug/BzlIIRjEqyo3+4Rm9hl8KQcm6ZAUp2GnbExDWZtJKlfrxxEyEmwECMA
+         gmWiMD8nTsa+PIbPe61PFCvQUFl26dzC8fO3iXs0qTePZwOnmbCcznpame2lZ2Uk1N3Y
+         W/KBD+KSXLrXA0Nvz+e5HHGgZSaFUkGdwT3Y0rzIQ+FSBhjdB19HVAUvMzMPsCAOtx8b
+         /zcY1YIbWJbi8oELhBC9X+tph3kBRAzCsbxalj0QWfrI+bEcbPwQDXlLOvRzZA3kzKpI
+         JS3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=c8jFQkMn;
-       spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
-        by mx.google.com with ESMTPS id c10si36014825pla.231.2019.04.29.14.29.44
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y12si2904848qty.70.2019.04.29.14.31.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 14:29:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.144 as permitted sender) client-ip=216.71.153.144;
+        Mon, 29 Apr 2019 14:31:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wdc.com header.s=dkim.wdc.com header.b=c8jFQkMn;
-       spf=pass (google.com: domain of prvs=0155011cf=atish.patra@wdc.com designates 216.71.153.144 as permitted sender) smtp.mailfrom="prvs=0155011cf=atish.patra@wdc.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=wdc.com
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple;
-  d=wdc.com; i=@wdc.com; q=dns/txt; s=dkim.wdc.com;
-  t=1556573385; x=1588109385;
-  h=subject:to:cc:references:from:message-id:date:
-   mime-version:in-reply-to:content-transfer-encoding;
-  bh=tylJaZ3hdwgcoleztgKHgV+VyNuRMO/FYfLLBnr0sQI=;
-  b=c8jFQkMnQPkyUP4JmmTR/Qq95PV1XIaX2PIAJTZHd7tf9ioXcmn4NPI/
-   lxnBVYl6yCJvsUICvCS0Dms8kEHdBJxa6aKUXURekuxUsbfd6HmJbddNM
-   aDyDujnnScbYHx7PEhGRJgsZsh5i4F/p7pCRvCMJb3xcSmgs5Q6OipqP3
-   wqPqZyrR442YxZA/QSnKMH4WPPlgH/eE2xuj+jS3nrvRZPVjxs6QlAsVW
-   5rHMpeUII0b3nqbXJQWs30B5zLplqkrzkn/t3qcdkn991goNSrQP7DVM6
-   Z/mh6Z483EsR4pO24ogHsXeWCWfmn29JBEodw1JcsgZ+rNydcPKVTywOB
-   w==;
-X-IronPort-AV: E=Sophos;i="5.60,411,1549900800"; 
-   d="scan'208";a="108317369"
-Received: from uls-op-cesaip01.wdc.com (HELO uls-op-cesaep01.wdc.com) ([199.255.45.14])
-  by ob1.hgst.iphmx.com with ESMTP; 30 Apr 2019 05:29:45 +0800
-IronPort-SDR: NGrl4CSUtNdUHO1KHpve/dnbyoeECTsJMIzjIINx8i8Vr/WNVPQg6fNa3sIiScUs0RLQia3WQ2
- 0/K6gBwbwzR9gLmM/GXxNZejwISnpPXku8TWSuM6DxAwOU32tNSNU4ysy9H/ehc8aDfeb/3G20
- jVRnuf1QFAFw0ppmOOcRmh4nigTBWhNQA8blbqLEewyckQB7vILYR1FCrfGMfv6I5G24u6i7P5
- FvlwwUy9SBIyAqnUaVPHEo2StkOrDD9bZz6ngvBI2ii1vk39eJqvgDv3qvhkabLKyrGwmqDbKA
- c4TvpSx7FU0upZKtiS5s6+qp
-Received: from uls-op-cesaip02.wdc.com ([10.248.3.37])
-  by uls-op-cesaep01.wdc.com with ESMTP; 29 Apr 2019 14:06:06 -0700
-IronPort-SDR: 3DPb2PcWrl1lZn4c6cs7QX/GL1L2Mxk3qhbjtbqE5SnoEhVGLGsgYQp0Eb/dU+1MLJeRk4bK3V
- ++ljP17iEXBQXhrYVqDmr4IQi85GLF5yUyR9vBG9J79W2VBZ47HDcTonMJv8Q8Vp3og0a2fWCm
- gHe62TeuS05QO2Sgsw0CubbfQQpT6tj+1qYdgd6WTbZTEdI8miJdVoToYEPkSs41VfHPxeuTuj
- X4dDWhnvFJ9TTmKowheCJ/nsz7dfXizAcBxDYwXIRBfwu6nC4/zlIE8JC/pWnMdBoW4sCTmryI
- Mmk=
-Received: from c02v91rdhtd5.sdcorp.global.sandisk.com (HELO [10.111.66.167]) ([10.111.66.167])
-  by uls-op-cesaip02.wdc.com with ESMTP; 29 Apr 2019 14:29:44 -0700
-Subject: Re: [PATCH v2 1/3] x86: Move DEBUG_TLBFLUSH option.
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Albert Ou <aou@eecs.berkeley.edu>, Andrew Morton
- <akpm@linux-foundation.org>, Anup Patel <anup@brainfault.org>,
- Borislav Petkov <bp@alien8.de>, Changbin Du <changbin.du@intel.com>,
- Gary Guo <gary@garyguo.net>, "H. Peter Anvin" <hpa@zytor.com>,
- Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-riscv@lists.infradead.org" <linux-riscv@lists.infradead.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Palmer Dabbelt <palmer@sifive.com>, Thomas Gleixner <tglx@linutronix.de>,
- Vlastimil Babka <vbabka@suse.cz>,
- "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>,
- Christoph Hellwig <hch@infradead.org>
-References: <20190429195759.18330-1-atish.patra@wdc.com>
- <20190429195759.18330-2-atish.patra@wdc.com>
- <20190429200554.GA102486@gmail.com>
-From: Atish Patra <atish.patra@wdc.com>
-Message-ID: <e80533d1-6d7c-c503-73d7-1a344a49aa37@wdc.com>
-Date: Mon, 29 Apr 2019 14:29:43 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.6.1
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id EEDB9309D28F;
+	Mon, 29 Apr 2019 21:31:57 +0000 (UTC)
+Received: from ultra.random (ovpn-123-98.rdu2.redhat.com [10.10.123.98])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 242D45EE06;
+	Mon, 29 Apr 2019 21:31:55 +0000 (UTC)
+Date: Mon, 29 Apr 2019 10:37:11 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+	syzkaller-bugs@googlegroups.com,
+	syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Peter Xu <peterx@redhat.com>, Dmitry Vyukov <dvyukov@google.com>
+Subject: Re: [PATCH 1/1 v2] userfaultfd: use RCU to free the task struct when
+ fork fails
+Message-ID: <20190429143711.GA11265@redhat.com>
+References: <20190327084912.GC11927@dhcp22.suse.cz>
+ <20190429035752.4508-1-aarcange@redhat.com>
+ <5CC69B6C.9090608@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20190429200554.GA102486@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5CC69B6C.9090608@huawei.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 29 Apr 2019 21:31:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/29/19 1:06 PM, Ingo Molnar wrote:
-> 
-> * Atish Patra <atish.patra@wdc.com> wrote:
-> 
->> CONFIG_DEBUG_TLBFLUSH was added in 'commit 3df3212f9722 ("x86/tlb: add
->> tlb_flushall_shift knob into debugfs")' to support tlb_flushall_shift
->> knob. The knob was removed in 'commit e9f4e0a9fe27 ("x86/mm: Rip out
->> complicated, out-of-date, buggy TLB flushing")'.  However, the debug
->> option was never removed from Kconfig. It was reused in commit
->> '9824cf9753ec ("mm: vmstats: tlb flush counters")' but the commit text
->> was never updated accordingly.
-> 
-> Please, when you mention several commits, put them into new lines to make
-> it readable, i.e.:
-> 
->    3df3212f9722 ("x86/tlb: add tlb_flushall_shift knob into debugfs")
-> 
-> etc.
-> 
-Done.
+Hello,
 
->> Update the Kconfig option description as per its current usage.
->>
->> Take this opprtunity to make this kconfig option a common option as it
->> touches the common vmstat code. Introduce another arch specific config
->> HAVE_ARCH_DEBUG_TLBFLUSH that can be selected to enable this config.
-> 
-> "opprtunity"?
-> 
->> +config HAVE_ARCH_DEBUG_TLBFLUSH
->> +	bool
->> +	depends on DEBUG_KERNEL
->> +
->> +config DEBUG_TLBFLUSH
->> +	bool "Save tlb flush statstics to vmstat"
->> +	depends on HAVE_ARCH_DEBUG_TLBFLUSH
->> +	help
->> +
->> +	Add tlbflush statstics to vmstat. It is really helpful understand tlbflush
->> +	performance and behavior. It should be enabled only for debugging purpose
->> +	by individual architectures explicitly by selecting HAVE_ARCH_DEBUG_TLBFLUSH.
-> 
-> "statstics"??
-> 
-> Please put a spell checker into your workflow or read what you are
-> writing ...
-> 
+On Mon, Apr 29, 2019 at 02:36:28PM +0800, zhong jiang wrote:
+> if we disable the CONFIG_MEMCG,  __delay_free_task will not to be used.
 
-Apologies for the typos. Fixed them.
+Yes, the compiler optimizes that away at build time.
 
-Regards,
-Atish
-> Thanks,
-> 
-> 	Ingo
-> 
+Thanks,
+Andrea
 
