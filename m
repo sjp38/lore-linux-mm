@@ -1,154 +1,146 @@
-Return-Path: <SRS0=7ROk=S6=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=SemS=S7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83B86C43218
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:56:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4508C43219
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 02:06:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FF2B2067D
-	for <linux-mm@archiver.kernel.org>; Sun, 28 Apr 2019 23:56:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3CCC520693
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Apr 2019 02:06:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="t0IuUsXn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FF2B2067D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=ozlabs.org header.i=@ozlabs.org header.b="ZDh+JJdW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CCC520693
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=ozlabs.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABD556B0003; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
+	id 862466B0003; Sun, 28 Apr 2019 22:06:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6D586B0006; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
+	id 8195F6B0006; Sun, 28 Apr 2019 22:06:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9849F6B0007; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
+	id 6FFD36B0007; Sun, 28 Apr 2019 22:06:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 776056B0003
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 19:56:34 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id z34so8866708qtz.14
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 16:56:34 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 386036B0003
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2019 22:06:04 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id r13so6467356pga.13
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2019 19:06:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
-        b=TPNMaEyrZucD8ejdb+R85Mt0E/CvwMbMIU1QsdrGDpIS5zpXCIgkZlu8+6ssMixmmM
-         mp8Z6zrANEkkZgOV3Z23KgyvJCP+1gWVJ93VirbZTdafUJJkGyg04+51dSyTkQ/TmtF5
-         NY+e6qB7sr28A4OHz6SxPqu56d6SN2z+xf7D/TehTH0SeL5TiB12TT3Ur00/4Z4a/oWg
-         KeccdZmSJ3YUeBlKr0qz2Ah1sz8Ic+Bjl72SFaeMJ/oPjUfu377Hst8lOPd1rxKT0T7H
-         X+3AWgO8otO6KGEGjugEMPMWrJh6xd/OMuehbqh/usnrDekI5eych1yNZMkzFm0o7Www
-         s8RA==
-X-Gm-Message-State: APjAAAXdH+g0e5jU9l1KWDND7pmO32tB2kLHuHNefcVXPIaoi33/Ip7t
-	glMaxoF3mM0HD8qMvtb2jtUrF85HCOjeLyxIBGE2yMmOi0okGmlrxmPmmqUfOPHv9NQW/KuTFk0
-	F8TEBWSPPfSGYQK34Jlu7XMLUyY5yDi6tZhk2vBngnFIZit8nW6WeadE9wRTaaYAwbA==
-X-Received: by 2002:a37:a243:: with SMTP id l64mr28047379qke.235.1556495794256;
-        Sun, 28 Apr 2019 16:56:34 -0700 (PDT)
-X-Received: by 2002:a37:a243:: with SMTP id l64mr28047352qke.235.1556495793665;
-        Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556495793; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ifUYKzvlVQ0C5bdH0fKRJjKjAZawWXmgnRh/ZT7iL88=;
+        b=WF4x+IKKuwxDA6Igw4Zl9wMJVrNc2lzUyJPV1+Vz/JxaGDALSKp0ILdp+s73gnp7Be
+         Iu130qh77ws2R00CEqRhlIOGZsQ3ox5/NXwwxmRhD5o1f3U/oc4+jvhWoFxGNsuleQHZ
+         ZHzA0jByv06jUUb6pcWnMqjwdRVM2qj7P+cbhfIL49SANTgbuZkevFNJMmdQwA6VGNDL
+         FFTt3c7D4ZiWgcwolUKTQCmhfMgLnCNE5cKoa5agp/D0OSK4bAZ2kfs1JdLyLdthEuMr
+         zhDhNTYYVNnSb7zGR9bofFBJFoch9mk6ptCG9pQFjldI86qR2Yujlmq5FmTXa9mxNyRz
+         V54A==
+X-Gm-Message-State: APjAAAVE6Q6yP13iYY8+YaGbNnGd7Hl4nCm08uGdwWhsLPPdb7uA1FTe
+	GXqtEItsRUA6HJNsC+NyNtVxI0X9cmfoVy6xGmkQB0IrP7RZMIcvTw2JFmlWrJFqlnJdikPTXDQ
+	JmZg2p8S0Qbjq0TCm+te08PUCwkOP3Ab5FoJRjRonuCGtkQpsJiyfHzYoNiqT0Xhfjw==
+X-Received: by 2002:a62:e411:: with SMTP id r17mr15215857pfh.127.1556503563689;
+        Sun, 28 Apr 2019 19:06:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwV7glKHsB+HbcWJBVNpsOTeBTEwxxYhllaS0uZg8h/uCuPKcRxbuSj+s39flMEh5mUJqR0
+X-Received: by 2002:a62:e411:: with SMTP id r17mr15215786pfh.127.1556503562498;
+        Sun, 28 Apr 2019 19:06:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556503562; cv=none;
         d=google.com; s=arc-20160816;
-        b=oK28HoEEsvGqUjqn9AsR9NVAWiWGplbhP2fQZWLEfspd5/K+g8EBubKCH6ImC1d14c
-         islwZjswf06usqMRN5J+BtwfQQH3u0HJocP45076u9CQ8sUd1b7f1h7pQZ8GiZ9WQJ1a
-         rCVLdTlGfq95G+EushLHl044f/DDLFyu0mtVaodNX7Rdckx9eqXGIcZ5q535vQdwgR3L
-         YmZahYRVRLUexIqR6+z+UfHE6N+AJ5YSgBGwcKcxVp11cgquNF2LX0PlIyFaxueBXe52
-         BSnRsfOqnvDnpTM/2EsCwqKxDzIpoBgq8OShglonehYDieBx+ldSGTZQXgJ6HiBYxLyK
-         2cZA==
+        b=Q9e7HHcy7QiA15SfNdW5uF7pI1mgFXFGfSZk+kyrrKT3fNe40i22PoxDpY8u4dm+J6
+         yTfH3z7acMKzRIafAL7koQlziOfOefSI+sT9oulgL+6W4JSB1PB5aWresX42oDkTbUZg
+         UFMy+ZLYiDgfps3iSWZk+HgDWUqHaRVokk6xyeX4Z1dB+eDgLIJ/NGDbAT5K3Y7m2fUR
+         /HnnJA6sN26ohAHOHCZYJmVcBviUYcyDCqPZ6ovftb+wBmgPN/ewseX1i2fINJbWh7mW
+         PKrxq7qxqhv7gWvLioqhqJnKGSdUwqqYwxRvX5x7w6rgafwyb14+ZTJTvOsCy8Odzqz9
+         HHDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
-        b=dzrGI+z428lTZUzU+ylLySHpxGfyblr8cC6SW2Ei+i3ycjZLGkaGQcoNvzcZPTTGyr
-         A0Sas2PjrFCYU0OKiHNBZxvAmNsu6DZQji9lpfEOUXRvzkniGMXwYx71GkT8smO/HMlV
-         IFQD8qXv4sVXCTo8+rP19xlMutlESsRT2R0DbOfogXFH84jjn0zPQXDUszrbbEFruqCv
-         Nr14PTuPhGfeRKEBEZMUSYE5sEnwAm4+bbTOojQp0RzLzgGRE0W/y5FfSaec+G9YnX+3
-         EUEJmzL2n2E4B+9cWHUbpOQf3WAEdUQtQDjkOhZApK83ztWT2utBLRyIT9e8mHPT6ZYw
-         o+rw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ifUYKzvlVQ0C5bdH0fKRJjKjAZawWXmgnRh/ZT7iL88=;
+        b=n3Nq/oYqUDjIu/05ohbHTTM5nK2wVmEyWyVFEeTr2kMuCTYGvmb8M6VF/LWNQO6Llt
+         T7Iy5f+ZlE3JtYevyWArNad5VQeqpsE17offWytb0j2yxjKajhwmINwJOxd5+aY/ofHx
+         jP/wOSjcI5bXNDrCm8OMEIy2ExksHUXt8gEh0LpDoew/jbE8o9CdURvRLhNWRgroXa7M
+         6KhOVNxX3oiG8sT2l98wyEWpM7g5ly0FHTPM0moKaP5HroxC/YwM8NcyCAaDIokKjjfQ
+         md4RYhoJt7ajGqZRJyBJv3YH5l89E2dM8dAbrq7wcmARmN8c8MvFrIk7PGYI5kqNhW+T
+         sV9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t0IuUsXn;
-       spf=pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sT3GXAgKCDIgVOYSSZPUccUZS.QcaZWbil-aaYjOQY.cfU@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b7sor44426283qtb.63.2019.04.28.16.56.33
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=ZDh+JJdW;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ozlabs.org
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id h36si29323437plb.50.2019.04.28.19.06.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 28 Apr 2019 19:06:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t0IuUsXn;
-       spf=pass (google.com: domain of 3st3gxagkcdigvoysszpuccuzs.qcazwbil-aayjoqy.cfu@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3sT3GXAgKCDIgVOYSSZPUccUZS.QcaZWbil-aaYjOQY.cfU@flex--shakeelb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=yu6NcO6qkqCy2IZdfcCLb2i4aKMiT552Q3oiWALCBq0=;
-        b=t0IuUsXn9gaq3SQut1xYfgcWiEy8RtkERl2pBXCiH9XceacJW0QWyY0WBZHCewi6u6
-         YRjtmVCPM0+qoQv1Z87j/N+3XJ6aoclitm6grIraYu8Y9Bqhjs/dhYKOjl3kFgZZJthp
-         pG7y7jAYeykyDXhBxasCXYScBOh8nNzAxjTMW89k/5W00JPfrgSZ9b5ObblARtA3d0rr
-         KacNMeGFpwmM7JL572xU2Rag7vO9sZNeLdQO7gbiSSqb9VOrg7HXmC04PDokV2Tk6AJU
-         C6mcwZUohipajKu8TC+IP/nEKyhgdFNNkhV+kO/BxejCC4n5s/0FpqjJ2o1Bvmw+R4+U
-         Husw==
-X-Google-Smtp-Source: APXvYqwscTyupsIoajguC2ll5HejrseWPsuQsoX13E2On/kwywEZi3TbpJQWePki5zziDZiwfyJTkIrJKlFGbA==
-X-Received: by 2002:ac8:33eb:: with SMTP id d40mr25801482qtb.263.1556495793414;
- Sun, 28 Apr 2019 16:56:33 -0700 (PDT)
-Date: Sun, 28 Apr 2019 16:56:13 -0700
-Message-Id: <20190428235613.166330-1-shakeelb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.21.0.593.g511ec345e18-goog
-Subject: [PATCH] memcg, oom: no oom-kill for __GFP_RETRY_MAYFAIL
-From: Shakeel Butt <shakeelb@google.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, 
-	Shakeel Butt <shakeelb@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=ZDh+JJdW;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=paulus@ozlabs.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ozlabs.org
+Received: by ozlabs.org (Postfix, from userid 1003)
+	id 44sp0j4Vkwz9s7T; Mon, 29 Apr 2019 12:05:57 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=ozlabs.org; s=201707;
+	t=1556503557; bh=C9jMjFQh8bIIcTLpSucBn3+IOPxRQfPJx62R3f27fHA=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=ZDh+JJdWNbUnjZwYJ2OgXrlC5Te6OdRn22WeQuX4mEFi/3J71pfQo+39F6D6VmfIs
+	 gN6aTHh8fhD28hDxoQTNfGh80vVwOayHLTgGy/WObYcwr29+LgPtSFjpNYGvpucq7e
+	 RFvR2OWhFp0B7fWmnkVIVl5FSX1jogLJM1ivdGOqA7fkxhMHaDiTR0CdT1LUZLyBXU
+	 kNwsUKwXM2eBaXfB8xSfPnOIqb8nOoKndLFvhgA8sb3l7oGWYMgduupXvs/dphOqD1
+	 8Md0UWqf3a3EcS154gfVMUDHZtwTRPKEseYrZA6+ZANLVUVipPwrDyKTM5PLPIDLER
+	 jBXEXZZQAZv0g==
+Date: Mon, 29 Apr 2019 12:05:55 +1000
+From: Paul Mackerras <paulus@ozlabs.org>
+To: Steven Price <steven.price@arm.com>
+Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Will Deacon <will.deacon@arm.com>, x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	Mark Rutland <Mark.Rutland@arm.com>,
+	"Liang, Kan" <kan.liang@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH v8 05/20] KVM: PPC: Book3S HV: Remove pmd_is_leaf()
+Message-ID: <20190429020555.GB11154@blackberry>
+References: <20190403141627.11664-1-steven.price@arm.com>
+ <20190403141627.11664-6-steven.price@arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190403141627.11664-6-steven.price@arm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The documentation of __GFP_RETRY_MAYFAIL clearly mentioned that the
-OOM killer will not be triggered and indeed the page alloc does not
-invoke OOM killer for such allocations. However we do trigger memcg
-OOM killer for __GFP_RETRY_MAYFAIL. Fix that.
+On Wed, Apr 03, 2019 at 03:16:12PM +0100, Steven Price wrote:
+> Since pmd_large() is now always available, pmd_is_leaf() is redundant.
+> Replace all uses with calls to pmd_large().
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- mm/memcontrol.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+NAK.  I don't want to do this, because pmd_is_leaf() is purely about
+the guest page tables (the "partition-scoped" radix tree which
+specifies the guest physical to host physical translation), not about
+anything to do with the Linux process page tables.  The guest page
+tables have the same format as the Linux process page tables, but they
+are managed separately.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2713b45ec3f0..99eca724ed3b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2294,7 +2294,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	unsigned long nr_reclaimed;
- 	bool may_swap = true;
- 	bool drained = false;
--	bool oomed = false;
- 	enum oom_status oom_status;
- 
- 	if (mem_cgroup_is_root(memcg))
-@@ -2381,7 +2380,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	if (nr_retries--)
- 		goto retry;
- 
--	if (gfp_mask & __GFP_RETRY_MAYFAIL && oomed)
-+	if (gfp_mask & __GFP_RETRY_MAYFAIL)
- 		goto nomem;
- 
- 	if (gfp_mask & __GFP_NOFAIL)
-@@ -2400,7 +2399,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	switch (oom_status) {
- 	case OOM_SUCCESS:
- 		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
--		oomed = true;
- 		goto retry;
- 	case OOM_FAILED:
- 		goto force;
--- 
-2.21.0.593.g511ec345e18-goog
+If it makes things clearer, I could rename it to "guest_pmd_is_leaf()"
+or something similar.
+
+Paul.
 
