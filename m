@@ -2,193 +2,151 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E9CDC43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:47:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8DF9BC04AA8
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 16:04:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC98021734
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:47:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4CC4020835
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 16:04:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="tvEDCQT1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC98021734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="V17+lfAq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CC4020835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 590866B0006; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
+	id DE84A6B0006; Tue, 30 Apr 2019 12:04:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 519FA6B0008; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
+	id D99B96B0008; Tue, 30 Apr 2019 12:04:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 409556B000A; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
+	id CAFD16B000A; Tue, 30 Apr 2019 12:04:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A13E6B0006
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id w184so5881289pfb.19
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:47:19 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1346B0006
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 12:04:09 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id q127so12277145qkd.2
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 09:04:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
-        b=WFFvYFTMBaYXZmoC0wb70KBqT6N1MndGjDEFiqAW2Eiyh13JCyH9nr4DrmiEonAFm/
-         vGkCe1EQttDmmDBTGc8g2+3HwOPBISNxOGwRY32NSMq0q/fm55d8ViFA0CbHck2xjA+N
-         aIUBZJcA+EjCR5VAw8R62rrAEFCGNmUcbX4uh/kaLn9Nh4NrKFxExgAbrCjArzaYwDi7
-         c6Ei+F1SZOxMCoTQMCBcqGK6vBogKjpHqM6piGrS8SoWBtzK/4bnmpBLmlsrO5QP7fbO
-         RlVXGvbnsaAFWXzECuo/lwsgQfb4D0zOiD39SOt3KVtLukBonJAoyw0RSwUk3VdVciob
-         jyUA==
-X-Gm-Message-State: APjAAAUjHcZ72R1XsoNozuHCiV4fMpefBztc1qZ39QNHw+7saoFpiPJ+
-	INfEWQeakJNXQ3W3Mwmx8BrM9otlW6djXLKmRqqheXcawPFlIa+RXTez3cZt+6dj9XVwjAgFSyG
-	X152nHSlbXASHbtS+7Ul7AcJjaQ1n2a9/+dfpFXAjkkrBGun91m6TETkNAKkdCtKpcw==
-X-Received: by 2002:aa7:82cb:: with SMTP id f11mr24685737pfn.0.1556639238694;
-        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7GJ8n6I1t6TaZUtOYPzBXoVpVN6DeDGyiZgQt2NnDIirEl9qMLOKKWRQamDVHpGQFjfp8
-X-Received: by 2002:aa7:82cb:: with SMTP id f11mr24685650pfn.0.1556639238027;
-        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556639238; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=7C/H9ZzSU0qP8UYq2NJoxOTSjxthMtozx8jthqagPTo=;
+        b=curVcUGT0OYegVig2XTxErYnjaZLBKrIL4sHJ50+zZoahx2usO3r7f0hvLU40AGNVR
+         o/Wkf6Skc+NsySq7SykU3/+msdeOAH24P2AZfiAOvw3GRyBA8W/GVM7HitzndeUnrHIo
+         LWC4tKY2hT2SbrYBD9eriSjfuwGmoGx2o+zkJ0ev7Na4XUb8vOyZhgR1gxWRrG1ZlSL5
+         vYiygEm6h4CKL/DHJ+sQKKlRc4iv8SAteABSlTkaZ3eMqorQdYgNxTOMa0O705EcR5mb
+         SzmwEt4aQOnyP0Y1kG7SS0acf6iQ1WjQvLMj5ASGHpXTUsYMKZCQ4yn7POBIkB9KrDjp
+         Xi1g==
+X-Gm-Message-State: APjAAAV0PiE631jb2Qe2lzPQnnNUeFzrOi/69llEudYhbsuvSGgaNGmu
+	iZUjv5u8mJ/AgN4ZFNvj4Fd3Nr83UabFyc4wAvhFn7tXS1sCcl/Ixi+gKIAPtUzFxOy8I97gQvD
+	w0LFWEBic62ciVhWXf0UyeCxS3YR8WTsrh/ZINstsBle/5LUZVqPg8jYxmbnQWrOLzg==
+X-Received: by 2002:aed:3143:: with SMTP id 61mr14954641qtg.80.1556640249372;
+        Tue, 30 Apr 2019 09:04:09 -0700 (PDT)
+X-Received: by 2002:aed:3143:: with SMTP id 61mr14954564qtg.80.1556640248512;
+        Tue, 30 Apr 2019 09:04:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556640248; cv=none;
         d=google.com; s=arc-20160816;
-        b=z3dxjYoRrhqJNV9iyPo6Nm8wDNuRldjIS41j/pWaNpoZJGVwjD2i+wojBqYG0OBgPU
-         ra7ommNN+2wKeMalr1dEpMuXSqSgPthwRBrkNOjDP5uPRSkHkThtWRkLTjiMZBMv+Iwo
-         nZ+Gyj5datHqdKsqFy8LxA6BKITngMYFJTZp5IwheIL6REVjaoc/p9bpChcoznVpHPg0
-         GNffQ+dbPmrUJXsc9XV8wT7dLfH6FrFuWOp15u4HWHjMdtXbrmnFieYl1yVDUXLzLD2I
-         fKGgP/M4Dc8KC1vbn8OEcyjM8GRs19dVrGNtz4RapWFrudMrM4PvXaXLjAnm6RQW36ZO
-         xthA==
+        b=XAAvo8mLz5HxjIlYq2udYdlwLejeu0ugB7JburNlV9UL4flhWJvGtLOQJiSYnPgXtD
+         3OcP62tC55Voollc7eWipOlGdIrUxvNTSwrNjZSivNFEfTi0bRe/r1pxeC6OAR7+b6CZ
+         o5Gt0i6hXJaXIPHy97/XeM9iZHq15EIrxv8l9TE1eG2nZrJ2qlMtDLYh7hVBc02qvj0P
+         RHrj3F5lLM3UQOtMmGJpRD7uKqP/JhULTAzxOg21QNcx27CMVifACgMxGhfjrRD3jKBU
+         jsW91q3+muWIIAkHglLPNthN1FmDiP0xmi1vlqpNaHMSWCQ2YbvSJJ2A22B6gUV55Nr8
+         Dctg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
-        b=NCatbosabFpgeunHafa733UnThxrvlZ9QxcCrQ9jv3acYbHVYBzowNaWU102TqtJHD
-         ivL+bdv+B7c/3vdgezPoLkjWvZ7mhvDeYCxdOlnZXLT9yTQEgHL1GUX3/wUgMDboGT4K
-         zXJwdBGcqtKH1VKPEaTSxTGzdNvMqd91oXa3d6izoLPb2iPU9i1VX6iqEwkGYq3HFJve
-         Nm7eT6LwuZzwTmJuu1IKbLy/gWktllGafUIlDQken/e1bLCH+lM1ZBQIOR5SIl9G15we
-         2h070il+FJBaknmNzBzmmf8QpkPjauQ/0NV3lIiTYW0QjSr5wmQALy1RBeHrcxadbwmL
-         kELw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=7C/H9ZzSU0qP8UYq2NJoxOTSjxthMtozx8jthqagPTo=;
+        b=qyPIwyDqG5DtepKXVf/HMUQScfrL4j4OR1lJdZxK6M6M8yhiiZ+M9CgE7DtZGu2KAH
+         qmLD8Lix4tW+HPBnsgLnuaBBpRY57bRbBilCfuusPzuZy8raUwCQyPOfoP1UXnTKNP11
+         xqSPmtuCCYC9E474BH+ORSTxfbJ1tdBtme/j/acqrndBQnNhvi4s2lkhlMGwuIu3tl/K
+         EkffvLmbKWYLbejxuZBdfTevM1ENKlbUoFYsbRYT2f4COvNx2s1fewBVU3YeRUh0GKEQ
+         a7zU5B9IDX65i/Nygi8DuUahmELlUFko3oyLGA6G8MlCXizWODm+GXRW6n8VNUP5cnCc
+         1A7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tvEDCQT1;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id z23si37293468pfn.99.2019.04.30.08.47.17
+       dkim=pass header.i=@google.com header.s=20161025 header.b=V17+lfAq;
+       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jwadams@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r20sor16913151qvh.40.2019.04.30.09.04.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Tue, 30 Apr 2019 09:04:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jwadams@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tvEDCQT1;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3UFiMc8138912;
-	Tue, 30 Apr 2019 15:47:11 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
- b=tvEDCQT1n9op9yMFG/x01to6k569aBRL49XaMOFPdv8GtdoR9uOUn0CPzDt97v32z2wp
- pUmhkFrsj/WbnsZMwWThi4kf2fNpqiEHCIlQUBcDuqXv+gN9TYHs4AAJz5M70TPdrnOQ
- B+tCGls+HJ6lQN7+eNEcI4lVtu3U22tYIvzfy0BX0MzFiQsEP9LI6eCzqH7XLzjc4z/a
- 6heTrXV4DQhnSzlFy0u/bSzYweSqFFZ4q6gX5qOOi6t2HzDjj1PwrwEWzKoQ5xv2T8Gh
- shuAgbuZBKc6KnctZOUgKwfdD8vAG3P3XdeEMXpWkqaim5VZO3EsQI7W2fUnW0aNQk1U EQ== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2s4ckddnpe-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 30 Apr 2019 15:47:11 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3UFl1sv104991;
-	Tue, 30 Apr 2019 15:47:10 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3020.oracle.com with ESMTP id 2s5u512dx3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 30 Apr 2019 15:47:10 +0000
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3UFl8PZ025334;
-	Tue, 30 Apr 2019 15:47:09 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 30 Apr 2019 08:47:08 -0700
-Date: Tue, 30 Apr 2019 08:47:07 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Andreas Gruenbacher <agruenba@redhat.com>
-Cc: cluster-devel <cluster-devel@redhat.com>, Christoph Hellwig <hch@lst.de>,
-        Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>,
-        Dave Chinner <david@fromorbit.com>,
-        Ross Lagerwall <ross.lagerwall@citrix.com>,
-        Mark Syms <Mark.Syms@citrix.com>,
-        Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
-        linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
-Subject: Re: [PATCH v7 5/5] gfs2: Fix iomap write page reclaim deadlock
-Message-ID: <20190430154707.GG5200@magnolia>
-References: <20190429220934.10415-1-agruenba@redhat.com>
- <20190429220934.10415-6-agruenba@redhat.com>
- <20190430153256.GF5200@magnolia>
- <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=V17+lfAq;
+       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=jwadams@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=7C/H9ZzSU0qP8UYq2NJoxOTSjxthMtozx8jthqagPTo=;
+        b=V17+lfAqUPk01IFJXUO56hClBUX2HDbxSbQULpTYSKkdi7HyAd33jfH5SIR8cXdcvE
+         hw/F9aMeFlPeuK5f4rBww/6N/Xmuv3823rpt63eVEiC0Qan/UjihZuDkm9RygVdZFQS+
+         uDXcBV7siz7kiet+/qLVaIcLptgJ9iivk9KSHlfQPKEm/K6sK09PpdfaQ642KUtpoLIG
+         Ei/9gzhfAHqdmqH0fjfZyrt7AVGrIzU5C9CHggarLYx36WwDp5F8075K02Wntqlwb84c
+         HpvByXvkJ7w/RAav80V4R5dscpV10nEf8hg1TH2pyWT4QZjAgYqwSCLSFK5QFiXIrs9J
+         nWbw==
+X-Google-Smtp-Source: APXvYqwcvQfk6RKX1YA+CEknGA6KPVffr8HcdjX65JCcNo0SBSztv0+v1lrmNaDd0LojAXwHvRQTc8ngINVBxL3bMxI=
+X-Received: by 2002:a0c:ae17:: with SMTP id y23mr31197725qvc.199.1556640247675;
+ Tue, 30 Apr 2019 09:04:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1904300096
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1904300097
+References: <20190425200012.GA6391@redhat.com> <83fda245-849a-70cc-dde0-5c451938ee97@kernel.dk>
+ <503ba1f9-ad78-561a-9614-1dcb139439a6@suse.cz> <yq1v9yx2inc.fsf@oracle.com>
+ <1556537518.3119.6.camel@HansenPartnership.com> <yq1zho911sg.fsf@oracle.com>
+In-Reply-To: <yq1zho911sg.fsf@oracle.com>
+From: Jonathan Adams <jwadams@google.com>
+Date: Tue, 30 Apr 2019 12:03:31 -0400
+Message-ID: <CA+VK+GP2R=6+GQJHX9+d6jnMWgK8i1_H5FiHdeUe3CGZZ5-86g@mail.gmail.com>
+Subject: Re: [Lsf] [LSF/MM] Preliminary agenda ? Anyone ... anyone ? Bueller ?
+To: "Martin K. Petersen" <martin.petersen@oracle.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Jens Axboe <axboe@kernel.dk>, lsf@lists.linux-foundation.org, 
+	linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org, 
+	Jerome Glisse <jglisse@redhat.com>, linux-fsdevel@vger.kernel.org, 
+	lsf-pc@lists.linux-foundation.org
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2019 at 05:39:28PM +0200, Andreas Gruenbacher wrote:
-> On Tue, 30 Apr 2019 at 17:33, Darrick J. Wong <darrick.wong@oracle.com> wrote:
-> > On Tue, Apr 30, 2019 at 12:09:34AM +0200, Andreas Gruenbacher wrote:
-> > > Since commit 64bc06bb32ee ("gfs2: iomap buffered write support"), gfs2 is doing
-> > > buffered writes by starting a transaction in iomap_begin, writing a range of
-> > > pages, and ending that transaction in iomap_end.  This approach suffers from
-> > > two problems:
-> > >
-> > >   (1) Any allocations necessary for the write are done in iomap_begin, so when
-> > >   the data aren't journaled, there is no need for keeping the transaction open
-> > >   until iomap_end.
-> > >
-> > >   (2) Transactions keep the gfs2 log flush lock held.  When
-> > >   iomap_file_buffered_write calls balance_dirty_pages, this can end up calling
-> > >   gfs2_write_inode, which will try to flush the log.  This requires taking the
-> > >   log flush lock which is already held, resulting in a deadlock.
-> >
-> > /me wonders how holding the log flush lock doesn't seriously limit
-> > performance, but gfs2 isn't my fight so I'll set that aside and assume
-> > that a patch S-o-B'd by both maintainers is ok. :)
-> 
-> This only affects inline and journaled data, not standard writes, so
-> it's not quite as bad as it looks.
+On Mon, Apr 29, 2019 at 7:36 AM Martin K. Petersen
+<martin.petersen@oracle.com> wrote:
+>
+>
+> James,
+>
+> > Next year, simply expand the blurb to "sponsors, partners and
+> > attendees" to make it more clear ... or better yet separate them so
+> > people can opt out of partner spam and still be on the attendee list.
+>
+> We already made a note that we need an "opt-in to be on the attendee
+> list" as part of the registration process next year. That's how other
+> conferences go about it...
 
-Ah, ok.
+But there was an explicit checkbox to being on the attendance list in
+the registration form, on the second page:
 
-> > How should we merge this patch #5?  It doesn't touch fs/iomap.c itself,
-> > so do you want me to pull it into the iomap branch along with the
-> > previous four patches?  That would be fine with me (and easier than a
-> > multi-tree merge mess)...
-> 
-> I'd prefer to get this merged via the gfs2 tree once the iomap fixes
-> have been pulled.
+By submitting this registration you consent to The Linux=E2=80=99s
+Foundation=E2=80=99s communication with you with respect to the event or
+services to which this registration pertains.
+* The Linux Foundation Communications ...
+* Sponsor Communications    ...
+* Attendee Directory
+     By checking here, you opt-in to being listed in the event=E2=80=99s
+online attendee directory. Some of your registration data will be made
+available to other event attendees in the directory (name, title,
+company name only)
 
-Ok, I'll take the first four patches through the iomap branch and cc you
-on the pull request.
+Why isn't that sufficient?
 
---D
-
-> 
-> Thanks,
-> Andreas
+Cheers,
+- jonathan
 
