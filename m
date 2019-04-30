@@ -2,119 +2,135 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76CB2C43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:35:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCE21C04AA8
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:39:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33B5421670
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:35:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ADuedBrn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33B5421670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 8607221734
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:39:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8607221734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CEB256B0003; Tue, 30 Apr 2019 11:35:49 -0400 (EDT)
+	id 214716B0006; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9D0B6B0005; Tue, 30 Apr 2019 11:35:49 -0400 (EDT)
+	id 1C4396B0008; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8C586B0006; Tue, 30 Apr 2019 11:35:49 -0400 (EDT)
+	id 0B3ED6B000A; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1B86B0003
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:35:49 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id x9so7311447pln.0
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:35:49 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D68246B0006
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:39:41 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id h26so3137075otm.19
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:39:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=oJB9h4ESLWko23xHyhMmp9ethq1vvp3IIiVrra55IMg=;
-        b=IbKzzVLXhGk9mj6EXAWoWVykaXTK26zouaqDP6OSPm/wHk2j6Z00nX8QdFUaHBG5Dn
-         aHFjPRIqwgWCYPVwUqEU5CcSsNwuebYI+gT+7Gph2mLqFC448T0mcClzo9zIqhsd9Vht
-         hFPt0JD2+3rhOcmFhokzlX/VqyPljyrhZWIy/mIgfDvIwKFgr2jQi0LvTbmThBJUWrPm
-         AfMH9Fzl+cCnhKUNCN6FW9H2CfDPrwaKdzRSrDHLhjEnihY7utFq8jqcJUUrbNoKsVp7
-         KDS1CfIHe8jsRfHYk0ofMto0vJElzTqMvdT4p3e9YZ58Rf12iLUOoxsE/eTrcjfm1oFk
-         Nucg==
-X-Gm-Message-State: APjAAAVwr99HLe84RLbd92uHWgbaz9KzG/YV3krTgcD5yhLuwLEDO8Fx
-	rpvlyRYiVkkSeazpcUPnf+WxI8PpKRTgSgZLFOwGHONxwxHbluxx4GPkO6cNXNACFjvG2jMTiCW
-	nEQZksD9c4+/GqCoAl6/8rV2GmX9Gasv8OQVgxnhoPyb/tSb/Ft3xOvDdg5zEwTRNqg==
-X-Received: by 2002:a63:8149:: with SMTP id t70mr20219345pgd.134.1556638549259;
-        Tue, 30 Apr 2019 08:35:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydSQCIimY+PiJ/JmxTRsD2tfy7YuV6t0KYFEjNL98SrGPZmrKjTjgIFiI9QhLMnuZEfizf
-X-Received: by 2002:a63:8149:: with SMTP id t70mr20219267pgd.134.1556638548558;
-        Tue, 30 Apr 2019 08:35:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556638548; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=jDm6QOW6C+ywZne3LW7Ypw7lAdQTfas17MrrXq3ecwo=;
+        b=agGChrnimuc/JGBrFuXbWg749nUPX5EOQp2zmh+giH0/b4YwIeVPUCeqHNkb6BFvFa
+         Lupe7rK9zs0TdPcLvfGPEJmidYDYU4oIZfvYO7c9qUC9a4Z+N9sgk5lXlnEbKbfiDPgE
+         Bt8bw8efYV2FIg6q0mspqrY8N9aLuwyVjGmZzSAeGGGdTSSIUErFqoHSuikUpkx2f8vW
+         OD3RJ9keXLRVenqh/CZVaN+/E62vr8nY5gyO1mAlMDy1zegAzI9oenLuGTH24Ohuwd8H
+         GhaYAaAzG/SgBS8RVXd5p9+CRZtrHRfuvb5n2RFBLPtLNn2F5XIOsI9nr50BOWi+vaOf
+         Lh3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVSKWbnOCLySUsmbfF7kPvjYNVfD+wdCP9M8s1EE0A5uezeEHoz
+	VLW70V1UHXEu9UOR6/3vuEjVy59i937NM/rJBUhD6xt0PAhikwgFsqvRg7sEU76VTnmDcqtQBzx
+	n+6LoQs2nRjXjThTBJnePV251EL/KtztPJ+tiLXtMnpCiV2L9twrp/GRArLzSWAx5uw==
+X-Received: by 2002:aca:de45:: with SMTP id v66mr3235766oig.84.1556638781489;
+        Tue, 30 Apr 2019 08:39:41 -0700 (PDT)
+X-Received: by 2002:aca:de45:: with SMTP id v66mr3235738oig.84.1556638780793;
+        Tue, 30 Apr 2019 08:39:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556638780; cv=none;
         d=google.com; s=arc-20160816;
-        b=rIxnucDMcdv7TcTNs3nWXVv1+xuUxn4CNepP7Le0nmFJjL54FuNDaZwu7rOhY0ZDN7
-         zRh+ehscwHAvlMwvVDgMxCpTOMqG7teH87OVfAPrVpWKmcD8e6BYh+rGNWiSIChMXAYP
-         Pnzk392tUY/b/7GnSIhL0WqogfzU8u/f92P9CVEDWnFOIMTufNXVl95AOVIF6c42nSXa
-         /o7dcdFLb+eT8qGd/r5I3js9ZqckwFxwe8F4Uk+1HhsgWc8Zr3aPsUQiL0JyiSCkL5vf
-         p0WFdh6akFa6qLlA4cipVLfdwE/7T6pxxWuRypEeY2fDQzIck2zFtexYajfzTynkgfZv
-         OR8g==
+        b=G7KzhBZ4cD0wvqdfcy3xOKVqnpiAFXtuLOFzpLAEqOwsBeHR8vuCvxmVHI3Gl2xhAv
+         Pec3EJc6BwTf+EeSwASAD8fh+sx6w6xFGY2GNnl6QjGFmElRHUPAWMpq4v6nXTPmItnD
+         2YNObZPkwJJMoOZDLPIGOlhR4ptg8V6l/7ImdWmAn8gOyghMjYh/QIzqg4pDbD//z9KP
+         fMj6/D1yapQ6bTgKXcZkmSm0+rL5g0mytXbjemj/Kcx46ius6Rtvc5FebbKeQhKyFh56
+         dTrnoFb3Ge/kXygcEx3okApoVA12JVfpaV83gOGiLFqTKuujWzkjn2PlRzz39eBo4+XC
+         hHmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:to:from:date:dkim-signature;
-        bh=oJB9h4ESLWko23xHyhMmp9ethq1vvp3IIiVrra55IMg=;
-        b=CGr3N1ZAPeb2kNpB+nEIPPNdXwly0r0+oeJzAQ2ydN8cgwJ0NTm4XnQ2DSFW4nugUE
-         BkTt/Jce9Qfz8u4cv0f1atVW9CGQGf26WxFgL7hYdQFxNkRkXtDkSLziGhMF+fO31Ddu
-         WW8x7J9sICRLHVQ9a+b3yA/LeC+vozJkSyzfd8ubC64vt9jLZarzWciGYXMStpLKsNdY
-         2usFRndShB/kvNTiaM/jjMCDbOR8BVQwN1424KF8BqkRpElAD9wxxl3JCY/VUSHXEqRe
-         QVYXXvV/dHRpbhloAo/yA76j1YMNu/yjiMuT3zpRxnAWAYfW7OPa1yLEU3mfLgYcFtAS
-         TzbQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=jDm6QOW6C+ywZne3LW7Ypw7lAdQTfas17MrrXq3ecwo=;
+        b=cg0TJGrXh78pWdkhjneFyUnHeO+5bGmGAYTrrB2EHxjbPcH9tasUW7wrAPAjLeQII6
+         1RcABaiZmK2FVzQrD1tSAd0FlpapVg1UlnUinHiKUeYxvaJU0jqVq1NO12QbM5CbYXKp
+         A5P163+KgbX0ydMH03MOuyme2BpYDD6z5xKjChFtCUgyrg/ju9F2TbfUBUxar1RkAwpz
+         /elKJqMlaBycow+FX2UedNxeJITsNjw4lfa2yTrzZp1v6LPTNzkJzS7it/+0DezgbZM0
+         iYBxQ6qAVhdYtEo2lndK0WPn1nMaFQlfqbK9NMbqXbgxbErgPXsj08zpZMYY8zsBPqln
+         /YnA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ADuedBrn;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c10si39201143pla.231.2019.04.30.08.35.48
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p16sor4157389oto.172.2019.04.30.08.39.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 30 Apr 2019 08:35:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Tue, 30 Apr 2019 08:39:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ADuedBrn;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:To:From:Date:Sender:Reply-To:Cc:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=oJB9h4ESLWko23xHyhMmp9ethq1vvp3IIiVrra55IMg=; b=ADuedBrnZiNbdVrRmpadCvZak
-	tpXSRQ+dtQFB4hdGRKLB92AhPYIpjqSpKCYZBGWU/O/nLOE4UNnTLaL2IogsWkb2K4OfskxFGTA59
-	cvsFSaExy4VIQnRf78KT5H/MbsdPf5RfLsaC9C2p40Fu5Z0f0H+4X7CucKXmJdL15NaabgKpDTn6c
-	0aCQVhWTTWlTxzkC4eKx3TkhAwZoUWn48qmNeiQ5eTbG8YJx8McZz/XQ99B1P199aLPmNI+ks2vR5
-	noLpak4ZAQbp9ZYfnAnAZIzOSji4NfDP0C6YYtHie/VS1Lgb8sW+cuxTQ6rqnDFQaZ+vdWyOw2np6
-	JZB8G0XTw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hLUnL-0001Al-KL; Tue, 30 Apr 2019 15:35:47 +0000
-Date: Tue, 30 Apr 2019 08:35:47 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: zwisler@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: Delete find_get_entries_tag
-Message-ID: <20190430153547.GH13796@bombadil.infradead.org>
-References: <20190430152929.21813-1-willy@infradead.org>
+       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqw8N8JoFFbtJVwle+z88rtJCuTvvxvCdMMXpDMhyN036qx9KAapBJJNOssCOcuQfUZoHwNGv9RcjuZWCQxY7v4=
+X-Received: by 2002:a9d:7d06:: with SMTP id v6mr15700460otn.187.1556638779909;
+ Tue, 30 Apr 2019 08:39:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190430152929.21813-1-willy@infradead.org>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+References: <20190429220934.10415-1-agruenba@redhat.com> <20190429220934.10415-6-agruenba@redhat.com>
+ <20190430153256.GF5200@magnolia>
+In-Reply-To: <20190430153256.GF5200@magnolia>
+From: Andreas Gruenbacher <agruenba@redhat.com>
+Date: Tue, 30 Apr 2019 17:39:28 +0200
+Message-ID: <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
+Subject: Re: [PATCH v7 5/5] gfs2: Fix iomap write page reclaim deadlock
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: cluster-devel <cluster-devel@redhat.com>, Christoph Hellwig <hch@lst.de>, 
+	Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, 
+	Ross Lagerwall <ross.lagerwall@citrix.com>, Mark Syms <Mark.Syms@citrix.com>, 
+	=?UTF-8?B?RWR3aW4gVMO2csO2aw==?= <edvin.torok@citrix.com>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2019 at 08:29:29AM -0700, Matthew Wilcox wrote:
-> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-> 
-> I removed the only user of this and hadn't noticed it was now unused.
+On Tue, 30 Apr 2019 at 17:33, Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> On Tue, Apr 30, 2019 at 12:09:34AM +0200, Andreas Gruenbacher wrote:
+> > Since commit 64bc06bb32ee ("gfs2: iomap buffered write support"), gfs2 is doing
+> > buffered writes by starting a transaction in iomap_begin, writing a range of
+> > pages, and ending that transaction in iomap_end.  This approach suffers from
+> > two problems:
+> >
+> >   (1) Any allocations necessary for the write are done in iomap_begin, so when
+> >   the data aren't journaled, there is no need for keeping the transaction open
+> >   until iomap_end.
+> >
+> >   (2) Transactions keep the gfs2 log flush lock held.  When
+> >   iomap_file_buffered_write calls balance_dirty_pages, this can end up calling
+> >   gfs2_write_inode, which will try to flush the log.  This requires taking the
+> >   log flush lock which is already held, resulting in a deadlock.
+>
+> /me wonders how holding the log flush lock doesn't seriously limit
+> performance, but gfs2 isn't my fight so I'll set that aside and assume
+> that a patch S-o-B'd by both maintainers is ok. :)
 
-This is based on Linus' latest, and I know there's a patch in the akpm
-tree from me which modifies find_get_entries_tag().  This should be a
-relatively trivial conflict to fix.
+This only affects inline and journaled data, not standard writes, so
+it's not quite as bad as it looks.
+
+> How should we merge this patch #5?  It doesn't touch fs/iomap.c itself,
+> so do you want me to pull it into the iomap branch along with the
+> previous four patches?  That would be fine with me (and easier than a
+> multi-tree merge mess)...
+
+I'd prefer to get this merged via the gfs2 tree once the iomap fixes
+have been pulled.
+
+Thanks,
+Andreas
 
