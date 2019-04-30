@@ -2,140 +2,151 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68A33C43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 09:08:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E3022C43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 09:10:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 254E720652
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 09:08:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KCIillAx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 254E720652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id A9D7020652
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 09:10:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9D7020652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2AFA6B0003; Tue, 30 Apr 2019 05:08:11 -0400 (EDT)
+	id 5D2716B0007; Tue, 30 Apr 2019 05:10:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE4606B0005; Tue, 30 Apr 2019 05:08:11 -0400 (EDT)
+	id 55C446B0008; Tue, 30 Apr 2019 05:10:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C9F86B0007; Tue, 30 Apr 2019 05:08:11 -0400 (EDT)
+	id 3D9086B000A; Tue, 30 Apr 2019 05:10:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA086B0003
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 05:08:11 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id u5so2637193lju.22
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 02:08:11 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3646B0007
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 05:10:06 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id q2so1679799lff.15
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 02:10:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9HjQ88MY4ZiDc1bI5n4MIBBh4bZ2A3E/q/QZEBk7alU=;
-        b=sTVPAEp5e2pbUu/E8mVgRl03soyF5mwW8+4B5Vc1qSuJ/UlknpYXHHFAUir9WNlxFT
-         omlVZJU4uGTvwB4f/3A9zD+Tmwcn2ZKAF3w5CCvmWdE/X2AcjN/2ijmeU5Z1I5alb5UP
-         qbeu73kalZXDTp3m8HzOLME1xwPhRZbsBH8+n4k5wjI9N3/9RhysW0K34AfA2GQEmB3+
-         so4CkAidLa5/smhAGBpkOwYwKLPfX4/+AH+LMV6oBSS9npruxmxzvcV5+34ZFMYv+QDi
-         ELQHKsv6S69/X8khVr+Bqh5JiPDiFPpttEu/v7lTZ5JM/lXWfnOBUe6hNudnGc7GSHGR
-         Hc8A==
-X-Gm-Message-State: APjAAAXl4caEAxfC9fqpx/zwXBmwXCaJfYIWJff8LX/tGj4RL59qPTS2
-	xrSJQvgxKEIoP/pzuLM6yonZdwfJjP9fKGUGt1wERZSys6hDhNHHaRj+3yoVMqKFpUqqc4L7ItD
-	xb2baqvLJggH2vxf6G54XA9va1N/sYSHh9VWD3LS9lmNidWP92Fmn3TtRz9KvGwI29w==
-X-Received: by 2002:a19:f703:: with SMTP id z3mr35145895lfe.119.1556615290554;
-        Tue, 30 Apr 2019 02:08:10 -0700 (PDT)
-X-Received: by 2002:a19:f703:: with SMTP id z3mr35145862lfe.119.1556615289776;
-        Tue, 30 Apr 2019 02:08:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556615289; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=FIsfZvgOHluTZXTIryj3lfd3dDN6/7zHtU2jtxJbAOk=;
+        b=KEQ7bu4uDF/kQMTlkPi1+7+L5D/TWhGEN25S7zoA0CDFsHzHNrLAgmEVxjd1m7slqb
+         u9GNp3bLBds9B2syIfFfVaQw9jryHlXawoJiN01utCbVflY1HRTUwgvxiwJwkKY1S4sk
+         drCGWHCkjiI4fGwIPlzS/Pe9gfj8xY3BKL+026IKl+HXd8MVaclfzz6BbHRfF6ArGPNa
+         EtDtduUuZN1VxDdoKFUw4FP7C0yp6wnJaqZMgvSEhHDvkZbU3iyVbUT/tc4qIyzQwY3t
+         29gE4WE5Mrp+8clHxRLZ4enqcC6TepsRSHdFzHcA2L77A92GkE0nmhiaVmCWi6VrcUXu
+         beUA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAWxOebOUp0wHwrmCnRiRfiDq2piTDO12C92LbIcZgom5kAwKdSs
+	j16LxN9+C7/7vn2IF5idRHEhWsbQrrelBKRPEPhfe5Ws52tj9NHLaaGkpjoKiZ6GNbB1Q0q0GLG
+	nwk8Zd/6Y77Z4loknlybcjORyUbA2cqntSmzkQUkupRzY+e+TsOVa5EKwZ6jAh0+MZQ==
+X-Received: by 2002:a19:ee17:: with SMTP id g23mr36021669lfb.43.1556615406254;
+        Tue, 30 Apr 2019 02:10:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzdOTKRL7GwLswChwEBVNJyGCpDzQYCYkFVOuYh1cfno0dCzSvbszkfMO4PbYidKi7D1y9A
+X-Received: by 2002:a19:ee17:: with SMTP id g23mr36021626lfb.43.1556615405372;
+        Tue, 30 Apr 2019 02:10:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556615405; cv=none;
         d=google.com; s=arc-20160816;
-        b=hdqbybzafv1rcOiULe2woSqJo5L5y51+6R1vUzLsSIF8aW/3KRRJkuFsU8cNPJgUh2
-         R7BVymwSR5oE45qT72eZb5d3U49W8Qw+1E/Aeby7HtwYNhD6b8Bk40YqhO8Sy8LPrakQ
-         bMFpjzBwZCfWvdz+zB1AqhxcvgK8+7CHL87Xhx1E9PRvZjelf0G5wmRUtoFN3qG3BXJa
-         cmmfTq1gLbxjpfw7gU53OfBbXgl2EeDr+aOnXpd7iq5AW+YHU+vayTOp0MzAITq+jVpa
-         MKbFw5RexzZn+fz6jY+5dJchvldS3R+1QvLZvX7BEwwHFVzfc40n3alLoleVwhaegGcz
-         j8lA==
+        b=fetmP/LiK9T2eMSdhx4MHMHj6JDFU+XCTJ0ZX4cNx1OG5Mr54Np5pjcz1dLwVEKx98
+         2ishVMlfOBy4oWDhGxcJJmFeRUCGBwBnNGkH7Fh7G28duWIR7UZbZ9mXNugKT550Oiel
+         iB3XDchFQW9dFyp2bqHjdHIJN8b67KzvPj82/6d9g6HkYrF2+oObZOmVRMyUiZ4+VIVZ
+         HvBFzVEL/r2xYbaqv5pd8qteabVEEyN/ILJDyMogSBuKJ3RTDmXOWO6HrZghPqK16LLZ
+         qy14kEmYGTDx/GTADkzEduwrttA1By6DBtiwiLOqEhW+T0xPVhrTZmybJfuYV2yEqHcv
+         iJVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9HjQ88MY4ZiDc1bI5n4MIBBh4bZ2A3E/q/QZEBk7alU=;
-        b=BZ39Tf/Wz6428ZlOerh87xLh9uuiCairqaQwfdt/vqoqF8pkGkYWBMUpqZNSu+HYU7
-         1cABHzFuM83gUXDEJaBQEY9KZM4s9Mort3kk25jxZhb6NgUKtj78YJqVuEJ2X1WSmf0r
-         GZGtEXwVPbA5SS3nrTCEPeitHSPzSGApH7WVpg0G4Ta0mlwBVshr5hz9xN0hMxgm97tK
-         nJvq+nCGsnmQrrGHiz0y9aprXTqSyxIDLWfJPfSkApWOjanCT/O9eBLp06Q2EQ+bpPW2
-         H2+sDGc63FfMv3q5RTBhbQV/HmfAFI1WBbvtIGj32SlwhU1rOkXUgE8msKxtpzwiS6r2
-         iACg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=FIsfZvgOHluTZXTIryj3lfd3dDN6/7zHtU2jtxJbAOk=;
+        b=FR+/WRwd8S3fU7WCwhmM23T0k++07GfpnkeNwHtrSnwnFv3gW8G2TPZ+q4qGlKRALT
+         48LKWKs9y8srTU60qGSi/HYDc0R1u6Bgs8jJsSMnGBqSRaK/kKilzMNwLyEDYmpjm1gn
+         kGE1RP+ph+agEyj8BrBxiN17jpRmwkFMKfg2SEI6evBIKWmq8/X/+WLo1HPh/Jlm/uef
+         5USDlhfU+pdZ+mWfqLw3nuYMME25knPVm0sTe4joO8LA9ASJF8sjIL7dNknHSKavQJzw
+         rgU+JC1qbUyP2l8/nOmOYbky0F6q9veXljTlT36fLGAics7y2f8JTJTC6c9W6Z/MdI0Z
+         WVIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KCIillAx;
-       spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y125sor7475297lfc.63.2019.04.30.02.08.09
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id k4si2653182ljc.66.2019.04.30.02.10.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Apr 2019 02:08:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Apr 2019 02:10:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KCIillAx;
-       spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=9HjQ88MY4ZiDc1bI5n4MIBBh4bZ2A3E/q/QZEBk7alU=;
-        b=KCIillAxrZrXB5w7B79fb19nYg7F3YCwf/ztmA9aoE9VUD7WLkEyGA1XTGj7Kk7I9I
-         Q513ZwfxLRI6HJ4DrN1ZMjXfa842QSSs6yPwd0FUt+xZKwllptZpyag00LUFcGYK3EsC
-         XdEbFchQbx1GNf/krTIlE74LPo3MefjF2xV0uZ5Rt9BcNTBf/J2/0tgE/CjrS+/46uwD
-         ARjeDWBBqlnHHRKTKdiGH05RWZ9Qh2z5qOAaNQx9+9uWyCnSM+J6HGsn9mtkAkyisNb6
-         WLz5Pn17WNGE47oaQuTDdvGZvJ9oPYfrIEusa3M0SiUmfS8nh2ODl35nGOliRsB/77U5
-         zOrQ==
-X-Google-Smtp-Source: APXvYqxC1zZd7LprV/dgF44Ba5ne0SfC/5gxd6UPTeJBnWPoKvFHoqjjCKTMw2d90XkBC0hQgb2Gkw==
-X-Received: by 2002:a19:f50f:: with SMTP id j15mr36291099lfb.135.1556615289352;
-        Tue, 30 Apr 2019 02:08:09 -0700 (PDT)
-Received: from uranus.localdomain ([5.18.103.226])
-        by smtp.gmail.com with ESMTPSA id u22sm1374696lji.40.2019.04.30.02.08.08
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 30 Apr 2019 02:08:08 -0700 (PDT)
-Received: by uranus.localdomain (Postfix, from userid 1000)
-	id 45A444603CA; Tue, 30 Apr 2019 12:08:08 +0300 (MSK)
-Date: Tue, 30 Apr 2019 12:08:08 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>,
-	akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
-	geert+renesas@glider.be, ldufour@linux.ibm.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mguzik@redhat.com,
-	mhocko@kernel.org, rppt@linux.ibm.com, vbabka@suse.cz
-Subject: Re: [PATCH 3/3] prctl_set_mm: downgrade mmap_sem to read lock
-Message-ID: <20190430090808.GC2673@uranus.lan>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hLOlz-0007UE-CV; Tue, 30 Apr 2019 12:09:59 +0300
+Subject: Re: [PATCH 1/3] mm: get_cmdline use arg_lock instead of mmap_sem
+To: =?UTF-8?Q?Michal_Koutn=c3=bd?= <mkoutny@suse.com>, gorcunov@gmail.com
+Cc: akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
+ geert+renesas@glider.be, ldufour@linux.ibm.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, mguzik@redhat.com,
+ mhocko@kernel.org, rppt@linux.ibm.com, vbabka@suse.cz
 References: <20190418182321.GJ3040@uranus.lan>
  <20190430081844.22597-1-mkoutny@suse.com>
- <20190430081844.22597-4-mkoutny@suse.com>
- <af8f7958-06aa-7134-c750-b7a994368e89@virtuozzo.com>
+ <20190430081844.22597-2-mkoutny@suse.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <4c79fb09-c310-4426-68f7-8b268100359a@virtuozzo.com>
+Date: Tue, 30 Apr 2019 12:09:57 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <af8f7958-06aa-7134-c750-b7a994368e89@virtuozzo.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <20190430081844.22597-2-mkoutny@suse.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2019 at 11:55:45AM +0300, Kirill Tkhai wrote:
-> > -	up_write(&mm->mmap_sem);
-> > +	spin_unlock(&mm->arg_lock);
-> > +	up_read(&mm->mmap_sem);
-> >  	return error;
+On 30.04.2019 11:18, Michal Koutný wrote:
+> The commit a3b609ef9f8b ("proc read mm's {arg,env}_{start,end} with mmap
+> semaphore taken.") added synchronization of reading argument/environment
+> boundaries under mmap_sem. Later commit 88aa7cc688d4 ("mm: introduce
+> arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> avoided the coarse use of mmap_sem in similar situations.
 > 
-> Hm, shouldn't spin_lock()/spin_unlock() pair go as a fixup to existing code
-> in a separate patch? 
+> get_cmdline can also use arg_lock instead of mmap_sem when it reads the
+> boundaries.
 > 
-> Without them, the existing code has a problem at least in get_mm_cmdline().
+> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Mateusz Guzik <mguzik@redhat.com>
+> Signed-off-by: Michal Koutný <mkoutny@suse.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+> ---
+>  mm/util.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/util.c b/mm/util.c
+> index 43a2984bccaa..5cf0e84a0823 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -758,12 +758,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+>  	if (!mm->arg_end)
+>  		goto out_mm;	/* Shh! No looking before we're done */
+>  
+> -	down_read(&mm->mmap_sem);
+> +	spin_lock(&mm->arg_lock);
+>  	arg_start = mm->arg_start;
+>  	arg_end = mm->arg_end;
+>  	env_start = mm->env_start;
+>  	env_end = mm->env_end;
+> -	up_read(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	len = arg_end - arg_start;
 
-Seems reasonable to merge it into patch 1.
+This looks OK for me.
+
+But speaking about existing code it's a secret for me, why we ignore arg_lock
+in binfmt code, e.g. in load_elf_binary().
 
