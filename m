@@ -6,112 +6,112 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23F1EC43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 03:10:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ECCADC43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 03:10:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF7AE21655
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 03:10:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 93FFA2147A
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 03:10:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Gp5AtuwP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF7AE21655
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="eq8zJ4mn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93FFA2147A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 752D16B027E; Mon, 29 Apr 2019 23:10:13 -0400 (EDT)
+	id 4E0A56B0282; Mon, 29 Apr 2019 23:10:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 72AE66B027F; Mon, 29 Apr 2019 23:10:13 -0400 (EDT)
+	id 492A56B0283; Mon, 29 Apr 2019 23:10:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F38E6B0280; Mon, 29 Apr 2019 23:10:13 -0400 (EDT)
+	id 3320B6B0284; Mon, 29 Apr 2019 23:10:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F89B6B027E
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 23:10:13 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id w53so12101861qtj.22
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 20:10:13 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1209D6B0282
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2019 23:10:22 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k6so10741705qkf.13
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 20:10:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=YTpDBiPIz+r0uG1auSa8ph45UtBEpiDJlB6LNiHXZmQ=;
-        b=Y3a4M7YT+WtlhKvFEhdja5pfm6O3L3J6iGPpuYXte1n1JzfFa8CSVLAIWn3/bbh5vD
-         jUt0xaQ1AfSJC3RnwM6hQt6vHwzV5/cYFciRiqbSdQbu3W8RRqhRCFj+MmGSrrc06oya
-         X/uHSW77GvpZYhubkTtYBDpqE6eLgXe1BwFDuC68V0WrYaZPWnDN+rv+gvu1KPKwbqBl
-         /qhZ+wYiIFvlwHFKRUm3KLATKjzhVZJ39wnsj7ZgyaADuQsdcwOMbXTqzQxkzWN2xYu0
-         4QLSQkyP4zmNhtlpC4wEcBDbJyyC7jmDtEQT9xd0QGZRjihGaKF9ZT1+4cCUpc+oxhRc
-         JMWQ==
-X-Gm-Message-State: APjAAAVavY9HpAs9abxqKzPRQP80cNM3fBGm40x8a1tl6Zow5GRtc3Kf
-	cy6Y7o1DnnJ0ZHcPNRn+HpBXOLBtM4zcs/u9c8/LHo5vgn96W6fRwx1brjjkTjXzLD/zkaeojlh
-	1bcavvfcm1CjokI1yjr1AxcCAqymtKXpkyCUFX6G+CaRCQgEpo1w7hwq7O8Dcemw=
-X-Received: by 2002:a37:a1c4:: with SMTP id k187mr38220610qke.341.1556593812982;
-        Mon, 29 Apr 2019 20:10:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPVDy+WAc9Qg8dyZdSdxF806KmSnPXnitHOi8nEHsrL0IysFJwslWNItQQjzihs3tl+pIN
-X-Received: by 2002:a37:a1c4:: with SMTP id k187mr38220556qke.341.1556593811514;
-        Mon, 29 Apr 2019 20:10:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556593811; cv=none;
+        bh=aa6iExGIwghZDn1ZohvQXbuCEdzySOldf4bort+1eX4=;
+        b=c4vjmygDxNgPoabrEig7WAHWWk1cpxB2NNWphxYU56H7+J7tZJPIfN620Q6kfbpULv
+         RcaCiqaG3Tj19UgaupsegXaUvKEzkfykM04ofDFUO+fg/RlawZIMsVNyQZv7bJdH0so0
+         MaTntrcqOXyenBJ26xq/RqaMDlOEC/vZ6ugECT5YIvYsqCj32CLvFCsK2I8/dasc2SPT
+         bz/d+eoeguXJZUvKUTISzXMlSI4beyd4d0OE90qzwxuEoQSy09c1sQS1xyUQftlq/5T/
+         VCZnitMhpk4nWme6qHi6eZPA3+QiEbZEWVp37qBi2Mo0Vzz4USi86S6BoNJ6WU/APEDS
+         tnsA==
+X-Gm-Message-State: APjAAAVbVSshzgjwZgy1tdkUZGZCMDjNijHMXPnfpPKdZRs1tK+VUq74
+	jvmyG/Tlo2NrPtCGN7Zzmdrf3vTDmesFQOL4ZyioYCjrKynA4IxsNgAmHAV+2BjA+iFu9jFUtym
+	I2G9a5W3hqzMiocMaj2rHS8Uj4wtVD8Ex4+53jGGbgoTeszT19lEtPUHyLKNRNOg=
+X-Received: by 2002:a0c:d603:: with SMTP id c3mr41467243qvj.144.1556593821831;
+        Mon, 29 Apr 2019 20:10:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6VHNMbuiA2hrvASaLpgbpcBiv81vjHaxAVRg9DHKyhndhRuUGZDRwugsB+DRBbeMFYfw3
+X-Received: by 2002:a0c:d603:: with SMTP id c3mr41467197qvj.144.1556593820542;
+        Mon, 29 Apr 2019 20:10:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556593820; cv=none;
         d=google.com; s=arc-20160816;
-        b=y9qRoV5j28Aqi9ws/4/0+a3FgB0NSQTXapxcst1SQHyKmWYM8p0m2Cd1xZU2fHeDii
-         KRFvBNUx2qnSXfdy7GF12O0Cwtd5dH2eB2HrlbBYpsN+/obU6AmcBP+Zbnn79UDTGKsp
-         L1ObrzH6+AvMSV7NQe0qjj4H9Qx0W+YdsICtE9c43pHNDRL/QP8vQDRZiK3TcIjVRmdQ
-         AlYFaDF/CeSWl0Mdo1gHNHNVq9fmJF1z9WIZnoYFyMqPv7fWCAVQnbko3Wko/RyheC5O
-         R8o2fNwgsUsDnGTFCizYtc7gqzm3ZvWomnLBsS4pmQ4NPQIhjECHkN5jHyypMmfaEAjB
-         6mBA==
+        b=I4MvaAfzyMdheLtCSr/AIoTyVvool4PPBrhEWhUiBaRms+v8ZBUhv1/oZkNSYlLTBY
+         bi4nQmMyMJglkMwVm3Jwq/N8n5Y7TQVLxArQOJQ6LQbD9YJYyLNR5JtB8DDD+4e4NQ65
+         WbbloFP1hzG6HbHfiBaJHh2XksTRonOXxA4hWAE3YtfTeZ1wtWBZRfVglCnS7JFqGdr2
+         aNXQ0M2Me9w/Ge2y9Rfp8PvLux2OBWxeJrAbt4JHXiXU8Oz9tpkfl0VxK37SUj/TKuQC
+         QqxJMZy5NWODUityrpPH1KHWsAejJd3mLL6Fx7qZvgkT31e1t8o4cGjjwbaWEvnYKRE6
+         dIdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=YTpDBiPIz+r0uG1auSa8ph45UtBEpiDJlB6LNiHXZmQ=;
-        b=XKVqWskjkPgX4eiToOKr27+8aMJVUrJcfL4gvei0nNa+HJkhOyQgpySp9EzeTf/Ehf
-         MZPagO1/xYEyfZV5eHjYNbp25Zdx2gq8hM+fTCsS/gCkkdd8jIAWySBJD1ZygoUajeSp
-         BJhDiIRWSYyQ5SKYgiZwgBAmJsVN/qlpxTr0V3ul3nXXOGIa4HbZQJtcGmjRC50b8p+U
-         EwSV12E2yeg6EQRXUS6zHqb2bMGRl8pWrPyfEm6itPhhJU7Bg4w+Vx2rVJ0pNjRZFKK4
-         3UjY5uJ31HcKWvtKom4wfq04Ho90ZWHyJfM/p8unRVvdZqEd0PBGQrXUMKDvEArOnF0e
-         3xMQ==
+        bh=aa6iExGIwghZDn1ZohvQXbuCEdzySOldf4bort+1eX4=;
+        b=CMiZu4kwKMdgFS3Qb7eOeoe7JZCqnN/I21rS9JTeU48k+Zw51JqKJWRDu0REBeXTAQ
+         5okhOfy0tlrtvkHKwuFmtC92MMph1S1CwOcGAXjcPdqG9fb6XHsma7XJf7nF/HwoILYc
+         SOAkbOxGN4WhEhuHgXJ9lODTP9zpW+zjvhMKpXFXhGR18H/5V5fOmGmuuvuXIUzVFLj2
+         GSgau2IOK8JjBoQSkse4BIPyXycrcex1jiKIftB3AZfczaA2j/fnYAoZ0TqcJ5Aoc8+s
+         tIei5QPKk5GDpVq8y+SnquPkv0GqN85xF7eGfTlaFYQNMAhDjTbHghuI4+3OnwxI32oC
+         AbuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Gp5AtuwP;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=eq8zJ4mn;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.221 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from new1-smtp.messagingengine.com (new1-smtp.messagingengine.com. [66.111.4.221])
-        by mx.google.com with ESMTPS id i9si193153qkg.149.2019.04.29.20.10.11
+        by mx.google.com with ESMTPS id m129si812870qkd.2.2019.04.29.20.10.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Apr 2019 20:10:11 -0700 (PDT)
+        Mon, 29 Apr 2019 20:10:20 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.221 as permitted sender) client-ip=66.111.4.221;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Gp5AtuwP;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=eq8zJ4mn;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.221 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 34C78A460;
-	Mon, 29 Apr 2019 23:10:11 -0400 (EDT)
+	by mailnew.nyi.internal (Postfix) with ESMTP id 48A29B24E;
+	Mon, 29 Apr 2019 23:10:20 -0400 (EDT)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute3.internal (MEProxy); Mon, 29 Apr 2019 23:10:11 -0400
+  by compute3.internal (MEProxy); Mon, 29 Apr 2019 23:10:20 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=YTpDBiPIz+r0uG1auSa8ph45UtBEpiDJlB6LNiHXZmQ=; b=Gp5AtuwP
-	zsytgvXMsqqx/PEtOwlH2cf2yZ3KT6uRfusGcuJ2FfuUcZKoYIEYwFCV4q1J0Ilr
-	kYc/XwcdafDBxRD/DxKrSDtaO144R64GZgzlTWI4u6zCBTJqVGeKvyLzdjxBa6IT
-	sHzUCFtM7mHHGVcFgmawPMJFu8VqeFrbVxvG+AalTTxjBn2haouwmmqTOoCTtyBv
-	KqBuTy6y3zpytrZdsA4+wR9FKQoDPi1xHG6rVZIW1Uz2EFPushPjUPHjS2Rj1PrG
-	MO1r5tX/r5UA27ehob5lmdb5fTOBJJaCGmARSXhGwwXXRcBRoYDMfI0/DKKvq2bw
-	lADQ4WHAzmGabQ==
-X-ME-Sender: <xms:krzHXK04tV0cST-ddWM4dAflEWWw7VTpRSXNr0iaLFTg450BqbDX0Q>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrieefgdeikecutefuodetggdotefrodftvf
+	fm2; bh=aa6iExGIwghZDn1ZohvQXbuCEdzySOldf4bort+1eX4=; b=eq8zJ4mn
+	Lf3zb/snoc2FYDatoMhTLJ9Q4aZfQKL3GjXL3f59hF9pGLS0ly2Iw8VD6yKgIaMn
+	fm9GLilO8ToenemuTBE3wLNe7QcfqeKyr7kAXc3UfNm01VqP6idcDVfOxgQFfRg3
+	3MbjdgyWaveCL1W/BNxVwnpVSymreHU8+WLRqP1T8Y4flfpDv5NEZQ5J0vm4jg0X
+	XPqjWCChAE+FucXI639pKS4FT9u/kePz7Y+rIakvO4vc3jmU1TPvGTDv6Y7Vy5hI
+	+G6OjX+4/5eiHB1QzWvBcAFM12mGZi/Qpx6EmRGlL+eIJTlz54oP1+iGXdYCqSWf
+	vsNbyM7NeoNnfw==
+X-ME-Sender: <xms:m7zHXLMW7BJrOR0T0exI2YrydzMHFjqbYLqlJztlatKE9m77aVYpWw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrieefgdeilecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
     uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
     fjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgsihhn
     ucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenucfkph
     epuddvuddrgeegrddvfedtrddukeeknecurfgrrhgrmhepmhgrihhlfhhrohhmpehtohgs
-    ihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghrufhiiigvpedutd
-X-ME-Proxy: <xmx:krzHXEpfIlPgUj132tU2yutZZmyzBxEyNUnlpt13I-p-1mSiOroDpA>
-    <xmx:krzHXCgZImbuvAXPy2IaJFhf0Clk-11gE262ZFBp-cI8Uc1O1-nmkQ>
-    <xmx:krzHXIkFsrPu_LcUJc6384ymM0UgmVdwhVCFWz7cnR6KNYWPdeFQpw>
-    <xmx:k7zHXH4LBkLQkf_Tq--68cdWlGD8uPJcSxoJsrpRVDjSVev9okiVvQ>
+    ihhnsehkvghrnhgvlhdrohhrghenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:nLzHXBaON1Eqkgn8kyUXMHYjFnKrMx9JI7xqJ3FWl5OKBG78uKYeQw>
+    <xmx:nLzHXI9piN7Qt_RxHD3yP_m4Th30o6oDSIWKqdxaoxDkVcnb8x2lVA>
+    <xmx:nLzHXM2aYfmuSLhGuyjlaWa0hbzRZbHbzjCkWIatznnMqT8zOYaOGA>
+    <xmx:nLzHXJ5Fp5yz0KR7a17PbZLLPynjjCyRoSzv4AiJzAwQWcju9Ah2vw>
 Received: from eros.localdomain (ppp121-44-230-188.bras2.syd2.internode.on.net [121.44.230.188])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 072E5103C8;
-	Mon, 29 Apr 2019 23:10:02 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 855FF103C9;
+	Mon, 29 Apr 2019 23:10:11 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -137,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v4 11/15] slub: Enable moving objects to/from specific nodes
-Date: Tue, 30 Apr 2019 13:07:42 +1000
-Message-Id: <20190430030746.26102-12-tobin@kernel.org>
+Subject: [RFC PATCH v4 12/15] slub: Enable balancing slabs across nodes
+Date: Tue, 30 Apr 2019 13:07:43 +1000
+Message-Id: <20190430030746.26102-13-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190430030746.26102-1-tobin@kernel.org>
 References: <20190430030746.26102-1-tobin@kernel.org>
@@ -151,131 +151,94 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We have just implemented Slab Movable Objects (object migration).
-Currently object migration is used to defrag a cache.  On NUMA systems
-it would be nice to be able to control the source and destination nodes
-when moving objects.
+We have just implemented Slab Movable Objects (SMO).  On NUMA systems
+slabs can become unbalanced i.e. many slabs on one node while other
+nodes have few slabs.  Using SMO we can balance the slabs across all
+the nodes.
 
-Add CONFIG_SMO_NODE to guard this feature.  CONFIG_SMO_NODE depends on
-CONFIG_SLUB_DEBUG because we use the full list.  Leave it like this for
-the RFC because the patch will be less cluttered to review, separate
-full list out of CONFIG_DEBUG before doing a PATCH version.
+The algorithm used is as follows:
 
-Implement moving all objects (including those in full slabs) to a
-specific node.  Expose this functionality to userspace via a sysfs entry.
+ 1. Move all objects to node 0 (this has the effect of defragmenting the
+    cache).
 
-Add sysfs entry:
+ 2. Calculate the desired number of slabs for each node (this is done
+    using the approximation nr_slabs / nr_nodes).
 
-   /sysfs/kernel/slab/<cache>/move
+ 3. Loop over the nodes moving the desired number of slabs from node 0
+    to the node.
 
-With this users get access to the following functionality:
+Feature is conditionally built in with CONFIG_SMO_NODE, this is because
+we need the full list (we enable SLUB_DEBUG to get this).  Future
+version may separate final list out of SLUB_DEBUG.
 
- - Move all objects to specified node.
+Expose this functionality to userspace via a sysfs entry.  Add sysfs
+entry:
 
-   	echo "N1" > move
+       /sysfs/kernel/slab/<cache>/balance
 
- - Move all objects from specified node to other specified
-   node (from N1 -> to N2):
+Write of '1' to this file triggers balance, no other value accepted.
 
-   	echo "N1 N2" > move
+This feature relies on SMO being enable for the cache, this is done with
+a call to, after the isolate/migrate functions have been defined.
 
-This also enables shrinking slabs on a specific node:
-
-   	echo "N1 N1" > move
+	kmem_cache_setup_mobility(s, isolate, migrate)
 
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- mm/Kconfig |   7 ++
- mm/slub.c  | 249 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 256 insertions(+)
+ mm/slub.c | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 120 insertions(+)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 25c71eb8a7db..47040d939f3b 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -258,6 +258,13 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
- config ARCH_ENABLE_THP_MIGRATION
- 	bool
- 
-+config SMO_NODE
-+       bool "Enable per node control of Slab Movable Objects"
-+       depends on SLUB && SYSFS
-+       select SLUB_DEBUG
-+       help
-+         On NUMA systems enable moving objects to and from a specified node.
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT
- 
 diff --git a/mm/slub.c b/mm/slub.c
-index e601c804ed79..e4f3dde443f5 100644
+index e4f3dde443f5..a5c48c41d72b 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -4345,6 +4345,106 @@ static void move_slab_page(struct page *page, void *scratch, int node)
- 	s->migrate(s, vector, count, node, private);
- }
+@@ -4583,6 +4583,109 @@ static unsigned long kmem_cache_move_to_node(struct kmem_cache *s, int node)
  
-+#ifdef CONFIG_SMO_NODE
+ 	return left;
+ }
++
 +/*
-+ * kmem_cache_move() - Attempt to move all slab objects.
++ * kmem_cache_move_slabs() - Attempt to move @num slabs to target_node,
 + * @s: The cache we are working on.
-+ * @node: The node to move objects away from.
-+ * @target_node: The node to move objects on to.
++ * @node: The node to move objects from.
++ * @target_node: The node to move objects to.
++ * @num: The number of slabs to move.
 + *
-+ * Attempts to move all objects (partial slabs and full slabs) to target
-+ * node.
++ * Attempts to move @num slabs from @node to @target_node.  This is done
++ * by migrating objects from slabs on the full_list.
 + *
-+ * Context: Takes the list_lock.
-+ * Return: The number of slabs remaining on node.
++ * Return: The number of slabs moved or error code.
 + */
-+static unsigned long kmem_cache_move(struct kmem_cache *s,
-+				     int node, int target_node)
++static long kmem_cache_move_slabs(struct kmem_cache *s,
++				  int node, int target_node, long num)
 +{
 +	struct kmem_cache_node *n = get_node(s, node);
 +	LIST_HEAD(move_list);
 +	struct page *page, *page2;
 +	unsigned long flags;
 +	void **scratch;
++	long done = 0;
 +
-+	if (!s->migrate) {
-+		pr_warn("%s SMO not enabled, cannot move objects\n", s->name);
-+		goto out;
-+	}
++	if (node == target_node)
++		return -EINVAL;
 +
 +	scratch = alloc_scratch(s);
 +	if (!scratch)
-+		goto out;
++		return -ENOMEM;
 +
 +	spin_lock_irqsave(&n->list_lock, flags);
-+
-+	list_for_each_entry_safe(page, page2, &n->partial, lru) {
-+		if (!slab_trylock(page))
-+			/* Busy slab. Get out of the way */
-+			continue;
-+
-+		if (page->inuse) {
-+			list_move(&page->lru, &move_list);
-+			/* Stop page being considered for allocations */
-+			n->nr_partial--;
-+			page->frozen = 1;
-+
-+			slab_unlock(page);
-+		} else {	/* Empty slab page */
-+			list_del(&page->lru);
-+			n->nr_partial--;
-+			slab_unlock(page);
-+			discard_slab(s, page);
-+		}
-+	}
 +	list_for_each_entry_safe(page, page2, &n->full, lru) {
 +		if (!slab_trylock(page))
++			/* Busy slab. Get out of the way */
 +			continue;
 +
 +		list_move(&page->lru, &move_list);
 +		page->frozen = 1;
 +		slab_unlock(page);
-+	}
 +
++		if (++done >= num)
++			break;
++	}
 +	spin_unlock_irqrestore(&n->list_lock, flags);
 +
 +	list_for_each_entry(page, &move_list, lru) {
@@ -283,10 +246,6 @@ index e601c804ed79..e4f3dde443f5 100644
 +			move_slab_page(page, scratch, target_node);
 +	}
 +	kfree(scratch);
-+
-+	/* Bail here to save taking the list_lock */
-+	if (list_empty(&move_list))
-+		goto out;
 +
 +	/* Inspect results and dispose of pages */
 +	spin_lock_irqsave(&n->list_lock, flags);
@@ -296,198 +255,84 @@ index e601c804ed79..e4f3dde443f5 100644
 +		page->frozen = 0;
 +
 +		if (page->inuse) {
-+			if (page->inuse == page->objects) {
-+				list_add(&page->lru, &n->full);
-+				slab_unlock(page);
-+			} else {
-+				n->nr_partial++;
-+				list_add_tail(&page->lru, &n->partial);
-+				slab_unlock(page);
-+			}
++			/*
++			 * This is best effort only, if slab still has
++			 * objects just put it back on the partial list.
++			 */
++			n->nr_partial++;
++			list_add_tail(&page->lru, &n->partial);
++			slab_unlock(page);
 +		} else {
 +			slab_unlock(page);
 +			discard_slab(s, page);
 +		}
 +	}
 +	spin_unlock_irqrestore(&n->list_lock, flags);
-+out:
-+	return atomic_long_read(&n->nr_slabs);
-+}
-+#endif	/* CONFIG_SMO_NODE */
 +
- /*
-  * kmem_cache_defrag() - Defragment node.
-  * @s: cache we are working on.
-@@ -4459,6 +4559,32 @@ static unsigned long kmem_cache_defrag(struct kmem_cache *s,
- 	return n->nr_partial;
- }
- 
-+#ifdef CONFIG_SMO_NODE
++	return done;
++}
++
 +/*
-+ * kmem_cache_move_to_node() - Move all slab objects to node.
++ * kmem_cache_balance_nodes() - Balance slabs across nodes.
 + * @s: The cache we are working on.
-+ * @node: The target node to move objects to.
-+ *
-+ * Attempt to move all slab objects from all nodes to @node.
-+ *
-+ * Return: The total number of slabs left on emptied nodes.
 + */
-+static unsigned long kmem_cache_move_to_node(struct kmem_cache *s, int node)
++static void kmem_cache_balance_nodes(struct kmem_cache *s)
 +{
-+	unsigned long left = 0;
++	struct kmem_cache_node *n = get_node(s, 0);
++	unsigned long desired_nr_slabs_per_node;
++	unsigned long nr_slabs;
++	int nr_nodes = 0;
 +	int nid;
 +
++	(void)kmem_cache_move_to_node(s, 0);
++
++	for_each_node_state(nid, N_NORMAL_MEMORY)
++		nr_nodes++;
++
++	nr_slabs = atomic_long_read(&n->nr_slabs);
++	desired_nr_slabs_per_node = nr_slabs / nr_nodes;
++
 +	for_each_node_state(nid, N_NORMAL_MEMORY) {
-+		if (nid == node)
++		if (nid == 0)
 +			continue;
 +
-+		left += kmem_cache_move(s, nid, node);
++		kmem_cache_move_slabs(s, 0, nid, desired_nr_slabs_per_node);
 +	}
-+
-+	return left;
 +}
-+#endif
-+
- /**
-  * kmem_defrag_slabs() - Defrag slab caches.
-  * @node: The node to defrag or -1 for all nodes.
-@@ -5603,6 +5729,126 @@ static ssize_t shrink_store(struct kmem_cache *s,
- }
- SLAB_ATTR(shrink);
+ #endif
  
-+#ifdef CONFIG_SMO_NODE
-+static ssize_t move_show(struct kmem_cache *s, char *buf)
+ /**
+@@ -5847,6 +5950,22 @@ static ssize_t move_store(struct kmem_cache *s, const char *buf, size_t length)
+ 	return length;
+ }
+ SLAB_ATTR(move);
++
++static ssize_t balance_show(struct kmem_cache *s, char *buf)
 +{
 +	return 0;
 +}
 +
-+/*
-+ * parse_move_store_input() - Parse buf getting integer arguments.
-+ * @buf: Buffer to parse.
-+ * @length: Length of @buf.
-+ * @arg0: Return parameter, first argument.
-+ * @arg1: Return parameter, second argument.
-+ *
-+ * Parses the input from user write to sysfs file 'move'.  Input string
-+ * should contain either one or two node specifiers of form Nx where x
-+ * is an integer specifying the NUMA node ID.  'N' or 'n' may be used.
-+ * n/N may be omitted.
-+ *
-+ * e.g.
-+ *     echo 'N1' > /sysfs/kernel/slab/cache/move
-+ * or
-+ *     echo 'N0 N2' > /sysfs/kernel/slab/cache/move
-+ *
-+ * Regex matching accepted forms: '[nN]?[0-9]( [nN]?[0-9])?'
-+ *
-+ * FIXME: This is really fragile.  Input must be exactly correct,
-+ *        spurious whitespace causes parse errors.
-+ *
-+ * Return: 0 if an argument was successfully converted, or an error code.
-+ */
-+static ssize_t parse_move_store_input(const char *buf, size_t length,
-+				      long *arg0, long *arg1)
++static ssize_t balance_store(struct kmem_cache *s,
++			     const char *buf, size_t length)
 +{
-+	char *s, *save, *ptr;
-+	int ret = 0;
-+
-+	if (!buf)
++	if (buf[0] == '1')
++		kmem_cache_balance_nodes(s);
++	else
 +		return -EINVAL;
-+
-+	s = kstrdup(buf, GFP_KERNEL);
-+	if (!s)
-+		return -ENOMEM;
-+	save = s;
-+
-+	if (s[length - 1] == '\n') {
-+		s[length - 1] = '\0';
-+		length--;
-+	}
-+
-+	ptr = strsep(&s, " ");
-+	if (!ptr || strcmp(ptr, "") == 0) {
-+		ret = 0;
-+		goto out;
-+	}
-+
-+	if (*ptr == 'N' || *ptr == 'n')
-+		ptr++;
-+	ret = kstrtol(ptr, 10, arg0);
-+	if (ret < 0)
-+		goto out;
-+
-+	if (s) {
-+		if (*s == 'N' || *s == 'n')
-+			s++;
-+		ret = kstrtol(s, 10, arg1);
-+		if (ret < 0)
-+			goto out;
-+	}
-+
-+	ret = 0;
-+out:
-+	kfree(save);
-+	return ret;
-+}
-+
-+static bool is_valid_node(int node)
-+{
-+	int nid;
-+
-+	for_each_node_state(nid, N_NORMAL_MEMORY) {
-+		if (nid == node)
-+			return true;
-+	}
-+	return false;
-+}
-+
-+/*
-+ * move_store() - Move objects between nodes.
-+ * @s: The cache we are working on.
-+ * @buf: String received.
-+ * @length: Length of @buf.
-+ *
-+ * Writes to /sys/kernel/slab/<cache>/move are interpreted as follows:
-+ *
-+ *  echo "N1" > move       : Move all objects (from all nodes) to node 1.
-+ *  echo "N0 N1" > move    : Move all objects from node 0 to node 1.
-+ *
-+ * 'N' may be omitted:
-+ */
-+static ssize_t move_store(struct kmem_cache *s, const char *buf, size_t length)
-+{
-+	long arg0 = -1;
-+	long arg1 = -1;
-+	int ret;
-+
-+	ret = parse_move_store_input(buf, length, &arg0, &arg1);
-+	if (ret < 0)
-+		return -EINVAL;
-+
-+	if (is_valid_node(arg0) && is_valid_node(arg1))
-+		(void)kmem_cache_move(s, arg0, arg1);
-+	else if (is_valid_node(arg0))
-+		(void)kmem_cache_move_to_node(s, arg0);
-+
-+	/* FIXME: What should we be returning here? */
 +	return length;
 +}
-+SLAB_ATTR(move);
-+#endif	/* CONFIG_SMO_NODE */
-+
++SLAB_ATTR(balance);
+ #endif	/* CONFIG_SMO_NODE */
+ 
  #ifdef CONFIG_NUMA
- static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
- {
-@@ -5727,6 +5973,9 @@ static struct attribute *slab_attrs[] = {
- 	&reclaim_account_attr.attr,
- 	&destroy_by_rcu_attr.attr,
+@@ -5975,6 +6094,7 @@ static struct attribute *slab_attrs[] = {
  	&shrink_attr.attr,
-+#ifdef CONFIG_SMO_NODE
-+	&move_attr.attr,
-+#endif
+ #ifdef CONFIG_SMO_NODE
+ 	&move_attr.attr,
++	&balance_attr.attr,
+ #endif
  	&slabs_cpu_partial_attr.attr,
  #ifdef CONFIG_SLUB_DEBUG
- 	&total_objects_attr.attr,
 -- 
 2.21.0
 
