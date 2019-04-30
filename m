@@ -2,152 +2,193 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F06E1C04AA6
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:45:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E9CDC43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:47:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7FE22173E
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:45:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7FE22173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id BC98021734
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:47:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="tvEDCQT1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC98021734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F57C6B0006; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
+	id 590866B0006; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A5706B0008; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
+	id 519FA6B0008; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36F056B000A; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
+	id 409556B000A; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDBA96B0006
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:45:27 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id q17so6609070eda.13
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:45:27 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A13E6B0006
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:47:19 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id w184so5881289pfb.19
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:47:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:reply-to:mail-followup-to:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=vfP2S2iii+DA6ccQoZJ7lIc8jHRYfYHozd7udFAc+Mg=;
-        b=PJP8oruVJ3UM3N1i0i1Sh++BPCXIQqCuFIbZBGV7BQ4ppsEl01MfifPAJPnOT/w5+9
-         f1dr32hHIithF90e0XXIGjfwT8kh0vUhbD+aSrFceoq4r5vWdgMrhe4qICACyHy4etEZ
-         CZxamC5eFRI4kp8eBy3Hnp+QlJbc0RLht5L02n2Bj7PKXKd2QOUTOCAi+OgX7Oj0h4jm
-         CfCDyIjQFeCUTV/SIMspdad57nLYDzso+mgT38/aat+q9THFsOt8irWNqh73RmD/N46j
-         fjzGM1VIm271GxE0/r3WyKtaWv9U19Qy0spWfW7BqVSXKZhbPJvpN6dvQcKTkswujkER
-         Dt1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
-X-Gm-Message-State: APjAAAVcoJkHptjMcRK6MUaDQi8l4j3S6MhRJ2eGMekHEXIZQUDtmqdo
-	hwQgpSfqrfBlQHUWBea6Q9cdlix4J6KEF+RoxAl5CUXBvknZVWkHclMNtZoi5X91CSOgeZFh/g8
-	MpOTTID+Gr9diSSNQFL50obca3TxkpHlwW/ArFfSn1ZiZPS8crR0v1zmroZBq74NTlw==
-X-Received: by 2002:a17:906:3fc4:: with SMTP id k4mr12750389ejj.166.1556639127340;
-        Tue, 30 Apr 2019 08:45:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWGcfDdduDj44KRwGZapCDaVBzn8uOxfXZX3VIlGNDDiSkaihqf/9psxSeBec/UIFXmgk3
-X-Received: by 2002:a17:906:3fc4:: with SMTP id k4mr12750339ejj.166.1556639125874;
-        Tue, 30 Apr 2019 08:45:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556639125; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
+        b=WFFvYFTMBaYXZmoC0wb70KBqT6N1MndGjDEFiqAW2Eiyh13JCyH9nr4DrmiEonAFm/
+         vGkCe1EQttDmmDBTGc8g2+3HwOPBISNxOGwRY32NSMq0q/fm55d8ViFA0CbHck2xjA+N
+         aIUBZJcA+EjCR5VAw8R62rrAEFCGNmUcbX4uh/kaLn9Nh4NrKFxExgAbrCjArzaYwDi7
+         c6Ei+F1SZOxMCoTQMCBcqGK6vBogKjpHqM6piGrS8SoWBtzK/4bnmpBLmlsrO5QP7fbO
+         RlVXGvbnsaAFWXzECuo/lwsgQfb4D0zOiD39SOt3KVtLukBonJAoyw0RSwUk3VdVciob
+         jyUA==
+X-Gm-Message-State: APjAAAUjHcZ72R1XsoNozuHCiV4fMpefBztc1qZ39QNHw+7saoFpiPJ+
+	INfEWQeakJNXQ3W3Mwmx8BrM9otlW6djXLKmRqqheXcawPFlIa+RXTez3cZt+6dj9XVwjAgFSyG
+	X152nHSlbXASHbtS+7Ul7AcJjaQ1n2a9/+dfpFXAjkkrBGun91m6TETkNAKkdCtKpcw==
+X-Received: by 2002:aa7:82cb:: with SMTP id f11mr24685737pfn.0.1556639238694;
+        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7GJ8n6I1t6TaZUtOYPzBXoVpVN6DeDGyiZgQt2NnDIirEl9qMLOKKWRQamDVHpGQFjfp8
+X-Received: by 2002:aa7:82cb:: with SMTP id f11mr24685650pfn.0.1556639238027;
+        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556639238; cv=none;
         d=google.com; s=arc-20160816;
-        b=ORffP+wgwjPgq5iwbVUwLxUzwXWZiUpkEOPemhx2MZ2JcmmOrTfRCqlcFbUvgC1bD7
-         5WHkiFAnry9MF6ldq7H8/HotewLVj9hRtCD4iprjaF6xqXK5pdfcBwNwqgmi910w5p5a
-         FfeA0EWt/hS7coJoIARgsGSYcGdjaaxUwU6TUe5WEK8a4SYQ9RdScFWFrH4r6BzMhzX6
-         vbZjY/HYtXGbHPKXawDMsvUvqjeSyo/NUGKHlx3X/u1juaS56lmm4SUL9BncS0eW6Knx
-         wMTalTuEhYO+Ui5XQvQ2z5LA33u6/YQvxV06o+8T1Ml8FOGW0NEv8wMDZoisZIogG1C4
-         82Ow==
+        b=z3dxjYoRrhqJNV9iyPo6Nm8wDNuRldjIS41j/pWaNpoZJGVwjD2i+wojBqYG0OBgPU
+         ra7ommNN+2wKeMalr1dEpMuXSqSgPthwRBrkNOjDP5uPRSkHkThtWRkLTjiMZBMv+Iwo
+         nZ+Gyj5datHqdKsqFy8LxA6BKITngMYFJTZp5IwheIL6REVjaoc/p9bpChcoznVpHPg0
+         GNffQ+dbPmrUJXsc9XV8wT7dLfH6FrFuWOp15u4HWHjMdtXbrmnFieYl1yVDUXLzLD2I
+         fKGgP/M4Dc8KC1vbn8OEcyjM8GRs19dVrGNtz4RapWFrudMrM4PvXaXLjAnm6RQW36ZO
+         xthA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:reply-to:message-id:subject:cc:to:from:date;
-        bh=vfP2S2iii+DA6ccQoZJ7lIc8jHRYfYHozd7udFAc+Mg=;
-        b=ueuY0tWYpQQrm/lAA/MMGTBcDK8RYlLLtXQwdL6SurHJ5l1uac1gmNRQpaDlwi7O3X
-         SOIoIQpBmi82iuIhJGnpj1TrD4BAFD6fAhhLu2Eg64SOmvmq3ahCs3srjDKJ9LKwkpPn
-         eCZKzIpUe/XZ+h6eldLNH9uR/jy76Ar6Wmidz71SzrY24Mqg5ovEE3zIM1kunscTuo3M
-         r3cEiTYSN9plTa0rg+SVKV7uW64j2ro/m2ISj/kGd6QJ4mXIWy6TuUNJ6lQspYHI37EF
-         vOKSFujPL/fn2u4cMVtEj114F08tVlnFtrlDAoSVj2kzabzKkhY8SrtCuM0tHSnfhALH
-         80Uw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
+        b=NCatbosabFpgeunHafa733UnThxrvlZ9QxcCrQ9jv3acYbHVYBzowNaWU102TqtJHD
+         ivL+bdv+B7c/3vdgezPoLkjWvZ7mhvDeYCxdOlnZXLT9yTQEgHL1GUX3/wUgMDboGT4K
+         zXJwdBGcqtKH1VKPEaTSxTGzdNvMqd91oXa3d6izoLPb2iPU9i1VX6iqEwkGYq3HFJve
+         Nm7eT6LwuZzwTmJuu1IKbLy/gWktllGafUIlDQken/e1bLCH+lM1ZBQIOR5SIl9G15we
+         2h070il+FJBaknmNzBzmmf8QpkPjauQ/0NV3lIiTYW0QjSr5wmQALy1RBeHrcxadbwmL
+         kELw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q8si1836005edg.97.2019.04.30.08.45.25
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tvEDCQT1;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id z23si37293468pfn.99.2019.04.30.08.47.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Apr 2019 08:45:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 30 Apr 2019 08:47:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 47528AD94;
-	Tue, 30 Apr 2019 15:45:25 +0000 (UTC)
-Received: by ds.suse.cz (Postfix, from userid 10065)
-	id 2CC4DDA88B; Tue, 30 Apr 2019 17:46:25 +0200 (CEST)
-Date: Tue, 30 Apr 2019 17:46:23 +0200
-From: David Sterba <dsterba@suse.cz>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v2 0/8] vfs: make immutable files actually immutable
-Message-ID: <20190430154622.GA20156@twin.jikos.cz>
-Reply-To: dsterba@suse.cz
-Mail-Followup-To: dsterba@suse.cz,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
-	linux-mm@kvack.org
-References: <155552786671.20411.6442426840435740050.stgit@magnolia>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tvEDCQT1;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3UFiMc8138912;
+	Tue, 30 Apr 2019 15:47:11 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=ORetv7bkfUVIk8T/lSppKI2JhxisrSy4qmjBLBLnjjU=;
+ b=tvEDCQT1n9op9yMFG/x01to6k569aBRL49XaMOFPdv8GtdoR9uOUn0CPzDt97v32z2wp
+ pUmhkFrsj/WbnsZMwWThi4kf2fNpqiEHCIlQUBcDuqXv+gN9TYHs4AAJz5M70TPdrnOQ
+ B+tCGls+HJ6lQN7+eNEcI4lVtu3U22tYIvzfy0BX0MzFiQsEP9LI6eCzqH7XLzjc4z/a
+ 6heTrXV4DQhnSzlFy0u/bSzYweSqFFZ4q6gX5qOOi6t2HzDjj1PwrwEWzKoQ5xv2T8Gh
+ shuAgbuZBKc6KnctZOUgKwfdD8vAG3P3XdeEMXpWkqaim5VZO3EsQI7W2fUnW0aNQk1U EQ== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2130.oracle.com with ESMTP id 2s4ckddnpe-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 30 Apr 2019 15:47:11 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x3UFl1sv104991;
+	Tue, 30 Apr 2019 15:47:10 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2s5u512dx3-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 30 Apr 2019 15:47:10 +0000
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x3UFl8PZ025334;
+	Tue, 30 Apr 2019 15:47:09 GMT
+Received: from localhost (/67.169.218.210)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 30 Apr 2019 08:47:08 -0700
+Date: Tue, 30 Apr 2019 08:47:07 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Andreas Gruenbacher <agruenba@redhat.com>
+Cc: cluster-devel <cluster-devel@redhat.com>, Christoph Hellwig <hch@lst.de>,
+        Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>,
+        Dave Chinner <david@fromorbit.com>,
+        Ross Lagerwall <ross.lagerwall@citrix.com>,
+        Mark Syms <Mark.Syms@citrix.com>,
+        Edwin =?iso-8859-1?B?VPZy9ms=?= <edvin.torok@citrix.com>,
+        linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+Subject: Re: [PATCH v7 5/5] gfs2: Fix iomap write page reclaim deadlock
+Message-ID: <20190430154707.GG5200@magnolia>
+References: <20190429220934.10415-1-agruenba@redhat.com>
+ <20190429220934.10415-6-agruenba@redhat.com>
+ <20190430153256.GF5200@magnolia>
+ <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <155552786671.20411.6442426840435740050.stgit@magnolia>
-User-Agent: Mutt/1.5.23.1 (2014-03-12)
+In-Reply-To: <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1904300096
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1904300097
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 12:04:26PM -0700, Darrick J. Wong wrote:
-> Hi all,
+On Tue, Apr 30, 2019 at 05:39:28PM +0200, Andreas Gruenbacher wrote:
+> On Tue, 30 Apr 2019 at 17:33, Darrick J. Wong <darrick.wong@oracle.com> wrote:
+> > On Tue, Apr 30, 2019 at 12:09:34AM +0200, Andreas Gruenbacher wrote:
+> > > Since commit 64bc06bb32ee ("gfs2: iomap buffered write support"), gfs2 is doing
+> > > buffered writes by starting a transaction in iomap_begin, writing a range of
+> > > pages, and ending that transaction in iomap_end.  This approach suffers from
+> > > two problems:
+> > >
+> > >   (1) Any allocations necessary for the write are done in iomap_begin, so when
+> > >   the data aren't journaled, there is no need for keeping the transaction open
+> > >   until iomap_end.
+> > >
+> > >   (2) Transactions keep the gfs2 log flush lock held.  When
+> > >   iomap_file_buffered_write calls balance_dirty_pages, this can end up calling
+> > >   gfs2_write_inode, which will try to flush the log.  This requires taking the
+> > >   log flush lock which is already held, resulting in a deadlock.
+> >
+> > /me wonders how holding the log flush lock doesn't seriously limit
+> > performance, but gfs2 isn't my fight so I'll set that aside and assume
+> > that a patch S-o-B'd by both maintainers is ok. :)
 > 
-> The chattr(1) manpage has this to say about the immutable bit that
-> system administrators can set on files:
+> This only affects inline and journaled data, not standard writes, so
+> it's not quite as bad as it looks.
+
+Ah, ok.
+
+> > How should we merge this patch #5?  It doesn't touch fs/iomap.c itself,
+> > so do you want me to pull it into the iomap branch along with the
+> > previous four patches?  That would be fine with me (and easier than a
+> > multi-tree merge mess)...
 > 
-> "A file with the 'i' attribute cannot be modified: it cannot be deleted
-> or renamed, no link can be created to this file, most of the file's
-> metadata can not be modified, and the file can not be opened in write
-> mode."
+> I'd prefer to get this merged via the gfs2 tree once the iomap fixes
+> have been pulled.
+
+Ok, I'll take the first four patches through the iomap branch and cc you
+on the pull request.
+
+--D
+
 > 
-> Given the clause about how the file 'cannot be modified', it is
-> surprising that programs holding writable file descriptors can continue
-> to write to and truncate files after the immutable flag has been set,
-> but they cannot call other things such as utimes, fallocate, unlink,
-> link, setxattr, or reflink.
-> 
-> Since the immutable flag is only settable by administrators, resolve
-> this inconsistent behavior in favor of the documented behavior -- once
-> the flag is set, the file cannot be modified, period.
-
-The manual page leaves the case undefined, though the word 'modified'
-can be interpreted in the same sense as 'mtime' ie. modifying the file
-data. The enumerated file operations that don't work on an immutable
-file suggest that it's more like the 'ctime',  ie. (state) changes are
-forbidden.
-
-Tthe patchset makes some sense, but it changes the semantics a bit. From
-'not changed but still modified' to 'neither changed nor modified'. It
-starts to sound like a word game, but I think both are often used
-interchangeably in the language. See the changelog of 1/8 where you used
-them in the other meaning regarding ctime and mtime.
-
-I personally doubt there's a real use of the undefined case, though
-something artificial like 'a process opens a fd, sets up file in a very
-specific way, sets immutable and hands the fd to an unprivileged
-process' can be made up. The overhead of the new checks seems to be
-small so performance is not the concern here.
-
-Overall, I don't see a strong reason for either semantics. As long as
-it's documented possibly with some of the corner cases described in more
-detail, fine.
+> Thanks,
+> Andreas
 
