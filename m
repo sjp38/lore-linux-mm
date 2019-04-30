@@ -6,80 +6,80 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7141C43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C8DDC43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D3B4216FD
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D3B4216FD
+	by mail.kernel.org (Postfix) with ESMTP id D9BC421670
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9BC421670
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F0796B000A; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
+	id E85806B000C; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 251366B000C; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
+	id DED8C6B000D; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0525B6B000D; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
+	id B7A006B000E; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A89FA6B000A
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 04:19:32 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id m57so6018689edc.7
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 01:19:32 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5715B6B000C
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 04:19:33 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n52so2622007edd.2
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 01:19:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=INByUq3lVa3EFEeFkF0GCwcbXF+CEthavbsWjHwZITo=;
-        b=jPvI0/vRH4BY7xkKuCHh1CEJ4sfqtb4QnOxhXhhfrE/E6DKzXmMdd277RaJlVg/afY
-         9QFuKmAK3QC+Kj42SNYKQKE5THR60FaFGQ8CR39I658uuMfF+K/dDixhdyNCIgpVFjhy
-         y5CjDa8Ueu0YuhrUlj9U7nYA7Uy78EfctWF/51Fazc6MrJoHEz0uHudcpyxjBG6mfCgg
-         /qtBiEcDBlFVfQCLNTjBOSHXsoxF7CMNq87xvCMsDYhiKQi38kE+ayQxcDiygbylXZL2
-         vlVLyCv1Ygrt8/4jbXTo/sl8+OtH5D6W1RnS2WJ/OWj1jW7mANT0ucT1HRsEvqKTb1jA
-         9JDw==
+        bh=ERxQzSRXhs37aXd6I3tui7KO633dxHDTInCcOE2dV9U=;
+        b=K/MXJXCmZj6G2yzSVU+wBUtWUhQP1cjHgtNI2ySqEtYNUo7bZ3qBsEN4zNrYpt4u1L
+         MTzLI01dl11S980LYsUsZVdfmlPB1TTto6kaFsqCQotjQJGzeP8pJ8UOyMhCqmldrbyD
+         OTCJBwgjEuh2fpc5RRWVSo/mX90ito3677sDtZaOHgvtCNLerubeGuvyahaNxucw5vCD
+         PRMag2JSAoBt/aLqub6dydQyHJwx+x0XVBX5pRc6M4ZRdrOCprUwBJjLmdoHiD4+DFde
+         oOuuuwyw52BxeWc/alvPbRbB0JKTBEEYsuLfENhcoQLhyNjJaA4RwkWf+MCrP4CW+Z17
+         Ms4w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
-X-Gm-Message-State: APjAAAUMi+fxckhYgmkwHr3lcZC82Q72Sk47e72R/fapEqozVrF6fxgj
-	51dQNu61w1q/WFTc75v1Cwlm/PG+v5Gp5nlbt8EDQ/LoAM46rv6QqZlUyiddlIwFyZZbiBkuqAR
-	c3X1V1l1IyIDZQTLP3EdbTMTbipJsXbtMUfY1lIXeStEcYF61kbQHn8g9Oqpx0N5oaw==
-X-Received: by 2002:a17:906:4988:: with SMTP id p8mr6562564eju.220.1556612372148;
+X-Gm-Message-State: APjAAAVIH6CKCPugDhmzBk/qHdvaF49E7IsDcBR/T46cS3K6Cn4dL1cm
+	9bSkpuR3l3FqNpThWNh0gLOxd0UfhyiaUMowpdEzabJavKWfNbWILEPX2NvYymYHJJe7c76z2br
+	tQD2c3CyRhkN8WyEi3OUNo2N3ps5fUikwO7a94OQxr4WeVfNodar7t/sPYt4gG0DaJQ==
+X-Received: by 2002:a50:b103:: with SMTP id k3mr40994154edd.176.1556612372957;
         Tue, 30 Apr 2019 01:19:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQH4iozUr1MfRRGqxJv8FWF50u1G6R5YGQjPveu/5UcnmOFKMV1bG/Zu00ZF53/cRNiKMP
-X-Received: by 2002:a17:906:4988:: with SMTP id p8mr6562521eju.220.1556612370601;
-        Tue, 30 Apr 2019 01:19:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556612370; cv=none;
+X-Google-Smtp-Source: APXvYqxfK2g0EDGE6pz78/05eQuxtJEc+F/A7di/cvEXyyqboFUCTWrvxDL0qtVsc6F9tHc5UJS/
+X-Received: by 2002:a50:b103:: with SMTP id k3mr40994113edd.176.1556612372039;
+        Tue, 30 Apr 2019 01:19:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556612372; cv=none;
         d=google.com; s=arc-20160816;
-        b=RVOzcqqrspetmahYLNy3/DMtBLJAikKNNcnaHqqMjWVPj+1kw9Gh701cn7LyDB5UDr
-         aHF4dum0KA/3wSyypqcArkExE6hxGuHL3Ghh86e+57TrjNLVT0eeDk3dFrUkQNNDi8Dv
-         MOTZ/o5l0q+fCR53VsEROyzQspeNmADEjSNI+wmVL4v8ksfwUGAexdEzdheI47niLY/5
-         g8c57qY497bMf2nQPFuaGoRXnzz0o55mM5Z7CJU3FDc89B/LK/5x7hYq6eVDO0ePu/Qr
-         5wOTsoYpEXNsysAwq6NCLAXwEuvTmI1TLs3LJ5G7E6Q2ia5Ccm/sGbhYbC7Ujojdd2uP
-         wVrg==
+        b=GSiq2rqSGYzqSgaEsMTHhyQVn5xfjwfCI4WtQN1HbswQ4xof1KlsgTiFvAJjrwulBH
+         Kfu/CRPwmzceP0MWyiFBQgeB5qK5rhB/DjbvjZEUa1M46h1MjtGwsz/NYL7HNcv7E+fn
+         blUNBAD/d70YfzNFYM2qrdMGlY9zBlpdQlAf5fUmdv36HhQHOrRQTElI+sy3cFcKAEVC
+         KmdXGdpdjRcqufz0PHClFOn4HVNkmjcq7zDFWwHg5DzFtwlCGUh+yXkO2jRn/6sGCUJ4
+         0qLONvaIkOozDTnQQqfBz7hEUzqy8aOqpyULx/MsycNtWi8z5R46uo4PSPyHOLdPIC63
+         IUcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=INByUq3lVa3EFEeFkF0GCwcbXF+CEthavbsWjHwZITo=;
-        b=LPYhq8PkKnyzU924fycFbhuxFZIaOyyym5J2oCvFz2ndk+FNsnwvpiBtyt3Qhz+mRI
-         gAmmpZ8uYI3TlcgKjyEb4j974zPno4RsCAhwMKaHC6mqDdKjAeHpPnaqs84xrJHuf/12
-         xxhzIr79beYZlgN8sKZZljsxo/Ll/RHY9QjHYF0V+g5DKTawgJlUxo6Nk9nIzp0ylw08
-         JI0hJPO0y7G7b3us6Uons2FbhbCNM+kSl3g0qBxEg+fRXHyngkeWAn/uBKUAr3wb4Bqd
-         zgGjhsb1/ZW6jOznLv9eoDiPY5AKSd2b3R1eEvdO3gnUtXTQ9GvsLtEl7N64h7I45L0o
-         rNQQ==
+        bh=ERxQzSRXhs37aXd6I3tui7KO633dxHDTInCcOE2dV9U=;
+        b=Se/sF9mdPl4jazBQAZOk9LZH1vQ31Lg9zWPqLPSg4belROm4jDJNNa873luJz48YvT
+         hmb98mhiaBQssUzmE5iSizPa32Ihj3k4/LK9X6fw70Ev8Dpjf2j90IYXoUzaW2CfhAZo
+         hfCVJldhV+ODy2qmLnkGsJVWQLNoFhOyIW+MPpk2T77wAbFGZU0qHv63Jkn3T6w9Ry9c
+         MnkbDLJM0amkS9Uy0bauYTXzw059Mo+dIK0reENFkXEDdHzrDgB5ZgnGB2qElmYTYddI
+         YjFh19flI/3FMuelvhj6Hn8+ssocTTBd2UINrWoJezVK2bMcsPBNHE4Vn/1xSmWHYI4Q
+         6cfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y55si3555460edc.206.2019.04.30.01.19.30
+        by mx.google.com with ESMTPS id s2si4869058ejh.347.2019.04.30.01.19.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Apr 2019 01:19:30 -0700 (PDT)
+        Tue, 30 Apr 2019 01:19:32 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 19136AE3F;
-	Tue, 30 Apr 2019 08:19:30 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id A3F04AE4F;
+	Tue, 30 Apr 2019 08:19:31 +0000 (UTC)
 From: =?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>
 To: gorcunov@gmail.com
 Cc: akpm@linux-foundation.org,
@@ -95,9 +95,9 @@ Cc: akpm@linux-foundation.org,
 	rppt@linux.ibm.com,
 	vbabka@suse.cz,
 	ktkhai@virtuozzo.com
-Subject: [PATCH 2/3] prctl_set_mm: Refactor checks from validate_prctl_map
-Date: Tue, 30 Apr 2019 10:18:43 +0200
-Message-Id: <20190430081844.22597-3-mkoutny@suse.com>
+Subject: [PATCH 3/3] prctl_set_mm: downgrade mmap_sem to read lock
+Date: Tue, 30 Apr 2019 10:18:44 +0200
+Message-Id: <20190430081844.22597-4-mkoutny@suse.com>
 X-Mailer: git-send-email 2.16.4
 In-Reply-To: <20190430081844.22597-1-mkoutny@suse.com>
 References: <20190418182321.GJ3040@uranus.lan>
@@ -111,125 +111,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Despite comment of validate_prctl_map claims there are no capability
-checks, it is not completely true since commit 4d28df6152aa ("prctl:
-Allow local CAP_SYS_ADMIN changing exe_file"). Extract the check out of
-the function and make the function perform purely arithmetic checks.
+Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect
+arg_start|end and env_start|end in mm_struct") we use arg_lock for
+boundaries modifications. Synchronize prctl_set_mm with this lock and
+keep mmap_sem for reading only (analogous to what we already do in
+prctl_set_mm_map).
 
-This patch should not change any behavior, it is mere refactoring for
-following patch.
+v2: call find_vma without arg_lock held
 
-CC: Kirill Tkhai <ktkhai@virtuozzo.com>
 CC: Cyrill Gorcunov <gorcunov@gmail.com>
+CC: Laurent Dufour <ldufour@linux.ibm.com>
 Signed-off-by: Michal Koutný <mkoutny@suse.com>
 ---
- kernel/sys.c | 45 ++++++++++++++++++++-------------------------
- 1 file changed, 20 insertions(+), 25 deletions(-)
+ kernel/sys.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 12df0e5434b8..e1acb444d7b0 100644
+index e1acb444d7b0..641fda756575 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -1882,10 +1882,12 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
- }
+@@ -2123,9 +2123,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
  
- /*
-+ * Check arithmetic relations of passed addresses.
-+ *
-  * WARNING: we don't require any capability here so be very careful
-  * in what is allowed for modification from userspace.
-  */
--static int validate_prctl_map(struct prctl_mm_map *prctl_map)
-+static int validate_prctl_map_addr(struct prctl_mm_map *prctl_map)
- {
- 	unsigned long mmap_max_addr = TASK_SIZE;
- 	struct mm_struct *mm = current->mm;
-@@ -1949,24 +1951,6 @@ static int validate_prctl_map(struct prctl_mm_map *prctl_map)
- 			      prctl_map->start_data))
- 			goto out;
+ 	error = -EINVAL;
  
--	/*
--	 * Someone is trying to cheat the auxv vector.
--	 */
--	if (prctl_map->auxv_size) {
--		if (!prctl_map->auxv || prctl_map->auxv_size > sizeof(mm->saved_auxv))
--			goto out;
--	}
--
--	/*
--	 * Finally, make sure the caller has the rights to
--	 * change /proc/pid/exe link: only local sys admin should
--	 * be allowed to.
--	 */
--	if (prctl_map->exe_fd != (u32)-1) {
--		if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN))
--			goto out;
--	}
--
+-	down_write(&mm->mmap_sem);
++	/*
++	 * arg_lock protects concurent updates of arg boundaries, we need mmap_sem for
++	 * a) concurrent sys_brk, b) finding VMA for addr validation.
++	 */
++	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, addr);
+ 
++	spin_lock(&mm->arg_lock);
+ 	prctl_map.start_code	= mm->start_code;
+ 	prctl_map.end_code	= mm->end_code;
+ 	prctl_map.start_data	= mm->start_data;
+@@ -2213,7 +2218,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+ 
  	error = 0;
  out:
+-	up_write(&mm->mmap_sem);
++	spin_unlock(&mm->arg_lock);
++	up_read(&mm->mmap_sem);
  	return error;
-@@ -1993,11 +1977,17 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
- 	if (copy_from_user(&prctl_map, addr, sizeof(prctl_map)))
- 		return -EFAULT;
- 
--	error = validate_prctl_map(&prctl_map);
-+	error = validate_prctl_map_addr(&prctl_map);
- 	if (error)
- 		return error;
- 
- 	if (prctl_map.auxv_size) {
-+		/*
-+		 * Someone is trying to cheat the auxv vector.
-+		 */
-+		if (!prctl_map.auxv || prctl_map.auxv_size > sizeof(mm->saved_auxv))
-+			return -EINVAL;
-+
- 		memset(user_auxv, 0, sizeof(user_auxv));
- 		if (copy_from_user(user_auxv,
- 				   (const void __user *)prctl_map.auxv,
-@@ -2010,6 +2000,14 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
- 	}
- 
- 	if (prctl_map.exe_fd != (u32)-1) {
-+		/*
-+		 * Make sure the caller has the rights to
-+		 * change /proc/pid/exe link: only local sys admin should
-+		 * be allowed to.
-+		 */
-+		if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN))
-+			return -EINVAL;
-+
- 		error = prctl_set_mm_exe_file(mm, prctl_map.exe_fd);
- 		if (error)
- 			return error;
-@@ -2097,7 +2095,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 			unsigned long arg4, unsigned long arg5)
- {
- 	struct mm_struct *mm = current->mm;
--	struct prctl_mm_map prctl_map;
-+	struct prctl_mm_map prctl_map = { .auxv = NULL, .auxv_size = 0, .exe_fd = -1 };
- 	struct vm_area_struct *vma;
- 	int error;
- 
-@@ -2139,9 +2137,6 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 	prctl_map.arg_end	= mm->arg_end;
- 	prctl_map.env_start	= mm->env_start;
- 	prctl_map.env_end	= mm->env_end;
--	prctl_map.auxv		= NULL;
--	prctl_map.auxv_size	= 0;
--	prctl_map.exe_fd	= -1;
- 
- 	switch (opt) {
- 	case PR_SET_MM_START_CODE:
-@@ -2181,7 +2176,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
- 		goto out;
- 	}
- 
--	error = validate_prctl_map(&prctl_map);
-+	error = validate_prctl_map_addr(&prctl_map);
- 	if (error)
- 		goto out;
+ }
  
 -- 
 2.16.4
