@@ -2,135 +2,152 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCE21C04AA8
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:39:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F06E1C04AA6
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:45:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8607221734
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:39:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8607221734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B7FE22173E
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 15:45:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7FE22173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 214716B0006; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
+	id 4F57C6B0006; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C4396B0008; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
+	id 4A5706B0008; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B3ED6B000A; Tue, 30 Apr 2019 11:39:42 -0400 (EDT)
+	id 36F056B000A; Tue, 30 Apr 2019 11:45:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D68246B0006
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:39:41 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id h26so3137075otm.19
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:39:41 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DDBA96B0006
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 11:45:27 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id q17so6609070eda.13
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 08:45:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=jDm6QOW6C+ywZne3LW7Ypw7lAdQTfas17MrrXq3ecwo=;
-        b=agGChrnimuc/JGBrFuXbWg749nUPX5EOQp2zmh+giH0/b4YwIeVPUCeqHNkb6BFvFa
-         Lupe7rK9zs0TdPcLvfGPEJmidYDYU4oIZfvYO7c9qUC9a4Z+N9sgk5lXlnEbKbfiDPgE
-         Bt8bw8efYV2FIg6q0mspqrY8N9aLuwyVjGmZzSAeGGGdTSSIUErFqoHSuikUpkx2f8vW
-         OD3RJ9keXLRVenqh/CZVaN+/E62vr8nY5gyO1mAlMDy1zegAzI9oenLuGTH24Ohuwd8H
-         GhaYAaAzG/SgBS8RVXd5p9+CRZtrHRfuvb5n2RFBLPtLNn2F5XIOsI9nr50BOWi+vaOf
-         Lh3A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVSKWbnOCLySUsmbfF7kPvjYNVfD+wdCP9M8s1EE0A5uezeEHoz
-	VLW70V1UHXEu9UOR6/3vuEjVy59i937NM/rJBUhD6xt0PAhikwgFsqvRg7sEU76VTnmDcqtQBzx
-	n+6LoQs2nRjXjThTBJnePV251EL/KtztPJ+tiLXtMnpCiV2L9twrp/GRArLzSWAx5uw==
-X-Received: by 2002:aca:de45:: with SMTP id v66mr3235766oig.84.1556638781489;
-        Tue, 30 Apr 2019 08:39:41 -0700 (PDT)
-X-Received: by 2002:aca:de45:: with SMTP id v66mr3235738oig.84.1556638780793;
-        Tue, 30 Apr 2019 08:39:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556638780; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:reply-to:mail-followup-to:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=vfP2S2iii+DA6ccQoZJ7lIc8jHRYfYHozd7udFAc+Mg=;
+        b=PJP8oruVJ3UM3N1i0i1Sh++BPCXIQqCuFIbZBGV7BQ4ppsEl01MfifPAJPnOT/w5+9
+         f1dr32hHIithF90e0XXIGjfwT8kh0vUhbD+aSrFceoq4r5vWdgMrhe4qICACyHy4etEZ
+         CZxamC5eFRI4kp8eBy3Hnp+QlJbc0RLht5L02n2Bj7PKXKd2QOUTOCAi+OgX7Oj0h4jm
+         CfCDyIjQFeCUTV/SIMspdad57nLYDzso+mgT38/aat+q9THFsOt8irWNqh73RmD/N46j
+         fjzGM1VIm271GxE0/r3WyKtaWv9U19Qy0spWfW7BqVSXKZhbPJvpN6dvQcKTkswujkER
+         Dt1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+X-Gm-Message-State: APjAAAVcoJkHptjMcRK6MUaDQi8l4j3S6MhRJ2eGMekHEXIZQUDtmqdo
+	hwQgpSfqrfBlQHUWBea6Q9cdlix4J6KEF+RoxAl5CUXBvknZVWkHclMNtZoi5X91CSOgeZFh/g8
+	MpOTTID+Gr9diSSNQFL50obca3TxkpHlwW/ArFfSn1ZiZPS8crR0v1zmroZBq74NTlw==
+X-Received: by 2002:a17:906:3fc4:: with SMTP id k4mr12750389ejj.166.1556639127340;
+        Tue, 30 Apr 2019 08:45:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxWGcfDdduDj44KRwGZapCDaVBzn8uOxfXZX3VIlGNDDiSkaihqf/9psxSeBec/UIFXmgk3
+X-Received: by 2002:a17:906:3fc4:: with SMTP id k4mr12750339ejj.166.1556639125874;
+        Tue, 30 Apr 2019 08:45:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556639125; cv=none;
         d=google.com; s=arc-20160816;
-        b=G7KzhBZ4cD0wvqdfcy3xOKVqnpiAFXtuLOFzpLAEqOwsBeHR8vuCvxmVHI3Gl2xhAv
-         Pec3EJc6BwTf+EeSwASAD8fh+sx6w6xFGY2GNnl6QjGFmElRHUPAWMpq4v6nXTPmItnD
-         2YNObZPkwJJMoOZDLPIGOlhR4ptg8V6l/7ImdWmAn8gOyghMjYh/QIzqg4pDbD//z9KP
-         fMj6/D1yapQ6bTgKXcZkmSm0+rL5g0mytXbjemj/Kcx46ius6Rtvc5FebbKeQhKyFh56
-         dTrnoFb3Ge/kXygcEx3okApoVA12JVfpaV83gOGiLFqTKuujWzkjn2PlRzz39eBo4+XC
-         hHmA==
+        b=ORffP+wgwjPgq5iwbVUwLxUzwXWZiUpkEOPemhx2MZ2JcmmOrTfRCqlcFbUvgC1bD7
+         5WHkiFAnry9MF6ldq7H8/HotewLVj9hRtCD4iprjaF6xqXK5pdfcBwNwqgmi910w5p5a
+         FfeA0EWt/hS7coJoIARgsGSYcGdjaaxUwU6TUe5WEK8a4SYQ9RdScFWFrH4r6BzMhzX6
+         vbZjY/HYtXGbHPKXawDMsvUvqjeSyo/NUGKHlx3X/u1juaS56lmm4SUL9BncS0eW6Knx
+         wMTalTuEhYO+Ui5XQvQ2z5LA33u6/YQvxV06o+8T1Ml8FOGW0NEv8wMDZoisZIogG1C4
+         82Ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=jDm6QOW6C+ywZne3LW7Ypw7lAdQTfas17MrrXq3ecwo=;
-        b=cg0TJGrXh78pWdkhjneFyUnHeO+5bGmGAYTrrB2EHxjbPcH9tasUW7wrAPAjLeQII6
-         1RcABaiZmK2FVzQrD1tSAd0FlpapVg1UlnUinHiKUeYxvaJU0jqVq1NO12QbM5CbYXKp
-         A5P163+KgbX0ydMH03MOuyme2BpYDD6z5xKjChFtCUgyrg/ju9F2TbfUBUxar1RkAwpz
-         /elKJqMlaBycow+FX2UedNxeJITsNjw4lfa2yTrzZp1v6LPTNzkJzS7it/+0DezgbZM0
-         iYBxQ6qAVhdYtEo2lndK0WPn1nMaFQlfqbK9NMbqXbgxbErgPXsj08zpZMYY8zsBPqln
-         /YnA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :mail-followup-to:reply-to:message-id:subject:cc:to:from:date;
+        bh=vfP2S2iii+DA6ccQoZJ7lIc8jHRYfYHozd7udFAc+Mg=;
+        b=ueuY0tWYpQQrm/lAA/MMGTBcDK8RYlLLtXQwdL6SurHJ5l1uac1gmNRQpaDlwi7O3X
+         SOIoIQpBmi82iuIhJGnpj1TrD4BAFD6fAhhLu2Eg64SOmvmq3ahCs3srjDKJ9LKwkpPn
+         eCZKzIpUe/XZ+h6eldLNH9uR/jy76Ar6Wmidz71SzrY24Mqg5ovEE3zIM1kunscTuo3M
+         r3cEiTYSN9plTa0rg+SVKV7uW64j2ro/m2ISj/kGd6QJ4mXIWy6TuUNJ6lQspYHI37EF
+         vOKSFujPL/fn2u4cMVtEj114F08tVlnFtrlDAoSVj2kzabzKkhY8SrtCuM0tHSnfhALH
+         80Uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p16sor4157389oto.172.2019.04.30.08.39.40
+       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q8si1836005edg.97.2019.04.30.08.45.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Apr 2019 08:39:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Apr 2019 08:45:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of agruenba@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=agruenba@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqw8N8JoFFbtJVwle+z88rtJCuTvvxvCdMMXpDMhyN036qx9KAapBJJNOssCOcuQfUZoHwNGv9RcjuZWCQxY7v4=
-X-Received: by 2002:a9d:7d06:: with SMTP id v6mr15700460otn.187.1556638779909;
- Tue, 30 Apr 2019 08:39:39 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190429220934.10415-1-agruenba@redhat.com> <20190429220934.10415-6-agruenba@redhat.com>
- <20190430153256.GF5200@magnolia>
-In-Reply-To: <20190430153256.GF5200@magnolia>
-From: Andreas Gruenbacher <agruenba@redhat.com>
-Date: Tue, 30 Apr 2019 17:39:28 +0200
-Message-ID: <CAHc6FU5hHFWeGM8+fhfaNs22cSG+wtuTKZcMMKbfeetg1CK4BQ@mail.gmail.com>
-Subject: Re: [PATCH v7 5/5] gfs2: Fix iomap write page reclaim deadlock
+       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 47528AD94;
+	Tue, 30 Apr 2019 15:45:25 +0000 (UTC)
+Received: by ds.suse.cz (Postfix, from userid 10065)
+	id 2CC4DDA88B; Tue, 30 Apr 2019 17:46:25 +0200 (CEST)
+Date: Tue, 30 Apr 2019 17:46:23 +0200
+From: David Sterba <dsterba@suse.cz>
 To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: cluster-devel <cluster-devel@redhat.com>, Christoph Hellwig <hch@lst.de>, 
-	Bob Peterson <rpeterso@redhat.com>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, 
-	Ross Lagerwall <ross.lagerwall@citrix.com>, Mark Syms <Mark.Syms@citrix.com>, 
-	=?UTF-8?B?RWR3aW4gVMO2csO2aw==?= <edvin.torok@citrix.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v2 0/8] vfs: make immutable files actually immutable
+Message-ID: <20190430154622.GA20156@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+Mail-Followup-To: dsterba@suse.cz,
+	"Darrick J. Wong" <darrick.wong@oracle.com>,
+	linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-mm@kvack.org
+References: <155552786671.20411.6442426840435740050.stgit@magnolia>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <155552786671.20411.6442426840435740050.stgit@magnolia>
+User-Agent: Mutt/1.5.23.1 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Apr 2019 at 17:33, Darrick J. Wong <darrick.wong@oracle.com> wrote:
-> On Tue, Apr 30, 2019 at 12:09:34AM +0200, Andreas Gruenbacher wrote:
-> > Since commit 64bc06bb32ee ("gfs2: iomap buffered write support"), gfs2 is doing
-> > buffered writes by starting a transaction in iomap_begin, writing a range of
-> > pages, and ending that transaction in iomap_end.  This approach suffers from
-> > two problems:
-> >
-> >   (1) Any allocations necessary for the write are done in iomap_begin, so when
-> >   the data aren't journaled, there is no need for keeping the transaction open
-> >   until iomap_end.
-> >
-> >   (2) Transactions keep the gfs2 log flush lock held.  When
-> >   iomap_file_buffered_write calls balance_dirty_pages, this can end up calling
-> >   gfs2_write_inode, which will try to flush the log.  This requires taking the
-> >   log flush lock which is already held, resulting in a deadlock.
->
-> /me wonders how holding the log flush lock doesn't seriously limit
-> performance, but gfs2 isn't my fight so I'll set that aside and assume
-> that a patch S-o-B'd by both maintainers is ok. :)
+On Wed, Apr 17, 2019 at 12:04:26PM -0700, Darrick J. Wong wrote:
+> Hi all,
+> 
+> The chattr(1) manpage has this to say about the immutable bit that
+> system administrators can set on files:
+> 
+> "A file with the 'i' attribute cannot be modified: it cannot be deleted
+> or renamed, no link can be created to this file, most of the file's
+> metadata can not be modified, and the file can not be opened in write
+> mode."
+> 
+> Given the clause about how the file 'cannot be modified', it is
+> surprising that programs holding writable file descriptors can continue
+> to write to and truncate files after the immutable flag has been set,
+> but they cannot call other things such as utimes, fallocate, unlink,
+> link, setxattr, or reflink.
+> 
+> Since the immutable flag is only settable by administrators, resolve
+> this inconsistent behavior in favor of the documented behavior -- once
+> the flag is set, the file cannot be modified, period.
 
-This only affects inline and journaled data, not standard writes, so
-it's not quite as bad as it looks.
+The manual page leaves the case undefined, though the word 'modified'
+can be interpreted in the same sense as 'mtime' ie. modifying the file
+data. The enumerated file operations that don't work on an immutable
+file suggest that it's more like the 'ctime',  ie. (state) changes are
+forbidden.
 
-> How should we merge this patch #5?  It doesn't touch fs/iomap.c itself,
-> so do you want me to pull it into the iomap branch along with the
-> previous four patches?  That would be fine with me (and easier than a
-> multi-tree merge mess)...
+Tthe patchset makes some sense, but it changes the semantics a bit. From
+'not changed but still modified' to 'neither changed nor modified'. It
+starts to sound like a word game, but I think both are often used
+interchangeably in the language. See the changelog of 1/8 where you used
+them in the other meaning regarding ctime and mtime.
 
-I'd prefer to get this merged via the gfs2 tree once the iomap fixes
-have been pulled.
+I personally doubt there's a real use of the undefined case, though
+something artificial like 'a process opens a fd, sets up file in a very
+specific way, sets immutable and hands the fd to an unprivileged
+process' can be made up. The overhead of the new checks seems to be
+small so performance is not the concern here.
 
-Thanks,
-Andreas
+Overall, I don't see a strong reason for either semantics. As long as
+it's documented possibly with some of the corner cases described in more
+detail, fine.
 
