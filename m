@@ -2,159 +2,133 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6DBAC43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 05:38:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FF6CC43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 827BF20835
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 05:38:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jX+ZXQx4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 827BF20835
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 3F27021670
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 08:19:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F27021670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 14F6C6B0284; Tue, 30 Apr 2019 01:38:27 -0400 (EDT)
+	id 869816B0003; Tue, 30 Apr 2019 04:19:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1005A6B0286; Tue, 30 Apr 2019 01:38:27 -0400 (EDT)
+	id 81A376B0005; Tue, 30 Apr 2019 04:19:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F2EDE6B0287; Tue, 30 Apr 2019 01:38:26 -0400 (EDT)
+	id 708306B0007; Tue, 30 Apr 2019 04:19:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D59126B0284
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 01:38:26 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id x23so255080ith.8
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2019 22:38:26 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 380B56B0003
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 04:19:27 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f41so6037382ede.1
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 01:19:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=0VaZ99/42myj1FUXHKYXX+Rl3OaCNMwGJa9NC9KEQIY=;
-        b=pgjz81lc+53ACIwUdLo1fa66Xp1PEyeEp6LYsFnR7DjsuaMlcItcDUwjjBdj//zONP
-         eFuXoDPRsbtjnWLfmJdcc+0+s8VifVG26iwSZR/+uaxSxK6g3nbAWjvq+ViySKhX0Cu7
-         vXousa/7VNugEOrYfN2qWT96ohSouy1HmisDgXLBYORBZsDvwuXXZHmpKg1UUTZoM/Qi
-         kHw6n8mHy2VFSO08pe4NGicrlSKbl32v22r2ZUk7zf+X6U3J20TB65+zp0cEhTHIQtsS
-         Oeww1Dwp8qOc0BpIlniFx6Q2Ra6QSWcoSUE79cOGIbDHuHIfOfHqtkbVcHN+ci06jdIK
-         Xtgg==
-X-Gm-Message-State: APjAAAUm6r9J8BPI0Ge7ftjYW8cqA/ncO6snp3fbf6pFHW3LIKM6AVZ1
-	1oaop9GHI9NMm2Wer79GTzy8Yi7qUMCdhV54IhEuqW79WiRLCHsUy8Ye+nbC7pdtt4SkH+vN0s5
-	wI/3q11X6JHSwTZZYmnMO2ig6USkpws6I1eW1DIAKLPqKrPSAKWnQ9QHQZZBXy6QOJg==
-X-Received: by 2002:a5e:c804:: with SMTP id y4mr17677184iol.67.1556602706606;
-        Mon, 29 Apr 2019 22:38:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqsv+PTciLZKE48AiitmxfHnU1tHI1bS9HMoQHRdv7ogZnQNCoPqi0hv2N6hJl7B9qQttj
-X-Received: by 2002:a5e:c804:: with SMTP id y4mr17677159iol.67.1556602705756;
-        Mon, 29 Apr 2019 22:38:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556602705; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=LzrBFyiCT3NW6gf4dZLakChxDJCS2ayk4FCGvycr/8I=;
+        b=idTV6NYnQENxaKK3PG8f/nprYzW7oVaHVXgVTbHaTChxsArPcmlMp6wftFtpLmzfwb
+         SF2aev3ltNUjlQX2xE0bGofwM8x2v9tEp1TvvjlMvxNT6vcS4GhYCIMm/68mbwIMJzdg
+         I1iLYrxEcUxsoI4TU3YncGSxqhzpaYBafZlLyO3gpYckARgb4DbNW/2HJfQ/xrdLXEki
+         nXjuODPMB1Z0SIma5JyDfopL7hlyqlV10cHBD1NPzg/pX8s79i78WwwWnkdz48s/p+6C
+         8fipHpeIhSRiu4Ba2XKr9d6L3c6h3qhkQbEp1/2M7mP9SIew5WiA7t6swGKl+bWOVlVp
+         ahEQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Gm-Message-State: APjAAAUtH3bxbWJP14linRjh1U0eou37zGkAYu7OyhFm934OkadiwITG
+	1HJe4ruf25W0eXLPgPblUImOM29qa9aSopZ8z32zYvQGVulqKbxDLovMXeZD/3bZuyeUkQVz6eL
+	D2Zr4vt/RPmV1f4WbKHMKZiSGomjKeu+EcAQTRu+BIWXzx5ujC905P8JLCu00+3kxpA==
+X-Received: by 2002:a50:9a02:: with SMTP id o2mr40932604edb.182.1556612366573;
+        Tue, 30 Apr 2019 01:19:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxqn56Md+aslq3SiqupvmQEaqfgUrKYRoZgZPLJP671tb+68ASZXz2caJrusYMh6o46lwr/
+X-Received: by 2002:a50:9a02:: with SMTP id o2mr40932551edb.182.1556612365488;
+        Tue, 30 Apr 2019 01:19:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556612365; cv=none;
         d=google.com; s=arc-20160816;
-        b=vjuz8e0n+7ESUQL5rwjZEZF2c5+Y7snJ2ZqbEbMfSguKI6tE4wjhC5WCko2b5mUuLw
-         GErOfyOQ/uJ+xSi+pkoTfCguj4sG7a1HaSFCUEFuLjyymiXCa6/FBtCzAlCPLhTKMQpY
-         UyIPFLghmbT57b/grSS5GZbK1Yl6984h3k+esx4vB6XqS9KCxb5qix1SrBmeEsSvYsle
-         b1PEFqyZZTysZa7PFCHJ1E+r8uCmWE2HNr7eN3ny+S61XvcpBk8hnJh4ZtTvXeZMva0b
-         L0/hdh4je6SWbThdAztOhOj6usYujjO6IOCkcrWki25GPXOSIzpBa6QBJN8O8Twifdny
-         aCzg==
+        b=UsR2qZ6A0x0F4lAAbPbdzs2hhbntBHXqObf/r+o7PFn1mKWv5k0T3KgJSQeXmFCQOj
+         OzhhWOv31k37RyAhc4QyKv2UyCNm87VRvtdciVKG6086uDatdulO/qMw0xUNXzOc1ALH
+         Lq8tca1ZrI+XaN5VWXhUXIKy7P2dxryhUJNCpLQU5eEt9TMxQ7RrIdKpaV02MXPc+/Ip
+         MwUWHJZ4j14BETmLcCdJKxoqaJ4OZbTyMdxaoOxigVyeXpqBCWFRP2kDatn14QrqNVT3
+         2ppx926Wj5pX9VCeKGJhE5WSLys0bssc0Cms66+AtOWPxi7vHJPAJYdl+wpyZ6ImOfJQ
+         MPmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=0VaZ99/42myj1FUXHKYXX+Rl3OaCNMwGJa9NC9KEQIY=;
-        b=ea3sBZ3W0KrtW2uE8UnnQjVrz2XnG5Kle+PHIYVYznYPG4IvRWINUif9JebVLrfG1/
-         2rqfmNABPdY73vy9pZucf5t5CfR9N8j5D8n63IqmkCMKBsNkVZNiJAZXnbYwcond8j8u
-         W34EPz3PZckxbVFnfLf/YnNKXHmP7Bf0FC6s2WA+JHUOvv3rZDLq+koTpcoC98VhAJKE
-         YyH8I0vhgWDx1oN259UUCOiLgxlZj5ELNlH9UOADvagwz9ngCenf/rxAzrVhjLVTxV5c
-         EwMO0Cj1JdsVCC+WRfGOUIl/L9k2cTXSh1nz0AZGaNskL3P/9slp3T0/uX6qSLmctRwA
-         S8Zg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=LzrBFyiCT3NW6gf4dZLakChxDJCS2ayk4FCGvycr/8I=;
+        b=uYmSaqC3amPBSmqDqqoL9+s+yz3V+irmvvamr6/95CNUiMpStaJuN+cVi3yBrglc97
+         HvBx3ep9/w1bjXwcEy4qPvoMYxyruXcoRWCinaT/LpVEuc9dGTaINKf6+FTv6l853nuy
+         OwVcYOKmx8I92Dqz8iCYlOGZbfO8+Y0UrEi0Dp17SvnP7z9w4A12AEMJSXzBXQfWgZDg
+         jPFgM+zicheh+7aEgXyhODy6dy6a4MLsCDIHZLcYEfV71v0lVIxxj9eEIW0xmwSBZu+/
+         i7/0N3e/LUwhcrSfMcu5KUvfau8vNnLKaMyfxvkgHAg6nHqvCJyDWeIyE4nwkxuo0Zt9
+         NyDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=jX+ZXQx4;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id a186si1219294itc.11.2019.04.29.22.38.23
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l7si98882eda.21.2019.04.30.01.19.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Apr 2019 22:38:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Apr 2019 01:19:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=jX+ZXQx4;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
-	In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:Subject:Sender
-	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=0VaZ99/42myj1FUXHKYXX+Rl3OaCNMwGJa9NC9KEQIY=; b=jX+ZXQx4dWZoDeduDfZkC/43LY
-	pnP4zwze/rk3LT9LdIFmFSdAYV2zOyHnohbIB70XW6LnH/5FPnccRkK74lJujftuXeATCYFX/d3p1
-	ezFFKCmqupvSru6eiN7DnCZJ3D5EP1SnBSKUfNC5JRViDCN8ei4/DEO0Uo8Mq+NJR3mYyteYCbrN4
-	iUhFUg/fR2qTSntctNJwQUsGU6GPZzt3Oj+22T5oaG3Dt2AbfeenySG2SQxHjuXHspXU67zofaduQ
-	fWmsQXjuEsQz76NWb9BoQuUAPdkshZcN52oNlcpbOqq0sCD6j+9ku5j/zdN6ZJvXKpm6YdGxAOD3h
-	ulnKa5Uw==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=dragon.dunlab)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hLLT5-0006Uu-WC; Tue, 30 Apr 2019 05:38:16 +0000
-Subject: Re: sh4-linux-gnu-ld: arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined
- reference to `followparent_recalc'
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org,
- Andrew Morton <akpm@linux-foundation.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- Yoshinori Sato <ysato@users.sourceforge.jp>
-References: <201904301231.JpYYMMcK%lkp@intel.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <f5370e99-f5a5-8296-25dd-d6685bfedfe3@infradead.org>
-Date: Mon, 29 Apr 2019 22:38:14 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B7A6FAE3F;
+	Tue, 30 Apr 2019 08:19:24 +0000 (UTC)
+From: =?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>
+To: gorcunov@gmail.com
+Cc: akpm@linux-foundation.org,
+	arunks@codeaurora.org,
+	brgl@bgdev.pl,
+	geert+renesas@glider.be,
+	ldufour@linux.ibm.com,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	mguzik@redhat.com,
+	mhocko@kernel.org,
+	mkoutny@suse.com,
+	rppt@linux.ibm.com,
+	vbabka@suse.cz,
+	ktkhai@virtuozzo.com
+Subject: [PATCH 0/3] Reduce mmap_sem usage for args manipulation
+Date: Tue, 30 Apr 2019 10:18:41 +0200
+Message-Id: <20190430081844.22597-1-mkoutny@suse.com>
+X-Mailer: git-send-email 2.16.4
+In-Reply-To: <20190418182321.GJ3040@uranus.lan>
+References: <20190418182321.GJ3040@uranus.lan>
 MIME-Version: 1.0
-In-Reply-To: <201904301231.JpYYMMcK%lkp@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4/29/19 9:48 PM, kbuild test robot wrote:
-> Hi Randy,
-> 
-> It's probably a bug fix that unveils the link errors.
+Hello.
 
-Yoshinori Sato (cc-ed) has a patch for this.  I guess that it's not in the arch/sh
-git tree yet ???  or wherever arch/sh changes come from.
+(apologies for late reply) I've aggregated the two previously discussed patches
+into one series and based on responses made some changes summed below.
+
+v2
+- insert a patch refactoring validate_prctl_map
+- move find_vma out of the arg_lock critical section
 
 
+Michal Koutný (3):
+  mm: get_cmdline use arg_lock instead of mmap_sem
+  prctl_set_mm: Refactor checks from validate_prctl_map
+  prctl_set_mm: downgrade mmap_sem to read lock
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   83a50840e72a5a964b4704fcdc2fbb2d771015ab
-> commit: acaf892ecbf5be7710ae05a61fd43c668f68ad95 sh: fix multiple function definition build errors
-> date:   3 weeks ago
-> config: sh-allmodconfig (attached as .config)
-> compiler: sh4-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout acaf892ecbf5be7710ae05a61fd43c668f68ad95
->         # save the attached .config to linux build tree
->         GCC_VERSION=7.2.0 make.cross ARCH=sh 
-> 
-> If you fix the issue, kindly add following tag
-> Reported-by: kbuild test robot <lkp@intel.com>
-> 
-> All errors (new ones prefixed by >>):
-> 
->>> sh4-linux-gnu-ld: arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> 
-
+ kernel/sys.c | 55 ++++++++++++++++++++++++++++---------------------------
+ mm/util.c    |  4 ++--
+ 2 files changed, 30 insertions(+), 29 deletions(-)
 
 -- 
-~Randy
+2.16.4
 
