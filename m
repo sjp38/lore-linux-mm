@@ -2,212 +2,186 @@ Return-Path: <SRS0=8Dof=TA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD581C43219
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 21:57:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25558C43219
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 22:55:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D31E2087B
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 21:57:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A568720835
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Apr 2019 22:55:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="ApRLQsRW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D31E2087B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="Ah3bR/1G";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="mGuPJmU8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A568720835
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0AA086B0003; Tue, 30 Apr 2019 17:57:51 -0400 (EDT)
+	id F25D36B0003; Tue, 30 Apr 2019 18:55:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 033956B0005; Tue, 30 Apr 2019 17:57:50 -0400 (EDT)
+	id ED5886B0005; Tue, 30 Apr 2019 18:55:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E637A6B0006; Tue, 30 Apr 2019 17:57:50 -0400 (EDT)
+	id D75676B0006; Tue, 30 Apr 2019 18:55:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BEA456B0003
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 17:57:50 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id s139so3158067vkf.2
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 14:57:50 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B821C6B0003
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2019 18:55:00 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id k6so13353587qkf.13
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 15:55:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=nrmJg5mJkdOB4HxRtlUftJxszIDcsroWGgIpxMUexwY=;
-        b=cK3RC0g8MzbCVtLVQ352aox723yz61JgwLxs/kXP9ktkEvoy+xO6mP8FRLJZ7geoDZ
-         lcRdFFkOwFk93R1p0qo2eQPSQObgm5N9nXEUM+zZ6gAHNGIYF6MAgM9tToNX8gZ1tLwD
-         IIGV++dq8dzDxgedvLbaTvFwhGGi90RxXvtAJt1fShLIvWvfxOsQqc+WqzknwKfdNQdp
-         l1rAvpTLjKhEmbXN3x2CyMAGrAyR1OwOjW4sFF3ly+P8Tt8R4TISEIXYVpFUuD5j8AhZ
-         KRjwdo5tzgSqGcHj97ukVt2myn8/CQpWbtXr5Aj6AbCK7egddH4PsJGMyhkcFDnB30io
-         ZhOA==
-X-Gm-Message-State: APjAAAXR76x7rxWnzlJY7FjSwSk4LTkj/YziDKSiN4GwgioU/jxRLnZg
-	X/kvgqtR+UyOpxDoHe4xkE/n9TBug07bxkgYIbouTDZSWokjYVhsRMuBMYCM481dY9T2deFegMt
-	wmPOphWD951xaAek4LkKKfYbmZ6rfDe1ZHPq76jKFBIfYW+YxuuMp3wIRcs/nmhKo+w==
-X-Received: by 2002:a1f:9991:: with SMTP id b139mr36572809vke.73.1556661470505;
-        Tue, 30 Apr 2019 14:57:50 -0700 (PDT)
-X-Received: by 2002:a1f:9991:: with SMTP id b139mr36572781vke.73.1556661469782;
-        Tue, 30 Apr 2019 14:57:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556661469; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xbt1TKoKoLotpSf2hKRbnmk6MejLdRsCBZ711ujjQ0I=;
+        b=tnbHcYJWJtBEGn3NbgzhLQSkcAj4cjp332d0rZU3g2vWw2N2qndzf1CjlawQYR3wBq
+         mcos0+U/l64ScFCZIL7LarGf+3Fq3lHAaGjc7DMV0QL7XUm5swaxjp4j+EQi/p+gH9+F
+         D6kKUc1VfkLMgaRqzWHO19tDMBVzEuDSLRHUAAdieHW8sb+Xo4k4EKHt/uwboTqtbqJa
+         MDIifF4A/xYuynbZUYjOw0etTggAfizJFGkesPMpJssHCwamK4Q3qApQGKvKPEf+4zrw
+         tmLHcDFVDhRzpQF6qnwu4MnhTUicrhEM+0iabyUM95cWLSaCHpWgJ4uBoZl+tjCktctV
+         ZVPw==
+X-Gm-Message-State: APjAAAVtg72kCR7zmXrAETIKI0NNpn7TsS/68Hd0nhbRCDl3g+gQtNPn
+	yXuYlABMWVHpXVRoa5kTM/rXhpqbjH/jBO9kQNQiZwkJiANuhZCdY/ByUq85eA07muyl9ai5zsA
+	mtG3wi/6at7bh47jqLVuYL/9ZkTa2g/XLe5IqtI0DSmRQzdBvjEUiUwbNibfhk+zD3g==
+X-Received: by 2002:ac8:1a72:: with SMTP id q47mr31162184qtk.10.1556664900508;
+        Tue, 30 Apr 2019 15:55:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUKob2Qmbb2Izf8nuKsXtB0y4jljybvHdodP6aY4R5JKJ1FLnCvhCB266SFqYvky3JaZ6k
+X-Received: by 2002:ac8:1a72:: with SMTP id q47mr31162150qtk.10.1556664899844;
+        Tue, 30 Apr 2019 15:54:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556664899; cv=none;
         d=google.com; s=arc-20160816;
-        b=XOtcjDs8xB3wOG/suaa/D3iSs97QhnJzR+aJtaCxldw19qZEycbwhG2c1nRc4nTzBD
-         0RAF7wO7q4qhbQ/YP7mKc08C7d7ZOvVEH6G2ndRxi2NuVlI4jkoNJbFr+bHZYjwVAv44
-         Szg8LfZjuMCXX5R02PZhRJZQ+8aNQDQZmNfU2kKosz2+X2aT5+pWbkjX2uxoYufS3MgG
-         hLe/V4EPlXThGLzrKvMtuIvEAWqfTE4+t6gxtPv1QewmBt05c98782pMNPDdfwc65iyr
-         IlMAnXTVpu43JI98oUolTLU0KThuDLV68AgfaAZUcyLXUBFACpSKw5fo5+Kr1CSSZ4Bv
-         eOqQ==
+        b=TC9Namk88Spdx05huZjmy6HgyW60gdg3tL9MWK6Hq3W0N4jJSfUYgupAOJXMhOMYyS
+         NJr8AYl5EUmuepKMbiUNn8etGBISGBzulHtFRfiO9EuZDBj/c9HqxMb3P5Uf8NPgFKJp
+         vUOhPB2BC+2dJ0htndo18zu3P7+MfwqwoUFvBfgrInm/IQOZrVTYY1chJq8lflG0YjhY
+         CttVxD3r+X/c9YswA3RXn9g4FVnNEHX3qcWIdh5F4yVH33vlJuwryfPibj5bf0t1VrN+
+         JyU5mQNpMLpKllA2hy9Sr3SPQhXG3h3Y+uhEeMpa2FA9Lp2Y/JuVUSVxlzIM31owkbXb
+         IriQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=nrmJg5mJkdOB4HxRtlUftJxszIDcsroWGgIpxMUexwY=;
-        b=G1f9QM9/02KnrOSm3J5ZRFtz3Dz1whmXDd7xPFpMqdaWAEcL1tnS/QLIk4fk5JdTj2
-         fD24rXcWf1BgUonc7HDUJe4/XCxpgAEwTRqqeDdRvny4ZfXkiyxpw6Zen5JeXAyhLP3D
-         TgwSYKQm3iBwFzXUtOCOTMgafVvcEPmlm5GS+xn5nDuFQcyeM1urFkmtslJnyGu3Tbgc
-         LitrX9lJJklyZaoy8USJAXjwN8eRgKWwCX/TRWfSSzaJ7BS07921IbstJFH2VzsVXaDU
-         DhSWhZtqc5IOh3WXlbI2FhKy281OUcnIXLPpK5G5eC07mwVulkCs43Im4T+IORN5NGj9
-         3tQw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=xbt1TKoKoLotpSf2hKRbnmk6MejLdRsCBZ711ujjQ0I=;
+        b=CcEnOMiYVYyIgjy+tjEocOM606HPvjLii4mumnhHxHro3NNb+k4aPwJinFeDEKStd5
+         UzDiTbldKwrlD9RFTKylvsk91v+iwiqLbn0ssXF9GqPdG3Ub3GqqdT0fw+1CenVZjVsW
+         779wtEXolOIgfewB2zdSuIDh1imyz0FmCarn4SKDt+kJIxRMwX3HeZ5b2b1kI4zPd8RG
+         nap9SHBa9F4YXZisdO/onBCB7xGAIVw06krV5iE7177rxeIKxinYdKwndABR9WDH1/9M
+         vYc/mwR1RveK1Ydt1+BXzzo0SLFLEdEyUXfR7Qy9YSlz5KrqPlSCwHKm6VQCSwjiVAcg
+         wiuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ApRLQsRW;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b136sor12087556vke.41.2019.04.30.14.57.49
+       dkim=pass header.i=@tobin.cc header.s=fm3 header.b="Ah3bR/1G";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=mGuPJmU8;
+       spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id g58si2910417qtb.41.2019.04.30.15.54.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Apr 2019 14:57:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Apr 2019 15:54:59 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ApRLQsRW;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=nrmJg5mJkdOB4HxRtlUftJxszIDcsroWGgIpxMUexwY=;
-        b=ApRLQsRWLYDRB1zjywf8XpfE+dW75Bh0LDN3wBrHZvQM/bXYOhCwOGGI+1zXg59ILI
-         0gnOtO2l5+pHTLyDMucFKFf69zIPwLIGs+etrKYFG0DV7GFQX3Amh06repKBlVkPOxCo
-         nTYhV1brRDRIvMaLpnT8uySSjAIWhQTwI1dTs=
-X-Google-Smtp-Source: APXvYqyViyXQpV4aqdDVq0y6/FpzewdwjjuFAh5WK2/t5RwnyR0F260cWZ2T2GKrFF0dJmmY+jDEmg==
-X-Received: by 2002:a1f:a989:: with SMTP id s131mr2809501vke.76.1556661468754;
-        Tue, 30 Apr 2019 14:57:48 -0700 (PDT)
-Received: from mail-ua1-f46.google.com (mail-ua1-f46.google.com. [209.85.222.46])
-        by smtp.gmail.com with ESMTPSA id s16sm5059889vks.39.2019.04.30.14.57.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Apr 2019 14:57:47 -0700 (PDT)
-Received: by mail-ua1-f46.google.com with SMTP id l17so5321638uar.4
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2019 14:57:47 -0700 (PDT)
-X-Received: by 2002:ab0:1646:: with SMTP id l6mr35938169uae.75.1556661467134;
- Tue, 30 Apr 2019 14:57:47 -0700 (PDT)
+       dkim=pass header.i=@tobin.cc header.s=fm3 header.b="Ah3bR/1G";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=mGuPJmU8;
+       spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.nyi.internal (Postfix) with ESMTP id 627B723376;
+	Tue, 30 Apr 2019 18:54:59 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute5.internal (MEProxy); Tue, 30 Apr 2019 18:54:59 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm3; bh=xbt1TKoKoLotpSf2hKRbnmk6Mej
+	LdRsCBZ711ujjQ0I=; b=Ah3bR/1GWrHGRzCJljWDgbZH2sJYUIJuoPQD/WMt+3k
+	pSn9PzirnbRj5B6KjHk1c7lc7YpITYSsqfcA+bHdQuyga483ScmGsAOpyXmderLS
+	UFNxkcRntk/8RF3Z+rfPwDWGbSbQhpvRsG1I1KE0RnDb5yPWJyfimLUWL7Layinu
+	igDt1UA19Uxk951AgX6xFoWNm60nsedcoS+EQxBXS3SFAIEtOu9QGkqxblT053ox
+	urZEf2cmNLe3kXvqSlZPAejOjSJwii0df2nPc2JK+d4RzXTVfryFbJNAzmhQ2whp
+	vmSbzs6RJF42DdoLAHyAWAnxTaJ3B305TNHJDNs1BfQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=xbt1TK
+	oKoLotpSf2hKRbnmk6MejLdRsCBZ711ujjQ0I=; b=mGuPJmU8rWlq5p9iDDswfg
+	qb0uyN30bpfJNc69sRApK+Y4e+cNuYLdzQq0G5Zci3r9gxMhtaJtuSiO/aymjR+d
+	PhxRnWeqLhrL0edSljJXiOrUv49coIwFnj6E3rHtj/WCGFWhGnfms6DHxUlBoggE
+	hkarPWI1mhwaTn2wQy6opz6cTXp3vN4BygzJsOi8sOM39LzYiK1SKy1+L7bOS0sX
+	UtVzKR6JwjAOCZ0tFbonCe389e5/tYytuWpvbRnM9FieY9tUs4eVdFTOdf+Rc6/x
+	JJrAoa4QgMmPeoTjSzdwErSzG8lo+7Tkp3IU9CyxeaqsNok9Hjf6WnzGaHi1U/zQ
+	==
+X-ME-Sender: <xms:QtLIXC6uvXn_-MF8jKiJGEFlhq-2y49Xt4wcRzI0lp0Yqxu9yGtbPg>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrieeigdduiecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfg
+    hrlhcuvffnffculdduhedmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdfo
+    redvnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosg
+    hinhdrtggtqeenucfkphepuddvuddrgeegrddvtdegrddvfeehnecurfgrrhgrmhepmhgr
+    ihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:QtLIXFOYMuE7jGcijSRcZww1kTaH1gl3ZJMKjSzF-w1AND5tAB9NrQ>
+    <xmx:QtLIXN0sL77vbItsrgakOPBgw1VLMzTZOY_GACPhioIwE08fM3-wTw>
+    <xmx:QtLIXGvI6PlL7YN0E54D7xDdMMMcUJ3ca1saHAuxtrDjlzOrpAfnRg>
+    <xmx:Q9LIXBoh-gllT6pgdki7OJeAxnmhXeoCrxWLNU_f_O-g7jpZ9vV9WQ>
+Received: from localhost (ppp121-44-204-235.bras1.syd2.internode.on.net [121.44.204.235])
+	by mail.messagingengine.com (Postfix) with ESMTPA id A7F8DE44B6;
+	Tue, 30 Apr 2019 18:54:56 -0400 (EDT)
+Date: Wed, 1 May 2019 08:54:18 +1000
+From: "Tobin C. Harding" <me@tobin.cc>
+To: "Tobin C. Harding" <tobin@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: Fix kobject memleak in SLUB
+Message-ID: <20190430225418.GA10777@eros.localdomain>
+References: <20190427234000.32749-1-tobin@kernel.org>
 MIME-Version: 1.0
-References: <20190430214724.66699-1-samitolvanen@google.com>
-In-Reply-To: <20190430214724.66699-1-samitolvanen@google.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 30 Apr 2019 14:57:35 -0700
-X-Gmail-Original-Message-ID: <CAGXu5jLfLsiKJurVL_+zr5t6D1B6OMw2hPo5WZSjUhv1-4AONg@mail.gmail.com>
-Message-ID: <CAGXu5jLfLsiKJurVL_+zr5t6D1B6OMw2hPo5WZSjUhv1-4AONg@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix filler_t callback type mismatch with readpage
-To: Sami Tolvanen <samitolvanen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, 
-	Nick Desaulniers <ndesaulniers@google.com>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190427234000.32749-1-tobin@kernel.org>
+X-Mailer: Mutt 1.11.4 (2019-03-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2019 at 2:47 PM Sami Tolvanen <samitolvanen@google.com> wrote:
->
-> Casting mapping->a_ops->readpage to filler_t causes an indirect call
-> type mismatch with Control-Flow Integrity checking. This change fixes
-> the mismatch in read_cache_page_gfp and read_mapping_page by adding a
-> stub callback function with the correct type.
->
-> As the kernel only has a couple of instances of read_cache_page(s)
-> being called with a callback function that doesn't accept struct file*
-> as the first parameter, Android kernels have previously fixed this by
-> changing filler_t to int (*filler_t)(struct file *, struct page *):
->
->   https://android-review.googlesource.com/c/kernel/common/+/671260
->
-> While this approach did fix most of the issues, the few remaining
-> cases where unrelated private data are passed to the callback become
-> rather awkward. Keeping filler_t unchanged and using a stub function
-> for readpage instead solves this problem.
->
-> Cc: Kees Cook <keescook@chromium.org>
-> Signed-off-by: Sami Tolvanen <samitolvanen@google.com>
-
-Reviewed-by: Kees Cook <keescook@chromium.org>
-
--Kees
-
+On Sun, Apr 28, 2019 at 09:40:00AM +1000, Tobin C. Harding wrote:
+> Currently error return from kobject_init_and_add() is not followed by a
+> call to kobject_put().  This means there is a memory leak.
+> 
+> Add call to kobject_put() in error path of kobject_init_and_add().
+> 
+> Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 > ---
->  include/linux/pagemap.h | 22 +++++++++++++++++++---
->  mm/filemap.c            |  7 +++++--
->  2 files changed, 24 insertions(+), 5 deletions(-)
->
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index bcf909d0de5f8..e5652a5ba1584 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -383,11 +383,27 @@ extern struct page * read_cache_page_gfp(struct address_space *mapping,
->  extern int read_cache_pages(struct address_space *mapping,
->                 struct list_head *pages, filler_t *filler, void *data);
->
-> +struct file_filler_data {
-> +       int (*filler)(struct file *, struct page *);
-> +       struct file *filp;
-> +};
-> +
-> +static inline int __file_filler(void *data, struct page *page)
-> +{
-> +       struct file_filler_data *ffd = (struct file_filler_data *)data;
-> +
-> +       return ffd->filler(ffd->filp, page);
-> +}
-> +
->  static inline struct page *read_mapping_page(struct address_space *mapping,
-> -                               pgoff_t index, void *data)
-> +                               pgoff_t index, struct file *filp)
->  {
-> -       filler_t *filler = (filler_t *)mapping->a_ops->readpage;
-> -       return read_cache_page(mapping, index, filler, data);
-> +       struct file_filler_data data = {
-> +               .filler = mapping->a_ops->readpage,
-> +               .filp   = filp
-> +       };
-> +
-> +       return read_cache_page(mapping, index, __file_filler, &data);
->  }
->
->  /*
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d78f577baef2a..6cc41c25ca3bf 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2977,9 +2977,12 @@ struct page *read_cache_page_gfp(struct address_space *mapping,
->                                 pgoff_t index,
->                                 gfp_t gfp)
->  {
-> -       filler_t *filler = (filler_t *)mapping->a_ops->readpage;
-> +       struct file_filler_data data = {
-> +               .filler = mapping->a_ops->readpage,
-> +               .filp   = NULL
-> +       };
->
-> -       return do_read_cache_page(mapping, index, filler, NULL, gfp);
-> +       return do_read_cache_page(mapping, index, __file_filler, &data, gfp);
->  }
->  EXPORT_SYMBOL(read_cache_page_gfp);
->
-> --
-> 2.21.0.593.g511ec345e18-goog
->
+>  mm/slub.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index d30ede89f4a6..84a9d6c06c27 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5756,8 +5756,10 @@ static int sysfs_slab_add(struct kmem_cache *s)
+>  
+>  	s->kobj.kset = kset;
+>  	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
+> -	if (err)
+> +	if (err) {
+> +		kobject_put(&s->kobj);
+>  		goto out;
+> +	}
+>  
+>  	err = sysfs_create_group(&s->kobj, &slab_attr_group);
+>  	if (err)
+> -- 
+> 2.21.0
+> 
 
+This patch is not _completely_ correct.  Please do not consider for
+merge.  There are a bunch of these on various LKML lists, once the
+confusion has cleared I'll re-spin v2.
 
--- 
-Kees Cook
+thanks,
+Tobin.
 
