@@ -2,222 +2,263 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D8A4C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ADA95C04AA8
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:41:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49DFA21670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49DFA21670
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A133208C3
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:41:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aIHyEAFW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A133208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85CD96B000E; Wed,  1 May 2019 10:03:09 -0400 (EDT)
+	id 9788C6B0003; Wed,  1 May 2019 10:41:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 811186B0010; Wed,  1 May 2019 10:03:09 -0400 (EDT)
+	id 9289E6B0005; Wed,  1 May 2019 10:41:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FD196B0266; Wed,  1 May 2019 10:03:09 -0400 (EDT)
+	id 8188D6B0006; Wed,  1 May 2019 10:41:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3952C6B000E
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:09 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id j18so11041855pfi.20
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:09 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 526196B0003
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:41:39 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id m8so7176464oih.0
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:41:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=7DuZmk//m+TJEgso8niAEXIhBVD4m+iZUrt06/JgkP4=;
-        b=SHYlkSHISQC80LWu4ZY5NokUT082aj/DpNCoKt57T6rhClRtDMkSzSIfmEpOkSyR7/
-         rJwSs0SDHpALgoLr2GHYnc9yHPboxHbp7ZGZYZobZTv2P11y5/LRRXEisO6lne/dfGSs
-         wpAMnJcmGIdyE9HTeZRbyRPChwei2+X15S29yo+DOOdvNCdRILjQZ2iJaXsKvCCW03KQ
-         IUJNA/6VKJfe9C7C+NCKZeC8gS2eTR14xT9G5uQVfQ2PuXrlP0OWBN6UTnJEYCuRlFrc
-         LVAOC/XYDWYaao4aoNQeC6NO5bgTcCl18ipJakkeebetB1bmkxKmRXsEyHQBHQhRrV9c
-         wrxA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUh4yCA0/zht1F8VzLwqBpr1898oSLk64C7B7naPMc1ppZNCa8x
-	oui9zw8A36bRfCt24YtesNvuakBsUqqbwuzywlrKzBdtRv/nJJha4JBqbM+8IaV38jnCZBanpUg
-	McAu1FzNGmIz29Lym2i69RMr/NiD9lnp8jaDuXKmpAOOm4MbzFdof7QWuT4N9KTqQXQ==
-X-Received: by 2002:a62:2e02:: with SMTP id u2mr40965629pfu.1.1556719388885;
-        Wed, 01 May 2019 07:03:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqysB6+eCd8FcUMA9rqHrQ643s9nx20VUH0Dmk087QuEmYuRgBS5z67LO8aC8mwjekvhzoGo
-X-Received: by 2002:a62:2e02:: with SMTP id u2mr40965513pfu.1.1556719387936;
-        Wed, 01 May 2019 07:03:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556719387; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
+        b=h0hFbSURyFWHmicJMaJbmV7gQzQ7E7PzN+bDCLKB1rMPl3Ol20Eqttx4jGK01gZ7JB
+         LSA3c5raNiRvZH5J5i3F0AIo2g7lNpYnMVYPbKGOu9p4yVq+Bdu0s12xxHDBzIvOB9wv
+         J4F3bdFiJFPBgMJ2S9JatbBKDE+XLVQZQKPHy5T/saisMahJOeUyP43qrDDP68GQnyn6
+         OMVy0NC8g+OCG/KBCA7iq5tXgEsPtfzln1om6XZvoIaYBJrTTEA7Lv75PpzemeqGlgpc
+         Iz8zrATarjsimtuPxTH9qlZoTiK4j6zARazX6bOvySvg7fRKUwBXCsF//Aw8E+QAWK6J
+         XP6Q==
+X-Gm-Message-State: APjAAAXC9QpddR4lSH73iwXBquBndQMFSBDDDnC/viGuom5Iw+xcvVvo
+	nX5hAAKQzIdTvZz7stnJfLOmo7S8auLlcydgvTAM+ajMI5Mc55McdNgMNi8BF8ywN8vSJQExQth
+	nBjSErBBmysReR8MTzdteBUrLCmywYTzQkcJecLmoYS4DLp7RztVesX8IfUqdVdb1Mg==
+X-Received: by 2002:a9d:7a90:: with SMTP id l16mr1601403otn.71.1556721698884;
+        Wed, 01 May 2019 07:41:38 -0700 (PDT)
+X-Received: by 2002:a9d:7a90:: with SMTP id l16mr1601353otn.71.1556721697875;
+        Wed, 01 May 2019 07:41:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556721697; cv=none;
         d=google.com; s=arc-20160816;
-        b=OakM+FJ2P8kXna3xoVT9lsjKCC1dpjZATCUr1/Q+31ZMpuquDQBhJjh6p2yMcx2T9V
-         JGhr87us7zh6fRhQzY6B+2Hf0/OYNAKAsZ2/epwP57bJzI3VGyvkxawFkmGBh7PKZFCD
-         Tb4xy/kF6E0l9HfkzGd2lsJCK7oFHlDOgj2NSWRiQPTTy4nr23ADbIB8HBp/1xcbOYYY
-         jYM9VWymYxIiaB3SqTk6fc7xHdVkR74gDVeOyCqvs9nMyAkNPvVUCinK6LhhAbtQcy7U
-         gwXa1IiH5r/DFHi3FjM+uDLXjoikMZGobQQUVpNVkqG2Bv7PVC/NTcXfBXlnqpSdcPTw
-         9SOw==
+        b=aDfeyMPRLI0gy++SPjPIKwuDzX2zEBx4QHqN/nCiPVaLjndj5zidQv4WD29otd7TtT
+         sWaGEuDzbCdadM2e/iLkpQkgkgDsViQ0RrXezzWeYe0JnGwqZ4pF81hS9wDnuFfiMyn2
+         yjLHUrfOUvl7YMePExf4tlUaUU8ImxKRfhKB1aytYeZ/S3hpsqN9AtElPjSWNtMA/Jyn
+         4YWkMoe/Nt8nmjayMhUgryGFA6vwb2jZl3jycTOpQT6UbGbkAt+1w/WVRYBMAtfO8SJR
+         C/EHD1NBsrUz//47bZ3wbbQQ2zMAdYoz+u3KErCQ9TR6sfOm1tVBWRQXrohJ6ZEPcxTw
+         MKoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:to:from;
-        bh=7DuZmk//m+TJEgso8niAEXIhBVD4m+iZUrt06/JgkP4=;
-        b=JeVUrudWvzaF4HBJqteckZaoKfhELwO/EQOOLnzm3DaeWNeE7/Oes8bNYate+A4zAj
-         4KphnX1YgK0LbFo+9hj3UR8iOhy8swjwXt/qAtFghZpGXHGzi1yBcjAy8fc0TjAgtYam
-         N7M4/RauQPTgNeh11RvMdOSknIDhzl8WuAGv970Mif2WSs80u0Lfl4ai9GqhJ/m2dAHa
-         Wix8Lqv1JqhpAbp3V3J1OozpiA+mBXGKJFgN5VAZoCYTkaxJp/Z2kHPVnG5oLMv9czmV
-         aQisqpRLWRKM1fFXg2gTLD0D3/ZXTDR7p/Yuv5BohtAszG8rn/hkvM81iSoBWxju7tHg
-         UeQg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
+        b=VvjB20HOi0um4w26BQ/ersWB2Ne+VG+FGv2eRjwoBmJDXgYfabKBA2viTcbiOlzS7Y
+         +7D7O3SqtJgne2wNEmD5kL/TeT172zNwONSyxvoEhLR9eTFA42YDiOn6IwOyCUUpaJTI
+         4Lm50tK+SdBXV6ZxN0T+dQu40x4pzXKo77g0ecpF3ohf+1VmDhMvSJBtAIbVMI5gFviD
+         qMKM6bHvbUpbBCV5B615Y9cuptTE6UPmhwkHQfGS/0E1BCFAPrQImgRXYRJTgARqna5e
+         0MYjZifyoE2LWCHIHgCIpA14RCTC/D49PuChPs1TQzEPyLMrWKACbAlWDv4bTFL3oKcs
+         6rDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.07
+       dkim=pass header.i=@google.com header.s=20161025 header.b=aIHyEAFW;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d36sor882100otb.82.2019.05.01.07.41.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 07:03:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        (Google Transport Security);
+        Wed, 01 May 2019 07:41:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:03:07 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,417,1549958400"; 
-   d="scan'208";a="145141419"
-Received: from nperf12.hd.intel.com ([10.127.88.161])
-  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:03:06 -0700
-From: Brian Welty <brian.welty@intel.com>
-To: cgroups@vger.kernel.org,
-	Tejun Heo <tj@kernel.org>,
-	Li Zefan <lizefan@huawei.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	linux-mm@kvack.org,
-	Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	dri-devel@lists.freedesktop.org,
-	David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	intel-gfx@lists.freedesktop.org,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	ChunMing Zhou <David1.Zhou@amd.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [RFC PATCH 5/5] drm/i915: Use memory cgroup for enforcing device memory limit
-Date: Wed,  1 May 2019 10:04:38 -0400
-Message-Id: <20190501140438.9506-6-brian.welty@intel.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190501140438.9506-1-brian.welty@intel.com>
-References: <20190501140438.9506-1-brian.welty@intel.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=aIHyEAFW;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
+        b=aIHyEAFW30nyWPGcEYFx3Gn3whUUd2Hh/iyA/7Ka1s/5Ffg3MT8AtjNSZswSyHh8rB
+         T5eXn2wlHoXImBKRYvOCLM0mps8jgr5wrh5+0KV8qFXgOheHS9wxgs4AsD2sLXs0SbaD
+         pUCmuD1gmqPFyr6/t4GZzQ7dC6rfngpwxWk41lBjZyfn29OGHc7ydFI8WDyPxfD+uVZh
+         lz6yhPe+lQBztzstwZ8qYWWU/JlarTejdyLGF6OBZIyzGp8oTzycCsLMQ6538UPT6c8Q
+         M/1kPAe2fIFUB9yAVJNIUQG7SrgBavmQ6iDpw372EADnYmTrJlYGKnLaJ4E1xkVoezgs
+         gzcQ==
+X-Google-Smtp-Source: APXvYqxCmSJu5SxLQ5NahHyG22cxUdtqf85OYE9oQArWJat9uvVosuxlSpiP/RxJWO+ptNtLn4HEmVZzrXf3no1rXvA=
+X-Received: by 2002:a9d:2965:: with SMTP id d92mr5539467otb.73.1556721697378;
+ Wed, 01 May 2019 07:41:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20180208021112.GB14918@bombadil.infradead.org> <20180302212637.GB671@bombadil.infradead.org>
+In-Reply-To: <20180302212637.GB671@bombadil.infradead.org>
+From: Jann Horn <jannh@google.com>
+Date: Wed, 1 May 2019 10:41:11 -0400
+Message-ID: <CAG48ez1G5tECsYj7wAGbgp5814BBZB1YHL20ZkeO9gvFprD=2Q@mail.gmail.com>
+Subject: Re: [RFC] Handle mapcount overflows
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linux-MM <linux-mm@kvack.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+	kernel list <linux-kernel@vger.kernel.org>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-i915 driver now includes DRIVER_CGROUPS in feature bits.
+[extremely slow reply]
 
-To charge device memory allocations, we need to (1) identify appropriate
-cgroup to charge (currently decided at object creation time), and (2)
-make the charging call at the time that memory pages are being allocated.
+On Fri, Mar 2, 2018 at 4:26 PM Matthew Wilcox <willy@infradead.org> wrote:
+> Here's my third effort to handle page->_mapcount overflows.
+>
+> The idea is to minimise overhead, so we keep a list of users with more
+> than 5000 mappings.  In order to overflow _mapcount, you have to have
+> 2 billion mappings, so you'd need 400,000 tasks to evade the tracking,
+> and your sysadmin has probably accused you of forkbombing the system
+> long before then.  Not to mention the 6GB of RAM you consumed just in
+> stacks and the 24GB of RAM you consumed in page tables ... but I digress.
+>
+> Let's assume that the sysadmin has increased the number of processes to
+> 100,000.  You'd need to create 20,000 mappings per process to overflow
+> _mapcount, and they'd end up on the 'heavy_users' list.  Not everybody
+> on the heavy_users list is going to be guilty, but if we hit an overflow,
+> we look at everybody on the heavy_users list and if they've got the page
+> mapped more than 1000 times, they get a SIGSEGV.
+>
+> I'm not entirely sure how to forcibly tear down a task's mappings, so
+> I've just left a comment in there to do that.  Looking for feedback on
+> this approach.
+[...]
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 9efdc021ad22..575766ec02f8 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+[...]
+> +static void kill_mm(struct task_struct *tsk)
+> +{
+> +       /* Tear down the mappings first */
+> +       do_send_sig_info(SIGKILL, SEND_SIG_FORCED, tsk, true);
+> +}
 
-For (1), see prior DRM patch which associates current task's cgroup with
-GEM objects as they are created.  That cgroup will be charged/uncharged
-for all paging activity against the GEM object.
+The mapping teardown could maybe be something like
+unmap_mapping_range_vma()? That doesn't remove the VMA, but it gets
+rid of the PTEs; and it has the advantage of working without taking
+the mmap_sem. And then it isn't even necessarily required to actually
+kill the abuser; instead, the abuser would just take a minor fault on
+the next access, and the abusers would take away each other's
+references, slowing each other down.
 
-For (2), we call mem_cgroup_try_charge_direct() in .get_pages callback
-for the GEM object type.  Uncharging is done in .put_pages when the
-memory is marked such that it can be evicted.  The try_charge() call will
-fail with -ENOMEM if the current memory allocation will exceed the cgroup
-device memory maximum, and allow for driver to perform memory reclaim.
+> +static void kill_abuser(struct mm_struct *mm)
+> +{
+> +       struct task_struct *tsk;
+> +
+> +       for_each_process(tsk)
+> +               if (tsk->mm == mm)
+> +                       break;
 
-Cc: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: dri-devel@lists.freedesktop.org
-Cc: Matt Roper <matthew.d.roper@intel.com>
-Signed-off-by: Brian Welty <brian.welty@intel.com>
----
- drivers/gpu/drm/i915/i915_drv.c            |  2 +-
- drivers/gpu/drm/i915/intel_memory_region.c | 24 ++++++++++++++++++----
- 2 files changed, 21 insertions(+), 5 deletions(-)
+(There can be multiple processes sharing the ->mm.)
 
-diff --git a/drivers/gpu/drm/i915/i915_drv.c b/drivers/gpu/drm/i915/i915_drv.c
-index 5a0a59922cb4..4d496c3c3681 100644
---- a/drivers/gpu/drm/i915/i915_drv.c
-+++ b/drivers/gpu/drm/i915/i915_drv.c
-@@ -3469,7 +3469,7 @@ static struct drm_driver driver = {
- 	 * deal with them for Intel hardware.
- 	 */
- 	.driver_features =
--	    DRIVER_GEM | DRIVER_PRIME |
-+	    DRIVER_GEM | DRIVER_PRIME | DRIVER_CGROUPS |
- 	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_SYNCOBJ,
- 	.release = i915_driver_release,
- 	.open = i915_driver_open,
-diff --git a/drivers/gpu/drm/i915/intel_memory_region.c b/drivers/gpu/drm/i915/intel_memory_region.c
-index 813ff83c132b..e4ac5e4d4857 100644
---- a/drivers/gpu/drm/i915/intel_memory_region.c
-+++ b/drivers/gpu/drm/i915/intel_memory_region.c
-@@ -53,6 +53,8 @@ i915_memory_region_put_pages_buddy(struct drm_i915_gem_object *obj,
- 	mutex_unlock(&obj->memory_region->mm_lock);
- 
- 	obj->mm.dirty = false;
-+	mem_cgroup_uncharge_direct(obj->base.memcg,
-+				   obj->base.size >> PAGE_SHIFT);
- }
- 
- int
-@@ -65,19 +67,29 @@ i915_memory_region_get_pages_buddy(struct drm_i915_gem_object *obj)
- 	struct scatterlist *sg;
- 	unsigned int sg_page_sizes;
- 	unsigned long n_pages;
-+	int err;
- 
- 	GEM_BUG_ON(!IS_ALIGNED(size, mem->mm.min_size));
- 	GEM_BUG_ON(!list_empty(&obj->blocks));
- 
-+	err = mem_cgroup_try_charge_direct(obj->base.memcg, size >> PAGE_SHIFT);
-+	if (err) {
-+		DRM_DEBUG("MEMCG: try_charge failed for %lld\n", size);
-+		return err;
-+	}
-+
- 	st = kmalloc(sizeof(*st), GFP_KERNEL);
--	if (!st)
--		return -ENOMEM;
-+	if (!st) {
-+		err = -ENOMEM;
-+		goto err_uncharge;
-+	}
- 
- 	n_pages = div64_u64(size, mem->mm.min_size);
- 
- 	if (sg_alloc_table(st, n_pages, GFP_KERNEL)) {
- 		kfree(st);
--		return -ENOMEM;
-+		err = -ENOMEM;
-+		goto err_uncharge;
- 	}
- 
- 	sg = st->sgl;
-@@ -161,7 +173,11 @@ i915_memory_region_get_pages_buddy(struct drm_i915_gem_object *obj)
- err_free_blocks:
- 	memory_region_free_pages(obj, st);
- 	mutex_unlock(&mem->mm_lock);
--	return -ENXIO;
-+	err = -ENXIO;
-+err_uncharge:
-+	mem_cgroup_uncharge_direct(obj->base.memcg,
-+				   obj->base.size >> PAGE_SHIFT);
-+	return err;
- }
- 
- int i915_memory_region_init_buddy(struct intel_memory_region *mem)
--- 
-2.21.0
+> +       if (down_write_trylock(&mm->mmap_sem)) {
+> +               kill_mm(tsk);
+> +               up_write(&mm->mmap_sem);
+> +       } else {
+> +               do_send_sig_info(SIGKILL, SEND_SIG_FORCED, tsk, true);
+> +       }
+
+Hmm. Having to fall back if the lock is taken here is kind of bad, I
+think. __get_user_pages_locked() with locked==NULL can keep the
+mmap_sem blocked arbitrarily long, meaning that an attacker could
+force the fallback path, right? For example, __access_remote_vm() uses
+get_user_pages_remote() with locked==NULL. And IIRC you can avoid
+getting killed by a SIGKILL by being stuck in unkillable disk sleep,
+which I think FUSE can create by not responding to a request.
+
+> +}
+> +
+> +void mm_mapcount_overflow(struct page *page)
+> +{
+> +       struct mm_struct *entry = current->mm;
+> +       unsigned int id;
+> +       struct vm_area_struct *vma;
+> +       struct address_space *mapping = page_mapping(page);
+> +       unsigned long pgoff = page_to_pgoff(page);
+> +       unsigned int count = 0;
+> +
+> +       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff + 1) {
+
+I think this needs the i_mmap_rwsem?
+
+> +               if (vma->vm_mm == entry)
+> +                       count++;
+> +               if (count > 1000)
+> +                       kill_mm(current);
+> +       }
+> +
+> +       rcu_read_lock();
+> +       idr_for_each_entry(&heavy_users, entry, id) {
+> +               count = 0;
+> +
+> +               vma_interval_tree_foreach(vma, &mapping->i_mmap,
+> +                               pgoff, pgoff + 1) {
+> +                       if (vma->vm_mm == entry)
+> +                               count++;
+> +                       if (count > 1000) {
+> +                               kill_abuser(entry);
+> +                               goto out;
+
+Even if someone has 1000 mappings of the range in question, that
+doesn't necessarily mean that there are actually any non-zero PTEs in
+the abuser. This probably needs to get some feedback from
+kill_abuser() to figure out whether at least one reference has been
+reclaimed.
+
+> +                       }
+> +               }
+> +       }
+> +       if (!entry)
+> +               panic("No abusers found but mapcount exceeded\n");
+> +out:
+> +       rcu_read_unlock();
+> +}
+[...]
+> @@ -1357,6 +1466,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>         /* Too many mappings? */
+>         if (mm->map_count > sysctl_max_map_count)
+>                 return -ENOMEM;
+> +       if (mm->map_count > mm_track_threshold)
+> +               mmap_track_user(mm, mm_track_threshold);
+
+I think this check would have to be copied to a few other places;
+AFAIK you can e.g. use a series of mremap() calls to create multiple
+mappings of the same file page. Something like:
+
+char *addr = mmap(0x100000000, 0x1000, PROT_READ, MAP_SHARED, fd, 0);
+for (int i=0; i<1000; i++) {
+  mremap(addr, 0x1000, 0x2000, 0);
+  mremap(addr+0x1000, 0x1000, 0x1000, MREMAP_FIXED|MREMAP_MAYMOVE,
+0x200000000 + i * 0x1000);
+}
+
+>         /* Obtain the address to map to. we verify (or select) it and ensure
+>          * that it represents a valid section of the address space.
+> @@ -2997,6 +3108,8 @@ void exit_mmap(struct mm_struct *mm)
+>         /* mm's last user has gone, and its about to be pulled down */
+>         mmu_notifier_release(mm);
+>
+> +       mmap_untrack_user(mm);
+> +
+>         if (mm->locked_vm) {
+>                 vma = mm->mmap;
+>                 while (vma) {
+
+I'd move that call further down, to reduce the chance that the task
+blocks after being untracked but before actually dropping its
+references.
 
