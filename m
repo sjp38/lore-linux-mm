@@ -2,211 +2,122 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD901C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 15:21:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 822A4C43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 16:07:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6BAFF21670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 15:21:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 27C212089E
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 16:07:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="BsP6AnL/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BAFF21670
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="lhopa3nn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27C212089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF2CF6B0006; Wed,  1 May 2019 11:21:41 -0400 (EDT)
+	id 9116C6B0003; Wed,  1 May 2019 12:07:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA2AB6B0008; Wed,  1 May 2019 11:21:41 -0400 (EDT)
+	id 89B086B0005; Wed,  1 May 2019 12:07:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A92976B000A; Wed,  1 May 2019 11:21:41 -0400 (EDT)
+	id 762C66B0006; Wed,  1 May 2019 12:07:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 741936B0006
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 11:21:41 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z7so11086748pgc.1
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 08:21:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3CA2D6B0003
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 12:07:20 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id z12so11156840pgs.4
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 09:07:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=i/eVb1RrPCrDgsQYwTIls1vT7PGrIbuHhUptmv1sc2U=;
-        b=G/LWOcc1m7XMMI7ZBIoxfI+b25uhbMlQksZHvy46rZo7AOe5mxJTUsQ1mWM8JD1K2k
-         QW9xWiWoPaYMIphbfNWJcJg9ppTyNZTJQ8LZVLVl/1vwEPvGM4Z4aL3hzlEjherSdJVW
-         hwh2mRTemu8J68646VKNNdO8l89/glv+x9OZmFCjtloYDa0c1gKgyPCzf8veZDGWP8+i
-         owwRBXwIh9sQZPjTKdSFG9rVyuONRhOZbpkHb1C+I8uxLH4nOkACff3rwQOrA28lbvPx
-         1KCRr9e+fdBouMqY7USiABX7K1UPj7hcSJ3G+M8ELt4lSJ+dXLy5/2vybL3OvR11HN8s
-         1eHw==
-X-Gm-Message-State: APjAAAUYOkxjs3Crg5q/tOqdzlfJsNGaCtgjiDYB35UyL4k3j25PvO76
-	HH6haQIPm6wKcRze1umXCK5NcE7ipc0MrZGgDTJvAV2DYiH4wWlpd02PBcnujnIP0wCVcUyVpOt
-	V1b31/nh+ArkIl1oNZZUioPeTeRelyw9CIPDhKr+m2AZTwoRMBeHBovsqW035DA+THQ==
-X-Received: by 2002:aa7:800e:: with SMTP id j14mr77731328pfi.157.1556724101117;
-        Wed, 01 May 2019 08:21:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyojObBf52HMWfgILyCPeEg/BT33ycVBndSzdUtwHYJyVzlPTte5fZLP+J2Z0P4ruFbEh9z
-X-Received: by 2002:aa7:800e:: with SMTP id j14mr77731253pfi.157.1556724100118;
-        Wed, 01 May 2019 08:21:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556724100; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=BmsOCWOL+giQZS37PMaeMlSUUcjDPMjoPtCe2tkT52w=;
+        b=Zqt/2eyR82mqVagnC5N7f1Rm8SUhe42ijRx9fpJL55eNQVkeiDrRbj/SLG4ou0U8ff
+         1xlLINuXkzjj0V8dXLZQPPSxgUObuiLLMYNpz5VOLAU6hB6WWtNz8VVVxi1o+n17lPf6
+         fROytcJwXnD02fusp5T3RuKz3E/ddqLZJdiaDSDyyvgbyRJZxOEiOxhkACt81j5tCyzm
+         vwg87E1mO+1/RLN2KA5YUn9CxSz88cloyqODwkyETjHdSdbWkxKufQPArpKeVWWHYaWu
+         iNQM704M1Uyo+n9xOeYz6n3tIsmu4AE9Hsm41HOWGJ9YLBBOGQCJyW7VM6C0I8su2iN4
+         B+kQ==
+X-Gm-Message-State: APjAAAX3h1dizzO20SG72U6fRl4zpK0e8xcbJ0WVTNwbnSJIKHOxbB5m
+	Sui/TevtIuMgm39QtlmrkXcrv1ft2DY0yQpA6pRDZg7Z0n3S7+i+zB8DYjP/7+6pkUB/o/+Z/MK
+	+Iz+PpyLkyTmo/5M9ovzUmrZBnAqCWwEWQmTtGKAUGzri4+7No+VMg9gCGEOQ0VY=
+X-Received: by 2002:a17:902:4101:: with SMTP id e1mr80009361pld.25.1556726839904;
+        Wed, 01 May 2019 09:07:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqws5efjH6lMEnf/c0vRgTmEc7tt+RVWg/rY/C+qbE/PuriPCmEwkpPIv8bNSDl5X5aAkZGL
+X-Received: by 2002:a17:902:4101:: with SMTP id e1mr80009255pld.25.1556726838857;
+        Wed, 01 May 2019 09:07:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556726838; cv=none;
         d=google.com; s=arc-20160816;
-        b=I13Ns4ZfNB1lUBizuyvaKvIb5uFN4WXmldAnQmgIxijUJ0AWAKOtMJxTUfZjgOvQ9Z
-         GFdSMJfX9OHFtC5BYDLzmd1fECRbuJaLAKd9MOprAclRDFjVVkGALJy6WewAL8+RcV6N
-         pDAeA8gkNOFGV/99HhZgNZNfo/AQDnfmAxB0g4oB5Lev/lRK4+F8JjqB9ZarVbKQKSmo
-         IDo3mAIuWrZvn6lEZjLribd45SLGvCCvLFcaUkvGfvV4V+NmwiE77wX0FjCLwxF5dKzG
-         B/uQ0ygNptj1Ryi8TfXPLEl53JWynGLB1ATXKiBoN0oxZ1n4ISlU0QwrZpWFlX8+l+st
-         iMrg==
+        b=UHmEdbk9/8Pw0zRcLTNAsCJ9d6yMhCn7grmmNLIudV2EAP40YcoEhYWEPJRLC2DYuP
+         hkCM/QAiWKNrP+fnogTKYeJtj6z/8rE5od+uhJiKPtavI9eyUzaUvMSi1YSnAxkcoua6
+         7WyqT39OkyGG0VMftkDFtOrbPBwWTGTYTdWjb96I81hnwO1I/EupOOKocQqcGOyICvJ9
+         m2V8itqusb+lCG0oV8XMSTKHYdaMzeXVAsUjQAxMoJbO5pArUjR3c2tCmse2VZVxPBx0
+         czpsEbT+mxxMSnTSzKyRKzHlIUFw9nLanvXckxPpJdYh3lgYxqRpZJxHFN7tDzlqBg0B
+         gQpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=i/eVb1RrPCrDgsQYwTIls1vT7PGrIbuHhUptmv1sc2U=;
-        b=GIBeZfyQ53h3d6sRxVlNnepXQexAYkcVI1+S0V8kOVfd43/uU+qZvMqWDGS+ngdzIm
-         u7njKPe8J0hBvzWGK7tps813gD/Mb9CUZSK26jAURm+XP47OAPy5Uqh0ITh8/QGvojUm
-         Qt5xCZBoOsU8u2MpIbyyW6Ac7HMGiQgEVVgQMo7eYxxdz2aElm/pfUFJcm2WDlAU5ZZT
-         HvRFWpO9IeQS7uu6DdSj+AYzlkadyTnGzhXh1MJ9j+oqUHZN515pWclNtv8PbtX6bIJc
-         P9fSi/03SciJa38YTuUT5pWpykVbAt0Jwy/SS3YvALZCvs6dH4UkPJZpEbnIVqYryO/j
-         Kh0g==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=BmsOCWOL+giQZS37PMaeMlSUUcjDPMjoPtCe2tkT52w=;
+        b=WQ4lmzPShnDLxIGREOYN43hGuAyzXvA5h2iLX6xZRvrNLggw2WVv8+fClIxHs3oepS
+         NmamizmCPugPjxl2zCdg1SR1cCHGZh/2H/5UvyHNjL3ejMQOdDGq2TEexQiDmDnjAwiy
+         DdXnVgOWhx9aUGRelGbeI6RkzkVZKr1LjRFVEhia1Jhim3poiTpBG4Xns3JWY07+jo2W
+         UNs0aSoQXlf+KZU0hT2Twcshymzx+Z2s0VKr4svC+gUwSTI1O+9ozOAIckxT9CUEP79G
+         mND2r2rSAFVCMgzTUdalftLOE3ynXxROMQPnxXsftrdem4oWs7Ry/V+OeQdcN8JZpBBu
+         XgHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="BsP6AnL/";
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 30si29087931plc.8.2019.05.01.08.21.39
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lhopa3nn;
+       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a11si12969835pgq.180.2019.05.01.09.07.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 08:21:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 01 May 2019 09:07:18 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="BsP6AnL/";
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x41ExFjM181642;
-	Wed, 1 May 2019 15:21:05 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=i/eVb1RrPCrDgsQYwTIls1vT7PGrIbuHhUptmv1sc2U=;
- b=BsP6AnL/ORY8ld331R4h0ac65YxS73XkP57Vczvh6L/OUPqAHMOzeF1ujrkUCRrgatxc
- jebYYcNYN8gNQ1pZZRlBgRtNrMTisjdd42nTg+Ycd9UXFg6tu7mpm/FPlvNziKb4GHgk
- Ev/rAHicr5ObHUMRbubGeDPRgTwGg3FWy0K33/iF0u2XsYkT68SDeK3uZU5y4oVZ33kj
- +ktkW9kzO8wVZMrVdA8Y+QMoCoV8U1+8O4GynSn3BODBw+OLs3zxFhsPGV8DCVHOV/rL
- f8jPd2DGbY/dStdvsDL4ViC8D5ksbEkNxvDpzU9xr8j+5etNJkZgs8hgSt7qW6slgjfr KA== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2s6xhyk8g7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 01 May 2019 15:21:04 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x41FIh2M030628;
-	Wed, 1 May 2019 15:19:04 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2s6xhgjet8-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 01 May 2019 15:19:03 +0000
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x41FIjxB018467;
-	Wed, 1 May 2019 15:18:46 GMT
-Received: from [192.168.1.16] (/24.9.64.241)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 01 May 2019 08:18:45 -0700
-Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
- Ownership (XPFO)
-To: Waiman Long <longman@redhat.com>, Ingo Molnar <mingo@kernel.org>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, keescook@google.com,
-        konrad.wilk@oracle.com,
-        Juerg Haefliger <juerg.haefliger@canonical.com>,
-        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-        jcm@redhat.com, boris.ostrovsky@oracle.com,
-        iommu@lists.linux-foundation.org, x86@kernel.org,
-        linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        linux-security-module@vger.kernel.org,
-        Khalid Aziz <khalid@gonehiking.org>,
-        Linus Torvalds <torvalds@linux-foundation.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Andy Lutomirski <luto@kernel.org>,
-        Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave@sr71.net>,
-        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-        Arjan van de Ven <arjan@infradead.org>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-References: <cover.1554248001.git.khalid.aziz@oracle.com>
- <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
- <20190417161042.GA43453@gmail.com>
- <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
- <35c4635e-8214-7dde-b4ec-4cb266b2ea10@redhat.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <4a47cf86-a05d-3de5-0320-eda06101cc75@oracle.com>
-Date: Wed, 1 May 2019 09:18:41 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lhopa3nn;
+       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:Content-Type:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=BmsOCWOL+giQZS37PMaeMlSUUcjDPMjoPtCe2tkT52w=; b=lhopa3nnuzOqrafzg9Kkz+1vj
+	zRcrs1JNVduVklckswJUOJDeGXueBDJQqfe1bSXKFFYz+EsgYkSK7QTDiq3dyTN5Zu8rRkrb/ofe5
+	iy9J+NYQ3/g3/e7Zat5sBySIWPF6fPyuj2jZ6mPvZrOwkVDcX0us/ysxTVD3wQzLoAtP/7/+Ys2/w
+	pPThqLdy0UCS/EfbjlATohXf8BTo98B+eFvbYkSIsp0MfV8tc20cD0hvWpavUXG2l7N44tjLh3AQv
+	JF2JvKvOFoXfDZCheLkQDFGqx0qyb9unfIa7+drB+xOUy2K53E4eWNNsYhLcV5F7gFtvRxhMTTIhR
+	NT/oC7BdA==;
+Received: from adsl-173-228-226-134.prtc.net ([173.228.226.134] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hLrlJ-0008Km-QG; Wed, 01 May 2019 16:07:14 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sami Tolvanen <samitolvanen@google.com>,
+	Kees Cook <keescook@chromium.org>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	linux-mtd@lists.infradead.org,
+	linux-nfs@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: fix filler_t callback type mismatches
+Date: Wed,  1 May 2019 12:06:32 -0400
+Message-Id: <20190501160636.30841-1-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <35c4635e-8214-7dde-b4ec-4cb266b2ea10@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905010096
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9243 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905010096
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/1/19 8:49 AM, Waiman Long wrote:
-> On Wed, Apr 03, 2019 at 11:34:04AM -0600, Khalid Aziz wrote:
->> diff --git a/Documentation/admin-guide/kernel-parameters.txt
-> b/Documentation/admin-guide/kernel-parameters.txt
->=20
->> index 858b6c0b9a15..9b36da94760e 100644
->> --- a/Documentation/admin-guide/kernel-parameters.txt
->> +++ b/Documentation/admin-guide/kernel-parameters.txt
->> @@ -2997,6 +2997,12 @@
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 nox2apic=C2=A0=C2=A0=C2=A0 [X86-64,APIC=
-] Do not enable x2APIC mode.
->>
->> +=C2=A0=C2=A0=C2=A0 noxpfo=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 [=
-XPFO] Disable eXclusive Page Frame Ownership (XPFO)
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 wh=
-en CONFIG_XPFO is on. Physical pages mapped into
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 us=
-er applications will also be mapped in the
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ke=
-rnel's address space as if CONFIG_XPFO was not
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 en=
-abled.
->> +
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 cpu0_hotplug=C2=A0=C2=A0=C2=A0 [X86] Tu=
-rn on CPU0 hotplug feature when
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 CONFIG_BO OTPARAM_HOTPLUG_CPU0 is off.
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 Some features depend on CPU0. Known dependencies are:
->=20
-> Given the big performance impact that XPFO can have. It should be off b=
-y
-> default when configured. Instead, the xpfo option should be used to
-> enable it.
-
-Agreed. I plan to disable it by default in the next version of the
-patch. This is likely to end up being a feature for extreme security
-conscious folks only, unless I or someone else comes up with further
-significant performance boost.
-
-Thanks,
-Khalid
+Casting mapping->a_ops->readpage to filler_t causes an indirect call
+type mismatch with Control-Flow Integrity checking. This change fixes
+the mismatch in read_cache_page_gfp and read_mapping_page by adding
+using a NULL filler argument as an indication to call ->readpage
+directly, and by passing the right parameter callbacks in nfs and jffs2.
 
