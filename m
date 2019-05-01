@@ -2,136 +2,170 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED26FC43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 18:25:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BBEEC004C9
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 18:38:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6DF420645
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 18:25:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="hu/9UibJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6DF420645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id 4CA8A20652
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 18:38:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CA8A20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 379866B0005; Wed,  1 May 2019 14:25:40 -0400 (EDT)
+	id A9C5F6B0005; Wed,  1 May 2019 14:38:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 329D96B0006; Wed,  1 May 2019 14:25:40 -0400 (EDT)
+	id A4CB46B0006; Wed,  1 May 2019 14:38:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2195D6B0007; Wed,  1 May 2019 14:25:40 -0400 (EDT)
+	id 93AD46B0007; Wed,  1 May 2019 14:38:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F3F3C6B0005
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 14:25:39 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id o64so2071950uao.5
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 11:25:39 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC6D6B0005
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 14:38:58 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id z34so17786583qtz.14
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 11:38:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=CL8fj/1WvD1XOCsOkJZLbwr2FkrpulNbESBS+POuiy4=;
-        b=p45yzwICk6qpLcD1vdvSIuHiP4rzSez95ns6VWsMzy/1o1B6AImn5VnktjIcUXHW1h
-         mYLcn2ykMVAYZAylZTKdNdAYHeB6o6DaQNf/c5cT2s1QcD5gbHuhqpmzTUoGZEX0bOQm
-         suVoM5sAy1xdXlvOFkIbpLTcw0p0bbWSVIpQhvRzxYnI6t8Pla5ZJbN5oJoXXfQGGwiI
-         LuJVPD33vANmrbD6BPFEidmmDJTZueCPSz1ABAAYkA5zzysjhVTCT5XMUgZWQ5QZN/+H
-         Uc2p6BtAPEUqmgh8kqFZtZ1lyEBA5fkssSMTCy+jVG8+2M6WPXmcoBNJtbS356/LoDfh
-         +1Ug==
-X-Gm-Message-State: APjAAAV7tDItq4JGAFhVg/w1DyKuBl+1YnRKtsV23/yIzo3LSosoXqjD
-	Ou3MDn78Gp3PE9LLzFEmLcs8UUjOD1b3Y+eGelfITpe/S7BzH340sJM7rAqPCmd6CdoPs26Whe7
-	nNXX9j25xVxk099ba1YTgsOv+rt54XHEdQ/Y3BbdWeU5PRdnVFcmEaZo5QKpVXOC8kw==
-X-Received: by 2002:a1f:f03:: with SMTP id 3mr24021765vkp.2.1556735139531;
-        Wed, 01 May 2019 11:25:39 -0700 (PDT)
-X-Received: by 2002:a1f:f03:: with SMTP id 3mr24021735vkp.2.1556735138914;
-        Wed, 01 May 2019 11:25:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556735138; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=AZoVE/JD+p4pvxMUbqDDVl6DA0HD9mSHeUYKfscpr1E=;
+        b=HKzswU3MIwlLt/QGyPC8Zk+unazYNKks5SxSangT7ID/UOEHq1vmHsvmKVfYeG72/+
+         DC+q+oIRVCSam9u3Eub/9kv1mZkWkGpBgreYwe7zthAC3tUPOzJzy8ABJCh9ioRZFkDM
+         gztdLBht5dI2WDy9UhV2du/arEwqRrNkjsLl8A3g32OKw22BL6JjLOY6ldJ617N84L7L
+         5vchFX7rZXOb65ocpX2Cu2TEGvbWUgeSSCqqW9Irea+oV9puu5QUgAArd2ZNQMjN7v7p
+         liKr4FhehyKkcwxPaROD5fJ1wMD2BnugDnhUJg5zh7ljpNM3wnCo3JTDKwFRTojjjn2I
+         8TJA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXJZ3UH2waqzOeZfKUsxsldEWxVqeT7N4l8A3jzWkCu4K6e/pxP
+	fmyCWrb7uFaB4ipEa6BVSYIE04hX4531OcGDpcJbF5DWw9KoBG0TiVlx8ihPXOGA8J0iIcAT04F
+	sbJuqQ1s8lcrUXbXkvnN2H3WE81TPbnW2wnOktt6nCSwiTLStP7vhc7g3bjoTQ6E8xw==
+X-Received: by 2002:a37:4b03:: with SMTP id y3mr58437919qka.260.1556735938237;
+        Wed, 01 May 2019 11:38:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrP4yOqkx7OyaOt3BdsC/73956CV1KBnMjDcj2PjnCKQsfuEYKJ5VaoFJBO5GwkoHV4eOK
+X-Received: by 2002:a37:4b03:: with SMTP id y3mr58437875qka.260.1556735937490;
+        Wed, 01 May 2019 11:38:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556735937; cv=none;
         d=google.com; s=arc-20160816;
-        b=tyCFNxWtFP9ru2jKDdfJXtcYndyuby5yMPcRC7o2rTq1VH2gmTWsJuAsCs5zO278k9
-         HrxF9iGx1hTRnDphFxc9Oo4EWOGYA768JLuIkMerGDG0qTWOCGP2Oz2JOZswjZoFliIH
-         6OfSUdcXqBTSjt8wBydkdJ7BJaEwDVbYrTWLKktNoyFYucumxMmM3BLpGHGOLiPJbl6y
-         Sm606kl5TFQcXoa1TKsghoh0ZmvcE4X3AVc9ViR5lQ0e86eGxAxkalZO6zfYx+sw0qq8
-         gCoa64fhFpmqc6GG2F3+0b8XYj4bMzNfcnUwQluWCJ7tDGAgJAmHyjgne7WeQqPhAeMT
-         LMoQ==
+        b=mBJQVdi7duTXCfP+gUU8ALUWFqtgQ5JzlzWM2Rbik47m5Fqo5Rrslc63x7a06aHv6G
+         daji1/3X82nwbMqhrN8jaZlGrLafQ2Agy56EKbwdOAXxX5XBgkWvASb/cXUHT8zU2+I2
+         ox5JCmR6DS32WNSsMt6sn27fgZQ33AsuEQBwKwtp5kL/pT4o8lFu9jBNMufajHL2fhNC
+         qFNV8auogMgUCtcV+0LpeOj8yTZi3MouLQZE53RNO4qrYM3pkuPqwlG34zkykN//Fw/t
+         XKR9VgbOq2fOrUyKopqN/AgEzdOiamVMDLKLEAHMoNFPw3cMzrIqAOQUqm4fWXucSOQ0
+         EvCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=CL8fj/1WvD1XOCsOkJZLbwr2FkrpulNbESBS+POuiy4=;
-        b=JBViMRxSVLud9qW5UjJcw1Y7R+CrqrBCNnYFZKUKkogyolBzl4chMTz1QEeG3qvCF+
-         gsZ44U9am+w50KszrhPIqOhZBM8zor82n0hEXZOSbcjjJUJ+wlpH+qHkyt5hzITqqPcC
-         ysOHIhioaRF522kx4JjIbSNTqPpxpI81P3LeUPr+j1i9vrMo9+XtauIk5ds/iRzc/ewG
-         MZJtptbXC51v+IhDhvjim/4BOZWfF2uHQGvcixJfvyJDAiIJd5paRbi6Vo43KVp3x0sm
-         s8Vmz69qOLMK2uTnHM2SLTL6KETW7IBlil0Cc646Id9iSoLHzCE5FmmCHGAI+KX73IaM
-         RFQA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=AZoVE/JD+p4pvxMUbqDDVl6DA0HD9mSHeUYKfscpr1E=;
+        b=lgcYcvV1QJdR59Ji1u2ajirZnOV/VhZM7apfOAcLHmiKblY7Q5dvSade2r6Pa7BRWG
+         /h5xZT7l4DyartWLsIw8o5iN8pxFfl24Duw0hkKu/8m4kRoVwrrtxfHQ+45smmQ8x6wV
+         mrLmp/q1ihuKMAALKzArv4zhGViJx+pgXOkloLQNz2D0ABgB0kz+Mj3DKc5rwdZynHcB
+         VfNHw+1IeqRIKy3WSvoQALCRsYgqIodTfG5EbQZa1Ni99tANhGbfnki3HoucQQAxU5Ya
+         m4gZWvsn5MEtvAjT32vXF0dsZCs8r2JCjcFQ5Pqs1sm2ERhq+Sk5YWkDlpowy5gtjzzL
+         T1NQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="hu/9UibJ";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d16sor8842445vkf.53.2019.05.01.11.25.38
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z37si7931377qvc.90.2019.05.01.11.38.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 May 2019 11:25:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 May 2019 11:38:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="hu/9UibJ";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=CL8fj/1WvD1XOCsOkJZLbwr2FkrpulNbESBS+POuiy4=;
-        b=hu/9UibJbGHN4C66jypCqfrbpjHMgUcaeYXOGUNbli3BiwRurGxcpdiXWQHRQ5i06U
-         Y11FqcRwwKe4Azn+8nSK+mXnIP8Lr8lTLiTGRZ3nr/fhzubOnGjrJnrDWU/Dpet3fmLk
-         YEKBuYVr+e4TorKS95zgT9WAQiACfYixLAVkA=
-X-Google-Smtp-Source: APXvYqwCLuIHzxo2se7JImhbpxGI5cR9ju5C7SdGfMXMdcy3owZ7NWRdWsDMkeOJo2KpMHvTiJF8vw==
-X-Received: by 2002:a1f:2fc7:: with SMTP id v190mr39074075vkv.84.1556735137713;
-        Wed, 01 May 2019 11:25:37 -0700 (PDT)
-Received: from mail-vs1-f46.google.com (mail-vs1-f46.google.com. [209.85.217.46])
-        by smtp.gmail.com with ESMTPSA id u3sm6012021vsi.2.2019.05.01.11.25.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 11:25:36 -0700 (PDT)
-Received: by mail-vs1-f46.google.com with SMTP id j184so10279068vsd.11
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 11:25:36 -0700 (PDT)
-X-Received: by 2002:a67:f849:: with SMTP id b9mr39824551vsp.188.1556735135694;
- Wed, 01 May 2019 11:25:35 -0700 (PDT)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 935233082E6A;
+	Wed,  1 May 2019 18:38:56 +0000 (UTC)
+Received: from redhat.com (ovpn-126-26.rdu2.redhat.com [10.10.126.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C3D031001DE1;
+	Wed,  1 May 2019 18:38:54 +0000 (UTC)
+Date: Wed, 1 May 2019 14:38:51 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH] mm/hmm: add ARCH_HAS_HMM_MIRROR ARCH_HAS_HMM_DEVICE
+ Kconfig
+Message-ID: <20190501183850.GA4018@redhat.com>
+References: <20190417211141.17580-1-jglisse@redhat.com>
 MIME-Version: 1.0
-References: <20190501160636.30841-1-hch@lst.de>
-In-Reply-To: <20190501160636.30841-1-hch@lst.de>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 1 May 2019 11:25:23 -0700
-X-Gmail-Original-Message-ID: <CAGXu5jKMswkBy-kEk7mb01v3oJADvGyhRf6JMh7BsjUKsme9QA@mail.gmail.com>
-Message-ID: <CAGXu5jKMswkBy-kEk7mb01v3oJADvGyhRf6JMh7BsjUKsme9QA@mail.gmail.com>
-Subject: Re: fix filler_t callback type mismatches
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sami Tolvanen <samitolvanen@google.com>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Linux mtd <linux-mtd@lists.infradead.org>, 
-	"open list:NFS, SUNRPC, AND..." <linux-nfs@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190417211141.17580-1-jglisse@redhat.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 01 May 2019 18:38:56 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 1, 2019 at 9:07 AM Christoph Hellwig <hch@lst.de> wrote:
->
-> Casting mapping->a_ops->readpage to filler_t causes an indirect call
-> type mismatch with Control-Flow Integrity checking. This change fixes
-> the mismatch in read_cache_page_gfp and read_mapping_page by adding
-> using a NULL filler argument as an indication to call ->readpage
-> directly, and by passing the right parameter callbacks in nfs and jffs2.
+Andrew just the patch that would be nice to get in 5.2 so i can fix
+device driver Kconfig before doing the real update to mm HMM Kconfig
 
-Nice. This looks great; thanks for looking at this. For the series
-(including patch 5):
-
-Reviewed-by: Kees Cook <keescook@chromium.org>
-
--- 
-Kees Cook
+On Wed, Apr 17, 2019 at 05:11:41PM -0400, jglisse@redhat.com wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
+> 
+> This patch just add 2 new Kconfig that are _not use_ by anyone. I check
+> that various make ARCH=somearch allmodconfig do work and do not complain.
+> This new Kconfig need to be added first so that device driver that do
+> depend on HMM can be updated.
+> 
+> Once drivers are updated then i can update the HMM Kconfig to depends
+> on this new Kconfig in a followup patch.
+> 
+> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> Cc: Guenter Roeck <linux@roeck-us.net>
+> Cc: Leon Romanovsky <leonro@mellanox.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  mm/Kconfig | 16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+> 
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 25c71eb8a7db..daadc9131087 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -676,6 +676,22 @@ config ZONE_DEVICE
+>  
+>  	  If FS_DAX is enabled, then say Y.
+>  
+> +config ARCH_HAS_HMM_MIRROR
+> +	bool
+> +	default y
+> +	depends on (X86_64 || PPC64)
+> +	depends on MMU && 64BIT
+> +
+> +config ARCH_HAS_HMM_DEVICE
+> +	bool
+> +	default y
+> +	depends on (X86_64 || PPC64)
+> +	depends on MEMORY_HOTPLUG
+> +	depends on MEMORY_HOTREMOVE
+> +	depends on SPARSEMEM_VMEMMAP
+> +	depends on ARCH_HAS_ZONE_DEVICE
+> +	select XARRAY_MULTI
+> +
+>  config ARCH_HAS_HMM
+>  	bool
+>  	default y
+> -- 
+> 2.20.1
+> 
 
