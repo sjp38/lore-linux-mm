@@ -2,136 +2,123 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10CF6C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 10:33:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E317C43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 13:37:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ACE5B21670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 10:33:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACE5B21670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id CF68C21670
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 13:37:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ekXutGok"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF68C21670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A0B86B0005; Wed,  1 May 2019 06:33:02 -0400 (EDT)
+	id 208826B0003; Wed,  1 May 2019 09:37:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5516C6B0006; Wed,  1 May 2019 06:33:02 -0400 (EDT)
+	id 1DECD6B0005; Wed,  1 May 2019 09:37:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44BC86B0007; Wed,  1 May 2019 06:33:02 -0400 (EDT)
+	id 0CF536B0006; Wed,  1 May 2019 09:37:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 196456B0005
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 06:33:02 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n5so10698227pgk.9
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 03:33:02 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C96396B0003
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 09:36:59 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id a5so8847489plh.14
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 06:36:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=NE/e8S6yVOHYr45xl7ghh5QfgpBa7EZjiyjE2pu3nUc=;
-        b=baRd/9bkEtiGOx9BCzCeTF3PCkNmpBldYcsw6jQ6xqa9fJ6DLAsIcchZP/HDYvL5Cn
-         Tb98FVbguCRgKQhsVZ1QcaBUV3a73iLWfew2Mu8d3hcDlndY5sLYJK8NYHF6haWc3cV2
-         MeI2fmJ6w8Txp50Q369O7A3hTiTHJh3eN+CsTcty5CsGHuu39BujGXr/JFOX4RjMUs8b
-         r7RyVUdtlLR/1rIHWIRswfkIfdMUyqXCUM+aX1DFPnPzC8j3uiy/oS+jxz8BpVstCXHy
-         b7zdO5hoB/0DEWtrgceRrQSzMbmtmrTcD5qw5SGIrfx+4Sthig1CiKK9BWrlhNF5ahQR
-         QTUw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: APjAAAWlID8SmAO4h296B3A0iZUfQ//QXWlnBGqvHUJ5m/3vE6mgJn9D
-	xZFojLaeebWouFxFTH6KtHIgTnw44o1NbBqEJOUeNFBsn8qTIvCHqOFu4c+XlPGESFzUujTn3Z6
-	HAyO+BrZPKLcv29HKTl9H/3ycOAGE5G7WE9D/meAM11P4Qx5p+S7APiv+vxxHcoc=
-X-Received: by 2002:a17:902:8bca:: with SMTP id r10mr30788405plo.67.1556706781781;
-        Wed, 01 May 2019 03:33:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZaUfaMfxS92fXsfuZFfgf2xCmdfj9cFTf0fbEMJ6IM7UWQtqybVRvjNedczNg524fS/YS
-X-Received: by 2002:a17:902:8bca:: with SMTP id r10mr30788331plo.67.1556706780862;
-        Wed, 01 May 2019 03:33:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556706780; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=;
+        b=Tiz6jtJOcSdu6qLYk7vuioWVJ8N2uWhS1zYoyTE94zEHeFg3rHeB7F/3+GPj1Ja/nq
+         ca4vAYmhSgkoPZa8rjUg4e0FwI6sFLIY7RsKQMsJM7Tuka2mk1z1acikRBSLOo5b0mIS
+         tZW9WQMLCfg24FK+5TirNcFRsIcEvnH+E+7j/145KrRyPmKTy/fO23Cc3ZEp2AmAdhu+
+         OShx9zRWdlGHyidF+H9hwE4KVI4/x2lZWvk8yYfuRDjmoKu6efbCFbhcDTR9T6Kxu6rI
+         xLBTtsoeXL2++wwh0u4vXH4w4Q93GJBWuTkTNqOcoJlx3qMTUocLL7sE9vyNIk7Z40gU
+         0XhQ==
+X-Gm-Message-State: APjAAAXC7biuXTa+Z4hOq7gmJdcdvty3BTGJyEHz4ze/PJZx9G3XoMMT
+	SS+ZuDUOdQ+iD2CyDvXXKQrCYtWlBIR5/yyFaGfFZjWS2Kr6WViD02VUvYtBbSGPedAuO7fpTxM
+	oiCwm8YnhY/zJ6BYZOBwVCpwu7ip4PyKwCPLUxIsdcWBS8tY4NrGK1o6cBVHGhySviA==
+X-Received: by 2002:a62:a513:: with SMTP id v19mr77593454pfm.212.1556717819419;
+        Wed, 01 May 2019 06:36:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDOQeO+W01mQkQcfvbLsYU/sbsJpOWNRZ7gFavr0Dbn0UyHNpdQdYQ92Za9/NY9/s5DpF0
+X-Received: by 2002:a62:a513:: with SMTP id v19mr77593361pfm.212.1556717818541;
+        Wed, 01 May 2019 06:36:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556717818; cv=none;
         d=google.com; s=arc-20160816;
-        b=wzQo5i+ETGCplEnlUILlK+veoxqq/Mry2f2MJ81698ML2RhLObK1de6eNm/eO9nui3
-         OGoP641xtjjYnZNmoxU+rWWzT8CDIK267pmGkb6o4mHRJH45VNIRWdUOfdkEURIbDSMQ
-         CFpILAoV+gY3UWrJXE8bNRc0lGU9OJ29tLQcFsziwTi/cePDdMBiHugiVtn7lRdizlCf
-         McQmezotB5zJDDVC1PujfuHJlRJLJtlZat9z2Loq7pHSmGag/QcJDFjZGnR5kA7X7YQe
-         SbusWh7diO+Zfb2Yw4S1yFGtLX1BF/rc5fN4FrpZsK06HJdiHxTJkQlXCBDr24uPYNJs
-         bA2A==
+        b=eeBSD/sOJzQd9T/PIij/Ir/tOts5ERRRa+KdeD7tp2el+Unoz77abd+MhUCJg1XRnk
+         ua4Ql2YTG5AlI/qiY+dcotJ/jNvwdRMJW1pLc7RKnl6tDBDmpSVhvmuY16kbu4cWvUDp
+         vP2LwJKkY27lp/Z6ScXDvPAa20gRkGOi/8V3UToaJ+dCcZfMWkG0gI54Uc9+If0NHtAI
+         RTXMkdBb6e+lafApxpPcYHtB0XEL6p7ux/q8Pxhbfe8b/UuStK9mxEqKrVYSzLVgWhPs
+         FWZ2O+rMn4pC4Ylgm2pmNS7h4P2wfimshK43BbqyJ82umPQTRD+FL//rQ4x0nwKPXyTw
+         FLqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:references
-         :in-reply-to:subject:cc:to:from;
-        bh=NE/e8S6yVOHYr45xl7ghh5QfgpBa7EZjiyjE2pu3nUc=;
-        b=ZjVynXxx42EL9fYMhLv5AFm591Ai98whCMy00XgRVV1dXEKr7HXTfltDaRtzFlDkcn
-         SQDFVxILXIdv4zM3DFHKaXkO66oq228Vj1+ElEgLpL1xH9F3h+i+YZGHfNUGRnzXoU7F
-         ze3U7u8rR5T+gXK1wnEU5RQcSMQnW8JgdxONnsCTLvz30YJ4Vtaj2+R5sFGcEn9RWuMg
-         iwULFq327JT/wPz8iRwVUzCMfvtUOcPsUzLRB5f2m5/EiZC8uM6NB3bMM4u6FNglY2cs
-         +HfMwXWfQyFOHo+hXGS3VLIDORR5JQDtDav0owUQoYqqYQlQC9YKxS1eEBOYr/0zZw34
-         3Ptg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=;
+        b=M4EyyuLk6f2mIlChB7PdOpxoK7m3oF90k+sMnX8lTTSMVDMtP7J3cwd0THJNAyHGkY
+         5iUiJgaV9EPrPMkrYtOfYN0qh2cf6lWuho7jb/Kz9+2yum97mM4IFABpWeEgjEsXy2vk
+         4icFPwygSTYBEEt96m17edOlygGUShycZnfXfppnzhsQfOsnrIMM+jiKzKMNOIWSFxSq
+         LNt2KcF/pVIz4LzYDT6i2gIHhNedR5JoR/qnU7WuvfaoFi6R3QJW1ri17fQ3H8LH1k1/
+         zEUNOII1VWAb7/cWNqSqQFtgf+TnFFlX4/GBSw9X5aXx15FScOhoW4RgGo9NPZRCtd52
+         E1Fw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id s20si38981628pgs.509.2019.05.01.03.33.00
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ekXutGok;
+       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h19si8885269pgg.125.2019.05.01.06.36.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 01 May 2019 03:33:00 -0700 (PDT)
-Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
+        Wed, 01 May 2019 06:36:58 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 44vF8m5zk3z9s9N;
-	Wed,  1 May 2019 20:32:56 +1000 (AEST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, rguenther@suse.de, mhocko@suse.com, vbabka@suse.cz, luto@amacapital.net, x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, stable@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Subject: Re: [PATCH] x86/mpx: fix recursive munmap() corruption
-In-Reply-To: <4e1bbb14-e14f-8643-2072-17b4cdef5326@linux.vnet.ibm.com>
-References: <20190401141549.3F4721FE@viggo.jf.intel.com> <alpine.DEB.2.21.1904191248090.3174@nanos.tec.linutronix.de> <87d0lht1c0.fsf@concordia.ellerman.id.au> <6718ede2-1fcb-1a8f-a116-250eef6416c7@linux.vnet.ibm.com> <4f43d4d4-832d-37bc-be7f-da0da735bbec@intel.com> <4e1bbb14-e14f-8643-2072-17b4cdef5326@linux.vnet.ibm.com>
-Date: Wed, 01 May 2019 20:32:55 +1000
-Message-ID: <87k1faa2i0.fsf@concordia.ellerman.id.au>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ekXutGok;
+       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=; b=ekXutGokZQcHKQJr2Fg6jLrC+
+	H0ANTOh0e+gQc5hh3bM3pwKr0Dbe4jxXpjVihwfbovHW/oXW/WJYNkKYvRnDgnXGKBrbQ4cTFhGxJ
+	y4oT1xJ21qvem0IyOCq9HJC/8Mdbl8yxvlRcgW/JXEEtfeflPj02Pf+LrGTg56yWcOVoZsaQ+9M9T
+	KqT/rnRmEXBXUv5baGG+wpb08YlM3tF4dz4A040wI0FlgIQ0iMiUibVVUOWQpEcWczMcWDUQudalT
+	Z8OE2Pyq7tEAMpT0Dlqkpc2NLvc0ITaeZZNtbd1Z3irbAPO0IFDKIWgN6U3ueQdg9wwEIs2C7Uy0B
+	49Dd++4rg==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hLpPq-00035h-S7; Wed, 01 May 2019 13:36:54 +0000
+Date: Wed, 1 May 2019 06:36:54 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Sami Tolvanen <samitolvanen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Kees Cook <keescook@chromium.org>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: fix filler_t callback type mismatch with readpage
+Message-ID: <20190501133654.GA26768@infradead.org>
+References: <20190430214724.66699-1-samitolvanen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190430214724.66699-1-samitolvanen@google.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
-> Le 23/04/2019 =C3=A0 18:04, Dave Hansen a =C3=A9crit=C2=A0:
->> On 4/23/19 4:16 AM, Laurent Dufour wrote:
-...
->>> There are 2 assumptions here:
->>>   1. 'start' and 'end' are page aligned (this is guaranteed by __do_mun=
-map().
->>>   2. the VDSO is 1 page (this is guaranteed by the union vdso_data_stor=
-e on powerpc)
->>=20
->> Are you sure about #2?  The 'vdso64_pages' variable seems rather
->> unnecessary if the VDSO is only 1 page. ;)
->
-> Hum, not so sure now ;)
-> I got confused, only the header is one page.
-> The test is working as a best effort, and don't cover the case where=20
-> only few pages inside the VDSO are unmmapped (start >=20
-> mm->context.vdso_base). This is not what CRIU is doing and so this was=20
-> enough for CRIU support.
->
-> Michael, do you think there is a need to manage all the possibility=20
-> here, since the only user is CRIU and unmapping the VDSO is not a so=20
-> good idea for other processes ?
+This still leaves bugs around in jffs2 and nfs.  And it is a little
+ugly.  This is what I'd like to do instead, so far untested.  I'll
+post a series once it passes basic testing:
 
-Couldn't we implement the semantic that if any part of the VDSO is
-unmapped then vdso_base is set to zero? That should be fairly easy, eg:
-
-	if (start < vdso_end && end >=3D mm->context.vdso_base)
-		mm->context.vdso_base =3D 0;
-
-
-We might need to add vdso_end to the mm->context, but that should be OK.
-
-That seems like it would work for CRIU and make sense in general?
-
-cheers
+http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/filler-fixes
 
