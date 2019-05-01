@@ -2,156 +2,136 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3F04C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 09:00:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10CF6C43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 10:33:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9716C2081C
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 09:00:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9716C2081C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id ACE5B21670
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 10:33:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACE5B21670
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1ED086B0005; Wed,  1 May 2019 05:00:59 -0400 (EDT)
+	id 5A0B86B0005; Wed,  1 May 2019 06:33:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 176916B0006; Wed,  1 May 2019 05:00:59 -0400 (EDT)
+	id 5516C6B0006; Wed,  1 May 2019 06:33:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 03F9A6B0007; Wed,  1 May 2019 05:00:58 -0400 (EDT)
+	id 44BC86B0007; Wed,  1 May 2019 06:33:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A93EA6B0005
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 05:00:58 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id x9so17649255wrw.20
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 02:00:58 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 196456B0005
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 06:33:02 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n5so10698227pgk.9
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 03:33:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=KcScPEYzXmrU46chU69vi6QPbKaYevpdbKDRQQ5AL0k=;
-        b=IE6mpuk/6v2ranAWvUiQfktd1ztewQhCwnCv3z91EEjwAjqvsMTaQD4iWclRGMdGd6
-         gsEUq0dEx/PG6em2AipKUwjsrMotubNJdEwdSBIPuG20VEj0q7QMocsP4vD7iMClppP+
-         u7jStqIEfNim8bsfdOCFz+2kdzAgdpTXzyW5KhDQd+jhAXvEylE2apCwebFtIqAEbzte
-         bspAKFimTixbC3cFUlTg8aUVT5IoPhIk/IfR4OYotJaFSXm66WlLXfdpzpJhHyRnl2m5
-         ioeAnu4/PWJHIVbTtA1ciF1Pd9l3N+DnGFRn9NpOMrU0W01hfrCdpghNiFtM1Qck2ugY
-         +vbg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAWjUNhty6t3IlT2Q0S7T+inOuRKc9zB6hjxNKjvam+4DRL0pVXU
-	TZxn8Pr0ZPCJXD41xWSgs9qrxtBXZcTgu0h3yeDlcbOoJ0y7YDThBOb6JYe5QKwupwr4wm9Gq/P
-	LJ3y+kGxDzP2rqBugWDpmXNzL5usjKx8xHq5sc6oyKWKicejPy3wvdN/zPYszG7agLg==
-X-Received: by 2002:adf:ec51:: with SMTP id w17mr7339693wrn.326.1556701258168;
-        Wed, 01 May 2019 02:00:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHRbnjIpowwKK0XBqt8QU4fJitQVu4Q1lTXm23RUtRejatsdXM8OxcqPzqmeah8yaOe/Ca
-X-Received: by 2002:adf:ec51:: with SMTP id w17mr7339631wrn.326.1556701257162;
-        Wed, 01 May 2019 02:00:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556701257; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=NE/e8S6yVOHYr45xl7ghh5QfgpBa7EZjiyjE2pu3nUc=;
+        b=baRd/9bkEtiGOx9BCzCeTF3PCkNmpBldYcsw6jQ6xqa9fJ6DLAsIcchZP/HDYvL5Cn
+         Tb98FVbguCRgKQhsVZ1QcaBUV3a73iLWfew2Mu8d3hcDlndY5sLYJK8NYHF6haWc3cV2
+         MeI2fmJ6w8Txp50Q369O7A3hTiTHJh3eN+CsTcty5CsGHuu39BujGXr/JFOX4RjMUs8b
+         r7RyVUdtlLR/1rIHWIRswfkIfdMUyqXCUM+aX1DFPnPzC8j3uiy/oS+jxz8BpVstCXHy
+         b7zdO5hoB/0DEWtrgceRrQSzMbmtmrTcD5qw5SGIrfx+4Sthig1CiKK9BWrlhNF5ahQR
+         QTUw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+X-Gm-Message-State: APjAAAWlID8SmAO4h296B3A0iZUfQ//QXWlnBGqvHUJ5m/3vE6mgJn9D
+	xZFojLaeebWouFxFTH6KtHIgTnw44o1NbBqEJOUeNFBsn8qTIvCHqOFu4c+XlPGESFzUujTn3Z6
+	HAyO+BrZPKLcv29HKTl9H/3ycOAGE5G7WE9D/meAM11P4Qx5p+S7APiv+vxxHcoc=
+X-Received: by 2002:a17:902:8bca:: with SMTP id r10mr30788405plo.67.1556706781781;
+        Wed, 01 May 2019 03:33:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZaUfaMfxS92fXsfuZFfgf2xCmdfj9cFTf0fbEMJ6IM7UWQtqybVRvjNedczNg524fS/YS
+X-Received: by 2002:a17:902:8bca:: with SMTP id r10mr30788331plo.67.1556706780862;
+        Wed, 01 May 2019 03:33:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556706780; cv=none;
         d=google.com; s=arc-20160816;
-        b=i0kt0iQHQM9cPBwpISACVmNcRulkrFJ3hdyweW8pjbiOc6ZGCl+yLHSGoMD6nxj1v4
-         FwOvv55wEp+0Ci0oWugahybRUpEmh8FOi2KIQAnD9DRJDdg70/FOorXAopCiQxMmvrMa
-         /Q4AWOCrkZ/C2y6BfW59ncUHkNOmgNYMz8ip/CMgzChZpJAkV8xTH6xzS42l9vxLy4ZE
-         Wye7B0XMPGV3bo6TocK3QiIIn9LtcmKbQhZl3p6Wazsjms1dbLf9qUZFbhW6pqK4IU/J
-         Tz9f0c8bHHv4V/hdBTZHlioaMWDkFBDFIUnvF42QWaRVoRiz34RFu771Q3TADDADm1sO
-         ESnA==
+        b=wzQo5i+ETGCplEnlUILlK+veoxqq/Mry2f2MJ81698ML2RhLObK1de6eNm/eO9nui3
+         OGoP641xtjjYnZNmoxU+rWWzT8CDIK267pmGkb6o4mHRJH45VNIRWdUOfdkEURIbDSMQ
+         CFpILAoV+gY3UWrJXE8bNRc0lGU9OJ29tLQcFsziwTi/cePDdMBiHugiVtn7lRdizlCf
+         McQmezotB5zJDDVC1PujfuHJlRJLJtlZat9z2Loq7pHSmGag/QcJDFjZGnR5kA7X7YQe
+         SbusWh7diO+Zfb2Yw4S1yFGtLX1BF/rc5fN4FrpZsK06HJdiHxTJkQlXCBDr24uPYNJs
+         bA2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=KcScPEYzXmrU46chU69vi6QPbKaYevpdbKDRQQ5AL0k=;
-        b=icIGpKMZ7Ow4kxFDOtbXJD7JvRdj4lb7wPTyB67Le9WD/dpfqxWU7mqEwfW9sXfLiq
-         Io1OEDY86HsYty/S4bfKnjCt3p1BvRAAprVHsyvlG9r5SUccSOgDkdPVsBINYNOJ5gBP
-         n9Hn5YbIpdB6v4A6MHviiEmI6wDFKSWGla4+MtaFn/kg3DH+KLfITqe8PDRHoAQ++BQk
-         X8JfPELCsxxupo54Gi9h1HOy3bRgpRCwPWfbqpoQEVebOBFDyZF1JJnsIQgvPbDeavW3
-         cEnTUnDziHQGndib2TxyoPoz9M6ubNodH3RDpLHGUm3oeCZTQKA70qfmyuLqqDesbrGs
-         xc5Q==
+        h=content-transfer-encoding:mime-version:message-id:date:references
+         :in-reply-to:subject:cc:to:from;
+        bh=NE/e8S6yVOHYr45xl7ghh5QfgpBa7EZjiyjE2pu3nUc=;
+        b=ZjVynXxx42EL9fYMhLv5AFm591Ai98whCMy00XgRVV1dXEKr7HXTfltDaRtzFlDkcn
+         SQDFVxILXIdv4zM3DFHKaXkO66oq228Vj1+ElEgLpL1xH9F3h+i+YZGHfNUGRnzXoU7F
+         ze3U7u8rR5T+gXK1wnEU5RQcSMQnW8JgdxONnsCTLvz30YJ4Vtaj2+R5sFGcEn9RWuMg
+         iwULFq327JT/wPz8iRwVUzCMfvtUOcPsUzLRB5f2m5/EiZC8uM6NB3bMM4u6FNglY2cs
+         +HfMwXWfQyFOHo+hXGS3VLIDORR5JQDtDav0owUQoYqqYQlQC9YKxS1eEBOYr/0zZw34
+         3Ptg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m18si27164989wrj.311.2019.05.01.02.00.56
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id s20si38981628pgs.509.2019.05.01.03.33.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 01 May 2019 02:00:57 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 01 May 2019 03:33:00 -0700 (PDT)
+Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hLl6e-00025P-Lh; Wed, 01 May 2019 11:00:48 +0200
-Date: Wed, 1 May 2019 11:00:48 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: Qian Cai <cai@lca.pw>
-Cc: dave.hansen@intel.com, bp@suse.de, tglx@linutronix.de, x86@kernel.org,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	luto@amacapital.net, hpa@zytor.com, mingo@kernel.org,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC PATCH] x86/fpu: Use get_user_pages_unlocked() to fault-in pages
-Message-ID: <20190501090048.emqugoplr4sajnqc@linutronix.de>
-References: <1556657902.6132.13.camel@lca.pw>
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 44vF8m5zk3z9s9N;
+	Wed,  1 May 2019 20:32:56 +1000 (AEST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, rguenther@suse.de, mhocko@suse.com, vbabka@suse.cz, luto@amacapital.net, x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, stable@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH] x86/mpx: fix recursive munmap() corruption
+In-Reply-To: <4e1bbb14-e14f-8643-2072-17b4cdef5326@linux.vnet.ibm.com>
+References: <20190401141549.3F4721FE@viggo.jf.intel.com> <alpine.DEB.2.21.1904191248090.3174@nanos.tec.linutronix.de> <87d0lht1c0.fsf@concordia.ellerman.id.au> <6718ede2-1fcb-1a8f-a116-250eef6416c7@linux.vnet.ibm.com> <4f43d4d4-832d-37bc-be7f-da0da735bbec@intel.com> <4e1bbb14-e14f-8643-2072-17b4cdef5326@linux.vnet.ibm.com>
+Date: Wed, 01 May 2019 20:32:55 +1000
+Message-ID: <87k1faa2i0.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1556657902.6132.13.camel@lca.pw>
-User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Using get_user_pages() seems to be problematic: KASAN reports
-use-after-free in LTP's signal06 testcase.
-The test invokes the signal handler with a provided stack and changes
-the RW/WO page flags of the stack while the signal is invoked.  A crash
-due to a NULL pointer has also been observed.
+Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
+> Le 23/04/2019 =C3=A0 18:04, Dave Hansen a =C3=A9crit=C2=A0:
+>> On 4/23/19 4:16 AM, Laurent Dufour wrote:
+...
+>>> There are 2 assumptions here:
+>>>   1. 'start' and 'end' are page aligned (this is guaranteed by __do_mun=
+map().
+>>>   2. the VDSO is 1 page (this is guaranteed by the union vdso_data_stor=
+e on powerpc)
+>>=20
+>> Are you sure about #2?  The 'vdso64_pages' variable seems rather
+>> unnecessary if the VDSO is only 1 page. ;)
+>
+> Hum, not so sure now ;)
+> I got confused, only the header is one page.
+> The test is working as a best effort, and don't cover the case where=20
+> only few pages inside the VDSO are unmmapped (start >=20
+> mm->context.vdso_base). This is not what CRIU is doing and so this was=20
+> enough for CRIU support.
+>
+> Michael, do you think there is a need to manage all the possibility=20
+> here, since the only user is CRIU and unmapping the VDSO is not a so=20
+> good idea for other processes ?
 
-get_user_pages() may be invoked (or so I assumed) without holding the
-mmap_sem for pre-faulting. KASAN probably slows down processing that we
-can observe the user-after-free while page-flags are changed. It does
-not happen without KASAN.
+Couldn't we implement the semantic that if any part of the VDSO is
+unmapped then vdso_base is set to zero? That should be fairly easy, eg:
 
-Use get_user_pages_unlocked() which holds the mm_sem around while
-paging-in user memory.
+	if (start < vdso_end && end >=3D mm->context.vdso_base)
+		mm->context.vdso_base =3D 0;
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
 
-While this fixes the problem and the crash later on, I would like to
-hear from MM folks if it is intended to invoke get_user_pages() without
-holding the mmap_sem. Without passing lockde & pages we only do:
-  __get_user_pages_locked()
-    - __get_user_pages()
-    - if (!pages)
-	/* If it's a prefault don't insist harder
-	 */
-	return ret;
-Which was my intention.=20
-The comment above faultin_page() says "mmap_sem must be held on entry"
-so this makes me thing that one must hold it=E2=80=A6
+We might need to add vdso_end to the mm->context, but that should be OK.
 
- arch/x86/kernel/fpu/signal.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+That seems like it would work for CRIU and make sense in general?
 
-diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
-index eaddb185cac95..3a94e3d2e3bdf 100644
---- a/arch/x86/kernel/fpu/signal.c
-+++ b/arch/x86/kernel/fpu/signal.c
-@@ -172,8 +172,8 @@ int copy_fpstate_to_sigframe(void __user *buf, void __u=
-ser *buf_fx, int size)
- 		aligned_size =3D offset_in_page(buf_fx) + fpu_user_xstate_size;
- 		nr_pages =3D DIV_ROUND_UP(aligned_size, PAGE_SIZE);
-=20
--		ret =3D get_user_pages((unsigned long)buf_fx, nr_pages,
--				     FOLL_WRITE, NULL, NULL);
-+		ret =3D get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
-+					      NULL, FOLL_WRITE);
- 		if (ret =3D=3D nr_pages)
- 			goto retry;
- 		return -EFAULT;
---=20
-2.20.1
+cheers
 
