@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB8CEC43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D8A4C43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CA5A21670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CA5A21670
+	by mail.kernel.org (Postfix) with ESMTP id 49DFA21670
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49DFA21670
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 799CF6B000D; Wed,  1 May 2019 10:03:08 -0400 (EDT)
+	id 85CD96B000E; Wed,  1 May 2019 10:03:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 74E136B000E; Wed,  1 May 2019 10:03:08 -0400 (EDT)
+	id 811186B0010; Wed,  1 May 2019 10:03:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5EFC56B0010; Wed,  1 May 2019 10:03:08 -0400 (EDT)
+	id 6FD196B0266; Wed,  1 May 2019 10:03:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2773C6B000D
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:08 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id v9so10927495pgg.8
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:08 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3952C6B000E
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:09 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j18so11041855pfi.20
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=hyRjW8OzW6fFuYKbYW6yJA2KHI9E5p1014ZxcquzZpU=;
-        b=aBOypPdvtu9dnCvwzPz2rqKhtx9s54pYtLfq7LY8aivNuha7VCJX6ok9zXHEGdlL+B
-         /ub/rKa6jV5PWj/2OqL3lXz81M9GzHv5J7fhfiNSz3hRCMo4m49vKuT8rJo6f9LRz9OY
-         6veyYF0C8j1YZUjRi/gI45tXir7vzMYwViy2t/hCiKduIHxuVwdzukOB4Mktp9iDqfGs
-         fTZ5xAXGm/G21Pp60zpNnuXTgYsu1e5PugEHk2B2gi7ClUDDBFmZIUc3qc6ozb6tLgZl
-         9+Upv0PT/Pc078S8vLB1N9ZCjn1qBEeXoobLMdtly44FqZk4pj2xJxKH01siyrR+wish
-         4fPA==
+        bh=7DuZmk//m+TJEgso8niAEXIhBVD4m+iZUrt06/JgkP4=;
+        b=SHYlkSHISQC80LWu4ZY5NokUT082aj/DpNCoKt57T6rhClRtDMkSzSIfmEpOkSyR7/
+         rJwSs0SDHpALgoLr2GHYnc9yHPboxHbp7ZGZYZobZTv2P11y5/LRRXEisO6lne/dfGSs
+         wpAMnJcmGIdyE9HTeZRbyRPChwei2+X15S29yo+DOOdvNCdRILjQZ2iJaXsKvCCW03KQ
+         IUJNA/6VKJfe9C7C+NCKZeC8gS2eTR14xT9G5uQVfQ2PuXrlP0OWBN6UTnJEYCuRlFrc
+         LVAOC/XYDWYaao4aoNQeC6NO5bgTcCl18ipJakkeebetB1bmkxKmRXsEyHQBHQhRrV9c
+         wrxA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUOW37pbG/JRDAcW0XHEJlt5RQtN5Knxp/+QhqFmaSdkgcOBXi1
-	khOpz0p6vz+Sgb0VvKPMZAwC+01iAF6hltPYanWHEbPGhXXoYBtcW1pUyeSAg9NPZSHPQAfvWYP
-	sIDzilCQ2Gh8GqHml4YNBBlwX+2V+YKZ2CZKbBuKD+b49KErkFE1HMcP8gvnbRILYGg==
-X-Received: by 2002:a17:902:784d:: with SMTP id e13mr78556472pln.152.1556719387735;
+X-Gm-Message-State: APjAAAUh4yCA0/zht1F8VzLwqBpr1898oSLk64C7B7naPMc1ppZNCa8x
+	oui9zw8A36bRfCt24YtesNvuakBsUqqbwuzywlrKzBdtRv/nJJha4JBqbM+8IaV38jnCZBanpUg
+	McAu1FzNGmIz29Lym2i69RMr/NiD9lnp8jaDuXKmpAOOm4MbzFdof7QWuT4N9KTqQXQ==
+X-Received: by 2002:a62:2e02:: with SMTP id u2mr40965629pfu.1.1556719388885;
+        Wed, 01 May 2019 07:03:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqysB6+eCd8FcUMA9rqHrQ643s9nx20VUH0Dmk087QuEmYuRgBS5z67LO8aC8mwjekvhzoGo
+X-Received: by 2002:a62:2e02:: with SMTP id u2mr40965513pfu.1.1556719387936;
         Wed, 01 May 2019 07:03:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwp+wYBdhlvSRzhtVBgs5/qXyTWGvMYZIaImrYInPKf73ToIRP/R6eM2FQRXSzm7fUWE0Yg
-X-Received: by 2002:a17:902:784d:: with SMTP id e13mr78556303pln.152.1556719386394;
-        Wed, 01 May 2019 07:03:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556719386; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556719387; cv=none;
         d=google.com; s=arc-20160816;
-        b=CtGmqx2abtpvSp+8qDcY2XDD7Bw/bFKWcI0m4ngfBJMn6LNXNQD4FfL/wJqWpkQ78H
-         PpWsafRyfcqQoQDDZkJqKsYmITTKKvMA1kvayOweF+//h2Is6ud/Kan3oi7gONI0Zwgx
-         wm20icbkI+X1cEAF/k/M543FyS2Dpe1nUPTjzXGKjSVJAbr+JiwmXslJzAJzfW7jHcZP
-         6FNmtoYmAXnQ27gOzwWwDMA0ZLWY5Y5VaRR5wd1n55W8ErFTqv2eIVHxNUCS8/jVIQHi
-         hm3Jbbs8RLdEPHosSDDes/GaT9vz0tIMyGd+CnabebkCOHN4CaybJ3PohtSFRim15T4i
-         s+jQ==
+        b=OakM+FJ2P8kXna3xoVT9lsjKCC1dpjZATCUr1/Q+31ZMpuquDQBhJjh6p2yMcx2T9V
+         JGhr87us7zh6fRhQzY6B+2Hf0/OYNAKAsZ2/epwP57bJzI3VGyvkxawFkmGBh7PKZFCD
+         Tb4xy/kF6E0l9HfkzGd2lsJCK7oFHlDOgj2NSWRiQPTTy4nr23ADbIB8HBp/1xcbOYYY
+         jYM9VWymYxIiaB3SqTk6fc7xHdVkR74gDVeOyCqvs9nMyAkNPvVUCinK6LhhAbtQcy7U
+         gwXa1IiH5r/DFHi3FjM+uDLXjoikMZGobQQUVpNVkqG2Bv7PVC/NTcXfBXlnqpSdcPTw
+         9SOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:to:from;
-        bh=hyRjW8OzW6fFuYKbYW6yJA2KHI9E5p1014ZxcquzZpU=;
-        b=donVruu/TGBBzGIIkEjZvJblyFCfh5MB4EcrJHl5pcai/STEt0bo3OzAhNEZzwqe31
-         gsyrAnLwVeM2ZdPNnEwZNr6GBcxOe484+AJJSNxmMtd17GUVvDW2nO249K7oEnnkCZYV
-         Ldeb6moMoYarvRKB4ceAGt5YFNEuPlhk2Xjf1pM7vlWItFec6+JtihSRKvzD/kknjH+T
-         k0L7gZq3/f82CDjzb0lyc3eKvAUtw3yUZmqDVkO6xdfISi0LgUKNJwUCBmMckoiX99Pe
-         HrPP6u/MxssP2K+XktfHzmoMq6iglAFo0Te4TuLRK0IvFmicPEjaFeP7SVDGtVrxQoDC
-         B8vA==
+        bh=7DuZmk//m+TJEgso8niAEXIhBVD4m+iZUrt06/JgkP4=;
+        b=JeVUrudWvzaF4HBJqteckZaoKfhELwO/EQOOLnzm3DaeWNeE7/Oes8bNYate+A4zAj
+         4KphnX1YgK0LbFo+9hj3UR8iOhy8swjwXt/qAtFghZpGXHGzi1yBcjAy8fc0TjAgtYam
+         N7M4/RauQPTgNeh11RvMdOSknIDhzl8WuAGv970Mif2WSs80u0Lfl4ai9GqhJ/m2dAHa
+         Wix8Lqv1JqhpAbp3V3J1OozpiA+mBXGKJFgN5VAZoCYTkaxJp/Z2kHPVnG5oLMv9czmV
+         aQisqpRLWRKM1fFXg2gTLD0D3/ZXTDR7p/Yuv5BohtAszG8rn/hkvM81iSoBWxju7tHg
+         UeQg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.06
+        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 07:03:06 -0700 (PDT)
+        Wed, 01 May 2019 07:03:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
@@ -81,12 +81,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:03:06 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:03:07 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,417,1549958400"; 
-   d="scan'208";a="145141415"
+   d="scan'208";a="145141419"
 Received: from nperf12.hd.intel.com ([10.127.88.161])
-  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:03:04 -0700
+  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:03:06 -0700
 From: Brian Welty <brian.welty@intel.com>
 To: cgroups@vger.kernel.org,
 	Tejun Heo <tj@kernel.org>,
@@ -106,9 +106,9 @@ To: cgroups@vger.kernel.org,
 	Alex Deucher <alexander.deucher@amd.com>,
 	ChunMing Zhou <David1.Zhou@amd.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [RFC PATCH 4/5] drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
-Date: Wed,  1 May 2019 10:04:37 -0400
-Message-Id: <20190501140438.9506-5-brian.welty@intel.com>
+Subject: [RFC PATCH 5/5] drm/i915: Use memory cgroup for enforcing device memory limit
+Date: Wed,  1 May 2019 10:04:38 -0400
+Message-Id: <20190501140438.9506-6-brian.welty@intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190501140438.9506-1-brian.welty@intel.com>
 References: <20190501140438.9506-1-brian.welty@intel.com>
@@ -120,35 +120,21 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With new cgroups per-device framework, registration with memory cgroup
-subsystem can allow us to enforce limit for allocation of device memory
-against process cgroups.
-
-This patch adds new driver feature bit, DRIVER_CGROUPS, such that DRM
-will register the device with cgroups. Doing so allows device drivers to
-charge memory allocations to device-specific state within the cgroup.
-
-Note, this is only for GEM objects allocated from device memory.
-Memory charging for GEM objects using system memory is already handled
-by the mm subsystem charing the normal (non-device) memory cgroup.
+i915 driver now includes DRIVER_CGROUPS in feature bits.
 
 To charge device memory allocations, we need to (1) identify appropriate
 cgroup to charge (currently decided at object creation time), and (2)
 make the charging call at the time that memory pages are being allocated.
-Above is one policy, and this is open for debate if this is the right
-choice.
 
-For (1), we associate the current task's cgroup with GEM objects as they
-are created.  That cgroup will be charged/uncharged for all paging
-activity against the GEM object.  Note, if the process is not part of a
-memory cgroup, then this returns NULL and no charging will occur.
-For shared objects, this may make the charge against a cgroup that is
-potentially not the same cgroup as the process using the memory.  Based
-on the memory cgroup's discussion of "memory ownership", this seems
-acceptable [1].  For (2), this is for device drivers to implement within
-appropriate page allocation logic.
+For (1), see prior DRM patch which associates current task's cgroup with
+GEM objects as they are created.  That cgroup will be charged/uncharged
+for all paging activity against the GEM object.
 
-[1] https://www.kernel.org/doc/Documentation/cgroup-v2.txt, "Memory Ownership"
+For (2), we call mem_cgroup_try_charge_direct() in .get_pages callback
+for the GEM object type.  Uncharging is done in .put_pages when the
+memory is marked such that it can be evicted.  The try_charge() call will
+fail with -ENOMEM if the current memory allocation will exceed the cgroup
+device memory maximum, and allow for driver to perform memory reclaim.
 
 Cc: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org
@@ -156,151 +142,82 @@ Cc: dri-devel@lists.freedesktop.org
 Cc: Matt Roper <matthew.d.roper@intel.com>
 Signed-off-by: Brian Welty <brian.welty@intel.com>
 ---
- drivers/gpu/drm/drm_drv.c | 12 ++++++++++++
- drivers/gpu/drm/drm_gem.c |  7 +++++++
- include/drm/drm_device.h  |  3 +++
- include/drm/drm_drv.h     |  8 ++++++++
- include/drm/drm_gem.h     | 11 +++++++++++
- 5 files changed, 41 insertions(+)
+ drivers/gpu/drm/i915/i915_drv.c            |  2 +-
+ drivers/gpu/drm/i915/intel_memory_region.c | 24 ++++++++++++++++++----
+ 2 files changed, 21 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/gpu/drm/drm_drv.c b/drivers/gpu/drm/drm_drv.c
-index 862621494a93..890bd3c0e63e 100644
---- a/drivers/gpu/drm/drm_drv.c
-+++ b/drivers/gpu/drm/drm_drv.c
-@@ -28,6 +28,7 @@
+diff --git a/drivers/gpu/drm/i915/i915_drv.c b/drivers/gpu/drm/i915/i915_drv.c
+index 5a0a59922cb4..4d496c3c3681 100644
+--- a/drivers/gpu/drm/i915/i915_drv.c
++++ b/drivers/gpu/drm/i915/i915_drv.c
+@@ -3469,7 +3469,7 @@ static struct drm_driver driver = {
+ 	 * deal with them for Intel hardware.
+ 	 */
+ 	.driver_features =
+-	    DRIVER_GEM | DRIVER_PRIME |
++	    DRIVER_GEM | DRIVER_PRIME | DRIVER_CGROUPS |
+ 	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_SYNCOBJ,
+ 	.release = i915_driver_release,
+ 	.open = i915_driver_open,
+diff --git a/drivers/gpu/drm/i915/intel_memory_region.c b/drivers/gpu/drm/i915/intel_memory_region.c
+index 813ff83c132b..e4ac5e4d4857 100644
+--- a/drivers/gpu/drm/i915/intel_memory_region.c
++++ b/drivers/gpu/drm/i915/intel_memory_region.c
+@@ -53,6 +53,8 @@ i915_memory_region_put_pages_buddy(struct drm_i915_gem_object *obj,
+ 	mutex_unlock(&obj->memory_region->mm_lock);
  
- #include <linux/debugfs.h>
- #include <linux/fs.h>
-+#include <linux/memcontrol.h>
- #include <linux/module.h>
- #include <linux/moduleparam.h>
- #include <linux/mount.h>
-@@ -987,6 +988,12 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
- 	if (ret)
- 		goto err_minors;
+ 	obj->mm.dirty = false;
++	mem_cgroup_uncharge_direct(obj->base.memcg,
++				   obj->base.size >> PAGE_SHIFT);
+ }
  
-+	if (dev->dev && drm_core_check_feature(dev, DRIVER_CGROUPS)) {
-+		ret = mem_cgroup_device_register(dev->dev, &dev->memcg_id);
-+		if (ret)
-+			goto err_minors;
+ int
+@@ -65,19 +67,29 @@ i915_memory_region_get_pages_buddy(struct drm_i915_gem_object *obj)
+ 	struct scatterlist *sg;
+ 	unsigned int sg_page_sizes;
+ 	unsigned long n_pages;
++	int err;
+ 
+ 	GEM_BUG_ON(!IS_ALIGNED(size, mem->mm.min_size));
+ 	GEM_BUG_ON(!list_empty(&obj->blocks));
+ 
++	err = mem_cgroup_try_charge_direct(obj->base.memcg, size >> PAGE_SHIFT);
++	if (err) {
++		DRM_DEBUG("MEMCG: try_charge failed for %lld\n", size);
++		return err;
 +	}
 +
- 	dev->registered = true;
+ 	st = kmalloc(sizeof(*st), GFP_KERNEL);
+-	if (!st)
+-		return -ENOMEM;
++	if (!st) {
++		err = -ENOMEM;
++		goto err_uncharge;
++	}
  
- 	if (dev->driver->load) {
-@@ -1009,6 +1016,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
- 	goto out_unlock;
+ 	n_pages = div64_u64(size, mem->mm.min_size);
  
- err_minors:
-+	if (dev->memcg_id)
-+		mem_cgroup_device_unregister(dev->memcg_id);
- 	remove_compat_control_link(dev);
- 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
- 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-@@ -1052,6 +1061,9 @@ void drm_dev_unregister(struct drm_device *dev)
- 
- 	drm_legacy_rmmaps(dev);
- 
-+	if (dev->memcg_id)
-+		mem_cgroup_device_unregister(dev->memcg_id);
-+
- 	remove_compat_control_link(dev);
- 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
- 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
-index 50de138c89e0..966fbd701deb 100644
---- a/drivers/gpu/drm/drm_gem.c
-+++ b/drivers/gpu/drm/drm_gem.c
-@@ -38,6 +38,7 @@
- #include <linux/dma-buf.h>
- #include <linux/mem_encrypt.h>
- #include <linux/pagevec.h>
-+#include <linux/memcontrol.h>
- #include <drm/drmP.h>
- #include <drm/drm_vma_manager.h>
- #include <drm/drm_gem.h>
-@@ -281,6 +282,9 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
- 	if (IS_ERR_OR_NULL(obj))
- 		return -EINVAL;
- 
-+	/* Release reference on cgroup used with GEM object charging */
-+	mem_cgroup_put(obj->memcg);
-+
- 	/* Release driver's reference and decrement refcount. */
- 	drm_gem_object_release_handle(handle, obj, filp);
- 
-@@ -410,6 +414,9 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
- 			goto err_revoke;
+ 	if (sg_alloc_table(st, n_pages, GFP_KERNEL)) {
+ 		kfree(st);
+-		return -ENOMEM;
++		err = -ENOMEM;
++		goto err_uncharge;
  	}
  
-+	/* Acquire reference on cgroup for charging GEM memory allocations */
-+	obj->memcg = mem_cgroup_device_from_task(dev->memcg_id, current);
-+
- 	*handlep = handle;
- 	return 0;
+ 	sg = st->sgl;
+@@ -161,7 +173,11 @@ i915_memory_region_get_pages_buddy(struct drm_i915_gem_object *obj)
+ err_free_blocks:
+ 	memory_region_free_pages(obj, st);
+ 	mutex_unlock(&mem->mm_lock);
+-	return -ENXIO;
++	err = -ENXIO;
++err_uncharge:
++	mem_cgroup_uncharge_direct(obj->base.memcg,
++				   obj->base.size >> PAGE_SHIFT);
++	return err;
+ }
  
-diff --git a/include/drm/drm_device.h b/include/drm/drm_device.h
-index 7f9ef709b2b6..9859f2289066 100644
---- a/include/drm/drm_device.h
-+++ b/include/drm/drm_device.h
-@@ -190,6 +190,9 @@ struct drm_device {
- 	 */
- 	int irq;
- 
-+	/* @memcg_id: cgroup subsys (memcg) index for our device state */
-+	unsigned long memcg_id;
-+
- 	/**
- 	 * @vblank_disable_immediate:
- 	 *
-diff --git a/include/drm/drm_drv.h b/include/drm/drm_drv.h
-index 5cc7f728ec73..13b0e0b9527f 100644
---- a/include/drm/drm_drv.h
-+++ b/include/drm/drm_drv.h
-@@ -92,6 +92,14 @@ enum drm_driver_feature {
- 	 */
- 	DRIVER_SYNCOBJ                  = BIT(5),
- 
-+	/**
-+	 * @DRIVER_CGROUPS:
-+	 *
-+	 * Driver supports and requests DRM to register with cgroups during
-+	 * drm_dev_register().
-+	 */
-+	DRIVER_CGROUPS			= BIT(6),
-+
- 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
- 
- 	/**
-diff --git a/include/drm/drm_gem.h b/include/drm/drm_gem.h
-index 5047c7ee25f5..ca90ea512e45 100644
---- a/include/drm/drm_gem.h
-+++ b/include/drm/drm_gem.h
-@@ -34,6 +34,7 @@
-  * OTHER DEALINGS IN THE SOFTWARE.
-  */
- 
-+#include <linux/memcontrol.h>
- #include <linux/kref.h>
- #include <linux/reservation.h>
- 
-@@ -202,6 +203,16 @@ struct drm_gem_object {
- 	 */
- 	struct file *filp;
- 
-+	/**
-+	 * @memcg:
-+	 *
-+	 * cgroup used for charging GEM object page allocations against. This
-+	 * is set to the current cgroup during GEM object creation.
-+	 * Charging policy is up to each DRM driver to decide, but intent is to
-+	 * charge during page allocation and use for device memory only.
-+	 */
-+	struct mem_cgroup *memcg;
-+
- 	/**
- 	 * @vma_node:
- 	 *
+ int i915_memory_region_init_buddy(struct intel_memory_region *mem)
 -- 
 2.21.0
 
