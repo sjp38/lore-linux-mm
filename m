@@ -2,147 +2,192 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C021CC43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 20:32:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04AEAC04AA8
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 20:46:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 73BD520656
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 20:32:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="mzKRQByx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73BD520656
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	by mail.kernel.org (Postfix) with ESMTP id C1C7F20656
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 20:46:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1C7F20656
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CFE46B0005; Wed,  1 May 2019 16:32:45 -0400 (EDT)
+	id 5CD566B0005; Wed,  1 May 2019 16:46:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0806D6B0006; Wed,  1 May 2019 16:32:45 -0400 (EDT)
+	id 557136B0006; Wed,  1 May 2019 16:46:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB1176B0007; Wed,  1 May 2019 16:32:44 -0400 (EDT)
+	id 3D0B26B0007; Wed,  1 May 2019 16:46:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BC8B6B0005
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 16:32:44 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z5so84828edz.3
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 13:32:44 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 132006B0005
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 16:46:28 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id t82so548192ywf.23
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 13:46:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=QL2tBN3pQ9dGG9oKQvnxrcR2IX/vPQNIJ81izHaCYVE=;
-        b=QEbdL7Y+yXXh8hAnFAoAOFt1sR3N3JedEjXDWp8pVxV55IXeOlQ1Xb06sx7lYRDiD6
-         79oE5vKzRU7565lwbqJoYG4zAOjNeSDD0COgVRXC91wkCymjecCjfMBcOqnfmGYk2cjo
-         51deS7UnVrq1mRx6RCYDLrePExTYqgBKQZ09TUjUKl0aYw2J8YhnwRUZ6myjZ56Z0GaU
-         xzDNTjPjvugzLrRekOeTKHj9zjJIWIXCMc1XxSI67kcPfXdcKiBO01G2w2Em5xWIIAWi
-         5AaF+nUzLYkSbGCPCfbnq7Z2o3lUoFNROseqJR31RVB3r+a+tpFZ1iwhjolQdWVjecx/
-         WvkA==
-X-Gm-Message-State: APjAAAVwSWvRx7ccmCaTB/jys8zKgsZhFeQP6HwVdQ5CJYidbVzOZ3DD
-	cPFO/uSyAXRP1mHssDpghQ4LkFys1knYSD1z9+lPvHD0MPsb9fLsqd+S9THFNLBN7Hlf+QEsreQ
-	L/FfXNpgK+Vit2n8JiayIPSAIK/J/ct4Bls9YExePhpfSTT71E3UvlEHaM2xabolctQ==
-X-Received: by 2002:a50:cb4d:: with SMTP id h13mr113281edi.110.1556742764100;
-        Wed, 01 May 2019 13:32:44 -0700 (PDT)
-X-Received: by 2002:a50:cb4d:: with SMTP id h13mr113254edi.110.1556742763370;
-        Wed, 01 May 2019 13:32:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556742763; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=vUHQdgyXjVhAkI61jgcSVdra0Z04c9YtAiiciAFt1ag=;
+        b=CskBd41VKLDHrcsSn/x+TkCDIQDUusY5EwNB51FDxS8PvdZKpahqU9dIWGDn5ntr0G
+         YoGjTsfntxI2roDTYVn+AdzXjgqmVSNvnnhA11Te74Y+fU+HBpw0UO5fhcrzcEjuV1Q0
+         uNJ1EQNsgK58jgmcS7oz7YMHbOltxP7VjBWXrfBZitGR2ynsDBVT96Y/HOjOqNdJNYsL
+         qhcZqJNtdfRpaqBrFw02xk+ViqUnPdqjgGsM4bioSK1Ahy8LCsvg5Iqo5I2eboYalfb+
+         OYIjfuWj52VtxJayyUKu49hT6WLZvEDYqzb3/jsUeBHwWDWjYJtE1YxlIwksH94uRmtA
+         yuSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWZc2o02UbH7+JYATSc7fcSRuKgvgPhGXzLfh9G1/NaXArzuKph
+	Pf7DmDUs/pOm2B4H8gGg1oZw7HOL2bJ2g0qPHMbG+jPloqujwlYaSwB+S2DP560SekUs22WoJgO
+	BLLInJe7ftgtTgBz3fY43JTY2u/QS01cd90+Oda0JgcRT34l3xAhWRR/TUJy2Dw5yQg==
+X-Received: by 2002:a0d:ead6:: with SMTP id t205mr29982305ywe.399.1556743587816;
+        Wed, 01 May 2019 13:46:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXYRbMCpGHhvXX4uH/PjDN7s6krqtkDvOzBsF0fclhwC8eNpMYJU4HKsJTLBxJ6DuJF6+v
+X-Received: by 2002:a0d:ead6:: with SMTP id t205mr29982257ywe.399.1556743586941;
+        Wed, 01 May 2019 13:46:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556743586; cv=none;
         d=google.com; s=arc-20160816;
-        b=CpUgEiyMAbOkqSBFvF7H9uMdA16Cgz14mBglZx87SAhx3DCVTe2uDlM3sRYnc+5n+D
-         JLD4lxFNwTlpslPXCH/BpyyRlCOKzlg8YGe2xGfCDc+4ujwR14Ql+VQ5a/+WfEkbyxgG
-         dpc29vBAWuQFvSFv+AK0lVFh5IVn01NQBYZ69k4etcubY/gzkQVf6gNQo6UJ9/mVNCBL
-         I8Q/l2M3M2PwZKXofnRcjnFgy1f+W64dKwvIuxePWQT2De1+cokZdbnqVmCPFPoteHu6
-         uUnVI4RiAkHZbXkW0f1BRNqtO2/7GATkrPcdrLZBa2cGK1J06lNm+9XsJuHIQ2EAGn3K
-         3u+g==
+        b=ZvcKq1M63nstsAroTLCknUWwYQ4SSXs35L6XUU96FKGOcqxab4hwB1MTRe3dqrgGFw
+         Oakgp8ontwhDUthtdr+DoM09/cZxMov/ldpOEUK46CelRHF+gsWeb3BBic0M3K1KuBcv
+         hiw8sU+vFCBW9zZ2gMNoyC8hAHmVnRzoYf7ULn8sI6RQuUP4uQmG3qv0HtYzpgDVtnxc
+         /QKSjQKuYerZMiOSyhHZdwRhf5r60WI8avlIo/N2BVXGi/n6ZgysSzFhZZ6bWstAFDzx
+         +nZPZNxw5djXK6KsHENNW+6QFqVOSVMDCNEOQRrFLzDuzMSwCjzD565CVX1zHJoMXb1D
+         +KOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=QL2tBN3pQ9dGG9oKQvnxrcR2IX/vPQNIJ81izHaCYVE=;
-        b=fA54VS2wOZcrqVMqvPbDt5UwoffnkW6ohVqDWCv814uqOZP7b9+JoYbSslAMvLvtnu
-         x4kT671F16q8XBlvK5K/DDHDSS93k+i0PssWvGiJJcXsU9onNoccigZxUSF5mp081LwY
-         DHbF1EnO3Kb+i0Qgf4qxhFBsoNQv1ukZYypQ/dI4BvAq56pSRpZiPhuvd2wqcFFhSulA
-         4hSjJw6qZIGd/AGcs7pT+tmxth1ucIt39hqSqopqyX9T5j55TLcziVNqEg66UfLlZ0ar
-         6ruxJ2f5A8AqjZFZAdbOyHWlx2RPAmzmltjOWmDyIALQHIcRz0pjRifbnX9NuItdebIu
-         veFA==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=vUHQdgyXjVhAkI61jgcSVdra0Z04c9YtAiiciAFt1ag=;
+        b=khOvvSglBUpupqTW3T+vXAOgtRXyTWn0+LdgRqyj5CTudW6ETNonA2FinQ9AFABR+G
+         NsYsC7ZUvJnI4Z2VXtdQFBBKNLPD5bFYJW07StXERHW4lrYngxQIo5QrGOvm7adBGQeH
+         tX1GK2fJsaE0+9yz/Zvnc3MgbLYNqHQR2Zhiy8PuRzvnyPp5YfRxnDNEY/DZmqzRV+ie
+         NPiovfruqVS/FTdgyOqYTBRKehNNZR5z/cIRYg/x/njby/o406KIB/nRzt0bxlrDIEE0
+         8gIA+juYXrtkE0rSXFrkx7S59x5Cpx+DXYJ/iELkjuzZzqsQijMFaa8tRXGL78qJXeP/
+         +meQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=mzKRQByx;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i6sor14461108edd.12.2019.05.01.13.32.43
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x31si28831946ybh.261.2019.05.01.13.46.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 May 2019 13:32:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 May 2019 13:46:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=mzKRQByx;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=QL2tBN3pQ9dGG9oKQvnxrcR2IX/vPQNIJ81izHaCYVE=;
-        b=mzKRQByx0s0KuJiv923WITWkB8HGSQ8iB2Vm0yGys+DRqZ7u+jZE+I0J9Sf31Vv/HO
-         +h2hzwvWGwheD6omUYoJ1ESvw9Fzo6a3Ssvy89DI3Nhu+qjEMb5MRP1k1YyVUOSimlci
-         LYJvAFAe01WkHwC15kmNdYbBXx8UhFuJqH2ymIPVu/300rR/NimAwD0tyuJXDd6YM0nA
-         OfTzGh1x0BHXeTxdCwF3KP6W98HHsBd18S1eRxsyFJRyjEpR+TFFVITJahbCBetmp5yy
-         INuzAxNCDCuSdNJDldkEICwniz80FC+AtvUzslsTAgbqhLq+IG9X94eHJutZGUOdrqU7
-         /ong==
-X-Google-Smtp-Source: APXvYqxG+zywxchpt42VU6VUd0dsOC2Chj0pTVZjpYpEIuN415/v9h1x2i3BVmepMqcB8yJtyEdO/62sRk0+pKJlEL8=
-X-Received: by 2002:aa7:cf8f:: with SMTP id z15mr110045edx.190.1556742763007;
- Wed, 01 May 2019 13:32:43 -0700 (PDT)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x41Kgddu132596
+	for <linux-mm@kvack.org>; Wed, 1 May 2019 16:46:26 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2s7es9262w-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 01 May 2019 16:46:26 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 1 May 2019 21:46:24 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 1 May 2019 21:46:21 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x41KkK9W62324976
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 1 May 2019 20:46:20 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7CBCA42042;
+	Wed,  1 May 2019 20:46:20 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 538C74203F;
+	Wed,  1 May 2019 20:46:19 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.12])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed,  1 May 2019 20:46:19 +0000 (GMT)
+Date: Wed, 1 May 2019 23:46:17 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
+        Matthew Wilcox <willy@infradead.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mikulas Patocka <mpatocka@redhat.com>,
+        James Bottomley <James.Bottomley@hansenpartnership.com>,
+        linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+        Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+        linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190421063859.GA19926@rapoport-lnx>
+ <20190421132606.GJ7751@bombadil.infradead.org>
+ <20190421211604.GN18914@techsingularity.net>
+ <20190423071354.GB12114@infradead.org>
+ <20190424113352.GA6278@rapoport-lnx>
+ <20190428081107.GA30901@infradead.org>
 MIME-Version: 1.0
-References: <20190501202433.GC28500@bombadil.infradead.org>
-In-Reply-To: <20190501202433.GC28500@bombadil.infradead.org>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Wed, 1 May 2019 16:32:32 -0400
-Message-ID: <CA+CK2bDAPuXcDewb+Q--VWuDUGhzvufHRwZmh1=tuaOUMJfsMw@mail.gmail.com>
-Subject: Re: compound_head() vs uninitialized struct page poisoning
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190428081107.GA30901@infradead.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19050120-0008-0000-0000-000002E24E29
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050120-0009-0000-0000-0000224EBA0A
+Message-Id: <20190501204616.GB6135@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-01_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905010128
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 1, 2019 at 4:24 PM Matthew Wilcox <willy@infradead.org> wrote:
->
->
-> Hi Pavel,
->
-> This strikes me as wrong:
->
-> #define PF_HEAD(page, enforce)  PF_POISONED_CHECK(compound_head(page))
->
-> If we hit a page which is poisoned, PAGE_POISON_PATTERN is ~0, so PageTail
-> is set, and compound_head will return() 0xfff..ffe.  PagePoisoned()
-> will then try to derefence that pointer and we'll get an oops that isn't
-> obviously PagePoisoned.
->
-> I think this should have been:
->
-> #define PF_HEAD(page, enforce)  compound_head(PF_POISONED_CHECK(page))
+On Sun, Apr 28, 2019 at 01:11:07AM -0700, Christoph Hellwig wrote:
+> On Wed, Apr 24, 2019 at 02:33:53PM +0300, Mike Rapoport wrote:
+> > On Tue, Apr 23, 2019 at 12:13:54AM -0700, Christoph Hellwig wrote:
+> > > On Sun, Apr 21, 2019 at 10:16:04PM +0100, Mel Gorman wrote:
+> > > > 32-bit NUMA systems should be non-existent in practice. The last NUMA
+> > > > system I'm aware of that was both NUMA and 32-bit only died somewhere
+> > > > between 2004 and 2007. If someone is running a 64-bit capable system in
+> > > > 32-bit mode with NUMA, they really are just punishing themselves for fun.
+> > > 
+> > > Can we mark it as BROKEN to see if someone shouts and then remove it
+> > > a year or two down the road?  Or just kill it off now..
+> > 
+> > How about making SPARSEMEM default for x86-32?
+> 
+> Sounds good.
+> 
+> Another question:  I always found the option to even select the memory
+> models like a bad tradeoff.  Can we really expect a user to make a sane
+> choice?  I'd rather stick to a relativelty optimal choice based on arch
+> and maybe a few other parameters (NUMA or not for example) and stick to
+> it, reducing the testing matrix.
 
-Yes, I agree,  this makes sense.
+I've sent patches that remove ARCH_SELECT_MEMORY_MODEL from arm, s390 and
+sparc where it anyway has no effect [1].
 
->
-> One could make the argument for double-checking:
->
-> #define PF_HEAD(page, enforce)  PF_POISONED_CHECK(compound_head(PF_POISONED_CHECK(page)))
->
-> but I think this is overkill; if a tail page is initialised, then there's
-> no way that its head page should have been uninitialised.
+That leaves arm64, ia64, parisc, powerpc, sh and i386.
 
-Also agree, no need to check head if subpage is initialized.
+I'd say that for i386 selecting between FLAT and SPARSE based on NUMA
+sounds reasonable.
 
->
-> Would a patch something along these lines make sense?  Compile-tested only.
+I'm not familiar enough with others to say if such enforcement makes any
+sense.
 
-Yes, I like the re-ordering PF_POISONED_CHECK()s to  be before the
-other accesses to PPs.
+Probably powerpc and sh can enable the preferred memory model in
+platform/board part of their Kconfig, just like arm.
 
-Thank you,
-Pasha
+[1] https://lore.kernel.org/lkml/1556740577-4140-1-git-send-email-rppt@linux.ibm.com
+
+-- 
+Sincerely yours,
+Mike.
 
