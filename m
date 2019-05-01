@@ -2,263 +2,215 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADA95C04AA8
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:41:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61BD9C43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:43:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A133208C3
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:41:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aIHyEAFW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A133208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 2402E208C3
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:43:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2402E208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9788C6B0003; Wed,  1 May 2019 10:41:39 -0400 (EDT)
+	id B99DE6B0005; Wed,  1 May 2019 10:43:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9289E6B0005; Wed,  1 May 2019 10:41:39 -0400 (EDT)
+	id B4AAC6B0006; Wed,  1 May 2019 10:43:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8188D6B0006; Wed,  1 May 2019 10:41:39 -0400 (EDT)
+	id 9EADE6B0008; Wed,  1 May 2019 10:43:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 526196B0003
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:41:39 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id m8so7176464oih.0
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:41:39 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F8DA6B0005
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:43:29 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id o8so7924866edh.12
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:43:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
-        b=h0hFbSURyFWHmicJMaJbmV7gQzQ7E7PzN+bDCLKB1rMPl3Ol20Eqttx4jGK01gZ7JB
-         LSA3c5raNiRvZH5J5i3F0AIo2g7lNpYnMVYPbKGOu9p4yVq+Bdu0s12xxHDBzIvOB9wv
-         J4F3bdFiJFPBgMJ2S9JatbBKDE+XLVQZQKPHy5T/saisMahJOeUyP43qrDDP68GQnyn6
-         OMVy0NC8g+OCG/KBCA7iq5tXgEsPtfzln1om6XZvoIaYBJrTTEA7Lv75PpzemeqGlgpc
-         Iz8zrATarjsimtuPxTH9qlZoTiK4j6zARazX6bOvySvg7fRKUwBXCsF//Aw8E+QAWK6J
-         XP6Q==
-X-Gm-Message-State: APjAAAXC9QpddR4lSH73iwXBquBndQMFSBDDDnC/viGuom5Iw+xcvVvo
-	nX5hAAKQzIdTvZz7stnJfLOmo7S8auLlcydgvTAM+ajMI5Mc55McdNgMNi8BF8ywN8vSJQExQth
-	nBjSErBBmysReR8MTzdteBUrLCmywYTzQkcJecLmoYS4DLp7RztVesX8IfUqdVdb1Mg==
-X-Received: by 2002:a9d:7a90:: with SMTP id l16mr1601403otn.71.1556721698884;
-        Wed, 01 May 2019 07:41:38 -0700 (PDT)
-X-Received: by 2002:a9d:7a90:: with SMTP id l16mr1601353otn.71.1556721697875;
-        Wed, 01 May 2019 07:41:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556721697; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=suhca6lb4katGIatZXXrEmb6+cGHeXo2yELfpUGBq4E=;
+        b=gngVRLj9yPHQ2eX/rnC/wGfQIjPfRoaFF+QwjOkCrvftW8DUIjBYp5HgDVISh3UnLH
+         IUDGez0IyH7Ujs6dblU1CnPwkgL5KC/OnS+q1YYEIJ6oQFcDs5EYbv708WIob6mITPfS
+         fzjkEHH7L+zdsYSrsFXyF9/W78G5p+CFXanyda1u5wsN1/Jwy7gxBFp2Zbz8lx8UUnhe
+         EsAUmw8bfBMY9jYWl1CggJB94eeeXW1FSCDcYWtN8WpjEhtlzOCT11C/6m0wkANjM58J
+         opiwU9tpJHtUL3IoFvgxj/LuvSygBTex1WYpK14W+HleZ6m/rY3bIhcxzL9pMDkJy92a
+         4A7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: APjAAAVbbMcbpAW/STk88I6bKDyiYkIDW+kfQgVRMw37eGZwrQD5/O8+
+	saQA6FnWSOu37WREvoFLRSfL0dgxlkA4d9rnIH3ukk+2J3pZWSZ5+Kdu9fqUwrK9s3Y2HlY3zkn
+	VBEbTusp+3sLc61FcPO2kBs1ZWUI3Unuo1QT+510MyEabIDls5YSmMU5+aKvjTrEjVg==
+X-Received: by 2002:aa7:c44e:: with SMTP id n14mr23173048edr.203.1556721808885;
+        Wed, 01 May 2019 07:43:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwWgr4cizvzkY0Z06zYFAtbETh4f6ns6w4tJIXJhedZGGovQ57DagEAtr7v6QpvaBbhqER
+X-Received: by 2002:aa7:c44e:: with SMTP id n14mr23172995edr.203.1556721807901;
+        Wed, 01 May 2019 07:43:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556721807; cv=none;
         d=google.com; s=arc-20160816;
-        b=aDfeyMPRLI0gy++SPjPIKwuDzX2zEBx4QHqN/nCiPVaLjndj5zidQv4WD29otd7TtT
-         sWaGEuDzbCdadM2e/iLkpQkgkgDsViQ0RrXezzWeYe0JnGwqZ4pF81hS9wDnuFfiMyn2
-         yjLHUrfOUvl7YMePExf4tlUaUU8ImxKRfhKB1aytYeZ/S3hpsqN9AtElPjSWNtMA/Jyn
-         4YWkMoe/Nt8nmjayMhUgryGFA6vwb2jZl3jycTOpQT6UbGbkAt+1w/WVRYBMAtfO8SJR
-         C/EHD1NBsrUz//47bZ3wbbQQ2zMAdYoz+u3KErCQ9TR6sfOm1tVBWRQXrohJ6ZEPcxTw
-         MKoQ==
+        b=UQ3NajgnXioa2/3AsRIfnAYJviEi1u7RKDZrQF0wm3wLmldtaase2bwB3taeCAd+E/
+         dnXgRyxbrUoRh1PbK25L+xmXA/eko6HmX/DJQzPB8LnLa1pc54fnJHiS3xQA3DUH1QBi
+         1Iwq0lQRcuwpXqdNte8d/TapNxlNT3KHGVJfo3bFsxKThLky+wKqr9aQh+D/qpiC+wmQ
+         r4dVDaqSVhOM+6X7IIx5MJjyRYSeZsqn+i6zY6fzbcpQ7L8YUVji1boh8deC75hj/Pi8
+         lh67OJMQBp6GaOx4UvhTNeX/k6/ToP8R6IAA/JcPILp3J8l1cnw6M4lMfAM4v+AI+bZs
+         ejTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
-        b=VvjB20HOi0um4w26BQ/ersWB2Ne+VG+FGv2eRjwoBmJDXgYfabKBA2viTcbiOlzS7Y
-         +7D7O3SqtJgne2wNEmD5kL/TeT172zNwONSyxvoEhLR9eTFA42YDiOn6IwOyCUUpaJTI
-         4Lm50tK+SdBXV6ZxN0T+dQu40x4pzXKo77g0ecpF3ohf+1VmDhMvSJBtAIbVMI5gFviD
-         qMKM6bHvbUpbBCV5B615Y9cuptTE6UPmhwkHQfGS/0E1BCFAPrQImgRXYRJTgARqna5e
-         0MYjZifyoE2LWCHIHgCIpA14RCTC/D49PuChPs1TQzEPyLMrWKACbAlWDv4bTFL3oKcs
-         6rDA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=suhca6lb4katGIatZXXrEmb6+cGHeXo2yELfpUGBq4E=;
+        b=tCLHe7ITiueNys8gQ2B32Nj0tlCTTwSy6KRIKzRX9YmCAgn+f69nVsRHSJqfvs5S6c
+         CXDS+tCwh0WtiaZqT9JZuBTvKXuWmcljZVBMSBpqFTrj5+LERrVHrpTzTZgfJBH/pCJb
+         xJRZFtPghTvFRtjtkWabcLpgxekXyjLxasrkQ1ENuVQOKKcSBWvHMRQmEcZ+qStobezm
+         8z0SQ2AcfHDk7srcbFakZ3d18HPVoveoBd3pBXjbpvtDTSnpT3hilXYN9DJKujvbsrlL
+         gLleZikGXKYtaZ+qXxz8Te/QASr+2K/vRGcdiJHig74zA1jRIc/XiyKYUum7yhGAedSY
+         d9tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aIHyEAFW;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d36sor882100otb.82.2019.05.01.07.41.37
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 May 2019 07:41:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id s50si2276553edd.184.2019.05.01.07.43.27
+        for <linux-mm@kvack.org>;
+        Wed, 01 May 2019 07:43:27 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aIHyEAFW;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=CcEnmTWzXBw2Kw6J/XbDUAI8BVzycPBagP9KRd9Dyww=;
-        b=aIHyEAFW30nyWPGcEYFx3Gn3whUUd2Hh/iyA/7Ka1s/5Ffg3MT8AtjNSZswSyHh8rB
-         T5eXn2wlHoXImBKRYvOCLM0mps8jgr5wrh5+0KV8qFXgOheHS9wxgs4AsD2sLXs0SbaD
-         pUCmuD1gmqPFyr6/t4GZzQ7dC6rfngpwxWk41lBjZyfn29OGHc7ydFI8WDyPxfD+uVZh
-         lz6yhPe+lQBztzstwZ8qYWWU/JlarTejdyLGF6OBZIyzGp8oTzycCsLMQ6538UPT6c8Q
-         M/1kPAe2fIFUB9yAVJNIUQG7SrgBavmQ6iDpw372EADnYmTrJlYGKnLaJ4E1xkVoezgs
-         gzcQ==
-X-Google-Smtp-Source: APXvYqxCmSJu5SxLQ5NahHyG22cxUdtqf85OYE9oQArWJat9uvVosuxlSpiP/RxJWO+ptNtLn4HEmVZzrXf3no1rXvA=
-X-Received: by 2002:a9d:2965:: with SMTP id d92mr5539467otb.73.1556721697378;
- Wed, 01 May 2019 07:41:37 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8729EA78;
+	Wed,  1 May 2019 07:43:26 -0700 (PDT)
+Received: from [192.168.1.18] (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CE1D23F719;
+	Wed,  1 May 2019 07:43:15 -0700 (PDT)
+Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in
+ prctl_set_mm*
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+ Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
+ Kate Stewart <kstewart@linuxfoundation.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Shuah Khan <shuah@kernel.org>, Eric Dumazet <edumazet@google.com>,
+ "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
+ <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>,
+ Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Arnaldo Carvalho de Melo <acme@kernel.org>,
+ Alex Deucher <alexander.deucher@amd.com>,
+ =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>,
+ "David (ChunMing) Zhou" <David1.Zhou@amd.com>,
+ Yishai Hadas <yishaih@mellanox.com>,
+ Mauro Carvalho Chehab <mchehab@kernel.org>,
+ Jens Wiklander <jens.wiklander@linaro.org>,
+ Alex Williamson <alex.williamson@redhat.com>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Linux Memory Management List <linux-mm@kvack.org>,
+ linux-arch <linux-arch@vger.kernel.org>, netdev <netdev@vger.kernel.org>,
+ bpf <bpf@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+ dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+ linux-media@vger.kernel.org, kvm@vger.kernel.org,
+ "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>,
+ Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>,
+ Lee Smith <Lee.Smith@arm.com>,
+ Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+ Jacob Bramley <Jacob.Bramley@arm.com>,
+ Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+ Chintan Pandya <cpandya@codeaurora.org>,
+ Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+ Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
+ Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <cover.1553093420.git.andreyknvl@google.com>
+ <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
+ <20190322154136.GP13384@arrakis.emea.arm.com>
+ <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
+ <20190426145024.GC54863@arrakis.emea.arm.com>
+ <CAAeHK+ww=6-fTnHN_33EEiKdMqXq5bNU4oW9oOMcfz1N_+Kisw@mail.gmail.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <c00bde00-3026-7c01-df0e-b374582b5825@arm.com>
+Date: Wed, 1 May 2019 15:43:28 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20180208021112.GB14918@bombadil.infradead.org> <20180302212637.GB671@bombadil.infradead.org>
-In-Reply-To: <20180302212637.GB671@bombadil.infradead.org>
-From: Jann Horn <jannh@google.com>
-Date: Wed, 1 May 2019 10:41:11 -0400
-Message-ID: <CAG48ez1G5tECsYj7wAGbgp5814BBZB1YHL20ZkeO9gvFprD=2Q@mail.gmail.com>
-Subject: Re: [RFC] Handle mapcount overflows
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linux-MM <linux-mm@kvack.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
-	kernel list <linux-kernel@vger.kernel.org>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAAeHK+ww=6-fTnHN_33EEiKdMqXq5bNU4oW9oOMcfz1N_+Kisw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[extremely slow reply]
+Hi Andrey,
 
-On Fri, Mar 2, 2018 at 4:26 PM Matthew Wilcox <willy@infradead.org> wrote:
-> Here's my third effort to handle page->_mapcount overflows.
+sorry for the late reply, I came back from holiday and try to catch up with the
+emails.
+
+On 4/29/19 3:23 PM, Andrey Konovalov wrote:
+> On Fri, Apr 26, 2019 at 4:50 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>>
+>> On Mon, Apr 01, 2019 at 06:44:34PM +0200, Andrey Konovalov wrote:
+>>> On Fri, Mar 22, 2019 at 4:41 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>>>> On Wed, Mar 20, 2019 at 03:51:24PM +0100, Andrey Konovalov wrote:
+>>>>> @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>>>>>       if (opt == PR_SET_MM_AUXV)
+>>>>>               return prctl_set_auxv(mm, addr, arg4);
+>>>>>
+>>>>> -     if (addr >= TASK_SIZE || addr < mmap_min_addr)
+>>>>> +     if (untagged_addr(addr) >= TASK_SIZE ||
+>>>>> +                     untagged_addr(addr) < mmap_min_addr)
+>>>>>               return -EINVAL;
+>>>>>
+>>>>>       error = -EINVAL;
+>>>>>
+>>>>>       down_write(&mm->mmap_sem);
+>>>>> -     vma = find_vma(mm, addr);
+>>>>> +     vma = find_vma(mm, untagged_addr(addr));
+>>>>>
+>>>>>       prctl_map.start_code    = mm->start_code;
+>>>>>       prctl_map.end_code      = mm->end_code;
+>>>>
+>>>> Does this mean that we are left with tagged addresses for the
+>>>> mm->start_code etc. values? I really don't think we should allow this,
+>>>> I'm not sure what the implications are in other parts of the kernel.
+>>>>
+>>>> Arguably, these are not even pointer values but some address ranges. I
+>>>> know we decided to relax this notion for mmap/mprotect/madvise() since
+>>>> the user function prototypes take pointer as arguments but it feels like
+>>>> we are overdoing it here (struct prctl_mm_map doesn't even have
+>>>> pointers).
+>>>>
+>>>> What is the use-case for allowing tagged addresses here? Can user space
+>>>> handle untagging?
+>>>
+>>> I don't know any use cases for this. I did it because it seems to be
+>>> covered by the relaxed ABI. I'm not entirely sure what to do here,
+>>> should I just drop this patch?
+>>
+>> If we allow tagged addresses to be passed here, we'd have to untag them
+>> before they end up in the mm->start_code etc. members.
+>>
+>> I know we are trying to relax the ABI here w.r.t. address ranges but
+>> mostly because we couldn't figure out a way to document unambiguously
+>> the difference between a user pointer that may be dereferenced by the
+>> kernel (tags allowed) and an address typically used for managing the
+>> address space layout. Suggestions welcomed.
+>>
+>> I'd say just drop this patch and capture it in the ABI document.
+> 
+> OK, will do in v14.
+> 
+> Vincenzo, could you add a note about this into tour patchset?
 >
-> The idea is to minimise overhead, so we keep a list of users with more
-> than 5000 mappings.  In order to overflow _mapcount, you have to have
-> 2 billion mappings, so you'd need 400,000 tasks to evade the tracking,
-> and your sysadmin has probably accused you of forkbombing the system
-> long before then.  Not to mention the 6GB of RAM you consumed just in
-> stacks and the 24GB of RAM you consumed in page tables ... but I digress.
->
-> Let's assume that the sysadmin has increased the number of processes to
-> 100,000.  You'd need to create 20,000 mappings per process to overflow
-> _mapcount, and they'd end up on the 'heavy_users' list.  Not everybody
-> on the heavy_users list is going to be guilty, but if we hit an overflow,
-> we look at everybody on the heavy_users list and if they've got the page
-> mapped more than 1000 times, they get a SIGSEGV.
->
-> I'm not entirely sure how to forcibly tear down a task's mappings, so
-> I've just left a comment in there to do that.  Looking for feedback on
-> this approach.
-[...]
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 9efdc021ad22..575766ec02f8 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-[...]
-> +static void kill_mm(struct task_struct *tsk)
-> +{
-> +       /* Tear down the mappings first */
-> +       do_send_sig_info(SIGKILL, SEND_SIG_FORCED, tsk, true);
-> +}
 
-The mapping teardown could maybe be something like
-unmap_mapping_range_vma()? That doesn't remove the VMA, but it gets
-rid of the PTEs; and it has the advantage of working without taking
-the mmap_sem. And then it isn't even necessarily required to actually
-kill the abuser; instead, the abuser would just take a minor fault on
-the next access, and the abusers would take away each other's
-references, slowing each other down.
+Ok, I will add a note that covers this case in v3 of my document.
 
-> +static void kill_abuser(struct mm_struct *mm)
-> +{
-> +       struct task_struct *tsk;
-> +
-> +       for_each_process(tsk)
-> +               if (tsk->mm == mm)
-> +                       break;
+>>
+>> --
+>> Catalin
 
-(There can be multiple processes sharing the ->mm.)
-
-> +       if (down_write_trylock(&mm->mmap_sem)) {
-> +               kill_mm(tsk);
-> +               up_write(&mm->mmap_sem);
-> +       } else {
-> +               do_send_sig_info(SIGKILL, SEND_SIG_FORCED, tsk, true);
-> +       }
-
-Hmm. Having to fall back if the lock is taken here is kind of bad, I
-think. __get_user_pages_locked() with locked==NULL can keep the
-mmap_sem blocked arbitrarily long, meaning that an attacker could
-force the fallback path, right? For example, __access_remote_vm() uses
-get_user_pages_remote() with locked==NULL. And IIRC you can avoid
-getting killed by a SIGKILL by being stuck in unkillable disk sleep,
-which I think FUSE can create by not responding to a request.
-
-> +}
-> +
-> +void mm_mapcount_overflow(struct page *page)
-> +{
-> +       struct mm_struct *entry = current->mm;
-> +       unsigned int id;
-> +       struct vm_area_struct *vma;
-> +       struct address_space *mapping = page_mapping(page);
-> +       unsigned long pgoff = page_to_pgoff(page);
-> +       unsigned int count = 0;
-> +
-> +       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff + 1) {
-
-I think this needs the i_mmap_rwsem?
-
-> +               if (vma->vm_mm == entry)
-> +                       count++;
-> +               if (count > 1000)
-> +                       kill_mm(current);
-> +       }
-> +
-> +       rcu_read_lock();
-> +       idr_for_each_entry(&heavy_users, entry, id) {
-> +               count = 0;
-> +
-> +               vma_interval_tree_foreach(vma, &mapping->i_mmap,
-> +                               pgoff, pgoff + 1) {
-> +                       if (vma->vm_mm == entry)
-> +                               count++;
-> +                       if (count > 1000) {
-> +                               kill_abuser(entry);
-> +                               goto out;
-
-Even if someone has 1000 mappings of the range in question, that
-doesn't necessarily mean that there are actually any non-zero PTEs in
-the abuser. This probably needs to get some feedback from
-kill_abuser() to figure out whether at least one reference has been
-reclaimed.
-
-> +                       }
-> +               }
-> +       }
-> +       if (!entry)
-> +               panic("No abusers found but mapcount exceeded\n");
-> +out:
-> +       rcu_read_unlock();
-> +}
-[...]
-> @@ -1357,6 +1466,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
->         /* Too many mappings? */
->         if (mm->map_count > sysctl_max_map_count)
->                 return -ENOMEM;
-> +       if (mm->map_count > mm_track_threshold)
-> +               mmap_track_user(mm, mm_track_threshold);
-
-I think this check would have to be copied to a few other places;
-AFAIK you can e.g. use a series of mremap() calls to create multiple
-mappings of the same file page. Something like:
-
-char *addr = mmap(0x100000000, 0x1000, PROT_READ, MAP_SHARED, fd, 0);
-for (int i=0; i<1000; i++) {
-  mremap(addr, 0x1000, 0x2000, 0);
-  mremap(addr+0x1000, 0x1000, 0x1000, MREMAP_FIXED|MREMAP_MAYMOVE,
-0x200000000 + i * 0x1000);
-}
-
->         /* Obtain the address to map to. we verify (or select) it and ensure
->          * that it represents a valid section of the address space.
-> @@ -2997,6 +3108,8 @@ void exit_mmap(struct mm_struct *mm)
->         /* mm's last user has gone, and its about to be pulled down */
->         mmu_notifier_release(mm);
->
-> +       mmap_untrack_user(mm);
-> +
->         if (mm->locked_vm) {
->                 vma = mm->mmap;
->                 while (vma) {
-
-I'd move that call further down, to reduce the chance that the task
-blocks after being untracked but before actually dropping its
-references.
+-- 
+Regards,
+Vincenzo
 
