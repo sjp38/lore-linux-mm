@@ -2,215 +2,158 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61BD9C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:43:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8B5AC43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:49:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2402E208C3
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:43:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2402E208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 68AFB208C3
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:49:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68AFB208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B99DE6B0005; Wed,  1 May 2019 10:43:29 -0400 (EDT)
+	id 15D8E6B0003; Wed,  1 May 2019 10:49:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B4AAC6B0006; Wed,  1 May 2019 10:43:29 -0400 (EDT)
+	id 10E4A6B0005; Wed,  1 May 2019 10:49:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9EADE6B0008; Wed,  1 May 2019 10:43:29 -0400 (EDT)
+	id ECAAC6B0006; Wed,  1 May 2019 10:49:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F8DA6B0005
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:43:29 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o8so7924866edh.12
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:43:29 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C57F06B0003
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:49:51 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id d39so12205362qtc.15
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:49:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=suhca6lb4katGIatZXXrEmb6+cGHeXo2yELfpUGBq4E=;
-        b=gngVRLj9yPHQ2eX/rnC/wGfQIjPfRoaFF+QwjOkCrvftW8DUIjBYp5HgDVISh3UnLH
-         IUDGez0IyH7Ujs6dblU1CnPwkgL5KC/OnS+q1YYEIJ6oQFcDs5EYbv708WIob6mITPfS
-         fzjkEHH7L+zdsYSrsFXyF9/W78G5p+CFXanyda1u5wsN1/Jwy7gxBFp2Zbz8lx8UUnhe
-         EsAUmw8bfBMY9jYWl1CggJB94eeeXW1FSCDcYWtN8WpjEhtlzOCT11C/6m0wkANjM58J
-         opiwU9tpJHtUL3IoFvgxj/LuvSygBTex1WYpK14W+HleZ6m/rY3bIhcxzL9pMDkJy92a
-         4A7Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAVbbMcbpAW/STk88I6bKDyiYkIDW+kfQgVRMw37eGZwrQD5/O8+
-	saQA6FnWSOu37WREvoFLRSfL0dgxlkA4d9rnIH3ukk+2J3pZWSZ5+Kdu9fqUwrK9s3Y2HlY3zkn
-	VBEbTusp+3sLc61FcPO2kBs1ZWUI3Unuo1QT+510MyEabIDls5YSmMU5+aKvjTrEjVg==
-X-Received: by 2002:aa7:c44e:: with SMTP id n14mr23173048edr.203.1556721808885;
-        Wed, 01 May 2019 07:43:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzwWgr4cizvzkY0Z06zYFAtbETh4f6ns6w4tJIXJhedZGGovQ57DagEAtr7v6QpvaBbhqER
-X-Received: by 2002:aa7:c44e:: with SMTP id n14mr23172995edr.203.1556721807901;
-        Wed, 01 May 2019 07:43:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556721807; cv=none;
+         :references:from:organization:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=hX5aR2jjqrI2dhs9uTT8wfEMkfeebtgi9I6H1ZsXtJs=;
+        b=ppkyX42Y6rZtJd10ZqW2wfWkZjE8cixoSsvj0GSuTHw8TijiRh/zKHR2qsgqjH+YBE
+         XU5P4O9uSvZeM07foogHZWLKsocnz0c/0qVvr2+3a6UjCkU4cbjgm4R1QgVLZDz3qAlh
+         xmsGFiaFgt3NMHfc+aGCBlQ115unpt337mxCVm4dmmV7DQKGs96uQUPr5IMvk0PMu4KF
+         Dz9n4FajKKOVGbJyCNUex4qz17x6lk7Bu+gYz1dCgNX1773YZlYbZUW8SwQDLWeOCZ2z
+         xs2psVhfk3FjKuXcaHqneV4mCsE0o7k/8HVq7e3C6Sk/0i5YX19CXXEnOPHhgtKtPCZW
+         iGlg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXyCbMmghYOIj7oDMnwfGX0s8HmD/Ha3zEsdTpveoec5S5XeeVh
+	c20iFSyEBg3uDQBENDtCZvWULWBRnF/NF3nFWkkDduXp/Gc9dE2KpfpXt87UjAhINp7H6NLPqvn
+	4g98hbZ1k246EXcqpsXokTVeDqtW4L8PWIalpvPfGCo2xL9UI8qFUbZmzWzASXg/RIA==
+X-Received: by 2002:ac8:2df3:: with SMTP id q48mr25667252qta.354.1556722191532;
+        Wed, 01 May 2019 07:49:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyOFAUZCbkjW6vwpnqtDRcz2n5Blbjng6bGKNzSmyGhnwozx5Cfw0VuNjjvNslwf0OYAnY5
+X-Received: by 2002:ac8:2df3:: with SMTP id q48mr25667210qta.354.1556722190852;
+        Wed, 01 May 2019 07:49:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556722190; cv=none;
         d=google.com; s=arc-20160816;
-        b=UQ3NajgnXioa2/3AsRIfnAYJviEi1u7RKDZrQF0wm3wLmldtaase2bwB3taeCAd+E/
-         dnXgRyxbrUoRh1PbK25L+xmXA/eko6HmX/DJQzPB8LnLa1pc54fnJHiS3xQA3DUH1QBi
-         1Iwq0lQRcuwpXqdNte8d/TapNxlNT3KHGVJfo3bFsxKThLky+wKqr9aQh+D/qpiC+wmQ
-         r4dVDaqSVhOM+6X7IIx5MJjyRYSeZsqn+i6zY6fzbcpQ7L8YUVji1boh8deC75hj/Pi8
-         lh67OJMQBp6GaOx4UvhTNeX/k6/ToP8R6IAA/JcPILp3J8l1cnw6M4lMfAM4v+AI+bZs
-         ejTA==
+        b=gTtLdfruD71XxjenNMia96Jo9hJKadyJRkmu0D424bErfAXhZEJSxIQ2JaumQViTe9
+         4TUnUKhK5mGInPhcghAXOI7F4wpNVa9R2/pdKyhNiQlwUabsf+517CRcx6pF+lX4zpSC
+         mIU3ZfGp1bTT2q/QtGiW16FFIWugBHBW+kaXlN3TDSNrybHO/scpVf62Nmpn/N9KI3LB
+         eg8+Yv9ySSc9By7zeCt5u6IJIhVg/Lli2+uN9KP0kPoc6Frf9VkGkKnoZZNGmeiS7Ck9
+         A/fsTnrlOhgR0CnQLoRv39fkPXyELxU8+L8txGGD/rer3lt2JppFI5ho5Mr36IMB44kH
+         vRrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=suhca6lb4katGIatZXXrEmb6+cGHeXo2yELfpUGBq4E=;
-        b=tCLHe7ITiueNys8gQ2B32Nj0tlCTTwSy6KRIKzRX9YmCAgn+f69nVsRHSJqfvs5S6c
-         CXDS+tCwh0WtiaZqT9JZuBTvKXuWmcljZVBMSBpqFTrj5+LERrVHrpTzTZgfJBH/pCJb
-         xJRZFtPghTvFRtjtkWabcLpgxekXyjLxasrkQ1ENuVQOKKcSBWvHMRQmEcZ+qStobezm
-         8z0SQ2AcfHDk7srcbFakZ3d18HPVoveoBd3pBXjbpvtDTSnpT3hilXYN9DJKujvbsrlL
-         gLleZikGXKYtaZ+qXxz8Te/QASr+2K/vRGcdiJHig74zA1jRIc/XiyKYUum7yhGAedSY
-         d9tw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject;
+        bh=hX5aR2jjqrI2dhs9uTT8wfEMkfeebtgi9I6H1ZsXtJs=;
+        b=L4wdtNeSzv5IyYl+xag1wjMp8somWFMu3jj2Ot/YOAtfuDOEqGfHwltyvd/Wd0/Pou
+         N4Lwt0fNHEyj/vx4z5a0N7FL0uOzhpgo1r052cA7qn/8+OfbuatEMUI936kbzQhfkEj5
+         7iQo5TrUpclfbZqn/Xian04iFunWYuqAmGCEe3mQofNEEfZNrJw5zqhgE/OGnp1DMBXi
+         hR+1ffaL5MdA2EZdgc6n3qplljKlg/8utNH/klbcVD13r+I5GKWS/9XvkXYkZ3rNF07N
+         oPPx8IScrOKb2NB3PJVjUsjL5JP15ah95XcyYk4Z9GQU86VBzcx+G7Ncu6FWiaNbX2P9
+         WoCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s50si2276553edd.184.2019.05.01.07.43.27
-        for <linux-mm@kvack.org>;
-        Wed, 01 May 2019 07:43:27 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t2si3922425qkd.225.2019.05.01.07.49.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 May 2019 07:49:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8729EA78;
-	Wed,  1 May 2019 07:43:26 -0700 (PDT)
-Received: from [192.168.1.18] (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CE1D23F719;
-	Wed,  1 May 2019 07:43:15 -0700 (PDT)
-Subject: Re: [PATCH v13 10/20] kernel, arm64: untag user pointers in
- prctl_set_mm*
-To: Andrey Konovalov <andreyknvl@google.com>,
- Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
- Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
- Kate Stewart <kstewart@linuxfoundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
- "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
- Shuah Khan <shuah@kernel.org>, Eric Dumazet <edumazet@google.com>,
- "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov
- <ast@kernel.org>, Daniel Borkmann <daniel@iogearbox.net>,
- Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Arnaldo Carvalho de Melo <acme@kernel.org>,
- Alex Deucher <alexander.deucher@amd.com>,
- =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>,
- "David (ChunMing) Zhou" <David1.Zhou@amd.com>,
- Yishai Hadas <yishaih@mellanox.com>,
- Mauro Carvalho Chehab <mchehab@kernel.org>,
- Jens Wiklander <jens.wiklander@linaro.org>,
- Alex Williamson <alex.williamson@redhat.com>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- linux-arch <linux-arch@vger.kernel.org>, netdev <netdev@vger.kernel.org>,
- bpf <bpf@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
- dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
- linux-media@vger.kernel.org, kvm@vger.kernel.org,
- "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>,
- Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>,
- Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Chintan Pandya <cpandya@codeaurora.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1553093420.git.andreyknvl@google.com>
- <76f96eb9162b3a7fa5949d71af38bf8fdf6924c4.1553093421.git.andreyknvl@google.com>
- <20190322154136.GP13384@arrakis.emea.arm.com>
- <CAAeHK+yHp27eT+wTE3Uy4DkN8XN3ZjHATE+=HgjgRjrHjiXs3Q@mail.gmail.com>
- <20190426145024.GC54863@arrakis.emea.arm.com>
- <CAAeHK+ww=6-fTnHN_33EEiKdMqXq5bNU4oW9oOMcfz1N_+Kisw@mail.gmail.com>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <c00bde00-3026-7c01-df0e-b374582b5825@arm.com>
-Date: Wed, 1 May 2019 15:43:28 +0100
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6AA7EC024915;
+	Wed,  1 May 2019 14:49:49 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id E30A710021B4;
+	Wed,  1 May 2019 14:49:44 +0000 (UTC)
+Subject: Re: [RFC PATCH v9 03/13] mm: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+To: Khalid Aziz <khalid.aziz@oracle.com>, Ingo Molnar <mingo@kernel.org>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
+ keescook@google.com, konrad.wilk@oracle.com,
+ Juerg Haefliger <juerg.haefliger@canonical.com>,
+ deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com,
+ dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com,
+ boris.ostrovsky@oracle.com, iommu@lists.linux-foundation.org,
+ x86@kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-security-module@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>,
+ Peter Zijlstra <a.p.zijlstra@chello.nl>, Dave Hansen <dave@sr71.net>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+ Arjan van de Ven <arjan@infradead.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+References: <cover.1554248001.git.khalid.aziz@oracle.com>
+ <f1ac3700970365fb979533294774af0b0dd84b3b.1554248002.git.khalid.aziz@oracle.com>
+ <20190417161042.GA43453@gmail.com>
+ <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <35c4635e-8214-7dde-b4ec-4cb266b2ea10@redhat.com>
+Date: Wed, 1 May 2019 10:49:44 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <CAAeHK+ww=6-fTnHN_33EEiKdMqXq5bNU4oW9oOMcfz1N_+Kisw@mail.gmail.com>
+In-Reply-To: <e16c1d73-d361-d9c7-5b8e-c495318c2509@oracle.com>
 Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Wed, 01 May 2019 14:49:50 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrey,
+On Wed, Apr 03, 2019 at 11:34:04AM -0600, Khalid Aziz wrote:
+> diff --git a/Documentation/admin-guide/kernel-parameters.txt
+b/Documentation/admin-guide/kernel-parameters.txt
 
-sorry for the late reply, I came back from holiday and try to catch up with the
-emails.
-
-On 4/29/19 3:23 PM, Andrey Konovalov wrote:
-> On Fri, Apr 26, 2019 at 4:50 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->>
->> On Mon, Apr 01, 2019 at 06:44:34PM +0200, Andrey Konovalov wrote:
->>> On Fri, Mar 22, 2019 at 4:41 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->>>> On Wed, Mar 20, 2019 at 03:51:24PM +0100, Andrey Konovalov wrote:
->>>>> @@ -2120,13 +2135,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
->>>>>       if (opt == PR_SET_MM_AUXV)
->>>>>               return prctl_set_auxv(mm, addr, arg4);
->>>>>
->>>>> -     if (addr >= TASK_SIZE || addr < mmap_min_addr)
->>>>> +     if (untagged_addr(addr) >= TASK_SIZE ||
->>>>> +                     untagged_addr(addr) < mmap_min_addr)
->>>>>               return -EINVAL;
->>>>>
->>>>>       error = -EINVAL;
->>>>>
->>>>>       down_write(&mm->mmap_sem);
->>>>> -     vma = find_vma(mm, addr);
->>>>> +     vma = find_vma(mm, untagged_addr(addr));
->>>>>
->>>>>       prctl_map.start_code    = mm->start_code;
->>>>>       prctl_map.end_code      = mm->end_code;
->>>>
->>>> Does this mean that we are left with tagged addresses for the
->>>> mm->start_code etc. values? I really don't think we should allow this,
->>>> I'm not sure what the implications are in other parts of the kernel.
->>>>
->>>> Arguably, these are not even pointer values but some address ranges. I
->>>> know we decided to relax this notion for mmap/mprotect/madvise() since
->>>> the user function prototypes take pointer as arguments but it feels like
->>>> we are overdoing it here (struct prctl_mm_map doesn't even have
->>>> pointers).
->>>>
->>>> What is the use-case for allowing tagged addresses here? Can user space
->>>> handle untagging?
->>>
->>> I don't know any use cases for this. I did it because it seems to be
->>> covered by the relaxed ABI. I'm not entirely sure what to do here,
->>> should I just drop this patch?
->>
->> If we allow tagged addresses to be passed here, we'd have to untag them
->> before they end up in the mm->start_code etc. members.
->>
->> I know we are trying to relax the ABI here w.r.t. address ranges but
->> mostly because we couldn't figure out a way to document unambiguously
->> the difference between a user pointer that may be dereferenced by the
->> kernel (tags allowed) and an address typically used for managing the
->> address space layout. Suggestions welcomed.
->>
->> I'd say just drop this patch and capture it in the ABI document.
-> 
-> OK, will do in v14.
-> 
-> Vincenzo, could you add a note about this into tour patchset?
+> index 858b6c0b9a15..9b36da94760e 100644
+> --- a/Documentation/admin-guide/kernel-parameters.txt
+> +++ b/Documentation/admin-guide/kernel-parameters.txt
+> @@ -2997,6 +2997,12 @@
 >
+>      nox2apic    [X86-64,APIC] Do not enable x2APIC mode.
+>
+> +    noxpfo        [XPFO] Disable eXclusive Page Frame Ownership (XPFO)
+> +            when CONFIG_XPFO is on. Physical pages mapped into
+> +            user applications will also be mapped in the
+> +            kernel's address space as if CONFIG_XPFO was not
+> +            enabled.
+> +
+>      cpu0_hotplug    [X86] Turn on CPU0 hotplug feature when
+>              CONFIG_BO OTPARAM_HOTPLUG_CPU0 is off.
+>              Some features depend on CPU0. Known dependencies are:
 
-Ok, I will add a note that covers this case in v3 of my document.
+Given the big performance impact that XPFO can have. It should be off by
+default when configured. Instead, the xpfo option should be used to
+enable it.
 
->>
->> --
->> Catalin
-
--- 
-Regards,
-Vincenzo
+Cheers,
+Longman
 
