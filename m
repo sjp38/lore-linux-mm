@@ -2,123 +2,192 @@ Return-Path: <SRS0=L4L0=TB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E317C43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 13:37:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92E0BC43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF68C21670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 13:37:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ekXutGok"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF68C21670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 4FF9221743
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FF9221743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 208826B0003; Wed,  1 May 2019 09:37:00 -0400 (EDT)
+	id C7D036B0006; Wed,  1 May 2019 10:03:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DECD6B0005; Wed,  1 May 2019 09:37:00 -0400 (EDT)
+	id C54546B0008; Wed,  1 May 2019 10:03:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0CF536B0006; Wed,  1 May 2019 09:37:00 -0400 (EDT)
+	id B43DE6B000A; Wed,  1 May 2019 10:03:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C96396B0003
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 09:36:59 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id a5so8847489plh.14
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 06:36:59 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CA626B0006
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:02 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id j1so8888957pll.13
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=;
-        b=Tiz6jtJOcSdu6qLYk7vuioWVJ8N2uWhS1zYoyTE94zEHeFg3rHeB7F/3+GPj1Ja/nq
-         ca4vAYmhSgkoPZa8rjUg4e0FwI6sFLIY7RsKQMsJM7Tuka2mk1z1acikRBSLOo5b0mIS
-         tZW9WQMLCfg24FK+5TirNcFRsIcEvnH+E+7j/145KrRyPmKTy/fO23Cc3ZEp2AmAdhu+
-         OShx9zRWdlGHyidF+H9hwE4KVI4/x2lZWvk8yYfuRDjmoKu6efbCFbhcDTR9T6Kxu6rI
-         xLBTtsoeXL2++wwh0u4vXH4w4Q93GJBWuTkTNqOcoJlx3qMTUocLL7sE9vyNIk7Z40gU
-         0XhQ==
-X-Gm-Message-State: APjAAAXC7biuXTa+Z4hOq7gmJdcdvty3BTGJyEHz4ze/PJZx9G3XoMMT
-	SS+ZuDUOdQ+iD2CyDvXXKQrCYtWlBIR5/yyFaGfFZjWS2Kr6WViD02VUvYtBbSGPedAuO7fpTxM
-	oiCwm8YnhY/zJ6BYZOBwVCpwu7ip4PyKwCPLUxIsdcWBS8tY4NrGK1o6cBVHGhySviA==
-X-Received: by 2002:a62:a513:: with SMTP id v19mr77593454pfm.212.1556717819419;
-        Wed, 01 May 2019 06:36:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDOQeO+W01mQkQcfvbLsYU/sbsJpOWNRZ7gFavr0Dbn0UyHNpdQdYQ92Za9/NY9/s5DpF0
-X-Received: by 2002:a62:a513:: with SMTP id v19mr77593361pfm.212.1556717818541;
-        Wed, 01 May 2019 06:36:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556717818; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=BrOzmXnIzsSiGUlKZXB4gt7eO43RqcR07QiW9cmu6r4=;
+        b=Kfe+RUFaRIWtJkPyEd6McDqgwfaVkZ2RifKxiPaHH5hZ0AiYknYgTVIYSL0fqx+NwC
+         lfvT9I3TXas/dqQ8kshEuPbwAH8W/D7hvDdgHBJVBib3BqxvEJ5wCsUnX7sCUK1iTti2
+         jAb/Mq7iBQRCg9Pwyetr2AvJVgigU4/1sAM0VOpHLt72dIgQh/Fa/1uoIYL5/J53TipJ
+         8xiR1GnFLv3pXI87mBHdsuG6nupB2lj4hJ0npBNGQNT62JLP06eTKzdLJASVpe1xferX
+         jKnN+yJ0N8kuwBeUefOvndsAZVXkEzR29TbRQA8a2tFLu5xPaD/D4c+OL0oeIbLIL4cK
+         uRng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWEtlZ9MoKILzvkhrR/uGT1WYPqqo8iHn/xVTmaZhJwMpPxzjOB
+	DSf+yhzGMkycukS7f3038crepvBN4ljeuN3d3wqdrZs81qnsA4cHLe2Pl4jh48EhVYAUBoWfAtl
+	Tp663V05uJ70fmjzWWRfNn4dYJqhQPiOw0avpJPE1gL+4OlebC8SZjaa5s8u4d1o+5w==
+X-Received: by 2002:a17:902:28e4:: with SMTP id f91mr32672406plb.321.1556719382115;
+        Wed, 01 May 2019 07:03:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqynpzJE4Ceu+U7D5uGRjqY6/XpY4YxXkyfQEVYqyhfgBUXR9kYvWJBJcDoM1ENncQ7bQyGV
+X-Received: by 2002:a17:902:28e4:: with SMTP id f91mr32672301plb.321.1556719381107;
+        Wed, 01 May 2019 07:03:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556719381; cv=none;
         d=google.com; s=arc-20160816;
-        b=eeBSD/sOJzQd9T/PIij/Ir/tOts5ERRRa+KdeD7tp2el+Unoz77abd+MhUCJg1XRnk
-         ua4Ql2YTG5AlI/qiY+dcotJ/jNvwdRMJW1pLc7RKnl6tDBDmpSVhvmuY16kbu4cWvUDp
-         vP2LwJKkY27lp/Z6ScXDvPAa20gRkGOi/8V3UToaJ+dCcZfMWkG0gI54Uc9+If0NHtAI
-         RTXMkdBb6e+lafApxpPcYHtB0XEL6p7ux/q8Pxhbfe8b/UuStK9mxEqKrVYSzLVgWhPs
-         FWZ2O+rMn4pC4Ylgm2pmNS7h4P2wfimshK43BbqyJ82umPQTRD+FL//rQ4x0nwKPXyTw
-         FLqg==
+        b=uJiSkvq4tpiw19Et3TsB9L7QXxMtUIOnPKhcNLqLPbW48sm0Fn/2ks2nWT9dRpgmfU
+         qnLIUBFFH/yYfmM8h3wuYudfUjzfbxuRzaLDWChZRpGH45D7bnL+wzJEz03e4vstGuSp
+         FHEQe48rgROwXK+mvem0UdtlWvQGabaj1lee43SYT4NFXytzrY0IZsSBL0fgDXGmse7A
+         FX/KFfvuI8YiJcYYp+Fz+sX9n+3Wy9nfvMyN45mB8pQHh8EnOjMieqFIs/Fg+Jvl6ocV
+         388ZXPWa3FCYs+Yx3edNxpm7P/OQz0g9nQO9QJJz7W7NOdF31bhtvIzxRHYjoNcmnJG8
+         lB9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=;
-        b=M4EyyuLk6f2mIlChB7PdOpxoK7m3oF90k+sMnX8lTTSMVDMtP7J3cwd0THJNAyHGkY
-         5iUiJgaV9EPrPMkrYtOfYN0qh2cf6lWuho7jb/Kz9+2yum97mM4IFABpWeEgjEsXy2vk
-         4icFPwygSTYBEEt96m17edOlygGUShycZnfXfppnzhsQfOsnrIMM+jiKzKMNOIWSFxSq
-         LNt2KcF/pVIz4LzYDT6i2gIHhNedR5JoR/qnU7WuvfaoFi6R3QJW1ri17fQ3H8LH1k1/
-         zEUNOII1VWAb7/cWNqSqQFtgf+TnFFlX4/GBSw9X5aXx15FScOhoW4RgGo9NPZRCtd52
-         E1Fw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:to
+         :from;
+        bh=BrOzmXnIzsSiGUlKZXB4gt7eO43RqcR07QiW9cmu6r4=;
+        b=rUIn5Cc4+cmVDJ9dDinSAdMlYw+8WaOHT1T0bU7gYUpEC5k8qAVyR2pRR/Oyy+vlBm
+         pXAH9Vz2Z+/mRU6K1x0diSPks+vrjA4K7+KcrI9gfOVbct/UbPzf7CpeHBYjLOb2MgjY
+         i8PtlRbF0PD/I19C/QBa7LuKz/S0iSUGOyI997WQA4FAGHllDL5Bevnjgktes17NtxVb
+         oiAxY1hQsDmPMWn+Lt1AsBJd5FSKM0U8YbIXjqqmRUTZyWu4HLf4aRicvwCCqvh7PLjL
+         iXRlmtFPHixdWIN4HJX5/+9xDd1DuYIsYjIdh4PkmXJuxLb8My+b31N5a9a8100aUg2/
+         cjTA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ekXutGok;
-       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h19si8885269pgg.125.2019.05.01.06.36.58
+       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 01 May 2019 06:36:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 May 2019 07:03:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ekXutGok;
-       spf=pass (google.com: best guess record for domain of batv+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+fbe6eae7536a933b5243+5729+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=GDvmo8APjKKAf1sS8t8MFe7S1hHEWEC3gdsaHrs41B8=; b=ekXutGokZQcHKQJr2Fg6jLrC+
-	H0ANTOh0e+gQc5hh3bM3pwKr0Dbe4jxXpjVihwfbovHW/oXW/WJYNkKYvRnDgnXGKBrbQ4cTFhGxJ
-	y4oT1xJ21qvem0IyOCq9HJC/8Mdbl8yxvlRcgW/JXEEtfeflPj02Pf+LrGTg56yWcOVoZsaQ+9M9T
-	KqT/rnRmEXBXUv5baGG+wpb08YlM3tF4dz4A040wI0FlgIQ0iMiUibVVUOWQpEcWczMcWDUQudalT
-	Z8OE2Pyq7tEAMpT0Dlqkpc2NLvc0ITaeZZNtbd1Z3irbAPO0IFDKIWgN6U3ueQdg9wwEIs2C7Uy0B
-	49Dd++4rg==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hLpPq-00035h-S7; Wed, 01 May 2019 13:36:54 +0000
-Date: Wed, 1 May 2019 06:36:54 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Sami Tolvanen <samitolvanen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Kees Cook <keescook@chromium.org>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: fix filler_t callback type mismatch with readpage
-Message-ID: <20190501133654.GA26768@infradead.org>
-References: <20190430214724.66699-1-samitolvanen@google.com>
+       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:02:59 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,417,1549958400"; 
+   d="scan'208";a="145141383"
+Received: from nperf12.hd.intel.com ([10.127.88.161])
+  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:02:58 -0700
+From: Brian Welty <brian.welty@intel.com>
+To: cgroups@vger.kernel.org,
+	Tejun Heo <tj@kernel.org>,
+	Li Zefan <lizefan@huawei.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	linux-mm@kvack.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	dri-devel@lists.freedesktop.org,
+	David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	intel-gfx@lists.freedesktop.org,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	ChunMing Zhou <David1.Zhou@amd.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [RFC PATCH 0/5] cgroup support for GPU devices
+Date: Wed,  1 May 2019 10:04:33 -0400
+Message-Id: <20190501140438.9506-1-brian.welty@intel.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190430214724.66699-1-samitolvanen@google.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This still leaves bugs around in jffs2 and nfs.  And it is a little
-ugly.  This is what I'd like to do instead, so far untested.  I'll
-post a series once it passes basic testing:
+In containerized or virtualized environments, there is desire to have
+controls in place for resources that can be consumed by users of a GPU
+device.  This RFC patch series proposes a framework for integrating 
+use of existing cgroup controllers into device drivers.
+The i915 driver is updated in this series as our primary use case to
+leverage this framework and to serve as an example for discussion.
 
-http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/filler-fixes
+The patch series enables device drivers to use cgroups to control the
+following resources within a GPU (or other accelerator device):
+*  control allocation of device memory (reuse of memcg)
+and with future work, we could extend to:
+*  track and control share of GPU time (reuse of cpu/cpuacct)
+*  apply mask of allowed execution engines (reuse of cpusets)
+
+Instead of introducing a new cgroup subsystem for GPU devices, a new
+framework is proposed to allow devices to register with existing cgroup
+controllers, which creates per-device cgroup_subsys_state within the
+cgroup.  This gives device drivers their own private cgroup controls
+(such as memory limits or other parameters) to be applied to device
+resources instead of host system resources.
+Device drivers (GPU or other) are then able to reuse the existing cgroup
+controls, instead of inventing similar ones.
+
+Per-device controls would be exposed in cgroup filesystem as:
+    mount/<cgroup_name>/<subsys_name>.devices/<dev_name>/<subsys_files>
+such as (for example):
+    mount/<cgroup_name>/memory.devices/<dev_name>/memory.max
+    mount/<cgroup_name>/memory.devices/<dev_name>/memory.current
+    mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.stat
+    mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.weight
+
+The drm/i915 patch in this series is based on top of other RFC work [1]
+for i915 device memory support.
+
+AMD [2] and Intel [3] have proposed related work in this area within the
+last few years, listed below as reference.  This new RFC reuses existing
+cgroup controllers and takes a different approach than prior work.
+
+Finally, some potential discussion points for this series:
+* merge proposed <subsys_name>.devices into a single devices directory?
+* allow devices to have multiple registrations for subsets of resources?
+* document a 'common charging policy' for device drivers to follow?
+
+[1] https://patchwork.freedesktop.org/series/56683/
+[2] https://lists.freedesktop.org/archives/dri-devel/2018-November/197106.html
+[3] https://lists.freedesktop.org/archives/intel-gfx/2018-January/153156.html
+
+
+Brian Welty (5):
+  cgroup: Add cgroup_subsys per-device registration framework
+  cgroup: Change kernfs_node for directories to store
+    cgroup_subsys_state
+  memcg: Add per-device support to memory cgroup subsystem
+  drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
+  drm/i915: Use memory cgroup for enforcing device memory limit
+
+ drivers/gpu/drm/drm_drv.c                  |  12 +
+ drivers/gpu/drm/drm_gem.c                  |   7 +
+ drivers/gpu/drm/i915/i915_drv.c            |   2 +-
+ drivers/gpu/drm/i915/intel_memory_region.c |  24 +-
+ include/drm/drm_device.h                   |   3 +
+ include/drm/drm_drv.h                      |   8 +
+ include/drm/drm_gem.h                      |  11 +
+ include/linux/cgroup-defs.h                |  28 ++
+ include/linux/cgroup.h                     |   3 +
+ include/linux/memcontrol.h                 |  10 +
+ kernel/cgroup/cgroup-v1.c                  |  10 +-
+ kernel/cgroup/cgroup.c                     | 310 ++++++++++++++++++---
+ mm/memcontrol.c                            | 183 +++++++++++-
+ 13 files changed, 552 insertions(+), 59 deletions(-)
+
+-- 
+2.21.0
 
