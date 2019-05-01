@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0476FC43219
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB8CEC43219
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2A8621670
-	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2A8621670
+	by mail.kernel.org (Postfix) with ESMTP id 3CA5A21670
+	for <linux-mm@archiver.kernel.org>; Wed,  1 May 2019 14:03:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CA5A21670
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 68A666B000C; Wed,  1 May 2019 10:03:07 -0400 (EDT)
+	id 799CF6B000D; Wed,  1 May 2019 10:03:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63E486B000D; Wed,  1 May 2019 10:03:07 -0400 (EDT)
+	id 74E136B000E; Wed,  1 May 2019 10:03:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4DBD16B000E; Wed,  1 May 2019 10:03:07 -0400 (EDT)
+	id 5EFC56B0010; Wed,  1 May 2019 10:03:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 13CE06B000C
-	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:07 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d1so10929590pgk.21
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:07 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2773C6B000D
+	for <linux-mm@kvack.org>; Wed,  1 May 2019 10:03:08 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v9so10927495pgg.8
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 07:03:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=A7SFuJbJ0Uz+80lz/JGgS9jWr30zBIqu8J3bqFaW1VQ=;
-        b=Rp6itI97yvFtc5xayfXv7n4nOPJsutx4U+rVu52slqnpE5FYUPBvPedChhRNUn5GlQ
-         jyy2Z+yawIjKNlFXiD3ENyNdAlu2cKhGvDptqiE9lNMwLmKDry89DbB3PsMUreIJQnV5
-         pFQJxqTj1g9cuwo1Ep/sxdAn7qxyMVvYQbmFt5gGCGtyEWnakBAeYsfEdZGeqCHB4qMK
-         h3NHHnae1s7RFs7vSj5R8ZKQPddlcLA9vLSo2do4G61UHr+22UY2XTkLwfzbPu4B303i
-         vuw7HPUJCzA8rEWQvJi7GCw/LjBfZdxrbNijY/CSwZjAzKQNRqwHOSOUWbA3HcCy5IPC
-         GoAg==
+        bh=hyRjW8OzW6fFuYKbYW6yJA2KHI9E5p1014ZxcquzZpU=;
+        b=aBOypPdvtu9dnCvwzPz2rqKhtx9s54pYtLfq7LY8aivNuha7VCJX6ok9zXHEGdlL+B
+         /ub/rKa6jV5PWj/2OqL3lXz81M9GzHv5J7fhfiNSz3hRCMo4m49vKuT8rJo6f9LRz9OY
+         6veyYF0C8j1YZUjRi/gI45tXir7vzMYwViy2t/hCiKduIHxuVwdzukOB4Mktp9iDqfGs
+         fTZ5xAXGm/G21Pp60zpNnuXTgYsu1e5PugEHk2B2gi7ClUDDBFmZIUc3qc6ozb6tLgZl
+         9+Upv0PT/Pc078S8vLB1N9ZCjn1qBEeXoobLMdtly44FqZk4pj2xJxKH01siyrR+wish
+         4fPA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV5Ykiac6QsJ/81YsK32YClkkixg39kiHa5KS1f0DHsvjgN9oXG
-	0VBFW0RklDzMHi/B9YqvwOYuBc4gH3NQbHEJqJ7/Ab/7UAISJndTUdZPDdcRnt1oeWUZ+vflfMr
-	Ozygzicj+KtpdogWBXFUC9f+o0TDj5tlF4UHH5afkGa6NFD5j91cxgKhL0JMWXldpbg==
-X-Received: by 2002:a17:902:4101:: with SMTP id e1mr79389527pld.25.1556719386667;
+X-Gm-Message-State: APjAAAUOW37pbG/JRDAcW0XHEJlt5RQtN5Knxp/+QhqFmaSdkgcOBXi1
+	khOpz0p6vz+Sgb0VvKPMZAwC+01iAF6hltPYanWHEbPGhXXoYBtcW1pUyeSAg9NPZSHPQAfvWYP
+	sIDzilCQ2Gh8GqHml4YNBBlwX+2V+YKZ2CZKbBuKD+b49KErkFE1HMcP8gvnbRILYGg==
+X-Received: by 2002:a17:902:784d:: with SMTP id e13mr78556472pln.152.1556719387735;
+        Wed, 01 May 2019 07:03:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwp+wYBdhlvSRzhtVBgs5/qXyTWGvMYZIaImrYInPKf73ToIRP/R6eM2FQRXSzm7fUWE0Yg
+X-Received: by 2002:a17:902:784d:: with SMTP id e13mr78556303pln.152.1556719386394;
         Wed, 01 May 2019 07:03:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzsV3MP65nzKxToax1oFV4Ytd5XP+9AuC2WOQ0B3+IWY1clVtyUMq8otdanxqAXIPAz2Ozx
-X-Received: by 2002:a17:902:4101:: with SMTP id e1mr79389304pld.25.1556719384902;
-        Wed, 01 May 2019 07:03:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556719384; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556719386; cv=none;
         d=google.com; s=arc-20160816;
-        b=CK8y8Zx6UPaPdMQ5tU+tcMTsGQ/YTohbVAh2084MhUjXkkLnpY2acHHRF9zZwa0EEQ
-         yE0Wlve77UQ8TkTwuqyENuJZwaiufBIaXbEd6sDqezUx2D+OWgE4behy8Hdy76Oug9IX
-         22CPV2IotbxE9n59UyJvwwUp24SX1R3VQnXxaca0kCn04rOwN2PoB9kO5/X2Wpje4Mf9
-         JezFk8kqoH1svKw1UOGaFr0VmF5lf+B4ilasXDSe+JzVBf05akfegtpHqxzRPXba+Tdg
-         IMTKgW6c+a40Sx4CLRQLKh8jq4YCSBuMS3jC3GQMbsdal2uGnGd9ytmREiSY4HNC9iPV
-         emMA==
+        b=CtGmqx2abtpvSp+8qDcY2XDD7Bw/bFKWcI0m4ngfBJMn6LNXNQD4FfL/wJqWpkQ78H
+         PpWsafRyfcqQoQDDZkJqKsYmITTKKvMA1kvayOweF+//h2Is6ud/Kan3oi7gONI0Zwgx
+         wm20icbkI+X1cEAF/k/M543FyS2Dpe1nUPTjzXGKjSVJAbr+JiwmXslJzAJzfW7jHcZP
+         6FNmtoYmAXnQ27gOzwWwDMA0ZLWY5Y5VaRR5wd1n55W8ErFTqv2eIVHxNUCS8/jVIQHi
+         hm3Jbbs8RLdEPHosSDDes/GaT9vz0tIMyGd+CnabebkCOHN4CaybJ3PohtSFRim15T4i
+         s+jQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:to:from;
-        bh=A7SFuJbJ0Uz+80lz/JGgS9jWr30zBIqu8J3bqFaW1VQ=;
-        b=l6w4PU8dCb/pvUVbBJ+iop4LmyCrAzUA/Ca9Oj7MZ/z8GTkdDRu3SrsyywaL4rL4yC
-         Qq7gDtrmqYa48DWWe9r7hRLtEDU4QDPFwA1QoTfe4XWKyei/itMS130Ia+/fw9hhcJl/
-         ccMcnuPH3/znjFg3cD/2u7JMu0kmzy6XgjDXhqmBHkcQLV27AChTSvWqH9YN8yb1tTQU
-         UCUvI+YUOQiOe3J6Mfxft36bGcsO8pxhVJFDDFbDt+KcToJsOVDUOdmKmGfsDmwwCIUc
-         dSt/ppdXGyPaMKR7auXCm9810G73HYMTTxiXuHZD9FR5M47PVJSI2Ahpm26034BjD0En
-         Nksg==
+        bh=hyRjW8OzW6fFuYKbYW6yJA2KHI9E5p1014ZxcquzZpU=;
+        b=donVruu/TGBBzGIIkEjZvJblyFCfh5MB4EcrJHl5pcai/STEt0bo3OzAhNEZzwqe31
+         gsyrAnLwVeM2ZdPNnEwZNr6GBcxOe484+AJJSNxmMtd17GUVvDW2nO249K7oEnnkCZYV
+         Ldeb6moMoYarvRKB4ceAGt5YFNEuPlhk2Xjf1pM7vlWItFec6+JtihSRKvzD/kknjH+T
+         k0L7gZq3/f82CDjzb0lyc3eKvAUtw3yUZmqDVkO6xdfISi0LgUKNJwUCBmMckoiX99Pe
+         HrPP6u/MxssP2K+XktfHzmoMq6iglAFo0Te4TuLRK0IvFmicPEjaFeP7SVDGtVrxQoDC
+         B8vA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.04
+        by mx.google.com with ESMTPS id q25si38000486pgv.534.2019.05.01.07.03.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 07:03:04 -0700 (PDT)
+        Wed, 01 May 2019 07:03:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of brian.welty@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
@@ -81,12 +81,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:03:04 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 07:03:06 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,417,1549958400"; 
-   d="scan'208";a="145141406"
+   d="scan'208";a="145141415"
 Received: from nperf12.hd.intel.com ([10.127.88.161])
-  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:03:03 -0700
+  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 07:03:04 -0700
 From: Brian Welty <brian.welty@intel.com>
 To: cgroups@vger.kernel.org,
 	Tejun Heo <tj@kernel.org>,
@@ -106,9 +106,9 @@ To: cgroups@vger.kernel.org,
 	Alex Deucher <alexander.deucher@amd.com>,
 	ChunMing Zhou <David1.Zhou@amd.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [RFC PATCH 3/5] memcg: Add per-device support to memory cgroup subsystem
-Date: Wed,  1 May 2019 10:04:36 -0400
-Message-Id: <20190501140438.9506-4-brian.welty@intel.com>
+Subject: [RFC PATCH 4/5] drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
+Date: Wed,  1 May 2019 10:04:37 -0400
+Message-Id: <20190501140438.9506-5-brian.welty@intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190501140438.9506-1-brian.welty@intel.com>
 References: <20190501140438.9506-1-brian.welty@intel.com>
@@ -120,42 +120,35 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here we update memory cgroup to enable the newly introduced per-device
-framework.  As mentioned in the prior patch, the intent here is to allow
-drivers to have their own private cgroup controls (such as memory limit)
-to be applied to device resources instead of host system resources.
+With new cgroups per-device framework, registration with memory cgroup
+subsystem can allow us to enforce limit for allocation of device memory
+against process cgroups.
 
-In summary, to enable device registration for memory cgroup subsystem:
-  *  set .allow_devices to true
-  *  add new exported device register and device unregister functions
-     to register a device with the cgroup subsystem
-  *  implement the .device_css_alloc callback to create device
-     specific cgroups_subsys_state within a cgroup
+This patch adds new driver feature bit, DRIVER_CGROUPS, such that DRM
+will register the device with cgroups. Doing so allows device drivers to
+charge memory allocations to device-specific state within the cgroup.
 
-As cgroup is created and for current registered devices, one will see in
-the cgroup filesystem these additional files:
-  mount/<cgroup_name>/memory.devices/<dev_name>/<mem_cgrp attributes>
+Note, this is only for GEM objects allocated from device memory.
+Memory charging for GEM objects using system memory is already handled
+by the mm subsystem charing the normal (non-device) memory cgroup.
 
-Registration of a new device is performed in device drivers using new
-mem_cgroup_device_register(). This will create above files in existing
-cgroups.
+To charge device memory allocations, we need to (1) identify appropriate
+cgroup to charge (currently decided at object creation time), and (2)
+make the charging call at the time that memory pages are being allocated.
+Above is one policy, and this is open for debate if this is the right
+choice.
 
-And for runtime charging to the cgroup, we add the following:
-  *  add new routine to lookup the device-specific cgroup_subsys_state
-     which is within the task's cgroup (mem_cgroup_device_from_task)
-  *  add new functions for device specific 'direct' charging
+For (1), we associate the current task's cgroup with GEM objects as they
+are created.  That cgroup will be charged/uncharged for all paging
+activity against the GEM object.  Note, if the process is not part of a
+memory cgroup, then this returns NULL and no charging will occur.
+For shared objects, this may make the charge against a cgroup that is
+potentially not the same cgroup as the process using the memory.  Based
+on the memory cgroup's discussion of "memory ownership", this seems
+acceptable [1].  For (2), this is for device drivers to implement within
+appropriate page allocation logic.
 
-The last point above involves adding new mem_cgroup_try_charge_direct
-and mem_cgroup_uncharge_direct functions.  The 'direct' name is to say
-that we are charging the specified cgroup state directly and not using
-any associated page or mm_struct.  We are called within device specific
-memory management routines, where the device driver will track which
-cgroup to charge within its own private data structures.
-
-With this initial submission, support for memory accounting and charging
-is functional.  Nested cgroups will correctly maintain the parent for
-device-specific state as well, such that hierarchial charging to device
-files is supported.
+[1] https://www.kernel.org/doc/Documentation/cgroup-v2.txt, "Memory Ownership"
 
 Cc: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org
@@ -163,318 +156,151 @@ Cc: dri-devel@lists.freedesktop.org
 Cc: Matt Roper <matthew.d.roper@intel.com>
 Signed-off-by: Brian Welty <brian.welty@intel.com>
 ---
- include/linux/memcontrol.h |  10 ++
- mm/memcontrol.c            | 183 ++++++++++++++++++++++++++++++++++---
- 2 files changed, 178 insertions(+), 15 deletions(-)
+ drivers/gpu/drm/drm_drv.c | 12 ++++++++++++
+ drivers/gpu/drm/drm_gem.c |  7 +++++++
+ include/drm/drm_device.h  |  3 +++
+ include/drm/drm_drv.h     |  8 ++++++++
+ include/drm/drm_gem.h     | 11 +++++++++++
+ 5 files changed, 41 insertions(+)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index dbb6118370c1..711669b613dc 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -348,6 +348,11 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
- 		bool compound);
- void mem_cgroup_uncharge(struct page *page);
- void mem_cgroup_uncharge_list(struct list_head *page_list);
-+/* direct charging to mem_cgroup is primarily for device driver usage */
-+int mem_cgroup_try_charge_direct(struct mem_cgroup *memcg,
-+				 unsigned long nr_pages);
-+void mem_cgroup_uncharge_direct(struct mem_cgroup *memcg,
-+				unsigned long nr_pages);
+diff --git a/drivers/gpu/drm/drm_drv.c b/drivers/gpu/drm/drm_drv.c
+index 862621494a93..890bd3c0e63e 100644
+--- a/drivers/gpu/drm/drm_drv.c
++++ b/drivers/gpu/drm/drm_drv.c
+@@ -28,6 +28,7 @@
  
- void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
+ #include <linux/debugfs.h>
+ #include <linux/fs.h>
++#include <linux/memcontrol.h>
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
+ #include <linux/mount.h>
+@@ -987,6 +988,12 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
+ 	if (ret)
+ 		goto err_minors;
  
-@@ -395,6 +400,11 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
- struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
- 
-+struct mem_cgroup *mem_cgroup_device_from_task(unsigned long id,
-+					       struct task_struct *p);
-+int mem_cgroup_device_register(struct device *dev, unsigned long *dev_id);
-+void mem_cgroup_device_unregister(unsigned long dev_id);
-+
- struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
- 
- struct mem_cgroup *get_mem_cgroup_from_page(struct page *page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 81a0d3914ec9..2c8407aed0f5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -823,6 +823,47 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- }
- EXPORT_SYMBOL(mem_cgroup_from_task);
- 
-+int mem_cgroup_device_register(struct device *dev, unsigned long *dev_id)
-+{
-+	return cgroup_device_register(&memory_cgrp_subsys, dev, dev_id);
-+}
-+EXPORT_SYMBOL(mem_cgroup_device_register);
-+
-+void mem_cgroup_device_unregister(unsigned long dev_id)
-+{
-+	cgroup_device_unregister(&memory_cgrp_subsys, dev_id);
-+}
-+EXPORT_SYMBOL(mem_cgroup_device_unregister);
-+
-+/**
-+ * mem_cgroup_device_from_task: Lookup device-specific memcg
-+ * @id: device-specific id returned from mem_cgroup_device_register
-+ * @p: task to lookup the memcg
-+ *
-+ * First use mem_cgroup_from_task to lookup and obtain a reference on
-+ * the memcg associated with this task @p.  Within this memcg, find the
-+ * device-specific one associated with @id.
-+ * However if mem_cgroup is disabled, NULL is returned.
-+ */
-+struct mem_cgroup *mem_cgroup_device_from_task(unsigned long id,
-+					       struct task_struct *p)
-+{
-+	struct mem_cgroup *memcg;
-+	struct mem_cgroup *dev_memcg = NULL;
-+
-+	if (mem_cgroup_disabled())
-+		return NULL;
-+
-+	rcu_read_lock();
-+	memcg  = mem_cgroup_from_task(p);
-+	if (memcg)
-+		dev_memcg = idr_find(&memcg->css.device_css_idr, id);
-+	rcu_read_unlock();
-+
-+	return dev_memcg;
-+}
-+EXPORT_SYMBOL(mem_cgroup_device_from_task);
-+
- /**
-  * get_mem_cgroup_from_mm: Obtain a reference on given mm_struct's memcg.
-  * @mm: mm from which memcg should be extracted. It can be NULL.
-@@ -2179,13 +2220,31 @@ void mem_cgroup_handle_over_high(void)
- 	current->memcg_nr_pages_over_high = 0;
- }
- 
-+static bool __try_charge(struct mem_cgroup *memcg, unsigned int nr_pages,
-+			 struct mem_cgroup **mem_over_limit)
-+{
-+	struct page_counter *counter;
-+
-+	if (!do_memsw_account() ||
-+	    page_counter_try_charge(&memcg->memsw, nr_pages, &counter)) {
-+		if (page_counter_try_charge(&memcg->memory, nr_pages, &counter))
-+			return true;
-+		if (do_memsw_account())
-+			page_counter_uncharge(&memcg->memsw, nr_pages);
-+		*mem_over_limit = mem_cgroup_from_counter(counter, memory);
-+	} else {
-+		*mem_over_limit = mem_cgroup_from_counter(counter, memsw);
++	if (dev->dev && drm_core_check_feature(dev, DRIVER_CGROUPS)) {
++		ret = mem_cgroup_device_register(dev->dev, &dev->memcg_id);
++		if (ret)
++			goto err_minors;
 +	}
 +
-+	return false;
-+}
+ 	dev->registered = true;
+ 
+ 	if (dev->driver->load) {
+@@ -1009,6 +1016,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
+ 	goto out_unlock;
+ 
+ err_minors:
++	if (dev->memcg_id)
++		mem_cgroup_device_unregister(dev->memcg_id);
+ 	remove_compat_control_link(dev);
+ 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
+ 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+@@ -1052,6 +1061,9 @@ void drm_dev_unregister(struct drm_device *dev)
+ 
+ 	drm_legacy_rmmaps(dev);
+ 
++	if (dev->memcg_id)
++		mem_cgroup_device_unregister(dev->memcg_id);
 +
- static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		      unsigned int nr_pages)
- {
- 	unsigned int batch = max(MEMCG_CHARGE_BATCH, nr_pages);
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 	struct mem_cgroup *mem_over_limit;
--	struct page_counter *counter;
- 	unsigned long nr_reclaimed;
- 	bool may_swap = true;
- 	bool drained = false;
-@@ -2198,17 +2257,10 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	if (consume_stock(memcg, nr_pages))
- 		return 0;
+ 	remove_compat_control_link(dev);
+ 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
+ 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
+index 50de138c89e0..966fbd701deb 100644
+--- a/drivers/gpu/drm/drm_gem.c
++++ b/drivers/gpu/drm/drm_gem.c
+@@ -38,6 +38,7 @@
+ #include <linux/dma-buf.h>
+ #include <linux/mem_encrypt.h>
+ #include <linux/pagevec.h>
++#include <linux/memcontrol.h>
+ #include <drm/drmP.h>
+ #include <drm/drm_vma_manager.h>
+ #include <drm/drm_gem.h>
+@@ -281,6 +282,9 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
+ 	if (IS_ERR_OR_NULL(obj))
+ 		return -EINVAL;
  
--	if (!do_memsw_account() ||
--	    page_counter_try_charge(&memcg->memsw, batch, &counter)) {
--		if (page_counter_try_charge(&memcg->memory, batch, &counter))
--			goto done_restock;
--		if (do_memsw_account())
--			page_counter_uncharge(&memcg->memsw, batch);
--		mem_over_limit = mem_cgroup_from_counter(counter, memory);
--	} else {
--		mem_over_limit = mem_cgroup_from_counter(counter, memsw);
--		may_swap = false;
--	}
-+	if (__try_charge(memcg, batch, &mem_over_limit))
-+		goto done_restock;
-+	else
-+		may_swap = !do_memsw_account();
- 
- 	if (batch > nr_pages) {
- 		batch = nr_pages;
-@@ -2892,6 +2944,9 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
- {
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 
-+	if (memcg->css.device)
-+		return 0;
++	/* Release reference on cgroup used with GEM object charging */
++	mem_cgroup_put(obj->memcg);
 +
- 	/* we call try-to-free pages for make this cgroup empty */
- 	lru_add_drain_all();
+ 	/* Release driver's reference and decrement refcount. */
+ 	drm_gem_object_release_handle(handle, obj, filp);
  
-@@ -4496,7 +4551,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- }
- 
- static struct cgroup_subsys_state * __ref
--mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
-+__mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css, bool is_device)
- {
- 	struct mem_cgroup *parent = mem_cgroup_from_css(parent_css);
- 	struct mem_cgroup *memcg;
-@@ -4530,11 +4585,13 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- 		 * much sense so let cgroup subsystem know about this
- 		 * unfortunate state in our controller.
- 		 */
--		if (parent != root_mem_cgroup)
-+		if (!is_device && parent != root_mem_cgroup)
- 			memory_cgrp_subsys.broken_hierarchy = true;
+@@ -410,6 +414,9 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
+ 			goto err_revoke;
  	}
  
--	/* The following stuff does not apply to the root */
-+	/* The following stuff does not apply to devices or the root */
-+	if (is_device)
-+		return &memcg->css;
- 	if (!parent) {
- 		root_mem_cgroup = memcg;
- 		return &memcg->css;
-@@ -4554,6 +4611,34 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- 	return ERR_PTR(-ENOMEM);
- }
- 
-+static struct cgroup_subsys_state * __ref
-+mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
-+{
-+	return __mem_cgroup_css_alloc(parent_css, false);
-+}
++	/* Acquire reference on cgroup for charging GEM memory allocations */
++	obj->memcg = mem_cgroup_device_from_task(dev->memcg_id, current);
 +
-+/*
-+ * For given @cgroup_css, we create and return new device-specific css.
-+ *
-+ * @device and @cgroup_css are unused here, but they are provided as other
-+ * cgroup subsystems might require them.
-+ */
-+static struct cgroup_subsys_state * __ref
-+mem_cgroup_device_css_alloc(struct device *device,
-+			    struct cgroup_subsys_state *cgroup_css,
-+			    struct cgroup_subsys_state *parent_device_css)
-+{
-+	/*
-+	 * For hierarchial page counters to work correctly, we specify
-+	 * parent here as the device-specific css from our parent css
-+	 * (@parent_device_css).  In other words, for nested cgroups,
-+	 * the device-specific charging structures are also nested.
-+	 * Note, caller will itself set .device and .parent in returned
-+	 * structure.
+ 	*handlep = handle;
+ 	return 0;
+ 
+diff --git a/include/drm/drm_device.h b/include/drm/drm_device.h
+index 7f9ef709b2b6..9859f2289066 100644
+--- a/include/drm/drm_device.h
++++ b/include/drm/drm_device.h
+@@ -190,6 +190,9 @@ struct drm_device {
+ 	 */
+ 	int irq;
+ 
++	/* @memcg_id: cgroup subsys (memcg) index for our device state */
++	unsigned long memcg_id;
++
+ 	/**
+ 	 * @vblank_disable_immediate:
+ 	 *
+diff --git a/include/drm/drm_drv.h b/include/drm/drm_drv.h
+index 5cc7f728ec73..13b0e0b9527f 100644
+--- a/include/drm/drm_drv.h
++++ b/include/drm/drm_drv.h
+@@ -92,6 +92,14 @@ enum drm_driver_feature {
+ 	 */
+ 	DRIVER_SYNCOBJ                  = BIT(5),
+ 
++	/**
++	 * @DRIVER_CGROUPS:
++	 *
++	 * Driver supports and requests DRM to register with cgroups during
++	 * drm_dev_register().
 +	 */
-+	return __mem_cgroup_css_alloc(parent_device_css, true);
-+}
++	DRIVER_CGROUPS			= BIT(6),
 +
- static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-@@ -4613,6 +4698,9 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
  
-+	if (css->device)
-+		goto free_cgrp;
-+
- 	if (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nosocket)
- 		static_branch_dec(&memcg_sockets_enabled_key);
+ 	/**
+diff --git a/include/drm/drm_gem.h b/include/drm/drm_gem.h
+index 5047c7ee25f5..ca90ea512e45 100644
+--- a/include/drm/drm_gem.h
++++ b/include/drm/drm_gem.h
+@@ -34,6 +34,7 @@
+  * OTHER DEALINGS IN THE SOFTWARE.
+  */
  
-@@ -4624,6 +4712,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
- 	mem_cgroup_remove_from_trees(memcg);
- 	memcg_free_shrinker_maps(memcg);
- 	memcg_free_kmem(memcg);
-+free_cgrp:
- 	mem_cgroup_free(memcg);
- }
++#include <linux/memcontrol.h>
+ #include <linux/kref.h>
+ #include <linux/reservation.h>
  
-@@ -5720,6 +5809,7 @@ static struct cftype memory_files[] = {
+@@ -202,6 +203,16 @@ struct drm_gem_object {
+ 	 */
+ 	struct file *filp;
  
- struct cgroup_subsys memory_cgrp_subsys = {
- 	.css_alloc = mem_cgroup_css_alloc,
-+	.device_css_alloc = mem_cgroup_device_css_alloc,
- 	.css_online = mem_cgroup_css_online,
- 	.css_offline = mem_cgroup_css_offline,
- 	.css_released = mem_cgroup_css_released,
-@@ -5732,6 +5822,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
- 	.dfl_cftypes = memory_files,
- 	.legacy_cftypes = mem_cgroup_legacy_files,
- 	.early_init = 0,
-+	.allow_devices = true,
- };
- 
- /**
-@@ -6031,6 +6122,68 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
- 	cancel_charge(memcg, nr_pages);
- }
- 
-+/**
-+ * mem_cgroup_try_charge_direct - try charging nr_pages to memcg
-+ * @memcg: memcgto charge
-+ * @nr_pages: number of pages to charge
-+ *
-+ * Try to charge @nr_pages to specified @memcg. This variant is intended
-+ * where the memcg is known and can be directly charged, with the primary
-+ * use case being in device drivers that have registered with the subsys.
-+ * Device drivers that implement their own device-specific memory manager
-+ * will use these direct charging functions to make charges against their
-+ * device-private state (@memcg) within the cgroup.
-+ *
-+ * There is no separate mem_cgroup_commit_charge() in this use case, as the
-+ * device driver is not using page structs. Reclaim is not needed internally
-+ * here, as the caller can decide to attempt memory reclaim on error.
-+ *
-+ * Returns 0 on success.  Otherwise, an error code is returned.
-+ *
-+ * To uncharge (or cancel charge), call mem_cgroup_uncharge_direct().
-+ */
-+int mem_cgroup_try_charge_direct(struct mem_cgroup *memcg,
-+				 unsigned long nr_pages)
-+{
-+	struct mem_cgroup *mem_over_limit;
-+	int ret = 0;
++	/**
++	 * @memcg:
++	 *
++	 * cgroup used for charging GEM object page allocations against. This
++	 * is set to the current cgroup during GEM object creation.
++	 * Charging policy is up to each DRM driver to decide, but intent is to
++	 * charge during page allocation and use for device memory only.
++	 */
++	struct mem_cgroup *memcg;
 +
-+	if (!memcg || mem_cgroup_disabled() || mem_cgroup_is_root(memcg))
-+		return 0;
-+
-+	if (__try_charge(memcg, nr_pages, &mem_over_limit)) {
-+		css_get_many(&memcg->css, nr_pages);
-+	} else {
-+		memcg_memory_event(mem_over_limit, MEMCG_MAX);
-+		ret = -ENOMEM;
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(mem_cgroup_try_charge_direct);
-+
-+/**
-+ * mem_cgroup_uncharge_direct - uncharge nr_pages to memcg
-+ * @memcg: memcg to charge
-+ * @nr_pages: number of pages to charge
-+ *
-+ * Uncharge @nr_pages to specified @memcg. This variant is intended
-+ * where the memcg is known and can directly uncharge, with the primary
-+ * use case being in device drivers that have registered with the subsys.
-+ * Device drivers use these direct charging functions to make charges
-+ * against their device-private state (@memcg) within the cgroup.
-+ *
-+ * Returns 0 on success.  Otherwise, an error code is returned.
-+ */
-+void mem_cgroup_uncharge_direct(struct mem_cgroup *memcg,
-+				unsigned long nr_pages)
-+{
-+	if (!memcg || mem_cgroup_disabled())
-+		return;
-+
-+	cancel_charge(memcg, nr_pages);
-+}
-+EXPORT_SYMBOL(mem_cgroup_uncharge_direct);
-+
- struct uncharge_gather {
- 	struct mem_cgroup *memcg;
- 	unsigned long pgpgout;
+ 	/**
+ 	 * @vma_node:
+ 	 *
 -- 
 2.21.0
 
