@@ -2,126 +2,688 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36F53C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 10:20:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A226BC04AA8
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 11:10:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD87320873
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 10:20:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NgebHSNw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD87320873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 508172085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 11:10:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 508172085A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BB056B0005; Thu,  2 May 2019 06:20:26 -0400 (EDT)
+	id DCF136B0005; Thu,  2 May 2019 07:10:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36BDB6B0006; Thu,  2 May 2019 06:20:26 -0400 (EDT)
+	id DA3326B0006; Thu,  2 May 2019 07:10:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 234276B0007; Thu,  2 May 2019 06:20:26 -0400 (EDT)
+	id C6C086B0007; Thu,  2 May 2019 07:10:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2C66B0005
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 06:20:25 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id j1so985259pll.13
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 03:20:25 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 725D96B0005
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 07:10:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id 18so891767eds.5
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 04:10:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=BZ3UM29LlTMvKG0ZuhdqBuLexLkqyCTHtEkADaQBuXY=;
-        b=LCzQZwsx/kR/VSS8wzQoV9u3SFYJdCecnIjhhCwAHUd3oklg80elxppbXFcFtQXNda
-         Z39h/azaAXYowHb0t/vDg1lqvwBO/KsgEll5YWJ1wza+LEPN8TKBC+vn81irUrcOZszX
-         AuDhrMeyxiE/PW/mF4y96/TR+orSIZ+5Ls7MfgLD5oyXRHmTXBOjs0KjTNgvZu0c+ms3
-         CXyHbWBt3A08SSpQ/DQcJsDrfMpHQaAaWb6dvYhNcmR26nwMulbZrNGyKfihDsmP7mlp
-         EGKynAQ7Z3itdMtTGQXU5nJqrgacokek9o+/5DuG62WlBOzOTFwcEFInSkpoMVZv8b1i
-         jQVA==
-X-Gm-Message-State: APjAAAUI7krStxPgYrPKX1XE6tjnDGkmP2LsmZTT51hHrxhMPfcsVxsu
-	BhZ6rtApBbwczptwbnskQkH+uJusq9U0ABPLYqQ0zQJFURHNw7uG2fG3RvN7X/0CzOfhfB4FeTE
-	onwujVq1OezlwXagO0uZu7XANIo7JaK+kdHdbIhwzpKj5iYR9j28rfMMOFAyaweYdWQ==
-X-Received: by 2002:a17:902:567:: with SMTP id 94mr2841163plf.120.1556792425560;
-        Thu, 02 May 2019 03:20:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwwqqmSXZZiKHeLxV1mzgGrt7sMPh3Wy2N1cc9pFM3TeUefhPIRJxPAn/w6o/KwsitqIayX
-X-Received: by 2002:a17:902:567:: with SMTP id 94mr2841100plf.120.1556792424806;
-        Thu, 02 May 2019 03:20:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556792424; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5poG8NwQgf/f8isYYFkomOgUUSmaHQkX37QH1qIFIO8=;
+        b=ob6nZcbLFy/qfQ0mbWbcX+uK5RBCW8UQn/wSQB70t2+Mu7ysRFKXTBFcX/4GB0/FA9
+         Trt84XiJ+GDUe5d7Yod016jW6zeWHPHeON2adoFrQNKS8YE7Q/asmRIr9u4d0pdk82O3
+         fsIAOp4UcteEiN1J0NXCsAnw2ayy2B4RnMq0Ajj+1PENk5Pk1Yu18hwEZFXCKFAOjitt
+         UDbmyx/vNEqNJV04kEjpBrtKzeAPhq21PyBZDPGNPZVObfD158dENjenX4amO2uXaiBe
+         9aGvSQcByhoVRgzGy/lJ6qaHsCdSfUuXh6DnFUru+oDAF0ZDfSRE0ytfxsnA9B7nHVoM
+         1QzA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAUBgeNTi47GuRipJ+uZJzjIoP8x/fUneREPsErn7iboAXXvjjdl
+	CYMKEP5Gba9co+kC8fe6QiX3Vj0eCqLgDp7c1Du00Ag9QEHuq6NyHMRX0FZeug+ciAu8I4XbZU1
+	7FsM7SNieyfJwHEvjBEcl6FjExg+WEjCyVh7R0oO10HGAuCghxI3+27VFw6q8hTZRfQ==
+X-Received: by 2002:a17:906:2606:: with SMTP id h6mr1523365ejc.211.1556795414898;
+        Thu, 02 May 2019 04:10:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydmMsRDwh92HJJanc//ht+0JdyShi34aJwqoJ3cLixKOfgq3EL48kgbVYQ6I67nJlD/KZu
+X-Received: by 2002:a17:906:2606:: with SMTP id h6mr1523308ejc.211.1556795413356;
+        Thu, 02 May 2019 04:10:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556795413; cv=none;
         d=google.com; s=arc-20160816;
-        b=eyVXQ94t+i/Rj4BUAxMTjwTGIAsUsvGMdq3/tIrCkGA1efilF1HQFBr/+MuzAB6exn
-         nuzfBBWKL/oN4MRjFJqkAMAinu6MsQsvC+BorI3zjcoWFdV/sObQQ4qAM1IKkEDtDLLq
-         5FVbPPV5QGDtbzfoAwnqyNWEtu1FQHAuUxbgkIA6p8COpFJ95K9v508zpfAycdctYEh/
-         kCtghZELaBxjaZJdtK1M+NPNdQutXF/JtpDUfgdSK2pwzgEdblqBk2uRrlJpEh44olsE
-         Aq+/GVTPATxVsDDGzrDcadcgRlciHe3iZlGCYPMpwbw94XRw7ePVso55dqjGoIXPvz4w
-         h/Ug==
+        b=VdRtoAnAbRT6B5jcW7mi/1KiVniVd1O2RhLRGdQTC8W7hmLRfMv09WLp6RJ1BwPjLD
+         b7PAKbsOAJLWdCyStbIxBiGCFFeMQYQNvN9ni3FRXLx64Z5dRpkCcm7CHD7WnkhoGPdg
+         LuaRKWseGvRs8bWHn0effhId2aPmzTIQfOdwdUgV0UZ0J13h2nriuty9LrcwI8cTexIU
+         1whWhyFdpwt63CE9cFK8jE0vC0orh8PPKeZ1UFB0vVd9qQeZCXy5yYUoq/vPXcnwFLFA
+         eTbCubc6pJ1ejbH8g5lDzut+WUzSr7QQt2+bQQDEI9+ou6BloSXsMxCTH0ttUNoP+nsk
+         66zA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=BZ3UM29LlTMvKG0ZuhdqBuLexLkqyCTHtEkADaQBuXY=;
-        b=UbwGaC1co0TN97iYPXx36UOdhUPUw+P6k57kqIVfkQG8mW2pUi58CuGYXXc3oVjR53
-         ErWyV19v6KNCRWzU1LRp2LqJU1JqqxHSUvTtr5zKk9ui2u/vbYusoFPzm9oSKxbNO5fS
-         bOjKBiZQ2e4q36qFNpC++M25Wd8G8/dv6BXeLzelJr/insLbx26a3IpWYgdIxMx/I+2E
-         muk0YuPoaupngeDCTQ8Bu6P6oafRGqMDyAp+AFYcX/+463SciX8ApyHzlpn60fllGwnA
-         QAdyP4tVLMOLmoa1awQY++eCn9Rw6x00EY1pq5fu2CwaFseEpFtTSvXwbX1DZwwJRoGD
-         rbuA==
+         :message-id:subject:cc:to:from:date;
+        bh=5poG8NwQgf/f8isYYFkomOgUUSmaHQkX37QH1qIFIO8=;
+        b=G8GN98YxTlO9YRK6SK79UGtP4pAcUpRBIDMZTDJs900UF8dtsfjZRsjJkYtzSxwXep
+         qGLSvTd6JvIxHkVDXxZKNHq7FdQzcviz51leO2vt++I+ubEkOW7XvCzIJcP9jwbkPxs9
+         0JvghIHmX3KwoVqQSEdTiFJ0P5BbGZjQ8GN4KDNMMECig8BNVt2WXKz0+yhb1c2GzITF
+         wx7HlkeCSfTnoIaYgI/y6Nc+kH0FDwDT+7jl1iMmSvba1UiR12+GdfGyTw0GHc6hcpPE
+         QT/rM5KmYajfHxgwSyqJS0hD3ZBga4+2aU2J+Eb9DFlg213c5vx4EnwNhdH953V7Lnc/
+         PQMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NgebHSNw;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o64si43965933pfa.274.2019.05.02.03.20.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 02 May 2019 03:20:24 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t17si75332ejb.326.2019.05.02.04.10.12
+        for <linux-mm@kvack.org>;
+        Thu, 02 May 2019 04:10:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NgebHSNw;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=BZ3UM29LlTMvKG0ZuhdqBuLexLkqyCTHtEkADaQBuXY=; b=NgebHSNwQgTcd2GkI6djqj9ph
-	KvuJh3eTipixESblBd7Dedi7npgGxAXtWGg1jtIv0ND9AX1BNT5S/E/gaGelpZan04UJGJTOPYxMY
-	Vm87HfW7NwRqmK67bzlth2PpbH4rNf4n3iY74cE0RSohIwQXbLYJkZTm1O7nia96VdK4Xz9ogiVBB
-	TBYbYTGvgtrri4kVLQfd/HxU5K1PBpkzKMfrlleKxCN2/yFBffRgua2vE3O2BYkxcG3gmDU7FKjev
-	tjBfLaDLbPtYludmF9v0L4P3r4H7SUY0YWLaiaoLTjj49x9Eq35Lh0OK8KXH5OTsgGBNrcUH6rhNm
-	hAeVlE67w==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hM8p6-0000QX-6a; Thu, 02 May 2019 10:20:16 +0000
-Date: Thu, 2 May 2019 03:20:16 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Sami Tolvanen <samitolvanen@google.com>,
-	Kees Cook <keescook@chromium.org>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 5/4] 9p: pass the correct prototype to read_cache_page
-Message-ID: <20190502102015.GC8099@bombadil.infradead.org>
-References: <20190501160636.30841-1-hch@lst.de>
- <20190501173443.GA19969@lst.de>
- <AEBFD2FC-F94A-4E5B-8E1C-76380DDEB46E@oracle.com>
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D8CC1A78;
+	Thu,  2 May 2019 04:10:11 -0700 (PDT)
+Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A1E3F3F719;
+	Thu,  2 May 2019 04:10:06 -0700 (PDT)
+Date: Thu, 2 May 2019 12:10:04 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>, libc-alpha@sourceware.org
+Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
+Message-ID: <20190502111003.GO3567@e103592.cambridge.arm.com>
+References: <20190501211217.5039-1-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AEBFD2FC-F94A-4E5B-8E1C-76380DDEB46E@oracle.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190501211217.5039-1-yu-cheng.yu@intel.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 02, 2019 at 12:08:29AM -0600, William Kucharski wrote:
-> 3) Patch 5/4?
+On Wed, May 01, 2019 at 02:12:17PM -0700, Yu-cheng Yu wrote:
+> An ELF file's .note.gnu.property indicates features the executable file
+> can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+> 
+> This patch was part of the Control-flow Enforcement series; the original
+> patch is here: https://lkml.org/lkml/2018/11/20/205.  Dave Martin responded
+> that ARM recently introduced new features to NT_GNU_PROPERTY_TYPE_0 with
+> properties closely modelled on GNU_PROPERTY_X86_FEATURE_1_AND, and it is
+> logical to split out the generic part.  Here it is.
+> 
+> With this patch, if an arch needs to setup features from ELF properties,
+> it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and a specific
+> arch_setup_property().
+> 
+> For example, for X86_64:
+> 
+> int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
+> {
+> 	int r;
+> 	uint32_t property;
+> 
+> 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
+> 			     &property);
+> 	...
+> }
 
-That's a relatively common notation when an extra patch is needed to fix
-something after a series has been sent ;-)
+Thanks, this is timely for me.  I should be able to build the needed
+arm64 support pretty quickly around this now.
+
+[Cc'ing libc-alpha for the elf.h question -- see (2)]
+
+
+A couple of questions before I look in more detail:
+
+1) Can we rely on PT_GNU_PROPERTY being present in the phdrs to describe
+the NT_GNU_PROPERTY_TYPE_0 note?  If so, we can avoid trying to parse
+irrelevant PT_NOTE segments.
+
+
+2) Are there standard types for things like the program property header?
+If not, can we add something in elf.h?  We should try to coordinate with
+libc on that.  Something like
+
+typedef __u32 Elf_Word;
+
+typedef struct {
+	Elf_Word pr_type;
+	Elf_Word pr_datasz;
+} Elf_Gnu_Prophdr;
+
+(i.e., just the header part from [1], with a more specific name -- which
+I just made up).
+
+
+Given the fragmented nature and draft status of the specs -- and
+differing opiniions about the sizes and alignments of certain things --
+it could be useful to have this explicitly in the kernel.  Some
+documentation as to _precisely_ what we accept may also be a good idea.
+
+
+3) It looks like we have to go and re-parse all the notes for every
+property requested by the arch code.
+
+For now there is only one property requested anyway, so this is probably
+not too bad.  But could we flip things around so that we have some
+CONFIG_ARCH_WANTS_ELF_GNU_PROPERTY (say), and have the ELF core code
+call into the arch backend for each property found?
+
+The arch could provide some hook
+
+	int arch_elf_has_gnu_property(const Elf_Gnu_Prophdr *prop,
+					const void *data);
+
+to consume the properties as they are found.
+
+This would effectively replace the arch_setup_property() hook you
+currently have.
+
+Cheers
+---Dave
+
+[1] https://github.com/hjl-tools/linux-abi/wiki/Linux-Extensions-to-gABI
+
+> 
+> Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> ---
+>  fs/Kconfig.binfmt        |   4 +
+>  fs/Makefile              |   1 +
+>  fs/binfmt_elf.c          |  13 ++
+>  fs/gnu_property.c        | 363 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/elf.h      |  12 ++
+>  include/uapi/linux/elf.h |   8 +
+>  6 files changed, 401 insertions(+)
+>  create mode 100644 fs/gnu_property.c
+> 
+> diff --git a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
+> index b795f8da81f3..175a1f58e785 100644
+> --- a/fs/Kconfig.binfmt
+> +++ b/fs/Kconfig.binfmt
+> @@ -35,6 +35,10 @@ config COMPAT_BINFMT_ELF
+>  config ARCH_BINFMT_ELF_STATE
+>  	bool
+>  
+> +config ARCH_USE_GNU_PROPERTY
+> +	bool
+> +	depends on 64BIT
+> +
+>  config BINFMT_ELF_FDPIC
+>  	bool "Kernel support for FDPIC ELF binaries"
+>  	default y if !BINFMT_ELF
+> diff --git a/fs/Makefile b/fs/Makefile
+> index 427fec226fae..8a35abbebf8b 100644
+> --- a/fs/Makefile
+> +++ b/fs/Makefile
+> @@ -44,6 +44,7 @@ obj-$(CONFIG_BINFMT_ELF)	+= binfmt_elf.o
+>  obj-$(CONFIG_COMPAT_BINFMT_ELF)	+= compat_binfmt_elf.o
+>  obj-$(CONFIG_BINFMT_ELF_FDPIC)	+= binfmt_elf_fdpic.o
+>  obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
+> +obj-$(CONFIG_ARCH_USE_GNU_PROPERTY) += gnu_property.o
+>  
+>  obj-$(CONFIG_FS_MBCACHE)	+= mbcache.o
+>  obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 7d09d125f148..40aa4a4fd64d 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -1076,6 +1076,19 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  		goto out_free_dentry;
+>  	}
+>  
+> +	if (interpreter) {
+> +		retval = arch_setup_property(&loc->interp_elf_ex,
+> +					     interp_elf_phdata,
+> +					     interpreter, true);
+> +	} else {
+> +		retval = arch_setup_property(&loc->elf_ex,
+> +					     elf_phdata,
+> +					     bprm->file, false);
+> +	}
+> +
+> +	if (retval < 0)
+> +		goto out_free_dentry;
+> +
+>  	if (elf_interpreter) {
+>  		unsigned long interp_map_addr = 0;
+>  
+> diff --git a/fs/gnu_property.c b/fs/gnu_property.c
+> new file mode 100644
+> index 000000000000..656ea3951840
+> --- /dev/null
+> +++ b/fs/gnu_property.c
+> @@ -0,0 +1,363 @@
+> +/* SPDX-License-Identifier: GPL-2.0-only */
+> +/*
+> + * Extract an ELF file's .note.gnu.property.
+> + *
+> + * The path from the ELF header to the note section is the following:
+> + * elfhdr->elf_phdr->elf_note->property[].
+> + */
+> +
+> +#include <uapi/linux/elf-em.h>
+> +#include <linux/processor.h>
+> +#include <linux/binfmts.h>
+> +#include <linux/elf.h>
+> +#include <linux/slab.h>
+> +#include <linux/fs.h>
+> +#include <linux/uaccess.h>
+> +#include <linux/string.h>
+> +#include <linux/compat.h>
+> +
+> +/*
+> + * The .note.gnu.property layout:
+> + *
+> + *	struct elf_note {
+> + *		u32 n_namesz; --> sizeof(n_name[]); always (4)
+> + *		u32 n_ndescsz;--> sizeof(property[])
+> + *		u32 n_type;   --> always NT_GNU_PROPERTY_TYPE_0
+> + *	};
+> + *	char n_name[4]; --> always 'GNU\0'
+> + *
+> + *	struct {
+> + *		struct gnu_property {
+> + *			u32 pr_type;
+> + *			u32 pr_datasz;
+> + *		};
+> + *		u8 pr_data[pr_datasz];
+> + *	}[];
+> + */
+> +
+> +#define BUF_SIZE (PAGE_SIZE / 4)
+> +
+> +struct gnu_property {
+> +	u32 pr_type;
+> +	u32 pr_datasz;
+> +};
+> +
+> +typedef bool (test_item_fn)(void *buf, u32 *arg, u32 type);
+> +typedef void *(next_item_fn)(void *buf, u32 *arg, u32 type);
+> +
+> +static inline bool test_note_type(void *buf, u32 *align, u32 note_type)
+> +{
+> +	struct elf_note *n = buf;
+> +
+> +	return ((n->n_type == note_type) && (n->n_namesz == 4) &&
+> +		(memcmp(n + 1, "GNU", 4) == 0));
+> +}
+> +
+> +static inline void *next_note(void *buf, u32 *align, u32 note_type)
+> +{
+> +	struct elf_note *n = buf;
+> +	u64 size;
+> +
+> +	if (check_add_overflow((u64)sizeof(*n), (u64)n->n_namesz, &size))
+> +		return NULL;
+> +
+> +	size = round_up(size, *align);
+> +
+> +	if (check_add_overflow(size, (u64)n->n_descsz, &size))
+> +		return NULL;
+> +
+> +	size = round_up(size, *align);
+> +
+> +	if (buf + size < buf)
+> +		return NULL;
+> +	else
+> +		return (buf + size);
+> +}
+> +
+> +static inline bool test_property(void *buf, u32 *max_type, u32 pr_type)
+> +{
+> +	struct gnu_property *pr = buf;
+> +
+> +	/*
+> +	 * Property types must be in ascending order.
+> +	 * Keep track of the max when testing each.
+> +	 */
+> +	if (pr->pr_type > *max_type)
+> +		*max_type = pr->pr_type;
+> +
+> +	return (pr->pr_type == pr_type);
+> +}
+> +
+> +static inline void *next_property(void *buf, u32 *max_type, u32 pr_type)
+> +{
+> +	struct gnu_property *pr = buf;
+> +
+> +	if ((buf + sizeof(*pr) +  pr->pr_datasz < buf) ||
+> +	    (pr->pr_type > pr_type) ||
+> +	    (pr->pr_type > *max_type))
+> +		return NULL;
+> +	else
+> +		return (buf + sizeof(*pr) + pr->pr_datasz);
+> +}
+> +
+> +/*
+> + * Scan 'buf' for a pattern; return true if found.
+> + * *pos is the distance from the beginning of buf to where
+> + * the searched item or the next item is located.
+> + */
+> +static int scan(u8 *buf, u32 buf_size, int item_size, test_item_fn test_item,
+> +		next_item_fn next_item, u32 *arg, u32 type, u32 *pos)
+> +{
+> +	int found = 0;
+> +	u8 *p, *max;
+> +
+> +	max = buf + buf_size;
+> +	if (max < buf)
+> +		return 0;
+> +
+> +	p = buf;
+> +
+> +	while ((p + item_size < max) && (p + item_size > buf)) {
+> +		if (test_item(p, arg, type)) {
+> +			found = 1;
+> +			break;
+> +		}
+> +
+> +		p = next_item(p, arg, type);
+> +	}
+> +
+> +	*pos = (p + item_size <= buf) ? 0 : (u32)(p - buf);
+> +	return found;
+> +}
+> +
+> +/*
+> + * Search an NT_GNU_PROPERTY_TYPE_0 for the property of 'pr_type'.
+> + */
+> +static int find_property(struct file *file, unsigned long desc_size,
+> +			 loff_t file_offset, u8 *buf,
+> +			 u32 pr_type, u32 *property)
+> +{
+> +	u32 buf_pos;
+> +	unsigned long read_size;
+> +	unsigned long done;
+> +	int found = 0;
+> +	int ret = 0;
+> +	u32 last_pr = 0;
+> +
+> +	*property = 0;
+> +	buf_pos = 0;
+> +
+> +	for (done = 0; done < desc_size; done += buf_pos) {
+> +		read_size = desc_size - done;
+> +		if (read_size > BUF_SIZE)
+> +			read_size = BUF_SIZE;
+> +
+> +		ret = kernel_read(file, buf, read_size, &file_offset);
+> +
+> +		if (ret != read_size)
+> +			return (ret < 0) ? ret : -EIO;
+> +
+> +		ret = 0;
+> +		found = scan(buf, read_size, sizeof(struct gnu_property),
+> +			     test_property, next_property,
+> +			     &last_pr, pr_type, &buf_pos);
+> +
+> +		if ((!buf_pos) || found)
+> +			break;
+> +
+> +		file_offset += buf_pos - read_size;
+> +	}
+> +
+> +	if (found) {
+> +		struct gnu_property *pr =
+> +			(struct gnu_property *)(buf + buf_pos);
+> +
+> +		if (pr->pr_datasz == 4) {
+> +			u32 *max =  (u32 *)(buf + read_size);
+> +			u32 *data = (u32 *)((u8 *)pr + sizeof(*pr));
+> +
+> +			if (data + 1 <= max) {
+> +				*property = *data;
+> +			} else {
+> +				file_offset += buf_pos - read_size;
+> +				file_offset += sizeof(*pr);
+> +				ret = kernel_read(file, property, 4,
+> +						  &file_offset);
+> +			}
+> +		}
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Search a PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
+> + */
+> +static int find_note_type_0(struct file *file, loff_t file_offset,
+> +			    unsigned long note_size, u32 align,
+> +			    u32 pr_type, u32 *property)
+> +{
+> +	u8 *buf;
+> +	u32 buf_pos;
+> +	unsigned long read_size;
+> +	unsigned long done;
+> +	int found = 0;
+> +	int ret = 0;
+> +
+> +	buf = kmalloc(BUF_SIZE, GFP_KERNEL);
+> +	if (!buf)
+> +		return -ENOMEM;
+> +
+> +	*property = 0;
+> +	buf_pos = 0;
+> +
+> +	for (done = 0; done < note_size; done += buf_pos) {
+> +		read_size = note_size - done;
+> +		if (read_size > BUF_SIZE)
+> +			read_size = BUF_SIZE;
+> +
+> +		ret = kernel_read(file, buf, read_size, &file_offset);
+> +
+> +		if (ret != read_size) {
+> +			ret = (ret < 0) ? ret : -EIO;
+> +			kfree(buf);
+> +			return ret;
+> +		}
+> +
+> +		/*
+> +		 * item_size = sizeof(struct elf_note) + elf_note.n_namesz.
+> +		 * n_namesz is 4 for the note type we look for.
+> +		 */
+> +		ret = scan(buf, read_size, sizeof(struct elf_note) + 4,
+> +			      test_note_type, next_note,
+> +			      &align, NT_GNU_PROPERTY_TYPE_0, &buf_pos);
+> +
+> +		file_offset += buf_pos - read_size;
+> +
+> +		if (ret && !found) {
+> +			struct elf_note *n =
+> +				(struct elf_note *)(buf + buf_pos);
+> +			u64 start = round_up(sizeof(*n) + n->n_namesz, align);
+> +			u64 total = 0;
+> +
+> +			if (check_add_overflow(start, (u64)n->n_descsz, &total)) {
+> +				ret = -EINVAL;
+> +				break;
+> +			}
+> +			total = round_up(total, align);
+> +
+> +			ret = find_property(file, n->n_descsz,
+> +					    file_offset + start,
+> +					    buf, pr_type, property);
+> +			found++;
+> +			file_offset += total;
+> +			buf_pos += total;
+> +		} else if (!buf_pos || ret) {
+> +			ret = 0;
+> +			*property = 0;
+> +			break;
+> +		}
+> +	}
+> +
+> +	kfree(buf);
+> +	return ret;
+> +}
+> +
+> +/*
+> + * Look at an ELF file's PT_NOTE segments, then NT_GNU_PROPERTY_TYPE_0, then
+> + * the property of pr_type.
+> + *
+> + * Input:
+> + *	file: the file to search;
+> + *	phdr: the file's elf header;
+> + *	phnum: number of entries in phdr;
+> + *	pr_type: the property type.
+> + *
+> + * Output:
+> + *	The property found.
+> + *
+> + * Return:
+> + *	Zero or error.
+> + */
+> +static int scan_segments_64(struct file *file, struct elf64_phdr *phdr,
+> +			    int phnum, u32 pr_type, u32 *property)
+> +{
+> +	int i;
+> +	int err = 0;
+> +
+> +	for (i = 0; i < phnum; i++, phdr++) {
+> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 8))
+> +			continue;
+> +
+> +		/*
+> +		 * Search the PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
+> +		 */
+> +		err = find_note_type_0(file, phdr->p_offset, phdr->p_filesz,
+> +				       phdr->p_align, pr_type, property);
+> +		if (err)
+> +			return err;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +#ifdef CONFIG_COMPAT
+> +static int scan_segments_32(struct file *file, struct elf32_phdr *phdr,
+> +			    int phnum, u32 pr_type, u32 *property)
+> +{
+> +	int i;
+> +	int err = 0;
+> +
+> +	for (i = 0; i < phnum; i++, phdr++) {
+> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 4))
+> +			continue;
+> +
+> +		/*
+> +		 * Search the PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
+> +		 */
+> +		err = find_note_type_0(file, phdr->p_offset, phdr->p_filesz,
+> +				       phdr->p_align, pr_type, property);
+> +		if (err)
+> +			return err;
+> +	}
+> +
+> +	return 0;
+> +}
+> +#endif
+> +
+> +int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> +		     u32 pr_type, u32 *property)
+> +{
+> +	struct elf64_hdr *ehdr64 = ehdr_p;
+> +	int err = 0;
+> +
+> +	*property = 0;
+> +
+> +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
+> +		struct elf64_phdr *phdr64 = phdr_p;
+> +
+> +		err = scan_segments_64(f, phdr64, ehdr64->e_phnum,
+> +				       pr_type, property);
+> +		if (err < 0)
+> +			goto out;
+> +	} else {
+> +#ifdef CONFIG_COMPAT
+> +		struct elf32_hdr *ehdr32 = ehdr_p;
+> +
+> +		if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
+> +			struct elf32_phdr *phdr32 = phdr_p;
+> +
+> +			err = scan_segments_32(f, phdr32, ehdr32->e_phnum,
+> +					       pr_type, property);
+> +			if (err < 0)
+> +				goto out;
+> +		}
+> +#else
+> +	WARN_ONCE(1, "Exec of 32-bit app, but CONFIG_COMPAT is not enabled.\n");
+> +	return -ENOTSUPP;
+> +#endif
+> +	}
+> +
+> +out:
+> +	return err;
+> +}
+> diff --git a/include/linux/elf.h b/include/linux/elf.h
+> index e3649b3e970e..c15febebe7f2 100644
+> --- a/include/linux/elf.h
+> +++ b/include/linux/elf.h
+> @@ -56,4 +56,16 @@ static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) {
+>  extern int elf_coredump_extra_notes_size(void);
+>  extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
+>  #endif
+> +
+> +#ifdef CONFIG_ARCH_USE_GNU_PROPERTY
+> +extern int arch_setup_property(void *ehdr, void *phdr, struct file *f,
+> +			       bool interp);
+> +extern int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> +			    u32 pr_type, u32 *feature);
+> +#else
+> +static inline int arch_setup_property(void *ehdr, void *phdr, struct file *f,
+> +				      bool interp) { return 0; }
+> +static inline int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> +				   u32 pr_type, u32 *feature) { return 0; }
+> +#endif
+>  #endif /* _LINUX_ELF_H */
+> diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
+> index 34c02e4290fe..7b7603a44cbc 100644
+> --- a/include/uapi/linux/elf.h
+> +++ b/include/uapi/linux/elf.h
+> @@ -372,6 +372,7 @@ typedef struct elf64_shdr {
+>  #define NT_PRFPREG	2
+>  #define NT_PRPSINFO	3
+>  #define NT_TASKSTRUCT	4
+> +#define NT_GNU_PROPERTY_TYPE_0 5
+>  #define NT_AUXV		6
+>  /*
+>   * Note to userspace developers: size of NT_SIGINFO note may increase
+> @@ -443,4 +444,11 @@ typedef struct elf64_note {
+>    Elf64_Word n_type;	/* Content type */
+>  } Elf64_Nhdr;
+>  
+> +/* .note.gnu.property types */
+> +#define GNU_PROPERTY_X86_FEATURE_1_AND		(0xc0000002)
+> +
+> +/* Bits of GNU_PROPERTY_X86_FEATURE_1_AND */
+> +#define GNU_PROPERTY_X86_FEATURE_1_IBT		(0x00000001)
+> +#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	(0x00000002)
+> +
+>  #endif /* _UAPI_LINUX_ELF_H */
+> -- 
+> 2.17.1
+> 
 
