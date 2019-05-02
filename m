@@ -2,110 +2,116 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-19.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8C33C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 16:41:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C687C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 16:48:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CB342089E
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 16:41:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EC61F20C01
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 16:48:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="pW9Mlh00"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CB342089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="SFbei6R/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC61F20C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18CE36B0007; Thu,  2 May 2019 12:41:06 -0400 (EDT)
+	id 88D2F6B0007; Thu,  2 May 2019 12:48:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 163716B0008; Thu,  2 May 2019 12:41:06 -0400 (EDT)
+	id 83B4E6B0008; Thu,  2 May 2019 12:48:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 079E76B000A; Thu,  2 May 2019 12:41:06 -0400 (EDT)
+	id 753136B000A; Thu,  2 May 2019 12:48:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C4EF46B0007
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 12:41:05 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id j1so1523849pff.1
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 09:41:05 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 297706B0007
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 12:48:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z5so1361996edz.3
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 09:48:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=92karzGId4kTiPxbclHEQu/kjCIMGVKlDvLxWKLPllQ=;
-        b=rGxWEJgtqnBrA7JdS+0vTkm6pM7yhRjPJGieNx6ofrvWu+zkcsudgLnPtgO4PQ8E7Z
-         mN+nG8i24mNqCndfeffJMQtUHjgaSBoMs8hXn33sYdDGj8+N74RuYGmzY7xcWjchKFqe
-         +VYyD0qcgFdH66Dk4DpoZi+NgNCJpoufryRKUBmSW6B8aMsEjxBCqJk/woPIJoBrWfLR
-         8caV+JS+tXZi8UI0QTEP5ILDQ7H3g6eD2RqsrW55YFehDJ9zz/W8Nt877IIb4r+FEvJY
-         tYQJq62pdZ+J0JutxHAZAUTGUSrzbxFR93mKSAZHr1WKb4hb+yo6gIgLQnfd3sZwOlXS
-         7lcA==
-X-Gm-Message-State: APjAAAVNDqZECs5lNHCUN+HWByCaO6syaooo1rXluaTxdb6+FvNiqlv/
-	G9RirGmjOG56T/lp+Ijmmr4wi2WBhqo+BpHA2s26BvspjJFW0SvnMv2d92Xon2/Ky9HZuNBcRuj
-	kmsPwVSbVrjp3sQPnGPsXJgr/FkclUaLxQlZZPFnvtzqWiUhGTdUWomEzRCzAjfM0YQ==
-X-Received: by 2002:a17:902:102a:: with SMTP id b39mr4824916pla.188.1556815265396;
-        Thu, 02 May 2019 09:41:05 -0700 (PDT)
-X-Received: by 2002:a17:902:102a:: with SMTP id b39mr4824861pla.188.1556815264723;
-        Thu, 02 May 2019 09:41:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556815264; cv=none;
+        bh=rcAYlClV3WYMLJTodjrLc+GMcN8cBX8qnEYUrl9knag=;
+        b=iubGtuOQjw+1bz3pnijyBt+a+gEzR77DHukRQOsv0lrbIJApsqaxe/sfHvF0nxifsY
+         F48WauUZ+PatUXzx4Sik7uniTtt8CQwYeP0rem/sVgMp4sW3tzxCkFoT3SmwYQwf2dOB
+         Kkivn/arnWC3enuDsFmtX7zpBw1kUlYuh1p4Dz2hq5cG/xNPTQvdzZaOFHpRLNh/OjNK
+         lCGeD9UJmsxN4zDm00sdIugublGGPPHTVI6jW6czyay+vvQFIG0ijLKp4GL6/LbciAAN
+         QBjZJhDuqTShCE+GcCg29DDsCAy/d5t80GF5pSZ3TTLnsD40hSeSg7xerwu1rt8Kr0hV
+         vz7Q==
+X-Gm-Message-State: APjAAAWYCmKlg3q4mCllhzimLVXFLn6YxLa6GmoQ+34q35KcJgdh6sVh
+	1Qg5hJrro+XKNslh6NQ+p7J0VemndGWauIG6TUHp0Ae57fHiw/aRx9VgX8+HDtFhHwm0pk7BOtQ
+	eZyzoxdjeOEs5Zrk0F6Ht0tYGi7KRTavuIRtQWZrIBU2orD2RskG6cdUY+UgzsuYIcQ==
+X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr3362263edv.171.1556815684643;
+        Thu, 02 May 2019 09:48:04 -0700 (PDT)
+X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr3362219edv.171.1556815683986;
+        Thu, 02 May 2019 09:48:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556815683; cv=none;
         d=google.com; s=arc-20160816;
-        b=dqLIKbEqY6MtZRVbQUtUx2goHOCoNUzD4liB1Mueq3k+A92R0mmWKiF7y016w8QEPA
-         B8LfElt+E0lFF64xO38j/VmbOLRjfaQXlQOAGZq3rmYRPJxb2xzZ9fzGpBC84x6JybFg
-         ESOpGz1nX9Xi/cgEsc3U0Iafw9oo+9xDO2l+cU9yizr6Oocv0e743PH7h1dd2JsOcHvD
-         uZJipnudj5tDtMeCtGTJINDGbCh82ISKpFDsrO/YOq8rwZzxrVh74PV5EmgE0kYbLQ/f
-         Nz+WbjWpv8PPDJ6uXN8DdrLAIZMBax5/3L/VWQAutsbxiIsgh+w1QFHPxptX7Q6Lqp2J
-         Chjw==
+        b=HbIGdFLDvBRFNGKEM9pcIvkoWtWMLeCcIAdbyCamJ380lajpuYc9CAuoV2hCDvx5Rl
+         iXMsyQ+uUCorEkRHgALXrmpTg8UErK2m32TV/9IX27btvNEuzRKspLJ9BGocWufbgY7O
+         CeyPDggAxPaZ00Wd8fCqMqmkNGITMYUQVuD65yG1mWY8s1qVQBLlmuZp3eCkJEQe4tv5
+         cM7CcDiipNKVuC3nO328nsJEvzcrulAjQuO0waoI2zM5kve20b49U7gkZsxxOxChSnQS
+         EROiI9VuG8xp9z4KmzgA+wiENoXv7CA5c7KohbPKogLJhPjuIgLgGI50YLC1CoYr/OXX
+         pCEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=92karzGId4kTiPxbclHEQu/kjCIMGVKlDvLxWKLPllQ=;
-        b=02KgwUgXyqUjPMYr5lSu706JmcAbe9BxjqkTIVW0CbFLBUPVHgvd3FF4LwJxVhwq0c
-         E7Tz2vdr3IxEML80uDD2O00vGVUGUd6y6tCdFN5OS7a3RTz972/ZN/QG31H14IULIo5L
-         GBvOm1aLJp7lsVh01ypadRKyTsw4vqZDRSd2CdNbz8YTbjQ9Ld7hK0o8ZPJntyohxNN3
-         IP1Nsq9ZM5OdfIPIHbNBMljWqNu3RI6pOJjjPtvdVcbvl9jcJXptTcJ+NqIhz0CZcNvs
-         l3X3h+3ljO8GPuv7e724RO45PB9LaJseGJrFX7f5DzjQPthHO/dG/hb++NE9dHS7GlvG
-         eDuw==
+        bh=rcAYlClV3WYMLJTodjrLc+GMcN8cBX8qnEYUrl9knag=;
+        b=TabDLG/MFbQUiz1tYCFYQB0pF8oBIWw6smK0Tr78lh4/jNmOeZGqfw1dC3AFfNsaq/
+         xPZNbSM6Li9rpZVhTuPkerm3S+KmsSFu2vNTZxUJdy7f+Dm0cZjw8PN3FnW4BiIWarX6
+         ui7QFape0NpD9567LlxSw0+vPwflbggTMGU+uXyceG6uw9pmcLTGAndtaMK0L/5x8AO5
+         guktiV3WPLtaDTERIlDLMCMSVCrtjkASpSJO0iRs4JWIKF9zq2foQ8sL9nnKXtOxFcIa
+         yuCAqPIUkAWvOqC53swDdyGWT0ctVhlVlgz5Q0zP2w4pOjt9pbxQMUjdp/g/z/BRve/N
+         XyVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pW9Mlh00;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@soleen.com header.s=google header.b="SFbei6R/";
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t4sor5565825pfl.69.2019.05.02.09.41.04
+        by mx.google.com with SMTPS id t22sor7690504ejf.46.2019.05.02.09.48.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 May 2019 09:41:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 02 May 2019 09:48:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=pW9Mlh00;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@soleen.com header.s=google header.b="SFbei6R/";
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=92karzGId4kTiPxbclHEQu/kjCIMGVKlDvLxWKLPllQ=;
-        b=pW9Mlh00pTbPzKKMewhu5d9r6gm71AyCd5VE3PXTq9/6KeJWTWX9VAdyklQe4wuYb3
-         hw6/lCKfgP3MBQuvHSNTnDii93JeoAZ1tz36Ilk1XAnuH2tR8iS45vHy63ek7KeVo8Kv
-         pPaZFSX+7KB1/bAO/KXNp2pKUm1C86PLwVWmBVtbE1JqIgA3KIcb1b/b7Ng6bjqelicY
-         6DQAN7is5Vz8aCc+ZcoCa9As2irNjbQGXPT3N7cDSP18s23973KvWfDy7jubbL2cvXcF
-         9fU8o6qOaaYqh7iOQW85PTkzEhusyPBLF2Ti3wgqhnyl9L/q3tU0Sq/+WyRxSAFHojV5
-         aVVQ==
-X-Google-Smtp-Source: APXvYqxEpi/34FQTQo/i2+QqbKQVsIw9n+cFj3zq5T2pXhuwK8N3k0YF3vpXL1+twKXJJwXv+Ny1FxDYEUV2ic9nRnQ=
-X-Received: by 2002:a62:46c7:: with SMTP id o68mr5390737pfi.54.1556815263742;
- Thu, 02 May 2019 09:41:03 -0700 (PDT)
+        bh=rcAYlClV3WYMLJTodjrLc+GMcN8cBX8qnEYUrl9knag=;
+        b=SFbei6R/fTHbrGWi+/N+oWim6SS5KPKvxv1TfgMvbJ1pIR8OajbduDS3nFo+mTzicg
+         XVys/It0mRnuhAz4kjM8EiZPi2qESa1Ad7BuVtZXc1AhD6SYmi1WTfMnCEAxTNkaT811
+         wtR9FZXA8gRcO+e/pbRwpO9NwRgtNQkNQixypgNzB90FxwHw7uDXDkb5kVruMBFHCmWK
+         aDFBzlffvUNDnS4Q6tEIHtK+tlNPSguzMFFvyNwltQHrvgbB4cHlbIie4LsGFzTGdkuJ
+         7Yg0FEJD9BqWiLWh/W+DXQN7jVHxZsopXpdlsd205vwlCjzC9uuOvIUXoBsgyR88IvAg
+         zT4Q==
+X-Google-Smtp-Source: APXvYqzbaWRuAebout5s4Iqp5ku1hhP9/l4QkLIfxTg/R4+sKpNKvDwBBtR0sOzGL8kxvPpg3HdXxRKpBddZWv64kk8=
+X-Received: by 2002:a17:906:3154:: with SMTP id e20mr2340820eje.263.1556815683667;
+ Thu, 02 May 2019 09:48:03 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190502153538.2326-1-natechancellor@gmail.com> <20190502163057.6603-1-natechancellor@gmail.com>
-In-Reply-To: <20190502163057.6603-1-natechancellor@gmail.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 2 May 2019 18:40:52 +0200
-Message-ID: <CAAeHK+wzuSKhTE6hjph1SXCUwH8TEd1C+J0cAQN=pRvKw+Wh_w@mail.gmail.com>
-Subject: Re: [PATCH v2] kasan: Initialize tag to 0xff in __kasan_kmalloc
-To: Nathan Chancellor <natechancellor@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Nick Desaulniers <ndesaulniers@google.com>, clang-built-linux@googlegroups.com
+References: <20190501191846.12634-1-pasha.tatashin@soleen.com>
+ <20190501191846.12634-3-pasha.tatashin@soleen.com> <CAPcyv4iPzpP-gzuDtPB2ixd6_uTuO8-YdVSfGw_Dq=igaKuOEg@mail.gmail.com>
+In-Reply-To: <CAPcyv4iPzpP-gzuDtPB2ixd6_uTuO8-YdVSfGw_Dq=igaKuOEg@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Thu, 2 May 2019 12:47:52 -0400
+Message-ID: <CA+CK2bB3G_tO04M1eXPdm4b=OojD6QpYkW51YArj6z44RhQo+g@mail.gmail.com>
+Subject: Re: [v4 2/2] device-dax: "Hotremove" persistent memory that is used
+ like normal RAM
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Keith Busch <keith.busch@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, 
+	Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <zwisler@kernel.org>, 
+	Tom Lendacky <thomas.lendacky@amd.com>, "Huang, Ying" <ying.huang@intel.com>, 
+	Fengguang Wu <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	David Hildenbrand <david@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -113,59 +119,26 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 2, 2019 at 6:31 PM Nathan Chancellor
-<natechancellor@gmail.com> wrote:
+> Currently the kmem driver can be built as a module, and I don't see a
+> need to drop that flexibility. What about wrapping these core
+> routines:
 >
-> When building with -Wuninitialized and CONFIG_KASAN_SW_TAGS unset, Clang
-> warns:
+>     unlock_device_hotplug
+>     __remove_memory
+>     walk_memory_range
+>     lock_device_hotplug
 >
-> mm/kasan/common.c:484:40: warning: variable 'tag' is uninitialized when
-> used here [-Wuninitialized]
->         kasan_unpoison_shadow(set_tag(object, tag), size);
->                                               ^~~
+> ...into a common exported (gpl) helper like:
 >
-> set_tag ignores tag in this configuration but clang doesn't realize it
-> at this point in its pipeline, as it points to arch_kasan_set_tag as
-> being the point where it is used, which will later be expanded to
-> (void *)(object) without a use of tag. Initialize tag to 0xff, as it
-> removes this warning and doesn't change the meaning of the code.
+>     int try_remove_memory(int nid, struct resource *res)
 >
-> Link: https://github.com/ClangBuiltLinux/linux/issues/465
-> Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+> Because as far as I can see there's nothing device-dax specific about
+> this "try remove iff offline" functionality outside of looking up the
+> related 'struct resource'. The check_devdax_mem_offlined_cb callback
+> can be made generic if the callback argument is the resource pointer.
 
-Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
+Makes sense, I will do both things that you suggested.
 
-Thanks!
-
-> ---
->
-> v1 -> v2:
->
-> * Initialize tag to 0xff at Andrey's request
->
->  mm/kasan/common.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index 36afcf64e016..242fdc01aaa9 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -464,7 +464,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
->  {
->         unsigned long redzone_start;
->         unsigned long redzone_end;
-> -       u8 tag;
-> +       u8 tag = 0xff;
->
->         if (gfpflags_allow_blocking(flags))
->                 quarantine_reduce();
-> --
-> 2.21.0
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190502163057.6603-1-natechancellor%40gmail.com.
-> For more options, visit https://groups.google.com/d/optout.
+Thank you,
+Pasha
 
