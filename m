@@ -2,200 +2,207 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 718E0C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 18:24:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 085C0C04AAA
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 18:43:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1648120675
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 18:24:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9F49121734
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 18:43:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=microsoft.com header.i=@microsoft.com header.b="lVD7TYgo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1648120675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=microsoft.com
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="FJISljxN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F49121734
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A18E76B0003; Thu,  2 May 2019 14:24:43 -0400 (EDT)
+	id E27C76B0003; Thu,  2 May 2019 14:43:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C8BF6B0006; Thu,  2 May 2019 14:24:43 -0400 (EDT)
+	id DD89B6B0005; Thu,  2 May 2019 14:43:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 88FFF6B0007; Thu,  2 May 2019 14:24:43 -0400 (EDT)
+	id CEF286B0007; Thu,  2 May 2019 14:43:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2BD6B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 14:24:43 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h2so397203edi.13
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 11:24:43 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B02C66B0003
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 14:43:41 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id u65so3271850qkd.17
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 11:43:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:msip_labels:content-transfer-encoding:mime-version;
-        bh=I8obnoPpE/nhmGGbqB5I9zlhg4YmLppQW2PFEAZf8qA=;
-        b=SIXqOSPWslmVkywBAdwFNU3y3bFlayxtHzpODZYBuuVg7jJ0jdxTRJWMIo1LEWULOm
-         RO/SbXfC/Vnj0523Tx+fdOFedbYCngivueTy5GI9DjrvZmWV+vVFQGT3ZhoGKEqId4Za
-         +EESRNS2m8+FgX1D14qZ0d3WfE4WWGSdw7qCfBqaXq+cLPyf7oLRWTzJLmHPeY6wKicw
-         B3lXd53h/AtpL+n15cefrUNGXiCcXz3VWW6TO+GPQSiQkysYDAGg58heegasakMBAa6i
-         v5cX3J1Q3ozIyIX1H8+76EmFVi+K9d7IRhQxGjEPsxHJbxbB8P0XSjWkIdxVDDnfKvlm
-         uqtQ==
-X-Gm-Message-State: APjAAAWLlyi7oKZzIcghVcGfAOf2+gspD/LWSrk3zpGtxgHwF15jOKdH
-	IsET6QQ5VZG57sr8JxmYAUxv8zys/T5BMsQg5gi2aQ4rPaikFYQ/56AsoUijU1AsILfXdGjymaB
-	Qu13Cki/ngFM3HPTj5GjkHN5glhey3J0J4/iJapKujB2fXTIF+aJfuDhJcd0pYx3q1g==
-X-Received: by 2002:a17:906:43c4:: with SMTP id j4mr506654ejn.262.1556821482682;
-        Thu, 02 May 2019 11:24:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrWVxjsBZzQORt5OEFbkIPW3pQjgRBQARWacZiput1ZyGWkcJ5mfc85hVWdctn1qIbIhiT
-X-Received: by 2002:a17:906:43c4:: with SMTP id j4mr506622ejn.262.1556821481660;
-        Thu, 02 May 2019 11:24:41 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1556821481; cv=pass;
+        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id
+         :mime-version:content-transfer-encoding;
+        bh=xoemE8OPi9tqBHaKmVDMP6fqzg3JRjWrdojq7V/9jr4=;
+        b=Lep2qqX3+WP8THGeC+hdlfrDGcc3RS3SPc/DD/Su1e/iH/xjsQhTaRFuexF+bf2I9M
+         TdEbNs1MBFiqeJPTuP7mjCq7Ld+q3KyzZ2kEs27AIgFozzpx0eaeShFEueiqKIWQQ4AG
+         FmcDvK1OKj+gaQD/a52enxsSJru1TAoMRYS+pBQ+JmTARx4ShAid0rDOqAqBW7C7II2z
+         V8C9VA7L5rqJ/nt1g9w9mqmoOvTmrh1pkmgm2sMFYbLF8FIXGYns5NRHPeXiSAcGpC2t
+         LKYYP8NzHL0lPnGbL8fe7hDMA9A9QjHWKqbjA00Zut/Yy3vQ/lshyTvuc8JlvwnWbxo5
+         f+TQ==
+X-Gm-Message-State: APjAAAUF0MmjN1o5ZhypzLDqoHa8SokdQI16Kvx6Mly91csAuqoigr4x
+	2mnNhSBDR+UArf3WtvuxDA/qqBL1EKWTbJgkcbVvOdridVYP9b+tiBzbyR0ACKVL7MuUTi3o6eJ
+	POU1qUYlFYNY/ceO0vB2SVfarQ/cWcay0WjuYSc9T86yN6Xo1+uUR8pPd9hpPbRsLbQ==
+X-Received: by 2002:ac8:44cb:: with SMTP id b11mr4473720qto.155.1556822621362;
+        Thu, 02 May 2019 11:43:41 -0700 (PDT)
+X-Received: by 2002:ac8:44cb:: with SMTP id b11mr4473639qto.155.1556822620230;
+        Thu, 02 May 2019 11:43:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556822620; cv=none;
         d=google.com; s=arc-20160816;
-        b=JqCQ7oX+EoWt+EeIyHFjcSvhZp7W6Nf523ki+PizlKK8zf9BQBECc7/CsnJ08aPvHN
-         7zGXrzR4ocPnrAV5CeKooCLTmmR5Ezk0xbqrgHnNO2AlWYxVbZ1eXt0bbcnVsNS8efwf
-         xu+tSTsD4yC85DEROUw0r7jC1wPZP3EqyFYguOOgeBn8NrUqlo+XDcZ4279yM/b1Rim2
-         dRJ7tnfMkLpL6RaOxq9dFW2VjxWUXO7LJtfQww9s/otEHrlcczsg4rg+pX233NDQ5vJk
-         uK3gHYY44qZpCH+MGAOME9HBwjglnTPF7wmsPoSqMJngcom7Kc6DPzHmG2rcI9DDm0JE
-         1yNw==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:msip_labels:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=I8obnoPpE/nhmGGbqB5I9zlhg4YmLppQW2PFEAZf8qA=;
-        b=i/uuR0nGnJC35bR0nm07xPY/sNi0sWiMGLk4iCz0TaGPQqPk2jPfyKGECRrBc5bnZr
-         AYddqpowKCFp9BDqY4/Rg1W3Aszh2mWySie6dvhMgyztZFgcSeXj8lSharDL9y6s2zv8
-         b0Pgmi6JSLIgf6Hurr+fHEBHiKoNS6+o0L3Unv3WQRfgjwKWjLWudNwEWV8FGajTbwCv
-         IJ0Mfiz3nIVTw5N+kRb9EzicXkNEKUtOrymUoWP5DuDLSgvs/K4lwSGjXXzDukA0V5/E
-         yuAUoek4knLHfc7RM7ZiQprd02CBToJSTWNexTIOVXI5XrzZ9Dbh+WEGDKwm2QTAPgk/
-         Lrpw==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@microsoft.com header.s=selector1 header.b=lVD7TYgo;
-       arc=pass (i=1);
-       spf=pass (google.com: domain of decui@microsoft.com designates 40.107.131.132 as permitted sender) smtp.mailfrom=decui@microsoft.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=microsoft.com
-Received: from APC01-SG2-obe.outbound.protection.outlook.com (mail-eopbgr1310132.outbound.protection.outlook.com. [40.107.131.132])
-        by mx.google.com with ESMTPS id q6si4823326edg.394.2019.05.02.11.24.41
+        b=Ll3h8XeTvp9YPr92NkKtGl2BYIW8RfXJOzkhRPqQwQc2VMmr4UGkFfwhebmBmPKix1
+         uIdPYIPt3+qb5hUnKbS5wRvgC3PiIQ3z264G0j1sLYNGx+FyVsgy3mD/pwPdNwIvNNS9
+         BlDPsygJ6ugR1r+Ms+QvPYb3gCRrr07adsod+sFuWHRmXoWicT2AcnLodnLebtazt6WG
+         3JaEMlrL4hUz6UsQ0vVGXYIGAcdk9eLuA60/MmXCJgn4/e+OkRQsOLTTYD9cHat1LfUN
+         upSGLWhFRPLdvfG7voijWLlW1uz//AnUNe3ur2UYZ3BgwdkQ110UoqPf6NECwuOCoHK1
+         +6Ag==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:to
+         :from:dkim-signature;
+        bh=xoemE8OPi9tqBHaKmVDMP6fqzg3JRjWrdojq7V/9jr4=;
+        b=a/ydx+0w6ypEBtFyQXOc2mIlwJwiIuw/dMPJSflv4QIiibrOExhVqmay1PWGRNF9EL
+         RIfvrER1Zw9bt+vfZJW1eCMSb3vdCbKcv1tUyZiX4JbGx83Mpdx40ujc/R94u7FF+TcV
+         iV5+n4G/Q+wNnVvfgjVfPtzKcz1p0oumqwgnkBzX4QzUMnrGVvk7z4xwnkXyzoXxaxGd
+         810ebtvUiN9ae6GXOwYd29gPF11S3gpemnA/7jyShw+OQVcT1swLEbfVL1UBhRI2Pq6M
+         vgjnndvLzhvhSr5Vj4C5p2YWNn6YEz9UdxIRxLdnlAQMpxtCe4EpYDXxVFVd9t2zIwQH
+         mPRA==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@soleen.com header.s=google header.b=FJISljxN;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y10sor4949467qtm.18.2019.05.02.11.43.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 May 2019 11:24:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of decui@microsoft.com designates 40.107.131.132 as permitted sender) client-ip=40.107.131.132;
+        (Google Transport Security);
+        Thu, 02 May 2019 11:43:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@microsoft.com header.s=selector1 header.b=lVD7TYgo;
-       arc=pass (i=1);
-       spf=pass (google.com: domain of decui@microsoft.com designates 40.107.131.132 as permitted sender) smtp.mailfrom=decui@microsoft.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=microsoft.com
-ARC-Seal: i=1; a=rsa-sha256; s=testarcselector01; d=microsoft.com; cv=none;
- b=EE96FFwkMszatMOo+Ds/aPmsV4W2TDJW/UFdsA6FZ6aGOH2nqPhx1rjdLiU1vt/1A2Q0dKnHP8PRzd6ZFdedZ3Uuo1AUTDTrjvTv/QGmxx7iMr7r42KBe7sfK0a98gvFXIh8FHFutckL2iW5S5PCLPvH7qbxCekfufBIjlcxo8c=
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=testarcselector01;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=I8obnoPpE/nhmGGbqB5I9zlhg4YmLppQW2PFEAZf8qA=;
- b=MtZU3lKOtjdnMB4hOTcUIjc51ywOiaZVKxAJzgX9Vuc/iwISEoXNJSfB46HMHd/xGtyUW9fBTrmpXGtFw/mfpxiTYOSLwWaR06JlgOaQGZfXq1AdsZOBEL5iaS6G6Ph/GcILogjZJJM73GYru1MoErlOfnUxvkfywZM08SiFWxA=
-ARC-Authentication-Results: i=1; test.office365.com 1;spf=none;dmarc=none
- action=none header.from=microsoft.com;dkim=none (message not signed);arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=I8obnoPpE/nhmGGbqB5I9zlhg4YmLppQW2PFEAZf8qA=;
- b=lVD7TYgoA7d8Kngl/j14AJFtfP8UdM159qfvqICkySMDlKEu4RaY4w33tYwyQFga5Ppm5kCdB0LeH/dgc38yIK8OrznFlWthKg87rJ/wAKBz2YHR2ruLlqn/IFqMDEbASXuvMmN7UBZSrytihxFRrVrqlj5KICjPLpbSAxsUtOw=
-Received: from PU1P153MB0169.APCP153.PROD.OUTLOOK.COM (10.170.189.13) by
- PU1P153MB0123.APCP153.PROD.OUTLOOK.COM (10.170.188.16) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1856.4; Thu, 2 May 2019 18:24:33 +0000
-Received: from PU1P153MB0169.APCP153.PROD.OUTLOOK.COM
- ([fe80::9810:3b6b:debd:1f16]) by PU1P153MB0169.APCP153.PROD.OUTLOOK.COM
- ([fe80::9810:3b6b:debd:1f16%4]) with mapi id 15.20.1856.004; Thu, 2 May 2019
- 18:24:33 +0000
-From: Dexuan Cui <decui@microsoft.com>
-To: Michal Hocko <mhocko@suse.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, Johannes
- Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Roman
- Gushchin <guro@fb.com>, Hugh Dickins <hughd@google.com>, Andrey Ryabinin
-	<aryabinin@virtuozzo.com>, Mel Gorman <mgorman@techsingularity.net>,
-	"dchinner@redhat.com" <dchinner@redhat.com>, Greg Thelen
-	<gthelen@google.com>, Kuo-Hsin Yang <vovoy@chromium.org>
-Subject: RE: isolate_lru_pages(): kernel BUG at mm/vmscan.c:1689!
-Thread-Topic: isolate_lru_pages(): kernel BUG at mm/vmscan.c:1689!
-Thread-Index: AdUAdyzy8F3SUITdRv6SToKOnShIegAbxvIAAAs/qiA=
-Date: Thu, 2 May 2019 18:24:33 +0000
-Message-ID:
- <PU1P153MB0169009CB69F8365EBE6FC6EBF340@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
-References:
- <PU1P153MB01693FF5EF3419ACA9A8E1FDBF3B0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
- <20190502125514.GB29835@dhcp22.suse.cz>
-In-Reply-To: <20190502125514.GB29835@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-msip_labels: MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_Enabled=True;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_SiteId=72f988bf-86f1-41af-91ab-2d7cd011db47;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_Owner=decui@microsoft.com;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_SetDate=2019-05-02T18:24:30.0210155Z;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_Name=General;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_Application=Microsoft Azure
- Information Protection;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_ActionId=f9be8985-b867-4956-a842-152705123cef;
- MSIP_Label_f42aa342-8706-4288-bd11-ebb85995028c_Extended_MSFT_Method=Automatic
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=decui@microsoft.com; 
-x-originating-ip: [2001:4898:80e8:1:95ff:69b:baac:db8f]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 1b61ad2d-494a-4f61-ee97-08d6cf2b6d01
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:PU1P153MB0123;
-x-ms-traffictypediagnostic: PU1P153MB0123:
-x-ld-processed: 72f988bf-86f1-41af-91ab-2d7cd011db47,ExtAddr
-x-microsoft-antispam-prvs:
- <PU1P153MB0123B5675AA8FED25B45CAE0BF340@PU1P153MB0123.APCP153.PROD.OUTLOOK.COM>
-x-ms-oob-tlc-oobclassifiers: OLM:8273;
-x-forefront-prvs: 0025434D2D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(136003)(39860400002)(396003)(346002)(366004)(376002)(189003)(199004)(446003)(305945005)(25786009)(6246003)(7696005)(229853002)(71200400001)(71190400001)(256004)(76176011)(55016002)(2906002)(86612001)(11346002)(46003)(9686003)(86362001)(5660300002)(99286004)(316002)(74316002)(54906003)(7736002)(478600001)(476003)(22452003)(4744005)(6916009)(486006)(186003)(6436002)(4326008)(10090500001)(8936002)(8990500004)(68736007)(14454004)(7416002)(73956011)(81156014)(33656002)(76116006)(53936002)(6116002)(66946007)(66556008)(66476007)(66446008)(102836004)(64756008)(10290500003)(8676002)(52536014)(6506007)(81166006);DIR:OUT;SFP:1102;SCL:1;SRVR:PU1P153MB0123;H:PU1P153MB0169.APCP153.PROD.OUTLOOK.COM;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:3;
-received-spf: None (protection.outlook.com: microsoft.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- A1OCSBsR6tlUbaktEednYVvvuRZKv5EU/WJoDMuY7ffrqRwA4Rm6TfpuPe/5RGLp09p+nKalPhrLX9qIOVKuKC5SBHZuHAIHnIFUi4tnnrO7HyJLcctIfso5yx3yej/oJ/TLbjZ9OYps5iLvFoyksYStnjW3qxO5GoKvyoYxbvnbZTowyZTiN2zKliu1lkgN3N4Gut2lIJdumFtzXjSgzF013GkKi3EKIg+pRFUB6RwhA8ed4J0R1tOeF1BKGahdSIZilhT/z7YnvxCU5rJNREquQn+EGPp83RKDaNqU3A/4BaYDG59EBOa/d4KCeO2GoOyvc0x4IPK0c+sPjsZMH+xJbGLQ2zuK9mHQnoghaQOEQ7aN4Bft8l7aEvRmSszQqapzzITncUMiBUu9ZsTbwplQl53mwSzlecXne3Owy6o=
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@soleen.com header.s=google header.b=FJISljxN;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=xoemE8OPi9tqBHaKmVDMP6fqzg3JRjWrdojq7V/9jr4=;
+        b=FJISljxNrMpf4BKlSGlFeUIV8YCdFaNtpEv6AsymPhEDpG/AYIOG564YnNgyiSZWYs
+         er3AMBJemBc5rus9Wxn9a3q92pMjyIY35YjJBnrjKns6nNaTIL3+Kv7qqcHlJw75OsYD
+         zPDMcCNUOhEBpj14TxzAHyzuYb/L0bCZe37EIL49iHNzw/vfuyUmJHW9EOpqOPC5nnS+
+         tfWu9kNx5xZbaPzjIk5/kJO7U65ZWbAy3mcTyDUBHmXgAxsW8gu6gSS7xABffa88s0Rf
+         5V9s4F2DpoSRTPMKZSEB51TgBtnUSFEFXIVol4hVNm8XpV5s8aQBbDGBGq5AbPhUbIvu
+         FIvQ==
+X-Google-Smtp-Source: APXvYqydvQA3tm1YLVyZkJR+Xcl7phv6H18jB1wWNP5r4MBakwaedC5LCXAOSAq7RroNt91CriKhcg==
+X-Received: by 2002:aed:3512:: with SMTP id a18mr4319879qte.181.1556822619826;
+        Thu, 02 May 2019 11:43:39 -0700 (PDT)
+Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
+        by smtp.gmail.com with ESMTPSA id 8sm25355751qtr.32.2019.05.02.11.43.38
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 May 2019 11:43:39 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+To: pasha.tatashin@soleen.com,
+	jmorris@namei.org,
+	sashal@kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org,
+	akpm@linux-foundation.org,
+	mhocko@suse.com,
+	dave.hansen@linux.intel.com,
+	dan.j.williams@intel.com,
+	keith.busch@intel.com,
+	vishal.l.verma@intel.com,
+	dave.jiang@intel.com,
+	zwisler@kernel.org,
+	thomas.lendacky@amd.com,
+	ying.huang@intel.com,
+	fengguang.wu@intel.com,
+	bp@suse.de,
+	bhelgaas@google.com,
+	baiyaowei@cmss.chinamobile.com,
+	tiwai@suse.de,
+	jglisse@redhat.com,
+	david@redhat.com
+Subject: [v5 0/3] "Hotremove" persistent memory
+Date: Thu,  2 May 2019 14:43:34 -0400
+Message-Id: <20190502184337.20538-1-pasha.tatashin@soleen.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-X-OriginatorOrg: microsoft.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 1b61ad2d-494a-4f61-ee97-08d6cf2b6d01
-X-MS-Exchange-CrossTenant-originalarrivaltime: 02 May 2019 18:24:33.5032
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 72f988bf-86f1-41af-91ab-2d7cd011db47
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: PU1P153MB0123
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Michal Hocko <mhocko@suse.com>
-> Sent: Thursday, May 2, 2019 5:55 AM
-> > ...
-> > So far I only hit the BUG once and I don't know how to reproduce it aga=
-in, so
-> this is just a FYI.
->=20
-> ...
-> Do you think it would be possible to setup a crash dump
-> or apply the following debugging patch in case it reproduces?
-> Michal Hocko
+Changelog:
+v5
+- Addressed comments from Dan Williams: made remove_memory() to return
+  an error code, and use this function from dax.
 
-Now I applied the "dump_page(page);" and let's see if I'll hit the BUG agai=
-n.
+v4
+- Addressed comments from Dave Hansen
 
-BTW, I'm developing some code to support hibernation for Linux VM running
-on Hyper-V. I don't think my own change causes the BUG, as my change does n=
-ot
-touch the mm system or any file system code at all.
+v3
+- Addressed comments from David Hildenbrand. Don't release
+  lock_device_hotplug after checking memory status, and rename
+  memblock_offlined_cb() to check_memblock_offlined_cb()
 
-Thanks,
--- Dexuan
+v2
+- Dan Williams mentioned that drv->remove() return is ignored
+  by unbind. Unbind always succeeds. Because we cannot guarantee
+  that memory can be offlined from the driver, don't even
+  attempt to do so. Simply check that every section is offlined
+  beforehand and only then proceed with removing dax memory.
+
+---
+
+Recently, adding a persistent memory to be used like a regular RAM was
+added to Linux. This work extends this functionality to also allow hot
+removing persistent memory.
+
+We (Microsoft) have an important use case for this functionality.
+
+The requirement is for physical machines with small amount of RAM (~8G)
+to be able to reboot in a very short period of time (<1s). Yet, there is
+a userland state that is expensive to recreate (~2G).
+
+The solution is to boot machines with 2G preserved for persistent
+memory.
+
+Copy the state, and hotadd the persistent memory so machine still has
+all 8G available for runtime. Before reboot, offline and hotremove
+device-dax 2G, copy the memory that is needed to be preserved to pmem0
+device, and reboot.
+
+The series of operations look like this:
+
+1. After boot restore /dev/pmem0 to ramdisk to be consumed by apps.
+   and free ramdisk.
+2. Convert raw pmem0 to devdax
+   ndctl create-namespace --mode devdax --map mem -e namespace0.0 -f
+3. Hotadd to System RAM
+   echo dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+   echo dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+   echo online_movable > /sys/devices/system/memoryXXX/state
+4. Before reboot hotremove device-dax memory from System RAM
+   echo offline > /sys/devices/system/memoryXXX/state
+   echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
+5. Create raw pmem0 device
+   ndctl create-namespace --mode raw  -e namespace0.0 -f
+6. Copy the state that was stored by apps to ramdisk to pmem device
+7. Do kexec reboot or reboot through firmware if firmware does not
+   zero memory in pmem0 region (These machines have only regular
+   volatile memory). So to have pmem0 device either memmap kernel
+   parameter is used, or devices nodes in dtb are specified.
+
+Pavel Tatashin (3):
+  device-dax: fix memory and resource leak if hotplug fails
+  mm/hotplug: make remove_memory() interface useable
+  device-dax: "Hotremove" persistent memory that is used like normal RAM
+
+ drivers/dax/dax-private.h      |  2 ++
+ drivers/dax/kmem.c             | 46 ++++++++++++++++++++++---
+ include/linux/memory_hotplug.h |  8 +++--
+ mm/memory_hotplug.c            | 61 ++++++++++++++++++++++------------
+ 4 files changed, 89 insertions(+), 28 deletions(-)
+
+-- 
+2.21.0
 
