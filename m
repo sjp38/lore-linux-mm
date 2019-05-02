@@ -2,130 +2,228 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 575FEC43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:17:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA8C7C04AA9
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:30:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D3E62081C
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:17:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="jeL1TmN+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D3E62081C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	by mail.kernel.org (Postfix) with ESMTP id 7DC1E205F4
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:30:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DC1E205F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AAA496B0006; Thu,  2 May 2019 10:17:08 -0400 (EDT)
+	id 08D886B0007; Thu,  2 May 2019 10:30:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A80E26B0007; Thu,  2 May 2019 10:17:08 -0400 (EDT)
+	id 03EE86B0008; Thu,  2 May 2019 10:30:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 996F06B0008; Thu,  2 May 2019 10:17:08 -0400 (EDT)
+	id E972C6B000A; Thu,  2 May 2019 10:30:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C41B6B0006
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:17:08 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id s21so1132393edd.10
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:17:08 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CFDA6B0007
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:30:02 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f41so1168776ede.1
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:30:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
-        b=I1PEyLduqef86zF5c1DkWCXZtjz8vJja+FjmTdu8ZhrkEJKPedZ06/0WtB8/RbhKKN
-         SHbYZc2nnrTX7fh76XaG7BvnxXvM9II73mqLH4FIt9jnAP4WEhrrfH6THg8Rtulp3r/D
-         PMjUdOIwJGwyc5JC8CoVJOemI0UsXdV9JEPXdh5QUtX0oMF6eaQBa+XHTrJd9y8Qw/II
-         9McbE5+Vod7sMQjat5ihT+N9b+MXd31VXuwh/lNAY4kolcwsYsABOhos1N244iSJ3cxP
-         QTaPYx/yB/HL/Rikf08ITIboO6cV8EVLGij4j9p5NGv/u1o0qmknIwF4RORO+VtshiI7
-         2pDw==
-X-Gm-Message-State: APjAAAXejxN4oZupk/26dFv+GQjHBKyTCCIwSAfP8L17gq7vs4P8Tmnq
-	ziPy4JWq5V7w3g1JSk8P39KAaHoMdwndvQsT8KOdnmAXfyjjtGvYPpeiTm8SadL1788xvbocXGz
-	adl9OtP+bPR4lxDloa8qhJq/CR+HWtxS/qlOQEDpvgRnNDYalierO8Pp3JCiyFQhfFw==
-X-Received: by 2002:a05:6402:1696:: with SMTP id a22mr2818985edv.219.1556806627882;
-        Thu, 02 May 2019 07:17:07 -0700 (PDT)
-X-Received: by 2002:a05:6402:1696:: with SMTP id a22mr2818945edv.219.1556806627182;
-        Thu, 02 May 2019 07:17:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556806627; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=GjZRT6nPoKpuBmsPa1t099v4/OXTxPeMOIlYa6Pu4ts=;
+        b=PPEn3iEt3p0+YkD6E4xqy5BUeu8YC4eJtlNrg/wxUpofgFoyOaIw4WS/fimYhxv8rn
+         7VDn4ix+mLw9S5MXYXALdLz/lC50io1K8pZsPF5IkWw7pkJTq5ipBPMmzI9ZR/eTba0V
+         24q96rmPthbCDHlrvFvp6UQSe2YQYel9ToZEit6mmhnR0rgKqX4j7l2cooj1ssvVi3P7
+         PgPrNc6gTsEVRKdpFb+/VvTsxmXVKlRvxnCijHrvie1ZFXDsoiUqiVI1tm1ORzcYHRvZ
+         EXqaYAnVhK8RFQXYbShpVhWVE4HGnShkm0ub4KkwN3Cv9zdszQNItCQnitCi8BQA0tIb
+         n4fQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAWrmjhyGOuaq6uHpyEdLcssXfYQYPJHMzPza0/6DYFToQQeks6n
+	Txah4ajIueA+fe+bVZ1BmvyuvL5+9ZSXVxpsSrEMY+11a8Ofk2pK2RJuz5krQAQArYdDDMPzT8f
+	WYj4MC5bxdlY3hl6FvvXQoa+xoEkqCix7FuO2mmKabAFFdd6wsxD5hFMCvKk3GFd9dg==
+X-Received: by 2002:a17:906:6d8d:: with SMTP id h13mr2010982ejt.229.1556807402175;
+        Thu, 02 May 2019 07:30:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqylo2kd7AsJ+9V6AFeXQqJCz7yRT5ibYSc4Gka2rLt0k0lZ67b24OHWAHnOwvBCvTgmv6ES
+X-Received: by 2002:a17:906:6d8d:: with SMTP id h13mr2010925ejt.229.1556807401019;
+        Thu, 02 May 2019 07:30:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556807401; cv=none;
         d=google.com; s=arc-20160816;
-        b=RhLEjPPwoTGreGOyox8NFEZyPQ67sto1EKY85FRS8Gi0swvib0ZEfiKKIjYFTaF2CA
-         3rn9uhNZSrYShyh7MM+0LrUyFAHuu/oF1YwEnWkIlvQiXyBOev3tz23QauRKkxXchvjQ
-         VND0CHgiEr66Ebq+fpbaV/TTvH2d6qZTEGzCI8bu319dPICKveLHKZz3ywy7Jed9uHiX
-         jQpDad6Dv59huA6tKSSyRFuQ/RQ3pGrdHzop1Nmp/YUwbSQWTodq2shpKsyYONVVf1YG
-         h6yvA7YN93CO7opB7qqxb5opsJhM2pkZDV9/YnHaxXkf758a0cPbxSeSoPkTpYMQr3ip
-         Kr+Q==
+        b=bs96l+eH8trc72Jor5yT0SCQDOYkbHRJhNGoH4l8NeZRUbZyRMuiKX1dM26J8LEi7o
+         +dvEERhqqPUIHSJYpB1xsNPSCHM1PmGA6EbJLxPYMdrrq5F1J3sIr+ddPRlsP32ND0ZZ
+         3wWvRd161P8omvZyJDHb0h35IRnhRKVgMrNMZaUolRUNhdijrECO/7F5lhJqtSQ/zCTy
+         JVjq6WGgdcLyR1dW1bg2mGsjdDqi3kfd26d5QFO4yQZ6vaX7+J6eQScrP2wwoD8a/nKq
+         NpyEyu6CP1M8M73Yz1bZ/Vwr6Qy3CV1qOjvYlr/c/EgdzWEYaLIB37UbYm3wgu/SWB8h
+         regw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
-        b=PTdgmqEVip775VOkcDcwZ0daHKBY6ARWrLxSAlfGbDcghoZj/WxHQIn62kdfKMmXLK
-         ug9LOTslEtlWn2/nxDv+4cmnpIvDDT35vqBvwemJAa+bRyEMiYdzoE3WYlkyMtJs+dLz
-         gEqh7yU7e4kjXJsRDqD/J9s7c0Pharm+UQ5FuhnJNKe6r05sE8DwnMPccDVEmd0AvPaK
-         6ZgftSgWTs7HgD0N/F8keqMRTLGckzrxYmyPgB28qRiGWr4OuQNZTY1WeG8rdzDqaxy2
-         eskn2ruKmZl7LVt0BOvLDQM6hQv/SzWAyh34sg9KjinW5cCz0y/H8Wr7iZeEglq0v45O
-         EgyA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=GjZRT6nPoKpuBmsPa1t099v4/OXTxPeMOIlYa6Pu4ts=;
+        b=1HHMqdjyuzmRIIlBTV6GzJgpUfq+/O2bXgC+m1JSCrVTLr+D+7NYjq80atuYuDekZJ
+         rBmLmwUjNgBL4xmEekGY8c3RgrwBLQ41Z1SmTapzBhevu//avsI0O+dSENE2XnhGLDv/
+         h58ATVo964jyFeYhH/Hv4EPt0GAZj11IlPxfgmDp/MowxxfLD+TTi89yeZeK6Nwif8k8
+         AbuxIQp3oLcTwhd13xQz7FasQIgPiy8v1besaPvaRh0G9bq/VcWeygd2mZVHZ7odnNNk
+         PCvW9a9P9pIX8xLKBDJqpgV2f2bZO/cUouOJ9KUWJ4SEnR08u0dgh+lQ7vv7+0DWZIQ3
+         chlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=jeL1TmN+;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e12sor15531113edi.6.2019.05.02.07.17.07
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 May 2019 07:17:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u46si3088661edm.404.2019.05.02.07.30.00
+        for <linux-mm@kvack.org>;
+        Thu, 02 May 2019 07:30:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=jeL1TmN+;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
-        b=jeL1TmN+9S7rxFSCfW9V3bYCQ9XkkRpCSHGcvfnrOsvTSAjY73LFSt1bUiVgtgHJNq
-         Tv0DbnVWNwa8ZjVzru05IQyRWy3S/5OEqtHtNfr/GR2TVOwOJqI+yAZuJXWBMCL2pG4f
-         re8W5PiiN/831GI+qo4H8mGQodK+253IOfYP2SJv+auBn37OqlvdOokiv0/y9Xk/xMCg
-         T+14TN7gujRPTIqhsFgKKnmV+jKUYGVd5KWX38nwgSzlaAx0CpwFF17YHopwjY1k7gtD
-         MLtUmtFpfiEFPRQtO43++BKD+FVRV2u7zlgVjWl+zwgCdyeyyFCx6zLeHvXkzQcj824S
-         TQtQ==
-X-Google-Smtp-Source: APXvYqxfxStCJ1a5V9dI9KazHvlQKGkMxuucoOz7ty4S41uLly2rKv78x1mRLAhuezLjjjPUXOHuGcrzAp0ZhX1u2YU=
-X-Received: by 2002:a05:6402:13cf:: with SMTP id a15mr2763367edx.70.1556806626879;
- Thu, 02 May 2019 07:17:06 -0700 (PDT)
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C155F374;
+	Thu,  2 May 2019 07:29:59 -0700 (PDT)
+Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B4FB13F5AF;
+	Thu,  2 May 2019 07:29:54 -0700 (PDT)
+Date: Thu, 2 May 2019 15:29:52 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>, libc-alpha@sourceware.org
+Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
+Message-ID: <20190502142951.GP3567@e103592.cambridge.arm.com>
+References: <20190501211217.5039-1-yu-cheng.yu@intel.com>
+ <20190502111003.GO3567@e103592.cambridge.arm.com>
 MIME-Version: 1.0
-References: <20190501191846.12634-1-pasha.tatashin@soleen.com>
- <20190501191846.12634-3-pasha.tatashin@soleen.com> <9e15bf41-8e74-3a76-c7b9-9712b2d5290b@redhat.com>
-In-Reply-To: <9e15bf41-8e74-3a76-c7b9-9712b2d5290b@redhat.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 2 May 2019 10:16:56 -0400
-Message-ID: <CA+CK2bCfCoU3JHz=81+=RNwo9M6n_zRbmPgx+DNmAnPYQRcjOA@mail.gmail.com>
-Subject: Re: [v4 2/2] device-dax: "Hotremove" persistent memory that is used
- like normal RAM
-To: David Hildenbrand <david@redhat.com>
-Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>, 
-	Vishal L Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, 
-	Ross Zwisler <zwisler@kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
-	Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
-	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190502111003.GO3567@e103592.cambridge.arm.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->
-> Memory unplug bits
->
-> Reviewed-by: David Hildenbrand <david@redhat.com>
->
+On Thu, May 02, 2019 at 12:10:04PM +0100, Dave Martin wrote:
+> On Wed, May 01, 2019 at 02:12:17PM -0700, Yu-cheng Yu wrote:
+> > An ELF file's .note.gnu.property indicates features the executable file
+> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+> > 
+> > This patch was part of the Control-flow Enforcement series; the original
+> > patch is here: https://lkml.org/lkml/2018/11/20/205.  Dave Martin responded
+> > that ARM recently introduced new features to NT_GNU_PROPERTY_TYPE_0 with
+> > properties closely modelled on GNU_PROPERTY_X86_FEATURE_1_AND, and it is
+> > logical to split out the generic part.  Here it is.
+> > 
+> > With this patch, if an arch needs to setup features from ELF properties,
+> > it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and a specific
+> > arch_setup_property().
+> > 
+> > For example, for X86_64:
+> > 
+> > int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
+> > {
+> > 	int r;
+> > 	uint32_t property;
+> > 
+> > 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
+> > 			     &property);
+> > 	...
+> > }
 
-Thank you David.
+[...]
 
-Pasha
+> > diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c > > index 7d09d125f148..40aa4a4fd64d 100644
+> > --- a/fs/binfmt_elf.c
+> > +++ b/fs/binfmt_elf.c
+> > @@ -1076,6 +1076,19 @@ static int load_elf_binary(struct linux_binprm *bprm)
+> >  		goto out_free_dentry;
+> >  	}
+> >  
+> > +	if (interpreter) {
+> > +		retval = arch_setup_property(&loc->interp_elf_ex,
+> > +					     interp_elf_phdata,
+> > +					     interpreter, true);
+> > +	} else {
+> > +		retval = arch_setup_property(&loc->elf_ex,
+> > +					     elf_phdata,
+> > +					     bprm->file, false);
+> > +	}
+
+This will be too late for arm64, since we need to twiddle the mmap prot
+flags for the executable's pages based on the detected properties.
+
+Can we instead move this much earlier, letting the arch code stash
+something in arch_state that can be consumed later on?
+
+This also has the advantage that we can report errors to the execve()
+caller before passing the point of no return (i.e., flush_old_exec()).
+
+[...]
+
+> > diff --git a/fs/gnu_property.c b/fs/gnu_property.c
+
+[...]
+
+> > +int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
+> > +		     u32 pr_type, u32 *property)
+> > +{
+> > +	struct elf64_hdr *ehdr64 = ehdr_p;
+> > +	int err = 0;
+> > +
+> > +	*property = 0;
+> > +
+> > +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
+> > +		struct elf64_phdr *phdr64 = phdr_p;
+> > +
+> > +		err = scan_segments_64(f, phdr64, ehdr64->e_phnum,
+> > +				       pr_type, property);
+> > +		if (err < 0)
+> > +			goto out;
+> > +	} else {
+> > +#ifdef CONFIG_COMPAT
+> > +		struct elf32_hdr *ehdr32 = ehdr_p;
+> > +
+> > +		if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
+> > +			struct elf32_phdr *phdr32 = phdr_p;
+> > +
+> > +			err = scan_segments_32(f, phdr32, ehdr32->e_phnum,
+> > +					       pr_type, property);
+> > +			if (err < 0)
+> > +				goto out;
+> > +		}
+> > +#else
+> > +	WARN_ONCE(1, "Exec of 32-bit app, but CONFIG_COMPAT is not enabled.\n");
+> > +	return -ENOTSUPP;
+> > +#endif
+> > +	}
+
+We have already made a ton of assumptions about the ELF class by this
+point, and we don't seem to check it explicitly elsewhere, so it is a
+bit weird to police it specifically here.
+
+Can we simply pass the assumed ELF class as a parameter instead?
+
+[...]
+
+Cheers
+---DavE
 
