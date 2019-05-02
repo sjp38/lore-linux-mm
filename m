@@ -2,110 +2,116 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C92DC43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:16:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 575FEC43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:17:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC1A72081C
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:16:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0D3E62081C
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:17:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="Wglm0Ja8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC1A72081C
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="jeL1TmN+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D3E62081C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 727326B0003; Thu,  2 May 2019 10:16:21 -0400 (EDT)
+	id AAA496B0006; Thu,  2 May 2019 10:17:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D8D16B0006; Thu,  2 May 2019 10:16:21 -0400 (EDT)
+	id A80E26B0007; Thu,  2 May 2019 10:17:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A06B6B0007; Thu,  2 May 2019 10:16:21 -0400 (EDT)
+	id 996F06B0008; Thu,  2 May 2019 10:17:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCDF6B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:16:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h12so1118711edl.23
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:16:21 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C41B6B0006
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:17:08 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id s21so1132393edd.10
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:17:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=F9aLUsv55ITOjNiKYrvVJTstOAfJJ4bjs1xsqsYJZDQ=;
-        b=SwUaI1Y4yH0dE3jSPJjR6V6SMZAOMl7r6DZGS4rTP+gJ91J05j6+NG4EPwMoSf+ORb
-         QXgfEeOGvIxIIc6YL2e9yLYsvOBdw4YzQsWMIi+tjpd9xElt22MGRoZqvIlyGfV/+chM
-         qMilNzenQkDqT1Ebc5CPs1SbnepY6v3e/7WD5yWVt0t/s7PyfARYLGW3GsIOjv4CatM2
-         bOBk9I9vPsJWCcrgzFEtttSKNy24gmbmowJ/EO3FJWfQgKRVINhMI/nClSSzzvQ1rLqX
-         1o39sInoG32m0L1KbhcoF0hmbpXdW/mm4BzdOnl4XAuBjXVGw1Q1W9bFOo2o5Gqr6AtV
-         dL5A==
-X-Gm-Message-State: APjAAAU463py4PYpYayUgebBRiMHszH2ohce/nDHQGFLH4hJ2DF9cBDX
-	CgPwKr95uC1KkNmWOQ5SvMPdnooQzOGcZc/c0pebCZMoYfUGETC+cQvrPnVXaCktJjZy0mzlCRA
-	KXcalYV/GitRIkFZPXeiRZiU06OF/qx4Who6DA6gkQRg72Pu3a0KSB3rwbiyeUWAaAg==
-X-Received: by 2002:a50:9264:: with SMTP id j33mr2643859eda.125.1556806580616;
-        Thu, 02 May 2019 07:16:20 -0700 (PDT)
-X-Received: by 2002:a50:9264:: with SMTP id j33mr2643812eda.125.1556806579883;
-        Thu, 02 May 2019 07:16:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556806579; cv=none;
+        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
+        b=I1PEyLduqef86zF5c1DkWCXZtjz8vJja+FjmTdu8ZhrkEJKPedZ06/0WtB8/RbhKKN
+         SHbYZc2nnrTX7fh76XaG7BvnxXvM9II73mqLH4FIt9jnAP4WEhrrfH6THg8Rtulp3r/D
+         PMjUdOIwJGwyc5JC8CoVJOemI0UsXdV9JEPXdh5QUtX0oMF6eaQBa+XHTrJd9y8Qw/II
+         9McbE5+Vod7sMQjat5ihT+N9b+MXd31VXuwh/lNAY4kolcwsYsABOhos1N244iSJ3cxP
+         QTaPYx/yB/HL/Rikf08ITIboO6cV8EVLGij4j9p5NGv/u1o0qmknIwF4RORO+VtshiI7
+         2pDw==
+X-Gm-Message-State: APjAAAXejxN4oZupk/26dFv+GQjHBKyTCCIwSAfP8L17gq7vs4P8Tmnq
+	ziPy4JWq5V7w3g1JSk8P39KAaHoMdwndvQsT8KOdnmAXfyjjtGvYPpeiTm8SadL1788xvbocXGz
+	adl9OtP+bPR4lxDloa8qhJq/CR+HWtxS/qlOQEDpvgRnNDYalierO8Pp3JCiyFQhfFw==
+X-Received: by 2002:a05:6402:1696:: with SMTP id a22mr2818985edv.219.1556806627882;
+        Thu, 02 May 2019 07:17:07 -0700 (PDT)
+X-Received: by 2002:a05:6402:1696:: with SMTP id a22mr2818945edv.219.1556806627182;
+        Thu, 02 May 2019 07:17:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556806627; cv=none;
         d=google.com; s=arc-20160816;
-        b=APzBSYjcU9Calxa/vFMDeHk1R60qVAwuMCx9n4oHaS9ff0EeonjLOsqA2zXqQTNhq0
-         0YmKrKINFjwveTnhdiJKhCm1djsbpRSnmsqo0bn48pTEEGpn1coUOtRLwGfmD7FtbSSy
-         350uQ4hbwBKEW4NTNs+b91WOoBFXuEeEHKCWgyJQBtWZxrgA0MI2JeRJBo1oRKwt0Zff
-         zn50pk/Z9VbrUMSit4jIuM3wJJpOrzNhhzI0QbJz7R/VwLv6exEhtN62GnXSj8ryRqwA
-         pNSGOIXGxV61CuVO2BtKuxBdJWvPW0fq+ENV79uUQ4hGvAiiK2RG//1MOpeXm0RR/8u4
-         XNoQ==
+        b=RhLEjPPwoTGreGOyox8NFEZyPQ67sto1EKY85FRS8Gi0swvib0ZEfiKKIjYFTaF2CA
+         3rn9uhNZSrYShyh7MM+0LrUyFAHuu/oF1YwEnWkIlvQiXyBOev3tz23QauRKkxXchvjQ
+         VND0CHgiEr66Ebq+fpbaV/TTvH2d6qZTEGzCI8bu319dPICKveLHKZz3ywy7Jed9uHiX
+         jQpDad6Dv59huA6tKSSyRFuQ/RQ3pGrdHzop1Nmp/YUwbSQWTodq2shpKsyYONVVf1YG
+         h6yvA7YN93CO7opB7qqxb5opsJhM2pkZDV9/YnHaxXkf758a0cPbxSeSoPkTpYMQr3ip
+         Kr+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=F9aLUsv55ITOjNiKYrvVJTstOAfJJ4bjs1xsqsYJZDQ=;
-        b=J12y0q0Zs7JVZQamyUM/4TOGe8PEBSjCcdjmNfJNfkxvWkAxkJcpjxKajg+KGseMiJ
-         bP9I3hBkrr/PyeMBp/hPyg74MTevxPqJsIb56NwgSl1huikBkM3FH4J5612kq1ubzX9J
-         i4E6671ySnUdv1fYuerGViqM2ErTSuJGJH0vk/k+H0oXqG8xg3Ab0JPYFA1nlG0zqIri
-         aAsWSd5VSlkPvJJ0+jv8CGSiOkv/IIytZh0IfBP2uKfHRLeYlAiEAYhnLzeq1keTAPRf
-         3YmFov3c12A+tnE0V7lQF9ZuBka85bPektYwwfZCRAJLkgZL2ckXQ+BgjA7Adz85uweK
-         0YKA==
+        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
+        b=PTdgmqEVip775VOkcDcwZ0daHKBY6ARWrLxSAlfGbDcghoZj/WxHQIn62kdfKMmXLK
+         ug9LOTslEtlWn2/nxDv+4cmnpIvDDT35vqBvwemJAa+bRyEMiYdzoE3WYlkyMtJs+dLz
+         gEqh7yU7e4kjXJsRDqD/J9s7c0Pharm+UQ5FuhnJNKe6r05sE8DwnMPccDVEmd0AvPaK
+         6ZgftSgWTs7HgD0N/F8keqMRTLGckzrxYmyPgB28qRiGWr4OuQNZTY1WeG8rdzDqaxy2
+         eskn2ruKmZl7LVt0BOvLDQM6hQv/SzWAyh34sg9KjinW5cCz0y/H8Wr7iZeEglq0v45O
+         EgyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=Wglm0Ja8;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v22sor4473920edc.13.2019.05.02.07.16.19
+       dkim=pass header.i=@soleen.com header.s=google header.b=jeL1TmN+;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e12sor15531113edi.6.2019.05.02.07.17.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 May 2019 07:16:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 02 May 2019 07:17:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=Wglm0Ja8;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+       dkim=pass header.i=@soleen.com header.s=google header.b=jeL1TmN+;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=F9aLUsv55ITOjNiKYrvVJTstOAfJJ4bjs1xsqsYJZDQ=;
-        b=Wglm0Ja8Is5t6Pe+C39FK43FXDgUihPAL66hPy1y4u5yc2bjsKAODKww+7X5qtMNq5
-         PbUXwFDcvRFq0LAgV2XIV24RKvFaLy4+Jk9GJYezxhn5AlNEzzhz8abjwcZNxXD9zlji
-         e5nlWFVG4bsIB4/YdkBoDHM6o1TSAyn93KJf3vcwSYLmgFnlgEumav98ILuqSoa4je8o
-         AFbnIN4HyiGrHybIdEqKo89zqDoKruqFcQ4OfcjnNLSk5jVrpkfQPrVUs7D0XYOyds57
-         zhuWswdfRLeN+sHLVlfRkfc2fNW9damh+qz/C5Exemg6en0dyyKw1qNwtwq2GtQLO5wR
-         RaFg==
-X-Google-Smtp-Source: APXvYqz9Dz0MllP0/JVZaWYqSMxagrbWwyxnqyReg5hTSdZBuyzEtjj571LYBRrDHp5eRfJaAMIOIYRbPk8/bxfuLaY=
-X-Received: by 2002:a50:a951:: with SMTP id m17mr2606324edc.79.1556806579550;
- Thu, 02 May 2019 07:16:19 -0700 (PDT)
+        bh=3UwUTSGK3kFDqh59G348P1VSE287YQFCPyBJWkFGT2g=;
+        b=jeL1TmN+9S7rxFSCfW9V3bYCQ9XkkRpCSHGcvfnrOsvTSAjY73LFSt1bUiVgtgHJNq
+         Tv0DbnVWNwa8ZjVzru05IQyRWy3S/5OEqtHtNfr/GR2TVOwOJqI+yAZuJXWBMCL2pG4f
+         re8W5PiiN/831GI+qo4H8mGQodK+253IOfYP2SJv+auBn37OqlvdOokiv0/y9Xk/xMCg
+         T+14TN7gujRPTIqhsFgKKnmV+jKUYGVd5KWX38nwgSzlaAx0CpwFF17YHopwjY1k7gtD
+         MLtUmtFpfiEFPRQtO43++BKD+FVRV2u7zlgVjWl+zwgCdyeyyFCx6zLeHvXkzQcj824S
+         TQtQ==
+X-Google-Smtp-Source: APXvYqxfxStCJ1a5V9dI9KazHvlQKGkMxuucoOz7ty4S41uLly2rKv78x1mRLAhuezLjjjPUXOHuGcrzAp0ZhX1u2YU=
+X-Received: by 2002:a05:6402:13cf:: with SMTP id a15mr2763367edx.70.1556806626879;
+ Thu, 02 May 2019 07:17:06 -0700 (PDT)
 MIME-Version: 1.0
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155552634075.2015392.3371070426600230054.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190501232517.crbmgcuk7u4gvujr@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
- <CAPcyv4hxy86gWN3ncTQmHi8DT31k8YzsweMfGHgCh=sORMQQcg@mail.gmail.com>
-In-Reply-To: <CAPcyv4hxy86gWN3ncTQmHi8DT31k8YzsweMfGHgCh=sORMQQcg@mail.gmail.com>
+References: <20190501191846.12634-1-pasha.tatashin@soleen.com>
+ <20190501191846.12634-3-pasha.tatashin@soleen.com> <9e15bf41-8e74-3a76-c7b9-9712b2d5290b@redhat.com>
+In-Reply-To: <9e15bf41-8e74-3a76-c7b9-9712b2d5290b@redhat.com>
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 2 May 2019 10:16:08 -0400
-Message-ID: <CA+CK2bA_5uaEK1vjOwNZC9Ta+T-_yTL9etOUEvOUSrtNEOe8og@mail.gmail.com>
-Subject: Re: [PATCH v6 01/12] mm/sparsemem: Introduce struct mem_section_usage
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>
+Date: Thu, 2 May 2019 10:16:56 -0400
+Message-ID: <CA+CK2bCfCoU3JHz=81+=RNwo9M6n_zRbmPgx+DNmAnPYQRcjOA@mail.gmail.com>
+Subject: Re: [v4 2/2] device-dax: "Hotremove" persistent memory that is used
+ like normal RAM
+To: David Hildenbrand <david@redhat.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Dan Williams <dan.j.williams@intel.com>, Keith Busch <keith.busch@intel.com>, 
+	Vishal L Verma <vishal.l.verma@intel.com>, Dave Jiang <dave.jiang@intel.com>, 
+	Ross Zwisler <zwisler@kernel.org>, Tom Lendacky <thomas.lendacky@amd.com>, 
+	"Huang, Ying" <ying.huang@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, 
+	Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -113,35 +119,13 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 2, 2019 at 2:07 AM Dan Williams <dan.j.williams@intel.com> wrote:
 >
-> On Wed, May 1, 2019 at 4:25 PM Pavel Tatashin <pasha.tatashin@soleen.com> wrote:
-> >
-> > On 19-04-17 11:39:00, Dan Williams wrote:
-> > > Towards enabling memory hotplug to track partial population of a
-> > > section, introduce 'struct mem_section_usage'.
-> > >
-> > > A pointer to a 'struct mem_section_usage' instance replaces the existing
-> > > pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
-> > > 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
-> > > house a new 'map_active' bitmap.  The new bitmap enables the memory
-> > > hot{plug,remove} implementation to act on incremental sub-divisions of a
-> > > section.
-> > >
-> > > The primary motivation for this functionality is to support platforms
-> > > that mix "System RAM" and "Persistent Memory" within a single section,
-> > > or multiple PMEM ranges with different mapping lifetimes within a single
-> > > section. The section restriction for hotplug has caused an ongoing saga
-> > > of hacks and bugs for devm_memremap_pages() users.
-> > >
-> > > Beyond the fixups to teach existing paths how to retrieve the 'usemap'
-> > > from a section, and updates to usemap allocation path, there are no
-> > > expected behavior changes.
-> > >
-> > > Cc: Michal Hocko <mhocko@suse.com>
-> > > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Memory unplug bits
+>
+> Reviewed-by: David Hildenbrand <david@redhat.com>
+>
 
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Thank you David.
+
+Pasha
 
