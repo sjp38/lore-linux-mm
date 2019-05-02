@@ -2,180 +2,272 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F0D1C04AA9
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:07:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CA41C04AA8
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A1112085A
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:07:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="j2Qp3PZj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A1112085A
+	by mail.kernel.org (Postfix) with ESMTP id BFDCC2085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFDCC2085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 620286B0005; Thu,  2 May 2019 02:07:35 -0400 (EDT)
+	id 61E8B6B0005; Thu,  2 May 2019 02:09:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CF966B0006; Thu,  2 May 2019 02:07:35 -0400 (EDT)
+	id 5CF0F6B0006; Thu,  2 May 2019 02:09:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4993E6B0007; Thu,  2 May 2019 02:07:35 -0400 (EDT)
+	id 4BF0A6B0007; Thu,  2 May 2019 02:09:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D04F6B0005
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:07:35 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id o13so606711otk.12
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:07:35 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 124C86B0005
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:09:11 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s19so730096plp.6
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:09:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+eUa2WBJtTifEb3RkGF9DZb4oB8mFlPtN9ka+3YCHXQ=;
-        b=qbU5qF+lThpQ8+YJX8TSI3ViLqnbewSon9JfzEe6t5poS92U30dsMlhltYFUaXYn7f
-         Eq7QXf0qbHDyV1dUU9bAdrhZIFzH2B4Hcj0jhsDx6F2A2j4Bq+R44/qD6JqTKvx+n0FP
-         qj8K5Drkhv9Fb2BdSFI9Tj8Rc/J2HP5rYY55i5I7TzFtC5QJvdcRGF2uIj0aVSR8l/ya
-         ZfuBTzqqcZXwDcuKRZHkk28RBQKBuBgL6a7lMZMq/Fx08O1p16/2jsSQwfSDHzg5lVx7
-         O7uwh+BZZuL9j2mmpXxpRT6tI4NKNNNXjOlaxWWhRgFhLetOl5scLbQdZR6X1ciajnk4
-         A6FQ==
-X-Gm-Message-State: APjAAAVEVuVse4uCyQgCjEcwKS9gN64rtic0f8kajWqfeNmp4HPx13L+
-	E+JaEV6I/MJVqybHHftZowd7Cd0jwPk10HF9lu0eWHSBhLjLr/BBfpjGhFkyEBXUBrdk6D4Q9Fi
-	Jiuapg2/QEWPFVaXAIoS2HXXaWz55hwEdB4zY2KXcs4mWjjSRO8gZcZEw+oiWdi3zWQ==
-X-Received: by 2002:a05:6830:8e:: with SMTP id a14mr1375929oto.260.1556777254750;
-        Wed, 01 May 2019 23:07:34 -0700 (PDT)
-X-Received: by 2002:a05:6830:8e:: with SMTP id a14mr1375882oto.260.1556777253542;
-        Wed, 01 May 2019 23:07:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556777253; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=MwqWU+4hGbok5ssY59rht/KDrBfy+4irWdo1mz/1chg=;
+        b=TqfLhdQ46GOV4pYCfsKh/tjR6YciRsNTjUvy25LIxghBjpxeYGHCXD7Tz7Iwz6qwkn
+         rq66aN7gsx+4FHewpvymxwu25ocg28k+HFM6FLEHb/6hlrJOwA9vRLZW05yRkzcZtewK
+         wvYaw+9okWPlHvzKtW83uj4UsDwM6s7Dwkoq1V45Q2djxr8e3ZChujy6/OIxYSmZOBE6
+         pPWbm3G7Lp+Lrvhc58x2DCqZIcTB4WFKKD5CX40KOwWN1luP+52OLLgzD8BiIUbpBdDn
+         H+K5dIZivaCJHXuGvPtFrneJtezAtdFiCy0hah2IXCpIC2BwILlV7pC0XeeZGr+bOGfq
+         X2hg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWYwMexsRrGGHFBtZgjS9zALGTd8r0QL+qes9khqVBSFAZXAhA7
+	kwx5sZATj2nEQmETlerF9tnI2y1jzrOK7mdKPw/DOAl727TxdD8MO3a2wJRWSMlGY5HbS4KZ+HG
+	BfS8oYELoVZSWEZxGMItVIWCACmGJjlFev2/ejLY/xnSw/yhDY0DdjKTmNERXy4sBLA==
+X-Received: by 2002:a63:2c4a:: with SMTP id s71mr2118182pgs.373.1556777350668;
+        Wed, 01 May 2019 23:09:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxEQrGDVmzdjbLwkcYIL4rFXyz4mLb5+GyHkIvIB98+7TwI7ZhHoDFp8a2GHXxpbWYoIUBG
+X-Received: by 2002:a63:2c4a:: with SMTP id s71mr2118073pgs.373.1556777349628;
+        Wed, 01 May 2019 23:09:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556777349; cv=none;
         d=google.com; s=arc-20160816;
-        b=VFzrl0VwnrKL+gvogS8u0sqd66ui4gzYXAIFjgvS+ogSwwq2ACTfkHeDaEstPfIvQ4
-         a/uBaQKs3keQ7e/Ql2lBbw3wlV2b/Kf0okEIbb4F7FSxmngM1lcfyZB72hTwWNdJuS4y
-         PbE1a/JCVafNkQ1/nlt9IFZ9cGC3vUP+iPcmUD8VAPdFXgSjR26qFaqd/I+ky+NZufQi
-         MQLrwnk40DecTRadkqXeL6TOxNL2FjiUIU9rsKedrulYw04hhLyDyCiGyiURg4J5qVKh
-         9DB81DY/rPLgX9ozMutlQuveJu5CBmFleX6KBlJ6OjcNHKmGah+yAmP/QmzLMr6ji9ZQ
-         obJg==
+        b=Qn3bvBTm2Cfa0dGPlBe6aL8Bbb4je/JGvzt2JQYUeJcTbklFzH9UzxZT6VzL7s+4n6
+         Am0y+YCjJMgt/j0q3x3i42mI706tjRIj1n0M8vrdaR02Z3o5O7At+K2hIuet/9E6GLUD
+         pFD/Vqnr+GINBRynT2st2og2a6gN9Qh3ZOUA85GqwPDdtBQHX6hVJ4kCTK4fUL4AbvhS
+         W+d4Jg4A1U37jdpYVShzle8yZhE87pksqkb+Z3ZukrOrQfq8Pn541vLqOcp9CojF1iOK
+         RpRR14uNPyyJar7OSXF0jpyyukFKqzUr31b+aaAlUbbmA802FgBg0doXVkDU7dK3DpDq
+         TSKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=+eUa2WBJtTifEb3RkGF9DZb4oB8mFlPtN9ka+3YCHXQ=;
-        b=dpBwE63hISsunkWaaGUtiZiuv2K17+KxmV3f6u/Vq+4s5YaikBAZU8LeBSAdzdPqK5
-         /5/zq1yLsNypKZ5XtX7Yt0re2HGs2jCUj7tpE50ZXqL8ivSnzS5mNJdjpPTKAH3tFap4
-         P3NUG/79F4Vy/YacSYnHn5uJIoEpbWe0bq7WajWWTTB8DjJ5EzZvl5/4pTAF7UMrU2M9
-         ooDd3QoCz1AXbJT9xV7dRmOfnGI5ybfVW19LcJGhOOOzLd6EFUXTvC5twIVItWqZxnMq
-         LvDM0fe/gKJ9OXaUMO2mUCWaKUUokkHH0ZMqOBrtF3FP6vDjv9s7muDnki4I3iLAPmXh
-         A9dg==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject;
+        bh=MwqWU+4hGbok5ssY59rht/KDrBfy+4irWdo1mz/1chg=;
+        b=s/QB2djdNmJA84q9sqJmZcCj3LN0MJNP/6wx25+jKLZDvzTe41gSN7jqm6YzK0sJha
+         /BPrxMVdkOwIPknlGZ5g9/vOXCCfe3FtY5Z9oerayY3SFi+T7k2SfexZY0Sp8OKJSl5E
+         WIdcc+6KmKqh2gMC8Phh+uDNbi5AlpxItpQUpKI05nrKjWslwgqn9BnY7kWRLAQ1fcCW
+         6Y1xEvMB1gN0QGzQtHKxow87jiPqM32/2f39mMIZga7CAch/B9hX79wtq0ER6IZELhw2
+         6E7+SiLFasblB6xKUtKivZO+HpkH3GRVg17dc24NPXnUmQA63NF6e7oRa5zGDVyGysCF
+         YunA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=j2Qp3PZj;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l4sor19162787otc.127.2019.05.01.23.07.32
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id k12si42045379plt.28.2019.05.01.23.09.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 May 2019 23:07:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 May 2019 23:09:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=j2Qp3PZj;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=+eUa2WBJtTifEb3RkGF9DZb4oB8mFlPtN9ka+3YCHXQ=;
-        b=j2Qp3PZj0gAuSV09rXDWyVVdTgNPHV1NuRFvruWgIdSKimbJnOwIGC0fYBy5B5qoHJ
-         Rrn1Db9TkutnPaxiErVY866vskShinsDhpr6Q1ojWBBuL55Bdt2rtZfuofkk6TzuXaYc
-         fHoPj3YHxRK09nnIprBPHa76pyDTPTBXY4iusLJB1qS5eHRaqbZIhiiejETqGTj4LIQW
-         AUQk+uBMSEzTJARjaMzAY1wHxa0JIuuyQCvwlwqKS0DPwQ+s4eEbB4H+z2MEe2H3bDFZ
-         mjkGIfFMLLHa/uKpBIQLuDLN98DrEZL+dCtIfDZ8MQaPIRagyD/tOcYYTrfo8Uc7dgO7
-         yOHQ==
-X-Google-Smtp-Source: APXvYqyuasNHY2N4vYwpauHssWwpKgShtN9TAkBJGZaP4i4nxgI12gknIizrWWjBcJs5E5SwLyuWyjQNMx423OzBves=
-X-Received: by 2002:a9d:19ed:: with SMTP id k100mr1396693otk.214.1556777252755;
- Wed, 01 May 2019 23:07:32 -0700 (PDT)
-MIME-Version: 1.0
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155552634075.2015392.3371070426600230054.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190501232517.crbmgcuk7u4gvujr@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
-In-Reply-To: <20190501232517.crbmgcuk7u4gvujr@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:09:09 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,420,1549958400"; 
+   d="scan'208";a="320740307"
+Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
+  by orsmga005.jf.intel.com with ESMTP; 01 May 2019 23:09:08 -0700
+Subject: [PATCH v7 00/12] mm: Sub-section memory hotplug support
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 1 May 2019 23:07:21 -0700
-Message-ID: <CAPcyv4hxy86gWN3ncTQmHi8DT31k8YzsweMfGHgCh=sORMQQcg@mail.gmail.com>
-Subject: Re: [PATCH v6 01/12] mm/sparsemem: Introduce struct mem_section_usage
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Linux MM <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+To: akpm@linux-foundation.org
+Cc: David Hildenbrand <david@redhat.com>, Jane Chu <jane.chu@oracle.com>,
+ =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>,
+ Oscar Salvador <osalvador@suse.de>, Jeff Moyer <jmoyer@redhat.com>,
+ Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
+ stable@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, osalvador@suse.de, mhocko@suse.com
+Date: Wed, 01 May 2019 22:55:22 -0700
+Message-ID: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: StGit/0.18-2-gc94f
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 1, 2019 at 4:25 PM Pavel Tatashin <pasha.tatashin@soleen.com> wrote:
->
-> On 19-04-17 11:39:00, Dan Williams wrote:
-> > Towards enabling memory hotplug to track partial population of a
-> > section, introduce 'struct mem_section_usage'.
-> >
-> > A pointer to a 'struct mem_section_usage' instance replaces the existing
-> > pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
-> > 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
-> > house a new 'map_active' bitmap.  The new bitmap enables the memory
-> > hot{plug,remove} implementation to act on incremental sub-divisions of a
-> > section.
-> >
-> > The primary motivation for this functionality is to support platforms
-> > that mix "System RAM" and "Persistent Memory" within a single section,
-> > or multiple PMEM ranges with different mapping lifetimes within a single
-> > section. The section restriction for hotplug has caused an ongoing saga
-> > of hacks and bugs for devm_memremap_pages() users.
-> >
-> > Beyond the fixups to teach existing paths how to retrieve the 'usemap'
-> > from a section, and updates to usemap allocation path, there are no
-> > expected behavior changes.
-> >
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Logan Gunthorpe <logang@deltatee.com>
-> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> > ---
-> >  include/linux/mmzone.h |   23 ++++++++++++--
-> >  mm/memory_hotplug.c    |   18 ++++++-----
-> >  mm/page_alloc.c        |    2 +
-> >  mm/sparse.c            |   81 ++++++++++++++++++++++++------------------------
-> >  4 files changed, 71 insertions(+), 53 deletions(-)
-> >
-> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > index 70394cabaf4e..f0bbd85dc19a 100644
-> > --- a/include/linux/mmzone.h
-> > +++ b/include/linux/mmzone.h
-> > @@ -1160,6 +1160,19 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
-> >  #define SECTION_ALIGN_UP(pfn)        (((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
-> >  #define SECTION_ALIGN_DOWN(pfn)      ((pfn) & PAGE_SECTION_MASK)
-> >
-> > +#define SECTION_ACTIVE_SIZE ((1UL << SECTION_SIZE_BITS) / BITS_PER_LONG)
-> > +#define SECTION_ACTIVE_MASK (~(SECTION_ACTIVE_SIZE - 1))
-> > +
-> > +struct mem_section_usage {
-> > +     /*
-> > +      * SECTION_ACTIVE_SIZE portions of the section that are populated in
-> > +      * the memmap
-> > +      */
-> > +     unsigned long map_active;
->
-> I think this should be proportional to section_size / subsection_size.
-> For example, on intel section size = 128M, and subsection is 2M, so
-> 64bits work nicely. But, on arm64 section size if 1G, so subsection is
-> 16M.
->
-> On the other hand 16M is already much better than what we have: with 1G
-> section size and 2M pmem alignment we guaranteed to loose 1022M. And
-> with 16M subsection it is only 14M.
+Changes since v6 [1]:
 
-I'm ok with it being 16M for now unless it causes a problem in
-practice, i.e. something like the minimum hardware mapping alignment
-for physical memory being less than 16M.
+- Rebase on next-20190501, no related conflicts or updates
+
+- Fix boot crash due to inaccurate setup of the initial section
+  ->map_active bitmask caused by multiple activations of the same
+  section. (Jane, Jeff)
+
+- Fix pmem startup crash when devm_memremap_pages() needs to instantiate
+  a new section. (Jeff)
+
+- Drop mhp_restrictions for the __remove_pages() path in favor of
+  find_memory_block() to detect cases where section-aligned remove is
+  required (David)
+
+- Add "[PATCH v7 06/12] mm/hotplug: Kill is_dev_zone() usage in
+  __remove_pages()"
+
+- Cleanup shrink_{zone,pgdat}_span to remove no longer necessary @ms
+  section variables. (Oscar)
+
+- Add subsection_check() to the __add_pages() path to prevent
+  inadvertent sub-section misuse.
+
+[1]: https://lore.kernel.org/lkml/155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com/
+
+---
+[merge logistics]
+
+Hi Andrew,
+
+I believe this is ready for another spin in -mm now that the boot
+regression has been squashed. In a chat with Michal last night at LSF/MM
+I submitted to his assertion that the boot regression validates the
+general concern that there were/are subtle dependencies on sections
+beyond what I found to date by code inspection. Of course I want to
+relieve the pain that the section constraint inflicts on libnvdimm and
+devm_memremap_pages() as soon as possible (i.e. v5.2), but deferment to
+v5.3 to give Michal time to do an in-depth look is also acceptable.
+
+---
+[cover letter]
+
+The memory hotplug section is an arbitrary / convenient unit for memory
+hotplug. 'Section-size' units have bled into the user interface
+('memblock' sysfs) and can not be changed without breaking existing
+userspace. The section-size constraint, while mostly benign for typical
+memory hotplug, has and continues to wreak havoc with 'device-memory'
+use cases, persistent memory (pmem) in particular. Recall that pmem uses
+devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
+'struct page' memmap for pmem. However, it does not use the 'bottom
+half' of memory hotplug, i.e. never marks pmem pages online and never
+exposes the userspace memblock interface for pmem. This leaves an
+opening to redress the section-size constraint.
+
+To date, the libnvdimm subsystem has attempted to inject padding to
+satisfy the internal constraints of arch_add_memory(). Beyond
+complicating the code, leading to bugs [2], wasting memory, and limiting
+configuration flexibility, the padding hack is broken when the platform
+changes this physical memory alignment of pmem from one boot to the
+next. Device failure (intermittent or permanent) and physical
+reconfiguration are events that can cause the platform firmware to
+change the physical placement of pmem on a subsequent boot, and device
+failure is an everyday event in a data-center.
+
+It turns out that sections are only a hard requirement of the
+user-facing interface for memory hotplug and with a bit more
+infrastructure sub-section arch_add_memory() support can be added for
+kernel internal usages like devm_memremap_pages(). Here is an analysis
+of the current design assumptions in the current code and how they are
+addressed in the new implementation:
+
+Current design assumptions:
+
+- Sections that describe boot memory (early sections) are never
+  unplugged / removed.
+
+- pfn_valid(), in the CONFIG_SPARSEMEM_VMEMMAP=y, case devolves to a
+  valid_section() check
+
+- __add_pages() and helper routines assume all operations occur in
+  PAGES_PER_SECTION units.
+
+- The memblock sysfs interface only comprehends full sections
+
+New design assumptions:
+
+- Sections are instrumented with a sub-section bitmask to track (on x86)
+  individual 2MB sub-divisions of a 128MB section.
+
+- Partially populated early sections can be extended with additional
+  sub-sections, and those sub-sections can be removed with
+  arch_remove_memory(). With this in place we no longer lose usable memory
+  capacity to padding.
+
+- pfn_valid() is updated to look deeper than valid_section() to also check the
+  active-sub-section mask. This indication is in the same cacheline as
+  the valid_section() so the performance impact is expected to be
+  negligible. So far the lkp robot has not reported any regressions.
+
+- Outside of the core vmemmap population routines which are replaced,
+  other helper routines like shrink_{zone,pgdat}_span() are updated to
+  handle the smaller granularity. Core memory hotplug routines that deal
+  with online memory are not touched.
+
+- The existing memblock sysfs user api guarantees / assumptions are
+  not touched since this capability is limited to !online
+  !memblock-sysfs-accessible sections.
+
+Meanwhile the issue reports continue to roll in from users that do not
+understand when and how the 128MB constraint will bite them. The current
+implementation relied on being able to support at least one misaligned
+namespace, but that immediately falls over on any moderately complex
+namespace creation attempt. Beyond the initial problem of 'System RAM'
+colliding with pmem, and the unsolvable problem of physical alignment
+changes, Linux is now being exposed to platforms that collide pmem
+ranges with other pmem ranges by default [3]. In short,
+devm_memremap_pages() has pushed the venerable section-size constraint
+past the breaking point, and the simplicity of section-aligned
+arch_add_memory() is no longer tenable.
+
+These patches are exposed to the kbuild robot on my libnvdimm-pending
+branch [4], and a preview of the unit test for this functionality is
+available on the 'subsection-pending' branch of ndctl [5].
+
+[2]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
+[3]: https://github.com/pmem/ndctl/issues/76
+[4]: https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=libnvdimm-pending
+[5]: https://github.com/pmem/ndctl/commit/7c59b4867e1c
+
+---
+
+Dan Williams (12):
+      mm/sparsemem: Introduce struct mem_section_usage
+      mm/sparsemem: Introduce common definitions for the size and mask of a section
+      mm/sparsemem: Add helpers track active portions of a section at boot
+      mm/hotplug: Prepare shrink_{zone,pgdat}_span for sub-section removal
+      mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
+      mm/hotplug: Kill is_dev_zone() usage in __remove_pages()
+      mm: Kill is_dev_zone() helper
+      mm/sparsemem: Prepare for sub-section ranges
+      mm/sparsemem: Support sub-section hotplug
+      mm/devm_memremap_pages: Enable sub-section remap
+      libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
+      libnvdimm/pfn: Stop padding pmem namespaces to section alignment
+
+
+ arch/x86/mm/init_64.c          |    4 
+ drivers/nvdimm/dax_devs.c      |    2 
+ drivers/nvdimm/pfn.h           |   12 -
+ drivers/nvdimm/pfn_devs.c      |   93 +++-------
+ include/linux/memory_hotplug.h |    7 -
+ include/linux/mm.h             |    4 
+ include/linux/mmzone.h         |   72 ++++++--
+ kernel/memremap.c              |   63 +++----
+ mm/hmm.c                       |    2 
+ mm/memory_hotplug.c            |  172 ++++++++++---------
+ mm/page_alloc.c                |    8 +
+ mm/sparse-vmemmap.c            |   21 ++
+ mm/sparse.c                    |  370 ++++++++++++++++++++++++++++------------
+ 13 files changed, 490 insertions(+), 340 deletions(-)
 
