@@ -2,188 +2,282 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14D80C04AAA
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3A63C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C46A520675
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C46A520675
+	by mail.kernel.org (Postfix) with ESMTP id 4848A2081C
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="l/qtAsPA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4848A2081C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5091C6B0003; Thu,  2 May 2019 11:54:37 -0400 (EDT)
+	id 817206B0006; Thu,  2 May 2019 11:54:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4BBF26B0006; Thu,  2 May 2019 11:54:37 -0400 (EDT)
+	id 7A24B6B0007; Thu,  2 May 2019 11:54:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A89C6B0007; Thu,  2 May 2019 11:54:37 -0400 (EDT)
+	id 558DC6B0008; Thu,  2 May 2019 11:54:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 04E046B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 11:54:37 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id t16so1418409pgv.13
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 08:54:36 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF576B0006
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 11:54:38 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id q25so1136572otm.16
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 08:54:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=aZlDYSUhtJI5SI6ikbxNWyvb2x65XVi5kzB2glnT9v0=;
-        b=VMKgSJ3YgC/NSd7uLa1Y8xQSNI0XhXaj9AWM0vwWsfNLjJaQOH9JXdQj4jEG79auLE
-         33ZNyXB1wMVe9vqtOFIdtC5b6+2+AYwvF/XMFjDYjCziT34vECjomKyC+NFsHGImOCBL
-         UsOCYBvsk7xmbVqO52o7m5JFG3uVihy8bdhtapIRjxqmode5g6keilZVT83nxMtr26O+
-         Q2TgN49dSbpd9bMHJMFp0HDZatbQCn/PZp6ZekIP19i6U8sxlF5vnjv2kPY6c4bN8LRx
-         McZ8iK7Y9A4MHr+B8sprhsQheYKvGz0PnBf9kTDQlfXRHK7qcbhRdLFvN6m0ofE0M0GG
-         b5Gw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV+bTMyw9NVwM1qpTMCw5gZkdRnCaNjT6tM9VTIHccni848y19l
-	5+4xLlU6i7XyGCAAMQtw38/t5fdEOPLnqOnlplXM/v16we76+fi2NqEXXjIsBA7W0bdhV91s2w5
-	Cq6c/sLBUZfDBEWNV/YW9PLm567u/V4xxbUpWCMpG/OSfF8b54OA8ry18/obPQSuOFw==
-X-Received: by 2002:a63:445d:: with SMTP id t29mr4729252pgk.303.1556812476514;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=XEew1Olq/3yX7Jk5X3KVQichukbbRYn348zBto8NbGk=;
+        b=f66gbi4NHX4v+WXHyY0E3cRSHBbkIQDfAPsNM4AWMY4vpoYdYgqj5cDHQJsiixks+i
+         PSxnC7JPA6Ax1UrNKIMpWVBDyuZ+0QR2EcjYvXf28LNAfEMXLtX2Dw98xRQmA0W6823D
+         Ipv4LsMMqNHjh/1JvOMKO1/jRIxXbwYmJlE2fYNDJfeLaFXfuJ/YmQL1Buw5Mnvr/L/J
+         0EnTN/dWE7KHusbq2oyBYKWgMyyz9rqF7PpHTvWKlXArgmY2Y/XJ1n/HS1o8aSoJRHR6
+         K3lKDsuG+bMXnSHmyfH/6wxfK77Cztot+RlvKIFer7XkFDZ9rj8j/CZTp8b1e42SErYX
+         g13w==
+X-Gm-Message-State: APjAAAX+XbbEu7W530uOUTzZPOuP3BrgWzTJKuO5pVRINifTfCwkOksg
+	8EZZwJdCRdZ+l1sHaD4yiCZBLikNY4roD0jFUlqiQVrMB8XBCbwRUEtidvwSTx90gsjUEuqL7wA
+	qitqBIxxrY6tX+13KOhkxZWMpfNMV297Tvn38tT3dmoEuWlkuWW4qt8RZDuevKZYkQQ==
+X-Received: by 2002:a9d:740d:: with SMTP id n13mr2959083otk.291.1556812477817;
+        Thu, 02 May 2019 08:54:37 -0700 (PDT)
+X-Received: by 2002:a9d:740d:: with SMTP id n13mr2959034otk.291.1556812476935;
         Thu, 02 May 2019 08:54:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPSxoasw+/YGBUVapoJLbqKr2737qE9nWUB7B97Zb/pZNGCYAXP6F+3QYX7n0pmD/NZOco
-X-Received: by 2002:a63:445d:: with SMTP id t29mr4729175pgk.303.1556812475450;
-        Thu, 02 May 2019 08:54:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556812475; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1556812476; cv=none;
         d=google.com; s=arc-20160816;
-        b=RbwgLwcdwq5+IlAU7OnEEoMfsGXKnUo/mLYBBjFgQcOf9UeNttW+o2OJdHLePCq4wZ
-         yynvfPpReP2w2JKFV7LxND0ujTUFTtHmZfp0sCi0mbd+OkPr8GWJSnRgWJjIsX1rOu34
-         wKFr7+KVX/25dC5k0FpWseZViGJSrAetmInrq1FfuZNFU0JdvOT5loMqjr21WldgX4tA
-         msLoXIKiUdRDSYtVMXkkcD+SdyhMylrinIwhSr8zXaEfy18xuJ0XxyU/Fp1+AND/3CMa
-         T+DI0WjHINLuQonPg0H7R3+SHxjOGE/Ra1YRvFz/xzmY3l0MDmSFbY3lwcYO0RfJ+XXK
-         hmAQ==
+        b=tGo6yqhkyiUxbQ6/TMp+wzSkNy6BJSLOzb9mKt1QvjcJLILqK2LIT5Jfw90nQEAgfJ
+         gkNEyRy01soUzE4tcCdn/AdxNXRG8RhpOQ6+RJI2PmI/U/2h+IyUiuMV0ddnsuODPDNu
+         ahf+3jIo6KG5nWNHSqZSCmc67UAGmounPnNXTEpXsQbJVyMfkJFKH+x5PBGxbBMridUJ
+         x3SOB9ad1iF/dQz+SQlVNPyYSTxoR7lwqzLGcJvlb6miKotfu4Qzx8pFYfKqUGDWqRxS
+         TZP9PLMTbbHxy2nVmpZSflUcmHqCV8cP61jbns/PbwuVF/xLfLH+q4Dvpg04J6ZKQZK3
+         pymw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=aZlDYSUhtJI5SI6ikbxNWyvb2x65XVi5kzB2glnT9v0=;
-        b=SXt40WwWrAv3aGudZu90wPjTlA5UPnRrU7of7PDTJi2hXSzf4OwwSkiT90bASVTeiq
-         CrB7GnJNnm8THJQ3lCFGu7WPsptbmQ6yqwyw+5IdQ73zHYgkAq1p19LqAGDlVhWU4Wku
-         bKFDThroE5VjA5v9L/YMYermcRsIl0fBPhXejuIC1tDmwuM+d0TQUPqC4PW59jWSz9pw
-         O2C5yXWs3T1VqS5s7Il2SuksWu6aV41MX91BZ4Pque2SPSUunP5H/qchHuTtwxwYKVyW
-         M0FIG78DZGNpYGc1ETZXCeIu0EDh4aCma0SFr5ejqhI5x6uf80Z8fskz7Owr65FnzWHv
-         qgsg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=XEew1Olq/3yX7Jk5X3KVQichukbbRYn348zBto8NbGk=;
+        b=lOLnQczgPOVk3C+jbrTgtgwotKLX4FgscWUp3FXK6ZCeio0jjJnvf9ztEKZm0VFx63
+         wjI7Q0U/RxUl2rRCi+2mvpRk4J3jmh3imIaVDqMWBsjnqIy1HItWUyf9XITwdUlkOzgm
+         j9bkk7D/HEZjDknui84WOZMVk7k1WmZ6SrrXa+f1vRKejljLUr/zITBa98Ezt+Tf0NdR
+         6JCtVAk5xfKKpJszfjtmbH/ulSBeRMzvtSEO+IdFG+87twrfDS15AGu8D8vF98RuV01f
+         xmsmyFGGdt/VSUzWPi3GoqtuREULJbaI5VGvVcdNCaXcHV5cfsS6ZJAAM61/TVNUJnKX
+         sl+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="l/qtAsPA";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id z8si41441789pgp.185.2019.05.02.08.54.35
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f2sor20311650oti.21.2019.05.02.08.54.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 May 2019 08:54:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Thu, 02 May 2019 08:54:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="l/qtAsPA";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 May 2019 08:54:34 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,422,1549958400"; 
-   d="scan'208";a="320874382"
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga005.jf.intel.com with ESMTP; 02 May 2019 08:54:33 -0700
-Message-ID: <5b2c6cee345e00182e97842ae90c02cdcd830135.camel@intel.com>
-Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Martin <Dave.Martin@arm.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
- Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov
- <esyr@redhat.com>,  Florian Weimer <fweimer@redhat.com>, "H.J. Lu"
- <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>,  Nadav Amit <nadav.amit@gmail.com>, Oleg
- Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
- <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>,  Szabolcs Nagy <szabolcs.nagy@arm.com>,
- libc-alpha@sourceware.org
-Date: Thu, 02 May 2019 08:47:06 -0700
-In-Reply-To: <20190502111003.GO3567@e103592.cambridge.arm.com>
-References: <20190501211217.5039-1-yu-cheng.yu@intel.com>
-	 <20190502111003.GO3567@e103592.cambridge.arm.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=XEew1Olq/3yX7Jk5X3KVQichukbbRYn348zBto8NbGk=;
+        b=l/qtAsPAilsFN9GFnTDJXUqqxoRw+RgeUo6XZJsy11pBhIPXZGMzGF9+cbUADCM0B4
+         8iGGS9XFOfiMSc18kxqUi/FrQbB8BGPoeqIiCS4NxCBkSswNMUAa08zk6l4P2My0dOe0
+         04E1cGuNmL/RZr/cQrVby9FjQmJi3SNN4ZD7VrtcPpCjFU0qQFhIMUAeLHgFXIB5XF0A
+         3qGq7yAL6+K8T9hFUj5c1u1FxvQCOQOavF3lz8czs9YLvxDB9NJyVd/IBFCfKZyRk6aU
+         5iTinm6ydcZDpVFf4A+TbuJ8GCfB0rySLRIrUaqnFCnNAjD46wWnjao2EdlBw4Hpis2C
+         t6Iw==
+X-Google-Smtp-Source: APXvYqzTa2L8Y3hvzATDf0GPOGP2MovJVdb2TkdVVwyYLpPc2dggi9AbseY9kp1r15MyCVm90wXUgeQ6+oMS2GDxWaE=
+X-Received: by 2002:a9d:7ad1:: with SMTP id m17mr2061812otn.367.1556812476635;
+ Thu, 02 May 2019 08:54:36 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190501191846.12634-1-pasha.tatashin@soleen.com> <20190501191846.12634-3-pasha.tatashin@soleen.com>
+In-Reply-To: <20190501191846.12634-3-pasha.tatashin@soleen.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 2 May 2019 08:54:25 -0700
+Message-ID: <CAPcyv4iPzpP-gzuDtPB2ixd6_uTuO8-YdVSfGw_Dq=igaKuOEg@mail.gmail.com>
+Subject: Re: [v4 2/2] device-dax: "Hotremove" persistent memory that is used
+ like normal RAM
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Keith Busch <keith.busch@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, 
+	Dave Jiang <dave.jiang@intel.com>, Ross Zwisler <zwisler@kernel.org>, 
+	Tom Lendacky <thomas.lendacky@amd.com>, "Huang, Ying" <ying.huang@intel.com>, 
+	Fengguang Wu <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>, Bjorn Helgaas <bhelgaas@google.com>, 
+	Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Takashi Iwai <tiwai@suse.de>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	David Hildenbrand <david@redhat.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-05-02 at 12:10 +0100, Dave Martin wrote:
-> On Wed, May 01, 2019 at 02:12:17PM -0700, Yu-cheng Yu wrote:
-> > An ELF file's .note.gnu.property indicates features the executable file
-> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
-> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
-> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+On Wed, May 1, 2019 at 12:19 PM Pavel Tatashin
+<pasha.tatashin@soleen.com> wrote:
+>
+> It is now allowed to use persistent memory like a regular RAM, but
+> currently there is no way to remove this memory until machine is
+> rebooted.
+>
+> This work expands the functionality to also allows hotremoving
+> previously hotplugged persistent memory, and recover the device for use
+> for other purposes.
+>
+> To hotremove persistent memory, the management software must first
+> offline all memory blocks of dax region, and than unbind it from
+> device-dax/kmem driver. So, operations should look like this:
+>
+> echo offline > echo offline > /sys/devices/system/memory/memoryN/state
+> ...
+> echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
+>
+> Note: if unbind is done without offlining memory beforehand, it won't be
+> possible to do dax0.0 hotremove, and dax's memory is going to be part of
+> System RAM until reboot.
+>
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+> ---
+>  drivers/dax/dax-private.h |  2 +
+>  drivers/dax/kmem.c        | 99 +++++++++++++++++++++++++++++++++++++--
+>  2 files changed, 97 insertions(+), 4 deletions(-)
+>
+> diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
+> index a45612148ca0..999aaf3a29b3 100644
+> --- a/drivers/dax/dax-private.h
+> +++ b/drivers/dax/dax-private.h
+> @@ -53,6 +53,7 @@ struct dax_region {
+>   * @pgmap - pgmap for memmap setup / lifetime (driver owned)
+>   * @ref: pgmap reference count (driver owned)
+>   * @cmp: @ref final put completion (driver owned)
+> + * @dax_mem_res: physical address range of hotadded DAX memory
+>   */
+>  struct dev_dax {
+>         struct dax_region *region;
+> @@ -62,6 +63,7 @@ struct dev_dax {
+>         struct dev_pagemap pgmap;
+>         struct percpu_ref ref;
+>         struct completion cmp;
+> +       struct resource *dax_kmem_res;
+>  };
+>
+>  static inline struct dev_dax *to_dev_dax(struct device *dev)
+> diff --git a/drivers/dax/kmem.c b/drivers/dax/kmem.c
+> index 4c0131857133..72b868066026 100644
+> --- a/drivers/dax/kmem.c
+> +++ b/drivers/dax/kmem.c
+> @@ -71,21 +71,112 @@ int dev_dax_kmem_probe(struct device *dev)
+>                 kfree(new_res);
+>                 return rc;
+>         }
+> +       dev_dax->dax_kmem_res = new_res;
+>
+>         return 0;
+>  }
+>
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +static int
+> +check_devdax_mem_offlined_cb(struct memory_block *mem, void *arg)
+> +{
+> +       /* Memory block device */
+> +       struct device *mem_dev = &mem->dev;
+> +       bool is_offline;
+> +
+> +       device_lock(mem_dev);
+> +       is_offline = mem_dev->offline;
+> +       device_unlock(mem_dev);
+> +
+> +       /*
+> +        * Check that device-dax's memory_blocks are offline. If a memory_block
+> +        * is not offline a warning is printed and an error is returned.
+> +        */
+> +       if (!is_offline) {
+> +               /* Dax device device */
+> +               struct device *dev = (struct device *)arg;
+> +               struct dev_dax *dev_dax = to_dev_dax(dev);
+> +               struct resource *res = &dev_dax->region->res;
+> +               unsigned long spfn = section_nr_to_pfn(mem->start_section_nr);
+> +               unsigned long epfn = section_nr_to_pfn(mem->end_section_nr) +
+> +                                                      PAGES_PER_SECTION - 1;
+> +               phys_addr_t spa = spfn << PAGE_SHIFT;
+> +               phys_addr_t epa = epfn << PAGE_SHIFT;
+> +
+> +               dev_err(dev,
+> +                       "DAX region %pR cannot be hotremoved until the next reboot. Memory block [%pa-%pa] is not offline.\n",
+> +                       res, &spa, &epa);
+> +
+> +               return -EBUSY;
+> +       }
+> +
+> +       return 0;
+> +}
+> +
+> +static int dev_dax_kmem_remove(struct device *dev)
+> +{
+> +       struct dev_dax *dev_dax = to_dev_dax(dev);
+> +       struct resource *res = dev_dax->dax_kmem_res;
+> +       resource_size_t kmem_start;
+> +       resource_size_t kmem_size;
+> +       unsigned long start_pfn;
+> +       unsigned long end_pfn;
+> +       int rc;
+> +
+> +       kmem_start = res->start;
+> +       kmem_size = resource_size(res);
+> +       start_pfn = kmem_start >> PAGE_SHIFT;
+> +       end_pfn = start_pfn + (kmem_size >> PAGE_SHIFT) - 1;
+> +
+> +       /*
+> +        * Keep hotplug lock while checking memory state, and also required
+> +        * during __remove_memory() call. Admin can't change memory state via
+> +        * sysfs while this lock is kept.
+> +        */
+> +       lock_device_hotplug();
+> +
+> +       /*
+> +        * Walk and check that every singe memory_block of dax region is
+> +        * offline. Hotremove can succeed only when every memory_block is
+> +        * offlined beforehand.
+> +        */
+> +       rc = walk_memory_range(start_pfn, end_pfn, dev,
+> +                              check_devdax_mem_offlined_cb);
+> +
+> +       /*
+> +        * If admin has not offlined memory beforehand, we cannot hotremove dax.
+> +        * Unfortunately, because unbind will still succeed there is no way for
+> +        * user to hotremove dax after this.
+> +        */
+> +       if (rc) {
+> +               unlock_device_hotplug();
+> +               return rc;
+> +       }
+> +
+> +       /* Hotremove memory, cannot fail because memory is already offlined */
+> +       __remove_memory(dev_dax->target_node, kmem_start, kmem_size);
+> +       unlock_device_hotplug();
 
-[...]
-> A couple of questions before I look in more detail:
-> 
-> 1) Can we rely on PT_GNU_PROPERTY being present in the phdrs to describe
-> the NT_GNU_PROPERTY_TYPE_0 note?  If so, we can avoid trying to parse
-> irrelevant PT_NOTE segments.
+Currently the kmem driver can be built as a module, and I don't see a
+need to drop that flexibility. What about wrapping these core
+routines:
 
-Some older linkers can create multiples of NT_GNU_PROPERTY_TYPE_0.  The code
-scans all PT_NOTE segments to ensure there is only one NT_GNU_PROPERTY_TYPE_0. 
-If there are multiples, then all are considered invalid.
+    unlock_device_hotplug
+    __remove_memory
+    walk_memory_range
+    lock_device_hotplug
 
-> 
-> 
-> 2) Are there standard types for things like the program property header?
-> If not, can we add something in elf.h?  We should try to coordinate with
-> libc on that.  Something like
-> 
-> typedef __u32 Elf_Word;
-> 
-> typedef struct {
-> 	Elf_Word pr_type;
-> 	Elf_Word pr_datasz;
-> } Elf_Gnu_Prophdr;
-> 
-> (i.e., just the header part from [1], with a more specific name -- which
-> I just made up).
+...into a common exported (gpl) helper like:
 
-Yes, I will fix that.
+    int try_remove_memory(int nid, struct resource *res)
 
-[...]
-> 3) It looks like we have to go and re-parse all the notes for every
-> property requested by the arch code.
-
-As explained above, it is necessary to scan all PT_NOTE segments.  But there
-should be only one NT_GNU_PROPERTY_TYPE_0 in an ELF file.  Once that is found,
-perhaps we can store it somewhere, or call into the arch code as you mentioned
-below.  I will look into that.
-
-> 
-> For now there is only one property requested anyway, so this is probably
-> not too bad.  But could we flip things around so that we have some
-> CONFIG_ARCH_WANTS_ELF_GNU_PROPERTY (say), and have the ELF core code
-> call into the arch backend for each property found?
-> 
-> The arch could provide some hook
-> 
-> 	int arch_elf_has_gnu_property(const Elf_Gnu_Prophdr *prop,
-> 					const void *data);
-> 
-> to consume the properties as they are found.
-> 
-> This would effectively replace the arch_setup_property() hook you
-> currently have.
-> 
-> Cheers
-> ---Dave
-> 
-> [1] https://github.com/hjl-tools/linux-abi/wiki/Linux-Extensions-to-gABI
+Because as far as I can see there's nothing device-dax specific about
+this "try remove iff offline" functionality outside of looking up the
+related 'struct resource'. The check_devdax_mem_offlined_cb callback
+can be made generic if the callback argument is the resource pointer.
 
