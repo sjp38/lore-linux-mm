@@ -6,97 +6,96 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30665C04AA9
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10809C04AA9
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA926217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA926217F4
+	by mail.kernel.org (Postfix) with ESMTP id C262D2085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C262D2085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 952246B0010; Thu,  2 May 2019 02:09:42 -0400 (EDT)
+	id 6929A6B0266; Thu,  2 May 2019 02:09:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 902D26B0266; Thu,  2 May 2019 02:09:42 -0400 (EDT)
+	id 6438F6B0269; Thu,  2 May 2019 02:09:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F25D6B0269; Thu,  2 May 2019 02:09:42 -0400 (EDT)
+	id 50C096B026A; Thu,  2 May 2019 02:09:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A05D6B0010
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:09:42 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x5so700424pfi.5
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:09:42 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C4D06B0266
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:09:48 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id a97so728954pla.9
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:09:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=mV0vBGkFbHqI8MQAzWF9l08qAvVtY/5fx7U+Bbzbpug=;
-        b=IqNaWuKN+U3D3LKsKS42qJ3VbcLkHAI6b0Y4l/twsSIvuNYJGtEWhX3u0NQTczWYvQ
-         M4aHyDXx/FofqsH5JraePYsLbFkSq9WM43ou4XAkbft7gUBqoSCb0wLX66/GCLvX9iSk
-         C8z0ceyrl375Ur4jkL7QLkyXvMXEkIv1Ymg9KEhbbxnAKUtHA0mX9shQHT8E+y5sxmKI
-         YHumgBVKrA0PBVU3MacQe1WeM2RospDc/x1QnAlCDjCEe2VbESz0H/h/lzFtm1v3gx/B
-         Q/rH3Jf+1WIRoNZVnyhhG4Yyqz0m1y9mX4DJMa47rJiW7fl2QPEG8Swf97LpCxZB6ald
-         uCNA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVwKqNXN7L9Fp6vWk12etpL/SAVNkW80Aeg/ybh7halVBbI4s4w
-	l8a5E060+srZsZ1XZZ0C6a3XkeGLE9/Ls4uYzQNTuMWaUTAkGfIxzTR3S9G7dQSvDsu2/Jxwls3
-	GFV1clcajvPnie6iQre8SHzIyRxVX1Sqt3Xa4Fc+4F/x2/B1YP0b2L38B7FyeTz27TA==
-X-Received: by 2002:a63:5947:: with SMTP id j7mr2204115pgm.62.1556777381994;
-        Wed, 01 May 2019 23:09:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyj5vHnCi7d47Z8XFvg6UUihPyY0wX4h8nWEOeXOVrzcHBdM+CfiUtYj/bHygCYWt+09QSR
-X-Received: by 2002:a63:5947:: with SMTP id j7mr2204051pgm.62.1556777381236;
-        Wed, 01 May 2019 23:09:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556777381; cv=none;
+        bh=UmQ381Oi02UParDnCjy/auhbv+38BBncKGGBYSSyDUI=;
+        b=UV09f6ITFyzOGffwhdRFWLzyOk8VzsclEAKxQHzn5KE4xqsao8wSUkIaAbrpCstCcw
+         7GeSPgk5vm+mnJnu38H3Acye07yVBRfO+h/rh8aE9xbz9zJoziEo2d4gD9o51hr95DSV
+         izKwMDak0haKYIvl+qNbkL82J40StyBIpc80udLjgJmbAJ5PnGY1Ce9oYbeGmWP0taiC
+         sgY/nySkP0YlJ2LqEaZTgyUOPdOGOmL4aPZh8mzxNKz9DQNsKMN85kZiAdYXI1nQfGsk
+         sjxy0AbNqsRSMi3+cPKOLGoZwM/DGiFQ/M23FRHPru2DX9aCEe2w96aZnyV6OL4HibMO
+         UzUw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUXUp2VEHzSLPPsaIojyhnRqf3VpwR2YuuGf8IhlrVJsgA/Vc/I
+	iJ/IW4CxlL+bbfmVlgo941JDbK/bNiI/goma+EjVnD5EWeJWvTuAXGmLiQbVBZP5wTE8/Zmr8hz
+	hZqz1JDEETIYAxCJZ6w8DmDYcxk63b3SYUGXaOiAeWCBX9ZEAwfBZugtWPahyV6nGOg==
+X-Received: by 2002:a17:902:32b:: with SMTP id 40mr1868252pld.204.1556777387767;
+        Wed, 01 May 2019 23:09:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUXJGq82I2Tx8pHBb264LyOyvtOWbyULrhNC1K3IkQwPPe6FFKin352W5IN2hB1FETJmak
+X-Received: by 2002:a17:902:32b:: with SMTP id 40mr1868169pld.204.1556777386940;
+        Wed, 01 May 2019 23:09:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556777386; cv=none;
         d=google.com; s=arc-20160816;
-        b=pu61BqP5O4u5PVmVNtbXFZgfDLc1EuqDL0+4MXGBoaoFU4eWEiVGr5VahsS1XLibrt
-         skfrEOp94PXT07oZFga+vEqN2/gPtR8POYYBNgdMcyJsvZ6sJXQ6qrUePe/1O53NkwyW
-         Qr6TCzuweK9UgVRIY+QIccVtoiesQyX0wR+3GyUtPX7gb294zgM6koT+8mU+tknAbDeD
-         Ul7dHJONazeg2e8v2Yl8TiBueWVDPK3+0n8DVeKALMerQp+qzBX3Q8v5sMUvyHFritj5
-         92CBLOpEbLZdu66iWxnTywf0nDuetfMLQuo0T/y+zjt5cTNmE/1PTw35nFvovDKqAegU
-         5vOw==
+        b=uj18CJDUFn05/y/nLIqJICP4thW96ToUDBY9rumFfI663+QoyRnZz8mMG3falsemNO
+         cdf2TLiN5GlGRurIo6o3VCfyk63v0O+p2W3h7dPcso1JQ0X68uMHbfuCP/M1pdtksxv2
+         JqZTEMaKNuuzJiX4cJQ+DvAGC+K6De6rxDwf0RRoz81CaLPaqfJKgU9lpBOlc43DVPS5
+         AXeahxnWOwa3IGEE9C3rzkY0xZ03Fo160HD0s3RpsQC0X1cTCRBdGen8xK4BAb9g591z
+         kwzxkmgAUCBUT3t1S/7Rul3eD94AmIe/v0nW9PAEP0PO8V8/a7EvoF+bm7pqosPtMqEP
+         YRsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=mV0vBGkFbHqI8MQAzWF9l08qAvVtY/5fx7U+Bbzbpug=;
-        b=RwH3l2UlTpnzDVltvrYv/kpmMFfNKCZ4x9sdipZUHPwW7yn3veL9mX54b1of1DZ7g+
-         uxezIMd1vdye7U5NoGhroPBrvPF2hmVfXSBRTOnj1RefxmBddTuucR2fny06r4JVvPmg
-         KJlkfRN/4pVk/4FdSLfT0xRQDfBe+kyMCrhnuEEt/4HdnE3J2QLACXb0UIe5QJfHKN0v
-         pYtBUdQdNkE95h55QgPo+vYhSI0zrrLrV5W89FppQOJJcJVyjO7qT4ZRRsAinjDm0tLs
-         4oaktr2txj3c2JVwzvQcVxXGk/goiIRgc4d0UkCwlOzkpbReWAjezXxv8g94Y7N+0D6p
-         UixA==
+        bh=UmQ381Oi02UParDnCjy/auhbv+38BBncKGGBYSSyDUI=;
+        b=l7x+08PNuQ2ARoCCQ29WUCFRC38cYHMq8yHHgC19pxQ2Ik3f5cNKQ93N5qv8pzETgs
+         KFl/9KYB7NExCHEA0aB53FQEuZ26uTqo/fcHAKwToICoI4JlJvGtRb1455zPlSFI7zUS
+         AuMfcVBgxz3/Yaax6XR7O15+GvC3tAJ9AJ+9Ic/2R7XyW84HW3YDP2ZUmpRhLTNOvFDU
+         5Af+JqAWkELkgIswWrCw4Xmn66QIJn857fzceOqlTU13pveAE7fG+o/ocFjCIIw0eo0I
+         OaVhg3CztZ5yxpxo/BlCo7JFTHPWNH/wtIU+OsQFE46YrqvwPYOhpg/U87CcGoLYhOAL
+         DsIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id s17si44984215pfm.170.2019.05.01.23.09.41
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id h11si20733196pgs.490.2019.05.01.23.09.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 23:09:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        Wed, 01 May 2019 23:09:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:09:40 -0700
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:09:46 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,420,1549958400"; 
-   d="scan'208";a="169819071"
+   d="scan'208";a="154054353"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga001.fm.intel.com with ESMTP; 01 May 2019 23:09:40 -0700
-Subject: [PATCH v7 06/12] mm/hotplug: Kill is_dev_zone() usage in
- __remove_pages()
+  by FMSMGA003.fm.intel.com with ESMTP; 01 May 2019 23:09:45 -0700
+Subject: [PATCH v7 07/12] mm: Kill is_dev_zone() helper
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
 Cc: Michal Hocko <mhocko@suse.com>, Logan Gunthorpe <logang@deltatee.com>,
- David Hildenbrand <david@redhat.com>, linux-nvdimm@lists.01.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de,
- mhocko@suse.com
-Date: Wed, 01 May 2019 22:55:53 -0700
-Message-ID: <155677655373.2336373.15845721823034005000.stgit@dwillia2-desk3.amr.corp.intel.com>
+ David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>,
+ linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ osalvador@suse.de, mhocko@suse.com
+Date: Wed, 01 May 2019 22:55:59 -0700
+Message-ID: <155677655941.2336373.17601391574483353034.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -109,34 +108,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The zone type check was a leftover from the cleanup that plumbed altmap
-through the memory hotplug path, i.e. commit da024512a1fa "mm: pass the
-vmem_altmap to arch_remove_memory and __remove_pages".
+Given there are no more usages of is_dev_zone() outside of 'ifdef
+CONFIG_ZONE_DEVICE' protection, kill off the compilation helper.
 
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Logan Gunthorpe <logang@deltatee.com>
-Cc: David Hildenbrand <david@redhat.com>
+Acked-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/memory_hotplug.c |    7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ include/linux/mmzone.h |   12 ------------
+ mm/page_alloc.c        |    2 +-
+ 2 files changed, 1 insertion(+), 13 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0d379da0f1a8..108380e20d8f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -544,11 +544,8 @@ void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	unsigned long map_offset = 0;
- 	int sections_to_remove;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b13f0cddf75e..3237c5e456df 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -855,18 +855,6 @@ static inline int local_memory_node(int node_id) { return node_id; };
+  */
+ #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
  
--	/* In the ZONE_DEVICE case device driver owns the memory region */
--	if (is_dev_zone(zone)) {
--		if (altmap)
--			map_offset = vmem_altmap_offset(altmap);
--	}
-+	if (altmap)
-+		map_offset = vmem_altmap_offset(altmap);
+-#ifdef CONFIG_ZONE_DEVICE
+-static inline bool is_dev_zone(const struct zone *zone)
+-{
+-	return zone_idx(zone) == ZONE_DEVICE;
+-}
+-#else
+-static inline bool is_dev_zone(const struct zone *zone)
+-{
+-	return false;
+-}
+-#endif
+-
+ /*
+  * Returns true if a zone has pages managed by the buddy allocator.
+  * All the reclaim decisions have to use this function rather than
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a68735c79609..be309d6a79de 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5864,7 +5864,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
+ 	unsigned long start = jiffies;
+ 	int nid = pgdat->node_id;
  
- 	clear_zone_contiguous(zone);
+-	if (WARN_ON_ONCE(!pgmap || !is_dev_zone(zone)))
++	if (WARN_ON_ONCE(!pgmap || zone_idx(zone) != ZONE_DEVICE))
+ 		return;
  
+ 	/*
 
