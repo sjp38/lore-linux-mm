@@ -2,128 +2,159 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14211C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 19:28:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E20AC43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 19:48:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFA82205F4
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 19:28:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 305E520651
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 19:48:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="anlXyzLH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFA82205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="TaNNMa2B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 305E520651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C9F36B0003; Thu,  2 May 2019 15:28:34 -0400 (EDT)
+	id 915306B0003; Thu,  2 May 2019 15:48:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 553356B0005; Thu,  2 May 2019 15:28:34 -0400 (EDT)
+	id 8C5376B0005; Thu,  2 May 2019 15:48:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 41C936B0007; Thu,  2 May 2019 15:28:34 -0400 (EDT)
+	id 78D796B0007; Thu,  2 May 2019 15:48:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E4FEB6B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 15:28:33 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26so1541718eda.15
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 12:28:33 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5788D6B0003
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 15:48:11 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id c4so5486839ywd.0
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 12:48:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=2BtVF69qKBrz9RiY6v2/KzAanhM7UTkuvfK1eqLRPts=;
-        b=jM5gLjeMham/yzgqI+k/++2ZbeOxi4V1IKq9k4KZiwADw6GkR6e2pm4BxO2Pz0gd/v
-         j4jqIn0vQum8ApoVyXOxwEogcGcRbz1QrR+sjKt7U1k8yL/KvbyYIY9O/Ek7+HHRxUyg
-         gHYlvrJjJzJ/8GOH6OWaB/sPGXyokVeOidIjL4mHjwsnlKoI46td18SOBLqohmlGQNGB
-         eBfMHqejoxxS67hOax6A/FITo0W6LOZEfOraYHH7TNSTuwy0Pvu63J3ZoNtOowGrHK3W
-         7vL39OMfJvTVIrfzzRkeVt/d8uPfkiHOg1UHx8CERnWx3oMCtdLcNtZ9UfGMRyilhaCD
-         JXzg==
-X-Gm-Message-State: APjAAAUeJMcYwZyzFNlK2j/bCVx8Uw5VCj8QCqF0perp6RMU8jDyvMuV
-	u6sCAg5IJj+GtqtCOXqc43XeEHCrbTW8OFXtEnF+jk66wGfitY8uyhlFx/XsZIksPIJdXJK5GvX
-	IfvBmNwqHKZh0sitxt1DyNP8YwLOHkJONsb7h86KKwYEyJTbUHCyGP0Gaw+a8T3Qc4Q==
-X-Received: by 2002:a50:84e1:: with SMTP id 88mr3704183edq.193.1556825313423;
-        Thu, 02 May 2019 12:28:33 -0700 (PDT)
-X-Received: by 2002:a50:84e1:: with SMTP id 88mr3704153edq.193.1556825312748;
-        Thu, 02 May 2019 12:28:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556825312; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=0nSq0kzqdxwXiYYsldtvVwitvvszvDIgIGmFM1J8Go4=;
+        b=NdLeUuJQxWteEICGNwYpU81gBXdEcbCoCBKAm3p43HJm2xZGR8OX3XY6+dhOZFg1BP
+         AtiJpOCGhR2bnetWVC9+PDdr0p/PyA9ZUbBaZrG2d/5ifJDdLvBofrFlQ1O4KpHrZe1n
+         j+g8A1BRuyKxRasstln7nDD+3Ngkx65HfedUMk+tU+2gEQXneateVcFX1YdvTeq4RJyf
+         8AXIAGkovhP2lvArXg8uJGeudaNXn/3mvLVEUb2x/bnVJVKJYU38LP587/xYByVrFVuk
+         +iBcXceVcJ8eBumgoueVQlhe5pfsfAXDLVLqnk3gbGqzYy8ZkcV38ifOI5jiXxhzRISe
+         f+ZQ==
+X-Gm-Message-State: APjAAAXcnfSVtLytqg0+EO/YbtD7VZ/ZRKOrdrqB8Xo/ybehGaUFlsam
+	3iUHNlsRcGheYePTFUUgNU/tPPyPO+ztilgTNoJl0z9wfw3bSJ8UENBmcu5Vkej5+5QI8bNqmv4
+	Cq2UMJWG+p4N01yfiST+inlNbleH9h2DAR6Kz9YRAu1rojvmbCUH3Ks5uOfa9fYX5aw==
+X-Received: by 2002:a5b:c4b:: with SMTP id d11mr5000668ybr.380.1556826491007;
+        Thu, 02 May 2019 12:48:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzk04r4WKBUyH8QtJ725EVButPsRYKbYkGr1pW0DAaR5GN1kfvRskckUuP6SRO2W+9ScYml
+X-Received: by 2002:a5b:c4b:: with SMTP id d11mr5000635ybr.380.1556826490539;
+        Thu, 02 May 2019 12:48:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556826490; cv=none;
         d=google.com; s=arc-20160816;
-        b=wcCWPlVLQecaps+0QO+rS8599awisJ3RLeH28WieJkG5zyhA34vrGo6jjyxwVU0uVM
-         ST0WHF2jebIS5lp/jBqtf9c5ePS/3yIrMOJui4lMSesXlyR9una85/cLCtYcdbAbBQZi
-         zWNpNermmatZaMgxb5cfGKzZWGy3NDpxlKgeLTDnxFW+asV4sdVi77Ij2wTACNbypI6L
-         FJaAtCNCCNPwYUTryrKay7zsCdJsESx3yuWdXR2x4/ZP0Hs8kXRPXuBw6E1zSM8BFmSX
-         go0ikp/dhBqxHvDcliQPrSzxvNvOXL5xWQR+rG2jCtmjTXXsvKijimerbQmwrtuwh8kg
-         pxhA==
+        b=R/czc6zqw53ZOoe69cGB4u2V9BYKqH31o2Rt8qlKoCpC1Ts7wKVXzIwD7+sx9avS4k
+         sKe5aANT1zKSVXJAfRKct3sg05jbMQsonWL3g3yQqS/yllPVj08m5IOWiZ84aeMEVBii
+         ptJ0Zb1cDffUk5zgnTpPrhuSZhR8OgeB/hqM3/BM1mFrx+t5HoBDRhtmRBM63Ym5mdS9
+         zC1CJhzED+7pKM724tS1astQNEYq/Fo5JD9zI+LD3EBnHrom2Y1A1ty73I85GHK4T1IE
+         ZPdCEi2IC6HeU8V/6C4yIIt3tVocufwyomfXgA8RkZJ4JcWPf53om7RIna7g13v7Dovb
+         C15Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=2BtVF69qKBrz9RiY6v2/KzAanhM7UTkuvfK1eqLRPts=;
-        b=KK7Va1jicZMQ8JpTZWyC/PBUCYS5F58DFlpUNq0+9xDs/kfoklF6H9uab1BlAnINtz
-         J4bqSVUvfJjuPMxP6dPFHOUEg9/Os4C3CqIsJtqvyBRHSQcykuR4GhfBsOJEmkLPx33M
-         NPUZz4YP1OyEBQbmoIBTAcVs0PhLgFd9Yj9oo8WdxUlZC+B9j+Tc7DKGHjbtJ0d5jRnP
-         iJEbDuvhWJVTOFCLpRBrrTZG/CH16rylzg4Y7BiRqzb7SUueaWJ+dQ6ETNH6bNrjgq6F
-         YYtTyHIyOcyrI55d5tYMbJ2cuI616mpKTXjy0b0+Z8op8OUqBR3C5A62MCQTlI1WvRHt
-         5rVA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=0nSq0kzqdxwXiYYsldtvVwitvvszvDIgIGmFM1J8Go4=;
+        b=jjvLLdO0d2JEW0/Vjf/wtjFBXQeEiY+YaTd/wxIS1qJUQEIQYJj5L73qAkuHGhymse
+         /1eOSJmU4xezPvr7Vybbu+dSzkS1CWaZJqkJT4DC0LhxX/nG8XgONuBWLZcsyW03pqWq
+         8DJpfiGFTaZXC7Bqk45NOUDW9zYEht0E3X0wOSPa0x4dYbV7AfxSERxwDHtRlo5vFb2t
+         JRmnyt9xxajLlLcI1AGxwHVuvqXWyfnN71XCEp3uFA//r4soCMxdV7Z9QvTa/WoHYxBo
+         eHqYbYAnmAp4sUVm5g3bBQMrVvZd3j4Fn1MR+Jrv02Wmf/I7oTbiPSzeMP6JigDobzQK
+         ElnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=anlXyzLH;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q12sor7982438edd.18.2019.05.02.12.28.32
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TaNNMa2B;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id 129si28283676ybw.247.2019.05.02.12.48.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 May 2019 12:28:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 May 2019 12:48:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=anlXyzLH;
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=2BtVF69qKBrz9RiY6v2/KzAanhM7UTkuvfK1eqLRPts=;
-        b=anlXyzLHl7/mu36RIFAIxcKsrMSkce8RmXLT6gA8XWonyrduEZz1Kg+UsC5D7z8FMT
-         pj/5pMF5ClMHohgj3ZkruEIp4c2E5vQjyL591Z6YSXLnoKPyWVamFD6tN0pTpi2Xf+h/
-         6EzBRSlftPpfc3PWdfVmuQ20DUG8J6I1uPHl0PHVXqEYgJSmeLguWSTy+gizwQEVh6D4
-         zU9Rll/WLv1aAxKOG1/NLVtaNEEZD0tv0yxKuRd4XH5bskMKWYH80Kho+m1Dm+hRb0yt
-         zHtzKyeb1W4lTDOJ3OHpU0hw3N/Lnedq8p2bBwEGvzkeS6cCOEC/t+VkwYNJtyLd9K+K
-         BM5A==
-X-Google-Smtp-Source: APXvYqzhKsKRt3YYywySk19JgdcvKgG4zttzP8aHLHqRlNIg61SzvLJCSfVQUqqi+2uhnhEboRWyoEvmzKYQf/GF1Ns=
-X-Received: by 2002:a50:b4f7:: with SMTP id x52mr2879275edd.190.1556825312425;
- Thu, 02 May 2019 12:28:32 -0700 (PDT)
-MIME-Version: 1.0
-References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155552636181.2015392.6062894291885124658.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <155552636181.2015392.6062894291885124658.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 2 May 2019 15:28:21 -0400
-Message-ID: <CA+CK2bAfw=pkYF2Ux-PM5r7U46JbDA-fM3NjQ3a5F_Fs0D0GHA@mail.gmail.com>
-Subject: Re: [PATCH v6 05/12] mm/sparsemem: Convert kmalloc_section_memmap()
- to populate_section_memmap()
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	David Hildenbrand <david@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-mm <linux-mm@kvack.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TaNNMa2B;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x42Drld9044213;
+	Thu, 2 May 2019 14:01:52 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=0nSq0kzqdxwXiYYsldtvVwitvvszvDIgIGmFM1J8Go4=;
+ b=TaNNMa2B3szcnIGTjpzw1y1uhWHK5FEUEBlcSR2DulIaKvT96+earpB9CbzqWvqGVbOx
+ AdEX4IKYdgxldbmlRba25NlSm4YTPHKwg3QyMNbAXI31CTjrJuMEd5gksl8sgz1Gxxvd
+ d9Dy2vxr6LzweCNieFFFperDLIsKtfJ+LKcILhN4tVEvcMemNhql38e9L1/W0vY7fOrO
+ htOyxx8D5TrxxlvoFakCqeFcy3DisS8ryorQfhsul2q8lhxVNo3lvzkvNTWaPWxX5oCT
+ 82JOZShN0I331KWTO+RLcmYwTg9v4okJIjt6DLI0HjeugL3zVQ3wxAcrG91DIRcP7gqp 5g== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2130.oracle.com with ESMTP id 2s6xhygtmp-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 02 May 2019 14:01:51 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x42E0kBR104040;
+	Thu, 2 May 2019 14:01:51 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3030.oracle.com with ESMTP id 2s7rtbr047-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 02 May 2019 14:01:51 +0000
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x42E1l7Y006859;
+	Thu, 2 May 2019 14:01:48 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 02 May 2019 07:01:47 -0700
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: [PATCH 5/4] 9p: pass the correct prototype to read_cache_page
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190502130405.GA2679@lst.de>
+Date: Thu, 2 May 2019 08:01:43 -0600
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Sami Tolvanen <samitolvanen@google.com>,
+        Kees Cook <keescook@chromium.org>,
+        Nick Desaulniers <ndesaulniers@google.com>,
+        linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Transfer-Encoding: 7bit
+Message-Id: <1CFA4656-2E3E-40D2-A0B2-A49F174F2420@oracle.com>
+References: <20190501160636.30841-1-hch@lst.de>
+ <20190501173443.GA19969@lst.de>
+ <AEBFD2FC-F94A-4E5B-8E1C-76380DDEB46E@oracle.com>
+ <20190502130405.GA2679@lst.de>
+To: Christoph Hellwig <hch@lst.de>
+X-Mailer: Apple Mail (2.3445.104.11)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9244 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=780
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905020095
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9244 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=826 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905020095
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 17, 2019 at 2:53 PM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> Allow sub-section sized ranges to be added to the memmap.
-> populate_section_memmap() takes an explict pfn range rather than
-> assuming a full section, and those parameters are plumbed all the way
-> through to vmmemap_populate(). There should be no sub-section usage in
-> current deployments. New warnings are added to clarify which memmap
-> allocation paths are sub-section capable.
->
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
- Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+
+> On May 2, 2019, at 7:04 AM, Christoph Hellwig <hch@lst.de> wrote:
+> 
+> Except that we don't pass v9fs_vfs_readpage as the filler any more,
+> we now pass v9fs_fid_readpage.
+
+True, so never mind. :-)
+
 
