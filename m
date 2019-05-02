@@ -2,159 +2,188 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91DB0C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:36:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14D80C04AAA
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 518A320449
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:36:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="J04pm3ui"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 518A320449
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C46A520675
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 15:54:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C46A520675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00E586B0008; Thu,  2 May 2019 11:36:08 -0400 (EDT)
+	id 5091C6B0003; Thu,  2 May 2019 11:54:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F00516B000A; Thu,  2 May 2019 11:36:07 -0400 (EDT)
+	id 4BBF26B0006; Thu,  2 May 2019 11:54:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC93A6B000C; Thu,  2 May 2019 11:36:07 -0400 (EDT)
+	id 3A89C6B0007; Thu,  2 May 2019 11:54:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0566B0008
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 11:36:07 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id j3so1253794edb.14
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 08:36:07 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 04E046B0003
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 11:54:37 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id t16so1418409pgv.13
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 08:54:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=IeCbek7GxN78jmKl6HDSULctY9a079sA8sLhO9KSXCE=;
-        b=jvcGndSwvhKpJrNLGQ3PEN5dhhLaWMgNztR9cJyvy3WJpJ6eQBYBtds3N4//BadTI5
-         c/mRAF6qqsEjpTmkvCtnT+rlNHCv8uKFln1rsYRJLOctzT8GIWRVfKJG4zrVjyrkJZPA
-         rZk2tGo0mOrt8ytfqa0zDOWyFJpReYzCABbgUYsiTjrRPbRo1NgarGJGGjkXb+0mbT9q
-         b1vmlEeW/B+vZeuMJf9A46Ur6DI20K1D6Sihu3d+SOMWrYZBnQNHxApzv2993joB3qis
-         PSke2NznBO4G9mWi2Vott8McDLspu/iDhaC3OuIo2qpXinzDuInX15bNrVOYhEWhf/pq
-         wdjg==
-X-Gm-Message-State: APjAAAXrdX/XjAeakp5pJtxYRRwyGIJ6TtjAPows6SrkwhjMeh56+XPB
-	LgTvOlBvWRc0u4h/2H59BagA2tA1rEbVe++dqjBvKWvKpcy7PFe19JJ/qWssga7CEyUEdY5czCZ
-	myro3vEurkdaa9Tbl/DuLu6y/tazddt4HxPmkuF09pr2y1MeeGV9LrQGR1YFLBOJSyw==
-X-Received: by 2002:a50:89db:: with SMTP id h27mr1210124edh.207.1556811366890;
-        Thu, 02 May 2019 08:36:06 -0700 (PDT)
-X-Received: by 2002:a50:89db:: with SMTP id h27mr1210068edh.207.1556811365941;
-        Thu, 02 May 2019 08:36:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556811365; cv=none;
-        d=google.com; s=arc-20160816;
-        b=oQVQd5BesKk+8Czi+lOOBe0E9i7Jw9NshfZSwv+3mMKTisufM88qEnzk1lzuVtr1rK
-         k5tHX48k1qsrP3YEwdQ+kvNqpgsdQbme6KXFRjdUMYPduPcr5T90Ck3P68SQ+VClH77z
-         q2XZ9KVjAJElIm1hxEE+QmvBv4lhnkYQesPCZymKWoxV6KughwFh86gmExNCOpVDD5ZC
-         U8Ve4ruEzPMLLiG9Ily6qOueb9YR02WA3J9h5FOX+KRbMDpqlE4jw2pKcCEjyJHBlfg9
-         828THRAceG0UimhXWEKpAYq2EAnXHrpoGKTrcSxbMxlxKTQ6bXYnjURWBZUPKms8+irR
-         a0Jw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=IeCbek7GxN78jmKl6HDSULctY9a079sA8sLhO9KSXCE=;
-        b=lhJcvrr1RwiSnJKmOd/jWYKLzuw2VgVY07lf6gZ9XBX6+8HFaIoXDdENPT2ICnnbLa
-         SpU4uZhxFjzthenaE9M/ZMMsTY0sGEVhEnXgT0T1sz/3vCZYTIjY6N9jJ9jKdhBUUWhw
-         4bHHQKQ0JMV837FYSMAeeG7wSgDMDtB4m4uR06YjSVV17mPzwoKdZX9rQhrqH2NcMJmx
-         ALWYHQ8V4gnZolxzZ+Aw86kKjpssUgPto9E2HS16N64IUBT2tY3o8jkuAM3KgL1WMICa
-         F4KsY5QqdgO8vIxftWXWyMT6zMDMDR/AL1dGrsad3aQH4keTIIBk/DbcP6HyTdOocy+j
-         9RVQ==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J04pm3ui;
-       spf=pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=natechancellor@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y25sor4648897edm.9.2019.05.02.08.36.05
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 May 2019 08:36:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J04pm3ui;
-       spf=pass (google.com: domain of natechancellor@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=natechancellor@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=IeCbek7GxN78jmKl6HDSULctY9a079sA8sLhO9KSXCE=;
-        b=J04pm3uinBZj07mQUc20QoDfp+OQk/UzptzIcSRRvJQ+i19xBQyz7UfnOlAK1p63BP
-         0hBiwZvxaaLGWRcC+VrF0LkpwlOR1UA1i2R3snOKvD7L2UbudEv8MjBkKgtRLhI5AK64
-         +ajHM23pkTed/0m9GmNqamhAvr7SzAISWxzAKDHmUrK7V7yni2jLai0IAq33C+iJDI5n
-         vys9SsRMh2mmR4MMQ4o/E9FfPT9tqsg1pQgNNbAYJbopon/cuMATXAkju4JdqQI80A8U
-         lE4FFPwdswVeraFDpUWin5auZ+HT9MMpiC8xpByUz81NDaAJFOqUD+QQqbi6NYSx46e+
-         Ns1A==
-X-Google-Smtp-Source: APXvYqx2dUlDAJbP5jPeB6xQOpTTqQTTzZYY1NEWzH8taBIya6BsF/hTANqdbRNRRF/OpyE8xQJ/mg==
-X-Received: by 2002:a50:be01:: with SMTP id a1mr3094467edi.12.1556811365468;
-        Thu, 02 May 2019 08:36:05 -0700 (PDT)
-Received: from localhost.localdomain ([2a01:4f9:2b:2b84::2])
-        by smtp.gmail.com with ESMTPSA id e18sm7386693ejf.77.2019.05.02.08.36.04
+        bh=aZlDYSUhtJI5SI6ikbxNWyvb2x65XVi5kzB2glnT9v0=;
+        b=VMKgSJ3YgC/NSd7uLa1Y8xQSNI0XhXaj9AWM0vwWsfNLjJaQOH9JXdQj4jEG79auLE
+         33ZNyXB1wMVe9vqtOFIdtC5b6+2+AYwvF/XMFjDYjCziT34vECjomKyC+NFsHGImOCBL
+         UsOCYBvsk7xmbVqO52o7m5JFG3uVihy8bdhtapIRjxqmode5g6keilZVT83nxMtr26O+
+         Q2TgN49dSbpd9bMHJMFp0HDZatbQCn/PZp6ZekIP19i6U8sxlF5vnjv2kPY6c4bN8LRx
+         McZ8iK7Y9A4MHr+B8sprhsQheYKvGz0PnBf9kTDQlfXRHK7qcbhRdLFvN6m0ofE0M0GG
+         b5Gw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAV+bTMyw9NVwM1qpTMCw5gZkdRnCaNjT6tM9VTIHccni848y19l
+	5+4xLlU6i7XyGCAAMQtw38/t5fdEOPLnqOnlplXM/v16we76+fi2NqEXXjIsBA7W0bdhV91s2w5
+	Cq6c/sLBUZfDBEWNV/YW9PLm567u/V4xxbUpWCMpG/OSfF8b54OA8ry18/obPQSuOFw==
+X-Received: by 2002:a63:445d:: with SMTP id t29mr4729252pgk.303.1556812476514;
+        Thu, 02 May 2019 08:54:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPSxoasw+/YGBUVapoJLbqKr2737qE9nWUB7B97Zb/pZNGCYAXP6F+3QYX7n0pmD/NZOco
+X-Received: by 2002:a63:445d:: with SMTP id t29mr4729175pgk.303.1556812475450;
+        Thu, 02 May 2019 08:54:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556812475; cv=none;
+        d=google.com; s=arc-20160816;
+        b=RbwgLwcdwq5+IlAU7OnEEoMfsGXKnUo/mLYBBjFgQcOf9UeNttW+o2OJdHLePCq4wZ
+         yynvfPpReP2w2JKFV7LxND0ujTUFTtHmZfp0sCi0mbd+OkPr8GWJSnRgWJjIsX1rOu34
+         wKFr7+KVX/25dC5k0FpWseZViGJSrAetmInrq1FfuZNFU0JdvOT5loMqjr21WldgX4tA
+         msLoXIKiUdRDSYtVMXkkcD+SdyhMylrinIwhSr8zXaEfy18xuJ0XxyU/Fp1+AND/3CMa
+         T+DI0WjHINLuQonPg0H7R3+SHxjOGE/Ra1YRvFz/xzmY3l0MDmSFbY3lwcYO0RfJ+XXK
+         hmAQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=aZlDYSUhtJI5SI6ikbxNWyvb2x65XVi5kzB2glnT9v0=;
+        b=SXt40WwWrAv3aGudZu90wPjTlA5UPnRrU7of7PDTJi2hXSzf4OwwSkiT90bASVTeiq
+         CrB7GnJNnm8THJQ3lCFGu7WPsptbmQ6yqwyw+5IdQ73zHYgkAq1p19LqAGDlVhWU4Wku
+         bKFDThroE5VjA5v9L/YMYermcRsIl0fBPhXejuIC1tDmwuM+d0TQUPqC4PW59jWSz9pw
+         O2C5yXWs3T1VqS5s7Il2SuksWu6aV41MX91BZ4Pque2SPSUunP5H/qchHuTtwxwYKVyW
+         M0FIG78DZGNpYGc1ETZXCeIu0EDh4aCma0SFr5ejqhI5x6uf80Z8fskz7Owr65FnzWHv
+         qgsg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id z8si41441789pgp.185.2019.05.02.08.54.35
+        for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 May 2019 08:36:04 -0700 (PDT)
-From: Nathan Chancellor <natechancellor@gmail.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Alexander Potapenko <glider@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>
-Cc: kasan-dev@googlegroups.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	clang-built-linux@googlegroups.com,
-	Nathan Chancellor <natechancellor@gmail.com>
-Subject: [PATCH] kasan: Zero initialize tag in __kasan_kmalloc
-Date: Thu,  2 May 2019 08:35:38 -0700
-Message-Id: <20190502153538.2326-1-natechancellor@gmail.com>
-X-Mailer: git-send-email 2.21.0
-MIME-Version: 1.0
-X-Patchwork-Bot: notify
-Content-Transfer-Encoding: 8bit
+        Thu, 02 May 2019 08:54:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 May 2019 08:54:34 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,422,1549958400"; 
+   d="scan'208";a="320874382"
+Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
+  by orsmga005.jf.intel.com with ESMTP; 02 May 2019 08:54:33 -0700
+Message-ID: <5b2c6cee345e00182e97842ae90c02cdcd830135.camel@intel.com>
+Subject: Re: [PATCH] binfmt_elf: Extract .note.gnu.property from an ELF file
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+ linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
+ Balbir Singh <bsingharora@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov
+ <esyr@redhat.com>,  Florian Weimer <fweimer@redhat.com>, "H.J. Lu"
+ <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
+ <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
+ <mike.kravetz@oracle.com>,  Nadav Amit <nadav.amit@gmail.com>, Oleg
+ Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
+ <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
+ Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
+ <vedvyas.shanbhogue@intel.com>,  Szabolcs Nagy <szabolcs.nagy@arm.com>,
+ libc-alpha@sourceware.org
+Date: Thu, 02 May 2019 08:47:06 -0700
+In-Reply-To: <20190502111003.GO3567@e103592.cambridge.arm.com>
+References: <20190501211217.5039-1-yu-cheng.yu@intel.com>
+	 <20190502111003.GO3567@e103592.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When building with -Wuninitialized and CONFIG_KASAN_SW_TAGS unset, Clang
-warns:
+On Thu, 2019-05-02 at 12:10 +0100, Dave Martin wrote:
+> On Wed, May 01, 2019 at 02:12:17PM -0700, Yu-cheng Yu wrote:
+> > An ELF file's .note.gnu.property indicates features the executable file
+> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
 
-mm/kasan/common.c:484:40: warning: variable 'tag' is uninitialized when
-used here [-Wuninitialized]
-        kasan_unpoison_shadow(set_tag(object, tag), size);
-                                              ^~~
+[...]
+> A couple of questions before I look in more detail:
+> 
+> 1) Can we rely on PT_GNU_PROPERTY being present in the phdrs to describe
+> the NT_GNU_PROPERTY_TYPE_0 note?  If so, we can avoid trying to parse
+> irrelevant PT_NOTE segments.
 
-set_tag ignores tag in this configuration but clang doesn't realize it
-at this point in its pipeline, as it points to arch_kasan_set_tag as
-being the point where it is used, which will later be expanded to
-(void *)(object) without a use of tag. Just zero initialize tag, as it
-removes this warning and doesn't change the meaning of the code.
+Some older linkers can create multiples of NT_GNU_PROPERTY_TYPE_0.  The code
+scans all PT_NOTE segments to ensure there is only one NT_GNU_PROPERTY_TYPE_0. 
+If there are multiples, then all are considered invalid.
 
-Link: https://github.com/ClangBuiltLinux/linux/issues/465
-Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
----
- mm/kasan/common.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> 
+> 2) Are there standard types for things like the program property header?
+> If not, can we add something in elf.h?  We should try to coordinate with
+> libc on that.  Something like
+> 
+> typedef __u32 Elf_Word;
+> 
+> typedef struct {
+> 	Elf_Word pr_type;
+> 	Elf_Word pr_datasz;
+> } Elf_Gnu_Prophdr;
+> 
+> (i.e., just the header part from [1], with a more specific name -- which
+> I just made up).
 
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 36afcf64e016..4c5af68f2a8b 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -464,7 +464,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
- {
- 	unsigned long redzone_start;
- 	unsigned long redzone_end;
--	u8 tag;
-+	u8 tag = 0;
- 
- 	if (gfpflags_allow_blocking(flags))
- 		quarantine_reduce();
--- 
-2.21.0
+Yes, I will fix that.
+
+[...]
+> 3) It looks like we have to go and re-parse all the notes for every
+> property requested by the arch code.
+
+As explained above, it is necessary to scan all PT_NOTE segments.  But there
+should be only one NT_GNU_PROPERTY_TYPE_0 in an ELF file.  Once that is found,
+perhaps we can store it somewhere, or call into the arch code as you mentioned
+below.  I will look into that.
+
+> 
+> For now there is only one property requested anyway, so this is probably
+> not too bad.  But could we flip things around so that we have some
+> CONFIG_ARCH_WANTS_ELF_GNU_PROPERTY (say), and have the ELF core code
+> call into the arch backend for each property found?
+> 
+> The arch could provide some hook
+> 
+> 	int arch_elf_has_gnu_property(const Elf_Gnu_Prophdr *prop,
+> 					const void *data);
+> 
+> to consume the properties as they are found.
+> 
+> This would effectively replace the arch_setup_property() hook you
+> currently have.
+> 
+> Cheers
+> ---Dave
+> 
+> [1] https://github.com/hjl-tools/linux-abi/wiki/Linux-Extensions-to-gABI
 
