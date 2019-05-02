@@ -2,106 +2,105 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.5 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 008E6C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 12:55:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98447C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 13:00:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFEAC2085A
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 12:55:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFEAC2085A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 6030720449
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 13:00:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6030720449
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5685E6B0003; Thu,  2 May 2019 08:55:20 -0400 (EDT)
+	id EDC4A6B0006; Thu,  2 May 2019 09:00:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F1426B0006; Thu,  2 May 2019 08:55:20 -0400 (EDT)
+	id E8BBE6B0008; Thu,  2 May 2019 09:00:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36C4C6B0008; Thu,  2 May 2019 08:55:20 -0400 (EDT)
+	id D7AAE6B000A; Thu,  2 May 2019 09:00:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DBAF26B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 08:55:19 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c1so9311edi.20
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 05:55:19 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EAC06B0006
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 09:00:36 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id 18so1029143eds.5
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 06:00:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=cqXFoPYUbMBdIgtz4paGbMx4rhmEJsLkRsTQDM6QnC0=;
-        b=gMSlfmpfedxXICN2uxAez2hMpTtFsj+DBfgXN1nBGNxNVK8z/7hdCbK+gukI9HiyA8
-         Wkr9I8Y/15oWZr1ZWIh6subBBO0H0KxPrZoelBgDCFw/6kwac4RMmk5PQ4iu5/wly86Y
-         DwaSs9P6hXhwOBXFVcp6yAOJEraxemL9qEEmt/UldcSpRHtC9SC5PkbGLW9RvIUPCkpD
-         /X8W3Tg2I3h5vLXgMkIFKPZ7Gs7G4IsJ7IoxHu7CxLLEZqvkwONv6ib7EYAnjOgJrd49
-         U3/dGrN/TUYOwYAU5143vSlkSNRGUYmg2gbSe2FAVj0m+jHPZ6cXP7FQZqj/ikl3VKYK
-         G0/w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAXWo45wS7uLcdpZH0MPtgbyPyaIr92i4tIEpYSxJdRlIoBN4dgh
-	/TWkvZtAGbw+UR06u8SILJIskKpT89QQ9VWjc1XxiwmV2INQvoZjB+xRCdYTO98RlSZ/kon7wIs
-	BZYyRddHB44S42gCmCHOkf88MFo4MKwKZ5VOMO0lixU7FoxyUY3NtXJQNnTCgwxSB8A==
-X-Received: by 2002:a50:a951:: with SMTP id m17mr2337841edc.79.1556801719474;
-        Thu, 02 May 2019 05:55:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/nb9XCNeZA9yc2fXKvpCRBRNW3/TFG1zZhdIUkHUm8ZdXM1uh/4b1BsjCNRAlcqRg0g/y
-X-Received: by 2002:a50:a951:: with SMTP id m17mr2337813edc.79.1556801718709;
-        Thu, 02 May 2019 05:55:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556801718; cv=none;
+        bh=rkWR9X3/gvNJuqhYdo8wHnyssnAbedXHHTz/2HdMD+8=;
+        b=jtmwitPu6zAb4Xipq+e/w4VttE8gNIyF7xTi5+2UqC896yC8HqceYjUzYC5khpAzB0
+         J9ltsFhh9YtcFgToUC6dTLCKXLw4kLiy+UxpFZUO7de3dwuliAAbM4nLxRYgCWewSBiD
+         JodVljiQTuZRW1zhOJHDxKUN/ol/EEZCBabTAQLg+ZGIRcQ7zKMxmMgbbN/am8sd6VrB
+         sXFcCHyHFHXGmt1p3yGaQj5v9Fmb8+FKYQ/nS1f455E6jbtrTbfWRyKCLUraidqZfXwa
+         j3HXdg1ndcdC2bMn0r/YIS8fk3Zw1ypfGAW0MKP454CBOYFPhWTTbpxA5OAfne8FkUwp
+         hkbA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVyuYGfVs/TrSGKWh+6Xhf5/ybIJiMf10MOfM0x7Ja4NyHmwEjo
+	zd1t/dcu4QASU25jKiIHj2hQMlfiy+Te+YEH639gDXQshqsKuXdsJHKblGpfvMh77qCmJDGmxcr
+	zVYha8IlY27WBh/0C36OTfmD6rpem/j2u32lFAVlFpm7ZFQl6LB567K8nevH/Ozk=
+X-Received: by 2002:a50:8c24:: with SMTP id p33mr2546912edp.210.1556802036166;
+        Thu, 02 May 2019 06:00:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkaaW4U6+kSf1UrNLevmHZuNbZM4wyiSIOXcbRlPo1Zqz8BFRTpkNvRBTy7YNa4Aq5MqdJ
+X-Received: by 2002:a50:8c24:: with SMTP id p33mr2546866edp.210.1556802035366;
+        Thu, 02 May 2019 06:00:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556802035; cv=none;
         d=google.com; s=arc-20160816;
-        b=ksWFqXtfCBSYwOjpKZTyDQ8N3FxQ9GPBYNbdWg3s5amQxBrsIvKem5ZrUU7Q3QP6OJ
-         s+xriVyiu7aM6XliylVjGX7xVrq/CjM+vEw5I+9x24GIfri2qUTxG6UGSBZz8XiAtRIy
-         GTHrA04t8e0roZQWAEMpNxadm9CUVL+smepbnia30JuRuffxFhLuuq4fGBeU5L8znV2N
-         YX+XtmcZ06UlqtjBpsIL9S1FJoH3300+AqbERMkgYOPuSP9mK78vQMpRo57qaCmDRdly
-         6VrhU5nJvcobJasxPD2Lh3o594yH+ZRJxkngS5Csq4YskYMYs2Sg6ki3MkJneaIQRZy3
-         HbCQ==
+        b=Zrsf440d3jUq9zUVBnlcAb1+lc+LOv9ZKNbwRrSHe/85PjHtL7Dl+OZR75U3sJqPXk
+         x8BepT7fN2vLouCA5leZown2v9seHe32vkWvTJBydLezzmG9gjn+foWUhMmuFKzSY7Xh
+         bbO3UZuJ3JGOU6iZGz+f/7OxsY0/X/zWIWZ8lXK806zY7IgQ5uu+kPycDY3EMml8clPw
+         +Wf4ipVlvXOk4T4qf1jzk0BF+/Wl4iAjiiL+2WjnDp1pTxDqEXg5yplSx9m+PBOi510M
+         OdLeTLo5jeekIh3+xA5gALIKv4hrRGuSB8x5COlXSQQ1lwANzlql405f3g3zDX5rh5ne
+         bOeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=cqXFoPYUbMBdIgtz4paGbMx4rhmEJsLkRsTQDM6QnC0=;
-        b=rCMD+qJH8FiBwdTlYYNPKDz4/oCcJFeUPKcnzfh2A82MHqM2imc+PWNBDs14cuqdRx
-         r4rSvWOg2/IRv92ibZoPYd4U0Cot2pOoD1HsqwLW3HzBEJjznPPMGUXC4WPlkSAgMXkt
-         0+Kacg6Q4a1fzgTvZTIkH099/O2U6b5u/yC/7cw0mOaajVygahR0bay5hrGqUpYfQsF7
-         lvHkIOj5jrzEe67Iu01hZOfk3esWIlMKBA4KBxf2VYC6h7/lwBEnw1rce6CGaf8ZJcCE
-         e+kZQxMjkzTSd0TN5iJcYFprSym24Ip0uen7yojYrR5BG3Y1i1O0o8KTMhtJIVBxaWlM
-         A+JA==
+        bh=rkWR9X3/gvNJuqhYdo8wHnyssnAbedXHHTz/2HdMD+8=;
+        b=ePRQqkjyjOlmSQ1qsfLQ9uJKbf7Ohr5NWbD14WkS0bo5Mc7Z0oDhEoPb/qIInaKpDK
+         rmrcVMbBZhfwzcKSJmIXJBe5CrsA9XvMWsmRoRTP7SI5wWzjyHF32mVjvPyf016oItq/
+         hSKHoOT9/SBmMAY+059D8u8Wg4hSUPh8J8Avu8C1zTE8IM4SaXPr6QxikYWIG/DTy8ye
+         7hzNk/XuutZacYeocOsO2/rCMkmoT3ef73Hibn6YDlZwFQvIQaZPlKGtS4orWDhSd1Ro
+         e3QEmG+aJjzQoyf6AiPQAfsF23KpxnhWKBSKJLlZr1ZH0Wsl91KaoDbuHbhmizgWIPs2
+         1G8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l10si71796edf.330.2019.05.02.05.55.18
+        by mx.google.com with ESMTPS id v4si5017690edj.322.2019.05.02.06.00.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 May 2019 05:55:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 02 May 2019 06:00:35 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2E5D7AC0C;
-	Thu,  2 May 2019 12:55:18 +0000 (UTC)
-Date: Thu, 2 May 2019 08:55:14 -0400
-From: Michal Hocko <mhocko@suse.com>
-To: Dexuan Cui <decui@microsoft.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Roman Gushchin <guro@fb.com>, Hugh Dickins <hughd@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	"dchinner@redhat.com" <dchinner@redhat.com>,
-	Greg Thelen <gthelen@google.com>,
-	Kuo-Hsin Yang <vovoy@chromium.org>
-Subject: Re: isolate_lru_pages(): kernel BUG at mm/vmscan.c:1689!
-Message-ID: <20190502125514.GB29835@dhcp22.suse.cz>
-References: <PU1P153MB01693FF5EF3419ACA9A8E1FDBF3B0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+	by mx1.suse.de (Postfix) with ESMTP id 7A7E5AEF9;
+	Thu,  2 May 2019 13:00:34 +0000 (UTC)
+Date: Thu, 2 May 2019 09:00:31 -0400
+From: Michal Hocko <mhocko@kernel.org>
+To: Barret Rhoden <brho@google.com>
+Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
+	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH 1/2] x86, numa: always initialize all possible nodes
+Message-ID: <20190502130031.GC29835@dhcp22.suse.cz>
+References: <20190212095343.23315-1-mhocko@kernel.org>
+ <20190212095343.23315-2-mhocko@kernel.org>
+ <34f96661-41c2-27cc-422d-5a7aab526f87@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <PU1P153MB01693FF5EF3419ACA9A8E1FDBF3B0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+In-Reply-To: <34f96661-41c2-27cc-422d-5a7aab526f87@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -109,40 +108,17 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 01-05-19 23:49:10, Dexuan Cui wrote:
-> Hi,
-> Today I got the below BUG in isolate_lru_pages() when building the kernel.
-> 
-> My current running kernel, which exhibits the BUG, is based on the mainline kernel's commit 
-> 262d6a9a63a3 ("Merge branch 'x86-urgent-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip").
-> 
-> Looks nobody else reported the issue recently.
-> 
-> So far I only hit the BUG once and I don't know how to reproduce it again, so this is just a FYI.
+On Wed 01-05-19 15:12:32, Barret Rhoden wrote:
+[...]
+> A more elegant solution may be to avoid registering with sysfs during early
+> boot, or something else entirely.  But I figured I'd ask for help at this
+> point.  =)
 
-This is really unexpected. This BUG means that __isolate_lru_page must
-have returned EINVAL which implies a non-LRU page on the LRU or an
-unevictable page on an evictable LRU list. I am currently travelling so
-I cannot have deeper look. There was a similar report which triggered a
-different BUG_ON in the reclaim path also stumbling over but that was on
-an really old kernel with out of tree patches so it is not clear what
-happened there. Do you think it would be possible to setup a crash dump
-or apply the following debugging patch in case it reproduces?
+Thanks for the report and an excellent analysis! This is really helpful.
+I will think about this some more but I am traveling this week. It seems
+really awkward to register a sysfs file for an empty range. That looks
+like a bug to me.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a5ad0b35ab8e..289493986f6c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1686,6 +1686,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 			continue;
- 
- 		default:
-+			dump_page(page);
- 			BUG();
- 		}
- 	}
-
-Thanks for the report.
 -- 
 Michal Hocko
 SUSE Labs
