@@ -3,294 +3,219 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBACBC04AA8
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:10:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E23EC43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:10:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 671542085A
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:10:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 671542085A
+	by mail.kernel.org (Postfix) with ESMTP id 3B2122085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:10:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B2122085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EE456B026C; Thu,  2 May 2019 02:10:05 -0400 (EDT)
+	id D99046B026D; Thu,  2 May 2019 02:10:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09F8A6B026D; Thu,  2 May 2019 02:10:05 -0400 (EDT)
+	id D7A5A6B026E; Thu,  2 May 2019 02:10:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED1656B026E; Thu,  2 May 2019 02:10:04 -0400 (EDT)
+	id C5FEA6B026F; Thu,  2 May 2019 02:10:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B03FE6B026C
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:10:04 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id bg6so728484plb.8
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:10:04 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE856B026D
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:10:09 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id a90so730434plc.7
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:10:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=b7RJtdZWf35ggJCzUu72j0QwXn8PLWDAPFhCtA3SldY=;
-        b=ekTsg6z0ge4cbXhvLJ9VEZwbSawo2D96ZHnYdZELXV6yNodTHN+B7xndtru2EZETvH
-         ofY4vueXT1oW+cOjgOvfSUa4/unZejb2igsbbopeVmewQnZBRQL6M77suXCl62yesrNY
-         ISgAadoK5WxkR/LEU8fYLCRcM6fe9R7gI88pAq236jV7OEHWNEMn7O/sMz5K/Gi5e1RV
-         rkoppEsg4GV2Iav612mr9rFMn0C+F/Pg99jXVi7V+ZxM5dihcSEqv3ijcljaKfBRENDy
-         h7B8bMFzpjoVWUSAZyWwK7qZw6YpojxcLX3fRXX0QHlmVgray9vSzYPoEY5kLy7Ovfto
-         ehoA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUn45fHlKNaEzrV65GwybvXbdvo4ER0kKY1MEQXmWwhYz9vKWOu
-	R86tyBxKrW1Z1XxX1xNjxq//E6OKTRLtwtk9iimr93+CHp/D/SaL5IY6ChDKIo+VATD3kBKhO6R
-	aywMZLzvklvWU33fCuEBWDk/Vk49UViifABT8uKgxXHSgo9XXAS8r/xScuJHw1vjJJg==
-X-Received: by 2002:a17:902:9b8d:: with SMTP id y13mr1828549plp.70.1556777404365;
-        Wed, 01 May 2019 23:10:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxu3pTLeXNHX/UqBWf1k13ZIUJhOfW2mVHCncYyeexeKDRTgrf5zfzOrLgbZ/vxsXUmEtAn
-X-Received: by 2002:a17:902:9b8d:: with SMTP id y13mr1828463plp.70.1556777403491;
-        Wed, 01 May 2019 23:10:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556777403; cv=none;
+        bh=LKvk91HhP9ezsuBTNBJqcLkpO+1Sux7+j9Ueu/2PT+g=;
+        b=cpgjNDoSceRpJwjf0+vhbUAS54yyJuoVUoyJeqa/lbcgThHGdGIyXCkLHu2Uyaywkj
+         D7GAnxBJxMYcC7gHhn08DpIHcBrRdu+9/2Q2XSJ8g0S1Q2fGqpGZxNJCzbRoW9luysPH
+         ybRUorTPo/5BvaZXyeGgG/JvkOui8/2BuO/0cu+q+eG4YhqxRATti4CoaNS7Zaxuxwwp
+         yuTMjkHIgU7Jc6ksvMLKAJbolQO8CmO0y0o6jbafAvlrQ9psIKOYUMD+iYhXZLhqmm32
+         /ER+5zJKhafk1C8nbkb6xYBqSbsmodkX96dGLy7X/vk7WoqiJVyWB6yNQ8RraBzoe/8l
+         Qpdw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVz8UPBobS1K0hI01Ob/HpTcynbXfmG0jGCVQVgR/5ocTZWw5Mc
+	9A4gcOB3MpeHkER1dgyxGQ2Lja+NxjaYzamgEFBN+N4ncRoun7AjP8NnbLbQlznfl8J4GcZAtqW
+	d3ozDpf3eiAEKraDLpgIn7Rbin8iQWIa6KN01ukqGpVXnp0Ny7kq2FiXQcaHHXRRa7w==
+X-Received: by 2002:a17:902:8604:: with SMTP id f4mr1781706plo.245.1556777409227;
+        Wed, 01 May 2019 23:10:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwpaUj30K0rNz5Tx70BBJrZ1ea0t9r6UYLnBHe/GniyHWTrQOTpGtcK4fIS/kOuzfJ03VkZ
+X-Received: by 2002:a17:902:8604:: with SMTP id f4mr1781624plo.245.1556777408296;
+        Wed, 01 May 2019 23:10:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556777408; cv=none;
         d=google.com; s=arc-20160816;
-        b=fjVa4UubACQjR9LiCESRI7UQWyUwBvPlZWgKRrd+eUIDctEV0mnzY0nwwWWUz/YiG3
-         dC6bTIe7oaaRmgtZQECAx0W7K0A/F4TiL+lyAgtcGPTkgz1p6BZVvT66QY3yf9+8qCOA
-         uw3c62Djv+m/r60l+kq47wWSfeZsWMczjIeCGhFHqG7aQlv5k4RuuqgI/G346QU+7yWU
-         Nx11d6kqLuQ530oJnAI5K67N+lDOhbhbkwjWPCWJIl8QIrwj17/vbbZSVJuEPJWXjTcK
-         xPUgBkjmHIttKkaC4IL6x9ZxCcCcY8pkloGtUywChnGzhrp1KbhBBQNdrh2gC3CNrh3O
-         h3Ng==
+        b=RJtWJFkee8UZe7UNSP/QXbDFRsLRiBIHcBsXAZnhKOQ4h29NlbpQn3TcSRd5tut15s
+         RT5PXqDlNM4Dh+kiSQhFhqzH3bxfkL/UEm0IvDXuBeRm9kGhtbktr0TtPrtb7VBFmQw3
+         t4WnRPSfTks2VwuL3vIzTKF4cxIXRtwCm4cTg9X/8ExiKTRyPl6zI2X8Ur5jlYM1SEDe
+         nu/L6R8C28Ffr1gbv5fI8Y5xlsKZhQ1SpDQ5/76wGn9vopGfDw6zvR3w/2tdVmFDtdKZ
+         DKjkDHa/tbN5WgV9cB0+WK/cwoj3dEL8bCYhoxcbh6lUDU+G4sO+IsuGmNKVFJCEfX5q
+         5Ehg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=b7RJtdZWf35ggJCzUu72j0QwXn8PLWDAPFhCtA3SldY=;
-        b=Wqasv4p4rTh9ijoOSuNQ/70sFnYgVoG/+V9kMBManR/yFmWR7zqNQoI88D6oLfm26f
-         MojIR8jPwp4+XrWXYU8I5S5fPxRrYcCMtT//roGZhzovJ9GYViQr3XNKR1Cjqx5pcE1B
-         /1TaTXla1BHw528hxNuH4pNDAFFs7jKedl4JZJhS4iY5ercIJ6mWlLTlKm3F/wfsspD9
-         fxo5c06rZ/PU/uIAqq6zgOcZgj80Txew8teyjbisxJOu0Exe08kyXyCn5xPrVsXu7Lf9
-         eAxw9a2rAzfF67bs1pLBBqHuezkQ410XSZaqJvBIMPzV6lJqeKYAQIXN/Fh6vgBVrURr
-         4Z8Q==
+        bh=LKvk91HhP9ezsuBTNBJqcLkpO+1Sux7+j9Ueu/2PT+g=;
+        b=apjtCyiJ+VCEvb4szj7OzLZu4RFqYJPu2xb5TkTzGT2ZtPmN53A8st1MoaEswqNR7Z
+         2c2Pk8CZJglRMwi1J3w7122FGJhuzunh71DlrZo0lyzDo7d8fPQquDW1+IvH0qA/udVB
+         qJ/RMfgJEwMYtwz76tIOEIwjUl+e2T4tyK/PgEiH5TTeVc33oAEKxnlireMdJftB2ZCk
+         HgoI79w2Rg/zljBqd7Mnzp9h/i0VaMNimfnoRRBsO/UksTNuXA+AFl5FBXGKayWkoYrE
+         7VYv69ISphsuqE66yicAcFd4vvHFSfqCk6NpXX3jDch3q9WoZEve8MPaxCm88W3IOFNH
+         doBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id f20si39541388pgj.278.2019.05.01.23.10.03
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id b5si7932355pfa.261.2019.05.01.23.10.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 23:10:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Wed, 01 May 2019 23:10:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:10:02 -0700
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:10:07 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,420,1549958400"; 
-   d="scan'208";a="342618658"
+   d="scan'208";a="145342058"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga005.fm.intel.com with ESMTP; 01 May 2019 23:10:02 -0700
-Subject: [PATCH v7 10/12] mm/devm_memremap_pages: Enable sub-section remap
+  by fmsmga008.fm.intel.com with ESMTP; 01 May 2019 23:10:07 -0700
+Subject: [PATCH v7 11/12] libnvdimm/pfn: Fix fsdax-mode namespace info-block
+ zero-fields
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
-Cc: Michal Hocko <mhocko@suse.com>, Toshi Kani <toshi.kani@hpe.com>,
- =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
- Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de,
- mhocko@suse.com
-Date: Wed, 01 May 2019 22:56:15 -0700
-Message-ID: <155677657576.2336373.1598502251563862624.stgit@dwillia2-desk3.amr.corp.intel.com>
+Cc: stable@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, osalvador@suse.de, mhocko@suse.com
+Date: Wed, 01 May 2019 22:56:21 -0700
+Message-ID: <155677658129.2336373.14466297657474148349.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Teach devm_memremap_pages() about the new sub-section capabilities of
-arch_{add,remove}_memory(). Effectively, just replace all usage of
-align_start, align_end, and align_size with res->start, res->end, and
-resource_size(res). The existing sanity check will still make sure that
-the two separate remap attempts do not collide within a sub-section (2MB
-on x86).
+At namespace creation time there is the potential for the "expected to
+be zero" fields of a 'pfn' info-block to be filled with indeterminate
+data. While the kernel buffer is zeroed on allocation it is immediately
+overwritten by nd_pfn_validate() filling it with the current contents of
+the on-media info-block location. For fields like, 'flags' and the
+'padding' it potentially means that future implementations can not rely
+on those fields being zero.
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Toshi Kani <toshi.kani@hpe.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Logan Gunthorpe <logang@deltatee.com>
+In preparation to stop using the 'start_pad' and 'end_trunc' fields for
+section alignment, arrange for fields that are not explicitly
+initialized to be guaranteed zero. Bump the minor version to indicate it
+is safe to assume the 'padding' and 'flags' are zero. Otherwise, this
+corruption is expected to benign since all other critical fields are
+explicitly initialized.
+
+Fixes: 32ab0a3f5170 ("libnvdimm, pmem: 'struct page' for pmem")
+Cc: <stable@vger.kernel.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- kernel/memremap.c |   61 +++++++++++++++++++++--------------------------------
- 1 file changed, 24 insertions(+), 37 deletions(-)
+ drivers/nvdimm/dax_devs.c |    2 +-
+ drivers/nvdimm/pfn.h      |    1 +
+ drivers/nvdimm/pfn_devs.c |   18 +++++++++++++++---
+ 3 files changed, 17 insertions(+), 4 deletions(-)
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index f355586ea54a..425904858d97 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -59,7 +59,7 @@ static unsigned long pfn_first(struct dev_pagemap *pgmap)
- 	struct vmem_altmap *altmap = &pgmap->altmap;
- 	unsigned long pfn;
+diff --git a/drivers/nvdimm/dax_devs.c b/drivers/nvdimm/dax_devs.c
+index 0453f49dc708..326f02ffca81 100644
+--- a/drivers/nvdimm/dax_devs.c
++++ b/drivers/nvdimm/dax_devs.c
+@@ -126,7 +126,7 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
+ 	nvdimm_bus_unlock(&ndns->dev);
+ 	if (!dax_dev)
+ 		return -ENOMEM;
+-	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
++	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+ 	nd_pfn->pfn_sb = pfn_sb;
+ 	rc = nd_pfn_validate(nd_pfn, DAX_SIG);
+ 	dev_dbg(dev, "dax: %s\n", rc == 0 ? dev_name(dax_dev) : "<none>");
+diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
+index dde9853453d3..e901e3a3b04c 100644
+--- a/drivers/nvdimm/pfn.h
++++ b/drivers/nvdimm/pfn.h
+@@ -36,6 +36,7 @@ struct nd_pfn_sb {
+ 	__le32 end_trunc;
+ 	/* minor-version-2 record the base alignment of the mapping */
+ 	__le32 align;
++	/* minor-version-3 guarantee the padding and flags are zero */
+ 	u8 padding[4000];
+ 	__le64 checksum;
+ };
+diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+index 01f40672507f..a2406253eb70 100644
+--- a/drivers/nvdimm/pfn_devs.c
++++ b/drivers/nvdimm/pfn_devs.c
+@@ -420,6 +420,15 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+ 	return 0;
+ }
  
--	pfn = res->start >> PAGE_SHIFT;
-+	pfn = PHYS_PFN(res->start);
- 	if (pgmap->altmap_valid)
- 		pfn += vmem_altmap_offset(altmap);
- 	return pfn;
-@@ -87,7 +87,6 @@ static void devm_memremap_pages_release(void *data)
- 	struct dev_pagemap *pgmap = data;
- 	struct device *dev = pgmap->dev;
- 	struct resource *res = &pgmap->res;
--	resource_size_t align_start, align_size;
- 	unsigned long pfn;
- 	int nid;
- 
-@@ -96,25 +95,21 @@ static void devm_memremap_pages_release(void *data)
- 		put_page(pfn_to_page(pfn));
- 
- 	/* pages are dead and unused, undo the arch mapping */
--	align_start = res->start & ~(PA_SECTION_SIZE - 1);
--	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
--		- align_start;
--
--	nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
-+	nid = page_to_nid(pfn_to_page(PHYS_PFN(res->start)));
- 
- 	mem_hotplug_begin();
- 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
--		pfn = align_start >> PAGE_SHIFT;
-+		pfn = PHYS_PFN(res->start);
- 		__remove_pages(page_zone(pfn_to_page(pfn)), pfn,
--				align_size >> PAGE_SHIFT, NULL);
-+				PHYS_PFN(resource_size(res)), NULL);
- 	} else {
--		arch_remove_memory(nid, align_start, align_size,
-+		arch_remove_memory(nid, res->start, resource_size(res),
- 				pgmap->altmap_valid ? &pgmap->altmap : NULL);
--		kasan_remove_zero_shadow(__va(align_start), align_size);
-+		kasan_remove_zero_shadow(__va(res->start), resource_size(res));
- 	}
- 	mem_hotplug_done();
- 
--	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-+	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
- 	pgmap_array_delete(res);
- 	dev_WARN_ONCE(dev, pgmap->altmap.alloc,
- 		      "%s: failed to free all reserved pages\n", __func__);
-@@ -141,16 +136,13 @@ static void devm_memremap_pages_release(void *data)
-  */
- void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
++/**
++ * nd_pfn_validate - read and validate info-block
++ * @nd_pfn: fsdax namespace runtime state / properties
++ * @sig: 'devdax' or 'fsdax' signature
++ *
++ * Upon return the info-block buffer contents (->pfn_sb) are
++ * indeterminate when validation fails, and a coherent info-block
++ * otherwise.
++ */
+ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
  {
--	resource_size_t align_start, align_size, align_end;
--	struct vmem_altmap *altmap = pgmap->altmap_valid ?
--			&pgmap->altmap : NULL;
- 	struct resource *res = &pgmap->res;
- 	struct dev_pagemap *conflict_pgmap;
- 	struct mhp_restrictions restrictions = {
- 		/*
- 		 * We do not want any optional features only our own memmap
- 		*/
--		.altmap = altmap,
-+		.altmap = pgmap->altmap_valid ? &pgmap->altmap : NULL,
- 	};
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	int error, nid, is_ram;
-@@ -158,26 +150,21 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	if (!pgmap->ref || !pgmap->kill)
- 		return ERR_PTR(-EINVAL);
+ 	u64 checksum, offset;
+@@ -565,7 +574,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
+ 	nvdimm_bus_unlock(&ndns->dev);
+ 	if (!pfn_dev)
+ 		return -ENOMEM;
+-	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
++	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+ 	nd_pfn = to_nd_pfn(pfn_dev);
+ 	nd_pfn->pfn_sb = pfn_sb;
+ 	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
+@@ -702,7 +711,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 	u64 checksum;
+ 	int rc;
  
--	align_start = res->start & ~(PA_SECTION_SIZE - 1);
--	align_size = ALIGN(res->start + resource_size(res), PA_SECTION_SIZE)
--		- align_start;
--	align_end = align_start + align_size - 1;
--
--	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_start), NULL);
-+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->start), NULL);
- 	if (conflict_pgmap) {
- 		dev_WARN(dev, "Conflicting mapping in same section\n");
- 		put_dev_pagemap(conflict_pgmap);
- 		return ERR_PTR(-ENOMEM);
- 	}
+-	pfn_sb = devm_kzalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
++	pfn_sb = devm_kmalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
+ 	if (!pfn_sb)
+ 		return -ENOMEM;
  
--	conflict_pgmap = get_dev_pagemap(PHYS_PFN(align_end), NULL);
-+	conflict_pgmap = get_dev_pagemap(PHYS_PFN(res->end), NULL);
- 	if (conflict_pgmap) {
- 		dev_WARN(dev, "Conflicting mapping in same section\n");
- 		put_dev_pagemap(conflict_pgmap);
- 		return ERR_PTR(-ENOMEM);
- 	}
+@@ -711,11 +720,14 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 		sig = DAX_SIG;
+ 	else
+ 		sig = PFN_SIG;
++
+ 	rc = nd_pfn_validate(nd_pfn, sig);
+ 	if (rc != -ENODEV)
+ 		return rc;
  
--	is_ram = region_intersects(align_start, align_size,
-+	is_ram = region_intersects(res->start, resource_size(res),
- 		IORESOURCE_SYSTEM_RAM, IORES_DESC_NONE);
- 
- 	if (is_ram != REGION_DISJOINT) {
-@@ -198,8 +185,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	if (nid < 0)
- 		nid = numa_mem_id();
- 
--	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
--			align_size);
-+	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(res->start), 0,
-+			resource_size(res));
- 	if (error)
- 		goto err_pfn_remap;
- 
-@@ -217,25 +204,25 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	 * arch_add_memory().
- 	 */
- 	if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
--		error = add_pages(nid, align_start >> PAGE_SHIFT,
--				align_size >> PAGE_SHIFT, &restrictions);
-+		error = add_pages(nid, PHYS_PFN(res->start),
-+				PHYS_PFN(resource_size(res)), &restrictions);
- 	} else {
--		error = kasan_add_zero_shadow(__va(align_start), align_size);
-+		error = kasan_add_zero_shadow(__va(res->start), resource_size(res));
- 		if (error) {
- 			mem_hotplug_done();
- 			goto err_kasan;
- 		}
- 
--		error = arch_add_memory(nid, align_start, align_size,
--					&restrictions);
-+		error = arch_add_memory(nid, res->start, resource_size(res),
-+				&restrictions);
- 	}
- 
- 	if (!error) {
- 		struct zone *zone;
- 
- 		zone = &NODE_DATA(nid)->node_zones[ZONE_DEVICE];
--		move_pfn_range_to_zone(zone, align_start >> PAGE_SHIFT,
--				align_size >> PAGE_SHIFT, altmap);
-+		move_pfn_range_to_zone(zone, PHYS_PFN(res->start),
-+				PHYS_PFN(resource_size(res)), restrictions.altmap);
- 	}
- 
- 	mem_hotplug_done();
-@@ -247,8 +234,8 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	 * to allow us to do the work while not holding the hotplug lock.
- 	 */
- 	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
--				align_start >> PAGE_SHIFT,
--				align_size >> PAGE_SHIFT, pgmap);
-+				PHYS_PFN(res->start),
-+				PHYS_PFN(resource_size(res)), pgmap);
- 	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
- 
- 	error = devm_add_action_or_reset(dev, devm_memremap_pages_release,
-@@ -259,9 +246,9 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
- 	return __va(res->start);
- 
-  err_add_memory:
--	kasan_remove_zero_shadow(__va(align_start), align_size);
-+	kasan_remove_zero_shadow(__va(res->start), resource_size(res));
-  err_kasan:
--	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-+	untrack_pfn(NULL, PHYS_PFN(res->start), resource_size(res));
-  err_pfn_remap:
- 	pgmap_array_delete(res);
-  err_array:
+ 	/* no info block, do init */;
++	memset(pfn_sb, 0, sizeof(*pfn_sb));
++
+ 	nd_region = to_nd_region(nd_pfn->dev.parent);
+ 	if (nd_region->ro) {
+ 		dev_info(&nd_pfn->dev,
+@@ -768,7 +780,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
+ 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
+ 	pfn_sb->version_major = cpu_to_le16(1);
+-	pfn_sb->version_minor = cpu_to_le16(2);
++	pfn_sb->version_minor = cpu_to_le16(3);
+ 	pfn_sb->start_pad = cpu_to_le32(start_pad);
+ 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
+ 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
 
