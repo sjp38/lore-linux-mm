@@ -2,344 +2,412 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36CD2C04AA9
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:14:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79247C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:15:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC0222081C
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:14:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC0222081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2561E206DF
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 14:15:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2561E206DF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 777A96B0003; Thu,  2 May 2019 10:14:26 -0400 (EDT)
+	id B6ED16B0006; Thu,  2 May 2019 10:15:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7015F6B0006; Thu,  2 May 2019 10:14:26 -0400 (EDT)
+	id AF91D6B0007; Thu,  2 May 2019 10:15:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 57ABE6B0007; Thu,  2 May 2019 10:14:26 -0400 (EDT)
+	id 998AE6B0008; Thu,  2 May 2019 10:15:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 312BB6B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:14:26 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id w34so2341704qtc.16
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:14:26 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E43A6B0006
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 10:15:12 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id i125so3629684ywf.5
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 07:15:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=RSbIwFHU7AgL39gzc7AKZT10tSw1+jRY7LqhW/nACuE=;
-        b=YuN20r6uby8FSPLesWWA+J4dG1r0EZXsnssjAGEIohgtskoR3e+L5PzhKuqRnUTPVR
-         edov6+8P8ShrxdKrCuPTVla3amWThyXq/sKS6yAuO7P/n9Sq1YX/mULpomcLaA1qJLqG
-         d/Ta9WXCOLki3+tcC2kOuOBzCJ7UtBKbS5P12skepyKwlJ1cnx+/LzUr8Wbthx9AtyVA
-         Du/CyPnnfyU+tyhvqKrQadWlKRaV/vZzy3BZsk/NBlK3LL+UbkCV7QWeRGrhXsm49YhH
-         ZUWkr5hnwvuP5uJyZC9euOPMGrcBcnmsHevYPw4p9C8cWA7HSOOJ4JtPjx4Cl/0HbeXk
-         0BQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX+m17P7hqVmMoy8pfP8MWOXV7GCT3WSFrJVcVnor1HS+no2ACG
-	Q5POA0Q9OP6yruCPd5BBn+zImw2Flg9ieEu3joYWxI2d6BDUGRmSQOWAnv7TPpR1r8s9v9oF/ZP
-	Ow4Gk+jSgZocMU5RQAYQJ8z+jM1ok1IeUC2HFMq7rCDN1nEOOD+sloeVEhVYGCT2yyw==
-X-Received: by 2002:a05:620a:15fb:: with SMTP id p27mr2989321qkm.286.1556806465941;
-        Thu, 02 May 2019 07:14:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLWLGLY2kjW+e9dkfPnxTYNLWJ8KQaN7VGXkDj+DFANAvM0FCBskxvbDfzQsAzPqkeB3in
-X-Received: by 2002:a05:620a:15fb:: with SMTP id p27mr2989240qkm.286.1556806464811;
-        Thu, 02 May 2019 07:14:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556806464; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:references:mime-version
+         :content-transfer-encoding:message-id;
+        bh=yp+sOiItfdSb0p4J+FbjCXmcxJahy9U5G9+/91qoGk0=;
+        b=rnKB+GM3Gy9/1JEJxbWXN9tYx7PviP93xieiYMuoPdpGGEosHmgABRq7JIZul3wCpt
+         utmZP8/Is8R+UF5t2WIGgkyXteNi0h5joVyU/gt7RKfKvT+zoQfiafp3RhikOG6OvZmc
+         ewEgkAR2I4Qidq2O8H1hnwhc37Fd1POKVCVE7te1dFx4yOLcs6Q8m7Rv/J4TrNDtlLwV
+         3/p83rQU9dVGXKDN0lXmFbZRWef3FjCUX9gOx5pyRJ8zHeQRWYs+YDzkjuaEBRqYs034
+         Cib3SlDIWvwN98pjDWY070KReOkWhpYBCDdRQDoZMqbUW9TyUqRwQlbxYeNz4wh7ailE
+         /h+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVFhLCs11VaYZrlLrBd5kYZqSSm/0yGYzKZlYkPdL8E1YhpYLDK
+	ynTkYvXeaY+n/+9CR+WNi1Ee/yk6OcrZxb/zGD68G5bTG9AfUN+da91m2m3gRMi138FmSTSpkh/
+	Lb1w54PYbUeG7zQZ9jh6lILB5STDdP8gwhLnyAvvZG0yHECUo92iAVj5103X2Wvg2IA==
+X-Received: by 2002:a25:bec4:: with SMTP id k4mr3333785ybm.367.1556806512074;
+        Thu, 02 May 2019 07:15:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHjEUJIxlGbuNVvMy3O/MeR1CxKI/AiicDcNW+jzTt+dc4sDAKPhl8FBND1C9zqhqZ8+3P
+X-Received: by 2002:a25:bec4:: with SMTP id k4mr3333669ybm.367.1556806511012;
+        Thu, 02 May 2019 07:15:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556806511; cv=none;
         d=google.com; s=arc-20160816;
-        b=XEltw5ZAOQlFSorW3/H3s77FS5DhZU1HFgNX43IWyQWyPoBHyQEdcIxkVNGmlpgk+0
-         qsS9c6QWYa/WvsKf/pgOAT7Ogpodu5mRM6NlXILbAlpQ493G+hLM+U9bWmB1lvQ7uWPe
-         omkXXyFGa7H8yyiGSWmaRXJe/Wm+ftf9a0SmVo9g5kB5cskoZ+dZHM+Uahbcj+fAA5wg
-         mnTrM0Roen/4PX7jIisXZaRSOC+A9LDV0LlIxTZhX5H1IBiHzCRCktoJ125EMhq+ZLlh
-         qLy2Wtx0PrFKpFwQq5LBHdjS/sWY2BGskiC/iTT81C+0kNbeg9y8fCQpIjEmsEBFNEVx
-         YKPQ==
+        b=pcKKG/sS51HA2BJTRyKtVZHpVQtqy1FOfTGh7qF7bYuZGntfRBmB2Qb/EbSoPOZ7Zn
+         t2xkD7XMbDGw+zCeoNDMEteR/NEcS8OkRj47MYJ8wgMK2MzaEPCJtSaTTi62/Yy1gsR0
+         JQ8I5F0viPLaI+u6jjkff9TIOCyQ2D6uosw/m//h6itgPUJn0/UW6JKFN7FkU59vd6P5
+         sQPNenF0eQEZtVPMzu8vGvWyVvTUYDlafsRDBENk5IyMqbqwYlIBqmYUk7RB/vCxwmqT
+         0LYf6IFBqaNgHFIHvQjJvYS1wqvsaKzBT4wJc7GeUmw+J1/RgGI2lgw3zouuRIfZWrlY
+         U8GQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:to:subject;
-        bh=RSbIwFHU7AgL39gzc7AKZT10tSw1+jRY7LqhW/nACuE=;
-        b=U5NHm/rA1u81Bh5cPnI8Rhi74aXFd0097XzohBhwrOI0B44jOXLEJfAQp3iv+U/nBd
-         uE9MQVRaROE6N/wx68Kj9k36Qphv2M0sofxXGw08D/zgTY4qEh9jIA2TVa3XoInfc3yg
-         S3182Syf0wfGCqvS7kOPUicRvbb1RHfAxTerkxyqA6QYTGbHeuA4j393iGdk0J8u3G+3
-         QhK6ONBMsifioH8R04wsznsPHMYoCaZ/3cqJBHwRB6mOWw3xVkZOokAnWYqypQJoZXhx
-         7rShrrc6fYwvDlkSfiHp80qur/4wrJcl9jAPBQhHyqlcT7P+BkYAsdZo1wfQ+gsl94/H
-         Czag==
+        h=message-id:content-transfer-encoding:mime-version:references
+         :in-reply-to:subject:cc:to:from:date;
+        bh=yp+sOiItfdSb0p4J+FbjCXmcxJahy9U5G9+/91qoGk0=;
+        b=caV8CO90OsHkgcynUr3h5UrwlusQkJN+s6X81DVR5F8PYcwBSikaJwYh8cuZOei26j
+         rbEmPF8FqdcEPAftVLOCpBfBNam/h40gmLKxCKT1IURNTO+1ayLCYzUQmf00TYy7JIOF
+         z5ZZaOIpoAdB/mFhl6/NNamDRKOSPL93VpWIvuP+G1iXif0pqltNPeJlh7joqTlvEV4R
+         AYuXuneEEOGTDTNbS/34znJ86UVPftHWG75mb4VMoHpfcGD+XxLCrNnY577adrC/xGNp
+         Npbi9+5vHiCfo0N9/K0ccv0UOE1phqQ4HTZWIEtMRgGzjQTaU52tsXzYulXnhNxcAQxL
+         rCww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e35si4472253qte.32.2019.05.02.07.14.24
+       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q188si17704279ywg.353.2019.05.02.07.15.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 May 2019 07:14:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 02 May 2019 07:15:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 67B1C13A82;
-	Thu,  2 May 2019 14:14:23 +0000 (UTC)
-Received: from [10.36.117.88] (ovpn-117-88.ams2.redhat.com [10.36.117.88])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 51D3983179;
-	Thu,  2 May 2019 14:14:15 +0000 (UTC)
-Subject: Re: [v4 2/2] device-dax: "Hotremove" persistent memory that is used
- like normal RAM
-To: Pavel Tatashin <pasha.tatashin@soleen.com>, jmorris@namei.org,
- sashal@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-nvdimm@lists.01.org, akpm@linux-foundation.org, mhocko@suse.com,
- dave.hansen@linux.intel.com, dan.j.williams@intel.com,
- keith.busch@intel.com, vishal.l.verma@intel.com, dave.jiang@intel.com,
- zwisler@kernel.org, thomas.lendacky@amd.com, ying.huang@intel.com,
- fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com,
- baiyaowei@cmss.chinamobile.com, tiwai@suse.de, jglisse@redhat.com
-References: <20190501191846.12634-1-pasha.tatashin@soleen.com>
- <20190501191846.12634-3-pasha.tatashin@soleen.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
- dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
- QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
- XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
- Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
- PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
- WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
- UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
- jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
- B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
- ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
- BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
- 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
- xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
- jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
- s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
- m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
- MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
- z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
- dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
- UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
- 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
- uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
- 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
- 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
- xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
- 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
- hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
- u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
- gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
- rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
- BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
- KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
- NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
- YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
- lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
- qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
- C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
- W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
- TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
- +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <9e15bf41-8e74-3a76-c7b9-9712b2d5290b@redhat.com>
-Date: Thu, 2 May 2019 16:14:14 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x42EBHbD179867
+	for <linux-mm@kvack.org>; Thu, 2 May 2019 10:15:10 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2s80n5veg7-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 May 2019 10:15:10 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 2 May 2019 15:15:08 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 2 May 2019 15:15:01 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x42EF0kA20775166
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 2 May 2019 14:15:00 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id ED7FE42056;
+	Thu,  2 May 2019 14:14:59 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 1F74A42041;
+	Thu,  2 May 2019 14:14:59 +0000 (GMT)
+Received: from mschwideX1 (unknown [9.152.212.60])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Thu,  2 May 2019 14:14:59 +0000 (GMT)
+Date: Thu, 2 May 2019 16:14:57 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, akpm@linux-foundation.org,
+        linux-mm@kvack.org, Ard Biesheuvel
+ <ard.biesheuvel@linaro.org>,
+        Russell King <linux@armlinux.org.uk>,
+        Catalin
+ Marinas <catalin.marinas@arm.com>,
+        Will Deacon <will.deacon@arm.com>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Michal Hocko <mhocko@suse.com>, Logan Gunthorpe <logang@deltatee.com>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Dan Williams
+ <dan.j.williams@intel.com>, jglisse@redhat.com,
+        Mike Rapoport
+ <rppt@linux.vnet.ibm.com>, x86@kernel.org,
+        linux-efi@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+        linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org,
+        intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org
+Subject: Re: [PATCH] mm/pgtable: Drop pgtable_t variable from pte_fn_t
+ functions
+In-Reply-To: <20190502134623.GA18948@bombadil.infradead.org>
+References: <1556803126-26596-1-git-send-email-anshuman.khandual@arm.com>
+	<20190502134623.GA18948@bombadil.infradead.org>
+X-Mailer: Claws Mail 3.13.2 (GTK+ 2.24.30; x86_64-pc-linux-gnu)
 MIME-Version: 1.0
-In-Reply-To: <20190501191846.12634-3-pasha.tatashin@soleen.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 02 May 2019 14:14:24 +0000 (UTC)
+X-TM-AS-GCONF: 00
+x-cbid: 19050214-0020-0000-0000-000003389304
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050214-0021-0000-0000-0000218B1B48
+Message-Id: <20190502161457.1c9dbd94@mschwideX1>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-02_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905020096
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.05.19 21:18, Pavel Tatashin wrote:
-> It is now allowed to use persistent memory like a regular RAM, but
-> currently there is no way to remove this memory until machine is
-> rebooted.
+On Thu, 2 May 2019 06:46:23 -0700
+Matthew Wilcox <willy@infradead.org> wrote:
+
+> On Thu, May 02, 2019 at 06:48:46PM +0530, Anshuman Khandual wrote:
+> > Drop the pgtable_t variable from all implementation for pte_fn_t as none of
+> > them use it. apply_to_pte_range() should stop computing it as well. Should
+> > help us save some cycles.  
 > 
-> This work expands the functionality to also allows hotremoving
-> previously hotplugged persistent memory, and recover the device for use
-> for other purposes.
-> 
-> To hotremove persistent memory, the management software must first
-> offline all memory blocks of dax region, and than unbind it from
-> device-dax/kmem driver. So, operations should look like this:
-> 
-> echo offline > echo offline > /sys/devices/system/memory/memoryN/state
-> ...
-> echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
-> 
-> Note: if unbind is done without offlining memory beforehand, it won't be
-> possible to do dax0.0 hotremove, and dax's memory is going to be part of
-> System RAM until reboot.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-> ---
->  drivers/dax/dax-private.h |  2 +
->  drivers/dax/kmem.c        | 99 +++++++++++++++++++++++++++++++++++++--
->  2 files changed, 97 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
-> index a45612148ca0..999aaf3a29b3 100644
-> --- a/drivers/dax/dax-private.h
-> +++ b/drivers/dax/dax-private.h
-> @@ -53,6 +53,7 @@ struct dax_region {
->   * @pgmap - pgmap for memmap setup / lifetime (driver owned)
->   * @ref: pgmap reference count (driver owned)
->   * @cmp: @ref final put completion (driver owned)
-> + * @dax_mem_res: physical address range of hotadded DAX memory
->   */
->  struct dev_dax {
->  	struct dax_region *region;
-> @@ -62,6 +63,7 @@ struct dev_dax {
->  	struct dev_pagemap pgmap;
->  	struct percpu_ref ref;
->  	struct completion cmp;
-> +	struct resource *dax_kmem_res;
->  };
->  
->  static inline struct dev_dax *to_dev_dax(struct device *dev)
-> diff --git a/drivers/dax/kmem.c b/drivers/dax/kmem.c
-> index 4c0131857133..72b868066026 100644
-> --- a/drivers/dax/kmem.c
-> +++ b/drivers/dax/kmem.c
-> @@ -71,21 +71,112 @@ int dev_dax_kmem_probe(struct device *dev)
->  		kfree(new_res);
->  		return rc;
->  	}
-> +	dev_dax->dax_kmem_res = new_res;
->  
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +static int
-> +check_devdax_mem_offlined_cb(struct memory_block *mem, void *arg)
-> +{
-> +	/* Memory block device */
-> +	struct device *mem_dev = &mem->dev;
-> +	bool is_offline;
-> +
-> +	device_lock(mem_dev);
-> +	is_offline = mem_dev->offline;
-> +	device_unlock(mem_dev);
-> +
-> +	/*
-> +	 * Check that device-dax's memory_blocks are offline. If a memory_block
-> +	 * is not offline a warning is printed and an error is returned.
-> +	 */
-> +	if (!is_offline) {
-> +		/* Dax device device */
-> +		struct device *dev = (struct device *)arg;
-> +		struct dev_dax *dev_dax = to_dev_dax(dev);
-> +		struct resource *res = &dev_dax->region->res;
-> +		unsigned long spfn = section_nr_to_pfn(mem->start_section_nr);
-> +		unsigned long epfn = section_nr_to_pfn(mem->end_section_nr) +
-> +						       PAGES_PER_SECTION - 1;
-> +		phys_addr_t spa = spfn << PAGE_SHIFT;
-> +		phys_addr_t epa = epfn << PAGE_SHIFT;
-> +
-> +		dev_err(dev,
-> +			"DAX region %pR cannot be hotremoved until the next reboot. Memory block [%pa-%pa] is not offline.\n",
-> +			res, &spa, &epa);
-> +
-> +		return -EBUSY;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static int dev_dax_kmem_remove(struct device *dev)
-> +{
-> +	struct dev_dax *dev_dax = to_dev_dax(dev);
-> +	struct resource *res = dev_dax->dax_kmem_res;
-> +	resource_size_t kmem_start;
-> +	resource_size_t kmem_size;
-> +	unsigned long start_pfn;
-> +	unsigned long end_pfn;
-> +	int rc;
-> +
-> +	kmem_start = res->start;
-> +	kmem_size = resource_size(res);
-> +	start_pfn = kmem_start >> PAGE_SHIFT;
-> +	end_pfn = start_pfn + (kmem_size >> PAGE_SHIFT) - 1;
-> +
-> +	/*
-> +	 * Keep hotplug lock while checking memory state, and also required
-> +	 * during __remove_memory() call. Admin can't change memory state via
-> +	 * sysfs while this lock is kept.
-> +	 */
-> +	lock_device_hotplug();
-> +
-> +	/*
-> +	 * Walk and check that every singe memory_block of dax region is
-> +	 * offline. Hotremove can succeed only when every memory_block is
-> +	 * offlined beforehand.
-> +	 */
-> +	rc = walk_memory_range(start_pfn, end_pfn, dev,
-> +			       check_devdax_mem_offlined_cb);
-> +
-> +	/*
-> +	 * If admin has not offlined memory beforehand, we cannot hotremove dax.
-> +	 * Unfortunately, because unbind will still succeed there is no way for
-> +	 * user to hotremove dax after this.
-> +	 */
-> +	if (rc) {
-> +		unlock_device_hotplug();
-> +		return rc;
-> +	}
-> +
-> +	/* Hotremove memory, cannot fail because memory is already offlined */
-> +	__remove_memory(dev_dax->target_node, kmem_start, kmem_size);
-> +	unlock_device_hotplug();
-> +
-> +	/* Release and free dax resources */
-> +	release_resource(res);
-> +	kfree(res);
-> +	dev_dax->dax_kmem_res = NULL;
-> +
-> +	return 0;
-> +}
-> +#else
->  static int dev_dax_kmem_remove(struct device *dev)
->  {
->  	/*
-> -	 * Purposely leak the request_mem_region() for the device-dax
-> -	 * range and return '0' to ->remove() attempts. The removal of
-> -	 * the device from the driver always succeeds, but the region
-> -	 * is permanently pinned as reserved by the unreleased
-> +	 * Without hotremove purposely leak the request_mem_region() for the
-> +	 * device-dax range and return '0' to ->remove() attempts. The removal
-> +	 * of the device from the driver always succeeds, but the region is
-> +	 * permanently pinned as reserved by the unreleased
->  	 * request_mem_region().
->  	 */
->  	return 0;
->  }
-> +#endif /* CONFIG_MEMORY_HOTREMOVE */
->  
->  static struct dax_device_driver device_dax_kmem_driver = {
->  	.drv = {
+> You didn't add Martin Schwidefsky for some reason.  He introduced
+> it originally for s390 for sub-page page tables back in 2008 (commit
+> 2f569afd9c).  I think he should confirm that he no longer needs it.
+
+With its 2K pte tables s390 can not deal with a (struct page *) as a reference
+to a page table. But if there are no user of the apply_to_page_range() API
+left which actually make use of the token argument we can safely drop it.
+
+> > ---
+> > - Boot tested on arm64 and x86 platforms.
+> > - Build tested on multiple platforms with their defconfig
+> > 
+> >  arch/arm/kernel/efi.c          | 3 +--
+> >  arch/arm/mm/dma-mapping.c      | 3 +--
+> >  arch/arm/mm/pageattr.c         | 3 +--
+> >  arch/arm64/kernel/efi.c        | 3 +--
+> >  arch/arm64/mm/pageattr.c       | 3 +--
+> >  arch/x86/xen/mmu_pv.c          | 3 +--
+> >  drivers/gpu/drm/i915/i915_mm.c | 3 +--
+> >  drivers/xen/gntdev.c           | 6 ++----
+> >  drivers/xen/privcmd.c          | 6 ++----
+> >  drivers/xen/xlate_mmu.c        | 3 +--
+> >  include/linux/mm.h             | 3 +--
+> >  mm/memory.c                    | 5 +----
+> >  mm/vmalloc.c                   | 2 +-
+> >  13 files changed, 15 insertions(+), 31 deletions(-)
+> > 
+> > diff --git a/arch/arm/kernel/efi.c b/arch/arm/kernel/efi.c
+> > index 9f43ba012d10..b1f142a01f2f 100644
+> > --- a/arch/arm/kernel/efi.c
+> > +++ b/arch/arm/kernel/efi.c
+> > @@ -11,8 +11,7 @@
+> >  #include <asm/mach/map.h>
+> >  #include <asm/mmu_context.h>
+> >  
+> > -static int __init set_permissions(pte_t *ptep, pgtable_t token,
+> > -				  unsigned long addr, void *data)
+> > +static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	efi_memory_desc_t *md = data;
+> >  	pte_t pte = *ptep;
+> > diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> > index 43f46aa7ef33..739286511a18 100644
+> > --- a/arch/arm/mm/dma-mapping.c
+> > +++ b/arch/arm/mm/dma-mapping.c
+> > @@ -496,8 +496,7 @@ void __init dma_contiguous_remap(void)
+> >  	}
+> >  }
+> >  
+> > -static int __dma_update_pte(pte_t *pte, pgtable_t token, unsigned long addr,
+> > -			    void *data)
+> > +static int __dma_update_pte(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	struct page *page = virt_to_page(addr);
+> >  	pgprot_t prot = *(pgprot_t *)data;
+> > diff --git a/arch/arm/mm/pageattr.c b/arch/arm/mm/pageattr.c
+> > index 1403cb4a0c3d..c8b500940e1f 100644
+> > --- a/arch/arm/mm/pageattr.c
+> > +++ b/arch/arm/mm/pageattr.c
+> > @@ -22,8 +22,7 @@ struct page_change_data {
+> >  	pgprot_t clear_mask;
+> >  };
+> >  
+> > -static int change_page_range(pte_t *ptep, pgtable_t token, unsigned long addr,
+> > -			void *data)
+> > +static int change_page_range(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	struct page_change_data *cdata = data;
+> >  	pte_t pte = *ptep;
+> > diff --git a/arch/arm64/kernel/efi.c b/arch/arm64/kernel/efi.c
+> > index 4f9acb5fbe97..230cff073a08 100644
+> > --- a/arch/arm64/kernel/efi.c
+> > +++ b/arch/arm64/kernel/efi.c
+> > @@ -86,8 +86,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
+> >  	return 0;
+> >  }
+> >  
+> > -static int __init set_permissions(pte_t *ptep, pgtable_t token,
+> > -				  unsigned long addr, void *data)
+> > +static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	efi_memory_desc_t *md = data;
+> >  	pte_t pte = READ_ONCE(*ptep);
+> > diff --git a/arch/arm64/mm/pageattr.c b/arch/arm64/mm/pageattr.c
+> > index 6cd645edcf35..0be077628b21 100644
+> > --- a/arch/arm64/mm/pageattr.c
+> > +++ b/arch/arm64/mm/pageattr.c
+> > @@ -27,8 +27,7 @@ struct page_change_data {
+> >  
+> >  bool rodata_full __ro_after_init = IS_ENABLED(CONFIG_RODATA_FULL_DEFAULT_ENABLED);
+> >  
+> > -static int change_page_range(pte_t *ptep, pgtable_t token, unsigned long addr,
+> > -			void *data)
+> > +static int change_page_range(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	struct page_change_data *cdata = data;
+> >  	pte_t pte = READ_ONCE(*ptep);
+> > diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+> > index a21e1734fc1f..308a6195fd26 100644
+> > --- a/arch/x86/xen/mmu_pv.c
+> > +++ b/arch/x86/xen/mmu_pv.c
+> > @@ -2702,8 +2702,7 @@ struct remap_data {
+> >  	struct mmu_update *mmu_update;
+> >  };
+> >  
+> > -static int remap_area_pfn_pte_fn(pte_t *ptep, pgtable_t token,
+> > -				 unsigned long addr, void *data)
+> > +static int remap_area_pfn_pte_fn(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	struct remap_data *rmd = data;
+> >  	pte_t pte = pte_mkspecial(mfn_pte(*rmd->pfn, rmd->prot));
+> > diff --git a/drivers/gpu/drm/i915/i915_mm.c b/drivers/gpu/drm/i915/i915_mm.c
+> > index e4935dd1fd37..c23bb29e6d3e 100644
+> > --- a/drivers/gpu/drm/i915/i915_mm.c
+> > +++ b/drivers/gpu/drm/i915/i915_mm.c
+> > @@ -35,8 +35,7 @@ struct remap_pfn {
+> >  	pgprot_t prot;
+> >  };
+> >  
+> > -static int remap_pfn(pte_t *pte, pgtable_t token,
+> > -		     unsigned long addr, void *data)
+> > +static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	struct remap_pfn *r = data;
+> >  
+> > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> > index 7cf9c51318aa..f0df481e2697 100644
+> > --- a/drivers/xen/gntdev.c
+> > +++ b/drivers/xen/gntdev.c
+> > @@ -264,8 +264,7 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
+> >  
+> >  /* ------------------------------------------------------------------ */
+> >  
+> > -static int find_grant_ptes(pte_t *pte, pgtable_t token,
+> > -		unsigned long addr, void *data)
+> > +static int find_grant_ptes(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	struct gntdev_grant_map *map = data;
+> >  	unsigned int pgnr = (addr - map->vma->vm_start) >> PAGE_SHIFT;
+> > @@ -292,8 +291,7 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
+> >  }
+> >  
+> >  #ifdef CONFIG_X86
+> > -static int set_grant_ptes_as_special(pte_t *pte, pgtable_t token,
+> > -				     unsigned long addr, void *data)
+> > +static int set_grant_ptes_as_special(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	set_pte_at(current->mm, addr, pte, pte_mkspecial(*pte));
+> >  	return 0;
+> > diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+> > index b24ddac1604b..4c7268869e2c 100644
+> > --- a/drivers/xen/privcmd.c
+> > +++ b/drivers/xen/privcmd.c
+> > @@ -730,8 +730,7 @@ struct remap_pfn {
+> >  	unsigned long i;
+> >  };
+> >  
+> > -static int remap_pfn_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
+> > -			void *data)
+> > +static int remap_pfn_fn(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	struct remap_pfn *r = data;
+> >  	struct page *page = r->pages[r->i];
+> > @@ -965,8 +964,7 @@ static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
+> >   * on a per pfn/pte basis. Mapping calls that fail with ENOENT
+> >   * can be then retried until success.
+> >   */
+> > -static int is_mapped_fn(pte_t *pte, struct page *pmd_page,
+> > -	                unsigned long addr, void *data)
+> > +static int is_mapped_fn(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	return pte_none(*pte) ? 0 : -EBUSY;
+> >  }
+> > diff --git a/drivers/xen/xlate_mmu.c b/drivers/xen/xlate_mmu.c
+> > index e7df65d32c91..ba883a80b3c0 100644
+> > --- a/drivers/xen/xlate_mmu.c
+> > +++ b/drivers/xen/xlate_mmu.c
+> > @@ -93,8 +93,7 @@ static void setup_hparams(unsigned long gfn, void *data)
+> >  	info->fgfn++;
+> >  }
+> >  
+> > -static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
+> > -			void *data)
+> > +static int remap_pte_fn(pte_t *ptep, unsigned long addr, void *data)
+> >  {
+> >  	struct remap_data *info = data;
+> >  	struct page *page = info->pages[info->index++];
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 6b10c21630f5..f9509d57edc6 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -2595,8 +2595,7 @@ static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
+> >  	return 0;
+> >  }
+> >  
+> > -typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+> > -			void *data);
+> > +typedef int (*pte_fn_t)(pte_t *pte, unsigned long addr, void *data);
+> >  extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
+> >  			       unsigned long size, pte_fn_t fn, void *data);
+> >  
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index ab650c21bccd..dd0e64c94ddc 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -1952,7 +1952,6 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
+> >  {
+> >  	pte_t *pte;
+> >  	int err;
+> > -	pgtable_t token;
+> >  	spinlock_t *uninitialized_var(ptl);
+> >  
+> >  	pte = (mm == &init_mm) ?
+> > @@ -1965,10 +1964,8 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
+> >  
+> >  	arch_enter_lazy_mmu_mode();
+> >  
+> > -	token = pmd_pgtable(*pmd);
+> > -
+> >  	do {
+> > -		err = fn(pte++, token, addr, data);
+> > +		err = fn(pte++, addr, data);
+> >  		if (err)
+> >  			break;
+> >  	} while (addr += PAGE_SIZE, addr != end);
+> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > index e86ba6e74b50..94533beb6b68 100644
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -2332,7 +2332,7 @@ void __weak vmalloc_sync_all(void)
+> >  }
+> >  
+> >  
+> > -static int f(pte_t *pte, pgtable_t table, unsigned long addr, void *data)
+> > +static int f(pte_t *pte, unsigned long addr, void *data)
+> >  {
+> >  	pte_t ***p = data;
+> >  
+> > -- 
+> > 2.20.1
+> >   
 > 
 
-Memory unplug bits
-
-Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
+blue skies,
+   Martin.
 
-Thanks,
-
-David / dhildenb
+"Reality continues to ruin my life." - Calvin.
 
