@@ -7,79 +7,79 @@ X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 839A4C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 20:57:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D46AEC04AA9
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 20:57:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 411AC20578
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 20:57:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 86CFA2085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 20:57:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="faB2OjTU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 411AC20578
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="deYS98jc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86CFA2085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BA0736B0003; Thu,  2 May 2019 16:57:13 -0400 (EDT)
+	id 2C7A16B0005; Thu,  2 May 2019 16:57:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B29CA6B0005; Thu,  2 May 2019 16:57:13 -0400 (EDT)
+	id 276756B0007; Thu,  2 May 2019 16:57:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A18C96B0007; Thu,  2 May 2019 16:57:13 -0400 (EDT)
+	id 166296B0008; Thu,  2 May 2019 16:57:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 39CD56B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 16:57:13 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id l4so478105lfp.14
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 13:57:13 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A89496B0005
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 16:57:37 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id b22so640943lji.7
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 13:57:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=IM6gRPP9vGYAtrlAGvrZ2f9cRbqq+2XFYVZx5ounwgo=;
-        b=FsZjtQBusClQy5hAhmYozuEFYpJ0UxElc0LGQXx4NGQSxcfdXLQhkC3Coh9h8h/o/O
-         KOo/Cy1yZzueIhhB8r81XU3qX2HD0uZylw6nLFrGMsn7xeRMhuoS+4Wcj07jphCs33M7
-         m0cSctlKYp6ApTl674zITNU6FXu2KiTHqDSC7wu6Ism2ONNpUHrYqdJDn3mj+PTr8DhA
-         hIOamcS2f+LRXmxPPNnbaoRzf+4xUvgUr8pNDcXmbuNTtmLO4vRpO9lFrwe1w3sfC7BP
-         anhifDztcP4D4qFK8bfAo0e46P6qEXr7yUYF6Nw2JBQ5UANF/YKovFDgxkcmRXroam82
-         bp7A==
-X-Gm-Message-State: APjAAAVFx5Ln4RznqdSzQYGUGSURSOPHGx7L5/WKQ54cwQhU6mtyWo14
-	L28vXPJw1Cgrdj57ce1cQ6A8zZa8NCb29+Q7ICMmn4tuVzbciSUToCsNtt71HicSuM0CJhlaq2Y
-	pSrpPTB40Q1hSPQSfI1OGgT15p6iKOX602hNL3H7WDqJ6htjUvglMFDIJRc5dIm83Sg==
-X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr2744654lja.49.1556830632399;
-        Thu, 02 May 2019 13:57:12 -0700 (PDT)
-X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr2744619lja.49.1556830631442;
-        Thu, 02 May 2019 13:57:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556830631; cv=none;
+        bh=pBJ9w6lgY/gbDSyW6tu8FbPiPrRqqN8hgCcI/ouWv4M=;
+        b=RY+SvBYXRLCPOQM2J7neSKDV02xcpiF/DbFQnW0hGmHH8AIQR0VPlr2l1FoWLpo8CD
+         XaIcy80A+vJHuVGyjPELZb5yeP8WBF6csYi1a9TaSKFWcHpdpVLu2pdVTWocpXjLYtzP
+         RWqT7C49QMU++rIxaVeCobaXYXtFItmPeWMfGdDZfu7EwljZLZr8DMShZSVlD8p6PO5j
+         Cs/JWZwtc1h+lSeDp6u81ESKRDpDM9JmM+ItHeqweo8NCbNVKxD3pr3c4L/Zvh6F1JuC
+         eh6/Izw2kI1aaAlwKmMlV7zmqmlN/VVlvabmL7ne7IzWmKd/dBMCLHZM6Vj1Fahw+isH
+         q1UQ==
+X-Gm-Message-State: APjAAAUdDN4STRIAMJvwdjjafRSg3UPTusGJui7sj1T2vCHGqhtihm2r
+	ze4v8DVMwsv1xxf/12jPnwkaiGfSt5n770a1LEcwETPBz87N7XL2DgajMKOQNYYkQszcXPDSyT6
+	U0Mrfn97B+rrhmtzw7ugRTfiCpaWfco++f/HrWLrNgerXC5QQPnCMX4ycX6GgBeH0hQ==
+X-Received: by 2002:a19:40d8:: with SMTP id n207mr2957827lfa.70.1556830657101;
+        Thu, 02 May 2019 13:57:37 -0700 (PDT)
+X-Received: by 2002:a19:40d8:: with SMTP id n207mr2957804lfa.70.1556830656245;
+        Thu, 02 May 2019 13:57:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556830656; cv=none;
         d=google.com; s=arc-20160816;
-        b=WVdZ87w0CmLq8XwVIDwePJ+HpkLE7wCgFp4KIafFzeejqDKQopFnwolDHZMEoBzbsZ
-         V/zMhzNX1N7+JBppL6mAKsaFlbdz+iSs9CaJLTP4Oa7CQHojHoZkMDtbLZAWeP2K/OhS
-         9k0BLKGYXi8LCJfiSHLLfMuqzopFTNDmrzoxKo+J/YMNty2Er/Api/m2jLNT4mwooLZU
-         CamdEaMuqURogjf3P0GTe61MdbQYgAPvV68D09xa8kK2cpeNW6+xk/zOefZdtGc/PeN8
-         JHXtDNF/DcT7AdJYLnoMNFn6jpeZcBsUJKV9D8Uba9jyztFcH8Pqdi5QP6HCCvRC7WG9
-         L2QA==
+        b=08OkTwuhwBVp/1JW5lxDDw3sUJYVSXygmFuCB66X5eddanZ55qvY49vzAZPW630C3H
+         uyWyu1dUaWnjwedTkkSlW2FyqfBjf7XDjbAgjdOLEdprMhZ8jdDvxOQ9iVoTmWRUJVGZ
+         C+QBEobSoU56bPmZRUSQKO/wgMOWXDERs7sdOJ/7lSkSYeT9CQCcwDJq+wHn4a4RAcG4
+         KJ3JhoiS2VTFkdUReuJft8nxdAFu8pDPeCioEsead52LLeSFY0u3CTa35tIpCtuWaoEu
+         ITGP+iGi7X/Un/M3bIRjWFGidtV+GechXOemiPOG5E69KjCkr9d5iJnUAr4kHFlwGRFH
+         uSQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date:dkim-signature;
-        bh=IM6gRPP9vGYAtrlAGvrZ2f9cRbqq+2XFYVZx5ounwgo=;
-        b=OOMW6ZhBM222OEUkAwsjv/yTDWBeMT5EVGEHe1IAAHlQXK26asVuN6b5UE+csizIeN
-         eGsuFWe4Cktqf0qIsgwzXC7fZ8CZL796ALX4C9FVeyXZmnUQo3yXxLriygZW93AaHxTE
-         RHKF0msdB64lNGxS29KR/znGfcGffHy3nJxowP7nLrMZqiVmTf8fn7l9fxK6jRX7xmvI
-         z/gFIFuoBcB2KCAqEAhh8NByyxm3XDBoP+MQNfJYNebgq2LckJcpwDqjRf0LZ6x2KaGb
-         uzvRO7LLhcw4l71BxhUbP6qCdBkDmkjFFN6j5mO70IonAdnEbHlmCmg8+TzPQgX08Ibh
-         TNPg==
+        bh=pBJ9w6lgY/gbDSyW6tu8FbPiPrRqqN8hgCcI/ouWv4M=;
+        b=PVgzG+WzC9jLPPQw/zBg27As/aU48VHa4caUx3ki/IVvYkYac90xW9oabkLQCFL3HR
+         s/9DH2UQYhj09lX+lUVwDydO9Ej34SzZVES1ucVs6a2mU9zXSjRHbdqCRgzs5GeiB3ic
+         AJyHdb3hOoFfXrfqYvjS1KAiFVNNLqfIF6VB1XMyt9bSZlvWTJMCndjrFTA8yZi6MiNy
+         fYB5OkN55ZGJK5aht2gbFp9LI3PRA4yuNNWjLOXKua51oEiAX1vlLBZ7Z0Oo8hYNfUiY
+         zM70615mluoUf0AlP1n3qjGt3fFfQcZRyk1ugcbUPSW2s85sV0IECQfOUBWQKRPTh8Pw
+         N5wA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=faB2OjTU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=deYS98jc;
        spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t6sor87454ljj.15.2019.05.02.13.57.11
+        by mx.google.com with SMTPS id e10sor129600lfb.28.2019.05.02.13.57.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 May 2019 13:57:11 -0700 (PDT)
+        Thu, 02 May 2019 13:57:36 -0700 (PDT)
 Received-SPF: pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=faB2OjTU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=deYS98jc;
        spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
@@ -87,23 +87,23 @@ DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:content-transfer-encoding:in-reply-to
          :user-agent;
-        bh=IM6gRPP9vGYAtrlAGvrZ2f9cRbqq+2XFYVZx5ounwgo=;
-        b=faB2OjTUqLUYYuLoMp7WpkRaNTZEgletqliLc0MZ4+/osrjMIZcLCcfxLJ8eZrgc+F
-         pPhuKsTJfgrf8obzFfOQ9DBQswWwpy3rOilB/ZqgtZ6P7FAtpvwKlPGCcsEZiNfQYsGP
-         sFT/rV14J7xZDOI0G93FUODYhEA2zSR6VoQx36G9kvuAdRt0XaRmiCNreHLM2HzGfI4T
-         3e9FrHEO6d1DITNJXERhocTux647SkuM3zhlBM7n5lgxHkHVHWyrFTMyBy0e5dwPzHs4
-         TLM3Hd9ZAhHg8Dpoasypghsr0LCvxn8F7uUpb05vRxf2ntvETOQUwmk7zJWZN6NrlsUv
-         qr9A==
-X-Google-Smtp-Source: APXvYqzpsjoV1s1hnIKwSS9e7RCryB3e50vVNZv0WlsQ5f+zrRhCvMjengCjsMlTvvMImTqrwmPAng==
-X-Received: by 2002:a2e:81d0:: with SMTP id s16mr3098436ljg.145.1556830631022;
-        Thu, 02 May 2019 13:57:11 -0700 (PDT)
+        bh=pBJ9w6lgY/gbDSyW6tu8FbPiPrRqqN8hgCcI/ouWv4M=;
+        b=deYS98jcrPo1YtSz5GL3B0iQfozu+v1yEvuPzAsdsWGhfbJyvv724RHPDCPBBUz193
+         YmuuZ+3J9FDyqp4UAwMQnt6Danwa/3aTV1V/HxcOnba0F5DXgFVk8oJcsWcEBkao3Wau
+         TDnrwHrKm3VF+k3A+EikcEYFO60/XJVCPvWztbFMfjxcKEDbQ6O5UvIjRLKjAhTcKMeg
+         gWN4c3Y6aFwxybH+m+zq+OulOAjA6Fi7S2F2PDtnO/K+i+CDvNMhWXzzp1X8VRuAkqXM
+         6ybTE89hB3ATBTkF4BitNCuLpA1YRtrkGikfV8/THNgtw6c/rGI9wxPDTBznvH9+NEkS
+         5m8Q==
+X-Google-Smtp-Source: APXvYqxpwSHaqM6yCkiO3Pu3fwtOtpblG0k9kQIfYRQCf8nihjcaltZKVv+2R0xqJFSn+bFWlEOiAQ==
+X-Received: by 2002:ac2:5307:: with SMTP id c7mr3062605lfh.58.1556830655847;
+        Thu, 02 May 2019 13:57:35 -0700 (PDT)
 Received: from uranus.localdomain ([5.18.103.226])
-        by smtp.gmail.com with ESMTPSA id z16sm40915lfi.9.2019.05.02.13.57.09
+        by smtp.gmail.com with ESMTPSA id j9sm11251lja.92.2019.05.02.13.57.34
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 02 May 2019 13:57:09 -0700 (PDT)
+        Thu, 02 May 2019 13:57:34 -0700 (PDT)
 Received: by uranus.localdomain (Postfix, from userid 1000)
-	id 4AE3B4603CA; Thu,  2 May 2019 23:57:09 +0300 (MSK)
-Date: Thu, 2 May 2019 23:57:09 +0300
+	id 4DA9D4603CA; Thu,  2 May 2019 23:57:34 +0300 (MSK)
+Date: Thu, 2 May 2019 23:57:34 +0300
 From: Cyrill Gorcunov <gorcunov@gmail.com>
 To: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>
 Cc: akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
@@ -111,17 +111,16 @@ Cc: akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
 	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mguzik@redhat.com,
 	mhocko@kernel.org, rppt@linux.ibm.com, vbabka@suse.cz,
 	ktkhai@virtuozzo.com
-Subject: Re: [PATCH v3 1/2] prctl_set_mm: Refactor checks from
- validate_prctl_map
-Message-ID: <20190502205709.GD2488@uranus.lan>
+Subject: Re: [PATCH v3 2/2] prctl_set_mm: downgrade mmap_sem to read lock
+Message-ID: <20190502205734.GE2488@uranus.lan>
 References: <0a48e0a2-a282-159e-a56e-201fbc0faa91@virtuozzo.com>
  <20190502125203.24014-1-mkoutny@suse.com>
- <20190502125203.24014-2-mkoutny@suse.com>
+ <20190502125203.24014-3-mkoutny@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190502125203.24014-2-mkoutny@suse.com>
+In-Reply-To: <20190502125203.24014-3-mkoutny@suse.com>
 User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,21 +128,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 02, 2019 at 02:52:02PM +0200, Michal Koutný wrote:
-> Despite comment of validate_prctl_map claims there are no capability
-> checks, it is not completely true since commit 4d28df6152aa ("prctl:
-> Allow local CAP_SYS_ADMIN changing exe_file"). Extract the check out of
-> the function and make the function perform purely arithmetic checks.
+On Thu, May 02, 2019 at 02:52:03PM +0200, Michal Koutný wrote:
+> The commit a3b609ef9f8b ("proc read mm's {arg,env}_{start,end} with mmap
+> semaphore taken.") added synchronization of reading argument/environment
+> boundaries under mmap_sem. Later commit 88aa7cc688d4 ("mm: introduce
+> arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> avoided the coarse use of mmap_sem in similar situations. But there
+> still remained two places that (mis)use mmap_sem.
 > 
-> This patch should not change any behavior, it is mere refactoring for
-> following patch.
+> get_cmdline should also use arg_lock instead of mmap_sem when it reads the
+> boundaries.
 > 
-> v1, v2: ---
-> v3: Remove unused mm variable from validate_prctl_map_addr
+> The second place that should use arg_lock is in prctl_set_mm. By
+> protecting the boundaries fields with the arg_lock, we can downgrade
+> mmap_sem to reader lock (analogous to what we already do in
+> prctl_set_mm_map).
 > 
-> CC: Kirill Tkhai <ktkhai@virtuozzo.com>
+> v2: call find_vma without arg_lock held
+> v3: squashed get_cmdline arg_lock patch
+> 
+> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Mateusz Guzik <mguzik@redhat.com>
 > CC: Cyrill Gorcunov <gorcunov@gmail.com>
+> Co-developed-by: Laurent Dufour <ldufour@linux.ibm.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
 > Signed-off-by: Michal Koutný <mkoutny@suse.com>
-> Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 Reviewed-by: Cyrill Gorcunov <gorcunov@gmail.com>
 
