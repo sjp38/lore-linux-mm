@@ -4,115 +4,107 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CB42C43219
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 22:36:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96B46C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 22:46:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFA5820645
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 22:36:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 351BD206DF
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 22:46:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="X5ETGGaJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFA5820645
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="VyGHNfvl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 351BD206DF
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 64DCB6B0003; Thu,  2 May 2019 18:36:13 -0400 (EDT)
+	id C5FC06B0007; Thu,  2 May 2019 18:46:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FD256B0005; Thu,  2 May 2019 18:36:13 -0400 (EDT)
+	id C0F366B0008; Thu,  2 May 2019 18:46:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C63F6B0007; Thu,  2 May 2019 18:36:13 -0400 (EDT)
+	id AD86C6B000A; Thu,  2 May 2019 18:46:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F2B4B6B0003
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 18:36:12 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id h12so1847890edl.23
-        for <linux-mm@kvack.org>; Thu, 02 May 2019 15:36:12 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 63C3C6B0007
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 18:46:22 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c1so880691edi.20
+        for <linux-mm@kvack.org>; Thu, 02 May 2019 15:46:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=wzidWzynEo/DXM93j3mYhduzzCvKaQ+YtgjP83dctao=;
-        b=kkaXn4lSkPLxP+/TySA1N7ooSb4KFsCyh2JHMjlzmVD8v2CrBbZH7kg00uD9C8C1pk
-         Rimbw1hNW3EVNoZa35Ucv9bhmEUpxsFF57mIxF185PZ1KFsvVSma0jRf9habYovhjED4
-         Ef8rPXKwUTF0YKoaPprmxdSYCluYNxQhrsznsbDXykgAbi3L5DWprnn4Mrl/slsyYeUt
-         OppBuhg0zoyZ7MmVeexPHq5R/YY+I/g1SjaAHoxlFTo2ERKWc33gwT+KsUZKVZKVJCXo
-         d2BBMjKwPZPPUN+Fm/++TpSbgXOuvKi6XjOqn6dOUXc1Mik0q0m1YTt3f3fSYWfDCrKp
-         1ITg==
-X-Gm-Message-State: APjAAAWlDKgvBetOLvYzAkbKgkabxC59f1G7SnUfYlX/IOog3/89ayLx
-	u/h1+rqIsjLIiGlsf1aHZGa9i0qq7yGkv7vxFMxldWiCQkVkg/cw2ZBeLEjOu0eAp+ExDE0lx/O
-	p6ptxfecCamxg1ou192AT0rzL0CMxXePjIsavwBco+OfmSX9kRL1JxpfCEhtl13gI4g==
-X-Received: by 2002:a17:906:b754:: with SMTP id fx20mr1071305ejb.88.1556836572436;
-        Thu, 02 May 2019 15:36:12 -0700 (PDT)
-X-Received: by 2002:a17:906:b754:: with SMTP id fx20mr1071272ejb.88.1556836571631;
-        Thu, 02 May 2019 15:36:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556836571; cv=none;
+        bh=GA6AE3nbkJUtYedDned7ovjPAtRn38Gv/WcLw3WyhRM=;
+        b=rLU0fDxvdE0r8SU/FdWjQgsre0cfeWUFPNkYT565S28JBQx2V3xTnoTfVruVA+pyLS
+         5r0SSSDmwi0YDeZBQeCCH7cuJT4t0h/HIYRhH7Ftmv3pPlx7oSZVFdNlfvREmsf5KaCl
+         BP+/J3miAqzYmo/bSO8nYqmPT4m8UKbFhyJt7ykPOdqjbuM3lp0Plh9mnS3CC7sK19Pj
+         561KwxjIL/uHhekLXNanODqGuo41viwTPum05uhVsH1bA5vXIeu9ZCvpb6RBYMp1/uxu
+         H6GoMV3WbG9d+/+wllRbrolZL0g+LnMYWnXfTMzRUAAOgz1UD1LFbTyiwzkMJGllvCDW
+         frGg==
+X-Gm-Message-State: APjAAAV9m8H7NDv1l0DgjHLipFg9qyD2twrMsGobaOeZ5UihHS4KclZC
+	AXwT5rRuI5AL6Ax4A7mjC+NV9kZtcwihnI1ZscXQNb8XoN3HwVpbTHVZlhIzCcMkgpslb7C8utC
+	Om1DbbT4pWagn8xfzbSln9gS0uEu6JuBFlH9KLZrdnBVcvLMRzTUXQ787P4qvBCHtLg==
+X-Received: by 2002:aa7:db50:: with SMTP id n16mr4378178edt.108.1556837181975;
+        Thu, 02 May 2019 15:46:21 -0700 (PDT)
+X-Received: by 2002:aa7:db50:: with SMTP id n16mr4378114edt.108.1556837181075;
+        Thu, 02 May 2019 15:46:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556837181; cv=none;
         d=google.com; s=arc-20160816;
-        b=D5EIPv0zELyAmORA2LD58TDbGbacgC2DlW+tYykaW6Xn1PGRqgq0hhSOw/6eJRD1+r
-         ZFRdJ3tOYs2oLPHlvJKmOV9gX3cqztlJzedkE2lrJXkwH8/h5gSsn9dYD29uqmjPOBhp
-         ez8oNuJc3/ZrTgEIwCqLO0BaxzBdfRkk7mo5TVdDe8B/0R2VOu4mwwyS77u8HdxLUKh3
-         NNhBdwYeUkrvHnHClhvoTsVOyNMv38IdE/WOhpcYwDSNDr9fjoE1/OXdaihbKE7x1c2T
-         wM1LpNbbHi3qNvjhUc5O9v6d+WBf/1oD4dy+YyvkD/cbdopxeNLS/FgUJ2dQ6cYb+x/x
-         d44Q==
+        b=ECxrZ6n1Hyk60e1/01vh+9jr46n8MGwWe3pnH/VmCoumV7CMWoDR1d5xgCvaTV4QgJ
+         As7iCX9xSWI4fGcoAk4QIc2QyvihlKOPwR97C6ouqlcaahZPU2wEBRBIJig39mEVPHPd
+         c+DWlFeswCDP2Xmh6FD0BrW5m+oIaT7UBTVFz86xpk05G5zyjjVLOh9U1X6XnDgkdKTA
+         JQSR+nOeNb6tqDV98R5qHteTS/Pctd5R8zCetLnC+VAinYI/fDM5i2l3F35y306GCcbL
+         VWg2p0J7EoOhq9eufLK437oZSfMEzH8dRQ+KjunmnUk26b+5NjX14OmxH391EzSy7j1w
+         9Iww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=wzidWzynEo/DXM93j3mYhduzzCvKaQ+YtgjP83dctao=;
-        b=Xj1xCdo8s8FuIbgfnK6Qd3Hx8ytg7ldffZ0+eG+75WS18h8Lfud7ECLqObzsX0XB8J
-         1cTpXEGTuNWS7zYX4HYL54bGRE6QR9JLUOVOIQZeEdMCL/w7EOi/aD303WcS7xt4lTtn
-         +4DDSLvFdiOPddww7Ax8gDnn4NwYNZl3380REu/IF7h9Uhvu8o3LA3IjYgAwyDLbG8dt
-         WymSnSLY5VnMpp2hT/3/xFj4QXImaJXyfRmig9jPfp2mDRYcfc+2cydotZ/2nxajV/hm
-         XQCo6MFQ2hruKTSaWQEVLoF5QG2GRrXufMoS3GMyKGX38gIdeFi0ULyfL7abkqIJ9us+
-         C3iA==
+        bh=GA6AE3nbkJUtYedDned7ovjPAtRn38Gv/WcLw3WyhRM=;
+        b=UsZWPL9vp43kBdLV/siz0m7y/hDLdfTWuyZA1IP57Y9i/8WtXsr8JAz3lMNpckAmkG
+         XN7fg5w7QFHaSUda4gzP7o1XpZjOEDrJMFwNICmSPNTDE/RfJ75lTC82J23R5jKYlWG7
+         QFVYsDBmE5sSWz4niml6Hf7nUmhLqKsF/v4CZ2FAGzVvGeMdmHSLsy3NQqMe4R/pHp82
+         X0L9Diz97dxo4/3t8K0Av8mH9ydZHUiCtrbi1YBkqOLN5UX5j2ywboqfQ3qTXzJCGvPh
+         cWN4yM3nmQ1THjaFWeqDXcDXxpj2qyi4HBnvIWQ/y1xY5a7vkysHgZoadyZEQKGt6r/Y
+         vAsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=X5ETGGaJ;
+       dkim=pass header.i=@soleen.com header.s=google header.b=VyGHNfvl;
        spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4sor132618ejn.20.2019.05.02.15.36.11
+        by mx.google.com with SMTPS id i6sor243052edd.12.2019.05.02.15.46.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 May 2019 15:36:11 -0700 (PDT)
+        Thu, 02 May 2019 15:46:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b=X5ETGGaJ;
+       dkim=pass header.i=@soleen.com header.s=google header.b=VyGHNfvl;
        spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=soleen.com; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=wzidWzynEo/DXM93j3mYhduzzCvKaQ+YtgjP83dctao=;
-        b=X5ETGGaJfQHGRUSnWQGIOq/DgYJrpmnwNLAnBCGvjMzs0IYe8H4k40vhnG0x0PtTXp
-         sWQK2U+FmSPBGJ7GR24/JK9f/hCOJYyze5MUGSel6z7iEB2sqXVMPf6aTn86R4AaP5pn
-         6FQEVIGwKuIcdbr4sts+qszeoBo6aIl94MXIXsfPMXP6bKsBgX72s1UofOvqOnoksME5
-         Pe6MLS/OzDiGFJY2jo8fG3gHRVo3/NlsmLVP785V1Tu7GO8PNXBXjVIm7U0cXNqw9t+9
-         Pj427ef28DFtRCbdaODf41bCvVkT1US/U8Mq5PyhZKAJJ46/wRGm0zL69PqfxQgIYKkB
-         BZPw==
-X-Google-Smtp-Source: APXvYqzM3pTNRpb2+kI4mLKyKA2mBJRU32x6x6ySml+fIWvJtXTuJ/Ut8dgCtm/xHIYirHmupbd6Gt2T77m3feSDsdY=
-X-Received: by 2002:a17:906:3154:: with SMTP id e20mr3210549eje.263.1556836571272;
- Thu, 02 May 2019 15:36:11 -0700 (PDT)
+        bh=GA6AE3nbkJUtYedDned7ovjPAtRn38Gv/WcLw3WyhRM=;
+        b=VyGHNfvlwO8ONwk/KifhHlo6j+UxiIO6vZVAJEIh/1HVZiBQdm6hsv7Pe0s7LBhtib
+         DYwvUG89sAGEQgMraZsleAVrkfz3yCSF5e3mdty7AI3w8fvGzLvrD6iNdbwKzPPO6tB2
+         WB6DAwnVzZVm4VW3ZepbbgIK47+nbIKMwSPeEpBw3fktP/V2czpbTX5jTue1sPbgj/eG
+         6O2VZ1pwM/NbdV22t+0aEDCpaSSB5dVP9kd5aYfREuFkFv28OxBKfCldjaWjhv274Pe7
+         2KZs9Qw1vLvH2eDnNdOeFw5/7sMhPbarlsTLuWEEHjLPnsnzTcCJN1/Gaatld2q9auYL
+         jgjQ==
+X-Google-Smtp-Source: APXvYqyxp62Y9u8Dg6nAw9ZEhyrJmqsbIRm9Uomm765huXXDRUc3RQdFsZu/ihmrxpq8Al0EC7JMIkEOIXHtl4sV7+o=
+X-Received: by 2002:a50:fb19:: with SMTP id d25mr4513007edq.61.1556837180746;
+ Thu, 02 May 2019 15:46:20 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190502184337.20538-1-pasha.tatashin@soleen.com>
- <76dfe7943f2a0ceaca73f5fd23e944dfdc0309d1.camel@intel.com>
- <CA+CK2bA=E4zRFb0Qky=baOQi_LF4x4eu8KVdEkhPJo3wWr8dYQ@mail.gmail.com> <9bf70d80718d014601361f07813b68e20b089201.camel@intel.com>
-In-Reply-To: <9bf70d80718d014601361f07813b68e20b089201.camel@intel.com>
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
 From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Thu, 2 May 2019 18:36:00 -0400
-Message-ID: <CA+CK2bBRwFN342x3t77CBrFTrXUn3VMn6a-cf-y0fF+2DBYpbA@mail.gmail.com>
-Subject: Re: [v5 0/3] "Hotremove" persistent memory
-To: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, 
-	"sashal@kernel.org" <sashal@kernel.org>, "bp@suse.de" <bp@suse.de>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "david@redhat.com" <david@redhat.com>, 
-	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "tiwai@suse.de" <tiwai@suse.de>, 
-	"Williams, Dan J" <dan.j.williams@intel.com>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, 
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, 
-	"zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, 
-	"Jiang, Dave" <dave.jiang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, 
-	"Busch, Keith" <keith.busch@intel.com>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, 
-	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
+Date: Thu, 2 May 2019 18:46:09 -0400
+Message-ID: <CA+CK2bBT=goxf5KWLhca7uQutUj9670aL9r02_+BsJ+bLkjj=g@mail.gmail.com>
+Subject: Re: [PATCH v6 00/12] mm: Sub-section memory hotplug support
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <david@redhat.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>, Jeff Moyer <jmoyer@redhat.com>, 
+	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, stable <stable@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -120,72 +112,59 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 2, 2019 at 6:29 PM Verma, Vishal L <vishal.l.verma@intel.com> wrote:
->
-> On Thu, 2019-05-02 at 17:44 -0400, Pavel Tatashin wrote:
->
-> > > In running with these patches, and testing the offlining part, I ran
-> > > into the following lockdep below.
-> > >
-> > > This is with just these three patches on top of -rc7.
-> >
-> > Hi Verma,
-> >
-> > Thank you for testing. I wonder if there is a command sequence that I
-> > could run to reproduce it?
-> > Also, could you please send your config and qemu arguments.
-> >
-> Yes, here is the qemu config:
->
-> qemu-system-x86_64
->         -machine accel=kvm
->         -machine pc-i440fx-2.6,accel=kvm,usb=off,vmport=off,dump-guest-core=off,nvdimm
->         -cpu Haswell-noTSX
->         -m 12G,slots=3,maxmem=44G
->         -realtime mlock=off
->         -smp 8,sockets=2,cores=4,threads=1
->         -numa node,nodeid=0,cpus=0-3,mem=6G
->         -numa node,nodeid=1,cpus=4-7,mem=6G
->         -numa node,nodeid=2
->         -numa node,nodeid=3
->         -drive file=/virt/fedora-test.qcow2,format=qcow2,if=none,id=drive-virtio-disk1
->         -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x9,drive=drive-virtio-disk1,id=virtio-disk1,bootindex=1
->         -object memory-backend-file,id=mem1,share,mem-path=/virt/nvdimm1,size=16G,align=128M
->         -device nvdimm,memdev=mem1,id=nv1,label-size=2M,node=2
->         -object memory-backend-file,id=mem2,share,mem-path=/virt/nvdimm2,size=16G,align=128M
->         -device nvdimm,memdev=mem2,id=nv2,label-size=2M,node=3
->         -serial stdio
->         -display none
->
-> For the command list - I'm using WIP patches to ndctl/daxctl to add the
-> command I mentioned earlier. Using this command, I can reproduce the
-> lockdep issue. I thought I should be able to reproduce the issue by
-> onlining/offlining through sysfs directly too - something like:
->
->    node="$(cat /sys/bus/dax/devices/dax0.0/target_node)"
->    for mem in /sys/devices/system/node/node"$node"/memory*; do
->      echo "offline" > $mem/state
->    done
->
-> But with that I can't reproduce the problem.
->
-> I'll try to dig a bit deeper into what might be happening, the daxctl
-> modifications simply amount to doing the same thing as above in C, so
-> I'm not immediately sure what might be happening.
->
-> If you're interested, I can post the ndctl patches - maybe as an RFC -
-> to test with.
+Hi Dan,
 
-I could apply the patches and test with them. Also, could you please
-send your kernel config.
+How do you test these patches? Do you have any instructions?
+
+I see for example that check_hotplug_memory_range() still enforces
+memory_block_size_bytes() alignment.
+
+Also, after removing check_hotplug_memory_range(), I tried to online
+16M aligned DAX memory, and got the following panic:
+
+# echo online > /sys/devices/system/memory/memory7/state
+[  202.193132] WARNING: CPU: 2 PID: 351 at drivers/base/memory.c:207
+memory_block_action+0x110/0x178
+[  202.193391] Modules linked in:
+[  202.193698] CPU: 2 PID: 351 Comm: sh Not tainted
+5.1.0-rc7_pt_devdax-00038-g865af4385544-dirty #9
+[  202.193909] Hardware name: linux,dummy-virt (DT)
+[  202.194122] pstate: 60000005 (nZCv daif -PAN -UAO)
+[  202.194243] pc : memory_block_action+0x110/0x178
+[  202.194404] lr : memory_block_action+0x90/0x178
+[  202.194506] sp : ffff000016763ca0
+[  202.194592] x29: ffff000016763ca0 x28: ffff80016fd29b80
+[  202.194724] x27: 0000000000000000 x26: 0000000000000000
+[  202.194838] x25: ffff000015546000 x24: 00000000001c0000
+[  202.194949] x23: 0000000000000000 x22: 0000000000040000
+[  202.195058] x21: 00000000001c0000 x20: 0000000000000008
+[  202.195168] x19: 0000000000000007 x18: 0000000000000000
+[  202.195281] x17: 0000000000000000 x16: 0000000000000000
+[  202.195393] x15: 0000000000000000 x14: 0000000000000000
+[  202.195505] x13: 0000000000000000 x12: 0000000000000000
+[  202.195614] x11: 0000000000000000 x10: 0000000000000000
+[  202.195744] x9 : 0000000000000000 x8 : 0000000180000000
+[  202.195858] x7 : 0000000000000018 x6 : ffff000015541930
+[  202.195966] x5 : ffff000015541930 x4 : 0000000000000001
+[  202.196074] x3 : 0000000000000001 x2 : 0000000000000000
+[  202.196185] x1 : 0000000000000070 x0 : 0000000000000000
+[  202.196366] Call trace:
+[  202.196455]  memory_block_action+0x110/0x178
+[  202.196589]  memory_subsys_online+0x3c/0x80
+[  202.196681]  device_online+0x6c/0x90
+[  202.196761]  state_store+0x84/0x100
+[  202.196841]  dev_attr_store+0x18/0x28
+[  202.196927]  sysfs_kf_write+0x40/0x58
+[  202.197010]  kernfs_fop_write+0xcc/0x1d8
+[  202.197099]  __vfs_write+0x18/0x40
+[  202.197187]  vfs_write+0xa4/0x1b0
+[  202.197295]  ksys_write+0x64/0xd8
+[  202.197430]  __arm64_sys_write+0x18/0x20
+[  202.197521]  el0_svc_common.constprop.0+0x7c/0xe8
+[  202.197621]  el0_svc_handler+0x28/0x78
+[  202.197706]  el0_svc+0x8/0xc
+[  202.197828] ---[ end trace 57719823dda6d21e ]---
 
 Thank you,
 Pasha
-
->
-> Thanks,
-> -Vishal
->
->
->
 
