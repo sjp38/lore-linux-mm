@@ -2,103 +2,102 @@ Return-Path: <SRS0=Mdb/=TC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CA41C04AA8
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19022C43219
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFDCC2085A
-	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFDCC2085A
+	by mail.kernel.org (Postfix) with ESMTP id BC5FB2085A
+	for <linux-mm@archiver.kernel.org>; Thu,  2 May 2019 06:09:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC5FB2085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 61E8B6B0005; Thu,  2 May 2019 02:09:11 -0400 (EDT)
+	id 6E1D46B0006; Thu,  2 May 2019 02:09:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CF0F6B0006; Thu,  2 May 2019 02:09:11 -0400 (EDT)
+	id 692556B0007; Thu,  2 May 2019 02:09:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4BF0A6B0007; Thu,  2 May 2019 02:09:11 -0400 (EDT)
+	id 5820A6B0008; Thu,  2 May 2019 02:09:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 124C86B0005
-	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:09:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id s19so730096plp.6
-        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:09:11 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C5526B0006
+	for <linux-mm@kvack.org>; Thu,  2 May 2019 02:09:16 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e20so693722pfn.8
+        for <linux-mm@kvack.org>; Wed, 01 May 2019 23:09:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=MwqWU+4hGbok5ssY59rht/KDrBfy+4irWdo1mz/1chg=;
-        b=TqfLhdQ46GOV4pYCfsKh/tjR6YciRsNTjUvy25LIxghBjpxeYGHCXD7Tz7Iwz6qwkn
-         rq66aN7gsx+4FHewpvymxwu25ocg28k+HFM6FLEHb/6hlrJOwA9vRLZW05yRkzcZtewK
-         wvYaw+9okWPlHvzKtW83uj4UsDwM6s7Dwkoq1V45Q2djxr8e3ZChujy6/OIxYSmZOBE6
-         pPWbm3G7Lp+Lrvhc58x2DCqZIcTB4WFKKD5CX40KOwWN1luP+52OLLgzD8BiIUbpBdDn
-         H+K5dIZivaCJHXuGvPtFrneJtezAtdFiCy0hah2IXCpIC2BwILlV7pC0XeeZGr+bOGfq
-         X2hg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWYwMexsRrGGHFBtZgjS9zALGTd8r0QL+qes9khqVBSFAZXAhA7
-	kwx5sZATj2nEQmETlerF9tnI2y1jzrOK7mdKPw/DOAl727TxdD8MO3a2wJRWSMlGY5HbS4KZ+HG
-	BfS8oYELoVZSWEZxGMItVIWCACmGJjlFev2/ejLY/xnSw/yhDY0DdjKTmNERXy4sBLA==
-X-Received: by 2002:a63:2c4a:: with SMTP id s71mr2118182pgs.373.1556777350668;
-        Wed, 01 May 2019 23:09:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEQrGDVmzdjbLwkcYIL4rFXyz4mLb5+GyHkIvIB98+7TwI7ZhHoDFp8a2GHXxpbWYoIUBG
-X-Received: by 2002:a63:2c4a:: with SMTP id s71mr2118073pgs.373.1556777349628;
-        Wed, 01 May 2019 23:09:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556777349; cv=none;
+         :to:cc:date:message-id:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=ukeS8qbSSwdoP/rEe42M2gnUvzgXCMaTs9WCxU3b9Tk=;
+        b=SU9ui7R2PXEfwe6MP1FI+GTNCfFy9EM5bPDMXHABhjp4HVNB7CpDkfg0ETRUhtV5sM
+         4VosUASka7ppLODkcIkkPPAvLQBluZbAA48rqqbNa7q6kH3KFeGqW3p5bAXVYBbHxBzP
+         6gklpcjcY6q+LoYTy6lOODZlY4GyPDy4PqPxo6aqvBLXzU4L3ZEs0d2MAqnzi/eGKzuv
+         +/Q+M1mQqzSj/AB8CZi+HFISL7jvodCUF37ufvhM9Y/vzeAYDSvLp1ZSj2hQWvmPtF7e
+         YI2Ao6+8rtrYishmnOMSe5tQhBu7ziWRzhyJWb6lj/QqotqpgBJkw9mYXEy1eOX4WFMC
+         /vYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXf0QrVdBBkVCdfaDE7UzvJTTx9/QIEEh5lGJG4qp4ra5t/CiYZ
+	zlCxFYLHNssq9I+j1sp/c4YFYRyum2J074MUdYVg84wURXWbbU04cx6BSXK8howjnSORwgQbErw
+	M990yeGL+JxFst6EAzq+D3NC+1x4A6X++DoUGFsq+eoefoSgPH/H0d0VSa2K054X6/A==
+X-Received: by 2002:aa7:8289:: with SMTP id s9mr2241679pfm.208.1556777355610;
+        Wed, 01 May 2019 23:09:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4EqgAjtTCmU5vVfevCZIvWrZKHi1sIKOT/nqcZ08gircrb4S0i9HAOiNoVUgUdhsDD/XI
+X-Received: by 2002:aa7:8289:: with SMTP id s9mr2241580pfm.208.1556777354534;
+        Wed, 01 May 2019 23:09:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556777354; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qn3bvBTm2Cfa0dGPlBe6aL8Bbb4je/JGvzt2JQYUeJcTbklFzH9UzxZT6VzL7s+4n6
-         Am0y+YCjJMgt/j0q3x3i42mI706tjRIj1n0M8vrdaR02Z3o5O7At+K2hIuet/9E6GLUD
-         pFD/Vqnr+GINBRynT2st2og2a6gN9Qh3ZOUA85GqwPDdtBQHX6hVJ4kCTK4fUL4AbvhS
-         W+d4Jg4A1U37jdpYVShzle8yZhE87pksqkb+Z3ZukrOrQfq8Pn541vLqOcp9CojF1iOK
-         RpRR14uNPyyJar7OSXF0jpyyukFKqzUr31b+aaAlUbbmA802FgBg0doXVkDU7dK3DpDq
-         TSKw==
+        b=eu1p/MfGwfdlun3fdNN1Mnkn6nygV1UGsFEZTwv9USFt9+7v0ns3j/uuNJfh2qmn+6
+         Zfkd8YEcj6RyLU5o3iKTgSlGre7trnzFeUHIFXreuvS7zWnRFi5fh4Pv5fRd/2uo+kcM
+         TLqR6rB4BKuYTX6tnizp8YK0ldMRhMscC9ola7xzB3N/DdzwXjer+ezA4GwEenWsAWdx
+         APiyPqFzU1kNvaDQezSgO1lW4906+n9T+5c60B12DhevWbJzTp/6QbX8N7uxXgF7V43O
+         CIIkfYtvzVvZ//lHe+BeTLxR/yz1/8czPZxYGhHSAn7EztEIkQMof7nnQRL2aNbzZv22
+         tTvg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :cc:to:from:subject;
-        bh=MwqWU+4hGbok5ssY59rht/KDrBfy+4irWdo1mz/1chg=;
-        b=s/QB2djdNmJA84q9sqJmZcCj3LN0MJNP/6wx25+jKLZDvzTe41gSN7jqm6YzK0sJha
-         /BPrxMVdkOwIPknlGZ5g9/vOXCCfe3FtY5Z9oerayY3SFi+T7k2SfexZY0Sp8OKJSl5E
-         WIdcc+6KmKqh2gMC8Phh+uDNbi5AlpxItpQUpKI05nrKjWslwgqn9BnY7kWRLAQ1fcCW
-         6Y1xEvMB1gN0QGzQtHKxow87jiPqM32/2f39mMIZga7CAch/B9hX79wtq0ER6IZELhw2
-         6E7+SiLFasblB6xKUtKivZO+HpkH3GRVg17dc24NPXnUmQA63NF6e7oRa5zGDVyGysCF
-         YunA==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:cc:to:from:subject;
+        bh=ukeS8qbSSwdoP/rEe42M2gnUvzgXCMaTs9WCxU3b9Tk=;
+        b=Qu68Pcp1edNQAFuUCWB1WnCRxuXrS2DAkMxFdh6zg/qgn4nY5HqGx7sbDG+8YlRKw/
+         dyVmzkH7YQZ5GDgugXa3j2Lswhp4PkN7PeTh3YPyJJQ5UvQ7/7Qq6XOTETun8BO63Uv2
+         yqsncZSYZZR2cpfkUqTz4keLKQYdSo61YhSHR5Oj77qnkMmH3/aFlZRVO3hw7ZwDQ4TN
+         TXV2dXMTJqqzhf40dr0Ht8/VTpGTQGy2eH7kqh0NM3OfhMSSCJFFk7z7nD7G4B+EJP2/
+         F7Uu48VESosNQcq+U8up0UU5UAp0q6JXUdkUo1kgX3g7FJEwwvULJTTEP+cfnj8LcT07
+         APOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id k12si42045379plt.28.2019.05.01.23.09.09
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 3si17983295pfo.157.2019.05.01.23.09.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 May 2019 23:09:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Wed, 01 May 2019 23:09:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:09:09 -0700
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 May 2019 23:09:14 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,420,1549958400"; 
-   d="scan'208";a="320740307"
+   d="scan'208";a="140583170"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga005.jf.intel.com with ESMTP; 01 May 2019 23:09:08 -0700
-Subject: [PATCH v7 00/12] mm: Sub-section memory hotplug support
+  by orsmga006.jf.intel.com with ESMTP; 01 May 2019 23:09:13 -0700
+Subject: [PATCH v7 01/12] mm/sparsemem: Introduce struct mem_section_usage
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
-Cc: David Hildenbrand <david@redhat.com>, Jane Chu <jane.chu@oracle.com>,
- =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
- Logan Gunthorpe <logang@deltatee.com>, Toshi Kani <toshi.kani@hpe.com>,
- Oscar Salvador <osalvador@suse.de>, Jeff Moyer <jmoyer@redhat.com>,
- Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
- stable@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, osalvador@suse.de, mhocko@suse.com
-Date: Wed, 01 May 2019 22:55:22 -0700
-Message-ID: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de,
+ mhocko@suse.com
+Date: Wed, 01 May 2019 22:55:27 -0700
+Message-ID: <155677652762.2336373.6522945152928524695.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
@@ -109,165 +108,373 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Changes since v6 [1]:
+Towards enabling memory hotplug to track partial population of a
+section, introduce 'struct mem_section_usage'.
 
-- Rebase on next-20190501, no related conflicts or updates
+A pointer to a 'struct mem_section_usage' instance replaces the existing
+pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
+'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
+house a new 'map_active' bitmap.  The new bitmap enables the memory
+hot{plug,remove} implementation to act on incremental sub-divisions of a
+section.
 
-- Fix boot crash due to inaccurate setup of the initial section
-  ->map_active bitmask caused by multiple activations of the same
-  section. (Jane, Jeff)
+The primary motivation for this functionality is to support platforms
+that mix "System RAM" and "Persistent Memory" within a single section,
+or multiple PMEM ranges with different mapping lifetimes within a single
+section. The section restriction for hotplug has caused an ongoing saga
+of hacks and bugs for devm_memremap_pages() users.
 
-- Fix pmem startup crash when devm_memremap_pages() needs to instantiate
-  a new section. (Jeff)
+Beyond the fixups to teach existing paths how to retrieve the 'usemap'
+from a section, and updates to usemap allocation path, there are no
+expected behavior changes.
 
-- Drop mhp_restrictions for the __remove_pages() path in favor of
-  find_memory_block() to detect cases where section-aligned remove is
-  required (David)
-
-- Add "[PATCH v7 06/12] mm/hotplug: Kill is_dev_zone() usage in
-  __remove_pages()"
-
-- Cleanup shrink_{zone,pgdat}_span to remove no longer necessary @ms
-  section variables. (Oscar)
-
-- Add subsection_check() to the __add_pages() path to prevent
-  inadvertent sub-section misuse.
-
-[1]: https://lore.kernel.org/lkml/155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com/
-
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
-[merge logistics]
+ include/linux/mmzone.h |   23 ++++++++++++--
+ mm/memory_hotplug.c    |   18 ++++++-----
+ mm/page_alloc.c        |    2 +
+ mm/sparse.c            |   81 ++++++++++++++++++++++++------------------------
+ 4 files changed, 71 insertions(+), 53 deletions(-)
 
-Hi Andrew,
-
-I believe this is ready for another spin in -mm now that the boot
-regression has been squashed. In a chat with Michal last night at LSF/MM
-I submitted to his assertion that the boot regression validates the
-general concern that there were/are subtle dependencies on sections
-beyond what I found to date by code inspection. Of course I want to
-relieve the pain that the section constraint inflicts on libnvdimm and
-devm_memremap_pages() as soon as possible (i.e. v5.2), but deferment to
-v5.3 to give Michal time to do an in-depth look is also acceptable.
-
----
-[cover letter]
-
-The memory hotplug section is an arbitrary / convenient unit for memory
-hotplug. 'Section-size' units have bled into the user interface
-('memblock' sysfs) and can not be changed without breaking existing
-userspace. The section-size constraint, while mostly benign for typical
-memory hotplug, has and continues to wreak havoc with 'device-memory'
-use cases, persistent memory (pmem) in particular. Recall that pmem uses
-devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
-'struct page' memmap for pmem. However, it does not use the 'bottom
-half' of memory hotplug, i.e. never marks pmem pages online and never
-exposes the userspace memblock interface for pmem. This leaves an
-opening to redress the section-size constraint.
-
-To date, the libnvdimm subsystem has attempted to inject padding to
-satisfy the internal constraints of arch_add_memory(). Beyond
-complicating the code, leading to bugs [2], wasting memory, and limiting
-configuration flexibility, the padding hack is broken when the platform
-changes this physical memory alignment of pmem from one boot to the
-next. Device failure (intermittent or permanent) and physical
-reconfiguration are events that can cause the platform firmware to
-change the physical placement of pmem on a subsequent boot, and device
-failure is an everyday event in a data-center.
-
-It turns out that sections are only a hard requirement of the
-user-facing interface for memory hotplug and with a bit more
-infrastructure sub-section arch_add_memory() support can be added for
-kernel internal usages like devm_memremap_pages(). Here is an analysis
-of the current design assumptions in the current code and how they are
-addressed in the new implementation:
-
-Current design assumptions:
-
-- Sections that describe boot memory (early sections) are never
-  unplugged / removed.
-
-- pfn_valid(), in the CONFIG_SPARSEMEM_VMEMMAP=y, case devolves to a
-  valid_section() check
-
-- __add_pages() and helper routines assume all operations occur in
-  PAGES_PER_SECTION units.
-
-- The memblock sysfs interface only comprehends full sections
-
-New design assumptions:
-
-- Sections are instrumented with a sub-section bitmask to track (on x86)
-  individual 2MB sub-divisions of a 128MB section.
-
-- Partially populated early sections can be extended with additional
-  sub-sections, and those sub-sections can be removed with
-  arch_remove_memory(). With this in place we no longer lose usable memory
-  capacity to padding.
-
-- pfn_valid() is updated to look deeper than valid_section() to also check the
-  active-sub-section mask. This indication is in the same cacheline as
-  the valid_section() so the performance impact is expected to be
-  negligible. So far the lkp robot has not reported any regressions.
-
-- Outside of the core vmemmap population routines which are replaced,
-  other helper routines like shrink_{zone,pgdat}_span() are updated to
-  handle the smaller granularity. Core memory hotplug routines that deal
-  with online memory are not touched.
-
-- The existing memblock sysfs user api guarantees / assumptions are
-  not touched since this capability is limited to !online
-  !memblock-sysfs-accessible sections.
-
-Meanwhile the issue reports continue to roll in from users that do not
-understand when and how the 128MB constraint will bite them. The current
-implementation relied on being able to support at least one misaligned
-namespace, but that immediately falls over on any moderately complex
-namespace creation attempt. Beyond the initial problem of 'System RAM'
-colliding with pmem, and the unsolvable problem of physical alignment
-changes, Linux is now being exposed to platforms that collide pmem
-ranges with other pmem ranges by default [3]. In short,
-devm_memremap_pages() has pushed the venerable section-size constraint
-past the breaking point, and the simplicity of section-aligned
-arch_add_memory() is no longer tenable.
-
-These patches are exposed to the kbuild robot on my libnvdimm-pending
-branch [4], and a preview of the unit test for this functionality is
-available on the 'subsection-pending' branch of ndctl [5].
-
-[2]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
-[3]: https://github.com/pmem/ndctl/issues/76
-[4]: https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=libnvdimm-pending
-[5]: https://github.com/pmem/ndctl/commit/7c59b4867e1c
-
----
-
-Dan Williams (12):
-      mm/sparsemem: Introduce struct mem_section_usage
-      mm/sparsemem: Introduce common definitions for the size and mask of a section
-      mm/sparsemem: Add helpers track active portions of a section at boot
-      mm/hotplug: Prepare shrink_{zone,pgdat}_span for sub-section removal
-      mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
-      mm/hotplug: Kill is_dev_zone() usage in __remove_pages()
-      mm: Kill is_dev_zone() helper
-      mm/sparsemem: Prepare for sub-section ranges
-      mm/sparsemem: Support sub-section hotplug
-      mm/devm_memremap_pages: Enable sub-section remap
-      libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
-      libnvdimm/pfn: Stop padding pmem namespaces to section alignment
-
-
- arch/x86/mm/init_64.c          |    4 
- drivers/nvdimm/dax_devs.c      |    2 
- drivers/nvdimm/pfn.h           |   12 -
- drivers/nvdimm/pfn_devs.c      |   93 +++-------
- include/linux/memory_hotplug.h |    7 -
- include/linux/mm.h             |    4 
- include/linux/mmzone.h         |   72 ++++++--
- kernel/memremap.c              |   63 +++----
- mm/hmm.c                       |    2 
- mm/memory_hotplug.c            |  172 ++++++++++---------
- mm/page_alloc.c                |    8 +
- mm/sparse-vmemmap.c            |   21 ++
- mm/sparse.c                    |  370 ++++++++++++++++++++++++++++------------
- 13 files changed, 490 insertions(+), 340 deletions(-)
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 70394cabaf4e..f0bbd85dc19a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1160,6 +1160,19 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
+ #define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+ #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+ 
++#define SECTION_ACTIVE_SIZE ((1UL << SECTION_SIZE_BITS) / BITS_PER_LONG)
++#define SECTION_ACTIVE_MASK (~(SECTION_ACTIVE_SIZE - 1))
++
++struct mem_section_usage {
++	/*
++	 * SECTION_ACTIVE_SIZE portions of the section that are populated in
++	 * the memmap
++	 */
++	unsigned long map_active;
++	/* See declaration of similar field in struct zone */
++	unsigned long pageblock_flags[0];
++};
++
+ struct page;
+ struct page_ext;
+ struct mem_section {
+@@ -1177,8 +1190,7 @@ struct mem_section {
+ 	 */
+ 	unsigned long section_mem_map;
+ 
+-	/* See declaration of similar field in struct zone */
+-	unsigned long *pageblock_flags;
++	struct mem_section_usage *usage;
+ #ifdef CONFIG_PAGE_EXTENSION
+ 	/*
+ 	 * If SPARSEMEM, pgdat doesn't have page_ext pointer. We use
+@@ -1209,6 +1221,11 @@ extern struct mem_section **mem_section;
+ extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+ #endif
+ 
++static inline unsigned long *section_to_usemap(struct mem_section *ms)
++{
++	return ms->usage->pageblock_flags;
++}
++
+ static inline struct mem_section *__nr_to_section(unsigned long nr)
+ {
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+@@ -1220,7 +1237,7 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
+ 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+ }
+ extern int __section_nr(struct mem_section* ms);
+-extern unsigned long usemap_size(void);
++extern size_t mem_section_usage_size(void);
+ 
+ /*
+  * We use the lower bits of the mem_map pointer to store
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 328878b6799d..a76fc6a6e9fe 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -165,9 +165,10 @@ void put_page_bootmem(struct page *page)
+ #ifndef CONFIG_SPARSEMEM_VMEMMAP
+ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ {
+-	unsigned long *usemap, mapsize, section_nr, i;
++	unsigned long mapsize, section_nr, i;
+ 	struct mem_section *ms;
+ 	struct page *page, *memmap;
++	struct mem_section_usage *usage;
+ 
+ 	section_nr = pfn_to_section_nr(start_pfn);
+ 	ms = __nr_to_section(section_nr);
+@@ -187,10 +188,10 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 	for (i = 0; i < mapsize; i++, page++)
+ 		get_page_bootmem(section_nr, page, SECTION_INFO);
+ 
+-	usemap = ms->pageblock_flags;
+-	page = virt_to_page(usemap);
++	usage = ms->usage;
++	page = virt_to_page(usage);
+ 
+-	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
++	mapsize = PAGE_ALIGN(mem_section_usage_size()) >> PAGE_SHIFT;
+ 
+ 	for (i = 0; i < mapsize; i++, page++)
+ 		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
+@@ -199,9 +200,10 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ #else /* CONFIG_SPARSEMEM_VMEMMAP */
+ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ {
+-	unsigned long *usemap, mapsize, section_nr, i;
++	unsigned long mapsize, section_nr, i;
+ 	struct mem_section *ms;
+ 	struct page *page, *memmap;
++	struct mem_section_usage *usage;
+ 
+ 	section_nr = pfn_to_section_nr(start_pfn);
+ 	ms = __nr_to_section(section_nr);
+@@ -210,10 +212,10 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 
+ 	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
+ 
+-	usemap = ms->pageblock_flags;
+-	page = virt_to_page(usemap);
++	usage = ms->usage;
++	page = virt_to_page(usage);
+ 
+-	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
++	mapsize = PAGE_ALIGN(mem_section_usage_size()) >> PAGE_SHIFT;
+ 
+ 	for (i = 0; i < mapsize; i++, page++)
+ 		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1f99db76b1ff..61c2b54a5b61 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -403,7 +403,7 @@ static inline unsigned long *get_pageblock_bitmap(struct page *page,
+ 							unsigned long pfn)
+ {
+ #ifdef CONFIG_SPARSEMEM
+-	return __pfn_to_section(pfn)->pageblock_flags;
++	return section_to_usemap(__pfn_to_section(pfn));
+ #else
+ 	return page_zone(page)->pageblock_flags;
+ #endif /* CONFIG_SPARSEMEM */
+diff --git a/mm/sparse.c b/mm/sparse.c
+index fd13166949b5..f87de7ad32c8 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -288,33 +288,31 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
+ 
+ static void __meminit sparse_init_one_section(struct mem_section *ms,
+ 		unsigned long pnum, struct page *mem_map,
+-		unsigned long *pageblock_bitmap)
++		struct mem_section_usage *usage)
+ {
+ 	ms->section_mem_map &= ~SECTION_MAP_MASK;
+ 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+ 							SECTION_HAS_MEM_MAP;
+- 	ms->pageblock_flags = pageblock_bitmap;
++	ms->usage = usage;
+ }
+ 
+-unsigned long usemap_size(void)
++static unsigned long usemap_size(void)
+ {
+ 	return BITS_TO_LONGS(SECTION_BLOCKFLAGS_BITS) * sizeof(unsigned long);
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-static unsigned long *__kmalloc_section_usemap(void)
++size_t mem_section_usage_size(void)
+ {
+-	return kmalloc(usemap_size(), GFP_KERNEL);
++	return sizeof(struct mem_section_usage) + usemap_size();
+ }
+-#endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-static unsigned long * __init
++static struct mem_section_usage * __init
+ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 					 unsigned long size)
+ {
++	struct mem_section_usage *usage;
+ 	unsigned long goal, limit;
+-	unsigned long *p;
+ 	int nid;
+ 	/*
+ 	 * A page may contain usemaps for other sections preventing the
+@@ -330,15 +328,16 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 	limit = goal + (1UL << PA_SECTION_SHIFT);
+ 	nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
+ again:
+-	p = memblock_alloc_try_nid(size, SMP_CACHE_BYTES, goal, limit, nid);
+-	if (!p && limit) {
++	usage = memblock_alloc_try_nid(size, SMP_CACHE_BYTES, goal, limit, nid);
++	if (!usage && limit) {
+ 		limit = 0;
+ 		goto again;
+ 	}
+-	return p;
++	return usage;
+ }
+ 
+-static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
++static void __init check_usemap_section_nr(int nid,
++		struct mem_section_usage *usage)
+ {
+ 	unsigned long usemap_snr, pgdat_snr;
+ 	static unsigned long old_usemap_snr;
+@@ -352,7 +351,7 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+ 		old_pgdat_snr = NR_MEM_SECTIONS;
+ 	}
+ 
+-	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
++	usemap_snr = pfn_to_section_nr(__pa(usage) >> PAGE_SHIFT);
+ 	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+ 	if (usemap_snr == pgdat_snr)
+ 		return;
+@@ -380,14 +379,15 @@ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+ 		usemap_snr, pgdat_snr, nid);
+ }
+ #else
+-static unsigned long * __init
++static struct mem_section_usage * __init
+ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ 					 unsigned long size)
+ {
+ 	return memblock_alloc_node(size, SMP_CACHE_BYTES, pgdat->node_id);
+ }
+ 
+-static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
++static void __init check_usemap_section_nr(int nid,
++		struct mem_section_usage *usage)
+ {
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+@@ -474,14 +474,13 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
+ 				   unsigned long pnum_end,
+ 				   unsigned long map_count)
+ {
+-	unsigned long pnum, usemap_longs, *usemap;
++	struct mem_section_usage *usage;
++	unsigned long pnum;
+ 	struct page *map;
+ 
+-	usemap_longs = BITS_TO_LONGS(SECTION_BLOCKFLAGS_BITS);
+-	usemap = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nid),
+-							  usemap_size() *
+-							  map_count);
+-	if (!usemap) {
++	usage = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nid),
++			mem_section_usage_size() * map_count);
++	if (!usage) {
+ 		pr_err("%s: node[%d] usemap allocation failed", __func__, nid);
+ 		goto failed;
+ 	}
+@@ -497,9 +496,9 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
+ 			pnum_begin = pnum;
+ 			goto failed;
+ 		}
+-		check_usemap_section_nr(nid, usemap);
+-		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usemap);
+-		usemap += usemap_longs;
++		check_usemap_section_nr(nid, usage);
++		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage);
++		usage = (void *) usage + mem_section_usage_size();
+ 	}
+ 	sparse_buffer_fini();
+ 	return;
+@@ -701,9 +700,9 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 				     struct vmem_altmap *altmap)
+ {
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
++	struct mem_section_usage *usage;
+ 	struct mem_section *ms;
+ 	struct page *memmap;
+-	unsigned long *usemap;
+ 	int ret;
+ 
+ 	/*
+@@ -717,8 +716,8 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
+ 	if (!memmap)
+ 		return -ENOMEM;
+-	usemap = __kmalloc_section_usemap();
+-	if (!usemap) {
++	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
++	if (!usage) {
+ 		__kfree_section_memmap(memmap, altmap);
+ 		return -ENOMEM;
+ 	}
+@@ -736,11 +735,11 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+ 
+ 	section_mark_present(ms);
+-	sparse_init_one_section(ms, section_nr, memmap, usemap);
++	sparse_init_one_section(ms, section_nr, memmap, usage);
+ 
+ out:
+ 	if (ret < 0) {
+-		kfree(usemap);
++		kfree(usage);
+ 		__kfree_section_memmap(memmap, altmap);
+ 	}
+ 	return ret;
+@@ -777,20 +776,20 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+ }
+ #endif
+ 
+-static void free_section_usemap(struct page *memmap, unsigned long *usemap,
+-		struct vmem_altmap *altmap)
++static void free_section_usage(struct page *memmap,
++		struct mem_section_usage *usage, struct vmem_altmap *altmap)
+ {
+-	struct page *usemap_page;
++	struct page *usage_page;
+ 
+-	if (!usemap)
++	if (!usage)
+ 		return;
+ 
+-	usemap_page = virt_to_page(usemap);
++	usage_page = virt_to_page(usage);
+ 	/*
+ 	 * Check to see if allocation came from hot-plug-add
+ 	 */
+-	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
+-		kfree(usemap);
++	if (PageSlab(usage_page) || PageCompound(usage_page)) {
++		kfree(usage);
+ 		if (memmap)
+ 			__kfree_section_memmap(memmap, altmap);
+ 		return;
+@@ -809,19 +808,19 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 		unsigned long map_offset, struct vmem_altmap *altmap)
+ {
+ 	struct page *memmap = NULL;
+-	unsigned long *usemap = NULL;
++	struct mem_section_usage *usage = NULL;
+ 
+ 	if (ms->section_mem_map) {
+-		usemap = ms->pageblock_flags;
++		usage = ms->usage;
+ 		memmap = sparse_decode_mem_map(ms->section_mem_map,
+ 						__section_nr(ms));
+ 		ms->section_mem_map = 0;
+-		ms->pageblock_flags = NULL;
++		ms->usage = NULL;
+ 	}
+ 
+ 	clear_hwpoisoned_pages(memmap + map_offset,
+ 			PAGES_PER_SECTION - map_offset);
+-	free_section_usemap(memmap, usemap, altmap);
++	free_section_usage(memmap, usage, altmap);
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 
