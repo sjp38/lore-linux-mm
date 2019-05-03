@@ -2,157 +2,159 @@ Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 57961C43219
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 13:27:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E6FDC43219
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 13:49:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 16BC92075E
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 13:27:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="T9s51+W+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16BC92075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id EECDB2081C
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 13:49:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EECDB2081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B9326B0003; Fri,  3 May 2019 09:27:39 -0400 (EDT)
+	id 8D19A6B0003; Fri,  3 May 2019 09:49:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86B0C6B0005; Fri,  3 May 2019 09:27:39 -0400 (EDT)
+	id 85BAF6B0005; Fri,  3 May 2019 09:49:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 780446B0006; Fri,  3 May 2019 09:27:39 -0400 (EDT)
+	id 72ADB6B0006; Fri,  3 May 2019 09:49:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 41F136B0003
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 09:27:39 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id h14so2963865pgn.23
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 06:27:39 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 389E36B0003
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 09:49:01 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x2so2980563plr.21
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 06:49:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mkGg1i+EI0XU//yFAO+gJW+bQDnnQU83x/RNkUevVAw=;
-        b=EaatjYjcKIOHQ/ka1k2Ann3f/fzmw5JFkF9GI+ZVPafCriutK3+EIoQsrFpiZu+xOs
-         dTNDCYW345BfIFMenNvWtmEyw5+5WEE1XtL5Eyys8ZroDpF9pQA064RGhBngU2bo+McN
-         gJ+yUJChurXV4knJ1Jfqo7cMCokK4EK4f63u3qpglW+97T7LWxNS9p4MLM8aoeiKvg0Q
-         fZdEhmzGVCdSytf510UbEmD5sdJtwvdwkRnjJdiyecsPP0k8WGMryIXzyIZlqQz4Chpm
-         IOL1HBNTc5uwp8DY1O3VnN113+LvPS8alXjwCpZyIpdzmHqEXTuSp6N7D4YS0wlg0NFn
-         Wu7g==
-X-Gm-Message-State: APjAAAXcKNfb8xoy5XvccUmEr/i4df5Sgt/Pr3YYbm7nkAxAYYjT78H9
-	jEIdob9GwVfo/kPk6EK0ZkqEhPiRJjnLLi6Lwt4KxOAgKmE2cODBShubT+jFczwKQD0dcLox7Q2
-	iHkcZEqnc72MrM8FzP9Pgwzha5vytLrrGiDXc6Fs0vCUdu+fkhAxyjzOgBj4Ro9PL9A==
-X-Received: by 2002:a17:902:112b:: with SMTP id d40mr6541679pla.31.1556890058516;
-        Fri, 03 May 2019 06:27:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwuNbD4GiMZdw89lUkmS7tobJ67HtiyAQYhgMraONtN5oFUSHEGrJ/Mx9YZKBlY+SWypvL+
-X-Received: by 2002:a17:902:112b:: with SMTP id d40mr6541593pla.31.1556890057758;
-        Fri, 03 May 2019 06:27:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556890057; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :message-id;
+        bh=/uHni8/NAT19/dtSbEBALy/wFqOfy8eYAIE489pbGWY=;
+        b=B1HWw849XKErwD+7rO0RBX+LTB2U7DDUFARz3t4k04FqZ+ybG3K9XNzgWfgkwt07Je
+         zDe4tpLjcEwO2xV7SfaVt9s4sbzNQnD1aO+S3OLcK2022G3MPAqjlqawbFsN0bkI08+F
+         gw3o6LJERAHKDX/7ZDognyVYOq4YXaCO8Cau99I3G5yFSh+brrcrG+vuETjMVFvXSKvH
+         Zb1kAGShMB2t6pDlx0xTwQb93mzR6Jq9YuDXPecN2IGHT+zbHFlBfuIUkJuiqKUUgDe3
+         WcMz84GB85hztL2J8J/jP1a/VLbrdmRPRtPjme6AA8hzAKFhpBYw/GIHjwWHyDnFpdTq
+         9e/w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of heiko.carstens@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=heiko.carstens@de.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXZO25TchbG0w7gsvWbFA+AjUkI0En+/W39o6a+ECQBYDpF7VWa
+	Lns1Pa5VPKWSuJAk+TmCQSdG7uwJKiMFj77SiOOn57CyT9Wz2tjPLz14hRFmWHP/vmZHRByVzcw
+	sEPCjWsxoHL8SJOjEHRSvh+6lPZq9kgFVAFNVHa1OztNGvCRu6WkxuGr9U3cUGF3APA==
+X-Received: by 2002:a63:ed10:: with SMTP id d16mr10152535pgi.75.1556891340774;
+        Fri, 03 May 2019 06:49:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBsXK3Arba9LgJxEtlYdn5cTmMlwwn0sBL+emDtOJxt9I8Wj1YvioTD/LDb8qONpf7uuRA
+X-Received: by 2002:a63:ed10:: with SMTP id d16mr10152446pgi.75.1556891339891;
+        Fri, 03 May 2019 06:48:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556891339; cv=none;
         d=google.com; s=arc-20160816;
-        b=r7sASZRLCfIYgTVKSQgL7sxd3ReVwYV5fuGV9/W8FRNEf5AbHVv5/7aWUW/sly+Ph8
-         9vQi8XMZj2dRwlUC7pywigau+GjjQdi2WkMXp8FqCl/VY96+LribBkyZu8LBvhtW1aCL
-         dN/EompTsniKUUOJmmDcKEmQJWcMVj1FV9LNeCkAAnjyiO0QtDEpcKQNqnFDcYaw1jwV
-         3gdA0dQwoqVFqS7go4Qo2H1JS0kvs08rrNcYT0Jp4yH/ryPTbFO0/pMUgbz8hq+h1p+q
-         qFSyyG5In0ahIDENOQ7DUyt1DaCyZLuAQ8j4HDZQvpJ1c8hQj7Faw7HsMbDOIFduvwGv
-         BjYQ==
+        b=uDrxi+hgaNuJ3OCQm8/A/5KdNoUHnEknYXGEPh9ea/WaIUmPUsFJIzbGO2Dwp6pGQg
+         WWw55mcMIt9xAbG0zOcLhXwt4vwdw5O7jzbP7yvKF6tLN4Yk1FWpWOp3FByBfkXshOOE
+         zmXwYfTTtE9wJdA5iHPTki4fQu5HPaW8YtTKsXsTBEBpnJjGYbkeAe4ZmL3x4MSp5NLQ
+         BTRZs7MKK+wQGqMdw4bfSPgl/e4p3/xP/6Vm/4dLxQw3iUscUXSy0i68bXIxnZyVC0zl
+         ebH6s1ekQIvhODiXFOarmGs5AZQuRkQUF5EHuzDOGK/YwxlzGeD+JXA+We3Uj9mPlTMr
+         G5wA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mkGg1i+EI0XU//yFAO+gJW+bQDnnQU83x/RNkUevVAw=;
-        b=lOSYxu+xJCJkhOKb0BtJV6BPNsc54HXXBVXmOYQudeDiWz07nZH9GjjoNer47utcQV
-         iGukyaSvpFHEOIBxieWjm1xkN4ebIpAziMti2OpuoMtypc3K7RVdExF+ROKHOgmvStgP
-         lUAHHvhpX1rS15bV5HLQURINAvQ9kdARjRQMFKHAC804QGTtBX3lPTRtBGLb92SJu3KV
-         LVCvUG3jPx1avdPfNicF5p/IwIjJ1wZquWxOgBNx0xSEfuIyi8dG+TRc3e3oEPjhhy6A
-         xcEa6FqZPW7hMLVfqf2dWdpQUmn9vbc9jbeOLxE3I+2YLaIzTztA1S3qII/KQgXlPTjD
-         fmJA==
+        h=message-id:in-reply-to:content-disposition:mime-version:references
+         :subject:cc:to:from:date;
+        bh=/uHni8/NAT19/dtSbEBALy/wFqOfy8eYAIE489pbGWY=;
+        b=XQwmrHtOgrA6z3+yLTnb4Je9Vbv08fd004OXEaAkQoI8VCGLV3UtWdYPlzzkwe3eap
+         oG/n6YB/zSCG7ymZZgHMzqpH5l9qQvtEWbqWqFrSVfUpTSIxsix2irRMApWXmin1/g1+
+         M+5oTS9NdH7gwqFxwwe7/S+jDsKRWcCTsg6u+pgDQ31A9CUdLxvHQ4Ra0/NFiU9kWdef
+         OtUl79T0KzqmN43OUoG+44MbIRRhvZxjuKvBPwaM/yTSnqkqNLBtAMR6VCarKtpmVwHe
+         mw4LYpue5L//NMFQcGKOVHyDZ0SXNkhRjAlYhnzW/zqOoUyRwSBC9n5b9D+PdNHIw1bZ
+         bTsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=T9s51+W+;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v24si2199807pff.230.2019.05.03.06.27.37
+       spf=pass (google.com: domain of heiko.carstens@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=heiko.carstens@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s2si2222447pgp.69.2019.05.03.06.48.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 May 2019 06:27:37 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 May 2019 06:48:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of heiko.carstens@de.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=T9s51+W+;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=mkGg1i+EI0XU//yFAO+gJW+bQDnnQU83x/RNkUevVAw=; b=T9s51+W+nABH6PVAvlfgP+ohw
-	RCDyHolxbxOczp+Cg0V5Q3SXBf36YHMOis1fkWWpWSE0zZx6A65FVoDithh+5zNBA/L+/pInK3O58
-	PPdp9B6gb5Mj1aHlTOwgYd7feLRBi467iD6vPhfKK/abUZfZCHY1041K3TtWkrj1V0TUQ8aWIVhLI
-	+/1YzsyjItpsKuqA6JsKXlZeS7WEi7325sCVTFrE7teQKa5lOodL28eu5Nt6D+miXBGjogCaXg8yc
-	VVRuwIZrSBtfheGOujAaXemlnM9xeF/eEeaLHQrjpzSd4fVzD5UcaEhjqq1fDcHkpcop11b8UYehV
-	hXvd6JaeQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hMYDu-0006ZD-4h; Fri, 03 May 2019 13:27:34 +0000
-Date: Fri, 3 May 2019 06:27:33 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Michal Hocko <mhocko@suse.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Dan Williams <dan.j.williams@intel.com>, jglisse@redhat.com,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, x86@kernel.org,
-	linux-efi@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org,
-	intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org
-Subject: Re: [PATCH] mm/pgtable: Drop pgtable_t variable from pte_fn_t
- functions
-Message-ID: <20190503132733.GA5201@bombadil.infradead.org>
-References: <1556803126-26596-1-git-send-email-anshuman.khandual@arm.com>
- <20190502134623.GA18948@bombadil.infradead.org>
- <20190502161457.1c9dbd94@mschwideX1>
+       spf=pass (google.com: domain of heiko.carstens@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=heiko.carstens@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x43DmG9p105480
+	for <linux-mm@kvack.org>; Fri, 3 May 2019 09:48:59 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s8maaeqax-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 03 May 2019 09:48:48 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 3 May 2019 14:47:26 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 3 May 2019 14:47:22 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x43DlLHG23330858
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 3 May 2019 13:47:21 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 27CA642045;
+	Fri,  3 May 2019 13:47:21 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 9B8E742041;
+	Fri,  3 May 2019 13:47:20 +0000 (GMT)
+Received: from osiris (unknown [9.152.212.21])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Fri,  3 May 2019 13:47:20 +0000 (GMT)
+Date: Fri, 3 May 2019 15:47:19 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>,
+        Christoph Hellwig <hch@infradead.org>,
+        "David S. Miller" <davem@davemloft.net>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Russell King <linux@armlinux.org.uk>,
+        linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
+        sparclinux@vger.kernel.org, linux-arch@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/3] s390: remove ARCH_SELECT_MEMORY_MODEL
+References: <1556740577-4140-1-git-send-email-rppt@linux.ibm.com>
+ <1556740577-4140-3-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190502161457.1c9dbd94@mschwideX1>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <1556740577-4140-3-git-send-email-rppt@linux.ibm.com>
+X-TM-AS-GCONF: 00
+x-cbid: 19050313-0012-0000-0000-00000317F2E3
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050313-0013-0000-0000-0000215065E1
+Message-Id: <20190503134719.GB5602@osiris>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-03_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=854 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905030087
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 02, 2019 at 04:14:57PM +0200, Martin Schwidefsky wrote:
-> On Thu, 2 May 2019 06:46:23 -0700
-> Matthew Wilcox <willy@infradead.org> wrote:
+On Wed, May 01, 2019 at 10:56:16PM +0300, Mike Rapoport wrote:
+> The only reason s390 has ARCH_SELECT_MEMORY_MODEL option in
+> arch/s390/Kconfig is an ancient compile error with allnoconfig which was
+> fixed by commit 97195d6b411f ("[S390] fix sparsemem related compile error
+> with allnoconfig on s390") by adding the ARCH_SELECT_MEMORY_MODEL option.
 > 
-> > On Thu, May 02, 2019 at 06:48:46PM +0530, Anshuman Khandual wrote:
-> > > Drop the pgtable_t variable from all implementation for pte_fn_t as none of
-> > > them use it. apply_to_pte_range() should stop computing it as well. Should
-> > > help us save some cycles.  
-> > 
-> > You didn't add Martin Schwidefsky for some reason.  He introduced
-> > it originally for s390 for sub-page page tables back in 2008 (commit
-> > 2f569afd9c).  I think he should confirm that he no longer needs it.
+> Since then a lot have changed and now allnoconfig builds just fine without
+> ARCH_SELECT_MEMORY_MODEL, so it can be removed.
 > 
-> With its 2K pte tables s390 can not deal with a (struct page *) as a reference
-> to a page table. But if there are no user of the apply_to_page_range() API
-> left which actually make use of the token argument we can safely drop it.
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+>  arch/s390/Kconfig | 3 ---
+>  1 file changed, 3 deletions(-)
 
-Interestingly, I don't think there ever was a user which used that
-argument.  Looking at your 2f56 patch, you only converted one function
-(presumably there was only one caller of apply_to_page_range() at the
-time), and it didn't u se any of the arguments.  Xen was the initial user,
-and the two other functions they added also didn't use that argument.
-
-Looking at a quick sample of users added since, none of them appear to
-have ever used that argument.  So removing it seems best.
-
-Acked-by: Matthew Wilcox <willy@infradead.org>
+Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com>
 
