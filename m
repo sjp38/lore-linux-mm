@@ -2,720 +2,221 @@ Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FD29C43219
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 20:19:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A14FC43219
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 21:14:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 035CC2075E
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 20:19:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="TnscqanT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 035CC2075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E92B2070B
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 21:14:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E92B2070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FE266B0005; Fri,  3 May 2019 16:19:57 -0400 (EDT)
+	id BC89F6B0005; Fri,  3 May 2019 17:14:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 560D26B0006; Fri,  3 May 2019 16:19:57 -0400 (EDT)
+	id B7A2A6B0006; Fri,  3 May 2019 17:14:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 402B76B0007; Fri,  3 May 2019 16:19:57 -0400 (EDT)
+	id A6A946B0007; Fri,  3 May 2019 17:14:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 12BDC6B0005
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 16:19:57 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id n15so5364829ywd.7
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 13:19:57 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D75B6B0005
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 17:14:37 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id a141so3821115pfa.13
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 14:14:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:message-id:date:from
-         :to:cc:subject:content-transfer-encoding;
-        bh=NBf0VXWy2aRMKYEnL9KebROCy7Bu40HpC3c3T+lz8wo=;
-        b=rPvZipZW8J5khTUzb0/UNBCPrSt+TlwM5mJIej4wa3yv1U6urGHScIm2Z+XTFq1b3M
-         xoNOuPj935daFIKYk7+0s91oU2DUIkQ3yeR5UoCQgMJFgOsji2QBU4hxjedPa475w2oE
-         psyREQG77atP6Iwpwq9sUYbbrFz4/98t+7Fr/stHJypRqrZapot2wViqWLWPowXQ8bW1
-         rHhsFKXg+xcoNU480otjmOnm4D5eHi8489G67sQVppkWfQuAFJoe7HfjELzUfDHOME/8
-         7UMa5QHPF22JE0F/lCUfjr4R5ob94WY6gMGOQaeOeefKD3C9tpwlJUBdqPRmUh45iO9y
-         ciDg==
-X-Gm-Message-State: APjAAAWjqBlEvI/52k4zfk4U1cme0Dr7iYBUrcK7UAiRIIC9R314cjQC
-	HF5HGWJF6zF4lhIe64ulWjV0b8xKBN9Jta6B41cpXYNmRVA8OEBcArhMG65SxWj12ScVpeLf3vR
-	LvaQDwDNDWqP9f9YzNpzDSRubupkkU+VskDMUOf5hCPio0DvVG1K511HjH90W236yTg==
-X-Received: by 2002:a81:1054:: with SMTP id 81mr9038248ywq.48.1556914796630;
-        Fri, 03 May 2019 13:19:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdawK/Bzix0dbf3BK8aDe4VPi0F9xmDAyxIWWHQ9p3GcSEIeTygj8c0BdoHQo162EcCT0v
-X-Received: by 2002:a81:1054:: with SMTP id 81mr9038209ywq.48.1556914795413;
-        Fri, 03 May 2019 13:19:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556914795; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=oysCqOazn6QLnwWfU7vacoQ60C5CuZGkG2ZSh6WvVD0=;
+        b=pp+6KECDI44nJV+BVAXpgxJgkubkh2oxyAeONHRq8Iio53KzgPQkvTKstwJDI6ir/7
+         O5EEqQiXuwihmzmlGW2oIOonxjvAdBoKCXBFjo69dLUVEj1ATQ0B/+VgCvwOMF9bbN0d
+         shr3+71/XVqArAjdl9SLr3ypNTIGz+ILuHw3asYLsddWQK1KGy3iorYfuOUrAg1QAf4H
+         RIcjTMdVNQ1ecrwQ556BnHUmlq7NjG5PE5/MNgthgydT3WLetNTOXXrSfJ5OYIjLiJ5q
+         WAb/9biLlAwrhlOrdWQmd5yI0ijUb3pKQv4nJ97iKfm4OSsYvO7TqXCQ1Q21v5bCjvJU
+         cNVA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVP2HE3J9Jdq31dBkfofWHUkRrobJN8vKTaGXhdEOr4Ri3KP8yV
+	B+ILhO5GyQnrjp7cFoK7pKJOMllNFIKIQtYXfkoMu+LIoEouM4DnJhGhI+xTrecvHkYPzMHi/qq
+	PyOb30LH1UOO/IG1EwjTr4boVBFCHkiZLDFhMfnYhFOrVCBWBpRDr5uIVNU3C18nweQ==
+X-Received: by 2002:a17:902:4603:: with SMTP id o3mr13254770pld.121.1556918077070;
+        Fri, 03 May 2019 14:14:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjmH0g+qFvuJ6S4eU7z0Omxk7fCZP7OL6QyW7DkECN4nBVD1AxiR1zlM9+zrG413o6+qBn
+X-Received: by 2002:a17:902:4603:: with SMTP id o3mr13254636pld.121.1556918076022;
+        Fri, 03 May 2019 14:14:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556918076; cv=none;
         d=google.com; s=arc-20160816;
-        b=DyC99nZXP+jVoYODhfw0FKw7s7ALS/ooQz1F97w9k7AKAOD30BOy04imWd1PSTwDHx
-         gWNdVJPDhaysC3p7Y/oeGPj+y5bE+Kjz3OMbVNSgKRM2r53vTvrynUzL6OAlvf3zQB8A
-         K5qGQCMjkTGMVNSpXHrZQaOyBbFNXqEL9DeWeVkamQQHTdLvHzbKjTHrOJgvkwtaVYGo
-         KSb+BrhtCXQGVzPcPoma9/P/TtPD0lVx6Eg1v8zw+HCdfPrsfDLHXWTNHPZhNj0/Pp9w
-         fx5VeChptGHA7tI2Wo8lqvzkPVZ/81p1OrSet/NOZiulSKAnx7b7UcbXjXz+4GwxoUBa
-         ql1g==
+        b=jIpatujDurjX6T4l8GJqtdb5VdDVLBjnOwGTQcWWhgUJKZn2Dl9PSo5Zs2nr45DCdj
+         IH2XidEYxORMVBEFtvMkVCF8UtmZ/mHRdrO2fQOheYjXYYMjG1vlsSmJFwwjZWy0Kdu3
+         aB4aGlCI39f7O4Pk6F6+P/vrRq1QLJeWdDSk09cr5KBmOFKoSM11bovZD4fmVVebsrNu
+         rgffiOvv+uLXJT4UB61gKX8Ilxwy0bMXMBeJFJqvTd+FkK3J8dGCFCZTyx9b1gtSibY1
+         PV20iEXooug4KJZlZnfRyvJgYgFA40kln9Mr+LaGW79e80gliIiZymIeFmrzqe3i3yEY
+         E1jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:subject:cc:to:from:date:message-id
-         :mime-version:dkim-signature;
-        bh=NBf0VXWy2aRMKYEnL9KebROCy7Bu40HpC3c3T+lz8wo=;
-        b=t9H/hq7In716yt78sxrzBZKR1TnNHYpWPIEd/DETA7FcSA9ESPUbdxQD6g4P2ZQ80Z
-         kG6TAgkSfe8Qx20wVxsPs0Oy3dTHHNeMLql1U/5VrRWAeqq+izLrO3eVDVW8IlT18Ybn
-         TG9rL3yjUIHCrXgG9FlAhbqQTNlEYj/uMnkDYpM0gp8542YDj1aIN6eqGo8/5YUd7xju
-         deCX0FwW3IwbcyyeuwSDRi4bB5DqRQbJpOy9Ac9jCx5qkliEr06m5t8l4M6L2OkdEoZH
-         JMEEUAawNWNC8o4vytQZRLdGf+Kx2MhPkjUi4P5KbsMYZg3A5XP8CJQt3bmtD7Mb4KQo
-         EQ1w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=oysCqOazn6QLnwWfU7vacoQ60C5CuZGkG2ZSh6WvVD0=;
+        b=ipC0/zEl9hK7Gp1Vq1aTfGt1pIm5RH7YPWuILJWc39WjnU6M2W/GueKB3WVKR2imsJ
+         3mnenK7dwLdxeOz+XoEriPRewA1to4bwzLWoLClC3sziGLU1pUoHPQkoEQvtqQaIUSEt
+         40qfDV6qU3okxmHv5BCL+r/IOdSPjUBmGnO2saexOdL+cPx1APPGbi5fU7ColgV1NrkG
+         Vogruu1GW2DwIF5UFCOXK9/zXcYFd6hKZ2o+L5zJ53kJI67xpsBLuxKrbhrXGpv2VN0B
+         BEHd0GZ3I9f9+cWI5PUW0xbPnUUAKp3I1drHq8srppW0pPUrUUS/fOX2lI4Klmuo7EQN
+         bw9w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TnscqanT;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id c70si503655ywb.337.2019.05.03.13.19.54
+       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id t24si4083669pgj.147.2019.05.03.14.14.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 May 2019 13:19:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Fri, 03 May 2019 14:14:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TnscqanT;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x43KEIGQ123066;
-	Fri, 3 May 2019 20:19:37 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=mime-version :
- message-id : date : from : to : cc : subject : content-type :
- content-transfer-encoding; s=corp-2018-07-02;
- bh=NBf0VXWy2aRMKYEnL9KebROCy7Bu40HpC3c3T+lz8wo=;
- b=TnscqanTJfLG+rMhABQlj2zRbqxybUldb0Mxlr2pbtzuwJ96o0DA3Tdex6Ch/agNjwtw
- gKIGlcjA2wjYJy95+6yi89Rb24w9W7Sjn86CtZb0MN5t/jNAYxT7VoozlkJjMdZfS3w/
- 1aCt+4qYy8MHSTNFczeYdSipaDE8ue9FQjo2OIVTS9VJFWG/eR7gnrCwQYkvnNZ/Pxdz
- wgYmCOfIENhELvg824YMA9cEXc2uLYLGvD2aYy2DDh80Rc0zuus5JzH48ZI4EYxwwrT6
- VoigNdQcpkqwpDhVZI8tWQFRGNo6bu0wMLXKAPZtn5yc68m/gauGzGCgzZ8w/8PIISFd nw== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2s6xj01131-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 03 May 2019 20:19:37 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x43KGq3h044042;
-	Fri, 3 May 2019 20:17:36 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3030.oracle.com with ESMTP id 2s7rtcfwg1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 03 May 2019 20:17:36 +0000
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x43KHNuF021889;
-	Fri, 3 May 2019 20:17:24 GMT
-Received: from localhost.localdomain (/73.60.114.248) by default (Oracle
- Beehive Gateway v4.0) with ESMTP ; Fri, 03 May 2019 13:16:52 -0700
+       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 03 May 2019 14:14:35 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,427,1549958400"; 
+   d="scan'208";a="296812649"
+Received: from brianwel-mobl1.amr.corp.intel.com (HELO [10.254.61.9]) ([10.254.61.9])
+  by orsmga004.jf.intel.com with ESMTP; 03 May 2019 14:14:33 -0700
+Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
+To: Kenny Ho <y2kenny@gmail.com>, Leon Romanovsky <leon@kernel.org>
+Cc: Alex Deucher <alexander.deucher@amd.com>,
+ Parav Pandit <parav@mellanox.com>, David Airlie <airlied@linux.ie>,
+ intel-gfx@lists.freedesktop.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, dri-devel@lists.freedesktop.org,
+ Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+ Rodrigo Vivi <rodrigo.vivi@intel.com>, Li Zefan <lizefan@huawei.com>,
+ Vladimir Davydov <vdavydov.dev@gmail.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+ cgroups@vger.kernel.org, =?UTF-8?Q?Christian_K=c3=b6nig?=
+ <christian.koenig@amd.com>, RDMA mailing list <linux-rdma@vger.kernel.org>,
+ kenny.ho@amd.com, Harish.Kasiviswanathan@amd.com, daniel@ffwll.ch
+References: <20190501140438.9506-1-brian.welty@intel.com>
+ <20190502083433.GP7676@mtr-leonro.mtl.com>
+ <CAOWid-cYknxeTQvP9vQf3-i3Cpux+bs7uBs7_o-YMFjVCo19bg@mail.gmail.com>
+From: "Welty, Brian" <brian.welty@intel.com>
+Message-ID: <bb001de0-e4e5-6b3f-7ced-9d0fb329635b@intel.com>
+Date: Fri, 3 May 2019 14:14:33 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Message-ID: <20190503201629.20512-1-daniel.m.jordan@oracle.com>
-Date: Fri, 3 May 2019 13:16:30 -0700 (PDT)
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: akpm@linux-foundation.org
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Alan Tull <atull@kernel.org>,
-        Alexey Kardashevskiy <aik@ozlabs.ru>,
-        Alex Williamson
- <alex.williamson@redhat.com>,
-        Benjamin Herrenschmidt
- <benh@kernel.crashing.org>,
-        Christoph Lameter <cl@linux.com>,
-        Christophe
- Leroy <christophe.leroy@c-s.fr>,
-        Davidlohr Bueso <dave@stgolabs.net>,
-        Jason
- Gunthorpe <jgg@mellanox.com>,
-        Mark Rutland <mark.rutland@arm.com>,
-        Michael
- Ellerman <mpe@ellerman.id.au>,
-        Moritz Fischer <mdf@kernel.org>, Paul
- Mackerras <paulus@ozlabs.org>,
-        Steve Sistare <steven.sistare@oracle.com>, Wu
- Hao <hao.wu@intel.com>,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: [PATCH] mm: add account_locked_vm utility function
-X-Mailer: git-send-email 2.21.0
-Content-Type: text/plain; charset=ascii
-Content-Transfer-Encoding: 8bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9245 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=8 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905030132
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9245 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=8 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905030133
+In-Reply-To: <CAOWid-cYknxeTQvP9vQf3-i3Cpux+bs7uBs7_o-YMFjVCo19bg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-locked_vm accounting is done roughly the same way in five places, so
-unify them in a helper.  Standardize the debug prints, which vary
-slightly.  Error codes stay the same, so user-visible behavior does too.
 
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Alan Tull <atull@kernel.org>
-Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
-Cc: Alex Williamson <alex.williamson@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Moritz Fischer <mdf@kernel.org>
-Cc: Paul Mackerras <paulus@ozlabs.org>
-Cc: Steve Sistare <steven.sistare@oracle.com>
-Cc: Wu Hao <hao.wu@intel.com>
-Cc: linux-mm@kvack.org
-Cc: kvm@vger.kernel.org
-Cc: kvm-ppc@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-fpga@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
----
+On 5/2/2019 3:48 PM, Kenny Ho wrote:
+> On 5/2/2019 1:34 AM, Leon Romanovsky wrote:
+>> Count us (Mellanox) too, our RDMA devices are exposing special and
+>> limited in size device memory to the users and we would like to provide
+>> an option to use cgroup to control its exposure.
 
-Based on v5.1-rc7.  Tested with the vfio type1 driver.  Any feedback
-welcome.
+Hi Leon, great to hear and happy to work with you and RDMA community
+to shape this framework for use by RDMA devices as well.  The intent
+was to support more than GPU devices.
 
-Andrew, this one patch replaces these six from [1]:
+Incidentally, I also wanted to ask about the rdma cgroup controller
+and if there is interest in updating the device registration implemented
+in that controller.  It could use the cgroup_device_register() that is
+proposed here.   But this is perhaps future work, so can discuss separately.
 
-    mm-change-locked_vms-type-from-unsigned-long-to-atomic64_t.patch
-    vfio-type1-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-    vfio-spapr_tce-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-    fpga-dlf-afu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-    kvm-book3s-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
-    powerpc-mmu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
 
-That series converts locked_vm to an atomic, but on closer inspection causes at
-least one accounting race in mremap, and fixing it just for this type
-conversion came with too much ugly in the core mm to justify, especially when
-the right long-term fix is making these drivers use pinned_vm instead.
+> Doesn't RDMA already has a separate cgroup?  Why not implement it there?
+> 
 
-Christophe's suggestion of cmpxchg[2] does prevent the races he
-mentioned for pinned_vm, but others would still remain.  In perf_mmap
-and the hfi1 driver, pinned_vm is checked against the rlimit racily and
-then later increased when the pinned_vm originally read may have gone
-stale.  Any fixes for that, that I could think of, seem about as good as
-what's there now, so I left it.  I have a patch that uses cmpxchg with
-pinned_vm if others feel strongly that the aforementioned races should
-be fixed.
+Hi Kenny, I can't answer for Leon, but I'm hopeful he agrees with rationale
+I gave in the cover letter.  Namely, to implement in rdma controller, would
+mean duplicating existing memcg controls there.
 
-Daniel
+Is AMD interested in collaborating to help shape this framework?
+It is intended to be device-neutral, so could be leveraged by various
+types of devices.
+If you have an alternative solution well underway, then maybe
+we can work together to merge our efforts into one.
+In the end, the DRM community is best served with common solution.
 
-[1] https://lore.kernel.org/linux-mm/20190402204158.27582-1-daniel.m.jordan@oracle.com/
-[2] https://lore.kernel.org/linux-mm/964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr/
 
- arch/powerpc/kvm/book3s_64_vio.c    | 44 +++---------------------
- arch/powerpc/mm/mmu_context_iommu.c | 41 +++-------------------
- drivers/fpga/dfl-afu-dma-region.c   | 53 +++--------------------------
- drivers/vfio/vfio_iommu_spapr_tce.c | 52 +++++-----------------------
- drivers/vfio/vfio_iommu_type1.c     | 23 ++++---------
- include/linux/mm.h                  | 19 +++++++++++
- mm/util.c                           | 48 ++++++++++++++++++++++++++
- 7 files changed, 94 insertions(+), 186 deletions(-)
-
-diff --git a/arch/powerpc/kvm/book3s_64_vio.c b/arch/powerpc/kvm/book3s_64_vio.c
-index f02b04973710..f7d37fa6003a 100644
---- a/arch/powerpc/kvm/book3s_64_vio.c
-+++ b/arch/powerpc/kvm/book3s_64_vio.c
-@@ -30,6 +30,7 @@
- #include <linux/anon_inodes.h>
- #include <linux/iommu.h>
- #include <linux/file.h>
-+#include <linux/mm.h>
- 
- #include <asm/kvm_ppc.h>
- #include <asm/kvm_book3s.h>
-@@ -56,43 +57,6 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
- 	return tce_pages + ALIGN(stt_bytes, PAGE_SIZE) / PAGE_SIZE;
- }
- 
--static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
--{
--	long ret = 0;
--
--	if (!current || !current->mm)
--		return ret; /* process exited */
--
--	down_write(&current->mm->mmap_sem);
--
--	if (inc) {
--		unsigned long locked, lock_limit;
--
--		locked = current->mm->locked_vm + stt_pages;
--		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
--		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
--			ret = -ENOMEM;
--		else
--			current->mm->locked_vm += stt_pages;
--	} else {
--		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
--			stt_pages = current->mm->locked_vm;
--
--		current->mm->locked_vm -= stt_pages;
--	}
--
--	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
--			inc ? '+' : '-',
--			stt_pages << PAGE_SHIFT,
--			current->mm->locked_vm << PAGE_SHIFT,
--			rlimit(RLIMIT_MEMLOCK),
--			ret ? " - exceeded" : "");
--
--	up_write(&current->mm->mmap_sem);
--
--	return ret;
--}
--
- static void kvm_spapr_tce_iommu_table_free(struct rcu_head *head)
- {
- 	struct kvmppc_spapr_tce_iommu_table *stit = container_of(head,
-@@ -277,7 +241,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
- 
- 	kvm_put_kvm(stt->kvm);
- 
--	kvmppc_account_memlimit(
-+	account_locked_vm(current->mm,
- 		kvmppc_stt_pages(kvmppc_tce_pages(stt->size)), false);
- 	call_rcu(&stt->rcu, release_spapr_tce_table);
- 
-@@ -303,7 +267,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
- 		return -EINVAL;
- 
- 	npages = kvmppc_tce_pages(size);
--	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
-+	ret = account_locked_vm(current->mm, kvmppc_stt_pages(npages), true);
- 	if (ret)
- 		return ret;
- 
-@@ -359,7 +323,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
- 
- 	kfree(stt);
-  fail_acct:
--	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
-+	account_locked_vm(current->mm, kvmppc_stt_pages(npages), false);
- 	return ret;
- }
- 
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index 8330f135294f..9e7001a70570 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -19,6 +19,7 @@
- #include <linux/hugetlb.h>
- #include <linux/swap.h>
- #include <linux/sizes.h>
-+#include <linux/mm.h>
- #include <asm/mmu_context.h>
- #include <asm/pte-walk.h>
- #include <linux/mm_inline.h>
-@@ -51,40 +52,6 @@ struct mm_iommu_table_group_mem_t {
- 	u64 dev_hpa;		/* Device memory base address */
- };
- 
--static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
--		unsigned long npages, bool incr)
--{
--	long ret = 0, locked, lock_limit;
--
--	if (!npages)
--		return 0;
--
--	down_write(&mm->mmap_sem);
--
--	if (incr) {
--		locked = mm->locked_vm + npages;
--		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
--		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
--			ret = -ENOMEM;
--		else
--			mm->locked_vm += npages;
--	} else {
--		if (WARN_ON_ONCE(npages > mm->locked_vm))
--			npages = mm->locked_vm;
--		mm->locked_vm -= npages;
--	}
--
--	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
--			current ? current->pid : 0,
--			incr ? '+' : '-',
--			npages << PAGE_SHIFT,
--			mm->locked_vm << PAGE_SHIFT,
--			rlimit(RLIMIT_MEMLOCK));
--	up_write(&mm->mmap_sem);
--
--	return ret;
--}
--
- bool mm_iommu_preregistered(struct mm_struct *mm)
- {
- 	return !list_empty(&mm->context.iommu_group_mem_list);
-@@ -101,7 +68,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 	unsigned long entry, chunk;
- 
- 	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
--		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
-+		ret = account_locked_vm(mm, entries, true);
- 		if (ret)
- 			return ret;
- 
-@@ -215,7 +182,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 	kfree(mem);
- 
- unlock_exit:
--	mm_iommu_adjust_locked_vm(mm, locked_entries, false);
-+	account_locked_vm(mm, locked_entries, false);
- 
- 	return ret;
- }
-@@ -315,7 +282,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
- unlock_exit:
- 	mutex_unlock(&mem_list_mutex);
- 
--	mm_iommu_adjust_locked_vm(mm, unlock_entries, false);
-+	account_locked_vm(mm, unlock_entries, false);
- 
- 	return ret;
- }
-diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
-index e18a786fc943..059438e17193 100644
---- a/drivers/fpga/dfl-afu-dma-region.c
-+++ b/drivers/fpga/dfl-afu-dma-region.c
-@@ -12,6 +12,7 @@
- #include <linux/dma-mapping.h>
- #include <linux/sched/signal.h>
- #include <linux/uaccess.h>
-+#include <linux/mm.h>
- 
- #include "dfl-afu.h"
- 
-@@ -31,52 +32,6 @@ void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
- 	afu->dma_regions = RB_ROOT;
- }
- 
--/**
-- * afu_dma_adjust_locked_vm - adjust locked memory
-- * @dev: port device
-- * @npages: number of pages
-- * @incr: increase or decrease locked memory
-- *
-- * Increase or decrease the locked memory size with npages input.
-- *
-- * Return 0 on success.
-- * Return -ENOMEM if locked memory size is over the limit and no CAP_IPC_LOCK.
-- */
--static int afu_dma_adjust_locked_vm(struct device *dev, long npages, bool incr)
--{
--	unsigned long locked, lock_limit;
--	int ret = 0;
--
--	/* the task is exiting. */
--	if (!current->mm)
--		return 0;
--
--	down_write(&current->mm->mmap_sem);
--
--	if (incr) {
--		locked = current->mm->locked_vm + npages;
--		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
--
--		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
--			ret = -ENOMEM;
--		else
--			current->mm->locked_vm += npages;
--	} else {
--		if (WARN_ON_ONCE(npages > current->mm->locked_vm))
--			npages = current->mm->locked_vm;
--		current->mm->locked_vm -= npages;
--	}
--
--	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %ld/%ld%s\n", current->pid,
--		incr ? '+' : '-', npages << PAGE_SHIFT,
--		current->mm->locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
--		ret ? "- exceeded" : "");
--
--	up_write(&current->mm->mmap_sem);
--
--	return ret;
--}
--
- /**
-  * afu_dma_pin_pages - pin pages of given dma memory region
-  * @pdata: feature device platform data
-@@ -92,7 +47,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
- 	struct device *dev = &pdata->dev->dev;
- 	int ret, pinned;
- 
--	ret = afu_dma_adjust_locked_vm(dev, npages, true);
-+	ret = account_locked_vm(current->mm, npages, true);
- 	if (ret)
- 		return ret;
- 
-@@ -121,7 +76,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
- free_pages:
- 	kfree(region->pages);
- unlock_vm:
--	afu_dma_adjust_locked_vm(dev, npages, false);
-+	account_locked_vm(current->mm, npages, false);
- 	return ret;
- }
- 
-@@ -141,7 +96,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
- 
- 	put_all_pages(region->pages, npages);
- 	kfree(region->pages);
--	afu_dma_adjust_locked_vm(dev, npages, false);
-+	account_locked_vm(current->mm, npages, false);
- 
- 	dev_dbg(dev, "%ld pages unpinned\n", npages);
- }
-diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
-index 6b64e45a5269..d39a1b830d82 100644
---- a/drivers/vfio/vfio_iommu_spapr_tce.c
-+++ b/drivers/vfio/vfio_iommu_spapr_tce.c
-@@ -22,6 +22,7 @@
- #include <linux/vmalloc.h>
- #include <linux/sched/mm.h>
- #include <linux/sched/signal.h>
-+#include <linux/mm.h>
- 
- #include <asm/iommu.h>
- #include <asm/tce.h>
-@@ -34,49 +35,13 @@
- static void tce_iommu_detach_group(void *iommu_data,
- 		struct iommu_group *iommu_group);
- 
--static long try_increment_locked_vm(struct mm_struct *mm, long npages)
-+static int tce_account_locked_vm(struct mm_struct *mm, unsigned long npages,
-+				 bool inc)
- {
--	long ret = 0, locked, lock_limit;
--
- 	if (WARN_ON_ONCE(!mm))
- 		return -EPERM;
- 
--	if (!npages)
--		return 0;
--
--	down_write(&mm->mmap_sem);
--	locked = mm->locked_vm + npages;
--	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
--	if (locked > lock_limit && !capable(CAP_IPC_LOCK))
--		ret = -ENOMEM;
--	else
--		mm->locked_vm += npages;
--
--	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
--			npages << PAGE_SHIFT,
--			mm->locked_vm << PAGE_SHIFT,
--			rlimit(RLIMIT_MEMLOCK),
--			ret ? " - exceeded" : "");
--
--	up_write(&mm->mmap_sem);
--
--	return ret;
--}
--
--static void decrement_locked_vm(struct mm_struct *mm, long npages)
--{
--	if (!mm || !npages)
--		return;
--
--	down_write(&mm->mmap_sem);
--	if (WARN_ON_ONCE(npages > mm->locked_vm))
--		npages = mm->locked_vm;
--	mm->locked_vm -= npages;
--	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
--			npages << PAGE_SHIFT,
--			mm->locked_vm << PAGE_SHIFT,
--			rlimit(RLIMIT_MEMLOCK));
--	up_write(&mm->mmap_sem);
-+	return account_locked_vm(mm, npages, inc);
- }
- 
- /*
-@@ -336,7 +301,7 @@ static int tce_iommu_enable(struct tce_container *container)
- 		return ret;
- 
- 	locked = table_group->tce32_size >> PAGE_SHIFT;
--	ret = try_increment_locked_vm(container->mm, locked);
-+	ret = tce_account_locked_vm(container->mm, locked, true);
- 	if (ret)
- 		return ret;
- 
-@@ -355,7 +320,7 @@ static void tce_iommu_disable(struct tce_container *container)
- 	container->enabled = false;
- 
- 	BUG_ON(!container->mm);
--	decrement_locked_vm(container->mm, container->locked_pages);
-+	tce_account_locked_vm(container->mm, container->locked_pages, false);
- }
- 
- static void *tce_iommu_open(unsigned long arg)
-@@ -658,7 +623,8 @@ static long tce_iommu_create_table(struct tce_container *container,
- 	if (!table_size)
- 		return -EINVAL;
- 
--	ret = try_increment_locked_vm(container->mm, table_size >> PAGE_SHIFT);
-+	ret = tce_account_locked_vm(container->mm, table_size >> PAGE_SHIFT,
-+				    true);
- 	if (ret)
- 		return ret;
- 
-@@ -677,7 +643,7 @@ static void tce_iommu_free_table(struct tce_container *container,
- 	unsigned long pages = tbl->it_allocated_size >> PAGE_SHIFT;
- 
- 	iommu_tce_table_put(tbl);
--	decrement_locked_vm(container->mm, pages);
-+	tce_account_locked_vm(container->mm, pages, false);
- }
- 
- static long tce_iommu_create_window(struct tce_container *container,
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-index d0f731c9920a..15ac76171ccd 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -273,25 +273,14 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
- 		return -ESRCH; /* process exited */
- 
- 	ret = down_write_killable(&mm->mmap_sem);
--	if (!ret) {
--		if (npage > 0) {
--			if (!dma->lock_cap) {
--				unsigned long limit;
--
--				limit = task_rlimit(dma->task,
--						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
--
--				if (mm->locked_vm + npage > limit)
--					ret = -ENOMEM;
--			}
--		}
-+	if (ret)
-+		goto out;
- 
--		if (!ret)
--			mm->locked_vm += npage;
--
--		up_write(&mm->mmap_sem);
--	}
-+	ret = __account_locked_vm(mm, abs(npage), npage > 0, dma->task,
-+				  dma->lock_cap);
-+	up_write(&mm->mmap_sem);
- 
-+out:
- 	if (async)
- 		mmput(mm);
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 6b10c21630f5..7134e55ca23f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1521,6 +1521,25 @@ static inline long get_user_pages_longterm(unsigned long start,
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages);
- 
-+int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
-+			struct task_struct *task, bool bypass_rlim);
-+
-+static inline int account_locked_vm(struct mm_struct *mm, unsigned long pages,
-+				    bool inc)
-+{
-+	int ret;
-+
-+	if (pages == 0 || !mm)
-+		return 0;
-+
-+	down_write(&mm->mmap_sem);
-+	ret = __account_locked_vm(mm, pages, inc, current,
-+				  capable(CAP_IPC_LOCK));
-+	up_write(&mm->mmap_sem);
-+
-+	return ret;
-+}
-+
- /* Container for pinned pfns / pages */
- struct frame_vector {
- 	unsigned int nr_allocated;	/* Number of frames we have space for */
-diff --git a/mm/util.c b/mm/util.c
-index 43a2984bccaa..552302665bc2 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -6,6 +6,7 @@
- #include <linux/err.h>
- #include <linux/sched.h>
- #include <linux/sched/mm.h>
-+#include <linux/sched/signal.h>
- #include <linux/sched/task_stack.h>
- #include <linux/security.h>
- #include <linux/swap.h>
-@@ -346,6 +347,53 @@ int __weak get_user_pages_fast(unsigned long start,
- }
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
- 
-+/**
-+ * __account_locked_vm - account locked pages to an mm's locked_vm
-+ * @mm:          mm to account against, may be NULL
-+ * @pages:       number of pages to account
-+ * @inc:         %true if @pages should be considered positive, %false if not
-+ * @task:        task used to check RLIMIT_MEMLOCK
-+ * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
-+ *
-+ * Assumes @task and @mm are valid (i.e. at least one reference on each), and
-+ * that mmap_sem is held as writer.
-+ *
-+ * Return:
-+ * * 0       on success
-+ * * 0       if @mm is NULL (can happen for example if the task is exiting)
-+ * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
-+ */
-+int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
-+			struct task_struct *task, bool bypass_rlim)
-+{
-+	unsigned long locked_vm, limit;
-+	int ret = 0;
-+
-+	locked_vm = mm->locked_vm;
-+	if (inc) {
-+		if (!bypass_rlim) {
-+			limit = task_rlimit(task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-+			if (locked_vm + pages > limit) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+		}
-+		mm->locked_vm = locked_vm + pages;
-+	} else {
-+		WARN_ON_ONCE(pages > locked_vm);
-+		mm->locked_vm = locked_vm - pages;
-+	}
-+
-+out:
-+	pr_debug("%s: [%d] %c%lu %lu/%lu%s\n", __func__, task->pid,
-+		 (inc) ? '+' : '-', pages << PAGE_SHIFT,
-+		 locked_vm << PAGE_SHIFT, task_rlimit(task, RLIMIT_MEMLOCK),
-+		 ret ? " - exceeded" : "");
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(__account_locked_vm);
-+
- unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
- 	unsigned long len, unsigned long prot,
- 	unsigned long flag, unsigned long pgoff)
-
-base-commit: 37624b58542fb9f2d9a70e6ea006ef8a5f66c30b
--- 
-2.21.0
+> 
+>>> and with future work, we could extend to:
+>>> *  track and control share of GPU time (reuse of cpu/cpuacct)
+>>> *  apply mask of allowed execution engines (reuse of cpusets)
+>>>
+>>> Instead of introducing a new cgroup subsystem for GPU devices, a new
+>>> framework is proposed to allow devices to register with existing cgroup
+>>> controllers, which creates per-device cgroup_subsys_state within the
+>>> cgroup.  This gives device drivers their own private cgroup controls
+>>> (such as memory limits or other parameters) to be applied to device
+>>> resources instead of host system resources.
+>>> Device drivers (GPU or other) are then able to reuse the existing cgroup
+>>> controls, instead of inventing similar ones.
+>>>
+>>> Per-device controls would be exposed in cgroup filesystem as:
+>>>     mount/<cgroup_name>/<subsys_name>.devices/<dev_name>/<subsys_files>
+>>> such as (for example):
+>>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.max
+>>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.current
+>>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.stat
+>>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.weight
+>>>
+>>> The drm/i915 patch in this series is based on top of other RFC work [1]
+>>> for i915 device memory support.
+>>>
+>>> AMD [2] and Intel [3] have proposed related work in this area within the
+>>> last few years, listed below as reference.  This new RFC reuses existing
+>>> cgroup controllers and takes a different approach than prior work.
+>>>
+>>> Finally, some potential discussion points for this series:
+>>> * merge proposed <subsys_name>.devices into a single devices directory?
+>>> * allow devices to have multiple registrations for subsets of resources?
+>>> * document a 'common charging policy' for device drivers to follow?
+>>>
+>>> [1] https://patchwork.freedesktop.org/series/56683/
+>>> [2] https://lists.freedesktop.org/archives/dri-devel/2018-November/197106.html
+>>> [3] https://lists.freedesktop.org/archives/intel-gfx/2018-January/153156.html
+>>>
+>>>
+>>> Brian Welty (5):
+>>>   cgroup: Add cgroup_subsys per-device registration framework
+>>>   cgroup: Change kernfs_node for directories to store
+>>>     cgroup_subsys_state
+>>>   memcg: Add per-device support to memory cgroup subsystem
+>>>   drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
+>>>   drm/i915: Use memory cgroup for enforcing device memory limit
+>>>
+>>>  drivers/gpu/drm/drm_drv.c                  |  12 +
+>>>  drivers/gpu/drm/drm_gem.c                  |   7 +
+>>>  drivers/gpu/drm/i915/i915_drv.c            |   2 +-
+>>>  drivers/gpu/drm/i915/intel_memory_region.c |  24 +-
+>>>  include/drm/drm_device.h                   |   3 +
+>>>  include/drm/drm_drv.h                      |   8 +
+>>>  include/drm/drm_gem.h                      |  11 +
+>>>  include/linux/cgroup-defs.h                |  28 ++
+>>>  include/linux/cgroup.h                     |   3 +
+>>>  include/linux/memcontrol.h                 |  10 +
+>>>  kernel/cgroup/cgroup-v1.c                  |  10 +-
+>>>  kernel/cgroup/cgroup.c                     | 310 ++++++++++++++++++---
+>>>  mm/memcontrol.c                            | 183 +++++++++++-
+>>>  13 files changed, 552 insertions(+), 59 deletions(-)
+>>>
+>>> --
+>>> 2.21.0
+>>>
+>> _______________________________________________
+>> dri-devel mailing list
+>> dri-devel@lists.freedesktop.org
+>> https://lists.freedesktop.org/mailman/listinfo/dri-devel
 
