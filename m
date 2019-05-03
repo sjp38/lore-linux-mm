@@ -2,136 +2,148 @@ Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25A3DC43219
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 19:05:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A535CC43219
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 19:52:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC4742075C
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 19:05:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5741B206BB
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 19:52:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="oCkYMf0Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC4742075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="Y2+mqpv1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5741B206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17A546B0005; Fri,  3 May 2019 15:05:07 -0400 (EDT)
+	id E50A36B0005; Fri,  3 May 2019 15:52:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 12B446B0006; Fri,  3 May 2019 15:05:07 -0400 (EDT)
+	id E005E6B0006; Fri,  3 May 2019 15:52:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0423F6B0007; Fri,  3 May 2019 15:05:06 -0400 (EDT)
+	id CF0316B0007; Fri,  3 May 2019 15:52:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B041E6B0005
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 15:05:06 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id o17so1172558ljd.2
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 12:05:06 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B18266B0005
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 15:52:11 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id 18so7135181qtw.20
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 12:52:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=N0fQvI1xQxBGYfgDEPylqO9omVuCnLxv/R7iHJbfjSs=;
-        b=DXcr3ZQZjB7GEOD9WD5bF1IV/J/OD9R8ASYNQokE8jz8VnptbYbbbB3bwdvMsLupRj
-         X5hW6mz9L2uOYZUJlWUBmWvReErqH9memKhT7Et3ULQ19FHbCoIELYUApoqixN36+13d
-         MGEQOrS2IZU5e9AIOSCG9Ghl6hvdpjMPzEzGZAHRFGC1v4H1WTfQmtt72jlhAnyQdOQJ
-         OjSFq+4WbmvXndXZH/KTx9VZ5mjsQJ5yjMAPfQa77jpvXXEvQPrdzhZYrlcD2sABL1vD
-         fQYDe2y+3acgWWpW/Y7FYM1YaTjyYnk2emYvLq25uaZd1mHYTCqR1puRzhioJiqHAbPP
-         Ns7w==
-X-Gm-Message-State: APjAAAXuNi4HtlznOi8UKbPWzSyF9n/cJnQfwotcaT4PvuSkJp3t43ei
-	mIFy+zA4bwEZBkQDJqpMyXhrviup5YKmzC1uVE5zTlZBNt15x4fxsGQmARNRpFcTg/2G17SE6xy
-	9fomgGlkOtDvjaN9ul7DG8cNSGMNL82NDU5PEHhd1vSGElhidbIfR0WaQWwpN1UikYQ==
-X-Received: by 2002:a2e:390c:: with SMTP id g12mr6437943lja.174.1556910305816;
-        Fri, 03 May 2019 12:05:05 -0700 (PDT)
-X-Received: by 2002:a2e:390c:: with SMTP id g12mr6437890lja.174.1556910304714;
-        Fri, 03 May 2019 12:05:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556910304; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ivgmrdOFqYbX906OA4N9N8K+zP87FPliWqhK06GaWhc=;
+        b=Nq24irMA6AuxRMccYHdo/d12rXyOo50VdJQR+Pi/aE9bMnJbciyJ+xT29leFsl0+sl
+         Qs1Nj7/FlqwP/q/BP8jrkoDc0JG1KMYAAUZVBiO/at+gPXAUuFVdOc140cUZYT3ACsbJ
+         /QACjJJKpsxrJH++Wbu1Q3/pZYK9wpzdaK8jREzrpBKr5Z7iQIztrtVnoLB9dIPMJTFi
+         +QGvoigKDDS4Js9d4Ra2L8YVgodQuggSlUBPn3P+ewWFSfUPL/UfOLiwFp+L3K81W5qa
+         q31r2YiwFdUSqLs3zt4EQB3BmqXfGRP2/RvvVkYxVa0SFfhFQ+A6Z60hZ4v6LsywBQ9h
+         2fQQ==
+X-Gm-Message-State: APjAAAUNPoEJiU6avuBmTV+BEQQ/u/9+APiLNIkP2BFM39c9OvPQL8Ul
+	M0IOtv5FRSxT21feB9lwFBZDuix4PoCyDBGREVz2ctDYki28YI5z4bowI8QsUfJjFfG8/M/1iE3
+	/hJi3iPd/yn+Lk4g5INRXkt0Ui+owMD+qraLFLiZ72wkyIjW2CPXC4ydxHhEPSLd6WQ==
+X-Received: by 2002:a0c:9694:: with SMTP id a20mr9495517qvd.236.1556913131469;
+        Fri, 03 May 2019 12:52:11 -0700 (PDT)
+X-Received: by 2002:a0c:9694:: with SMTP id a20mr9495469qvd.236.1556913130580;
+        Fri, 03 May 2019 12:52:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556913130; cv=none;
         d=google.com; s=arc-20160816;
-        b=j4e3a61e7GFfoVgY8f/Lfv2NWBEoExAM9Yel7fTggUVgbd1y7RZInPsWz3tVNOSqYa
-         wB+ufLNNV4tFQ6h5tCrLaWcoDWT9tjVUnyYpn5nqZB3ilBPkKkIe3+4J8rzRsN4Totqd
-         T1MvfvYCHcNBud0/uWktmXl7JFc19UnLmi1kjyJV555OHNLEDjtH9PMxHmCHRaUhnqmJ
-         On5jFsBSRS1ATZeffxPg3c2+1RitO6a2dKWsZqtTIpbDGUBDqExJJcg0T/S4ScpprglQ
-         v9Z41dj3V7WrI5cajQ8L/VTXYVYu5zrbHgwoCyjlUuh1K7Zb2u/ztE/Cq9z2jQRaiRko
-         ydww==
+        b=URn1F5NOlxrWlMFK8jCh5EL8O1LOU46fEAFn2ZvJNQD6G6mh9jWHSG4MT64DpAxrx+
+         oA70Vb8fPICPTS3+bhtNV7Ms1aV80E/fCau0VGhYHuJPXEnosyX2gA/+pyZg6hHOK2YD
+         6iA5VfHeF5XJa4jMdXM1y5QfdHaO+5eVpvRj4q+0kTjjnYYtAmmIsWMTuHqcf6lVxY9c
+         tpto/3Fo3xV16kdYBhifL/bFLES5ha9btdfFAjjcgvlC+6RZ4cSe2UPDwOAdPtM+Hx8J
+         MP+Q0jyMpnhXq3VjnqlJPMvWYXVP/Cv1+N3w5nso+JmONhqoU55ACB4J9PaajZSolo9l
+         rjcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=N0fQvI1xQxBGYfgDEPylqO9omVuCnLxv/R7iHJbfjSs=;
-        b=zN+TuGxtc1poYdeB0rC4qdMtPnGBN851k563Ur0/3lu0BQhvvKrJYZ8IT9t2m69ums
-         0gH0QsASswQVm90kyfhQJ6213339GOJC5Y51Rl80puKZyDDvKcD0vy3yMwID/2hcvPtk
-         VKhsLM9I6t5gg7IBbuhtDwDpNZWDWGgZFPoM2o3nIHcEKvjtN3xXPPDr2lj58KWKkDtE
-         s21AXWvQbBWgAmkHiPSNOZnT2Ct8GpZWkMiWwgU2rpnd6+J3eEWBANAv2+i1MCN7e25/
-         6GOkVV8Nyr2WV9Jqt29neSsh1bLO5sSTLwHwZIBZpXnvVVp70EXhNY9F1g7Ue+OsM/GJ
-         0z+A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ivgmrdOFqYbX906OA4N9N8K+zP87FPliWqhK06GaWhc=;
+        b=PJrBbdxCwb6ULKX5aZYpHGr7e2T5RPmTyAIqHIkaCv8BEkqOWF8yDfQB6i+pUPSuDW
+         eyOXqhOn6fpBihIFzqG412aau+Ps/G5+cLOpt0Aq8HL6x1TwfTOZQpzG9a2VKZbqaPvw
+         5CsIHVS4M6tAY3acFhl5dvDuSKggHuq1j+IdxRhXyx0czDhboATS0bnOYpuMXnx38ul3
+         2Nx/xSN86eifeNu2IsusdpX/4kT+CIIlE1Zw+EfSCH4u4Kva9/15h7Ch8FBLBLzqLuBg
+         who4U3uPa7uxqRK2+aoYbR3sr8RbdLRDSiojqBSecRN7Az1Epnl59P+DJLJyWPdb9Wdw
+         YVwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oCkYMf0Y;
-       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x14sor1004776lfn.31.2019.05.03.12.05.04
+       dkim=pass header.i=@soleen.com header.s=google header.b=Y2+mqpv1;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n128sor1902166qka.3.2019.05.03.12.52.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 03 May 2019 12:05:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Fri, 03 May 2019 12:52:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oCkYMf0Y;
-       spf=pass (google.com: domain of adobriyan@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=adobriyan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@soleen.com header.s=google header.b=Y2+mqpv1;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=N0fQvI1xQxBGYfgDEPylqO9omVuCnLxv/R7iHJbfjSs=;
-        b=oCkYMf0Ylg8SFgR+FHDlyuOt1BjKl/MRN0ULbEKCcIFkm8RjBQYqY9fIvL6SNbxV19
-         KE353lpDaTxzO615X6/uVjGYLQxrPIh7tjmOaOmmDG+8LU7z5UGEJqNVaZ+O5tG9XXca
-         MtLpT0ELKPHWFWnXoo6AxkigD3S+AmDaoi45yu8YCsf/3XH3XUsOeHWrZapKP3TxVxvn
-         bbkcmvbAXnYwf+B3SdQaEtkLzNHtwUnoj0NaP6csUg+X3ShXvMZu15jyj8ImuBs1cS4d
-         LlDDfKCE8enCW+fiyCg6feuvrGGehtGCVMvx1I8QxYXDX3qGdxVNo9Q7+eCpJE6vvSlO
-         IqgA==
-X-Google-Smtp-Source: APXvYqzbLzMgAIFWGOemug1Fm4h55QT+QG7eoUPAMm7rSN4A9ytMBPSmg4cWFVTp9HPqEYJzFpCEDg==
-X-Received: by 2002:a19:a417:: with SMTP id q23mr5853317lfc.110.1556910304078;
-        Fri, 03 May 2019 12:05:04 -0700 (PDT)
-Received: from avx2 ([46.53.252.190])
-        by smtp.gmail.com with ESMTPSA id q21sm568244lfa.84.2019.05.03.12.05.02
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 May 2019 12:05:03 -0700 (PDT)
-Date: Fri, 3 May 2019 22:05:00 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
-Subject: [PATCH] swap: ifdef struct vm_area_struct::swap_readahead_info
-Message-ID: <20190503190500.GA30589@avx2>
+        d=soleen.com; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ivgmrdOFqYbX906OA4N9N8K+zP87FPliWqhK06GaWhc=;
+        b=Y2+mqpv1ToBfZomGR0KiG0kJTC7Pd0/kQpdMHTLgCyV+gSUCOY8qdd9UCYmiwv8VrP
+         a0P2nQSotvfAV+CN79oMGzR3siWxg++Ro/Nh7074im6lvktjpD8hIg0qMeLNeViPAb5p
+         Ak6AnFNXIYyOEpaZmHFL4DjYbaTMMsJPHWbtlDryeNYlH9CMipo59Z5bwqt6LnH+866y
+         no7ekuTp5m99+xYSlNrDLBL8TWLAbgPMf3WhIiwOO3hmFCWHFVznd4vHpEhYyKrruUob
+         /WctC1Yd5I8cShP8X4p/ZyVtrGhsfMRHJnAiQwD7vi7EwWffIOwvaHGiK0CMeMDge/gC
+         3dTg==
+X-Google-Smtp-Source: APXvYqwhEb3DduJH9sxXZb04NbmAIe9orgplVqZkdluZyv5W3gUxH6ho/Vp1ktRhA9nOhgZWzjVhcQ==
+X-Received: by 2002:a37:b802:: with SMTP id i2mr8702107qkf.343.1556913130058;
+        Fri, 03 May 2019 12:52:10 -0700 (PDT)
+Received: from soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net ([40.117.208.181])
+        by smtp.gmail.com with ESMTPSA id g55sm3082470qtk.76.2019.05.03.12.52.09
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 03 May 2019 12:52:09 -0700 (PDT)
+Date: Fri, 3 May 2019 19:52:07 +0000
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Jane Chu <jane.chu@oracle.com>, linux-nvdimm@lists.01.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de
+Subject: Re: [PATCH v7 03/12] mm/sparsemem: Add helpers track active portions
+ of a section at boot
+Message-ID: <20190503195207.l7jrr3z4halukycm@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155677653785.2336373.11131100812252340469.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <155677653785.2336373.11131100812252340469.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The field is only used in swap code.
+On 19-05-01 22:55:37, Dan Williams wrote:
+> Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
+> section active bitmask, each bit representing 2MB (SECTION_SIZE (128M) /
+> map_active bitmask length (64)). If it turns out that 2MB is too large
+> of an active tracking granularity it is trivial to increase the size of
+> the map_active bitmap.
+> 
+> The implications of a partially populated section is that pfn_valid()
+> needs to go beyond a valid_section() check and read the sub-section
+> active ranges from the bitmask.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Tested-by: Jane Chu <jane.chu@oracle.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
----
+Hi Dan,
 
- include/linux/mm_types.h |    2 ++
- 1 file changed, 2 insertions(+)
+I have sent comments to the previous version of this patch:
+https://lore.kernel.org/lkml/CA+CK2bAfnCVYz956jPTNQ+AqHJs7uY1ZqWfL8fSUFWQOdKxHcg@mail.gmail.com/
 
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -326,7 +326,9 @@ struct vm_area_struct {
- 	struct file * vm_file;		/* File we map to (can be NULL). */
- 	void * vm_private_data;		/* was vm_pte (shared mem) */
- 
-+#ifdef CONFIG_SWAP
- 	atomic_long_t swap_readahead_info;
-+#endif
- #ifndef CONFIG_MMU
- 	struct vm_region *vm_region;	/* NOMMU mapping region */
- #endif
+I think they still apply to this one.
+
+Thank you,
+Pasha
 
