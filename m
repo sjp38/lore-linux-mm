@@ -2,234 +2,167 @@ Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB92BC04AAA
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 12:56:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AE11C43219
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 12:57:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4655F208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 12:56:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4655F208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 226132063F
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 12:57:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="Q1s+yLF0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 226132063F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A567D6B0003; Fri,  3 May 2019 08:56:40 -0400 (EDT)
+	id B8F3F6B0006; Fri,  3 May 2019 08:57:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A06E16B0005; Fri,  3 May 2019 08:56:40 -0400 (EDT)
+	id B402D6B0008; Fri,  3 May 2019 08:57:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F72A6B0006; Fri,  3 May 2019 08:56:40 -0400 (EDT)
+	id A557C6B000A; Fri,  3 May 2019 08:57:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3FA6B0003
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 08:56:40 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id t58so3659198edb.22
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 05:56:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 559806B0006
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 08:57:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id e21so3666951edr.18
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 05:57:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=k6+0+dCkuqLM9AEl8WzmBz7Em+Be0LDL8+SAWKxlVT0=;
-        b=L5oh6s8KWzfGlUP09fxvES4k0/+uJvKDpxBnFx49F8+sGDl2aS+cKmGOVuFTSCwpS8
-         rSlHAkZTgzmDfqmya6tYIa+RqHS8/iakBC0zfRBdpIUZEVB8QghwZ7W0KASmryStwRtk
-         Q2YYnKz5Xr1QzoKfwEVl1khwgbfa5GZRkKoIB2ynPaZeJ0v3gRR+/vlk6Of0Pr9Ah6u1
-         vP2fYKJlViYe1UcY6fHgDFWZZ/YeVcTavsaNSBP1ZWAwAfYeBZkD4BKMfjiQwJX3uIL7
-         GrcehffSQg79rKAgislaQCWovjdc8W12IR7/ZrV1aPdga2mXWjJIjTly0c8mnBv3JlDp
-         YzbA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAXpvVpdf+3u8hfC7PjnAjpFTum0PtNnzjampoZjOJRD7D6trRps
-	NlyHejVz4vcyO+dDtjst/eiOkYvcwNgCsLQVdc9LEgCbJmWI+2gqL11MmMqopifbysu+RuRQNgZ
-	c55c1HnAz6TK91R9wFOJmxnPNwEf4UOAXCIsmegyvXXVOXtBFRuhld8n+d2Wfl5Ktbw==
-X-Received: by 2002:aa7:da81:: with SMTP id q1mr7988785eds.116.1556888199824;
-        Fri, 03 May 2019 05:56:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxm+GF9qZkdqtxbqydcIs+EJ/kSFSkwhqsovKQOLC2HJ8uJCcn9frYS5CHCCOB8Q5MDPcmn
-X-Received: by 2002:aa7:da81:: with SMTP id q1mr7988689eds.116.1556888198646;
-        Fri, 03 May 2019 05:56:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556888198; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=VaxPQ6IeVmYMFGePLBrY6yLBQaxZgQlHXQuFLzQ/+d4=;
+        b=eadL8xkXoFi2v96G/+TzmnJGpPrZaVMWEUE00XLiB1sln1rVecEdJ1JIS590YIG7p8
+         soHgTdhw7V8Wicvl0UIXhunGQLEqo6V17SE/IveQGXJwZ3qwWYUbzjQPaUiE7DEQrFby
+         uYAuce/nBTRXLaViNDZsFCuvmt9++9Rjv9jFjw5sGWagcjQVDBT01dtCzYUHedIjRP2r
+         HxDNFrCBxy6DM4Zu5WOs89EBGKTW3reThatBMbngXuWx69BH22TadOuDzISkAlwqS0mg
+         DNNrC7jhLgDvpgEEISWHEjXBRDasD6pXyqutkx+waoWAXou/gC605TQFSdrJZHA9j0lD
+         aXSQ==
+X-Gm-Message-State: APjAAAV/QZxH3rt1RjuKeBRBOPplWe0nMQXwnmIFubNlBdn/qUlvd1f3
+	+bhrZxi3zqbSa0ijN8+Fw6cpr8VCEbeQ06KxZjsZ1mzpHbrbuXWt8qaRXuUB8RsQFxuT9trPqTI
+	0bvaZg237hgPwN8udZAj7cw85NjoS3l0o+1B5+SwVlZiXwtfCkPYRoD/13vmawNuOOA==
+X-Received: by 2002:a50:cb4d:: with SMTP id h13mr8305631edi.110.1556888241927;
+        Fri, 03 May 2019 05:57:21 -0700 (PDT)
+X-Received: by 2002:a50:cb4d:: with SMTP id h13mr8305550edi.110.1556888241021;
+        Fri, 03 May 2019 05:57:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556888241; cv=none;
         d=google.com; s=arc-20160816;
-        b=eErqne9aNj4Z11TCnn8IQDi6eq0pqivIXFHpWjJpywH4pVVvFTjeruO0EMFsIGoyQ+
-         4LBQekbBqbm+2JmX2HKYzEVXu4VWz5/tULcn6crVClY9o83qqO9/MtQVbDwMoC1btJlj
-         CzBJ+NOMX1PY1+lVY4vajORmcRWnzL5lXBExvFQkrys7bfUWQ+dE38o4R53faVPZT9ws
-         v84Qf+ZgKHJoJp8ZzpTskPKl9IGF/lnfSl1+YlBbm2v23TR00+8rcTXG3n4pffX7O2uP
-         2+2kdth3xMy+a/Cn0TpHowqTcmwiCkt+1hkQaotWZS+GeeSps8GxyIcC5+AgmYbLbKvK
-         yXLw==
+        b=xwg7Y+4hqhjJ2gGqsP0eLG88avRRia6unQoKPvNUJ9XzIZ18KNC6isKSDF4JqyT6+Q
+         82juG+tryr4ftHIb4UD5on6vNcUCiKuBxCGQcvgMEeaaDqZXGZ/Z+tnZAFcQuNhwpgrV
+         W/8byVyiO6oBckErr+mLJUR8pwOSub3p5lDdrNYV1gYYd4chIdGqkF3AscaH5o+P0lUT
+         HYwZcXikgaHj5wQGwB0MK7LGwh8I9PGfd6GnZIXCJT4YkQvUi/M0ueJzLYMf7Lacf2wX
+         J0AyzJGrux7TiGeCHbgFzOL13Y0IaxLMwQ6bCxezlF9zylk7OYym5EzXkeolN2iNr1M8
+         GfJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=k6+0+dCkuqLM9AEl8WzmBz7Em+Be0LDL8+SAWKxlVT0=;
-        b=BTFR5KcrybPbGeKhihHwtLbkYMJ7XuDXKPG6fd6DNJiOGe511sLx88NyFpp4RokBgF
-         hcdOxATR8vP51LMoMqH9eB2zJo9BsmfTlDC0wMjKvjYSrqFR3Siv10RvxuK0/sRU5qJk
-         YsZko0beIAinkgKN+jHuaHHqCjjELL3xFk80CWibE6iGitFKwy/NHzhwskO/XAJQ/nij
-         d1wjHelrwjd0BZBgQkbY6KMI/bfRN/Rv8XovIgYBOZFg2O4CH+GqyYnvcoYuWY86YyzO
-         Ro5n61WOhMJ4nE+LMKlEI2XuCWkF0FgoWxydll40LqeA0tGaS2re3RQYZ4k6IDzT3IU2
-         bu/w==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=VaxPQ6IeVmYMFGePLBrY6yLBQaxZgQlHXQuFLzQ/+d4=;
+        b=aS+kFboLCz/5qSLv4eq7Mq1sytk2f5jmrk4/jbvW3dpBEzZSPnKHxGcbl+Mlg5mOaC
+         G4NsfmyQHq0r2YJsp/EQ3L98F2qgOt6a+9ekPYoqO225DSFWQjdD11cjHcJWsnoqTBE0
+         NY28Yd55We9iV1G5DfYXI5N5hPzNdfU/I1doWpHcdYUeiZHLUulLmmhgF8y3enCdVEcI
+         yPMuoEd79Zyu7llB35gCBEXGiW5+3M7NAFv00EUmVPTy/239SR5ZiAD5Z/DLMXqnXCR6
+         fbfsyeOxt6+/yB0OJY+p4r8kSWkApamfs+9FF0coKwwB8gOY6ztUV/za0Wephqnzf7CZ
+         vYSg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i10si1140354ejj.258.2019.05.03.05.56.38
+       dkim=pass header.i=@soleen.com header.s=google header.b=Q1s+yLF0;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d16sor1755671edj.5.2019.05.03.05.57.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 May 2019 05:56:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 03 May 2019 05:57:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 91E0EAD62;
-	Fri,  3 May 2019 12:56:37 +0000 (UTC)
-Date: Fri, 3 May 2019 14:56:34 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v7 09/12] mm/sparsemem: Support sub-section hotplug
-Message-ID: <20190503125634.GH15740@linux>
-References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155677657023.2336373.4452495266651002382.stgit@dwillia2-desk3.amr.corp.intel.com>
+       dkim=pass header.i=@soleen.com header.s=google header.b=Q1s+yLF0;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=VaxPQ6IeVmYMFGePLBrY6yLBQaxZgQlHXQuFLzQ/+d4=;
+        b=Q1s+yLF06i2mWw5XUZDrN3OrhZkHA8MeRl3UBfwzVL1qD0zqGe2QutTZhtxhQAoE9D
+         xvQ5wXPYNODkqxiQUF3mOTp7pZE9B7BCM+r90yRx6rXkZ45fnVut3oNIknNMHV9McNkz
+         gnPbaALBFQupBUtkVTqzWtVenkPE2fscTIKqyRkAgsETnrM+I6zEsxcVGWz+wqVSLltU
+         /EYGqnwmMsMHGuJW2fhPE0vGgNHR0K9Q8kz4UKmPnoynnLJRvhF0Cch3nRtebAg2LxL7
+         sWpRPHoR6w4Xyl/FMtZRKVQr4qwfszDvBPp+SUx3ktr5jhhURApDYJ2I0IcQGnJaUENr
+         hK5A==
+X-Google-Smtp-Source: APXvYqxGpxdtpUzePQzoj8+ABR2xl3yPHLROkt/fFrbcMScpdOGg5GoJBHZkg6V088MaY7vMf4/rxnhdCFk/G/55mD8=
+X-Received: by 2002:a50:b56a:: with SMTP id z39mr8130377edd.91.1556888240692;
+ Fri, 03 May 2019 05:57:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155677657023.2336373.4452495266651002382.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155552634586.2015392.2662168839054356692.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CA+CK2bCkqLc82G2MW+rYrKTi4KafC+tLCASkaT8zRfVJCCe8HQ@mail.gmail.com>
+ <CAPcyv4g+KNu=upejy7Xm=jWR0cdhygPAdSRbkfFGpJeHFGc4+w@mail.gmail.com> <bd76cb2f-7cdc-f11b-11ec-285862db66f3@arm.com>
+In-Reply-To: <bd76cb2f-7cdc-f11b-11ec-285862db66f3@arm.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Fri, 3 May 2019 08:57:09 -0400
+Message-ID: <CA+CK2bBS5Csz0O9sDVwt_NjtrBtLaMfkycjhaOmR7mXoKJ5XEg@mail.gmail.com>
+Subject: Re: [PATCH v6 02/12] mm/sparsemem: Introduce common definitions for
+ the size and mask of a section
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Logan Gunthorpe <logang@deltatee.com>, linux-mm <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, LKML <linux-kernel@vger.kernel.org>, 
+	David Hildenbrand <david@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 01, 2019 at 10:56:10PM -0700, Dan Williams wrote:
-> The libnvdimm sub-system has suffered a series of hacks and broken
-> workarounds for the memory-hotplug implementation's awkward
-> section-aligned (128MB) granularity. For example the following backtrace
-> is emitted when attempting arch_add_memory() with physical address
-> ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
-> within a given section:
-> 
->  WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
->  devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
->  [..]
->  Call Trace:
->    dump_stack+0x86/0xc3
->    __warn+0xcb/0xf0
->    warn_slowpath_fmt+0x5f/0x80
->    devm_memremap_pages+0x3b5/0x4c0
->    __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
->    pmem_attach_disk+0x19a/0x440 [nd_pmem]
-> 
-> Recently it was discovered that the problem goes beyond RAM vs PMEM
-> collisions as some platform produce PMEM vs PMEM collisions within a
-> given section. The libnvdimm workaround for that case revealed that the
-> libnvdimm section-alignment-padding implementation has been broken for a
-> long while. A fix for that long-standing breakage introduces as many
-> problems as it solves as it would require a backward-incompatible change
-> to the namespace metadata interpretation. Instead of that dubious route
-> [1], address the root problem in the memory-hotplug implementation.
-> 
-> [1]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  mm/sparse.c |  223 ++++++++++++++++++++++++++++++++++++++++-------------------
->  1 file changed, 150 insertions(+), 73 deletions(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 198371e5fc87..419a3620af6e 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -83,8 +83,15 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
->  	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
->  	struct mem_section *section;
->  
-> +	/*
-> +	 * An existing section is possible in the sub-section hotplug
-> +	 * case. First hot-add instantiates, follow-on hot-add reuses
-> +	 * the existing section.
-> +	 *
-> +	 * The mem_hotplug_lock resolves the apparent race below.
-> +	 */
->  	if (mem_section[root])
-> -		return -EEXIST;
-> +		return 0;
+On Fri, May 3, 2019 at 6:35 AM Robin Murphy <robin.murphy@arm.com> wrote:
+>
+> On 03/05/2019 01:41, Dan Williams wrote:
+> > On Thu, May 2, 2019 at 7:53 AM Pavel Tatashin <pasha.tatashin@soleen.co=
+m> wrote:
+> >>
+> >> On Wed, Apr 17, 2019 at 2:52 PM Dan Williams <dan.j.williams@intel.com=
+> wrote:
+> >>>
+> >>> Up-level the local section size and mask from kernel/memremap.c to
+> >>> global definitions.  These will be used by the new sub-section hotplu=
+g
+> >>> support.
+> >>>
+> >>> Cc: Michal Hocko <mhocko@suse.com>
+> >>> Cc: Vlastimil Babka <vbabka@suse.cz>
+> >>> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> >>> Cc: Logan Gunthorpe <logang@deltatee.com>
+> >>> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> >>
+> >> Should be dropped from this series as it has been replaced by a very
+> >> similar patch in the mainline:
+> >>
+> >> 7c697d7fb5cb14ef60e2b687333ba3efb74f73da
+> >>   mm/memremap: Rename and consolidate SECTION_SIZE
+> >
+> > I saw that patch fly by and acked it, but I have not seen it picked up
+> > anywhere. I grabbed latest -linus and -next, but don't see that
+> > commit.
+> >
+> > $ git show 7c697d7fb5cb14ef60e2b687333ba3efb74f73da
+> > fatal: bad object 7c697d7fb5cb14ef60e2b687333ba3efb74f73da
+>
+> Yeah, I don't recognise that ID either, nor have I had any notifications
+> that Andrew's picked up anything of mine yet :/
 
-Just a sidenote: we do not bail out on -EEXIST, so it should be fine if we
-stick with it.
-But if not, I would then clean up sparse_add_section:
+Sorry for the confusion. I thought I checked in a master branch, but
+turns out I checked in a branch where I applied arm hotremove patches
+and Robin's patch as well. These two patches are essentially the same,
+so which one goes first the other should be dropped.
 
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -901,13 +901,12 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
-        int ret;
- 
-        ret = sparse_index_init(section_nr, nid);
--       if (ret < 0 && ret != -EEXIST)
-+       if (ret < 0)
-                return ret;
- 
-        memmap = section_activate(nid, start_pfn, nr_pages, altmap);
-        if (IS_ERR(memmap))
-                return PTR_ERR(memmap);
--       ret = 0;
+Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 
+Thank you,
+Pasha
 
-> +
-> +	if (!mask)
-> +		rc = -EINVAL;
-> +	else if (mask & ms->usage->map_active)
-
-	else if (ms->usage->map_active) should be enough?
-
-> +		rc = -EEXIST;
-> +	else
-> +		ms->usage->map_active |= mask;
-> +
-> +	if (rc) {
-> +		if (usage)
-> +			ms->usage = NULL;
-> +		kfree(usage);
-> +		return ERR_PTR(rc);
-> +	}
-> +
-> +	/*
-> +	 * The early init code does not consider partially populated
-> +	 * initial sections, it simply assumes that memory will never be
-> +	 * referenced.  If we hot-add memory into such a section then we
-> +	 * do not need to populate the memmap and can simply reuse what
-> +	 * is already there.
-> +	 */
-
-This puzzles me a bit.
-I think we cannot have partially populated early sections, can we?
-And how we even come to hot-add memory into those?
-
-Could you please elaborate a bit here?
-
-> +	ms = __pfn_to_section(start_pfn);
->  	section_mark_present(ms);
-> -	sparse_init_one_section(ms, section_nr, memmap, usage);
-> +	sparse_init_one_section(ms, section_nr, memmap, ms->usage);
->  
-> -out:
-> -	if (ret < 0) {
-> -		kfree(usage);
-> -		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
-> -	}
-> +	if (ret < 0)
-> +		section_deactivate(start_pfn, nr_pages, nid, altmap);
-
-Uhm, if my eyes do not trick me, ret is only used for the return value from
-sparse_index_init(), so this is not needed. Can we get rid of it?
-
-Unfortunately I am running out of time, but I plan to keep reviewing this patch
-in the next few days.
-
--- 
-Oscar Salvador
-SUSE L3
+>
+> Robin.
 
