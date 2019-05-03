@@ -2,322 +2,333 @@ Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A890EC004C9
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 08:46:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC1E6C04AAA
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 10:06:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D4712087F
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 08:46:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D4712087F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 8197B2177B
+	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 10:06:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8197B2177B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEE526B0003; Fri,  3 May 2019 04:46:09 -0400 (EDT)
+	id D49566B0003; Fri,  3 May 2019 06:06:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9E9E6B0005; Fri,  3 May 2019 04:46:09 -0400 (EDT)
+	id CF9376B0005; Fri,  3 May 2019 06:06:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98D3C6B0007; Fri,  3 May 2019 04:46:09 -0400 (EDT)
+	id BC0AD6B0007; Fri,  3 May 2019 06:06:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4501B6B0003
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 04:46:09 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h12so3081307edl.23
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 01:46:09 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB346B0003
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 06:06:29 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id t63so5264124qkh.0
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 03:06:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JoZMkUYu1UQairScnAhWAbiNKSOywbkzKnjZGaKAOwg=;
-        b=YyQJ2C0xRG1jy5ecWtgEraBdrAW4XvskEXCeJThU+EFsXrJgfKfhvURcfMfa7GTxrQ
-         oQw8xQm58nzfw3kfp6sVQfQq0l+NV3TiYiiLK7+v07PpJzmLsQNGXg48kLb/Ky2Ot6rA
-         1iWZJG7c1JLO9EK/cLpS81AzryH1ZBnKyuxPafB1voGaoPh+up6JXgIt3PpyPSYEi7T5
-         IfKhxCtjv+0cIJ+Vu6qk5EowzFjn2yxFOgefIQYS/+PxC4G4F06+QPF71+UCAT9z4Ssm
-         BWn4XdIbj2vK6OzLXp9/8GOQCIrgo3h0nf0G87mfAvoJx7amP8lXsUHLR2uzAw/+bCJZ
-         mWlw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUZhvIil4Gwo7mBaxEwzqjnCHZ8v5TtM8R9c01E4DbvYerasQWS
-	GhsSC2Nx1mKAo3wlXclU7tu3kh86F0eqIKq1ReigeHCWj5JPLh7bNSPZEjdWeLYQAn8BgoJ169P
-	w9DWVWvOyu8fjzHk38m2k1h9DMtxwEGX4nEJEMUgWC/O5kuF/cV1bqMVBcj4rG+3Ikg==
-X-Received: by 2002:a17:906:4dd4:: with SMTP id f20mr5168240ejw.62.1556873168810;
-        Fri, 03 May 2019 01:46:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrZTcRagDbEKgfigXMkZsIpFePhSYOCWFBzw4LAHlSWer37MVpYR7Vua3w9A6PM8S8GNKk
-X-Received: by 2002:a17:906:4dd4:: with SMTP id f20mr5168175ejw.62.1556873167624;
-        Fri, 03 May 2019 01:46:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556873167; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=367BYsN0s0jWVjNivtAH1JZ00fcAxdIzGdNSyou9U5U=;
+        b=cNyERkESeww8tkVwxy4z+mN1rCRsi8IYze5O6uPFyOhvCy8Dm4ye7GKzCJMo7/lhB3
+         sZVwlRZcYZFo+38pt2b+SyW97JvurlDXzpRyB0ZdnmxYRUXnLDL3bYJn98v58DN57K0q
+         JME84GWPqWlaWJwPt0pwLDYH8UaDTE9791QV0w5Am7fCtkUK338NJ4TzdyvNy3fqmd/G
+         Jr0zmA3mR0A3aTaIUmqVhWbyIyV7O9Hbb5faTtSn98iVzVSSk7wLYjRH5izPcbxIRBt4
+         CD+VzrA8c2iXPbPUVcmZ0P2iHHgXFsVKLtaggfy1g9DeI/s5YyoIMPqfmB6DEczcFPwO
+         Mg7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVE/DJlPtqS5MEr9YSk3D5kqM0riRslHleDqKadTglIeH+NJtqd
+	j8AQYm1gtsqQ5u+sMcV/oEWeQMgLK6i3hTmRQUM6e0ActG003cK9ZTneDeIxTWYbLoT4f/UzCkd
+	qpReRlIP72RGV2JJ6qcvWCCBAJH0uo6t/6yHaA8BTDgHfYXuNljlEIMVuQ1putDGHUQ==
+X-Received: by 2002:aed:3a44:: with SMTP id n62mr7536260qte.147.1556877989360;
+        Fri, 03 May 2019 03:06:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwaLQ7KDaX1xmEj/hnV5rHBmjeB/H1gVUsjb3M6DdriLwz1BgmpigTc4c33dNJmvn7WrP8n
+X-Received: by 2002:aed:3a44:: with SMTP id n62mr7536186qte.147.1556877988358;
+        Fri, 03 May 2019 03:06:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556877988; cv=none;
         d=google.com; s=arc-20160816;
-        b=t+idjrpCmzk5BbPqJekXor0TMZ+go/+fVFUl+F7cl7X+Xiwgx1ststKWoym+4cl74c
-         Yz4v8yGri6tT3CvcE49+y/qk8PF4XU1ycONtw+8h2Ps5XBJ+qO2m6OmZhscCmEtfFpxX
-         wIxfwdllMe+spovtnfCQqwyTRx44keXMJdx+h6ZDNqmaF9q0+oaV671Qpz10aid3C++m
-         ODZkRce1KuTx7xVmF5jx5PrydEC8WK2Dn7e47QjbnP2TalrC5HNLEQVY2LbXJQFbpOTQ
-         5db6wEBn3lVOFLWTlZ83u3WI4ZQH5VUhe8pBo3e6rIDTBsCAZC1m7zuAXTqw0SOUYeCP
-         9R/Q==
+        b=CpoW2ldyL58xEvr6nIKYTgeR7KbtLgD2oefwpDBMa1O/9xJwlDfFD+zH6qVn88vLLk
+         VFDbgxpW/+oHpR6TE6xd5qRg0GWxT4jEwtI5Yd0GZc00dUIUMy+YsYf1aIt2fV5pn43M
+         wScBt8g3ilIj7oUqSYudEp8aX2hvF3zqlZuI5rQzY2bHZkZo0yuhNzFlF5fzNMOyihpZ
+         Z05TyI1UxKWFG3bIEgF8dhb9ShTVjVJ66wmmZv9D3CRX8nQ2QUdnkFaYtXFKQgL1EiVZ
+         VGx35lwSPqPSJVKYaQGt8pcCHu98rCBiSTzLNwIurjqiCxoe6ksyZ2Kw+ULRXkJHv8LV
+         iS3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JoZMkUYu1UQairScnAhWAbiNKSOywbkzKnjZGaKAOwg=;
-        b=P0T9ZaYCywHQHtYY7PHbdKNWlYyEDW/k4sH1FRDD1qBG03PpvYAyguzKphBTjG57O1
-         XAoFL59fu4wCJ42G8gJeaYVM4+6jZ9+pgs4dOKjK8yzxJNwSw0JLesY+bWlZTizhtitI
-         ey4KKRp9CFy2WCVh1zOBrL1MNJQblCf9YLC48pmfzRfyY8zKAgTqKy85PLt2u8ajsy3q
-         U5enWeMFdEHh8JuRPn1UCGljnfHt3omMiuozPFulprTdQhqCvkaEegKfNswtyYmxDdEt
-         wgHZ4gaiWskaR/UYHhghRXbeugW6sB7WrMCHKHNNDiYquNraB7RGhrQWjppmCRDzba55
-         7QZQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:to:subject;
+        bh=367BYsN0s0jWVjNivtAH1JZ00fcAxdIzGdNSyou9U5U=;
+        b=lyOablByquFGvmhUCbU+dNEt+MVoIEngf0z1xSDBsfNOlaHbB70K/pgfunSkEZ5tyW
+         7aFhka1uQT+WO/uvi7SG5B4+geCbxoV+M0wDK292/5hPa7jCbEkRRCxw7GELuNe466j7
+         HHElTrBShC8LbXKF/eWXXqPuUJVvxxKgYk0DWO47aK6jExPqogLAw7haFSkqfZU3ckeV
+         otR8g9rFTp9Yl/TGp5R3mxN2FOcWXnp1NgE2MFa/phf1tvi3LToicbB83ngiqysbtYZs
+         ghHCYYOkGQ5uhKNuwV+oWv6bVtwMtqbD+ZBzLeL/a8JNq6CQAe58a4Gb3+n5BnRlg9lq
+         rdbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b22si1116922edd.378.2019.05.03.01.46.07
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t16si1044443qkt.220.2019.05.03.03.06.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 May 2019 01:46:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 03 May 2019 03:06:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 06A8CACAE;
-	Fri,  3 May 2019 08:46:07 +0000 (UTC)
-Date: Fri, 3 May 2019 10:46:03 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
-	David Hildenbrand <david@redhat.com>,
-	Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v7 05/12] mm/sparsemem: Convert kmalloc_section_memmap()
- to populate_section_memmap()
-Message-ID: <20190503084603.GE15740@linux>
-References: <155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155677654842.2336373.17000900051843592636.stgit@dwillia2-desk3.amr.corp.intel.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id D8B04C058CB4;
+	Fri,  3 May 2019 10:06:26 +0000 (UTC)
+Received: from [10.36.117.87] (ovpn-117-87.ams2.redhat.com [10.36.117.87])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 4D9AC60BF7;
+	Fri,  3 May 2019 10:06:20 +0000 (UTC)
+Subject: Re: [v5 2/3] mm/hotplug: make remove_memory() interface useable
+To: Pavel Tatashin <pasha.tatashin@soleen.com>, jmorris@namei.org,
+ sashal@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-nvdimm@lists.01.org, akpm@linux-foundation.org, mhocko@suse.com,
+ dave.hansen@linux.intel.com, dan.j.williams@intel.com,
+ keith.busch@intel.com, vishal.l.verma@intel.com, dave.jiang@intel.com,
+ zwisler@kernel.org, thomas.lendacky@amd.com, ying.huang@intel.com,
+ fengguang.wu@intel.com, bp@suse.de, bhelgaas@google.com,
+ baiyaowei@cmss.chinamobile.com, tiwai@suse.de, jglisse@redhat.com
+References: <20190502184337.20538-1-pasha.tatashin@soleen.com>
+ <20190502184337.20538-3-pasha.tatashin@soleen.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <cfd599a7-ed05-fa5a-93a0-397fb9de72e4@redhat.com>
+Date: Fri, 3 May 2019 12:06:19 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155677654842.2336373.17000900051843592636.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190502184337.20538-3-pasha.tatashin@soleen.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Fri, 03 May 2019 10:06:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 01, 2019 at 10:55:48PM -0700, Dan Williams wrote:
-> Allow sub-section sized ranges to be added to the memmap.
-> populate_section_memmap() takes an explict pfn range rather than
-> assuming a full section, and those parameters are plumbed all the way
-> through to vmmemap_populate(). There should be no sub-section usage in
-> current deployments. New warnings are added to clarify which memmap
-> allocation paths are sub-section capable.
+On 02.05.19 20:43, Pavel Tatashin wrote:
+> As of right now remove_memory() interface is inherently broken. It tries
+> to remove memory but panics if some memory is not offline. The problem
+> is that it is impossible to ensure that all memory blocks are offline as
+> this function also takes lock_device_hotplug that is required to
+> change memory state via sysfs.
 > 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/x86/mm/init_64.c |    4 ++-
->  include/linux/mm.h    |    4 ++-
->  mm/sparse-vmemmap.c   |   21 +++++++++++------
->  mm/sparse.c           |   61 +++++++++++++++++++++++++++++++------------------
->  4 files changed, 57 insertions(+), 33 deletions(-)
+
+The existing interface can actually work today by registering a hotplug
+notifier and rejecting any onlining attempts. But I agree that this way,
+the interface becomes more usable.
+
+> So, between calling this function and offlining all memory blocks there
+> is always a window when lock_device_hotplug is released, and therefore,
+> there is always a chance for a panic during this window.
 > 
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 20d14254b686..bb018d09d2dc 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1457,7 +1457,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
->  {
->  	int err;
+> Make this interface to return an error if memory removal fails. This way
+> it is safe to call this function without panicking machine, and also
+> makes it symmetric to add_memory() which already returns an error.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@soleen.com>> ---
+>  include/linux/memory_hotplug.h |  8 +++--
+>  mm/memory_hotplug.c            | 61 ++++++++++++++++++++++------------
+>  2 files changed, 46 insertions(+), 23 deletions(-)
+> 
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index 8ade08c50d26..5438a2d92560 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -304,7 +304,7 @@ static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
+>  extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+>  extern void try_offline_node(int nid);
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> -extern void remove_memory(int nid, u64 start, u64 size);
+> +extern int remove_memory(int nid, u64 start, u64 size);
+>  extern void __remove_memory(int nid, u64 start, u64 size);
 >  
-> -	if (boot_cpu_has(X86_FEATURE_PSE))
-> +	if (end - start < PAGES_PER_SECTION * sizeof(struct page))
-maybe just:
-
-	if (PHYS_PFN(end) - PHYS_PFN(start) < PAGES_PER_SECTION) ?
-> +		err = vmemmap_populate_basepages(start, end, node);
-> +	else if (boot_cpu_has(X86_FEATURE_PSE))
->  		err = vmemmap_populate_hugepages(start, end, node, altmap);
->  	else if (altmap) {
->  		pr_err_once("%s: no cpu support for altmap allocations\n",
-
-Although the following looks more clear to me:
-
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-                struct vmem_altmap *altmap)
-{
-        int err;
-        bool partial_section = (PHYS_PFN(end) - PFN_PHYS(start)) < PAGES_PER_SECTION;
-
-        if (partial_section || !boot_cpu_has(X86_FEATURE_PSE))
-                err = vmemmap_populate_basepages(start, end, node);
-        else if (boot_cpu_has(X86_FEATURE_PSE))
-                err = vmemmap_populate_hugepages(start, end, node, altmap);
-        else if (altmap) {
-                pr_err_once("%s: no cpu support for altmap allocations\n",
-                                __func__);
-                err = -ENOMEM;
-        }
-
-        if (!err)
-                sync_global_pgds(start, end - 1);
-        return err;
-}
-
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0e8834ac32b7..5360a0e4051d 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2748,8 +2748,8 @@ const char * arch_vma_name(struct vm_area_struct *vma);
->  void print_vma_addr(char *prefix, unsigned long rip);
->  
->  void *sparse_buffer_alloc(unsigned long size);
-> -struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
-> -		struct vmem_altmap *altmap);
-> +struct page * __populate_section_memmap(unsigned long pfn,
-> +		unsigned long nr_pages, int nid, struct vmem_altmap *altmap);
->  pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);
->  p4d_t *vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node);
->  pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
-> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> index 7fec05796796..dcb023aa23d1 100644
-> --- a/mm/sparse-vmemmap.c
-> +++ b/mm/sparse-vmemmap.c
-> @@ -245,19 +245,26 @@ int __meminit vmemmap_populate_basepages(unsigned long start,
->  	return 0;
+>  #else
+> @@ -321,7 +321,11 @@ static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  	return -EINVAL;
 >  }
 >  
-> -struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid,
-> -		struct vmem_altmap *altmap)
-> +struct page * __meminit __populate_section_memmap(unsigned long pfn,
-> +		unsigned long nr_pages, int nid, struct vmem_altmap *altmap)
->  {
->  	unsigned long start;
->  	unsigned long end;
-> -	struct page *map;
->  
-> -	map = pfn_to_page(pnum * PAGES_PER_SECTION);
-> -	start = (unsigned long)map;
-> -	end = (unsigned long)(map + PAGES_PER_SECTION);
-> +	/*
-> +	 * The minimum granularity of memmap extensions is
-> +	 * SECTION_ACTIVE_SIZE as allocations are tracked in the
-> +	 * 'map_active' bitmap of the section.
-> +	 */
-> +	end = ALIGN(pfn + nr_pages, PHYS_PFN(SECTION_ACTIVE_SIZE));
-
-I would use PAGES_PER_SUB_SECTION directly:
-
-	 end = ALIGN(pfn + nr_pages, PAGES_PER_SUB_SECTION);
-
-> +	pfn &= PHYS_PFN(SECTION_ACTIVE_MASK);
-
-	pfn &= PAGE_SUB_SECTION_MASK ?
-
-[...]
-> -static struct page *__kmalloc_section_memmap(void)
-> +struct page *populate_section_memmap(unsigned long pfn,
-> +		unsigned long nr_pages, int nid, struct vmem_altmap *altmap)
->  {
->  	struct page *page, *ret;
->  	unsigned long memmap_size = sizeof(struct page) * PAGES_PER_SECTION;
->  
-> +	if ((pfn & ~PAGE_SECTION_MASK) || nr_pages != PAGES_PER_SECTION) {
-> +		WARN(1, "%s: called with section unaligned parameters\n",
-> +				__func__);
-> +		return NULL;
-> +	}
-
-Can this actually happen? We need CONFIG_SPARSEMEM_VMEMMAP in order to use nvdimm,
-right?
-
-But I guess it is fine to have a safety net just in case.
-
+> -static inline void remove_memory(int nid, u64 start, u64 size) {}
+> +static inline bool remove_memory(int nid, u64 start, u64 size)
+> +{
+> +	return -EBUSY;
+> +}
 > +
->  	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
->  	if (page)
->  		goto got_map_page;
-> @@ -682,15 +692,17 @@ static struct page *__kmalloc_section_memmap(void)
->  	return ret;
->  }
->  
-> -static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-> +static void depopulate_section_memmap(unsigned long pfn, unsigned long nr_pages,
->  		struct vmem_altmap *altmap)
->  {
-> -	return __kmalloc_section_memmap();
-> -}
-> +	struct page *memmap = pfn_to_page(pfn);
-> +
-> +	if ((pfn & ~PAGE_SECTION_MASK) || nr_pages != PAGES_PER_SECTION) {
-> +		WARN(1, "%s: called with section unaligned parameters\n",
-> +				__func__);
-> +		return;
-> +	}
->  
-> -static void __kfree_section_memmap(struct page *memmap,
-> -		struct vmem_altmap *altmap)
-> -{
->  	if (is_vmalloc_addr(memmap))
->  		vfree(memmap);
->  	else
-> @@ -761,12 +773,13 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  	if (ret < 0 && ret != -EEXIST)
->  		return ret;
->  	ret = 0;
-> -	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
-> +	memmap = populate_section_memmap(start_pfn, PAGES_PER_SECTION, nid,
-> +			altmap);
->  	if (!memmap)
->  		return -ENOMEM;
->  	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
->  	if (!usage) {
-> -		__kfree_section_memmap(memmap, altmap);
-> +		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
->  		return -ENOMEM;
->  	}
->  
-> @@ -788,7 +801,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
->  out:
->  	if (ret < 0) {
->  		kfree(usage);
-> -		__kfree_section_memmap(memmap, altmap);
-> +		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
->  	}
->  	return ret;
->  }
-> @@ -825,7 +838,8 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
->  #endif
->  
->  static void free_section_usage(struct page *memmap,
-> -		struct mem_section_usage *usage, struct vmem_altmap *altmap)
-> +		struct mem_section_usage *usage, unsigned long pfn,
-> +		unsigned long nr_pages, struct vmem_altmap *altmap)
->  {
->  	struct page *usage_page;
->  
-> @@ -839,7 +853,7 @@ static void free_section_usage(struct page *memmap,
->  	if (PageSlab(usage_page) || PageCompound(usage_page)) {
->  		kfree(usage);
->  		if (memmap)
-> -			__kfree_section_memmap(memmap, altmap);
-> +			depopulate_section_memmap(pfn, nr_pages, altmap);
->  		return;
->  	}
->  
-> @@ -868,7 +882,8 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
->  
->  	clear_hwpoisoned_pages(memmap + map_offset,
->  			PAGES_PER_SECTION - map_offset);
-> -	free_section_usage(memmap, usage, altmap);
-> +	free_section_usage(memmap, usage, section_nr_to_pfn(__section_nr(ms)),
-> +			PAGES_PER_SECTION, altmap);
->  }
+>  static inline void __remove_memory(int nid, u64 start, u64 size) {}
 >  #endif /* CONFIG_MEMORY_HOTREMOVE */
->  #endif /* CONFIG_MEMORY_HOTPLUG */
+>  
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 8c454e82d4f6..a826aededa1a 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1778,9 +1778,10 @@ static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
+>  		endpa = PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1;
+>  		pr_warn("removing memory fails, because memory [%pa-%pa] is onlined\n",
+>  			&beginpa, &endpa);
+> -	}
+>  
+> -	return ret;
+> +		return -EBUSY;
+> +	}
+> +	return 0;
+>  }
+>  
+>  static int check_cpu_on_node(pg_data_t *pgdat)
+> @@ -1843,19 +1844,9 @@ void try_offline_node(int nid)
+>  }
+>  EXPORT_SYMBOL(try_offline_node);
+>  
+> -/**
+> - * remove_memory
+> - * @nid: the node ID
+> - * @start: physical address of the region to remove
+> - * @size: size of the region to remove
+> - *
+> - * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
+> - * and online/offline operations before this call, as required by
+> - * try_offline_node().
+> - */
+> -void __ref __remove_memory(int nid, u64 start, u64 size)
+> +static int __ref try_remove_memory(int nid, u64 start, u64 size)
+>  {
+> -	int ret;
+> +	int rc = 0;
+>  
+>  	BUG_ON(check_hotplug_memory_range(start, size));
+>  
+> @@ -1863,13 +1854,13 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+>  
+>  	/*
+>  	 * All memory blocks must be offlined before removing memory.  Check
+> -	 * whether all memory blocks in question are offline and trigger a BUG()
+> +	 * whether all memory blocks in question are offline and return error
+>  	 * if this is not the case.
+>  	 */
+> -	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> -				check_memblock_offlined_cb);
+> -	if (ret)
+> -		BUG();
+> +	rc = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> +			       check_memblock_offlined_cb);
+> +	if (rc)
+> +		goto done;
+>  
+>  	/* remove memmap entry */
+>  	firmware_map_remove(start, start + size, "System RAM");
+> @@ -1879,14 +1870,42 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+>  
+>  	try_offline_node(nid);
+>  
+> +done:
+>  	mem_hotplug_done();
+> +	return rc;
+>  }
+>  
+> -void remove_memory(int nid, u64 start, u64 size)
+> +/**
+> + * remove_memory
+> + * @nid: the node ID
+> + * @start: physical address of the region to remove
+> + * @size: size of the region to remove
+> + *
+> + * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
+> + * and online/offline operations before this call, as required by
+> + * try_offline_node().
+> + */
+> +void __remove_memory(int nid, u64 start, u64 size)
+>  {
+> +
+> +	/*
+> +	 * trigger BUG() is some memory is not offlined prior to calling this
+> +	 * function
+> +	 */
+> +	if (try_remove_memory(nid, start, size))
+> +		BUG();
+> +}
+> +
+> +/* Remove memory if every memory block is offline, otherwise return false */
+
+Comment is wrong "return false"
+
+> +int remove_memory(int nid, u64 start, u64 size)
+> +{
+> +	int rc;
+> +
+>  	lock_device_hotplug();
+> -	__remove_memory(nid, start, size);
+> +	rc  = try_remove_memory(nid, start, size);
+>  	unlock_device_hotplug();
+> +
+> +	return rc;
+>  }
+>  EXPORT_SYMBOL_GPL(remove_memory);
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
 > 
+
+
+Looks sane to me
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
-Oscar Salvador
-SUSE L3
+
+Thanks,
+
+David / dhildenb
 
