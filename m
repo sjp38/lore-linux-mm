@@ -3,86 +3,86 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A9CCC43219
-	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 12:03:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3336FC04AAA
+	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 12:11:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C33FF206BB
-	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 12:03:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C33FF206BB
+	by mail.kernel.org (Postfix) with ESMTP id D90392084A
+	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 12:11:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D90392084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 537006B0003; Sat,  4 May 2019 08:03:34 -0400 (EDT)
+	id 5569A6B0003; Sat,  4 May 2019 08:11:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4BF906B0006; Sat,  4 May 2019 08:03:34 -0400 (EDT)
+	id 4E0ED6B0006; Sat,  4 May 2019 08:11:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 360286B0007; Sat,  4 May 2019 08:03:34 -0400 (EDT)
+	id 382E76B0007; Sat,  4 May 2019 08:11:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D506B0003
-	for <linux-mm@kvack.org>; Sat,  4 May 2019 08:03:33 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id y9so1634596wmj.0
-        for <linux-mm@kvack.org>; Sat, 04 May 2019 05:03:33 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D602F6B0003
+	for <linux-mm@kvack.org>; Sat,  4 May 2019 08:11:50 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z5so6672666edz.3
+        for <linux-mm@kvack.org>; Sat, 04 May 2019 05:11:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=6zlYKSvra8Ge6oP51tw9rB8tdDFeAs0/zZMk+VG+ESI=;
-        b=d0ti1parNGFY7X9pBRrhDrvuuHob6nXn7MWL6jPmYAgihY34yHMYx3dPz7/cOW3Iva
-         6CJxMEGnxUIXVVx8hl3Jan0+tG8vr+7apIcuRaRzdLWxeTRFpe3nO5Tiao8w2WTKXHdA
-         xfmdjAoZ+k7IUZrgkDw1mRRO8w504HfpNLDoBuPkS/mFnj/OvFiVX/HOElXayCsReNQt
-         lNQGKWIPgKE56uRwFmzt8oMOjIIEmyOJIEzaOOkEP+jMBCS7HDeKfurFuVk5Szr4bPCm
-         fKE3b9JAf3KMiAGMzfqLD1mYXiqYqlZRolb2dbfiD972wVnbfiON1SRD2gOhA0P9ukQq
-         2QGQ==
+        bh=ZMFj2O6sbVuBeZi88r4Y7bOvyB0ASCzW2vDaWRcSPGc=;
+        b=rgoSPBqRKw4xrcMKvFE4Er5MFrBvVv3bXxhsveUCfFG/7ufgTqIzoIpr1ycQfyNgKg
+         WjziuaHJVbB+g2mml5Vz8kfrTAgA9j86kFVABgjAiw9LECPd4QPT4zCrtLX7NAzbK76T
+         TUIu7iOkjzCzteWm9GIuY839Xzh+jRnKRedv06mGTfrJ5y6JOzrGzHVOQ6u1U4ySIqjz
+         LTYEPoYHpee/UOJTXSxEb/89AihC+AHDlV8go3qwUaSwDiIrtp4DQhJ8aJkUWedJw3TQ
+         Rf10UqPg1gytlTG6udbxT+BmKZvb3t+9vALVTeXYsY5PdFemF56AL7mjs31pdL0WnHil
+         5hTQ==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAU8sl8zZTHo5GN0F7BRK8O5w8FIQXoylfDQrHJ+qO1M23z0wGEH
-	Ta7SdJ1G2C5PNFkhiY3vLg1wfGmEwJmzggidc1VUrXFtZjvksBjp/Q6ZBG2aZHsg3RLrjA6KqS5
-	O+l+S9nyrPTQNqB1Zm1pWJPea1alcgrmvEBEKtKEVl9ztdLF5FEGqinqVDqbRkkY=
-X-Received: by 2002:a05:600c:1103:: with SMTP id b3mr2253820wma.119.1556971413401;
-        Sat, 04 May 2019 05:03:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPOcrc7WAAB0p39hxck6yGYXxIaFkVZFmG+IAY3vL3WZYQOXJ4T/bVIDMg5Aat2wQhoNc2
-X-Received: by 2002:a05:600c:1103:: with SMTP id b3mr2253758wma.119.1556971412151;
-        Sat, 04 May 2019 05:03:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556971412; cv=none;
+X-Gm-Message-State: APjAAAUjvZWBcLyHiv3+Hkh0ZQtOvNhozGsrbxgvXNIt7JvDlorl0XI8
+	NZytcLuCqaQFai8e5fmyz6Pjff2x0+S+TLc0JbgNR1XchGDTUh98V97s2m7zYMu9rTVjloDVGjG
+	gCrBG6QwyJWouA+ctC/tulPQSNV3R3Ma3wfc4OsVQtNguHN28MQlvMGqlcbet+2c=
+X-Received: by 2002:a50:b835:: with SMTP id j50mr14259330ede.63.1556971910339;
+        Sat, 04 May 2019 05:11:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzEtIgUfoRshiJsX+5D+AxKfIH6qZKFyBVqpBEQj2KwG9opHxK2IYXdyepTU4ZbXAEFEC9R
+X-Received: by 2002:a50:b835:: with SMTP id j50mr14259232ede.63.1556971909225;
+        Sat, 04 May 2019 05:11:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556971909; cv=none;
         d=google.com; s=arc-20160816;
-        b=1GlAkI7j7vI75GCKqDsNVXEAksD8mRA1ZAK2ZF3OkQPmndWVkcNaJUZE1c8AQ5oJ8+
-         giFVU+93LjoCt1lhYIAk5ylZJ446aWK+1FjseYdY7kldBOjW4vG4qQq6I+36KoBBf6fW
-         0Q5d5YFYrvUmbSx0lpeKjiqoA1ObBm50nwEJqgozbfrlU1ZDwuyLI/CtI1+CfQ12gaqq
-         CYerAhBj6Z5LyDddcL/T8BiC1QXhhzTNb3P2h3ndjdFmPADTSJevbwMU4FacI9l2tL+N
-         Vzkv2Yam/jZerA4z/00UyHe+u4xMuM60iUKAFSgOau65CLmYc3pApyGvUrtXoqa8Cxiz
-         YdpA==
+        b=L1/ZYMbEF3Wv4ofP4ttQ4ep9eAwtYU7i5HLqG1Oatw022aldQfQUpleMFRTu/GupdO
+         RjMudsXNLFzbaPvDuJaWNcNOFboHiWvFy0OYglBO3S13n3LDGp1MnuNXKyUQ0xG0ZkrO
+         IeLlkc6yjC+NZLUc+fuARxF8zDiNrrZCxu7/csq/cXWomT0z6Um4NDOieClwzIDWCu3z
+         NmftanSxkRXd2amqMI6AXYeBfMpwxHct5f/GokBwrRkpG4x2hOXDSqPytVy/GKVyobPd
+         QaWTcO2em7FZxJcb1uig4tr7N1P6u3s+2hvF9BaYw3nBMaLLZByPt/kT42LAWG/RJTTk
+         6CRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=6zlYKSvra8Ge6oP51tw9rB8tdDFeAs0/zZMk+VG+ESI=;
-        b=qUzZ2OqYKTlcWCOcn0qTD2M4iXgX/5NF96e11KxLGMcwUE3/+Iz8vVOdgtzGR47qgv
-         qhMHnBg7EovmTLd0A2PLuT+Ap3dV1ojAtFmjISzvni9pJsHhN3PqJhbmUeltv73fWQ5B
-         8PI27AwUh6HfgGTYa4cY9zXcovUgGnJ8CXCMXuZHRRzGxw/2LzSKvTlRs7S8sY8/tv14
-         2Nx6ZCsCkUz6L2+4MklJhrBb4Nl7ZPCZB8GBisWQiFMSRDDg+FXy25qbW6WOyxVtLxvF
-         /wYIgYvgDU6BhiEHJ+ZubSde4JYhso9zdkpOPih5NaEByDhVDO+A2mmsdjJKZXQ9Rjmo
-         N7Rg==
+        bh=ZMFj2O6sbVuBeZi88r4Y7bOvyB0ASCzW2vDaWRcSPGc=;
+        b=PS1MxDbGeiRM9BdTvmOOHmL9lYh8SVXMNehOgr/Inpc8y451yos1J9Gq0YL91cVRMz
+         v73Go4FQ3qU1I3DdFdA8NPl9775S0KJRC/2txMkQbdbTJtHWdi/Y9JV+DOqFsXW32HKf
+         K26r4iMsirOpW/1GppXDxKwSNHtUDzTtUjZu77On++BkwFl9j8pchaRyK0kSCaC8Gd6w
+         H3H25h4Jw6jsyyKW8bvitl2XV3tPBSvXkSopT4bNDDKzcDUxREg8ul5WwvBBm1rHZCQn
+         9K3E2Knh2Icxomkv6tsmxsrJxWYOzMMRnH48ofVMx7xoxJUP3FOaKsXAVAxh24Y28xh8
+         fCkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z18si3547778wrr.275.2019.05.04.05.03.31
+        by mx.google.com with ESMTPS id f29si3798365eda.310.2019.05.04.05.11.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 May 2019 05:03:32 -0700 (PDT)
+        Sat, 04 May 2019 05:11:49 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7C6F9AD8D;
-	Sat,  4 May 2019 12:03:31 +0000 (UTC)
-Date: Sat, 4 May 2019 08:03:27 -0400
+	by mx1.suse.de (Postfix) with ESMTP id 5CED8AD8D;
+	Sat,  4 May 2019 12:11:48 +0000 (UTC)
+Date: Sat, 4 May 2019 08:11:44 -0400
 From: Michal Hocko <mhocko@kernel.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>,
@@ -92,15 +92,15 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>,
 	Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
 	"Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/2] Revert "Revert "mm, thp: consolidate THP gfp
- handling into alloc_hugepage_direct_gfpmask""
-Message-ID: <20190504120327.GQ29835@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
+ allocations"
+Message-ID: <20190504121144.GR29835@dhcp22.suse.cz>
 References: <20190503223146.2312-1-aarcange@redhat.com>
- <20190503223146.2312-2-aarcange@redhat.com>
+ <20190503223146.2312-3-aarcange@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190503223146.2312-2-aarcange@redhat.com>
+In-Reply-To: <20190503223146.2312-3-aarcange@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,212 +108,209 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 03-05-19 18:31:45, Andrea Arcangeli wrote:
-> This reverts commit 356ff8a9a78fb35d6482584d260c3754dcbdf669.
+On Fri 03-05-19 18:31:46, Andrea Arcangeli wrote:
+> This reverts commit 2f0799a0ffc033bf3cc82d5032acc3ec633464c2.
+> 
+> commit 2f0799a0ffc033bf3cc82d5032acc3ec633464c2 was rightfully applied
+> to avoid the risk of a severe regression that was reported by the
+> kernel test robot at the end of the merge window. Now we understood
+> the regression was a false positive and was caused by a significant
+> increase in fairness during a swap trashing benchmark. So it's safe to
+> re-apply the fix and continue improving the code from there. The
+> benchmark that reported the regression is very useful, but it provides
+> a meaningful result only when there is no significant alteration in
+> fairness during the workload. The removal of __GFP_THISNODE increased
+> fairness.
+> 
+> __GFP_THISNODE cannot be used in the generic page faults path for new
+> memory allocations under the MPOL_DEFAULT mempolicy, or the allocation
+> behavior significantly deviates from what the MPOL_DEFAULT semantics
+> are supposed to be for THP and 4k allocations alike.
+> 
+> Setting THP defrag to "always" or using MADV_HUGEPAGE (with THP defrag
+> set to "madvise") has never meant to provide an implicit MPOL_BIND on
+> the "current" node the task is running on, causing swap storms and
+> providing a much more aggressive behavior than even zone_reclaim_node
+> = 3.
+> 
+> Any workload who could have benefited from __GFP_THISNODE has now to
+> enable zone_reclaim_mode=1||2||3. __GFP_THISNODE implicitly provided
+> the zone_reclaim_mode behavior, but it only did so if THP was enabled:
+> if THP was disabled, there would have been no chance to get any 4k
+> page from the current node if the current node was full of pagecache,
+> which further shows how this __GFP_THISNODE was misplaced in
+> MADV_HUGEPAGE. MADV_HUGEPAGE has never been intended to provide any
+> zone_reclaim_mode semantics, in fact the two are orthogonal,
+> zone_reclaim_mode = 1|2|3 must work exactly the same with
+> MADV_HUGEPAGE set or not.
+> 
+> The performance characteristic of memory depends on the hardware
+> details. The numbers below are obtained on Naples/EPYC architecture
+> and the N/A projection extends them to show what we should aim for in
+> the future as a good THP NUMA locality default. The benchmark used
+> exercises random memory seeks (note: the cost of the page faults is
+> not part of the measurement).
+> 
+> D0 THP | D0 4k | D1 THP | D1 4k | D2 THP | D2 4k | D3 THP | D3 4k | ...
+> 0%     | +43%  | +45%   | +106% | +131%  | +224% | N/A    | N/A
+> 
+> D0 means distance zero (i.e. local memory), D1 means distance
+> one (i.e. intra socket memory), D2 means distance two (i.e. inter
+> socket memory), etc...
+> 
+> For the guest physical memory allocated by qemu and for guest mode kernel
+> the performance characteristic of RAM is more complex and an ideal
+> default could be:
+> 
+> D0 THP | D1 THP | D0 4k | D2 THP | D1 4k | D3 THP | D2 4k | D3 4k | ...
+> 0%     | +58%   | +101% | N/A    | +222% | N/A    | N/A   | N/A
+> 
+> NOTE: the N/A are projections and haven't been measured yet, the
+> measurement in this case is done on a 1950x with only two NUMA nodes.
+> The THP case here means THP was used both in the host and in the
+> guest.
+> 
+> After applying this commit the THP NUMA locality order that we'll get
+> out of MADV_HUGEPAGE is this:
+> 
+> D0 THP | D1 THP | D2 THP | D3 THP | ... | D0 4k | D1 4k | D2 4k | D3 4k | ...
+> 
+> Before this commit it was:
+> 
+> D0 THP | D0 4k | D1 4k | D2 4k | D3 4k | ...
+> 
+> Even if we ignore the breakage of large workloads that can't fit in a
+> single node that the __GFP_THISNODE implicit "current node" mbind
+> caused, the THP NUMA locality order provided by __GFP_THISNODE was
+> still not the one we shall aim for in the long term (i.e. the first
+> one at the top).
+> 
+> After this commit is applied, we can introduce a new allocator multi
+> order API and to replace those two alloc_pages_vmas calls in the page
+> fault path, with a single multi order call:
+> 
+> 	unsigned int order = (1 << HPAGE_PMD_ORDER) | (1 << 0);
+> 	page = alloc_pages_multi_order(..., &order);
+> 	if (!page)
+> 		goto out;
+> 	if (!(order & (1 << 0))) {
+> 		VM_WARN_ON(order != 1 << HPAGE_PMD_ORDER);
+> 		/* THP fault */
+> 	} else {
+> 		VM_WARN_ON(order != 1 << 0);
+> 		/* 4k fallback */
+> 	}
+> 
+> The page allocator logic has to be altered so that when it fails on
+> any zone with order 9, it has to try again with a order 0 before
+> falling back to the next zone in the zonelist.
+> 
+> After that we need to do more measurements and evaluate if adding an
+> opt-in feature for guest mode is worth it, to swap "DN 4k | DN+1 THP"
+> with "DN+1 THP | DN 4k" at every NUMA distance crossing.
 
-This should really provide some changelog. I would go with the
-following.
-
-"
-Consolidation of the THP allocation flags at the same place was meant to
-be a clean up to easier handle otherwise scattered code which is
-imposing a maintenance burden. There were no real problems observed with
-the gfp mask consilidation but the reverting it was rushed through
-without a larger consensus regardless.
-
-This patch brings the consolidation back because this should make the
-long term maintainability easier as well as it should allow future
-changes to be less error prone.
-"
-
-Feel free to reuse or use your own wording
-
+I do agree with your reasoning. Future plans should be discussed
+carefully because any iWmplicit NUMA placing might turned out simply
+wrong with the future HW. I still believe we need a sort of _enforce_
+intrasocet placement numa policy API. Something resembling node reclaim
+mode for particular mappings. MPOL_CLOSE_NODE or similar sounds like a
+way to go. But a new API really begs for real world usecases and I still
+hope to get a reproducer for the problem David is running into.
+ 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-With a changelog clarification feel free to add
 Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  include/linux/gfp.h | 12 ++++--------
->  mm/huge_memory.c    | 27 ++++++++++++++-------------
->  mm/mempolicy.c      | 32 +++-----------------------------
->  mm/shmem.c          |  2 +-
->  4 files changed, 22 insertions(+), 51 deletions(-)
+>  include/linux/mempolicy.h |  2 ++
+>  mm/huge_memory.c          | 42 ++++++++++++++++++++++++---------------
+>  mm/mempolicy.c            |  2 +-
+>  3 files changed, 29 insertions(+), 17 deletions(-)
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index fdab7de7490d..e2a6aea3f8ec 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -510,22 +510,18 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
->  }
->  extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
->  			struct vm_area_struct *vma, unsigned long addr,
-> -			int node, bool hugepage);
-> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
-> -	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
-> +			int node);
->  #else
->  #define alloc_pages(gfp_mask, order) \
->  		alloc_pages_node(numa_node_id(), gfp_mask, order)
-> -#define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
-> -	alloc_pages(gfp_mask, order)
-> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
-> +#define alloc_pages_vma(gfp_mask, order, vma, addr, node)\
->  	alloc_pages(gfp_mask, order)
->  #endif
->  #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
->  #define alloc_page_vma(gfp_mask, vma, addr)			\
-> -	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id(), false)
-> +	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
->  #define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
-> -	alloc_pages_vma(gfp_mask, 0, vma, addr, node, false)
-> +	alloc_pages_vma(gfp_mask, 0, vma, addr, node)
+> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+> index 5228c62af416..bac395f1d00a 100644
+> --- a/include/linux/mempolicy.h
+> +++ b/include/linux/mempolicy.h
+> @@ -139,6 +139,8 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+>  struct mempolicy *get_task_policy(struct task_struct *p);
+>  struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>  		unsigned long addr);
+> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+> +						unsigned long addr);
+>  bool vma_policy_mof(struct vm_area_struct *vma);
 >  
->  extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
->  extern unsigned long get_zeroed_page(gfp_t gfp_mask);
+>  extern void numa_default_policy(void);
 > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 165ea46bf149..7efe68ba052a 100644
+> index 7efe68ba052a..784fd63800a2 100644
 > --- a/mm/huge_memory.c
 > +++ b/mm/huge_memory.c
-> @@ -641,30 +641,30 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
->   *	    available
->   * never: never stall for any thp allocation
->   */
-> -static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
-> +static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
+> @@ -644,27 +644,37 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+>  static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma, unsigned long addr)
 >  {
 >  	const bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
-> +	const gfp_t gfp_mask = GFP_TRANSHUGE_LIGHT | __GFP_THISNODE;
+> -	const gfp_t gfp_mask = GFP_TRANSHUGE_LIGHT | __GFP_THISNODE;
+> +	gfp_t this_node = 0;
 >  
->  	/* Always do synchronous compaction */
->  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
-> +		return GFP_TRANSHUGE | __GFP_THISNODE |
-> +		       (vma_madvised ? 0 : __GFP_NORETRY);
+> -	/* Always do synchronous compaction */
+> -	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+> -		return GFP_TRANSHUGE | __GFP_THISNODE |
+> -		       (vma_madvised ? 0 : __GFP_NORETRY);
+> +#ifdef CONFIG_NUMA
+> +	struct mempolicy *pol;
+> +	/*
+> +	 * __GFP_THISNODE is used only when __GFP_DIRECT_RECLAIM is not
+> +	 * specified, to express a general desire to stay on the current
+> +	 * node for optimistic allocation attempts. If the defrag mode
+> +	 * and/or madvise hint requires the direct reclaim then we prefer
+> +	 * to fallback to other node rather than node reclaim because that
+> +	 * can lead to excessive reclaim even though there is free memory
+> +	 * on other nodes. We expect that NUMA preferences are specified
+> +	 * by memory policies.
+> +	 */
+> +	pol = get_vma_policy(vma, addr);
+> +	if (pol->mode != MPOL_BIND)
+> +		this_node = __GFP_THISNODE;
+> +	mpol_cond_put(pol);
+> +#endif
 >  
->  	/* Kick kcompactd and fail quickly */
+> -	/* Kick kcompactd and fail quickly */
+> +	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+> +		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
 >  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
-> +		return gfp_mask | __GFP_KSWAPD_RECLAIM;
->  
->  	/* Synchronous compaction if madvised, otherwise kick kcompactd */
+> -		return gfp_mask | __GFP_KSWAPD_RECLAIM;
+> -
+> -	/* Synchronous compaction if madvised, otherwise kick kcompactd */
+> +		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM | this_node;
 >  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE_LIGHT |
-> -			(vma_madvised ? __GFP_DIRECT_RECLAIM :
-> -					__GFP_KSWAPD_RECLAIM);
-> +		return gfp_mask | (vma_madvised ? __GFP_DIRECT_RECLAIM :
-> +						  __GFP_KSWAPD_RECLAIM);
->  
->  	/* Only do synchronous compaction if madvised */
+> -		return gfp_mask | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+> -						  __GFP_KSWAPD_RECLAIM);
+> -
+> -	/* Only do synchronous compaction if madvised */
+> +		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+> +							     __GFP_KSWAPD_RECLAIM | this_node);
 >  	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
-> -		return GFP_TRANSHUGE_LIGHT |
-> -		       (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
-> +		return gfp_mask | (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
->  
-> -	return GFP_TRANSHUGE_LIGHT;
-> +	return gfp_mask;
+> -		return gfp_mask | (vma_madvised ? __GFP_DIRECT_RECLAIM : 0);
+> -
+> -	return gfp_mask;
+> +		return GFP_TRANSHUGE_LIGHT | (vma_madvised ? __GFP_DIRECT_RECLAIM :
+> +							     this_node);
+> +	return GFP_TRANSHUGE_LIGHT | this_node;
 >  }
 >  
 >  /* Caller must hold page table lock. */
-> @@ -736,8 +736,8 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
->  			pte_free(vma->vm_mm, pgtable);
->  		return ret;
->  	}
-> -	gfp = alloc_hugepage_direct_gfpmask(vma);
-> -	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
-> +	gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
-> +	page = alloc_pages_vma(gfp, HPAGE_PMD_ORDER, vma, haddr, numa_node_id());
->  	if (unlikely(!page)) {
->  		count_vm_event(THP_FAULT_FALLBACK);
->  		return VM_FAULT_FALLBACK;
-> @@ -1340,8 +1340,9 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  alloc:
->  	if (__transparent_hugepage_enabled(vma) &&
->  	    !transparent_hugepage_debug_cow()) {
-> -		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
-> -		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
-> +		huge_gfp = alloc_hugepage_direct_gfpmask(vma, haddr);
-> +		new_page = alloc_pages_vma(huge_gfp, HPAGE_PMD_ORDER, vma,
-> +				haddr, numa_node_id());
->  	} else
->  		new_page = NULL;
->  
 > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 2219e747df49..74e44000ad61 100644
+> index 74e44000ad61..341e3d56d0a6 100644
 > --- a/mm/mempolicy.c
 > +++ b/mm/mempolicy.c
-> @@ -1142,8 +1142,8 @@ static struct page *new_page(struct page *page, unsigned long start)
->  	} else if (PageTransHuge(page)) {
->  		struct page *thp;
->  
-> -		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
-> -					 HPAGE_PMD_ORDER);
-> +		thp = alloc_pages_vma(GFP_TRANSHUGE, HPAGE_PMD_ORDER, vma,
-> +				address, numa_node_id());
->  		if (!thp)
->  			return NULL;
->  		prep_transhuge_page(thp);
-> @@ -2037,7 +2037,6 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
->   * 	@vma:  Pointer to VMA or NULL if not available.
->   *	@addr: Virtual Address of the allocation. Must be inside the VMA.
->   *	@node: Which node to prefer for allocation (modulo policy).
-> - *	@hugepage: for hugepages try only the preferred node if possible
->   *
->   * 	This function allocates a page from the kernel page pool and applies
->   *	a NUMA policy associated with the VMA or the current process.
-> @@ -2048,7 +2047,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+> @@ -1688,7 +1688,7 @@ struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+>   * freeing by another task.  It is the caller's responsibility to free the
+>   * extra reference for shared policies.
 >   */
->  struct page *
->  alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
-> -		unsigned long addr, int node, bool hugepage)
-> +		unsigned long addr, int node)
+> -static struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+> +struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+>  						unsigned long addr)
 >  {
->  	struct mempolicy *pol;
->  	struct page *page;
-> @@ -2066,31 +2065,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
->  		goto out;
->  	}
->  
-> -	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage)) {
-> -		int hpage_node = node;
-> -
-> -		/*
-> -		 * For hugepage allocation and non-interleave policy which
-> -		 * allows the current node (or other explicitly preferred
-> -		 * node) we only try to allocate from the current/preferred
-> -		 * node and don't fall back to other nodes, as the cost of
-> -		 * remote accesses would likely offset THP benefits.
-> -		 *
-> -		 * If the policy is interleave, or does not allow the current
-> -		 * node in its nodemask, we allocate the standard way.
-> -		 */
-> -		if (pol->mode == MPOL_PREFERRED && !(pol->flags & MPOL_F_LOCAL))
-> -			hpage_node = pol->v.preferred_node;
-> -
-> -		nmask = policy_nodemask(gfp, pol);
-> -		if (!nmask || node_isset(hpage_node, *nmask)) {
-> -			mpol_cond_put(pol);
-> -			page = __alloc_pages_node(hpage_node,
-> -						gfp | __GFP_THISNODE, order);
-> -			goto out;
-> -		}
-> -	}
-> -
->  	nmask = policy_nodemask(gfp, pol);
->  	preferred_nid = policy_node(gfp, pol, node);
->  	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 2275a0ff7c30..ed7ebc423c6b 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1464,7 +1464,7 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
->  
->  	shmem_pseudo_vma_init(&pvma, info, hindex);
->  	page = alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN,
-> -			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id(), true);
-> +			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id());
->  	shmem_pseudo_vma_destroy(&pvma);
->  	if (page)
->  		prep_transhuge_page(page);
+>  	struct mempolicy *pol = __get_vma_policy(vma, addr);
 
 -- 
 Michal Hocko
