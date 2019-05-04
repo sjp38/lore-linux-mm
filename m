@@ -1,191 +1,189 @@
-Return-Path: <SRS0=Y66U=TD=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=c8nW=TE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5539FC43219
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 23:53:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B32E9C04AAA
+	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 00:22:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15BD12070B
-	for <linux-mm@archiver.kernel.org>; Fri,  3 May 2019 23:53:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6400E2081C
+	for <linux-mm@archiver.kernel.org>; Sat,  4 May 2019 00:22:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="N9BE3PqM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15BD12070B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="vCaTJVpf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6400E2081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A41676B0003; Fri,  3 May 2019 19:52:59 -0400 (EDT)
+	id DFA536B0003; Fri,  3 May 2019 20:22:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A17A26B0006; Fri,  3 May 2019 19:52:59 -0400 (EDT)
+	id DABAE6B0006; Fri,  3 May 2019 20:22:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 907706B0007; Fri,  3 May 2019 19:52:59 -0400 (EDT)
+	id C74946B0007; Fri,  3 May 2019 20:22:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F29E6B0003
-	for <linux-mm@kvack.org>; Fri,  3 May 2019 19:52:59 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id u65so7404139qkd.17
-        for <linux-mm@kvack.org>; Fri, 03 May 2019 16:52:59 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3AE6B0003
+	for <linux-mm@kvack.org>; Fri,  3 May 2019 20:22:36 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id q15so3501296otl.8
+        for <linux-mm@kvack.org>; Fri, 03 May 2019 17:22:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Y9uds37g7f4813/ZqlKEDnGn948IiuDvboVC7bPadlI=;
-        b=syLvF4RnWa8cxX+WefmAxhtlauc2rB3mUX/1t+xiv/KXvFLmeEegy79Z+s9MwQLzBo
-         DorZ1+Wbgl9ZVjTuUf1uLPeosxfAo5FMHU0fMzdE8N8qy6JJPPASDSmS3el+qd3M4OZZ
-         hraQCw7rVfQ4BlbzVt7aXBeOtbGFInGj+i0rph7DxiWkFwwZF9FLgP3P/nzVaCNdFHgg
-         9vE39Gi/B0HRowiTpzlZ/GAZeGyqKIiVUvL/RmIh4BsRo5jBVjx/39cz8ooWGmcacRdp
-         1ZhOnhctGafS9uhbP2N+vwtRKtD5eROx05IZV9Vz3V4tG23RsXReVx9K7Mgu3kNw/So0
-         SiKg==
-X-Gm-Message-State: APjAAAWIT4c8cj7/PxB2RV4FF/PmYYZhovyZKH2V3ibb0x4PXDsv6FHK
-	2lL3Qh2ZgVagEPODuxv24rtCkcVSMLOkJ4WaYyxguPkA1CB/x83LKMQygocN08KvJxCi5+HDErr
-	m23RTPwLhWvyKPh+TWBcI/cmlFoyzaMwqurR3qcVOydrtPmJnhgWjr3PsR7y+Lr0OKw==
-X-Received: by 2002:ac8:2b3b:: with SMTP id 56mr10900036qtu.143.1556927579102;
-        Fri, 03 May 2019 16:52:59 -0700 (PDT)
-X-Received: by 2002:ac8:2b3b:: with SMTP id 56mr10900006qtu.143.1556927578351;
-        Fri, 03 May 2019 16:52:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1556927578; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=P2GLzP+mIPWDKsZ2J8CpfXaoOt0+K7Q0KkqhqHG4CQc=;
+        b=pwzi3OPL1KNwfKNv0VV925H6fK5PFiSgDgZI7wP1ipKNEWxy3KM3E6bgv998D809S4
+         xqpXtecLpqGM6hV4p3076mBs7A1++7S6wDN68Q6qosUBMToTLL4Stxg2ecuu06yQK6JO
+         G7+Z6Zov8hayZjGfYvM21uR5gi+wTc7wBqA6mBhGaitGkzPH7hHXguw4odqoUnlWZwOw
+         efIK47aqvXbcVOIAb8ebnBz0+wsDoLKz/2lch5eEAAcfhcB2eD+ckzrGLgVJR3nBaV3e
+         oa2DMyuZDq+4cIe7o/ogahcbyD+LrACJ3iedo42At7MY4/r8QYLssJCK+CcbfwnADawR
+         JS1g==
+X-Gm-Message-State: APjAAAXUO7yjIu3CPPhLh7qQ8c1KkJMNuSGmSYkGn+BFb4YB7PdfYzR0
+	WLkz+Jkzp5lnvyIDG8HB6MQtf8SJKc6kb+UqkGwulldlVm1XOHHedP/fzCCk6uXmU2xdwNVhbXa
+	AyXgbYQjklxv9onykSfJBrtbztyKcjGq/ehGm55s5/eC3mw9TuRe8a+rUNfTDg+cd7w==
+X-Received: by 2002:a9d:3621:: with SMTP id w30mr8379222otb.98.1556929356218;
+        Fri, 03 May 2019 17:22:36 -0700 (PDT)
+X-Received: by 2002:a9d:3621:: with SMTP id w30mr8379190otb.98.1556929355226;
+        Fri, 03 May 2019 17:22:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1556929355; cv=none;
         d=google.com; s=arc-20160816;
-        b=Gfg2zuZJ8+IBUrpYmaMhK/Fu+cD38enAH1lII83ofiiqyEkKPdQhVN5XJRDB6AtZVT
-         cGruXWkZu5JYoPhW5h22Vwff9fZl+NZFHTeJ0nNtlF9u7I8Qz900Qke/qnnaU15PadDH
-         dZ/Iim+ro3leKD68SrQbZp6jG6/lVolfZjTARsH+leag4hDxIDbO0Uz/zrvExJqMJQeI
-         Fb9CyDC2kIqE+wNtCeXmBWNpRdML+XG2fpn9zgwXWOgfwawmTTbHGhuH/1gf1jSpTJbx
-         WHZRu/iCKXKUqvqkGCA+XfCIeMT2LdM335HZjvTR58dZrCzN//rbzvsTcw7AuIoERBRy
-         NJQQ==
+        b=lkVHPRi2HawPbmrpEvN7K+Y0yXbE1fkYLTRxjrKCbVlXkX/HD3d1tzD9DQN72FVoq1
+         NJh19Qt0EPnt19ywpbGcG8thSuqTkk2muF3xKTJma29MrtNR4f60SvtCZOoPI8+P6ZqF
+         84/ZHkSK/jtk8Z4LME4euEA9/yPXEO4WUAASzQZUezrOIv6BjDRLuyJ3bpfeoEpNUa58
+         y8GMzVqAkWUI8gu5qTy4+rnGEUvmVkC5njYtR8eGGIz7GtDNjHCzf3WF+7V0yWvhIfAX
+         PKx57HZ1UBFgN7XJu//XSjRSZjuapkaLCvY5zKw9z3YPg2c/jNUnv2TX2onpBG6TECe3
+         s69g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Y9uds37g7f4813/ZqlKEDnGn948IiuDvboVC7bPadlI=;
-        b=ck94k9tJiY1CnUWWV0osOG2bH6BXjgL4QiBhSwgSQSVKWenO/aEbhduqI+bOKJs1TK
-         JCevD0/sraFwPl9PzGEh1C09PqSaVmVPta+sbJ8VH+fIIRIfp+ZMu5OSNunsMNMelxhF
-         5vhG/Cofc0ldrW3S0Gxd3KwPStzNaYnV8tNLXn2mtzuvoDTQ/8HY4bTRKLWzNHhLskWr
-         7EYPvzgsRiO4Nh0uKURE/ABvhtsxfn0YEF8tFoTLZDH/+j5qoYfHnC/SnWFcigRe8bgy
-         rH87LYDycs4l5AURup7maM0IvgztEhIjEZLLXIJiplkPAAWiNDA6oJxzRXremhfXTaL0
-         Mv3Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=P2GLzP+mIPWDKsZ2J8CpfXaoOt0+K7Q0KkqhqHG4CQc=;
+        b=LVxXPGlB0+cNYHUoOKEK6VIvqrl12unRygLtzEgYXkR0NavQRBISfXkcx0T7Mgd4bk
+         tIVjILMRDMwlb7RTNERFl0gTPnurSl1eiv2P6LNNmFvPXRk68em2zJOsdepjcWA0EISF
+         Fy3oOMgUhyqbzrpo5+fR9Dvox7MOCQ/IDXQkb3MaLA/5JADl/67+P8RmwjuKjC2uxN8c
+         SNIcBSFa2Ell81Xdl7y9+VnOqXk47N45p2Y3ZgFisTX1RqHrIleHo/ZvlgNIRDDvyRE/
+         KnhjEzcsOycurSLm9omftnazFNunbv5vJcyAf/IMrwD5iZv99KQy4sXB83tfPZ1GV7hh
+         b8+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=N9BE3PqM;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=vCaTJVpf;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d44sor5227070qtd.62.2019.05.03.16.52.58
+        by mx.google.com with SMTPS id k17sor1817543otl.54.2019.05.03.17.22.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 03 May 2019 16:52:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 03 May 2019 17:22:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=N9BE3PqM;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=vCaTJVpf;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Y9uds37g7f4813/ZqlKEDnGn948IiuDvboVC7bPadlI=;
-        b=N9BE3PqMA0nL0NvpOU63kepSs17NWxuaQGMx7Tupv6wpFQNuRqB6tenh0G/BWpJ1PP
-         HEd7ZRYuplIPMrp/i3Cbd8pyLv65lE/Kcn6MATxFD0LAM764ONzAI9CGs51aZh5QkF2i
-         IUvMmfzMxlcfJSqngQx2TZEML8ZbCAHWTFmHtqfhFJeQ8JVqaTAgfiqfKRaZhlNd6jZX
-         Xiy8j3oAf41/Kg4WEp6FuwvI9DlafHuBxOiRzLclafXL2AMIXhBmFJmJrK5KHtm2pgmi
-         Pkc8sfsyJqh6zaTpfCu0T9ewb4rk6AtpL8uJLJA4xZTB0LSOR9blqcrj5s/eIqJuMPaw
-         q8oA==
-X-Google-Smtp-Source: APXvYqziKdH2wZvx3iC97K6c8A4weeprYaQkrXpo4FxMM1oMFrPSRq/nQcOHMobAnKPDvieS6kD22g==
-X-Received: by 2002:ac8:8ad:: with SMTP id v42mr10692638qth.337.1556927577786;
-        Fri, 03 May 2019 16:52:57 -0700 (PDT)
-Received: from ziepe.ca ([65.119.211.164])
-        by smtp.gmail.com with ESMTPSA id r1sm1636491qtp.77.2019.05.03.16.52.56
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 03 May 2019 16:52:56 -0700 (PDT)
-Received: from jgg by jggl.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hMhz6-0001lg-BL; Fri, 03 May 2019 20:52:56 -0300
-Date: Fri, 3 May 2019 20:52:56 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Leon Romanovsky <leon@kernel.org>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Eric Dumazet <edumazet@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, netdev@vger.kernel.org,
-	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v13 16/20] IB/mlx4, arm64: untag user pointers in
- mlx4_get_umem_mr
-Message-ID: <20190503235256.GB6660@ziepe.ca>
-References: <cover.1553093420.git.andreyknvl@google.com>
- <1e2824fd77e8eeb351c6c6246f384d0d89fd2d58.1553093421.git.andreyknvl@google.com>
- <20190429180915.GZ6705@mtr-leonro.mtl.com>
- <20190430111625.GD29799@arrakis.emea.arm.com>
- <20190502184442.GA31165@ziepe.ca>
- <20190503162846.GI55449@arrakis.emea.arm.com>
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=P2GLzP+mIPWDKsZ2J8CpfXaoOt0+K7Q0KkqhqHG4CQc=;
+        b=vCaTJVpfuYZulF2lvGYTlcwKbV4bHIuldvUdxOqs+uH+ZWUG8MHCqU5LYRU4Ii5WsS
+         PDEi1Bnr5u7uVLSxwEHBcH9FcPgYoz9Zrqra3zoo3B3CV5rf1+xPBXBNtymFu8jTtI2b
+         4t2wu2eKaV7ho3Zf63LxX2I8ETXX16rERV2zGWVqTQO/gyE/IpH1gehvfpn1PuaZ9XQ2
+         nmeLDeeeVTfbVR8/sYJ645rjgSmbfdxHU+oB6gDOf5ZuLEJW+SGhXPmQQNsK5GI6X0Ln
+         ByAdVXtAjKqekszhk+thuc6BqPOtKacnBhw35lG5RNxfap33IOANS8l1kbF1doUDWmMd
+         3bmA==
+X-Google-Smtp-Source: APXvYqxdVipoa5z31EifFG5ifrC68H+QnObLfr0ceemkguKFFrj+suFsJQfhR6Tx4LZgszvoXiMNhHCc5XuKsKhoJxk=
+X-Received: by 2002:a9d:5cc1:: with SMTP id r1mr6880612oti.229.1556929354326;
+ Fri, 03 May 2019 17:22:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190503162846.GI55449@arrakis.emea.arm.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <155552633539.2015392.2477781120122237934.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155552634075.2015392.3371070426600230054.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190501232517.crbmgcuk7u4gvujr@soleen.tm1wkky2jk1uhgkn0ivaxijq1c.bx.internal.cloudapp.net>
+ <CAPcyv4hxy86gWN3ncTQmHi8DT31k8YzsweMfGHgCh=sORMQQcg@mail.gmail.com>
+In-Reply-To: <CAPcyv4hxy86gWN3ncTQmHi8DT31k8YzsweMfGHgCh=sORMQQcg@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 3 May 2019 17:22:23 -0700
+Message-ID: <CAPcyv4hAh-Joe3Pt0r5CPSaWpZ4YoNF2jNDcvbMF2fsQm7Hetg@mail.gmail.com>
+Subject: Re: [PATCH v6 01/12] mm/sparsemem: Introduce struct mem_section_usage
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, David Hildenbrand <david@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 03, 2019 at 05:28:46PM +0100, Catalin Marinas wrote:
-> Thanks Jason and Leon for the information.
-> 
-> On Thu, May 02, 2019 at 03:44:42PM -0300, Jason Gunthorpe wrote:
-> > On Tue, Apr 30, 2019 at 12:16:25PM +0100, Catalin Marinas wrote:
-> > > > Interesting, the followup question is why mlx4 is only one driver in IB which
-> > > > needs such code in umem_mr. I'll take a look on it.
-> > > 
-> > > I don't know. Just using the light heuristics of find_vma() shows some
-> > > other places. For example, ib_umem_odp_get() gets the umem->address via
-> > > ib_umem_start(). This was previously set in ib_umem_get() as called from
-> > > mlx4_get_umem_mr(). Should the above patch have just untagged "start" on
-> > > entry?
-> > 
-> > I have a feeling that there needs to be something for this in the odp
-> > code..
-> > 
-> > Presumably mmu notifiers and what not also use untagged pointers? Most
-> > likely then the umem should also be storing untagged pointers.
-> 
-> Yes.
-> 
-> > This probably becomes problematic because we do want the tag in cases
-> > talking about the base VA of the MR..
-> 
-> It depends on whether the tag is relevant to the kernel or not. The only
-> useful case so far is for the kernel performing copy_form_user() etc.
-> accesses so they'd get checked in the presence of hardware memory
-> tagging (MTE; but it's not mandatory, a 0 tag would do as well).
-> 
-> If we talk about a memory range where the content is relatively opaque
-> (or irrelevant) to the kernel code, we don't really need the tag. I'm
-> not familiar to RDMA but I presume it would be a device accessing such
-> MR but not through the user VA directly. 
+On Wed, May 1, 2019 at 11:07 PM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Wed, May 1, 2019 at 4:25 PM Pavel Tatashin <pasha.tatashin@soleen.com> wrote:
+> >
+> > On 19-04-17 11:39:00, Dan Williams wrote:
+> > > Towards enabling memory hotplug to track partial population of a
+> > > section, introduce 'struct mem_section_usage'.
+> > >
+> > > A pointer to a 'struct mem_section_usage' instance replaces the existing
+> > > pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
+> > > 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
+> > > house a new 'map_active' bitmap.  The new bitmap enables the memory
+> > > hot{plug,remove} implementation to act on incremental sub-divisions of a
+> > > section.
+> > >
+> > > The primary motivation for this functionality is to support platforms
+> > > that mix "System RAM" and "Persistent Memory" within a single section,
+> > > or multiple PMEM ranges with different mapping lifetimes within a single
+> > > section. The section restriction for hotplug has caused an ongoing saga
+> > > of hacks and bugs for devm_memremap_pages() users.
+> > >
+> > > Beyond the fixups to teach existing paths how to retrieve the 'usemap'
+> > > from a section, and updates to usemap allocation path, there are no
+> > > expected behavior changes.
+> > >
+> > > Cc: Michal Hocko <mhocko@suse.com>
+> > > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > > ---
+> > >  include/linux/mmzone.h |   23 ++++++++++++--
+> > >  mm/memory_hotplug.c    |   18 ++++++-----
+> > >  mm/page_alloc.c        |    2 +
+> > >  mm/sparse.c            |   81 ++++++++++++++++++++++++------------------------
+> > >  4 files changed, 71 insertions(+), 53 deletions(-)
+> > >
+> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > > index 70394cabaf4e..f0bbd85dc19a 100644
+> > > --- a/include/linux/mmzone.h
+> > > +++ b/include/linux/mmzone.h
+> > > @@ -1160,6 +1160,19 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
+> > >  #define SECTION_ALIGN_UP(pfn)        (((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+> > >  #define SECTION_ALIGN_DOWN(pfn)      ((pfn) & PAGE_SECTION_MASK)
+> > >
+> > > +#define SECTION_ACTIVE_SIZE ((1UL << SECTION_SIZE_BITS) / BITS_PER_LONG)
+> > > +#define SECTION_ACTIVE_MASK (~(SECTION_ACTIVE_SIZE - 1))
+> > > +
+> > > +struct mem_section_usage {
+> > > +     /*
+> > > +      * SECTION_ACTIVE_SIZE portions of the section that are populated in
+> > > +      * the memmap
+> > > +      */
+> > > +     unsigned long map_active;
+> >
+> > I think this should be proportional to section_size / subsection_size.
+> > For example, on intel section size = 128M, and subsection is 2M, so
+> > 64bits work nicely. But, on arm64 section size if 1G, so subsection is
+> > 16M.
+> >
+> > On the other hand 16M is already much better than what we have: with 1G
+> > section size and 2M pmem alignment we guaranteed to loose 1022M. And
+> > with 16M subsection it is only 14M.
+>
+> I'm ok with it being 16M for now unless it causes a problem in
+> practice, i.e. something like the minimum hardware mapping alignment
+> for physical memory being less than 16M.
 
-RDMA exposes the user VA directly (the IOVA) as part of the wire
-protocol, we must preserve the tag in these cases as that is what the
-userspace is using for the pointer.
-
-So the ODP stuff will definately need some adjusting when it interacts
-with the mmu notifiers and get user pages.
-
-Jason
+On second thought, arbitrary differences across architectures is a bit
+sad. The most common nvdimm namespace alignment granularity is
+PMD_SIZE, so perhaps the default sub-section size should try to match
+that default.
 
