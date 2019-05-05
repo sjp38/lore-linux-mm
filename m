@@ -2,249 +2,231 @@ Return-Path: <SRS0=X77i=TF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7A3EC004C9
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 14:10:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5E4EC004C9
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 14:21:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F1E5206DF
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 14:10:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F1E5206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4E994206DF
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 14:21:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="AWQlbU8V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E994206DF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E80ED6B0005; Sun,  5 May 2019 10:10:51 -0400 (EDT)
+	id DDC426B0005; Sun,  5 May 2019 10:21:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E309D6B0006; Sun,  5 May 2019 10:10:51 -0400 (EDT)
+	id D65E46B0006; Sun,  5 May 2019 10:21:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D214A6B0007; Sun,  5 May 2019 10:10:51 -0400 (EDT)
+	id BDE296B0007; Sun,  5 May 2019 10:21:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B49046B0005
-	for <linux-mm@kvack.org>; Sun,  5 May 2019 10:10:51 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id s46so1658186qtj.4
-        for <linux-mm@kvack.org>; Sun, 05 May 2019 07:10:51 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 87E536B0005
+	for <linux-mm@kvack.org>; Sun,  5 May 2019 10:21:44 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id m8so3768735oih.0
+        for <linux-mm@kvack.org>; Sun, 05 May 2019 07:21:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:message-id:in-reply-to:subject:mime-version
-         :content-transfer-encoding:thread-topic:thread-index;
-        bh=gOsawLXWlD3op8IPdLOVlyL/W2wRBfNDVGnQJh7Td9Y=;
-        b=RK8iqbCwnd3tmxyPNsiGvpEa+L+OwHA7XXgqC/Ana1dCJx41FmrjMb6G+jVRDzXGVP
-         cviZn1FKEYwKIzxfzBFDJD8JnPHP5or36X8c6AEkbDN19PuwGXIbxLD/35MkiyHHw0wC
-         GUJAZVCdrM0QbKgdzXWrdG0ga3/9NE1AB4mcpxwS6IvaCEjh+FQZ0+WiPbE3kVSQMxoc
-         vb+se//87VY5AhUSxH8SfMD33u/Pa7eK6x0VV+Bi41nE1X5Jujx/jzdf+WWgWqa+52V5
-         At5+IlTGtphl8gVyaroODy3ZjJmJJB5y/89vpC2kB++hLxmMlT7hPqUFKEw2sO1aHQuZ
-         Mcdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW0FSrTBKVMwt6xg0kMsQU+jLDIPva7Q6wn+PMp9Nrtm/R0ZUOO
-	YmvqHPVtYvTRMf0LjLR7IME8dMTUbolGkOcsWT25R/Z+qzM0L+afKH/qQBUZfgbnYSUVi51x/md
-	meJ4OrShhc67UKeH8TaFR4HxINlIWITeU93hZCQQsjr+RiR+0eoJwrm3FALtOWMLH0Q==
-X-Received: by 2002:ac8:743:: with SMTP id k3mr14288481qth.207.1557065451371;
-        Sun, 05 May 2019 07:10:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqP0cydHGiWxrwM+znedZyde3ZHKCnALIwqOxGIjCRcePuG34zRFsGksy/qTNFX3gxqZtx
-X-Received: by 2002:ac8:743:: with SMTP id k3mr14288411qth.207.1557065450383;
-        Sun, 05 May 2019 07:10:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557065450; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IQqSIA7uD5M0wQf7Hipk4HlzkvDnQtg0hg1zEHr33zY=;
+        b=pxEOoKQvPS6jKxB5cIEhfg1SyYcu5BXW1UXVz7nSvOky5xmNUuR4a9yStDtDoPMEMD
+         MWObjOIx9T1VpPWNJCLVjjlHWDvS/0MjsUdnf72VAzWblG20mhF+Eg2QDnyl+gj9Jpt5
+         Gw4grbWZpeygoCnr1el3JGJYMrup8WWjp5gLt0eOdfe0ftdj7x3CoWJs6AxaMhVBrLtC
+         YJDUS5HCEIdZKAGcebyMCOuPSbJYF8eVVuCASvVPH8LJ8OhfKL8A0W1UqVj7vqHDRdjQ
+         d5OsTo9OXkbQqidgrl+vqf/EvhIf+o87Ztn0igoTj+LNd4LM8hYBZza/HzNHWuopsHsC
+         OoEw==
+X-Gm-Message-State: APjAAAVd8aaw/B+GCYdTqllI2t56UB2JGNMSfd16tKKewngzu+3ybTZF
+	131pl6SQozbQB0Q3J8ikziAS2Q1ylPkprAFq9gZdT/vOCdPB/4scVbmOyfZwE1h3CrZm4t5Co3y
+	bC0eELpZSBY7nYxQ5j5XBNV7yyuu0tNW9WNhRNCMvT28ika0qXJsTccfa0OekCASltw==
+X-Received: by 2002:aca:d7d5:: with SMTP id o204mr5515742oig.23.1557066103803;
+        Sun, 05 May 2019 07:21:43 -0700 (PDT)
+X-Received: by 2002:aca:d7d5:: with SMTP id o204mr5515705oig.23.1557066102855;
+        Sun, 05 May 2019 07:21:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557066102; cv=none;
         d=google.com; s=arc-20160816;
-        b=t1yFrjIuLIvLgJFjjW6a0BIWNqzFiRD0hpG/98fbwhsVWqdwHm09597chD3uLpr+IF
-         bnIembtUcQmwLwci/u4pSq3URX/JdCuzHDvCd2jrobnmixrEXyEDuygsQ7TRc0l2U+kg
-         T6QmhH3q5j1c21MQwDaRyRh1n+C+NBXaU7y/0IhyKSLr8C1CKwu7zJ5e11ux9g0yLHfi
-         szaEcFjKQwPAK/IoWBvKB5tsz1bCklbSVg2vDjjhU41kWLD0i8HxxHejIQypF+cN/GiM
-         ndExKieqFfStzMMv/ixuWpSM+qoLwtUybGtQcWcurLrptMnnh21HWPeT6lvnTJ6W3gEQ
-         q6JQ==
+        b=JKFcer8e/15GKv3yuqmTjXUOkdgo3CGYTJCQc7OeyZEAMCsbaUj8J70ehHWgQSFoQ5
+         jiK3g7a5ljfdCUm3tIlRbRH/HGf7oRAgUa07F0t2wKHXTlf458dpI2TXf7bzKPytL1Hu
+         bAWlyp2+Zj2+3LOEcbQVNfcACnFOk2+JbFAPx/EbN60GI4ny/rcyGUZpdcXXECZaEwi+
+         pMas+EKeLcSs+T7m/7+pyHHMSQyivINqbjgpjO724+e+KVKTaeogF7v1aaiGrxuoe0yG
+         zs5qFS49GeGjVm153kccPFu0FxiAJ7hLtjvMrCTlonKYJOgr6OutjbUaW4ny5RLfl6R0
+         7wpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:thread-topic:content-transfer-encoding:mime-version
-         :subject:in-reply-to:message-id:cc:to:from:date;
-        bh=gOsawLXWlD3op8IPdLOVlyL/W2wRBfNDVGnQJh7Td9Y=;
-        b=M4Y7vlHWExp8EH5UFozaTBXZFEcjdHs/45yRiFsKSzxEQViMU1J/QGFBHXExB50KVt
-         xQH+j8Okic4NTumTd81x2x5FZY8Oz0RQWFekFA4dBb1iUVwN/oyPS92ubD7CMm55TzKt
-         9MUvX1OseZdDMaMzKCkn4rYHnTUVAWnanIpzbsgAXfzSzBKBxH6cS8z7YYhsZuaSeW9b
-         vWvS07eKhBlQvxOOWLHN7u8XuDjFOpFXbSTHAMt1KFKFPYZatgyJ2CPWyC3C6dOt9DC6
-         corR/AdPm7k2l9DXx4ed2P/DjHMwoqX5ryvCzKIBvl4fsfwvg6pqYMIGIV5jHbRzrANK
-         2Zxg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=IQqSIA7uD5M0wQf7Hipk4HlzkvDnQtg0hg1zEHr33zY=;
+        b=B/h0XQgnTVAzynbCiNCRT9+5B3OLCBq7wb4ZuFaAPDVQU+26/R867UWbFhq6g5SU+w
+         /RLDXczZIdgipbd3v8WsV50ZiWlEfruZSJDamADqKX8YkdsdC8AEsBg2qyX9LooU33f1
+         fi1WSPhUepbz8mMAISY50RXooWHVFXBC/rJzuWVyNEb3Q4TQkY+MpPr13Ynzqp3zUqgO
+         Pg4jfT31ktuND9Ajoicb9VoLBcJe6GubHiSgM98cLjyBD4YOakeCvZQfXo+E9kRhfUNa
+         U5ScH8nfRvOqx87oWDVrGDIhy7OIJbPP7PT3tC0jCPbd3QE4T/VGM2gsKwVHwf++P+rH
+         b7Sw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j11si862080qkl.199.2019.05.05.07.10.50
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AWQlbU8V;
+       spf=pass (google.com: domain of y2kenny@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=y2kenny@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b199sor3168169oih.93.2019.05.05.07.21.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 May 2019 07:10:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Sun, 05 May 2019 07:21:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of y2kenny@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id F1FF4C06645C;
-	Sun,  5 May 2019 14:10:48 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C7B5A60C43;
-	Sun,  5 May 2019 14:10:48 +0000 (UTC)
-Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id 4EEA718089C8;
-	Sun,  5 May 2019 14:10:48 +0000 (UTC)
-Date: Sun, 5 May 2019 10:10:45 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
-Cc: yang shi <yang.shi@linux.alibaba.com>, kirill@shutemov.name, 
-	willy@infradead.org, 
-	kirill shutemov <kirill.shutemov@linux.intel.com>, vbabka@suse.cz, 
-	Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, 
-	Waiman Long <longman@redhat.com>, Jan Stancek <jstancek@redhat.com>
-Message-ID: <1817839533.20996552.1557065445233.JavaMail.zimbra@redhat.com>
-In-Reply-To: <820667266.20994189.1557058281210.JavaMail.zimbra@redhat.com>
-Subject: [bug] aarch64: userspace stalls on page fault after dd2283f2605e
- ("mm: mmap: zap pages with read mmap_sem in munmap")
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AWQlbU8V;
+       spf=pass (google.com: domain of y2kenny@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=y2kenny@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=IQqSIA7uD5M0wQf7Hipk4HlzkvDnQtg0hg1zEHr33zY=;
+        b=AWQlbU8VoVdVOq3fIViQl9WYLUDY46SLhaBmW9Msab5SMYgL0D5pHgqnoecO4JXrdp
+         2K/zjn5/HgnHS3DI4TKeICobLr5jNn3MZFF8AWGvOzgMQvaFxHj0UersObHSwzbqjCHU
+         kXFFzOlrutozkLHx0JC/PEftOVW4BUW7jl9QNtEAmrYuDNdqb7lyNN17WYTdeLCmWnPy
+         UnxDtMS+e3G9oMwruAOb/RYs10NL5OqNm6D+D7hRvzETt/45lB6Xuk6D+wbdv1aVOktJ
+         iYhmorWgDXqeGGDkgoGwbfAGo4MEe7F2Ixq+NKElGpK8fo9OAlyHVml2Qc8WS9v2A1Yi
+         1sNg==
+X-Google-Smtp-Source: APXvYqxtCTlnFpaog3a+ume/+CFEM0o9HMexE6GdSPSB//kAtVjADF27eCZpP5vpBUt2GA/SlUqk8VsrOlucOhccchs=
+X-Received: by 2002:aca:72c9:: with SMTP id p192mr5372420oic.164.1557066102015;
+ Sun, 05 May 2019 07:21:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.40.204.49, 10.4.195.17]
-Thread-Topic: aarch64: userspace stalls on page fault after dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
-Thread-Index: mxi6IavaUitcMtER3aVvUOvUE5iG/g==
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Sun, 05 May 2019 14:10:49 +0000 (UTC)
+References: <20190501140438.9506-1-brian.welty@intel.com> <20190502083433.GP7676@mtr-leonro.mtl.com>
+ <CAOWid-cYknxeTQvP9vQf3-i3Cpux+bs7uBs7_o-YMFjVCo19bg@mail.gmail.com>
+ <bb001de0-e4e5-6b3f-7ced-9d0fb329635b@intel.com> <20190505071436.GD6938@mtr-leonro.mtl.com>
+In-Reply-To: <20190505071436.GD6938@mtr-leonro.mtl.com>
+From: Kenny Ho <y2kenny@gmail.com>
+Date: Sun, 5 May 2019 10:21:30 -0400
+Message-ID: <CAOWid-di8kcC2bYKq1KJo+rWfVjwQ13mcVRjaBjhFRzTO=c16Q@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
+To: Leon Romanovsky <leon@kernel.org>
+Cc: "Welty, Brian" <brian.welty@intel.com>, Alex Deucher <alexander.deucher@amd.com>, 
+	Parav Pandit <parav@mellanox.com>, David Airlie <airlied@linux.ie>, intel-gfx@lists.freedesktop.org, 
+	"J??r??me Glisse" <jglisse@redhat.com>, dri-devel@lists.freedesktop.org, 
+	Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, 
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, Li Zefan <lizefan@huawei.com>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, 
+	cgroups@vger.kernel.org, "Christian K??nig" <christian.koenig@amd.com>, 
+	RDMA mailing list <linux-rdma@vger.kernel.org>, kenny.ho@amd.com, 
+	Harish.Kasiviswanathan@amd.com, daniel@ffwll.ch
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, May 5, 2019 at 3:14 AM Leon Romanovsky <leon@kernel.org> wrote:
+> > > Doesn't RDMA already has a separate cgroup?  Why not implement it there?
+> > >
+> >
+> > Hi Kenny, I can't answer for Leon, but I'm hopeful he agrees with rationale
+> > I gave in the cover letter.  Namely, to implement in rdma controller, would
+> > mean duplicating existing memcg controls there.
+>
+> Exactly, I didn't feel comfortable to add notion of "device memory"
+> to RDMA cgroup and postponed that decision to later point of time.
+> RDMA operates with verbs objects and all our user space API is based around
+> that concept. At the end, system administrator will have hard time to
+> understand the differences between memcg and RDMA memory.
+Interesting.  I actually don't understand this part (I worked in
+devops/sysadmin side of things but never with rdma.)  Don't
+applications that use rdma require some awareness of rdma (I mean, you
+mentioned verbs and objects... or do they just use regular malloc for
+buffer allocation and then send it through some function?)  As a user,
+I would have this question: why do I need to configure some part of
+rdma resources under rdma cgroup while other part of rdma resources in
+a different, seemingly unrelated cgroups.
 
-I'm seeing userspace program getting stuck on aarch64, on kernels 4.20 and newer.
-It stalls from seconds to hours.
-
-I have simplified it to following scenario (reproducer linked below [1]):
-  while (1):
-    spawn Thread 1: mmap, write, munmap
-    spawn Thread 2: <nothing>
-
-Thread 1 is sporadically getting stuck on write to mapped area. User-space is not
-moving forward - stdout output stops. Observed CPU usage is however 100%.
-
-At this time, kernel appears to be busy handling page faults (~700k per second):
-
-# perf top -a -g
--   98.97%     8.30%  a.out                     [.] map_write_unmap
-   - 23.52% map_write_unmap
-      - 24.29% el0_sync
-         - 10.42% do_mem_abort
-            - 17.81% do_translation_fault
-               - 33.01% do_page_fault
-                  - 56.18% handle_mm_fault
-                       40.26% __handle_mm_fault
-                       2.19% __ll_sc___cmpxchg_case_acq_4
-                       0.87% mem_cgroup_from_task
-                  - 6.18% find_vma
-                       5.38% vmacache_find
-                    1.35% __ll_sc___cmpxchg_case_acq_8
-                    1.23% __ll_sc_atomic64_sub_return_release
-                    0.78% down_read_trylock
-           0.93% do_translation_fault
-   + 8.30% thread_start
-
-#  perf stat -p 8189 -d 
-^C
- Performance counter stats for process id '8189':
-
-        984.311350      task-clock (msec)         #    1.000 CPUs utilized
-                 0      context-switches          #    0.000 K/sec
-                 0      cpu-migrations            #    0.000 K/sec
-           723,641      page-faults               #    0.735 M/sec
-     2,559,199,434      cycles                    #    2.600 GHz
-       711,933,112      instructions              #    0.28  insn per cycle
-   <not supported>      branches
-           757,658      branch-misses
-       205,840,557      L1-dcache-loads           #  209.121 M/sec
-        40,561,529      L1-dcache-load-misses     #   19.71% of all L1-dcache hits
-   <not supported>      LLC-loads
-   <not supported>      LLC-load-misses
-
-       0.984454892 seconds time elapsed
-
-With some extra traces, it appears looping in page fault for same address, over and over:
-  do_page_fault // mm_flags: 0x55
-    __do_page_fault
-      __handle_mm_fault
-        handle_pte_fault
-          ptep_set_access_flags
-            if (pte_same(pte, entry))  // pte: e8000805060f53, entry: e8000805060f53
-
-I had traces in mmap() and munmap() as well, they don't get hit when reproducer
-hits the bad state.
-
-Notes:
-- I'm not able to reproduce this on x86.
-- Attaching GDB or strace immediatelly recovers application from stall.
-- It also seems to recover faster when system is busy with other tasks.
-- MAP_SHARED vs. MAP_PRIVATE makes no difference.
-- Turning off THP makes no difference.
-- Reproducer [1] usually hits it within ~minute on HW described below.
-- Longman mentioned that "When the rwsem becomes reader-owned, it causes
-  all the spinning writers to go to sleep adding wakeup latency to
-  the time required to finish the critical sections", but this looks
-  like busy loop, so I'm not sure if it's related to rwsem issues identified
-  in: https://lore.kernel.org/lkml/20190428212557.13482-2-longman@redhat.com/
-- I tried 2 different aarch64 systems so far: APM X-Gene CPU Potenza A3 and
-  Qualcomm 65-LA-115-151.
-  I can reproduce it on both with v5.1-rc7. It's easier to reproduce
-  on latter one (for longer periods of time), which has 46 CPUs.
-- Sample output of reproducer on otherwise idle system:
-  # ./a.out
-  [00000314] map_write_unmap took: 26305 ms
-  [00000867] map_write_unmap took: 13642 ms
-  [00002200] map_write_unmap took: 44237 ms
-  [00002851] map_write_unmap took: 992 ms
-  [00004725] map_write_unmap took: 542 ms
-  [00006443] map_write_unmap took: 5333 ms
-  [00006593] map_write_unmap took: 21162 ms
-  [00007435] map_write_unmap took: 16982 ms
-  [00007488] map_write unmap took: 13 ms^C
-
-I ran a bisect, which identified following commit as first bad one:
-  dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
-
-I can also make the issue go away with following change:
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 330f12c17fa1..13ce465740e2 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2844,7 +2844,7 @@ EXPORT_SYMBOL(vm_munmap);
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
-        profile_munmap(addr);
--       return __vm_munmap(addr, len, true);
-+       return __vm_munmap(addr, len, false);
- }
-
-# cat /proc/cpuinfo  | head
-processor       : 0
-BogoMIPS        : 40.00
-Features        : fp asimd evtstrm aes pmull sha1 sha2 crc32 cpuid asimdrdm
-CPU implementer : 0x51
-CPU architecture: 8
-CPU variant     : 0x0
-CPU part        : 0xc00
-CPU revision    : 1
-
-# numactl -H
-available: 1 nodes (0)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45
-node 0 size: 97938 MB
-node 0 free: 95732 MB
-node distances:
-node   0 
-  0:  10 
+I think we need to be careful about drawing the line between
+duplication and over couplings between subsystems.  I have other
+thoughts and concerns and I will try to organize them into a response
+in the next few days.
 
 Regards,
-Jan
+Kenny
 
-[1] https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_stall/mmap5.c
-[2] https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_stall/config
+
+> >
+> > Is AMD interested in collaborating to help shape this framework?
+> > It is intended to be device-neutral, so could be leveraged by various
+> > types of devices.
+> > If you have an alternative solution well underway, then maybe
+> > we can work together to merge our efforts into one.
+> > In the end, the DRM community is best served with common solution.
+> >
+> >
+> > >
+> > >>> and with future work, we could extend to:
+> > >>> *  track and control share of GPU time (reuse of cpu/cpuacct)
+> > >>> *  apply mask of allowed execution engines (reuse of cpusets)
+> > >>>
+> > >>> Instead of introducing a new cgroup subsystem for GPU devices, a new
+> > >>> framework is proposed to allow devices to register with existing cgroup
+> > >>> controllers, which creates per-device cgroup_subsys_state within the
+> > >>> cgroup.  This gives device drivers their own private cgroup controls
+> > >>> (such as memory limits or other parameters) to be applied to device
+> > >>> resources instead of host system resources.
+> > >>> Device drivers (GPU or other) are then able to reuse the existing cgroup
+> > >>> controls, instead of inventing similar ones.
+> > >>>
+> > >>> Per-device controls would be exposed in cgroup filesystem as:
+> > >>>     mount/<cgroup_name>/<subsys_name>.devices/<dev_name>/<subsys_files>
+> > >>> such as (for example):
+> > >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.max
+> > >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.current
+> > >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.stat
+> > >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.weight
+> > >>>
+> > >>> The drm/i915 patch in this series is based on top of other RFC work [1]
+> > >>> for i915 device memory support.
+> > >>>
+> > >>> AMD [2] and Intel [3] have proposed related work in this area within the
+> > >>> last few years, listed below as reference.  This new RFC reuses existing
+> > >>> cgroup controllers and takes a different approach than prior work.
+> > >>>
+> > >>> Finally, some potential discussion points for this series:
+> > >>> * merge proposed <subsys_name>.devices into a single devices directory?
+> > >>> * allow devices to have multiple registrations for subsets of resources?
+> > >>> * document a 'common charging policy' for device drivers to follow?
+> > >>>
+> > >>> [1] https://patchwork.freedesktop.org/series/56683/
+> > >>> [2] https://lists.freedesktop.org/archives/dri-devel/2018-November/197106.html
+> > >>> [3] https://lists.freedesktop.org/archives/intel-gfx/2018-January/153156.html
+> > >>>
+> > >>>
+> > >>> Brian Welty (5):
+> > >>>   cgroup: Add cgroup_subsys per-device registration framework
+> > >>>   cgroup: Change kernfs_node for directories to store
+> > >>>     cgroup_subsys_state
+> > >>>   memcg: Add per-device support to memory cgroup subsystem
+> > >>>   drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
+> > >>>   drm/i915: Use memory cgroup for enforcing device memory limit
+> > >>>
+> > >>>  drivers/gpu/drm/drm_drv.c                  |  12 +
+> > >>>  drivers/gpu/drm/drm_gem.c                  |   7 +
+> > >>>  drivers/gpu/drm/i915/i915_drv.c            |   2 +-
+> > >>>  drivers/gpu/drm/i915/intel_memory_region.c |  24 +-
+> > >>>  include/drm/drm_device.h                   |   3 +
+> > >>>  include/drm/drm_drv.h                      |   8 +
+> > >>>  include/drm/drm_gem.h                      |  11 +
+> > >>>  include/linux/cgroup-defs.h                |  28 ++
+> > >>>  include/linux/cgroup.h                     |   3 +
+> > >>>  include/linux/memcontrol.h                 |  10 +
+> > >>>  kernel/cgroup/cgroup-v1.c                  |  10 +-
+> > >>>  kernel/cgroup/cgroup.c                     | 310 ++++++++++++++++++---
+> > >>>  mm/memcontrol.c                            | 183 +++++++++++-
+> > >>>  13 files changed, 552 insertions(+), 59 deletions(-)
+> > >>>
+> > >>> --
+> > >>> 2.21.0
+> > >>>
+> > >> _______________________________________________
+> > >> dri-devel mailing list
+> > >> dri-devel@lists.freedesktop.org
+> > >> https://lists.freedesktop.org/mailman/listinfo/dri-devel
 
