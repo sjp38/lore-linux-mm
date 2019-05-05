@@ -2,204 +2,131 @@ Return-Path: <SRS0=X77i=TF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.5 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4291C04AAC
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 08:53:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20D9EC04AAC
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 09:20:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 475C72087F
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 08:53:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 475C72087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id DC55A2082F
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 09:20:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC55A2082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A69B36B0003; Sun,  5 May 2019 04:53:35 -0400 (EDT)
+	id 7934A6B0003; Sun,  5 May 2019 05:20:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A19496B0006; Sun,  5 May 2019 04:53:35 -0400 (EDT)
+	id 743486B0006; Sun,  5 May 2019 05:20:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E1326B0007; Sun,  5 May 2019 04:53:35 -0400 (EDT)
+	id 5E3D46B0007; Sun,  5 May 2019 05:20:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 540FE6B0003
-	for <linux-mm@kvack.org>; Sun,  5 May 2019 04:53:35 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id j36so1388781pgb.20
-        for <linux-mm@kvack.org>; Sun, 05 May 2019 01:53:35 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BC9E6B0003
+	for <linux-mm@kvack.org>; Sun,  5 May 2019 05:20:44 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id y10so4652122qti.22
+        for <linux-mm@kvack.org>; Sun, 05 May 2019 02:20:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=/9jWs+EL2eMaqycQ3ZsXnIbDyIIHw5RHs1wWK0ePNfk=;
-        b=a5nLKqGvPVZ6yjpSVm1L6vBziSUELEPmNEd0FQA5hpzNkR2Ygo3iTCxqyuMHYCH+IF
-         Dm2E5/tLn0Je4IKIXTZzOPBAuWDxQpKIWcdS0ELD408syr27T56mAvslFTegBbNWO3H1
-         uaSWJ/xuNRDNk7pK8xLD4jUaHwCRz+oF7d0HCnNKWjPyheGwdBDbhiZXMiQX4Nh/jXjX
-         dCHUjBt3bewSnH6KGTUgmXFCM252Rf0rDOl1PLFY8jpYcjsnexoZZi0YMl4wad3xyF9b
-         sSZDWslxX0WCfe736OzXD8In8j/jJVdpjiM4rmXxqheLqsCASHPnS/FVMpaDZxhbx2pX
-         12RA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVyKyeRSjZY608IUQZEVUeth5L/9zdrbnTHQ13QMFwb1kN+Znly
-	0hJXVoc+zX1zEGPZxWbioGK4cvlTVNIcAKJyCZCOwJ90t6U8l4kQXiPWbMM9y/FrD9R3ujL4klK
-	xF+7akIlkOzuP4p/gcO8PWBYdjwzvpPobR8UolgcvNUFWw2RPKUcgvlC3DvXLtNak1w==
-X-Received: by 2002:a63:e004:: with SMTP id e4mr23731260pgh.344.1557046414864;
-        Sun, 05 May 2019 01:53:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybrMJsKIWMnlheF6NVey0di/HnFg1MXXAYscGh+B1Vx1APobEk4gMzi/fwXdtUbfY/RTdj
-X-Received: by 2002:a63:e004:: with SMTP id e4mr23731214pgh.344.1557046413908;
-        Sun, 05 May 2019 01:53:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557046413; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=IivF5H363YfmbV0lg/ObuFkktGg4Fz7JqwSg9qtGZOI=;
+        b=TonTXOJUU2AVTnhfLNsRxe6jXp2+YKAzg1JiqiOlLGHNe0yE5Ye4SG9iec639oXLI5
+         Y5TbAQ4jsnwx8yTlIZrGnHRXNdU0pn+H3hjIWVeMqdsU5Rza+ZMHYR2ySw39GPb/JixM
+         bUCOOh4m/dVKQxzcNGA2NMPaoV20wf4wjo8fGG+O3UdrSrUqfC+nA6A7q0wBVrc8L/yi
+         CeKJmVs/CZuOL083DGt6IJZ3qQhzqRsZhHtkxB1AGOy442nK5O0YCvaJ/QReCtX1mvtI
+         czGcmE1Z9HD58fs0UKGrXSgG22KH20s6aR0NVubY8XnYqQRF7NUsMaRUS3Pyk9TUH15G
+         OqrQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU8gQvq5OXqDTGO6RWZwsSY8u8Y2jNG5ujFWklwL1vR/EOalsmU
+	9/ECgumyGYS04ISxRR4oQX58azBd9OqIDhiSa+KJGzIcoNmCRMEqL+CF0FqAk0zIZGGj/ZJGrt8
+	wLMWLbEsQtLLU8tL5vedVViQqm2jAHxGNb1trqFuOpc1ETkM4dsml8N4Q0KtW8iydhg==
+X-Received: by 2002:a05:620a:124b:: with SMTP id a11mr6500696qkl.128.1557048043947;
+        Sun, 05 May 2019 02:20:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrJerXmtRauSBipbwYfiWGlQ3TNnZPJsr4vrh7hcwmcG93ViKLI3cV3KeNIRN2U5FU6xJN
+X-Received: by 2002:a05:620a:124b:: with SMTP id a11mr6500673qkl.128.1557048043187;
+        Sun, 05 May 2019 02:20:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557048043; cv=none;
         d=google.com; s=arc-20160816;
-        b=PrOUoz46zFSdMNvfb85JVDCACx8tZv1uFPcE8vrq54lELirxnVeSzDK/4s7G3RBKki
-         r5JyAjqP+7vxlk0dJ2OXszPgC/sSIcwx9xMJQ0EYCiCuxUcSLEUsjPWzlT9qz5N6hj6t
-         ox5NtpqiXKw5JFGQ7UjRYnhEIFlZ6S/LvgZwGWka/D+1TR4m6BGWv/FLyUO6Uz9BX2Hn
-         bTGLHHr4Mxw1Hf0aKJrK/ijall3a2KJnNdAHT7Fo1OKsqVWAZ6+2ZY4UIIoTdU5KLjhg
-         wH88KKdJZNCSrfFFgF56rZMZU0c15fe7bqNQX9eXd2naI1bNzUeDs4uo5XD5nlUsP4Ce
-         Eifg==
+        b=DZOee0gnr6/QpZUnNea/yKtsFHw5ZtC422QRF7aN9Uu+3+GhoQqTqktkgU8ZFbtdbd
+         3prUVIQCJKjonHRBjybLrmyCYidVVBhUhi6TnAqzuodYpr2COavzwb9y6CSa6vPPM9Wv
+         Ved8WwQTBJJAkGjkNk0QlWQPrxV5ZvloBKUPc1o3Egfp2YycIS+zFlb0NWHVGaxHZiA1
+         /ROqABQ3lUsCza3sLMe+Bj31LsDc8UM5mbEuoLbn/sWr2qipVpHoGk5+5l60v28sM3U0
+         4EbOhNcmQ+dFGcgejtp+MVBf0KPFCvg+HXOQOpiMcP39+9OvKdf+rMy01A++l/UfQDAG
+         oz8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=/9jWs+EL2eMaqycQ3ZsXnIbDyIIHw5RHs1wWK0ePNfk=;
-        b=WQ6McgbliZRWAgAgTsiv3WByG5sLF7jdyLZj1xDtfTUx5RY3HFMiuhAyBXug0JIfK1
-         fxZGrS06XSnubjaAwH55wVN0DqkNI+c5kCM/Ai7hpiGMkMPw9mPcDIqmV4o8qs+LSWdg
-         aFiWmuLPS6wEVbJcKEXAEjmO7+6FbZmn0xHsyq/a41mQHsN6PE+mRu8nbgwyy+QFLh8U
-         goYhrzIXSmRp5KYcCLRMP/o2DgY1zkyAmaUGbP/KrSQfcRwmjhP9/rtzV77rcxfWMFcA
-         fuHEPdcGoKjp860HtttgPsJf1Kvgbd2a76zmfnSacSrsWYd/WVBUq2KAAQuoU5kM8OX9
-         mZVA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=IivF5H363YfmbV0lg/ObuFkktGg4Fz7JqwSg9qtGZOI=;
+        b=yseH3UOelJO+ZnPud8h6RbdiqATtlftrqAxujk/MqLkqblNjtqOv+b4KpzbpB4Hd99
+         GgwE8d3cyS3nXznGVgA6PRmCI67VrWXU/93ZGN9zXotWfvawbyaX/yziyop2TqoIv7cR
+         nYoSnYb/T4AdF/oLhkOSGsyS0MC8GZdnblfFOgwODDFf1xe8eVd1wPr0tJJMzVA4+rdx
+         iAyxTSaWeB1XEEveHndekqR3H877aDU1l0HN1m4V9SCdyl1TKFau4Bek37NGQynEddm5
+         R0UIvboX1gYlYD9wmpyuVxJIyUhi1C1guMYOyvlA/nSvEfeIN24bBSLJXvpcJlYlsJp5
+         H1dQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id cm10si8309544plb.124.2019.05.05.01.53.33
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r15si634708qtn.95.2019.05.05.02.20.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 May 2019 01:53:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Sun, 05 May 2019 02:20:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x458qARE041359
-	for <linux-mm@kvack.org>; Sun, 5 May 2019 04:53:32 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2s9r8bqcjc-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 05 May 2019 04:53:32 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Sun, 5 May 2019 09:53:29 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sun, 5 May 2019 09:53:26 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x458rPKe63242432
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sun, 5 May 2019 08:53:25 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7928852052;
-	Sun,  5 May 2019 08:53:25 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id 9E0295204F;
-	Sun,  5 May 2019 08:53:24 +0000 (GMT)
-Date: Sun, 5 May 2019 11:53:23 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Helge Deller <deller@gmx.de>
-Cc: Mel Gorman <mgorman@techsingularity.net>,
-        Matthew Wilcox <willy@infradead.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mikulas Patocka <mpatocka@redhat.com>,
-        James Bottomley <James.Bottomley@hansenpartnership.com>,
-        linux-parisc@vger.kernel.org, linux-mm@kvack.org,
-        Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
-        linux-arch@vger.kernel.org
-Subject: Re: DISCONTIGMEM is deprecated
-References: <20190419094335.GJ18914@techsingularity.net>
- <20190419140521.GI7751@bombadil.infradead.org>
- <20190419142835.GM18914@techsingularity.net>
- <9e7b80a9-b90e-ac04-8b30-b2f285cd4432@gmx.de>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 50F6C3091749;
+	Sun,  5 May 2019 09:20:42 +0000 (UTC)
+Received: from [10.72.12.197] (ovpn-12-197.pek2.redhat.com [10.72.12.197])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id EC3AF5DA5B;
+	Sun,  5 May 2019 09:20:32 +0000 (UTC)
+Subject: Re: [RFC PATCH V3 0/6] vhost: accelerate metadata access
+To: mst@redhat.com, kvm@vger.kernel.org,
+ virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+ linux-kernel@vger.kernel.org
+Cc: peterx@redhat.com, aarcange@redhat.com,
+ James.Bottomley@hansenpartnership.com, hch@infradead.org,
+ davem@davemloft.net, jglisse@redhat.com, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org, linux-parisc@vger.kernel.org,
+ christophe.de.dinechin@gmail.com, jrdr.linux@gmail.com
+References: <20190423055420.26408-1-jasowang@redhat.com>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <831c343f-c547-f68c-19fe-d89e8f259d87@redhat.com>
+Date: Sun, 5 May 2019 17:20:31 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9e7b80a9-b90e-ac04-8b30-b2f285cd4432@gmx.de>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19050508-0012-0000-0000-0000031878B9
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19050508-0013-0000-0000-00002150EEE3
-Message-Id: <20190505085322.GH15755@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-05_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=793 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905050080
+In-Reply-To: <20190423055420.26408-1-jasowang@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Sun, 05 May 2019 09:20:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Fri, Apr 19, 2019 at 10:08:31PM +0200, Helge Deller wrote:
-> On 19.04.19 16:28, Mel Gorman wrote:
-> > On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
-> >> On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
-> >>> DISCONTIG is essentially deprecated and even parisc plans to move to
-> >>> SPARSEMEM so there is no need to be fancy, this patch simply disables
-> >>> watermark boosting by default on DISCONTIGMEM.
-> >>
-> >> I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
-> >> scenarios.  Grepping the arch/ directories shows:
-> >>
-> >> alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
-> >> arc (for supporting more than 1GB of memory)
-> >> ia64 (looks complicated ...)
-> >> m68k (for multiple chunks of memory)
-> >> mips (does support NUMA but also non-NUMA)
-> >> parisc (both NUMA and non-NUMA)
-> >>
-> >> I'm not sure that these architecture maintainers even know that DISCONTIGMEM
-> >> is deprecated.  Adding linux-arch to the cc.
-> >
-> > Poor wording then -- yes, DISCONTIGMEM is still used but look where it's
-> > used. I find it impossible to believe that any new arch would support
-> > DISCONTIGMEM or that DISCONTIGMEM would be selected when SPARSEMEM is
-> > available.`It's even more insane when you consider that SPARSEMEM can be
-> > extended to support VMEMMAP so that it has similar overhead to FLATMEM
-> > when mapping pfns to struct pages and vice-versa.
-> 
-> FYI, on parisc we will switch from DISCONTIGMEM to SPARSEMEM with kernel 5.2.
-> The patch was quite simple and it's currently in the for-next tree:
-> https://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git/commit/?h=for-next&id=281b718721a5e78288271d632731cea9697749f7
-
-A while ago I've sent a patch that removes ARCH_DISCARD_MEMBLOCK option [1]
-so the hunk below is not needed:
-
-diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-index c8038165b81f..26c215570adf 100644
---- a/arch/parisc/Kconfig
-+++ b/arch/parisc/Kconfig
-@@ -36,6 +36,7 @@ config PARISC
- 	select GENERIC_STRNCPY_FROM_USER
- 	select SYSCTL_ARCH_UNALIGN_ALLOW
- 	select SYSCTL_EXCEPTION_TRACE
-+	select ARCH_DISCARD_MEMBLOCK
- 	select HAVE_MOD_ARCH_SPECIFIC
- 	select VIRT_TO_BUS
- 	select MODULES_USE_ELF_RELA
+On 2019/4/23 下午1:54, Jason Wang wrote:
+> This series tries to access virtqueue metadata through kernel virtual
+> address instead of copy_user() friends since they had too much
+> overheads like checks, spec barriers or even hardware feature
+> toggling. This is done through setup kernel address through direct
+> mapping and co-opreate VM management with MMU notifiers.
+>
+> Test shows about 23% improvement on TX PPS. TCP_STREAM doesn't see
+> obvious improvement.
 
 
-[1] https://lore.kernel.org/lkml/1556102150-32517-1-git-send-email-rppt@linux.ibm.com/
- 
-> Helge
-> 
+Ping. Comments are more than welcomed.
 
--- 
-Sincerely yours,
-Mike.
+Thanks
 
