@@ -2,240 +2,204 @@ Return-Path: <SRS0=X77i=TF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24208C004C9
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 07:14:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4291C04AAC
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 08:53:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4B03208C0
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 07:14:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="kEPSKJZF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4B03208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 475C72087F
+	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 08:53:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 475C72087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 584566B0003; Sun,  5 May 2019 03:14:43 -0400 (EDT)
+	id A69B36B0003; Sun,  5 May 2019 04:53:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50E1F6B0006; Sun,  5 May 2019 03:14:43 -0400 (EDT)
+	id A19496B0006; Sun,  5 May 2019 04:53:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AE6D6B0007; Sun,  5 May 2019 03:14:43 -0400 (EDT)
+	id 8E1326B0007; Sun,  5 May 2019 04:53:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B9A6B0003
-	for <linux-mm@kvack.org>; Sun,  5 May 2019 03:14:42 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e20so6056841pgm.16
-        for <linux-mm@kvack.org>; Sun, 05 May 2019 00:14:42 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 540FE6B0003
+	for <linux-mm@kvack.org>; Sun,  5 May 2019 04:53:35 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j36so1388781pgb.20
+        for <linux-mm@kvack.org>; Sun, 05 May 2019 01:53:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ilS57ZN83v4sx88qioPRcteoSC99ZhnADZEEuKU5CM8=;
-        b=co6SIeElQQOBWsefaPbct3ADNXOf9VvtoXlLXJgg8s8f6SVfToySazz3nceM8rgkA4
-         8bQ+My4evPfM5Eg68jJX8kFNDErtK5CZ16WYna74gUDDBaB3eFV4xLgLIxUnxbTLIMyQ
-         nFqbTOTVncr3r2hk/o4VurJ0sBbZCOmbYfXIkBrBXaVjHhdd6xsyWXU01oz4FOvJ0V2d
-         6pbO6//BvsGA1aehPr7e72hIL4jL1pnDbSQYonx0DOYt/9ouTvfAg4q3nSDD2mPIEOCB
-         +lxWEtPqJMn4EMezHMILExT7c3OeA9IaFxu2+/atn0MbkAU6/Hkz69eiew1TNshAup4+
-         FuUQ==
-X-Gm-Message-State: APjAAAVRui44Sy8iIuRitPgaJcJZxD54yk9v+V9vDYAvju74sPCUTFY4
-	jACITACVkoeVIPHdTRQw2ijVJ+BpGUCN12Q+mrU1R+DddSQB+smRFVf9fCr03/U+bxtAAsug3yL
-	ByHt3po2nRQq8OdywV/mBkJP1wygukPJZe/nZbCb7bPISigHD1kjdHjtBnpI3fo3oqw==
-X-Received: by 2002:a17:902:5a2:: with SMTP id f31mr23063254plf.119.1557040482527;
-        Sun, 05 May 2019 00:14:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzObXbpWIZQHMWf6lrV9vzEkO9hfFLpDZ4kufI8EoT+VQjVMdsTnCYZ4uMi6DWm29DXRHjv
-X-Received: by 2002:a17:902:5a2:: with SMTP id f31mr23063219plf.119.1557040481618;
-        Sun, 05 May 2019 00:14:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557040481; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=/9jWs+EL2eMaqycQ3ZsXnIbDyIIHw5RHs1wWK0ePNfk=;
+        b=a5nLKqGvPVZ6yjpSVm1L6vBziSUELEPmNEd0FQA5hpzNkR2Ygo3iTCxqyuMHYCH+IF
+         Dm2E5/tLn0Je4IKIXTZzOPBAuWDxQpKIWcdS0ELD408syr27T56mAvslFTegBbNWO3H1
+         uaSWJ/xuNRDNk7pK8xLD4jUaHwCRz+oF7d0HCnNKWjPyheGwdBDbhiZXMiQX4Nh/jXjX
+         dCHUjBt3bewSnH6KGTUgmXFCM252Rf0rDOl1PLFY8jpYcjsnexoZZi0YMl4wad3xyF9b
+         sSZDWslxX0WCfe736OzXD8In8j/jJVdpjiM4rmXxqheLqsCASHPnS/FVMpaDZxhbx2pX
+         12RA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVyKyeRSjZY608IUQZEVUeth5L/9zdrbnTHQ13QMFwb1kN+Znly
+	0hJXVoc+zX1zEGPZxWbioGK4cvlTVNIcAKJyCZCOwJ90t6U8l4kQXiPWbMM9y/FrD9R3ujL4klK
+	xF+7akIlkOzuP4p/gcO8PWBYdjwzvpPobR8UolgcvNUFWw2RPKUcgvlC3DvXLtNak1w==
+X-Received: by 2002:a63:e004:: with SMTP id e4mr23731260pgh.344.1557046414864;
+        Sun, 05 May 2019 01:53:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybrMJsKIWMnlheF6NVey0di/HnFg1MXXAYscGh+B1Vx1APobEk4gMzi/fwXdtUbfY/RTdj
+X-Received: by 2002:a63:e004:: with SMTP id e4mr23731214pgh.344.1557046413908;
+        Sun, 05 May 2019 01:53:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557046413; cv=none;
         d=google.com; s=arc-20160816;
-        b=F5DrTVEd6mcSTf3TZueTLbu1zuXMdHjlgii1N1KenR34SJ14OnhKfMCkN3k5kPnAz4
-         6ZFOlLDuGP9+pzk3TtvpCc/asmNKc8QdpUsKyUMfMkqlAGv0JAg1s8hdyoqg9fdHVh5h
-         9gYNy1qA5wMLc7x3jbCYmO5jPkgkodL8VXBjGMj9vkYGetTJFE/yff7y8APEUZXq6YyJ
-         mq8LtMCaxiZ6xAx1+fSfizXa7XJ7X4k7Vkg1jKoBEiCq8SIaRdm0u30Q+1U6AK1rvyyQ
-         LxVzXEoeczBgP1OFqxd1oSZJVev1u/c7g/Y1+mfzYByVLsSoZnJhGjmw2PiJZaYDNQP0
-         t2IA==
+        b=PrOUoz46zFSdMNvfb85JVDCACx8tZv1uFPcE8vrq54lELirxnVeSzDK/4s7G3RBKki
+         r5JyAjqP+7vxlk0dJ2OXszPgC/sSIcwx9xMJQ0EYCiCuxUcSLEUsjPWzlT9qz5N6hj6t
+         ox5NtpqiXKw5JFGQ7UjRYnhEIFlZ6S/LvgZwGWka/D+1TR4m6BGWv/FLyUO6Uz9BX2Hn
+         bTGLHHr4Mxw1Hf0aKJrK/ijall3a2KJnNdAHT7Fo1OKsqVWAZ6+2ZY4UIIoTdU5KLjhg
+         wH88KKdJZNCSrfFFgF56rZMZU0c15fe7bqNQX9eXd2naI1bNzUeDs4uo5XD5nlUsP4Ce
+         Eifg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ilS57ZN83v4sx88qioPRcteoSC99ZhnADZEEuKU5CM8=;
-        b=XDRwqDdljT+9qVvTlN9amIAzmfqM+tFkcBG3uaxm8nGIPsEIWmP/EcMTiRcJgk57rr
-         0AUE26ntZtAg0/WSon0zEfUPmF3WSBt2CVqhS71DAGgnVajkHFAIlsNXm5pm1UL+ZCK+
-         uRVYfKTaBoJJYl6LHMR56QvEAVYIMQkfsKt6TmI2ouGVobA8Eny7kYlTH6PtZC9qc7En
-         xmmBgFrqXNcNwOU/rNijYFX+mRfdhMaBbZMkazWUW41ZvVzruGfcAAz/SoLJU2mYqc3D
-         Iz8pPo9mL4YQ4rmrXRBsdMBCzSfvw4oFprtiw9pWa9DBQ9nZUTKaJbDJsKuscPw1h+Gx
-         eHZw==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=/9jWs+EL2eMaqycQ3ZsXnIbDyIIHw5RHs1wWK0ePNfk=;
+        b=WQ6McgbliZRWAgAgTsiv3WByG5sLF7jdyLZj1xDtfTUx5RY3HFMiuhAyBXug0JIfK1
+         fxZGrS06XSnubjaAwH55wVN0DqkNI+c5kCM/Ai7hpiGMkMPw9mPcDIqmV4o8qs+LSWdg
+         aFiWmuLPS6wEVbJcKEXAEjmO7+6FbZmn0xHsyq/a41mQHsN6PE+mRu8nbgwyy+QFLh8U
+         goYhrzIXSmRp5KYcCLRMP/o2DgY1zkyAmaUGbP/KrSQfcRwmjhP9/rtzV77rcxfWMFcA
+         fuHEPdcGoKjp860HtttgPsJf1Kvgbd2a76zmfnSacSrsWYd/WVBUq2KAAQuoU5kM8OX9
+         mZVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=kEPSKJZF;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u4si9695020pga.245.2019.05.05.00.14.41
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id cm10si8309544plb.124.2019.05.05.01.53.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 May 2019 00:14:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Sun, 05 May 2019 01:53:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=kEPSKJZF;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [193.47.165.251])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 35A502087F;
-	Sun,  5 May 2019 07:14:39 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557040481;
-	bh=wfOufAim4Z05zwv37oknpoe8Q7ERn1v/x1yShXBuzwo=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=kEPSKJZFVOtrHxerAwWDvAcODpxmsrEiPojp4/7M+6j0blyCN6MVehJ4myZtrIC5X
-	 34/Zr3ouf0/msOtEJgUzm/YP2V9vUOt0UB2m+ZIjJ46Mn0DhmkOHtLOugSTpCQdchY
-	 m6ed6oVQKxlrUjcHhFrZAOOMC8hJMNSequou6LUI=
-Date: Sun, 5 May 2019 10:14:36 +0300
-From: Leon Romanovsky <leon@kernel.org>
-To: "Welty, Brian" <brian.welty@intel.com>
-Cc: Kenny Ho <y2kenny@gmail.com>, Alex Deucher <alexander.deucher@amd.com>,
-	Parav Pandit <parav@mellanox.com>, David Airlie <airlied@linux.ie>,
-	intel-gfx@lists.freedesktop.org,
-	J??r??me Glisse <jglisse@redhat.com>,
-	dri-devel@lists.freedesktop.org, Michal Hocko <mhocko@kernel.org>,
-	linux-mm@kvack.org, Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Li Zefan <lizefan@huawei.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	cgroups@vger.kernel.org,
-	Christian K??nig <christian.koenig@amd.com>,
-	RDMA mailing list <linux-rdma@vger.kernel.org>, kenny.ho@amd.com,
-	Harish.Kasiviswanathan@amd.com, daniel@ffwll.ch
-Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
-Message-ID: <20190505071436.GD6938@mtr-leonro.mtl.com>
-References: <20190501140438.9506-1-brian.welty@intel.com>
- <20190502083433.GP7676@mtr-leonro.mtl.com>
- <CAOWid-cYknxeTQvP9vQf3-i3Cpux+bs7uBs7_o-YMFjVCo19bg@mail.gmail.com>
- <bb001de0-e4e5-6b3f-7ced-9d0fb329635b@intel.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x458qARE041359
+	for <linux-mm@kvack.org>; Sun, 5 May 2019 04:53:32 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2s9r8bqcjc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 05 May 2019 04:53:32 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Sun, 5 May 2019 09:53:29 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Sun, 5 May 2019 09:53:26 +0100
+Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x458rPKe63242432
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sun, 5 May 2019 08:53:25 GMT
+Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7928852052;
+	Sun,  5 May 2019 08:53:25 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id 9E0295204F;
+	Sun,  5 May 2019 08:53:24 +0000 (GMT)
+Date: Sun, 5 May 2019 11:53:23 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Helge Deller <deller@gmx.de>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
+        Matthew Wilcox <willy@infradead.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mikulas Patocka <mpatocka@redhat.com>,
+        James Bottomley <James.Bottomley@hansenpartnership.com>,
+        linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+        Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>,
+        linux-arch@vger.kernel.org
+Subject: Re: DISCONTIGMEM is deprecated
+References: <20190419094335.GJ18914@techsingularity.net>
+ <20190419140521.GI7751@bombadil.infradead.org>
+ <20190419142835.GM18914@techsingularity.net>
+ <9e7b80a9-b90e-ac04-8b30-b2f285cd4432@gmx.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bb001de0-e4e5-6b3f-7ced-9d0fb329635b@intel.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <9e7b80a9-b90e-ac04-8b30-b2f285cd4432@gmx.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19050508-0012-0000-0000-0000031878B9
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050508-0013-0000-0000-00002150EEE3
+Message-Id: <20190505085322.GH15755@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-05_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=793 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905050080
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 03, 2019 at 02:14:33PM -0700, Welty, Brian wrote:
->
-> On 5/2/2019 3:48 PM, Kenny Ho wrote:
-> > On 5/2/2019 1:34 AM, Leon Romanovsky wrote:
-> >> Count us (Mellanox) too, our RDMA devices are exposing special and
-> >> limited in size device memory to the users and we would like to provide
-> >> an option to use cgroup to control its exposure.
->
-> Hi Leon, great to hear and happy to work with you and RDMA community
-> to shape this framework for use by RDMA devices as well.  The intent
-> was to support more than GPU devices.
->
-> Incidentally, I also wanted to ask about the rdma cgroup controller
-> and if there is interest in updating the device registration implemented
-> in that controller.  It could use the cgroup_device_register() that is
-> proposed here.   But this is perhaps future work, so can discuss separately.
+Hi,
 
-I'll try to take a look later this week.
-
->
->
-> > Doesn't RDMA already has a separate cgroup?  Why not implement it there?
+On Fri, Apr 19, 2019 at 10:08:31PM +0200, Helge Deller wrote:
+> On 19.04.19 16:28, Mel Gorman wrote:
+> > On Fri, Apr 19, 2019 at 07:05:21AM -0700, Matthew Wilcox wrote:
+> >> On Fri, Apr 19, 2019 at 10:43:35AM +0100, Mel Gorman wrote:
+> >>> DISCONTIG is essentially deprecated and even parisc plans to move to
+> >>> SPARSEMEM so there is no need to be fancy, this patch simply disables
+> >>> watermark boosting by default on DISCONTIGMEM.
+> >>
+> >> I don't think parisc is the only arch which uses DISCONTIGMEM for !NUMA
+> >> scenarios.  Grepping the arch/ directories shows:
+> >>
+> >> alpha (does support NUMA, but also non-NUMA DISCONTIGMEM)
+> >> arc (for supporting more than 1GB of memory)
+> >> ia64 (looks complicated ...)
+> >> m68k (for multiple chunks of memory)
+> >> mips (does support NUMA but also non-NUMA)
+> >> parisc (both NUMA and non-NUMA)
+> >>
+> >> I'm not sure that these architecture maintainers even know that DISCONTIGMEM
+> >> is deprecated.  Adding linux-arch to the cc.
 > >
->
-> Hi Kenny, I can't answer for Leon, but I'm hopeful he agrees with rationale
-> I gave in the cover letter.  Namely, to implement in rdma controller, would
-> mean duplicating existing memcg controls there.
+> > Poor wording then -- yes, DISCONTIGMEM is still used but look where it's
+> > used. I find it impossible to believe that any new arch would support
+> > DISCONTIGMEM or that DISCONTIGMEM would be selected when SPARSEMEM is
+> > available.`It's even more insane when you consider that SPARSEMEM can be
+> > extended to support VMEMMAP so that it has similar overhead to FLATMEM
+> > when mapping pfns to struct pages and vice-versa.
+> 
+> FYI, on parisc we will switch from DISCONTIGMEM to SPARSEMEM with kernel 5.2.
+> The patch was quite simple and it's currently in the for-next tree:
+> https://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git/commit/?h=for-next&id=281b718721a5e78288271d632731cea9697749f7
 
-Exactly, I didn't feel comfortable to add notion of "device memory"
-to RDMA cgroup and postponed that decision to later point of time.
-RDMA operates with verbs objects and all our user space API is based around
-that concept. At the end, system administrator will have hard time to
-understand the differences between memcg and RDMA memory.
+A while ago I've sent a patch that removes ARCH_DISCARD_MEMBLOCK option [1]
+so the hunk below is not needed:
 
->
-> Is AMD interested in collaborating to help shape this framework?
-> It is intended to be device-neutral, so could be leveraged by various
-> types of devices.
-> If you have an alternative solution well underway, then maybe
-> we can work together to merge our efforts into one.
-> In the end, the DRM community is best served with common solution.
->
->
-> >
-> >>> and with future work, we could extend to:
-> >>> *  track and control share of GPU time (reuse of cpu/cpuacct)
-> >>> *  apply mask of allowed execution engines (reuse of cpusets)
-> >>>
-> >>> Instead of introducing a new cgroup subsystem for GPU devices, a new
-> >>> framework is proposed to allow devices to register with existing cgroup
-> >>> controllers, which creates per-device cgroup_subsys_state within the
-> >>> cgroup.  This gives device drivers their own private cgroup controls
-> >>> (such as memory limits or other parameters) to be applied to device
-> >>> resources instead of host system resources.
-> >>> Device drivers (GPU or other) are then able to reuse the existing cgroup
-> >>> controls, instead of inventing similar ones.
-> >>>
-> >>> Per-device controls would be exposed in cgroup filesystem as:
-> >>>     mount/<cgroup_name>/<subsys_name>.devices/<dev_name>/<subsys_files>
-> >>> such as (for example):
-> >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.max
-> >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.current
-> >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.stat
-> >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.weight
-> >>>
-> >>> The drm/i915 patch in this series is based on top of other RFC work [1]
-> >>> for i915 device memory support.
-> >>>
-> >>> AMD [2] and Intel [3] have proposed related work in this area within the
-> >>> last few years, listed below as reference.  This new RFC reuses existing
-> >>> cgroup controllers and takes a different approach than prior work.
-> >>>
-> >>> Finally, some potential discussion points for this series:
-> >>> * merge proposed <subsys_name>.devices into a single devices directory?
-> >>> * allow devices to have multiple registrations for subsets of resources?
-> >>> * document a 'common charging policy' for device drivers to follow?
-> >>>
-> >>> [1] https://patchwork.freedesktop.org/series/56683/
-> >>> [2] https://lists.freedesktop.org/archives/dri-devel/2018-November/197106.html
-> >>> [3] https://lists.freedesktop.org/archives/intel-gfx/2018-January/153156.html
-> >>>
-> >>>
-> >>> Brian Welty (5):
-> >>>   cgroup: Add cgroup_subsys per-device registration framework
-> >>>   cgroup: Change kernfs_node for directories to store
-> >>>     cgroup_subsys_state
-> >>>   memcg: Add per-device support to memory cgroup subsystem
-> >>>   drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
-> >>>   drm/i915: Use memory cgroup for enforcing device memory limit
-> >>>
-> >>>  drivers/gpu/drm/drm_drv.c                  |  12 +
-> >>>  drivers/gpu/drm/drm_gem.c                  |   7 +
-> >>>  drivers/gpu/drm/i915/i915_drv.c            |   2 +-
-> >>>  drivers/gpu/drm/i915/intel_memory_region.c |  24 +-
-> >>>  include/drm/drm_device.h                   |   3 +
-> >>>  include/drm/drm_drv.h                      |   8 +
-> >>>  include/drm/drm_gem.h                      |  11 +
-> >>>  include/linux/cgroup-defs.h                |  28 ++
-> >>>  include/linux/cgroup.h                     |   3 +
-> >>>  include/linux/memcontrol.h                 |  10 +
-> >>>  kernel/cgroup/cgroup-v1.c                  |  10 +-
-> >>>  kernel/cgroup/cgroup.c                     | 310 ++++++++++++++++++---
-> >>>  mm/memcontrol.c                            | 183 +++++++++++-
-> >>>  13 files changed, 552 insertions(+), 59 deletions(-)
-> >>>
-> >>> --
-> >>> 2.21.0
-> >>>
-> >> _______________________________________________
-> >> dri-devel mailing list
-> >> dri-devel@lists.freedesktop.org
-> >> https://lists.freedesktop.org/mailman/listinfo/dri-devel
+diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
+index c8038165b81f..26c215570adf 100644
+--- a/arch/parisc/Kconfig
++++ b/arch/parisc/Kconfig
+@@ -36,6 +36,7 @@ config PARISC
+ 	select GENERIC_STRNCPY_FROM_USER
+ 	select SYSCTL_ARCH_UNALIGN_ALLOW
+ 	select SYSCTL_EXCEPTION_TRACE
++	select ARCH_DISCARD_MEMBLOCK
+ 	select HAVE_MOD_ARCH_SPECIFIC
+ 	select VIRT_TO_BUS
+ 	select MODULES_USE_ELF_RELA
+
+
+[1] https://lore.kernel.org/lkml/1556102150-32517-1-git-send-email-rppt@linux.ibm.com/
+ 
+> Helge
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
