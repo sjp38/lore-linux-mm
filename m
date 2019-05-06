@@ -2,157 +2,164 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8530CC46460
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:48:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50089C04AAB
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:57:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D0E521530
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:48:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D0E521530
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id BDB172054F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:57:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="x3BFXGD8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDB172054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 991E16B0005; Mon,  6 May 2019 10:48:52 -0400 (EDT)
+	id 5924A6B0007; Mon,  6 May 2019 10:57:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 941096B0006; Mon,  6 May 2019 10:48:52 -0400 (EDT)
+	id 51AC86B0008; Mon,  6 May 2019 10:57:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 830066B0007; Mon,  6 May 2019 10:48:52 -0400 (EDT)
+	id 3958F6B000A; Mon,  6 May 2019 10:57:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A0A6B0005
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 10:48:52 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id x16so12373408edm.16
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 07:48:52 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F126B0007
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 10:57:33 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id b8so7250152pls.22
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 07:57:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OW9mMR3aRNe5ztpkQ0JSKuvyvJh6tD06EQ8JynNcLrc=;
-        b=Rl2m1iCn+GCI3CsfdTmiefwrItMJDxoVhEmf4165hwrtxCayGyurXMq5DWPFYvlq1t
-         FzwatRSBqrQJz75ptadyYcxKoxgi33H47HfItjooONNRI1FFllN+JDFNKsi/roHdk/vi
-         GP2RlFMB4+JkwtBdrantCO+RLUfqxufCDZyMU+/A4Mtyc8SrcVI9N/WxbO7qzo9ClwpD
-         LTM7TJ2nT1D6w5k7mcCgHpDnELUaSE3gvhq3tbpV4MLFh7Hg84DpTueIdFD5CiihUr4W
-         t7mzdfwEeLrCAlzepituAGUDDK7/u/l1aOxbjjgukiJcYGxmwuCZ57XdLzVOp92nK9WY
-         CpkA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAXnve1CnEzOkKDsNPmeuRK0HD2t/QBIGHXvqkAmF9ZNpIRYbSvC
-	De8ugvK4ADIBPb7+UuiPHg8dsw0pXAHdu9ovjwm3chL4rrdF0xTneHRIXe9BnGTBSFS0rNysaFN
-	XcYAHj8jHm5tiApGi13Ia/8u703olgdNTG/jrRJugWq7gLSn0DExHLv/FOuVlTdfFcw==
-X-Received: by 2002:a17:906:4f87:: with SMTP id o7mr19867404eju.11.1557154131766;
-        Mon, 06 May 2019 07:48:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjRZMzTzUGvDAQqih2SjujsPaV/OCmrsC7pCx0vpR76xe78hk18Bu2hqUw1T4/VQISHlrI
-X-Received: by 2002:a17:906:4f87:: with SMTP id o7mr19867303eju.11.1557154130521;
-        Mon, 06 May 2019 07:48:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557154130; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=KsZcNzF1hybdUscCtnXpBh/F254onDMylJHf8yLDCZI=;
+        b=DwD6TtRfsEKuCECcN/mGlbw5P+MT3aCR2JfYX4RFU2xMtgLiOaHOaOwlr8H0U59cl9
+         3A7A96/o3c92gVpAIf+XNsU7iecNtC6XmmZW0XLwxk/F6wYqIRUhXS09y3JSYpSsCVcS
+         IH2d8X8h6npq1BF2/ADAfW9NRdjs2jpMbi1LeFKckqmh2+k42/kcUqxGfDDcrwW03/Yv
+         Iiq9wi48gIRg29eguigCaCjW3GV14wABHzQMZSBOAKzfunw1FNkS+q3xGs/JJMrT/sSh
+         mWcyJksc/GM85zNMQr26lcJX3cSMIQI7m66CRpcwYunIbXEpuRqtH3x2mYV9NdjptqOh
+         IDUA==
+X-Gm-Message-State: APjAAAWFDUA95XBBiv8A/c8AqjRZqLI8KDwPTfLV5pPeQ4p6PcB+Incv
+	zswhjIw1KTi2yJkW/SRYE8fOiWec80gMkmi9blGjWQ75gZ+IpjpLDSpVh0Rt8XYPHgaLJuLuHH6
+	XFAZgi/jATX795ULHmnBogmAjcbJqpWg/UNUGpFsfuyj1JqB2BUM9K7JaX0nKOU/OrA==
+X-Received: by 2002:aa7:82cb:: with SMTP id f11mr34897242pfn.0.1557154653518;
+        Mon, 06 May 2019 07:57:33 -0700 (PDT)
+X-Received: by 2002:aa7:82cb:: with SMTP id f11mr34897171pfn.0.1557154652779;
+        Mon, 06 May 2019 07:57:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557154652; cv=none;
         d=google.com; s=arc-20160816;
-        b=I4TNV8v5rz9oQ+2lVdfHjPKcHK6/gmTDxZDmKgPjEGTMIcwIo01E/EWx6OSLkRyZHO
-         ugoIQKtJ7GpWLVEmtjoHPIYNAd9ZKyBajjQlP3SSeZyn7oi9b5j1O8raSMeQHCs7XyeV
-         pFul4kiJqvHwnOjfp8x6vzLC/C3nOcANJAjHxQbMTsiLOoIYrbviamfF5hBLIKfPI/KC
-         yQvDt0Hq2y2ABh1+Pf/KTdlWf95WI9jmaItjapiTEqiQP4W+LKZZgQDwYt+vyvU/7GEt
-         fyrjWgF/wKdlQYw0fGwFXiH2gqjlm9bBRUIZ4IFmu9Doypmab87mrmTiUPDXyV1/S/R/
-         6xfg==
+        b=HF6PtD3jCtaBxdGEOSFHzlLKNPEtShQPlBC82hDlhtAvQ6KVT+qaCdSAOdCKOZGdDI
+         hTtCnSr4Mnhlbohdn6taGSk+FCapFqw/VY5v1crwjSG3ZvIo1EF0CxAgPUC76M63btKf
+         Bo+WHN4so7lJ1amk63SztbaWq5ZGi5+WO2I9R/w6bw29o0U/ifKlkXzvf+Ni7gcXIyt/
+         sDx0ZhlU5dFkXOuqlg1YeqZlnnbqskjmvkJoEiul/R7SKQptJw0uQfDpMK30+wm8wI2T
+         5CHnKvgeFx3uni4fucIJIsOksoqvNuvf4O5J6lNOh8iit934DoImxCK+jaM6b/DNClaY
+         +avw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OW9mMR3aRNe5ztpkQ0JSKuvyvJh6tD06EQ8JynNcLrc=;
-        b=x0q7FvKIOlLG7IXQO+acBUWn7gC34bRZzgbLyAPgTeYwyVgFU4qBgJly3Kd6QdeWcN
-         UuTKJ5Ud/7xCVlM7rqckvj9eB3Noppm9TSed3jWxRo+JNWeEmDWzl+qonSHJT1kGkmd2
-         BD5SyrtJQr7mk8XyaWPIDIBnYdQ17P2twIg6Y1UMQZFPds0i2BNHr4ZJng6q+DC2Upy+
-         fbjKGcQoHFDv1KLa6CavbORA80bnndUO2yUCzGghxMgTocnk/7DcWsvMACr0+C9awm2x
-         5n9d4Q/Fn+8I1yOL+mbaQtuP+/uLp9Nli9lvd0eJ3JVcvfVB2uLe7NjPRBUthRziUA5a
-         tiBw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=KsZcNzF1hybdUscCtnXpBh/F254onDMylJHf8yLDCZI=;
+        b=FhxrLmI9/vQx59RDk5VxEMf6MO0IlSCEVPhTdll89KHzIUq+k42G7dmhLRnALQVfFQ
+         WAvaDreWfn/W7kr4NQBcI4KQDIWEN7N2DC+1pA5khPsNK7gXCnzkK3UR1Uf6oTsSOGck
+         oSuZgtHNMiNyBn3gF8xCzFDiaWGVyqUheS91s2/Grm6XmnC6JP0A42EdJmgRS7IotckD
+         YoZsaKCQEgZmX0G0GEtvb+B4Xh2i5HGexEs3YwktjcmL2lscpn/YO0Iyqrnp/y9uQhWo
+         8RwmkvMZ8L6zQAr2G8wljXQgDl8LBW5oYt2cutKb5o1Y5CxI4u3cMKDwLWGiurIiExMu
+         ZlgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 10si5083900eds.443.2019.05.06.07.48.50
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=x3BFXGD8;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o3sor12331276plk.31.2019.05.06.07.57.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 07:48:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 06 May 2019 07:57:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7C17EABE7;
-	Mon,  6 May 2019 14:48:49 +0000 (UTC)
-Date: Mon, 6 May 2019 16:48:46 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Zhiqiang Liu <liuzhiqiang26@huawei.com>
-Cc: mhocko@suse.com, mike.kravetz@oracle.com, shenkai8@huawei.com,
-	linfeilong@huawei.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, wangwang2@huawei.com,
-	"Zhoukang (A)" <zhoukang7@huawei.com>,
-	Mingfangsen <mingfangsen@huawei.com>, agl@us.ibm.com,
-	nacc@us.ibm.com
-Subject: Re: [PATCH v2] mm/hugetlb: Don't put_page in lock of hugetlb_lock
-Message-ID: <20190506144835.GA10427@linux>
-References: <12a693da-19c8-dd2c-ea6a-0a5dc9d2db27@huawei.com>
- <b8ade452-2d6b-0372-32c2-703644032b47@huawei.com>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=x3BFXGD8;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=KsZcNzF1hybdUscCtnXpBh/F254onDMylJHf8yLDCZI=;
+        b=x3BFXGD8/emXf5QlCrkujCa+PcJkvQN9xszX7tdTYH90aT3XTCMaOe3K68c7JRmL4N
+         PaynnQ0d5Kz8wipUcBEIe//4NdtuUtittkvJr70GCPT/WuyV9Vz8AQzWngVc1rn5CD90
+         6A8L+TWxtZbQBdL72kK4/oLteDbFe3ZokokuKMv2CEt8vE2RO3TsNkEREaF6nci78oJJ
+         z813KcEivWw1mvOwB3+/VpVuBuNbM9UAD8rTf0VabAJA/WouLrSW+lPFFpurm+JAikXS
+         JlkpmQNX9dj3NaGzoaHKyLEWOUFzv1f28csn/BCkETIoKCEIESbq3cbFLbU4Yfwuw9km
+         uW0Q==
+X-Google-Smtp-Source: APXvYqzsy76OdF+u7Stt+xa2A/2at4+7p58pfgr6xCJ0xlI8R//reK/oe8DtCKgvE1sPge7KpRGisQ==
+X-Received: by 2002:a17:902:2825:: with SMTP id e34mr33208399plb.264.1557154649848;
+        Mon, 06 May 2019 07:57:29 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::3:32a0])
+        by smtp.gmail.com with ESMTPSA id b77sm23821195pfj.99.2019.05.06.07.57.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 06 May 2019 07:57:28 -0700 (PDT)
+Date: Mon, 6 May 2019 10:57:27 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	David Rientjes <rientjes@google.com>,
+	Zhaoyang Huang <zhaoyang.huang@unisoc.com>,
+	Roman Gushchin <guro@fb.com>, Jeff Layton <jlayton@redhat.com>,
+	Matthew Wilcox <mawilcox@microsoft.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [[repost]RFC PATCH] mm/workingset : judge file page activity via
+ timestamp
+Message-ID: <20190506145727.GA11505@cmpxchg.org>
+References: <1556437474-25319-1-git-send-email-huangzhaoyang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b8ade452-2d6b-0372-32c2-703644032b47@huawei.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1556437474-25319-1-git-send-email-huangzhaoyang@gmail.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 06, 2019 at 10:06:38PM +0800, Zhiqiang Liu wrote:
-> From: Kai Shen <shenkai8@huawei.com>
+On Sun, Apr 28, 2019 at 03:44:34PM +0800, Zhaoyang Huang wrote:
+> From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
 > 
-> spinlock recursion happened when do LTP test:
-> #!/bin/bash
-> ./runltp -p -f hugetlb &
-> ./runltp -p -f hugetlb &
-> ./runltp -p -f hugetlb &
-> ./runltp -p -f hugetlb &
-> ./runltp -p -f hugetlb &
+> this patch introduce timestamp into workingset's entry and judge if the page is
+> active or inactive via active_file/refault_ratio instead of refault distance.
 > 
-> The dtor returned by get_compound_page_dtor in __put_compound_page
-> may be the function of free_huge_page which will lock the hugetlb_lock,
-> so don't put_page in lock of hugetlb_lock.
+> The original thought is coming from the logs we got from trace_printk in this
+> patch, we can find about 1/5 of the file pages' refault are under the
+> scenario[1],which will be counted as inactive as they have a long refault distance
+> in between access. However, we can also know from the time information that the
+> page refault quickly as comparing to the average refault time which is calculated
+> by the number of active file and refault ratio. We want to save these kinds of
+> pages from evicted earlier as it used to be via setting it to ACTIVE instead.
+> The refault ratio is the value which can reflect lru's average file access
+> frequency in the past and provide the judge criteria for page's activation.
 > 
->  BUG: spinlock recursion on CPU#0, hugemmap05/1079
->   lock: hugetlb_lock+0x0/0x18, .magic: dead4ead, .owner: hugemmap05/1079, .owner_cpu: 0
->  Call trace:
->   dump_backtrace+0x0/0x198
->   show_stack+0x24/0x30
->   dump_stack+0xa4/0xcc
->   spin_dump+0x84/0xa8
->   do_raw_spin_lock+0xd0/0x108
->   _raw_spin_lock+0x20/0x30
->   free_huge_page+0x9c/0x260
->   __put_compound_page+0x44/0x50
->   __put_page+0x2c/0x60
->   alloc_surplus_huge_page.constprop.19+0xf0/0x140
->   hugetlb_acct_memory+0x104/0x378
->   hugetlb_reserve_pages+0xe0/0x250
->   hugetlbfs_file_mmap+0xc0/0x140
->   mmap_region+0x3e8/0x5b0
->   do_mmap+0x280/0x460
->   vm_mmap_pgoff+0xf4/0x128
->   ksys_mmap_pgoff+0xb4/0x258
->   __arm64_sys_mmap+0x34/0x48
->   el0_svc_common+0x78/0x130
->   el0_svc_handler+0x38/0x78
->   el0_svc+0x8/0xc
+> The patch is tested on an android system and reduce 30% of page faults, while
+> 60% of the pages remain the original status as (refault_distance < active_file)
+> indicates. Pages status got from ftrace during the test can refer to [2].
 > 
-> Fixes: 9980d744a0 ("mm, hugetlb: get rid of surplus page accounting tricks")
-> Signed-off-by: Kai Shen <shenkai8@huawei.com>
-> Signed-off-by: Feilong Lin <linfeilong@huawei.com>
-> Reported-by: Wang Wang <wangwang2@huawei.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> [1]
+> system_server workingset_refault: WKST_ACT[0]:rft_dis 265976, act_file 34268 rft_ratio 3047 rft_time 0 avg_rft_time 11 refault 295592 eviction 29616 secs 97 pre_secs 97
+> HwBinder:922  workingset_refault: WKST_ACT[0]:rft_dis 264478, act_file 35037 rft_ratio 3070 rft_time 2 avg_rft_time 11 refault 310078 eviction 45600 secs 101 pre_secs 99
+> 
+> [2]
+> WKST_ACT[0]:   original--INACTIVE  commit--ACTIVE
+> WKST_ACT[1]:   original--ACTIVE    commit--ACTIVE
+> WKST_INACT[0]: original--INACTIVE  commit--INACTIVE
+> WKST_INACT[1]: original--ACTIVE    commit--INACTIVE
+> 
+> Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
 
--- 
-Oscar Salvador
-SUSE L3
+You haven't addressed any of the questions raised during previous
+submissions.
 
