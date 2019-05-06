@@ -2,132 +2,164 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65AD2C04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:22:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DFCBC04A6B
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:26:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22DA820B7C
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:22:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D9A8020B7C
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:26:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OWGhjKZO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22DA820B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kNAXGCHs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9A8020B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9A9B6B0006; Mon,  6 May 2019 11:22:48 -0400 (EDT)
+	id 7034F6B0005; Mon,  6 May 2019 11:26:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B23386B0007; Mon,  6 May 2019 11:22:48 -0400 (EDT)
+	id 6B2B66B0006; Mon,  6 May 2019 11:26:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C4B56B0008; Mon,  6 May 2019 11:22:48 -0400 (EDT)
+	id 5A2226B0007; Mon,  6 May 2019 11:26:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 83BE76B0006
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 11:22:48 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id t12so10565094ioc.19
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 08:22:48 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E846B0005
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 11:26:48 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id k20so15649965qtk.13
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 08:26:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=GwjCs7waUjzCsD/Xg/lAVVPTMZTrnUgLhXYDBkanDSk=;
-        b=pCWjF2nx2v6hOCSassXNjBBH54QOrDcDIsrlGtJwAKAf1mYrUJbfvKcHH21c1egCsv
-         oRLD1Qh47YSuCPqdR4g8EJXzqP6H7rmADwlmYJWdbcGCoODUkB4O5f+6ouAVkhg1tEvP
-         D6tKKDvqpe7k3Ct2Dg16w8boxgdBDXkUESzAXaCghcp272I4fzCwkrvI6GCYzKtoqOaa
-         oFlehF3GQRIOmyHDnaBLSmriMGp7ClZe1I3nMS6cKAwhiKfKVBEbHQUCyJ8TH7t5XgDA
-         4F/2gcArJvToAPbkdPKw0sFc2bVFUXKSqIHZ0DnJs0WqxLItJeYyMZ3JzopVYKd676ps
-         VZ7g==
-X-Gm-Message-State: APjAAAWcmQJkthwURQ6yFuGAmbeOgs4+6WKE7rwQx73JbkOpuIcww4S+
-	B2iBsjQAMUKuxcdzsImPj013gRQ4v/MiIKgFnoZcl8pppbTBCJHMCBSYBEXV+DZFG329MMpDtQl
-	luFyM/3oM+xEmDEUEzCGeMpLYl1L99MdtVf5KW29wjWHq4zXxYMJ0GxHg7cFjApLjyA==
-X-Received: by 2002:a6b:6314:: with SMTP id p20mr16499946iog.229.1557156168315;
-        Mon, 06 May 2019 08:22:48 -0700 (PDT)
-X-Received: by 2002:a6b:6314:: with SMTP id p20mr16499911iog.229.1557156167819;
-        Mon, 06 May 2019 08:22:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557156167; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=uVcv5gxrx40HJxyOUvgx5wp3GUe3viewKvbzXFxWMGA=;
+        b=JWrvGU1Dsnnnt1D6b+So8DSATeudWxhrvtT0Fi+nvRFj4TMwvnGu9HR0qtnh2mKICj
+         KL1TJweaEU2z8s6o7gGugiM8i3Y1NXyyF+5YK0VNKESL12MxoKqmWN7C6fnOqmwtUS+1
+         mIOpKSvzffZHH7O1oIDF5RzEk9+PCoblgMyb5gOx1iGEXK+y6UIoEL/dAvJjyp0shz27
+         nrR4e/pKzsJXgF3WlGOkpJ7HMrqZpm510ZaiTfIewavwuhH5oaJDpIeVJES2LT+wiiEI
+         3bpr1/jMx7JjWXnkaFHuTVuw+h1/PQ4bkSE/s73qkfeoysEfMd+6tk5Mrmc8md+ZDMJl
+         jtSA==
+X-Gm-Message-State: APjAAAUe9iCAtsSGsGKCXED7FmtiTzFOpH6DR6Xu8QbLPH8qtBzBUsrE
+	M1gW7byWrLmd5WIkSzJzDFX7EqQHz5eamq5eW1RpiWQ+mE7O28w9T6LfeMXHJrpk1JtlROolz8l
+	un8meQ0qlJn/ubCz5bL9XoyTUmgo1PJ5mG/7nf44Au7vo+TNOgaXeMGUc0hMpctI=
+X-Received: by 2002:ac8:5188:: with SMTP id c8mr9320466qtn.262.1557156407865;
+        Mon, 06 May 2019 08:26:47 -0700 (PDT)
+X-Received: by 2002:ac8:5188:: with SMTP id c8mr9320414qtn.262.1557156407144;
+        Mon, 06 May 2019 08:26:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557156407; cv=none;
         d=google.com; s=arc-20160816;
-        b=RZyqqK8aufFYf1jW+My0l+aPtWPwfKnYH2qYWyHVPFhGd+axwP0yKIo/dZ2sxmo3r7
-         1wuBMXhQbnTciwn+/KZl8zo6+XAYpLe9Br7VKYFvCPPf/eTtEjNijQ3aSKjRFMvjhGge
-         t5TAPpR1OqZFrLab72vQGR4hI8otroCg2BovYJr+Ud9E14BzvoJMxHEwlNMzmcNeQZWh
-         A9WgRJ1fVawEKPMKJd2DcptiSGRhRDoJZHKh2epLm5QtdKnMkOBVTS9Uq3u6igNl0YTi
-         rHXgoJewcEXHeWbOsqVi+7wBI3FHFWlSZcAKSfQMOzlvRZPxJ9hm220/I1UacJriIWhl
-         XnXQ==
+        b=KTjNrGvJrn6D6tI5XO5cy6imbLCkcYbX/wO3bP4a8xAiIrcq7MH9SDdMYkeIg/WMSt
+         IShIVkuMpzTC5fP++KB53P6RpscmGiQOUOHIQKXyL/PN+YXFCGDQMwOW6GejAHwqwNk1
+         W9w2TqVbDKlw66aceRfS2V7WiHHXUE82jgP+gfB24oN/Nc/btIzvQSd1QJn3caObtSiX
+         AIjVI3i+Txg1y99syL8d3uX6X/7XwIWOQ8Fig6QynH+tOh4AGSFxlTNwFOieoZMhXt+t
+         BpALSNHurGRs4OM452w0FCzPtWDRXk2lsOLEc9jFPE/QSy6vrHkLCAXfCCz2XBuE9a1c
+         stoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=GwjCs7waUjzCsD/Xg/lAVVPTMZTrnUgLhXYDBkanDSk=;
-        b=fxTFYI7eDXotHLvi1WEkq+zQt+fCtm2SQSu48gubvhr9SIQukp6dn3zzzGQufqbmq0
-         DXfEMpZ/ileHJL6M9XNVFtX8D4oox1Riqzy4AnvQtIkhiPuQbQUNpJ4RKnqvX+lsEYOT
-         Ft8v9n7OlUKMF5HGGSoHwO0fv6Pe6gkhPl6QvVXLBfIhkSsaY3CERiIkQMZH1OZ+rT04
-         kwbNuu+FdKEGj8KGdVFiCGpkjpBPVO8hSFvU88adOvVcl4QsHAC4JaskI5HQr43CUjV2
-         RQfCGf2x8+JXCwU6rIGldC8B5LMmiXAStSUveBnwZO5Vm+PdKUV0VIgPQ0ZmXhDRZDD1
-         6zDA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=uVcv5gxrx40HJxyOUvgx5wp3GUe3viewKvbzXFxWMGA=;
+        b=x1O4qFJLgDdTr298dsUgfOD04PIcKUlzzBzFGPsFZRCZuigL4JhRPHtm+q1V05hmw1
+         uITHRCIgWyCFlcfbWBC/7E/OXVBohsS2LZIdad2RZblWE0AJ+NNKgHyl7yzWLcjdqimU
+         PcG2czHami2Bz98znWKHyfe9V3ygBeej91JcvDkScfhg0msieUHZ64iaLBtP7JE2qrtu
+         muEXsOlSuj5yQ/LdcnMRH7uR5v/oFU+cuQRATtXhUK0RlqKq5a/9v8JYpcJLTr96pbSn
+         6hCfT35Ufms0FaYA9zy6mnWVP1xDdw9Ae5GxzU4YtK2j+RywnzMgEGvFtg3skwJgE1I/
+         8V4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OWGhjKZO;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kNAXGCHs;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d18sor5433078iod.98.2019.05.06.08.22.47
+        by mx.google.com with SMTPS id q5sor880366qve.45.2019.05.06.08.26.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 May 2019 08:22:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 06 May 2019 08:26:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OWGhjKZO;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kNAXGCHs;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=GwjCs7waUjzCsD/Xg/lAVVPTMZTrnUgLhXYDBkanDSk=;
-        b=OWGhjKZOzYRCB0rqRJDqPrmz5F9AWSwawjP25Bbt/pucKURSLbTYhfD2a12A+pl5sD
-         wDdqSpoqnH3Xweec7SSAAK2vouVxjpKsFzjgwpFKd4mb+hdArTQcB3VJ5Gwmp5wt0dZy
-         rwQo/ZBUBAn3H384/vCbKuhUa9iU+yrSA97XCzeZsaYow88m1ZNg8Th0u9Pbhumk/XJ8
-         x5kBXCaJo7IfXRbaOG/TT2UNt+6glsaFkhcJPCuBwwwgP7fC0FfBizVg7/+/5kSU+QBl
-         h1Rq8Pg0qxfNLnye5FdPKDdbI9omyiZ+WECfpYenJMlp3cPdYhzhvA4nu29Gaz/xH9H8
-         i2Pw==
-X-Google-Smtp-Source: APXvYqzPlaPgkszSTGQfHRiI7VvMmDYTYeuVDMH6WOeUYuuNTH0sc8C0h78pwkJ5fWEzuDJx8adobhbfErCNeOONgdg=
-X-Received: by 2002:a6b:6d06:: with SMTP id a6mr1998461iod.11.1557156167597;
- Mon, 06 May 2019 08:22:47 -0700 (PDT)
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=uVcv5gxrx40HJxyOUvgx5wp3GUe3viewKvbzXFxWMGA=;
+        b=kNAXGCHsJPJnSk1S+4Hg/yKLjuRyBetqYMtBT4XmcSvlaOngptLrBWAWSQgoiqt+qq
+         SlmbaADYeoYs2HfxS6UfWLFGyn8M5xuWu3n6EixHYBJ7Gbt5FyiiTq1EeX3gA8bm+vak
+         jGFJgpYrd9GmbR569UqwHwe6z7q0mSq57UIqZIu1f8aKEdr+dnd2zPk9D2fuR4/HHY/M
+         hdOcV1rZ8Mincs1oNYqCdEsT9K3Fx5V2Oapm7YyfGJbMXdGnDdHgrPBrWz8DZQVWxEom
+         aWp1VeBzaYII8ABKROan48kPGryi+mfYPaTQxA8d9J0qvZZKV73Y2vluuRgVTcnEq0i4
+         ldKQ==
+X-Google-Smtp-Source: APXvYqzk+AOzpTMV+J/CSy5XKE9ZdY35ptnyEbfzsCREY2hn/LTfzkX9Rc7uiofd+Noq2KoA0jpolQ==
+X-Received: by 2002:a0c:c3d0:: with SMTP id p16mr21166391qvi.229.1557156406665;
+        Mon, 06 May 2019 08:26:46 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::3:34f3])
+        by smtp.gmail.com with ESMTPSA id u2sm6350591qkb.37.2019.05.06.08.26.45
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 May 2019 08:26:45 -0700 (PDT)
+Date: Mon, 6 May 2019 08:26:43 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Brian Welty <brian.welty@intel.com>
+Cc: cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>,
+	Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	ChunMing Zhou <David1.Zhou@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
+Message-ID: <20190506152643.GL374014@devbig004.ftw2.facebook.com>
+References: <20190501140438.9506-1-brian.welty@intel.com>
 MIME-Version: 1.0
-References: <1557038457-25924-1-git-send-email-laoar.shao@gmail.com> <20190506135954.GB31017@dhcp22.suse.cz>
-In-Reply-To: <20190506135954.GB31017@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Mon, 6 May 2019 23:22:11 +0800
-Message-ID: <CALOAHbAM26MTZ075OThmLtv+q_cCs_DDGVWW_GpycxWEDTydCA@mail.gmail.com>
-Subject: Re: [PATCH] mm/memcontrol: avoid unnecessary PageTransHuge() when
- counting compound page
-To: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	shaoyafang@didiglobal.com
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190501140438.9506-1-brian.welty@intel.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 6, 2019 at 9:59 PM Michal Hocko <mhocko@suse.com> wrote:
->
-> On Sun 05-05-19 14:40:57, Yafang Shao wrote:
-> > If CONFIG_TRANSPARENT_HUGEPAGE is not set, hpage_nr_pages() is always 1;
-> > if CONFIG_TRANSPARENT_HUGEPAGE is set, hpage_nr_pages() will
-> > call PageTransHuge() to judge whether the page is compound page or not.
-> > So we can use the result of hpage_nr_pages() to avoid uneccessary
-> > PageTransHuge().
->
-> The changelog doesn't describe motivation. Does this result in a better
-> code/performance?
->
+Hello,
 
-It is a better code, I think.
-Regarding the performance, I don't think it is easy to measure.
+On Wed, May 01, 2019 at 10:04:33AM -0400, Brian Welty wrote:
+> The patch series enables device drivers to use cgroups to control the
+> following resources within a GPU (or other accelerator device):
+> *  control allocation of device memory (reuse of memcg)
+> and with future work, we could extend to:
+> *  track and control share of GPU time (reuse of cpu/cpuacct)
+> *  apply mask of allowed execution engines (reuse of cpusets)
+> 
+> Instead of introducing a new cgroup subsystem for GPU devices, a new
+> framework is proposed to allow devices to register with existing cgroup
+> controllers, which creates per-device cgroup_subsys_state within the
+> cgroup.  This gives device drivers their own private cgroup controls
+> (such as memory limits or other parameters) to be applied to device
+> resources instead of host system resources.
+> Device drivers (GPU or other) are then able to reuse the existing cgroup
+> controls, instead of inventing similar ones.
 
-Thanks
-Yafang
+I'm really skeptical about this approach.  When creating resource
+controllers, I think what's the most important and challenging is
+establishing resource model - what resources are and how they can be
+distributed.  This patchset is going the other way around - building
+out core infrastructure for bolierplates at a significant risk of
+mixing up resource models across different types of resources.
+
+IO controllers already implement per-device controls.  I'd suggest
+following the same interface conventions and implementing a dedicated
+controller for the subsystem.
+
+Thanks.
+
+-- 
+tejun
 
