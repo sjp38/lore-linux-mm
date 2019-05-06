@@ -2,126 +2,122 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-18.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,
+	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96622C04AAD
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:22:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 00E42C46470
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38F8A2087F
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:22:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 95F3C2087F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="DVotpDP1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38F8A2087F
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="n6ZOTcyV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95F3C2087F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 837E36B0007; Mon,  6 May 2019 12:22:10 -0400 (EDT)
+	id 3299B6B000A; Mon,  6 May 2019 12:31:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E94F6B0008; Mon,  6 May 2019 12:22:10 -0400 (EDT)
+	id 2D8E56B000C; Mon,  6 May 2019 12:31:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D86C6B000A; Mon,  6 May 2019 12:22:10 -0400 (EDT)
+	id 1EECE6B000D; Mon,  6 May 2019 12:31:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 370516B0007
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 12:22:10 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id z7so8326631pgc.1
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 09:22:10 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA6F6B000A
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 12:31:09 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id b46so1694575qte.6
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 09:31:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
-        b=j0xIKqClTtvbT9JiBR1dUhgowC6csiECZnYduu0ErmKozo+W5AJykNcU/Re7qcCT1g
-         pF3BBpYZjVu8EnqxFxwiZUGINzPWSZ91i496u5jMCRVoWWzX2oDFvcwuwNN2ITDotHPd
-         Br/sDgKalmtEdf1tZGl/KOe/BsavW5ahOn6c6UHZromJJxZy3RiWmPQiLPdm2ZQvhfxn
-         NNPNjQabiEGB7JasLFV33RAEJvtkcQXfXCz0XSXqxJgirHanmuK2Ul7gq98QtHN2PUKd
-         XP4d/owcYbuj9qNIy5VEZ7GcrxYBsqggn11FUitNrfm/qwFVnVx1Epx0Gz8rMl/Iz1Ta
-         wWIQ==
-X-Gm-Message-State: APjAAAUJXf323EL4MBpkc5sEJ5aAOjOUEFqQh09JCktVEeOcI4LKwB+t
-	j+aDuUrmbIam05H0SG423ehSUwpvcXoCvzgcS7GPTEnr40WeDATpNjr5hsm9RnmoQVaIpoZ7+6S
-	p00mCUCBH0l2Rv5i9xgQc6/vTGYUWwLJHHkS8R2D6aI3Ytq10RoKJnY7YS/YRewQL5w==
-X-Received: by 2002:a63:cc0a:: with SMTP id x10mr33436073pgf.179.1557159729713;
-        Mon, 06 May 2019 09:22:09 -0700 (PDT)
-X-Received: by 2002:a63:cc0a:: with SMTP id x10mr33435960pgf.179.1557159728726;
-        Mon, 06 May 2019 09:22:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557159728; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=u0TF8AnQiGNSNOImKJlFJ/xvOzvguaJKJNiLg36eqBE=;
+        b=rvvdaIUxSIzuyeqokUWnoqQMnBAxCzKJ1If7tWpp7Ih4D6UFMnUyD+d6eMBiv1yX72
+         j03QWu/95vS2SHS41baEnBtTA39lIXUT/E7oPQd6b3AMTlCDUgZiqLQ8vZ5+oySXWafN
+         K8FKmuI8XD+sRqofIPhJIkc67EO9t39z986vpIQWQH9gypZ6EpGEfbfrVGQe8J/2Z0wY
+         J/GIcScUSUjozyyzbV6HAwk7VsUiVhzrYFRYQqgwmiAP4vQl7EVCxt4Dy2eqPLpBgpZa
+         fiXRawpmnG7dwmYo7h6mXig5RNWdcmiKXLhx4Y1bkE8zoJQduQxvwpRc2HCPh2ECgZ66
+         k4GA==
+X-Gm-Message-State: APjAAAVX4NwjABOdjXVc6HOx6AAmASXEdQemmSyCYONjAU7ZyyghhQRO
+	hqgLG6lYyQxo9/YKxQO7OzLeAUybPW2GaIPI2I062LfT7sZYFz4rGT9pEMmTlIgepLwhAch0OdR
+	4EQ8Z5w4OTaRRygwaPVMm1EU2YvJO+zkG4E4vnk5yrhEri+CuJGEIf4Mm4W6MZvATBw==
+X-Received: by 2002:aed:23d5:: with SMTP id k21mr22711664qtc.191.1557160269282;
+        Mon, 06 May 2019 09:31:09 -0700 (PDT)
+X-Received: by 2002:aed:23d5:: with SMTP id k21mr22711542qtc.191.1557160267774;
+        Mon, 06 May 2019 09:31:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557160267; cv=none;
         d=google.com; s=arc-20160816;
-        b=IZ2LSoop8GY6k21nMrFBSB5m2Sl/sDSrs5YFtDQbk3NWaE/3InhOVBN0Hq8/L5ZkBy
-         NWqq4i9GbswepaGMFg5dIgce6ivQFTGHCfe/RjQYjEKvRt+wvPzlvtGZiYxRBUccw6xg
-         bV06i8bQ8ogNdihKQa/gWYA2Gd5tw8kYSbhp3EAaSwbs8x1WfgW2jI1tWX4dpSbSI4Sf
-         x19dQwpigzfT+3NyQsTBA/EwbM1JoTtk03reuDCna8Ed7LzEOgNtX512I5twBvNxmFNw
-         OIQxfSeGZ+Jxty9BJc626/1Xous7Wq9VyuQnX5XNznxixKgdYQ5mL1Uvor93ML5DYOVk
-         opSA==
+        b=ecaEMOliZWdSo/iSKkDg5GwyvrT+kBBYVBm0PTrkACHCgBDoWrIa2kvshD5hpR/MuY
+         9cU+JqcbKdTPqS3UE2i20pUOA7Fyf6MnnDq1hRUolD1xl7xOY+VSPUcOfxBoAmV0cvlu
+         mLo55ow8wVixO96i6sOdhD3e2ygcCj54dTS15VtMjqOWwsNapWCBtQL5b9kw1PY/Nj87
+         fCypSVlopPXagaB2/pFvDn6GwB49m0qGOvb3sOw3Vtz1etglHjcO/YH3I5JZZq9oKi9a
+         upi7dqCjieckUWvtZouoF/n8SFzOVE4FTG5uN3ODN09mD+54h3O4nJFEwmHW9dBiHDeV
+         t3Ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
-        b=sFF5x/9vnmV5qRwxVPT1EWRwQx+KXzL52g30rSDzjwXOrLDHZrVgw3TmiDSrXiakIo
-         yNLhPehP4fJIwktBOHu4VOJQuNw4On41zIQAohBa5sdOqo/uUQ0+Jak1tuQ5bLTKK6Tp
-         pVCgtLH8hBMRim0AKKNXVl8O02/XqZvyi9hCL/BKxZZDMiirUfw/aXqOoFHLwJIGrbXy
-         MLO13vD1OdNACRV2jd/+Tl6HhPo73EUVp2e8ugcBGcXEXZYkntPsNDcUBjahfhb3JllY
-         UqxdcaNqA6h4vzOfcCh+gjWdBgldI47EmzYqTWVpEzowtmV53u0Hj53teQH2f4+pEmjy
-         nFfQ==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=u0TF8AnQiGNSNOImKJlFJ/xvOzvguaJKJNiLg36eqBE=;
+        b=X06+Ecr/iEudqfnJa+rO1qeMP+4Lup4k9thytOB2OyWXlyr/ErauHbdep22sQVxhQ4
+         nx2oRAK8k+J/0nOt1KRC9d6jBNPKW/Drg4p3V4pm8d+rwbqwa1BXlR5LLQGiC/WlSyGD
+         kNDmoHLIFi/31r0B8knoUoSH1GGgpgURnTGxv/sVlUUYZN+be50lI3ACsv8gD2Wy5qI1
+         pKz7O5SG/A4xFMnLmqO+HAU84zT0miAkDWF2jSuRKwR2o1XT/qamKnLXzu7w++DT00xb
+         6sWVCb2zHtJWCltXG+LVEyXZxjer23lByjWYafrvgg2eCLulSKiJkCC4KmpwJ6fDsP6a
+         X1ZA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DVotpDP1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=n6ZOTcyV;
+       spf=pass (google.com: domain of 3s2hqxaokcdwylbpcwiltjemmejc.amkjglsv-kkityai.mpe@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3S2HQXAoKCDwYlbpcwiltjemmejc.amkjglsv-kkitYai.mpe@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h76sor5480598pfd.68.2019.05.06.09.22.08
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id y12sor8784326qve.24.2019.05.06.09.31.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 May 2019 09:22:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 06 May 2019 09:31:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3s2hqxaokcdwylbpcwiltjemmejc.amkjglsv-kkityai.mpe@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DVotpDP1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=n6ZOTcyV;
+       spf=pass (google.com: domain of 3s2hqxaokcdwylbpcwiltjemmejc.amkjglsv-kkityai.mpe@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3S2HQXAoKCDwYlbpcwiltjemmejc.amkjglsv-kkitYai.mpe@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
-        b=DVotpDP1BfYOu9EIG5sO2py/kG385U8+4RKehRk0tC71Vfe/y8Dohrbwudfghmv4gC
-         V1LDKukVm8TPgSIGKPKH/+AzQnvMn07KhJn3HSkyadIn3jlSJ5ClUm6UwCAwkx5Lj2ec
-         jTZ+KF06FbPmw0HHf3CBeQEfXVzStv1Mct1AUlW1wy4NJfE7vbBjZ0bMdocNxT2oB1CS
-         9lHhKeWSjQzqoRHwiiBianLagL8GKIjs0O4OySI/oLm6QzImAzv5mMB4tTPiN7x1FtTU
-         rnBUs5QzACe456XBtVa1RIzVbxerlIOvNFz0tCOCg55SYKbtj/SOkAkOVG3enaPf58Zc
-         SNbQ==
-X-Google-Smtp-Source: APXvYqw0KbWeRobzhAngWvuw0v+iBDWRKwDC2xGNXHO8L4kdi1iOFuLP64D72WK0vtdzu/2x0qr2r6kf9SEmu6uA3nY=
-X-Received: by 2002:aa7:90ce:: with SMTP id k14mr30343128pfk.239.1557159727868;
- Mon, 06 May 2019 09:22:07 -0700 (PDT)
-MIME-Version: 1.0
-References: <cover.1556630205.git.andreyknvl@google.com> <05c0c078b8b5984af4cc3b105a58c711dcd83342.1556630205.git.andreyknvl@google.com>
- <20190503170310.GL55449@arrakis.emea.arm.com>
-In-Reply-To: <20190503170310.GL55449@arrakis.emea.arm.com>
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=u0TF8AnQiGNSNOImKJlFJ/xvOzvguaJKJNiLg36eqBE=;
+        b=n6ZOTcyVItAOyDYErisk/5dojDxnyflFjDIWl5NGHaNwMZqRk/gSEYogEc76FxnNEQ
+         yTWHK85i52RMvom6nBbsEp9JjUSobvymvK4icIbe4jDaAdqgnIZdPAXj6V8S0xtvpl8T
+         jz0+eFKcQWbFcp24kmhyVHtRUaMN5amK7uCrYipcSkvmWL1t7/oh8P5Jzs5UjD450HEj
+         BWIgqCY280kiiHB8dBumZyqvl7qRiXEcP2u9X1hlDLvOntTAg+cgpyLbKIU/GyT3OB3P
+         36302iEZ+wjEMOeVv1obP3DoteyH5aSduDv8d8G3ViWeQlugVqCwc28bpQGNcrOwpmz0
+         Odrg==
+X-Google-Smtp-Source: APXvYqwdajmPxet4ncgjApi2E/CL4aFpbMVn5X8g0wTgtfLt0O4wIMwSG2kKqSjiA6JF3gd6L4Uz6HysDEtobsZI
+X-Received: by 2002:a0c:d7cc:: with SMTP id g12mr5514219qvj.220.1557160267358;
+ Mon, 06 May 2019 09:31:07 -0700 (PDT)
+Date: Mon,  6 May 2019 18:30:46 +0200
+Message-Id: <cover.1557160186.git.andreyknvl@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
+Subject: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 6 May 2019 18:21:56 +0200
-Message-ID: <CAAeHK+weVYv4Tgj8DXv0ZTFZzGEpLYsn-3wxxmQN+ZW88MXbMw@mail.gmail.com>
-Subject: Re: [PATCH v14 13/17] IB/mlx4, arm64: untag user pointers in mlx4_get_umem_mr
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Kuehling@google.com, Felix <Felix.Kuehling@amd.com>, 
-	Deucher@google.com, Alexander <Alexander.Deucher@amd.com>, Koenig@google.com, 
-	Christian <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, 
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, 
+	linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	linux-kselftest@vger.kernel.org
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Vincenzo Frascino <vincenzo.frascino@arm.com>, 
+	Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
+	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
 	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
 	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
 	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
 	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
 	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Leon Romanovsky <leonro@mellanox.com>
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
+	Andrey Konovalov <andreyknvl@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,59 +125,286 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 3, 2019 at 7:03 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Tue, Apr 30, 2019 at 03:25:09PM +0200, Andrey Konovalov wrote:
-> > This patch is a part of a series that extends arm64 kernel ABI to allow to
-> > pass tagged user pointers (with the top byte set to something else other
-> > than 0x00) as syscall arguments.
-> >
-> > mlx4_get_umem_mr() uses provided user pointers for vma lookups, which can
-> > only by done with untagged pointers.
-> >
-> > Untag user pointers in this function.
-> >
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > Reviewed-by: Leon Romanovsky <leonro@mellanox.com>
-> > ---
-> >  drivers/infiniband/hw/mlx4/mr.c | 7 ++++---
-> >  1 file changed, 4 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/drivers/infiniband/hw/mlx4/mr.c b/drivers/infiniband/hw/mlx4/mr.c
-> > index 395379a480cb..9a35ed2c6a6f 100644
-> > --- a/drivers/infiniband/hw/mlx4/mr.c
-> > +++ b/drivers/infiniband/hw/mlx4/mr.c
-> > @@ -378,6 +378,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
-> >        * again
-> >        */
-> >       if (!ib_access_writable(access_flags)) {
-> > +             unsigned long untagged_start = untagged_addr(start);
-> >               struct vm_area_struct *vma;
-> >
-> >               down_read(&current->mm->mmap_sem);
-> > @@ -386,9 +387,9 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
-> >                * cover the memory, but for now it requires a single vma to
-> >                * entirely cover the MR to support RO mappings.
-> >                */
-> > -             vma = find_vma(current->mm, start);
-> > -             if (vma && vma->vm_end >= start + length &&
-> > -                 vma->vm_start <= start) {
-> > +             vma = find_vma(current->mm, untagged_start);
-> > +             if (vma && vma->vm_end >= untagged_start + length &&
-> > +                 vma->vm_start <= untagged_start) {
-> >                       if (vma->vm_flags & VM_WRITE)
-> >                               access_flags |= IB_ACCESS_LOCAL_WRITE;
-> >               } else {
->
-> Discussion ongoing on the previous version of the patch but I'm more
-> inclined to do this in ib_uverbs_(re)reg_mr() on cmd.start.
+=== Overview
 
-OK, I want to publish v15 sooner to fix the issue with emails
-addresses, so I'll implement this approach there for now.
+arm64 has a feature called Top Byte Ignore, which allows to embed pointer
+tags into the top byte of each pointer. Userspace programs (such as
+HWASan, a memory debugging tool [1]) might use this feature and pass
+tagged user pointers to the kernel through syscalls or other interfaces.
 
+Right now the kernel is already able to handle user faults with tagged
+pointers, due to these patches:
 
+1. 81cddd65 ("arm64: traps: fix userspace cache maintenance emulation on a
+             tagged pointer")
+2. 7dcd9dd8 ("arm64: hw_breakpoint: fix watchpoint matching for tagged
+	      pointers")
+3. 276e9327 ("arm64: entry: improve data abort handling of tagged
+	      pointers")
 
->
-> --
-> Catalin
+This patchset extends tagged pointer support to syscall arguments.
+
+As per the proposed ABI change [3], tagged pointers are only allowed to be
+passed to syscalls when they point to memory ranges obtained by anonymous
+mmap() or sbrk() (see the patchset [3] for more details).
+
+For non-memory syscalls this is done by untaging user pointers when the
+kernel performs pointer checking to find out whether the pointer comes
+from userspace (most notably in access_ok). The untagging is done only
+when the pointer is being checked, the tag is preserved as the pointer
+makes its way through the kernel and stays tagged when the kernel
+dereferences the pointer when perfoming user memory accesses.
+
+Memory syscalls (mmap, mprotect, etc.) don't do user memory accesses but
+rather deal with memory ranges, and untagged pointers are better suited to
+describe memory ranges internally. Thus for memory syscalls we untag
+pointers completely when they enter the kernel.
+
+=== Other approaches
+
+One of the alternative approaches to untagging that was considered is to
+completely strip the pointer tag as the pointer enters the kernel with
+some kind of a syscall wrapper, but that won't work with the countless
+number of different ioctl calls. With this approach we would need a custom
+wrapper for each ioctl variation, which doesn't seem practical.
+
+An alternative approach to untagging pointers in memory syscalls prologues
+is to inspead allow tagged pointers to be passed to find_vma() (and other
+vma related functions) and untag them there. Unfortunately, a lot of
+find_vma() callers then compare or subtract the returned vma start and end
+fields against the pointer that was being searched. Thus this approach
+would still require changing all find_vma() callers.
+
+=== Testing
+
+The following testing approaches has been taken to find potential issues
+with user pointer untagging:
+
+1. Static testing (with sparse [2] and separately with a custom static
+   analyzer based on Clang) to track casts of __user pointers to integer
+   types to find places where untagging needs to be done.
+
+2. Static testing with grep to find parts of the kernel that call
+   find_vma() (and other similar functions) or directly compare against
+   vm_start/vm_end fields of vma.
+
+3. Static testing with grep to find parts of the kernel that compare
+   user pointers with TASK_SIZE or other similar consts and macros.
+
+4. Dynamic testing: adding BUG_ON(has_tag(addr)) to find_vma() and running
+   a modified syzkaller version that passes tagged pointers to the kernel.
+
+Based on the results of the testing the requried patches have been added
+to the patchset.
+
+=== Notes
+
+This patchset is meant to be merged together with "arm64 relaxed ABI" [3].
+
+This patchset is a prerequisite for ARM's memory tagging hardware feature
+support [4].
+
+This patchset has been merged into the Pixel 2 & 3 kernel trees and is
+now being used to enable testing of Pixel phones with HWASan.
+
+Thanks!
+
+[1] http://clang.llvm.org/docs/HardwareAssistedAddressSanitizerDesign.html
+
+[2] https://github.com/lucvoo/sparse-dev/commit/5f960cb10f56ec2017c128ef9d16060e0145f292
+
+[3] https://lkml.org/lkml/2019/3/18/819
+
+[4] https://community.arm.com/processors/b/blog/posts/arm-a-profile-architecture-2018-developments-armv85a
+
+Changes in v15:
+- Removed unnecessary untagging from radeon_ttm_tt_set_userptr().
+- Removed unnecessary untagging from amdgpu_ttm_tt_set_userptr().
+- Moved untagging to validate_range() in userfaultfd code.
+- Moved untagging to ib_uverbs_(re)reg_mr() from mlx4_get_umem_mr().
+- Rebased onto 5.1.
+
+Changes in v14:
+- Moved untagging for most memory syscalls to an arm64 specific
+  implementation, instead of doing that in the common code.
+- Dropped "net, arm64: untag user pointers in tcp_zerocopy_receive", since
+  the provided user pointers don't come from an anonymous map and thus are
+  not covered by this ABI relaxation.
+- Dropped "kernel, arm64: untag user pointers in prctl_set_mm*".
+- Moved untagging from __check_mem_type() to tee_shm_register().
+- Updated untagging for the amdgpu and radeon drivers to cover the MMU
+  notifier, as suggested by Felix.
+- Since this ABI relaxation doesn't actually allow tagged instruction
+  pointers, dropped the following patches:
+- Dropped "tracing, arm64: untag user pointers in seq_print_user_ip".
+- Dropped "uprobes, arm64: untag user pointers in find_active_uprobe".
+- Dropped "bpf, arm64: untag user pointers in stack_map_get_build_id_offset".
+- Rebased onto 5.1-rc7 (37624b58).
+
+Changes in v13:
+- Simplified untagging in tcp_zerocopy_receive().
+- Looked at find_vma() callers in drivers/, which allowed to identify a
+  few other places where untagging is needed.
+- Added patch "mm, arm64: untag user pointers in get_vaddr_frames".
+- Added patch "drm/amdgpu, arm64: untag user pointers in
+  amdgpu_ttm_tt_get_user_pages".
+- Added patch "drm/radeon, arm64: untag user pointers in
+  radeon_ttm_tt_pin_userptr".
+- Added patch "IB/mlx4, arm64: untag user pointers in mlx4_get_umem_mr".
+- Added patch "media/v4l2-core, arm64: untag user pointers in
+  videobuf_dma_contig_user_get".
+- Added patch "tee/optee, arm64: untag user pointers in check_mem_type".
+- Added patch "vfio/type1, arm64: untag user pointers".
+
+Changes in v12:
+- Changed untagging in tcp_zerocopy_receive() to also untag zc->address.
+- Fixed untagging in prctl_set_mm* to only untag pointers for vma lookups
+  and validity checks, but leave them as is for actual user space accesses.
+- Updated the link to the v2 of the "arm64 relaxed ABI" patchset [3].
+- Dropped the documentation patch, as the "arm64 relaxed ABI" patchset [3]
+  handles that.
+
+Changes in v11:
+- Added "uprobes, arm64: untag user pointers in find_active_uprobe" patch.
+- Added "bpf, arm64: untag user pointers in stack_map_get_build_id_offset"
+  patch.
+- Fixed "tracing, arm64: untag user pointers in seq_print_user_ip" to
+  correctly perform subtration with a tagged addr.
+- Moved untagged_addr() from SYSCALL_DEFINE3(mprotect) and
+  SYSCALL_DEFINE4(pkey_mprotect) to do_mprotect_pkey().
+- Moved untagged_addr() definition for other arches from
+  include/linux/memory.h to include/linux/mm.h.
+- Changed untagging in strn*_user() to perform userspace accesses through
+  tagged pointers.
+- Updated the documentation to mention that passing tagged pointers to
+  memory syscalls is allowed.
+- Updated the test to use malloc'ed memory instead of stack memory.
+
+Changes in v10:
+- Added "mm, arm64: untag user pointers passed to memory syscalls" back.
+- New patch "fs, arm64: untag user pointers in fs/userfaultfd.c".
+- New patch "net, arm64: untag user pointers in tcp_zerocopy_receive".
+- New patch "kernel, arm64: untag user pointers in prctl_set_mm*".
+- New patch "tracing, arm64: untag user pointers in seq_print_user_ip".
+
+Changes in v9:
+- Rebased onto 4.20-rc6.
+- Used u64 instead of __u64 in type casts in the untagged_addr macro for
+  arm64.
+- Added braces around (addr) in the untagged_addr macro for other arches.
+
+Changes in v8:
+- Rebased onto 65102238 (4.20-rc1).
+- Added a note to the cover letter on why syscall wrappers/shims that untag
+  user pointers won't work.
+- Added a note to the cover letter that this patchset has been merged into
+  the Pixel 2 kernel tree.
+- Documentation fixes, in particular added a list of syscalls that don't
+  support tagged user pointers.
+
+Changes in v7:
+- Rebased onto 17b57b18 (4.19-rc6).
+- Dropped the "arm64: untag user address in __do_user_fault" patch, since
+  the existing patches already handle user faults properly.
+- Dropped the "usb, arm64: untag user addresses in devio" patch, since the
+  passed pointer must come from a vma and therefore be untagged.
+- Dropped the "arm64: annotate user pointers casts detected by sparse"
+  patch (see the discussion to the replies of the v6 of this patchset).
+- Added more context to the cover letter.
+- Updated Documentation/arm64/tagged-pointers.txt.
+
+Changes in v6:
+- Added annotations for user pointer casts found by sparse.
+- Rebased onto 050cdc6c (4.19-rc1+).
+
+Changes in v5:
+- Added 3 new patches that add untagging to places found with static
+  analysis.
+- Rebased onto 44c929e1 (4.18-rc8).
+
+Changes in v4:
+- Added a selftest for checking that passing tagged pointers to the
+  kernel succeeds.
+- Rebased onto 81e97f013 (4.18-rc1+).
+
+Changes in v3:
+- Rebased onto e5c51f30 (4.17-rc6+).
+- Added linux-arch@ to the list of recipients.
+
+Changes in v2:
+- Rebased onto 2d618bdf (4.17-rc3+).
+- Removed excessive untagging in gup.c.
+- Removed untagging pointers returned from __uaccess_mask_ptr.
+
+Changes in v1:
+- Rebased onto 4.17-rc1.
+
+Changes in RFC v2:
+- Added "#ifndef untagged_addr..." fallback in linux/uaccess.h instead of
+  defining it for each arch individually.
+- Updated Documentation/arm64/tagged-pointers.txt.
+- Dropped "mm, arm64: untag user addresses in memory syscalls".
+- Rebased onto 3eb2ce82 (4.16-rc7).
+
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+
+Andrey Konovalov (17):
+  uaccess: add untagged_addr definition for other arches
+  arm64: untag user pointers in access_ok and __uaccess_mask_ptr
+  lib, arm64: untag user pointers in strn*_user
+  mm: add ksys_ wrappers to memory syscalls
+  arms64: untag user pointers passed to memory syscalls
+  mm: untag user pointers in do_pages_move
+  mm, arm64: untag user pointers in mm/gup.c
+  mm, arm64: untag user pointers in get_vaddr_frames
+  fs, arm64: untag user pointers in copy_mount_options
+  fs, arm64: untag user pointers in fs/userfaultfd.c
+  drm/amdgpu, arm64: untag user pointers
+  drm/radeon, arm64: untag user pointers in radeon_gem_userptr_ioctl
+  IB, arm64: untag user pointers in ib_uverbs_(re)reg_mr()
+  media/v4l2-core, arm64: untag user pointers in
+    videobuf_dma_contig_user_get
+  tee, arm64: untag user pointers in tee_shm_register
+  vfio/type1, arm64: untag user pointers in vaddr_get_pfn
+  selftests, arm64: add a selftest for passing tagged pointers to kernel
+
+ arch/arm64/include/asm/uaccess.h              |  10 +-
+ arch/arm64/kernel/sys.c                       | 128 ++++++++++++++++-
+ .../gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c  |   2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c       |   2 +
+ drivers/gpu/drm/radeon/radeon_gem.c           |   2 +
+ drivers/infiniband/core/uverbs_cmd.c          |   4 +
+ drivers/media/v4l2-core/videobuf-dma-contig.c |   9 +-
+ drivers/tee/tee_shm.c                         |   1 +
+ drivers/vfio/vfio_iommu_type1.c               |   2 +
+ fs/namespace.c                                |   2 +-
+ fs/userfaultfd.c                              |  22 +--
+ include/linux/mm.h                            |   4 +
+ include/linux/syscalls.h                      |  22 +++
+ ipc/shm.c                                     |   7 +-
+ lib/strncpy_from_user.c                       |   3 +-
+ lib/strnlen_user.c                            |   3 +-
+ mm/frame_vector.c                             |   2 +
+ mm/gup.c                                      |   4 +
+ mm/madvise.c                                  | 129 +++++++++---------
+ mm/mempolicy.c                                |  21 ++-
+ mm/migrate.c                                  |   1 +
+ mm/mincore.c                                  |  57 ++++----
+ mm/mlock.c                                    |  20 ++-
+ mm/mmap.c                                     |  30 +++-
+ mm/mprotect.c                                 |   6 +-
+ mm/mremap.c                                   |  27 ++--
+ mm/msync.c                                    |  35 +++--
+ tools/testing/selftests/arm64/.gitignore      |   1 +
+ tools/testing/selftests/arm64/Makefile        |  11 ++
+ .../testing/selftests/arm64/run_tags_test.sh  |  12 ++
+ tools/testing/selftests/arm64/tags_test.c     |  21 +++
+ 31 files changed, 436 insertions(+), 164 deletions(-)
+ create mode 100644 tools/testing/selftests/arm64/.gitignore
+ create mode 100644 tools/testing/selftests/arm64/Makefile
+ create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
+ create mode 100644 tools/testing/selftests/arm64/tags_test.c
+
+-- 
+2.21.0.1020.gf2820cf01a-goog
 
