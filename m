@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-16.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A489CC04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18CACC04AAB
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 517832087F
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9CFDF2087F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:31:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="e90YIYJE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 517832087F
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QtsvoV7P"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CFDF2087F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E747D6B000E; Mon,  6 May 2019 12:31:17 -0400 (EDT)
+	id 48B2C6B0010; Mon,  6 May 2019 12:31:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4DBB6B0010; Mon,  6 May 2019 12:31:17 -0400 (EDT)
+	id 43B6E6B0266; Mon,  6 May 2019 12:31:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC7306B0266; Mon,  6 May 2019 12:31:17 -0400 (EDT)
+	id 2D95C6B0269; Mon,  6 May 2019 12:31:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3EF6B000E
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 12:31:17 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id e5so26243704ywc.8
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 09:31:17 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 08DFA6B0010
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 12:31:22 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id z7so2978678qtb.9
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 09:31:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=x8HMVSO2lCP9thpVq0jteC8wa+ruR/qG5sfvMEzcSf4=;
-        b=U5q0N845fftM/6PnwB5mEvG0ZVZeKSBxroi14l31su0uAyxyU/gsO2h4hstLnQ87MS
-         /9zsgv5kwpOsZDbuvJxdDYsixcYz/JFCFP19HIN2Qs99gf2RsWBCbb0N8Q5lHD38wkLT
-         hRnNzsgB+14oHgrPfY0prYTh4hzX5Ti5y7LO0TUcwpC1z+n+fVafXhYxZyicFuerhjP+
-         NyzkFV1jH0GV3JLE2FUmYrhPFxX/YEAzICr1I6Vtg9xHxotLhfwfeeKtZrkBnC+Syhx3
-         qqaaPWXG/rzaOCXtOO1GFFpcQEp4zt3yutOKkl8q8XcpKo/l4JBSXbViOznBamFOLCgj
-         dmYA==
-X-Gm-Message-State: APjAAAXkt6ku3p9r77Tw9uEpnJ/t5EsY2dyLOs+qtBla7KdxpkxumYQN
-	kHZ5N/fq5bocumtPThKPGt/nW9s/JgRhzuu6aMyFwwnqakt3qg/cyc6QEi/VWvTll7OdWOc2z0j
-	LrmohFgk4qnu5f8EdEIaTcweshK/034W4ROI+hXiyV9mL0PDePLQxJ6ud7JASHn8HIA==
-X-Received: by 2002:a25:6882:: with SMTP id d124mr18484022ybc.285.1557160277458;
-        Mon, 06 May 2019 09:31:17 -0700 (PDT)
-X-Received: by 2002:a25:6882:: with SMTP id d124mr18483976ybc.285.1557160276813;
-        Mon, 06 May 2019 09:31:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557160276; cv=none;
+        bh=Sr7h/i5NUs830xdi49brXpX8Xgw0zOZ/j8t+7szlSas=;
+        b=U6L6GFt0OqDUC4WbRl72mtQAMyZAp3PmS+vVLJYCG16rUboO4sDUu9sZ0hWRmL5YpW
+         GwE2330gaBWuKKxz1T8XAlR5ZG2B8bqbOtXya1eQxyWHzGy/xMYsUEhiEo/aT/w3EfrO
+         mjFzBEEdrsgLMLXmGRNdKDIsiDeHQQ5JCKcdq85nT3CKhokCuyNKxdyvc6vK1raPgC4y
+         4LlpdyvbW926tbq0fhQEoUPtHEnGx1uExZd3Om6V3q35/wjhtjceNvTx9LIncdeDcWvo
+         JiEJ9J38b6tonaYV4r9egDfOhhsZJjG/mzxTpg/oOT94mGNw+z8AMBq//yTmFn/Dc313
+         Qi2w==
+X-Gm-Message-State: APjAAAUsSMxLZvYsIoI1DaQIpuOO20/g+3ZinVF9PAFjy8vAeSGi/pF4
+	TzkKBnJH3e7CtT2ZtY3GzkWm4nEw8cYg1zIVycYae75l/VoZVj/Amuy44bMdV8A+tWs3Ass11Pb
+	WtNAcPZhB5kdkjgc+Uga1FfbuuuaU1cgCjQts9VElX29TrnieRlxnDrP5+Moztsbgpg==
+X-Received: by 2002:aed:2270:: with SMTP id o45mr22327616qtc.244.1557160281712;
+        Mon, 06 May 2019 09:31:21 -0700 (PDT)
+X-Received: by 2002:aed:2270:: with SMTP id o45mr22327473qtc.244.1557160279945;
+        Mon, 06 May 2019 09:31:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557160279; cv=none;
         d=google.com; s=arc-20160816;
-        b=wtRwnsenW8ZnT9pHdlA9JBMjOfJ0zJpDEY3KE9m05XaaZwtGfqkKbeTImBSBmuwPJL
-         zn/vnXMkTE32+V0S3APOo43zJNDVyjVDKydm8fm/H4doiEx7J9Z8u4PvgfEAnWupv9z6
-         Ps4oUyBaXkbsckfkWv3aBC61AbDVS6zxtCsADy8szGqWyHMfKmVg170GDqf5luCgO3DS
-         hlTwXXo2oD1lJTFs0Mdsgfig95yZmabn5mEJ6tJtBqGRWmVmKVNgQHH7573ui/5bTDzH
-         4Wb7DeAYjcn+y7Ub34ebgSdxl+aaRk/BJvK4E3ZkDd3m7QM60HGycjVRx64wcHcKaEkr
-         /Tcw==
+        b=D5HpzQdO5zLgCl/w4MjfIqMRlPbbwCPkGd7T41hN4Fp58keZPRjSPAhYa27tfwLq0Y
+         fznFYfqBB+7XaqEB39o824wq1vgaJ2U9R8pNMoJN3k9qEu6habMGEm2Bm8wyQS12TyOT
+         syFMEmZlImLrPc+dMkRj5MC+v/iTO+Q77YIsYhHGOoRhVI25LWtCMKZdNGZEr6DOWIrQ
+         qo4BHKh4xJVcSU5r0b4AsBaRiziS2SUQux9wo1Adx4koE4fy0lFVF9eoqL4xpk8Jueek
+         HDpwogQOSXnTO1I25qNjYeajqP3qbhy5mdLu4iChfHa641lnpJKccCxTrJjkUiChPolS
+         t5+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=x8HMVSO2lCP9thpVq0jteC8wa+ruR/qG5sfvMEzcSf4=;
-        b=HhcSkEmlDz4L7cFlaLcE3nTqJDJ+2t+2+gBiFTpqa2oCMCo3OAafOfkzY7UCqQrdCG
-         Z1SbjRJ1Onl8X2v9OwwYs6ujkoVbK/ea2FGGVfSjtHCegveTL4h6y6ZcVODLyc5Id402
-         QYg1JNyCZIRkM1xdTRAFPqSJ2ksLQeagdz93KH6ou/Vq3IMZJT8ihJafL8v9WzT2Q/it
-         Z34PSbrozYBeqiUSXJIMvOUdi6SL/9WXFUamSbaqZ6OmHH5F4Kta107rJ/lVbh7FSheW
-         hf0jRau7IMMS5n71ZoqovPlhRX8SB8zKFwopVD9QS0f0viYweXfh5pGk7pzRHnkwsfMU
-         IitQ==
+        bh=Sr7h/i5NUs830xdi49brXpX8Xgw0zOZ/j8t+7szlSas=;
+        b=Igc5pGfpoeYyT08AG5UsfM8gvp6TBCX7XDqEBn8+muelQTCdImiy1ugD2sjn2akNba
+         zgFnZ6sX6V06VJySQUYkkdTBa+gn0+ReJ/EzXJHuEtUQlYCUQ4piLG3QKnkTWukVQYaQ
+         k5nONnxdPzJqmFonZnxasFdn9BQTu1O9fOUVqbkOt0Uk3JlYQ3pB6K6vcqYWMD8DoA9I
+         BKshwazgz+QaHdP73cyrCJ5ibQsD+t4OQVxq7orDNosIz0IPgIJ6YnIEWb1h/eg62Ndm
+         GeOLh1qVOUADzJ17dY36fOhKhh2lnnuxv8vcYQinoh9GjYiPXOAADa9IAGfmqBCtUIqU
+         Kp6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=e90YIYJE;
-       spf=pass (google.com: domain of 3vghqxaokceuhukyl5ru2snvvnsl.jvtspu14-ttr2hjr.vyn@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3VGHQXAoKCEUhukyl5ru2snvvnsl.jvtspu14-ttr2hjr.vyn@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=QtsvoV7P;
+       spf=pass (google.com: domain of 3v2hqxaokcegkxn1o8ux5vqyyqvo.mywvsx47-wwu5kmu.y1q@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3V2HQXAoKCEgkxn1o8ux5vqyyqvo.mywvsx47-wwu5kmu.y1q@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id d6sor5366232ybs.103.2019.05.06.09.31.16
+        by mx.google.com with SMTPS id k37sor14672392qte.10.2019.05.06.09.31.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 May 2019 09:31:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3vghqxaokceuhukyl5ru2snvvnsl.jvtspu14-ttr2hjr.vyn@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Mon, 06 May 2019 09:31:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3v2hqxaokcegkxn1o8ux5vqyyqvo.mywvsx47-wwu5kmu.y1q@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=e90YIYJE;
-       spf=pass (google.com: domain of 3vghqxaokceuhukyl5ru2snvvnsl.jvtspu14-ttr2hjr.vyn@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3VGHQXAoKCEUhukyl5ru2snvvnsl.jvtspu14-ttr2hjr.vyn@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=QtsvoV7P;
+       spf=pass (google.com: domain of 3v2hqxaokcegkxn1o8ux5vqyyqvo.mywvsx47-wwu5kmu.y1q@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3V2HQXAoKCEgkxn1o8ux5vqyyqvo.mywvsx47-wwu5kmu.y1q@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=x8HMVSO2lCP9thpVq0jteC8wa+ruR/qG5sfvMEzcSf4=;
-        b=e90YIYJEqCjuv0dQNXe7JfByZ3LYw/uoix1gLG6qHxakrZEGoit4yh6fTDsfYia+jH
-         wb7igUzrFQvpjJl955zqS3eb64AMNM806CURkcixGS6z1rzCJzMGBiAz82rRhlhjgKjR
-         9cdDyeo/3JMugM0eGAxc56H2X/rF/Gu5NZJ6OlTvycYfBxRjWeovYDz5GGyc2/popU6X
-         Q4rJTvbhNlqr5zqGtmKCjWUttV6dsKWcbk2qBw0aV1In8VLH8mRF5MiPk8iCO4KWMnPF
-         BSI3N1BBXtSHWlnz3+Iji+1TK5JldUspg0pnnlvUCK4PaDa6c2GsK9cElOVCY5yx3kNx
-         bcTw==
-X-Google-Smtp-Source: APXvYqyZq8rlWFW4uBLN8C8I3oEaQAU5CNW3HReq+6c5opQ9wp/VGDDqgMMeEo6tOAWNlA3+Gfl3rFVlDcMv6bDq
-X-Received: by 2002:a5b:8c2:: with SMTP id w2mr16278460ybq.201.1557160276487;
- Mon, 06 May 2019 09:31:16 -0700 (PDT)
-Date: Mon,  6 May 2019 18:30:49 +0200
+        bh=Sr7h/i5NUs830xdi49brXpX8Xgw0zOZ/j8t+7szlSas=;
+        b=QtsvoV7Po8irxE95A4IUTt073AlSokSt5f4jeGs4J/vpwmlE8X7RX7QaS8TwwKINpl
+         TYcWXr9HFIcM42Ycd53FSk54sTBSqAMHSAhMt0EZG0AAmalLsHR3vNmr8Kbaizl/g+E6
+         8qaMKdsm6n/yHXXFV3NheiioJSmzpsY1Wy3R0lq3UIo4BBuPF4/kJK/8mOY90T2xvxsA
+         bMKpuJXvoZdi1mFhAMHBjIFf431SlOAUzSTpe0BtJBdAjyR5vJIwOnaxG5WHyE4Pv3Ci
+         fvIOy7ndXSyTTgu1eLM4neGHGs/MtdmojiyjvM2WCtRX/wJLos+VufLd/KEpp1n9c6L9
+         hixw==
+X-Google-Smtp-Source: APXvYqyaWQ/h+7sj687R+mj1QFxVIEtzzPUk+MQp1scC/FCB729CtR4M/2QotRWtcYpbZ35YmOmSTMTfxcN37OLC
+X-Received: by 2002:ac8:930:: with SMTP id t45mr5432058qth.357.1557160279586;
+ Mon, 06 May 2019 09:31:19 -0700 (PDT)
+Date: Mon,  6 May 2019 18:30:50 +0200
 In-Reply-To: <cover.1557160186.git.andreyknvl@google.com>
-Message-Id: <861418ff7ed7253356cb8267de5ee2d4bd84196d.1557160186.git.andreyknvl@google.com>
+Message-Id: <55496bc72542ec14c4c8de23a4df235644013911.1557160186.git.andreyknvl@google.com>
 Mime-Version: 1.0
 References: <cover.1557160186.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
-Subject: [PATCH v15 03/17] lib, arm64: untag user pointers in strn*_user
+Subject: [PATCH v15 04/17] mm: add ksys_ wrappers to memory syscalls
 From: Andrey Konovalov <andreyknvl@google.com>
 To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
 	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, 
@@ -132,63 +132,619 @@ This patch is a part of a series that extends arm64 kernel ABI to allow to
 pass tagged user pointers (with the top byte set to something else other
 than 0x00) as syscall arguments.
 
-strncpy_from_user and strnlen_user accept user addresses as arguments, and
-do not go through the same path as copy_from_user and others, so here we
-need to handle the case of tagged user addresses separately.
+This patch adds ksys_ wrappers to the following memory syscalls:
 
-Untag user pointers passed to these functions.
+brk, get_mempolicy (renamed kernel_get_mempolicy -> ksys_get_mempolicy),
+madvise, mbind (renamed kernel_mbind -> ksys_mbind), mincore,
+mlock (renamed do_mlock -> ksys_mlock), mlock2, mmap_pgoff,
+mprotect (renamed do_mprotect_pkey -> ksys_mprotect_pkey), mremap, msync,
+munlock, munmap, remap_file_pages, shmat, shmdt.
 
-Note, that this patch only temporarily untags the pointers to perform
-validity checks, but then uses them as is to perform user memory accesses.
+The next patch in this series will add a custom implementation for these
+syscalls that makes them accept tagged pointers on arm64.
 
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- lib/strncpy_from_user.c | 3 ++-
- lib/strnlen_user.c      | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ include/linux/syscalls.h |  22 +++++++
+ ipc/shm.c                |   7 ++-
+ mm/madvise.c             | 129 ++++++++++++++++++++-------------------
+ mm/mempolicy.c           |  21 +++----
+ mm/mincore.c             |  57 +++++++++--------
+ mm/mlock.c               |  20 ++++--
+ mm/mmap.c                |  30 ++++++---
+ mm/mprotect.c            |   6 +-
+ mm/mremap.c              |  27 +++++---
+ mm/msync.c               |  35 ++++++-----
+ 10 files changed, 213 insertions(+), 141 deletions(-)
 
-diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-index 58eacd41526c..6209bb9507c7 100644
---- a/lib/strncpy_from_user.c
-+++ b/lib/strncpy_from_user.c
-@@ -6,6 +6,7 @@
- #include <linux/uaccess.h>
- #include <linux/kernel.h>
- #include <linux/errno.h>
-+#include <linux/mm.h>
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index e446806a561f..70008f5ed84f 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1260,6 +1260,28 @@ int ksys_ipc(unsigned int call, int first, unsigned long second,
+ 	unsigned long third, void __user * ptr, long fifth);
+ int compat_ksys_ipc(u32 call, int first, int second,
+ 	u32 third, u32 ptr, u32 fifth);
++unsigned long ksys_mremap(unsigned long addr, unsigned long old_len,
++			unsigned long new_len, unsigned long flags,
++			unsigned long new_addr);
++int ksys_munmap(unsigned long addr, size_t len);
++unsigned long ksys_brk(unsigned long brk);
++int ksys_get_mempolicy(int __user *policy, unsigned long __user *nmask,
++		unsigned long maxnode, unsigned long addr, unsigned long flags);
++int ksys_madvise(unsigned long start, size_t len_in, int behavior);
++long ksys_mbind(unsigned long start, unsigned long len,
++		unsigned long mode, const unsigned long __user *nmask,
++		unsigned long maxnode, unsigned int flags);
++__must_check int ksys_mlock(unsigned long start, size_t len, vm_flags_t flags);
++__must_check int ksys_mlock2(unsigned long start, size_t len, vm_flags_t flags);
++int ksys_munlock(unsigned long start, size_t len);
++int ksys_mprotect_pkey(unsigned long start, size_t len,
++		unsigned long prot, int pkey);
++int ksys_msync(unsigned long start, size_t len, int flags);
++long ksys_mincore(unsigned long start, size_t len, unsigned char __user *vec);
++unsigned long ksys_remap_file_pages(unsigned long start, unsigned long size,
++		unsigned long prot, unsigned long pgoff, unsigned long flags);
++long ksys_shmat(int shmid, char __user *shmaddr, int shmflg);
++long ksys_shmdt(char __user *shmaddr);
  
- #include <asm/byteorder.h>
- #include <asm/word-at-a-time.h>
-@@ -107,7 +108,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
- 		return 0;
+ /*
+  * The following kernel syscall equivalents are just wrappers to fs-internal
+diff --git a/ipc/shm.c b/ipc/shm.c
+index ce1ca9f7c6e9..557b43968c0e 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -1588,7 +1588,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 	return err;
+ }
  
- 	max_addr = user_addr_max();
--	src_addr = (unsigned long)src;
-+	src_addr = (unsigned long)untagged_addr(src);
- 	if (likely(src_addr < max_addr)) {
- 		unsigned long max = max_addr - src_addr;
- 		long retval;
-diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-index 1c1a1b0e38a5..8ca3d2ac32ec 100644
---- a/lib/strnlen_user.c
-+++ b/lib/strnlen_user.c
-@@ -2,6 +2,7 @@
- #include <linux/kernel.h>
- #include <linux/export.h>
- #include <linux/uaccess.h>
-+#include <linux/mm.h>
+-SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
++long ksys_shmat(int shmid, char __user *shmaddr, int shmflg)
+ {
+ 	unsigned long ret;
+ 	long err;
+@@ -1600,6 +1600,11 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+ 	return (long)ret;
+ }
  
- #include <asm/word-at-a-time.h>
++SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
++{
++	return ksys_shmat(shmid, shmaddr, shmflg);
++}
++
+ #ifdef CONFIG_COMPAT
  
-@@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
- 		return 0;
+ #ifndef COMPAT_SHMLBA
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 21a7881a2db4..c27f5f14e2ee 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -738,68 +738,7 @@ madvise_behavior_valid(int behavior)
+ 	}
+ }
  
- 	max_addr = user_addr_max();
--	src_addr = (unsigned long)str;
-+	src_addr = (unsigned long)untagged_addr(str);
- 	if (likely(src_addr < max_addr)) {
- 		unsigned long max = max_addr - src_addr;
- 		long retval;
+-/*
+- * The madvise(2) system call.
+- *
+- * Applications can use madvise() to advise the kernel how it should
+- * handle paging I/O in this VM area.  The idea is to help the kernel
+- * use appropriate read-ahead and caching techniques.  The information
+- * provided is advisory only, and can be safely disregarded by the
+- * kernel without affecting the correct operation of the application.
+- *
+- * behavior values:
+- *  MADV_NORMAL - the default behavior is to read clusters.  This
+- *		results in some read-ahead and read-behind.
+- *  MADV_RANDOM - the system should read the minimum amount of data
+- *		on any access, since it is unlikely that the appli-
+- *		cation will need more than what it asks for.
+- *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
+- *		once, so they can be aggressively read ahead, and
+- *		can be freed soon after they are accessed.
+- *  MADV_WILLNEED - the application is notifying the system to read
+- *		some pages ahead.
+- *  MADV_DONTNEED - the application is finished with the given range,
+- *		so the kernel can free resources associated with it.
+- *  MADV_FREE - the application marks pages in the given range as lazy free,
+- *		where actual purges are postponed until memory pressure happens.
+- *  MADV_REMOVE - the application wants to free up the given range of
+- *		pages and associated backing store.
+- *  MADV_DONTFORK - omit this area from child's address space when forking:
+- *		typically, to avoid COWing pages pinned by get_user_pages().
+- *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
+- *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
+- *              range after a fork.
+- *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
+- *  MADV_HWPOISON - trigger memory error handler as if the given memory range
+- *		were corrupted by unrecoverable hardware memory failure.
+- *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
+- *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
+- *		this area with pages of identical content from other such areas.
+- *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
+- *  MADV_HUGEPAGE - the application wants to back the given range by transparent
+- *		huge pages in the future. Existing pages might be coalesced and
+- *		new pages might be allocated as THP.
+- *  MADV_NOHUGEPAGE - mark the given range as not worth being backed by
+- *		transparent huge pages so the existing pages will not be
+- *		coalesced into THP and new pages will not be allocated as THP.
+- *  MADV_DONTDUMP - the application wants to prevent pages in the given range
+- *		from being included in its core dump.
+- *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
+- *
+- * return values:
+- *  zero    - success
+- *  -EINVAL - start + len < 0, start is not page-aligned,
+- *		"behavior" is not a valid value, or application
+- *		is attempting to release locked or shared pages,
+- *		or the specified address range includes file, Huge TLB,
+- *		MAP_SHARED or VMPFNMAP range.
+- *  -ENOMEM - addresses in the specified range are not currently
+- *		mapped, or are outside the AS of the process.
+- *  -EIO    - an I/O error occurred while paging in data.
+- *  -EBADF  - map exists, but area maps something that isn't a file.
+- *  -EAGAIN - a kernel resource was temporarily unavailable.
+- */
+-SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
++int ksys_madvise(unsigned long start, size_t len_in, int behavior)
+ {
+ 	unsigned long end, tmp;
+ 	struct vm_area_struct *vma, *prev;
+@@ -894,3 +833,69 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 
+ 	return error;
+ }
++
++/*
++ * The madvise(2) system call.
++ *
++ * Applications can use madvise() to advise the kernel how it should
++ * handle paging I/O in this VM area.  The idea is to help the kernel
++ * use appropriate read-ahead and caching techniques.  The information
++ * provided is advisory only, and can be safely disregarded by the
++ * kernel without affecting the correct operation of the application.
++ *
++ * behavior values:
++ *  MADV_NORMAL - the default behavior is to read clusters.  This
++ *		results in some read-ahead and read-behind.
++ *  MADV_RANDOM - the system should read the minimum amount of data
++ *		on any access, since it is unlikely that the appli-
++ *		cation will need more than what it asks for.
++ *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
++ *		once, so they can be aggressively read ahead, and
++ *		can be freed soon after they are accessed.
++ *  MADV_WILLNEED - the application is notifying the system to read
++ *		some pages ahead.
++ *  MADV_DONTNEED - the application is finished with the given range,
++ *		so the kernel can free resources associated with it.
++ *  MADV_FREE - the application marks pages in the given range as lazy free,
++ *		where actual purges are postponed until memory pressure happens.
++ *  MADV_REMOVE - the application wants to free up the given range of
++ *		pages and associated backing store.
++ *  MADV_DONTFORK - omit this area from child's address space when forking:
++ *		typically, to avoid COWing pages pinned by get_user_pages().
++ *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
++ *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
++ *              range after a fork.
++ *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
++ *  MADV_HWPOISON - trigger memory error handler as if the given memory range
++ *		were corrupted by unrecoverable hardware memory failure.
++ *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
++ *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
++ *		this area with pages of identical content from other such areas.
++ *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
++ *  MADV_HUGEPAGE - the application wants to back the given range by transparent
++ *		huge pages in the future. Existing pages might be coalesced and
++ *		new pages might be allocated as THP.
++ *  MADV_NOHUGEPAGE - mark the given range as not worth being backed by
++ *		transparent huge pages so the existing pages will not be
++ *		coalesced into THP and new pages will not be allocated as THP.
++ *  MADV_DONTDUMP - the application wants to prevent pages in the given range
++ *		from being included in its core dump.
++ *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
++ *
++ * return values:
++ *  zero    - success
++ *  -EINVAL - start + len < 0, start is not page-aligned,
++ *		"behavior" is not a valid value, or application
++ *		is attempting to release locked or shared pages,
++ *		or the specified address range includes file, Huge TLB,
++ *		MAP_SHARED or VMPFNMAP range.
++ *  -ENOMEM - addresses in the specified range are not currently
++ *		mapped, or are outside the AS of the process.
++ *  -EIO    - an I/O error occurred while paging in data.
++ *  -EBADF  - map exists, but area maps something that isn't a file.
++ *  -EAGAIN - a kernel resource was temporarily unavailable.
++ */
++SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
++{
++	return ksys_madvise(start, len_in, behavior);
++}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 2219e747df49..c2f82a045ceb 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1352,9 +1352,9 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+ 	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
+ }
+ 
+-static long kernel_mbind(unsigned long start, unsigned long len,
+-			 unsigned long mode, const unsigned long __user *nmask,
+-			 unsigned long maxnode, unsigned int flags)
++long ksys_mbind(unsigned long start, unsigned long len,
++		unsigned long mode, const unsigned long __user *nmask,
++		unsigned long maxnode, unsigned int flags)
+ {
+ 	nodemask_t nodes;
+ 	int err;
+@@ -1377,7 +1377,7 @@ SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
+ 		unsigned long, mode, const unsigned long __user *, nmask,
+ 		unsigned long, maxnode, unsigned int, flags)
+ {
+-	return kernel_mbind(start, len, mode, nmask, maxnode, flags);
++	return ksys_mbind(start, len, mode, nmask, maxnode, flags);
+ }
+ 
+ /* Set the process memory policy */
+@@ -1507,11 +1507,8 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+ 
+ 
+ /* Retrieve NUMA policy */
+-static int kernel_get_mempolicy(int __user *policy,
+-				unsigned long __user *nmask,
+-				unsigned long maxnode,
+-				unsigned long addr,
+-				unsigned long flags)
++int ksys_get_mempolicy(int __user *policy, unsigned long __user *nmask,
++		unsigned long maxnode, unsigned long addr, unsigned long flags)
+ {
+ 	int err;
+ 	int uninitialized_var(pval);
+@@ -1538,7 +1535,7 @@ SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
+ 		unsigned long __user *, nmask, unsigned long, maxnode,
+ 		unsigned long, addr, unsigned long, flags)
+ {
+-	return kernel_get_mempolicy(policy, nmask, maxnode, addr, flags);
++	return ksys_get_mempolicy(policy, nmask, maxnode, addr, flags);
+ }
+ 
+ #ifdef CONFIG_COMPAT
+@@ -1559,7 +1556,7 @@ COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
+ 	if (nmask)
+ 		nm = compat_alloc_user_space(alloc_size);
+ 
+-	err = kernel_get_mempolicy(policy, nm, nr_bits+1, addr, flags);
++	err = ksys_get_mempolicy(policy, nm, nr_bits+1, addr, flags);
+ 
+ 	if (!err && nmask) {
+ 		unsigned long copy_size;
+@@ -1613,7 +1610,7 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
+ 			return -EFAULT;
+ 	}
+ 
+-	return kernel_mbind(start, len, mode, nm, nr_bits+1, flags);
++	return ksys_mbind(start, len, mode, nm, nr_bits+1, flags);
+ }
+ 
+ COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 218099b5ed31..a609bd8128da 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -197,32 +197,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+ 	return (end - addr) >> PAGE_SHIFT;
+ }
+ 
+-/*
+- * The mincore(2) system call.
+- *
+- * mincore() returns the memory residency status of the pages in the
+- * current process's address space specified by [addr, addr + len).
+- * The status is returned in a vector of bytes.  The least significant
+- * bit of each byte is 1 if the referenced page is in memory, otherwise
+- * it is zero.
+- *
+- * Because the status of a page can change after mincore() checks it
+- * but before it returns to the application, the returned vector may
+- * contain stale information.  Only locked pages are guaranteed to
+- * remain in memory.
+- *
+- * return values:
+- *  zero    - success
+- *  -EFAULT - vec points to an illegal address
+- *  -EINVAL - addr is not a multiple of PAGE_SIZE
+- *  -ENOMEM - Addresses in the range [addr, addr + len] are
+- *		invalid for the address space of this process, or
+- *		specify one or more pages which are not currently
+- *		mapped
+- *  -EAGAIN - A kernel resource was temporarily unavailable.
+- */
+-SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+-		unsigned char __user *, vec)
++long ksys_mincore(unsigned long start, size_t len, unsigned char __user *vec)
+ {
+ 	long retval;
+ 	unsigned long pages;
+@@ -271,3 +246,33 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+ 	free_page((unsigned long) tmp);
+ 	return retval;
+ }
++
++/*
++ * The mincore(2) system call.
++ *
++ * mincore() returns the memory residency status of the pages in the
++ * current process's address space specified by [addr, addr + len).
++ * The status is returned in a vector of bytes.  The least significant
++ * bit of each byte is 1 if the referenced page is in memory, otherwise
++ * it is zero.
++ *
++ * Because the status of a page can change after mincore() checks it
++ * but before it returns to the application, the returned vector may
++ * contain stale information.  Only locked pages are guaranteed to
++ * remain in memory.
++ *
++ * return values:
++ *  zero    - success
++ *  -EFAULT - vec points to an illegal address
++ *  -EINVAL - addr is not a multiple of PAGE_SIZE
++ *  -ENOMEM - Addresses in the range [addr, addr + len] are
++ *		invalid for the address space of this process, or
++ *		specify one or more pages which are not currently
++ *		mapped
++ *  -EAGAIN - A kernel resource was temporarily unavailable.
++ */
++SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
++		unsigned char __user *, vec)
++{
++	return ksys_mincore(start, len, vec);
++}
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 080f3b36415b..09e449447539 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -668,7 +668,7 @@ static int count_mm_mlocked_page_nr(struct mm_struct *mm,
+ 	return count >> PAGE_SHIFT;
+ }
+ 
+-static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
++__must_check int ksys_mlock(unsigned long start, size_t len, vm_flags_t flags)
+ {
+ 	unsigned long locked;
+ 	unsigned long lock_limit;
+@@ -715,10 +715,10 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
+ 
+ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ {
+-	return do_mlock(start, len, VM_LOCKED);
++	return ksys_mlock(start, len, VM_LOCKED);
+ }
+ 
+-SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
++__must_check int ksys_mlock2(unsigned long start, size_t len, vm_flags_t flags)
+ {
+ 	vm_flags_t vm_flags = VM_LOCKED;
+ 
+@@ -728,10 +728,15 @@ SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
+ 	if (flags & MLOCK_ONFAULT)
+ 		vm_flags |= VM_LOCKONFAULT;
+ 
+-	return do_mlock(start, len, vm_flags);
++	return ksys_mlock(start, len, vm_flags);
+ }
+ 
+-SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
++SYSCALL_DEFINE3(mlock2, unsigned long, start, size_t, len, int, flags)
++{
++	return ksys_mlock2(start, len, flags);
++}
++
++int ksys_munlock(unsigned long start, size_t len)
+ {
+ 	int ret;
+ 
+@@ -746,6 +751,11 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
+ 	return ret;
+ }
+ 
++SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
++{
++	return ksys_munlock(start, len);
++}
++
+ /*
+  * Take the MCL_* flags passed into mlockall (or 0 if called from munlockall)
+  * and translate into the appropriate modifications to mm->def_flags and/or the
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd7b9f293b39..09bfaf36b961 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -189,7 +189,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+ 
+ static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags,
+ 		struct list_head *uf);
+-SYSCALL_DEFINE1(brk, unsigned long, brk)
++
++unsigned long ksys_brk(unsigned long brk)
+ {
+ 	unsigned long retval;
+ 	unsigned long newbrk, oldbrk, origbrk;
+@@ -288,6 +289,11 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ 	return retval;
+ }
+ 
++SYSCALL_DEFINE1(brk, unsigned long, brk)
++{
++	return ksys_brk(brk);
++}
++
+ static long vma_compute_subtree_gap(struct vm_area_struct *vma)
+ {
+ 	unsigned long max, prev_end, subtree_gap;
+@@ -2870,18 +2876,19 @@ int vm_munmap(unsigned long start, size_t len)
+ }
+ EXPORT_SYMBOL(vm_munmap);
+ 
+-SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
++int ksys_munmap(unsigned long addr, size_t len)
+ {
+ 	profile_munmap(addr);
+ 	return __vm_munmap(addr, len, true);
+ }
+ 
++SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
++{
++	return ksys_munmap(addr, len);
++}
+ 
+-/*
+- * Emulation of deprecated remap_file_pages() syscall.
+- */
+-SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+-		unsigned long, prot, unsigned long, pgoff, unsigned long, flags)
++unsigned long ksys_remap_file_pages(unsigned long start, unsigned long size,
++		unsigned long prot, unsigned long pgoff, unsigned long flags)
+ {
+ 
+ 	struct mm_struct *mm = current->mm;
+@@ -2976,6 +2983,15 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	return ret;
+ }
+ 
++/*
++ * Emulation of deprecated remap_file_pages() syscall.
++ */
++SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
++		unsigned long, prot, unsigned long, pgoff, unsigned long, flags)
++{
++	return ksys_remap_file_pages(start, size, prot, pgoff, flags);
++}
++
+ /*
+  *  this is really a simplified "do_mmap".  it only handles
+  *  anonymous maps.  eventually we may be able to do some
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 028c724dcb1a..07344bdd7a04 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -454,7 +454,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ /*
+  * pkey==-1 when doing a legacy mprotect()
+  */
+-static int do_mprotect_pkey(unsigned long start, size_t len,
++int ksys_mprotect_pkey(unsigned long start, size_t len,
+ 		unsigned long prot, int pkey)
+ {
+ 	unsigned long nstart, end, tmp, reqprot;
+@@ -578,7 +578,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
+ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 		unsigned long, prot)
+ {
+-	return do_mprotect_pkey(start, len, prot, -1);
++	return ksys_mprotect_pkey(start, len, prot, -1);
+ }
+ 
+ #ifdef CONFIG_ARCH_HAS_PKEYS
+@@ -586,7 +586,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
+ 		unsigned long, prot, int, pkey)
+ {
+-	return do_mprotect_pkey(start, len, prot, pkey);
++	return ksys_mprotect_pkey(start, len, prot, pkey);
+ }
+ 
+ SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
+diff --git a/mm/mremap.c b/mm/mremap.c
+index e3edef6b7a12..fec1f9911388 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -584,16 +584,9 @@ static int vma_expandable(struct vm_area_struct *vma, unsigned long delta)
+ 	return 1;
+ }
+ 
+-/*
+- * Expand (or shrink) an existing mapping, potentially moving it at the
+- * same time (controlled by the MREMAP_MAYMOVE flag and available VM space)
+- *
+- * MREMAP_FIXED option added 5-Dec-1999 by Benjamin LaHaise
+- * This option implies MREMAP_MAYMOVE.
+- */
+-SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+-		unsigned long, new_len, unsigned long, flags,
+-		unsigned long, new_addr)
++unsigned long ksys_mremap(unsigned long addr, unsigned long old_len,
++			unsigned long new_len, unsigned long flags,
++			unsigned long new_addr)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma;
+@@ -726,3 +719,17 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	userfaultfd_unmap_complete(mm, &uf_unmap);
+ 	return ret;
+ }
++
++/*
++ * Expand (or shrink) an existing mapping, potentially moving it at the
++ * same time (controlled by the MREMAP_MAYMOVE flag and available VM space)
++ *
++ * MREMAP_FIXED option added 5-Dec-1999 by Benjamin LaHaise
++ * This option implies MREMAP_MAYMOVE.
++ */
++SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
++		unsigned long, new_len, unsigned long, flags,
++		unsigned long, new_addr)
++{
++	return ksys_mremap(addr, old_len, new_len, flags, new_addr);
++}
+diff --git a/mm/msync.c b/mm/msync.c
+index ef30a429623a..b5a013549626 100644
+--- a/mm/msync.c
++++ b/mm/msync.c
+@@ -15,21 +15,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/sched.h>
+ 
+-/*
+- * MS_SYNC syncs the entire file - including mappings.
+- *
+- * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
+- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
+- * Now it doesn't do anything, since dirty pages are properly tracked.
+- *
+- * The application may now run fsync() to
+- * write out the dirty pages and wait on the writeout and check the result.
+- * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
+- * async writeout immediately.
+- * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
+- * applications.
+- */
+-SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
++int ksys_msync(unsigned long start, size_t len, int flags)
+ {
+ 	unsigned long end;
+ 	struct mm_struct *mm = current->mm;
+@@ -106,3 +92,22 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
+ out:
+ 	return error ? : unmapped_error;
+ }
++
++/*
++ * MS_SYNC syncs the entire file - including mappings.
++ *
++ * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
++ * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
++ * Now it doesn't do anything, since dirty pages are properly tracked.
++ *
++ * The application may now run fsync() to
++ * write out the dirty pages and wait on the writeout and check the result.
++ * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
++ * async writeout immediately.
++ * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
++ * applications.
++ */
++SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
++{
++	return ksys_msync(start, len, flags);
++}
 -- 
 2.21.0.1020.gf2820cf01a-goog
 
