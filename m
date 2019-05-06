@@ -6,88 +6,88 @@ X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E7A7C04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:53:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0B3CC04A6B
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:54:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F1F5120830
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:53:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1F5120830
+	by mail.kernel.org (Postfix) with ESMTP id 5187620830
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:54:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5187620830
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A40AF6B0010; Mon,  6 May 2019 19:53:57 -0400 (EDT)
+	id 007F06B0266; Mon,  6 May 2019 19:54:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F0596B0266; Mon,  6 May 2019 19:53:57 -0400 (EDT)
+	id EFB686B0269; Mon,  6 May 2019 19:54:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 86B556B0269; Mon,  6 May 2019 19:53:57 -0400 (EDT)
+	id DEB126B026A; Mon,  6 May 2019 19:54:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B87E6B0010
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:53:57 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d12so8946875pfn.9
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:53:57 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9889B6B0266
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:54:02 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z7so9029189pgc.1
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:54:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=2ONZ4oedpRQow5i7o/Nw+xQNhOL6pnPVO7syGXEQtK8=;
-        b=mj9KmTPVh+fosqBo2Ej/of2nP8xfbGAGfsBeHiFN9Xl2SZLnANCq5SWr7rjGHVALBj
-         TieRorDTBhOsSD3i6hmcaMIojpVsYoqfW2jVOudWlvAVGIxjs6r1+OteS69SavcE/4Ky
-         RI9WppF8uwoRSO+1Y8wXMKVpUuLxX+flyxpXtXIE9ICOOqcOpT9xLLC/uQ+ptGJhH7x8
-         S0NsNEryDQ7/q9SXHU9UBxPVZG3cAXWEh9f8DPirsUuFdhVRdpqmAYlu/MVXxaAXEzUH
-         DOlpAf5WnDFTk0/PAWjEbwC88q+KM0zZ1RLe5ePib25kz0UXeVyc8/Iy3wC7TLZGpKj3
-         xzAA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW/Uk9HdZ1QSAmpHksYPV3yB7Qmeug52PMoll1ob8FLrlyZThWp
-	Fb80auw61vyPcaFhR2NBbOorRjD8DFTB5qOcyyKlLQVbNsq2XFlvceZ99xoo9FQ4uXhZj3MS47g
-	pm+SDLMx/l26rCTwBG/jX8IYa60M1LuFFIzLdx/o3MBFd7/LflQWbrHncfeJ7UXq0RQ==
-X-Received: by 2002:aa7:86c3:: with SMTP id h3mr36262096pfo.169.1557186836942;
-        Mon, 06 May 2019 16:53:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyCuPqRxGS/nPnbf3HH58cl4ZcCEjozaDs5uFrqVwsEiH0SchH33CbVCTLHIkc3M3pwIRMc
-X-Received: by 2002:aa7:86c3:: with SMTP id h3mr36262037pfo.169.1557186836127;
-        Mon, 06 May 2019 16:53:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557186836; cv=none;
+        bh=9IcdRL5YLg/41s5JMHxLfYLM3xlXQfXisf5ES6NCxjw=;
+        b=fzgzbBfAHxFerM92o+eKNvOY9K5DPppZ4IJ7G2v8j/S3ifbHhy44otUt/4L9MgA5HS
+         HjBDZE6jI5VOKKV4dIqFIJd/PW3UevrTrkA61Ns73CL3guTJ5pqj7HIYVvRKTBX8QbND
+         S1hO0t+CyZ73QwOQ5915H/+TdWuKTTx6t5UqWOzmQ3pbZ8SuuaeILCbguqbyXvZBgSUg
+         TDB71RhFUbhmxXkEA+z6STTuE2If+uFtMSv2xXb/vvUvEzGTCdUC5f6pgjy5j7rLQNOe
+         jenJDqbxHwpcGGn3gzBQzTnUq+g8rNpFHWKZn/SIggqy6W7WHys36j5KhaGHTlpkuj5+
+         keYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVXAeBqb6seYQv13nF6JIknqsMKMEMEsXdQlrijCUgFpc+7Si97
+	3r+MlDQjP4CxR/RLJsQZZBVS3xADt6uI4tmJTVJ2V/W4Qo0rxMpnVjZwFxfZwOpmtRQAtNdNDJo
+	AUdx8Mz518EcyfWOp3DMoiPj3j0aer9tgLYaSKMDl8W5lRnTfbJzS4jvZ/8XtaGyqPw==
+X-Received: by 2002:aa7:80d1:: with SMTP id a17mr36635418pfn.156.1557186842207;
+        Mon, 06 May 2019 16:54:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1viLX0Q3dqPOhAL63XSFESzzqOFqRXyksGsVyRedk/dvocwyfs1XYiBroSMeDFPV2M3kP
+X-Received: by 2002:aa7:80d1:: with SMTP id a17mr36635341pfn.156.1557186841185;
+        Mon, 06 May 2019 16:54:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557186841; cv=none;
         d=google.com; s=arc-20160816;
-        b=EKBMHA2yDiFIZUknSSWJBWl6U9UQkYKMtBrZsL4AVY3hc0Y+az+JODPgrgo3lwV8Qw
-         Z5uHbZD34kzP8o7/HqMIVDgbi3SYKoa6STcBgkf9EJ5vAyN8OOOCLrfx//BJz1otOXx/
-         YyyN/2tyIx+kE+i2shc/cHKxYdUspq+Kwj0/ZYBATWAyZSM/b8R4nVPFS8W8bRzOISmY
-         KXxqz5VS8o1SbS7EOcMxxQ89ujPdu8Uqv9/9QW3BGIAZblCH/qAlqRkGw5KtVzMKIXbo
-         S7tsyd19y9iGzfT+wgtw2oqjYdxq5kXwCxSRhlTgir+1astBcsjMIQOOE4oWLNZH8t/l
-         BFfA==
+        b=duLe9QL8WJtfz8GSwGuBWTc8013J+Tj1ZlLf2OgawsgKhV9PfmWTO/sHt4drnTaOup
+         s5qvpJE+jmOpaMTjnHAw5kk0bfElLpDPDpHKqUzWUNEdKrMIe8hTCXaKG2bzYe2+dtTI
+         k6rF3oDllrtIaL2Auzink0xKyL7LnOIdHHsQICxaDUzt49Tp+RQ8GLIJxEOsPEnH33GE
+         EH071DL4ThxMo3dDu8KJFgaua4sLg1ap+wGDxTJ/HVcYS5iAB5HPubdE+9ir9iUbl2Ps
+         ayfK51IAacX70SHF5dnyowuJBB4+pwAP1bgJv5vXIn3GZLH0bulIb48xuHw/86hae5zj
+         Ag+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=2ONZ4oedpRQow5i7o/Nw+xQNhOL6pnPVO7syGXEQtK8=;
-        b=MZQWM7afjN/0IkdJb4MBnCrOYcMfkdJBpAqsX44qYRdrCD4vEMljWatgUbkFZxTe1N
-         Lyx130jxAFn4wHOs7qsX9tfgvcOxQHbe4AA3RiI6GwwIJAuhTtJFeQv8TNe24ltG+VIr
-         /9YSdbrniVVmbfduaaj1sRAQAvn9AaQWrtVjQoVLsF5IORfbdSrGc4kODSsS7PHKXmam
-         c89OgNtWpe3HXtAkRFAeJeZQuM0iurzKPtMWU3/osso6O7IK/gwRG5SOVMeFp+++Ta7L
-         mCrJnepfaUgIRQVnzxLuBiGQiqWuuMTe4TqNU9GqIKh5ebem9XGa9BJP3vM+V0v6Gmdr
-         oGhQ==
+        bh=9IcdRL5YLg/41s5JMHxLfYLM3xlXQfXisf5ES6NCxjw=;
+        b=LpDb3sb4DfnEmTydyI/1WlrebqHUQ2x563YktPpcVe3IGW6zBhMJ/kp861sWyx9edq
+         iLo5a3PCJZFGsnTYR0OpFUnaj5j+IJ4qCm2bApA7RUyjDXFEjqS5UPQPGbQ4Co6/f00V
+         gT9AP8ROTJHc+NaSOZEM9DM0CDXARSP+lIqsAAM9XTxqIBP0yhIMuuuzGSGqj0Jte8rI
+         ncGeZOp1/+/GgA9viYxU0ZHDcTMQfOPyVJURahRzuB0HtFpAt6H0SZZWtj5UPLD+vRts
+         iwXYLfaCZpksJVP2tfdwu8AMlKvpmmCHREE8Cgxdp/N6jhrS5h/A4J6BX4E3X/eQaErK
+         /mhw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id c7si4954705pgd.512.2019.05.06.16.53.55
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 101si5459284plb.31.2019.05.06.16.54.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 16:53:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Mon, 06 May 2019 16:54:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 May 2019 16:53:55 -0700
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 May 2019 16:54:00 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.60,439,1549958400"; 
-   d="scan'208";a="142031415"
+   d="scan'208";a="297766722"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga006.jf.intel.com with ESMTP; 06 May 2019 16:53:55 -0700
-Subject: [PATCH v8 08/12] mm/sparsemem: Prepare for sub-section ranges
+  by orsmga004.jf.intel.com with ESMTP; 06 May 2019 16:54:00 -0700
+Subject: [PATCH v8 09/12] mm/sparsemem: Support sub-section hotplug
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
 Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
@@ -95,8 +95,8 @@ Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
  Pavel Tatashin <pasha.tatashin@soleen.com>, linux-nvdimm@lists.01.org,
  linux-mm@kvack.org, linux-kernel@vger.kernel.org, osalvador@suse.de,
  mhocko@suse.com
-Date: Mon, 06 May 2019 16:40:09 -0700
-Message-ID: <155718600896.130019.3565988182718346388.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Mon, 06 May 2019 16:40:14 -0700
+Message-ID: <155718601407.130019.14248061058774128227.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -109,285 +109,381 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Prepare the memory hot-{add,remove} paths for handling sub-section
-ranges by plumbing the starting page frame and number of pages being
-handled through arch_{add,remove}_memory() to
-sparse_{add,remove}_one_section().
+The libnvdimm sub-system has suffered a series of hacks and broken
+workarounds for the memory-hotplug implementation's awkward
+section-aligned (128MB) granularity. For example the following backtrace
+is emitted when attempting arch_add_memory() with physical address
+ranges that intersect 'System RAM' (RAM) with 'Persistent Memory' (PMEM)
+within a given section:
 
-This is simply plumbing, small cleanups, and some identifier renames. No
-intended functional changes.
+ WARNING: CPU: 0 PID: 558 at kernel/memremap.c:300 devm_memremap_pages+0x3b5/0x4c0
+ devm_memremap_pages attempted on mixed region [mem 0x200000000-0x2fbffffff flags 0x200]
+ [..]
+ Call Trace:
+   dump_stack+0x86/0xc3
+   __warn+0xcb/0xf0
+   warn_slowpath_fmt+0x5f/0x80
+   devm_memremap_pages+0x3b5/0x4c0
+   __wrap_devm_memremap_pages+0x58/0x70 [nfit_test_iomap]
+   pmem_attach_disk+0x19a/0x440 [nd_pmem]
 
+Recently it was discovered that the problem goes beyond RAM vs PMEM
+collisions as some platform produce PMEM vs PMEM collisions within a
+given section. The libnvdimm workaround for that case revealed that the
+libnvdimm section-alignment-padding implementation has been broken for a
+long while. A fix for that long-standing breakage introduces as many
+problems as it solves as it would require a backward-incompatible change
+to the namespace metadata interpretation. Instead of that dubious route
+[1], address the root problem in the memory-hotplug implementation.
+
+[1]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Logan Gunthorpe <logang@deltatee.com>
 Cc: Oscar Salvador <osalvador@suse.de>
-Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- include/linux/memory_hotplug.h |    7 +-
- mm/memory_hotplug.c            |  118 +++++++++++++++++++++++++---------------
- mm/sparse.c                    |    7 +-
- 3 files changed, 83 insertions(+), 49 deletions(-)
+ mm/sparse.c |  255 ++++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 175 insertions(+), 80 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index ae892eef8b82..835a94650ee3 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -354,9 +354,10 @@ extern int add_memory_resource(int nid, struct resource *resource);
- extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
- 		unsigned long nr_pages, struct vmem_altmap *altmap);
- extern bool is_memblock_offlined(struct memory_block *mem);
--extern int sparse_add_one_section(int nid, unsigned long start_pfn,
--				  struct vmem_altmap *altmap);
--extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
-+extern int sparse_add_section(int nid, unsigned long pfn,
-+		unsigned long nr_pages, struct vmem_altmap *altmap);
-+extern void sparse_remove_section(struct zone *zone, struct mem_section *ms,
-+		unsigned long pfn, unsigned long nr_pages,
- 		unsigned long map_offset, struct vmem_altmap *altmap);
- extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
- 					  unsigned long pnum);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index cb9e68729ea3..41b544f63816 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -251,22 +251,44 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
- }
- #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
- 
--static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
--		struct vmem_altmap *altmap, bool want_memblock)
-+static int __meminit __add_section(int nid, unsigned long pfn,
-+		unsigned long nr_pages,	struct vmem_altmap *altmap,
-+		bool want_memblock)
- {
- 	int ret;
- 
--	if (pfn_valid(phys_start_pfn))
-+	if (pfn_valid(pfn))
- 		return -EEXIST;
- 
--	ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
-+	ret = sparse_add_section(nid, pfn, nr_pages, altmap);
- 	if (ret < 0)
- 		return ret;
- 
- 	if (!want_memblock)
- 		return 0;
- 
--	return hotplug_memory_register(nid, __pfn_to_section(phys_start_pfn));
-+	return hotplug_memory_register(nid, __pfn_to_section(pfn));
-+}
-+
-+static int subsection_check(unsigned long pfn, unsigned long nr_pages,
-+		unsigned long flags, const char *reason)
-+{
-+	/*
-+	 * Only allow partial section hotplug for !memblock ranges,
-+	 * since register_new_memory() requires section alignment, and
-+	 * CONFIG_SPARSEMEM_VMEMMAP=n requires sections to be fully
-+	 * populated.
-+	 */
-+	if ((!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)
-+				|| (flags & MHP_MEMBLOCK_API))
-+			&& ((pfn & ~PAGE_SECTION_MASK)
-+				|| (nr_pages & ~PAGE_SECTION_MASK))) {
-+		WARN(1, "Sub-section hot-%s incompatible with %s\n", reason,
-+				(flags & MHP_MEMBLOCK_API)
-+				? "memblock api" : "!CONFIG_SPARSEMEM_VMEMMAP");
-+		return -EINVAL;
-+	}
-+	return 0;
- }
- 
- /*
-@@ -275,34 +297,40 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
-  * call this function after deciding the zone to which to
-  * add the new pages.
-  */
--int __ref __add_pages(int nid, unsigned long phys_start_pfn,
--		unsigned long nr_pages, struct mhp_restrictions *restrictions)
-+int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
-+		struct mhp_restrictions *restrictions)
- {
- 	unsigned long i;
--	int err = 0;
--	int start_sec, end_sec;
-+	int start_sec, end_sec, err;
- 	struct vmem_altmap *altmap = restrictions->altmap;
- 
--	/* during initialize mem_map, align hot-added range to section */
--	start_sec = pfn_to_section_nr(phys_start_pfn);
--	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
--
- 	if (altmap) {
- 		/*
- 		 * Validate altmap is within bounds of the total request
- 		 */
--		if (altmap->base_pfn != phys_start_pfn
-+		if (altmap->base_pfn != pfn
- 				|| vmem_altmap_offset(altmap) > nr_pages) {
- 			pr_warn_once("memory add fail, invalid altmap\n");
--			err = -EINVAL;
--			goto out;
-+			return -EINVAL;
- 		}
- 		altmap->alloc = 0;
- 	}
- 
-+	err = subsection_check(pfn, nr_pages, restrictions->flags, "add");
-+	if (err)
-+		return err;
-+
-+	start_sec = pfn_to_section_nr(pfn);
-+	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
- 	for (i = start_sec; i <= end_sec; i++) {
--		err = __add_section(nid, section_nr_to_pfn(i), altmap,
-+		unsigned long pfns;
-+
-+		pfns = min(nr_pages, PAGES_PER_SECTION
-+				- (pfn & ~PAGE_SECTION_MASK));
-+		err = __add_section(nid, pfn, pfns, altmap,
- 				restrictions->flags & MHP_MEMBLOCK_API);
-+		pfn += pfns;
-+		nr_pages -= pfns;
- 
- 		/*
- 		 * EEXIST is finally dealt with by ioresource collision
-@@ -315,7 +343,6 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
- 		cond_resched();
- 	}
- 	vmemmap_populate_print_last();
--out:
- 	return err;
- }
- 
-@@ -494,10 +521,10 @@ static void shrink_pgdat_span(struct pglist_data *pgdat,
- 	pgdat->node_spanned_pages = 0;
- }
- 
--static void __remove_zone(struct zone *zone, unsigned long start_pfn)
-+static void __remove_zone(struct zone *zone, unsigned long start_pfn,
-+		unsigned long nr_pages)
- {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
--	int nr_pages = PAGES_PER_SECTION;
- 	unsigned long flags;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-@@ -506,29 +533,26 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn)
- 	pgdat_resize_unlock(zone->zone_pgdat, &flags);
- }
- 
--static void __remove_section(struct zone *zone, struct mem_section *ms,
--			     unsigned long map_offset,
--			     struct vmem_altmap *altmap)
-+static void __remove_section(struct zone *zone, unsigned long pfn,
-+		unsigned long nr_pages, unsigned long map_offset,
-+		struct vmem_altmap *altmap)
- {
--	unsigned long start_pfn;
--	int scn_nr;
-+	struct mem_section *ms = __nr_to_section(pfn_to_section_nr(pfn));
- 
- 	if (WARN_ON_ONCE(!valid_section(ms)))
- 		return;
- 
- 	unregister_memory_section(ms);
- 
--	scn_nr = __section_nr(ms);
--	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
--	__remove_zone(zone, start_pfn);
-+	__remove_zone(zone, pfn, nr_pages);
- 
--	sparse_remove_one_section(zone, ms, map_offset, altmap);
-+	sparse_remove_section(zone, ms, pfn, nr_pages, map_offset, altmap);
- }
- 
- /**
-  * __remove_pages() - remove sections of pages from a zone
-  * @zone: zone from which pages need to be removed
-- * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
-+ * @pfn: starting pageframe (must be aligned to start of a section)
-  * @nr_pages: number of pages to remove (must be multiple of section size)
-  * @altmap: alternative device page map or %NULL if default memmap is used
-  *
-@@ -537,31 +561,39 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
-  * sure that pages are marked reserved and zones are adjust properly by
-  * calling offline_pages().
-  */
--void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-+void __remove_pages(struct zone *zone, unsigned long pfn,
- 		    unsigned long nr_pages, struct vmem_altmap *altmap)
- {
--	unsigned long i;
- 	unsigned long map_offset = 0;
--	int sections_to_remove;
-+	int i, start_sec, end_sec;
-+	struct memory_block *mem;
-+	unsigned long flags = 0;
- 
- 	if (altmap)
- 		map_offset = vmem_altmap_offset(altmap);
- 
- 	clear_zone_contiguous(zone);
- 
--	/*
--	 * We can only remove entire sections
--	 */
--	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
--	BUG_ON(nr_pages % PAGES_PER_SECTION);
-+	mem = find_memory_block(__pfn_to_section(pfn));
-+	if (mem) {
-+		flags |= MHP_MEMBLOCK_API;
-+		put_device(&mem->dev);
-+	}
- 
--	sections_to_remove = nr_pages / PAGES_PER_SECTION;
--	for (i = 0; i < sections_to_remove; i++) {
--		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
-+	if (subsection_check(pfn, nr_pages, flags, "remove"))
-+		return;
-+
-+	start_sec = pfn_to_section_nr(pfn);
-+	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-+	for (i = start_sec; i <= end_sec; i++) {
-+		unsigned long pfns;
- 
- 		cond_resched();
--		__remove_section(zone, __pfn_to_section(pfn), map_offset,
--				 altmap);
-+		pfns = min(nr_pages, PAGES_PER_SECTION
-+				- (pfn & ~PAGE_SECTION_MASK));
-+		__remove_section(zone, pfn, pfns, map_offset, altmap);
-+		pfn += pfns;
-+		nr_pages -= pfns;
- 		map_offset = 0;
- 	}
- 
 diff --git a/mm/sparse.c b/mm/sparse.c
-index d613f108cf34..8867f8901ee2 100644
+index 8867f8901ee2..34f322d14e62 100644
 --- a/mm/sparse.c
 +++ b/mm/sparse.c
-@@ -737,8 +737,8 @@ static void free_map_bootmem(struct page *memmap)
-  * * -EEXIST	- Section has been present.
-  * * -ENOMEM	- Out of memory.
-  */
--int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
--				     struct vmem_altmap *altmap)
-+int __meminit sparse_add_section(int nid, unsigned long start_pfn,
-+		unsigned long nr_pages, struct vmem_altmap *altmap)
- {
- 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
- 	struct mem_section_usage *usage;
-@@ -847,7 +847,8 @@ static void free_section_usage(struct page *memmap,
- 		free_map_bootmem(memmap);
+@@ -83,8 +83,15 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
+ 	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
+ 	struct mem_section *section;
+ 
++	/*
++	 * An existing section is possible in the sub-section hotplug
++	 * case. First hot-add instantiates, follow-on hot-add reuses
++	 * the existing section.
++	 *
++	 * The mem_hotplug_lock resolves the apparent race below.
++	 */
+ 	if (mem_section[root])
+-		return -EEXIST;
++		return 0;
+ 
+ 	section = sparse_index_alloc(nid);
+ 	if (!section)
+@@ -210,6 +217,15 @@ static inline unsigned long first_present_section_nr(void)
+ 	return next_present_section_nr(-1);
  }
  
--void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
-+void sparse_remove_section(struct zone *zone, struct mem_section *ms,
-+		unsigned long pfn, unsigned long nr_pages,
++void subsection_mask_set(unsigned long *map, unsigned long pfn,
++		unsigned long nr_pages)
++{
++	int idx = subsection_map_index(pfn);
++	int end = subsection_map_index(pfn + nr_pages - 1);
++
++	bitmap_set(map, idx, end - idx + 1);
++}
++
+ void subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+ {
+ 	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+@@ -219,20 +235,17 @@ void subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+ 		return;
+ 
+ 	for (i = start_sec; i <= end_sec; i++) {
+-		int idx, end;
+-		unsigned long pfns;
+ 		struct mem_section *ms;
++		unsigned long pfns;
+ 
+-		idx = subsection_map_index(pfn);
+ 		pfns = min(nr_pages, PAGES_PER_SECTION
+ 				- (pfn & ~PAGE_SECTION_MASK));
+-		end = subsection_map_index(pfn + pfns - 1);
+-
+ 		ms = __nr_to_section(i);
+-		bitmap_set(ms->usage->subsection_map, idx, end - idx + 1);
++		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
+ 
+ 		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
+-				pfns, idx, end - idx + 1);
++				pfns, subsection_map_index(pfn),
++				subsection_map_index(pfn + pfns - 1));
+ 
+ 		pfn += pfns;
+ 		nr_pages -= pfns;
+@@ -319,6 +332,15 @@ static void __meminit sparse_init_one_section(struct mem_section *ms,
+ 		unsigned long pnum, struct page *mem_map,
+ 		struct mem_section_usage *usage)
+ {
++	/*
++	 * Given that SPARSEMEM_VMEMMAP=y supports sub-section hotplug,
++	 * ->section_mem_map can not be guaranteed to point to a full
++	 *  section's worth of memory.  The field is only valid / used
++	 *  in the SPARSEMEM_VMEMMAP=n case.
++	 */
++	if (IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP))
++		mem_map = NULL;
++
+ 	ms->section_mem_map &= ~SECTION_MAP_MASK;
+ 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+ 							SECTION_HAS_MEM_MAP;
+@@ -724,10 +746,142 @@ static void free_map_bootmem(struct page *memmap)
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
++#ifndef CONFIG_MEMORY_HOTREMOVE
++static void free_map_bootmem(struct page *memmap)
++{
++}
++#endif
++
++static bool is_early_section(struct mem_section *ms)
++{
++	struct page *usage_page;
++
++	usage_page = virt_to_page(ms->usage);
++	if (PageSlab(usage_page) || PageCompound(usage_page))
++		return false;
++	else
++		return true;
++}
++
++static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
++		int nid, struct vmem_altmap *altmap)
++{
++	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
++	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
++	struct mem_section *ms = __pfn_to_section(pfn);
++	bool early_section = is_early_section(ms);
++	struct page *memmap = NULL;
++	unsigned long *subsection_map = ms->usage
++		? &ms->usage->subsection_map[0] : NULL;
++
++	subsection_mask_set(map, pfn, nr_pages);
++	if (subsection_map)
++		bitmap_and(tmp, map, subsection_map, SUBSECTIONS_PER_SECTION);
++
++	if (WARN(!subsection_map || !bitmap_equal(tmp, map, SUBSECTIONS_PER_SECTION),
++				"section already deactivated (%#lx + %ld)\n",
++				pfn, nr_pages))
++		return;
++
++	if (WARN(!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)
++				&& nr_pages < PAGES_PER_SECTION,
++				"partial memory section removal not supported\n"))
++		return;
++
++	/*
++	 * There are 3 cases to handle across two configurations
++	 * (SPARSEMEM_VMEMMAP={y,n}):
++	 *
++	 * 1/ deactivation of a partial hot-added section (only possible
++	 * in the SPARSEMEM_VMEMMAP=y case).
++	 *    a/ section was present at memory init
++	 *    b/ section was hot-added post memory init
++	 * 2/ deactivation of a complete hot-added section
++	 * 3/ deactivation of a complete section from memory init
++	 *
++	 * For 1/, when subsection_map does not empty we will not be
++	 * freeing the usage map, but still need to free the vmemmap
++	 * range.
++	 *
++	 * For 2/ and 3/ the SPARSEMEM_VMEMMAP={y,n} cases are unified
++	 */
++	bitmap_xor(subsection_map, map, subsection_map, SUBSECTIONS_PER_SECTION);
++	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++
++		if (!early_section) {
++			kfree(ms->usage);
++			ms->usage = NULL;
++		}
++		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
++		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
++	}
++
++	if (early_section && memmap)
++		free_map_bootmem(memmap);
++	else
++		depopulate_section_memmap(pfn, nr_pages, altmap);
++}
++
++static struct page * __meminit section_activate(int nid, unsigned long pfn,
++		unsigned long nr_pages, struct vmem_altmap *altmap)
++{
++	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
++	struct mem_section *ms = __pfn_to_section(pfn);
++	struct mem_section_usage *usage = NULL;
++	unsigned long *subsection_map;
++	struct page *memmap;
++	int rc = 0;
++
++	subsection_mask_set(map, pfn, nr_pages);
++
++	if (!ms->usage) {
++		usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
++		if (!usage)
++			return ERR_PTR(-ENOMEM);
++		ms->usage = usage;
++	}
++	subsection_map = &ms->usage->subsection_map[0];
++
++	if (bitmap_empty(map, SUBSECTIONS_PER_SECTION))
++		rc = -EINVAL;
++	else if (bitmap_intersects(map, subsection_map, SUBSECTIONS_PER_SECTION))
++		rc = -EEXIST;
++	else
++		bitmap_or(subsection_map, map, subsection_map,
++				SUBSECTIONS_PER_SECTION);
++
++	if (rc) {
++		if (usage)
++			ms->usage = NULL;
++		kfree(usage);
++		return ERR_PTR(rc);
++	}
++
++	/*
++	 * The early init code does not consider partially populated
++	 * initial sections, it simply assumes that memory will never be
++	 * referenced.  If we hot-add memory into such a section then we
++	 * do not need to populate the memmap and can simply reuse what
++	 * is already there.
++	 */
++	if (nr_pages < PAGES_PER_SECTION && is_early_section(ms))
++		return pfn_to_page(pfn);
++
++	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap);
++	if (!memmap) {
++		section_deactivate(pfn, nr_pages, nid, altmap);
++		return ERR_PTR(-ENOMEM);
++	}
++
++	return memmap;
++}
++
+ /**
+- * sparse_add_one_section - add a memory section
++ * sparse_add_section - add a memory section, or populate an existing one
+  * @nid: The node to add section on
+  * @start_pfn: start pfn of the memory range
++ * @nr_pages: number of pfns to add in the section
+  * @altmap: device page map
+  *
+  * This is only intended for hotplug.
+@@ -741,49 +895,31 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+ 		unsigned long nr_pages, struct vmem_altmap *altmap)
+ {
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+-	struct mem_section_usage *usage;
+ 	struct mem_section *ms;
+ 	struct page *memmap;
+ 	int ret;
+ 
+-	/*
+-	 * no locking for this, because it does its own
+-	 * plus, it does a kmalloc
+-	 */
+ 	ret = sparse_index_init(section_nr, nid);
+ 	if (ret < 0 && ret != -EEXIST)
+ 		return ret;
+-	ret = 0;
+-	memmap = populate_section_memmap(start_pfn, PAGES_PER_SECTION, nid,
+-			altmap);
+-	if (!memmap)
+-		return -ENOMEM;
+-	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
+-	if (!usage) {
+-		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
+-		return -ENOMEM;
+-	}
+ 
+-	ms = __pfn_to_section(start_pfn);
+-	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+-		ret = -EEXIST;
+-		goto out;
+-	}
++	memmap = section_activate(nid, start_pfn, nr_pages, altmap);
++	if (IS_ERR(memmap))
++		return PTR_ERR(memmap);
++	ret = 0;
+ 
+ 	/*
+ 	 * Poison uninitialized struct pages in order to catch invalid flags
+ 	 * combinations.
+ 	 */
+-	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
++	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+ 
++	ms = __pfn_to_section(start_pfn);
+ 	section_mark_present(ms);
+-	sparse_init_one_section(ms, section_nr, memmap, usage);
++	sparse_init_one_section(ms, section_nr, memmap, ms->usage);
+ 
+-out:
+-	if (ret < 0) {
+-		kfree(usage);
+-		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
+-	}
++	if (ret < 0)
++		section_deactivate(start_pfn, nr_pages, nid, altmap);
+ 	return ret;
+ }
+ 
+@@ -818,54 +954,13 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+ }
+ #endif
+ 
+-static void free_section_usage(struct page *memmap,
+-		struct mem_section_usage *usage, unsigned long pfn,
+-		unsigned long nr_pages, struct vmem_altmap *altmap)
+-{
+-	struct page *usage_page;
+-
+-	if (!usage)
+-		return;
+-
+-	usage_page = virt_to_page(usage);
+-	/*
+-	 * Check to see if allocation came from hot-plug-add
+-	 */
+-	if (PageSlab(usage_page) || PageCompound(usage_page)) {
+-		kfree(usage);
+-		if (memmap)
+-			depopulate_section_memmap(pfn, nr_pages, altmap);
+-		return;
+-	}
+-
+-	/*
+-	 * The usemap came from bootmem. This is packed with other usemaps
+-	 * on the section which has pgdat at boot time. Just keep it as is now.
+-	 */
+-
+-	if (memmap)
+-		free_map_bootmem(memmap);
+-}
+-
+ void sparse_remove_section(struct zone *zone, struct mem_section *ms,
+ 		unsigned long pfn, unsigned long nr_pages,
  		unsigned long map_offset, struct vmem_altmap *altmap)
  {
- 	struct page *memmap = NULL;
+-	struct page *memmap = NULL;
+-	struct mem_section_usage *usage = NULL;
+-
+-	if (ms->section_mem_map) {
+-		usage = ms->usage;
+-		memmap = sparse_decode_mem_map(ms->section_mem_map,
+-						__section_nr(ms));
+-		ms->section_mem_map = 0;
+-		ms->usage = NULL;
+-	}
+-
+-	clear_hwpoisoned_pages(memmap + map_offset,
+-			PAGES_PER_SECTION - map_offset);
+-	free_section_usage(memmap, usage, section_nr_to_pfn(__section_nr(ms)),
+-			PAGES_PER_SECTION, altmap);
++	clear_hwpoisoned_pages(pfn_to_page(pfn) + map_offset,
++			nr_pages - map_offset);
++	section_deactivate(pfn, nr_pages, zone_to_nid(zone), altmap);
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 
