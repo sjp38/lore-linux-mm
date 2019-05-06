@@ -1,274 +1,187 @@
-Return-Path: <SRS0=X77i=TF=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,
-	T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E376C004C9
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 16:55:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11142C04AAC
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:05:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51A50208C0
-	for <linux-mm@archiver.kernel.org>; Sun,  5 May 2019 16:55:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pH+cJZVJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51A50208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9ECEF20830
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:05:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9ECEF20830
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E532C6B0005; Sun,  5 May 2019 12:55:46 -0400 (EDT)
+	id 16AFE6B0003; Mon,  6 May 2019 05:05:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E05566B0006; Sun,  5 May 2019 12:55:46 -0400 (EDT)
+	id 11C2F6B0006; Mon,  6 May 2019 05:05:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CCBBC6B0007; Sun,  5 May 2019 12:55:46 -0400 (EDT)
+	id F262C6B0007; Mon,  6 May 2019 05:05:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D1C6B0005
-	for <linux-mm@kvack.org>; Sun,  5 May 2019 12:55:46 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id q73so6536301pfi.17
-        for <linux-mm@kvack.org>; Sun, 05 May 2019 09:55:46 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A016B0003
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 05:05:29 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id h7so3049106edb.14
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 02:05:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Pt7IYDcjG+VErRYfpe/XkcHYA4eSA3LRC4h8pRnF1Rg=;
-        b=twH+mZV2n+Id5E+ZdUsFyZRcN2pDVD2os1+sNiA6Z9/I6iL9cSoo3vl05LAk6G7dSW
-         iFpfVi8Y1UEyoGOAoutLXxYjMHDOSwsHIEDwCmpgEU838UBYDVnyua7yLsYOwmRGIEgr
-         vSGQw48rt2XeGM7yPd+GgYckpwqD7mwf11qDSxGpIwCmMTVhu9pP0IeE2+4KM8i+/02S
-         mbRY2T74F4AwxIsuCVSrVVeelpDPuqKv9bHWsUby4OIK9jJxddu6uXwXVphF53kMpAAG
-         R3raH3T/CzFRZpXODKehVfyM5oow8AaPfEbGYFoOq6bJ9FSnir7TU8mudP2vuRgyxDIo
-         ya2Q==
-X-Gm-Message-State: APjAAAVQV/38J44kf+JWeUw7sGXuAEBcZZ+pwQG+/CucKYTjhyuG11bd
-	9AzhGi528676AnQh9UDY7l/RWNQydSsoPhK4WpOLRt8DqukBN+NNEnvgNDDSu1O/3EXrnjkfqlb
-	gnow/qMVrZcJWJe1lxzZ8seblmlLwJllCOtaaIFYRNgi0ROwtMfU7FpqnDGAXSFEOiQ==
-X-Received: by 2002:a17:902:a510:: with SMTP id s16mr1466933plq.334.1557075346119;
-        Sun, 05 May 2019 09:55:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqylJzXkmNUkCtov5WIv4yYQrkfkYFKYdQpf6qLLYyEs2MZA47JtqQI0xMRi5lvY23GlZ09E
-X-Received: by 2002:a17:902:a510:: with SMTP id s16mr1466846plq.334.1557075345195;
-        Sun, 05 May 2019 09:55:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557075345; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=mUR3nFvU2kCicoTIW2uplD1WI+iqxKXn3TfdotdR/Kk=;
+        b=maUcbENMU9QIEpa2k9ZVAAGxMv0LutFCmf2vT/PcZyY8c6EeMC+Nt1tcSSlt+Kqnjj
+         uZxE/jX1j5KEyZd6C2f6q9NMXB+NrnObCJj1BWPUgvLLgHA9MG6ipNcoCPgSkJwaBEjC
+         ETkFmBGPxGHnucCQ3KEH4o8F351L9swIy3QnSrgnf8FB1h/MwHKpikM4hDf7fk1UHn/g
+         FwpPMrRZlR1gG9p6zRZq9rpvzJfIh9tASqPU54I6NbtU0u5kSFOXf1bMy1Mjy5csrwcf
+         BLkE6LYkvW3bzLQrJ0QrLbFOnaGdcwznMA/5VNvH8RZWmPFMV/I2eJffDqzasQOd6pOt
+         0FuA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAU2kFVTVP5jZ/L0Wpm7478OdRcGGvjD/WGMnW9FxRuU1582GE5Q
+	WcSHG7lnIyWCBDL8NJg83aIWWohU1F7pHXpkfEZmtdj4oxUxML/M+j2VJ1YHmIVM1Vj+FjAsJkG
+	15V+Sft2urEy2WFId7hE/NoAQuMd3aeBKkkkvlwUREghGBIPs+j7Kcwrrf1QBMxoi/g==
+X-Received: by 2002:a50:8a8b:: with SMTP id j11mr24339893edj.212.1557133529129;
+        Mon, 06 May 2019 02:05:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwL1Yw/PZSR2zCQzUaTpSpkiRWDQXYwp8u6DA68cwea/0wUmaoNqcSFOLIrhJfjSPAMJBGw
+X-Received: by 2002:a50:8a8b:: with SMTP id j11mr24339790edj.212.1557133528076;
+        Mon, 06 May 2019 02:05:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557133528; cv=none;
         d=google.com; s=arc-20160816;
-        b=EcivjKHBPctPrQvAKk919IQSk+63aPm6ZmVF8q3mHdkK3p5xgu61NX8ti6caPweEIV
-         5yhOqVYlEAJ8CBAG9MOX/2tr79GEn6EcyuOXSROd4S2+F2Syfq4/bFnPur5HV+5D4OfU
-         f9T9X7JmmwK8njOo1cox/fj7VtG3mEC0kHAatR7TmmCh5B3EaINvvT2EOEpxwgNHl1Db
-         4G5cgExuq/qYQLcXduMekcM+oMW7w3WbODH99Ue79Ys5+Q9uWAvtMqyvXoP0KaxVKOcV
-         yXDZQSUDc67R5kM5dsHDNxchw1waV3SFYZ2c9/qd5rqaXv6DkybQva6157VCWmbsqxD9
-         26AQ==
+        b=sgwILngcYvKfjyuMD2u8qqZMXnxYbL9IdbzSf4F+Ru73WoT8ZsjoARUu/5avtJUW8q
+         lOTK0d2Vi3fvqrsWEOySqgG0T/1JUd7pJUnX8Qw6H+SNaduBg/SFvWERN0DABLThPMkS
+         Jq0O3ijqd90tZpY5KrZ8wx38K32C4WDRpIKJEdPHwt7VXFlyI0jgDrJ70AJurjr7rJSx
+         lPVD14OGrLvPFALBENo/qQU5eW7FLMPzxENqPuhYxOF74qBf0xIYnkzdnXrEGmN6DLtf
+         7wlj5JyX7pwp7EjlbF/cAiz2eatLwtGYZdNEQxII/K/frLf2z8iGaqLnanKdqQNXYhsn
+         llKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Pt7IYDcjG+VErRYfpe/XkcHYA4eSA3LRC4h8pRnF1Rg=;
-        b=SSVJqIUIFZhyJJy8PzOZdhJ/Dwm0yJq/LmvzgD+KWjfSKLLbpIBAuMlzTV5AL99iUn
-         sySA5/l01RgwB20s7SnQVeDuveVbWuh+7NsWpgJVyj5XKQbPcJFkaZtyJck0PmGxO3Qq
-         qgF+7/3MsuGQUlRUZZnTLatUzpygL2miXBX1/prZFB92ZYDTzTLNTmZsGu1EJvS6y5pQ
-         8B6UvTALiOIF/++F01OVCUYQgFJf4PJjFLACywsv49o+JrG3cVok826mXXERzBeojFup
-         +FHdMQN4Yo8lgdeUBLccqS3MQYIklaTtt2z4rRh9ZU2bmOJDPBGfVyKQQMJHehQWeFrN
-         4lGA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=mUR3nFvU2kCicoTIW2uplD1WI+iqxKXn3TfdotdR/Kk=;
+        b=dc0k/4oGGpVfkwkkClJdjsoJ9xYwWUTCZqX3nAAjiQpqCrFkd9SmO7eGYWYZ3bkcxy
+         pfyn/Jo2yTAx7pN/cMoh8BlZit/zovQ67TzH7vY7g3fb8qX0sy083bu03Ia3mLUlulfd
+         1m+px/WfqjbwI+I81JJiYpzRwSyTgzjMiviUywsjOiRZIaTRU4tH6l/PXhqTqRQBVYeT
+         Art7/BchI60wkqob/6Rj5e4c2+DlGLkAes6V3pmvaTlqtrAxkZAZu6WXApwVQt5cIFaG
+         Az01JddtzHISluX1w0zyq927Psjd7dXfsx6jO6DdjSIo0+4Vb/XiPuV8n0f50xtbwzgk
+         cvkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pH+cJZVJ;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n16si11121346plp.130.2019.05.05.09.55.45
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f34si2968313edf.38.2019.05.06.02.05.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 May 2019 09:55:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 06 May 2019 02:05:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=pH+cJZVJ;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [37.142.3.125])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7391D2082F;
-	Sun,  5 May 2019 16:55:43 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557075344;
-	bh=aRxPsmSsEhywsafB/6cwzHPxQmzxvwN6POM3K7wiBMc=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=pH+cJZVJ5914OfqP20cZw/Iee2fyUCgsSrb8acFROO0vrORufuqIypqcWfl7HLC85
-	 Anc3y755FymA/CTGhQdg6+VULP3UjBlhqCkrnJMpQOibKFKmS/aa+UfPu9A/z8KPhS
-	 0kxNvHZa/DmjY2/SIBOSqbLpsY35vDl2mIcQOykw=
-Date: Sun, 5 May 2019 19:55:38 +0300
-From: Leon Romanovsky <leon@kernel.org>
-To: Kenny Ho <y2kenny@gmail.com>
-Cc: "Welty, Brian" <brian.welty@intel.com>,
-	Alex Deucher <alexander.deucher@amd.com>,
-	Parav Pandit <parav@mellanox.com>, David Airlie <airlied@linux.ie>,
-	intel-gfx@lists.freedesktop.org,
-	J??r??me Glisse <jglisse@redhat.com>,
-	dri-devel@lists.freedesktop.org, Michal Hocko <mhocko@kernel.org>,
-	linux-mm@kvack.org, Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Li Zefan <lizefan@huawei.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	cgroups@vger.kernel.org,
-	Christian K??nig <christian.koenig@amd.com>,
-	RDMA mailing list <linux-rdma@vger.kernel.org>, kenny.ho@amd.com,
-	Harish.Kasiviswanathan@amd.com, daniel@ffwll.ch
-Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
-Message-ID: <20190505165538.GG6938@mtr-leonro.mtl.com>
-References: <20190501140438.9506-1-brian.welty@intel.com>
- <20190502083433.GP7676@mtr-leonro.mtl.com>
- <CAOWid-cYknxeTQvP9vQf3-i3Cpux+bs7uBs7_o-YMFjVCo19bg@mail.gmail.com>
- <bb001de0-e4e5-6b3f-7ced-9d0fb329635b@intel.com>
- <20190505071436.GD6938@mtr-leonro.mtl.com>
- <CAOWid-di8kcC2bYKq1KJo+rWfVjwQ13mcVRjaBjhFRzTO=c16Q@mail.gmail.com>
- <20190505160506.GF6938@mtr-leonro.mtl.com>
- <CAOWid-cCq+yB9m-u8YpHFuhUZ+C7EpbT2OD27iszJVrruAtqKg@mail.gmail.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4282DAC5A;
+	Mon,  6 May 2019 09:05:27 +0000 (UTC)
+Subject: Re: Page Allocation Failure and Page allocation stalls
+To: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>,
+ =?UTF-8?Q?Valdis_Kl=c4=93tnieks?= <valdis.kletnieks@vt.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ kernelnewbies@kernelnewbies.org, Michal Hocko <mhocko@kernel.org>,
+ minchan@kernel.org
+References: <CACDBo57s_ZxmxjmRrCSwaqQzzO5r0SadzMhseeb9X0t0mOwJZA@mail.gmail.com>
+ <11029.1556774479@turing-police>
+ <CACDBo54xXk-68MTsxw2K12gD0eGO0Xpq0rw60E3AX+2OEi3igw@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <26e83e08-3249-e73f-2049-f36b44af8d8a@suse.cz>
+Date: Mon, 6 May 2019 11:05:26 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOWid-cCq+yB9m-u8YpHFuhUZ+C7EpbT2OD27iszJVrruAtqKg@mail.gmail.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <CACDBo54xXk-68MTsxw2K12gD0eGO0Xpq0rw60E3AX+2OEi3igw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 05, 2019 at 12:34:16PM -0400, Kenny Ho wrote:
-> (sent again.  Not sure why my previous email was just a reply instead
-> of reply-all.)
->
-> On Sun, May 5, 2019 at 12:05 PM Leon Romanovsky <leon@kernel.org> wrote:
-> > We are talking about two different access patterns for this device
-> > memory (DM). One is to use this device memory (DM) and second to configure/limit.
-> > Usually those actions will be performed by different groups.
-> >
-> > First group (programmers) is using special API [1] through libibverbs [2]
-> > without any notion of cgroups or any limitations. Second group (sysadmins)
-> > is less interested in application specifics and for them "device memory" means
-> > "memory" and not "rdma, nic specific, internal memory".
-> Um... I am not sure that answered it, especially in the context of
-> cgroup (this is just for my curiosity btw, I don't know much about
-> rdma.)  You said sysadmins are less interested in application
-> specifics but then how would they make the judgement call on how much
-> "device memory" is provisioned to one application/container over
-> another (let say you have 5 cgroup sharing an rdma device)?  What are
-> the consequences of under provisioning "device memory" to an
-> application?  And if they are all just memory, can a sysadmin
-> provision more system memory in place of device memory (like, are they
-> interchangeable)?  I guess I am confused because if device memory is
-> just memory (not rdma, nic specific) to sysadmins how would they know
-> to set the right amount?
+On 5/3/19 7:44 PM, Pankaj Suryawanshi wrote:
+>> First possibility that comes to mind is that a usermodehelper got launched, and
+>> it then tried to fork with a very large active process image.  Do we have any
+>> clues what was going on?  Did a device get hotplugged?
+> 
+> Yes,The system is android and it tries to allocate memory for video
+> player from CMA reserved memory using custom octl call for dma apis.
 
-One of the immediate usages of this DM that come to my mind is very
-fast spinlocks for MPI applications. In such case, the amount of DM
-will be property of network topology in given MPI cluster.
+The stacktrace doesn't look like a CMA allocation though. That would be
+doing alloc_contig_range(), not kmalloc(). Could be some CMA area setup
+issue?
 
-In this scenario, precise amount of memory will ensure that all jobs
-will continue to give maximal performance despite any programmer's
-error in DM allocation.
-
-For under provisioning scenario and if application is written correctly,
-users will experience more latency and less performance, due to the PCI
-accesses.
-
-Slide 3 in Liran's presentation gives brief overview about motivation.
-
-Thanks
-
->
-> Regards,
-> Kenny
->
-> > [1] ibv_alloc_dm()
-> > http://man7.org/linux/man-pages/man3/ibv_alloc_dm.3.html
-> > https://www.openfabrics.org/images/2018workshop/presentations/304_LLiss_OnDeviceMemory.pdf
-> > [2] https://github.com/linux-rdma/rdma-core/blob/master/libibverbs/
-> >
-> > >
-> > > I think we need to be careful about drawing the line between
-> > > duplication and over couplings between subsystems.  I have other
-> > > thoughts and concerns and I will try to organize them into a response
-> > > in the next few days.
-> > >
-> > > Regards,
-> > > Kenny
-> > >
-> > >
-> > > > >
-> > > > > Is AMD interested in collaborating to help shape this framework?
-> > > > > It is intended to be device-neutral, so could be leveraged by various
-> > > > > types of devices.
-> > > > > If you have an alternative solution well underway, then maybe
-> > > > > we can work together to merge our efforts into one.
-> > > > > In the end, the DRM community is best served with common solution.
-> > > > >
-> > > > >
-> > > > > >
-> > > > > >>> and with future work, we could extend to:
-> > > > > >>> *  track and control share of GPU time (reuse of cpu/cpuacct)
-> > > > > >>> *  apply mask of allowed execution engines (reuse of cpusets)
-> > > > > >>>
-> > > > > >>> Instead of introducing a new cgroup subsystem for GPU devices, a new
-> > > > > >>> framework is proposed to allow devices to register with existing cgroup
-> > > > > >>> controllers, which creates per-device cgroup_subsys_state within the
-> > > > > >>> cgroup.  This gives device drivers their own private cgroup controls
-> > > > > >>> (such as memory limits or other parameters) to be applied to device
-> > > > > >>> resources instead of host system resources.
-> > > > > >>> Device drivers (GPU or other) are then able to reuse the existing cgroup
-> > > > > >>> controls, instead of inventing similar ones.
-> > > > > >>>
-> > > > > >>> Per-device controls would be exposed in cgroup filesystem as:
-> > > > > >>>     mount/<cgroup_name>/<subsys_name>.devices/<dev_name>/<subsys_files>
-> > > > > >>> such as (for example):
-> > > > > >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.max
-> > > > > >>>     mount/<cgroup_name>/memory.devices/<dev_name>/memory.current
-> > > > > >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.stat
-> > > > > >>>     mount/<cgroup_name>/cpu.devices/<dev_name>/cpu.weight
-> > > > > >>>
-> > > > > >>> The drm/i915 patch in this series is based on top of other RFC work [1]
-> > > > > >>> for i915 device memory support.
-> > > > > >>>
-> > > > > >>> AMD [2] and Intel [3] have proposed related work in this area within the
-> > > > > >>> last few years, listed below as reference.  This new RFC reuses existing
-> > > > > >>> cgroup controllers and takes a different approach than prior work.
-> > > > > >>>
-> > > > > >>> Finally, some potential discussion points for this series:
-> > > > > >>> * merge proposed <subsys_name>.devices into a single devices directory?
-> > > > > >>> * allow devices to have multiple registrations for subsets of resources?
-> > > > > >>> * document a 'common charging policy' for device drivers to follow?
-> > > > > >>>
-> > > > > >>> [1] https://patchwork.freedesktop.org/series/56683/
-> > > > > >>> [2] https://lists.freedesktop.org/archives/dri-devel/2018-November/197106.html
-> > > > > >>> [3] https://lists.freedesktop.org/archives/intel-gfx/2018-January/153156.html
-> > > > > >>>
-> > > > > >>>
-> > > > > >>> Brian Welty (5):
-> > > > > >>>   cgroup: Add cgroup_subsys per-device registration framework
-> > > > > >>>   cgroup: Change kernfs_node for directories to store
-> > > > > >>>     cgroup_subsys_state
-> > > > > >>>   memcg: Add per-device support to memory cgroup subsystem
-> > > > > >>>   drm: Add memory cgroup registration and DRIVER_CGROUPS feature bit
-> > > > > >>>   drm/i915: Use memory cgroup for enforcing device memory limit
-> > > > > >>>
-> > > > > >>>  drivers/gpu/drm/drm_drv.c                  |  12 +
-> > > > > >>>  drivers/gpu/drm/drm_gem.c                  |   7 +
-> > > > > >>>  drivers/gpu/drm/i915/i915_drv.c            |   2 +-
-> > > > > >>>  drivers/gpu/drm/i915/intel_memory_region.c |  24 +-
-> > > > > >>>  include/drm/drm_device.h                   |   3 +
-> > > > > >>>  include/drm/drm_drv.h                      |   8 +
-> > > > > >>>  include/drm/drm_gem.h                      |  11 +
-> > > > > >>>  include/linux/cgroup-defs.h                |  28 ++
-> > > > > >>>  include/linux/cgroup.h                     |   3 +
-> > > > > >>>  include/linux/memcontrol.h                 |  10 +
-> > > > > >>>  kernel/cgroup/cgroup-v1.c                  |  10 +-
-> > > > > >>>  kernel/cgroup/cgroup.c                     | 310 ++++++++++++++++++---
-> > > > > >>>  mm/memcontrol.c                            | 183 +++++++++++-
-> > > > > >>>  13 files changed, 552 insertions(+), 59 deletions(-)
-> > > > > >>>
-> > > > > >>> --
-> > > > > >>> 2.21.0
-> > > > > >>>
-> > > > > >> _______________________________________________
-> > > > > >> dri-devel mailing list
-> > > > > >> dri-devel@lists.freedesktop.org
-> > > > > >> https://lists.freedesktop.org/mailman/listinfo/dri-devel
+> Please let me know how to overcome this issues, or how to reduce
+> fragmentation of memory so that higher order allocation get suuceed ?
+> 
+> Thanks
+> 
 
