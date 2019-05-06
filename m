@@ -2,186 +2,193 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11142C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:05:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80F02C04AAA
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:28:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9ECEF20830
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:05:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9ECEF20830
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 38BE02082F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:28:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38BE02082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16AFE6B0003; Mon,  6 May 2019 05:05:30 -0400 (EDT)
+	id CA3E76B0003; Mon,  6 May 2019 05:28:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 11C2F6B0006; Mon,  6 May 2019 05:05:30 -0400 (EDT)
+	id C547F6B0006; Mon,  6 May 2019 05:28:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F262C6B0007; Mon,  6 May 2019 05:05:29 -0400 (EDT)
+	id B1C1A6B0007; Mon,  6 May 2019 05:28:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A016B0003
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 05:05:29 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h7so3049106edb.14
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 02:05:29 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D26D6B0003
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 05:28:39 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id o65so1400199lfe.10
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 02:28:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=mUR3nFvU2kCicoTIW2uplD1WI+iqxKXn3TfdotdR/Kk=;
-        b=maUcbENMU9QIEpa2k9ZVAAGxMv0LutFCmf2vT/PcZyY8c6EeMC+Nt1tcSSlt+Kqnjj
-         uZxE/jX1j5KEyZd6C2f6q9NMXB+NrnObCJj1BWPUgvLLgHA9MG6ipNcoCPgSkJwaBEjC
-         ETkFmBGPxGHnucCQ3KEH4o8F351L9swIy3QnSrgnf8FB1h/MwHKpikM4hDf7fk1UHn/g
-         FwpPMrRZlR1gG9p6zRZq9rpvzJfIh9tASqPU54I6NbtU0u5kSFOXf1bMy1Mjy5csrwcf
-         BLkE6LYkvW3bzLQrJ0QrLbFOnaGdcwznMA/5VNvH8RZWmPFMV/I2eJffDqzasQOd6pOt
-         0FuA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAU2kFVTVP5jZ/L0Wpm7478OdRcGGvjD/WGMnW9FxRuU1582GE5Q
-	WcSHG7lnIyWCBDL8NJg83aIWWohU1F7pHXpkfEZmtdj4oxUxML/M+j2VJ1YHmIVM1Vj+FjAsJkG
-	15V+Sft2urEy2WFId7hE/NoAQuMd3aeBKkkkvlwUREghGBIPs+j7Kcwrrf1QBMxoi/g==
-X-Received: by 2002:a50:8a8b:: with SMTP id j11mr24339893edj.212.1557133529129;
-        Mon, 06 May 2019 02:05:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwL1Yw/PZSR2zCQzUaTpSpkiRWDQXYwp8u6DA68cwea/0wUmaoNqcSFOLIrhJfjSPAMJBGw
-X-Received: by 2002:a50:8a8b:: with SMTP id j11mr24339790edj.212.1557133528076;
-        Mon, 06 May 2019 02:05:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557133528; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1xHA8J2HdFsE28d9fPQk7myjnMGhxmRbHEUD0QEyWeE=;
+        b=BHbI2me6ZGf3GvpxrRcS9U0iFTliTc6BUnPbZNPxEsso83q2jdk8/DZbWKf/Wz/0qU
+         2qLP+H/UZayWVR9A479gwROrYPivnLyDa+bxNmug8yO7N84gDEeEU0B6N+93sSAKB71Y
+         pdIzRLNIpj1FX1pz0oCRQzQiEia0AAUK2PsRUhTmeJSyHO32W6l038T2RWA7+5jcZbxl
+         LWhLufFGvoY4cVLxb1nSnq01hx8laR7gDHAdcMkEk6OTg6f96Qm1P9X7iggS5TPltud5
+         NkAccZMcIOYxqsD25Cp6KjFWq+HK+RXKruXcFvcofsOnXaSoWlkJ34Rj4vlkWOJyrw6M
+         0LWw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUUhA1Clrh/DZ9M/W9G3VVo03DV3gebyJTAcvX3jBzuljaCBvzr
+	/CeKVF0/+GxO90nMBIleaIj/LG4Bk/GGITw+lbiSKH1m6KnTA0ArKue97XqnNmAMbJ75+5Zivbr
+	c4Ta15VLaIi0850cLvqHezs99qv0UODKaYPPO8NpsFI64RgIiOX5V9985cSoVAF9jug==
+X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr11485994lja.49.1557134918578;
+        Mon, 06 May 2019 02:28:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxMYUABbXYnMGlk3rj2j/Nw5vbUow01N/ZlTKGo8OQ8ZdO3HYXpxGYG0sKKvG7sQyPL1cbz
+X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr11485951lja.49.1557134917495;
+        Mon, 06 May 2019 02:28:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557134917; cv=none;
         d=google.com; s=arc-20160816;
-        b=sgwILngcYvKfjyuMD2u8qqZMXnxYbL9IdbzSf4F+Ru73WoT8ZsjoARUu/5avtJUW8q
-         lOTK0d2Vi3fvqrsWEOySqgG0T/1JUd7pJUnX8Qw6H+SNaduBg/SFvWERN0DABLThPMkS
-         Jq0O3ijqd90tZpY5KrZ8wx38K32C4WDRpIKJEdPHwt7VXFlyI0jgDrJ70AJurjr7rJSx
-         lPVD14OGrLvPFALBENo/qQU5eW7FLMPzxENqPuhYxOF74qBf0xIYnkzdnXrEGmN6DLtf
-         7wlj5JyX7pwp7EjlbF/cAiz2eatLwtGYZdNEQxII/K/frLf2z8iGaqLnanKdqQNXYhsn
-         llKQ==
+        b=mvnU+09xkMn0mJ2IW6l/cFKpoDaTKyhICQYXpUDlmMaeRfqxToVDPA5vCjJd7ClORY
+         EKQShIuhEuEXC4x48AVBOEOmgzPy2PYGCZ7fcCJ8fYChi2NSc66WOJw0beNGJG48LovA
+         uFrvl0+eatH27eZ99/1HKiJVCTVX0ixjVUse21+KwlYKVXc93K3j+qtnBmI+dxxK+TFq
+         ZFM6d+W5p2ex7SmMN8JpObYX5lHLVZaKe/DiYd82die5wgNo+8Iw6h9r+f/AYu5N7r/m
+         Y9oUDkhXqcP4VUEVs30j6wfB1M14fJjGPGLPVMpic/c88syyH0X6kX0PLsrLMAJn1/2O
+         lJGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=mUR3nFvU2kCicoTIW2uplD1WI+iqxKXn3TfdotdR/Kk=;
-        b=dc0k/4oGGpVfkwkkClJdjsoJ9xYwWUTCZqX3nAAjiQpqCrFkd9SmO7eGYWYZ3bkcxy
-         pfyn/Jo2yTAx7pN/cMoh8BlZit/zovQ67TzH7vY7g3fb8qX0sy083bu03Ia3mLUlulfd
-         1m+px/WfqjbwI+I81JJiYpzRwSyTgzjMiviUywsjOiRZIaTRU4tH6l/PXhqTqRQBVYeT
-         Art7/BchI60wkqob/6Rj5e4c2+DlGLkAes6V3pmvaTlqtrAxkZAZu6WXApwVQt5cIFaG
-         Az01JddtzHISluX1w0zyq927Psjd7dXfsx6jO6DdjSIo0+4Vb/XiPuV8n0f50xtbwzgk
-         cvkw==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1xHA8J2HdFsE28d9fPQk7myjnMGhxmRbHEUD0QEyWeE=;
+        b=0A7U+oWQRFYQSfCY0yW56oAKyowHjxkShtPAWrudfeOUAzEORr/QEdg+w3l/cKZqDB
+         IXUEVsjD2k+GwyIww21rSu/JnczRMf8JGrCa+S4+EvbkBBiO0mw6nLweUHHQpzrGR4Y7
+         r5b+b2ykiMytrbIPp6f+R0O/TfTxOg3nU2PGrufpQVS0sGLQR9uPdMbVpp+OvxJMVwj4
+         unWw3/6Zc9+Sr+TWe2Wf6LAw3BAv7Loyuumd+/4VMq+ylmTjJbR/IaqB0x1p6MT9a8yG
+         y+V9FJaBEKrojkzFc7UF0nJgrLwAnp10PI1D+PXo+4e0ChZUN6cpsFbjYz452O8yYV6M
+         FRNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f34si2968313edf.38.2019.05.06.02.05.27
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id j15si7429149lji.192.2019.05.06.02.28.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 02:05:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 06 May 2019 02:28:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4282DAC5A;
-	Mon,  6 May 2019 09:05:27 +0000 (UTC)
-Subject: Re: Page Allocation Failure and Page allocation stalls
-To: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>,
- =?UTF-8?Q?Valdis_Kl=c4=93tnieks?= <valdis.kletnieks@vt.edu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- kernelnewbies@kernelnewbies.org, Michal Hocko <mhocko@kernel.org>,
- minchan@kernel.org
-References: <CACDBo57s_ZxmxjmRrCSwaqQzzO5r0SadzMhseeb9X0t0mOwJZA@mail.gmail.com>
- <11029.1556774479@turing-police>
- <CACDBo54xXk-68MTsxw2K12gD0eGO0Xpq0rw60E3AX+2OEi3igw@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <26e83e08-3249-e73f-2049-f36b44af8d8a@suse.cz>
-Date: Mon, 6 May 2019 11:05:26 +0200
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hNZv4-0002jm-38; Mon, 06 May 2019 12:28:22 +0300
+Subject: Re: [PATCH v3 2/2] prctl_set_mm: downgrade mmap_sem to read lock
+To: =?UTF-8?Q?Michal_Koutn=c3=bd?= <mkoutny@suse.com>, gorcunov@gmail.com
+Cc: akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
+ geert+renesas@glider.be, ldufour@linux.ibm.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, mguzik@redhat.com,
+ mhocko@kernel.org, rppt@linux.ibm.com, vbabka@suse.cz
+References: <0a48e0a2-a282-159e-a56e-201fbc0faa91@virtuozzo.com>
+ <20190502125203.24014-1-mkoutny@suse.com>
+ <20190502125203.24014-3-mkoutny@suse.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <961c4d8a-982f-720b-490b-dfb4dae7be25@virtuozzo.com>
+Date: Mon, 6 May 2019 12:28:21 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <CACDBo54xXk-68MTsxw2K12gD0eGO0Xpq0rw60E3AX+2OEi3igw@mail.gmail.com>
+In-Reply-To: <20190502125203.24014-3-mkoutny@suse.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/3/19 7:44 PM, Pankaj Suryawanshi wrote:
->> First possibility that comes to mind is that a usermodehelper got launched, and
->> it then tried to fork with a very large active process image.  Do we have any
->> clues what was going on?  Did a device get hotplugged?
+On 02.05.2019 15:52, Michal Koutný wrote:
+> The commit a3b609ef9f8b ("proc read mm's {arg,env}_{start,end} with mmap
+> semaphore taken.") added synchronization of reading argument/environment
+> boundaries under mmap_sem. Later commit 88aa7cc688d4 ("mm: introduce
+> arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> avoided the coarse use of mmap_sem in similar situations. But there
+> still remained two places that (mis)use mmap_sem.
 > 
-> Yes,The system is android and it tries to allocate memory for video
-> player from CMA reserved memory using custom octl call for dma apis.
-
-The stacktrace doesn't look like a CMA allocation though. That would be
-doing alloc_contig_range(), not kmalloc(). Could be some CMA area setup
-issue?
-
-> Please let me know how to overcome this issues, or how to reduce
-> fragmentation of memory so that higher order allocation get suuceed ?
+> get_cmdline should also use arg_lock instead of mmap_sem when it reads the
+> boundaries.
 > 
-> Thanks
+> The second place that should use arg_lock is in prctl_set_mm. By
+> protecting the boundaries fields with the arg_lock, we can downgrade
+> mmap_sem to reader lock (analogous to what we already do in
+> prctl_set_mm_map).
+> 
+> v2: call find_vma without arg_lock held
+> v3: squashed get_cmdline arg_lock patch
+> 
+> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+> Cc: Yang Shi <yang.shi@linux.alibaba.com>
+> Cc: Mateusz Guzik <mguzik@redhat.com>
+> CC: Cyrill Gorcunov <gorcunov@gmail.com>
+> Co-developed-by: Laurent Dufour <ldufour@linux.ibm.com>
+> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
+> Signed-off-by: Michal Koutný <mkoutny@suse.com>
+
+Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+
+> ---
+>  kernel/sys.c | 10 ++++++++--
+>  mm/util.c    |  4 ++--
+>  2 files changed, 10 insertions(+), 4 deletions(-)
+> 
+> diff --git a/kernel/sys.c b/kernel/sys.c
+> index 5e0a5edf47f8..14be57840511 100644
+> --- a/kernel/sys.c
+> +++ b/kernel/sys.c
+> @@ -2122,9 +2122,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>  
+>  	error = -EINVAL;
+>  
+> -	down_write(&mm->mmap_sem);
+> +	/*
+> +	 * arg_lock protects concurent updates of arg boundaries, we need mmap_sem for
+> +	 * a) concurrent sys_brk, b) finding VMA for addr validation.
+> +	 */
+> +	down_read(&mm->mmap_sem);
+>  	vma = find_vma(mm, addr);
+>  
+> +	spin_lock(&mm->arg_lock);
+>  	prctl_map.start_code	= mm->start_code;
+>  	prctl_map.end_code	= mm->end_code;
+>  	prctl_map.start_data	= mm->start_data;
+> @@ -2212,7 +2217,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
+>  
+>  	error = 0;
+>  out:
+> -	up_write(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+> +	up_read(&mm->mmap_sem);
+>  	return error;
+>  }
+>  
+> diff --git a/mm/util.c b/mm/util.c
+> index 43a2984bccaa..5cf0e84a0823 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -758,12 +758,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+>  	if (!mm->arg_end)
+>  		goto out_mm;	/* Shh! No looking before we're done */
+>  
+> -	down_read(&mm->mmap_sem);
+> +	spin_lock(&mm->arg_lock);
+>  	arg_start = mm->arg_start;
+>  	arg_end = mm->arg_end;
+>  	env_start = mm->env_start;
+>  	env_end = mm->env_end;
+> -	up_read(&mm->mmap_sem);
+> +	spin_unlock(&mm->arg_lock);
+>  
+>  	len = arg_end - arg_start;
+>  
 > 
 
