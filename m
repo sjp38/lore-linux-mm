@@ -2,193 +2,202 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+X-Spam-Status: No, score=-14.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 80F02C04AAA
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:28:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 213CEC04A6B
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:44:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38BE02082F
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 09:28:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38BE02082F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id A248D20675
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:44:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mCRvGiMC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A248D20675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA3E76B0003; Mon,  6 May 2019 05:28:39 -0400 (EDT)
+	id 10DEE6B0005; Mon,  6 May 2019 09:44:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C547F6B0006; Mon,  6 May 2019 05:28:39 -0400 (EDT)
+	id 0BF8E6B0006; Mon,  6 May 2019 09:44:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B1C1A6B0007; Mon,  6 May 2019 05:28:39 -0400 (EDT)
+	id EC7C76B0007; Mon,  6 May 2019 09:44:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D26D6B0003
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 05:28:39 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id o65so1400199lfe.10
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 02:28:39 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1096B0005
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 09:44:28 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id b63so8676923itc.0
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 06:44:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=1xHA8J2HdFsE28d9fPQk7myjnMGhxmRbHEUD0QEyWeE=;
-        b=BHbI2me6ZGf3GvpxrRcS9U0iFTliTc6BUnPbZNPxEsso83q2jdk8/DZbWKf/Wz/0qU
-         2qLP+H/UZayWVR9A479gwROrYPivnLyDa+bxNmug8yO7N84gDEeEU0B6N+93sSAKB71Y
-         pdIzRLNIpj1FX1pz0oCRQzQiEia0AAUK2PsRUhTmeJSyHO32W6l038T2RWA7+5jcZbxl
-         LWhLufFGvoY4cVLxb1nSnq01hx8laR7gDHAdcMkEk6OTg6f96Qm1P9X7iggS5TPltud5
-         NkAccZMcIOYxqsD25Cp6KjFWq+HK+RXKruXcFvcofsOnXaSoWlkJ34Rj4vlkWOJyrw6M
-         0LWw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAUUhA1Clrh/DZ9M/W9G3VVo03DV3gebyJTAcvX3jBzuljaCBvzr
-	/CeKVF0/+GxO90nMBIleaIj/LG4Bk/GGITw+lbiSKH1m6KnTA0ArKue97XqnNmAMbJ75+5Zivbr
-	c4Ta15VLaIi0850cLvqHezs99qv0UODKaYPPO8NpsFI64RgIiOX5V9985cSoVAF9jug==
-X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr11485994lja.49.1557134918578;
-        Mon, 06 May 2019 02:28:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMYUABbXYnMGlk3rj2j/Nw5vbUow01N/ZlTKGo8OQ8ZdO3HYXpxGYG0sKKvG7sQyPL1cbz
-X-Received: by 2002:a2e:4a1a:: with SMTP id x26mr11485951lja.49.1557134917495;
-        Mon, 06 May 2019 02:28:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557134917; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=P1AsWbEhRa0wHsK8aH/Xd0AjHqgvO+evP2tETj4R/Hs=;
+        b=Kh3riInSFNxRd9IHdvhZHJMHqg5eUxKGWRk9u/rwsQ4ZSJQXoVgSCXsE4W2cu+HNXb
+         yHRHvqLckzEeZnUqjMKM8eAu+YJazNQ3DuSy0m35NenPb5lZ9FeCrYMVBhsoDim8F88n
+         ZsYP7GGvIb0L2Xh6rBbJsC+lDxC0K2Dv5/w/i1SIfyUYdwZ+yAdOKKSk3HlbKACImPxI
+         q761GItGrxhn8iT/ccaAoyokQzJPsuoscFuh8OZieThPeMAOfGi1gGoQ041ZI+KCtiaW
+         d88HCL/hRPh5No2FkiRPW+zSDziuSDxGL7LYM1T0AJt+7NhQB+KN6k80qQAAirKKxmcX
+         zG2g==
+X-Gm-Message-State: APjAAAW57VXD2Ux6d18rWO0Ny6hg99y+aD9Ag2JJDm4vVAPkzt8P7E7e
+	E0V/JVcYpqUbiLjYKe7YG88GkjOoy+szvNoffWXIfIj13TTcnNhWJPHHSvwFqWtH+0H5dUpWX8N
+	CF/T5SXpRL4ne31zyJUwF7wVMNDUfZIN/TcVIdyr4kH/7U69BJJf92EDU1AQtCLMhBQ==
+X-Received: by 2002:a24:7595:: with SMTP id y143mr4104171itc.42.1557150268559;
+        Mon, 06 May 2019 06:44:28 -0700 (PDT)
+X-Received: by 2002:a24:7595:: with SMTP id y143mr4104122itc.42.1557150267709;
+        Mon, 06 May 2019 06:44:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557150267; cv=none;
         d=google.com; s=arc-20160816;
-        b=mvnU+09xkMn0mJ2IW6l/cFKpoDaTKyhICQYXpUDlmMaeRfqxToVDPA5vCjJd7ClORY
-         EKQShIuhEuEXC4x48AVBOEOmgzPy2PYGCZ7fcCJ8fYChi2NSc66WOJw0beNGJG48LovA
-         uFrvl0+eatH27eZ99/1HKiJVCTVX0ixjVUse21+KwlYKVXc93K3j+qtnBmI+dxxK+TFq
-         ZFM6d+W5p2ex7SmMN8JpObYX5lHLVZaKe/DiYd82die5wgNo+8Iw6h9r+f/AYu5N7r/m
-         Y9oUDkhXqcP4VUEVs30j6wfB1M14fJjGPGLPVMpic/c88syyH0X6kX0PLsrLMAJn1/2O
-         lJGg==
+        b=yN3KviPsvf4yFS4wCtSQmYNCkzw3U1mO9Z0JCdwdHmMvt22vu+lcApgmYvIMSL6QfU
+         p3+J2V1bim1GbQlUvtJ5VHwdLFZhvBYw89O8DO9xbY4zCn1BsLK0X8OQ2ZfMEL3FJG1w
+         47lor7jnLVnc5F4yqCHC0kXex3LGqJSzRZLJ+HYZ3LUos4JZDpuR4E9gSHTds9/x7csL
+         NWY0u5lTS5XdzLi6+BN9h/itovZzRqjzPIya6olaBEgHrMYDAQj3xx6gCGNQx7OLzzJ4
+         oblauMCVs6JyqhxIWkGf22fDWaTuZaTR+jbk1Aw4rm7wmbvhYgnqsQTjDKj39xRzJgRk
+         tFzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=1xHA8J2HdFsE28d9fPQk7myjnMGhxmRbHEUD0QEyWeE=;
-        b=0A7U+oWQRFYQSfCY0yW56oAKyowHjxkShtPAWrudfeOUAzEORr/QEdg+w3l/cKZqDB
-         IXUEVsjD2k+GwyIww21rSu/JnczRMf8JGrCa+S4+EvbkBBiO0mw6nLweUHHQpzrGR4Y7
-         r5b+b2ykiMytrbIPp6f+R0O/TfTxOg3nU2PGrufpQVS0sGLQR9uPdMbVpp+OvxJMVwj4
-         unWw3/6Zc9+Sr+TWe2Wf6LAw3BAv7Loyuumd+/4VMq+ylmTjJbR/IaqB0x1p6MT9a8yG
-         y+V9FJaBEKrojkzFc7UF0nJgrLwAnp10PI1D+PXo+4e0ChZUN6cpsFbjYz452O8yYV6M
-         FRNQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=P1AsWbEhRa0wHsK8aH/Xd0AjHqgvO+evP2tETj4R/Hs=;
+        b=NQQy9YlgQ3AGscufN/dbDlF1NPv+O/yBuEdDwKgVox+b7gUEFr6rkYDSL/dbEOrrVg
+         mP74HU+vsdJfjVP34rhHWC6gScVS/D0htT1DDEOf+jqHRJDHROSO1iH2e0/GmUw68oiO
+         To20x9EKCBwn4Kl05zPwn58s0rK0ITCwZ6nKNGTEh7h0ievArr3z1k+KmFXUlroF/2jH
+         p5x7H5T6+nMhAljBmpjp+WrRvWpA9ndGiZJe+JJdgjNCftUVF01pxZdD/aLf66yHIwSC
+         JwiaecEChRIuD8e8+IQXpDDmCTR8ncpfQqNPzl53cchwEf2BIUD2eHVQmnWj89nhkpSS
+         uqEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id j15si7429149lji.192.2019.05.06.02.28.37
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mCRvGiMC;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i200sor13988625iti.18.2019.05.06.06.44.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 02:28:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Mon, 06 May 2019 06:44:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hNZv4-0002jm-38; Mon, 06 May 2019 12:28:22 +0300
-Subject: Re: [PATCH v3 2/2] prctl_set_mm: downgrade mmap_sem to read lock
-To: =?UTF-8?Q?Michal_Koutn=c3=bd?= <mkoutny@suse.com>, gorcunov@gmail.com
-Cc: akpm@linux-foundation.org, arunks@codeaurora.org, brgl@bgdev.pl,
- geert+renesas@glider.be, ldufour@linux.ibm.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, mguzik@redhat.com,
- mhocko@kernel.org, rppt@linux.ibm.com, vbabka@suse.cz
-References: <0a48e0a2-a282-159e-a56e-201fbc0faa91@virtuozzo.com>
- <20190502125203.24014-1-mkoutny@suse.com>
- <20190502125203.24014-3-mkoutny@suse.com>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <961c4d8a-982f-720b-490b-dfb4dae7be25@virtuozzo.com>
-Date: Mon, 6 May 2019 12:28:21 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mCRvGiMC;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=P1AsWbEhRa0wHsK8aH/Xd0AjHqgvO+evP2tETj4R/Hs=;
+        b=mCRvGiMCWNKbNQEDEHJPLjAQLrUoFSSCHXZ4fTSXpN0g/fIsZshRPm9ndJR5eUZFeS
+         cUUVjH5+H0srhJLB97pYS1dAESJ7tlFO12o1QmSKRMylSSrMX7eSkAQZPeAl3j+/4jot
+         Z0rf7bLAB+FWXtNFndWhjKloQyKtxfQf5Kq8g+VAeVRm9B5go9fsjfeA1Dd6Ooje6hgH
+         357+7liJijJSnEfmpI/7ugnjlRqi6Wms+2k2fk5xNGdbQ6jmPTdGnzA1IYZPJTlgFqN0
+         Ndu9I5tb/O92PbPFqb8n8H87QKDs4WxDWcu0C7SbNnCwtFrTK4+5MXiNHqnk7vlAYn6T
+         l3OQ==
+X-Google-Smtp-Source: APXvYqyNDZxWsCMEiiGgR4F3I9CPNPMghQJxWH7nmS2ow6tBDXdVdmASCVpQ1EAh1QL7BadGynC5IC5t7w0MYPoEEO8=
+X-Received: by 2002:a65:610a:: with SMTP id z10mr32127312pgu.54.1557150266321;
+ Mon, 06 May 2019 06:44:26 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190502125203.24014-3-mkoutny@suse.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <cover.1556630205.git.andreyknvl@google.com> <9a50ef07d927cbccd9620894bda825e551168c3d.1556630205.git.andreyknvl@google.com>
+ <bfe5e11e-6dc4-352f-57eb-d527f965a2ef@amd.com>
+In-Reply-To: <bfe5e11e-6dc4-352f-57eb-d527f965a2ef@amd.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 6 May 2019 15:44:15 +0200
+Message-ID: <CAAeHK+wFq_NwhYtoGapcrKDnCxZUcquBuW_ZCae+8CAqtp3ndQ@mail.gmail.com>
+Subject: Re: [PATCH v14 12/17] drm/radeon, arm64: untag user pointers
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, 
+	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, 
+	"linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, "Kuehling@google.com" <Kuehling@google.com>, 
+	"Deucher@google.com" <Deucher@google.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, 
+	"Koenig@google.com" <Koenig@google.com>, "Koenig, Christian" <Christian.Koenig@amd.com>, 
+	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
+	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
+	Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
+	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 02.05.2019 15:52, Michal Koutný wrote:
-> The commit a3b609ef9f8b ("proc read mm's {arg,env}_{start,end} with mmap
-> semaphore taken.") added synchronization of reading argument/environment
-> boundaries under mmap_sem. Later commit 88aa7cc688d4 ("mm: introduce
-> arg_lock to protect arg_start|end and env_start|end in mm_struct")
-> avoided the coarse use of mmap_sem in similar situations. But there
-> still remained two places that (mis)use mmap_sem.
-> 
-> get_cmdline should also use arg_lock instead of mmap_sem when it reads the
-> boundaries.
-> 
-> The second place that should use arg_lock is in prctl_set_mm. By
-> protecting the boundaries fields with the arg_lock, we can downgrade
-> mmap_sem to reader lock (analogous to what we already do in
-> prctl_set_mm_map).
-> 
-> v2: call find_vma without arg_lock held
-> v3: squashed get_cmdline arg_lock patch
-> 
-> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
-> Cc: Yang Shi <yang.shi@linux.alibaba.com>
-> Cc: Mateusz Guzik <mguzik@redhat.com>
-> CC: Cyrill Gorcunov <gorcunov@gmail.com>
-> Co-developed-by: Laurent Dufour <ldufour@linux.ibm.com>
-> Signed-off-by: Laurent Dufour <ldufour@linux.ibm.com>
-> Signed-off-by: Michal Koutný <mkoutny@suse.com>
+On Tue, Apr 30, 2019 at 7:57 PM Kuehling, Felix <Felix.Kuehling@amd.com> wrote:
+>
+> On 2019-04-30 9:25 a.m., Andrey Konovalov wrote:
+> > [CAUTION: External Email]
+> >
+> > This patch is a part of a series that extends arm64 kernel ABI to allow to
+> > pass tagged user pointers (with the top byte set to something else other
+> > than 0x00) as syscall arguments.
+> >
+> > radeon_ttm_tt_pin_userptr() uses provided user pointers for vma
+> > lookups, which can only by done with untagged pointers. This patch
+> > untags user pointers when they are being set in
+> > radeon_ttm_tt_pin_userptr().
+> >
+> > In amdgpu_gem_userptr_ioctl() an MMU notifier is set up with a (tagged)
+> > userspace pointer. The untagged address should be used so that MMU
+> > notifiers for the untagged address get correctly matched up with the right
+> > BO. This patch untags user pointers in radeon_gem_userptr_ioctl().
+> >
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >   drivers/gpu/drm/radeon/radeon_gem.c | 2 ++
+> >   drivers/gpu/drm/radeon/radeon_ttm.c | 2 +-
+> >   2 files changed, 3 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/drivers/gpu/drm/radeon/radeon_gem.c b/drivers/gpu/drm/radeon/radeon_gem.c
+> > index 44617dec8183..90eb78fb5eb2 100644
+> > --- a/drivers/gpu/drm/radeon/radeon_gem.c
+> > +++ b/drivers/gpu/drm/radeon/radeon_gem.c
+> > @@ -291,6 +291,8 @@ int radeon_gem_userptr_ioctl(struct drm_device *dev, void *data,
+> >          uint32_t handle;
+> >          int r;
+> >
+> > +       args->addr = untagged_addr(args->addr);
+> > +
+> >          if (offset_in_page(args->addr | args->size))
+> >                  return -EINVAL;
+> >
+> > diff --git a/drivers/gpu/drm/radeon/radeon_ttm.c b/drivers/gpu/drm/radeon/radeon_ttm.c
+> > index 9920a6fc11bf..dce722c494c1 100644
+> > --- a/drivers/gpu/drm/radeon/radeon_ttm.c
+> > +++ b/drivers/gpu/drm/radeon/radeon_ttm.c
+> > @@ -742,7 +742,7 @@ int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+> >          if (gtt == NULL)
+> >                  return -EINVAL;
+> >
+> > -       gtt->userptr = addr;
+> > +       gtt->userptr = untagged_addr(addr);
+>
+> Doing this here seems unnecessary, because you already untagged the
+> address in the only caller of this function in radeon_gem_userptr_ioctl.
+> The change there will affect both the userptr and MMU notifier setup and
+> makes sure that both are in sync, using the same untagged address.
 
-Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+Will fix in v15, thanks!
 
-> ---
->  kernel/sys.c | 10 ++++++++--
->  mm/util.c    |  4 ++--
->  2 files changed, 10 insertions(+), 4 deletions(-)
-> 
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index 5e0a5edf47f8..14be57840511 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -2122,9 +2122,14 @@ static int prctl_set_mm(int opt, unsigned long addr,
->  
->  	error = -EINVAL;
->  
-> -	down_write(&mm->mmap_sem);
-> +	/*
-> +	 * arg_lock protects concurent updates of arg boundaries, we need mmap_sem for
-> +	 * a) concurrent sys_brk, b) finding VMA for addr validation.
-> +	 */
-> +	down_read(&mm->mmap_sem);
->  	vma = find_vma(mm, addr);
->  
-> +	spin_lock(&mm->arg_lock);
->  	prctl_map.start_code	= mm->start_code;
->  	prctl_map.end_code	= mm->end_code;
->  	prctl_map.start_data	= mm->start_data;
-> @@ -2212,7 +2217,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
->  
->  	error = 0;
->  out:
-> -	up_write(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
-> +	up_read(&mm->mmap_sem);
->  	return error;
->  }
->  
-> diff --git a/mm/util.c b/mm/util.c
-> index 43a2984bccaa..5cf0e84a0823 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -758,12 +758,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
->  	if (!mm->arg_end)
->  		goto out_mm;	/* Shh! No looking before we're done */
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	arg_start = mm->arg_start;
->  	arg_end = mm->arg_end;
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	len = arg_end - arg_start;
->  
-> 
+>
+> Regards,
+>    Felix
+>
+>
+> >          gtt->usermm = current->mm;
+> >          gtt->userflags = flags;
+> >          return 0;
+> > --
+> > 2.21.0.593.g511ec345e18-goog
+> >
 
