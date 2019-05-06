@@ -7,90 +7,90 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88BDBC04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 81174C04AAB
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CFEB2087F
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 19046206BF
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="BHCfXCdC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CFEB2087F
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="RSgjsP4c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19046206BF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C4E026B0006; Mon,  6 May 2019 19:30:45 -0400 (EDT)
+	id 91A486B0007; Mon,  6 May 2019 19:30:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFE736B0007; Mon,  6 May 2019 19:30:45 -0400 (EDT)
+	id 8CA746B000A; Mon,  6 May 2019 19:30:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC6586B0008; Mon,  6 May 2019 19:30:45 -0400 (EDT)
+	id 76AC76B000C; Mon,  6 May 2019 19:30:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 68AF96B0006
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:30:45 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 17so8873907pfi.12
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:30:45 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 344066B0007
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:30:52 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q18so8052752pll.16
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:30:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references:mime-version:content-transfer-encoding:dkim-signature;
-        bh=8eIkxvqHvVaScHU2FC2TXtOhyiZOmYmAEq4GJNLP4D8=;
-        b=YUE7xNY4xqFk6kFRAypvTPPnE5vbTTRs54ZFnSqOf9aZY+xe0fBCdDJIMdnMR2FuAK
-         Cax6ygSumVuOAMJssHH7pVFVYAzf1XaeX6CL4ACT1NkQw4ByjYmwW6Uo8kiTFBIgTl6D
-         YS7ZNYZMIMRBw3ZFuV0+uzkwkzvMmhQwMpGy71Fr5LAQNh0SePIJMSLim7X8SNLD7S6S
-         S7vYPMC+9ClrWFf9juPpGDMRkFkXYWQoqVlZIS0CAs0eQM9tXT5PsgRe5OjPrGHvDi/q
-         f8Gf5G0MPqkUkbAo3hEfnbLBaBE+Xx9xcWO5O9dbu38FLPaTfC6dsi/4krmRaZsdPguX
-         1nhQ==
-X-Gm-Message-State: APjAAAWCaCPscYo+rvZn5ywskk7kf6o0+FVXDuwOtKx4KKFatLZ97ERt
-	Odos9ssKqrrzgsj+QmbqRCUyA+anOish8Ycy7aZY4nQBCFtvv/dEhtYE/kaKntKV/8ghEh13gI9
-	KbMJJ6myl9+UbM42wX9oyiKxPKNXJVOlpwbXhfzA7q751Wb3yecRbfI0kMxnAU3DNUA==
-X-Received: by 2002:a17:902:2aa6:: with SMTP id j35mr36100241plb.236.1557185444995;
-        Mon, 06 May 2019 16:30:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGbX0vMJNB8fuiC1sj46CBJPNHx9XtHkzWKTEJ1ga+CrrVy8Dr5qVaADlVuqPXDFsWbkF3
-X-Received: by 2002:a17:902:2aa6:: with SMTP id j35mr36100142plb.236.1557185443841;
-        Mon, 06 May 2019 16:30:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557185443; cv=none;
+        bh=lIdFU1rqHJ9svPV3iBuugHZa71MJn+mQZ7zg5rlsxNo=;
+        b=hVsMjHHcG1KPqelWcrmDX0LkW4s9I0+q7seT6ZJg3/izOG6lvxWbmDoWZJC11o/qBf
+         RpFf9imcXo9RyIJ3nCeDUWfCRvsgKQ9vWcD4mdCCj5oFNnwkO5iI8Hr/diDebYnyBG4Q
+         0t1vFpydZ1OQbCZiE2bOkaryhAUpP8AWXmpG9ynPz5QEkUtFpZ3j1IfxmQ0ufunL5iBe
+         h7mY5K2ASuv2s+qXswfrZFeXuLx8xQrU/6i5PtyPJQ8uXQEbHjtqu/1GlsFp74vzhwld
+         gdWj1EMi4A7H50nLWlVhPLRT4M6oHjyUBcIf1s4m8MYLk4ACNkOcN1+JAzeOpGqQLC43
+         jQ9Q==
+X-Gm-Message-State: APjAAAXlHTMQCb26J7m8q+LWkvNlcvxADWGQgu2VTv0s200JSXZtOkQj
+	rHVD2DxldPofzPaHp6PT3RKJ0+WgVXmUblkuXWqkjAOYm5bFs2bDzYVuSX2d4BR6GLggVaEobDt
+	JrzB7xyKxJiHhZgfQ1gBm9faUNEiUieeFcVreYfc9DIrr1exzYWx7WyFGXoF+MR831w==
+X-Received: by 2002:a62:3501:: with SMTP id c1mr37961178pfa.184.1557185451752;
+        Mon, 06 May 2019 16:30:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhHwPgPH/pKfQystX1B3DgqNQPP02VLzo7IMYEHxslfIBycRxpdEpyznd/wTRB5m8ABY7m
+X-Received: by 2002:a62:3501:: with SMTP id c1mr37961010pfa.184.1557185449816;
+        Mon, 06 May 2019 16:30:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557185449; cv=none;
         d=google.com; s=arc-20160816;
-        b=i8XKNDFcvKs6O/4brM08g3uuYsfkowBGs8SmlLPsDE/+lNJgkix7rXwclbcHdKHSkU
-         cal7gIFV4eIKlAPSfA1hOK5MmuubMtX9xqVsiCN9KVsm+bbtn+l98JwQhPMPhRlQIvST
-         qHCX3ia2pPWhxlmWaJSCg6WC7008dUg8z2EVIjLX6w+T+J0OdrK45eFlddBeoQW/Rf7L
-         PRIByP2tApCiXyxxNEkAJHvKoAOqtpcpxwizHCQCB2JPp2F3FhDngrIxLZwMQkkIZJLJ
-         4m7dsQudSeEarhULPuZSMsH/QA0Bojrj860YcNZELjLfhdcdNy93QpBEbe9RjThCQNKB
-         K2EQ==
+        b=tpfryQl5UGkKIH/gYm/Tc6X4CIwQNAqVXBqm9mPOOzEKFDXCoBM5llBBpY02N+fLtT
+         U+03YGIqKER9V08sKwtDMltfMDkLl30vNS5drdJlUIK/vmz2Rpjg+5JLlCn1VK5vjUoC
+         jrT4wL9H9i+G+HCL0OL47QxGuT4Xj8PQ3TztzMPbDfUaVB9bL0RAxz9RLYuAygWiUA4t
+         RMDTZScDcE+tqB2IbOnPxael3H+rdnBW2tRzOt6Fisg1fsFMnl1QT/RwjAs3Xob9a7ji
+         FVM1RArxXdgGXqHEZK8kwjeKB0gfgI7AasWpvDRkguw0ROcK0nRIkl5ulJi1Ly6o7MaG
+         57bA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=dkim-signature:content-transfer-encoding:mime-version:references
          :in-reply-to:message-id:date:subject:cc:to:from;
-        bh=8eIkxvqHvVaScHU2FC2TXtOhyiZOmYmAEq4GJNLP4D8=;
-        b=yqZzpouBq1FTCJ7v4H0tx7fGTDxMEkWt2R+szYN9oEmc38yfA6Ao3qvE1niynh2HVn
-         H4IuyKnoUK1nEYDk7PAccvy6+nS4QRhSJzFAQf0mPXXWeBxmZMwMo7rEIgxpmRCthRGL
-         C/i3NbLPaQFJBikE1MHpzwGRdNvlWPLUUBCtnStu9uX8gpNgwMQlrhvQotUAjlPNwKQd
-         A60hbodmv8XeSndhit48vaReCM40Bzbm4rjAyXX/qjbcLi7ql0aGJ5tEnsXMSxtBq5rs
-         mzMZv6dEtJdlz0AozG3CyX+UP2jyfCRAjpT0jRx8pJ8hNU0BSCPv/+4vUrxYG5a9trD2
-         Anhw==
+        bh=lIdFU1rqHJ9svPV3iBuugHZa71MJn+mQZ7zg5rlsxNo=;
+        b=MPw2vpYo1JI73bmivucYfMzenYJs4CMfS1ytPeFmJAfoXHEP7tSr/fcAyZ6XUz862I
+         QM2u/tCB2DG+i/O11tPy4gNZMIFnaSaSJ1Y8i+A6Ea5Qd4noWub3CtMADgi/0/KJX13g
+         YHWKo3U1S7VKUw25UhMw3nCV6k699kuH2wqWP+i1gOElbYfRFCRwxmPyKzxK1fD8VezH
+         gY/jswpBjU1MjaOG21t1NEDBcLKPGyMz+ToUAuSILakv3hCuYsAUDyVRfA5aLQxB3b4M
+         01IQG7NcRytDzTc1ckbHMan3qJrkbM19lrs/14rrPMa0v+DxNtA7+N1PCk7bAAlqz3yd
+         e6+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=BHCfXCdC;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RSgjsP4c;
        spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
 Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id 1si16657196pgx.176.2019.05.06.16.30.43
+        by mx.google.com with ESMTPS id e89si18628304plb.99.2019.05.06.16.30.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 16:30:43 -0700 (PDT)
+        Mon, 06 May 2019 16:30:49 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=BHCfXCdC;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RSgjsP4c;
        spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
 Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cd0c39f0000>; Mon, 06 May 2019 16:30:39 -0700
+	id <B5cd0c3a50000>; Mon, 06 May 2019 16:30:45 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
   by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 06 May 2019 16:30:43 -0700
+  Mon, 06 May 2019 16:30:49 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 06 May 2019 16:30:43 -0700
+	by hqpgpgate101.nvidia.com on Mon, 06 May 2019 16:30:49 -0700
 Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
  (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 6 May
- 2019 23:30:42 +0000
+ 2019 23:30:48 +0000
 From: <rcampbell@nvidia.com>
 To: <linux-mm@kvack.org>
 CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
@@ -99,9 +99,9 @@ CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
  Singh <bsingharora@gmail.com>, Dan Carpenter <dan.carpenter@oracle.com>,
 	Matthew Wilcox <willy@infradead.org>, Souptick Joarder
 	<jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH 1/5] mm/hmm: Update HMM documentation
-Date: Mon, 6 May 2019 16:29:38 -0700
-Message-ID: <20190506232942.12623-2-rcampbell@nvidia.com>
+Subject: [PATCH 2/5] mm/hmm: Clean up some coding style and comments
+Date: Mon, 6 May 2019 16:29:39 -0700
+Message-ID: <20190506232942.12623-3-rcampbell@nvidia.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190506232942.12623-1-rcampbell@nvidia.com>
 References: <20190506232942.12623-1-rcampbell@nvidia.com>
@@ -113,17 +113,17 @@ X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
 Content-Transfer-Encoding: quoted-printable
 Content-Type: text/plain
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1557185439; bh=8eIkxvqHvVaScHU2FC2TXtOhyiZOmYmAEq4GJNLP4D8=;
+	t=1557185445; bh=lIdFU1rqHJ9svPV3iBuugHZa71MJn+mQZ7zg5rlsxNo=;
 	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
 	 In-Reply-To:References:MIME-Version:X-NVConfidentiality:
 	 X-Originating-IP:X-ClientProxiedBy:Content-Transfer-Encoding:
 	 Content-Type;
-	b=BHCfXCdCMEMnATb8ROceswf+RLdd7AVuKfz+AfK3qZAAww/Q1APkIlzDzbITSNvKA
-	 ORcxD8aYXT+9iAhoKG/0465WmmPcYqJZ/47cbvCm80SdAOeVu7Osr4xUQxzqJaAtn+
-	 9l8Ac1pH4AR+oU8QDNOgkg+YOwzmUIRqRZ50nw9FFR0Bpa5ZcvrAYg9ue5zV1V55Y3
-	 aHb+CkhVDF8ZZsNThelTq8dCAFoK8b9TUtoR8mUNPp1r/bgz7UOpbV+aU2Cl7efV1c
-	 PJkI3Ux8u7SgnZWn4SwJgOco6EuC6UPN8vgnH4b6HraOnlZTc+QQwexus9oDTD8exp
-	 u8bLlIVMiDGsQ==
+	b=RSgjsP4cWyGu7325S3r5+6bbBt4X8E9r47TkjuH5gs5tG0bEAgD5Kl3dYQSzbJo8o
+	 fhxnA/JW/hqRUGYpgipY2FRNexErCAyUC1YQV5S3nKFzqT+iSaUKD/QQalzlKQkgo9
+	 bui4JW2YLMKAyCbiVGq3k/wX1j9gBqamiPqlgRrw861P/UFXzQVfsiLa5+gQNdlUvw
+	 t+axpH0K10Evm1hipSDGoxZCrbYk3BusIKX7DwWzzsYicpjiUuUqSXCGQZ/wMcSvW1
+	 ovVUE65aG3AUJoIH8KN5rDPkIpsR9Wy2Pt9E3/o5oi0VuY+BhLYnUnDDoLnBk91Y5q
+	 Q0vLkS4Qmr20w==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -132,8 +132,8 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ralph Campbell <rcampbell@nvidia.com>
 
-Update the HMM documentation to reflect the latest API and make a few minor
-wording changes.
+There are no functional changes, just some coding style clean ups and
+minor comment changes.
 
 Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
 Cc: John Hubbard <jhubbard@nvidia.com>
@@ -146,450 +146,469 @@ Cc: Matthew Wilcox <willy@infradead.org>
 Cc: Souptick Joarder <jrdr.linux@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- Documentation/vm/hmm.rst | 139 ++++++++++++++++++++-------------------
- 1 file changed, 73 insertions(+), 66 deletions(-)
+ include/linux/hmm.h | 71 +++++++++++++++++++++++----------------------
+ mm/hmm.c            | 51 ++++++++++++++++----------------
+ 2 files changed, 62 insertions(+), 60 deletions(-)
 
-diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-index ec1efa32af3c..7c1e929931a0 100644
---- a/Documentation/vm/hmm.rst
-+++ b/Documentation/vm/hmm.rst
-@@ -10,7 +10,7 @@ of this being specialized struct page for such memory (se=
-e sections 5 to 7 of
- this document).
-=20
- HMM also provides optional helpers for SVM (Share Virtual Memory), i.e.,
--allowing a device to transparently access program address coherently with
-+allowing a device to transparently access program addresses coherently wit=
-h
- the CPU meaning that any valid pointer on the CPU is also a valid pointer
- for the device. This is becoming mandatory to simplify the use of advanced
- heterogeneous computing where GPU, DSP, or FPGA are used to perform variou=
-s
-@@ -22,8 +22,8 @@ expose the hardware limitations that are inherent to many=
- platforms. The third
- section gives an overview of the HMM design. The fourth section explains h=
-ow
- CPU page-table mirroring works and the purpose of HMM in this context. The
- fifth section deals with how device memory is represented inside the kerne=
-l.
--Finally, the last section presents a new migration helper that allows leve=
-r-
--aging the device DMA engine.
-+Finally, the last section presents a new migration helper that allows
-+leveraging the device DMA engine.
-=20
- .. contents:: :local:
-=20
-@@ -39,20 +39,20 @@ address space. I use shared address space to refer to t=
-he opposite situation:
- i.e., one in which any application memory region can be used by a device
- transparently.
-=20
--Split address space happens because device can only access memory allocate=
-d
--through device specific API. This implies that all memory objects in a pro=
-gram
-+Split address space happens because devices can only access memory allocat=
-ed
-+through a device specific API. This implies that all memory objects in a p=
-rogram
- are not equal from the device point of view which complicates large progra=
-ms
- that rely on a wide set of libraries.
-=20
--Concretely this means that code that wants to leverage devices like GPUs n=
-eeds
--to copy object between generically allocated memory (malloc, mmap private,=
- mmap
-+Concretely, this means that code that wants to leverage devices like GPUs =
-needs
-+to copy objects between generically allocated memory (malloc, mmap private=
-, mmap
- share) and memory allocated through the device driver API (this still ends=
- up
- with an mmap but of the device file).
-=20
- For flat data sets (array, grid, image, ...) this isn't too hard to achiev=
-e but
--complex data sets (list, tree, ...) are hard to get right. Duplicating a
-+for complex data sets (list, tree, ...) it's hard to get right. Duplicatin=
-g a
- complex data set needs to re-map all the pointer relations between each of=
- its
--elements. This is error prone and program gets harder to debug because of =
-the
-+elements. This is error prone and programs get harder to debug because of =
-the
- duplicate data set and addresses.
-=20
- Split address space also means that libraries cannot transparently use dat=
-a
-@@ -77,12 +77,12 @@ I/O bus, device memory characteristics
-=20
- I/O buses cripple shared address spaces due to a few limitations. Most I/O
- buses only allow basic memory access from device to main memory; even cach=
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 51ec27a84668..35a429621e1e 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -30,8 +30,8 @@
+  *
+  * HMM address space mirroring API:
+  *
+- * Use HMM address space mirroring if you want to mirror range of the CPU =
+page
+- * table of a process into a device page table. Here, "mirror" means "keep
++ * Use HMM address space mirroring if you want to mirror a range of the CP=
+U
++ * page tables of a process into a device page table. Here, "mirror" means=
+ "keep
+  * synchronized". Prerequisites: the device must provide the ability to wr=
+ite-
+  * protect its page tables (at PAGE_SIZE granularity), and must be able to
+  * recover from the resulting potential page faults.
+@@ -114,10 +114,11 @@ struct hmm {
+  * HMM_PFN_WRITE: CPU page table has write permission set
+  * HMM_PFN_DEVICE_PRIVATE: private device memory (ZONE_DEVICE)
+  *
+- * The driver provide a flags array, if driver valid bit for an entry is b=
+it
+- * 3 ie (entry & (1 << 3)) is true if entry is valid then driver must prov=
+ide
++ * The driver provides a flags array for mapping page protections to devic=
 e
--coherency is often optional. Access to device memory from CPU is even more
-+coherency is often optional. Access to device memory from a CPU is even mo=
-re
- limited. More often than not, it is not cache coherent.
++ * PTE bits. If the driver valid bit for an entry is bit 3,
++ * i.e., (entry & (1 << 3)), then the driver must provide
+  * an array in hmm_range.flags with hmm_range.flags[HMM_PFN_VALID] =3D=3D =
+1 << 3.
+- * Same logic apply to all flags. This is same idea as vm_page_prot in vma
++ * Same logic apply to all flags. This is the same idea as vm_page_prot in=
+ vma
+  * except that this is per device driver rather than per architecture.
+  */
+ enum hmm_pfn_flag_e {
+@@ -138,13 +139,13 @@ enum hmm_pfn_flag_e {
+  *      be mirrored by a device, because the entry will never have HMM_PFN=
+_VALID
+  *      set and the pfn value is undefined.
+  *
+- * Driver provide entry value for none entry, error entry and special entr=
+y,
+- * driver can alias (ie use same value for error and special for instance)=
+. It
+- * should not alias none and error or special.
++ * Driver provides values for none entry, error entry, and special entry.
++ * Driver can alias (i.e., use same value) error and special, but
++ * it should not alias none with error or special.
+  *
+  * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will be=
+:
+  * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
+- * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table
++ * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table entry,
+  * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a special =
+one
+  */
+ enum hmm_pfn_value_e {
+@@ -167,6 +168,7 @@ enum hmm_pfn_value_e {
+  * @values: pfn value for some special case (none, special, error, ...)
+  * @default_flags: default flags for the range (write, read, ... see hmm d=
+oc)
+  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags ma=
+tter
++ * @page_shift: device virtual address shift value (should be >=3D PAGE_SH=
+IFT)
+  * @pfn_shifts: pfn shift value (should be <=3D PAGE_SHIFT)
+  * @valid: pfns array did not change since it has been fill by an HMM func=
+tion
+  */
+@@ -189,7 +191,7 @@ struct hmm_range {
+ /*
+  * hmm_range_page_shift() - return the page shift for the range
+  * @range: range being queried
+- * Returns: page shift (page size =3D 1 << page shift) for the range
++ * Return: page shift (page size =3D 1 << page shift) for the range
+  */
+ static inline unsigned hmm_range_page_shift(const struct hmm_range *range)
+ {
+@@ -199,7 +201,7 @@ static inline unsigned hmm_range_page_shift(const struc=
+t hmm_range *range)
+ /*
+  * hmm_range_page_size() - return the page size for the range
+  * @range: range being queried
+- * Returns: page size for the range in bytes
++ * Return: page size for the range in bytes
+  */
+ static inline unsigned long hmm_range_page_size(const struct hmm_range *ra=
+nge)
+ {
+@@ -210,7 +212,7 @@ static inline unsigned long hmm_range_page_size(const s=
+truct hmm_range *range)
+  * hmm_range_wait_until_valid() - wait for range to be valid
+  * @range: range affected by invalidation to wait on
+  * @timeout: time out for wait in ms (ie abort wait after that period of t=
+ime)
+- * Returns: true if the range is valid, false otherwise.
++ * Return: true if the range is valid, false otherwise.
+  */
+ static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
+ 					      unsigned long timeout)
+@@ -231,7 +233,7 @@ static inline bool hmm_range_wait_until_valid(struct hm=
+m_range *range,
+ /*
+  * hmm_range_valid() - test if a range is valid or not
+  * @range: range
+- * Returns: true if the range is valid, false otherwise.
++ * Return: true if the range is valid, false otherwise.
+  */
+ static inline bool hmm_range_valid(struct hmm_range *range)
+ {
+@@ -242,7 +244,7 @@ static inline bool hmm_range_valid(struct hmm_range *ra=
+nge)
+  * hmm_device_entry_to_page() - return struct page pointed to by a device =
+entry
+  * @range: range use to decode device entry value
+  * @entry: device entry value to get corresponding struct page from
+- * Returns: struct page pointer if entry is a valid, NULL otherwise
++ * Return: struct page pointer if entry is a valid, NULL otherwise
+  *
+  * If the device entry is valid (ie valid flag set) then return the struct=
+ page
+  * matching the entry value. Otherwise return NULL.
+@@ -265,7 +267,7 @@ static inline struct page *hmm_device_entry_to_page(con=
+st struct hmm_range *rang
+  * hmm_device_entry_to_pfn() - return pfn value store in a device entry
+  * @range: range use to decode device entry value
+  * @entry: device entry to extract pfn from
+- * Returns: pfn value if device entry is valid, -1UL otherwise
++ * Return: pfn value if device entry is valid, -1UL otherwise
+  */
+ static inline unsigned long
+ hmm_device_entry_to_pfn(const struct hmm_range *range, uint64_t pfn)
+@@ -285,7 +287,7 @@ hmm_device_entry_to_pfn(const struct hmm_range *range, =
+uint64_t pfn)
+  * hmm_device_entry_from_page() - create a valid device entry for a page
+  * @range: range use to encode HMM pfn value
+  * @page: page for which to create the device entry
+- * Returns: valid device entry for the page
++ * Return: valid device entry for the page
+  */
+ static inline uint64_t hmm_device_entry_from_page(const struct hmm_range *=
+range,
+ 						  struct page *page)
+@@ -298,7 +300,7 @@ static inline uint64_t hmm_device_entry_from_page(const=
+ struct hmm_range *range,
+  * hmm_device_entry_from_pfn() - create a valid device entry value from pf=
+n
+  * @range: range use to encode HMM pfn value
+  * @pfn: pfn value for which to create the device entry
+- * Returns: valid device entry for the pfn
++ * Return: valid device entry for the pfn
+  */
+ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *r=
+ange,
+ 						 unsigned long pfn)
+@@ -403,7 +405,7 @@ enum hmm_update_event {
+ };
 =20
- If we only consider the PCIE bus, then a device can access main memory (of=
-ten
- through an IOMMU) and be cache coherent with the CPUs. However, it only al=
-lows
--a limited set of atomic operations from device on main memory. This is wor=
-se
-+a limited set of atomic operations from the device on main memory. This is=
- worse
- in the other direction: the CPU can only access a limited range of the dev=
-ice
- memory and cannot perform atomic operations on it. Thus device memory cann=
-ot
- be considered the same as regular memory from the kernel point of view.
-@@ -93,20 +93,20 @@ The final limitation is latency. Access to main memory =
-from the device has an
- order of magnitude higher latency than when the device accesses its own me=
-mory.
-=20
- Some platforms are developing new I/O buses or additions/modifications to =
-PCIE
--to address some of these limitations (OpenCAPI, CCIX). They mainly allow t=
-wo-
--way cache coherency between CPU and device and allow all atomic operations=
+ /*
+- * struct hmm_update - HMM update informations for callback
++ * struct hmm_update - HMM update information for callback
+  *
+  * @start: virtual start address of the range to update
+  * @end: virtual end address of the range to update
+@@ -436,8 +438,8 @@ struct hmm_mirror_ops {
+ 	/* sync_cpu_device_pagetables() - synchronize page tables
+ 	 *
+ 	 * @mirror: pointer to struct hmm_mirror
+-	 * @update: update informations (see struct hmm_update)
+-	 * Returns: -EAGAIN if update.blockable false and callback need to
++	 * @update: update information (see struct hmm_update)
++	 * Return: -EAGAIN if update.blockable false and callback need to
+ 	 *          block, 0 otherwise.
+ 	 *
+ 	 * This callback ultimately originates from mmu_notifiers when the CPU
+@@ -476,13 +478,13 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)=
+;
+ /*
+  * hmm_mirror_mm_is_alive() - test if mm is still alive
+  * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+- * Returns: false if the mm is dead, true otherwise
++ * Return: false if the mm is dead, true otherwise
+  *
+- * This is an optimization it will not accurately always return -EINVAL if=
  the
-+to address some of these limitations (OpenCAPI, CCIX). They mainly allow
-+two-way cache coherency between CPU and device and allow all atomic operat=
-ions the
- architecture supports. Sadly, not all platforms are following this trend a=
-nd
- some major architectures are left without hardware solutions to these prob=
-lems.
-=20
- So for shared address space to make sense, not only must we allow devices =
-to
- access any memory but we must also permit any memory to be migrated to dev=
-ice
--memory while device is using it (blocking CPU access while it happens).
-+memory while the device is using it (blocking CPU access while it happens)=
-.
-=20
-=20
- Shared address space and migration
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
--HMM intends to provide two main features. First one is to share the addres=
-s
-+HMM intends to provide two main features. The first one is to share the ad=
-dress
- space by duplicating the CPU page table in the device page table so the sa=
-me
- address points to the same physical memory for any valid main memory addre=
-ss in
- the process address space.
-@@ -121,14 +121,14 @@ why HMM provides helpers to factor out everything tha=
-t can be while leaving the
- hardware specific details to the device driver.
-=20
- The second mechanism HMM provides is a new kind of ZONE_DEVICE memory that
--allows allocating a struct page for each page of the device memory. Those =
-pages
-+allows allocating a struct page for each page of device memory. Those page=
-s
- are special because the CPU cannot map them. However, they allow migrating
- main memory to device memory using existing migration mechanisms and every=
-thing
--looks like a page is swapped out to disk from the CPU point of view. Using=
- a
--struct page gives the easiest and cleanest integration with existing mm me=
-ch-
--anisms. Here again, HMM only provides helpers, first to hotplug new ZONE_D=
-EVICE
-+looks like a page that is swapped out to disk from the CPU point of view. =
-Using a
-+struct page gives the easiest and cleanest integration with existing mm
-+mechanisms. Here again, HMM only provides helpers, first to hotplug new ZO=
-NE_DEVICE
- memory for the device memory and second to perform migration. Policy decis=
-ions
--of what and when to migrate things is left to the device driver.
-+of what and when to migrate is left to the device driver.
-=20
- Note that any CPU access to a device page triggers a page fault and a migr=
-ation
- back to main memory. For example, when a page backing a given CPU address =
-A is
-@@ -136,8 +136,8 @@ migrated from a main memory page to a device page, then=
- any CPU access to
- address A triggers a page fault and initiates a migration back to main mem=
-ory.
-=20
- With these two features, HMM not only allows a device to mirror process ad=
-dress
--space and keeping both CPU and device page table synchronized, but also le=
-ver-
--ages device memory by migrating the part of the data set that is actively =
-being
-+space and keeps both CPU and device page tables synchronized, but also
-+leverages device memory by migrating the part of the data set that is acti=
-vely being
- used by the device.
-=20
-=20
-@@ -151,21 +151,27 @@ registration of an hmm_mirror struct::
-=20
-  int hmm_mirror_register(struct hmm_mirror *mirror,
-                          struct mm_struct *mm);
-- int hmm_mirror_register_locked(struct hmm_mirror *mirror,
--                                struct mm_struct *mm);
+- * mm is dead ie there can be false negative (process is being kill but HM=
+M is
+- * not yet inform of that). It is only intented to be use to optimize out =
+case
+- * where driver is about to do something time consuming and it would be be=
+tter
+- * to skip it if the mm is dead.
++ * This is an optimization, it will not always accurately return false if =
+the
++ * mm is dead; i.e., there can be false negatives (process is being killed=
+ but
++ * HMM is not yet informed of that). It is only intended to be used to opt=
+imize
++ * out cases where the driver is about to do something time consuming and =
+it
++ * would be better to skip it if the mm is dead.
+  */
+ static inline bool hmm_mirror_mm_is_alive(struct hmm_mirror *mirror)
+ {
+@@ -497,7 +499,6 @@ static inline bool hmm_mirror_mm_is_alive(struct hmm_mi=
+rror *mirror)
+ 	return true;
+ }
 =20
 -
--The locked variant is to be used when the driver is already holding mmap_s=
-em
--of the mm in write mode. The mirror struct has a set of callbacks that are=
- used
-+The mirror struct has a set of callbacks that are used
- to propagate CPU page tables::
+ /*
+  * Please see Documentation/vm/hmm.rst for how to use the range API.
+  */
+@@ -570,7 +571,7 @@ static inline int hmm_vma_fault(struct hmm_range *range=
+, bool block)
+ 	ret =3D hmm_range_fault(range, block);
+ 	if (ret <=3D 0) {
+ 		if (ret =3D=3D -EBUSY || !ret) {
+-			/* Same as above  drop mmap_sem to match old API. */
++			/* Same as above, drop mmap_sem to match old API. */
+ 			up_read(&range->vma->vm_mm->mmap_sem);
+ 			ret =3D -EBUSY;
+ 		} else if (ret =3D=3D -EAGAIN)
+@@ -637,7 +638,7 @@ struct hmm_devmem_ops {
+ 	 * @page: pointer to struct page backing virtual address (unreliable)
+ 	 * @flags: FAULT_FLAG_* (see include/linux/mm.h)
+ 	 * @pmdp: page middle directory
+-	 * Returns: VM_FAULT_MINOR/MAJOR on success or one of VM_FAULT_ERROR
++	 * Return: VM_FAULT_MINOR/MAJOR on success or one of VM_FAULT_ERROR
+ 	 *   on error
+ 	 *
+ 	 * The callback occurs whenever there is a CPU page fault or GUP on a
+@@ -645,14 +646,14 @@ struct hmm_devmem_ops {
+ 	 * page back to regular memory (CPU accessible).
+ 	 *
+ 	 * The device driver is free to migrate more than one page from the
+-	 * fault() callback as an optimization. However if device decide to
+-	 * migrate more than one page it must always priotirize the faulting
++	 * fault() callback as an optimization. However if the device decides
++	 * to migrate more than one page it must always priotirize the faulting
+ 	 * address over the others.
+ 	 *
+-	 * The struct page pointer is only given as an hint to allow quick
++	 * The struct page pointer is only given as a hint to allow quick
+ 	 * lookup of internal device driver data. A concurrent migration
+-	 * might have already free that page and the virtual address might
+-	 * not longer be back by it. So it should not be modified by the
++	 * might have already freed that page and the virtual address might
++	 * no longer be backed by it. So it should not be modified by the
+ 	 * callback.
+ 	 *
+ 	 * Note that mmap semaphore is held in read mode at least when this
+@@ -679,7 +680,7 @@ struct hmm_devmem_ops {
+  * @ref: per CPU refcount
+  * @page_fault: callback when CPU fault on an unaddressable device page
+  *
+- * This an helper structure for device drivers that do not wish to impleme=
+nt
++ * This is a helper structure for device drivers that do not wish to imple=
+ment
+  * the gory details related to hotplugging new memoy and allocating struct
+  * pages.
+  *
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 0db8491090b8..f6c4c8633db9 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -162,9 +162,8 @@ static void hmm_release(struct mmu_notifier *mn, struct=
+ mm_struct *mm)
 =20
-  struct hmm_mirror_ops {
-+     /* release() - release hmm_mirror
-+      *
-+      * @mirror: pointer to struct hmm_mirror
-+      *
-+      * This is called when the mm_struct is being released.
-+      * The callback should make sure no references to the mirror occur
-+      * after the callback returns.
-+      */
-+     void (*release)(struct hmm_mirror *mirror);
+ 	/* Wake-up everyone waiting on any range. */
+ 	mutex_lock(&hmm->lock);
+-	list_for_each_entry(range, &hmm->ranges, list) {
++	list_for_each_entry(range, &hmm->ranges, list)
+ 		range->valid =3D false;
+-	}
+ 	wake_up_all(&hmm->wq);
+ 	mutex_unlock(&hmm->lock);
+=20
+@@ -175,9 +174,10 @@ static void hmm_release(struct mmu_notifier *mn, struc=
+t mm_struct *mm)
+ 		list_del_init(&mirror->list);
+ 		if (mirror->ops->release) {
+ 			/*
+-			 * Drop mirrors_sem so callback can wait on any pending
+-			 * work that might itself trigger mmu_notifier callback
+-			 * and thus would deadlock with us.
++			 * Drop mirrors_sem so the release callback can wait
++			 * on any pending work that might itself trigger a
++			 * mmu_notifier callback and thus would deadlock with
++			 * us.
+ 			 */
+ 			up_write(&hmm->mirrors_sem);
+ 			mirror->ops->release(mirror);
+@@ -232,11 +232,8 @@ static int hmm_invalidate_range_start(struct mmu_notif=
+ier *mn,
+ 		int ret;
+=20
+ 		ret =3D mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+-		if (!update.blockable && ret =3D=3D -EAGAIN) {
+-			up_read(&hmm->mirrors_sem);
+-			ret =3D -EAGAIN;
+-			goto out;
+-		}
++		if (!update.blockable && ret =3D=3D -EAGAIN)
++			break;
+ 	}
+ 	up_read(&hmm->mirrors_sem);
+=20
+@@ -280,6 +277,7 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_o=
+ps =3D {
+  *
+  * @mirror: new mirror struct to register
+  * @mm: mm to register against
++ * Return: 0 on success, -ENOMEM if no memory, -EINVAL if invalid argument=
+s
+  *
+  * To start mirroring a process address space, the device driver must regi=
+ster
+  * an HMM mirror struct.
+@@ -307,7 +305,7 @@ EXPORT_SYMBOL(hmm_mirror_register);
+ /*
+  * hmm_mirror_unregister() - unregister a mirror
+  *
+- * @mirror: new mirror struct to register
++ * @mirror: mirror struct to unregister
+  *
+  * Stop mirroring a process address space, and cleanup.
+  */
+@@ -381,7 +379,7 @@ static int hmm_pfns_bad(unsigned long addr,
+  * @fault: should we fault or not ?
+  * @write_fault: write fault ?
+  * @walk: mm_walk structure
+- * Returns: 0 on success, -EBUSY after page fault, or page fault error
++ * Return: 0 on success, -EBUSY after page fault, or page fault error
+  *
+  * This function will be called whenever pmd_none() or pte_none() returns =
+true,
+  * or whenever there is no page directory covering the virtual address ran=
+ge.
+@@ -924,6 +922,7 @@ int hmm_range_register(struct hmm_range *range,
+ 		       unsigned page_shift)
+ {
+ 	unsigned long mask =3D ((1UL << page_shift) - 1UL);
++	struct hmm *hmm;
+=20
+ 	range->valid =3D false;
+ 	range->hmm =3D NULL;
+@@ -947,18 +946,18 @@ int hmm_range_register(struct hmm_range *range,
+ 		return -EFAULT;
+ 	}
+=20
+-	/* Initialize range to track CPU page table update */
++	/* Initialize range to track CPU page table updates. */
+ 	mutex_lock(&range->hmm->lock);
+=20
+-	list_add_rcu(&range->list, &range->hmm->ranges);
++	list_add_rcu(&range->list, &hmm->ranges);
+=20
+ 	/*
+ 	 * If there are any concurrent notifiers we have to wait for them for
+ 	 * the range to be valid (see hmm_range_wait_until_valid()).
+ 	 */
+-	if (!range->hmm->notifiers)
++	if (!hmm->notifiers)
+ 		range->valid =3D true;
+-	mutex_unlock(&range->hmm->lock);
++	mutex_unlock(&hmm->lock);
+=20
+ 	return 0;
+ }
+@@ -973,17 +972,19 @@ EXPORT_SYMBOL(hmm_range_register);
+  */
+ void hmm_range_unregister(struct hmm_range *range)
+ {
++	struct hmm *hmm =3D range->hmm;
 +
-      /* sync_cpu_device_pagetables() - synchronize page tables
-       *
-       * @mirror: pointer to struct hmm_mirror
--      * @update_type: type of update that occurred to the CPU page table
--      * @start: virtual start address of the range to update
--      * @end: virtual end address of the range to update
-+      * @update: update information (see struct mmu_notifier_range)
-+      * Return: -EAGAIN if update.blockable false and callback need to
-+      *         block, 0 otherwise.
-       *
-       * This callback ultimately originates from mmu_notifiers when the CP=
-U
-       * page table is updated. The device driver must update its page tabl=
+ 	/* Sanity check this really should not happen. */
+-	if (range->hmm =3D=3D NULL || range->end <=3D range->start)
++	if (hmm =3D=3D NULL || range->end <=3D range->start)
+ 		return;
+=20
+-	mutex_lock(&range->hmm->lock);
++	mutex_lock(&hmm->lock);
+ 	list_del_rcu(&range->list);
+-	mutex_unlock(&range->hmm->lock);
++	mutex_unlock(&hmm->lock);
+=20
+ 	/* Drop reference taken by hmm_range_register() */
+ 	range->valid =3D false;
+-	hmm_put(range->hmm);
++	hmm_put(hmm);
+ 	range->hmm =3D NULL;
+ }
+ EXPORT_SYMBOL(hmm_range_unregister);
+@@ -991,7 +992,7 @@ EXPORT_SYMBOL(hmm_range_unregister);
+ /*
+  * hmm_range_snapshot() - snapshot CPU page table for a range
+  * @range: range
+- * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM inv=
+alid
++ * Return: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM inva=
+lid
+  *          permission (for instance asking for write and range is read on=
+ly),
+  *          -EAGAIN if you need to retry, -EFAULT invalid (ie either no va=
+lid
+  *          vma or it is illegal to access that range), number of valid pa=
+ges
+@@ -1075,7 +1076,7 @@ EXPORT_SYMBOL(hmm_range_snapshot);
+  * hmm_range_fault() - try to fault some address in a virtual address rang=
 e
-@@ -176,14 +182,12 @@ to propagate CPU page tables::
-       * page tables are completely updated (TLBs flushed, etc); this is a
-       * synchronous call.
-       */
--      void (*update)(struct hmm_mirror *mirror,
--                     enum hmm_update action,
--                     unsigned long start,
--                     unsigned long end);
-+     int (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
-+                                       const struct hmm_update *update);
-  };
-=20
- The device driver must perform the update action to the range (mark range
--read only, or fully unmap, ...). The device must be done with the update b=
-efore
-+read only, or fully unmap, etc.). The device must complete the update befo=
-re
- the driver callback returns.
-=20
- When the device driver wants to populate a range of virtual addresses, it =
-can
-@@ -194,17 +198,18 @@ use either::
-=20
- The first one (hmm_range_snapshot()) will only fetch present CPU page tabl=
-e
- entries and will not trigger a page fault on missing or non-present entrie=
-s.
--The second one does trigger a page fault on missing or read-only entry if =
-the
--write parameter is true. Page faults use the generic mm page fault code pa=
-th
--just like a CPU page fault.
-+The second one does trigger a page fault on missing or read-only entries i=
-f
-+write access is requested (see below). Page faults use the generic mm page
-+fault code path just like a CPU page fault.
-=20
- Both functions copy CPU page table entries into their pfns array argument.=
- Each
- entry in that array corresponds to an address in the virtual range. HMM
- provides a set of flags to help the driver identify special CPU page table
- entries.
-=20
--Locking with the update() callback is the most important aspect the driver=
- must
--respect in order to keep things properly synchronized. The usage pattern i=
-s::
-+Locking within the sync_cpu_device_pagetables() callback is the most impor=
-tant
-+aspect the driver must respect in order to keep things properly synchroniz=
-ed.
-+The usage pattern is::
-=20
-  int driver_populate_range(...)
-  {
-@@ -243,7 +248,7 @@ respect in order to keep things properly synchronized. =
-The usage pattern is::
-           return ret;
-       }
-       take_lock(driver->update);
--      if (!range.valid) {
-+      if (!hmm_range_valid(&range)) {
-           release_lock(driver->update);
-           up_read(&mm->mmap_sem);
-           goto again;
-@@ -258,8 +263,8 @@ respect in order to keep things properly synchronized. =
-The usage pattern is::
-  }
-=20
- The driver->update lock is the same lock that the driver takes inside its
--update() callback. That lock must be held before checking the range.valid
--field to avoid any race with a concurrent CPU page table update.
-+sync_cpu_device_pagetables() callback. That lock must be held before calli=
-ng
-+hmm_range_valid() to avoid any race with a concurrent CPU page table updat=
-e.
-=20
- HMM implements all this on top of the mmu_notifier API because we wanted a
- simpler API and also to be able to perform optimizations latter on like do=
-ing
-@@ -279,44 +284,46 @@ concurrently).
- Leverage default_flags and pfn_flags_mask
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
--The hmm_range struct has 2 fields default_flags and pfn_flags_mask that al=
-lows
--to set fault or snapshot policy for a whole range instead of having to set=
- them
--for each entries in the range.
-+The hmm_range struct has 2 fields, default_flags and pfn_flags_mask, that =
-specify
-+fault or snapshot policy for the whole range instead of having to set them
-+for each entry in the pfns array.
-+
-+For instance, if the device flags for range.flags are::
-=20
--For instance if the device flags for device entries are:
--    VALID (1 << 63)
--    WRITE (1 << 62)
-+    range.flags[HMM_PFN_VALID] =3D (1 << 63);
-+    range.flags[HMM_PFN_WRITE] =3D (1 << 62);
-=20
--Now let say that device driver wants to fault with at least read a range t=
-hen
--it does set:
--    range->default_flags =3D (1 << 63)
-+and the device driver wants pages for a range with at least read permissio=
-n,
-+it sets::
-+
-+    range->default_flags =3D (1 << 63);
-     range->pfn_flags_mask =3D 0;
-=20
--and calls hmm_range_fault() as described above. This will fill fault all p=
-age
-+and calls hmm_range_fault() as described above. This will fill fault all p=
-ages
- in the range with at least read permission.
-=20
--Now let say driver wants to do the same except for one page in the range f=
-or
--which its want to have write. Now driver set:
-+Now let's say the driver wants to do the same except for one page in the r=
-ange for
-+which it wants to have write permission. Now driver set:
-     range->default_flags =3D (1 << 63);
-     range->pfn_flags_mask =3D (1 << 62);
-     range->pfns[index_of_write] =3D (1 << 62);
-=20
--With this HMM will fault in all page with at least read (ie valid) and for=
- the
-+With this, HMM will fault in all pages with at least read (i.e., valid) an=
-d for the
- address =3D=3D range->start + (index_of_write << PAGE_SHIFT) it will fault=
- with
--write permission ie if the CPU pte does not have write permission set then=
- HMM
-+write permission i.e., if the CPU pte does not have write permission set t=
-hen HMM
- will call handle_mm_fault().
-=20
--Note that HMM will populate the pfns array with write permission for any e=
-ntry
--that have write permission within the CPU pte no matter what are the value=
-s set
-+Note that HMM will populate the pfns array with write permission for any p=
-age
-+that is mapped with CPU write permission no matter what values are set
- in default_flags or pfn_flags_mask.
-=20
-=20
- Represent and manage device memory from core kernel point of view
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
--Several different designs were tried to support device memory. First one u=
-sed
--a device specific data structure to keep information about migrated memory=
- and
--HMM hooked itself in various places of mm code to handle any access to
-+Several different designs were tried to support device memory. The first o=
-ne
-+used a device specific data structure to keep information about migrated m=
-emory
-+and HMM hooked itself in various places of mm code to handle any access to
- addresses that were backed by device memory. It turns out that this ended =
-up
- replicating most of the fields of struct page and also needed many kernel =
-code
- paths to be updated to understand this new kind of memory.
-@@ -339,7 +346,7 @@ The hmm_devmem_ops is where most of the important thing=
-s are::
-=20
-  struct hmm_devmem_ops {
-      void (*free)(struct hmm_devmem *devmem, struct page *page);
--     int (*fault)(struct hmm_devmem *devmem,
-+     vm_fault_t (*fault)(struct hmm_devmem *devmem,
-                   struct vm_area_struct *vma,
-                   unsigned long addr,
-                   struct page *page,
-@@ -415,9 +422,9 @@ willing to pay to keep all the code simpler.
- Memory cgroup (memcg) and rss accounting
- =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-=20
--For now device memory is accounted as any regular page in rss counters (ei=
-ther
-+For now, device memory is accounted as any regular page in rss counters (e=
-ither
- anonymous if device page is used for anonymous, file if device page is use=
-d for
--file backed page or shmem if device page is used for shared memory). This =
-is a
-+file backed page, or shmem if device page is used for shared memory). This=
- is a
- deliberate choice to keep existing applications, that might start using de=
-vice
- memory without knowing about it, running unimpacted.
-=20
-@@ -437,6 +444,6 @@ get more experience in how device memory is used and it=
-s impact on memory
- resource control.
-=20
-=20
--Note that device memory can never be pinned by device driver nor through G=
-UP
-+Note that device memory can never be pinned by a device driver nor through=
- GUP
- and thus such memory is always free upon process exit. Or when last refere=
-nce
- is dropped in case of shared memory or file backed memory.
+  * @range: range being faulted
+  * @block: allow blocking on fault (if true it sleeps and do not drop mmap=
+_sem)
+- * Returns: number of valid pages in range->pfns[] (from range start
++ * Return: number of valid pages in range->pfns[] (from range start
+  *          address). This may be zero. If the return value is negative,
+  *          then one of the following values may be returned:
+  *
+@@ -1193,7 +1194,7 @@ EXPORT_SYMBOL(hmm_range_fault);
+  * @device: device against to dma map page to
+  * @daddrs: dma address of mapped pages
+  * @block: allow blocking on fault (if true it sleeps and do not drop mmap=
+_sem)
+- * Returns: number of pages mapped on success, -EAGAIN if mmap_sem have be=
+en
++ * Return: number of pages mapped on success, -EAGAIN if mmap_sem have bee=
+n
+  *          drop and you need to try again, some other error value otherwi=
+se
+  *
+  * Note same usage pattern as hmm_range_fault().
+@@ -1281,7 +1282,7 @@ EXPORT_SYMBOL(hmm_range_dma_map);
+  * @device: device against which dma map was done
+  * @daddrs: dma address of mapped pages
+  * @dirty: dirty page if it had the write flag set
+- * Returns: number of page unmapped on success, -EINVAL otherwise
++ * Return: number of page unmapped on success, -EINVAL otherwise
+  *
+  * Note that caller MUST abide by mmu notifier or use HMM mirror and abide
+  * to the sync_cpu_device_pagetables() callback so that it is safe here to
+@@ -1404,7 +1405,7 @@ static void hmm_devmem_free(struct page *page, void *=
+data)
+  * @ops: memory event device driver callback (see struct hmm_devmem_ops)
+  * @device: device struct to bind the resource too
+  * @size: size in bytes of the device memory to add
+- * Returns: pointer to new hmm_devmem struct ERR_PTR otherwise
++ * Return: pointer to new hmm_devmem struct ERR_PTR otherwise
+  *
+  * This function first finds an empty range of physical address big enough=
+ to
+  * contain the new resource, and then hotplugs it as ZONE_DEVICE memory, w=
+hich
 --=20
 2.20.1
 
