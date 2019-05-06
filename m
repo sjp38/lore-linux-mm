@@ -4,118 +4,116 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-14.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E07BEC04AAB
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:50:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90F1BC46470
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:53:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95D2920675
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:50:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3A85C2054F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 13:53:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="DRQ6yKsX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95D2920675
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kv7aGbZw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A85C2054F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 304C76B0005; Mon,  6 May 2019 09:50:39 -0400 (EDT)
+	id D63656B0005; Mon,  6 May 2019 09:53:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B7556B0006; Mon,  6 May 2019 09:50:39 -0400 (EDT)
+	id D13356B0006; Mon,  6 May 2019 09:53:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A4466B0007; Mon,  6 May 2019 09:50:39 -0400 (EDT)
+	id C01F86B0007; Mon,  6 May 2019 09:53:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D975F6B0005
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 09:50:38 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id l16so2993186pfb.23
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 06:50:38 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 898B56B0005
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 09:53:14 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 94so5427820plc.19
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 06:53:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=bQJbdD3DpYVGAJMB4xHT/wsaNr2EFZ6QKX73vdaXiy8=;
-        b=SajkXIe3vEUkeMompqdunN+Gev+Z5taKgp+zEOZMVg2BJDC79AguUq89fwsCFkaZJP
-         FWP0cK8kjGEGo/gfc5TzWecyJ0rLOAT/gFoADeloMtK0+mST9GQY4g4xPn4mm4mm7rW8
-         eqad3ozQUCf8cwhDWnZXKGkDyaYMJG+l5v0/7Vaf1COGZzsZaSOdJ5n/U020bXEmEH25
-         MKNo5mpTJ1B2aT61f7yqJ3MGL2K8LoFLxSpehPCvdi7gOxLkhWx1RfpEPNyHYCleEdwo
-         FMAoW35CHI1i/BAmTuQICI+FqTEo7bM5GTInB3WqpOH+CV07vmLAXM7j9L3LIYvx1OYF
-         9qqA==
-X-Gm-Message-State: APjAAAX6jZghbeyyPce1Hhd8esfZwqDsyxPycNNTxFbOXMt6SOGfJNQ6
-	ZD1vYAhZ9048Pzwo9JvNvB7gO2QTYoOPZrLUSSrMS0DLkZSQYAD0CcWeBW9VRPy5pfYMj0zp11g
-	KvY4e/yUQgwpJsUOfcxbtSprtzQviBG8fuVPFt9Pbl6oE0oxRF7Sqn2pvgz7GsK5LTQ==
-X-Received: by 2002:a17:902:768c:: with SMTP id m12mr20810241pll.82.1557150638397;
-        Mon, 06 May 2019 06:50:38 -0700 (PDT)
-X-Received: by 2002:a17:902:768c:: with SMTP id m12mr20810142pll.82.1557150637562;
-        Mon, 06 May 2019 06:50:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557150637; cv=none;
+        bh=DfsikH3ADmgNVGOW8dVHffAJXBPBy/1Drd0IdtpjjJ8=;
+        b=e5gwJMDtTSiGweOSQYdkdVJ7tRYCv/bI3aeGM41EI12yiQTpVNm6uIFm+e5UpQ4x8G
+         jXwxujozwCnXUhzdHoMcpmBEdQNqSkl100ee11STVZmUpNJKKRbUbweexgpbYmFUvd56
+         5RUM4OfpmGZndSv/gpsSDVrnnagcqwkkF0XnS/TAg3VX3Fu1V0XdMdbPYi42q3XrPXJv
+         zZaJWufcqFmlRS8JetNaBIs1SXZ7T09TIoR2MdDa7WzmXM5vKMT+WNOmzg+Cm6mLiviX
+         gbFqlu620jPIX7TjNy6Y5/KELx9w/9YJ/zWBGKdxoOMu5Zc8DzzRwaxGnd6pHwhltvvc
+         BaYg==
+X-Gm-Message-State: APjAAAUTqHOlbU480u8usrWnr1Fd2ZtTH3HsHbnz4fpFJo57WNC+YZSj
+	JPDfqQIXLz9sOZIm5UBTGuOE4/HTHTjK/T4hSNBP38Gpu2we8NLEVUkKPR7DO1mHT1aEo6tVmwK
+	5O2ZEz1cyOKsuKSYESCveeAa5McVW928koYj9FtKoylOjPszorkqlK+ztzTz2Joph2g==
+X-Received: by 2002:a63:570d:: with SMTP id l13mr32097486pgb.55.1557150794124;
+        Mon, 06 May 2019 06:53:14 -0700 (PDT)
+X-Received: by 2002:a63:570d:: with SMTP id l13mr32097400pgb.55.1557150793310;
+        Mon, 06 May 2019 06:53:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557150793; cv=none;
         d=google.com; s=arc-20160816;
-        b=qGi7ctiqJQrv8jBpPo47tQiCFE0sd9i/nLhHmdWjS4Z3wvxT7pcMmiAVX63TyIGifK
-         ggiGycFbaJV1lnnl0v16jxKxE0zIDZjLeDHX1+Zig/7xm8G+zWrIE42EODfTK/BWkN/S
-         s3tDrCUIBc6sppa1NCQyL3sCyzLMeR+R7kQStrYa2wO1rQ4h892wR8u0P0JlBYgJHVpn
-         VlHmsD20YiXIF4SUOrPx5GHVgWqR/9eFtcYasQHs/akYWY1jMjLPkPjTOMLkqFveci2s
-         hx/gKLGtw2OJ/JEuSUjtS5XBwClA/QK6LI5/QS7eB24XwGcTBOapyB6TES0vbGIXnKux
-         DAzw==
+        b=T67s+agnav6Y8y/uRWBDMCSCWSNWEz3QLcPXw9b0OJt9seZai5spkhe03TvEIcMtHL
+         iGJblTFFlM7+z6+vebyEkCtOMZSkNBCsM1LPCNiak7TteZtTTQ1OqEVECCyr/yjD97M7
+         5cRdR2oYwH7+sPFoRpGra8v2fuEEGMyis30c+ct/PuehVMCAB+i+3JRWNBFAhSkugGzF
+         bBHQYJU4rpg4v3TExvEbagjlCJUSziXTxNFHpCs6YJ7cJ1MD3r6ppjNEAeTn+pxD9LE1
+         HjqAkUQSsIP6ZhHiCbN3RNs8frlnBtogL3deAK21MBYlqHoIdnRbfyiDgAcwfNeiDNYy
+         O5YA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=bQJbdD3DpYVGAJMB4xHT/wsaNr2EFZ6QKX73vdaXiy8=;
-        b=ac7YP2aH3r3FFQbZGXC9lsawXEwFj6m9ILckwS6tfIx+ZK8itM4ZlGmXXLDJCkeVsr
-         aO9hLx3PBefp2zWypblMUf9PftBg74XmKdsXYWlwxH+TJTJ+I6/XBGDJCv1RoGK0ZDMQ
-         FE3ee+RZwdbr0lNGUaJceOAvn5UsiNaqwDvVH+ZBvfvephzG9e5WZeLxbVifjuidnRuQ
-         xEdQ24ouKBGqvN5EGD6G/gyd2xOwoJesTCs3yjI9tmWp23We/R+ew/CSh/OQvWHpa3nB
-         RWHf4Of9vQIJRz6/mzArmlLQgkPY2KRPYvfhS3F/FdXcsAj9KBWc8l4/zH7lyuqDBKuy
-         A0lg==
+        bh=DfsikH3ADmgNVGOW8dVHffAJXBPBy/1Drd0IdtpjjJ8=;
+        b=QksBfTrtDeap0fxPUFMAzgupd/csySCh2rUR9bPQ9yctG8pLOl65QkQqjZ4qqoAk0c
+         76KXtTExnC5N4MYUPsEYqhCoXuWahXHFhkEy5TBW2AxhFhV2kgFnSwFDeVpwrKnQYpAR
+         Wli9/hpDgwHV7MwdSCLm3a5CkYkAIp420ZcIxY4fh6szhnCbO91O+DrPq73htUzUGg07
+         vJk4MfsYebY8J2ybN2UkgLd4NtzsKJanFnXNDFhDdstF3dl6Kl1PhUUvnl9SERSZs3xP
+         E2/F6REPTRHDtItF9Zt7XwA4IJDnfDFoc09ml82pyk5HcFwFTp+pbqSOJZCtdHNheoAI
+         qknQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DRQ6yKsX;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kv7aGbZw;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b39sor12077251pla.41.2019.05.06.06.50.37
+        by mx.google.com with SMTPS id l7sor11990207pff.50.2019.05.06.06.53.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 May 2019 06:50:37 -0700 (PDT)
+        Mon, 06 May 2019 06:53:13 -0700 (PDT)
 Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=DRQ6yKsX;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kv7aGbZw;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=bQJbdD3DpYVGAJMB4xHT/wsaNr2EFZ6QKX73vdaXiy8=;
-        b=DRQ6yKsX6G++7lU4Zg5s3BYR0P9dOtDVRdgDq4OTKtqnFzdHr5mrU+eAH8m/xaAqq9
-         GjaGvUS7mkeRr5xpwetie72lE61cQQyZApscmN4YS70y1VIT4NWv/M48lKerfm627Th7
-         gjcuK1BYAbSf4nXxfiio5m7d5spLpXCCTDKGcC2aVAdeBFYRKrP8Z7bE2tG9DZ2rIsGu
-         CwljSWmdU9qHLtd/Gz+syQE0KKMpSKrEQoJTqd9Mdkk5tKa5G5tK8eI5XA5KcbzqPu4t
-         Lq4Z4U34+8CqteCsW5OMIEDaAHJ5orfzvcPcniCK32BPqiOxrEh1Ln7swqpgKcat4g3N
-         37Bg==
-X-Google-Smtp-Source: APXvYqwbKSvVTOpuC9GERGa4zYi/56mC1YqRSuljrXhiTGgFzKxKxPy7xquJMcd52Z/Xw9GWuZtYyS77z4awlmXBnWo=
-X-Received: by 2002:a17:902:7783:: with SMTP id o3mr32208910pll.159.1557150636780;
- Mon, 06 May 2019 06:50:36 -0700 (PDT)
+        bh=DfsikH3ADmgNVGOW8dVHffAJXBPBy/1Drd0IdtpjjJ8=;
+        b=kv7aGbZwowOP86IiNXKGTzv02HGdI2dS555U/AmH12LgQOZnKLK39c4sVdRuufn96A
+         qthFKSfdn7G60uj86be1sn6Yz08bEym7ZdQPS1mHAwXca2PX4G4xwzBsumjfQSNalrzf
+         yL5bwTZ9P03pKULjLPyCJCemso/1RN2dFNxsJkh8Db8dDQ4uyTu4XB2OtIwgRdUtOIbE
+         AyYkrbplUjKWiH4tJjgIH/K5mFuPdBD8NVSdZa64NURA8ieEyhpOBhaJlBUr1GIoMIGp
+         v2ptbSyS2qLsf62uamUc0COAt9buSU1YrXxFbkm18U+53rgjezb09axtZoHwZgv8hVgU
+         L1Yg==
+X-Google-Smtp-Source: APXvYqz1fgwxD3Q1L0PJp0GBoiDCnAmVuD+UduBO6dKustad4HqnmYC98uMKFLNp2x7D5yl19BVMVIT9EGy2Pg34Ktk=
+X-Received: by 2002:aa7:9116:: with SMTP id 22mr33262822pfh.165.1557150792655;
+ Mon, 06 May 2019 06:53:12 -0700 (PDT)
 MIME-Version: 1.0
-References: <cover.1556630205.git.andreyknvl@google.com> <2e827b5c484be14044933049fec180cd6acb054b.1556630205.git.andreyknvl@google.com>
- <3108d33e-8e18-a73e-5e1a-f0db64f02ab3@amd.com>
-In-Reply-To: <3108d33e-8e18-a73e-5e1a-f0db64f02ab3@amd.com>
+References: <cover.1556630205.git.andreyknvl@google.com> <8e20df035de677029b3f970744ba2d35e2df1db3.1556630205.git.andreyknvl@google.com>
+ <20190503165113.GJ55449@arrakis.emea.arm.com>
+In-Reply-To: <20190503165113.GJ55449@arrakis.emea.arm.com>
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 6 May 2019 15:50:25 +0200
-Message-ID: <CAAeHK+zDScw-aYpQFVG=JKartDqCF+ZWnq3-6PuaYgMiBphcJA@mail.gmail.com>
-Subject: Re: [PATCH v14 11/17] drm/amdgpu, arm64: untag user pointers
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, 
-	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, 
-	"linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
+Date: Mon, 6 May 2019 15:53:01 +0200
+Message-ID: <CAAeHK+wCyCa-5=bPNwfivP6sEODOXKE1bPjcjc2y_T4rN+-6gA@mail.gmail.com>
+Subject: Re: [PATCH v14 08/17] mm, arm64: untag user pointers in get_vaddr_frames
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
 	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
 	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, 
-	"Koenig, Christian" <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, Kuehling@google.com, Felix <Felix.Kuehling@amd.com>, 
+	Deucher@google.com, Alexander <Alexander.Deucher@amd.com>, Koenig@google.com, 
+	Christian <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
 	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
 	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
 	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
@@ -131,88 +129,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 30, 2019 at 8:03 PM Kuehling, Felix <Felix.Kuehling@amd.com> wrote:
+On Fri, May 3, 2019 at 6:51 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
 >
-> On 2019-04-30 9:25 a.m., Andrey Konovalov wrote:
-> > [CAUTION: External Email]
-> >
+> On Tue, Apr 30, 2019 at 03:25:04PM +0200, Andrey Konovalov wrote:
 > > This patch is a part of a series that extends arm64 kernel ABI to allow to
 > > pass tagged user pointers (with the top byte set to something else other
 > > than 0x00) as syscall arguments.
 > >
-> > amdgpu_ttm_tt_get_user_pages() uses provided user pointers for vma
-> > lookups, which can only by done with untagged pointers. This patch
-> > untag user pointers when they are being set in
-> > amdgpu_ttm_tt_set_userptr().
+> > get_vaddr_frames uses provided user pointers for vma lookups, which can
+> > only by done with untagged pointers. Instead of locating and changing
+> > all callers of this function, perform untagging in it.
 > >
-> > In amdgpu_gem_userptr_ioctl() and amdgpu_amdkfd_gpuvm.c/init_user_pages()
-> > an MMU notifier is set up with a (tagged) userspace pointer. The untagged
-> > address should be used so that MMU notifiers for the untagged address get
-> > correctly matched up with the right BO. This patch untag user pointers in
-> > amdgpu_gem_userptr_ioctl() for the GEM case and in
-> > amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu() for the KFD case.
-> >
-> > Suggested-by: Kuehling, Felix <Felix.Kuehling@amd.com>
 > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 > > ---
-> >   drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c | 2 +-
-> >   drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c          | 2 ++
-> >   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c          | 2 +-
-> >   3 files changed, 4 insertions(+), 2 deletions(-)
+> >  mm/frame_vector.c | 2 ++
+> >  1 file changed, 2 insertions(+)
 > >
-> > diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
-> > index 1921dec3df7a..20cac44ed449 100644
-> > --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
-> > +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_gpuvm.c
-> > @@ -1121,7 +1121,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
-> >                  alloc_flags = 0;
-> >                  if (!offset || !*offset)
-> >                          return -EINVAL;
-> > -               user_addr = *offset;
-> > +               user_addr = untagged_addr(*offset);
-> >          } else if (flags & ALLOC_MEM_FLAGS_DOORBELL) {
-> >                  domain = AMDGPU_GEM_DOMAIN_GTT;
-> >                  alloc_domain = AMDGPU_GEM_DOMAIN_CPU;
-> > diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-> > index d21dd2f369da..985cb82b2aa6 100644
-> > --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-> > +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-> > @@ -286,6 +286,8 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
-> >          uint32_t handle;
-> >          int r;
+> > diff --git a/mm/frame_vector.c b/mm/frame_vector.c
+> > index c64dca6e27c2..c431ca81dad5 100644
+> > --- a/mm/frame_vector.c
+> > +++ b/mm/frame_vector.c
+> > @@ -46,6 +46,8 @@ int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+> >       if (WARN_ON_ONCE(nr_frames > vec->nr_allocated))
+> >               nr_frames = vec->nr_allocated;
 > >
-> > +       args->addr = untagged_addr(args->addr);
+> > +     start = untagged_addr(start);
 > > +
-> >          if (offset_in_page(args->addr | args->size))
-> >                  return -EINVAL;
-> >
-> > diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> > index 73e71e61dc99..1d30e97ac2c4 100644
-> > --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> > +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-> > @@ -1248,7 +1248,7 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
-> >          if (gtt == NULL)
-> >                  return -EINVAL;
-> >
-> > -       gtt->userptr = addr;
-> > +       gtt->userptr = untagged_addr(addr);
+> >       down_read(&mm->mmap_sem);
+> >       locked = 1;
+> >       vma = find_vma_intersection(mm, start, start + 1);
 >
-> Doing this here seems unnecessary. You already untagged the address in
-> both callers of this function. Untagging in the two callers ensures that
-> the userptr and MMU notifier are in sync, using the same untagged
-> address. Doing it again here is redundant.
+> Is this some buffer that the user may have malloc'ed? I got lost when
+> trying to track down the provenience of this buffer.
 
- Will fix in v15, thanks!
+The caller that I found when I was looking at this:
+
+drivers/gpu/drm/exynos/exynos_drm_g2d.c:482
+exynos_g2d_set_cmdlist_ioctl()->g2d_map_cmdlist_gem()->g2d_userptr_get_dma_addr()->get_vaddr_frames()
 
 >
-> Regards,
->    Felix
->
->
-> >          gtt->userflags = flags;
-> >
-> >          if (gtt->usertask)
-> > --
-> > 2.21.0.593.g511ec345e18-goog
-> >
+> --
+> Catalin
 
