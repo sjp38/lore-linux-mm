@@ -2,395 +2,150 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,
-	UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	T_DKIMWL_WL_HIGH,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B2BDC04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:15:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29B1EC04A6B
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B66B7206BF
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:15:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B66B7206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id DBDB8206BF
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 23:30:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="LwG+Z+Iy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBDB8206BF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 617766B0005; Mon,  6 May 2019 19:15:34 -0400 (EDT)
+	id 793596B0005; Mon,  6 May 2019 19:30:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A1CD6B0006; Mon,  6 May 2019 19:15:34 -0400 (EDT)
+	id 7440F6B0006; Mon,  6 May 2019 19:30:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 442666B0007; Mon,  6 May 2019 19:15:34 -0400 (EDT)
+	id 632BC6B0007; Mon,  6 May 2019 19:30:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 038266B0005
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:15:34 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d21so8895052pfr.3
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:15:33 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 307096B0005
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 19:30:27 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id a90so8056051plc.7
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 16:30:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=bYujIkA+KFNLOgroln4M9maZwNSvDC7dt/00BhA78j8=;
-        b=c1H0GSyOZFsbSZn5ISOxs8ODaWucGfw6iApwFjXHsMnuNt3lg/lqpSV4cRkTe07Wta
-         LE6XbKOo6c75mkypnQCewH8fAd8Xs/MslEsYPCqS0IbxK5SInq5dF2wvFja7EV9k2rA3
-         xWsqLHOr1ZCto0z5TaK44vvuhJV3IJp1fNAPQcjwaBqrHpxYkMDyxOzo68VUqajtlmaY
-         oH9PdBepJZPn3wY39I5Q+L5kaGNgN0xidNkKwHyTinMTZYLUtsI8StPX8dr2g/Zgb6vH
-         rWsco7Dlu6+FUOCJEwzj31XUBbLpFZcyoMdeVxcN0/1oM9jZ/4ZQfUrH+dTh5SLFXNx/
-         Z6Ig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUXM2G1QUvdo2Im+AlYuilzHHbsSb2OaOWGsT7hqjrOjstc+jVU
-	i6zGPvDqfARqtaJhobPXYW5sbfPg+4ZQM4Gmkr4vberOK0DC9+L6GEjbYmCThL5LsjSymbsLRGy
-	mrEfnQnBb7LdCaY9W0CaJExRoUOUDtRFvE63+c63AlBcmnbtCwV0RB2ix4kHKrQHWQw==
-X-Received: by 2002:a17:902:a587:: with SMTP id az7mr36023427plb.153.1557184533562;
-        Mon, 06 May 2019 16:15:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwc3zY/Srlk+wdpjN7+MHNhziPQh6IeJH97vhxbfxNJT+poBhRuosEM7wzBn2ILh2MLEDPh
-X-Received: by 2002:a17:902:a587:: with SMTP id az7mr36023336plb.153.1557184532416;
-        Mon, 06 May 2019 16:15:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557184532; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding:dkim-signature;
+        bh=mta6lvER55pJmKi6odFyptVYcK5PuHqcwXSPKJWVRbY=;
+        b=l0KT8b1dhv3qZygaXKiQY6dBxIoT0Pn1XtA6y+/bZ/0HWWek+/GAjmaIcK6f8Sz1rV
+         QqfpfcZoGR9mllbjAOe4hUt8g880/Tg/pnKV9f0V7jVOA+p7Vkvbd4jbcDfm/2TRdygz
+         d3kgaY3fQlvox7oxt7lMSBNbUfvDiF447g++JI4yZMYCqIJfwFHfGVKFG+Gq1n0DWrmX
+         aAJypVtZa5X2+/qRnmO3bQJHmWzmS4CloxQXE97/QXUcA+eDnzuIFG2dxtgqaQ1n4ASn
+         yOx0LLC+3crvb0g1go7zR1PjRl7EbO04EjI4q3r+wuq13BbXYyA/9HUIhXYvLLz+Tjw3
+         y2uA==
+X-Gm-Message-State: APjAAAUfoCFVOdWidzcz9gX99uOxwvStJSOX1oAFAF4uVPDo2q6VvqOm
+	mifZ9bChDpLRqohT01PBifj+GoJ7msYROy+ZpEMyMRQmYZuh2UKzg3pZAP43Asgh9ubyvou2Zyn
+	x0drfQCFG6MslxQ2HRlR6d0Q8SbZXDaXcPpu9RtS/QszbSzWsTyL8hPQxRh0EScntuA==
+X-Received: by 2002:a62:b508:: with SMTP id y8mr35631078pfe.113.1557185426770;
+        Mon, 06 May 2019 16:30:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAkPW+y3I3wuOlal3BoVDPenv2yyDUOaIQQJwigihQVBtvlPJ3OaJvmv6JrZwXU62HzXYV
+X-Received: by 2002:a62:b508:: with SMTP id y8mr35630866pfe.113.1557185424425;
+        Mon, 06 May 2019 16:30:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557185424; cv=none;
         d=google.com; s=arc-20160816;
-        b=rGSWYo4qyLj3IoqWPcc6dyaDHoxVaBpRxOlMYFI8jEtpD4xiDmcQBOj7FZKykUFhvc
-         kgM0GI3n3i7j6RpHPXH0deENRw1AHaPnjWTCsnpm6iL9AMc09kcHAF9gC4mZ5DNInENo
-         1z6vUEcaYoxmT5AP1Uf6TbmvzCzBOEEuKFbCiyDrENvB7+cTEUM5XFIjy6o08gXx+nHE
-         HP2E9Z9aCoUzbLgbwlMqMy86JK7QOW6ZTwRZ65qdn0x/HwAryBYeU8CAx3ekqx6jZzYC
-         yywFGlwrXalScCDn8z5n5ju8cdCUe7FKsdynxwYI1FCKxoBx5iaW43j39fkWLC3/MFC7
-         2Pcg==
+        b=Rnf1CL/KCmupiSkR1d5Xm808mMYffx1ZIciIG3Qd6kFbfx/JxFISI3Jy6fRLDLnhYe
+         p9hkII0L6D6/DC4UIt/nEyFvpqiwHZGcancfFVj4VegVcmy6eq6HaFFWZVWM2xpSQPSj
+         2aA2ewbQHaUFmkHYg3OLQd1tesfPjT11UZcsoXZ0hckACodtsrG7x9wnE37tdbEWe8uG
+         JYdEIOR1B1pGFF91cdZWWxmDpyFG3GVWwhZGdnva0LzeKErIwv5lIhG99d2yNYZ/fj1t
+         AyWTFXL74XytDRQKaCwMToX7Igz2V4ZsptsgrS1ZzO90qYvGtoz7rq0y5szxg3d9Ev5R
+         3x+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=bYujIkA+KFNLOgroln4M9maZwNSvDC7dt/00BhA78j8=;
-        b=dRrM3QZwE9b2CxXxJHgC0rXJasp12wVdU9CC/ZBBW3yIR3WnaPFscSfEL0ZBsN+OPQ
-         ajcTv7iTqo+XhpP6q/1+j3niu1N0HrzSj40oCWryBhzWJgI0B42aqBLgoXaZBNiz/Et4
-         QYL4OcK+Fnp2BqRwF/SqaQwT98hkpYU9+8uh3ZaoTdlpweYRLdG4fQLK2L4myTzkJqA4
-         juDQaGB2qvZMKwCrchT8s4CqBD10Et23z9tYOvpomogxhzazAx0l6wXO4XDXhEBAwFYu
-         oN79PAW01Fe+EmpbaEYPmKaEVTLk3BRBMQemqvpPlLxyTEIqMzs/DBogZ6VaP84wKd8K
-         v8ig==
+        h=dkim-signature:content-transfer-encoding:mime-version:message-id
+         :date:subject:cc:to:from;
+        bh=mta6lvER55pJmKi6odFyptVYcK5PuHqcwXSPKJWVRbY=;
+        b=0cyHNxY/ZmjBH6LOiu5pMkxSWH2kadWvuSlteRxC5/hX45Fz7F+WuC09s1TOwKfvCs
+         4ffQKYWfCJmoa5jwWnY6f8FyHmrgGr79Glh++c3FyCdElt4U8NC5V8DvHoSMlgk8W/nV
+         PQ4XUdmgmvCq34S7jre++cNuwh9pwC7BabIiSHWd1ubIX+UbBGYaa8fWVg5sH0iDJYjK
+         aY3NeAeZbkriZO2AlRLj68QHIjBJFchPTTTSbZ1Fa8MyOPfsupxjt69tA27SPMgMNR2D
+         vOsgWTSvFDPXu5uQLpGoHNq98N4+8ut8HLIFbtbpENX3PFfKNVwFPwMucpgHFspAVX+A
+         OBqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
-        by mx.google.com with ESMTPS id u3si6427219pfa.128.2019.05.06.16.15.31
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=LwG+Z+Iy;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id h185si17819184pfc.241.2019.05.06.16.30.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 16:15:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
+        Mon, 06 May 2019 16:30:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R381e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=14;SR=0;TI=SMTPD_---0TR3oa9H_1557184525;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TR3oa9H_1557184525)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 07 May 2019 07:15:29 +0800
-Subject: Re: [bug] aarch64: userspace stalls on page fault after dd2283f2605e
- ("mm: mmap: zap pages with read mmap_sem in munmap")
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org,
- linux-arm-kernel@lists.infradead.org
-Cc: kirill@shutemov.name, willy@infradead.org,
- kirill shutemov <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
- Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org,
- Waiman Long <longman@redhat.com>, Mel Gorman <mgorman@techsingularity.net>,
- Rik van Riel <riel@surriel.com>, will.deacon@arm.com, catalin.marinas@arm.com
-References: <1817839533.20996552.1557065445233.JavaMail.zimbra@redhat.com>
- <a9d5efea-6088-67c5-8711-f0657a852813@linux.alibaba.com>
- <1928544225.21255545.1557178548494.JavaMail.zimbra@redhat.com>
- <2b2006bf-753b-c4b8-e9a2-fd27ae65fe14@linux.alibaba.com>
-Message-ID: <fd232238-16c4-9c1d-49e9-24c9398bb570@linux.alibaba.com>
-Date: Mon, 6 May 2019 16:15:24 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=LwG+Z+Iy;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cd0c36d0000>; Mon, 06 May 2019 16:29:49 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 06 May 2019 16:30:23 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 06 May 2019 16:30:23 -0700
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 6 May
+ 2019 23:30:23 +0000
+From: <rcampbell@nvidia.com>
+To: <linux-mm@kvack.org>
+CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>, Dan
+ Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Balbir
+ Singh <bsingharora@gmail.com>, Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>, Souptick Joarder
+	<jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH 0/5] mm/hmm: HMM documentation updates and code fixes
+Date: Mon, 6 May 2019 16:29:37 -0700
+Message-ID: <20190506232942.12623-1-rcampbell@nvidia.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <2b2006bf-753b-c4b8-e9a2-fd27ae65fe14@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+X-NVConfidentiality: public
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1557185389; bh=mta6lvER55pJmKi6odFyptVYcK5PuHqcwXSPKJWVRbY=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 MIME-Version:X-NVConfidentiality:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Transfer-Encoding:Content-Type;
+	b=LwG+Z+IypCu/9CAOnvaVu10/3zZeMNdtntNmkP+Wy9zH5AuV3pgXklp6x/VXDiVk1
+	 pYvpjypSdkVh+WcZIQl+58wbS96p8vDHAzxD53/XRb2U9b4AlIFACrbdgXXSMbmnvl
+	 xpdZT8dE2iQqRPBgOxKL0bTLcpPJPsvtIFtqXSRzkEDD4DGXZbqaX07jX+hb6GIAQN
+	 cxBONRH7a7Avcam0YtnIBN7ysG+Wky5nPcDfovDeHcqrKL8eg5BY/URsbjy5RxzqWp
+	 Kkhxv8o3+AM1C6szZ4TDWZ846ybHWGxTpOPVMHMXGwT92Iqani0qWBab2YbsrOO5D7
+	 Wknzcx03wK0qg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+From: Ralph Campbell <rcampbell@nvidia.com>
 
+I hit a use after free bug in hmm_free() with KASAN and then couldn't
+stop myself from cleaning up a bunch of documentation and coding style
+changes. So the first two patches are clean ups, the last three are
+the fixes.
 
-On 5/6/19 4:07 PM, Yang Shi wrote:
->
->
-> On 5/6/19 2:35 PM, Jan Stancek wrote:
->>
->> ----- Original Message -----
->>>
->>> On 5/5/19 7:10 AM, Jan Stancek wrote:
->>>> Hi,
->>>>
->>>> I'm seeing userspace program getting stuck on aarch64, on kernels 
->>>> 4.20 and
->>>> newer.
->>>> It stalls from seconds to hours.
->>>>
->>>> I have simplified it to following scenario (reproducer linked below 
->>>> [1]):
->>>>     while (1):
->>>>       spawn Thread 1: mmap, write, munmap
->>>>       spawn Thread 2: <nothing>
->>>>
->>>> Thread 1 is sporadically getting stuck on write to mapped area. 
->>>> User-space
->>>> is not
->>>> moving forward - stdout output stops. Observed CPU usage is however 
->>>> 100%.
->>>>
->>>> At this time, kernel appears to be busy handling page faults (~700k 
->>>> per
->>>> second):
->>>>
->>>> # perf top -a -g
->>>> -   98.97%     8.30%  a.out                     [.] map_write_unmap
->>>>      - 23.52% map_write_unmap
->>>>         - 24.29% el0_sync
->>>>            - 10.42% do_mem_abort
->>>>               - 17.81% do_translation_fault
->>>>                  - 33.01% do_page_fault
->>>>                     - 56.18% handle_mm_fault
->>>>                          40.26% __handle_mm_fault
->>>>                          2.19% __ll_sc___cmpxchg_case_acq_4
->>>>                          0.87% mem_cgroup_from_task
->>>>                     - 6.18% find_vma
->>>>                          5.38% vmacache_find
->>>>                       1.35% __ll_sc___cmpxchg_case_acq_8
->>>>                       1.23% __ll_sc_atomic64_sub_return_release
->>>>                       0.78% down_read_trylock
->>>>              0.93% do_translation_fault
->>>>      + 8.30% thread_start
->>>>
->>>> #  perf stat -p 8189 -d
->>>> ^C
->>>>    Performance counter stats for process id '8189':
->>>>
->>>>           984.311350      task-clock (msec)         # 1.000 CPUs 
->>>> utilized
->>>>                    0      context-switches          # 0.000 K/sec
->>>>                    0      cpu-migrations            # 0.000 K/sec
->>>>              723,641      page-faults               # 0.735 M/sec
->>>>        2,559,199,434      cycles                    # 2.600 GHz
->>>>          711,933,112      instructions              # 0.28  insn per
->>>>          cycle
->>>>      <not supported>      branches
->>>>              757,658      branch-misses
->>>>          205,840,557      L1-dcache-loads           # 209.121 M/sec
->>>>           40,561,529      L1-dcache-load-misses     # 19.71% of all
->>>>           L1-dcache hits
->>>>      <not supported>      LLC-loads
->>>>      <not supported>      LLC-load-misses
->>>>
->>>>          0.984454892 seconds time elapsed
->>>>
->>>> With some extra traces, it appears looping in page fault for same 
->>>> address,
->>>> over and over:
->>>>     do_page_fault // mm_flags: 0x55
->>>>       __do_page_fault
->>>>         __handle_mm_fault
->>>>           handle_pte_fault
->>>>             ptep_set_access_flags
->>>>               if (pte_same(pte, entry))  // pte: e8000805060f53, 
->>>> entry:
->>>>               e8000805060f53
->>>>
->>>> I had traces in mmap() and munmap() as well, they don't get hit when
->>>> reproducer
->>>> hits the bad state.
->>>>
->>>> Notes:
->>>> - I'm not able to reproduce this on x86.
->>>> - Attaching GDB or strace immediatelly recovers application from 
->>>> stall.
->>>> - It also seems to recover faster when system is busy with other 
->>>> tasks.
->>>> - MAP_SHARED vs. MAP_PRIVATE makes no difference.
->>>> - Turning off THP makes no difference.
->>>> - Reproducer [1] usually hits it within ~minute on HW described below.
->>>> - Longman mentioned that "When the rwsem becomes reader-owned, it 
->>>> causes
->>>>     all the spinning writers to go to sleep adding wakeup latency to
->>>>     the time required to finish the critical sections", but this looks
->>>>     like busy loop, so I'm not sure if it's related to rwsem issues
->>>>     identified
->>>>     in:
->>>> https://lore.kernel.org/lkml/20190428212557.13482-2-longman@redhat.com/ 
->>>>
->>> It sounds possible to me. What the optimization done by the commit 
->>> ("mm:
->>> mmap: zap pages with read mmap_sem in munmap") is to downgrade write
->>> rwsem to read when zapping pages and page table in munmap() after the
->>> vmas have been detached from the rbtree.
->>>
->>> So the mmap(), which is writer, in your test may steal the lock and
->>> execute with the munmap(), which is the reader after the downgrade, in
->>> parallel to break the mutual exclusion.
->>>
->>> In this case, the parallel mmap() may map to the same area since vmas
->>> have been detached by munmap(), then mmap() may create the complete 
->>> same
->>> vmas, and page fault happens on the same vma at the same address.
->>>
->>> I'm not sure why gdb or strace could recover this, but they use ptrace
->>> which may acquire mmap_sem to break the parallel inadvertently.
->>>
->>> May you please try Waiman's patch to see if it makes any difference?
->> I don't see any difference in behaviour after applying:
->>    [PATCH-tip v7 01/20] locking/rwsem: Prevent decrement of reader 
->> count before increment
->> Issue is still easily reproducible for me.
->>
->> I'm including output of mem_abort_decode() / show_pte() for sample 
->> PTE, that
->> I see in page fault loop. (I went through all bits, but couldn't find 
->> anything invalid about it)
->>
->>    mem_abort_decode: Mem abort info:
->>    mem_abort_decode:   ESR = 0x92000047
->>    mem_abort_decode:   Exception class = DABT (lower EL), IL = 32 bits
->>    mem_abort_decode:   SET = 0, FnV = 0
->>    mem_abort_decode:   EA = 0, S1PTW = 0
->>    mem_abort_decode: Data abort info:
->>    mem_abort_decode:   ISV = 0, ISS = 0x00000047
->>    mem_abort_decode:   CM = 0, WnR = 1
->>    show_pte: user pgtable: 64k pages, 48-bit VAs, pgdp = 
->> 0000000067027567
->>    show_pte: [0000ffff6dff0000] pgd=000000176bae0003
->>    show_pte: , pud=000000176bae0003
->>    show_pte: , pmd=000000174ad60003
->>    show_pte: , pte=00e80008023a0f53
->>    show_pte: , pte_pfn: 8023a
->>
->>    >>> print bin(0x47)
->>    0b1000111
->>
->>    Per D12-2779 (ARM Architecture Reference Manual),
->>        ISS encoding for an exception from an Instruction Abort:
->>      IFSC, bits [5:0], Instruction Fault Status Code
->>      0b000111 Translation fault, level 3
->>
->> ---
->>
->> My theory is that TLB is getting broken.
->>
->> I made a dummy kernel module that exports debugfs file, which on read 
->> triggers:
->>    flush_tlb_all();
->>
->> Any time reproducer stalls and I read debugfs file, it recovers
->> immediately and resumes printing to stdout.
->
-> That commit doesn't change anything about TLB flush, just move zapping 
-> pages under read mmap_sem as what MADV_DONTNEED does.
->
-> I don't have aarch64 board to reproduce and debug it. And, I'm not 
-> familiar with aarch64 architecture either. But, some history told me 
-> the parallel zapping page may run into stale TLB and defer a flush 
-> meaning that this call may observe pte_none and fails to flush the 
-> TLB. But, this has been solved by commit 56236a59556c ("mm: refactor 
-> TLB gathering API") and 99baac21e458 ("mm: fix MADV_[FREE|DONTNEED] 
-> TLB flush miss problem").
->
-> For more detail, please refer to commit 4647706ebeee ("mm: always 
-> flush VMA ranges affected by zap_page_range"). 
+Ralph Campbell (5):
+  mm/hmm: Update HMM documentation
+  mm/hmm: Clean up some coding style and comments
+  mm/hmm: Use mm_get_hmm() in hmm_range_register()
+  mm/hmm: hmm_vma_fault() doesn't always call hmm_range_unregister()
+  mm/hmm: Fix mm stale reference use in hmm_free()
 
-Actually, this commit has been reverted. I mean refer to that revert 
-commit, which is 50c150f26261 ("Revert "mm: always flush VMA ranges 
-affected by zap_page_range""). The commit log explains why those two 
-commits are good enough and this one could be reverted.
+ Documentation/vm/hmm.rst | 139 ++++++++++++++++++-----------------
+ include/linux/hmm.h      |  84 ++++++++++------------
+ mm/hmm.c                 | 151 ++++++++++++++++-----------------------
+ 3 files changed, 174 insertions(+), 200 deletions(-)
 
-> Copied Mel and Rik in this thread. Also added Will Deacon and Catalin 
-> Marinas, who are aarch64 maintainers, in this loop
->
-> But, your test (triggering TLB flush) does demonstrate TLB flush is 
-> *not* done properly at some point as expected for aarch64. Could you 
-> please give the below patch a try?
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index ab650c2..ef41ad5 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1336,8 +1336,10 @@ void unmap_vmas(struct mmu_gather *tlb,
->
->         mmu_notifier_range_init(&range, vma->vm_mm, start_addr, 
-> end_addr);
->         mmu_notifier_invalidate_range_start(&range);
-> -       for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
-> +       for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
->                 unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
-> +               flush_tlb_range(vma, start_addr, end_addr);
-> +       }
->         mmu_notifier_invalidate_range_end(&range);
->  }
->
->>
->>>> - I tried 2 different aarch64 systems so far: APM X-Gene CPU 
->>>> Potenza A3 and
->>>>     Qualcomm 65-LA-115-151.
->>>>     I can reproduce it on both with v5.1-rc7. It's easier to reproduce
->>>>     on latter one (for longer periods of time), which has 46 CPUs.
->>>> - Sample output of reproducer on otherwise idle system:
->>>>     # ./a.out
->>>>     [00000314] map_write_unmap took: 26305 ms
->>>>     [00000867] map_write_unmap took: 13642 ms
->>>>     [00002200] map_write_unmap took: 44237 ms
->>>>     [00002851] map_write_unmap took: 992 ms
->>>>     [00004725] map_write_unmap took: 542 ms
->>>>     [00006443] map_write_unmap took: 5333 ms
->>>>     [00006593] map_write_unmap took: 21162 ms
->>>>     [00007435] map_write_unmap took: 16982 ms
->>>>     [00007488] map_write unmap took: 13 ms^C
->>>>
->>>> I ran a bisect, which identified following commit as first bad one:
->>>>     dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
->>>>
->>>> I can also make the issue go away with following change:
->>>> diff --git a/mm/mmap.c b/mm/mmap.c
->>>> index 330f12c17fa1..13ce465740e2 100644
->>>> --- a/mm/mmap.c
->>>> +++ b/mm/mmap.c
->>>> @@ -2844,7 +2844,7 @@ EXPORT_SYMBOL(vm_munmap);
->>>>    SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
->>>>    {
->>>>           profile_munmap(addr);
->>>> -       return __vm_munmap(addr, len, true);
->>>> +       return __vm_munmap(addr, len, false);
->>>>    }
->>>>
->>>> # cat /proc/cpuinfo  | head
->>>> processor       : 0
->>>> BogoMIPS        : 40.00
->>>> Features        : fp asimd evtstrm aes pmull sha1 sha2 crc32 cpuid 
->>>> asimdrdm
->>>> CPU implementer : 0x51
->>>> CPU architecture: 8
->>>> CPU variant     : 0x0
->>>> CPU part        : 0xc00
->>>> CPU revision    : 1
->>>>
->>>> # numactl -H
->>>> available: 1 nodes (0)
->>>> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 
->>>> 21 22 23
->>>> 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45
->>>> node 0 size: 97938 MB
->>>> node 0 free: 95732 MB
->>>> node distances:
->>>> node   0
->>>>     0:  10
->>>>
->>>> Regards,
->>>> Jan
->>>>
->>>> [1]
->>>> https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_stall/mmap5.c 
->>>>
->>>> [2]
->>>> https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_stall/config 
->>>>
->>>
->
+--=20
+2.20.1
 
