@@ -2,151 +2,186 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBB8AC04A6B
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:31:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96622C04AAD
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:22:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93E3D205ED
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 15:31:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 38F8A2087F
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 16:22:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FRIaQzP6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93E3D205ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="DVotpDP1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38F8A2087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F23F6B0005; Mon,  6 May 2019 11:31:41 -0400 (EDT)
+	id 837E36B0007; Mon,  6 May 2019 12:22:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37ACF6B0006; Mon,  6 May 2019 11:31:41 -0400 (EDT)
+	id 7E94F6B0008; Mon,  6 May 2019 12:22:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F3F46B0007; Mon,  6 May 2019 11:31:41 -0400 (EDT)
+	id 6D86C6B000A; Mon,  6 May 2019 12:22:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD216B0005
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 11:31:40 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id h16so2103971qke.11
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 08:31:40 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 370516B0007
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 12:22:10 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z7so8326631pgc.1
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 09:22:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/mMrXRGNFAUnlBanOG6lIKcQ2qXCGdgFD/lAGVp5Ijk=;
-        b=TvgQ9VFpyr2YhDTUNVVFMIG+A5uhIVVOYNQCayC43bf+SCQtpjyFTy+LODvygD8EN8
-         wSnqjT+BadWMWD0tjiZlLQ3nYahud6gZf33NYoK52x2AiJFqWP9H4Nz3RkBmCZMBGd1N
-         XLlcC9PfFQbGawOJuKXZuGjbXLqopYhwU+n5EAyj1DKilDYfG4UjOfk3gyaXBspgzK/K
-         UYClKj3GHiouGSGda0A4IjeILTf7gFOgiiJCx7rAueq+xH9XgxO+s0d/XbptP0GpvPF7
-         r2OtdzDSWNN3Fzp/oJY4qL++HMZnh5qwS448fA4pf/izsb8tQKiYrLetel7E9MMeySnG
-         PutQ==
-X-Gm-Message-State: APjAAAWlxleULXt0GFkwWtK+YPVZbj4UW0/zHSqp5WOy/xblnSB1wuH/
-	yFLzPXjujAOm3qUzSqXVIdRNUQJv3QWVq1r/2w0psjXMfrfbpSaQZAR3Pzl4z5jPMjnNIPxIMQ6
-	iuQagKVI3aw4Bs8RYEgpUbJXrqQwqT9JQTfS7uHO24wc6GrtWEg71F9JZdflas9g=
-X-Received: by 2002:aed:3aa1:: with SMTP id o30mr22350753qte.218.1557156700700;
-        Mon, 06 May 2019 08:31:40 -0700 (PDT)
-X-Received: by 2002:aed:3aa1:: with SMTP id o30mr22350702qte.218.1557156700135;
-        Mon, 06 May 2019 08:31:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557156700; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
+        b=j0xIKqClTtvbT9JiBR1dUhgowC6csiECZnYduu0ErmKozo+W5AJykNcU/Re7qcCT1g
+         pF3BBpYZjVu8EnqxFxwiZUGINzPWSZ91i496u5jMCRVoWWzX2oDFvcwuwNN2ITDotHPd
+         Br/sDgKalmtEdf1tZGl/KOe/BsavW5ahOn6c6UHZromJJxZy3RiWmPQiLPdm2ZQvhfxn
+         NNPNjQabiEGB7JasLFV33RAEJvtkcQXfXCz0XSXqxJgirHanmuK2Ul7gq98QtHN2PUKd
+         XP4d/owcYbuj9qNIy5VEZ7GcrxYBsqggn11FUitNrfm/qwFVnVx1Epx0Gz8rMl/Iz1Ta
+         wWIQ==
+X-Gm-Message-State: APjAAAUJXf323EL4MBpkc5sEJ5aAOjOUEFqQh09JCktVEeOcI4LKwB+t
+	j+aDuUrmbIam05H0SG423ehSUwpvcXoCvzgcS7GPTEnr40WeDATpNjr5hsm9RnmoQVaIpoZ7+6S
+	p00mCUCBH0l2Rv5i9xgQc6/vTGYUWwLJHHkS8R2D6aI3Ytq10RoKJnY7YS/YRewQL5w==
+X-Received: by 2002:a63:cc0a:: with SMTP id x10mr33436073pgf.179.1557159729713;
+        Mon, 06 May 2019 09:22:09 -0700 (PDT)
+X-Received: by 2002:a63:cc0a:: with SMTP id x10mr33435960pgf.179.1557159728726;
+        Mon, 06 May 2019 09:22:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557159728; cv=none;
         d=google.com; s=arc-20160816;
-        b=x57pt89kJJwBtfCm21AnduFAH+lrsc1yI4QrMyjzw9MX9kfmh5k/mIinyWCSQhbULA
-         wXBvdg+XgqSTwGKwix6IKdV0glAgdkUAzcI90Cq0qtbKGfc0G1+uJN5moOHrgegeWSvZ
-         tbeKv0mLm4IOfqbLm8hACOCq0KL6rTb4oKKcDZYqgQUN/saFM++qSvlnC0w7sUsRB6uU
-         88AdQkCaz5v5qyP+60XOGMrfA9l8PhZhwSuhXOcIRyzvmjUSUsUGwimpZo1i4dNJX0Ai
-         Rt8chJYKL43tchTruX9AnafYkDWK0KG4qO3NeKJkYfOVfvyHGNFo1yiF7W4pqMoYn5eb
-         ZCww==
+        b=IZ2LSoop8GY6k21nMrFBSB5m2Sl/sDSrs5YFtDQbk3NWaE/3InhOVBN0Hq8/L5ZkBy
+         NWqq4i9GbswepaGMFg5dIgce6ivQFTGHCfe/RjQYjEKvRt+wvPzlvtGZiYxRBUccw6xg
+         bV06i8bQ8ogNdihKQa/gWYA2Gd5tw8kYSbhp3EAaSwbs8x1WfgW2jI1tWX4dpSbSI4Sf
+         x19dQwpigzfT+3NyQsTBA/EwbM1JoTtk03reuDCna8Ed7LzEOgNtX512I5twBvNxmFNw
+         OIQxfSeGZ+Jxty9BJc626/1Xous7Wq9VyuQnX5XNznxixKgdYQ5mL1Uvor93ML5DYOVk
+         opSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=/mMrXRGNFAUnlBanOG6lIKcQ2qXCGdgFD/lAGVp5Ijk=;
-        b=AQNzuwRdB9MPbzA27xUFOqOKG+u3aTBlLY15BQgh6gFQ4RbI8oPBBxkgaCSAeFx7c1
-         bdVI55reAqc5RCUJnAgyvktQff/3J21zAz20mva78yo4E2nKGmBMr1sRo5+IQIWJbUZa
-         fplVreGY73ym2GyfK3zRLwy4ZAWXu2XAEkJfkfVL/kllXnJZY32qj4G5eU8NG/yaIiPJ
-         aD9MdwHk2h/cx/3dYpCPDee3yGAmMtrz6LH+Dq4Hytz2aKMjIWvMps3d2jtboZLUaHxO
-         YOL9ZRb408jVN3r/1AbJsysuS6VSKwaFTAlzXCByCWWDFKk6gTo20pFiXVyTddATI+/7
-         X/0A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
+        b=sFF5x/9vnmV5qRwxVPT1EWRwQx+KXzL52g30rSDzjwXOrLDHZrVgw3TmiDSrXiakIo
+         yNLhPehP4fJIwktBOHu4VOJQuNw4On41zIQAohBa5sdOqo/uUQ0+Jak1tuQ5bLTKK6Tp
+         pVCgtLH8hBMRim0AKKNXVl8O02/XqZvyi9hCL/BKxZZDMiirUfw/aXqOoFHLwJIGrbXy
+         MLO13vD1OdNACRV2jd/+Tl6HhPo73EUVp2e8ugcBGcXEXZYkntPsNDcUBjahfhb3JllY
+         UqxdcaNqA6h4vzOfcCh+gjWdBgldI47EmzYqTWVpEzowtmV53u0Hj53teQH2f4+pEmjy
+         nFfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FRIaQzP6;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=DVotpDP1;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g3sor4537509qkl.132.2019.05.06.08.31.40
+        by mx.google.com with SMTPS id h76sor5480598pfd.68.2019.05.06.09.22.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 May 2019 08:31:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 06 May 2019 09:22:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FRIaQzP6;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=DVotpDP1;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/mMrXRGNFAUnlBanOG6lIKcQ2qXCGdgFD/lAGVp5Ijk=;
-        b=FRIaQzP6E02iKd/LRHknHIfMWsLyZYkm7mpr7xtkI8lziTP9HO5aTcwhKoD1xeJl+l
-         LJ5TWqUWRpPULfLDQ9x/PvLI5fli0XeL3MsSie5TvrfsMET3Gl/9HMhkwF9I6MGhefTC
-         +gQHztuD1M1KJvNefAKO4hi80EI7Zmczpw9BRff78wgif9vAQD6UC77vsuLAYMTmC8ky
-         PucMrqf1nYZa4O/5oYWE5H/aUL/nMIMP4kg02NZtu1kM9CcwNXJ8MGolpZcRcAF2l6fe
-         NRtM3OQwINXRd/oH77hQYjy5vvN13HvU4vu1AbegJZQ9u58BrtL5QNj8ukEvJhpVB0yy
-         1IbQ==
-X-Google-Smtp-Source: APXvYqz67LjvUcpWVy+9a/kdXG2DHFPz1tKZL6bzzKYk6SLWXPGaCHybrhcqtu/dXg/05cYZG9tUGA==
-X-Received: by 2002:a37:6c84:: with SMTP id h126mr21101343qkc.168.1557156699748;
-        Mon, 06 May 2019 08:31:39 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::3:34f3])
-        by smtp.gmail.com with ESMTPSA id t55sm6952498qth.59.2019.05.06.08.31.37
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 08:31:38 -0700 (PDT)
-Date: Mon, 6 May 2019 08:31:36 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
-	joseph.qi@linux.alibaba.com, bo.liu@linux.alibaba.com
-Subject: Re: [PATCH v4 RESEND] fs/writeback: use rcu_barrier() to wait for
- inflight wb switches going into workqueue when umount
-Message-ID: <20190506153136.GM374014@devbig004.ftw2.facebook.com>
-References: <20190429024108.54150-1-jiufei.xue@linux.alibaba.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=40wSFiuSnxDz381aUfzuDl5Kav43yI7Ct1/keTyO3F8=;
+        b=DVotpDP1BfYOu9EIG5sO2py/kG385U8+4RKehRk0tC71Vfe/y8Dohrbwudfghmv4gC
+         V1LDKukVm8TPgSIGKPKH/+AzQnvMn07KhJn3HSkyadIn3jlSJ5ClUm6UwCAwkx5Lj2ec
+         jTZ+KF06FbPmw0HHf3CBeQEfXVzStv1Mct1AUlW1wy4NJfE7vbBjZ0bMdocNxT2oB1CS
+         9lHhKeWSjQzqoRHwiiBianLagL8GKIjs0O4OySI/oLm6QzImAzv5mMB4tTPiN7x1FtTU
+         rnBUs5QzACe456XBtVa1RIzVbxerlIOvNFz0tCOCg55SYKbtj/SOkAkOVG3enaPf58Zc
+         SNbQ==
+X-Google-Smtp-Source: APXvYqw0KbWeRobzhAngWvuw0v+iBDWRKwDC2xGNXHO8L4kdi1iOFuLP64D72WK0vtdzu/2x0qr2r6kf9SEmu6uA3nY=
+X-Received: by 2002:aa7:90ce:: with SMTP id k14mr30343128pfk.239.1557159727868;
+ Mon, 06 May 2019 09:22:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190429024108.54150-1-jiufei.xue@linux.alibaba.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+References: <cover.1556630205.git.andreyknvl@google.com> <05c0c078b8b5984af4cc3b105a58c711dcd83342.1556630205.git.andreyknvl@google.com>
+ <20190503170310.GL55449@arrakis.emea.arm.com>
+In-Reply-To: <20190503170310.GL55449@arrakis.emea.arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 6 May 2019 18:21:56 +0200
+Message-ID: <CAAeHK+weVYv4Tgj8DXv0ZTFZzGEpLYsn-3wxxmQN+ZW88MXbMw@mail.gmail.com>
+Subject: Re: [PATCH v14 13/17] IB/mlx4, arm64: untag user pointers in mlx4_get_umem_mr
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	Yishai Hadas <yishaih@mellanox.com>, Kuehling@google.com, Felix <Felix.Kuehling@amd.com>, 
+	Deucher@google.com, Alexander <Alexander.Deucher@amd.com>, Koenig@google.com, 
+	Christian <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Chintan Pandya <cpandya@codeaurora.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
+	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Leon Romanovsky <leonro@mellanox.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 29, 2019 at 10:41:08AM +0800, Jiufei Xue wrote:
-> synchronize_rcu() didn't wait for call_rcu() callbacks, so inode wb
-> switch may not go to the workqueue after synchronize_rcu(). Thus
-> previous scheduled switches was not finished even flushing the
-> workqueue, which will cause a NULL pointer dereferenced followed below.
-> 
-> VFS: Busy inodes after unmount of vdd. Self-destruct in 5 seconds.  Have a nice day...
-> BUG: unable to handle kernel NULL pointer dereference at 0000000000000278
-> [<ffffffff8126a303>] evict+0xb3/0x180
-> [<ffffffff8126a760>] iput+0x1b0/0x230
-> [<ffffffff8127c690>] inode_switch_wbs_work_fn+0x3c0/0x6a0
-> [<ffffffff810a5b2e>] worker_thread+0x4e/0x490
-> [<ffffffff810a5ae0>] ? process_one_work+0x410/0x410
-> [<ffffffff810ac056>] kthread+0xe6/0x100
-> [<ffffffff8173c199>] ret_from_fork+0x39/0x50
-> 
-> Replace the synchronize_rcu() call with a rcu_barrier() to wait for all
-> pending callbacks to finish. And inc isw_nr_in_flight after call_rcu()
-> in inode_switch_wbs() to make more sense.
-> 
-> Suggested-by: Tejun Heo <tj@kernel.org>
-> Signed-off-by: Jiufei Xue <jiufei.xue@linux.alibaba.com>
-> Acked-by: Tejun Heo <tj@kernel.org>
-> Cc: stable@kernel.org
+On Fri, May 3, 2019 at 7:03 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Tue, Apr 30, 2019 at 03:25:09PM +0200, Andrey Konovalov wrote:
+> > This patch is a part of a series that extends arm64 kernel ABI to allow to
+> > pass tagged user pointers (with the top byte set to something else other
+> > than 0x00) as syscall arguments.
+> >
+> > mlx4_get_umem_mr() uses provided user pointers for vma lookups, which can
+> > only by done with untagged pointers.
+> >
+> > Untag user pointers in this function.
+> >
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > Reviewed-by: Leon Romanovsky <leonro@mellanox.com>
+> > ---
+> >  drivers/infiniband/hw/mlx4/mr.c | 7 ++++---
+> >  1 file changed, 4 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/drivers/infiniband/hw/mlx4/mr.c b/drivers/infiniband/hw/mlx4/mr.c
+> > index 395379a480cb..9a35ed2c6a6f 100644
+> > --- a/drivers/infiniband/hw/mlx4/mr.c
+> > +++ b/drivers/infiniband/hw/mlx4/mr.c
+> > @@ -378,6 +378,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
+> >        * again
+> >        */
+> >       if (!ib_access_writable(access_flags)) {
+> > +             unsigned long untagged_start = untagged_addr(start);
+> >               struct vm_area_struct *vma;
+> >
+> >               down_read(&current->mm->mmap_sem);
+> > @@ -386,9 +387,9 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_udata *udata, u64 start,
+> >                * cover the memory, but for now it requires a single vma to
+> >                * entirely cover the MR to support RO mappings.
+> >                */
+> > -             vma = find_vma(current->mm, start);
+> > -             if (vma && vma->vm_end >= start + length &&
+> > -                 vma->vm_start <= start) {
+> > +             vma = find_vma(current->mm, untagged_start);
+> > +             if (vma && vma->vm_end >= untagged_start + length &&
+> > +                 vma->vm_start <= untagged_start) {
+> >                       if (vma->vm_flags & VM_WRITE)
+> >                               access_flags |= IB_ACCESS_LOCAL_WRITE;
+> >               } else {
+>
+> Discussion ongoing on the previous version of the patch but I'm more
+> inclined to do this in ib_uverbs_(re)reg_mr() on cmd.start.
 
-Andrew, I think it'd probably be best to route this through -mm.
+OK, I want to publish v15 sooner to fix the issue with emails
+addresses, so I'll implement this approach there for now.
 
-Thanks!
 
--- 
-tejun
+
+>
+> --
+> Catalin
 
