@@ -2,96 +2,95 @@ Return-Path: <SRS0=pZwQ=TG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+X-Spam-Status: No, score=-5.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DED5C46470
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:20:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8530CC46460
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:48:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0AA8821655
-	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:20:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AA8821655
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2D0E521530
+	for <linux-mm@archiver.kernel.org>; Mon,  6 May 2019 14:48:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D0E521530
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 97EA76B0007; Mon,  6 May 2019 10:20:05 -0400 (EDT)
+	id 991E16B0005; Mon,  6 May 2019 10:48:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 954D66B0008; Mon,  6 May 2019 10:20:05 -0400 (EDT)
+	id 941096B0006; Mon,  6 May 2019 10:48:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81E706B000A; Mon,  6 May 2019 10:20:05 -0400 (EDT)
+	id 830066B0007; Mon,  6 May 2019 10:48:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 35CA66B0007
-	for <linux-mm@kvack.org>; Mon,  6 May 2019 10:20:05 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id m57so12317197edc.7
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 07:20:05 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 31A0A6B0005
+	for <linux-mm@kvack.org>; Mon,  6 May 2019 10:48:52 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id x16so12373408edm.16
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 07:48:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=qjpVlu0JNb8BZoTPQY/+lJhBCUQ0MV0Fx+CMtSKL6i0=;
-        b=n92hBS78irOJrF5UBjv88lvfbxFo8BRiSXN5WMvd0YpC5N774f0U7mEM+MPFbWt/jJ
-         Zh0+uRn/BlheMd2bsTep1x4lmf5Wk1xz+pX+Yq7frXDKR0x4AWJJJzMdkjORsabcRIyU
-         RJ1AahjSDEY7vZq/Qdq/P+LYPI88oItn5pWh3ZVkItzJMoxKEyNSYQ6v4BiNeJPvAq7D
-         tmNGAj1cjOgv1ZeYptjzDr8QJafkxZaTcTXcWXKO9umWiJN4q4xy7qVCcmyuZE9kqxj4
-         oRPiCukZVoEFdXGu+Um6zFKUOVj8jtPuUfqGY7gFDhlA/WDVxKcHluiq3ZD8UZVFD91j
-         Uh+A==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWR0JnhqdIKkB293nX5m8ZVSrc6B4Nc2oLJoy/TeIWZfe68J6hH
-	YmW6mEcFd9Szd9lpWC0zfalMtbkI0q5pmiQe6KzTTdfDspxhdZzDrCEk2PJb857lt6O3vh/pkjm
-	InZ7JJaCIcvb/H67lnuwxmcsGaB1uGnbHZxK4Atnnke4Wm2eaWIhYE5wvHKSqqiI=
-X-Received: by 2002:a50:b19a:: with SMTP id m26mr26660636edd.243.1557152404763;
-        Mon, 06 May 2019 07:20:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNZZlN4dnLAZ4PA9ofJl4ZGKELtHQGd7KmrFrJic/yrAx0la234cibAyJCrlyQNI70LBpd
-X-Received: by 2002:a50:b19a:: with SMTP id m26mr26660525edd.243.1557152403789;
-        Mon, 06 May 2019 07:20:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557152403; cv=none;
+        bh=OW9mMR3aRNe5ztpkQ0JSKuvyvJh6tD06EQ8JynNcLrc=;
+        b=Rl2m1iCn+GCI3CsfdTmiefwrItMJDxoVhEmf4165hwrtxCayGyurXMq5DWPFYvlq1t
+         FzwatRSBqrQJz75ptadyYcxKoxgi33H47HfItjooONNRI1FFllN+JDFNKsi/roHdk/vi
+         GP2RlFMB4+JkwtBdrantCO+RLUfqxufCDZyMU+/A4Mtyc8SrcVI9N/WxbO7qzo9ClwpD
+         LTM7TJ2nT1D6w5k7mcCgHpDnELUaSE3gvhq3tbpV4MLFh7Hg84DpTueIdFD5CiihUr4W
+         t7mzdfwEeLrCAlzepituAGUDDK7/u/l1aOxbjjgukiJcYGxmwuCZ57XdLzVOp92nK9WY
+         CpkA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXnve1CnEzOkKDsNPmeuRK0HD2t/QBIGHXvqkAmF9ZNpIRYbSvC
+	De8ugvK4ADIBPb7+UuiPHg8dsw0pXAHdu9ovjwm3chL4rrdF0xTneHRIXe9BnGTBSFS0rNysaFN
+	XcYAHj8jHm5tiApGi13Ia/8u703olgdNTG/jrRJugWq7gLSn0DExHLv/FOuVlTdfFcw==
+X-Received: by 2002:a17:906:4f87:: with SMTP id o7mr19867404eju.11.1557154131766;
+        Mon, 06 May 2019 07:48:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjRZMzTzUGvDAQqih2SjujsPaV/OCmrsC7pCx0vpR76xe78hk18Bu2hqUw1T4/VQISHlrI
+X-Received: by 2002:a17:906:4f87:: with SMTP id o7mr19867303eju.11.1557154130521;
+        Mon, 06 May 2019 07:48:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557154130; cv=none;
         d=google.com; s=arc-20160816;
-        b=enVNfCtjykBinmH9pJLR/oNGu+Q6Et3IcAJy5WpD6KFWJ7PYu+TuCOx5MambwMKJcc
-         WfZ8MKPepfRd5gr1HxrV5tBMXDzDZKXoElh8cY8Cuw+Ao2tbBrkSMUsoHemqxId5nq6y
-         e547DwxD8Bj0w7aHCtRsYrK0p1YWHGx22juOTjPdGCQHm1kLCpXJLQh6j56OTF0nxf0a
-         56eaWue/VPTDSCT3AukUeeDv6jCM9tfPEfml+cPv3g0iJUm8v54wxyEW/fUnANno901V
-         gPWM7YT79KPibj96LnhIMgLoKHtU7G1k2ZqWcQum0BFbduIivdN3AowB4L+1nckbVfAO
-         niYQ==
+        b=I4TNV8v5rz9oQ+2lVdfHjPKcHK6/gmTDxZDmKgPjEGTMIcwIo01E/EWx6OSLkRyZHO
+         ugoIQKtJ7GpWLVEmtjoHPIYNAd9ZKyBajjQlP3SSeZyn7oi9b5j1O8raSMeQHCs7XyeV
+         pFul4kiJqvHwnOjfp8x6vzLC/C3nOcANJAjHxQbMTsiLOoIYrbviamfF5hBLIKfPI/KC
+         yQvDt0Hq2y2ABh1+Pf/KTdlWf95WI9jmaItjapiTEqiQP4W+LKZZgQDwYt+vyvU/7GEt
+         fyrjWgF/wKdlQYw0fGwFXiH2gqjlm9bBRUIZ4IFmu9Doypmab87mrmTiUPDXyV1/S/R/
+         6xfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=qjpVlu0JNb8BZoTPQY/+lJhBCUQ0MV0Fx+CMtSKL6i0=;
-        b=QAutvlm8+PNHNzxsh5+7FvNU2f+7BJYoFS+4B24SYDmsYbP2RiKT0JZly8CJoVLtgg
-         2OXGZUFR59BDyBPlbLq/+ya7u8+oIEMJF+xvmVyeo+OK7V+5FbUO66km5OYIamBiDp8z
-         X9Yxcxp27Y7fSHVi011tjGDxzWiaxPdimkjWzTX2A1kCnyYXOXx2Q5z7ZjqQA5ulepZy
-         VPX4TfTxAVu3UkHV0zP/pCBeu8YpzI/RGISDd80XUAiXAwN3XwehnwgGMeO+5Dd55t34
-         kleC2k2FKZN7xlGV7gtuJqh0VyF3jU/lH9etmM1XScIC/BlphUCFLQngS8Qs2uQIqC5c
-         Kowg==
+        bh=OW9mMR3aRNe5ztpkQ0JSKuvyvJh6tD06EQ8JynNcLrc=;
+        b=x0q7FvKIOlLG7IXQO+acBUWn7gC34bRZzgbLyAPgTeYwyVgFU4qBgJly3Kd6QdeWcN
+         UuTKJ5Ud/7xCVlM7rqckvj9eB3Noppm9TSed3jWxRo+JNWeEmDWzl+qonSHJT1kGkmd2
+         BD5SyrtJQr7mk8XyaWPIDIBnYdQ17P2twIg6Y1UMQZFPds0i2BNHr4ZJng6q+DC2Upy+
+         fbjKGcQoHFDv1KLa6CavbORA80bnndUO2yUCzGghxMgTocnk/7DcWsvMACr0+C9awm2x
+         5n9d4Q/Fn+8I1yOL+mbaQtuP+/uLp9Nli9lvd0eJ3JVcvfVB2uLe7NjPRBUthRziUA5a
+         tiBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ay4si3637396ejb.102.2019.05.06.07.20.03
+        by mx.google.com with ESMTPS id 10si5083900eds.443.2019.05.06.07.48.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 07:20:03 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 06 May 2019 07:48:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EE89EAE18;
-	Mon,  6 May 2019 14:20:02 +0000 (UTC)
-Date: Mon, 6 May 2019 16:20:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
+	by mx1.suse.de (Postfix) with ESMTP id 7C17EABE7;
+	Mon,  6 May 2019 14:48:49 +0000 (UTC)
+Date: Mon, 6 May 2019 16:48:46 +0200
+From: Oscar Salvador <osalvador@suse.de>
 To: Zhiqiang Liu <liuzhiqiang26@huawei.com>
-Cc: mike.kravetz@oracle.com, shenkai8@huawei.com, linfeilong@huawei.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	wangwang2@huawei.com, "Zhoukang (A)" <zhoukang7@huawei.com>,
+Cc: mhocko@suse.com, mike.kravetz@oracle.com, shenkai8@huawei.com,
+	linfeilong@huawei.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, wangwang2@huawei.com,
+	"Zhoukang (A)" <zhoukang7@huawei.com>,
 	Mingfangsen <mingfangsen@huawei.com>, agl@us.ibm.com,
-	nacc@us.ibm.com, Andrew Morton <akpm@linux-foundation.org>
+	nacc@us.ibm.com
 Subject: Re: [PATCH v2] mm/hugetlb: Don't put_page in lock of hugetlb_lock
-Message-ID: <20190506142001.GC31017@dhcp22.suse.cz>
+Message-ID: <20190506144835.GA10427@linux>
 References: <12a693da-19c8-dd2c-ea6a-0a5dc9d2db27@huawei.com>
  <b8ade452-2d6b-0372-32c2-703644032b47@huawei.com>
 MIME-Version: 1.0
@@ -105,7 +104,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 06-05-19 22:06:38, Zhiqiang Liu wrote:
+On Mon, May 06, 2019 at 10:06:38PM +0800, Zhiqiang Liu wrote:
 > From: Kai Shen <shenkai8@huawei.com>
 > 
 > spinlock recursion happened when do LTP test:
@@ -150,41 +149,10 @@ On Mon 06-05-19 22:06:38, Zhiqiang Liu wrote:
 > Signed-off-by: Feilong Lin <linfeilong@huawei.com>
 > Reported-by: Wang Wang <wangwang2@huawei.com>
 > Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
-> v1->v2: add Acked-by: Michal Hocko <mhocko@suse.com>
 
-A new version for single ack is usually an overkill and only makes the
-situation more confusing. You have also didn't add Cc: stable as
-suggested during the review. That part is arguably more important.
-
-You also haven't CCed Andrew (now done) and your patch will not get
-merged without him applying it. Anyway, let's wait for Andrew to pick
-this patch up.
-
-> 
->  mm/hugetlb.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 6cdc7b2..c1e7b81 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1574,8 +1574,9 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
->  	 */
->  	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
->  		SetPageHugeTemporary(page);
-> +		spin_unlock(&hugetlb_lock);
->  		put_page(page);
-> -		page = NULL;
-> +		return NULL;
->  	} else {
->  		h->surplus_huge_pages++;
->  		h->surplus_huge_pages_node[page_to_nid(page)]++;
-> -- 
-> 1.8.3.1
-> 
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
 -- 
-Michal Hocko
-SUSE Labs
+Oscar Salvador
+SUSE L3
 
