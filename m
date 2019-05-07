@@ -2,146 +2,145 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45861C04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF1EDC04AAD
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:43:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1526020675
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:43:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1526020675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7CD2120675
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:43:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Co2UIiT1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CD2120675
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB4386B0005; Tue,  7 May 2019 13:43:39 -0400 (EDT)
+	id 12C366B0006; Tue,  7 May 2019 13:43:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B3D0E6B0006; Tue,  7 May 2019 13:43:39 -0400 (EDT)
+	id 0B5996B0007; Tue,  7 May 2019 13:43:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A047E6B0007; Tue,  7 May 2019 13:43:39 -0400 (EDT)
+	id E98C56B0008; Tue,  7 May 2019 13:43:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 50A6D6B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 13:43:39 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x16so15025438edm.16
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 10:43:39 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 86F816B0006
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 13:43:54 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id d24so2690035lfm.17
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 10:43:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ytCkz687waR4GJ+1u+uF33FVUlWa8FooSFkxCTvV7l0=;
-        b=pN4dDSKxftnrDnE5JYnHxLcz0HmkzEk8dETF7DCZPcb0S/bM/WPT1QPJxImpWXU+84
-         QUEhZfuk61ptIa9+fDI+xuxiSLT6kQtv0eYFQuaOkXHj9MGcFeCaAEJ2AmG9WWSvYcAw
-         63wcXWJQiVyXQ0tEd2hcN5tUr3xyGmKWdHANyS+gFMg0OGbQnuFYZLrfeSznNdEsRHnN
-         0RBe9mx7P3y/hd7rxzN6P4Cy30flLPaw045ukgBoMGld/X4Pt3tlS3BuGDfEBmlDwnwr
-         CIRNwEG7VWxvXkHCJ5lmUGK+nh/Vk43s7MbDiBwq5ytTLd14K4ODjgOjcFYAHPqkLzYU
-         C7mw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXcmcejwIHQMPpADqrqDGBhJdYRK2IcQhCeiswt9E+FVP29LhJE
-	pluPVykfatx+q0Y6TGpMabUA/v28K2djf54sY8/VBF7A32G8oTba3vvLPhJBIMIfY9gu3d+T9tj
-	3EbmS64pGFsh8a7kKvp17RWIhUehLmgZ9HUJMt9g/HGFZjN62O6Cp5tZSjVm5Ih0=
-X-Received: by 2002:a17:906:5c5:: with SMTP id t5mr11854100ejt.274.1557251018906;
-        Tue, 07 May 2019 10:43:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywTLkWO26pjv8yLpAEGZFXFbZAGn4A1TbCGdykVUjYERWhX+++Qr6cHeyoCSaCz5EqU0xl
-X-Received: by 2002:a17:906:5c5:: with SMTP id t5mr11854051ejt.274.1557251018058;
-        Tue, 07 May 2019 10:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557251018; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=fkA+Y9XnOGjl/cdVGrUxZb5095BOcP1bwTD0zYW4RLc=;
+        b=WWCv5L+LuP1vlF/BkTdK/VP/pot7fgCJVoRmVeMOO5XhTkUu9yj1jUD24pKZ+uM6W4
+         /VRVdX1rjpKtZibUUJK70o0mHJAKQImz5frO26k0MCXcocfffiAKvuBTNXuKXfour+vI
+         cTMxK3nc/noUnHROgreOKvm+DmEdHK33zofKKTpWeEMdtDZMV/GOIhV3ntIyALiKYGew
+         gg4QlzWPE5IvXpbt68678dvq2NAXePIIPRRKYHeLz5PcQwMNNnLK1I8Zm433QFtZNMRa
+         BXfX5rE2QcN2/l5+gedknP0Dyx3v/hRbIC/mf9KbNN7rJ/6CReltHn7t30mngEgsBR2F
+         fSgg==
+X-Gm-Message-State: APjAAAWUPw5HgF2311RatouVCWd17OhfvdAze6kWpZqEDCVIK+1IuJTd
+	4HbjL3xN1LK7POYCyDgDWLhSBgvHVI//dkFwYU/fXtkT6X5v/r2zSWcdAdHLNj8/HlEyMFeX4eR
+	U9y54aZpdSyhRTU0I9i1k0jnVVp9YawMhecursGUzfLUvwTk4HnLhJLvXpIhzZ0UTwA==
+X-Received: by 2002:a2e:86c5:: with SMTP id n5mr18561597ljj.184.1557251033822;
+        Tue, 07 May 2019 10:43:53 -0700 (PDT)
+X-Received: by 2002:a2e:86c5:: with SMTP id n5mr18561569ljj.184.1557251033127;
+        Tue, 07 May 2019 10:43:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557251033; cv=none;
         d=google.com; s=arc-20160816;
-        b=yukzslY8kkPXPZOwvrxMfMBFWtmE4saT7+/zonnp0snWG97UNYYyzcrPi8nCB59MKl
-         KGnoghlayyFw4bSaBk2iW9gJf642NS7MfCoJJbL2PYy/5U42tA03kwjcOS8elaohhDlE
-         0i6EpZrKTTN8uxGPF0qAxeQSzoaWMgRpic9W3677jn9RIR8L3HSc1crilQVOsYZrN2hi
-         1IorniLZ487QpYBK22LI8u2OQBgBuWw1MD7iTzjjc3YlV1A1Gd1uJvpG5mN73I4ljrSz
-         198a02d2ucPPZ+3HEzSuLDgsPzicBunpPQTvLkptcpgiU+BOH7nZzmvs2YZpksk7YQyD
-         fp1g==
+        b=OtLQl4yN1pPdjkYSHmFJl6Vb6Y2nodD6q9D1fQBagfVoQEVWxQX2EOu2n2BHUsdEQP
+         rVd3cQy87wk3pbLuH+moTiX+I4oQrMMZrfGMXRqEEg6YfyX1S6BbvHbSPKJKcI0KUs+z
+         zob1G8yU6H5ONu8sLIHH4SN56KMau7aSsMWM71nySTDWlWgHVpvEeC1RWz7hEIcTxR5h
+         c8PCdSg9svf3WXPJZUhV5g+qBtqFU3Wf/ZNRW2ou+BhMJxpR2vMOSeNgmkvZMtZt0kwN
+         d7H45bOPlLBUirRX6wvQKg+HGU3QYes4gAWkUHYMn3KhTpZ0fBM9UHstcXbrnqg2Y1Tk
+         G9Cg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ytCkz687waR4GJ+1u+uF33FVUlWa8FooSFkxCTvV7l0=;
-        b=Mjro5XUqB6l93ZsSnizAWUBAJ2EAYdq327SV41fDH3OCa5q1lSlGV/ET9uU7kOZp1S
-         l0KE0vBIe/YvrtvBrbjFGZ2I0YkDp8zj+PT/92igolMmFGZTO3I3YNC/X0ghhYGm1Hh4
-         gwvIPfAgS52P9iGaDPrMKINNZ543MarD/fLFE1ydYRVB1ScX3NK0cOkQqdk1Grv9cYKe
-         Cn1vnfsRV8JYp7nZVJafAVp6PXck4AOVAGyfCD7C1giLYjf7phKjyabLHVY8PY8bEFHs
-         coaiwE1F2m9LMNBIavrLzPH0ahOFnst3lOGo0HghXZmyf0hxifSZmv/uxcT/Z8vYyGae
-         vDJg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=fkA+Y9XnOGjl/cdVGrUxZb5095BOcP1bwTD0zYW4RLc=;
+        b=0JoNGg9LiFK7hb144SrSrqbXjU0F2YrpjuFv/0Oc5hV/Vfx6gkRZInPi0v0cwkVNBO
+         48UqufNLBfCemeG97p1haUanC1UdQ/90tt0OeNux3y9bmTk+5yGZ3k7xE287fVsFEgLY
+         wKmBuANGO90JmUUt2i0hwdt9Iv8fD+zEcwQCvRhkjvnCwQkrfXp/U1u3W7oWRXQcSSBo
+         c/PRaya16jOoeQ4Atb+5hHDyu1Vssf+FbiuLTHLdgSWmWcDHdG6g6zqRXopcd2s2CN04
+         IM27U4Jv1LV2FqFLNm2DlxXBqSTPRNjPmkgakF5/3ApEIitutlxP/TuO7/V8rfUlAFJa
+         yYpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a2si1399021edc.351.2019.05.07.10.43.37
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Co2UIiT1;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n6sor5701560lji.36.2019.05.07.10.43.52
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 07 May 2019 10:43:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Co2UIiT1;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=fkA+Y9XnOGjl/cdVGrUxZb5095BOcP1bwTD0zYW4RLc=;
+        b=Co2UIiT1iv1WhhnvT+1SLlkyQw1jm+jIn7F5nCWplNQ4zzVNCu8DWJlLaOs5Q4eA6v
+         dX3/gvVrHWhpmKzMeYWueRW2iIbmxXCiloZEhDBiCwMyJ/AqK/gQeIT/nMiqjhbY4PKo
+         2MHqNXryyh0L0banXslg9ahMI3L+ftSr/qVDk=
+X-Google-Smtp-Source: APXvYqz4Npzwt6MN3IViFgimCpFmxR/dEjdmGZe1HKqIaeFosGOK/KUyP9b/4GyFD5IAm/aAFtXHBQ==
+X-Received: by 2002:a05:651c:97:: with SMTP id 23mr6796037ljq.143.1557251032197;
+        Tue, 07 May 2019 10:43:52 -0700 (PDT)
+Received: from mail-lj1-f182.google.com (mail-lj1-f182.google.com. [209.85.208.182])
+        by smtp.gmail.com with ESMTPSA id r26sm3354750lfa.62.2019.05.07.10.43.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 10:43:38 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
-Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9CE04AF7C;
-	Tue,  7 May 2019 17:43:37 +0000 (UTC)
-Date: Tue, 7 May 2019 19:43:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Sasha Levin <sashal@kernel.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Alexander Duyck <alexander.duyck@gmail.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	stable <stable@vger.kernel.org>,
-	Mikhail Zaslonko <zaslonko@linux.ibm.com>,
-	Gerald Schaefer <gerald.schaefer@de.ibm.com>,
-	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Pasha Tatashin <Pavel.Tatashin@microsoft.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Sasha Levin <alexander.levin@microsoft.com>,
-	linux-mm <linux-mm@kvack.org>
-Subject: Re: [PATCH AUTOSEL 4.14 62/95] mm, memory_hotplug: initialize struct
- pages for the full memory section
-Message-ID: <20190507174336.GU31017@dhcp22.suse.cz>
-References: <20190507053826.31622-1-sashal@kernel.org>
- <20190507053826.31622-62-sashal@kernel.org>
+        Tue, 07 May 2019 10:43:50 -0700 (PDT)
+Received: by mail-lj1-f182.google.com with SMTP id f23so15133575ljc.0
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 10:43:49 -0700 (PDT)
+X-Received: by 2002:a2e:9d86:: with SMTP id c6mr16010057ljj.135.1557251027975;
+ Tue, 07 May 2019 10:43:47 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190507053826.31622-1-sashal@kernel.org> <20190507053826.31622-62-sashal@kernel.org>
  <CAKgT0Uc8ywg8zrqyM9G+Ws==+yOfxbk6FOMHstO8qsizt8mqXA@mail.gmail.com>
  <CAHk-=win03Q09XEpYmk51VTdoQJTitrr8ON9vgajrLxV8QHk2A@mail.gmail.com>
- <20190507170208.GF1747@sasha-vm>
- <CAHk-=wi5M-CC3CUhmQZOvQE2xJgfBgrgyAxp+tE=1n3DaNocSg@mail.gmail.com>
- <20190507171806.GG1747@sasha-vm>
- <20190507173224.GS31017@dhcp22.suse.cz>
- <20190507173655.GA1403@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+ <20190507170208.GF1747@sasha-vm> <CAHk-=wi5M-CC3CUhmQZOvQE2xJgfBgrgyAxp+tE=1n3DaNocSg@mail.gmail.com>
+ <20190507171806.GG1747@sasha-vm> <20190507173224.GS31017@dhcp22.suse.cz> <20190507173655.GA1403@bombadil.infradead.org>
 In-Reply-To: <20190507173655.GA1403@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 7 May 2019 10:43:31 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wjFkwKpRGP-MJA6mM6ZOu0aiqtvmqxKR78HHXVd_SwpUg@mail.gmail.com>
+Message-ID: <CAHk-=wjFkwKpRGP-MJA6mM6ZOu0aiqtvmqxKR78HHXVd_SwpUg@mail.gmail.com>
+Subject: Re: [PATCH AUTOSEL 4.14 62/95] mm, memory_hotplug: initialize struct
+ pages for the full memory section
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Sasha Levin <sashal@kernel.org>, 
+	Alexander Duyck <alexander.duyck@gmail.com>, LKML <linux-kernel@vger.kernel.org>, 
+	stable <stable@vger.kernel.org>, Mikhail Zaslonko <zaslonko@linux.ibm.com>, 
+	Gerald Schaefer <gerald.schaefer@de.ibm.com>, 
+	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, Dave Hansen <dave.hansen@intel.com>, 
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
+	Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, 
+	Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Sasha Levin <alexander.levin@microsoft.com>, linux-mm <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 07-05-19 10:36:55, Matthew Wilcox wrote:
-> On Tue, May 07, 2019 at 07:32:24PM +0200, Michal Hocko wrote:
-> > On Tue 07-05-19 13:18:06, Sasha Levin wrote:
-> > > Michal, is there a testcase I can plug into kselftests to make sure we
-> > > got this right (and don't regress)? We care a lot about memory hotplug
-> > > working right.
-> > 
-> > As said in other email. The memory hotplug tends to work usually. It
-> > takes unexpected memory layouts which trigger corner cases. This makes
-> > testing really hard.
-> 
+On Tue, May 7, 2019 at 10:36 AM Matthew Wilcox <willy@infradead.org> wrote:
+>
 > Can we do something with qemu?  Is it flexible enough to hotplug memory
 > at the right boundaries?
 
-No idea. But I have tried to describe those layouts in the changelog so
-if somebody can come up with a way to reproduce them under kvm/qemu I
-would really appreciate that.
+It's not just the actual hotplugged memory, it's things like how the
+e820 tables were laid out for the _regular_ non-hotplug stuff too,
+iirc to get the cases where something didn't work out.
 
--- 
-Michal Hocko
-SUSE Labs
+I'm sure it *could* be emulated, and I'm sure some hotplug (and page
+poison errors etc) testing in qemu would be lovely and presumably some
+people do it, but all the cases so far have been about odd small
+special cases that people didn't think of and didn't hit. I'm not sure
+the qemu testing would think of them either..
+
+                Linus
 
