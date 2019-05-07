@@ -3,198 +3,190 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2410BC004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:10:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57F33C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:15:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D64BB2053B
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:10:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D64BB2053B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 13EB02053B
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 17:15:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13EB02053B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 712E76B0005; Tue,  7 May 2019 13:10:48 -0400 (EDT)
+	id 956B96B0005; Tue,  7 May 2019 13:15:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C20F6B0006; Tue,  7 May 2019 13:10:48 -0400 (EDT)
+	id 908266B0006; Tue,  7 May 2019 13:15:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B2BA6B0007; Tue,  7 May 2019 13:10:48 -0400 (EDT)
+	id 81E606B0007; Tue,  7 May 2019 13:15:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 21CC96B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 13:10:48 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d7so5222463pgc.8
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 10:10:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4A6A36B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 13:15:38 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s8so10732665pgk.0
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 10:15:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=NJQqDI0NsxB4k9JIlwZrh6+E+Iiu0Ru/GMvVUVONdMg=;
-        b=MfWZHan5gK7QqTAoaLvqqRbtK/WrHaXWa3mmLaCVjKiNernu+XUIHHzxhkTIPQK+6k
-         C9+zszgIug7WF5L8Z/OnHWV19Giq5a89NDZSipxRlvflUnCPsrwzIuabfaC2B1mA0RIL
-         HtBmjOzVIecENf9W1TKzv1MicRcPXokoJmOUDypJtJyME1pEgm5Cingeg6RhaSkTUuOQ
-         GugjXLWnxmy66fn9th53ZOj3ZkKp8qjQIB0nB22P6tyC8SZHHtianiLKFKb6SicnZwHr
-         XGm/U42UkYiDlkFil2goXwWe1pQP/DDHyvuMA9CWJaxyo6lBFcP5lDP1SvV4hNwPxo6u
-         70IQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWnkwJ47HNrRTuYNBeEDBQ/EW9Ux/LjAob4hAZ3Cug4DIxl63JH
-	l9jkrmnryFTk2fJuVRJ2R5QkCs4JaaEuzskiWaT8xUvIOlSAITmiZ8Uxjw1wzaGLoYPZaY1jD1k
-	Fk5lPQfltCfI1pLklPLulx1W3y7f+2SKD+klkFpehMzv6so7X4N3iEEiK4FE0QBOZOA==
-X-Received: by 2002:a17:902:42:: with SMTP id 60mr41381804pla.79.1557249047735;
-        Tue, 07 May 2019 10:10:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw43TYjDw5062xu3k1Jc8xQZ8B3kk9BYxJVf9TGM4eRj5ldX3QUFVb2Acy+9sFT1XNBhalb
-X-Received: by 2002:a17:902:42:: with SMTP id 60mr41381696pla.79.1557249046527;
-        Tue, 07 May 2019 10:10:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557249046; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:references:mime-version
+         :content-transfer-encoding:message-id;
+        bh=qeXp0CvAOO0tXPkoJ3JuRLNAFOo6M/kKB8bDFRWtMYQ=;
+        b=sjWfzc9VV9FbAAqfW8cX+3/gRl4WdDcr+0xz8AvMHuUU6E5SeCpC/PNNj4BTmzn4Ot
+         DtV5RaBHcqSnKl6b/Uy5JsJmKchi3A9OOck6tvFkpLitxhOD/uyUbohGLNhNNjY//X37
+         mgQ1QRPNZ/7lPnFrVjFrFBFvFLgYKTt64/5rJjZMi3XL4vuVhFN5+oa5BZJ1MxqYiI+l
+         6bsuz+cDl6CxQEET19rs73knZqfHiLAwWoSekNiEM2NioTK5fifog+/OkQ8/MtdPc6p8
+         5XKSm9Gw6lLyUQnKjHbpHMp9bGhVpAhtSsEFQYmeXb25O9EJFw2ZTzBq+VdgHpcufdY1
+         s0gA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAX+VFa6EGyeFEL7jMT5+YDGNW7cVDby5uMOnE5KIgsruso8e6ZG
+	yifVJDuZ9prtRM9nB8K16RJLMlPgC5QSK+/W5JwoHUHLVLcytKkWR61u1ZrXwyOR693VzmfRnUr
+	4QPKBgWn7pKIavW3QdNkDuiKjL2GLKD7vIEq3k40fsmO4Acyh8m7Q9hq/e71Biq3Itg==
+X-Received: by 2002:a17:902:8f88:: with SMTP id z8mr40591393plo.54.1557249337983;
+        Tue, 07 May 2019 10:15:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKnEizKSeShq/dtzcJB0/QHLCKq3e/J95vXGosjXaNbxl+K2BhUA5Xigk8u+jvQuOMkOqf
+X-Received: by 2002:a17:902:8f88:: with SMTP id z8mr40591337plo.54.1557249337449;
+        Tue, 07 May 2019 10:15:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557249337; cv=none;
         d=google.com; s=arc-20160816;
-        b=DrB5oSIbFjJNTp+1XPuq1agj0F30+EIt01FsIqotejHikOghDP9c2t8Em4Tm9fZtnI
-         yc/lkhF4gmO10Aah8sajoQlwRX/znlAr7YvlxlV0rl4YsPcQGGEPXuzW34/Tq547JXg/
-         gzh5gqE0fq2xb5H0f1FSpNZ3WvT2bA/0inKe8Xk3UfKagltYjB4Ldgv6gVj+BRhYTPb7
-         evmsmnrsPHOJLYOcuKDA7qhmGURoQYjEpqYRdJlfRA/3XE+tytYKokQD12T2LavzBalF
-         uStzGXIdAgQ1VGe8DrxorYGlFyqFmJimEMmapkCBG72MHyZ+Mwu1TRXs1kwdjrkIgqV6
-         BJwg==
+        b=y+aqTOeQOFEvzND88OmLdnGNqO+1P2eJcLmavlakA2KK6YCtjBKv369vNMRyLwbgKN
+         CWD+JGRVYbHf4ENteM9WI6QlCdFfCrfIYJyWEW7AxfT12wVJcF3a9XZx7sWTPiYKUOnW
+         oqSmrL/HwawG85h45F4UW0YxEQx5MDCfAJ7kS81T6bYmtUfF2/OdwEucNuSl0QDbozUM
+         9pYK/yd4z9IPhgMd7t1rWmwl/kItM2VqnNHrOLWTmemw9IHBQC7uQsFUdmiNFKxHI3f1
+         XyKcTpsP7qxCwLKWh4ktZoL7DpFs2ydaGqu7ZxjhNVjQUKKAqddLpde0kFXKWLHI5Cl8
+         0m+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=NJQqDI0NsxB4k9JIlwZrh6+E+Iiu0Ru/GMvVUVONdMg=;
-        b=FYiHL7ArYX0O7sAzJd7FndYzp/18Uq16FMMId/ji46DiN1erwuXl99LPQeGyJo2LOj
-         WApEBAj6c6VSxV/r9P7Du50/hIOS6OdpHDz8yAp2JAp5zCb5116UQpbtm4wMfQe74oC8
-         Gcx+vSX8lK55TAGKeVnR6B+FCTRM2mgc7dP3A3GCXRfs7/vWmsXL4fo/VIj7TCb/+PSl
-         O69N/Y5wKlQMamlwrft1CBoAZlh/GQvJzT0kDTZbMxUIBruoEUU2DoW/1NWZwK1qK6ln
-         cJuUGz5DdPUvyrmxE0i9xQ4iX7M0xRJrSZwpJQgnJw4UhGQMRIV/6bOynWkz6bSZ3vfN
-         Yamg==
+        h=message-id:content-transfer-encoding:mime-version:references
+         :in-reply-to:subject:cc:to:from:date;
+        bh=qeXp0CvAOO0tXPkoJ3JuRLNAFOo6M/kKB8bDFRWtMYQ=;
+        b=1Bim3KeHXITwbyZ1/YQZ4Gp1fbU7iQdsoWvjUKwF9iBh0PRiJO8wwSalqISJkGuOib
+         3tn38y9cMKkJikCm1vS+gauJENO5EKSM0eYPlGlmnKtd8qNsvvWHFZ7uFgHgwKbn4FRd
+         KMriI31LkQPa5mWxtJILpQAs3NVvz8U4658N9w6cqK9liyshsB4SdYjWQNWNG7l509H8
+         MWhHMs72o4VSOxgx7n+I1zVnbtlu+FoTSOhMz7wRu6v8alXCuz20YtzVYyi2v0UYoS2F
+         wCgeKsipkeE8wBBHriuAst6mOCE1Tr/+fQZNb4NwuZi6cMhsA5Ypjpblmj8/Et8pF2C/
+         wlag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
-        by mx.google.com with ESMTPS id f12si20456291pgg.518.2019.05.07.10.10.45
+       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i2si15645251pgi.0.2019.05.07.10.15.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 10:10:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+        Tue, 07 May 2019 10:15:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R901e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TR7KsnZ_1557249036;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TR7KsnZ_1557249036)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 08 May 2019 01:10:41 +0800
-Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
- rientjes@google.com, kirill@shutemov.name, akpm@linux-foundation.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Hugh Dickins <hughd@google.com>
-References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190423175252.GP25106@dhcp22.suse.cz>
- <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
- <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
- <20190507104709.GP31017@dhcp22.suse.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
-Date: Tue, 7 May 2019 10:10:33 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x47HF26w083716
+	for <linux-mm@kvack.org>; Tue, 7 May 2019 13:15:36 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2sbd0x3k5v-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 07 May 2019 13:15:19 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Tue, 7 May 2019 18:13:07 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 7 May 2019 18:13:02 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x47HD1lY39846070
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 7 May 2019 17:13:01 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A1037A405B;
+	Tue,  7 May 2019 17:13:01 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 28C49A4060;
+	Tue,  7 May 2019 17:13:01 +0000 (GMT)
+Received: from thinkpad (unknown [9.152.212.151])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue,  7 May 2019 17:13:01 +0000 (GMT)
+Date: Tue, 7 May 2019 19:13:00 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+        Alexander Duyck
+ <alexander.duyck@gmail.com>,
+        LKML <linux-kernel@vger.kernel.org>, stable
+ <stable@vger.kernel.org>,
+        Mikhail Zaslonko <zaslonko@linux.ibm.com>,
+        Michal
+ Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>,
+        Mikhail Gavrilov
+ <mikhail.v.gavrilov@gmail.com>,
+        Dave Hansen <dave.hansen@intel.com>,
+        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+        Pasha Tatashin
+ <Pavel.Tatashin@microsoft.com>,
+        Martin Schwidefsky
+ <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Sasha Levin
+ <alexander.levin@microsoft.com>,
+        linux-mm <linux-mm@kvack.org>
+Subject: Re: [PATCH AUTOSEL 4.14 62/95] mm, memory_hotplug: initialize
+ struct pages for the full memory section
+In-Reply-To: <20190507170208.GF1747@sasha-vm>
+References: <20190507053826.31622-1-sashal@kernel.org>
+	<20190507053826.31622-62-sashal@kernel.org>
+	<CAKgT0Uc8ywg8zrqyM9G+Ws==+yOfxbk6FOMHstO8qsizt8mqXA@mail.gmail.com>
+	<CAHk-=win03Q09XEpYmk51VTdoQJTitrr8ON9vgajrLxV8QHk2A@mail.gmail.com>
+	<20190507170208.GF1747@sasha-vm>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-In-Reply-To: <20190507104709.GP31017@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19050717-0008-0000-0000-000002E43CCF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050717-0009-0000-0000-00002250BAE6
+Message-Id: <20190507191300.6e653799@thinkpad>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-07_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1031 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=922 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905070111
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 7 May 2019 13:02:08 -0400
+Sasha Levin <sashal@kernel.org> wrote:
 
+> On Tue, May 07, 2019 at 09:50:50AM -0700, Linus Torvalds wrote:
+> >On Tue, May 7, 2019 at 9:31 AM Alexander Duyck
+> ><alexander.duyck@gmail.com> wrote:
+> >>
+> >> Wasn't this patch reverted in Linus's tree for causing a regression on
+> >> some platforms? If so I'm not sure we should pull this in as a
+> >> candidate for stable should we, or am I missing something?
+> >
+> >Good catch. It was reverted in commit 4aa9fc2a435a ("Revert "mm,
+> >memory_hotplug: initialize struct pages for the full memory
+> >section"").
+> >
+> >We ended up with efad4e475c31 ("mm, memory_hotplug:
+> >is_mem_section_removable do not pass the end of a zone") instead (and
+> >possibly others - this was just from looking for commit messages that
+> >mentioned that reverted commit).
+> 
+> I got it wrong then. I'll fix it up and get efad4e475c31 in instead.
 
-On 5/7/19 3:47 AM, Michal Hocko wrote:
-> [Hmm, I thought, Hugh was CCed]
->
-> On Mon 06-05-19 16:37:42, Yang Shi wrote:
->>
->> On 4/28/19 12:13 PM, Yang Shi wrote:
->>>
->>> On 4/23/19 10:52 AM, Michal Hocko wrote:
->>>> On Wed 24-04-19 00:43:01, Yang Shi wrote:
->>>>> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility
->>>>> for each
->>>>> vma") introduced THPeligible bit for processes' smaps. But, when
->>>>> checking
->>>>> the eligibility for shmem vma, __transparent_hugepage_enabled() is
->>>>> called to override the result from shmem_huge_enabled().  It may result
->>>>> in the anonymous vma's THP flag override shmem's.  For example,
->>>>> running a
->>>>> simple test which create THP for shmem, but with anonymous THP
->>>>> disabled,
->>>>> when reading the process's smaps, it may show:
->>>>>
->>>>> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
->>>>> Size:               4096 kB
->>>>> ...
->>>>> [snip]
->>>>> ...
->>>>> ShmemPmdMapped:     4096 kB
->>>>> ...
->>>>> [snip]
->>>>> ...
->>>>> THPeligible:    0
->>>>>
->>>>> And, /proc/meminfo does show THP allocated and PMD mapped too:
->>>>>
->>>>> ShmemHugePages:     4096 kB
->>>>> ShmemPmdMapped:     4096 kB
->>>>>
->>>>> This doesn't make too much sense.  The anonymous THP flag should not
->>>>> intervene shmem THP.  Calling shmem_huge_enabled() with checking
->>>>> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
->>>>> dax vma check since we already checked if the vma is shmem already.
->>>> Kirill, can we get a confirmation that this is really intended behavior
->>>> rather than an omission please? Is this documented? What is a global
->>>> knob to simply disable THP system wise?
->>> Hi Kirill,
->>>
->>> Ping. Any comment?
->> Talked with Kirill at LSFMM, it sounds this is kind of intended behavior
->> according to him. But, we all agree it looks inconsistent.
->>
->> So, we may have two options:
->>      - Just fix the false negative issue as what the patch does
->>      - Change the behavior to make it more consistent
->>
->> I'm not sure whether anyone relies on the behavior explicitly or implicitly
->> or not.
-> Well, I would be certainly more happy with a more consistent behavior.
-> Talked to Hugh at LSFMM about this and he finds treating shmem objects
-> separately from the anonymous memory. And that is already the case
-> partially when each mount point might have its own setup. So the primary
-> question is whether we need a one global knob to controll all THP
-> allocations. One argument to have that is that it might be helpful to
-> for an admin to simply disable source of THP at a single place rather
-> than crawling over all shmem mount points and remount them. Especially
-> in environments where shmem points are mounted in a container by a
-> non-root. Why would somebody wanted something like that? One example
-> would be to temporarily workaround high order allocations issues which
-> we have seen non trivial amount of in the past and we are likely not at
-> the end of the tunel.
+There were two commits replacing the reverted commit, fixing
+is_mem_section_removable() and test_pages_in_a_zone() respectively:
 
-Shmem has a global control for such use. Setting shmem_enabled to 
-"force" or "deny" would enable or disable THP for shmem globally, 
-including non-fs objects, i.e. memfd, SYS V shmem, etc.
-
->
-> That being said I would be in favor of treating the global sysfs knob to
-> be global for all THP allocations. I will not push back on that if there
-> is a general consensus that shmem and fs in general are a different
-> class of objects and a single global control is not desirable for
-> whatever reasons.
-
-OK, we need more inputs from Kirill, Hugh and other folks.
-
->
-> Kirill, Hugh othe folks?
+commit 24feb47c5fa5 ("mm, memory_hotplug: test_pages_in_a_zone do not
+pass the end of zone")
+commit efad4e475c31 ("mm, memory_hotplug: is_mem_section_removable do
+not pass the end of a zone")
 
