@@ -2,215 +2,187 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E189C04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 18:46:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA794C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:04:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14F85206BF
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 18:46:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AF54720578
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:04:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="oShkY9Uo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14F85206BF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="X2+ZQdZ3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF54720578
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9887A6B0003; Tue,  7 May 2019 14:46:55 -0400 (EDT)
+	id 49ADD6B0003; Tue,  7 May 2019 15:04:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 938976B0006; Tue,  7 May 2019 14:46:55 -0400 (EDT)
+	id 44AA16B0006; Tue,  7 May 2019 15:04:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D9416B0007; Tue,  7 May 2019 14:46:55 -0400 (EDT)
+	id 313106B0007; Tue,  7 May 2019 15:04:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 446B16B0003
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 14:46:55 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 13so10785711pfo.15
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 11:46:55 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0405D6B0003
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 15:04:41 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id h13so9735232otq.2
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 12:04:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=4K5qiK9vhvmIkn3WHoZK0319QLRlU1KUu0cyFne4DWs=;
-        b=O8HjYOPgKoe6G5XwSvuGjJFXPqOC1+U/xd377YEtIj3mIzA9HYJiA28aJwUiCIxvpC
-         Dw8KJXzZfRF4PF4YwvvDTtTNgldUTrMAMkev8fy4N7/Rm/T+hazNhOsyj2I+fAz1BJOZ
-         +nv7UYYOrQl69AtsPbAo0mr+iI+aSOBtifc5nXrwLeSRJM6/ZIYcMNLDs7xVFFZoyPDq
-         fLUnY+jW01eEKzV3NLgG4Q0puKnggblPDssI4vNTUVPR3j20sRbVsvEQkGHKmbeBRCyg
-         oPK9ZwLuTo0sXma3xoY0JGf8cZXH7V6yV3NoglzdTgJDyyyBxZpnJjQFtbemWkNnn7MJ
-         OXOw==
-X-Gm-Message-State: APjAAAV1wn6R+p0iswVWP6WCzq+MFc4o2JeBWamrMLUnOdkskoGSTzDJ
-	72pbIsumQDYSkEXsVAL/BiHM1aWb4HqC7Q3a8+7kho1tD4xYhTNA9xo2E34Trsh12uz0lMhzzTr
-	8+0g5jAWILZy3kbxWOyhnmXFmoZs/m+uSHQ2Z6T/CWPrs2g84bhhekHle5u3NzrnsxQ==
-X-Received: by 2002:a62:41cd:: with SMTP id g74mr43466851pfd.216.1557254814859;
-        Tue, 07 May 2019 11:46:54 -0700 (PDT)
-X-Received: by 2002:a62:41cd:: with SMTP id g74mr43466734pfd.216.1557254813967;
-        Tue, 07 May 2019 11:46:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557254813; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=LNbESQrObZxBB/LE+wWHLIjxgekRF8A+W3warHaag5A=;
+        b=oUyCiSY6R8GGg+3uP4iD6DpkRj361UmiZi8IefrBxCsXbg0kxxaTHIcLOzUyif7MBX
+         fU14bZui4gW51ikfavyu4HvKUcVhjE/AEwTmmrdYSPbcxfCNU3HjBwrF7O/AZ1fIqHOW
+         UTiJo4cjTnXTuHkj4mobZdWMJH1MdSFM8KbSa+E+4g5efho+G4gvL9bOX0qYxi+BDnPG
+         KviWwLX2GBKPmUxD5MLLf6XovPuuQEbkpEkHRiz5OHS2zoa/cz4hMYSR4mSKi3vi2WZ3
+         4c6vsnPt4yzWpJ6ppu3t/UxajFuMswhJuK5gCwWLT9w40XpjY+p5ZpGxfFwtc7BELlq0
+         idGA==
+X-Gm-Message-State: APjAAAW+NJHw3c2Byvic0/C5sC13Q/+o+MQ8qejHdfnw2R5eCZXXJxZo
+	/5KnrNZmFL7vPWa2bs9d7GBAPeqSl6F5I+PMhpgjzIIKjryujpyz48sIo7nOCrQzzu4HZnDC6ey
+	bNOPfa9gw+uhwdlFI2zj2l65XavnnaNgXdFhRFWawXm1y14YA82JOZimUcvNGU7nLXQ==
+X-Received: by 2002:a05:6830:1cb:: with SMTP id r11mr363138ota.344.1557255880673;
+        Tue, 07 May 2019 12:04:40 -0700 (PDT)
+X-Received: by 2002:a05:6830:1cb:: with SMTP id r11mr363075ota.344.1557255879780;
+        Tue, 07 May 2019 12:04:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557255879; cv=none;
         d=google.com; s=arc-20160816;
-        b=o8Ltp7RdCKg1gyt6KWUGiZ49me8ELcmUvqvI90E/F3Oa4pZ8WyPL+tD5T1rLYPBrrQ
-         xWWgw7mxV7b9pJNbVNWIx18xfHCRL3oJxWpv3e7KsdFUtCaprMuWT5rgE4PHS64d6Ymw
-         u+u3Ccw7G0IRUGxq6xnNG56qoEeNSI5S0ZrE+4Ob9DychGYQtfN+LbW/yx085Mg+a58C
-         QV4CMjWqFKNfS/a5exI9tDIm9SZD4AN3O1WD+88iFE8oCxgJkyBA0B/DpMUE2MR0WoPz
-         e+I3fWho3biVHBwC0P+5ETh9CUH0v5PNuHvyOckGnZQVxCPH0xWKkdZDFDY7UElSMIlT
-         ld3g==
+        b=JHwYPfLSdmRIBWFnZ/pnrYXTIobRQQzPflqfYhoXsbTgJeS9o57QlLqVX/wmbG/JKu
+         j6ign2FtPWWtgSXWo+xbecqs5J7XQm/Y+Vq3IZ1/0JQInWh3btRdSa/UDeyn0VFKQFOE
+         ADcCuf7usGo4LVtsTlEDxqvW3U2JOe0mb6Hu5DDOtH3D9k8A4RurQox5as56uQSCWW+z
+         eXSOEwTI83osm1ze/3VNtGJv/hMrtHi/X/sud7iHHDE1Wkd6kxBcXFBbzmls1+Qz1YKN
+         QElARwzijDy6FpnkRWLEj9r2QQQbDvea4OWjEJKEqx/pfdid2EiwowWMPS1OWpX68Rvv
+         36mg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=4K5qiK9vhvmIkn3WHoZK0319QLRlU1KUu0cyFne4DWs=;
-        b=rIslzGTeLVNi3gF0uh3kaFjYo/7c99ZcfqYq9+YzXhM+e9B8HkosZA5WpnDWQrQ+3C
-         dFZVnBM2sTMdywuKpajS8+YPrmS0XakrG5iSh2gz8gJjfx8OOWhtepBEofl/3oSD8mcK
-         QLWkBMUUiuQ09Zts+13AbJRDgno5zkCXCSDu39BoeyRGDLMHNDcIVVugaP2yjdpwxIwt
-         +8BKHtIIz6YDb4DnOCIL+lG16NsWsRUkyc0CCdQs+KEP/jvPR9lVXPVR/mfOFxwwB15q
-         L5lxy8vJXZyEtlWgUD1s1MoFUqKCTtXQfqQUpZ3HdS1BwQvgoZHlO5FogF/q2bSH1eVP
-         fv0g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=LNbESQrObZxBB/LE+wWHLIjxgekRF8A+W3warHaag5A=;
+        b=ICj179/12GiuBGST1DkDfxvcl5E/otF5OrjWXbXXcTq4ak5YULzMYRPe+CJ+ni+6ti
+         Cz6ulUFAf2YUqUBoIk8QHKZFffua+3AQifgXEbuMmDiRWqB3dDI9L2ITCM41J9+gHHg8
+         U2Uz/td4XQA+ulTCCwDm9Xs0Z+IuR5sE9+a8SE96W74+bh2ZYMPGWW0/YYTm4fwrifgs
+         gTood+7wR4w/jBwZSGZMLbnXgoxHSXddwMZZMuubWbUcBpgtLutC/4WIa8MA9EX3TaqU
+         /6U144danabVWJxUzNOLKQlg3S9sBs+OJIxGgFThUb6Ajus+e1hH0orNJFdulsfbtUeh
+         ni7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=oShkY9Uo;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=X2+ZQdZ3;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f12sor13504823pgk.61.2019.05.07.11.46.53
+        by mx.google.com with SMTPS id l23sor6439898otn.124.2019.05.07.12.04.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 May 2019 11:46:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 07 May 2019 12:04:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=oShkY9Uo;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=X2+ZQdZ3;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=4K5qiK9vhvmIkn3WHoZK0319QLRlU1KUu0cyFne4DWs=;
-        b=oShkY9UoCOJkw+8F+fqEj0Uc9/qHLI+6lOnZ4PmArGpPVfAWOwp3l2pki4mxeVWr2v
-         i1/BoCJUiP6IE2hEuHGlPnMC2JT+4iJRQSX+1ftuSwgMBqfHGrHwZeWN1F1lzM9bGAbB
-         BpTytT+gqKFiY+9K8QRJWzSXFZlayvNxFar7o=
-X-Google-Smtp-Source: APXvYqxrkWfI22GqtapHzGjSfBpzNe8seCozjCeX6zOdjbNwchSvGqdEtYr/uKJ7o2QPp+DNkaVTXQ==
-X-Received: by 2002:a63:ee15:: with SMTP id e21mr41892839pgi.180.1557254813331;
-        Tue, 07 May 2019 11:46:53 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id p67sm31662140pfi.123.2019.05.07.11.46.51
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 May 2019 11:46:52 -0700 (PDT)
-Date: Tue, 7 May 2019 14:46:50 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Christian Brauner <christian@brauner.io>,
-	Sultan Alsawaf <sultan@kerneltoast.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	Daniel Colascione <dancol@google.com>,
-	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Martijn Coenen <maco@android.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	kernel-team <kernel-team@android.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190507184650.GA139364@google.com>
-References: <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507070430.GA24150@kroah.com>
- <20190507072721.GA4364@sultan-box.localdomain>
- <20190507074334.GB26478@kroah.com>
- <20190507081236.GA1531@sultan-box.localdomain>
- <20190507105826.oi6vah6x5brt257h@brauner.io>
- <CAJuCfpFeOVzDUq5O_cVgVGjonWDWjVVR192On6eB5gf==_uPKw@mail.gmail.com>
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=LNbESQrObZxBB/LE+wWHLIjxgekRF8A+W3warHaag5A=;
+        b=X2+ZQdZ3QZjS6d5t5fCH13GepkH6SjaBJAihzeJ4GXjAXyRZSRTGPpBRLypEAsjGIW
+         cm7WMvIKqpUHcSWqUhAr15RzuVhsm9xYIgVOzdG6jAuLjuYexnOs5AT+7PvBNweZTrhS
+         XJb86bUc/0uEatfh0rES11f0xEgfRlp6FYf7Ve/cMp6EGhSSST6O5ilOXRP6cikBWOSN
+         9TpRFPw3ofec2FWb107b0EzNCm6ELKgNFaaPSlE16j08So405N7h8iDEKKbEv/MGWkdC
+         BO21f77OIMvR2dKsAyl5SpSrRWJ18aMWN5G9g8VLqySe7ZytZ6AbMkSrq4jv7t/OUdIa
+         hgBg==
+X-Google-Smtp-Source: APXvYqwy1LirnerPqPYkGArLlzfXeDDofdcMt5S845Oc+1dy47VZIK6kvPHjm+20DQyjEymtJKZaVdZYEtVIUkJ7mqQ=
+X-Received: by 2002:a9d:19ed:: with SMTP id k100mr24122234otk.214.1557255879316;
+ Tue, 07 May 2019 12:04:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAJuCfpFeOVzDUq5O_cVgVGjonWDWjVVR192On6eB5gf==_uPKw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190507183804.5512-1-david@redhat.com>
+In-Reply-To: <20190507183804.5512-1-david@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 7 May 2019 12:04:28 -0700
+Message-ID: <CAPcyv4gxwhsiZ8Hjm4cNbjmLXV2m4s=t14ZoH0uf8AADP2nOtA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/8] mm/memory_hotplug: Factor out memory block device handling
+To: David Hildenbrand <david@redhat.com>
+Cc: Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, 
+	Linux-sh <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Alex Deucher <alexander.deucher@amd.com>, Andrew Banman <andrew.banman@hpe.com>, 
+	Andy Lutomirski <luto@kernel.org>, Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Borislav Petkov <bp@alien8.de>, 
+	Christophe Leroy <christophe.leroy@c-s.fr>, Chris Wilson <chris@chris-wilson.co.uk>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, "David S. Miller" <davem@davemloft.net>, 
+	Fenghua Yu <fenghua.yu@intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, 
+	Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@redhat.com>, 
+	Jonathan Cameron <Jonathan.Cameron@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Logan Gunthorpe <logang@deltatee.com>, 
+	Mark Brown <broonie@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Mathieu Malaterre <malat@debian.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, "mike.travis@hpe.com" <mike.travis@hpe.com>, 
+	Nicholas Piggin <npiggin@gmail.com>, Oscar Salvador <osalvador@suse.com>, 
+	Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Pavel Tatashin <pavel.tatashin@microsoft.com>, 
+	Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>, 
+	"Rafael J. Wysocki" <rafael@kernel.org>, Rich Felker <dalias@libc.org>, Rob Herring <robh@kernel.org>, 
+	Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, 
+	Vasily Gorbik <gor@linux.ibm.com>, Wei Yang <richard.weiyang@gmail.com>, 
+	Wei Yang <richardw.yang@linux.intel.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2019 at 09:28:47AM -0700, Suren Baghdasaryan wrote:
-> From: Christian Brauner <christian@brauner.io>
-> Date: Tue, May 7, 2019 at 3:58 AM
-> To: Sultan Alsawaf
-> Cc: Greg Kroah-Hartman, open list:ANDROID DRIVERS, Daniel Colascione,
-> Todd Kjos, Kees Cook, Peter Zijlstra, Martijn Coenen, LKML, Tim
-> Murray, Michal Hocko, Suren Baghdasaryan, linux-mm, Arve Hjønnevåg,
-> Ingo Molnar, Steven Rostedt, Oleg Nesterov, Joel Fernandes, Andy
-> Lutomirski, kernel-team
-> 
-> > On Tue, May 07, 2019 at 01:12:36AM -0700, Sultan Alsawaf wrote:
-> > > On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
-> > > > Given that any "new" android device that gets shipped "soon" should be
-> > > > using 4.9.y or newer, is this a real issue?
-> > >
-> > > It's certainly a real issue for those who can't buy brand new Android devices
-> > > without software bugs every six months :)
-> > >
-> 
-> Hi Sultan,
-> Looks like you are posting this patch for devices that do not use
-> userspace LMKD solution due to them using older kernels or due to
-> their vendors sticking to in-kernel solution. If so, I see couple
-> logistical issues with this patch. I don't see it being adopted in
-> upstream kernel 5.x since it re-implements a deprecated mechanism even
-> though vendors still use it. Vendors on the other hand, will not adopt
-> it until you show evidence that it works way better than what
-> lowmemorykilled driver does now. You would have to provide measurable
-> data and explain your tests before they would consider spending time
-> on this.
-> On the implementation side I'm not convinced at all that this would
-> work better on all devices and in all circumstances. We had cases when
-> a new mechanism would show very good results until one usecase
-> completely broke it. Bulk killing of processes that you are doing in
-> your patch was a very good example of such a decision which later on
-> we had to rethink. That's why baking these policies into kernel is
-> very problematic. Another problem I see with the implementation that
-> it ties process killing with the reclaim scan depth. It's very similar
-> to how vmpressure works and vmpressure in my experience is very
-> unpredictable.
+On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> We only want memory block devices for memory to be onlined/offlined
+> (add/remove from the buddy). This is required so user space can
+> online/offline memory and kdump gets notified about newly onlined memory.
+>
+> Only such memory has the requirement of having to span whole memory blocks.
+> Let's factor out creation/removal of memory block devices. This helps
+> to further cleanup arch_add_memory/arch_remove_memory() and to make
+> implementation of new features easier. E.g. supplying a driver for
+> memory block devices becomes way easier (so user space is able to
+> distinguish different types of added memory to properly online it).
+>
+> Patch 1 makes sure the memory block size granularity is always respected.
+> Patch 2 implements arch_remove_memory() on s390x. Patch 3 prepares
+> arch_remove_memory() to be also called without CONFIG_MEMORY_HOTREMOVE.
+> Patch 4,5 and 6 factor out creation/removal of memory block devices.
+> Patch 7 gets rid of some unlikely errors that could have happened, not
+> removing links between memory block devices and nodes, previously brought
+> up by Oscar.
+>
+> Did a quick sanity test with DIMM plug/unplug, making sure all devices
+> and sysfs links properly get added/removed. Compile tested on s390x and
+> x86-64.
+>
+> Based on git://git.cmpxchg.org/linux-mmots.git
+>
+> Next refactoring on my list will be making sure that remove_memory()
+> will never deal with zones / access "struct pages". Any kind of zone
+> handling will have to be done when offlining system memory / before
+> removing device memory. I am thinking about remove_pfn_range_from_zone()",
+> du undo everything "move_pfn_range_to_zone()" did.
+>
+> v1 -> v2:
+> - s390x/mm: Implement arch_remove_memory()
+> -- remove mapping after "__remove_pages"
+>
+>
+> David Hildenbrand (8):
+>   mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
+>   s390x/mm: Implement arch_remove_memory()
+>   mm/memory_hotplug: arch_remove_memory() and __remove_pages() with
+>     CONFIG_MEMORY_HOTPLUG
+>   mm/memory_hotplug: Create memory block devices after arch_add_memory()
+>   mm/memory_hotplug: Drop MHP_MEMBLOCK_API
 
-Yeah it does seem conceptually similar, good point.
- 
-> > > Regardless, even if PSI were backported, a full-fledged LMKD using it has yet to
-> > > be made, so it wouldn't be of much use now.
-> >
-> > This is work that is ongoing and requires kernel changes to make it
-> > feasible. One of the things that I have been working on for quite a
-> > while is the whole file descriptor for processes thing that is important
-> > for LMKD (Even though I never thought about this use-case when I started
-> > pitching this.). Joel and Daniel have joined in and are working on
-> > making LMKD possible.
-> > What I find odd is that every couple of weeks different solutions to the
-> > low memory problem are pitched. There is simple_lkml, there is LMKD, and
-> > there was a patchset that wanted to speed up memory reclaim at process
-> > kill-time by adding a new flag to the new pidfd_send_signal() syscall.
-> > That all seems - though related - rather uncoordinated.
-> 
-> I'm not sure why pidfd_wait and expedited reclaim is seen as
-> uncoordinated effort. All of them are done to improve userspace LMKD.
-
-Christian, pidfd_wait and expedited reclaim are both coordinated efforts and
-solve different problems related to LMK. simple_lmk is entirely different
-effort that we already hesitated about when it was first posted, now we
-hesitate again due to the issues Suren and others mentioned.
-
-I think it is a better idea for Sultan to spend his time on using/improving
-PSI/LMKd than spending it on the simple_lmk. It could also be a good topic to
-discuss in the Android track of the Linux plumbers conference.
-
-thanks,
-
- - Joel
+So at a minimum we need a bit of patch staging guidance because this
+obviously collides with the subsection bits that are built on top of
+the existence of MHP_MEMBLOCK_API. What trigger do you envision as a
+replacement that arch_add_memory() use to determine that subsection
+operations should be disallowed?
 
