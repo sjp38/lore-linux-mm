@@ -1,155 +1,170 @@
-Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 60D50C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:35:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 873BFC04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 00:09:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 213AE204FD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:35:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 213AE204FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 2439620675
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 00:09:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2439620675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8E966B0273; Tue,  7 May 2019 17:35:13 -0400 (EDT)
+	id 931DB6B0005; Tue,  7 May 2019 20:09:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A3F7D6B0274; Tue,  7 May 2019 17:35:13 -0400 (EDT)
+	id 8E3AB6B0006; Tue,  7 May 2019 20:09:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 906C16B0275; Tue,  7 May 2019 17:35:13 -0400 (EDT)
+	id 7F9B96B0008; Tue,  7 May 2019 20:09:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1DA6B0273
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:35:13 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id c12so11102908pfb.2
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:35:13 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4940A6B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 20:09:49 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id d21so11359024pfr.3
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 17:09:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=led0DBv6u7UXI25sAuz4CP9LBCMQYh8UhwHyrJqvOkg=;
-        b=SLtzvH822kusXgme7ut9ifnl/EcT0WS3fV+qC54BxJOSlxdeqPXgiZDhxG28wBO7K4
-         BsdNgsaWsvldnBR24Q0d9ShNMoUEL+DS3O/25o9zsBzLxI9bn33iWktqByqAJf8HiXjJ
-         KXSxqzKZFvOMtdzWzl3OKjYjzaswakdh9JctlErcqUShyf7C3GRC/3tTindr9EANfYOG
-         rn5KtfSF5ZW197WNLY9fkWHChkut9vpxRzM4auG7Ld8eTiWbrV452cswChJoZ2F6OqHq
-         gBDqC5zUjMZn12cvJJa3/VT6Wq74Xx3ZNPv09r7znz0Up+yF7UieQF4Qj3oFMjsbWZO5
-         Q2oA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAW5PGXrFWH1tUGKMKFNoIdaurqWoOSNSA5Pn+WdDNnlcXTMRDeO
-	WjOiQ/WJ3r2wGEmPKDIVYIYAE4P7tSg+xEwyTe5TLZhDrDVmUcvFJXWbCkLJ2cBjJ0WBz7GRT82
-	OqL6vJjgs/dk4ICB+3AYlGL5cvXoNgczSnPvFKInoxtJu1HNhJ+RN/XfaBGmgr+KiiA==
-X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr24204447pll.339.1557264912931;
-        Tue, 07 May 2019 14:35:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzO3eusWU/aMRvySifWGvY0MxML/wQn35/5S4DFx7+M+lfwATdt0918n4wTgGtZPMNi4PYZ
-X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr24204344pll.339.1557264911761;
-        Tue, 07 May 2019 14:35:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557264911; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=0DJEY9TTC43pyuA4jJrV6wtcIkHrbLDtdxBNa4IXge0=;
+        b=cVZgZN/Ad2YAHAA1Gvouusr339dmXsdEep2Z/cOkibRCaD8c3JY7804RP7Li66UVqh
+         AEwrH0sQf74A1QZ3oaF2WmbvaIJ979Uve/2B6IBDeJfARoHGWtN11S7dHDKa6ELm/s+2
+         475OXSQkBTez3pqTjp/qcxOg5adpB2jXpDHlTz5clgpYg8k0NG3LQTl6+LRWOknSYudU
+         HaegwUVNT3S4jClrOSh305HoDkm28kmD1webNnKHy76XEnJ0NknarFGISfdljfZiOmHQ
+         d34f5VT9kj7ZwVheaCQaJhRif0E/HOWhpXu7Qf/Hh1WKkqG1tKtrvb5a/jluRYNgupoK
+         IpnA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVgtZdMkVOBQiIgj+XBu9ko2Ub+RldN8dRjKEnSaA3pVHQJMECi
+	AQDF4YcCTDA1+cioSqx6UVURZF7MLs+NONL55bmNKY1r9Y9Q1Yr01cxWUF/5fflzCdL/m2BoArz
+	gYxtyZIA3W4v4RVpzWCN/dsWwX5JMGOfkEMqv+YzBpzDkjUfnBTBMxCKfokQ025TVUg==
+X-Received: by 2002:aa7:87c3:: with SMTP id i3mr43731091pfo.85.1557274188937;
+        Tue, 07 May 2019 17:09:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqyPd/WwEfS4wqglexlmvuXgNr2yjcur5R1Xn7iQPePFprtcR3Mixf6LmkS9f2noWXTS9x
+X-Received: by 2002:aa7:87c3:: with SMTP id i3mr43730976pfo.85.1557274187407;
+        Tue, 07 May 2019 17:09:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557274187; cv=none;
         d=google.com; s=arc-20160816;
-        b=w1BJ7W1AdRmVjpQlbeh7Ui6V7Jip7T8IvrxwtRYerXMvllAx/TIbiYbDsFf09f4H/Q
-         7pBLW7/1XwZ0nR000g7qwlx1re+shRUihrZpg42O+AAi566aRihsM5J+xGFcHizbFQz3
-         QIB4v3M6+6g7cEJdq5q4mJkEw03/7R9SRI4a5V5CDg//AZ6ZGfu1qba/ceigA7qngq32
-         Zjfw3Mze+A1tqOQ3ntgytJ5HpBSAK1KHqC028kPuNRwCQQfjWdMaFBdpOjjejd26kuGr
-         smK4fU3Y6TDszBDn4ZiKAndkeHUtH3P32M+Ox26BCllLI/mufgSbGtS9Loq0VFGrdRx1
-         ekhA==
+        b=EVprrRoQv81OrFFxwI+9c4oyjg+3nNksUR2WxPh7s7v9xBmWnDw9E1+Q0mmWZLbVR4
+         PqNqQid7TL8d8n4mjwkmiL7LLLttpPbR3jMRhKHGenz82s3zfxG+Ej++1knFa/PKC6rr
+         BP7Lgjfy4V5lKYRY7YHVQSed9rqKtfkR6EYa2ktJuXUmQ/dq2JiIGGk5/abplRrPKkgz
+         LlqMElLI65cn9EY/mF7twH+8HmiSOzUuwz2QvlMXaP38c9ost5fa/7H1+Xlwk/FRy5p6
+         F+QjixpDa+u4ybrjugvCcMfen6plkfQyywVNf98SGY3AJv2Taw54kSQtYEgSsqz/2mwe
+         gx+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=led0DBv6u7UXI25sAuz4CP9LBCMQYh8UhwHyrJqvOkg=;
-        b=ycDBGOLe2t2td7P7eF12ObZnwz838B+sMvtonf/rQJ1AFUIpj52lC5+OaXeB2qF7Nm
-         5BMT+IQSb2rlurZbe8IuLRwsIyCLEw5ne8XlOmzWRVqNmAAXUtw+hzAOlMi3Et/y90rO
-         iuXZkbagUs15ZHiD4H6mvcDQK/6zR81YPzoZmaYBPUSRHtK9ACUaRFWf+00WSUDoOtFE
-         ueZEKn9+S+rCZge5XDkBcWUFOfAVyy7tkjpPKFvEVFmwzf2nlCATtCx/R5bGFomjZUZi
-         y2mMca9lPDsTEUmLilLOFFJbAAmRR2wUEKzAqonJYTX1MaM8mKJee5fefpU+/I8qbyuG
-         8HoA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject;
+        bh=0DJEY9TTC43pyuA4jJrV6wtcIkHrbLDtdxBNa4IXge0=;
+        b=ZlmDN9jny0uqfrQwOJdWqiASBjWrV/1Rn9VyI32PFQXJNK75iAEW0pYI3Admm9HkEO
+         UHJwxwvM65YhdaZdH8WIrPUxc+uCwFEyHTk+x9tlpd1dgYN76Xitg0tlXDPbkGiR4drO
+         6c/W9gYvrTzWaQrlI3guFqnq7CESzlFTVrgHXwg7xblOHm+qckqanzhswzLm5oTvwwnE
+         bit9TO/eg4yXOA+rAzg3N06iszF+cu/Ly0n5nIvLo7GsQFGwZoSQJdNPaGx3TpMny84+
+         2BU4OUCcqRfcu3bEnvRHzNdmvHCjz7iIR2b+MHP//8CtiOAlVyVYJqZU+KLXuiyOD1am
+         yHUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id j11si19139991pfa.162.2019.05.07.14.35.10
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 144si11128746pgh.524.2019.05.07.17.09.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 14:35:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        Tue, 07 May 2019 17:09:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TR8MvA1_1557264889;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TR8MvA1_1557264889)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 08 May 2019 05:34:56 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: jstancek@redhat.com,
-	will.deacon@arm.com,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	stable@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force flush
-Date: Wed,  8 May 2019 05:34:49 +0800
-Message-Id: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 May 2019 17:09:46 -0700
+X-ExtLoop1: 1
+Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
+  by fmsmga004.fm.intel.com with ESMTP; 07 May 2019 17:09:46 -0700
+Subject: [PATCH v2 0/6] mm/devm_memremap_pages: Fix page release race
+From: Dan Williams <dan.j.williams@intel.com>
+To: akpm@linux-foundation.org
+Cc: Ira Weiny <ira.weiny@intel.com>, Bjorn Helgaas <bhelgaas@google.com>,
+ Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>,
+ =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J. Wysocki" <rafael@kernel.org>, linux-kernel@vger.kernel.org,
+ linux-nvdimm@lists.01.org, linux-mm@kvack.org
+Date: Tue, 07 May 2019 16:55:59 -0700
+Message-ID: <155727335978.292046.12068191395005445711.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: StGit/0.18-2-gc94f
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A few new fields were added to mmu_gather to make TLB flush smarter for
-huge page by telling what level of page table is changed.
+Changes since v1 [1]:
+- Fix a NULL-pointer deref crash in pci_p2pdma_release() (Logan)
 
-__tlb_reset_range() is used to reset all these page table state to
-unchanged, which is called by TLB flush for parallel mapping changes for
-the same range under non-exclusive lock (i.e. read mmap_sem).  Before
-commit dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in
-munmap"), MADV_DONTNEED is the only one who may do page zapping in
-parallel and it doesn't remove page tables.  But, the forementioned commit
-may do munmap() under read mmap_sem and free page tables.  This causes a
-bug [1] reported by Jan Stancek since __tlb_reset_range() may pass the
-wrong page table state to architecture specific TLB flush operations.
+- Refresh the p2pdma patch headers to match the format of other p2pdma
+  patches (Bjorn)
 
-So, removing __tlb_reset_range() sounds sane.  This may cause more TLB
-flush for MADV_DONTNEED, but it should be not called very often, hence
-the impact should be negligible.
+- Collect Ira's reviewed-by
 
-The original proposed fix came from Jan Stancek who mainly debugged this
-issue, I just wrapped up everything together.
+[1]: https://lore.kernel.org/lkml/155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com/
 
-[1] https://lore.kernel.org/linux-mm/342bf1fd-f1bf-ed62-1127-e911b5032274@linux.alibaba.com/T/#m7a2ab6c878d5a256560650e56189cfae4e73217f
-
-Reported-by: Jan Stancek <jstancek@redhat.com>
-Tested-by: Jan Stancek <jstancek@redhat.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: stable@vger.kernel.org
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Signed-off-by: Jan Stancek <jstancek@redhat.com>
 ---
- mm/mmu_gather.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
 
-diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-index 99740e1..9fd5272 100644
---- a/mm/mmu_gather.c
-+++ b/mm/mmu_gather.c
-@@ -249,11 +249,12 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
- 	 * flush by batching, a thread has stable TLB entry can fail to flush
- 	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
- 	 * forcefully if we detect parallel PTE batching threads.
-+	 *
-+	 * munmap() may change mapping under non-excluse lock and also free
-+	 * page tables.  Do not call __tlb_reset_range() for it.
- 	 */
--	if (mm_tlb_flush_nested(tlb->mm)) {
--		__tlb_reset_range(tlb);
-+	if (mm_tlb_flush_nested(tlb->mm))
- 		__tlb_adjust_range(tlb, start, end - start);
--	}
- 
- 	tlb_flush_mmu(tlb);
- 
--- 
-1.8.3.1
+Logan audited the devm_memremap_pages() shutdown path and noticed that
+it was possible to proceed to arch_remove_memory() before all
+potential page references have been reaped.
+
+Introduce a new ->cleanup() callback to do the work of waiting for any
+straggling page references and then perform the percpu_ref_exit() in
+devm_memremap_pages_release() context.
+
+For p2pdma this involves some deeper reworks to reference count
+resources on a per-instance basis rather than a per pci-device basis. A
+modified genalloc api is introduced to convey a driver-private pointer
+through gen_pool_{alloc,free}() interfaces. Also, a
+devm_memunmap_pages() api is introduced since p2pdma does not
+auto-release resources on a setup failure.
+
+The dax and pmem changes pass the nvdimm unit tests, and the p2pdma
+changes should now pass testing with the pci_p2pdma_release() fix.
+Jérôme, how does this look for HMM?
+
+In general, I think these patches / fixes are suitable for v5.2-rc1 or
+v5.2-rc2, and since they touch kernel/memremap.c, and other various
+pieces of the core, they should go through the -mm tree. These patches
+merge cleanly with the current state of -next, pass the nvdimm unit
+tests, and are exposed to the 0day robot with no issues reported
+(https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=libnvdimm-pending).
+
+---
+
+Dan Williams (6):
+      drivers/base/devres: Introduce devm_release_action()
+      mm/devm_memremap_pages: Introduce devm_memunmap_pages
+      PCI/P2PDMA: Fix the gen_pool_add_virt() failure path
+      lib/genalloc: Introduce chunk owners
+      PCI/P2PDMA: Track pgmap references per resource, not globally
+      mm/devm_memremap_pages: Fix final page put race
+
+
+ drivers/base/devres.c             |   24 +++++++-
+ drivers/dax/device.c              |   13 +---
+ drivers/nvdimm/pmem.c             |   17 ++++-
+ drivers/pci/p2pdma.c              |  115 +++++++++++++++++++++++--------------
+ include/linux/device.h            |    1 
+ include/linux/genalloc.h          |   55 ++++++++++++++++--
+ include/linux/memremap.h          |    8 +++
+ kernel/memremap.c                 |   23 ++++++-
+ lib/genalloc.c                    |   51 ++++++++--------
+ mm/hmm.c                          |   14 +----
+ tools/testing/nvdimm/test/iomap.c |    2 +
+ 11 files changed, 217 insertions(+), 106 deletions(-)
 
