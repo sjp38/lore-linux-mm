@@ -2,195 +2,193 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99846C04AAB
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:47:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCE0BC46470
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:58:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4230B2054F
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:47:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4230B2054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7E53920B7C
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:58:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="E+YVKccV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E53920B7C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E0506B0005; Tue,  7 May 2019 06:47:14 -0400 (EDT)
+	id 197E46B0005; Tue,  7 May 2019 06:58:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 791C56B0006; Tue,  7 May 2019 06:47:14 -0400 (EDT)
+	id 147776B0006; Tue,  7 May 2019 06:58:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67FA36B0007; Tue,  7 May 2019 06:47:14 -0400 (EDT)
+	id 037176B0007; Tue,  7 May 2019 06:58:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 171A86B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 06:47:14 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b22so14255904edw.0
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 03:47:14 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AC4A16B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 06:58:31 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h12so14225882edl.23
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 03:58:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=exQydsRsuNLlVkrAYWeNATsUHctANXViPZH8mHLZc3Y=;
-        b=Wpd9j5UCKbseKBDn91ocv1iWpmH4Ozw2TKn1kk3AEwfv3Vgf9igM/cLfCS4L99ZG4D
-         EH9Wh+Bjw79SWovBszy0wupkP5z21zNWwsIRjhF5zUs5sjVY73p9tAFjMepLDFpgFLL4
-         TjCbi2GaYwuQl941FYbtwK9OYb+ym3Tzg/gKn9A2sL3LJCjuLbVlVU3xpVwGkEYda7R4
-         sm0BBjL9bQE0Z5AEukHsIAkDIUpUWkuuGQUNXmBivK/hNBv7FLgtpMBtDjcFiuEk6LlQ
-         Lb6YsBffCg4fb1NqVR2MiOPbNM3bAQBktzglfbtDUMy4Xl/EiyKNXG7Tn0Uew8ZdYpfj
-         fB/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWRZvT1gd2W8D4OaUpGwDj0d2QUESCb7akB2QTDv0I6iGFU5Zfj
-	OWo7tQ9krsfwbASSNBl18/SwCYBcTcEtMachYPoGcpcZz4chfYhM0yCOSCECKESqv+kGVBFt9JR
-	lzeLaxbl9ddocO9hU7/Xwlz8Jhqe1LhzArotFaW1AjO0YZ28pKGpl1z6hns6eW10=
-X-Received: by 2002:aa7:db0c:: with SMTP id t12mr32315230eds.170.1557226033501;
-        Tue, 07 May 2019 03:47:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyrC4nfmu2JX4Z6pY8ZQ0ApAf+1OmgLdsTZp5zaFMP7X7jXnGgkdCGqeXt7BEfTnxDtmdiT
-X-Received: by 2002:aa7:db0c:: with SMTP id t12mr32315131eds.170.1557226032344;
-        Tue, 07 May 2019 03:47:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557226032; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=1HC/MUgf456zJfRJXUVVgg6o0d0M1B+L7QMi6llJ2Bo=;
+        b=rrP22tTXhvYVCenlKcXgBRs3Xg5L7d3bZZL+cG4pn+l37cPL879aqWCpFd5mVByYbm
+         st52TZQuSdbFi3N/d65OSLj2KhPp0Tkt/VXK3TYc5eD5l9BnmXSexWuS10bTKMPHEd3j
+         wE0lunairBJMu2cNgBNFvt+Jqonr6NGRvdddRgHXqubnEemddEEd4j+F+65JpTpAHMWK
+         b/6iLQd2aaW55n7zrKQxA1TvSvwl6wNbjXGZLMMij88hd3VX1ZNbjPCqxlVMuhrPw8Gn
+         cFliDqbSzbxw8A/4cQHJ9o/KQaimbuZciVkrZYbwYoTGyf0qgWPVTHG/v0CCsNRp8j5T
+         MfYg==
+X-Gm-Message-State: APjAAAX7Wxu+A7wAh0y/mqX0pzHdCmgxyjbjjYnC8pt/CqOWItkstcTi
+	w3ZJt8Oz1yhP3APbwLcTwkFWzxcLjc1twCRkZYOFtcI8yjIIBbR9mGmQIN6+jZQVig5QZLNJyae
+	pIkCFbyLyrFBB7aQV3lOdNFBeHXNfHWkBuwEXreNDSOz+xecShhQPShKadmcQsoJ6+g==
+X-Received: by 2002:a17:906:5c10:: with SMTP id e16mr23720351ejq.19.1557226711235;
+        Tue, 07 May 2019 03:58:31 -0700 (PDT)
+X-Received: by 2002:a17:906:5c10:: with SMTP id e16mr23720295ejq.19.1557226710173;
+        Tue, 07 May 2019 03:58:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557226710; cv=none;
         d=google.com; s=arc-20160816;
-        b=eWdb4QFYTFqLR+p55/Ht5NV5j6HFZO1OtPGPzyQNhoRY1B6zjNN8vkUD5LWlxYKHRv
-         gNXmcHa0Ki3RmQifJxF3sOD/k2QXCf7C54U3omMuCCnHNZHCd28Xxiw1tr8dobIIz2Fi
-         sJOFFfulBmrywR6EFwQsO5negMRizR4xsdCUy2yMk5Ky4AAMAZtCkQur8PeJAHQwuIvz
-         xjVkdkn+N7ou3zQ4mgoQwnay5fR9eBe4uep1FkwQzQA6aVYfu+SA5tp4Aeen6pEej7IW
-         fGEgt9xlHzuBHCj0XVABfIN+H3EbtbfPV2b6GtFKoYvOxI7gximsz4Tdx8YlKg4+NTWv
-         c+Kg==
+        b=o35HSuhQ6LJZXwN767k9Rqac8wXrw94LoVUTE7/4upWbmflrlcV6ukOwgk69QkwbsP
+         NBrHm6/Vg5dUTJ2rNJQEo8r0pzWYeH+vm5ewstsjQo2B1rJ6E4Pz8gNjSKeint9uScc0
+         q6a/p4m5N261vLnwUhuWsWHBzPWZJstTaKNvBvQ4IzpMKQ83h4ocRgfQIDlswvQ3ry+3
+         2rFLMEGtSD0fw2c3LY/+Hgrc7XNl56OMc4kY0W8dmlsD8cKEFTCk49VDc4hTThNC6Jy3
+         ji7WufYb2R7592oN/jd1LFz0ZuDFw8CxIbDZeAad2QN836IT5tdzwK4Y4jKa771zB+kC
+         pmYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=exQydsRsuNLlVkrAYWeNATsUHctANXViPZH8mHLZc3Y=;
-        b=Y9/M9pWDf8sNoZOpcjP1BHUuN2RIl70UtRkIoPJrA5BOwLn2J69xo5dbVNdOkxmmJy
-         0rltXN5u7Pnrxdbamxnd8AEHKZGmqdIPl1BvjqFDdRoxMMtAsYCpN6qTQCI33N7Y3TMW
-         NbE+7BvybdNgUQOsCkBBfW6vU+eHuYuARjjRvIO8rkMNwdIrLTtTYKU5RNeHY9qNd53/
-         Vf2LHywyMek9kvTHOy5n7vR3jcB3bhVUlhMNvbQ/TrKgppLp/okyU9aFzJATwBJ6r+x2
-         MpPf3RyvVDobE4g3M2n+DyA7WkF8BGWlBx6Xeq0PXxRyPOhqBpO08PRI9SWuWOBRJNGr
-         bUYA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1HC/MUgf456zJfRJXUVVgg6o0d0M1B+L7QMi6llJ2Bo=;
+        b=u9SFm33GaDzc7QU41sHBlOMGdXFgpKxNjgxycopkhDiSaArYT01wW6Pqwlvkw15VZm
+         wPJ9O7vJDIOXEXESRLuqBXqHKzL5xji/h8HO9OzS4qH9PdUf/mLvWx3Ci7gNEf2rzec6
+         eHVSr01Dq9BoXjd/vVF9LFyER9EKTitI9BIVVjivfzmww9F0gPLfbeqheSsxhHRW/cw3
+         z5vFJWEjnatAVEOyYplurBN/H3dWjbetr2k6nzXHbuwik5SI7FvnFPA/2C8b6EjA1QB4
+         yfzdOvNXoP0STvk88Mx9Q3l/2ls30MbJAgf8vr2/vtjT+ctLT7pn99JNvmnJRDOcFNUE
+         +mww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v28si5410286edc.12.2019.05.07.03.47.11
+       dkim=pass header.i=@brauner.io header.s=google header.b=E+YVKccV;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e51sor6765105ede.15.2019.05.07.03.58.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 03:47:12 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 07 May 2019 03:58:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3D211AD56;
-	Tue,  7 May 2019 10:47:11 +0000 (UTC)
-Date: Tue, 7 May 2019 12:47:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
-	rientjes@google.com, kirill@shutemov.name,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
-Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-Message-ID: <20190507104709.GP31017@dhcp22.suse.cz>
-References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190423175252.GP25106@dhcp22.suse.cz>
- <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
- <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
+       dkim=pass header.i=@brauner.io header.s=google header.b=E+YVKccV;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=brauner.io; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1HC/MUgf456zJfRJXUVVgg6o0d0M1B+L7QMi6llJ2Bo=;
+        b=E+YVKccV3crljzyzQRgZ+qVmjGAxpSmba/m9j8r8NgrA34RUFop5bvNMjUbDwOuRNB
+         b32+Jl/qjNWnlvTDYyTs/KeVx58V71F7zbu28ARzlDJFrza6g9g8Zi8OL55OmDTkgfSl
+         1BGDJtAmk2ERpdEdX2xDcrPZ80zvjefZo+oei1Mm2khGrth/UBL1A1VFwvbheFqAlcQ8
+         9JSttdgh0BDB+Z/aTtQZkNW6+cetIuH9iCeGfDRIqCOLydg98GdTqe6LAdP4iTh2ppDw
+         LsM9hKBQMNpP2ECL1fjkX6fYcURKheF5cqWjXseRus2cycqTaunLSVR2osQqCa3I6n/H
+         lrLw==
+X-Google-Smtp-Source: APXvYqyHqFTcJpvyTuty9Yn2Sc9cm+BuGmLDrYq55IuT9aIRo5DWhxH0xy9+mtPoGye/4Y6Cby05tA==
+X-Received: by 2002:a50:885b:: with SMTP id c27mr31844820edc.155.1557226709457;
+        Tue, 07 May 2019 03:58:29 -0700 (PDT)
+Received: from brauner.io ([178.19.218.101])
+        by smtp.gmail.com with ESMTPSA id w14sm4048277eda.18.2019.05.07.03.58.28
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 07 May 2019 03:58:28 -0700 (PDT)
+Date: Tue, 7 May 2019 12:58:27 +0200
+From: Christian Brauner <christian@brauner.io>
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	Daniel Colascione <dancol@google.com>,
+	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Martijn Coenen <maco@android.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	linux-mm <linux-mm@kvack.org>,
+	Arve =?utf-8?B?SGrDuG5uZXbDpWc=?= <arve@android.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Oleg Nesterov <oleg@redhat.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	kernel-team <kernel-team@android.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190507105826.oi6vah6x5brt257h@brauner.io>
+References: <20190318235052.GA65315@google.com>
+ <20190319221415.baov7x6zoz7hvsno@brauner.io>
+ <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io>
+ <20190320015249.GC129907@google.com>
+ <20190507021622.GA27300@sultan-box.localdomain>
+ <20190507070430.GA24150@kroah.com>
+ <20190507072721.GA4364@sultan-box.localdomain>
+ <20190507074334.GB26478@kroah.com>
+ <20190507081236.GA1531@sultan-box.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190507081236.GA1531@sultan-box.localdomain>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-[Hmm, I thought, Hugh was CCed]
-
-On Mon 06-05-19 16:37:42, Yang Shi wrote:
+On Tue, May 07, 2019 at 01:12:36AM -0700, Sultan Alsawaf wrote:
+> On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
+> > Given that any "new" android device that gets shipped "soon" should be
+> > using 4.9.y or newer, is this a real issue?
 > 
+> It's certainly a real issue for those who can't buy brand new Android devices
+> without software bugs every six months :)
 > 
-> On 4/28/19 12:13 PM, Yang Shi wrote:
-> > 
-> > 
-> > On 4/23/19 10:52 AM, Michal Hocko wrote:
-> > > On Wed 24-04-19 00:43:01, Yang Shi wrote:
-> > > > The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility
-> > > > for each
-> > > > vma") introduced THPeligible bit for processes' smaps. But, when
-> > > > checking
-> > > > the eligibility for shmem vma, __transparent_hugepage_enabled() is
-> > > > called to override the result from shmem_huge_enabled().  It may result
-> > > > in the anonymous vma's THP flag override shmem's.  For example,
-> > > > running a
-> > > > simple test which create THP for shmem, but with anonymous THP
-> > > > disabled,
-> > > > when reading the process's smaps, it may show:
-> > > > 
-> > > > 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
-> > > > Size:               4096 kB
-> > > > ...
-> > > > [snip]
-> > > > ...
-> > > > ShmemPmdMapped:     4096 kB
-> > > > ...
-> > > > [snip]
-> > > > ...
-> > > > THPeligible:    0
-> > > > 
-> > > > And, /proc/meminfo does show THP allocated and PMD mapped too:
-> > > > 
-> > > > ShmemHugePages:     4096 kB
-> > > > ShmemPmdMapped:     4096 kB
-> > > > 
-> > > > This doesn't make too much sense.  The anonymous THP flag should not
-> > > > intervene shmem THP.  Calling shmem_huge_enabled() with checking
-> > > > MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
-> > > > dax vma check since we already checked if the vma is shmem already.
-> > > Kirill, can we get a confirmation that this is really intended behavior
-> > > rather than an omission please? Is this documented? What is a global
-> > > knob to simply disable THP system wise?
-> > 
-> > Hi Kirill,
-> > 
-> > Ping. Any comment?
+> > And if it is, I'm sure that asking for those patches to be backported to
+> > 4.4.y would be just fine, have you asked?
+> >
+> > Note that I know of Android Go devices, running 3.18.y kernels, do NOT
+> > use the in-kernel memory killer, but instead use the userspace solution
+> > today.  So trying to get another in-kernel memory killer solution added
+> > anywhere seems quite odd.
 > 
-> Talked with Kirill at LSFMM, it sounds this is kind of intended behavior
-> according to him. But, we all agree it looks inconsistent.
-> 
-> So, we may have two options:
->     - Just fix the false negative issue as what the patch does
->     - Change the behavior to make it more consistent
-> 
-> I'm not sure whether anyone relies on the behavior explicitly or implicitly
-> or not.
+> It's even more odd that although a userspace solution is touted as the proper
+> way to go on LKML, almost no Android OEMs are using it, and even in that commit
 
-Well, I would be certainly more happy with a more consistent behavior.
-Talked to Hugh at LSFMM about this and he finds treating shmem objects
-separately from the anonymous memory. And that is already the case
-partially when each mount point might have its own setup. So the primary
-question is whether we need a one global knob to controll all THP
-allocations. One argument to have that is that it might be helpful to
-for an admin to simply disable source of THP at a single place rather
-than crawling over all shmem mount points and remount them. Especially
-in environments where shmem points are mounted in a container by a
-non-root. Why would somebody wanted something like that? One example
-would be to temporarily workaround high order allocations issues which
-we have seen non trivial amount of in the past and we are likely not at
-the end of the tunel.
+That's probably because without proper kernel changes this is rather
+tricky to use safely (see below).
 
-That being said I would be in favor of treating the global sysfs knob to
-be global for all THP allocations. I will not push back on that if there
-is a general consensus that shmem and fs in general are a different
-class of objects and a single global control is not desirable for
-whatever reasons.
+> I linked in the previous message, Google made a rather large set of
+> modifications to the supposedly-defunct lowmemorykiller.c not one month ago.
+> What's going on?
+> 
+> Qualcomm still uses lowmemorykiller.c [1] on the Snapdragon 845. If PSI were
+> backported to 4.4, or even 3.18, would it really be used? I don't really
+> understand the aversion to an in-kernel memory killer on LKML despite the rest
+> of the industry's attraction to it. Perhaps there's some inherently great cost
+> in using the userspace solution that I'm unaware of?
+> 
+> Regardless, even if PSI were backported, a full-fledged LMKD using it has yet to
+> be made, so it wouldn't be of much use now.
 
-Kirill, Hugh othe folks?
--- 
-Michal Hocko
-SUSE Labs
+This is work that is ongoing and requires kernel changes to make it
+feasible. One of the things that I have been working on for quite a
+while is the whole file descriptor for processes thing that is important
+for LMKD (Even though I never thought about this use-case when I started
+pitching this.). Joel and Daniel have joined in and are working on
+making LMKD possible.
+What I find odd is that every couple of weeks different solutions to the
+low memory problem are pitched. There is simple_lkml, there is LMKD, and
+there was a patchset that wanted to speed up memory reclaim at process
+kill-time by adding a new flag to the new pidfd_send_signal() syscall.
+That all seems - though related - rather uncoordinated. Now granted,
+coordinated is usually not how kernel development necessarily works but
+it would probably be good to have some sort of direction and from what I
+have seen LMKD seems to be the most coordinated effort. But that might
+just be my impression.
+
+Christian
 
