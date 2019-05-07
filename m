@@ -2,184 +2,267 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	T_DKIMWL_WL_HIGH,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ECBDC004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 887F7C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:34:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6007206BF
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B2B12087F
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:34:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="du86YBBb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6007206BF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="BSSSeKvG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B2B12087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9FF56B026A; Tue,  7 May 2019 00:06:16 -0400 (EDT)
+	id B8D386B0005; Tue,  7 May 2019 01:34:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B65D6B0266; Tue,  7 May 2019 00:06:16 -0400 (EDT)
+	id B3D106B0006; Tue,  7 May 2019 01:34:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB50D6B026A; Tue,  7 May 2019 00:06:15 -0400 (EDT)
+	id A2C626B0007; Tue,  7 May 2019 01:34:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1856B026B
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 00:06:15 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e128so9332532pfc.22
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 21:06:15 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C42A6B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:34:22 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j36so4801524pgb.20
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:34:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=OxdSSHoGAqmrkmVLEptBFC1YPta48P8T/Z5/nTGxU7M=;
-        b=GDfVxegiRuUfISOJoaTWUVVrEB0RIwfI36KtjCWHdtxpgmO2uQ0Qq+aPmzEVu9WtmM
-         7w/M1KnJzGSZKahniF4g4A8j1+Mds3e8STkfW8mX4HAMZGjmp/DU94Tj6/Z9BANAwby8
-         +fzRUPMH4yOZKMCkEbbPNINf3eBIAwzRpyVxR7rF5vrKh5rmws0Q+NrNi5oGZev9u0jr
-         21o6NgW7wSNK0LT/sceUIaUcm8MJLLIyJ16vv69iI0tyRtB2MSoFeBSIDFkhDPExeMEe
-         wCsd0HuFi50NxcRC5i3d8xagDIA4vkJ9FSfI79hU5zEoDK2scR5sLgYywLToeWfGYN5P
-         VHbA==
-X-Gm-Message-State: APjAAAUa7SsioGstRV5qU3OEYGD4/N+AKuhvAj7tJ9BSarCHG4d97mKm
-	TkdKpuHJuFCVLoOP+lFpn+YyglxETpelwkBzNZd+/h+kHXjB3IucyMdb9sfwIVBzlTNyVt673py
-	yTlMoMdKEPzoCXjwFmnyImi2plihSLBMRXoHFfI97m980D7pZP6iKBsLsqRzjIQP7/g==
-X-Received: by 2002:a65:4302:: with SMTP id j2mr36772500pgq.291.1557201974785;
-        Mon, 06 May 2019 21:06:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwKY98CBk1uApR58c021PLDh6+W1MQSwVPJuOW175/rBRP0JQFd1+iNfPlqF79LVbKNYmVD
-X-Received: by 2002:a65:4302:: with SMTP id j2mr36772380pgq.291.1557201973314;
-        Mon, 06 May 2019 21:06:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557201973; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=gpEu/R/zuL+40/xQkNB9q888MjDlc7SeNKJ6L90C5Tk=;
+        b=MUtX3+sEisyBU1pcnajGuQLISXJcLXydu9vLA253s7jPX9nJNVKcEDBXafqmWtiF1e
+         ASRbZKyVpEygQh01Oyne/jlnqUErOaOvsVnlTipAiHWNNX8CHN3sTf8+GFASI3bMW2o7
+         BlOeH66EGvV3HBfG3X3F6yV1mYcEcs6BB0RUQv0dZMLTIuQBlIKXmhLkJ9PjaNrQq/xe
+         3XNZd3gL20ZKosbljc7752EOQCZrVOi25OH0cyo6i1+1j2FfjbBKHTxtpGHLA+KrlpyO
+         hEex8/Csy1ryuuzRVlbbgei36mX48JELPse8LZveD7CFPR83w4ST8Kc+NdCPNoGY1lSB
+         E7oA==
+X-Gm-Message-State: APjAAAUnpqMt1ZEDKp9Qn2oQ81pzablxPwMC4i1EM6oSpqiTZ2wxwEpN
+	iBMFY2nWnSQp6g/6tAR8n5ig4oEFoeZNrzHjsEq4vzM0juvZVwfmZXMyRmBc9lvACeo5ZaJd+ub
+	T/1uZaw7/EVi0m6XATRu+NiVp6GGZUrB1xrbR5t6XgjJg+XF5anY9VeAq5eerErSOtw==
+X-Received: by 2002:aa7:8e04:: with SMTP id c4mr38474895pfr.48.1557207261869;
+        Mon, 06 May 2019 22:34:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCc1a7w0x/UlOddMYYwX8pxFTHoUKy7d0uaF++YMrNlutKpLzeoeLYbZEe22mwGIZWyqrF
+X-Received: by 2002:aa7:8e04:: with SMTP id c4mr38474839pfr.48.1557207260946;
+        Mon, 06 May 2019 22:34:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557207260; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zm8VnF7UaxYVZhm8jWChK+BzOMqPDb+jbd83RL34es7VAAHnBdl7yygZO9FTwCJIfJ
-         Or5nAeD3ehPDrvnVZ66yhBTW1znJrKF2MRAE5QU9bImi54xle/38C1/JvRZPPU1tSLIO
-         Vnkx3wmI/lFT8nlRYsvnom/0BjAt22vDgc6SdyycBg1zQZkcY2+wzOB8NUdFDkfPEdyL
-         zWSMBpRivZIw9Vze4t6g/aBBQAWmZmfRby82XnyuBoQCIxPT8EJ1Y13jyMhrgjaFWdW1
-         lhL37ORyFhQ5seynGPlSYulol5uYGU8ITLUWL+gssPW9LJTcDQ4rcacbNebmBu7MHaiT
-         B0EA==
+        b=t4GHA7nWAgljcddO4wY3gImGM2dujgDOKij1sm/dOPqwjFMoPPdjwgGqn370h8/9sA
+         D6LRmQ8GZgPLy5zxx2LVfYLyGMGeUAmm9XqYnGIy+dnpJ7Ctp3OozxmkhBJ5W3WFduYV
+         MNCyfDnxtTcQFDbyosABxB9ICIMBnG/xTtOiqUfnuvdJo7qKkz1c/7PRtqRHTdB6RNtd
+         HocFM5CVV8RZEmeZc4wLQzQcC0NMlhsbU9Od1WXd66USHv+eZJPZyM7245GeBhDqF4mE
+         sR7qSufRd5Lc8TXqImL4/WQS75XtLwj95Iv9ESVUSbE7KnccytwucOTW0d3pniExdGXj
+         JA0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=OxdSSHoGAqmrkmVLEptBFC1YPta48P8T/Z5/nTGxU7M=;
-        b=d64S8btMjZuO6d67gXUYDZ3QqrvJgR1g1mwEnwBy7vIA2D1p2BVOhWZBCwHpGDbvA1
-         RjpODXYxTff+DaBxKUHJlJDQ8cq02bepdxZ8F6a5yt7Iq7Vwcn/0+3fDxmk0w7tmmS8o
-         13otAxnRTT/3M1e5pshxtUrDH5xHX+4KgHl5G0WK0bkMh66skzsKFhLV9B6K7yhYmzX6
-         Rx3ik5L+Q0ofelR9KCgqUftEzd6zHsC6Jdn6mgrNkSOOwgSRz9Vb9iJPzXsVaxw2Rwkd
-         ndlwZ45Jt/72VPynwCScA8O2FqkztPcKQuLP4ulNoxUIiX9gpR+BUltUG6C9k2wAXbfe
-         j51Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=gpEu/R/zuL+40/xQkNB9q888MjDlc7SeNKJ6L90C5Tk=;
+        b=G4PHtiZ0ApXSErT4u8OJLQ7p2szt/K80LXmuFmnNYpO8zqu4scR5ijvSLVLkAk1ymM
+         CMxxaDE2dYBq2gxrai/7etG+scHaQCCvzuO/RkiE5eGiaYstL1cNv81EoL+kCttZ09uu
+         h6gxXKoROy5XGK+6tYf1B5LOLkTZKH9C2OrfDJ0jv7OChoROenVCWp49GU/2v+jtNJIy
+         eLopMcKxh/iL4k+gnXvdllzqQpOd1bcaTqqB5Lf7y6nY5HajG3zxmPqxn1R/ENDur3/J
+         V0ZgWOEIvOAItnUUSF0MZNkE3NAD2cZojCUc/rc9u+ZeQayoMrFCHkdQpq7x1LBg03sq
+         /Lkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=du86YBBb;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c11si18130862pga.462.2019.05.06.21.06.12
+       dkim=pass header.i=@kernel.org header.s=default header.b=BSSSeKvG;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i36si3871020pgl.491.2019.05.06.22.34.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 06 May 2019 21:06:12 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 May 2019 22:34:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=du86YBBb;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=References:In-Reply-To:Message-Id:
-	Date:Subject:Cc:To:From:Sender:Reply-To:MIME-Version:Content-Type:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=OxdSSHoGAqmrkmVLEptBFC1YPta48P8T/Z5/nTGxU7M=; b=du86YBBbxi0LU5yBXgfT0I4sA
-	M1CBvj67NZNMmcb8I/6k+oHkeaeRlJaGjiDRbSK/H61K2/vW0PKbzhg4Os4B9umrwPhjsu05AkT47
-	njOJyNxEQcD7lFfETGKjDibXDOTKIwZWalvw4Df7uTOkqYLZTD3b1icrTvT+JN/wXQsEvczRYKnHL
-	oPzSqjIcRP72d89J0rrLfqbDT+6LBJlPD8w0KQhYWghA/xxYpnUUK030NPrxzB7xpUTuOyezh/7aQ
-	6riv7j5+g4pJw7rt/dQ5oLW+g/iSPLWfNa0EdLdGlRrpTiTphrXFycnwanmCkubsAzdKnfg9hZOQi
-	gm9eDfqdg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hNrMq-0005id-EH; Tue, 07 May 2019 04:06:12 +0000
-From: Matthew Wilcox <willy@infradead.org>
-To: linux-mm@kvack.org
-Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-Subject: [PATCH 09/11] mm: Pass order to prepare_alloc_pages in GFP flags
-Date: Mon,  6 May 2019 21:06:07 -0700
-Message-Id: <20190507040609.21746-10-willy@infradead.org>
-X-Mailer: git-send-email 2.14.5
-In-Reply-To: <20190507040609.21746-1-willy@infradead.org>
-References: <20190507040609.21746-1-willy@infradead.org>
+       dkim=pass header.i=@kernel.org header.s=default header.b=BSSSeKvG;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1A3E721530;
+	Tue,  7 May 2019 05:34:19 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1557207260;
+	bh=vtaTpa38CojxyPM1lfClIIF52DyI3e1yNz+U3k9Z5As=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=BSSSeKvGl6+wW6FMKan/jiZB3DTRfWoUG8en9QuuMNeqMAYJHr/AGzcJF9k5yeS10
+	 WFJ1oFXR8eWr058PnDOIH8dlzIC7wlS+xot4Ym6x9QKWfIpYySgeY5UF+wIwS+BwAs
+	 5ff27QLFJx7d7ZekiUNU6b3u9GO+4KDyQr65m0CA=
+From: Sasha Levin <sashal@kernel.org>
+To: linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org
+Cc: Qian Cai <cai@lca.pw>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Alexander Potapenko <glider@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 5.0 56/99] slab: store tagged freelist for off-slab slabmgmt
+Date: Tue,  7 May 2019 01:31:50 -0400
+Message-Id: <20190507053235.29900-56-sashal@kernel.org>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190507053235.29900-1-sashal@kernel.org>
+References: <20190507053235.29900-1-sashal@kernel.org>
+MIME-Version: 1.0
+X-stable: review
+X-Patchwork-Hint: Ignore
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
+From: Qian Cai <cai@lca.pw>
 
-Also pass the order to should_fail_alloc_page() in the GFP flags,
-which only used the order when calling prepare_alloc_pages().
+[ Upstream commit 1a62b18d51e5c5ecc0345c85bb9fef870ab721ed ]
 
-Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
+Commit 51dedad06b5f ("kasan, slab: make freelist stored without tags")
+calls kasan_reset_tag() for off-slab slab management object leading to
+freelist being stored non-tagged.
+
+However, cache_grow_begin() calls alloc_slabmgmt() which calls
+kmem_cache_alloc_node() assigns a tag for the address and stores it in
+the shadow address.  As the result, it causes endless errors below
+during boot due to drain_freelist() -> slab_destroy() ->
+kasan_slab_free() which compares already untagged freelist against the
+stored tag in the shadow address.
+
+Since off-slab slab management object freelist is such a special case,
+just store it tagged.  Non-off-slab management object freelist is still
+stored untagged which has not been assigned a tag and should not cause
+any other troubles with this inconsistency.
+
+  BUG: KASAN: double-free or invalid-free in slab_destroy+0x84/0x88
+  Pointer tag: [ff], memory tag: [99]
+
+  CPU: 0 PID: 1376 Comm: kworker/0:4 Tainted: G        W 5.1.0-rc3+ #8
+  Hardware name: HPE Apollo 70             /C01_APACHE_MB         , BIOS L50_5.13_1.0.6 07/10/2018
+  Workqueue: cgroup_destroy css_killed_work_fn
+  Call trace:
+   print_address_description+0x74/0x2a4
+   kasan_report_invalid_free+0x80/0xc0
+   __kasan_slab_free+0x204/0x208
+   kasan_slab_free+0xc/0x18
+   kmem_cache_free+0xe4/0x254
+   slab_destroy+0x84/0x88
+   drain_freelist+0xd0/0x104
+   __kmem_cache_shrink+0x1ac/0x224
+   __kmemcg_cache_deactivate+0x1c/0x28
+   memcg_deactivate_kmem_caches+0xa0/0xe8
+   memcg_offline_kmem+0x8c/0x3d4
+   mem_cgroup_css_offline+0x24c/0x290
+   css_killed_work_fn+0x154/0x618
+   process_one_work+0x9cc/0x183c
+   worker_thread+0x9b0/0xe38
+   kthread+0x374/0x390
+   ret_from_fork+0x10/0x18
+
+  Allocated by task 1625:
+   __kasan_kmalloc+0x168/0x240
+   kasan_slab_alloc+0x18/0x20
+   kmem_cache_alloc_node+0x1f8/0x3a0
+   cache_grow_begin+0x4fc/0xa24
+   cache_alloc_refill+0x2f8/0x3e8
+   kmem_cache_alloc+0x1bc/0x3bc
+   sock_alloc_inode+0x58/0x334
+   alloc_inode+0xb8/0x164
+   new_inode_pseudo+0x20/0xec
+   sock_alloc+0x74/0x284
+   __sock_create+0xb0/0x58c
+   sock_create+0x98/0xb8
+   __sys_socket+0x60/0x138
+   __arm64_sys_socket+0xa4/0x110
+   el0_svc_handler+0x2c0/0x47c
+   el0_svc+0x8/0xc
+
+  Freed by task 1625:
+   __kasan_slab_free+0x114/0x208
+   kasan_slab_free+0xc/0x18
+   kfree+0x1a8/0x1e0
+   single_release+0x7c/0x9c
+   close_pdeo+0x13c/0x43c
+   proc_reg_release+0xec/0x108
+   __fput+0x2f8/0x784
+   ____fput+0x1c/0x28
+   task_work_run+0xc0/0x1b0
+   do_notify_resume+0xb44/0x1278
+   work_pending+0x8/0x10
+
+  The buggy address belongs to the object at ffff809681b89e00
+   which belongs to the cache kmalloc-128 of size 128
+  The buggy address is located 0 bytes inside of
+   128-byte region [ffff809681b89e00, ffff809681b89e80)
+  The buggy address belongs to the page:
+  page:ffff7fe025a06e00 count:1 mapcount:0 mapping:01ff80082000fb00
+  index:0xffff809681b8fe04
+  flags: 0x17ffffffc000200(slab)
+  raw: 017ffffffc000200 ffff7fe025a06d08 ffff7fe022ef7b88 01ff80082000fb00
+  raw: ffff809681b8fe04 ffff809681b80000 00000001000000e0 0000000000000000
+  page dumped because: kasan: bad access detected
+  page allocated via order 0, migratetype Unmovable, gfp_mask
+  0x2420c0(__GFP_IO|__GFP_FS|__GFP_NOWARN|__GFP_COMP|__GFP_THISNODE)
+   prep_new_page+0x4e0/0x5e0
+   get_page_from_freelist+0x4ce8/0x50d4
+   __alloc_pages_nodemask+0x738/0x38b8
+   cache_grow_begin+0xd8/0xa24
+   ____cache_alloc_node+0x14c/0x268
+   __kmalloc+0x1c8/0x3fc
+   ftrace_free_mem+0x408/0x1284
+   ftrace_free_init_mem+0x20/0x28
+   kernel_init+0x24/0x548
+   ret_from_fork+0x10/0x18
+
+  Memory state around the buggy address:
+   ffff809681b89c00: fe fe fe fe fe fe fe fe fe fe fe fe fe fe fe fe
+   ffff809681b89d00: fe fe fe fe fe fe fe fe fe fe fe fe fe fe fe fe
+  >ffff809681b89e00: 99 99 99 99 99 99 99 99 fe fe fe fe fe fe fe fe
+                     ^
+   ffff809681b89f00: 43 43 43 43 43 fe fe fe fe fe fe fe fe fe fe fe
+   ffff809681b8a000: 6d fe fe fe fe fe fe fe fe fe fe fe fe fe fe fe
+
+Link: http://lkml.kernel.org/r/20190403022858.97584-1-cai@lca.pw
+Fixes: 51dedad06b5f ("kasan, slab: make freelist stored without tags")
+Signed-off-by: Qian Cai <cai@lca.pw>
+Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_alloc.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ mm/slab.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f693fec5f555..94ad4727206e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3247,8 +3247,9 @@ static int __init setup_fail_page_alloc(char *str)
- }
- __setup("fail_page_alloc=", setup_fail_page_alloc);
- 
--static bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-+static bool __should_fail_alloc_page(gfp_t gfp_mask)
- {
-+	unsigned int order = gfp_order(gfp_mask);
- 	if (order < fail_page_alloc.min_order)
- 		return false;
- 	if (gfp_mask & __GFP_NOFAIL)
-@@ -3287,16 +3288,16 @@ late_initcall(fail_page_alloc_debugfs);
- 
- #else /* CONFIG_FAIL_PAGE_ALLOC */
- 
--static inline bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-+static inline bool __should_fail_alloc_page(gfp_t gfp_mask)
- {
- 	return false;
- }
- 
- #endif /* CONFIG_FAIL_PAGE_ALLOC */
- 
--static noinline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-+static noinline bool should_fail_alloc_page(gfp_t gfp_mask)
- {
--	return __should_fail_alloc_page(gfp_mask, order);
-+	return __should_fail_alloc_page(gfp_mask);
- }
- ALLOW_ERROR_INJECTION(should_fail_alloc_page, TRUE);
- 
-@@ -4556,7 +4557,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
--static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
-+static inline bool prepare_alloc_pages(gfp_t gfp_mask,
- 		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
- 		unsigned int *alloc_flags)
-@@ -4579,7 +4580,7 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 
- 	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
- 
--	if (should_fail_alloc_page(gfp_mask, order))
-+	if (should_fail_alloc_page(gfp_mask))
- 		return false;
- 
- 	if (IS_ENABLED(CONFIG_CMA) && ac->migratetype == MIGRATE_MOVABLE)
-@@ -4626,7 +4627,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, int preferred_nid, nodemask_t *nodemask)
- 
- 	gfp_mask &= gfp_allowed_mask;
- 	alloc_mask = gfp_mask;
--	if (!prepare_alloc_pages(gfp_mask, order, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
-+	if (!prepare_alloc_pages(gfp_mask, preferred_nid, nodemask, &ac, &alloc_mask, &alloc_flags))
- 		return NULL;
- 
- 	finalise_ac(gfp_mask, &ac);
+diff --git a/mm/slab.c b/mm/slab.c
+index 2f2aa8eaf7d9..516df2d854ef 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2371,7 +2371,6 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
+ 		/* Slab management obj is off-slab. */
+ 		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
+ 					      local_flags, nodeid);
+-		freelist = kasan_reset_tag(freelist);
+ 		if (!freelist)
+ 			return NULL;
+ 	} else {
 -- 
 2.20.1
 
