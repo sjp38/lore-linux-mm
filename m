@@ -2,278 +2,242 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0A43C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 15:32:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C72EC46470
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:29:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6475E206BF
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 15:32:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6475E206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E2DD20825
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:29:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="v+8Aj1+G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E2DD20825
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C3D826B0007; Tue,  7 May 2019 11:32:07 -0400 (EDT)
+	id BC40A6B0005; Tue,  7 May 2019 12:29:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC7566B0008; Tue,  7 May 2019 11:32:07 -0400 (EDT)
+	id B74986B0006; Tue,  7 May 2019 12:29:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A42D46B000A; Tue,  7 May 2019 11:32:07 -0400 (EDT)
+	id A8AF56B0007; Tue,  7 May 2019 12:29:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB226B0007
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 11:32:07 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id p190so10790213qke.10
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 08:32:07 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C9F36B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 12:29:03 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id b139so3084977wme.1
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 09:29:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5pI5PWgKV+F3OehC1OfcnlFzaNkCdk4j+T3RVss1qZ4=;
-        b=RrcaSk2vyzGviTU0KkAtQMufw6K/OFX9kwYtzu+aaaS2DCtBS8gv9DO8QVSB5xuSE9
-         g/wt4zud2TptdJiQHHrwaBrau4Gu6OdEI4i2qoF/Ws8SjNC25Nk/lwxwCCgfgYqSyA7G
-         AQdhymMNJUY1A+rC1KCp7zZisZKpelSyk32CmJ/8jP127WhIGHmIb1r85EZw9mX5pXBy
-         bXu9YGS8CJ/hYPltS6ptGLyM60n2h8p5k2PWa98XYOBefqMcTxRVlqnqMkLYCl3Lnndq
-         u8MI1bicjQ9kYYkNqFTu5On/M3727bPiUDE0HDVSdrHXjXEf4QWOzDFrBnpF+IqXDRAx
-         +fKg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUaqcmzZfW6b8U5wO2hJrniOTWQ4/PQoeLBXQqapNZzAZzFi7Kw
-	9G85gQyDNeclV90kPs4LaZB2XB6UWqpQkw6FTkWj4h8+seNjqm3ENFBPVbgQboXD3XPJwcf+d8q
-	Zc56TBazpnqyStaTlag3BG4jX6TDrazbAi2r881jrNCzz7a+mXo0LdcFGhWosbf2g8Q==
-X-Received: by 2002:ad4:53c4:: with SMTP id k4mr26461646qvv.111.1557243127285;
-        Tue, 07 May 2019 08:32:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqytqJEdDRNRvrDWNZ8L/utUppAlIPa9ORoZ/V4LhvlNZ6RtfV5X+Zm97RzMFnLMwghJeoef
-X-Received: by 2002:ad4:53c4:: with SMTP id k4mr26461152qvv.111.1557243121322;
-        Tue, 07 May 2019 08:32:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557243121; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
+        b=hXxpHKl3BpVRei2gaj4vrHikzIdf5syy3tzGKeTXXWyqQXgiZtanSXQ7Y80RjpfV5M
+         dAcaUlghwnH20w4uc5Ibhxs1oaHxh6xOIxqX5iWeZcBJ4EMpc52880BEpw4NZVW9wT9Y
+         9bFYKTzDH1d6TiD8x1p9M/glThbq69uXUmkwMHlPQs10PJ3kQuaUt7gdhbws516lSzUL
+         7q5z8QXHlBY/8Wjkp1PwRnhZ1NnikjsngeXK57dF9uu+6T/Tx5kBukBlzhS8mLEQevmi
+         FHIK8pxEui9pvbXx+mwvh0/H5wtYf3hav4A4S/7q5OngVZOmVWdXhLCPBv8ke0N/cFhw
+         /TvA==
+X-Gm-Message-State: APjAAAVIZWXA5rV50KJaU43Db8EgMZ7QxWN94+gQEEzB08CyGnBMUB6t
+	tUWy/7Uu+4X2ccEoSsJ6sCd1JPvSNPk8I+WPFs1vDoV3pVF6oz1heSuxyxSJsi/uDynJtz3L0Cl
+	HLZ9pHpYC0qlqqP5tKunPPP9Z2BNOxA4wh3nOziwRL3WEGFo4Ad9LkwThe02W/vOTGQ==
+X-Received: by 2002:a7b:c3c3:: with SMTP id t3mr21275551wmj.88.1557246542629;
+        Tue, 07 May 2019 09:29:02 -0700 (PDT)
+X-Received: by 2002:a7b:c3c3:: with SMTP id t3mr21275470wmj.88.1557246541179;
+        Tue, 07 May 2019 09:29:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557246541; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ywlvw9COSZdjrJRSBwH2qQSAqr1XsDlFmiBmdQ6Xw8uSkfeYTyzdVEj7eDUvLVfYSM
-         oMzaQD4OoIuuVTw0w0M507csT9leVR45/AuB77HjzrhkPJMxDuwCRCkFyFg58O5gIX7w
-         moyiV/1U6Qq0DLhT7YNKebeny85/kybvDgF2eyy7ASi0O4bTHAwCip/4eSkZLUvQ45T4
-         qwXayDLyDcCy4ZaYn7wdKvxzJc45gSlDsIez1k1u6fBFABc24EnR6EjCFO8Np0zRXMN0
-         R/3AR7kY4YIMER1A7r8d7VHz6p3LTRD5QQFWPFbeyKSkm0YkjiGx9DHZiYOAajJJwKvO
-         AWbA==
+        b=r8FA0qzA8mxCggCHBB/9Do1V8dslH7a/3GsrUttzMP+kJIq+PAFtHw1tPIQ/QRUzFK
+         57gq9Ii7JlddxVA0YhvXdLWGKyTMcYWere6jzX/zJpod8mXx2iVJax702zUNAN3FvRr7
+         4jqDZA/1vz1RgZIKXdVhBlMyiIHHHNlCuxGvNSowYx2fqId6NmU6p4wpNAXpEmgnfFBn
+         KsZd73xAxzYPTxb/EbXytFmFCJkGwPEr3OdV0v806IxARis4M7igGUUS9v6NRQrtQdbl
+         QofKjAvYAKSjn8jdmke58eKqjuBbPadYMPJgrumaA0YMIj3Tu88JepAdn63Jw+NPbqq0
+         3EiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5pI5PWgKV+F3OehC1OfcnlFzaNkCdk4j+T3RVss1qZ4=;
-        b=dg9LjYG4AAqeBrxN30S865C2kAa7kxqQW/6xej4U58sDNMAYRi4KJo6ImlZk+mEocu
-         YT0pvxQoC+4GrItmaNiSoB2T9QgIs9GoIePOrkh2YxxU9iYJmVyFjoQ6cFsUYCUjz4Pz
-         /yu5+6v3X/qCHGUgbiGK1+PEBjGgUo1tMoyezTIBhUf+lK8iUGHUPDOSRnT0shE9a6aI
-         ZfiTz1bhf0i+I6jS+5OAVkiFDWoaQpvL3JWdxBp6BGcIwvr5O/ZGIV8rWUB9Q28X3e7e
-         QLMZZMofRxrZlC2Iq5N/6E6gchgavJXtbwo9kN3NvZn39H1zydc4stpyU+QrlYgd+lHy
-         eKDw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
+        b=hg9Kt28STWgPSCp+sUcPkKzHtqTtSt0D1MOUiRODL26OH2XO4darlNWSTyKLsavf2X
+         smfy1O54dDqkdSewlXeVXlNcPjFnvfSVeSrocgqDPeghAJc2tvSw8oAlKIwWIvV/exyF
+         X4+cLIK5Ys7u/QukvM0FrUfp/euIxy4jChlsIB4A3Xm6lSWKc6vHibCLFT8nrB0AxdIs
+         BKefeaeLpTkEMYl03t4kCgRmOvMxB+3qUCuKJmiBAF0q88GQQikgkc64Kc2NMBi9iw8k
+         mW5aoG1z37SYpWpd4EJy1wjKV0dNdFIuyxENYnOq0aoDp3PhMFxCnLTlC0izgK4Hni4H
+         C1lw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a2si7388078qta.5.2019.05.07.08.32.00
+       dkim=pass header.i=@google.com header.s=20161025 header.b=v+8Aj1+G;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t12sor10517158wrn.28.2019.05.07.09.29.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 08:32:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 07 May 2019 09:29:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BB055308424E;
-	Tue,  7 May 2019 15:31:59 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.159])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 648915C225;
-	Tue,  7 May 2019 15:31:55 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Tue,  7 May 2019 17:31:59 +0200 (CEST)
-Date: Tue, 7 May 2019 17:31:54 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Sultan Alsawaf <sultan@kerneltoast.com>
-Cc: Christian Brauner <christian@brauner.io>,
-	Daniel Colascione <dancol@google.com>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Kees Cook <keescook@chromium.org>,
-	Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190507153154.GA5750@redhat.com>
-References: <20190317015306.GA167393@google.com>
- <20190317114238.ab6tvvovpkpozld5@brauner.io>
- <CAKOZuetZPhqQqSgZpyY0cLgy0jroLJRx-B93rkQzcOByL8ih_Q@mail.gmail.com>
- <20190318002949.mqknisgt7cmjmt7n@brauner.io>
- <20190318235052.GA65315@google.com>
- <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=v+8Aj1+G;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
+        b=v+8Aj1+Gzh9xAnJJxTKBz5IK7NFM9zFnPBDBO6Jm8AvvbnH1v7/uyOpfFqno1rg2Zy
+         fWlzgtf4P3z9BwjWzOPCVXxpfYQLRYcUGluLq7rfauxlh27T1igPdhO2PnmRmDrIzUZb
+         33S/UPvcIKxDgySDvLphqkCw3nx66UVkzdh2llSzJaaZDYeQjUp1GcwIRKMf4Fd2qexE
+         pdGjzUCJ0cl2KrpuTdYemEjJKYL6rrWeGL4OEu6CfqNZbV6vGok2PFHNRvDxGe1TFozQ
+         Qc+ua3Dhgf5+4cL3nsEmG5URl479U6yNuIsdqC58anKp1C+pQdCb7goL/K4F1m96V0sQ
+         DdoQ==
+X-Google-Smtp-Source: APXvYqym1S8ixk/XT+rtdrTBe5tWrchiuDfbT6Q3mS29Rpb1RGpNAAYDcvRlOaaUxs5q8h8UIab6C7KWUWz1lN8rgvo=
+X-Received: by 2002:a5d:60cd:: with SMTP id x13mr3984822wrt.291.1557246540040;
+ Tue, 07 May 2019 09:29:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190507021622.GA27300@sultan-box.localdomain>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Tue, 07 May 2019 15:32:00 +0000 (UTC)
+References: <20190318235052.GA65315@google.com> <20190319221415.baov7x6zoz7hvsno@brauner.io>
+ <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
+ <20190507021622.GA27300@sultan-box.localdomain> <20190507070430.GA24150@kroah.com>
+ <20190507072721.GA4364@sultan-box.localdomain> <20190507074334.GB26478@kroah.com>
+ <20190507081236.GA1531@sultan-box.localdomain> <20190507105826.oi6vah6x5brt257h@brauner.io>
+In-Reply-To: <20190507105826.oi6vah6x5brt257h@brauner.io>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Tue, 7 May 2019 09:28:47 -0700
+Message-ID: <CAJuCfpFeOVzDUq5O_cVgVGjonWDWjVVR192On6eB5gf==_uPKw@mail.gmail.com>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+To: Christian Brauner <christian@brauner.io>
+Cc: Sultan Alsawaf <sultan@kerneltoast.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, Daniel Colascione <dancol@google.com>, 
+	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Martijn Coenen <maco@android.com>, 
+	LKML <linux-kernel@vger.kernel.org>, Tim Murray <timmurray@google.com>, 
+	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Oleg Nesterov <oleg@redhat.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Andy Lutomirski <luto@amacapital.net>, 
+	kernel-team <kernel-team@android.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I am not going to comment the intent, but to be honest I am skeptical too.
+From: Christian Brauner <christian@brauner.io>
+Date: Tue, May 7, 2019 at 3:58 AM
+To: Sultan Alsawaf
+Cc: Greg Kroah-Hartman, open list:ANDROID DRIVERS, Daniel Colascione,
+Todd Kjos, Kees Cook, Peter Zijlstra, Martijn Coenen, LKML, Tim
+Murray, Michal Hocko, Suren Baghdasaryan, linux-mm, Arve Hj=C3=B8nnev=C3=A5=
+g,
+Ingo Molnar, Steven Rostedt, Oleg Nesterov, Joel Fernandes, Andy
+Lutomirski, kernel-team
 
-On 05/06, Sultan Alsawaf wrote:
+> On Tue, May 07, 2019 at 01:12:36AM -0700, Sultan Alsawaf wrote:
+> > On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
+> > > Given that any "new" android device that gets shipped "soon" should b=
+e
+> > > using 4.9.y or newer, is this a real issue?
+> >
+> > It's certainly a real issue for those who can't buy brand new Android d=
+evices
+> > without software bugs every six months :)
+> >
+
+Hi Sultan,
+Looks like you are posting this patch for devices that do not use
+userspace LMKD solution due to them using older kernels or due to
+their vendors sticking to in-kernel solution. If so, I see couple
+logistical issues with this patch. I don't see it being adopted in
+upstream kernel 5.x since it re-implements a deprecated mechanism even
+though vendors still use it. Vendors on the other hand, will not adopt
+it until you show evidence that it works way better than what
+lowmemorykilled driver does now. You would have to provide measurable
+data and explain your tests before they would consider spending time
+on this.
+On the implementation side I'm not convinced at all that this would
+work better on all devices and in all circumstances. We had cases when
+a new mechanism would show very good results until one usecase
+completely broke it. Bulk killing of processes that you are doing in
+your patch was a very good example of such a decision which later on
+we had to rethink. That's why baking these policies into kernel is
+very problematic. Another problem I see with the implementation that
+it ties process killing with the reclaim scan depth. It's very similar
+to how vmpressure works and vmpressure in my experience is very
+unpredictable.
+
+> > > And if it is, I'm sure that asking for those patches to be backported=
+ to
+> > > 4.4.y would be just fine, have you asked?
+> > >
+> > > Note that I know of Android Go devices, running 3.18.y kernels, do NO=
+T
+> > > use the in-kernel memory killer, but instead use the userspace soluti=
+on
+> > > today.  So trying to get another in-kernel memory killer solution add=
+ed
+> > > anywhere seems quite odd.
+> >
+> > It's even more odd that although a userspace solution is touted as the =
+proper
+> > way to go on LKML, almost no Android OEMs are using it, and even in tha=
+t commit
 >
-> +static unsigned long find_victims(struct victim_info *varr, int *vindex,
-> +				  int vmaxlen, int min_adj, int max_adj)
-> +{
-> +	unsigned long pages_found = 0;
-> +	int old_vindex = *vindex;
-> +	struct task_struct *tsk;
-> +
-> +	for_each_process(tsk) {
-> +		struct task_struct *vtsk;
-> +		unsigned long tasksize;
-> +		short oom_score_adj;
-> +
-> +		/* Make sure there's space left in the victim array */
-> +		if (*vindex == vmaxlen)
-> +			break;
-> +
-> +		/* Don't kill current, kthreads, init, or duplicates */
-> +		if (same_thread_group(tsk, current) ||
-> +		    tsk->flags & PF_KTHREAD ||
-> +		    is_global_init(tsk) ||
-> +		    vtsk_is_duplicate(varr, *vindex, tsk))
-> +			continue;
-> +
-> +		vtsk = find_lock_task_mm(tsk);
+> That's probably because without proper kernel changes this is rather
+> tricky to use safely (see below).
+>
+> > I linked in the previous message, Google made a rather large set of
+> > modifications to the supposedly-defunct lowmemorykiller.c not one month=
+ ago.
+> > What's going on?
 
-Did you test this patch with lockdep enabled?
+If you look into that commit, it adds ability to report kill stats. If
+that was a change in how that driver works it would be rejected.
 
-If I read the patch correctly, lockdep should complain. vtsk_is_duplicate()
-ensures that we do not take the same ->alloc_lock twice or more, but lockdep
-can't know this.
+> >
+> > Qualcomm still uses lowmemorykiller.c [1] on the Snapdragon 845. If PSI=
+ were
+> > backported to 4.4, or even 3.18, would it really be used? I don't reall=
+y
+> > understand the aversion to an in-kernel memory killer on LKML despite t=
+he rest
+> > of the industry's attraction to it. Perhaps there's some inherently gre=
+at cost
+> > in using the userspace solution that I'm unaware of?
 
-> +static void scan_and_kill(unsigned long pages_needed)
-> +{
-> +	static DECLARE_WAIT_QUEUE_HEAD(victim_waitq);
-> +	struct victim_info victims[MAX_VICTIMS];
-> +	int i, nr_to_kill = 0, nr_victims = 0;
-> +	unsigned long pages_found = 0;
-> +	atomic_t victim_count;
-> +
-> +	/*
-> +	 * Hold the tasklist lock so tasks don't disappear while scanning. This
-> +	 * is preferred to holding an RCU read lock so that the list of tasks
-> +	 * is guaranteed to be up to date. Keep preemption disabled until the
-> +	 * SIGKILLs are sent so the victim kill process isn't interrupted.
-> +	 */
-> +	read_lock(&tasklist_lock);
-> +	preempt_disable();
+Vendors are cautious about adopting userspace solution and it is a
+process to address all concerns but we are getting there.
 
-read_lock() disables preemption, every task_lock() too, so this looks
-unnecessary.
+> > Regardless, even if PSI were backported, a full-fledged LMKD using it h=
+as yet to
+> > be made, so it wouldn't be of much use now.
+>
+> This is work that is ongoing and requires kernel changes to make it
+> feasible. One of the things that I have been working on for quite a
+> while is the whole file descriptor for processes thing that is important
+> for LMKD (Even though I never thought about this use-case when I started
+> pitching this.). Joel and Daniel have joined in and are working on
+> making LMKD possible.
+> What I find odd is that every couple of weeks different solutions to the
+> low memory problem are pitched. There is simple_lkml, there is LMKD, and
+> there was a patchset that wanted to speed up memory reclaim at process
+> kill-time by adding a new flag to the new pidfd_send_signal() syscall.
+> That all seems - though related - rather uncoordinated.
 
-> +	for (i = 1; i < ARRAY_SIZE(adj_prio); i++) {
-> +		pages_found += find_victims(victims, &nr_victims, MAX_VICTIMS,
-> +					    adj_prio[i], adj_prio[i - 1]);
-> +		if (pages_found >= pages_needed || nr_victims == MAX_VICTIMS)
-> +			break;
-> +	}
-> +
-> +	/*
-> +	 * Calculate the number of tasks that need to be killed and quickly
-> +	 * release the references to those that'll live.
-> +	 */
-> +	for (i = 0, pages_found = 0; i < nr_victims; i++) {
-> +		struct victim_info *victim = &victims[i];
-> +		struct task_struct *vtsk = victim->tsk;
-> +
-> +		/* The victims' mm lock is taken in find_victims; release it */
-> +		if (pages_found >= pages_needed) {
-> +			task_unlock(vtsk);
-> +			continue;
-> +		}
-> +
-> +		/*
-> +		 * Grab a reference to the victim so it doesn't disappear after
-> +		 * the tasklist lock is released.
-> +		 */
-> +		get_task_struct(vtsk);
+I'm not sure why pidfd_wait and expedited reclaim is seen as
+uncoordinated effort. All of them are done to improve userspace LMKD.
 
-The comment doesn't look correct. the victim can't dissapear until task_unlock()
-below, it can't pass exit_mm().
+> Now granted,
+> coordinated is usually not how kernel development necessarily works but
+> it would probably be good to have some sort of direction and from what I
+> have seen LMKD seems to be the most coordinated effort. But that might
+> just be my impression.
+>
+> Christian
 
-> +		pages_found += victim->size;
-> +		nr_to_kill++;
-> +	}
-> +	read_unlock(&tasklist_lock);
-> +
-> +	/* Kill the victims */
-> +	victim_count = (atomic_t)ATOMIC_INIT(nr_to_kill);
-> +	for (i = 0; i < nr_to_kill; i++) {
-> +		struct victim_info *victim = &victims[i];
-> +		struct task_struct *vtsk = victim->tsk;
-> +
-> +		pr_info("Killing %s with adj %d to free %lu kiB\n", vtsk->comm,
-> +			vtsk->signal->oom_score_adj,
-> +			victim->size << (PAGE_SHIFT - 10));
-> +
-> +		/* Configure the victim's mm to notify us when it's freed */
-> +		vtsk->mm->slmk_waitq = &victim_waitq;
-> +		vtsk->mm->slmk_counter = &victim_count;
-> +
-> +		/* Accelerate the victim's death by forcing the kill signal */
-> +		do_send_sig_info(SIGKILL, SIG_INFO_TYPE, vtsk, true);
-                                                               ^^^^
-this should be PIDTYPE_TGID
-
-> +
-> +		/* Finally release the victim's mm lock */
-> +		task_unlock(vtsk);
-> +	}
-> +	preempt_enable_no_resched();
-
-See above. And I don't understand how can _no_resched() really help...
-
-> +
-> +	/* Try to speed up the death process now that we can schedule again */
-> +	for (i = 0; i < nr_to_kill; i++) {
-> +		struct task_struct *vtsk = victims[i].tsk;
-> +
-> +		/* Increase the victim's priority to make it die faster */
-> +		set_user_nice(vtsk, MIN_NICE);
-> +
-> +		/* Allow the victim to run on any CPU */
-> +		set_cpus_allowed_ptr(vtsk, cpu_all_mask);
-> +
-> +		/* Finally release the victim reference acquired earlier */
-> +		put_task_struct(vtsk);
-> +	}
-> +
-> +	/* Wait until all the victims die */
-> +	wait_event(victim_waitq, !atomic_read(&victim_count));
-
-Can't we avoid the new slmk_waitq/slmk_counter members in mm_struct?
-
-I mean, can't we export victim_waitq and victim_count and, say, set/test
-MMF_OOM_VICTIM. In fact I think you should try to re-use mark_oom_victim()
-at least.
-
-Oleg.
+Thanks,
+Suren.
 
