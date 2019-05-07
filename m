@@ -7,107 +7,112 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4E8FC04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:37:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39406C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:37:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9800D216C4
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:37:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EC053216C8
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:37:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="PExlh3Tr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9800D216C4
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="v2neQjX7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC053216C8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 438046B000D; Tue,  7 May 2019 01:37:16 -0400 (EDT)
+	id 87EDE6B000E; Tue,  7 May 2019 01:37:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E9916B000E; Tue,  7 May 2019 01:37:16 -0400 (EDT)
+	id 806F96B0010; Tue,  7 May 2019 01:37:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D67E6B0010; Tue,  7 May 2019 01:37:16 -0400 (EDT)
+	id 6A9346B0266; Tue,  7 May 2019 01:37:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EA21C6B000D
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:37:15 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z7so9594652pgc.1
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:37:15 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 312DD6B000E
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:37:56 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id t1so9509341pfa.10
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:37:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Rqd2cD4vVW3+Sd74LDrUld398jWG+6bIAKO8kOtCuxY=;
-        b=DS5eg/40QH4gwzFY0uA9bsXwIuMDGqC8gL0eHaCbW4mQ6FWf+KCYKcSPcZgQPOLvrn
-         frBrd7piAYXjdhhljkmzfUBZBZ4++2P/tnYFpoV5wn/V+CkECOSR7SIaQaMGgY3kkDwE
-         05OHbFohjvC9ykwUV4xd2EL1dazplI0UpnHEXIi6iCZ3vFGbwJN72JRNZfXTZpkBojXp
-         p5rUoNrTU0ZwuCGUJpmD6Dl0KhA7Vfvg15j/sHoxwJ1uCIx+MBqXJ492dqp78LJunc5j
-         4j7pcxEhHlPxSgtfvE3QAWFo2AQ4mCsej0Qnms2+A4a+YcGAO91LcRXKt4nD6ZztwMXB
-         gImg==
-X-Gm-Message-State: APjAAAWLJ8aBK552bvGpe6pJppsliwLpAhcizRSfTj5RWdxegNxum1yi
-	lQRP/QP3Pg1HiTJv6n63tPv+G1iu3b2wAbtiXhnVVZXC92nL2WgHCI9EepPFr1XLPvHwAXttcjX
-	cAqoQg+KevKEhVfqNTp+Cb9mfKKhq58PmoMBcOQ58NUI0Kjswsci9aI9eNGAJsqPDPg==
-X-Received: by 2002:a63:9548:: with SMTP id t8mr22069484pgn.256.1557207435601;
-        Mon, 06 May 2019 22:37:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhXapJtwRNH6m0xLHuypshOTSSVLvDwK9l8bCY/k4dfYAubJ6J5a73Nyv4du8HsBFXGtvT
-X-Received: by 2002:a63:9548:: with SMTP id t8mr22069432pgn.256.1557207434866;
-        Mon, 06 May 2019 22:37:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557207434; cv=none;
+        bh=+QEIknlCFvT17/sqGD/BDjZLgPDR7jDQVJKHvhM11tQ=;
+        b=P0bOe1/e1DKBeU+lCOoPBjf7oT//py3SZ+6Cm52LueG9vhdiT1EcAuD1LPJq0B+sO8
+         TGttgWju+haCGpGXwVa0KCxZB5DNOXxLZWuXPKgeMAhficIiFfgD3Xkx2bZv97lmbMaK
+         +Y6zm0/V9mu7wf2lCZjIaIih4Mxmzs0MmLzURCm4X0+7bqQBuVGd/cQaRpHnpGPl/6Tp
+         38vfpex7+ureMs8M1CgzYM44hgxaQIld5Cz7LzYsnRF4P4mDS4jDDJd0Y4k892RKA9WA
+         XB1MFX7DC/0rDUnLRRQzFcAvkAqAQmj3LP0F5KPURYqbiyI1hEXkIZJ7GYn7X4Krg7UA
+         UjAg==
+X-Gm-Message-State: APjAAAX6qGTBtoh7KVasebIUe2A2S26dcMZaRRwRDJGSDGEroArBAwu9
+	WPk6xTKCeIqVmrlrrn+PxqDLlAtLpXmE4/vbIA7DpI0bExpICL4AV7Hs/SjmOsnoRgWKefb9G+A
+	CE+KkOV6gFqWWk8mlCfA5UKVNajzZN2frbcUF3lw3yOM1CA9I0QhSaIQRAk1CVUpJtQ==
+X-Received: by 2002:a62:160b:: with SMTP id 11mr38508052pfw.88.1557207475883;
+        Mon, 06 May 2019 22:37:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUK0+4tddtlC3dyYzEi6pZJkUCp8vG7Cv8yuk/qDBdzr0K5ddp4WSxmRiCktqE1kg4y/Ht
+X-Received: by 2002:a62:160b:: with SMTP id 11mr38507998pfw.88.1557207475203;
+        Mon, 06 May 2019 22:37:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557207475; cv=none;
         d=google.com; s=arc-20160816;
-        b=kJSe6sHSLi6WclLc8cy2PA60d/2lg5A+a+h/k28TxiQIyaYl7d2uLOtwgjg/zLhibC
-         UBps0ZY/UH/pUxcI5TMHqdk/obNG7OK0zxAyoH5/1NwfsJ9l9ZK3DRcKlAIu6hGTiKyx
-         JXjveWPC3ttO1Yq5E1JVzsgr2OtywAXkdbyllXSJtOBz6Y2/AuerllpR3XU3MNYBgjhm
-         X1WkKuBAiTiHJq3aQ6XF4Zl0DtBv7oL4pZzEzGBlwXuadFXXCFS7IGmgq3wtOD1wE5nW
-         O0ryuvwmns6lVDqh6HeZ8Ui1WbFD4OVxFa6x9KIq8VeAkXEEZ+mspDQFyCpkrMBkxhIF
-         lrJQ==
+        b=S+RdJvTqaRO8uH0lspTO8iL6CuevWv+1SMymrT2KZddmIzsROdy7IjCi09J3DfSYHQ
+         mQtNQuVJOdtdtF30THvHFmC1zdAPiH3UOOTFTe8gL4KAZJKSY7sKKqR06GfSkVfh+LT/
+         aqWgtr3xmzptsRWBbf2FBwJn4/itn9IY8ZjeagXPP4EraLzUABzWzW9SNV64g1rWCmBk
+         tWy1UHrcav/ILSL2lNK3JzuN7qgdq0CEG/Efc6mnZrwzdz0bTDIT435urOoXGGWyLPDN
+         yP9ARVdh1DNRmBgT5K/u9AWchoe6LU7f5XcAKOCPb0OFCqoVjHOxODMIfJzsw8op+3tJ
+         +I3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Rqd2cD4vVW3+Sd74LDrUld398jWG+6bIAKO8kOtCuxY=;
-        b=FzJhLPNfDBTtBxrBjlJp6rK1oJC9hmqsIkmcznZGdhPPxxwnq9BCqMAExm+VtAxgyU
-         /O4dOGuZRh5nFG1wg78n3onEs+cHs7KuFaYAHNA4pfSYV2vTn0OOPLhGgixhEp/5xveW
-         8nk1z6vscqVkSGDemDdvg7DepXVDWKnFbMoE5rc39UjEH1MLJ35rfSOdRNA54K62RsDV
-         iiRXB7Mgczl56mhjFNQAUD+E9LZaA6Am6sK6AaESC2EFr1/h8IL2zQhkEY5XeaWhtoMR
-         une58LD6uVvdj/2jnLtRn3oxDYQcWB6Kw4CXEL6Lvf3ELduSN5gfveG/KCsWUbJDJdLu
-         Lc+A==
+        bh=+QEIknlCFvT17/sqGD/BDjZLgPDR7jDQVJKHvhM11tQ=;
+        b=vjtGKeGz6rLE4oZrbx7w0DlsltC/to4L/8OT1B+YaUm30wWHNKheZB2y35gd+Oikzq
+         xEoyNEfJAUj+SA/M8b4gJFf1NZMT1CFG19w4jBww4ALak8Q1f4xHPM6mMTHgxLajkQK0
+         kcl84rL/OVD4m3TliNCzTVinDbRXsZf2GrERBscZYTj0IBV1nv6UlM7oOm/v/HfhNlU/
+         QWqSnYQbjMHivRnkD1j8LXKEen/m135ojrq9/0XlSPMZ7Rms6JP9IL1VHoXH4xYBP4u4
+         BI3cE1YRTJG5JRs1bvJ5m7dExmV3vWGUci8qQ0BhudrJ8dH5yudrc9jgHgUe1HuoG6Nt
+         +Kcw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=PExlh3Tr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=v2neQjX7;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m1si8676974pgg.380.2019.05.06.22.37.14
+        by mx.google.com with ESMTPS id d185si12131194pfa.182.2019.05.06.22.37.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 22:37:14 -0700 (PDT)
+        Mon, 06 May 2019 22:37:55 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=PExlh3Tr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=v2neQjX7;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6E58F20B7C;
-	Tue,  7 May 2019 05:37:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 56E8720578;
+	Tue,  7 May 2019 05:37:53 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557207434;
-	bh=6eYzvdpLkadmW6qPSEIkeXBgut3LdJXI5R40mz6omm4=;
+	s=default; t=1557207474;
+	bh=itR4g2WKHerLiXBWp4LPWTXItI1Mg4Qe2yr2sz5HZKU=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=PExlh3TrlTqxCOGgxK3rjg7w4u8pvC6bRXwaGj4e5g6zREG2es1Gy9uIa0IqmSFht
-	 UlFr/TSGFO5r4VQ9Om4bgcmO1KrxVWUTGkrLOrp9+zhek7nEOa+/Mj+CChYycgx2B6
-	 mOK3BcV0elOxHGjTSc4Rw5eN8RNtUTxCqYsFHbJ0=
+	b=v2neQjX7kj2u9VkKRpbKe1RyuhamhyfXKUpbT0d1YURnaU+lO9s/LjTSdliNbxVqN
+	 x5R8uRj4VSzISl5V+ApPuA0nrYlVb4//fha5tRn5Wq42tp7L2I2Ol3w5d2Jf24TJPu
+	 l9F+6puP1sO182pRL8/zVOpRwHVoZ7xajKUBRO4g=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Shakeel Butt <shakeelb@google.com>,
-	Roman Gushchin <guro@fb.com>,
-	Michal Hocko <mhocko@kernel.org>,
+Cc: David Hildenbrand <david@redhat.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Pankaj Gupta <pagupta@redhat.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 41/81] mm: fix inactive list balancing between NUMA nodes and cgroups
-Date: Tue,  7 May 2019 01:35:12 -0400
-Message-Id: <20190507053554.30848-41-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 63/81] mm/memory_hotplug.c: drop memory device reference after find_memory_block()
+Date: Tue,  7 May 2019 01:35:34 -0400
+Message-Id: <20190507053554.30848-63-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190507053554.30848-1-sashal@kernel.org>
 References: <20190507053554.30848-1-sashal@kernel.org>
@@ -121,143 +126,48 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: David Hildenbrand <david@redhat.com>
 
-[ Upstream commit 3b991208b897f52507168374033771a984b947b1 ]
+[ Upstream commit 89c02e69fc5245f8a2f34b58b42d43a737af1a5e ]
 
-During !CONFIG_CGROUP reclaim, we expand the inactive list size if it's
-thrashing on the node that is about to be reclaimed.  But when cgroups
-are enabled, we suddenly ignore the node scope and use the cgroup scope
-only.  The result is that pressure bleeds between NUMA nodes depending
-on whether cgroups are merely compiled into Linux.  This behavioral
-difference is unexpected and undesirable.
+Right now we are using find_memory_block() to get the node id for the
+pfn range to online.  We are missing to drop a reference to the memory
+block device.  While the device still gets unregistered via
+device_unregister(), resulting in no user visible problem, the device is
+never released via device_release(), resulting in a memory leak.  Fix
+that by properly using a put_device().
 
-When the refault adaptivity of the inactive list was first introduced,
-there were no statistics at the lruvec level - the intersection of node
-and memcg - so it was better than nothing.
-
-But now that we have that infrastructure, use lruvec_page_state() to
-make the list balancing decision always NUMA aware.
-
-[hannes@cmpxchg.org: fix bisection hole]
-  Link: http://lkml.kernel.org/r/20190417155241.GB23013@cmpxchg.org
-Link: http://lkml.kernel.org/r/20190412144438.2645-1-hannes@cmpxchg.org
-Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>
+Link: http://lkml.kernel.org/r/20190411110955.1430-1-david@redhat.com
+Fixes: d0dc12e86b31 ("mm/memory_hotplug: optimize memory hotplug")
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Reviewed-by: Wei Yang <richard.weiyang@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Pankaj Gupta <pagupta@redhat.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Arun KS <arunks@codeaurora.org>
+Cc: Mathieu Malaterre <malat@debian.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/vmscan.c | 29 +++++++++--------------------
- 1 file changed, 9 insertions(+), 20 deletions(-)
+ mm/memory_hotplug.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3830066018c1..ee545d1e9894 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2190,7 +2190,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
-  *   10TB     320        32GB
-  */
- static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
--				 struct mem_cgroup *memcg,
- 				 struct scan_control *sc, bool actual_reclaim)
- {
- 	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
-@@ -2211,16 +2210,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
- 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
- 
--	if (memcg)
--		refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
--	else
--		refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
--
- 	/*
- 	 * When refaults are being observed, it means a new workingset
- 	 * is being established. Disable active list protection to get
- 	 * rid of the stale workingset quickly.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 156991edec2a..af6735562215 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -901,6 +901,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
  	 */
-+	refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
- 	if (file && actual_reclaim && lruvec->refaults != refaults) {
- 		inactive_ratio = 0;
- 	} else {
-@@ -2241,12 +2236,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
- }
+ 	mem = find_memory_block(__pfn_to_section(pfn));
+ 	nid = mem->nid;
++	put_device(&mem->dev);
  
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
--				 struct lruvec *lruvec, struct mem_cgroup *memcg,
--				 struct scan_control *sc)
-+				 struct lruvec *lruvec, struct scan_control *sc)
- {
- 	if (is_active_lru(lru)) {
--		if (inactive_list_is_low(lruvec, is_file_lru(lru),
--					 memcg, sc, true))
-+		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
- 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
- 		return 0;
- 	}
-@@ -2346,7 +2339,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * anonymous pages on the LRU in eligible zones.
- 			 * Otherwise, the small LRU gets thrashed.
- 			 */
--			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
-+			if (!inactive_list_is_low(lruvec, false, sc, false) &&
- 			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
- 					>> sc->priority) {
- 				scan_balance = SCAN_ANON;
-@@ -2364,7 +2357,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * lruvec even if it has plenty of old anonymous pages unless the
- 	 * system is under heavy pressure.
- 	 */
--	if (!inactive_list_is_low(lruvec, true, memcg, sc, false) &&
-+	if (!inactive_list_is_low(lruvec, true, sc, false) &&
- 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
-@@ -2517,7 +2510,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
- 				nr[lru] -= nr_to_scan;
- 
- 				nr_reclaimed += shrink_list(lru, nr_to_scan,
--							    lruvec, memcg, sc);
-+							    lruvec, sc);
- 			}
- 		}
- 
-@@ -2584,7 +2577,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
- 	 */
--	if (inactive_list_is_low(lruvec, false, memcg, sc, true))
-+	if (inactive_list_is_low(lruvec, false, sc, true))
- 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
- 				   sc, LRU_ACTIVE_ANON);
- }
-@@ -2982,12 +2975,8 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
- 		unsigned long refaults;
- 		struct lruvec *lruvec;
- 
--		if (memcg)
--			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
--		else
--			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
--
- 		lruvec = mem_cgroup_lruvec(pgdat, memcg);
-+		refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
- 		lruvec->refaults = refaults;
- 	} while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
- }
-@@ -3344,7 +3333,7 @@ static void age_active_anon(struct pglist_data *pgdat,
- 	do {
- 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
- 
--		if (inactive_list_is_low(lruvec, false, memcg, sc, true))
-+		if (inactive_list_is_low(lruvec, false, sc, true))
- 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
- 					   sc, LRU_ACTIVE_ANON);
- 
+ 	/* associate pfn range with the zone */
+ 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
 -- 
 2.20.1
 
