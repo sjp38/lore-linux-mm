@@ -2,198 +2,161 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72152C04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:41:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57C8EC04AAD
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 06:06:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 096B12087F
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:41:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0AADA205C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 06:06:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="SG7t6wj5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 096B12087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="s8dO8ROD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AADA205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A26F16B026A; Tue,  7 May 2019 01:41:10 -0400 (EDT)
+	id 903D16B0005; Tue,  7 May 2019 02:06:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D8386B026B; Tue,  7 May 2019 01:41:10 -0400 (EDT)
+	id 8B3B46B0006; Tue,  7 May 2019 02:06:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8EF4B6B026C; Tue,  7 May 2019 01:41:10 -0400 (EDT)
+	id 77CF66B0007; Tue,  7 May 2019 02:06:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 57A8B6B026A
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:41:10 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i8so7109868pfo.21
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:41:10 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 201726B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 02:06:23 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m57so13728593edc.7
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 23:06:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=RrHFjAcBsqe8mEBrDqPXaQne4gotRiQR0ivbmtbB/5A=;
-        b=A3HDl/MIyNCPs9OFqMY+8ykAC86GzauXU5d6+vk8H1RPF+/bZSra+5qbqgUcd4d4dZ
-         nimMokvKpqlglCzpK7W7M3or2EHjq4FCsL+GLpJmEwYkZDW8VJZQUceqiUivCpldDeEa
-         TDn3cFGmt9Yc2qm4KeTk/P/E6uPrGhEeVPtFKp9vZyn3gCHJX1BwLzyUeZcHI0Jpwgb0
-         b9hAyqf5LTEf7VcCwP+ErdRV5s+oFjL9ZlRM64ecUqSwPf008h/iEdx2o8+/etF8Khjq
-         aWFkN+h5IasSYwODnzk/Gzh/dIfXVsdXtxxSD6VakgMeW7kXPSb4R4Ox54DQOoJEgmkv
-         za2Q==
-X-Gm-Message-State: APjAAAWNX+SZFWv4IcYkJmvBRJjR1Eo7RyFprtj2zzS5D7eXO4JFQx+8
-	0t6GG/EQNK+5+By5hS3vM1fRQTsi/jkOcbIyBTCj7br8Y6hLKxiOVHjQkrXE/IR4MKC+iXOMNw4
-	XEBkPyCEeXUdC6S/zjDwXlQaj7LnHfZKPe/gPmficcFaB2QE6YK8AEYOOdSLWwRsGlA==
-X-Received: by 2002:a63:9548:: with SMTP id t8mr22085843pgn.256.1557207670011;
-        Mon, 06 May 2019 22:41:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIBKtsPzpzXXX8OrUCULjZh/mqqP0prti7KeGNxkD/fiiZ5US1devXb9wM/e/plJf7yJjh
-X-Received: by 2002:a63:9548:: with SMTP id t8mr22085785pgn.256.1557207669305;
-        Mon, 06 May 2019 22:41:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557207669; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QZm07w2nSCiVVM+WjYPWUvz7wW+nL7XT9qvn8eYdy3A=;
+        b=s9jn6VSwamd8Wr2SqUHUb9TZATE6xT4SLwZle8UlE9G95tyZdKJ3fYQVAV9kaE+cRy
+         XqdliA0l6dlQkWm1p9bjMsdMvo1vrawcDr+VsCWg4fAYokUkY8JtYP5woC+iuGVx5gYR
+         V6nlA9eGU7QPrpqOUrqsy4rRcVvB6+Ht6xmlKTkMR5q2GubqOJLxjzw1g/LoSE5PYwfo
+         d2JjQRpYkOX87M1fnLCbARqpObB2DvmIU4zs7chTK1voWcbNgrgkadl6GCXfRpl9mbfS
+         EsiCiXTbgbwqzDlpxNPUCrEZ8JDSBZYbd1YQRJluxVbjuhuR7m6w6KwxyuhNkBDWTL/x
+         ftxg==
+X-Gm-Message-State: APjAAAXyVYbyhc3aIljG79Pwbbs897j4pn0fjjAWaJSD+YwsxVHDL1rr
+	3wHvAc9v2exta31VMIGFlszf5ImbDvTfoIAwsK2iLNp3J7GzplwR9H/OcwQwDlK8E4na2vA1NEt
+	ETySR9S6DnShpPLMljtqMk14s6H1t8PeBRuiRyw7MyUlUTXXseC0qU+OwxmK36y4FnA==
+X-Received: by 2002:a17:906:66da:: with SMTP id k26mr7145840ejp.292.1557209182634;
+        Mon, 06 May 2019 23:06:22 -0700 (PDT)
+X-Received: by 2002:a17:906:66da:: with SMTP id k26mr7145776ejp.292.1557209181713;
+        Mon, 06 May 2019 23:06:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557209181; cv=none;
         d=google.com; s=arc-20160816;
-        b=KnSLKnQ+qhmX7P32iUkO1J/MCaPo2xaebw25HnTFbFMWvSglkTUAmXhh63AbPkuI/K
-         gXfadbA2SXfAzzv9C5dcNwY73u60He1XIdvy/xoBugIwCvL9UXhXvXXQ5Iz4fSIZgfCY
-         m8TpugCQQlKh4MYH0dNPaIkFlGCbsfVZJWjAXUJxh/OfGILg/5Mdztp+HY7FAI2VuAk0
-         ykBk8pR1eDzpH1l0eLtvgZecdNLDhs5u6y2bEIZ9ZqDcybkK4y7UJeWSJ9XhlfI2wj6W
-         BmHM46G6odGgW3Jz9ha3IBB0rRQvTH55DsZOTvL7+MWRZ+POZ7TcT2FFsD/utUu34CX7
-         1gPg==
+        b=kNnD28/tFFHuuPmy0waP9+KJqfXFMbUFYGc0Xhfvm+rAcqjrJ5z79CvKHDPAC/CP5K
+         M/8q5G1vaH43taXy0j7I2LcRY+JqoB5W/EUic37OzonM8yvORayTchSI95cGBi1+UB8T
+         gn0ts3CHIVDZPZDowaEzOLq5ZqIoIeyN9ZFQNbf0NWUkAZc1sI7ME8eq7g3MBZIOZkaP
+         MtmfC36xgLeFjc7eSY7O+eCOtb2ZO8kMYdKGePhbwXsn33wSw3o0872bHoVDMRzqWb2n
+         GO/nOfaL/IGDVucwNwW7eUlHgwkjQlrGS1u7dWsgQvYY3GTWJBgOkliPze2ufqFX2rP8
+         B0kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=RrHFjAcBsqe8mEBrDqPXaQne4gotRiQR0ivbmtbB/5A=;
-        b=JbCrJpQ1QhheLRmdLCHoBgs79HEGaSo+Zrhf285Vxz7yvj8mxa+aASWqHzDwornqgo
-         7w5nc5GFVa2FEXT4or02kV9/8nPuDxzuEm6rIYqb5hHO9LQbPFaW4q7wNMECPNAx7l5o
-         +G4CVhT6K0HWMF9qWAv8TmNnM5cm6pMcS/4wjZFWiNyqQ4FQc2NlC8dUmXYS/GNStMRz
-         FHDFWYrJzoZCf8r7vzkQGEpVZ6uSWmjzXkUrUts+n2JDJzBLxlzyC2fwP7/T2RZgQfFR
-         nADtSWXC9dqDn0MhB1RtFNMyiQc5AljIQmB6YNsQQ6VuPJZgpWtn7JVeIkgDgz2Fq4Jc
-         brFA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QZm07w2nSCiVVM+WjYPWUvz7wW+nL7XT9qvn8eYdy3A=;
+        b=c/W/cT2bFZ2SnL1mJczTsOMkvhuD8BU9f52xssfiIYfoYFedXqih+hi/8TSIxPk75e
+         42qteBTsxwXEQWcFQAc1W+YcPB4g9MiR52SneBb0sOPARin4UhztpuiAnpCUV4Pj461L
+         LJNhETDpKGKioU8Cr8XLQgRHJol7qzYn4fLgqNnS+0AOKy2aYYNuhBTa2+mgAMnZOqkl
+         K8+VZYzN7yKCUJM9HFniOjf4PZDHrl+cRXq1JP6xQJuHmx5hFpL+bhL0f9TseiTxv99z
+         oR50VwgNm+pzf545qYtLb0trt7JhFJzdYmSLGHvCPYQL0PDznkB3SiE9MGDpnTXbQhJL
+         EYzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SG7t6wj5;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x3si2774107plb.347.2019.05.06.22.41.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=s8dO8ROD;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c19sor288718ejb.39.2019.05.06.23.06.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 22:41:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Mon, 06 May 2019 23:06:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SG7t6wj5;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D7E612087F;
-	Tue,  7 May 2019 05:41:07 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557207668;
-	bh=uyUWu/YRvdGkGjQJJaeNKgUIULFg6yFhSnXMrgmgQ7Y=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=SG7t6wj5i32/ut6d+tUQ5CJ1kGzimuZWBHt2uucGBYd+ohFjxIZyXRJOYdmdxQtiL
-	 snVUJBO/cFTbehyTEnPoLBU4RgUy7LMnAIGTnheyzclUtW7e6DvKcXs1DsawdLPicS
-	 CXaErRITJAVhq6CXH5J/7O0PJHxg3FOUIyq38Qjs=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Jan Kara <jack@suse.cz>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Chandan Rajendra <chandan@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Sasha Levin <alexander.levin@microsoft.com>,
-	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 86/95] mm/memory.c: fix modifying of page protection by insert_pfn()
-Date: Tue,  7 May 2019 01:38:15 -0400
-Message-Id: <20190507053826.31622-86-sashal@kernel.org>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190507053826.31622-1-sashal@kernel.org>
-References: <20190507053826.31622-1-sashal@kernel.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=s8dO8ROD;
+       spf=pass (google.com: domain of huangzhaoyang@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=huangzhaoyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QZm07w2nSCiVVM+WjYPWUvz7wW+nL7XT9qvn8eYdy3A=;
+        b=s8dO8RODm3uMkCQw7BIWmMyABI0C1pYr2apMhdPiSkFP6bbNhtgHKr3/jYpzpeh4JJ
+         qwhI+K6TykibR4CMsBrAXVJTbJKuBZJxieq+hk0SBdOWQh30lWltBeOlxCAYN3W3G5kf
+         lHJxVYgKUtWlZNbmP/kBOLWFozOI16ok5/HpgPqAspD1694ZK8lLWKY32QBFhOlFJ5Gb
+         Z5Gp7Uaf0qpz+W5mdgvizxUtiDNUVZP1LP2Du8LolUcjwpIkcJe0gm2itU6o2ojjsTz/
+         k52m2uroKyHEfQtmox/LagM79E84Bwt57rIT8sBl8XjO3UfftnHVGgavNSvDjJoN0lP5
+         5gzA==
+X-Google-Smtp-Source: APXvYqwUTax6Nbe0rTjQMRruM2k63P6Yc2eck704d/9awNC5izroT9pbEMuhoHqfwRVTcq8tjZ9+yNcKWj5nNvgcVok=
+X-Received: by 2002:a17:906:1903:: with SMTP id a3mr22284151eje.37.1557209181270;
+ Mon, 06 May 2019 23:06:21 -0700 (PDT)
 MIME-Version: 1.0
-X-stable: review
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+References: <1556437474-25319-1-git-send-email-huangzhaoyang@gmail.com> <20190506145727.GA11505@cmpxchg.org>
+In-Reply-To: <20190506145727.GA11505@cmpxchg.org>
+From: Zhaoyang Huang <huangzhaoyang@gmail.com>
+Date: Tue, 7 May 2019 14:06:09 +0800
+Message-ID: <CAGWkznE0zsGLVHuCx-WGk+TOcFe6w0wJ-MXM8=cXJPZb-rQD-A@mail.gmail.com>
+Subject: Re: [[repost]RFC PATCH] mm/workingset : judge file page activity via timestamp
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
+	David Rientjes <rientjes@google.com>, Zhaoyang Huang <zhaoyang.huang@unisoc.com>, 
+	Roman Gushchin <guro@fb.com>, Jeff Layton <jlayton@redhat.com>, 
+	Matthew Wilcox <mawilcox@microsoft.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jan Kara <jack@suse.cz>
-
-[ Upstream commit cae85cb8add35f678cf487139d05e083ce2f570a ]
-
-Aneesh has reported that PPC triggers the following warning when
-excercising DAX code:
-
-  IP set_pte_at+0x3c/0x190
-  LR insert_pfn+0x208/0x280
-  Call Trace:
-     insert_pfn+0x68/0x280
-     dax_iomap_pte_fault.isra.7+0x734/0xa40
-     __xfs_filemap_fault+0x280/0x2d0
-     do_wp_page+0x48c/0xa40
-     __handle_mm_fault+0x8d0/0x1fd0
-     handle_mm_fault+0x140/0x250
-     __do_page_fault+0x300/0xd60
-     handle_page_fault+0x18
-
-Now that is WARN_ON in set_pte_at which is
-
-        VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
-
-The problem is that on some architectures set_pte_at() cannot cope with
-a situation where there is already some (different) valid entry present.
-
-Use ptep_set_access_flags() instead to modify the pfn which is built to
-deal with modifying existing PTE.
-
-Link: http://lkml.kernel.org/r/20190311084537.16029-1-jack@suse.cz
-Fixes: b2770da64254 "mm: add vm_insert_mixed_mkwrite()"
-Signed-off-by: Jan Kara <jack@suse.cz>
-Reported-by: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
-Cc: Chandan Rajendra <chandan@linux.ibm.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
----
- mm/memory.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index f99b64ca1303..e9bce27bc18c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1813,10 +1813,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
- 				goto out_unlock;
- 			}
--			entry = *pte;
--			goto out_mkwrite;
--		} else
--			goto out_unlock;
-+			entry = pte_mkyoung(*pte);
-+			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+			if (ptep_set_access_flags(vma, addr, pte, entry, 1))
-+				update_mmu_cache(vma, addr, pte);
-+		}
-+		goto out_unlock;
- 	}
- 
- 	/* Ok, finally just insert the thing.. */
-@@ -1825,7 +1827,6 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 	else
- 		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
- 
--out_mkwrite:
- 	if (mkwrite) {
- 		entry = pte_mkyoung(entry);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
--- 
-2.20.1
+On Mon, May 6, 2019 at 10:57 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
+>
+> On Sun, Apr 28, 2019 at 03:44:34PM +0800, Zhaoyang Huang wrote:
+> > From: Zhaoyang Huang <zhaoyang.huang@unisoc.com>
+> >
+> > this patch introduce timestamp into workingset's entry and judge if the page is
+> > active or inactive via active_file/refault_ratio instead of refault distance.
+> >
+> > The original thought is coming from the logs we got from trace_printk in this
+> > patch, we can find about 1/5 of the file pages' refault are under the
+> > scenario[1],which will be counted as inactive as they have a long refault distance
+> > in between access. However, we can also know from the time information that the
+> > page refault quickly as comparing to the average refault time which is calculated
+> > by the number of active file and refault ratio. We want to save these kinds of
+> > pages from evicted earlier as it used to be via setting it to ACTIVE instead.
+> > The refault ratio is the value which can reflect lru's average file access
+> > frequency in the past and provide the judge criteria for page's activation.
+> >
+> > The patch is tested on an android system and reduce 30% of page faults, while
+> > 60% of the pages remain the original status as (refault_distance < active_file)
+> > indicates. Pages status got from ftrace during the test can refer to [2].
+> >
+Hi Johannes,
+Thank you for your feedback. I have answer previous comments many
+times in different context. I don't expect you accept this patch but
+want to have you pay attention to the phenomenon reported in [1],
+which has a big refault distance but refaulted very quickly after
+evicted. Do you think if this kind of page should be set to INACTIVE?
+> > [1]
+> > system_server workingset_refault: WKST_ACT[0]:rft_dis 265976, act_file 34268 rft_ratio 3047 rft_time 0 avg_rft_time 11 refault 295592 eviction 29616 secs 97 pre_secs 97
+> > HwBinder:922  workingset_refault: WKST_ACT[0]:rft_dis 264478, act_file 35037 rft_ratio 3070 rft_time 2 avg_rft_time 11 refault 310078 eviction 45600 secs 101 pre_secs 99
+> >
+> > [2]
+> > WKST_ACT[0]:   original--INACTIVE  commit--ACTIVE
+> > WKST_ACT[1]:   original--ACTIVE    commit--ACTIVE
+> > WKST_INACT[0]: original--INACTIVE  commit--INACTIVE
+> > WKST_INACT[1]: original--ACTIVE    commit--INACTIVE
+> >
+> > Signed-off-by: Zhaoyang Huang <huangzhaoyang@gmail.com>
+>
+> Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
+>
+> You haven't addressed any of the questions raised during previous
+> submissions.
 
