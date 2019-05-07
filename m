@@ -2,242 +2,212 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C72EC46470
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:29:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1760C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:31:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E2DD20825
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:29:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 84F96205C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 16:31:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="v+8Aj1+G"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E2DD20825
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="d8zBwAnC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84F96205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC40A6B0005; Tue,  7 May 2019 12:29:03 -0400 (EDT)
+	id 24C666B0005; Tue,  7 May 2019 12:31:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B74986B0006; Tue,  7 May 2019 12:29:03 -0400 (EDT)
+	id 1FCEA6B0006; Tue,  7 May 2019 12:31:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A8AF56B0007; Tue,  7 May 2019 12:29:03 -0400 (EDT)
+	id 0EB4A6B0007; Tue,  7 May 2019 12:31:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C9F36B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 12:29:03 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id b139so3084977wme.1
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 09:29:03 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E35756B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 12:31:23 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id w25so8670647ioc.1
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 09:31:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
-        b=hXxpHKl3BpVRei2gaj4vrHikzIdf5syy3tzGKeTXXWyqQXgiZtanSXQ7Y80RjpfV5M
-         dAcaUlghwnH20w4uc5Ibhxs1oaHxh6xOIxqX5iWeZcBJ4EMpc52880BEpw4NZVW9wT9Y
-         9bFYKTzDH1d6TiD8x1p9M/glThbq69uXUmkwMHlPQs10PJ3kQuaUt7gdhbws516lSzUL
-         7q5z8QXHlBY/8Wjkp1PwRnhZ1NnikjsngeXK57dF9uu+6T/Tx5kBukBlzhS8mLEQevmi
-         FHIK8pxEui9pvbXx+mwvh0/H5wtYf3hav4A4S/7q5OngVZOmVWdXhLCPBv8ke0N/cFhw
-         /TvA==
-X-Gm-Message-State: APjAAAVIZWXA5rV50KJaU43Db8EgMZ7QxWN94+gQEEzB08CyGnBMUB6t
-	tUWy/7Uu+4X2ccEoSsJ6sCd1JPvSNPk8I+WPFs1vDoV3pVF6oz1heSuxyxSJsi/uDynJtz3L0Cl
-	HLZ9pHpYC0qlqqP5tKunPPP9Z2BNOxA4wh3nOziwRL3WEGFo4Ad9LkwThe02W/vOTGQ==
-X-Received: by 2002:a7b:c3c3:: with SMTP id t3mr21275551wmj.88.1557246542629;
-        Tue, 07 May 2019 09:29:02 -0700 (PDT)
-X-Received: by 2002:a7b:c3c3:: with SMTP id t3mr21275470wmj.88.1557246541179;
-        Tue, 07 May 2019 09:29:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557246541; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=HdcDag0bf4IjXr3oQ80U5L8vdpfE6vzh4djKOZUTxxI=;
+        b=XQOWwmVikn1eaL9RuSEcylR6Qw0SmVwUyoLwSQvKx6SSnbf6qwJyhE6BeJk77/mmq9
+         ZX/nskPqroDh0dGA6MWnD4nTAJ53QpCPSpXk1kNstVoey6DE1BPD/OCR0f55kcjW2qdo
+         3lDSC/Xw2F4tbZMDIqKm44XNJvYRh5Sqxmiyj7vWDdsH9yJwWRWa5cYBvPnLMNk84g03
+         jQgZKCJ4k5/mr5p4w1fl0wDdT9MuCtflC5jaigdPR+tX7ePk22IDqk824k4GbU+zqpnv
+         WiE89WeZ2QEDnNJxW1MXZudaFLILFWTx4bPPV2D5z44JAglqm7O+yjUg+e7feNmWnLwx
+         /qTw==
+X-Gm-Message-State: APjAAAUgaju4E4YkAS5fBoQlZCJ5g845qWeQ7S5RO+bJwVn96bQXs+lI
+	YLHAlQHmarp+QRqlWLV5Ra+IPG/pidzICRqxXWMdAZiyoEhymP3kILBW10dO3M9EMNqa+QI6Lry
+	Q/NRuaQZ1eduQHW0GxGVoNOMlAAsUG8JejI/SXsIqNyWyYCOYE/3SIvOtFe/c3w/sWQ==
+X-Received: by 2002:a24:4f4b:: with SMTP id c72mr10787636itb.55.1557246683582;
+        Tue, 07 May 2019 09:31:23 -0700 (PDT)
+X-Received: by 2002:a24:4f4b:: with SMTP id c72mr10787560itb.55.1557246682563;
+        Tue, 07 May 2019 09:31:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557246682; cv=none;
         d=google.com; s=arc-20160816;
-        b=r8FA0qzA8mxCggCHBB/9Do1V8dslH7a/3GsrUttzMP+kJIq+PAFtHw1tPIQ/QRUzFK
-         57gq9Ii7JlddxVA0YhvXdLWGKyTMcYWere6jzX/zJpod8mXx2iVJax702zUNAN3FvRr7
-         4jqDZA/1vz1RgZIKXdVhBlMyiIHHHNlCuxGvNSowYx2fqId6NmU6p4wpNAXpEmgnfFBn
-         KsZd73xAxzYPTxb/EbXytFmFCJkGwPEr3OdV0v806IxARis4M7igGUUS9v6NRQrtQdbl
-         QofKjAvYAKSjn8jdmke58eKqjuBbPadYMPJgrumaA0YMIj3Tu88JepAdn63Jw+NPbqq0
-         3EiA==
+        b=vo5yv2IkAyXHq9F/D79pV5w6IQM/hCq/KgKSDiSq1oiEC7CNPo//ze5dDmtI/MOgmk
+         aG4fgJUpi3dhLu49FJUrDoaDQOGXBl4Zaf7bKRmRovaZ66WEpCC6pZF8LXGGEiUKpFZ4
+         kC1PqC+Od1pn+b0svSvOEehyYEeNX2TOQNob6G9Th9J1U560goE6RK7M9+dwcQUtEKar
+         Agi+uvVgnuZJtYh39+zsPv0vDdRrshnL/KzhxD78TCwcMjub1jCoHiIVrhSnyWWcKexD
+         +2t8LQU+vpMKERyEY3VE53vaoPYwy6QgoliBPFJiBUduQ+3mLoYPk/27CJH+ycntnG3U
+         qFyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
-        b=hg9Kt28STWgPSCp+sUcPkKzHtqTtSt0D1MOUiRODL26OH2XO4darlNWSTyKLsavf2X
-         smfy1O54dDqkdSewlXeVXlNcPjFnvfSVeSrocgqDPeghAJc2tvSw8oAlKIwWIvV/exyF
-         X4+cLIK5Ys7u/QukvM0FrUfp/euIxy4jChlsIB4A3Xm6lSWKc6vHibCLFT8nrB0AxdIs
-         BKefeaeLpTkEMYl03t4kCgRmOvMxB+3qUCuKJmiBAF0q88GQQikgkc64Kc2NMBi9iw8k
-         mW5aoG1z37SYpWpd4EJy1wjKV0dNdFIuyxENYnOq0aoDp3PhMFxCnLTlC0izgK4Hni4H
-         C1lw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=HdcDag0bf4IjXr3oQ80U5L8vdpfE6vzh4djKOZUTxxI=;
+        b=Ag26ZE60MQl4DmQ3vaXF08hYY0oZTfogmUSyxx8BhozCt/l71edtHf3q0qVwK2Q0fH
+         v8pLBGW4dc7xLZJ1dToM5Ha3PjkuhuMmF8RusjNelA4hS2ku+Q/L9S+hXBktIkQ/AKyH
+         guCxQUaZtVqG/cwVxi1oWHi+OPRpUIWTgPCw103zoMqOu1hVjDk6jvbt1oES7poeoX8l
+         MA8p2RC49UVkBCsQJHDgCfMtZsM9QkCuCTKfzjExSMEjjdInyZPn06nezz0yx4ASPvNz
+         LeeBcmDiq25qeOsKVB3WnZlKpdBfEQHiqWV7EKoDlrtaSYlO/LbCSV59oLCngi8/6tEE
+         q8rA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=v+8Aj1+G;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=d8zBwAnC;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t12sor10517158wrn.28.2019.05.07.09.29.00
+        by mx.google.com with SMTPS id w66sor18849900itb.32.2019.05.07.09.31.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 May 2019 09:29:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 07 May 2019 09:31:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=v+8Aj1+G;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=d8zBwAnC;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=c5+HOOPjtVbBo+8gy8vNmbmMcaHMqGZxYXAym2RjAtc=;
-        b=v+8Aj1+Gzh9xAnJJxTKBz5IK7NFM9zFnPBDBO6Jm8AvvbnH1v7/uyOpfFqno1rg2Zy
-         fWlzgtf4P3z9BwjWzOPCVXxpfYQLRYcUGluLq7rfauxlh27T1igPdhO2PnmRmDrIzUZb
-         33S/UPvcIKxDgySDvLphqkCw3nx66UVkzdh2llSzJaaZDYeQjUp1GcwIRKMf4Fd2qexE
-         pdGjzUCJ0cl2KrpuTdYemEjJKYL6rrWeGL4OEu6CfqNZbV6vGok2PFHNRvDxGe1TFozQ
-         Qc+ua3Dhgf5+4cL3nsEmG5URl479U6yNuIsdqC58anKp1C+pQdCb7goL/K4F1m96V0sQ
-         DdoQ==
-X-Google-Smtp-Source: APXvYqym1S8ixk/XT+rtdrTBe5tWrchiuDfbT6Q3mS29Rpb1RGpNAAYDcvRlOaaUxs5q8h8UIab6C7KWUWz1lN8rgvo=
-X-Received: by 2002:a5d:60cd:: with SMTP id x13mr3984822wrt.291.1557246540040;
- Tue, 07 May 2019 09:29:00 -0700 (PDT)
+         :cc;
+        bh=HdcDag0bf4IjXr3oQ80U5L8vdpfE6vzh4djKOZUTxxI=;
+        b=d8zBwAnCH7wUVI7KmuH2Dm4GeSJ2CVS2J6feMijMY7bNAvSwrLtdbQcnx15Y2PAB84
+         Q5wC8rvpIXPCIzvd1IB6Me7cHeiof/G4YASOOq/9MiQ65X3Hx4qa0MoBesKx/BfdbD5n
+         8Pq1jscYgeQias7h0sbJwGEa2g/xeC1/YuY9zoVZ0YCgQr9obvTKYBZBYuJ7FFEj3Z4z
+         IgYfRyQ/+7uZzuFUBPA5Ndpx4ZDAqoTC8/IxfAgZEWe8xTrpTOFwnLsT2Cb4iDHn0pnO
+         zqxXN1aXggULxJT+BowYgXgFb02kS3sMAYDfhtqx10xgQ+d+zF95W0lEx6123zZ5eLa2
+         LU0g==
+X-Google-Smtp-Source: APXvYqwrRhM2NXqqo7rGUDDdcwtaybqL1I98pu0GXC1TCViomXKy36uHt5drGc+qF4QiXVZZU7eohpNYuOZJy0GKpgs=
+X-Received: by 2002:a24:b04:: with SMTP id 4mr19257328itd.6.1557246682072;
+ Tue, 07 May 2019 09:31:22 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190318235052.GA65315@google.com> <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io> <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain> <20190507070430.GA24150@kroah.com>
- <20190507072721.GA4364@sultan-box.localdomain> <20190507074334.GB26478@kroah.com>
- <20190507081236.GA1531@sultan-box.localdomain> <20190507105826.oi6vah6x5brt257h@brauner.io>
-In-Reply-To: <20190507105826.oi6vah6x5brt257h@brauner.io>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Tue, 7 May 2019 09:28:47 -0700
-Message-ID: <CAJuCfpFeOVzDUq5O_cVgVGjonWDWjVVR192On6eB5gf==_uPKw@mail.gmail.com>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-To: Christian Brauner <christian@brauner.io>
-Cc: Sultan Alsawaf <sultan@kerneltoast.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>, Daniel Colascione <dancol@google.com>, 
-	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Martijn Coenen <maco@android.com>, 
-	LKML <linux-kernel@vger.kernel.org>, Tim Murray <timmurray@google.com>, 
-	Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
-	Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Oleg Nesterov <oleg@redhat.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Andy Lutomirski <luto@amacapital.net>, 
-	kernel-team <kernel-team@android.com>
+References: <20190507053826.31622-1-sashal@kernel.org> <20190507053826.31622-62-sashal@kernel.org>
+In-Reply-To: <20190507053826.31622-62-sashal@kernel.org>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 7 May 2019 09:31:10 -0700
+Message-ID: <CAKgT0Uc8ywg8zrqyM9G+Ws==+yOfxbk6FOMHstO8qsizt8mqXA@mail.gmail.com>
+Subject: Re: [PATCH AUTOSEL 4.14 62/95] mm, memory_hotplug: initialize struct
+ pages for the full memory section
+To: Sasha Levin <sashal@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, stable@vger.kernel.org, 
+	Mikhail Zaslonko <zaslonko@linux.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, 
+	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>, 
+	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, Dave Hansen <dave.hansen@intel.com>, 
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
+	Pasha Tatashin <Pavel.Tatashin@microsoft.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, 
+	Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <alexander.levin@microsoft.com>, 
+	linux-mm <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Christian Brauner <christian@brauner.io>
-Date: Tue, May 7, 2019 at 3:58 AM
-To: Sultan Alsawaf
-Cc: Greg Kroah-Hartman, open list:ANDROID DRIVERS, Daniel Colascione,
-Todd Kjos, Kees Cook, Peter Zijlstra, Martijn Coenen, LKML, Tim
-Murray, Michal Hocko, Suren Baghdasaryan, linux-mm, Arve Hj=C3=B8nnev=C3=A5=
-g,
-Ingo Molnar, Steven Rostedt, Oleg Nesterov, Joel Fernandes, Andy
-Lutomirski, kernel-team
-
-> On Tue, May 07, 2019 at 01:12:36AM -0700, Sultan Alsawaf wrote:
-> > On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
-> > > Given that any "new" android device that gets shipped "soon" should b=
-e
-> > > using 4.9.y or newer, is this a real issue?
-> >
-> > It's certainly a real issue for those who can't buy brand new Android d=
-evices
-> > without software bugs every six months :)
-> >
-
-Hi Sultan,
-Looks like you are posting this patch for devices that do not use
-userspace LMKD solution due to them using older kernels or due to
-their vendors sticking to in-kernel solution. If so, I see couple
-logistical issues with this patch. I don't see it being adopted in
-upstream kernel 5.x since it re-implements a deprecated mechanism even
-though vendors still use it. Vendors on the other hand, will not adopt
-it until you show evidence that it works way better than what
-lowmemorykilled driver does now. You would have to provide measurable
-data and explain your tests before they would consider spending time
-on this.
-On the implementation side I'm not convinced at all that this would
-work better on all devices and in all circumstances. We had cases when
-a new mechanism would show very good results until one usecase
-completely broke it. Bulk killing of processes that you are doing in
-your patch was a very good example of such a decision which later on
-we had to rethink. That's why baking these policies into kernel is
-very problematic. Another problem I see with the implementation that
-it ties process killing with the reclaim scan depth. It's very similar
-to how vmpressure works and vmpressure in my experience is very
-unpredictable.
-
-> > > And if it is, I'm sure that asking for those patches to be backported=
- to
-> > > 4.4.y would be just fine, have you asked?
-> > >
-> > > Note that I know of Android Go devices, running 3.18.y kernels, do NO=
-T
-> > > use the in-kernel memory killer, but instead use the userspace soluti=
-on
-> > > today.  So trying to get another in-kernel memory killer solution add=
-ed
-> > > anywhere seems quite odd.
-> >
-> > It's even more odd that although a userspace solution is touted as the =
-proper
-> > way to go on LKML, almost no Android OEMs are using it, and even in tha=
-t commit
+On Mon, May 6, 2019 at 10:40 PM Sasha Levin <sashal@kernel.org> wrote:
 >
-> That's probably because without proper kernel changes this is rather
-> tricky to use safely (see below).
+> From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
 >
-> > I linked in the previous message, Google made a rather large set of
-> > modifications to the supposedly-defunct lowmemorykiller.c not one month=
- ago.
-> > What's going on?
-
-If you look into that commit, it adds ability to report kill stats. If
-that was a change in how that driver works it would be rejected.
-
-> >
-> > Qualcomm still uses lowmemorykiller.c [1] on the Snapdragon 845. If PSI=
- were
-> > backported to 4.4, or even 3.18, would it really be used? I don't reall=
-y
-> > understand the aversion to an in-kernel memory killer on LKML despite t=
-he rest
-> > of the industry's attraction to it. Perhaps there's some inherently gre=
-at cost
-> > in using the userspace solution that I'm unaware of?
-
-Vendors are cautious about adopting userspace solution and it is a
-process to address all concerns but we are getting there.
-
-> > Regardless, even if PSI were backported, a full-fledged LMKD using it h=
-as yet to
-> > be made, so it wouldn't be of much use now.
+> [ Upstream commit 2830bf6f05fb3e05bc4743274b806c821807a684 ]
 >
-> This is work that is ongoing and requires kernel changes to make it
-> feasible. One of the things that I have been working on for quite a
-> while is the whole file descriptor for processes thing that is important
-> for LMKD (Even though I never thought about this use-case when I started
-> pitching this.). Joel and Daniel have joined in and are working on
-> making LMKD possible.
-> What I find odd is that every couple of weeks different solutions to the
-> low memory problem are pitched. There is simple_lkml, there is LMKD, and
-> there was a patchset that wanted to speed up memory reclaim at process
-> kill-time by adding a new flag to the new pidfd_send_signal() syscall.
-> That all seems - though related - rather uncoordinated.
-
-I'm not sure why pidfd_wait and expedited reclaim is seen as
-uncoordinated effort. All of them are done to improve userspace LMKD.
-
-> Now granted,
-> coordinated is usually not how kernel development necessarily works but
-> it would probably be good to have some sort of direction and from what I
-> have seen LMKD seems to be the most coordinated effort. But that might
-> just be my impression.
+> If memory end is not aligned with the sparse memory section boundary,
+> the mapping of such a section is only partly initialized.  This may lead
+> to VM_BUG_ON due to uninitialized struct page access from
+> is_mem_section_removable() or test_pages_in_a_zone() function triggered
+> by memory_hotplug sysfs handlers:
 >
-> Christian
+> Here are the the panic examples:
+>  CONFIG_DEBUG_VM=y
+>  CONFIG_DEBUG_VM_PGFLAGS=y
+>
+>  kernel parameter mem=2050M
+>  --------------------------
+>  page:000003d082008000 is uninitialized and poisoned
+>  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+>  Call Trace:
+>  ( test_pages_in_a_zone+0xde/0x160)
+>    show_valid_zones+0x5c/0x190
+>    dev_attr_show+0x34/0x70
+>    sysfs_kf_seq_show+0xc8/0x148
+>    seq_read+0x204/0x480
+>    __vfs_read+0x32/0x178
+>    vfs_read+0x82/0x138
+>    ksys_read+0x5a/0xb0
+>    system_call+0xdc/0x2d8
+>  Last Breaking-Event-Address:
+>    test_pages_in_a_zone+0xde/0x160
+>  Kernel panic - not syncing: Fatal exception: panic_on_oops
+>
+>  kernel parameter mem=3075M
+>  --------------------------
+>  page:000003d08300c000 is uninitialized and poisoned
+>  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+>  Call Trace:
+>  ( is_mem_section_removable+0xb4/0x190)
+>    show_mem_removable+0x9a/0xd8
+>    dev_attr_show+0x34/0x70
+>    sysfs_kf_seq_show+0xc8/0x148
+>    seq_read+0x204/0x480
+>    __vfs_read+0x32/0x178
+>    vfs_read+0x82/0x138
+>    ksys_read+0x5a/0xb0
+>    system_call+0xdc/0x2d8
+>  Last Breaking-Event-Address:
+>    is_mem_section_removable+0xb4/0x190
+>  Kernel panic - not syncing: Fatal exception: panic_on_oops
+>
+> Fix the problem by initializing the last memory section of each zone in
+> memmap_init_zone() till the very end, even if it goes beyond the zone end.
+>
+> Michal said:
+>
+> : This has alwways been problem AFAIU.  It just went unnoticed because we
+> : have zeroed memmaps during allocation before f7f99100d8d9 ("mm: stop
+> : zeroing memory during allocation in vmemmap") and so the above test
+> : would simply skip these ranges as belonging to zone 0 or provided a
+> : garbage.
+> :
+> : So I guess we do care for post f7f99100d8d9 kernels mostly and
+> : therefore Fixes: f7f99100d8d9 ("mm: stop zeroing memory during
+> : allocation in vmemmap")
+>
+> Link: http://lkml.kernel.org/r/20181212172712.34019-2-zaslonko@linux.ibm.com
+> Fixes: f7f99100d8d9 ("mm: stop zeroing memory during allocation in vmemmap")
+> Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+> Reviewed-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Suggested-by: Michal Hocko <mhocko@kernel.org>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Reported-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+> Tested-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Cc: Pasha Tatashin <Pavel.Tatashin@microsoft.com>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+> ---
+>  mm/page_alloc.c | 12 ++++++++++++
+>  1 file changed, 12 insertions(+)
 
-Thanks,
-Suren.
+Wasn't this patch reverted in Linus's tree for causing a regression on
+some platforms? If so I'm not sure we should pull this in as a
+candidate for stable should we, or am I missing something?
 
