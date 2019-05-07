@@ -2,250 +2,154 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA4D3C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:27:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60D50C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:35:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79F2920656
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:27:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79F2920656
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 213AE204FD
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:35:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 213AE204FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 22F8B6B0271; Tue,  7 May 2019 17:27:24 -0400 (EDT)
+	id A8E966B0273; Tue,  7 May 2019 17:35:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E0286B0272; Tue,  7 May 2019 17:27:24 -0400 (EDT)
+	id A3F7D6B0274; Tue,  7 May 2019 17:35:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A9A16B0273; Tue,  7 May 2019 17:27:24 -0400 (EDT)
+	id 906C16B0275; Tue,  7 May 2019 17:35:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DE56F6B0271
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:27:23 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id q127so19633120qkd.2
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:27:23 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1DA6B0273
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:35:13 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id c12so11102908pfb.2
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:35:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=vweAD4TKhKSB+d5mhTllEtmRCtlok88/U7lRCjz+U+s=;
-        b=Rjmx2O2WJ02wJQI38FTm5AnJuJETbTZd25TnBAzYF/m8nPI0itQjJys3pWmfT5Jwf4
-         wJ9EY0572ukhi5DBO+jUaApGYfG7/DDuSkAq5bTWqTMqAhMFhCCYb1dzDi7wv6CHaQVb
-         nLYvfn9H6MRA6qRKxZSeYcXNMAMxx3o87yUvlODNWHeNRzYEiZSfF9Tr1eh6Vedvwg9e
-         E2G0suokAoDJwDzV8QRX9y5SQOAc9lqXVGc6yCnLCwHOcSKMuIxj0rg3YZckf+9bkh3M
-         XKW6UtlhBf4BNZeEkgjMRlJxKO/3uzMNnqa/rGa7R+TU5GxxPcEkf56VoT8FF0BOWizn
-         nphw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWNJRE/ANX4xTyV8AEJOyglpmMvXqiDzn5+c9enF0Z/h859hws3
-	nFaAWwJmrlUSHo8+E/3YOU24u8j6jUKhBL78xCDz2T1PhGfLo54LAFil6HDrkrcm++PQ7tMuq9x
-	5J56HsAxxoO58ktQ7RNzNfLWlQqzn6pjAPkW+2n0VZKFJZj2bbfZ32Wng/vNtNFn9cA==
-X-Received: by 2002:ac8:2228:: with SMTP id o37mr29764747qto.200.1557264443629;
-        Tue, 07 May 2019 14:27:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztvlmgXqBymg8ekTumQvNpJmybmWd15qsIgNMwaeWnviYWwEZdpw0UjBLaEUnRzsbMicks
-X-Received: by 2002:ac8:2228:: with SMTP id o37mr29764704qto.200.1557264443020;
-        Tue, 07 May 2019 14:27:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557264443; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=led0DBv6u7UXI25sAuz4CP9LBCMQYh8UhwHyrJqvOkg=;
+        b=SLtzvH822kusXgme7ut9ifnl/EcT0WS3fV+qC54BxJOSlxdeqPXgiZDhxG28wBO7K4
+         BsdNgsaWsvldnBR24Q0d9ShNMoUEL+DS3O/25o9zsBzLxI9bn33iWktqByqAJf8HiXjJ
+         KXSxqzKZFvOMtdzWzl3OKjYjzaswakdh9JctlErcqUShyf7C3GRC/3tTindr9EANfYOG
+         rn5KtfSF5ZW197WNLY9fkWHChkut9vpxRzM4auG7Ld8eTiWbrV452cswChJoZ2F6OqHq
+         gBDqC5zUjMZn12cvJJa3/VT6Wq74Xx3ZNPv09r7znz0Up+yF7UieQF4Qj3oFMjsbWZO5
+         Q2oA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAW5PGXrFWH1tUGKMKFNoIdaurqWoOSNSA5Pn+WdDNnlcXTMRDeO
+	WjOiQ/WJ3r2wGEmPKDIVYIYAE4P7tSg+xEwyTe5TLZhDrDVmUcvFJXWbCkLJ2cBjJ0WBz7GRT82
+	OqL6vJjgs/dk4ICB+3AYlGL5cvXoNgczSnPvFKInoxtJu1HNhJ+RN/XfaBGmgr+KiiA==
+X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr24204447pll.339.1557264912931;
+        Tue, 07 May 2019 14:35:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzO3eusWU/aMRvySifWGvY0MxML/wQn35/5S4DFx7+M+lfwATdt0918n4wTgGtZPMNi4PYZ
+X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr24204344pll.339.1557264911761;
+        Tue, 07 May 2019 14:35:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557264911; cv=none;
         d=google.com; s=arc-20160816;
-        b=KWYmty99AemUDynj4VMJDeW9WJtB6QtR8t6/8wSblK0ayPPBvS98WS3KoKJFfp7anI
-         rAzq2jW0A0cFIjmf318X5vMblgOd6KhYnVF+5O3Pce/vAjWPP1SyvmkE8FVa7Y1r7pn1
-         uVt8f/9niyFBd/M0ZBMSPJIF7lADTdLJLC/FOHE9S/rRUuiJeQLkyMZUg0snkBAPrI41
-         HP3XHJ6BY7hrt0g2XdXC8V+w9sxEtIfUSq3F+PPP33u7i1OlqUIFjv+IWsjzeYLme3OC
-         3gz6FrkbSqqWjAFXdZ+fYul06GgZ0j//rYxe61ko0CRtTlg5/GXfnHo4oyBOGjU9ttOm
-         pyzQ==
+        b=w1BJ7W1AdRmVjpQlbeh7Ui6V7Jip7T8IvrxwtRYerXMvllAx/TIbiYbDsFf09f4H/Q
+         7pBLW7/1XwZ0nR000g7qwlx1re+shRUihrZpg42O+AAi566aRihsM5J+xGFcHizbFQz3
+         QIB4v3M6+6g7cEJdq5q4mJkEw03/7R9SRI4a5V5CDg//AZ6ZGfu1qba/ceigA7qngq32
+         Zjfw3Mze+A1tqOQ3ntgytJ5HpBSAK1KHqC028kPuNRwCQQfjWdMaFBdpOjjejd26kuGr
+         smK4fU3Y6TDszBDn4ZiKAndkeHUtH3P32M+Ox26BCllLI/mufgSbGtS9Loq0VFGrdRx1
+         ekhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=vweAD4TKhKSB+d5mhTllEtmRCtlok88/U7lRCjz+U+s=;
-        b=p6eG5kIPac2r06VQEWzkZPuojuM2RQxWbRad9bx/FE4UL6GIeCQ78VqoMkpQ2NdRht
-         qwIbLfHXPUPM8mAHcykOekV7PGHqOKwVpDdq46BkX0/hiY4UDQBcSpNSoY/dOCL8OIuD
-         QYISyngYt/ToZtHAuGfA8NVYbS0Tudz/2QDtYLO4rTX3yWEWu8IrLQYlWnkPw1gmKk8v
-         oa2b/cBDcFdyJORkXRQq9RukNop6cK6+WYfSqqkqY4BU5SCamZl1K5M1hBNEjJbqe9n+
-         +Y0CoWdkuY7Jr7QufVr8wyZ8G9db/NOBaDSR202lKApCqLwOF+M1rOsSj0Z5h7tpndpr
-         o7vg==
+        h=message-id:date:subject:cc:to:from;
+        bh=led0DBv6u7UXI25sAuz4CP9LBCMQYh8UhwHyrJqvOkg=;
+        b=ycDBGOLe2t2td7P7eF12ObZnwz838B+sMvtonf/rQJ1AFUIpj52lC5+OaXeB2qF7Nm
+         5BMT+IQSb2rlurZbe8IuLRwsIyCLEw5ne8XlOmzWRVqNmAAXUtw+hzAOlMi3Et/y90rO
+         iuXZkbagUs15ZHiD4H6mvcDQK/6zR81YPzoZmaYBPUSRHtK9ACUaRFWf+00WSUDoOtFE
+         ueZEKn9+S+rCZge5XDkBcWUFOfAVyy7tkjpPKFvEVFmwzf2nlCATtCx/R5bGFomjZUZi
+         y2mMca9lPDsTEUmLilLOFFJbAAmRR2wUEKzAqonJYTX1MaM8mKJee5fefpU+/I8qbyuG
+         8HoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p38si870625qtp.338.2019.05.07.14.27.22
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id j11si19139991pfa.162.2019.05.07.14.35.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 14:27:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 07 May 2019 14:35:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 16D37308793B;
-	Tue,  7 May 2019 21:27:22 +0000 (UTC)
-Received: from [10.36.116.95] (ovpn-116-95.ams2.redhat.com [10.36.116.95])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5781A1001DDC;
-	Tue,  7 May 2019 21:27:18 +0000 (UTC)
-Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
- after arch_add_memory()
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- linux-ia64@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
- linux-s390 <linux-s390@vger.kernel.org>, Linux-sh
- <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>, Ingo Molnar <mingo@kernel.org>,
- Andrew Banman <andrew.banman@hpe.com>, Oscar Salvador <osalvador@suse.de>,
- Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
- Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-5-david@redhat.com>
- <CAPcyv4jiVyaPbUrQwSiy65xk=EegJwuGSDKkVYWkGiTJz847gg@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <a41438f2-6bac-a2ad-96ec-234762c1cd37@redhat.com>
-Date: Tue, 7 May 2019 23:27:17 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jiVyaPbUrQwSiy65xk=EegJwuGSDKkVYWkGiTJz847gg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Tue, 07 May 2019 21:27:22 +0000 (UTC)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TR8MvA1_1557264889;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TR8MvA1_1557264889)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 08 May 2019 05:34:56 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: jstancek@redhat.com,
+	will.deacon@arm.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	stable@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force flush
+Date: Wed,  8 May 2019 05:34:49 +0800
+Message-Id: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> +static void unregister_memory(struct memory_block *memory)
->> +{
->> +       BUG_ON(memory->dev.bus != &memory_subsys);
-> 
-> Given this should never happen and only a future kernel developer
-> might trip over it, do we really need to kill that developer's
-> machine? I.e. s/BUG/WARN/? I guess an argument can be made to move
-> such a change that to a follow-on patch since you're just preserving
-> existing behavior, but I figure might as well address these as the
-> code is refactored.
+A few new fields were added to mmu_gather to make TLB flush smarter for
+huge page by telling what level of page table is changed.
 
-I assume only
+__tlb_reset_range() is used to reset all these page table state to
+unchanged, which is called by TLB flush for parallel mapping changes for
+the same range under non-exclusive lock (i.e. read mmap_sem).  Before
+commit dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in
+munmap"), MADV_DONTNEED is the only one who may do page zapping in
+parallel and it doesn't remove page tables.  But, the forementioned commit
+may do munmap() under read mmap_sem and free page tables.  This causes a
+bug [1] reported by Jan Stancek since __tlb_reset_range() may pass the
+wrong page table state to architecture specific TLB flush operations.
 
-if (WARN ...)
-	return;
+So, removing __tlb_reset_range() sounds sane.  This may cause more TLB
+flush for MADV_DONTNEED, but it should be not called very often, hence
+the impact should be negligible.
 
-makes sense then, right?
+The original proposed fix came from Jan Stancek who mainly debugged this
+issue, I just wrapped up everything together.
 
-> 
->> +
->> +       /* drop the ref. we got via find_memory_block() */
->> +       put_device(&memory->dev);
->> +       device_unregister(&memory->dev);
->> +}
->> +
->>  /*
->> - * need an interface for the VM to add new memory regions,
->> - * but without onlining it.
->> + * Create memory block devices for the given memory area. Start and size
->> + * have to be aligned to memory block granularity. Memory block devices
->> + * will be initialized as offline.
->>   */
->> -int hotplug_memory_register(int nid, struct mem_section *section)
->> +int hotplug_memory_register(unsigned long start, unsigned long size)
->>  {
->> -       int ret = 0;
->> +       unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
->> +       unsigned long start_pfn = PFN_DOWN(start);
->> +       unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
->> +       unsigned long pfn;
->>         struct memory_block *mem;
->> +       int ret = 0;
->>
->> -       mutex_lock(&mem_sysfs_mutex);
->> +       BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
->> +       BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
-> 
-> Perhaps:
-> 
->     if (WARN_ON(...))
->         return -EINVAL;
-> 
+[1] https://lore.kernel.org/linux-mm/342bf1fd-f1bf-ed62-1127-e911b5032274@linux.alibaba.com/T/#m7a2ab6c878d5a256560650e56189cfae4e73217f
 
-Yes, guess this souldn't hurt.
+Reported-by: Jan Stancek <jstancek@redhat.com>
+Tested-by: Jan Stancek <jstancek@redhat.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: stable@vger.kernel.org
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Signed-off-by: Jan Stancek <jstancek@redhat.com>
+---
+ mm/mmu_gather.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
->>
->> -       mem = find_memory_block(section);
->> -       if (mem) {
->> -               mem->section_count++;
->> -               put_device(&mem->dev);
->> -       } else {
->> -               ret = init_memory_block(&mem, section, MEM_OFFLINE);
->> +       mutex_lock(&mem_sysfs_mutex);
->> +       for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
->> +               mem = find_memory_block(__pfn_to_section(pfn));
->> +               if (mem) {
->> +                       WARN_ON_ONCE(false);
-> 
-> ?? Isn't that a nop?
-
-Yes, that makes no sense :)
-
-Thanks!
-
+diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+index 99740e1..9fd5272 100644
+--- a/mm/mmu_gather.c
++++ b/mm/mmu_gather.c
+@@ -249,11 +249,12 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+ 	 * flush by batching, a thread has stable TLB entry can fail to flush
+ 	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+ 	 * forcefully if we detect parallel PTE batching threads.
++	 *
++	 * munmap() may change mapping under non-excluse lock and also free
++	 * page tables.  Do not call __tlb_reset_range() for it.
+ 	 */
+-	if (mm_tlb_flush_nested(tlb->mm)) {
+-		__tlb_reset_range(tlb);
++	if (mm_tlb_flush_nested(tlb->mm))
+ 		__tlb_adjust_range(tlb, start, end - start);
+-	}
+ 
+ 	tlb_flush_mmu(tlb);
+ 
 -- 
-
-Thanks,
-
-David / dhildenb
+1.8.3.1
 
