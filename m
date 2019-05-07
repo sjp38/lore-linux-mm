@@ -4,112 +4,113 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	T_DKIMWL_WL_HIGH,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EDA6C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:38:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E996DC04AAD
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:39:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF43721530
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:38:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D79F214AE
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 05:39:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="cJzielO5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF43721530
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="kvAK+IVN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D79F214AE
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8079B6B0266; Tue,  7 May 2019 01:38:04 -0400 (EDT)
+	id 546E86B000D; Tue,  7 May 2019 01:39:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 791BE6B0269; Tue,  7 May 2019 01:38:04 -0400 (EDT)
+	id 4D1C96B0266; Tue,  7 May 2019 01:39:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 631786B026A; Tue,  7 May 2019 01:38:04 -0400 (EDT)
+	id 34A8B6B0269; Tue,  7 May 2019 01:39:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 256D06B0266
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:38:04 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i8so7104774pfo.21
-        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:38:04 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4F56B000D
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 01:39:07 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j36so4808553pgb.20
+        for <linux-mm@kvack.org>; Mon, 06 May 2019 22:39:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=WKo7YX/uNJiY82oYSrnUJwaq4R2g4TJwB1egJ0ChTpY=;
-        b=pmXuWqa2/A7BG6vDJMtn/xVoRXkCIlr64UcM1sD4AXF4sDpuQB3O1kSr9TmWCmoRXX
-         05UuNlbszyFujFZpf5nM4fPvS6LybSdJHkuHVu+k9tkfZj6mJFnXjf9Pn7a4J5GMe+TS
-         PkU4xxuom8DcFqaTYlrx50204TdGRPRxta9YtABhvYo3/ud8Nz/VAq7lDz53zkzU3Zpy
-         Fq/gV2jSnb/gNiq5y1Del/Jo23/fulluWhw57P00XfeCEkh4Lfr5HXWXFi852P8RTuvn
-         GOfOsCUeZyjxP2d0/MjEtIqqRf542p3orx5l0ca86iv6kTuffnaRkBOMc7I4sld7Htt0
-         uTOg==
-X-Gm-Message-State: APjAAAWGGKj943WCJ24Y7zYUol5Cb8SGMUqjc19YGJWEBCCU9gjptUZY
-	wCt8s2CM1dvCOlIO25s0F+qAcu4XAlfecCNsVqlLWVU6u++cjz96JMm5+r72Pq3wpgZc4i6+N2N
-	7p9abHICob8hexY4ADSjpGJSmFTJogix6kYPQqbE0P1sJGLp1xt02Eht+UCkFD0E0wA==
-X-Received: by 2002:a17:902:822:: with SMTP id 31mr37204260plk.41.1557207483805;
-        Mon, 06 May 2019 22:38:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwgUq8ycRkpu2/lpKSqOoKSny3CZjzM02OV7BGqG5gH7K7B3Ft6MC+9IFyuLH3gLU4yougG
-X-Received: by 2002:a17:902:822:: with SMTP id 31mr37204218plk.41.1557207483170;
-        Mon, 06 May 2019 22:38:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557207483; cv=none;
+        bh=MYivS4rFRtfjs9OjDs6d/Vd7T/QEP+DYV07ABLUGRjQ=;
+        b=pwEPlTLI5YYNkovIj3CcKGYSXPYlRIFO8QSci8afsuHW7uDc/U6WdiY78Ada5Pm6vc
+         54pJOo4CjFDliCAyCyRJSDyFBO7dmGTkvoejJSgQuTW09Alx8AZERZh7xnAr1wA5lgcV
+         x8w2xrV07cfN8zRywqv9XcGAQG5fe6S7qyUUIBJpvVAIQDgqHkK0EdkNIqCY+90hAQQK
+         IXUW4XH7VVD7xPRR6qgAIBL71hzK6sr44cq/4upyl5gF534S0DGURITBuLuF7xxp+HTz
+         mn9AOizwUmZTFvlSBOlFjtl99rY/fcxFtFiSsEuaKuYCj3Hxl0Xdg8a/xcc8NvbNTXa0
+         fX8Q==
+X-Gm-Message-State: APjAAAU06KaaPym8pu33TnRC1S8DQF4xjxNfmRWj2MTVlrpvmJRTks9f
+	JiePVYfUTzjZN7Kff7ukIh4BoV0SQyPwFScckVMV5gfghHDoAhV9gAVUWZiXZlWFKDMVEd45T7N
+	UJEjclC5rMW+erSgzcp/AAUVEiFcLuu/MXh49hzqu8WYTLooCRxSn9g3jtl7Qbp5LTA==
+X-Received: by 2002:aa7:8284:: with SMTP id s4mr34734597pfm.235.1557207547619;
+        Mon, 06 May 2019 22:39:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMFPQBs1ajtUWVZV78xGrkF8iBlOinWZx+KrfdfNYsurtcLVXUsD11pqTHd0wYkpD4yQmV
+X-Received: by 2002:aa7:8284:: with SMTP id s4mr34734547pfm.235.1557207546790;
+        Mon, 06 May 2019 22:39:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557207546; cv=none;
         d=google.com; s=arc-20160816;
-        b=v78p8rBXzvBDNCd2OX4ZTibL+xsZzEd56kvuDHp5EtQTiYTQuuWjbIx7VJoLWeSOL8
-         tXnKhi+E7FaihAHpfg0iFrbTID1SDpTAiuG2FC/lNLPLrxOrmDhbChUFJrxHX8S/O9O1
-         MkGrHvEP5oc+sbxwy1SiU/qDKOic8ztJ9NlaO9foyJNxbSY8Axdg+T01nrNqkMdVnjdQ
-         24M47Exl9ERXa9fxrQEJKKIU59ApH0RGqsqbJerO0LF5cycfQc0hxX3OtjbQ+bYUKOph
-         trvrnLCyPeK9b2W1PdLiaO69DRS9c8rpBsALBoZiBtRAF3urSFEmJDZZsYOuukqOgxpl
-         rgVw==
+        b=mjKCZGi+KV25CExmKsuDCaDIcWL1R/Vef82FFNFyenlqeOrNUg1Tv+rleD6+CXIZ4b
+         gkII+cZjvlQnhEhIoxLZZp8EBAh9ir9hIYk9k6lpr6iDwfSlXvV1XNKCzOztD7J6cjz6
+         tSzsJCGdsu2QO7kikHhxIN92oegEqjqoog+7xwJP25Jadr2LulvxZq1nm3ASIVhcOpdz
+         uwo5KA40f0TPEMQ9IhYhVG3vuDI6Ko1ljkjMOHyFCWPmhTMzE/Z2Rpr4DnXGVidIUjkz
+         i11IKM/Y1jSbuoZAeTvPEWKZwojnFOp6hN7HccsZ5nheBr4/rnLTYpCtvRcCIKjaL8Sp
+         43pg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=WKo7YX/uNJiY82oYSrnUJwaq4R2g4TJwB1egJ0ChTpY=;
-        b=VFNuvub+Aud782UCaQ1cPSuFga9pDzr0O9For7oKuhUALeeqv0eThD2VmxE/Ixczcd
-         RHxQtbR7M4C0G3JtDCS0EuRDKeC4xMZ/UrO21ubRYZMpIk3OW3UDJbdBAaT0CR7ItamC
-         eOp3oP0zus5BGNitfMv+HBH25bpJ9FyQsQEccl0WxzHr72CzBXH7/cbWIflyeXBuQ6kA
-         FcA/S+60Jv4kS17budDTgM5BfH484zM9/BawNuwsNk2tM/cfB3lDSAJhZsrmsNOfTCrI
-         s0WjLMca0VlLt66a6WqZ3Z7NzkVPp4bVpCnwqy0Hd0kPAqCUQ6329YhenlU04hPCCIzC
-         Wyng==
+        bh=MYivS4rFRtfjs9OjDs6d/Vd7T/QEP+DYV07ABLUGRjQ=;
+        b=OHH1X21GdTZS5YX0MG7sMyB0Ro6JojetZSphdeCd8Zyza+dvh7jRKJTxZACLtxOSZ8
+         7ogDLkv2OkZjqZP3MEOI9xiulsSRrQWU3TP/nFTS4tCv2ZapG8DJvLfDFQ1QdgVUVZBX
+         fJ/006pQcRcR1+71lyQpb3F4YpFd0LShszly7gJ/XWJZsyPXfNpmPsy77tdB5BDCU+Vp
+         AXfLzIyvIAm8KuPer3txmZC+6byohto/LGm0lDcQCaPmA4ZAsrM8PGu51zvBQoyVQuot
+         kq1pNUrbAdYgm0h4lnrRGnHWAa9PCSkb40EteiH9pvZjbNi0dCQhLH6qeKuEMY7wdOJB
+         yyZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=cJzielO5;
+       dkim=pass header.i=@kernel.org header.s=default header.b=kvAK+IVN;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h66si14331162pfd.205.2019.05.06.22.38.03
+        by mx.google.com with ESMTPS id l10si17074524pgm.20.2019.05.06.22.39.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 May 2019 22:38:03 -0700 (PDT)
+        Mon, 06 May 2019 22:39:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=cJzielO5;
+       dkim=pass header.i=@kernel.org header.s=default header.b=kvAK+IVN;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C11A421655;
-	Tue,  7 May 2019 05:38:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 5C4EC2087F;
+	Tue,  7 May 2019 05:39:05 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557207482;
-	bh=y9ZLVXMrz9krp9KqLxl4O+qrXhLwZoiMvHNYlQn2wu8=;
+	s=default; t=1557207546;
+	bh=fSR++6+gYhk9xqGswU5f+QsciubFC4MA0Ap4MAcdRoI=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=cJzielO5QAPxr5NXCU89nVN8nPJnzsYPuPtBAZGRWiZoTtL30Hh1rt72TISAzZif2
-	 MU+Uk5v5s1Jvx9jHSvOxFb+mtUmeubSBJJsNRRMIs2YV2QuRR/yCi9G6S7qxRzmgs9
-	 6ObaPFkKUtUDJW1vG3fdmSoaNGt1BFX59h/D15rM=
+	b=kvAK+IVN6m+Q6vt0Eqp8xPrcj2VF9FgSBrP9q9QewPDzTi14A82tZ7/CkkwEctlra
+	 vDXtxHD8amnZzF0nJUtzmscEXoYdEY5AXVUVIjSpUwObussUXdHLeSgacCvtAUkXYv
+	 kJ+ifZaZbUOxrNsoF0feo/Aj6OUv56NQMS6l9Dl0=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Jan Kara <jack@suse.cz>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Chandan Rajendra <chandan@linux.ibm.com>,
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+	Shakeel Butt <shakeelb@google.com>,
+	Roman Gushchin <guro@fb.com>,
+	Michal Hocko <mhocko@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
-	Sasha Levin <alexander.levin@microsoft.com>,
+	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 67/81] mm/memory.c: fix modifying of page protection by insert_pfn()
-Date: Tue,  7 May 2019 01:35:38 -0400
-Message-Id: <20190507053554.30848-67-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 21/95] mm: fix inactive list balancing between NUMA nodes and cgroups
+Date: Tue,  7 May 2019 01:37:10 -0400
+Message-Id: <20190507053826.31622-21-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190507053554.30848-1-sashal@kernel.org>
-References: <20190507053554.30848-1-sashal@kernel.org>
+In-Reply-To: <20190507053826.31622-1-sashal@kernel.org>
+References: <20190507053826.31622-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-stable: review
 X-Patchwork-Hint: Ignore
@@ -120,79 +121,143 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jan Kara <jack@suse.cz>
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-[ Upstream commit cae85cb8add35f678cf487139d05e083ce2f570a ]
+[ Upstream commit 3b991208b897f52507168374033771a984b947b1 ]
 
-Aneesh has reported that PPC triggers the following warning when
-excercising DAX code:
+During !CONFIG_CGROUP reclaim, we expand the inactive list size if it's
+thrashing on the node that is about to be reclaimed.  But when cgroups
+are enabled, we suddenly ignore the node scope and use the cgroup scope
+only.  The result is that pressure bleeds between NUMA nodes depending
+on whether cgroups are merely compiled into Linux.  This behavioral
+difference is unexpected and undesirable.
 
-  IP set_pte_at+0x3c/0x190
-  LR insert_pfn+0x208/0x280
-  Call Trace:
-     insert_pfn+0x68/0x280
-     dax_iomap_pte_fault.isra.7+0x734/0xa40
-     __xfs_filemap_fault+0x280/0x2d0
-     do_wp_page+0x48c/0xa40
-     __handle_mm_fault+0x8d0/0x1fd0
-     handle_mm_fault+0x140/0x250
-     __do_page_fault+0x300/0xd60
-     handle_page_fault+0x18
+When the refault adaptivity of the inactive list was first introduced,
+there were no statistics at the lruvec level - the intersection of node
+and memcg - so it was better than nothing.
 
-Now that is WARN_ON in set_pte_at which is
+But now that we have that infrastructure, use lruvec_page_state() to
+make the list balancing decision always NUMA aware.
 
-        VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
-
-The problem is that on some architectures set_pte_at() cannot cope with
-a situation where there is already some (different) valid entry present.
-
-Use ptep_set_access_flags() instead to modify the pfn which is built to
-deal with modifying existing PTE.
-
-Link: http://lkml.kernel.org/r/20190311084537.16029-1-jack@suse.cz
-Fixes: b2770da64254 "mm: add vm_insert_mixed_mkwrite()"
-Signed-off-by: Jan Kara <jack@suse.cz>
-Reported-by: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Acked-by: Dan Williams <dan.j.williams@intel.com>
-Cc: Chandan Rajendra <chandan@linux.ibm.com>
-Cc: <stable@vger.kernel.org>
+[hannes@cmpxchg.org: fix bisection hole]
+  Link: http://lkml.kernel.org/r/20190417155241.GB23013@cmpxchg.org
+Link: http://lkml.kernel.org/r/20190412144438.2645-1-hannes@cmpxchg.org
+Fixes: 2a2e48854d70 ("mm: vmscan: fix IO/refault regression in cache workingset transition")
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Sasha Levin <alexander.levin@microsoft.com>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memory.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ mm/vmscan.c | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 9c69278173b7..e0010cb870e0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1796,10 +1796,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 				WARN_ON_ONCE(!is_zero_pfn(pte_pfn(*pte)));
- 				goto out_unlock;
- 			}
--			entry = *pte;
--			goto out_mkwrite;
--		} else
--			goto out_unlock;
-+			entry = pte_mkyoung(*pte);
-+			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+			if (ptep_set_access_flags(vma, addr, pte, entry, 1))
-+				update_mmu_cache(vma, addr, pte);
-+		}
-+		goto out_unlock;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9734e62654fa..144961f6f89c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2111,7 +2111,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
+  *   10TB     320        32GB
+  */
+ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+-				 struct mem_cgroup *memcg,
+ 				 struct scan_control *sc, bool actual_reclaim)
+ {
+ 	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE;
+@@ -2132,16 +2131,12 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
+ 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
+ 
+-	if (memcg)
+-		refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+-	else
+-		refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+-
+ 	/*
+ 	 * When refaults are being observed, it means a new workingset
+ 	 * is being established. Disable active list protection to get
+ 	 * rid of the stale workingset quickly.
+ 	 */
++	refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
+ 	if (file && actual_reclaim && lruvec->refaults != refaults) {
+ 		inactive_ratio = 0;
+ 	} else {
+@@ -2162,12 +2157,10 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ }
+ 
+ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+-				 struct lruvec *lruvec, struct mem_cgroup *memcg,
+-				 struct scan_control *sc)
++				 struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	if (is_active_lru(lru)) {
+-		if (inactive_list_is_low(lruvec, is_file_lru(lru),
+-					 memcg, sc, true))
++		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc, true))
+ 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 		return 0;
  	}
+@@ -2267,7 +2260,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			 * anonymous pages on the LRU in eligible zones.
+ 			 * Otherwise, the small LRU gets thrashed.
+ 			 */
+-			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
++			if (!inactive_list_is_low(lruvec, false, sc, false) &&
+ 			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+ 					>> sc->priority) {
+ 				scan_balance = SCAN_ANON;
+@@ -2285,7 +2278,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * lruvec even if it has plenty of old anonymous pages unless the
+ 	 * system is under heavy pressure.
+ 	 */
+-	if (!inactive_list_is_low(lruvec, true, memcg, sc, false) &&
++	if (!inactive_list_is_low(lruvec, true, sc, false) &&
+ 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, sc->reclaim_idx) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+@@ -2438,7 +2431,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 				nr[lru] -= nr_to_scan;
  
- 	/* Ok, finally just insert the thing.. */
-@@ -1808,7 +1810,6 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 	else
- 		entry = pte_mkspecial(pfn_t_pte(pfn, prot));
+ 				nr_reclaimed += shrink_list(lru, nr_to_scan,
+-							    lruvec, memcg, sc);
++							    lruvec, sc);
+ 			}
+ 		}
  
--out_mkwrite:
- 	if (mkwrite) {
- 		entry = pte_mkyoung(entry);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+@@ -2505,7 +2498,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_list_is_low(lruvec, false, memcg, sc, true))
++	if (inactive_list_is_low(lruvec, false, sc, true))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 				   sc, LRU_ACTIVE_ANON);
+ }
+@@ -2830,12 +2823,8 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+ 		unsigned long refaults;
+ 		struct lruvec *lruvec;
+ 
+-		if (memcg)
+-			refaults = memcg_page_state(memcg, WORKINGSET_ACTIVATE);
+-		else
+-			refaults = node_page_state(pgdat, WORKINGSET_ACTIVATE);
+-
+ 		lruvec = mem_cgroup_lruvec(pgdat, memcg);
++		refaults = lruvec_page_state(lruvec, WORKINGSET_ACTIVATE);
+ 		lruvec->refaults = refaults;
+ 	} while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
+ }
+@@ -3183,7 +3172,7 @@ static void age_active_anon(struct pglist_data *pgdat,
+ 	do {
+ 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+ 
+-		if (inactive_list_is_low(lruvec, false, memcg, sc, true))
++		if (inactive_list_is_low(lruvec, false, sc, true))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 					   sc, LRU_ACTIVE_ANON);
+ 
 -- 
 2.20.1
 
