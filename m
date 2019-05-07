@@ -2,161 +2,219 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A916AC04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 08:12:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 817D6C04AAB
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 09:47:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C294204FD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 08:12:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C294204FD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
+	by mail.kernel.org (Postfix) with ESMTP id 2346A20675
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 09:47:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2346A20675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA0856B0005; Tue,  7 May 2019 04:12:42 -0400 (EDT)
+	id 80E1F6B0007; Tue,  7 May 2019 05:47:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A52036B0006; Tue,  7 May 2019 04:12:42 -0400 (EDT)
+	id 7BDFD6B0008; Tue,  7 May 2019 05:47:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9676A6B0007; Tue,  7 May 2019 04:12:42 -0400 (EDT)
+	id 68F4B6B0005; Tue,  7 May 2019 05:47:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCEE6B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 04:12:42 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id d11so8838685otp.22
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 01:12:42 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A59F6B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 05:47:09 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id f196so13848651itf.1
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 02:47:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=NQ6dv2i93HZ0YYfKZpbV9MkWY21B58FCrXMAN8Dpx2E=;
-        b=Ce8UaOTmzm3eGRx2qXrLNMJjbo+MB5CsnqRt5AX8SWAArtzkckBipvqaGCcnHFSsX/
-         9KGwErn+jJZGP5CRHtz6PBz/C+k5aOBgrfHWOlrKf2N4V2CTNp7pTKf5CX7wCGAUCU3i
-         lD2ybBYctA7TWcN2H9rh7vIU1+cMuSHJiCFoEMWjpL0FLLhabZtNqD4+A29NpRvcP7Jp
-         1h1OSTzSkGFKRE77sITPK1QjY7b/oCtcgwjM3W4EUDkkt+YcRKBK1M1B+a+THxJBTFyp
-         B6AISUmbXlC5F8ZrV+W4Qgnjk9ahWE4cfVmfbKnIb6zFgw2WEa07cjP5PqP2qCWW+7UE
-         huEA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Gm-Message-State: APjAAAV4zXWZHdZw/93f80CcMUP7lTVDjEXA1jRR7FKr5UI/XSUT0MuH
-	/3btfb5kZiH/DAKCbMXDhjq/HSZJkZkwnaTu5zewg1Y8JY0h+/Xu/uSQXOSLoVAMLyvV93G+cOa
-	evfxsdsu9D2vuc+liP1Mgk41T4jYB/BWZIK8xnsze9CfzSfnItJXF6yVNYYBqxSs=
-X-Received: by 2002:a9d:3445:: with SMTP id v63mr7851916otb.41.1557216762131;
-        Tue, 07 May 2019 01:12:42 -0700 (PDT)
-X-Received: by 2002:a9d:3445:: with SMTP id v63mr7851868otb.41.1557216761187;
-        Tue, 07 May 2019 01:12:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557216761; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:message-id:subject:from:to;
+        bh=3oIQ/axrwaPl/lQ6Bw4C9U12ijTMz2r5vR/r27S1hVI=;
+        b=eEs33UcrWTv6aEtzyJewhJhgn7bojHaQ6CnJSMtJqPOXZmNuQVa/gl4kSmHv7tH5b3
+         TJNewbDCTk33CgzKD+KLscSxlTuDFRf2XcQBsZvXg9MJQmf3nsjLEQZOqVO/WWF1TNFh
+         6YaBZnOoAAY2htrkPURSI3F8tMDkhF2kTjEJ4rIf7mqepRTIjdJIBCCuKw37wv+SVykc
+         i52p52KTJRK366+X4f31PvWBEuciAReDAN0gShlMAoRcd0nvJKRvkxzkFmFr0H5Pvpvw
+         UUE+yn8CLgmAn67InDCrftFoDDg/zWDwXJ8a2R9er2ifpJxKZvV2urlVtbooh9RfnJO0
+         rcAg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3gltrxakbapmntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3GlTRXAkbAPMntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAViUQF2EnDot6v3/li0HzgE10CRstXhMU36O3ZHF+6g6gW/cazA
+	uO07ayBki0XY9TLjC0P8mcK3Zye8UKcnM1VlIiaxrRNLNc/onxt+2QpzJOsp8gj/ItxLINc+yZh
+	UU5uSE49tDnKP+IRnbq7W6lLN6FwhQQXg+f2iLOEC2OL2W7vl/22DNY8Ta29ZiTk=
+X-Received: by 2002:a6b:8b49:: with SMTP id n70mr2365005iod.198.1557222428982;
+        Tue, 07 May 2019 02:47:08 -0700 (PDT)
+X-Received: by 2002:a6b:8b49:: with SMTP id n70mr2364970iod.198.1557222428015;
+        Tue, 07 May 2019 02:47:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557222428; cv=none;
         d=google.com; s=arc-20160816;
-        b=w8pGF1ZethcgWVuGdfMnU5BPAWfTmrB1r9BG+EyRIO51XtKXF7BbMycTvEY1e1U/xI
-         7O/XXscX/pl48o2iomJmCM2z+fWPc4t86U43p6QlgCBJ1aq/M5+PAyLYwgAPjN38SlGF
-         RCRgDHzc/vOer8WEhUzWRD9SBgrlTeUzQvPlX+4w3HGp4On8TpfrwEcq0zBB0yWo+6nD
-         AWKIGUuy6iyKneyhRZFZUIqfsvrlMHTuO5F7AZF+S80kp61zHv9WCha906noidE3I5Tv
-         ePJ5M/qf9TXm+eF7El6c3WQ4zUsdH4QGBZX9Btfag3T8diW6lbJzVN51oVniJS6Xck8N
-         qJUQ==
+        b=AKHdUqkxu4P5En+hcJMWxmLZu/BkQ7lPU0UKfl3gkmWj24COTxFdu8ZsNZIb1+Vde5
+         yfEUCWiOeheFHRr5ZBSC9k8p6g3FnaLHWB9HDf8hvXmmyvxnTrgSs/TGudTEujbQq7Ic
+         bIaGm9wypi1LvjZL/zsotPugC8a733+DrZ7soPOR4cighqATf5du+0ysxzRq73/hIoUY
+         em6Ow8sxiRKTY2V8cWOzGpaVQdfe6Lg8Xw4N03jpxmjcGV3UmULmL7OKnyxF+B9qzNE6
+         E3pVwzmvCfHkdacvEEGFSpf8G1wRJ+1U/jtOgqZarzKON3hQ3XxEnhlvDYB/4tdHuRJy
+         g/Aw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=NQ6dv2i93HZ0YYfKZpbV9MkWY21B58FCrXMAN8Dpx2E=;
-        b=AAh7Cb7IKN1g9iU7IZ6MScR1NRpmtF6Nhct3npXMW3YXD7tHG4kqXKLRs+SRMPVJYC
-         +0Dm2sFTpmBL3kFWeIc/5y1hmDgKAbmed3/WhPpH+ZgrDd0FHVfJSsxikgCYk9N2WBm4
-         0UpRHrI1/QrJEiuUjc6NAkWq5byNYe31/lmJV8Bjgt1sBoZMqNiptiI3+AcrByYvKBo7
-         YH1QNOy/10ZpxmHkTOZavsR0CrYnFXHrVvN33U4lr6q8X7M8MEHYobKmGuZwJ9WEI/21
-         vbgOxi14t/XDgf+AkC/Xw1DKvD9nqCCEer0P2mN5fXtUjV14s//kZOkiSTe1X73f23DH
-         bOqg==
+        h=to:from:subject:message-id:date:mime-version;
+        bh=3oIQ/axrwaPl/lQ6Bw4C9U12ijTMz2r5vR/r27S1hVI=;
+        b=H5X7Y3Lk2o2zrLrsS3GagK/2Rav8uiT/v/EcMuZP8EfMZiwKcLx4sTCZWs4IJZvXcM
+         edehZSSPpMBdTlEeOMw4for2K1MNJ1aHOefKGzitO0mk3li6BJPB4pW+eRqex9O1L5R2
+         pMf5VJXh8ovBT6DcoDXPaIX1PZjncKe3IysIcVGu33VmSmA6YH16Df+kkNUptbbUsQeT
+         pK1zWIyQ27XlGhpBjO1JOkymMe8Gov/AJvKtMOORLO2oxttNlATRYcBnNIuIXqew9q14
+         xRGLNyUpQjWn7tfUJSQCGgsvdjsD/UaF5FrzrhX9j96f6cd85bxNKMalt/GNO1ifRTt3
+         IxZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r17sor1850922otg.84.2019.05.07.01.12.41
+       spf=pass (google.com: domain of 3gltrxakbapmntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3GlTRXAkbAPMntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id k184sor17154606itb.31.2019.05.07.02.47.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 May 2019 01:12:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 07 May 2019 02:47:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3gltrxakbapmntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Google-Smtp-Source: APXvYqxazZcvVgW8B8Abx61RE3d6GpWO8pSjTz4Bl2xHSbS/zPSIG/vaJXjunEVO9ubN+ITWd3WpFw==
-X-Received: by 2002:a9d:6d19:: with SMTP id o25mr3196049otp.151.1557216760884;
-        Tue, 07 May 2019 01:12:40 -0700 (PDT)
-Received: from sultan-box.localdomain ([107.193.118.89])
-        by smtp.gmail.com with ESMTPSA id k60sm5643992otc.42.2019.05.07.01.12.38
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 May 2019 01:12:40 -0700 (PDT)
-Date: Tue, 7 May 2019 01:12:36 -0700
-From: Sultan Alsawaf <sultan@kerneltoast.com>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	Daniel Colascione <dancol@google.com>,
-	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Martijn Coenen <maco@android.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	linux-mm <linux-mm@kvack.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	kernel-team <kernel-team@android.com>,
-	Christian Brauner <christian@brauner.io>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190507081236.GA1531@sultan-box.localdomain>
-References: <20190318002949.mqknisgt7cmjmt7n@brauner.io>
- <20190318235052.GA65315@google.com>
- <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507070430.GA24150@kroah.com>
- <20190507072721.GA4364@sultan-box.localdomain>
- <20190507074334.GB26478@kroah.com>
+       spf=pass (google.com: domain of 3gltrxakbapmntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3GlTRXAkbAPMntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqynaCrllFXrpp1849mgB2TbZ4GJFpRB0hRhSDplz6oKeuFXJK5LMjhEjVn6h7AArynXyEBMKUgEIVL7hMl+7Gw5ZvxClu/T
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190507074334.GB26478@kroah.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Received: by 2002:a24:fc46:: with SMTP id b67mr21307311ith.4.1557222426279;
+ Tue, 07 May 2019 02:47:06 -0700 (PDT)
+Date: Tue, 07 May 2019 02:47:06 -0700
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <0000000000008e076b0588491997@google.com>
+Subject: KASAN: use-after-free Read in page_get_anon_vma
+From: syzbot <syzbot+6a309df008e9bd6f5075@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, borntraeger@de.ibm.com, hughd@google.com, 
+	jglisse@redhat.com, kirill.shutemov@linux.intel.com, ktkhai@virtuozzo.com, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mike.kravetz@oracle.com, 
+	n-horiguchi@ah.jp.nec.com, sean.j.christopherson@intel.com, 
+	syzkaller-bugs@googlegroups.com, willy@infradead.org
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
-> Given that any "new" android device that gets shipped "soon" should be
-> using 4.9.y or newer, is this a real issue?
+Hello,
 
-It's certainly a real issue for those who can't buy brand new Android devices
-without software bugs every six months :)
+syzbot found the following crash on:
 
-> And if it is, I'm sure that asking for those patches to be backported to
-> 4.4.y would be just fine, have you asked?
->
-> Note that I know of Android Go devices, running 3.18.y kernels, do NOT
-> use the in-kernel memory killer, but instead use the userspace solution
-> today.  So trying to get another in-kernel memory killer solution added
-> anywhere seems quite odd.
+HEAD commit:    771acc7e Bluetooth: btusb: request wake pin with NOAUTOEN
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=15ac0abf200000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=4fb64439e07a1ec0
+dashboard link: https://syzkaller.appspot.com/bug?extid=6a309df008e9bd6f5075
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
 
-It's even more odd that although a userspace solution is touted as the proper
-way to go on LKML, almost no Android OEMs are using it, and even in that commit
-I linked in the previous message, Google made a rather large set of
-modifications to the supposedly-defunct lowmemorykiller.c not one month ago.
-What's going on?
+Unfortunately, I don't have any reproducer for this crash yet.
 
-Qualcomm still uses lowmemorykiller.c [1] on the Snapdragon 845. If PSI were
-backported to 4.4, or even 3.18, would it really be used? I don't really
-understand the aversion to an in-kernel memory killer on LKML despite the rest
-of the industry's attraction to it. Perhaps there's some inherently great cost
-in using the userspace solution that I'm unaware of?
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+6a309df008e9bd6f5075@syzkaller.appspotmail.com
 
-Regardless, even if PSI were backported, a full-fledged LMKD using it has yet to
-be made, so it wouldn't be of much use now.
+==================================================================
+BUG: KASAN: use-after-free in atomic_read  
+include/asm-generic/atomic-instrumented.h:26 [inline]
+BUG: KASAN: use-after-free in atomic_fetch_add_unless  
+include/linux/atomic-fallback.h:1086 [inline]
+BUG: KASAN: use-after-free in atomic_add_unless  
+include/linux/atomic-fallback.h:1111 [inline]
+BUG: KASAN: use-after-free in atomic_inc_not_zero  
+include/linux/atomic-fallback.h:1127 [inline]
+BUG: KASAN: use-after-free in page_get_anon_vma+0x24b/0x4b0 mm/rmap.c:477
+Read of size 4 at addr ffff88809f2398f0 by task kswapd0/1553
 
-Thanks,
-Sultan
+CPU: 0 PID: 1553 Comm: kswapd0 Not tainted 5.1.0-rc4+ #61
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
+Google 01/01/2011
+Call Trace:
+  __dump_stack lib/dump_stack.c:77 [inline]
+  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
+  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
+  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
+  check_memory_region_inline mm/kasan/generic.c:185 [inline]
+  check_memory_region+0x123/0x190 mm/kasan/generic.c:191
+  kasan_check_read+0x11/0x20 mm/kasan/common.c:102
+  atomic_read include/asm-generic/atomic-instrumented.h:26 [inline]
+  atomic_fetch_add_unless include/linux/atomic-fallback.h:1086 [inline]
+  atomic_add_unless include/linux/atomic-fallback.h:1111 [inline]
+  atomic_inc_not_zero include/linux/atomic-fallback.h:1127 [inline]
+  page_get_anon_vma+0x24b/0x4b0 mm/rmap.c:477
+  split_huge_page_to_list+0x58a/0x2de0 mm/huge_memory.c:2675
+  split_huge_page include/linux/huge_mm.h:148 [inline]
+  deferred_split_scan+0x64b/0xa60 mm/huge_memory.c:2853
+  do_shrink_slab+0x400/0xa80 mm/vmscan.c:551
+  shrink_slab mm/vmscan.c:700 [inline]
+  shrink_slab+0x4be/0x5e0 mm/vmscan.c:680
+  shrink_node+0x552/0x1570 mm/vmscan.c:2724
+  kswapd_shrink_node mm/vmscan.c:3482 [inline]
+  balance_pgdat+0x56c/0xe80 mm/vmscan.c:3640
+  kswapd+0x615/0x1010 mm/vmscan.c:3895
+  kthread+0x357/0x430 kernel/kthread.c:253
+  ret_from_fork+0x3a/0x50 arch/x86/entry/entry_64.S:352
 
-[1] https://source.codeaurora.org/quic/la/kernel/msm-4.9/tree/arch/arm64/configs/sdm845_defconfig?h=LA.UM.7.3.r1-07400-sdm845.0#n492
+Allocated by task 11425:
+  save_stack+0x45/0xd0 mm/kasan/common.c:75
+  set_track mm/kasan/common.c:87 [inline]
+  __kasan_kmalloc mm/kasan/common.c:497 [inline]
+  __kasan_kmalloc.constprop.0+0xcf/0xe0 mm/kasan/common.c:470
+  kasan_slab_alloc+0xf/0x20 mm/kasan/common.c:505
+  slab_post_alloc_hook mm/slab.h:437 [inline]
+  slab_alloc mm/slab.c:3394 [inline]
+  kmem_cache_alloc+0x11a/0x6f0 mm/slab.c:3556
+  kmem_cache_zalloc include/linux/slab.h:732 [inline]
+  __alloc_file+0x27/0x300 fs/file_table.c:100
+  alloc_empty_file+0x72/0x170 fs/file_table.c:150
+  path_openat+0xef/0x46e0 fs/namei.c:3522
+  do_filp_open+0x1a1/0x280 fs/namei.c:3563
+  do_sys_open+0x3fe/0x5d0 fs/open.c:1069
+  __do_sys_open fs/open.c:1087 [inline]
+  __se_sys_open fs/open.c:1082 [inline]
+  __x64_sys_open+0x7e/0xc0 fs/open.c:1082
+  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
+  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+
+Freed by task 11435:
+  save_stack+0x45/0xd0 mm/kasan/common.c:75
+  set_track mm/kasan/common.c:87 [inline]
+  __kasan_slab_free+0x102/0x150 mm/kasan/common.c:459
+  kasan_slab_free+0xe/0x10 mm/kasan/common.c:467
+  __cache_free mm/slab.c:3500 [inline]
+  kmem_cache_free+0x86/0x260 mm/slab.c:3766
+  file_free_rcu+0x98/0xe0 fs/file_table.c:49
+  __rcu_reclaim kernel/rcu/rcu.h:227 [inline]
+  rcu_do_batch kernel/rcu/tree.c:2475 [inline]
+  invoke_rcu_callbacks kernel/rcu/tree.c:2788 [inline]
+  rcu_core+0x928/0x1390 kernel/rcu/tree.c:2769
+  __do_softirq+0x266/0x95a kernel/softirq.c:293
+
+The buggy address belongs to the object at ffff88809f2397c0
+  which belongs to the cache filp of size 456
+The buggy address is located 304 bytes inside of
+  456-byte region [ffff88809f2397c0, ffff88809f239988)
+The buggy address belongs to the page:
+page:ffffea00027c8e40 count:1 mapcount:0 mapping:ffff88821bc45380 index:0x0
+flags: 0x1fffc0000000200(slab)
+raw: 01fffc0000000200 ffffea00025571c8 ffffea000235d288 ffff88821bc45380
+raw: 0000000000000000 ffff88809f239040 0000000100000006 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+  ffff88809f239780: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+  ffff88809f239800: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> ffff88809f239880: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+                                                              ^
+  ffff88809f239900: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+  ffff88809f239980: fb fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+==================================================================
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
 
