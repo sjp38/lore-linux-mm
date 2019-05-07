@@ -2,305 +2,164 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6741C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:38:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CE38C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:50:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7372D20578
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:38:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7372D20578
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BB7A520825
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 19:50:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB7A520825
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0141B6B0003; Tue,  7 May 2019 15:38:02 -0400 (EDT)
+	id 279866B000A; Tue,  7 May 2019 15:50:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EDF426B0006; Tue,  7 May 2019 15:38:01 -0400 (EDT)
+	id 22A796B000C; Tue,  7 May 2019 15:50:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7E6E6B000A; Tue,  7 May 2019 15:38:01 -0400 (EDT)
+	id 119C06B000D; Tue,  7 May 2019 15:50:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3AA96B0003
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 15:38:01 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x6so10341491qts.15
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 12:38:01 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D19436B000A
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 15:50:52 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s22so9968265plq.1
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 12:50:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=c7yMOXXRELHRC4eTZuVeHIjS3c/yPWMHIyEJK1ztUVA=;
-        b=e1b+QMIjIPrZ//4p2/YlqypfL+WagE9xxqrYJ4mWkYhguSnSLdwWCvKBcsTul8tc5b
-         nJ/mxGEo4qAw+IMVNryelaclbHfe9Lig8eZw4JQ2G6j6U0QEvpjh7Lfsv4HRwoKg31Ch
-         Wunm2HjWHK8kKE49xqgZwMohqofkIqQtP1Agng95PMU3fPkPpuvxnks6XgEI6WHVJOAb
-         Clo7n7jRYwNAOSxTxCycmx9wWRrzG74PoGjWe16Ef8xCesuMC05uLajuEA3jGYDT0iFR
-         ZFkhn/qYaTGrHDY/q5GCyQ+QuLcYJ1UrSRMkXgGIh6yDWsBalfoA5tTYsXyiXr2DtYIh
-         C+Ag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUX4fAv9uYsGc4mMbs98ePqdUFTCFgamdF/GzhUwG5e+EKVx+XJ
-	b/A3veTk5diBcVNPp2UjM9FT8ArEVBzNZCSTZESi0VnuobRRdr9OH8dkpvHJlu1O452P+FVcM/B
-	PXQ7yr27hatN/cH4LgNpupjo+NZaMTTm8PYNgvYlvYJpul80mlVocPhk7a+Tp53bEGA==
-X-Received: by 2002:a37:5a46:: with SMTP id o67mr25810937qkb.31.1557257881499;
-        Tue, 07 May 2019 12:38:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEYgq9cdKpEzZRaLrLa8t1FNnSHgOQ1SvHW59wcDMeKmV/XvUH+oqJNr2U8LWs8MBn+Hl2
-X-Received: by 2002:a37:5a46:: with SMTP id o67mr25810897qkb.31.1557257880583;
-        Tue, 07 May 2019 12:38:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557257880; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=zcFsdjI1s+LaqmSPrrez6zaem2wf8uOZRltJ71XJpcs=;
+        b=hxyxztiqv9QY3gGMxunEV3AElViOT/FVAfSdoRUeqvVehDqncw72Of3ejNqAzQ6Wiu
+         rRDCMvgC7OgZ/QTOT8+TKrfk6Ns9t7wiyrwtyy9B9tEGuSNGL/q+ojFRXU2pYffN97CF
+         LBLpB9ldoL2ns84E/VPE2kSj7yHdptyExs4PnL4VfyqKUiBKLqsijOWkhK5iQolHuHWO
+         SX2AdEi4pRYjPjnlIKhKk1IbQT1TVxgfbXMAOtAXjS6dITsOQmlVsA1Ik7RqTQGl7odf
+         DJxTcVJRG0uOZOdkJ/Pu83MVR3yFVQU7+JMMsZzky9Eft7OgqB28EluQ6KWKdq5ik1KQ
+         1lfQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=brian.welty@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWFEokKaUju5pNuJrJe0NC476Kr2GLBufN0EKBadLdSngYKwjoU
+	VyZdGunvJqL7y59+C0YKeCUW+9HLAjAHH6U7kY6LmLvBHCowJ6U198LSQsXRn+OuILgAEqV7QbH
+	kuIWxwrya2dgvEMgoVIrVGRCEZwtHQGTVpKLSvdIaYS+T2XqgdI1/cB0M3KXYYrZppA==
+X-Received: by 2002:a17:902:a503:: with SMTP id s3mr41505566plq.16.1557258652497;
+        Tue, 07 May 2019 12:50:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx7tkB8Ww2Purzfqel7LnLS+PlXwEEeNYanbHKzblzxBSfgnq4P9koecNmsyksCeJ05vLTI
+X-Received: by 2002:a17:902:a503:: with SMTP id s3mr41505469plq.16.1557258651654;
+        Tue, 07 May 2019 12:50:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557258651; cv=none;
         d=google.com; s=arc-20160816;
-        b=sGZzBqXMqfwFTLmS9iQBz0+VEFcCyeyEjvG3CQctBzWuv6KSXRJtbo7ooFCAQqjA+r
-         vBS9CLfqv1vOYIy3glxg/Zqc5iyntiAIRNlY72AjHZb7RXAjiGsFOQbltvHLFna9SYXJ
-         yv+EKWyTz+N7q+G2b1ENn+URGWy9O5dzFrglLNCM7o4EQ86K5mWHOBExR0cAP/k5N8gW
-         vAF8RqdpffbWvyH2GXdVwKkjBTHt+YM6Bej/SvYPKS1xTEKmj1RP34HXZGP2tscYf8Pi
-         CHL9V0Bq/27hpUo0AGCXotrgA928EfSBHemJCIxB8wKHuo6iFvJc2sIGYmruzPPsS5Sa
-         Nl7w==
+        b=Ilpdre+IdXCp0M66emjyLyqcEW7gxTNrh4ieSZoLznj8Pw9SegGC2vpHnRtPAoyuSN
+         JZ/cDKfI6pauBIPUB1js0+CFsJYoLUdNR1XWZcacLfeRnsoaAXOjTin0ZU4o2y9bNve2
+         WE1DeiICnkGZiDVAI/cRDTzm7E1BzBUnEbpLH1cTzP3qAZKybItX8aUhbn0ARBlaSvpO
+         BW/fid8nme6CzDQUkO87wJsLyO10dkaoOFH+wfHpMS5xVObSH805EgaYArQ1/nT1QRNp
+         QKVtNE0foQpW6J1jv3ypXsXTNhGlbi9u7e4jrhIBzDJjOwgAIFwesjYRboBPnX3ehcE6
+         FScQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp
-         :references:cc:to:from:subject;
-        bh=c7yMOXXRELHRC4eTZuVeHIjS3c/yPWMHIyEJK1ztUVA=;
-        b=Nicz0PtG7h/BAn3hh2m7OW+6V7JNnem+opCvUtyywOpqwH9gI0rmX8O3M0ld5lHWEx
-         mcTlCWIjNGG9D9OryNMnM8/q6F9yspKWlX6NQaWOyxQZUAaeo5Ze4GPKQoeKg73Uuo/m
-         4W3wCRcp7ANK/wh9kletvJEfGtNw5P4TUYrepV9Zojuy0G0RzYouAzVqjkbU2+ZA8xko
-         Y5wIkC2lB6dwhvJzuE0X+jmS8fiTfwB4gUs2VdFUbZ99Kf5kTNl7+YU1FJKEsr3DNI++
-         uGjCjgpTrE9BaTFbFHujw2OWJQMYJ9rjanbjSTFtGbaHMfk0DFwxquczYpoUN6plqxeM
-         /7DA==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=zcFsdjI1s+LaqmSPrrez6zaem2wf8uOZRltJ71XJpcs=;
+        b=JCvbwg9N8yjVUUDh3dFt+aocZFVypYh0uTtn4p6EyQLDWCCfigoWcIR8Rmhy/KExCX
+         7ZF7/fafmiF27Ov2SjCvSzik3dLCjrqU60b1bIp2B7T06GcIxc1vAAoVe14RxEX1hz7N
+         3PgO5FMjFZByxqAhLHFxWe4qOqQ//9u99ySVzHfn/Az66WOLgLvj8i4mekeg3SNAE5Q2
+         SAr56WQweDTFCApU03LmBc0Y6/+oqpG7XMXu1AtWomcQHB9+FS/Yn5x0883jKAOsTHvu
+         1FbggezBHIRzhvN7dEUybHeWFwr1tDf3EQxVa8JGQqBevX04j+onIxV6InHN8cERIdtY
+         ccfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a2si7791457qta.5.2019.05.07.12.38.00
+       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id j11si19205610plt.112.2019.05.07.12.50.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 12:38:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 07 May 2019 12:50:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of brian.welty@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3689A309B151;
-	Tue,  7 May 2019 19:37:58 +0000 (UTC)
-Received: from [10.36.116.95] (ovpn-116-95.ams2.redhat.com [10.36.116.95])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6230F6149F;
-	Tue,  7 May 2019 19:37:46 +0000 (UTC)
-Subject: Re: [PATCH v2 0/8] mm/memory_hotplug: Factor out memory block device
- handling
-From: David Hildenbrand <david@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- linux-ia64@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
- linux-s390 <linux-s390@vger.kernel.org>, Linux-sh
- <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- Alex Deucher <alexander.deucher@amd.com>,
- Andrew Banman <andrew.banman@hpe.com>, Andy Lutomirski <luto@kernel.org>,
- Arun KS <arunks@codeaurora.org>, Baoquan He <bhe@redhat.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Borislav Petkov <bp@alien8.de>, Christophe Leroy <christophe.leroy@c-s.fr>,
- Chris Wilson <chris@chris-wilson.co.uk>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- "David S. Miller" <davem@davemloft.net>, Fenghua Yu <fenghua.yu@intel.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin"
- <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>,
- Ingo Molnar <mingo@redhat.com>,
- Jonathan Cameron <Jonathan.Cameron@huawei.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Logan Gunthorpe <logang@deltatee.com>, Mark Brown <broonie@kernel.org>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Mathieu Malaterre <malat@debian.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>,
- Nicholas Piggin <npiggin@gmail.com>, Oscar Salvador <osalvador@suse.com>,
- Oscar Salvador <osalvador@suse.de>, Paul Mackerras <paulus@samba.org>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Pavel Tatashin <pavel.tatashin@microsoft.com>,
- Peter Zijlstra <peterz@infradead.org>, Qian Cai <cai@lca.pw>,
- "Rafael J. Wysocki" <rafael@kernel.org>, Rich Felker <dalias@libc.org>,
- Rob Herring <robh@kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
- Tony Luck <tony.luck@intel.com>, Vasily Gorbik <gor@linux.ibm.com>,
- Wei Yang <richard.weiyang@gmail.com>,
- Wei Yang <richardw.yang@linux.intel.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>
-References: <20190507183804.5512-1-david@redhat.com>
- <CAPcyv4gxwhsiZ8Hjm4cNbjmLXV2m4s=t14ZoH0uf8AADP2nOtA@mail.gmail.com>
- <6f69e615-2b4a-ff31-5d2a-e1711c564f9b@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <ad971f57-5f09-c056-beef-6a7b63311106@redhat.com>
-Date: Tue, 7 May 2019 21:37:45 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of brian.welty@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=brian.welty@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 May 2019 12:50:51 -0700
+X-ExtLoop1: 1
+Received: from brianwel-mobl1.amr.corp.intel.com (HELO [10.144.155.123]) ([10.144.155.123])
+  by orsmga004.jf.intel.com with ESMTP; 07 May 2019 12:50:50 -0700
+Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
+To: Tejun Heo <tj@kernel.org>
+Cc: cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org,
+ Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>,
+ dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+ Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
+ =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ RDMA mailing list <linux-rdma@vger.kernel.org>,
+ Leon Romanovsky <leon@kernel.org>, kenny.ho@amd.com
+References: <20190501140438.9506-1-brian.welty@intel.com>
+ <20190506152643.GL374014@devbig004.ftw2.facebook.com>
+From: "Welty, Brian" <brian.welty@intel.com>
+Message-ID: <cf58b047-d678-ad89-c9b6-96fc6b01c1d7@intel.com>
+Date: Tue, 7 May 2019 12:50:50 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <6f69e615-2b4a-ff31-5d2a-e1711c564f9b@redhat.com>
+In-Reply-To: <20190506152643.GL374014@devbig004.ftw2.facebook.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Tue, 07 May 2019 19:37:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.05.19 21:21, David Hildenbrand wrote:
-> On 07.05.19 21:04, Dan Williams wrote:
->> On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
->>>
->>> We only want memory block devices for memory to be onlined/offlined
->>> (add/remove from the buddy). This is required so user space can
->>> online/offline memory and kdump gets notified about newly onlined memory.
->>>
->>> Only such memory has the requirement of having to span whole memory blocks.
->>> Let's factor out creation/removal of memory block devices. This helps
->>> to further cleanup arch_add_memory/arch_remove_memory() and to make
->>> implementation of new features easier. E.g. supplying a driver for
->>> memory block devices becomes way easier (so user space is able to
->>> distinguish different types of added memory to properly online it).
->>>
->>> Patch 1 makes sure the memory block size granularity is always respected.
->>> Patch 2 implements arch_remove_memory() on s390x. Patch 3 prepares
->>> arch_remove_memory() to be also called without CONFIG_MEMORY_HOTREMOVE.
->>> Patch 4,5 and 6 factor out creation/removal of memory block devices.
->>> Patch 7 gets rid of some unlikely errors that could have happened, not
->>> removing links between memory block devices and nodes, previously brought
->>> up by Oscar.
->>>
->>> Did a quick sanity test with DIMM plug/unplug, making sure all devices
->>> and sysfs links properly get added/removed. Compile tested on s390x and
->>> x86-64.
->>>
->>> Based on git://git.cmpxchg.org/linux-mmots.git
->>>
->>> Next refactoring on my list will be making sure that remove_memory()
->>> will never deal with zones / access "struct pages". Any kind of zone
->>> handling will have to be done when offlining system memory / before
->>> removing device memory. I am thinking about remove_pfn_range_from_zone()",
->>> du undo everything "move_pfn_range_to_zone()" did.
->>>
->>> v1 -> v2:
->>> - s390x/mm: Implement arch_remove_memory()
->>> -- remove mapping after "__remove_pages"
->>>
->>>
->>> David Hildenbrand (8):
->>>   mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
->>>   s390x/mm: Implement arch_remove_memory()
->>>   mm/memory_hotplug: arch_remove_memory() and __remove_pages() with
->>>     CONFIG_MEMORY_HOTPLUG
->>>   mm/memory_hotplug: Create memory block devices after arch_add_memory()
->>>   mm/memory_hotplug: Drop MHP_MEMBLOCK_API
+
+On 5/6/2019 8:26 AM, Tejun Heo wrote:
+> Hello,
+> 
+> On Wed, May 01, 2019 at 10:04:33AM -0400, Brian Welty wrote:
+>> The patch series enables device drivers to use cgroups to control the
+>> following resources within a GPU (or other accelerator device):
+>> *  control allocation of device memory (reuse of memcg)
+>> and with future work, we could extend to:
+>> *  track and control share of GPU time (reuse of cpu/cpuacct)
+>> *  apply mask of allowed execution engines (reuse of cpusets)
 >>
->> So at a minimum we need a bit of patch staging guidance because this
->> obviously collides with the subsection bits that are built on top of
->> the existence of MHP_MEMBLOCK_API. What trigger do you envision as a
->> replacement that arch_add_memory() use to determine that subsection
->> operations should be disallowed?
->>
+>> Instead of introducing a new cgroup subsystem for GPU devices, a new
+>> framework is proposed to allow devices to register with existing cgroup
+>> controllers, which creates per-device cgroup_subsys_state within the
+>> cgroup.  This gives device drivers their own private cgroup controls
+>> (such as memory limits or other parameters) to be applied to device
+>> resources instead of host system resources.
+>> Device drivers (GPU or other) are then able to reuse the existing cgroup
+>> controls, instead of inventing similar ones.
 > 
-> Looks like we now have time to sort it out :)
+> I'm really skeptical about this approach.  When creating resource
+> controllers, I think what's the most important and challenging is
+> establishing resource model - what resources are and how they can be
+> distributed.  This patchset is going the other way around - building
+> out core infrastructure for bolierplates at a significant risk of
+> mixing up resource models across different types of resources.
 > 
-> 
-> Looking at your series
-> 
-> [PATCH v8 08/12] mm/sparsemem: Prepare for sub-section ranges
-> 
-> is the "single" effectively place using MHP_MEMBLOCK_API, namely
-> "subsection_check()". Used when adding/removing memory.
-> 
-> 
-> +static int subsection_check(unsigned long pfn, unsigned long nr_pages,
-> +		unsigned long flags, const char *reason)
-> +{
-> +	/*
-> +	 * Only allow partial section hotplug for !memblock ranges,
-> +	 * since register_new_memory() requires section alignment, and
-> +	 * CONFIG_SPARSEMEM_VMEMMAP=n requires sections to be fully
-> +	 * populated.
-> +	 */
-> +	if ((!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)
-> +				|| (flags & MHP_MEMBLOCK_API))
-> +			&& ((pfn & ~PAGE_SECTION_MASK)
-> +				|| (nr_pages & ~PAGE_SECTION_MASK))) {
-> +		WARN(1, "Sub-section hot-%s incompatible with %s\n", reason,
-> +				(flags & MHP_MEMBLOCK_API)
-> +				? "memblock api" : "!CONFIG_SPARSEMEM_VMEMMAP");
-> +		return -EINVAL;
-> +	}
-> +	return 0;
->  }
-> 
-> 
-> (flags & MHP_MEMBLOCK_API)) && ((pfn & ~PAGE_SECTION_MASK) || (nr_pages
-> & ~PAGE_SECTION_MASK)))
-> 
-> sounds like something the caller (add_memory()) always has to take care
-> of. No need to check. The one imposing this restriction is the only caller.
-> 
-> In my opinion, that check/function can go completely.
-> 
-> Am I missing something / missing another user?
-> 
+> IO controllers already implement per-device controls.  I'd suggest
+> following the same interface conventions and implementing a dedicated
+> controller for the subsystem.
+>
+Okay, thanks for feedback.  Preference is clear to see this done as
+dedicated cgroup controller.
 
-In other word, this series moves the restriction out of
-arch_add_memory() and therefore you don't need subsection_check() at all
-anymore. At least if I am not missing something :)
+Part of my proposal was an attempt for devices with "mem like" and "cpu 
+like" attributes to be managed by common controller.   We can ignore this
+idea for cpu attributes, as those can just go in a GPU controller.
 
--- 
+There might still be merit in having a 'device mem' cgroup controller.
+The resource model at least is then no longer mixed up with host memory.
+RDMA community seemed to have some interest in a common controller at
+least for device memory aspects.
+Thoughts on this?   I believe could still reuse the 'struct mem_cgroup' data
+structure.  There should be some opportunity to reuse charging APIs and
+have some nice integration with HMM for charging to device memory, depending
+on backing store.
 
-Thanks,
-
-David / dhildenb
+-Brian
 
