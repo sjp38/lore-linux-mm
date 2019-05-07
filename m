@@ -2,204 +2,195 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7700C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 09:50:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99846C04AAB
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:47:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4FBA204FD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 09:50:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4FBA204FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4230B2054F
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 10:47:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4230B2054F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5269D6B000A; Tue,  7 May 2019 05:50:07 -0400 (EDT)
+	id 7E0506B0005; Tue,  7 May 2019 06:47:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4FDB16B000C; Tue,  7 May 2019 05:50:07 -0400 (EDT)
+	id 791C56B0006; Tue,  7 May 2019 06:47:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3ECC26B000D; Tue,  7 May 2019 05:50:07 -0400 (EDT)
+	id 67FA36B0007; Tue,  7 May 2019 06:47:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EC116B000A
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 05:50:07 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id t7so10776527iod.17
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 02:50:07 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 171A86B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 06:47:14 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b22so14255904edw.0
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 03:47:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to;
-        bh=In9eC4eti/TKqtsCxDxB3bSkibZhF83sxRlbVPMNKKs=;
-        b=InXUpeGITu2TNg3+APE5VIhflEnFK9PjbbqRYli7FOFsgSUrVz4BvsQvr/GIJ7N5MS
-         /UwcONwVCjGMa5McKgVDmzAwDWTFIubgnn0Cm4gtB/dd93/A2An68fmt08YkZg/Fq3N3
-         L15rMP7Tqq32rL12+cpDOF0iXXxADtMgz2z4y9H6fzO2yLNTYikUBlzie86GZhigX0bJ
-         79XRvg2q0KL0sYCq30JTLUms4EDKtHvj3Mn6OhmTEJck9LX0tblpcoZ2BpqTFF0LHpgX
-         /ekSJIr3Pt5wRWnNVKBJu3CGc1QaCBT1g6EokZ9Lk5sAdY03VZOXVKDBJZuqAj/Iy8yb
-         MXtw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3zvtrxakbakgaghsittmzixxql.owwotmcamzkwvbmvb.kwu@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3zVTRXAkbAKgaghSITTMZIXXQL.OWWOTMcaMZKWVbMVb.KWU@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAVO9fFQ08AI1gF98wHYhBHu6fEfhHUFyoXszj4HMbPUNozmOLAE
-	2zM5weYvJTRYzEAH32XVwFLs4H77DstZmOJiadgH7bBgrJGYm/ZYorvB/pyIiMNMyi9h8nycHlF
-	B72gB6JiYMvdUVMVRftu65JzC2sgHHERopLOSUe8Xabh40aOnTXG8f7M+EkVyxas=
-X-Received: by 2002:a24:1486:: with SMTP id 128mr3123734itg.68.1557222606690;
-        Tue, 07 May 2019 02:50:06 -0700 (PDT)
-X-Received: by 2002:a24:1486:: with SMTP id 128mr3123690itg.68.1557222605731;
-        Tue, 07 May 2019 02:50:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557222605; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=exQydsRsuNLlVkrAYWeNATsUHctANXViPZH8mHLZc3Y=;
+        b=Wpd9j5UCKbseKBDn91ocv1iWpmH4Ozw2TKn1kk3AEwfv3Vgf9igM/cLfCS4L99ZG4D
+         EH9Wh+Bjw79SWovBszy0wupkP5z21zNWwsIRjhF5zUs5sjVY73p9tAFjMepLDFpgFLL4
+         TjCbi2GaYwuQl941FYbtwK9OYb+ym3Tzg/gKn9A2sL3LJCjuLbVlVU3xpVwGkEYda7R4
+         sm0BBjL9bQE0Z5AEukHsIAkDIUpUWkuuGQUNXmBivK/hNBv7FLgtpMBtDjcFiuEk6LlQ
+         Lb6YsBffCg4fb1NqVR2MiOPbNM3bAQBktzglfbtDUMy4Xl/EiyKNXG7Tn0Uew8ZdYpfj
+         fB/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWRZvT1gd2W8D4OaUpGwDj0d2QUESCb7akB2QTDv0I6iGFU5Zfj
+	OWo7tQ9krsfwbASSNBl18/SwCYBcTcEtMachYPoGcpcZz4chfYhM0yCOSCECKESqv+kGVBFt9JR
+	lzeLaxbl9ddocO9hU7/Xwlz8Jhqe1LhzArotFaW1AjO0YZ28pKGpl1z6hns6eW10=
+X-Received: by 2002:aa7:db0c:: with SMTP id t12mr32315230eds.170.1557226033501;
+        Tue, 07 May 2019 03:47:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyrC4nfmu2JX4Z6pY8ZQ0ApAf+1OmgLdsTZp5zaFMP7X7jXnGgkdCGqeXt7BEfTnxDtmdiT
+X-Received: by 2002:aa7:db0c:: with SMTP id t12mr32315131eds.170.1557226032344;
+        Tue, 07 May 2019 03:47:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557226032; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xtwn5/jNK6PusPa/VLxsGtFB/52dCee3TGXOIape6Wah2rnodLmzK1dIMNEqSPSQQ1
-         lZt51jjOQ/XpWFyaNNZllnC77auGoAYYUc6KOzyPjZEzPLQ6pYYNO4Nt0QQNvuZZ5gbn
-         el3Ti6KbJGsZKwoJvb685uFRCCytcdAem6ERjoNzFDvA+0S4+znRMMY3A20beymU+AOW
-         Jf0ievcOQ1zjm8uxHvw0kg80gdiYd77AbxedF8DrHHYn3J93eCbBN2oErzgbkmINx6PK
-         DUSUYBQvy7oAgr+EMzXa+MamZKZiHRC22EexC6qjDLa/Uf6pxx33qaLUGgknHttw1zMZ
-         NJRQ==
+        b=eWdb4QFYTFqLR+p55/Ht5NV5j6HFZO1OtPGPzyQNhoRY1B6zjNN8vkUD5LWlxYKHRv
+         gNXmcHa0Ki3RmQifJxF3sOD/k2QXCf7C54U3omMuCCnHNZHCd28Xxiw1tr8dobIIz2Fi
+         sJOFFfulBmrywR6EFwQsO5negMRizR4xsdCUy2yMk5Ky4AAMAZtCkQur8PeJAHQwuIvz
+         xjVkdkn+N7ou3zQ4mgoQwnay5fR9eBe4uep1FkwQzQA6aVYfu+SA5tp4Aeen6pEej7IW
+         fGEgt9xlHzuBHCj0XVABfIN+H3EbtbfPV2b6GtFKoYvOxI7gximsz4Tdx8YlKg4+NTWv
+         c+Kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:date:mime-version;
-        bh=In9eC4eti/TKqtsCxDxB3bSkibZhF83sxRlbVPMNKKs=;
-        b=mY1fIaa3wi1EeGMwL5L0YneapnYIqPuQcZEVN2iLj+7UjFBaFI1dNBSAOS/DJzLvYf
-         hnTJanFb87F1wfOu8HBelaCMIJT+K5I/igGALajjHn+l55+Cavq0urFhKT0OIs7RryI9
-         T4H2TFLCzf7lAN5TcbmDp4e5O3darJYizD/L/9+IyjqCkYYqbQlA1H4z1EFNLwrHON9k
-         BC6uqNsVaTri3ZZ1Ve5JqlYHhyckaA/5bBwpg4VBntLlIvYID25qSsMD1TricyHd6ZPm
-         CghzAZdVRBdivDvTbvvMMfZj5pcjhJQ2kBBKaY0aAf4vH826cfHPuDkK2aalrFVsuwGQ
-         BH3Q==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=exQydsRsuNLlVkrAYWeNATsUHctANXViPZH8mHLZc3Y=;
+        b=Y9/M9pWDf8sNoZOpcjP1BHUuN2RIl70UtRkIoPJrA5BOwLn2J69xo5dbVNdOkxmmJy
+         0rltXN5u7Pnrxdbamxnd8AEHKZGmqdIPl1BvjqFDdRoxMMtAsYCpN6qTQCI33N7Y3TMW
+         NbE+7BvybdNgUQOsCkBBfW6vU+eHuYuARjjRvIO8rkMNwdIrLTtTYKU5RNeHY9qNd53/
+         Vf2LHywyMek9kvTHOy5n7vR3jcB3bhVUlhMNvbQ/TrKgppLp/okyU9aFzJATwBJ6r+x2
+         MpPf3RyvVDobE4g3M2n+DyA7WkF8BGWlBx6Xeq0PXxRyPOhqBpO08PRI9SWuWOBRJNGr
+         bUYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3zvtrxakbakgaghsittmzixxql.owwotmcamzkwvbmvb.kwu@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3zVTRXAkbAKgaghSITTMZIXXQL.OWWOTMcaMZKWVbMVb.KWU@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id v6sor17192186itv.20.2019.05.07.02.50.05
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v28si5410286edc.12.2019.05.07.03.47.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 May 2019 02:50:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3zvtrxakbakgaghsittmzixxql.owwotmcamzkwvbmvb.kwu@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 May 2019 03:47:12 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3zvtrxakbakgaghsittmzixxql.owwotmcamzkwvbmvb.kwu@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3zVTRXAkbAKgaghSITTMZIXXQL.OWWOTMcaMZKWVbMVb.KWU@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqz5oZLbzxieR3XewvUgqCbVWsX+G/dqraDdBRj+/m1v9eWEBPaA80I266jr7RQGFGMpYCWR6r+PJx61EYf7JQEfDdP60h7i
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 3D211AD56;
+	Tue,  7 May 2019 10:47:11 +0000 (UTC)
+Date: Tue, 7 May 2019 12:47:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
+	rientjes@google.com, kirill@shutemov.name,
+	akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
+ eligibility
+Message-ID: <20190507104709.GP31017@dhcp22.suse.cz>
+References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190423175252.GP25106@dhcp22.suse.cz>
+ <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
+ <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
 MIME-Version: 1.0
-X-Received: by 2002:a24:a946:: with SMTP id x6mr6213890iti.136.1557222605448;
- Tue, 07 May 2019 02:50:05 -0700 (PDT)
-Date: Tue, 07 May 2019 02:50:05 -0700
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <0000000000003beebd0588492456@google.com>
-Subject: BUG: unable to handle kernel paging request in isolate_freepages_block
-From: syzbot <syzbot+d84c80f9fe26a0f7a734@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, aryabinin@virtuozzo.com, cai@lca.pw, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, 
-	mhocko@suse.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
 
-syzbot found the following crash on:
+[Hmm, I thought, Hugh was CCed]
 
-HEAD commit:    baf76f0c slip: make slhc_free() silently accept an error p..
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=16dbe6cca00000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=a42d110b47dd6b36
-dashboard link: https://syzkaller.appspot.com/bug?extid=d84c80f9fe26a0f7a734
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+On Mon 06-05-19 16:37:42, Yang Shi wrote:
+> 
+> 
+> On 4/28/19 12:13 PM, Yang Shi wrote:
+> > 
+> > 
+> > On 4/23/19 10:52 AM, Michal Hocko wrote:
+> > > On Wed 24-04-19 00:43:01, Yang Shi wrote:
+> > > > The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility
+> > > > for each
+> > > > vma") introduced THPeligible bit for processes' smaps. But, when
+> > > > checking
+> > > > the eligibility for shmem vma, __transparent_hugepage_enabled() is
+> > > > called to override the result from shmem_huge_enabled().  It may result
+> > > > in the anonymous vma's THP flag override shmem's.  For example,
+> > > > running a
+> > > > simple test which create THP for shmem, but with anonymous THP
+> > > > disabled,
+> > > > when reading the process's smaps, it may show:
+> > > > 
+> > > > 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
+> > > > Size:               4096 kB
+> > > > ...
+> > > > [snip]
+> > > > ...
+> > > > ShmemPmdMapped:     4096 kB
+> > > > ...
+> > > > [snip]
+> > > > ...
+> > > > THPeligible:    0
+> > > > 
+> > > > And, /proc/meminfo does show THP allocated and PMD mapped too:
+> > > > 
+> > > > ShmemHugePages:     4096 kB
+> > > > ShmemPmdMapped:     4096 kB
+> > > > 
+> > > > This doesn't make too much sense.  The anonymous THP flag should not
+> > > > intervene shmem THP.  Calling shmem_huge_enabled() with checking
+> > > > MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
+> > > > dax vma check since we already checked if the vma is shmem already.
+> > > Kirill, can we get a confirmation that this is really intended behavior
+> > > rather than an omission please? Is this documented? What is a global
+> > > knob to simply disable THP system wise?
+> > 
+> > Hi Kirill,
+> > 
+> > Ping. Any comment?
+> 
+> Talked with Kirill at LSFMM, it sounds this is kind of intended behavior
+> according to him. But, we all agree it looks inconsistent.
+> 
+> So, we may have two options:
+>     - Just fix the false negative issue as what the patch does
+>     - Change the behavior to make it more consistent
+> 
+> I'm not sure whether anyone relies on the behavior explicitly or implicitly
+> or not.
 
-Unfortunately, I don't have any reproducer for this crash yet.
+Well, I would be certainly more happy with a more consistent behavior.
+Talked to Hugh at LSFMM about this and he finds treating shmem objects
+separately from the anonymous memory. And that is already the case
+partially when each mount point might have its own setup. So the primary
+question is whether we need a one global knob to controll all THP
+allocations. One argument to have that is that it might be helpful to
+for an admin to simply disable source of THP at a single place rather
+than crawling over all shmem mount points and remount them. Especially
+in environments where shmem points are mounted in a container by a
+non-root. Why would somebody wanted something like that? One example
+would be to temporarily workaround high order allocations issues which
+we have seen non trivial amount of in the past and we are likely not at
+the end of the tunel.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+d84c80f9fe26a0f7a734@syzkaller.appspotmail.com
+That being said I would be in favor of treating the global sysfs knob to
+be global for all THP allocations. I will not push back on that if there
+is a general consensus that shmem and fs in general are a different
+class of objects and a single global control is not desirable for
+whatever reasons.
 
-BUG: unable to handle kernel paging request at ffffea0003348000
-#PF error: [normal kernel read fault]
-PGD 12c3f9067 P4D 12c3f9067 PUD 12c3f8067 PMD 0
-Oops: 0000 [#1] PREEMPT SMP KASAN
-CPU: 1 PID: 28916 Comm: syz-executor.2 Not tainted 5.1.0-rc6+ #89
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-RIP: 0010:constant_test_bit arch/x86/include/asm/bitops.h:314 [inline]
-RIP: 0010:PageCompound include/linux/page-flags.h:186 [inline]
-RIP: 0010:isolate_freepages_block+0x1c0/0xd40 mm/compaction.c:579
-Code: 01 d8 ff 4d 85 ed 0f 84 ef 07 00 00 e8 29 00 d8 ff 4c 89 e0 83 85 38  
-ff ff ff 01 48 c1 e8 03 42 80 3c 38 00 0f 85 31 0a 00 00 <4d> 8b 2c 24 31  
-ff 49 c1 ed 10 41 83 e5 01 44 89 ee e8 3a 01 d8 ff
-RSP: 0018:ffff88802b31eab8 EFLAGS: 00010246
-RAX: 1ffffd4000669000 RBX: 00000000000cd200 RCX: ffffc9000a235000
-RDX: 000000000001ca5e RSI: ffffffff81988cc7 RDI: 0000000000000001
-RBP: ffff88802b31ebd8 R08: ffff88805af700c0 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000000 R12: ffffea0003348000
-R13: 0000000000000000 R14: ffff88802b31f030 R15: dffffc0000000000
-FS:  00007f61648dc700(0000) GS:ffff8880ae900000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffffea0003348000 CR3: 0000000037c64000 CR4: 00000000001426e0
-Call Trace:
-  fast_isolate_around mm/compaction.c:1243 [inline]
-  fast_isolate_freepages mm/compaction.c:1418 [inline]
-  isolate_freepages mm/compaction.c:1438 [inline]
-  compaction_alloc+0x1aee/0x22e0 mm/compaction.c:1550
-  unmap_and_move mm/migrate.c:1180 [inline]
-  migrate_pages+0x484/0x2cd0 mm/migrate.c:1431
-  compact_zone+0x1b4f/0x38f0 mm/compaction.c:2181
-  compact_zone_order+0x1af/0x2a0 mm/compaction.c:2306
-  try_to_compact_pages+0x268/0xaf0 mm/compaction.c:2358
-  __alloc_pages_direct_compact+0x154/0x460 mm/page_alloc.c:3786
-  __alloc_pages_slowpath+0xb14/0x28b0 mm/page_alloc.c:4425
-  __alloc_pages_nodemask+0x602/0x8d0 mm/page_alloc.c:4633
-  __alloc_pages include/linux/gfp.h:473 [inline]
-  __alloc_pages_node include/linux/gfp.h:486 [inline]
-  alloc_pages_vma+0x39a/0x540 mm/mempolicy.c:2088
-  do_huge_pmd_anonymous_page+0x509/0x1730 mm/huge_memory.c:740
-  create_huge_pmd mm/memory.c:3701 [inline]
-  __handle_mm_fault+0x2d5e/0x3ec0 mm/memory.c:3905
-  handle_mm_fault+0x43f/0xb30 mm/memory.c:3971
-  faultin_page mm/gup.c:548 [inline]
-  __get_user_pages+0x7b6/0x1a40 mm/gup.c:751
-  __get_user_pages_locked mm/gup.c:927 [inline]
-  get_user_pages_remote+0x21d/0x440 mm/gup.c:1119
-  process_vm_rw_single_vec mm/process_vm_access.c:113 [inline]
-  process_vm_rw_core.isra.0+0x464/0xb10 mm/process_vm_access.c:220
-  process_vm_rw+0x21f/0x240 mm/process_vm_access.c:288
-  __do_sys_process_vm_writev mm/process_vm_access.c:310 [inline]
-  __se_sys_process_vm_writev mm/process_vm_access.c:305 [inline]
-  __x64_sys_process_vm_writev+0xe3/0x1a0 mm/process_vm_access.c:305
-  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x458da9
-Code: ad b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 7b b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007f61648dbc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000137
-RAX: ffffffffffffffda RBX: 0000000000000006 RCX: 0000000000458da9
-RDX: 0000000000000001 RSI: 0000000020000000 RDI: 0000000000004a77
-RBP: 000000000073bf00 R08: 0000000000000001 R09: 0000000000000000
-R10: 0000000020000040 R11: 0000000000000246 R12: 00007f61648dc6d4
-R13: 00000000004c5b1e R14: 00000000004d9e90 R15: 00000000ffffffff
-Modules linked in:
-CR2: ffffea0003348000
----[ end trace 50f8738754fa12f3 ]---
-RIP: 0010:constant_test_bit arch/x86/include/asm/bitops.h:314 [inline]
-RIP: 0010:PageCompound include/linux/page-flags.h:186 [inline]
-RIP: 0010:isolate_freepages_block+0x1c0/0xd40 mm/compaction.c:579
-Code: 01 d8 ff 4d 85 ed 0f 84 ef 07 00 00 e8 29 00 d8 ff 4c 89 e0 83 85 38  
-ff ff ff 01 48 c1 e8 03 42 80 3c 38 00 0f 85 31 0a 00 00 <4d> 8b 2c 24 31  
-ff 49 c1 ed 10 41 83 e5 01 44 89 ee e8 3a 01 d8 ff
-RSP: 0018:ffff88802b31eab8 EFLAGS: 00010246
-RAX: 1ffffd4000669000 RBX: 00000000000cd200 RCX: ffffc9000a235000
-RDX: 000000000001ca5e RSI: ffffffff81988cc7 RDI: 0000000000000001
-RBP: ffff88802b31ebd8 R08: ffff88805af700c0 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000000 R12: ffffea0003348000
-R13: 0000000000000000 R14: ffff88802b31f030 R15: dffffc0000000000
-FS:  00007f61648dc700(0000) GS:ffff8880ae900000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffffea0003348000 CR3: 0000000037c64000 CR4: 00000000001426e0
-
-
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+Kirill, Hugh othe folks?
+-- 
+Michal Hocko
+SUSE Labs
 
