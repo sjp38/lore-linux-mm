@@ -7,77 +7,77 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34407C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D00A9C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCA4F206BF
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 77AF5206BF
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 04:06:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="C/BO2gGc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCA4F206BF
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fLPKkGN+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77AF5206BF
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C1CD6B0010; Tue,  7 May 2019 00:06:16 -0400 (EDT)
+	id 920F06B0269; Tue,  7 May 2019 00:06:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 122C16B026C; Tue,  7 May 2019 00:06:16 -0400 (EDT)
+	id 233DD6B026B; Tue,  7 May 2019 00:06:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA1EA6B0010; Tue,  7 May 2019 00:06:15 -0400 (EDT)
+	id C1DDC6B000D; Tue,  7 May 2019 00:06:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 414126B000E
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E256B000C
 	for <linux-mm@kvack.org>; Tue,  7 May 2019 00:06:15 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 93so6627902plf.14
+Received: by mail-pl1-f200.google.com with SMTP id a17so4335410pls.5
         for <linux-mm@kvack.org>; Mon, 06 May 2019 21:06:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=yWov6o46xZpNERY8ayCrMW/keWJ4olLp4dp39iSEbbk=;
-        b=TmhFxopom5w405uioiE+nDqfTlVfjCqu+knO/WM4bUfwhX+hAqXT4H74/ksE4CahS0
-         uvVZen+GPs3D14GA4mbKvxe/aDmTtEzUOJStH0rYcieYTFNeZ6VC5VUcnb11jMJG2DvX
-         IObCgvwOyhAe9q8NHhH26urUs+BE6OXn8jqhpeK5SqIxBTScKL908mxnCW2rzaPYsrpH
-         ttvHvNcCzvT2ph0N+NDi9B1CfB40Lt64pDpoYEs1Cjn5xKRMUiiug28nebKLI/2Bpvym
-         bP5GKhzWmctw3RktE75HhoBHSQSrm9KmHOnVSaPtoEXzAclH6NbYjDRsWIRc54cvOKY/
-         23dQ==
-X-Gm-Message-State: APjAAAX30JcpqzOWb0pAM1tOmxoL7PQ2SW14tFffGZSAw+2cTMEDWUZc
-	xTDeHRKqVAsB9HjLSY0JkPbbEqYJ1YdmRA+7u+4foOBalykiZoqMxykhVBwyLJCpE1y4wDV7eS5
-	0Pdsq/xJHxFaFjqBc9hVZ6kbP2HkPx6WkEw5q7BocMOciNtADIMnbjDePcqk5aNK9lg==
-X-Received: by 2002:a17:902:b490:: with SMTP id y16mr10022567plr.161.1557201974907;
+        bh=ph57y3psFSboTB6oeGLFzcczorSnDzHodEP/gLy6/C4=;
+        b=uJu3WMy1P665mcwh6JduTKBnk11lY/NDG23lNMN2928huDX3WzGmelUIlAWuixUVKY
+         RDpy5JaQ5cMP++67rrlQ0GbTFRvKD05FS2E02F8AjYnF6lFcK11/Kp3rLKhrqeVQZUPl
+         phxqBmZUCiN1jARrZ2/4iknfSLrKW6bmQ7se89wI9IkLEDbP8a4Dhh8sdigG2Gx+dxP6
+         BGma5YQas4HqCfdQFxdXLaJViY57hnziw03amD4kOsW5xYXmSN/MJ95TcPR78khCRMJi
+         tsJmZ+C/SrMl4/va8pb5pF0I1bXGohOtIPAUMSxdiUr0D1x9ExhVgxiU/UPpsJXrkMTZ
+         72GQ==
+X-Gm-Message-State: APjAAAVaFFlTIRm8iUeC41ClKXHdWhxpKmn5awEKDlxyMeER9S6RMG0A
+	IH8pmCn2kGM/cPUTM56szkliHdT28R/hfVYvjrXPCKusdzbKBtfHPBPOBH0Q0QX3I4sIBHMy4UL
+	KBqgPiPHBfgq0m5iHnTFx0+bCxAaGcbdPRb0ueKxxKMiClp2m1xWTbglYoGrbVEbtog==
+X-Received: by 2002:a62:ac0c:: with SMTP id v12mr38067240pfe.59.1557201974598;
         Mon, 06 May 2019 21:06:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6JTqT1nAyolW17tMEYclm4PDqQC8QvlimLZuIIapHhBOWZw9d1bEJC7E76zV/wGejJXnc
-X-Received: by 2002:a17:902:b490:: with SMTP id y16mr10022425plr.161.1557201973311;
+X-Google-Smtp-Source: APXvYqxoGjRH1K3QdoCdGWpm6zHiMQPlWozjjX1IvUznKVzu4CyR6guC2qz60KEGAc56WdPIkKSv
+X-Received: by 2002:a62:ac0c:: with SMTP id v12mr38067124pfe.59.1557201973080;
         Mon, 06 May 2019 21:06:13 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557201973; cv=none;
         d=google.com; s=arc-20160816;
-        b=GPlTOIGIjJn2Fs7ZXuT7noGvEWAOsK0OQdGVc6XAHncwukCf42tvFPGCu1M5bibWLD
-         C2HxMF+FvKBp1wsijUAdu2PDY5JDwlDN4x2JELki+IEf1fpC2ow6z3uiQORBzig1pSxj
-         xqf0e8IwAd+2mMh3ULRge0E2yoDeQZy6LF3xdst+bXKCL2rmFuqZ193JxET9ymJ9DtIf
-         UacqjbMbhqf3qIWnpul/7ZZ2i0n544UQmITcPoOa8DS2FmrT4X86cOhf5O5R5DoxX6YE
-         0tTmFyhGT5R5xkFjYh8EOqkhxepNmTAYd0Nea+uvJ3WLEtjUj5d9oMPE6TxmlnqwVbym
-         LWbg==
+        b=ItEC+YIbXAOw77s1ZRePPgD3DgLmiHlqy3oachuYUvJVb3mszn8Nf+dHuqBq2Q4qHF
+         xHVNjzhW3WHFuQ/SY9psteyg3VWGdRMb1nWiPZ02BxRMWYSsUAy6nxmu5AS+2vlSSwIY
+         qvmYZtZ64Cv1GMwfiznYBR/oSDFougD+hqGt6WeKeynMC+ycT4kKd8kOYXHaWGLxY0K7
+         dwiTv6l1l1ubkOM48gIRpF9pP1XzCDB2UvBP+AuVKVAM+0pxKhFA+hTY/+4bG13OgkkH
+         onmdAaGtuaQXglrB67kQDCD9hcVF7KXDoXW3Z3lB5BdUUY/5l9MbrtlgKM2hut8V0JwH
+         zVVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=yWov6o46xZpNERY8ayCrMW/keWJ4olLp4dp39iSEbbk=;
-        b=AinDRt3iSVnJhxqnytQwoT4UC/gWsn2BGs4dob+m2t2tY1D3/W7zpbYVC9OJ7RRlxN
-         r6HkBh5MKzWtRmHNh/5qWx+UHdwuu66lNV0G8Pi5bU2OEEoYEb5aPFPpj4+KfK6C7v7J
-         gs/JhaeE6xrZ2RMonQvz2FfNH3MiOd+E+ZDzGP+iLECp1XAzTnsRsfXcdXlQi7hus6or
-         jVEkZrC/hbhnrs4k6DC/pWu5kDeCBAZZg5glDRRhsGnbNeR9iep5zFSZjxQSyl1/wVQc
-         gD7dVJnIJTSnRjoAI2x2u0EDq56/usLdtJItsIRAgWz3YypTQQbAR0ShlJBh40CFC+tp
-         miAg==
+        bh=ph57y3psFSboTB6oeGLFzcczorSnDzHodEP/gLy6/C4=;
+        b=A8hou7BgJLA4VZqr4r5jtLLQjoDZy/470JgKQEWh2Ng1NTPRGmmYhsXXLzxrgJokru
+         nhmNHD4vMvNLvCIPxDj/LYwDqTqqzG6ArLy1XB3s4TOYppZ+t4VpdfMazgPwrPFtnqvL
+         qB9T5Y0ocH0DrYSr2U1ES2SEMdGO7JM3O6XhPx3E/YFOPlAafZFionwsjQphRoSiD117
+         3T3eDe6D8SHUKUSyvBEKl3UCfgnD+Hv29O1AKKjuXRWOIes3G73jWkfXpeKNN/VX1VLC
+         p9rJbZGqu95AWogTkBKPCBcg8SacKuawdr4W1l30Y2pahdoJOEem/4euxZddROY6rKIp
+         VWqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="C/BO2gGc";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fLPKkGN+;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id e24si16814232pgh.403.2019.05.06.21.06.13
+        by mx.google.com with ESMTPS id p1si4599197plr.220.2019.05.06.21.06.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Mon, 06 May 2019 21:06:13 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="C/BO2gGc";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fLPKkGN+;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=References:In-Reply-To:Message-Id:
@@ -85,20 +85,20 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=yWov6o46xZpNERY8ayCrMW/keWJ4olLp4dp39iSEbbk=; b=C/BO2gGcJ+zHKAA3YIO/zEEg4
-	JuDpRzAmQrFaMdG12HQLyAepL0FTipYxzftr1ZBoXpge1IjpZ2na4CbPyORxRq7/+ZOidHBPXjsr9
-	zN7W9ZkQB3wtcC7/9rrhBtZcl4gePknGJsJHzGxb1VpC3/Ql/g2cBDd8bvURBh4TZNyZ9osa09Wrf
-	SMf9ZZKWc2kaWCfq6+7Q/UwTMf/xoFllXKmPQPWZp1LK6Oo2Gjw6VUk8mkFM+nPzBNoGC4GvNJNmK
-	HQTvniCkS948K5DRxnsdFhpm9ouseCnrmXS/5KjZJV6ftCRa1e/sqtseaOc6X7CwU8ht3ilL3mYUv
-	5ClWocTDQ==;
+	 bh=ph57y3psFSboTB6oeGLFzcczorSnDzHodEP/gLy6/C4=; b=fLPKkGN+xJhpjM3fEvIdk+D3v
+	6C0JyeelpBRRqTGVjCRmHT5unuq/gbYy1s0jTv8S8MWhct4Ur2S4zRt7+tr5v3rFVGLv8qKsw3Vzx
+	bYicahz/WFcTJ5aiVtZeLSuHvbT9Av77LOB6C7wo4HTq+4oG9+/QC68IZo4humKA28wDQQEC1L17h
+	jGBJ2MMTeAsd738rU16XRR8At9Lhq1rLiwXQfpgNbekMZF3txZM3fpfjODwCsD9+tcVi9x0GPKFWG
+	lBzbTaFTpwQkkwMtAwp4Yq4WqGhaao2y90Zny04vfoU0+uH8hzyP2fnZi9ZNiT4PREaZuuhVhnxSY
+	yZGEnkDRw==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hNrMq-0005ir-OV; Tue, 07 May 2019 04:06:12 +0000
+	id 1hNrMq-0005ij-JP; Tue, 07 May 2019 04:06:12 +0000
 From: Matthew Wilcox <willy@infradead.org>
 To: linux-mm@kvack.org
 Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-Subject: [PATCH 11/11] mm: Pass order to node_reclaim() in GFP flags
-Date: Mon,  6 May 2019 21:06:09 -0700
-Message-Id: <20190507040609.21746-12-willy@infradead.org>
+Subject: [PATCH 10/11] mm: Pass order to try_to_free_pages in GFP flags
+Date: Mon,  6 May 2019 21:06:08 -0700
+Message-Id: <20190507040609.21746-11-willy@infradead.org>
 X-Mailer: git-send-email 2.14.5
 In-Reply-To: <20190507040609.21746-1-willy@infradead.org>
 References: <20190507040609.21746-1-willy@infradead.org>
@@ -110,130 +110,192 @@ List-ID: <linux-mm.kvack.org>
 
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 
+Also remove the order argument from __perform_reclaim() and
+__alloc_pages_direct_reclaim() which only passed the argument down.
+
 Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
 ---
- include/trace/events/vmscan.h |  8 +++-----
- mm/internal.h                 |  5 ++---
- mm/page_alloc.c               |  2 +-
+ include/linux/swap.h          |  2 +-
+ include/trace/events/vmscan.h | 20 +++++++++-----------
+ mm/page_alloc.c               | 15 ++++++---------
  mm/vmscan.c                   | 13 ++++++-------
- 4 files changed, 12 insertions(+), 16 deletions(-)
+ 4 files changed, 22 insertions(+), 28 deletions(-)
 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4bfb5c4ac108..029737fec38b 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -348,7 +348,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
+ 
+ /* linux/mm/vmscan.c */
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
+-extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
++extern unsigned long try_to_free_pages(struct zonelist *zonelist,
+ 					gfp_t gfp_mask, nodemask_t *mask);
+ extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index fd8b468570c8..bc5a8a6f6e64 100644
+index 0aa882a4e870..fd8b468570c8 100644
 --- a/include/trace/events/vmscan.h
 +++ b/include/trace/events/vmscan.h
-@@ -464,25 +464,23 @@ TRACE_EVENT(mm_vmscan_inactive_list_is_low,
+@@ -106,45 +106,43 @@ TRACE_EVENT(mm_vmscan_wakeup_kswapd,
  
- TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+ DECLARE_EVENT_CLASS(mm_vmscan_direct_reclaim_begin_template,
  
--	TP_PROTO(int nid, int order, gfp_t gfp_flags),
-+	TP_PROTO(int nid, gfp_t gfp_flags),
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(gfp_t gfp_flags),
  
--	TP_ARGS(nid, order, gfp_flags),
-+	TP_ARGS(nid, gfp_flags),
+-	TP_ARGS(order, gfp_flags),
++	TP_ARGS(gfp_flags),
  
  	TP_STRUCT__entry(
- 		__field(int, nid)
--		__field(int, order)
- 		__field(gfp_t, gfp_flags)
+-		__field(	int,	order		)
+ 		__field(	gfp_t,	gfp_flags	)
  	),
  
  	TP_fast_assign(
- 		__entry->nid = nid;
--		__entry->order = order;
- 		__entry->gfp_flags = gfp_flags;
+-		__entry->order		= order;
+ 		__entry->gfp_flags	= gfp_flags;
  	),
  
- 	TP_printk("nid=%d order=%d gfp_flags=%s",
- 		__entry->nid,
+ 	TP_printk("order=%d gfp_flags=%s",
 -		__entry->order,
 +		gfp_order(__entry->gfp_flags),
  		show_gfp_flags(__entry->gfp_flags))
  );
  
-diff --git a/mm/internal.h b/mm/internal.h
-index 9eeaf2b95166..353cefdc3f34 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -457,10 +457,9 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
- #define NODE_RECLAIM_SUCCESS	1
+ DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_direct_reclaim_begin,
  
- #ifdef CONFIG_NUMA
--extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
-+extern int node_reclaim(struct pglist_data *, gfp_t);
- #else
--static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
--				unsigned int order)
-+static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask)
- {
- 	return NODE_RECLAIM_NOSCAN;
- }
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(gfp_t gfp_flags),
+ 
+-	TP_ARGS(order, gfp_flags)
++	TP_ARGS(gfp_flags)
+ );
+ 
+ #ifdef CONFIG_MEMCG
+ DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_reclaim_begin,
+ 
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(gfp_t gfp_flags),
+ 
+-	TP_ARGS(order, gfp_flags)
++	TP_ARGS(gfp_flags)
+ );
+ 
+ DEFINE_EVENT(mm_vmscan_direct_reclaim_begin_template, mm_vmscan_memcg_softlimit_reclaim_begin,
+ 
+-	TP_PROTO(int order, gfp_t gfp_flags),
++	TP_PROTO(gfp_t gfp_flags),
+ 
+-	TP_ARGS(order, gfp_flags)
++	TP_ARGS(gfp_flags)
+ );
+ #endif /* CONFIG_MEMCG */
+ 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5ac2cbb105c3..6ea7bda90100 100644
+index 94ad4727206e..5ac2cbb105c3 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3577,7 +3577,7 @@ get_page_from_freelist(gfp_t gfp_mask, int alloc_flags,
- 			    !zone_allows_reclaim(ac->preferred_zoneref->zone, zone))
- 				continue;
+@@ -4011,9 +4011,7 @@ EXPORT_SYMBOL_GPL(fs_reclaim_release);
+ #endif
  
--			ret = node_reclaim(zone->zone_pgdat, gfp_mask, order);
-+			ret = node_reclaim(zone->zone_pgdat, gfp_mask);
- 			switch (ret) {
- 			case NODE_RECLAIM_NOSCAN:
- 				/* did not scan */
+ /* Perform direct synchronous page reclaim */
+-static int
+-__perform_reclaim(gfp_t gfp_mask, unsigned int order,
+-					const struct alloc_context *ac)
++static int __perform_reclaim(gfp_t gfp_mask, const struct alloc_context *ac)
+ {
+ 	struct reclaim_state reclaim_state;
+ 	int progress;
+@@ -4030,8 +4028,7 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	reclaim_state.reclaimed_slab = 0;
+ 	current->reclaim_state = &reclaim_state;
+ 
+-	progress = try_to_free_pages(ac->zonelist, order, gfp_mask,
+-								ac->nodemask);
++	progress = try_to_free_pages(ac->zonelist, gfp_mask, ac->nodemask);
+ 
+ 	current->reclaim_state = NULL;
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+@@ -4045,14 +4042,14 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
+ 
+ /* The really slow allocator path where we enter direct reclaim */
+ static inline struct page *
+-__alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+-		unsigned int alloc_flags, const struct alloc_context *ac,
++__alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int alloc_flags,
++		const struct alloc_context *ac,
+ 		unsigned long *did_some_progress)
+ {
+ 	struct page *page = NULL;
+ 	bool drained = false;
+ 
+-	*did_some_progress = __perform_reclaim(gfp_mask, order, ac);
++	*did_some_progress = __perform_reclaim(gfp_mask, ac);
+ 	if (unlikely(!(*did_some_progress)))
+ 		return NULL;
+ 
+@@ -4445,7 +4442,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto nopage;
+ 
+ 	/* Try direct reclaim and then allocating */
+-	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
++	page = __alloc_pages_direct_reclaim(gfp_mask, alloc_flags, ac,
+ 							&did_some_progress);
+ 	if (page)
+ 		goto got_pg;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5d465bdaf225..171844a2a8c0 100644
+index 836b28913bd7..5d465bdaf225 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -4148,17 +4148,17 @@ static unsigned long node_pagecache_reclaimable(struct pglist_data *pgdat)
- /*
-  * Try to free up some pages from this node through reclaim.
-  */
--static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
-+static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask)
- {
- 	/* Minimum pages needed in order to stay on node */
--	const unsigned long nr_pages = 1 << order;
-+	const unsigned long nr_pages = 1UL << gfp_order(gfp_mask);
- 	struct task_struct *p = current;
- 	struct reclaim_state reclaim_state;
- 	unsigned int noreclaim_flag;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
- 		.gfp_mask = current_gfp_context(gfp_mask),
--		.order = order,
-+		.order = gfp_order(gfp_mask),
- 		.priority = NODE_RECLAIM_PRIORITY,
- 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
-@@ -4166,8 +4166,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		.reclaim_idx = gfp_zone(gfp_mask),
- 	};
- 
--	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
--					   sc.gfp_mask);
-+	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, sc.gfp_mask);
- 
- 	cond_resched();
- 	fs_reclaim_acquire(sc.gfp_mask);
-@@ -4201,7 +4200,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 	return sc.nr_reclaimed >= nr_pages;
+@@ -3206,15 +3206,15 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	return false;
  }
  
--int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
-+int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask)
+-unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+-				gfp_t gfp_mask, nodemask_t *nodemask)
++unsigned long try_to_free_pages(struct zonelist *zonelist, gfp_t gfp_mask,
++		nodemask_t *nodemask)
  {
- 	int ret;
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.gfp_mask = current_gfp_context(gfp_mask),
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+-		.order = order,
++		.order = gfp_order(gfp_mask),
+ 		.nodemask = nodemask,
+ 		.priority = DEF_PRIORITY,
+ 		.may_writepage = !laptop_mode,
+@@ -3239,7 +3239,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 	if (throttle_direct_reclaim(sc.gfp_mask, zonelist, nodemask))
+ 		return 1;
  
-@@ -4237,7 +4236,7 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
- 	if (test_and_set_bit(PGDAT_RECLAIM_LOCKED, &pgdat->flags))
- 		return NODE_RECLAIM_NOSCAN;
+-	trace_mm_vmscan_direct_reclaim_begin(order, sc.gfp_mask);
++	trace_mm_vmscan_direct_reclaim_begin(sc.gfp_mask);
  
--	ret = __node_reclaim(pgdat, gfp_mask, order);
-+	ret = __node_reclaim(pgdat, gfp_mask);
- 	clear_bit(PGDAT_RECLAIM_LOCKED, &pgdat->flags);
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
  
- 	if (!ret)
+@@ -3268,8 +3268,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+ 
+-	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+-						      sc.gfp_mask);
++	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.gfp_mask);
+ 
+ 	/*
+ 	 * NOTE: Although we can get the priority field, using it
+@@ -3318,7 +3317,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 
+ 	zonelist = &NODE_DATA(nid)->node_zonelists[ZONELIST_FALLBACK];
+ 
+-	trace_mm_vmscan_memcg_reclaim_begin(0, sc.gfp_mask);
++	trace_mm_vmscan_memcg_reclaim_begin(sc.gfp_mask);
+ 
+ 	psi_memstall_enter(&pflags);
+ 	noreclaim_flag = memalloc_noreclaim_save();
 -- 
 2.20.1
 
