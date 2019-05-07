@@ -2,129 +2,108 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE647C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:07:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82B4EC04AAD
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:13:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 978A620675
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:07:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 978A620675
+	by mail.kernel.org (Postfix) with ESMTP id 2FF96206A3
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:13:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FF96206A3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2DBA46B0269; Tue,  7 May 2019 17:07:10 -0400 (EDT)
+	id B3B2A6B0007; Tue,  7 May 2019 17:13:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28DEA6B026A; Tue,  7 May 2019 17:07:10 -0400 (EDT)
+	id AEBCE6B0008; Tue,  7 May 2019 17:13:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12CC16B026B; Tue,  7 May 2019 17:07:10 -0400 (EDT)
+	id 98CFF6B026B; Tue,  7 May 2019 17:13:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E374D6B0269
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:07:09 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id y13so18737112qtc.7
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:07:09 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7261D6B0007
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:13:28 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s32so20720329qts.8
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:13:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=n9SIz7T4munjVwMYC97jk6/NoYcqt2g2PHsSbj/BV4w=;
-        b=RtebRyu8gMHY9aQK4VnwsRZ1eQGvk357u2xkc4WP8hQUpVJrpm3laHSinr33RSN/Lw
-         r5vL1fzzrCzpCBK9Iq2XRuhHsbOXIgBuz8ImEGfGjcAnNelyYTKJW2a7Fu+bqX9g5Ito
-         CXzsZyhjNah9UmI49212LpEBOBgYa8eBL5UaRzzWI7ee0fkuD8pOz1NTLuN8PWRG0Yk1
-         BIjSf1gmYwSvsZ9gTmxYXoV1Squz7zS+kOZ4v1iRn17bMlKdhB98le7X+T6ephDX/fbn
-         UeRHLvyviEA358A79O5feyQrdEWhXATGMOZ2790XFWJshzNVl7OD3F4DNAsXqBv0xOpB
-         ip9Q==
+        bh=VHZaOmOPhP1H4j7Rq90bzVYWfM8XjP5MBIYwbKtWRto=;
+        b=S/fe2CR2E+aEWg+qkkSWxI503RVR6EqI5XIgc0Xrn3U/6eBsHLr91ssaURrWaxeM1h
+         yBqWO3cbPSXn/8d4an7P8ie6igiYopeS5Ek7Vm++LCD3NS+3qhxwBACM5AvUeKtc9UiV
+         qLv42RoJikSvlvfo/woB9/qnNUwGnYUzHsxn+j16kcMVN+U5HMxELSwx9AHWlqrJOzlH
+         U/f6qDk2MWNTV73n8X2zsNubwLoKCFruFiL0FpY9kdz8AOj0PS5JVguVcO+5NxYq5kFE
+         gxCPwpjM1NUJ/jyDYnIa+3AvUaMhknCkcTgDy8vb6hqnHn6zeVjUD/W6dpqqCrYpuRPz
+         Myyg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWLZZyX6+oOXM6bOYouMwDEKOeE2qQ0oRwQWHtYFzCKvI7fFbVN
-	LrBpGHeYxAlV790j3XE7JwNsKjKHiZQ+Xrkkbr6vcwLEnhYbho4Xr6G42DEBov0LauwxpM/hj+R
-	COFpbbo7dLVeptuRFY6YrcobzYhliRXexm6d3kMwUz51gK4JANQlVjpvLEaNZxr835A==
-X-Received: by 2002:a37:8c44:: with SMTP id o65mr26866301qkd.224.1557263229725;
-        Tue, 07 May 2019 14:07:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLsVqC5n80uYRW17PdJKVWuAq7tJmWf3AtgT+FGZiUbbMADA4vClLGcBvvOjRFXW4qlKis
-X-Received: by 2002:a37:8c44:: with SMTP id o65mr26866261qkd.224.1557263229127;
-        Tue, 07 May 2019 14:07:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557263229; cv=none;
+X-Gm-Message-State: APjAAAVe3SCK78qnXb1Z0BudWYhEjz8iT2GBhBUrVYhHL+o3LwOmmXpD
+	9IF8uCtISOKj257M/28qqhssiNZ2Hs/0ypI+i8uvQ1SrfzpOL8iJXN2gfnL+EB8OQY+Jx0ZC30l
+	pShZQKQHKQtfs2KF09dIwWKzkP+ryt3M+d88JKkhr20LwyysQb4UZoxzsKq2JGl53cQ==
+X-Received: by 2002:a37:4854:: with SMTP id v81mr27568618qka.333.1557263608231;
+        Tue, 07 May 2019 14:13:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzz4U7/ZMxe1BcdiAvIbuw75vzTnMW0syLZzZvzwP/JNx35xqeNiHA8X8eJbRYSarZ2Esz2
+X-Received: by 2002:a37:4854:: with SMTP id v81mr27568581qka.333.1557263607601;
+        Tue, 07 May 2019 14:13:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557263607; cv=none;
         d=google.com; s=arc-20160816;
-        b=uk1BFSke97svr1yTLQv4Y2EmBHk+sg3BgJM7AJ5WSJ42ZwDVEys5nnRb16+RsAE8rc
-         WvqxSYC1em1VM4sgNa5ZqrXyBnOLCJA5ewLKqcTIRsv7kSh0WGTe2rQV6UVbSssSryYG
-         G98szg4JVaDBFshh0kMRyraBF3Cd3REvCXxSQgeK41g7kMjriWAafz5M9Os+8zeDOVTT
-         Vb8hyTNHOB7CUthQ4aLQVuwfDA2NdXMckQCiXNKMJQ02RmgyK9Yu9HejM9A4TE795LmM
-         tLV9yby1qA1GCqgNMdH15uvOuOtd87i3TnHerdfRQyTvthRkpWXbI8QPcpkU59j98OYM
-         atvg==
+        b=Pp9r0AfYIQI72PWLlQN1dKFZ5ioxl4SPUqSptt4GQWBPKLL35zYnR/CgawxpSO08iF
+         N8Ze3z7MlJVO7WhLWilNS128C+pDVoBX5W4IhCAut6SlDV/aMb53HtxStPJAw8Q5zDuH
+         XIwLMW/xRiyBpEJrsMmX+jFh4ZI/pKnuHRnx74QcK0OxwagYBojLY7Z5ywUSFbjU5UZw
+         2S3fAaZuEoDeSeOCr2RHOk1BySBMaWb57zJXf+gGWtyf9raegxXwef4Q+0fPDSKK71I8
+         ri847cBsP97LgDL2vqtZ9x+fJCAvqCWQzotyguyTBdz2IkbKqqHUz7plHx8y5UDyxiQC
+         E9dw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=n9SIz7T4munjVwMYC97jk6/NoYcqt2g2PHsSbj/BV4w=;
-        b=ZXjOF45Nufh35QwChlXQm72CdYUy9YLY8gidf+ksOwnuMWKsNiuLn0LMbOhhFRCGoN
-         S+pCTDca1blOO2sRxcs6ipP0AXw46bLy9ANdsvwlQVksE6OQZC+j1loUNG4GmFIrBwN+
-         YIA1Nm1+09c2vs5X6zfCEbOpVbJl2SGQhf1KNdL/RAfrDVV8Ykn1l3bdZtWPEbekZRWa
-         YS3AjqNkvYGITWp5lVkD5Ck1dt8wFVoTX3ANjMJOjxJKgVfmEK5o69cHCOS2AIiHkSt8
-         nAZ5F0VVT1iKbIMgSBENZ99U4u+OB2E/lfWuB9/49Ls/t2bh1LsSELS2yKfFQk0Ntxjv
-         5yrw==
+        bh=VHZaOmOPhP1H4j7Rq90bzVYWfM8XjP5MBIYwbKtWRto=;
+        b=s8LAx/QTylzupddGVKe3v55ioY9yGjsViM4qPfwe1S+B5h56/ZuZSEWFQuK2voJwDe
+         EHWhYtCMHoSk35SCh88vl3wundbACzpdqLhrP7cFBytZKXX15lBIAlhFyxnUzui/fs1q
+         kXZiuoyxzQwQZb5Kym+wsNS8Ehk9/iCVr1zRpTO/1JHWCNJ8ZqJNcQCLvedIyOxrauSf
+         NWlc3NVclgiFLPi/3h+B1CZO8upt/2B6b51Z1uyfqWS76h5k69j8my+Nj7NFbQTqSnDI
+         0RtiWBiZLPEp/XzN9hdTGq9uA5SPIcTw7wSsvV+hdY+lX0pqaJ8HT3nMrAd4+OwLXRhV
+         xSjg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q31si1529711qtq.129.2019.05.07.14.07.08
+        by mx.google.com with ESMTPS id l1si1982631qvc.102.2019.05.07.14.13.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 14:07:09 -0700 (PDT)
+        Tue, 07 May 2019 14:13:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E4FA5307E052;
-	Tue,  7 May 2019 21:06:58 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 866CA300271F;
+	Tue,  7 May 2019 21:13:26 +0000 (UTC)
 Received: from [10.36.116.95] (ovpn-116-95.ams2.redhat.com [10.36.116.95])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E282E5EDE4;
-	Tue,  7 May 2019 21:06:44 +0000 (UTC)
-Subject: Re: [PATCH v2 3/8] mm/memory_hotplug: arch_remove_memory() and
- __remove_pages() with CONFIG_MEMORY_HOTPLUG
+	by smtp.corp.redhat.com (Postfix) with ESMTP id CF61E60139;
+	Tue,  7 May 2019 21:13:23 +0000 (UTC)
+Subject: Re: [PATCH v2 2/8] s390x/mm: Implement arch_remove_memory()
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: Linux MM <linux-mm@kvack.org>,
  Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
  linux-ia64@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
  linux-s390 <linux-s390@vger.kernel.org>, Linux-sh
  <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
  Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
- <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>, Michal Hocko <mhocko@suse.com>,
- Mike Rapoport <rppt@linux.ibm.com>, Oscar Salvador <osalvador@suse.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Alex Deucher <alexander.deucher@amd.com>,
- "David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>,
- Chris Wilson <chris@chris-wilson.co.uk>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Nicholas Piggin <npiggin@gmail.com>, Vasily Gorbik <gor@linux.ibm.com>,
- Rob Herring <robh@kernel.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>,
- Andrew Banman <andrew.banman@hpe.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richardw.yang@linux.intel.com>, Arun KS <arunks@codeaurora.org>,
- Qian Cai <cai@lca.pw>, Mathieu Malaterre <malat@debian.org>,
- Baoquan He <bhe@redhat.com>, Logan Gunthorpe <logang@deltatee.com>
+ Heiko Carstens <heiko.carstens@de.ibm.com>, Michal Hocko <mhocko@suse.com>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Vasily Gorbik <gor@linux.ibm.com>,
+ Oscar Salvador <osalvador@suse.com>
 References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-4-david@redhat.com>
- <CAPcyv4jpnKjeP3QEvF3_9CzdZhtFXN2nMU7P-Ee7y06J3bGZ0A@mail.gmail.com>
+ <20190507183804.5512-3-david@redhat.com>
+ <CAPcyv4gtAMn2mDz0s1GRTJ52MeTK3jJYLQne6MiEx_ipPFUsmA@mail.gmail.com>
+ <97a6a2ab-0e8b-d403-ca39-ffa4425e15a5@redhat.com>
+ <CAPcyv4hvpBo=6c6pFCoGiEf3xiPsjc8w2p4Y6_bW4PrzcN=Few@mail.gmail.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -171,68 +150,94 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <d92537c1-983b-2610-f68e-369a37232acb@redhat.com>
-Date: Tue, 7 May 2019 23:06:44 +0200
+Message-ID: <942f4952-b8bf-86fb-fd10-4fd5519198aa@redhat.com>
+Date: Tue, 7 May 2019 23:13:22 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jpnKjeP3QEvF3_9CzdZhtFXN2nMU7P-Ee7y06J3bGZ0A@mail.gmail.com>
+In-Reply-To: <CAPcyv4hvpBo=6c6pFCoGiEf3xiPsjc8w2p4Y6_bW4PrzcN=Few@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 07 May 2019 21:07:03 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Tue, 07 May 2019 21:13:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.05.19 23:02, Dan Williams wrote:
-> On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
+On 07.05.19 22:57, Dan Williams wrote:
+> On Tue, May 7, 2019 at 1:47 PM David Hildenbrand <david@redhat.com> wrote:
 >>
->> Let's prepare for better error handling while adding memory by allowing
->> to use arch_remove_memory() and __remove_pages() even if
->> CONFIG_MEMORY_HOTREMOVE is not set. CONFIG_MEMORY_HOTREMOVE effectively
->> covers
->> - Offlining of system ram (memory block devices) - offline_pages()
->> - Unplug of system ram - remove_memory()
->> - Unplug/remap of device memory - devm_memremap()
+>> On 07.05.19 22:46, Dan Williams wrote:
+>>> On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
+>>>>
+>>>> Will come in handy when wanting to handle errors after
+>>>> arch_add_memory().
+>>>>
+>>>> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>>>> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+>>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>>> Cc: Michal Hocko <mhocko@suse.com>
+>>>> Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>>>> Cc: David Hildenbrand <david@redhat.com>
+>>>> Cc: Vasily Gorbik <gor@linux.ibm.com>
+>>>> Cc: Oscar Salvador <osalvador@suse.com>
+>>>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>>>> ---
+>>>>  arch/s390/mm/init.c | 13 +++++++------
+>>>>  1 file changed, 7 insertions(+), 6 deletions(-)
+>>>>
+>>>> diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+>>>> index 31b1071315d7..1e0cbae69f12 100644
+>>>> --- a/arch/s390/mm/init.c
+>>>> +++ b/arch/s390/mm/init.c
+>>>> @@ -237,12 +237,13 @@ int arch_add_memory(int nid, u64 start, u64 size,
+>>>>  void arch_remove_memory(int nid, u64 start, u64 size,
+>>>>                         struct vmem_altmap *altmap)
+>>>>  {
+>>>> -       /*
+>>>> -        * There is no hardware or firmware interface which could trigger a
+>>>> -        * hot memory remove on s390. So there is nothing that needs to be
+>>>> -        * implemented.
+>>>> -        */
+>>>> -       BUG();
+>>>> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+>>>> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+>>>> +       struct zone *zone;
+>>>> +
+>>>> +       zone = page_zone(pfn_to_page(start_pfn));
+>>>
+>>> Does s390 actually support passing in an altmap? If 'yes', I think it
+>>> also needs the vmem_altmap_offset() fixup like x86-64:
+>>>
+>>>         /* With altmap the first mapped page is offset from @start */
+>>>         if (altmap)
+>>>                 page += vmem_altmap_offset(altmap);
+>>>
+>>> ...but I suspect it does not support altmap since
+>>> arch/s390/mm/vmem.c::vmemmap_populate() does not arrange for 'struct
+>>> page' capacity to be allocated out of an altmap defined page pool.
+>>>
+>>> I think it would be enough to disallow any arch_add_memory() on s390
+>>> where @altmap is non-NULL. At least until s390 gains ZONE_DEVICE
+>>> support and can enable the pmem use case.
+>>>
 >>
->> This allows e.g. for handling like
->>
->> arch_add_memory()
->> rc = do_something();
->> if (rc) {
->>         arch_remove_memory();
->> }
->>
->> Whereby do_something() will for example be memory block device creation
->> after it has been factored out.
+>> As far as I know, it doesn't yet, however I guess this could change once
+>> virtio-pmem is supported?
 > 
-> What's left after this?
+> I would expect and request virtio-pmem remain a non-starter on s390
+> until s390 gains ZONE_DEVICE support. As it stands virtio-pmem is just
+> another flavor of the general pmem driver and the pmem driver
+> currently only exports ZONE_DEVICE pfns tagged by the PTE_DEVMAP
+> pte-flag and PFN_DEV+PFN_MAP pfn_t-flags.
 
-I tried to describe this above here:
-
-- Offlining of system ram (memory block devices) - offline_pages()
-- Unplug of system ram - remove_memory()
-- Unplug/remap of device memory - devm_memremap()
-
-So administrators cannot trigger offlining/removal of memory.
-
-> Can we just get rid of CONFIG_MEMORY_HOTREMOVE
-> option completely when CONFIG_MEMORY_HOTPLUG is enabled? It's not
-> clear to me why there was ever the option to compile out the remove
-> code when the add code is included.
-
-I guess it was a configure option because initially, offlining/unplug
-was extremely unstable. Now it's only slightly unstable :D
-
-I would actually favor getting rid of CONFIG_MEMORY_HOTREMOVE
-completely. After all, unplug always has to be triggered by an admin (HW
-or software).
-
-Opinions?
+Yes, I think ZONE_DEVICE will be the way to go. On real HW, there will
+never be anything mapped into the physical address space besides system
+ram. However with virtio-pmem in virtual environments, we have the
+option to change that.
 
 -- 
 
