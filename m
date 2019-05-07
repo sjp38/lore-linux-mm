@@ -4,111 +4,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 849E4C004C9
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:25:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 373B2C004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:27:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 361A020656
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:25:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DBE1020656
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 21:27:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="niDOApxC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361A020656
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="ByBpM4rz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBE1020656
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6ABB6B026F; Tue,  7 May 2019 17:25:57 -0400 (EDT)
+	id 898B56B000A; Tue,  7 May 2019 17:27:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1B476B0270; Tue,  7 May 2019 17:25:57 -0400 (EDT)
+	id 849C66B0266; Tue,  7 May 2019 17:27:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ABBF46B0271; Tue,  7 May 2019 17:25:57 -0400 (EDT)
+	id 75F596B0271; Tue,  7 May 2019 17:27:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 812246B026F
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:25:57 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id x193so1557241oix.1
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:25:57 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2826B000A
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 17:27:19 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id v13so2350740oie.12
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 14:27:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=WrWLvelkD+mNuwk6Y9UcbtBZNb2SYcW2Bv4WekgkKa4=;
-        b=jEGxxvwjV/9aH9EYoh+MLLGgAm4QaOOHPXZ9yaLdQeOHEVap1++zrBH9IMyqAv+gMd
-         aR1dMAw/JPZ0mgK0AjROGYkj4Ku1EO5nDj1ZScMjPcbOl5SAWwLtZv+j2iT49fPcsvwW
-         JVCwEz7h7VVMKSodNOvskvbhqeb22CyUR65hV4ZA1/TmVNJglGC3iWY5Z5InXkZFpHKw
-         rgdbQ8bzwRfs2wrkV62igyn/abtm7U5kAo1MKBqAVO7UpmRIG8+tJSHeGJQ/VVvZGpEj
-         huYahKLvl6l54eNS7dlKlrH0vfAAApNDk7gkCcrHumGaBypf+gvP1c06jXmF0q/eHe6z
-         oLWw==
-X-Gm-Message-State: APjAAAXM0URWk4pmVYwQZiyCaQRcVrqlCtGh8xDo3/mctGIrc9lqy1sO
-	f9RjPq/1KdNIDmgQvbGDixdNPL5gv1C9R1HWX6qJcH9ukAVNArTz2tQU1IwpR3D+Qb7XrfA2TbM
-	kRLd+b8nbw9COZvyuEIcSUKXBKrFTtyYhoyXkEHhiU0BHHWtP5dMrJq+XKRNTjo6qkA==
-X-Received: by 2002:aca:b7c5:: with SMTP id h188mr391213oif.130.1557264357184;
-        Tue, 07 May 2019 14:25:57 -0700 (PDT)
-X-Received: by 2002:aca:b7c5:: with SMTP id h188mr391174oif.130.1557264356281;
-        Tue, 07 May 2019 14:25:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557264356; cv=none;
+        bh=Ilo8gO1PWkcUZofYMK/PQNaZ6dgV/WeRBJ4EsjHLWhY=;
+        b=RgSON5UDcabn39caNoOFM9TRwSWLJgrqtBVNN4qqoioPhDsV9V/2qVKopjK/VLSu+I
+         aT/jhRAyx1jnv7YbAbAUMnSKJmAW2QBoyBNyPCUGd6jKMfhfDPgaGotDutOLJ+5y30eN
+         xpSAtgBf6jtbreUMb8CHJF9N+bnOiWbapxrp5O/HPyTvyOIYdu4Gz718aENtYIwivczH
+         QYH3Moi5dcSzHlLADfSCgKCgxdIsdtMhvNvcqF9FqUqtItzqukwOnIvZZweOxstEf1Yj
+         wEoDlT2kKN55szo1e2GPrkLPxxHO6OVnsd6RvPRnv8HT539XwpMX2TzaiYIXXpkTrtCt
+         lVTg==
+X-Gm-Message-State: APjAAAUZOJ2AvKTnmBljTQzIkTOGI7hYsUwwx4neiSDplDysZTEsJ+4Q
+	o6/AEKsWAa0nBILaGIGtwYixFAyeVYmsZ3l5G1OIqv92cStK+x3owkX8nkDduJapfWMrNapIxyj
+	X8egLVfvis8JYLyYT/b3pECMZUUtOOoocAZ4d7ZS+y126jQZVuHbId3fhG0u9BaWHlQ==
+X-Received: by 2002:aca:3093:: with SMTP id w141mr357888oiw.173.1557264438879;
+        Tue, 07 May 2019 14:27:18 -0700 (PDT)
+X-Received: by 2002:aca:3093:: with SMTP id w141mr357858oiw.173.1557264438111;
+        Tue, 07 May 2019 14:27:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557264438; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ry+95o7Zc6JnCqIawolQMeK4c8x43E7RMclwiwZ7YWOuE+c+XAKqOHxAu3ugDNBLpk
-         3Y5T66hioq+S0AYWFCoHmkGnPF3JhOXHyN0nRtpvVV6KD/9ZROEyKC5B0vk/8l1t56RL
-         tkcEZAGAtH/BipPtrKjQmnZDuBaDuaavXUAA5Nn6X0G+DHE5QTz7S0AWraeMsIGhhZ61
-         VM8w/cd/fwscp3Iz6EeTX82aS+goSSbElFPiBKqhJa+SS1r0ardtkBhmFdm38HHgfnbf
-         I2uy5VvWkSEQ03IUYr7flJghYbIyf08sr6sla1izDtngTk/gitTjVDs74Y8WxBZ6mmmH
-         2qJg==
+        b=PP5sjN3uBbkN0fcU0ViDI0OfFEjsU4jOD3NXF3Ofk0j/WC/w85/7AO+dICgIb8wmI5
+         aKH31X72CgSnguaokDfY2TpAtw2amAteI4nCiDrqNUeJmpbGFuAzUEbh+NyFmXaVv+yT
+         vLXHruXWddrh+Ihdh/VcSbd5xsRL3XRzjcLT2H8dzU4+JBxgU16KQb8rDxWPg45newy5
+         41S09D9/T4slibXEYHao/AbEqG/xvfdR3GRWnTCoh2F0pGVRZmjJLC+UINQeamki02iA
+         AC10UFcEreBsuIZpZmz7jZvVchzYbHDEtQYFYSVBcFaymbenXhYZC/Str2P6JbT+6eu9
+         DEAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=WrWLvelkD+mNuwk6Y9UcbtBZNb2SYcW2Bv4WekgkKa4=;
-        b=YhN88FD2gRU3S4DoWqehckprRrFo2nctvQ9opE9FuCfFp2BxBb00BVV6xctCT3F4Xg
-         h4KN8fYBzFhYrrk9ad6tPjgqNFuA7oqEYQ9UWjEFMYyuSpS46KgdTV6/e5xljEYtfUfF
-         0DAzOTZzIUHfQrdmK+GjgBPPuPgbKZe341gjxgDc0ojfFs3dURLO4MayS6L3OGLE3Ymz
-         kAOWNoqdYizT2JFxvYWQwOMy3A7R5WGKrHMLiEca7EDngGbvV4yFP4gFGk/vXeDBM7GA
-         7EMhdIW0Oo1tBxkLWMM6DPDq67SdMssSRJGAkweE5ayngpyanksRRQGQlPCeZOkNfEew
-         g9HQ==
+        bh=Ilo8gO1PWkcUZofYMK/PQNaZ6dgV/WeRBJ4EsjHLWhY=;
+        b=TRnT01j0Qof43It6ZDLCYqDkqcmeHlCubVm5c6dv6dbhZ6AGCXmOq2sVYDhWQjsTx6
+         AaMBZM5rPOHYCTLqIOLyBEpOqm+7MBDmtOK46G9IgGz04WXekoHYbSe+v09qJMfAp6b6
+         LrXVHgeoT/78++3Z3shwBEkHOKYuUmw6+ooLFmYgZOFkYUlIgkeNrg2A1Rdwd0SdGIRo
+         GYSxyt3yDV2NPy/7vJUnDyQh52IKWz/fbIc6NsyueKP1xGQnVPXcxokwtqpxFNk7OK0A
+         p+DrhGsaeVlKcUa6V/S2X3YL3J8QuAkki2obj9ild+DROCFNPLqWuCazPjGt6nV7ByXr
+         Cd4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=niDOApxC;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ByBpM4rz;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p5sor5955580oih.50.2019.05.07.14.25.56
+        by mx.google.com with SMTPS id g11sor6162758oia.110.2019.05.07.14.27.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 07 May 2019 14:25:56 -0700 (PDT)
+        Tue, 07 May 2019 14:27:18 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=niDOApxC;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ByBpM4rz;
        spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=WrWLvelkD+mNuwk6Y9UcbtBZNb2SYcW2Bv4WekgkKa4=;
-        b=niDOApxCFCnbMJ6JJnVXhAHXcDpvPX0VOIgX598FWvGb20NBKEjOLMGunPMCtT8w07
-         CCUklL9XVIwM7XeXqt4R3SwqsQHc45UygSnPA7Vo5/Vcu6vZ67h+LQUBL4TP5gSuL9M8
-         yOCXLz75NneW+bv+FADtD51VYmKLmjMo3ehqiItMgltR15OKUblt6t5oABGwZobyxZvY
-         uoFoyjDvezyaKUeVwPy/0Ey+uAiBGDemhG0P5C7K98cYeXWIsdK4jIuVnW31DT+YwKBS
-         axg9qxXBQfbqQqPbEvS+gX/40W5Qtk0I8uy1AfjO2oRgk00fIcb94S9PEZI5nxKZfbNK
-         pzwA==
-X-Google-Smtp-Source: APXvYqzSvx7ljHyQCsbhoL+yq/IdpsbLQ8T4Uq4lItlX5+hsXeerJKyAq6+adzcHddCXxdDwo8WpxyHJeKyxh7hOkws=
-X-Received: by 2002:aca:220f:: with SMTP id b15mr357563oic.73.1557264355934;
- Tue, 07 May 2019 14:25:55 -0700 (PDT)
+        bh=Ilo8gO1PWkcUZofYMK/PQNaZ6dgV/WeRBJ4EsjHLWhY=;
+        b=ByBpM4rzcj0KLQCSJMTba88G4xlCaGSUA2kjKdZ426F15Q+rvisuUjrNKCKg64SatI
+         hGfpL9+XJAVJAd7OK5x2X7bOH8UCONoqiDVzLbqIp/IwaUKRXv8SrDPC18TUUPCHF1gK
+         2ha1HiuGirXRlCSSMKaKoHhE3E0pCkvMTucgiZDNVgY2pWXKQO4TeLkDOnsgzqC0ogLS
+         OXmlSVXRnkw9NGgqDXboFi/m4xoLMtnx/yEKBYx7gU5J+BtPxhDhIoaniVzPXH31qT27
+         CiUS/ula03FH7UD7iS0zY5et0vheHiUY5MatSWBPpGJ0F9FW8j6qp4fQGfelMW/FaD3I
+         /X3w==
+X-Google-Smtp-Source: APXvYqw1UieLnjdL3uGgndiZUbDSoney6ZAGnwarorW4h7jzSSrmLPgXgH79dv35ujhPqT1clUMPDGkfp9OwGUC0OOc=
+X-Received: by 2002:aca:220f:: with SMTP id b15mr361431oic.73.1557264437776;
+ Tue, 07 May 2019 14:27:17 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190507183804.5512-1-david@redhat.com> <20190507183804.5512-6-david@redhat.com>
- <CAPcyv4ge1pSOopfHof4USn=7Skc-UV4Xhd_s=h+M9VXSp_p1XQ@mail.gmail.com> <d83fec16-ceff-2f6f-72e1-48996187d5ba@redhat.com>
-In-Reply-To: <d83fec16-ceff-2f6f-72e1-48996187d5ba@redhat.com>
+References: <20190507183804.5512-1-david@redhat.com> <20190507183804.5512-7-david@redhat.com>
+In-Reply-To: <20190507183804.5512-7-david@redhat.com>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 7 May 2019 14:25:45 -0700
-Message-ID: <CAPcyv4iRQteuT9yESvbUyhp3KVVgTXDiGAo+TwPCM_4f0CzBgg@mail.gmail.com>
-Subject: Re: [PATCH v2 5/8] mm/memory_hotplug: Drop MHP_MEMBLOCK_API
+Date: Tue, 7 May 2019 14:27:07 -0700
+Message-ID: <CAPcyv4gvuBfA0gJrChaUNR-8swU2Vq-UFJA9yRtsEbf2ajf7+w@mail.gmail.com>
+Subject: Re: [PATCH v2 6/8] mm/memory_hotplug: Remove memory block devices
+ before arch_remove_memory()
 To: David Hildenbrand <david@redhat.com>
 Cc: Linux MM <linux-mm@kvack.org>, 
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, 
 	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, 
 	Linux-sh <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.com>, 
-	Pavel Tatashin <pasha.tatashin@soleen.com>, Wei Yang <richard.weiyang@gmail.com>, 
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, 
+	"mike.travis@hpe.com" <mike.travis@hpe.com>, Andrew Banman <andrew.banman@hpe.com>, 
+	Ingo Molnar <mingo@kernel.org>, Alex Deucher <alexander.deucher@amd.com>, 
+	"David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>, 
+	Chris Wilson <chris@chris-wilson.co.uk>, Oscar Salvador <osalvador@suse.de>, 
+	Jonathan Cameron <Jonathan.Cameron@huawei.com>, Michal Hocko <mhocko@suse.com>, 
+	Pavel Tatashin <pavel.tatashin@microsoft.com>, Arun KS <arunks@codeaurora.org>, 
 	Mathieu Malaterre <malat@debian.org>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -117,88 +121,195 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 7, 2019 at 2:24 PM David Hildenbrand <david@redhat.com> wrote:
+On Tue, May 7, 2019 at 11:39 AM David Hildenbrand <david@redhat.com> wrote:
 >
-> On 07.05.19 23:19, Dan Williams wrote:
-> > On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
-> >>
-> >> No longer needed, the callers of arch_add_memory() can handle this
-> >> manually.
-> >>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> Cc: David Hildenbrand <david@redhat.com>
-> >> Cc: Michal Hocko <mhocko@suse.com>
-> >> Cc: Oscar Salvador <osalvador@suse.com>
-> >> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> >> Cc: Wei Yang <richard.weiyang@gmail.com>
-> >> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >> Cc: Qian Cai <cai@lca.pw>
-> >> Cc: Arun KS <arunks@codeaurora.org>
-> >> Cc: Mathieu Malaterre <malat@debian.org>
-> >> Signed-off-by: David Hildenbrand <david@redhat.com>
-> >> ---
-> >>  include/linux/memory_hotplug.h | 8 --------
-> >>  mm/memory_hotplug.c            | 9 +++------
-> >>  2 files changed, 3 insertions(+), 14 deletions(-)
-> >>
-> >> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> >> index 2d4de313926d..2f1f87e13baa 100644
-> >> --- a/include/linux/memory_hotplug.h
-> >> +++ b/include/linux/memory_hotplug.h
-> >> @@ -128,14 +128,6 @@ extern void arch_remove_memory(int nid, u64 start, u64 size,
-> >>  extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
-> >>                            unsigned long nr_pages, struct vmem_altmap *altmap);
-> >>
-> >> -/*
-> >> - * Do we want sysfs memblock files created. This will allow userspace to online
-> >> - * and offline memory explicitly. Lack of this bit means that the caller has to
-> >> - * call move_pfn_range_to_zone to finish the initialization.
-> >> - */
-> >> -
-> >> -#define MHP_MEMBLOCK_API               (1<<0)
-> >> -
-> >>  /* reasonably generic interface to expand the physical pages */
-> >>  extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
-> >>                        struct mhp_restrictions *restrictions);
-> >> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> >> index e1637c8a0723..107f72952347 100644
-> >> --- a/mm/memory_hotplug.c
-> >> +++ b/mm/memory_hotplug.c
-> >> @@ -250,7 +250,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
-> >>  #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
-> >>
-> >>  static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
-> >> -               struct vmem_altmap *altmap, bool want_memblock)
-> >> +                                  struct vmem_altmap *altmap)
-> >>  {
-> >>         int ret;
-> >>
-> >> @@ -293,8 +293,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
-> >>         }
-> >>
-> >>         for (i = start_sec; i <= end_sec; i++) {
-> >> -               err = __add_section(nid, section_nr_to_pfn(i), altmap,
-> >> -                               restrictions->flags & MHP_MEMBLOCK_API);
-> >> +               err = __add_section(nid, section_nr_to_pfn(i), altmap);
-> >>
-> >>                 /*
-> >>                  * EEXIST is finally dealt with by ioresource collision
-> >> @@ -1066,9 +1065,7 @@ static int online_memory_block(struct memory_block *mem, void *arg)
-> >>   */
-> >>  int __ref add_memory_resource(int nid, struct resource *res)
-> >>  {
-> >> -       struct mhp_restrictions restrictions = {
-> >> -               .flags = MHP_MEMBLOCK_API,
-> >> -       };
-> >> +       struct mhp_restrictions restrictions = {};
-> >
-> > With mhp_restrictions.flags no longer needed, can we drop
-> > mhp_restrictions and just go back to a plain @altmap argument?
-> >
+> Let's factor out removing of memory block devices, which is only
+> necessary for memory added via add_memory() and friends that created
+> memory block devices. Remove the devices before calling
+> arch_remove_memory().
 >
-> Oscar wants to use it to configure from where to allocate vmemmaps. That
-> was the original driver behind it.
->
+> This finishes factoring out memory block device handling from
+> arch_add_memory() and arch_remove_memory().
 
-Ah, ok, makes sense.
+Also nice! makes it easier in the future for the "device-memory" use
+case to not avoid messing up the typical memory hotplug flow.
+
+>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andrew Banman <andrew.banman@hpe.com>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Alex Deucher <alexander.deucher@amd.com>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> Cc: Mark Brown <broonie@kernel.org>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+> Cc: Arun KS <arunks@codeaurora.org>
+> Cc: Mathieu Malaterre <malat@debian.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  drivers/base/memory.c  | 39 +++++++++++++++++++--------------------
+>  drivers/base/node.c    | 11 ++++++-----
+>  include/linux/memory.h |  2 +-
+>  include/linux/node.h   |  6 ++----
+>  mm/memory_hotplug.c    |  5 +++--
+>  5 files changed, 31 insertions(+), 32 deletions(-)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 862c202a18ca..47ff49058d1f 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -756,32 +756,31 @@ int hotplug_memory_register(unsigned long start, unsigned long size)
+>         return ret;
+>  }
+>
+> -static int remove_memory_section(struct mem_section *section)
+> +/*
+> + * Remove memory block devices for the given memory area. Start and size
+> + * have to be aligned to memory block granularity. Memory block devices
+> + * have to be offline.
+> + */
+> +void hotplug_memory_unregister(unsigned long start, unsigned long size)
+>  {
+> +       unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
+> +       unsigned long start_pfn = PFN_DOWN(start);
+> +       unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
+>         struct memory_block *mem;
+> +       unsigned long pfn;
+>
+> -       if (WARN_ON_ONCE(!present_section(section)))
+> -               return;
+> +       BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
+> +       BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
+
+Similar BUG_ON vs comments WARN_ON comments as the previous patch.
+
+>
+>         mutex_lock(&mem_sysfs_mutex);
+> -
+> -       /*
+> -        * Some users of the memory hotplug do not want/need memblock to
+> -        * track all sections. Skip over those.
+> -        */
+> -       mem = find_memory_block(section);
+> -       if (!mem)
+> -               goto out_unlock;
+> -
+> -       unregister_mem_sect_under_nodes(mem, __section_nr(section));
+> -
+> -       mem->section_count--;
+> -       if (mem->section_count == 0)
+> +       for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
+> +               mem = find_memory_block(__pfn_to_section(pfn));
+> +               if (!mem)
+> +                       continue;
+> +               mem->section_count = 0;
+> +               unregister_memory_block_under_nodes(mem);
+>                 unregister_memory(mem);
+> -       else
+> -               put_device(&mem->dev);
+> -
+> -out_unlock:
+> +       }
+>         mutex_unlock(&mem_sysfs_mutex);
+>  }
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 8598fcbd2a17..04fdfa99b8bc 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -801,9 +801,10 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
+>         return 0;
+>  }
+>
+> -/* unregister memory section under all nodes that it spans */
+> -int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+> -                                   unsigned long phys_index)
+> +/*
+> + * Unregister memory block device under all nodes that it spans.
+> + */
+> +int unregister_memory_block_under_nodes(struct memory_block *mem_blk)
+>  {
+>         NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+>         unsigned long pfn, sect_start_pfn, sect_end_pfn;
+> @@ -816,8 +817,8 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+>                 return -ENOMEM;
+>         nodes_clear(*unlinked_nodes);
+>
+> -       sect_start_pfn = section_nr_to_pfn(phys_index);
+> -       sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+> +       sect_start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
+> +       sect_end_pfn = section_nr_to_pfn(mem_blk->end_section_nr);
+>         for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+>                 int nid;
+>
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index 95505fbb5f85..aa236c2a0466 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -112,7 +112,7 @@ extern void unregister_memory_notifier(struct notifier_block *nb);
+>  extern int register_memory_isolate_notifier(struct notifier_block *nb);
+>  extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+>  int hotplug_memory_register(unsigned long start, unsigned long size);
+> -extern void unregister_memory_section(struct mem_section *);
+> +void hotplug_memory_unregister(unsigned long start, unsigned long size);
+>  extern int memory_dev_init(void);
+>  extern int memory_notify(unsigned long val, void *v);
+>  extern int memory_isolate_notify(unsigned long val, void *v);
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 1a557c589ecb..02a29e71b175 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -139,8 +139,7 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
+>  extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
+>  extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+>                                                 void *arg);
+> -extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+> -                                          unsigned long phys_index);
+> +extern int unregister_memory_block_under_nodes(struct memory_block *mem_blk);
+>
+>  extern int register_memory_node_under_compute_node(unsigned int mem_nid,
+>                                                    unsigned int cpu_nid,
+> @@ -176,8 +175,7 @@ static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
+>  {
+>         return 0;
+>  }
+> -static inline int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+> -                                                 unsigned long phys_index)
+> +static inline int unregister_memory_block_under_nodes(struct memory_block *mem_blk)
+>  {
+>         return 0;
+>  }
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 107f72952347..527fe4f9c620 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -519,8 +519,6 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
+>         if (WARN_ON_ONCE(!valid_section(ms)))
+>                 return;
+>
+> -       unregister_memory_section(ms);
+> -
+>         scn_nr = __section_nr(ms);
+>         start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
+>         __remove_zone(zone, start_pfn);
+> @@ -1844,6 +1842,9 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+>         memblock_free(start, size);
+>         memblock_remove(start, size);
+>
+> +       /* remove memory block devices before removing memory */
+> +       hotplug_memory_unregister(start, size);
+> +
+>         arch_remove_memory(nid, start, size, NULL);
+>         __release_memory_resource(start, size);
+
+Other than the BUG_ON concern you can add
+
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
