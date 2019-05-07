@@ -2,201 +2,181 @@ Return-Path: <SRS0=f00L=TH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,T_DKIMWL_WL_HIGH,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C28E3C04AAD
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 11:09:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2AFAC004C9
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 11:50:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78A1E2087F
-	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 11:09:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="sOR88QRt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78A1E2087F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 2BB43206A3
+	for <linux-mm@archiver.kernel.org>; Tue,  7 May 2019 11:50:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BB43206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 056D06B0005; Tue,  7 May 2019 07:09:26 -0400 (EDT)
+	id 8C4AA6B0005; Tue,  7 May 2019 07:50:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F22146B0006; Tue,  7 May 2019 07:09:25 -0400 (EDT)
+	id 8747C6B0006; Tue,  7 May 2019 07:50:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9C496B0007; Tue,  7 May 2019 07:09:25 -0400 (EDT)
+	id 762D66B0007; Tue,  7 May 2019 07:50:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B74C6B0005
-	for <linux-mm@kvack.org>; Tue,  7 May 2019 07:09:25 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id t1so10043704pfa.10
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 04:09:25 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 528D26B0005
+	for <linux-mm@kvack.org>; Tue,  7 May 2019 07:50:06 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id k10so6957352ywb.18
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 04:50:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=IBDzNJDE3KICGo7Chy4TW8Yhyq/GbcnFBxKSltwgcR0=;
-        b=k0XjtOWwOs9MlDBHuq/Qeg980rbBLU9Zr09arWO42H+5OH5yZBcAQStpGlW1DhWBJB
-         QuWfNYhsLWZL5sP/teOGxqqBnMcfpjDxQ4cV/J0q1Es/bfDYajR7vH5wVWcLX9P2Dcut
-         U/bNuvfVrrOacKjRrxuQG76inQb0MJjKDbW3aghlUyJLZce8eVqptUlnMUIAnRh34dtl
-         /pidjgWBmDk0QfN3ia38f+wB49SVfEOgc/H3wsdRCKIU0DzVLR2/NqQDm8jZLa4wcKVD
-         iMlLEsej35S1vMoL5pgtQphLf2W4NE6ARzdpVQn9hUtUOmtwhAQtWAzt0b2nO5cVlSXh
-         S8uQ==
-X-Gm-Message-State: APjAAAXXVldmtzDm/PKl5oDyDwMTf0rNCCPFgxkXc3/azQQtxjX4tASD
-	v6BN9LuAqVWgSej5wcLLK9FpL3icPpgHEEsz2cDhaFcgv74wz4RcZzVQbQHRnXSQF5s1NgLBQ4S
-	CPC5bigs9vFYTJUzgjhwtkRK/j/VLFwpulKHgdaF7xei/aL8o8DIPOyPJchurp5jP5w==
-X-Received: by 2002:a63:2ace:: with SMTP id q197mr38297851pgq.371.1557227364677;
-        Tue, 07 May 2019 04:09:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyaV1bwbNaK+gfSG7JGNfkXLZHWXLowMbYyWkVHjVHirwXv2RjxHEivpKfwWw665GKRA5Cf
-X-Received: by 2002:a63:2ace:: with SMTP id q197mr38297770pgq.371.1557227363769;
-        Tue, 07 May 2019 04:09:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557227363; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=P3ALw+vzCWjW7ktXAbz1G3WvIMbkt26m78wjtEzUhj4=;
+        b=qMM4oM2D2GD1GnxepuFFZ3cxMJ11RLtH13nH968/n5P2Tzlk2Jk8afLqpGeL1yfrA+
+         xnPp+EwMpMyOoLYQ4yDhHsdmuVRqe+hdGUU+kzgyyH/o4bI7zk1hTncXSQmh7+WDbiHv
+         PCOzl2i78WagC7+rN6GOj0orocgSWFSfiPpG7DVbucziOlymwekNx7UygqrHLClvR3GK
+         v7ixbOJ0n2NZo2pbrIC5wG9ApC4jwb/Kr3ftluoPLgZ17lger3b0mBWobuqxudw4VIYo
+         1vKySy89tdb47ZyUTEJBQJKzt8fKfprSEPqJhgU4/nD6jADQITy5bgYayR/lngPEGJBg
+         RGJQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAW8ZgR7h65k8Zue3IpoO/7g6JFNCb6TL5V2zXG+xpoKSQ/MEWBQ
+	H7/3IcseZcezQGQ/3EpdERG24Z7BiH4ykiwZoakk8NvyKnI0+5ZSuLhWrOb9ylySs75PQ9nDHL5
+	BdZ4MYCZRQ2un1oqPC7X3JT24fb/53Vgf54wTnCwrfw+NsIXfFA+uDFlWIjon1S4AkQ==
+X-Received: by 2002:a25:2f49:: with SMTP id v70mr11140133ybv.370.1557229806009;
+        Tue, 07 May 2019 04:50:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzjL3gxJhFsMxfn073AlhtxC3VivqOoHLcGmI5ZO57LoKlwVwmG0ZyP5xs19qWKJSuUPIIq
+X-Received: by 2002:a25:2f49:: with SMTP id v70mr11140102ybv.370.1557229805354;
+        Tue, 07 May 2019 04:50:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557229805; cv=none;
         d=google.com; s=arc-20160816;
-        b=NFgmRrM/XSvJdJ2aHO2Dyn4RBPXBZ5fPpmVnS0+8+8cNaMU1XcJOqOz1ROH1BbH35g
-         7I+zp4grH+IseI2fnEreXq9NlUwPiRdhZVIfrhrFao+kVl7FRU5u7r+UXC3nkCbjKrd+
-         z/snbP1pP+zE9o5+5unrCXgVk7MB0mRhZ65exjmyFK2hNYUzfHSxd6quu7eyjbnbGwoD
-         Wfya38Aj7CRTufQDJ753WEcSTSFNf9axuZF/ud+a4K4kjoGveZO+HkF/MvCeLi7ndzFb
-         vNEM+HN4SUDBDTY5y09fyq//wTNYebg+r7/of1qWGoae3Ja2qNvLCUs3KBhSYkUcsaP2
-         +rjQ==
+        b=0PMyJpU4JmLEm1AvakOonkHodiRQn8K6kHhyBsarXENAbW1Px/48g46Gya5iGVQPjm
+         aXz3vGX+DKFLpfaA+TBVHvh0EKm/MTnXK6aHAhozHPtCsQER6QKD9fb3Ln8YFMD2GwUI
+         Ge15hIfPgVTpT2eYO8sLuaEho61DZUEV/shIf6z8HbWJS5TSWM/Q7gmcKXnj7BUD4gLk
+         6n2ybokSwnees+3WsyJGICSUD11UGMbQ1ZhMvtV1KPU7d6f1MA0d+8YlhiyQ1iEwp+6v
+         XrNRk0EiQnh3mSrT2dJqcSLxor+MCAxt3d9hH0YsAU4Fks4k51+obIhLeRpxTM17hyjF
+         G3eQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=IBDzNJDE3KICGo7Chy4TW8Yhyq/GbcnFBxKSltwgcR0=;
-        b=hqQAf+3Z4lQrWTjcXh14r9y+UynTAsvmHfOxhHZ+jjFQ9KFOdtQC0B2tC4X6g3ZkyN
-         JOn/HoDrVvsNCBq+214l1Tf1e6AdiOrIolXTskLOenF9h6wa7R2hnAMlEXXvoPDSnVyk
-         OywVaHxSy8MndTZ5OdD3XIXMFiNVmcZfaY+77CWRxmol9vatzRUGHk6WLItIgY+/Q6jt
-         wXNR0Tgu3LRRYjPDEZkaCNttas40gfvaLrOCfdH4nnnnEHFrnVHlhZQChhhFTgqrLrLR
-         Fokkt+yygxR/3L4JJBKAJuGOi3uPREq4h1a4/QjtOxAecNPuLL+ZFpeTSjyqTC6IvFl2
-         3YXQ==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=P3ALw+vzCWjW7ktXAbz1G3WvIMbkt26m78wjtEzUhj4=;
+        b=mpIKasq4T6W8sB7pRn9iGfCUMJpB+Mk61NozvjZ5FwuY8K+nYbbHrolTTBA6qBWs45
+         c0Q0QYX9UsNaSO0GIi701YE4Hy6wmB9AzbCNwhL8LaA7lGzcWCJC5VRxvuLq+Pjy1Gt6
+         De3TFfOwO6kcVQ8Ehk9PulPL0Fx0H6qMbSExpDJoUu8qB70ITKxJnBzSOza+DRKmZl6q
+         ZpPSOSYIfDRvKI9HACvSQpS2txzdjJC1ohuQLyCIvW7cfYXr2P6fNP1MNSsdye4TNAUK
+         e0OADE6wxgWrghBAa65hqH2JZGeRxQzQbKbzH5JIG0pDoLBXYAINnj0AaFeHESv4e8ii
+         JwSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=sOR88QRt;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d15si5297591plj.91.2019.05.07.04.09.23
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x3si6342336ywc.23.2019.05.07.04.50.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 04:09:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Tue, 07 May 2019 04:50:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=sOR88QRt;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B0C2420825;
-	Tue,  7 May 2019 11:09:22 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557227363;
-	bh=lH6zDECW23fQQmezy1wEZakHblsm5N0Cv80tHjWVNCc=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=sOR88QRttf7cjAkI3eaLJvcyuSDmHQ1qjgDydZzWSVyPd9M9JC19/WtjAWBZWLubr
-	 f+UE6Pt1H11AOiDsTKtWprMz1kZ3IkqTZNIcPGlWUmF6tRAMSgJ9qZUBzgkZWyiER3
-	 Rk2qbQJj3O1NasgjA5/lculWTtaWpGs1D1JA91xo=
-Date: Tue, 7 May 2019 13:09:21 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: Sultan Alsawaf <sultan@kerneltoast.com>
-Cc: "open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	Daniel Colascione <dancol@google.com>,
-	Todd Kjos <tkjos@android.com>, Kees Cook <keescook@chromium.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Martijn Coenen <maco@android.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	linux-mm <linux-mm@kvack.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	kernel-team <kernel-team@android.com>,
-	Christian Brauner <christian@brauner.io>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190507110921.GA32210@kroah.com>
-References: <20190318235052.GA65315@google.com>
- <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507070430.GA24150@kroah.com>
- <20190507072721.GA4364@sultan-box.localdomain>
- <20190507074334.GB26478@kroah.com>
- <20190507081236.GA1531@sultan-box.localdomain>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x47Bm9Hc088674
+	for <linux-mm@kvack.org>; Tue, 7 May 2019 07:50:04 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sb9dj06cu-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 07 May 2019 07:50:04 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 7 May 2019 12:50:01 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 7 May 2019 12:49:58 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x47Bnvdq62652642
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 7 May 2019 11:49:58 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id D5DAAAE051;
+	Tue,  7 May 2019 11:49:57 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 01B7DAE04D;
+	Tue,  7 May 2019 11:49:57 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.196.155])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue,  7 May 2019 11:49:56 +0000 (GMT)
+X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH v2] drivers/dax: Allow to include DEV_DAX_PMEM as builtin
+In-Reply-To: <20190401051421.17878-1-aneesh.kumar@linux.ibm.com>
+References: <20190401051421.17878-1-aneesh.kumar@linux.ibm.com>
+Date: Tue, 07 May 2019 06:49:55 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190507081236.GA1531@sultan-box.localdomain>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19050711-0028-0000-0000-0000036B2C6B
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050711-0029-0000-0000-0000242AA536
+Message-Id: <87pnoumql8.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-07_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=939 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905070078
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2019 at 01:12:36AM -0700, Sultan Alsawaf wrote:
-> On Tue, May 07, 2019 at 09:43:34AM +0200, Greg Kroah-Hartman wrote:
-> > Given that any "new" android device that gets shipped "soon" should be
-> > using 4.9.y or newer, is this a real issue?
-> 
-> It's certainly a real issue for those who can't buy brand new Android devices
-> without software bugs every six months :)
 
-Heh.
+Hi Dan,
 
-But, your "new code" isn't going to be going into any existing device,
-or any device that will come out this year.  The soonest it would be
-would be next year, and by then, 4.9.y is fine.
+"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
 
-> > And if it is, I'm sure that asking for those patches to be backported to
-> > 4.4.y would be just fine, have you asked?
-> >
-> > Note that I know of Android Go devices, running 3.18.y kernels, do NOT
-> > use the in-kernel memory killer, but instead use the userspace solution
-> > today.  So trying to get another in-kernel memory killer solution added
-> > anywhere seems quite odd.
-> 
-> It's even more odd that although a userspace solution is touted as the proper
-> way to go on LKML, almost no Android OEMs are using it, and even in that commit
-> I linked in the previous message, Google made a rather large set of
-> modifications to the supposedly-defunct lowmemorykiller.c not one month ago.
-> What's going on?
+> This move the dependency to DEV_DAX_PMEM_COMPAT such that only
+> if DEV_DAX_PMEM is built as module we can allow the compat support.
+>
+> This allows to test the new code easily in a emulation setup where we
+> often build things without module support.
+>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 
-"almost no"?  Again, Android Go is doing that, right?
+Any update on this. Can we merge this?
 
-And yes, there is still some 4.4 android-common work happening in this
-area, see this patch that just got merged:
-	https://android-review.googlesource.com/c/kernel/common/+/953354
-
-So, for 4.4.y based devices, that should be enough, right?
-
-> Qualcomm still uses lowmemorykiller.c [1] on the Snapdragon 845.
-
-Qualcomm should never be used as an example of a company that has any
-idea of what to do in their kernel :)
-
-> If PSI were backported to 4.4, or even 3.18, would it really be used?
-
-Why wouldn't it, if it worked properly?
-
-> I don't really understand the aversion to an in-kernel memory killer
-> on LKML despite the rest of the industry's attraction to it. Perhaps
-> there's some inherently great cost in using the userspace solution
-> that I'm unaware of?
-
-Please see the work that went into PSI and the patches around it.
-There's also a lwn.net article last week about the further work ongoing
-in this area.  With all of that, you should see how in-kernel memory
-killers are NOT the way to go.
-
-> Regardless, even if PSI were backported, a full-fledged LMKD using it has yet to
-> be made, so it wouldn't be of much use now.
-
-"LMKD"?  Again, PSI is in the 4.9.y android-common tree, so the
-userspace side should be in AOSP, right?
-
-thanks,
-
-greg k-h
+> ---
+> Changes from V1:
+> * Make sure we only build compat code as module
+>
+>  drivers/dax/Kconfig | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+>
+> diff --git a/drivers/dax/Kconfig b/drivers/dax/Kconfig
+> index 5ef624fe3934..a59f338f520f 100644
+> --- a/drivers/dax/Kconfig
+> +++ b/drivers/dax/Kconfig
+> @@ -23,7 +23,6 @@ config DEV_DAX
+>  config DEV_DAX_PMEM
+>  	tristate "PMEM DAX: direct access to persistent memory"
+>  	depends on LIBNVDIMM && NVDIMM_DAX && DEV_DAX
+> -	depends on m # until we can kill DEV_DAX_PMEM_COMPAT
+>  	default DEV_DAX
+>  	help
+>  	  Support raw access to persistent memory.  Note that this
+> @@ -50,7 +49,7 @@ config DEV_DAX_KMEM
+>  
+>  config DEV_DAX_PMEM_COMPAT
+>  	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
+> -	depends on DEV_DAX_PMEM
+> +	depends on m && DEV_DAX_PMEM=m
+>  	default DEV_DAX_PMEM
+>  	help
+>  	  Older versions of the libdaxctl library expect to find all
+> -- 
+> 2.20.1
 
