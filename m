@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DC9EC04AAB
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4216CC04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8F81216F4
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8F81216F4
+	by mail.kernel.org (Postfix) with ESMTP id 06442216F4
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06442216F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFEA46B02A4; Wed,  8 May 2019 10:44:52 -0400 (EDT)
+	id F08B86B029E; Wed,  8 May 2019 10:44:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B348C6B02A2; Wed,  8 May 2019 10:44:52 -0400 (EDT)
+	id E93246B02A5; Wed,  8 May 2019 10:44:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 939836B02A4; Wed,  8 May 2019 10:44:52 -0400 (EDT)
+	id 9D7866B02A0; Wed,  8 May 2019 10:44:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 400006B02A2
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6BC6B029E
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:52 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id s26so12730857pfm.18
+Received: by mail-pf1-f197.google.com with SMTP id c7so6537792pfp.14
         for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=BHo/eOy6j5v3nHf6Oc55nLYyTszWbv+NzSETY59La88=;
-        b=pq+0H3+SDr5Maog8jzrAbihAmzqDOsn4dirCTEUinRGbMTZgy7muiivmJl7rzDlied
-         DLUK2C27Qo5yxxmTrCTayuml5uKkQQCqgHFkoyWKJTIog+qA7DDsh79vYd4p6ZwB8PeT
-         t3rURqcc8/fIwg42Anbupz+lWK6zrz3oz+3H3a3iLa7L1TidhKwM+2SDoMYmYQFd1iUG
-         R4wIGhoAF29sa8bC/XPV5xbwtAodsXIj2/Cc5EwVPkhMFOaIjxmpU7/yv6f6VpDKZyOp
-         Pe51MlhxId3Bo3L+Jz131FotYv3o/xqvG1SPWG+jJxbgIVdbDL4Oxu28uWwsPBGOLVXM
-         +cWA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWAOHLVMF7kD4d5HQ2+/LcXrhR7JU7NYX7ZMhlR4ai13hGqwC3g
-	+wEsLpWqo9/Ip2B/WzqocZ693NCpCLm3dZNlWyeZhOiA/pqJTinsqu63NalHLc4vIWtnYGgs815
-	fIfkYAge+MIdyBjqv108CRO2ErvEmThImsYtQ8seT+ZZmtoWY/EzqFE8NWoVdBFJXZg==
-X-Received: by 2002:a62:5ec2:: with SMTP id s185mr50460135pfb.16.1557326691939;
+        bh=JpFf7qOa/lilxcHmFkzrT9z3goapRz8s5p1AyEi8zXs=;
+        b=KTBKYD+jhJXYTStgAJKQ2srSCRGiDyud+tUlySCFpXMGYFMsci66EZqoK5sXhvT21/
+         odwlipFnaURuDTV2NCarIyXypmD9kViz5ex1UPtzKb/dqtgKN6sX0tA17kZuUKu2EctH
+         vSPbXRTgIc8IQsFgvHxESg65AJ85RA8henD6VQCclmd/001KbZx8wjiYdAdNU90q6nRg
+         yRSYiVtVFiCUC6+4oDLKyFr0E2y6cwiRpZ5+9+oFEvpcE0ZV4W3IDPmVewaGFjhVVlGH
+         0LFbWIx/bGE203NQ+s5w4nOvgSZ8ZYImr5Ger1KDB5RGBtWXKGn8wyJRt0rXKUbGIahH
+         nw7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVskAd+qQey+f8KJFRpNOHdmwnT3Ze9lQFPAyw5l4g6kqwwd/Ai
+	y5bjUQbCdgkOCmwldilxQYT2guCPiP4ODm2s+mEOtdusWP3Pyg913qJKHEf/kGx8Ex3zyrjXGTz
+	2NZpOimRYKEfSHTrhWcR53mWVE3Y8hjbes2f/4SiLQioz9s5RXXFxNYRy25c0TKzPnQ==
+X-Received: by 2002:a63:2b4c:: with SMTP id r73mr48619338pgr.181.1557326691892;
         Wed, 08 May 2019 07:44:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqycz4KnoVxDZLEXTLFbY97oXMnlumfb9T5VOXock4iMMlng6l0Ij6LE85SoQyqFKnOqA/bL
-X-Received: by 2002:a62:5ec2:: with SMTP id s185mr50460031pfb.16.1557326691045;
+X-Google-Smtp-Source: APXvYqyncGI0Ea/wIdNQkV3npGq2GtEyDXPkl8TR2suFN3Sg7qoLBbNPMD0mhuWeO12Vb3wu6mJS
+X-Received: by 2002:a63:2b4c:: with SMTP id r73mr48619263pgr.181.1557326691235;
         Wed, 08 May 2019 07:44:51 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557326691; cv=none;
         d=google.com; s=arc-20160816;
-        b=pmh3TxKAwIaYf4Xs3xlB/SgAz8Rdmyvs3At7dE43ypbi1HHkTaozBj2vBdLO9jpl0i
-         BJlJLHrfYEV8q3RoI5aK8yq38WqHP4KGUDYoAtCKtZeBtTElJ/5JA6F5sRPO2EpWVv28
-         XZgevs3+O8uu6uq0avLObfgT+beinW+V23eCzCeL/hseNl3/GOkftNUvNYUW02QVQh7A
-         QuvCclFAH8Phk7grtjCfRUVD6i8hWqZ6Ppllamw+61OkSJnOwsssIOL6mwSAVsmXIddr
-         IInmyZFwTQymeQOU4pRJE3cDM+qfjWwUpoOLrusZojn1ZA9JfRJ2HL6raehp0oUaBoq6
-         L1Vg==
+        b=H2wPKdBEj//zYLpIJ2xrHGuCZoyQ0pdeROaJrD31NTYBtZvRtO3g9LGwBGXfhFGvbA
+         etVhmseRLmBxqML5SLv80M7vB0ADHmShzNPybB+1J2bitu+4E4uweoUYLbSOTd3aHJzn
+         B7N3tu1pN3vCUkMRAksrGYb5v8KVHz1b45MHxWEOK2e/RgiaMgUU1aTdFhzftF7ATWJT
+         V6Bfz2eXqutdAjjLouf81G76VqrG0f21mlvA20qJHpEnZxTSBwM0UUXEqvy2KCI6MbYD
+         WNRKIIZhnpsyJP4VOorl1cS7d65TdIR16MVlcS2uWKtA63RkCCiECyfkSJ0nd/AUbK3c
+         gkng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=BHo/eOy6j5v3nHf6Oc55nLYyTszWbv+NzSETY59La88=;
-        b=l4BmFJNi6ujpwVLHd4iP/AudR0PyLBJhgK4dZ94QBgFYt86uH4oqFCrVZqfsAsIXs7
-         tCk2rJupb2vupNWyR3VngZg2C++SZHNFFLHNuzblHmoiY3U03vPt41Yb9dl5pasCk3zE
-         8Ph+55eU4nXKmInXgHD+7fB1R9vbNU9BISgnTttIDmLCy6356SCFf2fPBx8u+vPdH9O3
-         bcF/Ys30JvJFNWLxcceW5swXkFxMwotQXkhv7c6b55i5ldhrAYksLCtQ9QfKeJPMGxt3
-         nQ/cL7DCzTXHxHlFbge/2PJdTLMF5rqTJO/ujorSO6thNbTXd2iszpq2JbJrDFFBncVS
-         OO0g==
+        bh=JpFf7qOa/lilxcHmFkzrT9z3goapRz8s5p1AyEi8zXs=;
+        b=k8MLdP88oGmBY8VU+UytIzwH5XDZ6LvdxDnYwvlzLVdHiIP1XE5aZF+rzJ1wsCbNUs
+         30XsSyMfSZm5UbEdUhwOXBq9CHF2NCyLbDaGQzzDOStBfk8PLK164LLj+NcQVVe1csmR
+         gJq/zCH53I4DoOle2veL/l2wDDBeCeDKUlXIt+ksyLK2UAGJNjHk+myEOae7MPNM/1EB
+         +oUx/bjHOwz02mrlePXQ0wnUbb/Bw0kMUOx2gMusAbLw7U9oPQ/QiBLqQiWkeF6EiggT
+         rgZoXpDCugAhKlSt0ldi2yKhNQ2AuJVcCKn2rlDZq2X2k/Iw7JPpNGXKifF2rchNhtiI
+         +93g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id d3si22507173pfc.278.2019.05.08.07.44.50
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id s184si23372828pfs.275.2019.05.08.07.44.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 May 2019 07:44:51 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:50 -0700
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:50 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga001.jf.intel.com with ESMTP; 08 May 2019 07:44:45 -0700
+  by orsmga007.jf.intel.com with ESMTP; 08 May 2019 07:44:46 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 311E210A5; Wed,  8 May 2019 17:44:31 +0300 (EEST)
+	id 3BB8410AA; Wed,  8 May 2019 17:44:31 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 49/62] mm, x86: export several MKTME variables
-Date: Wed,  8 May 2019 17:44:09 +0300
-Message-Id: <20190508144422.13171-50-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 50/62] kvm, x86, mmu: setup MKTME keyID to spte for given PFN
+Date: Wed,  8 May 2019 17:44:10 +0300
+Message-Id: <20190508144422.13171-51-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -123,35 +123,56 @@ List-ID: <linux-mm.kvack.org>
 
 From: Kai Huang <kai.huang@linux.intel.com>
 
-KVM needs those variables to get/set memory encryption mask.
+Setup keyID to SPTE, which will be eventually programmed to shadow MMU
+or EPT table, according to page's associated keyID, so that guest is
+able to use correct keyID to access guest memory.
+
+Note current shadow_me_mask doesn't suit MKTME's needs, since for MKTME
+there's no fixed memory encryption mask, but can vary from keyID 1 to
+maximum keyID, therefore shadow_me_mask remains 0 for MKTME.
 
 Signed-off-by: Kai Huang <kai.huang@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/mm/mktme.c | 3 +++
- 1 file changed, 3 insertions(+)
+ arch/x86/kvm/mmu.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index df70651816a1..12f4266cf7ea 100644
---- a/arch/x86/mm/mktme.c
-+++ b/arch/x86/mm/mktme.c
-@@ -7,13 +7,16 @@
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index d9c7b45d231f..bfee0c194161 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2899,6 +2899,22 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
+ #define SET_SPTE_WRITE_PROTECTED_PT	BIT(0)
+ #define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
  
- /* Mask to extract KeyID from physical address. */
- phys_addr_t mktme_keyid_mask;
-+EXPORT_SYMBOL_GPL(mktme_keyid_mask);
- /*
-  * Number of KeyIDs available for MKTME.
-  * Excludes KeyID-0 which used by TME. MKTME KeyIDs start from 1.
-  */
- int mktme_nr_keyids;
-+EXPORT_SYMBOL_GPL(mktme_nr_keyids);
- /* Shift of KeyID within physical address. */
- int mktme_keyid_shift;
-+EXPORT_SYMBOL_GPL(mktme_keyid_shift);
++static u64 get_phys_encryption_mask(kvm_pfn_t pfn)
++{
++#ifdef CONFIG_X86_INTEL_MKTME
++	struct page *page;
++
++	if (!pfn_valid(pfn))
++		return 0;
++
++	page = pfn_to_page(pfn);
++
++	return ((u64)page_keyid(page)) << mktme_keyid_shift;
++#else
++	return shadow_me_mask;
++#endif
++}
++
+ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
+ 		    unsigned pte_access, int level,
+ 		    gfn_t gfn, kvm_pfn_t pfn, bool speculative,
+@@ -2945,7 +2961,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
+ 		pte_access &= ~ACC_WRITE_MASK;
  
- DEFINE_STATIC_KEY_FALSE(mktme_enabled_key);
- EXPORT_SYMBOL_GPL(mktme_enabled_key);
+ 	if (!kvm_is_mmio_pfn(pfn))
+-		spte |= shadow_me_mask;
++		spte |= get_phys_encryption_mask(pfn);
+ 
+ 	spte |= (u64)pfn << PAGE_SHIFT;
+ 
 -- 
 2.20.1
 
