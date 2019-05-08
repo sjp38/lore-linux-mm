@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 272F0C46470
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84145C04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D820C2177B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D820C2177B
+	by mail.kernel.org (Postfix) with ESMTP id 42C222175B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42C222175B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1E81F6B026B; Wed,  8 May 2019 10:44:43 -0400 (EDT)
+	id A25D46B026F; Wed,  8 May 2019 10:44:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C1256B026E; Wed,  8 May 2019 10:44:43 -0400 (EDT)
+	id 9AF0C6B0271; Wed,  8 May 2019 10:44:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B22B6B026F; Wed,  8 May 2019 10:44:43 -0400 (EDT)
+	id 876BB6B0272; Wed,  8 May 2019 10:44:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B613E6B026B
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:42 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d7so7324659pgc.8
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:42 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FAC66B026F
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:43 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y1so5441672plr.13
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sM37wl1NnlRkUU+xXEZgDRNuEPDgwwOxsEwMR2MysS0=;
-        b=knbsbnIgiJ9D1krJbEW1HemoIE0zq3xmzAGCgS02PmQOvoINhrG4QumD9M2//PNDio
-         RRJgnZGdIxvFGgcGCyaXrwTy+iAzs4E5bCLh2F4xl9u9mS0HCjJJZ1Uj8mBIp4YJhoNb
-         EW2h61AmJJJ1YXUXHE815qcTncJwRw/wkvsZP+jf2qY31KHb7KF1bIcLahtWmsnLcXoo
-         A1aedL2oD2xJPzJTj1gKqVizTcjeMwVF5d8pnikYHg6/uePXYDd/eGmYbLsFbw6axobu
-         WrcoYEwP+UHRHOKlsRGzs8u+swBwzmK9e7kuWhZr8/4IlQOZ4s4gyCneI9WmMVvfC60G
-         HkLw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV9k0QcJxmBB6TfN+rXni+bRkYhOFKBsEZZBF1xPeHcOU3BDwqP
-	Zc1K22HnMd3p73CqRG0w0L6d4SQ06c4KbXOCP6cHPo782I10fHZ0fbpiHmFUdIubCqtqPwHxc64
-	quJpB5g5uouJI6YN73o/2MyVQAk+gE2s14updfK8SO/nLRtnIpEJ0fNzFtfedRbd+jQ==
-X-Received: by 2002:a63:ca0b:: with SMTP id n11mr46269068pgi.442.1557326682341;
+        bh=14T31bfznPI+LnnwAYK8Vb1jSm85ESHn0/2GAcqthOk=;
+        b=Lq9RKnTYR8/XpRQm6N0BayklSqIF7sZUjbsLsa3ELEXHPGfb73Q/lvI6iro/o6XYB5
+         aI0fhSimv4aqvDmYZV966h6VZBD6sMy91HwZzASDJ5mTDuzXNOtJZ2DVmEA0N7Ux03FU
+         h/kt/E7e6nxwzP/n1LxEx3dh2n/509OVgawNDdICweqhNWh7bIOtDxcJY6fkQpQkGY5P
+         rhzoI0dGI8nstBSsTEDbiqFt7GEe98fgEE/3YRQEeWpce1J0MVKRa+sJWbNQ7KRugzu7
+         5pVD0KhyEHVTcWtR2CxsyXJtbEhqZU4fInbCMy3JnnealSULe9kCVS+3oPcktJJx6aSh
+         OgDw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVmHV5StiF9eDJs8/Chq/Q7eR/sT4vf6Pu6sn/HSs5nVnisbRnk
+	OwbsXX9jh82NFxekZgIEH5Hb5D+v3kxzBeQPiL01z99oLvvBy43wMvYH6Dwy2pLi9XZU0i+TiiH
+	ANubMf8PAJ4uHnGYAZ+d9Egfv7+q7S8rcuROWKrUHjO224S6lnL4yiu7OuLofRu1odg==
+X-Received: by 2002:a63:d408:: with SMTP id a8mr46373303pgh.184.1557326682862;
         Wed, 08 May 2019 07:44:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzygp4zGPDIH1VHh3vvlv8lDzcZZkpa+7Pl7UBKLR8TmG4y2hXqTB1ZsG9fIJMWHZUapZx/
-X-Received: by 2002:a63:ca0b:: with SMTP id n11mr46268913pgi.442.1557326680855;
-        Wed, 08 May 2019 07:44:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326680; cv=none;
+X-Google-Smtp-Source: APXvYqwAOAs3G2UmbZ6cQZ9dSRYaJxkh7GLPTEhkwQu7DGABPzoB3jwLUrh10s2c+akN5to5TgWC
+X-Received: by 2002:a63:d408:: with SMTP id a8mr46373181pgh.184.1557326681552;
+        Wed, 08 May 2019 07:44:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326681; cv=none;
         d=google.com; s=arc-20160816;
-        b=CF3XzC6MeYCFqAH0/uN8vgB5nOWYZwiJV6N5Zl/nCx23owccRtlZwgVrTRh+JmNrSF
-         VSNtG5aWT+E9aSoC3s4pZBIogu3SBEcBxTnjkaTcWsSgJbzYH2f5rww2y+DDTdt+8PU8
-         T6DlUmlmMZ5giU8FEDwYwOMKWnnOsivSsMuw/aZIkyuZIJf19N/IPPa9OGgujJIegIaC
-         aDi86+s0MjTypHpjsFZQb357lW4PAtzakQsnoT89M7Mf0zeKI4YAd2Ksuym/Twqz++Uy
-         RTiByoW8IpP25j9Twny5Dc6DCvp4nMQT6cWRMSGJulUtwNmloYwbrAqsgl0i6Jfm5UtD
-         S8HQ==
+        b=qJlu8AUy2qLjnKhsww7UTmjJG2zROsvnsQqPZLuJHQpQVElCtl+TX9+IejHo8RlkFP
+         /1KyQsS1hV3/GsoYEiFyEeVqfIxvAIk6NacjOa7opIPtoKubVMHzA0yfOFNrpfhFO/Xh
+         Srd24Dx0CmNQ7iheKboAoo5nfcAlKUkMMzYqpBhNCd+mQS1WxjZPgeUyq5cr/Y4FVJWl
+         W+1UIwUO8bFeYbXNm4bFE3dgy6Mfrs6DKX3UqdMlsuOBVF76Bz5q1ZqDpzo7PetEKryy
+         RH96zWLN7VdnkIgAbLlUI7yAqPeuAsBq7axTC0OlWN+f1JgvgzasUak7OEmqBNda4VaQ
+         Qjlg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=sM37wl1NnlRkUU+xXEZgDRNuEPDgwwOxsEwMR2MysS0=;
-        b=z5ljH/hLrkswXp2tkCOAO20nQ8heT/ZQfDQ+OutIpKOLWboBKwVCnyK+RIAOJrb1VC
-         wwivJbN9e/fRPaECxmAZVTaq2J9lTyl/kMRDuMnRA4BjrapGEYVEZeSjY4ugw2Ab/dj/
-         FrX7Jf7cERkMZEJZWduay/oWxZh4WRI9eMF29JULJpLNFn+kn8xYiOulT6Xerp9EOSAR
-         RjUTNgzqViOgiEPZKyXsGThn3U4cRYnUIf3CG8+eh8k1A1ayICc14eE2T4gcoNcL1Ynu
-         flf8pKuX98zlg/nvufnKumIxeSye/TuKht6uqRkZ/KYouvwolNhBEsHAOSsjTN5+LEGq
-         VoFg==
+        bh=14T31bfznPI+LnnwAYK8Vb1jSm85ESHn0/2GAcqthOk=;
+        b=Vu5bJwcr4uXlKrXUBYnbUvOXRDVWzZI63QUUWnsVfWoai5SBNV0FUYXZY7alCR5TFJ
+         gDJCcc6GOUo0+A4sCW8BeFYuXrZDPW5SC+cvrbNPru3aGsA54gdOD5LNvbqrJ6vBUjmJ
+         wek49xAm9isTCvO+vSNwdeNl6pz5BghwuCLXsujXSRLlMVeJS4GnXC6hIEGpfMA84SNS
+         a4xIJG1uiF4mMBsKkAXZK5Wn26nk3xSsnu6zaa7zKGJmzG8MX5SjR9YOjGdBSYWAy3Jb
+         cLOUmLdKCsiIK38tw3mgeBXx6wU46cxS/osbBFtD7OqRk9P/4KipbnKcyUd8DqOdDBTL
+         59pw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f6si24524459plf.90.2019.05.08.07.44.40
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id b11si666839pge.440.2019.05.08.07.44.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:40 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Wed, 08 May 2019 07:44:41 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:40 -0700
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:40 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga005.jf.intel.com with ESMTP; 08 May 2019 07:44:35 -0700
+  by orsmga003.jf.intel.com with ESMTP; 08 May 2019 07:44:35 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 323C8739; Wed,  8 May 2019 17:44:29 +0300 (EEST)
+	id 3EF8574A; Wed,  8 May 2019 17:44:29 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 11/62] x86/mm: Add a helper to retrieve KeyID for a page
-Date: Wed,  8 May 2019 17:43:31 +0300
-Message-Id: <20190508144422.13171-12-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 12/62] x86/mm: Add a helper to retrieve KeyID for a VMA
+Date: Wed,  8 May 2019 17:43:32 +0300
+Message-Id: <20190508144422.13171-13-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -121,177 +121,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-page_ext allows to store additional per-page information without growing
-main struct page. The additional space can be requested at boot time.
+We store KeyID in upper bits for vm_page_prot that match position of
+KeyID in PTE. vma_keyid() extracts KeyID from vm_page_prot.
 
-Store KeyID in bits 31:16 of extended page flags. These bits are unused.
-
-page_keyid() returns zero until page_ext is ready. page_ext initializer
-enables a static branch to indicate that page_keyid() can use page_ext.
-The same static branch will gate MKTME readiness in general.
-
-We don't yet set KeyID for the page. It will come in the following
-patch that implements prep_encrypted_page(). All pages have KeyID-0 for
-now.
-
-page_keyid() will be used by KVM which can be built as a module. We need
-to export mktme_enabled_key to be able to inline page_keyid().
+With KeyID in vm_page_prot we don't need to modify any page table helper
+to propagate the KeyID to page table entires.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h | 28 ++++++++++++++++++++++++++++
- arch/x86/include/asm/page.h  |  1 +
- arch/x86/mm/mktme.c          | 21 +++++++++++++++++++++
- include/linux/mm.h           |  2 +-
- include/linux/page_ext.h     | 11 ++++++++++-
- mm/page_ext.c                |  3 +++
- 6 files changed, 64 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/mktme.h | 12 ++++++++++++
+ arch/x86/mm/mktme.c          |  7 +++++++
+ 2 files changed, 19 insertions(+)
 
 diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index df31876ec48c..51f831b94179 100644
+index 51f831b94179..b5afa31b4526 100644
 --- a/arch/x86/include/asm/mktme.h
 +++ b/arch/x86/include/asm/mktme.h
-@@ -2,15 +2,43 @@
- #define	_ASM_X86_MKTME_H
+@@ -5,6 +5,8 @@
+ #include <linux/page_ext.h>
+ #include <linux/jump_label.h>
  
- #include <linux/types.h>
-+#include <linux/page_ext.h>
-+#include <linux/jump_label.h>
- 
++struct vm_area_struct;
++
  #ifdef CONFIG_X86_INTEL_MKTME
  extern phys_addr_t mktme_keyid_mask;
  extern int mktme_nr_keyids;
- extern int mktme_keyid_shift;
-+
-+DECLARE_STATIC_KEY_FALSE(mktme_enabled_key);
-+static inline bool mktme_enabled(void)
-+{
-+	return static_branch_unlikely(&mktme_enabled_key);
-+}
-+
-+extern struct page_ext_operations page_mktme_ops;
-+
-+#define page_keyid page_keyid
-+static inline int page_keyid(const struct page *page)
+@@ -28,6 +30,16 @@ static inline int page_keyid(const struct page *page)
+ }
+ 
+ 
++#define vma_keyid vma_keyid
++int __vma_keyid(struct vm_area_struct *vma);
++static inline int vma_keyid(struct vm_area_struct *vma)
 +{
 +	if (!mktme_enabled())
 +		return 0;
 +
-+	return lookup_page_ext(page)->keyid;
++	return __vma_keyid(vma);
 +}
-+
 +
  #else
  #define mktme_keyid_mask	((phys_addr_t)0)
  #define mktme_nr_keyids		0
- #define mktme_keyid_shift	0
-+
-+#define page_keyid(page) 0
-+
-+static inline bool mktme_enabled(void)
-+{
-+	return false;
-+}
- #endif
- 
- #endif
-diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-index 7555b48803a8..39af59487d5f 100644
---- a/arch/x86/include/asm/page.h
-+++ b/arch/x86/include/asm/page.h
-@@ -19,6 +19,7 @@
- struct page;
- 
- #include <linux/range.h>
-+#include <asm/mktme.h>
- extern struct range pfn_mapped[];
- extern int nr_pfn_mapped;
- 
 diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 91a415612519..9dc256e3654b 100644
+index 9dc256e3654b..d4a1a9e9b1c0 100644
 --- a/arch/x86/mm/mktme.c
 +++ b/arch/x86/mm/mktme.c
-@@ -9,3 +9,24 @@ phys_addr_t mktme_keyid_mask;
- int mktme_nr_keyids;
- /* Shift of KeyID within physical address. */
- int mktme_keyid_shift;
+@@ -1,3 +1,4 @@
++#include <linux/mm.h>
+ #include <asm/mktme.h>
+ 
+ /* Mask to extract KeyID from physical address. */
+@@ -30,3 +31,9 @@ struct page_ext_operations page_mktme_ops = {
+ 	.need = need_page_mktme,
+ 	.init = init_page_mktme,
+ };
 +
-+DEFINE_STATIC_KEY_FALSE(mktme_enabled_key);
-+EXPORT_SYMBOL_GPL(mktme_enabled_key);
-+
-+static bool need_page_mktme(void)
++int __vma_keyid(struct vm_area_struct *vma)
 +{
-+	/* Make sure keyid doesn't collide with extended page flags */
-+	BUILD_BUG_ON(__NR_PAGE_EXT_FLAGS > 16);
-+
-+	return !!mktme_nr_keyids;
++	pgprotval_t prot = pgprot_val(vma->vm_page_prot);
++	return (prot & mktme_keyid_mask) >> mktme_keyid_shift;
 +}
-+
-+static void init_page_mktme(void)
-+{
-+	static_branch_enable(&mktme_enabled_key);
-+}
-+
-+struct page_ext_operations page_mktme_ops = {
-+	.need = need_page_mktme,
-+	.init = init_page_mktme,
-+};
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 07c36f4673f6..2684245f8503 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1607,7 +1607,7 @@ static inline int vma_keyid(struct vm_area_struct *vma)
- #endif
- 
- #ifndef page_keyid
--static inline int page_keyid(struct page *page)
-+static inline int page_keyid(const struct page *page)
- {
- 	return 0;
- }
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index f84f167ec04c..d9c5aae9523f 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -23,6 +23,7 @@ enum page_ext_flags {
- 	PAGE_EXT_YOUNG,
- 	PAGE_EXT_IDLE,
- #endif
-+	__NR_PAGE_EXT_FLAGS
- };
- 
- /*
-@@ -33,7 +34,15 @@ enum page_ext_flags {
-  * then the page_ext for pfn always exists.
-  */
- struct page_ext {
--	unsigned long flags;
-+	union {
-+		unsigned long flags;
-+#ifdef CONFIG_X86_INTEL_MKTME
-+		struct {
-+			unsigned short __pad;
-+			unsigned short keyid;
-+		};
-+#endif
-+	};
- };
- 
- extern void pgdat_page_ext_init(struct pglist_data *pgdat);
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index d8f1aca4ad43..1af8b82087f2 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -68,6 +68,9 @@ static struct page_ext_operations *page_ext_ops[] = {
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
- 	&page_idle_ops,
- #endif
-+#ifdef CONFIG_X86_INTEL_MKTME
-+	&page_mktme_ops,
-+#endif
- };
- 
- static unsigned long total_usage;
 -- 
 2.20.1
 
