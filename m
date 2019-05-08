@@ -6,105 +6,104 @@ X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A46C8C04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 07:39:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1883EC04AAB
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:35:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60BB0214C6
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 07:39:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60BB0214C6
+	by mail.kernel.org (Postfix) with ESMTP id A153F2053B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:35:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A153F2053B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E71C56B0003; Wed,  8 May 2019 03:39:17 -0400 (EDT)
+	id 101966B0003; Wed,  8 May 2019 04:35:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E229D6B0005; Wed,  8 May 2019 03:39:17 -0400 (EDT)
+	id 0B2E76B0005; Wed,  8 May 2019 04:35:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE9C26B0007; Wed,  8 May 2019 03:39:17 -0400 (EDT)
+	id EE2676B0007; Wed,  8 May 2019 04:35:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AECBA6B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 03:39:17 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id f82so21041375qkb.9
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 00:39:17 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CAD286B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 04:35:33 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id f25so213766qkk.22
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 01:35:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=XMt+MJFq6jlk5ZDpEFN/OzuUU3Zfeg2RJg6T3oy1Ds0=;
-        b=j1D6nWDeRXIRU0YUErXCyfBoKi/Ldl4uXxsurFOpdxdylhNQE4ObLBCMY08+5gH+8l
-         TcQPszm2TTR5aZK7ws4LyG9AXQopGN3QqqRI+bBg09bHjAMxzzYWcMHqZFPlzP5Q3CXC
-         NGj6e8fvGHey2BOf1e1/Zp8qzKy8UhcU65JwXZhd1o6dyAi53BOxngVemzkRbYsKPqml
-         yMX6f5LAEXqI7yDUgBzsC9PikvlZkNYyVQFudzviyRfvN6BlFs8Fb5zGwsMHWRH2LIjI
-         xatHK7cYI+Lrn+4i1+51f9fj09NW7AOXou83MYsnJQ42HLysK4fuYPeH+dcywEvxnlw0
-         rmmQ==
+        bh=ZuJrtuIQ6NREOIFPk7z1wJQl0dyt8jdg4/r7soAERnc=;
+        b=VkV8d7YKe8pfdCTPG4PyC8NDiq/FhAYGd+eK588CNBFz3KyG7UJI/6p4u3lrStSts4
+         Hn6pdEmYNSceVclmZxy48mY0HQ4tZ6bMpqdSK4oMzIRd/ubbIJ9ryrHE+t3AyiIgLSvI
+         aQYeuXjf09pq3G6Ku04p8YFKo/21bI8J7GPgaFuPDP2fpnv9OqBwTfmiyH6GAZlTM4ON
+         S/FiLPcTGOOoZ7EraPY8ElszHLBwxFPkhk0iZaMLhWCPJYGPas0C6ELk27xNapgh0RRj
+         JFnr7n+een7uhH+J2c99YLsMfAMQqsM7n+XK3EdwBSMggU7xjO3wZoLfY0S3LdCHyL+5
+         ACZw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVzWAF2z85jKFxnYGdqGNogvj5HbjRD1YSLornfaRU1vsx8r65k
-	sZLBP6KrCTr+Q9AaDGFBC723tlFQp7hz79dTfXYw+OfcqR9FjGv1ca7i+QXqLY3n4PwYmOj+/sT
-	FfnKEroboVgnj/oNDavamxVpxCPMK6TD1snNe1chAt80UcYfGRftDxcB12cq8HSu8FQ==
-X-Received: by 2002:aed:24a3:: with SMTP id t32mr30434528qtc.206.1557301157476;
-        Wed, 08 May 2019 00:39:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzeSxgg6rIZppyBQgIgSWrGxChAuJKev+p7aL1c9Oi86QF31uampXsPI9sNvqhieZO4hsV
-X-Received: by 2002:aed:24a3:: with SMTP id t32mr30434500qtc.206.1557301156952;
-        Wed, 08 May 2019 00:39:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557301156; cv=none;
+X-Gm-Message-State: APjAAAVmfJswfPeN7VGzGhMRlYRJFO7WFWctwTDL/Nh+fiPwckA/vXU+
+	OBHUnSI45D1lBWAaUaZrDL4C8pKfUQo6/NQS1pcQXH+vBYPyLj4NNEXJFCaEay6wldZwx5muu5K
+	Dy8f8RSaI8QnJwIqaw/lAwDfIn9VqtAuXWpUWLfYPpigtEnzapBWVu7Q9Xss5C6AmLw==
+X-Received: by 2002:ac8:1aa4:: with SMTP id x33mr15185626qtj.69.1557304533554;
+        Wed, 08 May 2019 01:35:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3lg43I0GMAYMWjZUKnxoDfrdVjat8NxC+Umpzh36snfaEeffkygoHrF1r82S3RfEqqfUC
+X-Received: by 2002:ac8:1aa4:: with SMTP id x33mr15185584qtj.69.1557304532723;
+        Wed, 08 May 2019 01:35:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557304532; cv=none;
         d=google.com; s=arc-20160816;
-        b=ctehYspVP9uA4YSHt05gs3n72jPl58nfAU7z/8VMtxhO7U2GE6OGzdqBRtEsmxorvW
-         MNy7ae3Z72KBNjO/FD+bNS8MpAEAi4KMvvNUYxIpLZKlBW59Beubioo7rQ/JRBzjILVI
-         Aqa8uSUaDTE7elFeRwjkx57VCiWNgbQTzUo/1jgna1n79N1mc/cuHEnH4tE9dbQIpSBY
-         89bJ6hDnvXxisTtP52W+6j7dLBu0WLBwX1zbsO5jLY1QGXxff5fbVBKUb2fzxbgiEKBZ
-         fUwWOnU51rJAOdFaAs+Tq9tHCuxikzQxHVLXa79o0x98av04h3MkYFuacbPw1fIyD6mE
-         1x/Q==
+        b=qv52cmyQ8cXaNe9IL/zlhqCagriaYfgWMb2xmDnP7nJzOLLbhRIhcTzMDUVtyelfye
+         JVjphQutBablCW1w19fc8vXrXqYRgrKPSQtngbHQx5psHoL59HF1Rma2G9f7EhzBsghE
+         OX/Iu/WgJlAI51GLNM8knfX+v1k03lDzoLb/Bi2Z0oHAsdtO4f/jO9HOL7793ieswney
+         KQVQKdHAGkgzRYUGYHaRIZtW22JIGbfUmdq7uVwgv9Hn/WRsNwPi4ZG7Vsd1eh9n7sRB
+         Ot/2wSFWsnNQUUTFCCrzn5lahzNS/i3dX6VyzxPj8Dr6HgHov6W69o2iWob3gJRDpkuE
+         jdMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=XMt+MJFq6jlk5ZDpEFN/OzuUU3Zfeg2RJg6T3oy1Ds0=;
-        b=O0jXTSmUQN6Cj6lEcmlFCNqmOaP9MlLc3V4a3abJ0GXlD7DpDnHw5nKHTZ5iNdHpzj
-         zHSIqWdVh+4EaIps8gL9ZXtR04/3i9LUrc6PSICrat6ATU+U090Z7PlF8h4UgM5ouNL+
-         CP3Hnbj1Q4diMD+GVeoMXQn2blZUW3k1wbCCPe410l0TkDrszRmW9TRI20eVAkpsS+A8
-         NgskANZx10dJ4NS7YzfnrQpv+YRlnqyOdMVdKltdY3fu09AsSDDs2HqfCoZqrbAl35QG
-         /xdm4SlgcbKy1+evSJMgDNBDjCmafs7xYoWAmiPtBSSmC/TO9ZTjaY0b+G4MFxKwKHvz
-         i6dw==
+        bh=ZuJrtuIQ6NREOIFPk7z1wJQl0dyt8jdg4/r7soAERnc=;
+        b=tvvTCR0fROTK122tjw+zQVQ8z+QQLA/uaQT41dD73PxquatEcA/KGZI/JBc85JFmps
+         L9AgtUsZ2qYshpgJJiH/mXfeQYyqEdYSrIT3W+Bx/dr7dNo3YsfC3Fjy5QQ2fdvVwj8D
+         xMt24peCC/AyjtquzeV6L+qdndbXTw4ELwjw2VzJanoR66PkSeE39fdYLDOfHLMeHqMS
+         3sLG2ezooNxJ95UREKgVZcYH+Xu7qoSLFjD0WLc5dRzXyI/yMeggG1qtRPmx3cj5Rj9D
+         qh0Ot88CuFtNj6Szm0htFxCxaGe3zZpER/aZzhewO2Z1UqUfxTgy6ymhewDlmDvgGARq
+         NRfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y15si1905921qvb.215.2019.05.08.00.39.16
+        by mx.google.com with ESMTPS id e15si3796566qto.336.2019.05.08.01.35.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 00:39:16 -0700 (PDT)
+        Wed, 08 May 2019 01:35:32 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7235C5F73A;
-	Wed,  8 May 2019 07:39:15 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9C383302451A;
+	Wed,  8 May 2019 08:35:31 +0000 (UTC)
 Received: from [10.36.117.63] (ovpn-117-63.ams2.redhat.com [10.36.117.63])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 930506149F;
-	Wed,  8 May 2019 07:39:11 +0000 (UTC)
-Subject: Re: [PATCH v2 5/8] mm/memory_hotplug: Drop MHP_MEMBLOCK_API
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- linux-ia64@vger.kernel.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
- linux-s390 <linux-s390@vger.kernel.org>, Linux-sh
- <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- Michal Hocko <mhocko@suse.com>, Oscar Salvador <osalvador@suse.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Wei Yang <richard.weiyang@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>,
- Mathieu Malaterre <malat@debian.org>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B6A1460C67;
+	Wed,  8 May 2019 08:35:27 +0000 (UTC)
+Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
+ after arch_add_memory()
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, akpm@linux-foundation.org,
+ Dan Williams <dan.j.williams@intel.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J. Wysocki" <rafael@kernel.org>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>, Ingo Molnar <mingo@kernel.org>,
+ Andrew Banman <andrew.banman@hpe.com>, Oscar Salvador <osalvador@suse.de>,
+ Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
+ Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
 References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-6-david@redhat.com>
- <CAPcyv4ge1pSOopfHof4USn=7Skc-UV4Xhd_s=h+M9VXSp_p1XQ@mail.gmail.com>
- <d83fec16-ceff-2f6f-72e1-48996187d5ba@redhat.com>
- <CAPcyv4iRQteuT9yESvbUyhp3KVVgTXDiGAo+TwPCM_4f0CzBgg@mail.gmail.com>
+ <20190507183804.5512-5-david@redhat.com>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -151,117 +150,152 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <edd762a1-c012-fe05-a72e-2505cd98188a@redhat.com>
-Date: Wed, 8 May 2019 09:39:10 +0200
+Message-ID: <094f6f72-b02f-585f-6ffa-d631c71808d6@redhat.com>
+Date: Wed, 8 May 2019 10:35:26 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4iRQteuT9yESvbUyhp3KVVgTXDiGAo+TwPCM_4f0CzBgg@mail.gmail.com>
+In-Reply-To: <20190507183804.5512-5-david@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 08 May 2019 07:39:16 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 08 May 2019 08:35:32 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.05.19 23:25, Dan Williams wrote:
-> On Tue, May 7, 2019 at 2:24 PM David Hildenbrand <david@redhat.com> wrote:
->>
->> On 07.05.19 23:19, Dan Williams wrote:
->>> On Tue, May 7, 2019 at 11:38 AM David Hildenbrand <david@redhat.com> wrote:
->>>>
->>>> No longer needed, the callers of arch_add_memory() can handle this
->>>> manually.
->>>>
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>> Cc: David Hildenbrand <david@redhat.com>
->>>> Cc: Michal Hocko <mhocko@suse.com>
->>>> Cc: Oscar Salvador <osalvador@suse.com>
->>>> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->>>> Cc: Wei Yang <richard.weiyang@gmail.com>
->>>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>>> Cc: Qian Cai <cai@lca.pw>
->>>> Cc: Arun KS <arunks@codeaurora.org>
->>>> Cc: Mathieu Malaterre <malat@debian.org>
->>>> Signed-off-by: David Hildenbrand <david@redhat.com>
->>>> ---
->>>>  include/linux/memory_hotplug.h | 8 --------
->>>>  mm/memory_hotplug.c            | 9 +++------
->>>>  2 files changed, 3 insertions(+), 14 deletions(-)
->>>>
->>>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->>>> index 2d4de313926d..2f1f87e13baa 100644
->>>> --- a/include/linux/memory_hotplug.h
->>>> +++ b/include/linux/memory_hotplug.h
->>>> @@ -128,14 +128,6 @@ extern void arch_remove_memory(int nid, u64 start, u64 size,
->>>>  extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
->>>>                            unsigned long nr_pages, struct vmem_altmap *altmap);
->>>>
->>>> -/*
->>>> - * Do we want sysfs memblock files created. This will allow userspace to online
->>>> - * and offline memory explicitly. Lack of this bit means that the caller has to
->>>> - * call move_pfn_range_to_zone to finish the initialization.
->>>> - */
->>>> -
->>>> -#define MHP_MEMBLOCK_API               (1<<0)
->>>> -
->>>>  /* reasonably generic interface to expand the physical pages */
->>>>  extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
->>>>                        struct mhp_restrictions *restrictions);
->>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>>> index e1637c8a0723..107f72952347 100644
->>>> --- a/mm/memory_hotplug.c
->>>> +++ b/mm/memory_hotplug.c
->>>> @@ -250,7 +250,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
->>>>  #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
->>>>
->>>>  static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
->>>> -               struct vmem_altmap *altmap, bool want_memblock)
->>>> +                                  struct vmem_altmap *altmap)
->>>>  {
->>>>         int ret;
->>>>
->>>> @@ -293,8 +293,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
->>>>         }
->>>>
->>>>         for (i = start_sec; i <= end_sec; i++) {
->>>> -               err = __add_section(nid, section_nr_to_pfn(i), altmap,
->>>> -                               restrictions->flags & MHP_MEMBLOCK_API);
->>>> +               err = __add_section(nid, section_nr_to_pfn(i), altmap);
->>>>
->>>>                 /*
->>>>                  * EEXIST is finally dealt with by ioresource collision
->>>> @@ -1066,9 +1065,7 @@ static int online_memory_block(struct memory_block *mem, void *arg)
->>>>   */
->>>>  int __ref add_memory_resource(int nid, struct resource *res)
->>>>  {
->>>> -       struct mhp_restrictions restrictions = {
->>>> -               .flags = MHP_MEMBLOCK_API,
->>>> -       };
->>>> +       struct mhp_restrictions restrictions = {};
->>>
->>> With mhp_restrictions.flags no longer needed, can we drop
->>> mhp_restrictions and just go back to a plain @altmap argument?
->>>
->>
->> Oscar wants to use it to configure from where to allocate vmemmaps. That
->> was the original driver behind it.
->>
+On 07.05.19 20:38, David Hildenbrand wrote:
+> Only memory to be added to the buddy and to be onlined/offlined by
+> user space using memory block devices needs (and should have!) memory
+> block devices.
 > 
-> Ah, ok, makes sense.
+> Factor out creation of memory block devices Create all devices after
+> arch_add_memory() succeeded. We can later drop the want_memblock parameter,
+> because it is now effectively stale.
 > 
+> Only after memory block devices have been added, memory can be onlined
+> by user space. This implies, that memory is not visible to user space at
+> all before arch_add_memory() succeeded.
+> 
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Andrew Banman <andrew.banman@hpe.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: Wei Yang <richard.weiyang@gmail.com>
+> Cc: Arun KS <arunks@codeaurora.org>
+> Cc: Mathieu Malaterre <malat@debian.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  drivers/base/memory.c  | 70 ++++++++++++++++++++++++++----------------
+>  include/linux/memory.h |  2 +-
+>  mm/memory_hotplug.c    | 15 ++++-----
+>  3 files changed, 53 insertions(+), 34 deletions(-)
+> 
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 6e0cb4fda179..862c202a18ca 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -701,44 +701,62 @@ static int add_memory_block(int base_section_nr)
+>  	return 0;
+>  }
+>  
+> +static void unregister_memory(struct memory_block *memory)
+> +{
+> +	BUG_ON(memory->dev.bus != &memory_subsys);
+> +
+> +	/* drop the ref. we got via find_memory_block() */
+> +	put_device(&memory->dev);
+> +	device_unregister(&memory->dev);
+> +}
+> +
+>  /*
+> - * need an interface for the VM to add new memory regions,
+> - * but without onlining it.
+> + * Create memory block devices for the given memory area. Start and size
+> + * have to be aligned to memory block granularity. Memory block devices
+> + * will be initialized as offline.
+>   */
+> -int hotplug_memory_register(int nid, struct mem_section *section)
+> +int hotplug_memory_register(unsigned long start, unsigned long size)
+>  {
+> -	int ret = 0;
+> +	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
+> +	unsigned long start_pfn = PFN_DOWN(start);
+> +	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +	unsigned long pfn;
+>  	struct memory_block *mem;
+> +	int ret = 0;
+>  
+> -	mutex_lock(&mem_sysfs_mutex);
+> +	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
+> +	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
+>  
+> -	mem = find_memory_block(section);
+> -	if (mem) {
+> -		mem->section_count++;
+> -		put_device(&mem->dev);
+> -	} else {
+> -		ret = init_memory_block(&mem, section, MEM_OFFLINE);
+> +	mutex_lock(&mem_sysfs_mutex);
+> +	for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
+> +		mem = find_memory_block(__pfn_to_section(pfn));
+> +		if (mem) {
+> +			WARN_ON_ONCE(false);
+> +			put_device(&mem->dev);
+> +			continue;
+> +		}
+> +		ret = init_memory_block(&mem, __pfn_to_section(pfn),
+> +					MEM_OFFLINE);
+>  		if (ret)
+> -			goto out;
+> -		mem->section_count++;
+> +			break;
+> +		mem->section_count = memory_block_size_bytes() /
+> +				     MIN_MEMORY_BLOCK_SIZE;
+> +	}
+> +	if (ret) {
+> +		end_pfn = pfn;
+> +		for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
+> +			mem = find_memory_block(__pfn_to_section(pfn));
+> +			if (!mem)
+> +				continue;
+> +			mem->section_count = 0;
+> +			unregister_memory(mem);
+> +		}
+>  	}
+> -
+> -out:
+>  	mutex_unlock(&mem_sysfs_mutex);
+>  	return ret;
+>  }
+>  
+> -static void
+> -unregister_memory(struct memory_block *memory)
+> -{
+> -	BUG_ON(memory->dev.bus != &memory_subsys);
+> -
+> -	/* drop the ref. we got via find_memory_block() */
+> -	put_device(&memory->dev);
+> -	device_unregister(&memory->dev);
+> -}
+> -
+> -void unregister_memory_section(struct mem_section *section)
+> +static int remove_memory_section(struct mem_section *section)
+>  {
 
-However I haven't really thought it through yet, smalles like that could
-as well just be handled by the caller of
-arch_add_memory()/arch_remove_memory() eventually, passing it via
-something like the altmap parameter.
+The function change is misplaces in this patch will drop it so this
+patch compiles without the other patches.
 
-Let's leave it in place for now, we can talk about that once we have new
-patches from Oscar.
 
 -- 
 
