@@ -3,74 +3,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6AA8AC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B577C04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D213216F4
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D213216F4
+	by mail.kernel.org (Postfix) with ESMTP id CF431216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF431216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C1FD6B02A0; Wed,  8 May 2019 10:44:54 -0400 (EDT)
+	id 474F16B02A2; Wed,  8 May 2019 10:44:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F09626B02A7; Wed,  8 May 2019 10:44:53 -0400 (EDT)
+	id 434416B02A5; Wed,  8 May 2019 10:44:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D0AE16B02A6; Wed,  8 May 2019 10:44:53 -0400 (EDT)
+	id 088536B02A6; Wed,  8 May 2019 10:44:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9236F6B02A2
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B94266B02A5
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:53 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id x13so12797793pgl.10
+Received: by mail-pl1-f198.google.com with SMTP id s22so11662505plq.1
         for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ErLNP2t/2r70xowRLHa6YSi8qQGCcGwICK6NMrzI+98=;
-        b=lHShVbSJ0HCxugr6lj2t5xSBuTzjjGbwuMnTyhw0KDWtda2kioLrUizaz5wTw0LHlS
-         G1FkXJ0oUygopW6bLIfXpRQGXyyKCtOG7OGEryEv0XUD8Ch6ozSZ/f8dTVU+o0UC83Vu
-         /S7JZf2bANNpIcClT62O5nrz4AZG4vxIpVK0Q9k40iY0Vi53HiTxTugM6ZUhDKJDR/vA
-         4/Dqhz6bxQm1DJJPDGzJAaLBmckZHhwaj953DhQyaEMaTmO1ZHfhhP1jkcuGMVmYTcz/
-         u1qtV0jw111NIv3qjE4AwYwP2jotgQgZ/iaTjXoJFdXnjkNOXafvRmSpx2AvcAs0fiP8
-         c0BA==
+        bh=WDFDEcXg+f/4xOnB0EiSvj+2Wa4G0QK/3j1Q+39oVvk=;
+        b=rBQWNifsWvcTks83Xfu9FzFnOpDvBlhK6iJVOnf8EX2NK6yPjKChMT9WK/psAxsEVz
+         mYwYkJ+xfaGxPH4wRYI7TT0XIRe4gM9Sgm9qsyIs0TubSQqCBuPcgI+LYMuEfnccpEuB
+         ullQUqL25Hn1UwLq45imkFJCmNTJBKf63P1UckxVOiuRIr7oFj1hd28loK2pJJHWgkN6
+         ile+1eQpbYJys+zxcjANPb8NlWjaizVN6knjdn66YTo0tWaORqXFw5G3essCqWrnv5w6
+         Y80ykoUH2srFsITSADJABVjmRIx3REpt1yC68Z5d1CkHlhFJsByCm2KvMIYOhgMSGZRc
+         LWIA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVQVohXvwkyNhhAl8Bcmueh9nIDo6GZn6PxvlMaDJ6xiwoQM4S6
-	hsZsAqN9HmWjGEhoNShyTYAjKdcpDBJhqNF0sVfOivfRTxqO7sxEzHEQ2yDzM6EK8baTDqQH6QD
-	REl9FMG8BwuOj7BQpxNwdJ7mYHGMpOPNJwxbsrbPQW2ljN9heB7xcUW6bRrDYdD87kA==
-X-Received: by 2002:a65:610a:: with SMTP id z10mr47537143pgu.54.1557326693229;
+X-Gm-Message-State: APjAAAV3ai4HHZFUdF57gZ7dyuR5xzZPjdocSlymVBkVm+1KB3GhGnr6
+	J90op62tPZS+Bl8k3cqbmpAcMweJH/m0M5ItRymyoMp4XaVrdPtrJkYnDxF3rzPFfKNEUTWI0UD
+	ETBslodq9QSubHlT+hVTmN8JI/Ch6Xtvx/FYFS6hQR8F5+H9xt8SKlRoVRgNLjJWd7w==
+X-Received: by 2002:aa7:928b:: with SMTP id j11mr49326101pfa.200.1557326693424;
         Wed, 08 May 2019 07:44:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxfyDDV7cXYZ/fpZVUOKKD1p0jt35533WG7+5ZbrLIbm7gUEWOYCQcfs/lJjY5M62PAYzfY
-X-Received: by 2002:a65:610a:: with SMTP id z10mr47537050pgu.54.1557326692415;
+X-Google-Smtp-Source: APXvYqw/wMPFJGajzafW4hJmUNBiTYhjwiVjX5uroXXVc7zRWc/3VOFofsEfbByZYvnkSwkxgwJ6
+X-Received: by 2002:aa7:928b:: with SMTP id j11mr49325958pfa.200.1557326692173;
         Wed, 08 May 2019 07:44:52 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557326692; cv=none;
         d=google.com; s=arc-20160816;
-        b=K31RUxQR2lu6/TW9kHtZKkDqRgHr9FHLvKyvz7fsaQsvRmXst5qxZjkYTV340Qo9UY
-         86W4qr3mGfKTMc6HKNQHOE1sFAG5GpaVnrijHTNncdcOfkFTXg8+iDZWR9bhQFarM2xV
-         9OH4zcKI0cmBZ97KbKv5nhrQI0PJD2U+kkAcC55Vzjxt036yUHv36J5jtsmWUSAufPMu
-         COgoNVzcrI1wFbznTHSz97BTdFvE54/yF5V7oxDn3FLc1fiCkrzCK8m0ZeCKHggldzaX
-         uL6O+tJmo28YLKknLcUEy3uvXhKFOW+xsltMyaTKnJkE9MVEL+5oNIAKGeS0rgWQ/Vb2
-         jftQ==
+        b=BOSPNteRkDFMi121k48cr6R6DhJ6X5ROx4IX6InSpqAWhzfyEwQzw7Gahv3gIX3uTh
+         ifeUE/QsBmCcn3gzF4M2X8qxeWdkFyniTut3s1nPQu8p1XB1N+RALpL3BWV3JVlnuLT5
+         vzprdnKgb9Cb2oG0+CGep1WznhGpOgWYLVHxf0LnWxPzNejW8Ov+PIJzHtJ9WA+4e09R
+         4A59T77sluaeJJ9b/YJK43/3pAspZDVoN5hN9FcXC69bWMg0Aek89KAxBzSvcGxtWuyf
+         FGPHMI9c9JamMHZ5wTclJPUeD7vZGCTlKe589QnSDC5++cqKq25G1ZeZKKmxj2IiZPFw
+         0AJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ErLNP2t/2r70xowRLHa6YSi8qQGCcGwICK6NMrzI+98=;
-        b=0mdYpUmqgH+/kY6rLcbLnJ862paGJ53USmppB5tS1P0IAUD3fBIBczbbhbTWDYOLUm
-         Oq5RobpzvQ/Am3dozPWJAy4bWkVKELpUj1qhitwqbFi5G9312GE2CcXBsI2oyxk6FHg1
-         zAe7w615xrpFkeNK5KVI42AlDJKKljiNZzr5ERdaLSdCOjKssnI1BjvRRBUxbk9OaZ9c
-         z6T/huGDan0YZwm+FRgUiDF94g893NAyBQmChvrelIo7fTYV0LpANWVVemW7WC3RAKku
-         pbMiQluw9TZxJqi/NNNRv1MTC4Xmu3exbU8YCGV9rR6bIQ2IBSRDqSJbJn93j9RrOU7D
-         r2Gw==
+        bh=WDFDEcXg+f/4xOnB0EiSvj+2Wa4G0QK/3j1Q+39oVvk=;
+        b=z8c6BdrSWiFZdIqkYKcPONxVfiU9gy1gUlb7QMlDMjubqNyNgoV0xEvUdy95v0LcbW
+         fJX8bXOAcRkrUBmrbLljpIrUiczqBmNLAc8j8vBVgbS2DxieABppA8LpFiT8U3+Qg5Sc
+         iDWsJqNTZSos/RxL+sNBmm7Z20bhs3M3eQZlTqevg3R7bHQ/H9N67n36IWQ5eGGeqjxB
+         XLTr9/FqpwrRnDqJtXemEzgD9qDUpUaCb282I+33sjYmZAu+T/Zb9RaG3pg2taMn8VgL
+         gwf176VLMNGRpVADCLlyMNQdObVJX9UNazPH6sa7cInxBmLYNDWAqN3GsjKWvfaPHA/x
+         CZkg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id i4si16013585pfa.218.2019.05.08.07.44.52
+        by mx.google.com with ESMTPS id i4si16013585pfa.218.2019.05.08.07.44.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 May 2019 07:44:52 -0700 (PDT)
@@ -86,7 +86,7 @@ X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
   by orsmga005.jf.intel.com with ESMTP; 08 May 2019 07:44:46 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 672C3116A; Wed,  8 May 2019 17:44:31 +0300 (EEST)
+	id 51F061123; Wed,  8 May 2019 17:44:31 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -106,10 +106,10 @@ Cc: Kees Cook <keescook@chromium.org>,
 	kvm@vger.kernel.org,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 54/62] x86/mm: Disable MKTME on incompatible platform configurations
-Date: Wed,  8 May 2019 17:44:14 +0300
-Message-Id: <20190508144422.13171-55-kirill.shutemov@linux.intel.com>
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 52/62] x86/mm: introduce common code for mem encryption
+Date: Wed,  8 May 2019 17:44:12 +0300
+Message-Id: <20190508144422.13171-53-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -121,95 +121,84 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Icelake Server requires additional check to make sure that MKTME usage
-is safe on Linux.
+From: Jacob Pan <jacob.jun.pan@linux.intel.com>
 
-Kernel needs a way to access encrypted memory. There can be different
-approaches to this: create a temporary mapping to access the page (using
-kmap() interface), modify kernel's direct mapping on allocation of
-encrypted page.
+Both Intel MKTME and AMD SME have needs to support DMA address
+translation with encryption related bits. Common functions are
+introduced in this patch to keep DMA generic code abstracted.
 
-In order to minimize runtime overhead, the Linux MKTME implementation
-uses multiple direct mappings, one per-KeyID. Kernel uses the direct
-mapping that is relevant for the page at the moment.
-
-Icelake Server in some configurations doesn't allow a page to be mapped
-with multiple KeyIDs at the same time. Even if only one of KeyIDs is
-actively used. It conflicts with the Linux MKTME implementation.
-
-OS can check if it's safe to map the same with multiple KeyIDs by
-examining bit 8 of MSR 0x6F. If the bit is set we cannot safely use
-MKTME on Linux.
-
-The user can disable the Directory Mode in BIOS setup to get the
-platform into Linux-compatible mode.
-
+Signed-off-by: Jacob Pan <jacob.jun.pan@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/intel-family.h |  2 ++
- arch/x86/kernel/cpu/intel.c         | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ arch/x86/Kconfig                 |  4 ++++
+ arch/x86/mm/Makefile             |  1 +
+ arch/x86/mm/mem_encrypt_common.c | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+)
+ create mode 100644 arch/x86/mm/mem_encrypt_common.c
 
-diff --git a/arch/x86/include/asm/intel-family.h b/arch/x86/include/asm/intel-family.h
-index 9f15384c504a..6a633af144aa 100644
---- a/arch/x86/include/asm/intel-family.h
-+++ b/arch/x86/include/asm/intel-family.h
-@@ -53,6 +53,8 @@
- #define INTEL_FAM6_CANNONLAKE_MOBILE	0x66
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 62cfb381fee3..ce9642e2c31b 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1505,11 +1505,15 @@ config X86_CPA_STATISTICS
+ config ARCH_HAS_MEM_ENCRYPT
+ 	def_bool y
  
- #define INTEL_FAM6_ICELAKE_MOBILE	0x7E
-+#define INTEL_FAM6_ICELAKE_X		0x6A
-+#define INTEL_FAM6_ICELAKE_XEON_D	0x6C
- 
- /* "Small Core" Processors (Atom) */
- 
-diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index f402a74c00a1..3fc318f699d3 100644
---- a/arch/x86/kernel/cpu/intel.c
-+++ b/arch/x86/kernel/cpu/intel.c
-@@ -19,6 +19,7 @@
- #include <asm/microcode_intel.h>
- #include <asm/hwcap2.h>
- #include <asm/elf.h>
-+#include <asm/cpu_device_id.h>
- 
- #ifdef CONFIG_X86_64
- #include <linux/topology.h>
-@@ -531,6 +532,16 @@ static void detect_vmx_virtcap(struct cpuinfo_x86 *c)
- #define TME_ACTIVATE_CRYPTO_ALGS(x)	((x >> 48) & 0xffff)	/* Bits 63:48 */
- #define TME_ACTIVATE_CRYPTO_AES_XTS_128	1
- 
-+#define MSR_ICX_MKTME_STATUS		0x6F
-+#define MKTME_ALIASES_FORBIDDEN(x)	(x & BIT(8))
++config X86_MEM_ENCRYPT_COMMON
++	def_bool n
 +
-+/* Need to check MSR_ICX_MKTME_STATUS for these CPUs */
-+static const struct x86_cpu_id mktme_status_msr_ids[] = {
-+	{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ICELAKE_X		},
-+	{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ICELAKE_XEON_D	},
-+	{}
-+};
-+
- /* Values for mktme_status (SW only construct) */
- #define MKTME_ENABLED			0
- #define MKTME_DISABLED			1
-@@ -564,6 +575,17 @@ static void detect_tme(struct cpuinfo_x86 *c)
- 		return;
- 	}
+ config AMD_MEM_ENCRYPT
+ 	bool "AMD Secure Memory Encryption (SME) support"
+ 	depends on X86_64 && CPU_SUP_AMD
+ 	select DYNAMIC_PHYSICAL_MASK
+ 	select ARCH_USE_MEMREMAP_PROT
++	select X86_MEM_ENCRYPT_COMMON
+ 	---help---
+ 	  Say yes to enable support for the encryption of system memory.
+ 	  This requires an AMD processor that supports Secure Memory
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index 4ebee899c363..89dddbc01b1b 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -55,3 +55,4 @@ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
+ obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
  
-+	/* Icelake Server quirk: do not enable MKTME if aliases are forbidden */
-+	if (x86_match_cpu(mktme_status_msr_ids)) {
-+		u64 mktme_status;
-+		rdmsrl(MSR_ICX_MKTME_STATUS, mktme_status);
+ obj-$(CONFIG_X86_INTEL_MKTME)	+= mktme.o
++obj-$(CONFIG_X86_MEM_ENCRYPT_COMMON)	+= mem_encrypt_common.o
+diff --git a/arch/x86/mm/mem_encrypt_common.c b/arch/x86/mm/mem_encrypt_common.c
+new file mode 100644
+index 000000000000..2adee65eec46
+--- /dev/null
++++ b/arch/x86/mm/mem_encrypt_common.c
+@@ -0,0 +1,28 @@
++#include <linux/mm.h>
++#include <linux/mem_encrypt.h>
++#include <asm/mktme.h>
 +
-+		if (MKTME_ALIASES_FORBIDDEN(mktme_status)) {
-+			pr_err_once("x86/tme: Directory Mode is enabled in BIOS\n");
-+			mktme_status = MKTME_DISABLED;
-+		}
-+	}
++/*
++ * Encryption bits need to be set and cleared for both Intel MKTME and
++ * AMD SME when converting between DMA address and physical address.
++ */
++dma_addr_t __mem_encrypt_dma_set(dma_addr_t daddr, phys_addr_t paddr)
++{
++	unsigned long keyid;
 +
- 	if (mktme_status != MKTME_UNINITIALIZED)
- 		goto detect_keyid_bits;
- 
++	if (sme_active())
++		return __sme_set(daddr);
++	keyid = page_keyid(pfn_to_page(__phys_to_pfn(paddr)));
++
++	return (daddr & ~mktme_keyid_mask) | (keyid << mktme_keyid_shift);
++}
++EXPORT_SYMBOL_GPL(__mem_encrypt_dma_set);
++
++phys_addr_t __mem_encrypt_dma_clear(phys_addr_t paddr)
++{
++	if (sme_active())
++		return __sme_clr(paddr);
++
++	return paddr & ~mktme_keyid_mask;
++}
++EXPORT_SYMBOL_GPL(__mem_encrypt_dma_clear);
 -- 
 2.20.1
 
