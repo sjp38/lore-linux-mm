@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43CF2C04AAB
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EEE1C04AAB
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0101E216B7
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0101E216B7
+	by mail.kernel.org (Postfix) with ESMTP id 4E0B621734
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E0B621734
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F7906B0299; Wed,  8 May 2019 10:44:51 -0400 (EDT)
+	id CC5666B02A3; Wed,  8 May 2019 10:44:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 831106B029C; Wed,  8 May 2019 10:44:51 -0400 (EDT)
+	id 93F046B029B; Wed,  8 May 2019 10:44:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EA466B0294; Wed,  8 May 2019 10:44:51 -0400 (EDT)
+	id 370F66B029E; Wed,  8 May 2019 10:44:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CC5886B0294
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D8CBC6B029B
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:50 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id i8so10360108pfo.21
+Received: by mail-pl1-f199.google.com with SMTP id y9so1892301plt.11
         for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=63N4Scvmymr/HxGljrqFhwEljj66qpjYxN4DGuSs010=;
-        b=nc8FEzIBK8FOtYvN4mfSVrZAz57PHOUvETi4qMhEq2lDmyOn/Wqhgr1Iu/3EUbI/GT
-         jkqlO0QosBRFPpoFEKoXOR/8sAc5+VxSMBQWJEUPj9KvoTifKvVbvcDqElHreoiFvvi3
-         q3hd3q5dYfUXKiuWy/tkANhQWn1YYKfAQOjuLLKCkOhwLbqV202eYYhE5P/XgIhuF/kU
-         teISMZ7GsUsZyqyeQoVWhgMNGvrwatqZiPMsCVdcB/fcYah35joFkG6Hbq3GqNhrQc63
-         MaaFT4zt/sPwHDwUdblWr62ZqVzvXUKuOhYTTtXr0nNHW4rUG+3xrrl1JzOcNuDlo5cO
-         LChQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVdSE6lzXvyb3Llmch9YtQzeHaiYjlGsWjLBNpH/2DKXEHngPyO
-	eWJIFiE0o5xgRVCoPTn6A0IUja6aGQmPldADNBeLwMVx/0LnsGKBk8qhKWuLfTtErptpNRIWvz/
-	kbG3k40BwuiCI5Q/rVdGrV3h/WtsoXe23z1JwuKJzyWowgfWonm5OBrilnGLBhNn4xg==
-X-Received: by 2002:a62:2a55:: with SMTP id q82mr46765316pfq.90.1557326690485;
+        bh=VRvO8oqMppxOnEWDEBuBzBCYC9+uFK55kDaEpE2UVds=;
+        b=LaNSgB0794uWcJgI/q/MXbDiBXGIUwhZlkBsLkkjwjeN2mq9MixiQlIZIyM+HC6lFy
+         MtVABEW4v9Qz4tZn7ZPgQ7jqYCBBKQRQjpYQQUaZ36XsBE17DfC5sWlHaZf4AJ6uc+1k
+         sXlWURL1Vhdj/jY7zEsAD0lILl9IUd+9fLL2DukwONvwFqe2SVxqHl2JdljX1Yt3X3zO
+         eSJfCJjGWdubevS0HT62XmBG+qx4xkDJGczcqjQvQzPmPpo7CmUFFT6AUkTH03oqEpdF
+         hRKqTE51T+/mm+KVYHtDTNheGETPiBopMCyEUbYKXleWJ2XjrNYhF43LhjUVHsSXZ1i4
+         Fhuw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVkcdEyyzJFznFA9mz/ZFe6KWzaLXExf/1udLVK6WjNwsN/qL3z
+	kPtCkeVh8Wk3y8ryfOQuEUDuqGQD3ekSInyX4NYo1VcnutckLmjkpxDXEKWy4OcKm8IA9rQSDgz
+	ZaSpdqrVeQD3uG7gBrH2PXGG9EagB/GohCO6oyh4Hi6WlOFDltlW+6hPSGRKNSNQvVg==
+X-Received: by 2002:a65:62c4:: with SMTP id m4mr46915904pgv.308.1557326690541;
         Wed, 08 May 2019 07:44:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/isOGu4GN31NysvdwC67asqbOrY7gZ0WFYaJBIFMHpftDnFYiTpAIHeqjv/gtb5Gfnjph
-X-Received: by 2002:a62:2a55:: with SMTP id q82mr46765228pfq.90.1557326689713;
+X-Google-Smtp-Source: APXvYqxNbE7AElQJVofKQykoVh4ogRP4oU0Y8BnV/uFrhGYqO0tZohsG8oU7RUYoEgmfkO/F7vXS
+X-Received: by 2002:a65:62c4:: with SMTP id m4mr46915775pgv.308.1557326689244;
         Wed, 08 May 2019 07:44:49 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557326689; cv=none;
         d=google.com; s=arc-20160816;
-        b=dj3MP9sMMREOurQ4QbeeeplosUAqH3IvX0izx9vIwBSewNw1kDNe3xxf3Bvx4wRAnH
-         zTqgLeeEK+w0Nht98NuAkx9oMMwWHP4uWZKJkPt1YTw5yQykPtJRhWI4RNf2GDwEfRzy
-         rfFS0luSQpGX5ldCkLqLmJV8jRmaoInRoXk+idTLTOVNjNb6h7oQfyGOGS6Y5zBT91L1
-         FeSz/TF8NKpbGeY7/tTS3HTxHab5TUnUqO81EGP74hvsS/Jyod4p9GUgZwBMU8q5x340
-         E/SnyurKWbGaOcjqOfSS/XzZMsI7bN1B9iZHQZOT9Ml9fGvDbAW3v3PkQi57Mv2ADNf6
-         He2Q==
+        b=xE4OKP4iM7e6s1MhOQp7RjiU6ozOeFQ3J1WnR9zS55FZhdRIB2uBVG4uEADCXGqpoq
+         MTyXrBzKzBt2jQNHG9dIXyHCgQDZFeBLaOyUHUssIaQuxl6dny+3j7kWPkPWttLCtKmn
+         DbbTElXMZcCgqx9HrfmpQFJMdHATnVhhS/ZSKDb0lmkZBdbTmW53/CbmroSXeEF1D43A
+         GGHvHLi0IVs2GCi4pDWNMyQn62QAAGJMWVM+133R56cCxwhKJPwtuZj8pPw/HoCUW4ak
+         r3qtrUELpbXIAI2OOdhbf1t8lDotgVn8U1bVz71AKVOU/Z+oZbKXANMcRB0pXTNiOIKY
+         1vMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=63N4Scvmymr/HxGljrqFhwEljj66qpjYxN4DGuSs010=;
-        b=qUlcAJVaWCMh/BmJfFh34R21V+4rk/0H9ata3Sp4eN3siGc/7IBauQF856lmJ8FPD7
-         koPRfpjBWjf8FnrjN6UuzoWegXAawVH9uEPa7Ivk6bJLC+JV4ICU/j1nOwrl3VKiI3Kd
-         eD/wvcq8LHZDqdJYavvu+8pGpsGhzPEiUrVZB2OJG8ONSa4j0ZUq854fBHRIHsxz1SSJ
-         NY7nZbxd1KCzJiPS6K3SZdLw3P+0R0JKL6JMdtIjb3MmPXrjzz7CJ6ibpt7sp7Lv6dcz
-         +ccNxMiMQ/i5n/4J0Zddxv9UOOtI6zKhRWwFgZP+7oU6DzmyLQhE+uoXNNDtubdIQQEm
-         yABA==
+        bh=VRvO8oqMppxOnEWDEBuBzBCYC9+uFK55kDaEpE2UVds=;
+        b=NDNHc3LZ+wm231uUn0Q+mmRtoqDuhslpYm1Ea11aJre20lO3LZwmr697RSelKPv6dZ
+         0r1oCzsNfdxWOkZrVGMSE7GyfA32ayPGTCaYC1JOuvYXifBo/FNLpUcqKpIh9tyQhIqE
+         JeO0dlXUYf+aNP/8uCoUlfByCbTqFu26oj8LveElpqNuCwR8u7OQQlhB82iQDi5QyYQe
+         tvd2vN0u1yFRNRpg8rgYO1zYIbH2AQOviwmUxfpWIKqof4aVjiHl9RTq0wapRebf+fWY
+         +GuOLI3Qg4UFtcKwzgJJQ9A1cZZnyZaxcV6GVS/W4LgYCz953dj/dE/ojowt190HOPn+
+         yLAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id s184si23372828pfs.275.2019.05.08.07.44.49
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id t16si6593003plm.65.2019.05.08.07.44.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 May 2019 07:44:49 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:49 -0700
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:48 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga006.jf.intel.com with ESMTP; 08 May 2019 07:44:44 -0700
+  by fmsmga005.fm.intel.com with ESMTP; 08 May 2019 07:44:44 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id CCCC7D8A; Wed,  8 May 2019 17:44:30 +0300 (EEST)
+	id D81CDEA8; Wed,  8 May 2019 17:44:30 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 42/62] mm: Generalize the mprotect implementation to support extensions
-Date: Wed,  8 May 2019 17:44:02 +0300
-Message-Id: <20190508144422.13171-43-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 43/62] syscall/x86: Wire up a system call for MKTME encryption keys
+Date: Wed,  8 May 2019 17:44:03 +0300
+Message-Id: <20190508144422.13171-44-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -123,63 +123,85 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-Today mprotect is implemented to support legacy mprotect behavior
-plus an extension for memory protection keys. Make it more generic
-so that it can support additional extensions in the future.
+encrypt_mprotect() is a new system call to support memory encryption.
 
-This is done is preparation for adding a new system call for memory
-encyption keys. The intent is that the new encrypted mprotect will be
-another extension to legacy mprotect.
+It takes the same parameters as legacy mprotect, plus an additional
+key serial number that is mapped to an encryption keyid.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/mprotect.c | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ arch/x86/entry/syscalls/syscall_32.tbl | 1 +
+ arch/x86/entry/syscalls/syscall_64.tbl | 1 +
+ include/linux/syscalls.h               | 2 ++
+ include/uapi/asm-generic/unistd.h      | 4 +++-
+ kernel/sys_ni.c                        | 2 ++
+ 5 files changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e768cd656a48..23e680f4b1d5 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -35,6 +35,8 @@
+diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+index 1f9607ed087c..dbcd4c28d743 100644
+--- a/arch/x86/entry/syscalls/syscall_32.tbl
++++ b/arch/x86/entry/syscalls/syscall_32.tbl
+@@ -433,3 +433,4 @@
+ 425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+ 426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
+ 427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
++428	i386	encrypt_mprotect	sys_encrypt_mprotect		__ia32_sys_encrypt_mprotect
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 92ee0b4378d4..d01bd132e9ee 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -349,6 +349,7 @@
+ 425	common	io_uring_setup		__x64_sys_io_uring_setup
+ 426	common	io_uring_enter		__x64_sys_io_uring_enter
+ 427	common	io_uring_register	__x64_sys_io_uring_register
++428	common	encrypt_mprotect	__x64_sys_encrypt_mprotect
  
- #include "internal.h"
- 
-+#define NO_KEY	-1
-+
- static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable, int prot_numa)
-@@ -452,9 +454,9 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- }
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index e446806a561f..38a2d7b95397 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -988,6 +988,8 @@ asmlinkage long sys_rseq(struct rseq __user *rseq, uint32_t rseq_len,
+ asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
+ 				       siginfo_t __user *info,
+ 				       unsigned int flags);
++asmlinkage long sys_encrypt_mprotect(unsigned long start, size_t len,
++				     unsigned long prot, key_serial_t serial);
  
  /*
-- * pkey==-1 when doing a legacy mprotect()
-+ * When pkey==NO_KEY we get legacy mprotect behavior here.
-  */
--static int do_mprotect_pkey(unsigned long start, size_t len,
-+static int do_mprotect_ext(unsigned long start, size_t len,
- 		unsigned long prot, int pkey)
- {
- 	unsigned long nstart, end, tmp, reqprot;
-@@ -578,7 +580,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
- SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot)
- {
--	return do_mprotect_pkey(start, len, prot, -1);
-+	return do_mprotect_ext(start, len, prot, NO_KEY);
- }
+  * Architecture-specific system calls
+diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+index dee7292e1df6..86f942f54b1b 100644
+--- a/include/uapi/asm-generic/unistd.h
++++ b/include/uapi/asm-generic/unistd.h
+@@ -832,9 +832,11 @@ __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
+ __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
+ #define __NR_io_uring_register 427
+ __SYSCALL(__NR_io_uring_register, sys_io_uring_register)
++#define __NR_encrypt_mprotect 428
++__SYSCALL(__NR_encrypt_mprotect, sys_encrypt_mprotect)
  
- #ifdef CONFIG_ARCH_HAS_PKEYS
-@@ -586,7 +588,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
- SYSCALL_DEFINE4(pkey_mprotect, unsigned long, start, size_t, len,
- 		unsigned long, prot, int, pkey)
- {
--	return do_mprotect_pkey(start, len, prot, pkey);
-+	return do_mprotect_ext(start, len, prot, pkey);
- }
+ #undef __NR_syscalls
+-#define __NR_syscalls 428
++#define __NR_syscalls 429
  
- SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
+ /*
+  * 32 bit systems traditionally used different
+diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+index d21f4befaea4..80da8d9ac8b1 100644
+--- a/kernel/sys_ni.c
++++ b/kernel/sys_ni.c
+@@ -350,6 +350,8 @@ COND_SYSCALL(pkey_mprotect);
+ COND_SYSCALL(pkey_alloc);
+ COND_SYSCALL(pkey_free);
+ 
++/* multi-key total memory encryption keys */
++COND_SYSCALL(encrypt_mprotect);
+ 
+ /*
+  * Architecture specific weak syscall entries.
 -- 
 2.20.1
 
