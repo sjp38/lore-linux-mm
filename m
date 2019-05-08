@@ -2,137 +2,214 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE868C04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:49:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AEC89C04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 21:09:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B196E20850
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:49:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B196E20850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 53A8520989
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 21:09:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53A8520989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 408796B0003; Wed,  8 May 2019 16:49:37 -0400 (EDT)
+	id AB0AA6B0003; Wed,  8 May 2019 17:09:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B9996B0005; Wed,  8 May 2019 16:49:37 -0400 (EDT)
+	id A61036B0005; Wed,  8 May 2019 17:09:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A9046B0007; Wed,  8 May 2019 16:49:37 -0400 (EDT)
+	id 978106B0007; Wed,  8 May 2019 17:09:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E88C56B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 16:49:36 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id g11so80942plt.23
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 13:49:36 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 622AF6B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 17:09:49 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h14so66662pgn.23
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 14:09:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=3s6ZOoEFzQgmmY4RiBUNYa05M1MljOt4HlKCqq6VpBE=;
-        b=WGton5QNs5Fhrz8RrdZ3dboaF+ZUIofVTcXEQMhy/z4axmuFnp2sGzLWaHTCSdmWOp
-         q64PChQ26TJksONVR4hx7g+FRzhJ02uAXRq/GH60dc5Q//oaiLspdVJbW6Na9Ze0kubL
-         PMmHZ+7/NlkFx1v7iU06eocpdpvJUe16RSYKMljw88MkgDXs3SCxM04+UrU7Z8T0BxDl
-         1JWSH0j7BcQt4aa6i3CA7Pp05GppftN3XhDc9lDEyqbEEma8SXmRYH0mjM5wmMflobua
-         JA5h0CuKVk+LPF9iz/y3bOSlS7UJuJSH+Rsb4SLTk4gXiS0B42e5DSBFuitufadc1456
-         8xTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of jacob.jun.pan@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=jacob.jun.pan@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWhFOHSh71QNVresbpXtqjwzu6iV0Czuckd63sQ82Q6+U64lbmi
-	ILLJFdJFMfStFO5IuG4tCJweDMoYV17G0U0YmU4aCSt31f0K+e2LG1kxh/208kSc3HBzfxVxoOH
-	FoMW0JtDJvzNl6In4oVCH846O1FgXfMu4aoP6HFcFqu9aosS/RBifngS0z04eM9MVXw==
-X-Received: by 2002:a63:1e4d:: with SMTP id p13mr232943pgm.125.1557348576631;
-        Wed, 08 May 2019 13:49:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyCwKTP2ql0ns8tea0mcgsRbnhL6bbCJvgN0upT4mKJIwq2UCO1vhj88NTyxpZ9wjt0kDNW
-X-Received: by 2002:a63:1e4d:: with SMTP id p13mr232882pgm.125.1557348576009;
-        Wed, 08 May 2019 13:49:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557348576; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=ckBUHMj1Z4j4bpbSvdniJulF0vTFfoo/5G9/hFQjeN8=;
+        b=OBy5FueYZZuT4t3ST0gxQGUOoLI4my4UhHcCTGoeutIkGnuqv0U18aCojiNcV8zr/C
+         DgCrfZwNK0PDSY6v+XFXHAjxQ9U9EKnGthnlMF0G5LkXKRy6ggKV3daCKd5HuzyxvzsU
+         Pvc2/SgKl3PoDC7+W2GteBf1knuGGAlvaF9h5aoBfG58eKokSMCsaIi8IfCJu4fbCEcp
+         GvZFOGscDQdd11HSIbthS0bMmOl9St9eihtR6qrQH+ZCVR1eoDWEztlGiglN5A1/trOl
+         eq1ZMAeyrmPpOUsv6E851jc3BPnvur6H+SMTJ0BAzDhka5DzVdp9PGG875CVljCAkiMB
+         qVQg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVOptnonOEIgN6D6wde9mkx8F1oTKAsjqZDgOJUhx0YnJdLOZCC
+	jHRtpFQ/H3V8pCHiypYVG/fwAMEOC7FibhUiyme7qG491QX/q97pXzeDQSrptcYfBl8Tm+MTvMm
+	abEcf2v84hWrjzlI3C/0ykooQFfZn+Cj4sqMTpxEXwPNj4RvQsTjoq1r/z1kFpMVJEg==
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr35959846pla.235.1557349788842;
+        Wed, 08 May 2019 14:09:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYw/P4ahYY4vrHFue0v4enohn3nh1F6Nu4rqrXYoDSHDE9umBXFbkNRflCbXMvDtrZovOk
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr35959722pla.235.1557349787883;
+        Wed, 08 May 2019 14:09:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557349787; cv=none;
         d=google.com; s=arc-20160816;
-        b=xBzj8t+B46K3Stvj6MchRRZMBQpEq0tWqe3b5neQCokJxJvnZCdXx/yGvrTtvkgYSl
-         yWR95UXGej5UXt4fH9R4btnKtUixZuA5Y/tnHSC9+luIRP6dixI6KpJ0VFUTAhhoEOmU
-         3qJRrEeoTmofuq3cAPT2eEA6gLIr756gz3ZD1lCvU7xJofoOpUsI4d1Xb3SeTIN8xlwW
-         zRCvLPeCE6zFPYGL3ngcQ0Pp5knm7g8sh1ajTct2wi4cuCmKv84HCNegtGrpJO4hiIK+
-         VkgQs1kU6HV6h/Htow0iJG2ecDV/+VGBMTilKj3rKqQN/F+Penw8Tg5aiSdX4rbbqsgJ
-         iZ1Q==
+        b=js3xepg4zm6iOOztzceDjP9ldVt/6Aw6vNFFbntswzq8Pa+8ZpbrzF/t11uDc4l1Xw
+         XkdqWXY0WAb1KTV7B9i4Vg4+QdljTahRWHk3L3/RKJP9rwdUYyRqOTY9tt/q2GHE5HH5
+         PIcjV1ioLI7f6+ad7BjWXhyi3REa3c+LgIqDkoqOWAsWN6W+t8euWyBXrTubPaj3F0R0
+         TLwA5YTYVhW1YUeKkrIvNYyuBHumTzHksBDuHu9ZdIsdd1TDxCje5BhKYMQ07VNIMV/c
+         hqMrGZotAz9Bff0gisMFyPdsfjA2ZfF4sZ4pVMd1rC1QIEYGwlSM+/+a5HMJVNWvW6tJ
+         DocA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=3s6ZOoEFzQgmmY4RiBUNYa05M1MljOt4HlKCqq6VpBE=;
-        b=zZZBjjlenNrKU94xK0ambXqgBOzyJTXT71bl1/F4cDtf4KOBEjftIrHTEC2FJfj1ov
-         5/G+rCi+AAQpZNta1n5LWfo2eHs45JAVXSQlGBk0HF7a53hL/zjiLSSjNKxC1wUpK9o3
-         kMTMjq/SXqSRJcOAkcFIPR7xfftNCYtkqLGTVONrkFnxoxYlhcq9+1oXV8lLG6iEC8MP
-         tf2gv0MAuo/S/YOZmkgh4baUxgckzBHTj9usB8HnlUEHAoY5QpcwKCCsnVxPKPQNI82S
-         WAimP6M4RqfuFXgC1P6Yks2caXRYcxph1dVmbp4awjqIK7OPKCOssuX8ujHswkielzGn
-         oyBA==
+        h=message-id:date:subject:cc:to:from;
+        bh=ckBUHMj1Z4j4bpbSvdniJulF0vTFfoo/5G9/hFQjeN8=;
+        b=MybIawiNwZ/qsMDqC9VSG7I/Zu+b3Y6Y7sWIsyId3bFxL0E+3wodrEEGMrBpo1lnGx
+         KFezl2Kpm3NOrCLqML5k1ZWtyebNmqHmVgusyeWQbX/gaHINE1Ma7lQeetTwbxBZepaQ
+         iGbo7PzwLA10E5yhmMak+LUOyl8lZnJPikAIvJMWWM4Aou+qsmaDKktihk3Nukywt/RR
+         hLQcYLlinwRvHyWoD8/3BsqYCT3JZQGaaJ6PSKfXnRUkns86hz9zenYyXN1z+aKiJr5h
+         N0B89gQcYusMOYkrNAcxF1aA25XwDQBtS1Zwl4ErEm91wDA00eSQCnw3ONOeq28SNpsW
+         nRUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of jacob.jun.pan@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=jacob.jun.pan@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h5si45014pgq.224.2019.05.08.13.49.35
+       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id n1si23872220plp.272.2019.05.08.14.09.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 13:49:35 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of jacob.jun.pan@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Wed, 08 May 2019 14:09:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of jacob.jun.pan@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=jacob.jun.pan@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 13:49:35 -0700
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 14:09:47 -0700
 X-ExtLoop1: 1
-Received: from jacob-builder.jf.intel.com (HELO jacob-builder) ([10.7.199.155])
-  by orsmga008.jf.intel.com with ESMTP; 08 May 2019 13:49:34 -0700
-Date: Wed, 8 May 2019 13:52:25 -0700
-From: Jacob Pan <jacob.jun.pan@linux.intel.com>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton
- <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin"
- <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>, Peter Zijlstra
- <peterz@infradead.org>, Andy Lutomirski <luto@amacapital.net>, David
- Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>, Dave
- Hansen <dave.hansen@intel.com>, Kai Huang <kai.huang@linux.intel.com>,
- Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
- kvm@vger.kernel.org, keyrings@vger.kernel.org,
- linux-kernel@vger.kernel.org, jacob.jun.pan@linux.intel.com
-Subject: Re: [PATCH, RFC 52/62] x86/mm: introduce common code for mem
- encryption
-Message-ID: <20190508135225.3cb0e638@jacob-builder>
-In-Reply-To: <20190508165830.GA11815@infradead.org>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
-	<20190508144422.13171-53-kirill.shutemov@linux.intel.com>
-	<20190508165830.GA11815@infradead.org>
-Organization: OTC
-X-Mailer: Claws Mail 3.13.2 (GTK+ 2.24.30; x86_64-pc-linux-gnu)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
+  by orsmga005.jf.intel.com with ESMTP; 08 May 2019 14:09:46 -0700
+From: Keith Busch <keith.busch@intel.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Keith Busch <keith.busch@intel.com>
+Subject: [PATCH] mm: migrate: remove unused mode argument
+Date: Wed,  8 May 2019 15:03:01 -0600
+Message-Id: <20190508210301.8472-1-keith.busch@intel.com>
+X-Mailer: git-send-email 2.13.6
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 May 2019 09:58:30 -0700
-Christoph Hellwig <hch@infradead.org> wrote:
+migrate_page_move_mapping() doesn't use the mode argument. Remove it
+and update callers accordingly.
 
-> On Wed, May 08, 2019 at 05:44:12PM +0300, Kirill A. Shutemov wrote:
-> > +EXPORT_SYMBOL_GPL(__mem_encrypt_dma_set);
-> > +
-> > +phys_addr_t __mem_encrypt_dma_clear(phys_addr_t paddr)
-> > +{
-> > +	if (sme_active())
-> > +		return __sme_clr(paddr);
-> > +
-> > +	return paddr & ~mktme_keyid_mask;
-> > +}
-> > +EXPORT_SYMBOL_GPL(__mem_encrypt_dma_clear);  
-> 
-> In general nothing related to low-level dma address should ever
-> be exposed to modules.  What is your intended user for these two?
+Signed-off-by: Keith Busch <keith.busch@intel.com>
+---
+ fs/aio.c                | 2 +-
+ fs/f2fs/data.c          | 2 +-
+ fs/iomap.c              | 2 +-
+ fs/ubifs/file.c         | 2 +-
+ include/linux/migrate.h | 3 +--
+ mm/migrate.c            | 7 +++----
+ 6 files changed, 8 insertions(+), 10 deletions(-)
 
-Right no need to export. It will be used by IOMMU drivers.
+diff --git a/fs/aio.c b/fs/aio.c
+index 3490d1fa0e16..1a1568861b4e 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -425,7 +425,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	BUG_ON(PageWriteback(old));
+ 	get_page(new);
+ 
+-	rc = migrate_page_move_mapping(mapping, new, old, mode, 1);
++	rc = migrate_page_move_mapping(mapping, new, old, 1);
+ 	if (rc != MIGRATEPAGE_SUCCESS) {
+ 		put_page(new);
+ 		goto out_unlock;
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 9727944139f2..0eb7a8cd3138 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -2801,7 +2801,7 @@ int f2fs_migrate_page(struct address_space *mapping,
+ 	/* one extra reference was held for atomic_write page */
+ 	extra_count = atomic_written ? 1 : 0;
+ 	rc = migrate_page_move_mapping(mapping, newpage,
+-				page, mode, extra_count);
++				page, extra_count);
+ 	if (rc != MIGRATEPAGE_SUCCESS) {
+ 		if (atomic_written)
+ 			mutex_unlock(&fi->inmem_lock);
+diff --git a/fs/iomap.c b/fs/iomap.c
+index abdd18e404f8..f26f4846a00b 100644
+--- a/fs/iomap.c
++++ b/fs/iomap.c
+@@ -571,7 +571,7 @@ iomap_migrate_page(struct address_space *mapping, struct page *newpage,
+ {
+ 	int ret;
+ 
+-	ret = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
++	ret = migrate_page_move_mapping(mapping, newpage, page, 0);
+ 	if (ret != MIGRATEPAGE_SUCCESS)
+ 		return ret;
+ 
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index 5d2ffb1a45fc..d906ebc24049 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -1481,7 +1481,7 @@ static int ubifs_migrate_page(struct address_space *mapping,
+ {
+ 	int rc;
+ 
+-	rc = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
++	rc = migrate_page_move_mapping(mapping, newpage, page, 0);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+ 
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index e13d9bf2f9a5..7f04754c7f2b 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -77,8 +77,7 @@ extern void migrate_page_copy(struct page *newpage, struct page *page);
+ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
+ extern int migrate_page_move_mapping(struct address_space *mapping,
+-		struct page *newpage, struct page *page, enum migrate_mode mode,
+-		int extra_count);
++		struct page *newpage, struct page *page, int extra_count);
+ #else
+ 
+ static inline void putback_movable_pages(struct list_head *l) {}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 663a5449367a..85f46bfcf141 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -397,8 +397,7 @@ static int expected_page_refs(struct address_space *mapping, struct page *page)
+  * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
+  */
+ int migrate_page_move_mapping(struct address_space *mapping,
+-		struct page *newpage, struct page *page, enum migrate_mode mode,
+-		int extra_count)
++		struct page *newpage, struct page *page, int extra_count)
+ {
+ 	XA_STATE(xas, &mapping->i_pages, page_index(page));
+ 	struct zone *oldzone, *newzone;
+@@ -684,7 +683,7 @@ int migrate_page(struct address_space *mapping,
+ 
+ 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
+ 
+-	rc = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
++	rc = migrate_page_move_mapping(mapping, newpage, page, 0);
+ 
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+@@ -783,7 +782,7 @@ static int __buffer_migrate_page(struct address_space *mapping,
+ 		}
+ 	}
+ 
+-	rc = migrate_page_move_mapping(mapping, newpage, page, mode, 0);
++	rc = migrate_page_move_mapping(mapping, newpage, page, 0);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		goto unlock_buffers;
+ 
+-- 
+2.14.4
 
