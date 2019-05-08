@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8266BC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58110C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C5E721019
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C5E721019
+	by mail.kernel.org (Postfix) with ESMTP id 0D7D0216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D7D0216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84EDC6B02C7; Wed,  8 May 2019 10:46:28 -0400 (EDT)
+	id 541EA6B02CD; Wed,  8 May 2019 10:46:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 802E16B02CA; Wed,  8 May 2019 10:46:28 -0400 (EDT)
+	id 4CBC76B02CE; Wed,  8 May 2019 10:46:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 56E6C6B02CB; Wed,  8 May 2019 10:46:28 -0400 (EDT)
+	id 3BB7E6B02CF; Wed,  8 May 2019 10:46:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AEEC6B02C7
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:28 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id a141so12786431pfa.13
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:28 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8EF6B02CD
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:37 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g6so11611311plp.18
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=C6+rU85YmF2u5coeebI+WWQ+A0Fr/0PqCfQHlswCpow=;
-        b=fvVOpemxZrEmGlr8ArKJqalL2m6QZmxNyvrVrKuPQvR/Rb4LRbXw60NOzUYUivx7Ab
-         nae934/73lOX5W+CogOSvR+oevp2D9JVvaJJ/cwViAcOrevy/AzV4h6YvxNYRQZZ40+5
-         etsspuj6IDILWz0sbZygmsGfZr4TQCqf8HhGSVJjpZKx+ghSmOyY+whcKHivE7UPgqrX
-         YOzIXsggfqO9wfWtdNcy+oYse2jcCfsRnTZq6HMQ6v2S0XX5uOEg5e2vr6dNU/l1t0h6
-         ggG7jyvLYzukWc75w8alSJfjOdEqK3JLN/1Sa+APGv5yPzIz+IQQfp5YUg7xjxKBq/8Y
-         VMvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXONRsDheCGefHxTLE+8FsMCTwEUlhnEKjtyVK/B1cdjaAEKSPO
-	TLpkGwDW3Rat9poMhJo9MmK+D/3tIzvpU/nZjK3cW5Q+AlPJQDcujQ07mAneJtqi5iqTLqRytAx
-	nCUa1iTH8DNb4RzKvb+jAgC6zh9dls3ekqT7n4U2ObyZGjA3cG65gGGtYjE0eGePxsg==
-X-Received: by 2002:aa7:8190:: with SMTP id g16mr49303179pfi.92.1557326787713;
-        Wed, 08 May 2019 07:46:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFSIlF/x2yrxTV5f2DesZxZR2qpouZzzYlXEGeX1GbNWC8BuGZhftM9Aw3vtKGa0r+Wy5e
-X-Received: by 2002:aa7:8190:: with SMTP id g16mr49291599pfi.92.1557326691967;
-        Wed, 08 May 2019 07:44:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326691; cv=none;
+        bh=mGWxsgZUF78DJoxLPILHTD5pkaTBsUb3oE6oZjmsOWU=;
+        b=k6CyMnwJ9PjW+xoRcU8V40pfWDI1SBa7l5ehSPcf0p6FXW9xHKsecvyN7Ct2DCfEzG
+         8nzxP2i23+Zv0xoucHQMD2+0FGXqQsA7W9XNRMnC6X2hAx5SizQtXkO+jQIovQTsIEQa
+         oXX6W7mI2dovRrcXy6ci+2H6NuV6PtKCfassBZAiqLU6aoh6MMbsDjnyWoMGR5s4XJVR
+         +J2+YZgH6Aia1/rPd88c49X5UXSs5WPIjdWEdnC6hUTMKT1DPV/kgBpB7G2zKiIduItM
+         bzLB9AUikBooZ1Pp/teA9VH1Jr1ve6fzhhfN6kZ7wOAFQlG6Iodx6AxqNNstyeLg+37L
+         WCAA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXR62c2XOfPBuquh9KkndjRQt0PUu6wVhcj3klOOqAx7iTgbrSa
+	7bwPbm4KA49cyVdaGGX7Snnve41ChNRExKFtpq49usUrvb04A6uFkvby7oRm/5hSAwtSlH57NSD
+	kNlxcepuWAIvqKzb+y3Tsduvag95njHrPm2vCzbPQgg1s6hU7MWHPt3wz0BWLDp9vWA==
+X-Received: by 2002:a63:fb01:: with SMTP id o1mr47062579pgh.135.1557326797590;
+        Wed, 08 May 2019 07:46:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzOIIcS2jceyJjtVwqnIyN7TpXsxOal8bx/pni3Wn6D+fIOwH7/znRpUwjI4WT/HJTLVpBY
+X-Received: by 2002:a63:fb01:: with SMTP id o1mr47049800pgh.135.1557326684644;
+        Wed, 08 May 2019 07:44:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326684; cv=none;
         d=google.com; s=arc-20160816;
-        b=IF1AZ6jwYyfPmHNxFIIuqrbjbw4/p9YXhSlYhIWCIkMdsy//YcdqBjnvJtmDFwNbtA
-         BMhSq3UfghVCFBJHK5LNsuFwGDaLvO4+GNAc3ZIpBeavtfbgg3RrB2iG/KExN8keLp5G
-         k9cS/Z15k5sUqKL9sCkGq23Mb9LUIQIg2QG9DncuzbuK+9QnxJFqDRSjzDdGLXRq6Iye
-         kVimzbSV9uMkJxMtNREKx7eBxURophl+9qgVgKIz1vLpghJqe/piNCbrhWEzTkyFdsye
-         O7vM4zKPSs8an28nwGxC6ykz4erF3pP3x/LjXMkjl7jV3+UEsxh8A+bXBAOOFWHZa/iF
-         eM2w==
+        b=n73DIKdtSD/8WWfKx2BSSVnqZw21/hRPKWu/AFvPRwsGrKRiHqD0I29bANCMoi5WWU
+         nF69j5eAlrgOlzCrxOwAzM3LuP/hcV8s9RBHuRFjK4/9+6FMF4FTcPb2DYEXqZKOoIJj
+         mTZlQUcoeDbQu7Fu3rT0ol6EI8UeLKyDN4sLm3YjB+1lDolM8TTVHdCgdvLvVL7sTUqu
+         GrcHnYsl90pyzmwX9zIpDY8ms5BYOJMzOPWM9Hzj1MGn51RP7caYHs7P75ByxTydgPmx
+         dLjBk+Ley7przrhBQg3s88Bam9UiYOP3ZXxMSPTEK4dlbtbEPKJEZ7uUdlgKVZM77L9E
+         OtIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=C6+rU85YmF2u5coeebI+WWQ+A0Fr/0PqCfQHlswCpow=;
-        b=ds2EyNm6ABc9QwHipVcsQiLyHSAP9Kh/oFGU67Ju5+9jE1jlQ5GcxXkLTV6qxKSATN
-         /8wksPMSirvJVydxXoXr5Vw/57mBwdgCd+g2qTzdaQRHxD0Fq78A4ABt0D6wJpskJxDv
-         5f7oxvz3Vvlo1Z2Il9gQrVfLsUKdNrdGKnlyUwzd7Wlq6M0RP69jwLZ2O1xd09LgYLS0
-         I1MZYTWtoL8xzMLr8QY+870mEi+BCRygTGkLq2ZtK6zEgddlp5/Ix7MMYY3aU8ns5uvW
-         +JqpvDeE2IqBIAnZOtUqnFJ73YHvWqS1aoxKbYqEBd3WaoBz8zpAaopY/MhGMACBaIU5
-         4Fuw==
+        bh=mGWxsgZUF78DJoxLPILHTD5pkaTBsUb3oE6oZjmsOWU=;
+        b=gLtN9K549ynInWu7XSpU0vrpFjwSxOf76krtDdeRrkczu3pai2tJqru6s9BhJg7eKW
+         twFJ+ACoD7m12WQ1ko26dXTM1uX5flUNJisE3nmKFAOwJ1lHgNYNpYZ9QDauCgacySjO
+         R22x1WA1zzR+JM6+WOn9vkgbo0GlUsUlk5Fc4kLeoEtYHcE74rYDroACi3KJ81qRgfpH
+         pLfnOCn+w/ecnWbR9afYjaamoadfSDksmew3pimM5ylzmfqIAvUd3rMRB8EWWszfHCiW
+         O3jwaZosmek3k5LCyQaK6Zr/CJ4DeXMZQHzuNK5r6L7eBsUncAgH007HocNkAZhntAnT
+         MmFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id b63si24289903plb.146.2019.05.08.07.44.51
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id e61si23294206plb.123.2019.05.08.07.44.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:51 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Wed, 08 May 2019 07:44:44 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:51 -0700
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:44 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga003.jf.intel.com with ESMTP; 08 May 2019 07:44:46 -0700
+  by FMSMGA003.fm.intel.com with ESMTP; 08 May 2019 07:44:39 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 474571101; Wed,  8 May 2019 17:44:31 +0300 (EEST)
+	id 93F2C9B1; Wed,  8 May 2019 17:44:29 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -106,10 +106,10 @@ Cc: Kees Cook <keescook@chromium.org>,
 	kvm@vger.kernel.org,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 51/62] iommu/vt-d: Support MKTME in DMA remapping
-Date: Wed,  8 May 2019 17:44:11 +0300
-Message-Id: <20190508144422.13171-52-kirill.shutemov@linux.intel.com>
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 18/62] x86/mm: Implement syncing per-KeyID direct mappings
+Date: Wed,  8 May 2019 17:43:38 +0300
+Message-Id: <20190508144422.13171-19-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -121,111 +121,570 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jacob Pan <jacob.jun.pan@linux.intel.com>
+For MKTME we use per-KeyID direct mappings. This allows kernel to have
+access to encrypted memory.
 
-When MKTME is enabled, keyid is stored in the high order bits of physical
-address. For DMA transactions targeting encrypted physical memory, keyid
-must be included in the IOVA to physical address translation.
+sync_direct_mapping() sync per-KeyID direct mappings with a canonical
+one -- KeyID-0.
 
-This patch appends page keyid when setting up the IOMMU PTEs. On the
-reverse direction, keyid bits are cleared in the physical address lookup.
-Mapping functions of both DMA ops and IOMMU ops are covered.
+The function tracks changes in the canonical mapping:
+ - creating or removing chunks of the translation tree;
+ - changes in mapping flags (i.e. protection bits);
+ - splitting huge page mapping into a page table;
+ - replacing page table with a huge page mapping;
 
-Signed-off-by: Jacob Pan <jacob.jun.pan@linux.intel.com>
+The function need to be called on every change to the direct mapping:
+hotplug, hotremove, changes in permissions bits, etc.
+
+The function is nop until MKTME is enabled.
+
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/iommu/intel-iommu.c | 29 +++++++++++++++++++++++++++--
- include/linux/intel-iommu.h |  9 ++++++++-
- 2 files changed, 35 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/mktme.h |   6 +
+ arch/x86/mm/init_64.c        |  10 +
+ arch/x86/mm/mktme.c          | 441 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 457 insertions(+)
 
-diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
-index 28cb713d728c..1ff7e87e25f1 100644
---- a/drivers/iommu/intel-iommu.c
-+++ b/drivers/iommu/intel-iommu.c
-@@ -862,6 +862,28 @@ static void free_context_table(struct intel_iommu *iommu)
- 	spin_unlock_irqrestore(&iommu->lock, flags);
+diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
+index 454d6d7c791d..bd6707e73219 100644
+--- a/arch/x86/include/asm/mktme.h
++++ b/arch/x86/include/asm/mktme.h
+@@ -59,6 +59,8 @@ static inline void arch_free_page(struct page *page, int order)
+ 		free_encrypted_page(page, order);
  }
  
-+static inline void set_pte_mktme_keyid(unsigned long phys_pfn,
-+		phys_addr_t *pteval)
++int sync_direct_mapping(void);
++
+ #else
+ #define mktme_keyid_mask	((phys_addr_t)0)
+ #define mktme_nr_keyids		0
+@@ -73,6 +75,10 @@ static inline bool mktme_enabled(void)
+ 
+ static inline void mktme_disable(void) {}
+ 
++static inline int sync_direct_mapping(void)
 +{
-+	unsigned long keyid;
++	return 0;
++}
+ #endif
+ 
+ #endif
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 3a08d707eec8..ad4ea3703faf 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -693,6 +693,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+ {
+ 	bool pgd_changed = false;
+ 	unsigned long vaddr, vaddr_start, vaddr_end, vaddr_next, paddr_last;
++	int ret;
+ 
+ 	paddr_last = paddr_end;
+ 	vaddr = (unsigned long)__va(paddr_start);
+@@ -726,6 +727,9 @@ kernel_physical_mapping_init(unsigned long paddr_start,
+ 		pgd_changed = true;
+ 	}
+ 
++	ret = sync_direct_mapping();
++	WARN_ON(ret);
 +
-+	if (!pfn_valid(phys_pfn))
-+		return;
+ 	if (pgd_changed)
+ 		sync_global_pgds(vaddr_start, vaddr_end - 1);
+ 
+@@ -1135,10 +1139,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
+ static void __meminit
+ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ {
++	int ret;
+ 	start = (unsigned long)__va(start);
+ 	end = (unsigned long)__va(end);
+ 
+ 	remove_pagetable(start, end, true, NULL);
++	ret = sync_direct_mapping();
++	WARN_ON(ret);
+ }
+ 
+ int __ref arch_remove_memory(int nid, u64 start, u64 size,
+@@ -1247,6 +1254,7 @@ void mark_rodata_ro(void)
+ 	unsigned long text_end = PFN_ALIGN(&__stop___ex_table);
+ 	unsigned long rodata_end = PFN_ALIGN(&__end_rodata);
+ 	unsigned long all_end;
++	int ret;
+ 
+ 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+ 	       (end - start) >> 10);
+@@ -1280,6 +1288,8 @@ void mark_rodata_ro(void)
+ 	free_kernel_image_pages((void *)text_end, (void *)rodata_start);
+ 	free_kernel_image_pages((void *)rodata_end, (void *)_sdata);
+ 
++	ret = sync_direct_mapping();
++	WARN_ON(ret);
+ 	debug_checkwx();
+ }
+ 
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+index 9221c894e8e9..024165c9c7f3 100644
+--- a/arch/x86/mm/mktme.c
++++ b/arch/x86/mm/mktme.c
+@@ -1,6 +1,8 @@
+ #include <linux/mm.h>
+ #include <linux/highmem.h>
+ #include <asm/mktme.h>
++#include <asm/pgalloc.h>
++#include <asm/tlbflush.h>
+ 
+ /* Mask to extract KeyID from physical address. */
+ phys_addr_t mktme_keyid_mask;
+@@ -36,6 +38,8 @@ static bool need_page_mktme(void)
+ static void init_page_mktme(void)
+ {
+ 	static_branch_enable(&mktme_enabled_key);
 +
-+	keyid = page_keyid(pfn_to_page(phys_pfn));
++	sync_direct_mapping();
+ }
+ 
+ struct page_ext_operations page_mktme_ops = {
+@@ -96,3 +100,440 @@ void free_encrypted_page(struct page *page, int order)
+ 		page++;
+ 	}
+ }
 +
-+#ifdef CONFIG_X86_INTEL_MKTME
++static int sync_direct_mapping_pte(unsigned long keyid,
++		pmd_t *dst_pmd, pmd_t *src_pmd,
++		unsigned long addr, unsigned long end)
++{
++	pte_t *src_pte, *dst_pte;
++	pte_t *new_pte = NULL;
++	bool remove_pte;
++
 +	/*
-+	 * When MKTME is enabled, set keyid in PTE such that DMA
-+	 * remapping will include keyid in the translation from IOVA
-+	 * to physical address. This applies to both user and kernel
-+	 * allocated DMA memory.
++	 * We want to unmap and free the page table if the source is empty and
++	 * the range covers whole page table.
 +	 */
-+	*pteval &= ~mktme_keyid_mask;
-+	*pteval |= keyid << mktme_keyid_shift;
-+#endif
++	remove_pte = !src_pmd && PAGE_ALIGNED(addr) && PAGE_ALIGNED(end);
++
++	/*
++	 * PMD page got split into page table.
++	 * Clear PMD mapping. Page table will be established instead.
++	 */
++	if (pmd_large(*dst_pmd)) {
++		spin_lock(&init_mm.page_table_lock);
++		pmd_clear(dst_pmd);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	/* Allocate a new page table if needed. */
++	if (pmd_none(*dst_pmd)) {
++		new_pte = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
++		if (!new_pte)
++			return -ENOMEM;
++		dst_pte = new_pte + pte_index(addr + keyid * direct_mapping_size);
++	} else {
++		dst_pte = pte_offset_map(dst_pmd, addr + keyid * direct_mapping_size);
++	}
++	src_pte = src_pmd ? pte_offset_map(src_pmd, addr) : NULL;
++
++	spin_lock(&init_mm.page_table_lock);
++
++	do {
++		pteval_t val;
++
++		if (!src_pte || pte_none(*src_pte)) {
++			set_pte(dst_pte, __pte(0));
++			goto next;
++		}
++
++		if (!pte_none(*dst_pte)) {
++			/*
++			 * Sanity check: PFNs must match between source
++			 * and destination even if the rest doesn't.
++			 */
++			BUG_ON(pte_pfn(*dst_pte) != pte_pfn(*src_pte));
++		}
++
++		/* Copy entry, but set KeyID. */
++		val = pte_val(*src_pte) | keyid << mktme_keyid_shift;
++		val &= __supported_pte_mask;
++		set_pte(dst_pte, __pte(val));
++next:
++		addr += PAGE_SIZE;
++		dst_pte++;
++		if (src_pte)
++			src_pte++;
++	} while (addr != end);
++
++	if (new_pte)
++		pmd_populate_kernel(&init_mm, dst_pmd, new_pte);
++
++	if (remove_pte) {
++		__free_page(pmd_page(*dst_pmd));
++		pmd_clear(dst_pmd);
++	}
++
++	spin_unlock(&init_mm.page_table_lock);
++
++	return 0;
 +}
 +
- static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
- 				      unsigned long pfn, int *target_level)
- {
-@@ -888,7 +910,7 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
- 			break;
- 
- 		if (!dma_pte_present(pte)) {
--			uint64_t pteval;
-+			phys_addr_t pteval;
- 
- 			tmp_page = alloc_pgtable_page(domain->nid);
- 
-@@ -896,7 +918,8 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
- 				return NULL;
- 
- 			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
--			pteval = ((uint64_t)virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
-+			pteval = (virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
-+			set_pte_mktme_keyid(virt_to_dma_pfn(tmp_page), &pteval);
- 			if (cmpxchg64(&pte->val, 0ULL, pteval))
- 				/* Someone else set it while we were thinking; use theirs. */
- 				free_pgtable_page(tmp_page);
-@@ -2289,6 +2312,8 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
- 			}
- 
- 		}
-+		set_pte_mktme_keyid(phys_pfn, &pteval);
++static int sync_direct_mapping_pmd(unsigned long keyid,
++		pud_t *dst_pud, pud_t *src_pud,
++		unsigned long addr, unsigned long end)
++{
++	pmd_t *src_pmd, *dst_pmd;
++	pmd_t *new_pmd = NULL;
++	bool remove_pmd = false;
++	unsigned long next;
++	int ret = 0;
 +
- 		/* We don't need lock here, nobody else
- 		 * touches the iova range
- 		 */
-diff --git a/include/linux/intel-iommu.h b/include/linux/intel-iommu.h
-index fa364de9db18..48a377a2b896 100644
---- a/include/linux/intel-iommu.h
-+++ b/include/linux/intel-iommu.h
-@@ -34,6 +34,8 @@
- 
- #include <asm/cacheflush.h>
- #include <asm/iommu.h>
-+#include <asm/page.h>
++	/*
++	 * We want to unmap and free the page table if the source is empty and
++	 * the range covers whole page table.
++	 */
++	remove_pmd = !src_pud && IS_ALIGNED(addr, PUD_SIZE) && IS_ALIGNED(end, PUD_SIZE);
 +
- 
- /*
-  * VT-d hardware uses 4KiB page size regardless of host page size.
-@@ -603,7 +605,12 @@ static inline void dma_clear_pte(struct dma_pte *pte)
- static inline u64 dma_pte_addr(struct dma_pte *pte)
- {
- #ifdef CONFIG_64BIT
--	return pte->val & VTD_PAGE_MASK;
-+	u64 addr = pte->val;
-+	addr &= VTD_PAGE_MASK;
-+#ifdef CONFIG_X86_INTEL_MKTME
-+	addr &= ~mktme_keyid_mask;
-+#endif
-+	return addr;
- #else
- 	/* Must have a full atomic 64-bit read */
- 	return  __cmpxchg64(&pte->val, 0ULL, 0ULL) & VTD_PAGE_MASK;
++	/*
++	 * PUD page got split into page table.
++	 * Clear PUD mapping. Page table will be established instead.
++	 */
++	if (pud_large(*dst_pud)) {
++		spin_lock(&init_mm.page_table_lock);
++		pud_clear(dst_pud);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	/* Allocate a new page table if needed. */
++	if (pud_none(*dst_pud)) {
++		new_pmd = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
++		if (!new_pmd)
++			return -ENOMEM;
++		dst_pmd = new_pmd + pmd_index(addr + keyid * direct_mapping_size);
++	} else {
++		dst_pmd = pmd_offset(dst_pud, addr + keyid * direct_mapping_size);
++	}
++	src_pmd = src_pud ? pmd_offset(src_pud, addr) : NULL;
++
++	do {
++		pmd_t *__src_pmd = src_pmd;
++
++		next = pmd_addr_end(addr, end);
++		if (!__src_pmd || pmd_none(*__src_pmd)) {
++			if (pmd_none(*dst_pmd))
++				goto next;
++			if (pmd_large(*dst_pmd)) {
++				spin_lock(&init_mm.page_table_lock);
++				set_pmd(dst_pmd, __pmd(0));
++				spin_unlock(&init_mm.page_table_lock);
++				goto next;
++			}
++			__src_pmd = NULL;
++		}
++
++		if (__src_pmd && pmd_large(*__src_pmd)) {
++			pmdval_t val;
++
++			if (pmd_large(*dst_pmd)) {
++				/*
++				 * Sanity check: PFNs must match between source
++				 * and destination even if the rest doesn't.
++				 */
++				BUG_ON(pmd_pfn(*dst_pmd) != pmd_pfn(*__src_pmd));
++			} else if (!pmd_none(*dst_pmd)) {
++				/*
++				 * Page table is replaced with a PMD page.
++				 * Free and unmap the page table.
++				 */
++				__free_page(pmd_page(*dst_pmd));
++				spin_lock(&init_mm.page_table_lock);
++				pmd_clear(dst_pmd);
++				spin_unlock(&init_mm.page_table_lock);
++			}
++
++			/* Copy entry, but set KeyID. */
++			val = pmd_val(*__src_pmd) | keyid << mktme_keyid_shift;
++			val &= __supported_pte_mask;
++			spin_lock(&init_mm.page_table_lock);
++			set_pmd(dst_pmd, __pmd(val));
++			spin_unlock(&init_mm.page_table_lock);
++			goto next;
++		}
++
++		ret = sync_direct_mapping_pte(keyid, dst_pmd, __src_pmd,
++				addr, next);
++next:
++		addr = next;
++		dst_pmd++;
++		if (src_pmd)
++			src_pmd++;
++	} while (addr != end && !ret);
++
++	if (new_pmd) {
++		spin_lock(&init_mm.page_table_lock);
++		pud_populate(&init_mm, dst_pud, new_pmd);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	if (remove_pmd) {
++		spin_lock(&init_mm.page_table_lock);
++		__free_page(pud_page(*dst_pud));
++		pud_clear(dst_pud);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	return ret;
++}
++
++static int sync_direct_mapping_pud(unsigned long keyid,
++		p4d_t *dst_p4d, p4d_t *src_p4d,
++		unsigned long addr, unsigned long end)
++{
++	pud_t *src_pud, *dst_pud;
++	pud_t *new_pud = NULL;
++	bool remove_pud = false;
++	unsigned long next;
++	int ret = 0;
++
++	/*
++	 * We want to unmap and free the page table if the source is empty and
++	 * the range covers whole page table.
++	 */
++	remove_pud = !src_p4d && IS_ALIGNED(addr, P4D_SIZE) && IS_ALIGNED(end, P4D_SIZE);
++
++	/*
++	 * P4D page got split into page table.
++	 * Clear P4D mapping. Page table will be established instead.
++	 */
++	if (p4d_large(*dst_p4d)) {
++		spin_lock(&init_mm.page_table_lock);
++		p4d_clear(dst_p4d);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	/* Allocate a new page table if needed. */
++	if (p4d_none(*dst_p4d)) {
++		new_pud = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
++		if (!new_pud)
++			return -ENOMEM;
++		dst_pud = new_pud + pud_index(addr + keyid * direct_mapping_size);
++	} else {
++		dst_pud = pud_offset(dst_p4d, addr + keyid * direct_mapping_size);
++	}
++	src_pud = src_p4d ? pud_offset(src_p4d, addr) : NULL;
++
++	do {
++		pud_t *__src_pud = src_pud;
++
++		next = pud_addr_end(addr, end);
++		if (!__src_pud || pud_none(*__src_pud)) {
++			if (pud_none(*dst_pud))
++				goto next;
++			if (pud_large(*dst_pud)) {
++				spin_lock(&init_mm.page_table_lock);
++				set_pud(dst_pud, __pud(0));
++				spin_unlock(&init_mm.page_table_lock);
++				goto next;
++			}
++			__src_pud = NULL;
++		}
++
++		if (__src_pud && pud_large(*__src_pud)) {
++			pudval_t val;
++
++			if (pud_large(*dst_pud)) {
++				/*
++				 * Sanity check: PFNs must match between source
++				 * and destination even if the rest doesn't.
++				 */
++				BUG_ON(pud_pfn(*dst_pud) != pud_pfn(*__src_pud));
++			} else if (!pud_none(*dst_pud)) {
++				/*
++				 * Page table is replaced with a pud page.
++				 * Free and unmap the page table.
++				 */
++				__free_page(pud_page(*dst_pud));
++				spin_lock(&init_mm.page_table_lock);
++				pud_clear(dst_pud);
++				spin_unlock(&init_mm.page_table_lock);
++			}
++
++			/* Copy entry, but set KeyID. */
++			val = pud_val(*__src_pud) | keyid << mktme_keyid_shift;
++			val &= __supported_pte_mask;
++			spin_lock(&init_mm.page_table_lock);
++			set_pud(dst_pud, __pud(val));
++			spin_unlock(&init_mm.page_table_lock);
++			goto next;
++		}
++
++		ret = sync_direct_mapping_pmd(keyid, dst_pud, __src_pud,
++				addr, next);
++next:
++		addr = next;
++		dst_pud++;
++		if (src_pud)
++			src_pud++;
++	} while (addr != end && !ret);
++
++	if (new_pud) {
++		spin_lock(&init_mm.page_table_lock);
++		p4d_populate(&init_mm, dst_p4d, new_pud);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	if (remove_pud) {
++		spin_lock(&init_mm.page_table_lock);
++		__free_page(p4d_page(*dst_p4d));
++		p4d_clear(dst_p4d);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	return ret;
++}
++
++static int sync_direct_mapping_p4d(unsigned long keyid,
++		pgd_t *dst_pgd, pgd_t *src_pgd,
++		unsigned long addr, unsigned long end)
++{
++	p4d_t *src_p4d, *dst_p4d;
++	p4d_t *new_p4d_1 = NULL, *new_p4d_2 = NULL;
++	bool remove_p4d = false;
++	unsigned long next;
++	int ret = 0;
++
++	/*
++	 * We want to unmap and free the page table if the source is empty and
++	 * the range covers whole page table.
++	 */
++	remove_p4d = !src_pgd && IS_ALIGNED(addr, PGDIR_SIZE) && IS_ALIGNED(end, PGDIR_SIZE);
++
++	/* Allocate a new page table if needed. */
++	if (pgd_none(*dst_pgd)) {
++		new_p4d_1 = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
++		if (!new_p4d_1)
++			return -ENOMEM;
++		dst_p4d = new_p4d_1 + p4d_index(addr + keyid * direct_mapping_size);
++	} else {
++		dst_p4d = p4d_offset(dst_pgd, addr + keyid * direct_mapping_size);
++	}
++	src_p4d = src_pgd ? p4d_offset(src_pgd, addr) : NULL;
++
++	do {
++		p4d_t *__src_p4d = src_p4d;
++
++		next = p4d_addr_end(addr, end);
++		if (!__src_p4d || p4d_none(*__src_p4d)) {
++			if (p4d_none(*dst_p4d))
++				goto next;
++			__src_p4d = NULL;
++		}
++
++		ret = sync_direct_mapping_pud(keyid, dst_p4d, __src_p4d,
++				addr, next);
++next:
++		addr = next;
++		dst_p4d++;
++
++		/*
++		 * Direct mappings are 1TiB-aligned. With 5-level paging it
++		 * means that on PGD level there can be misalignment between
++		 * source and distiantion.
++		 *
++		 * Allocate the new page table if dst_p4d crosses page table
++		 * boundary.
++		 */
++		if (!((unsigned long)dst_p4d & ~PAGE_MASK) && addr != end) {
++			if (pgd_none(dst_pgd[1])) {
++				new_p4d_2 = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
++				if (!new_p4d_2)
++					ret = -ENOMEM;
++				dst_p4d = new_p4d_2;
++			} else {
++				dst_p4d = p4d_offset(dst_pgd + 1, 0);
++			}
++		}
++		if (src_p4d)
++			src_p4d++;
++	} while (addr != end && !ret);
++
++	if (new_p4d_1 || new_p4d_2) {
++		spin_lock(&init_mm.page_table_lock);
++		if (new_p4d_1)
++			pgd_populate(&init_mm, dst_pgd, new_p4d_1);
++		if (new_p4d_2)
++			pgd_populate(&init_mm, dst_pgd + 1, new_p4d_2);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	if (remove_p4d) {
++		spin_lock(&init_mm.page_table_lock);
++		__free_page(pgd_page(*dst_pgd));
++		pgd_clear(dst_pgd);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++
++	return ret;
++}
++
++static int sync_direct_mapping_keyid(unsigned long keyid)
++{
++	pgd_t *src_pgd, *dst_pgd;
++	unsigned long addr, end, next;
++	int ret = 0;
++
++	addr = PAGE_OFFSET;
++	end = PAGE_OFFSET + direct_mapping_size;
++
++	dst_pgd = pgd_offset_k(addr + keyid * direct_mapping_size);
++	src_pgd = pgd_offset_k(addr);
++
++	do {
++		pgd_t *__src_pgd = src_pgd;
++
++		next = pgd_addr_end(addr, end);
++		if (pgd_none(*__src_pgd)) {
++			if (pgd_none(*dst_pgd))
++				continue;
++			__src_pgd = NULL;
++		}
++
++		ret = sync_direct_mapping_p4d(keyid, dst_pgd, __src_pgd,
++				addr, next);
++	} while (dst_pgd++, src_pgd++, addr = next, addr != end && !ret);
++
++	return ret;
++}
++
++/*
++ * For MKTME we maintain per-KeyID direct mappings. This allows kernel to have
++ * access to encrypted memory.
++ *
++ * sync_direct_mapping() sync per-KeyID direct mappings with a canonical
++ * one -- KeyID-0.
++ *
++ * The function tracks changes in the canonical mapping:
++ *  - creating or removing chunks of the translation tree;
++ *  - changes in mapping flags (i.e. protection bits);
++ *  - splitting huge page mapping into a page table;
++ *  - replacing page table with a huge page mapping;
++ *
++ * The function need to be called on every change to the direct mapping:
++ * hotplug, hotremove, changes in permissions bits, etc.
++ *
++ * The function is nop until MKTME is enabled.
++ */
++int sync_direct_mapping(void)
++{
++	int i, ret = 0;
++
++	if (!mktme_enabled())
++		return 0;
++
++	for (i = 1; !ret && i <= mktme_nr_keyids; i++)
++		ret = sync_direct_mapping_keyid(i);
++
++	flush_tlb_all();
++
++	return ret;
++}
 -- 
 2.20.1
 
