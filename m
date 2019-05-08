@@ -4,89 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 532DBC04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66B8BC04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 04860217F4
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04860217F4
+	by mail.kernel.org (Postfix) with ESMTP id 23BD7216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23BD7216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 45A8D6B0278; Wed,  8 May 2019 10:44:48 -0400 (EDT)
+	id 796636B0279; Wed,  8 May 2019 10:44:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 397306B0279; Wed,  8 May 2019 10:44:48 -0400 (EDT)
+	id 4F2656B027B; Wed,  8 May 2019 10:44:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08A866B027F; Wed,  8 May 2019 10:44:48 -0400 (EDT)
+	id 1C0FE6B027D; Wed,  8 May 2019 10:44:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE9A26B0278
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B30D36B027B
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:47 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 94so9893288plc.19
+Received: by mail-pg1-f198.google.com with SMTP id e20so12786773pgm.16
         for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=KEsmdKVxv2nRa2UTw3kELxFgu3Ph2mW16nw51h3TTXA=;
-        b=QLXd4y4gYpZ9HnF5gRRrv+oQc73RlAxvkk6pK5b6Ze6RrzoZL8pYPd3kpVk6tiIOWu
-         Al0FPnfyXKXZg5uhoseILchRIIL38RC+bWrxlQCJJCWM3EaKKAtEDOvapu2GD7PAZ4HZ
-         lSFeyjJBVsKhwBshxgpiK1WpHi636e4fBSxYy45LV42pTnXJ5/OzTpzI/8j4ZRtSWnGE
-         easCcJk7i97MPoT8ZrXngUkwhTZ+SRtCs3hH5LbZ458OnDUSXRyl4vUsAIyq2n/qVy7V
-         ItQk2c0/6fl253/wlebCtZJPRPc1ngiXHRqPVxRs0g8LJmhh4yteTg1s3RnJmZOS9BkX
-         Fliw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUjMS9R4JHsK7ryAGFz5yZ8dXhUSRmy1lPgHQMhPuH8Vy9aNhch
-	7M1rwe/rLXUti6YrWFSoO/C4gITz22qiaNF/TGHFJFEuN6YvagYWZL2t3EzhZXwjtk1NQqW46eG
-	fO6S4PhUdHCUGZi+NrsJR9mO5372H3VHJwvzG2u1a+RulwFColfb85iSGEZpUmdv4qA==
-X-Received: by 2002:a17:902:4683:: with SMTP id p3mr46408761pld.42.1557326687350;
+        bh=N2jLN5QWnTSH1XUYhZ/otarDGjastGUX2NwaocN9qk8=;
+        b=hjU4N15FkiS+1qsPcyQvWXSPq+eAbeaVZ5Y23PtU5u5JQLmb3a4p3LxGdx1xl2Ef2r
+         xmNjKl2fHaIyhBJUh1EHsUBttIxfX5Nivm6PA2KvBoSnrln6WCTo3MwDuP29d10i2Ivv
+         w6oQZeYrZgk9osAe2dmEpiBy5XyYaY76q/kLAJ2Iu/Avr7TYgvtoCvlw7xg96KZwkhE9
+         bIpkq3gU0wmjpvBsySw5QZ+x411H4S/+w6HDWuGB1GHl4aMRUgWBK0XjOZI/zfoTXSfi
+         jTV2TLjC8WGk6WUIogJPN3mdgvwfhfkhrD6J9Gg/o/mI7xv5n5EetuorAq4MPNOCqxyw
+         sc3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVS5NoWbtYe6raqMTM5/qA5Zcdgx13aIisWD8P1PLNBqyCsL2jC
+	m6wTfFhZwFxkvcF1v5TKYaQWLqi41tTm2t267wJXookD225tu8YWhLAgw7lghEZUrFLdHk71A8p
+	42RIeXjSRly3FC1B3+dy2Vu6OclSqPD7+GBV3CosCmhFB92hVsav/Ahl5ovXeTZUfKw==
+X-Received: by 2002:a62:7a8f:: with SMTP id v137mr35046640pfc.243.1557326687371;
         Wed, 08 May 2019 07:44:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWL0YMxbgiXQgeWuqGffhPYj6ipULcQqhZNpl9GhumLm979Z2+lBlRNXjo8a3N1JChaKJn
-X-Received: by 2002:a17:902:4683:: with SMTP id p3mr46408654pld.42.1557326686266;
-        Wed, 08 May 2019 07:44:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326686; cv=none;
+X-Google-Smtp-Source: APXvYqx9KUkuKoUPUZGFTxS9ghF/dWdmesu5z9GO3b7oVCYDqNxdKJBnLbV9+Xal1cvygkA3aEeh
+X-Received: by 2002:a62:7a8f:: with SMTP id v137mr35046486pfc.243.1557326685832;
+        Wed, 08 May 2019 07:44:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326685; cv=none;
         d=google.com; s=arc-20160816;
-        b=PRlGi8VS4rFHTT0myrl23giKANc6XecNX6/hsvPcn91cdnzecjnHaUB/ylyCqOmfuV
-         WYUWY8GVWLycaqJke1WKIfuQ2Tkycboi3SYmYKEiFCUYR2/zzk/lUZ3D16iXjFjWDZnn
-         oWxHyiYjPcrFXSeqLhX60fTIVLs5HTw/K8A2Wm3Tigr0Or4oWXFtOAvambDSzRBLIIFx
-         cizeEDVg5gTgP6yjjlw3neDvE58b9xBLQCnGV2oYpbhjdAqxmSaeh9JdA5sZ385Dtga8
-         B3nNFJvV+kdQkK6SVEasItjjThVwk8BhLXl8Yoszc1yLtO1WNMGOuFzfCmmn7UViSbht
-         CHwA==
+        b=gGptEKwXf+v1uG+oqWH/HVJvbEMPWfK0l3WqsSlFyVTUDn0e9hAEIdmkR2Kj3ZR6Mm
+         I4/Z0AxIGk8ni+LvSHfHeZjSYEN6iC3CGDOjlEwV/KdMylthSJ+hZzt6CcP+FKbKCbCn
+         LufAzG/xVshqpQ5IFYvGP/7WMYld7sXCYVnqSMbfA0Y22D+Rmaa73p55K5O/gixr40qb
+         q4trqtnQDDr3IVElSmnX/ErTvTrdxJ3GV5t4E8+30eQpsIsIjSR06ulzLJowTgMWp9F3
+         KMTR3+FZd8bk/CxxCL79462i/bhXWuXz33Sk1Bl2sdGgNyD27RenSgEeWJ5eIimdmPH9
+         LMIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=KEsmdKVxv2nRa2UTw3kELxFgu3Ph2mW16nw51h3TTXA=;
-        b=rS5vwCcW/rOaXk7krZ0+VZvnAWgHy3XQnZ6tKr/hM/tFF7sYp/uHDbbJcOQt1nxGBP
-         Llzp7NAJxclhRhz8qz45weQFjrZPwn2VYNizkCzbLytYquFPJsBwINXjD8GUypThvvvl
-         dgZ6gk1EPGSY2re9cQSlbnuWUjdtlhZYer4nO5j6Ga/KFDZX16IVCZssYavSBWpeGSg+
-         TCq0d092zvJ1k8iSlQlz6vj2kAnfYbH6Ts6f4RvY7+0YW6wyYHHuC1j5t+fvrNEhh6uD
-         YJeqNO4pogUMDTw1grk65BwPC7EsSQpg5k0oLpb6lmuqwuCa7nLZ9CHY6h2Ap3e2sfXA
-         SyXQ==
+        bh=N2jLN5QWnTSH1XUYhZ/otarDGjastGUX2NwaocN9qk8=;
+        b=N40M5XHpqfVYlNrTIpxiyQBgWP30PWrlEX+XDIX8V2tYXXpcvE+l1MMFhHd2ZsDe6d
+         7JLZZhijk8yQVtW69docljXV4Lql+YJLsbuv07EBnHXyrtj+CvUqayxoIZF4DhgW5qoo
+         U0gJeKJt4PFb/0jVJpEYlyQkAZhqLV7VG+9vZcCa0jpEkhnn+hZVCJkyvgMDG9L/sqWk
+         RIxGo2lKSlhZF56mpsHG1Gerr+BW96SL88bHOglOhQg9n6B069OXiwBnyG+sKW2mCbBJ
+         7P7fdh3z8eC1gFCNNJT7MI1gZ9hmZD6C8j5vC4nQ4qHdBQhVVLIFeH9sjpTDdewx1TWa
+         IbOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id b11si666839pge.440.2019.05.08.07.44.46
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 184si24250871pfg.32.2019.05.08.07.44.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Wed, 08 May 2019 07:44:45 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:45 -0700
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:45 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga003.jf.intel.com with ESMTP; 08 May 2019 07:44:41 -0700
+  by orsmga002.jf.intel.com with ESMTP; 08 May 2019 07:44:40 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 441E5B47; Wed,  8 May 2019 17:44:30 +0300 (EEST)
+	id DA53DAA9; Wed,  8 May 2019 17:44:29 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 32/62] keys/mktme: Store MKTME payloads if cmdline parameter allows
-Date: Wed,  8 May 2019 17:43:52 +0300
-Message-Id: <20190508144422.13171-33-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 24/62] keys/mktme: Preparse the MKTME key payload
+Date: Wed,  8 May 2019 17:43:44 +0300
+Message-Id: <20190508144422.13171-25-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -123,170 +123,254 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-MKTME (Multi-Key Total Memory Encryption) key payloads may include
-data encryption keys, tweak keys, and additional entropy bits. These
-are used to program the MKTME encryption hardware. By default, the
-kernel destroys this payload data once the hardware is programmed.
+It is a requirement of the Kernel Keys subsystem to provide a
+preparse method that validates payloads before key instantiate
+methods are called.
 
-However, in order to fully support Memory Hotplug, saving the key data
-becomes important. The MKTME Key Service cannot allow a new memory
-controller to come online unless it can program the Key Table to match
-the Key Tables of all existing memory controllers.
+Verify that userspace provides valid MKTME options and prepare
+the payload for use at key instantiate time.
 
-With CPU generated keys (a.k.a. random keys or ephemeral keys) the
-saving of user key data is not an issue. The kernel and MKTME hardware
-can generate strong encryption keys without recalling any user supplied
-data.
-
-With USER directed keys (a.k.a. user type) saving the key programming
-data (data and tweak key) becomes an issue. The data and tweak keys
-are required to program those keys on a new physical package.
-
-In preparation for adding support for onlining new memory:
-
-   Add an 'mktme_key_store' where key payloads are stored.
-
-   Add 'mktme_storekeys' kernel command line parameter that, when
-   present, allows the kernel to store user type key payloads.
-
-   Add 'mktme_bitmap_user_type' to recall when USER type keys are in
-   use. If no USER type keys are currently in use, new memory
-   may be brought online, despite the absence of 'mktme_storekeys'.
+Create a method to free the preparsed payload. The Kernel Key
+subsystem will that to clean up after the key is instantiated.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- .../admin-guide/kernel-parameters.rst         |  1 +
- .../admin-guide/kernel-parameters.txt         | 11 ++++
- security/keys/mktme_keys.c                    | 51 ++++++++++++++++++-
- 3 files changed, 61 insertions(+), 2 deletions(-)
+ include/keys/mktme-type.h  |  39 +++++++++
+ security/keys/mktme_keys.c | 165 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 204 insertions(+)
+ create mode 100644 include/keys/mktme-type.h
 
-diff --git a/Documentation/admin-guide/kernel-parameters.rst b/Documentation/admin-guide/kernel-parameters.rst
-index b8d0bc07ed0a..1b62b86d0666 100644
---- a/Documentation/admin-guide/kernel-parameters.rst
-+++ b/Documentation/admin-guide/kernel-parameters.rst
-@@ -120,6 +120,7 @@ parameter is applicable::
- 			Documentation/m68k/kernel-options.txt.
- 	MDA	MDA console support is enabled.
- 	MIPS	MIPS architecture is enabled.
-+	MKTME	Multi-Key Total Memory Encryption is enabled.
- 	MOUSE	Appropriate mouse support is enabled.
- 	MSI	Message Signaled Interrupts (PCI).
- 	MTD	MTD (Memory Technology Device) support is enabled.
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 2b8ee90bb644..38ea0ace9533 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2544,6 +2544,17 @@
- 			in the "bleeding edge" mini2440 support kernel at
- 			http://repo.or.cz/w/linux-2.6/mini2440.git
- 
-+	mktme_storekeys [X86, MKTME] When CONFIG_X86_INTEL_MKTME is set
-+			this parameter allows the kernel to store the user
-+			specified MKTME key payload. Storing this payload
-+			means that the MKTME Key Service can always allow
-+			the addition of new physical packages. If the
-+			mktme_storekeys parameter is not present, users key
-+			data will not be stored, and new physical packages
-+			may only be added to the system if no user type
-+			MKTME keys are programmed.
-+			See Documentation/x86/mktme.rst
+diff --git a/include/keys/mktme-type.h b/include/keys/mktme-type.h
+new file mode 100644
+index 000000000000..032905b288b4
+--- /dev/null
++++ b/include/keys/mktme-type.h
+@@ -0,0 +1,39 @@
++/* SPDX-License-Identifier: GPL-2.0 */
 +
- 	mminit_loglevel=
- 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
- 			parameter allows control of the logging verbosity for
++/* Key service for Multi-KEY Total Memory Encryption */
++
++#ifndef _KEYS_MKTME_TYPE_H
++#define _KEYS_MKTME_TYPE_H
++
++#include <linux/key.h>
++
++/*
++ * The AES-XTS 128 encryption algorithm requires 128 bits for each
++ * user supplied data key and tweak key.
++ */
++#define MKTME_AES_XTS_SIZE	16	/* 16 bytes, 128 bits */
++
++enum mktme_alg {
++	MKTME_ALG_AES_XTS_128,
++};
++
++const char *const mktme_alg_names[] = {
++	[MKTME_ALG_AES_XTS_128]	= "aes-xts-128",
++};
++
++enum mktme_type {
++	MKTME_TYPE_ERROR = -1,
++	MKTME_TYPE_USER,
++	MKTME_TYPE_CPU,
++	MKTME_TYPE_NO_ENCRYPT,
++};
++
++const char *const mktme_type_names[] = {
++	[MKTME_TYPE_USER]	= "user",
++	[MKTME_TYPE_CPU]	= "cpu",
++	[MKTME_TYPE_NO_ENCRYPT]	= "no-encrypt",
++};
++
++extern struct key_type key_type_mktme;
++
++#endif /* _KEYS_MKTME_TYPE_H */
 diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index 4b2d3dc1843a..bcd68850048f 100644
+index b5e8289f041b..92a047caa829 100644
 --- a/security/keys/mktme_keys.c
 +++ b/security/keys/mktme_keys.c
-@@ -22,6 +22,9 @@ static DEFINE_SPINLOCK(mktme_lock);
- struct kmem_cache *mktme_prog_cache;	/* Hardware programming cache */
- unsigned long *mktme_target_map;	/* Pconfig programming targets */
- cpumask_var_t mktme_leadcpus;		/* One lead CPU per pconfig target */
-+static bool mktme_storekeys;		/* True if key payloads may be stored */
-+unsigned long *mktme_bitmap_user_type;	/* Shows presence of user type keys */
-+struct mktme_payload *mktme_key_store;	/* Payload storage if allowed */
+@@ -6,6 +6,10 @@
+ #include <linux/key.h>
+ #include <linux/key-type.h>
+ #include <linux/mm.h>
++#include <linux/parser.h>
++#include <linux/string.h>
++#include <asm/intel_pconfig.h>
++#include <keys/mktme-type.h>
+ #include <keys/user-type.h>
  
- /* 1:1 Mapping between Userspace Keys (struct key) and Hardware KeyIDs */
- struct mktme_mapping {
-@@ -124,6 +127,27 @@ struct mktme_payload {
- 	u8		tweak_key[MKTME_AES_XTS_SIZE];
- };
- 
-+void mktme_store_payload(int keyid, struct mktme_payload *payload)
-+{
-+	/* Always remember if this key is of type "user" */
-+	if ((payload->keyid_ctrl & 0xff) == MKTME_KEYID_SET_KEY_DIRECT)
-+		set_bit(keyid, mktme_bitmap_user_type);
-+	/*
-+	 * Always store the control fields to program newly
-+	 * onlined packages with RANDOM or NO_ENCRYPT keys.
-+	 */
-+	mktme_key_store[keyid].keyid_ctrl = payload->keyid_ctrl;
-+
-+	/* Only store "user" type data and tweak keys if allowed */
-+	if (mktme_storekeys &&
-+	    ((payload->keyid_ctrl & 0xff) == MKTME_KEYID_SET_KEY_DIRECT)) {
-+		memcpy(mktme_key_store[keyid].data_key, payload->data_key,
-+		       MKTME_AES_XTS_SIZE);
-+		memcpy(mktme_key_store[keyid].tweak_key, payload->tweak_key,
-+		       MKTME_AES_XTS_SIZE);
-+	}
-+}
-+
- struct mktme_hw_program_info {
- 	struct mktme_key_program *key_program;
- 	int *status;
-@@ -270,9 +294,10 @@ int mktme_instantiate_key(struct key *key, struct key_preparsed_payload *prep)
- 			    0, GFP_KERNEL))
- 		goto err_out;
- 
--	if (!mktme_program_keyid(keyid, payload))
-+	if (!mktme_program_keyid(keyid, payload)) {
-+		mktme_store_payload(keyid, payload);
- 		return MKTME_PROG_SUCCESS;
--
-+	}
- 	percpu_ref_exit(&encrypt_count[keyid]);
- err_out:
- 	spin_lock_irqsave(&mktme_lock, flags);
-@@ -487,10 +512,25 @@ static int __init init_mktme(void)
- 	if (!encrypt_count)
- 		goto free_targets;
- 
-+	/* Detect presence of user type keys */
-+	mktme_bitmap_user_type = bitmap_zalloc(mktme_nr_keyids, GFP_KERNEL);
-+	if (!mktme_bitmap_user_type)
-+		goto free_encrypt;
-+
-+	/* Store key payloads if allowable */
-+	mktme_key_store = kzalloc(sizeof(mktme_key_store[0]) *
-+				   (mktme_nr_keyids + 1), GFP_KERNEL);
-+	if (!mktme_key_store)
-+		goto free_bitmap;
-+
- 	ret = register_key_type(&key_type_mktme);
- 	if (!ret)
- 		return ret;			/* SUCCESS */
- 
-+	kfree(mktme_key_store);
-+free_bitmap:
-+	bitmap_free(mktme_bitmap_user_type);
-+free_encrypt:
- 	kvfree(encrypt_count);
- free_targets:
- 	free_cpumask_var(mktme_leadcpus);
-@@ -504,3 +544,10 @@ static int __init init_mktme(void)
+ #include "internal.h"
+@@ -69,8 +73,169 @@ int mktme_keyid_from_key(struct key *key)
+ 	return 0;
  }
  
- late_initcall(init_mktme);
++enum mktme_opt_id {
++	OPT_ERROR,
++	OPT_TYPE,
++	OPT_KEY,
++	OPT_TWEAK,
++	OPT_ALGORITHM,
++};
 +
-+static int mktme_enable_storekeys(char *__unused)
++static const match_table_t mktme_token = {
++	{OPT_TYPE, "type=%s"},
++	{OPT_KEY, "key=%s"},
++	{OPT_TWEAK, "tweak=%s"},
++	{OPT_ALGORITHM, "algorithm=%s"},
++	{OPT_ERROR, NULL}
++};
++
++struct mktme_payload {
++	u32		keyid_ctrl;	/* Command & Encryption Algorithm */
++	u8		data_key[MKTME_AES_XTS_SIZE];
++	u8		tweak_key[MKTME_AES_XTS_SIZE];
++};
++
++/* Make sure arguments are correct for the TYPE of key requested */
++static int mktme_check_options(struct mktme_payload *payload,
++			       unsigned long token_mask, enum mktme_type type)
 +{
-+	mktme_storekeys = true;
-+	return 1;
++	if (!token_mask)
++		return -EINVAL;
++
++	switch (type) {
++	case MKTME_TYPE_USER:
++		if (test_bit(OPT_ALGORITHM, &token_mask))
++			payload->keyid_ctrl |= MKTME_AES_XTS_128;
++		else
++			return -EINVAL;
++
++		if ((test_bit(OPT_KEY, &token_mask)) &&
++		    (test_bit(OPT_TWEAK, &token_mask)))
++			payload->keyid_ctrl |= MKTME_KEYID_SET_KEY_DIRECT;
++		else
++			return -EINVAL;
++		break;
++
++	case MKTME_TYPE_CPU:
++		if (test_bit(OPT_ALGORITHM, &token_mask))
++			payload->keyid_ctrl |= MKTME_AES_XTS_128;
++		else
++			return -EINVAL;
++
++		payload->keyid_ctrl |= MKTME_KEYID_SET_KEY_RANDOM;
++		break;
++
++	case MKTME_TYPE_NO_ENCRYPT:
++		payload->keyid_ctrl |= MKTME_KEYID_NO_ENCRYPT;
++		break;
++
++	default:
++		return -EINVAL;
++	}
++	return 0;
 +}
-+__setup("mktme_storekeys", mktme_enable_storekeys);
++
++/* Parse the options and store the key programming data in the payload. */
++static int mktme_get_options(char *options, struct mktme_payload *payload)
++{
++	enum mktme_type type = MKTME_TYPE_ERROR;
++	substring_t args[MAX_OPT_ARGS];
++	unsigned long token_mask = 0;
++	char *p = options;
++	int ret, token;
++
++	while ((p = strsep(&options, " \t"))) {
++		if (*p == '\0' || *p == ' ' || *p == '\t')
++			continue;
++		token = match_token(p, mktme_token, args);
++		if (token == OPT_ERROR)
++			return -EINVAL;
++		if (test_and_set_bit(token, &token_mask))
++			return -EINVAL;
++
++		switch (token) {
++		case OPT_KEY:
++			ret = hex2bin(payload->data_key, args[0].from,
++				      MKTME_AES_XTS_SIZE);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_TWEAK:
++			ret = hex2bin(payload->tweak_key, args[0].from,
++				      MKTME_AES_XTS_SIZE);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_TYPE:
++			type = match_string(mktme_type_names,
++					    ARRAY_SIZE(mktme_type_names),
++					    args[0].from);
++			if (type < 0)
++				return -EINVAL;
++			break;
++
++		case OPT_ALGORITHM:
++			ret = match_string(mktme_alg_names,
++					   ARRAY_SIZE(mktme_alg_names),
++					   args[0].from);
++			if (ret < 0)
++				return -EINVAL;
++			break;
++
++		default:
++			return -EINVAL;
++		}
++	}
++	return mktme_check_options(payload, token_mask, type);
++}
++
++void mktme_free_preparsed_payload(struct key_preparsed_payload *prep)
++{
++	kzfree(prep->payload.data[0]);
++}
++
++/*
++ * Key Service Method to preparse a payload before a key is created.
++ * Check permissions and the options. Load the proposed key field
++ * data into the payload for use by the instantiate method.
++ */
++int mktme_preparse_payload(struct key_preparsed_payload *prep)
++{
++	struct mktme_payload *mktme_payload;
++	size_t datalen = prep->datalen;
++	char *options;
++	int ret;
++
++	if (datalen <= 0 || datalen > 1024 || !prep->data)
++		return -EINVAL;
++
++	options = kmemdup_nul(prep->data, datalen, GFP_KERNEL);
++	if (!options)
++		return -ENOMEM;
++
++	mktme_payload = kzalloc(sizeof(*mktme_payload), GFP_KERNEL);
++	if (!mktme_payload) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	ret = mktme_get_options(options, mktme_payload);
++	if (ret < 0) {
++		kzfree(mktme_payload);
++		goto out;
++	}
++	prep->quotalen = sizeof(mktme_payload);
++	prep->payload.data[0] = mktme_payload;
++out:
++	kzfree(options);
++	return ret;
++}
++
+ struct key_type key_type_mktme = {
+ 	.name		= "mktme",
++	.preparse	= mktme_preparse_payload,
++	.free_preparse	= mktme_free_preparsed_payload,
+ 	.describe	= user_describe,
+ };
+ 
 -- 
 2.20.1
 
