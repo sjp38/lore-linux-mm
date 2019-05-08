@@ -2,90 +2,93 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 43B48C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76886C04AAB
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD5242184D
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD5242184D
+	by mail.kernel.org (Postfix) with ESMTP id 3902B21874
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3902B21874
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DCE346B0005; Wed,  8 May 2019 10:44:37 -0400 (EDT)
+	id 474046B000E; Wed,  8 May 2019 10:44:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7EAA6B000A; Wed,  8 May 2019 10:44:37 -0400 (EDT)
+	id 3BDD86B0010; Wed,  8 May 2019 10:44:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C1FDD6B000C; Wed,  8 May 2019 10:44:37 -0400 (EDT)
+	id 20F476B0269; Wed,  8 May 2019 10:44:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 76BC56B000A
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:37 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id x13so12797356pgl.10
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:37 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC60B6B0010
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:40 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id d12so12786928pfn.9
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=OC9iTxrehWzfrzE/T5Q70rOpIv02vxe8MS4oXUIFn3g=;
-        b=BTCr4IsKRGA9vzk9RIdBwtSMD0cUgL+RVBXpzp238rPvNKbZE/FThDAYWSq4aAy8Jg
-         Ia2B1daerROC6NomwfHv7QjzPg/RCJXjP1tohuBBEfvP9N0/SkkeeFoI/PC4fJylttrc
-         ZtdXhFCninJjTp58v43MsB0iK36LMXKW0NwT5zo+fzqOjdwcXr3BMljbA9DmvLk/OzlC
-         r1vitlkYyBpcF/8Ehez3m7up5NbxCsRYxVRGdufJiHtDYuu0TRUjeQMs2efW+CXgwR9W
-         l6tAm0XJCEASm1Kju1jYX/4uOVlYcMPMffqLSINaSYaHxAW6cLNNMxt9MmfMmoSP+0PU
-         9leQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXXPnYA78LTz9BWfMWVVRDl0sWI7kCSUGO8no269hXke3KlqAaC
-	rqe3LewynJAPwf3/lrqy4Owg0dRvZWLsihovxUpOadvYXsZlf3LplBCvo0A9q3oEZywbBXJGdIg
-	pBrcfUdlnBmubwPiqe/eKx/BWK4bp0g9vbwqPTCbvNcvebKrOHJN7x01xz3XyPvlJ1w==
-X-Received: by 2002:a17:902:10c:: with SMTP id 12mr37224443plb.61.1557326676958;
-        Wed, 08 May 2019 07:44:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxv59ErpR4EBEGg2tpIKEb7lOdJbCeJ9O0cCARkTk8g9Zyp5zu+MjM0yJkzYjKP9tUaR/mw
-X-Received: by 2002:a17:902:10c:: with SMTP id 12mr37224252plb.61.1557326675070;
-        Wed, 08 May 2019 07:44:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326675; cv=none;
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Fyr98K7S1me9TsMulAhHdp7GU89gOrJm0h1JtvOHlB0=;
+        b=tAcinjFahaLg7zbkDETG58Rnwyd9CBxrxwSerUiQg1r5dc4dIBjsiBNk1CKZB84qgt
+         pLUNNg9BCfz8d0ONkUez7sa2CO8woZUY48I1AYeMIy58zEYu3LcWM8/ePIuWqNnyEot1
+         C+kcCoYMyYpgoF0S6L4CFGjuPuj6RItj3R2mChYSqGUglrOzFhwUqtRdkUHIeXjdR0/q
+         Iq2nbaE9P1YJldwJisq/6HwFCZQ1qklBrUfToc3jr1aLD/M7qXZcdkP4VmplJZZzu71T
+         lJFVlKx85VXHfEomtRB9kR/fJ+9oquGUGat/4SSZt7gjAA9iS+5Wq29r782nseUmDjOz
+         5oAA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVCBePqpoBAilsrJbCqAYb+ZFWKoTiYCwCnFdeNzphDGs07bsx7
+	ES4RtsRIBy+hSZ29Zf33FaR/UCO6N6oRsJl5V34ZREXiqIYN6Llvuu/o+eU9/5ojZ/YGHbSRZPR
+	PaxA4zlRTcOFb7OVUr8Of41TisvftrKn9mvj9RzUQP34XB0rkxwKbUh9WY+EYIBZPJg==
+X-Received: by 2002:a63:309:: with SMTP id 9mr26237063pgd.49.1557326680548;
+        Wed, 08 May 2019 07:44:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJFsdd1KxcLolWsiGzuMY0LrkiQKUGZe818aDMPAdEBxzua4h7B8d9vfuikQsNidenHptb
+X-Received: by 2002:a63:309:: with SMTP id 9mr26236972pgd.49.1557326679727;
+        Wed, 08 May 2019 07:44:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326679; cv=none;
         d=google.com; s=arc-20160816;
-        b=mapADQ2giz6UcVlqI3cRYsg1wPtQC6D+AoTa9X18mOks1GzDP9qvVW/B0S1r9m6nEa
-         aK+tdeinF/IboFWxbI/cMguCJMcaonAs6aBmK0mL2fLAyqoXyNBMkRHykYaX1foA8Ftt
-         Cyoj44NafFgpX7v5uiUaAZicF0lgXy6OZFJqq5jXJuu01SeyXDbQwp/9a/R8P3xaINe3
-         TMdP+BzY5ohjGy9ULafz8E6A4+Y30eFAYnZk2+zVCfOf487JdRwUTQjhAjSBqowJrWle
-         yc4hEUxw9bP2X3gwO8kuFdlqytAuCzHD9CLBcSCBiyXy9y6oB3DXUQapc2NwQdX3AqWO
-         mtzA==
+        b=oVa1Lna4VuLFleJflJyHG9LQQG2m3HZYvi63sH8h1j1l5KClsXfz4f8b4gtDzynQou
+         RPeIxW0xsHuEgLLPtAgl/U6qtpSAfxpljKgMuD5C5lNnnhVzqJBDVqisjQZ4FXgnnaNs
+         hhNpBBQWQwmz8AAKpYUi91Jx+PCL/PdKVN25ft19ZJOg6QOQGcZbgJMxyvZXqxBFFvsj
+         GgL/Z5QTSDcGDjuXwBHuOV967A47Miux9LZcQ9/nusjIxososKkt8xsnRwRPRijPjfTx
+         hJuuHNEcY51qGNdOpotSve6PTdkUkPDqMtxFOB6e6q3yQsde76Akk17+5Y9VG8HruzNA
+         g8LA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=OC9iTxrehWzfrzE/T5Q70rOpIv02vxe8MS4oXUIFn3g=;
-        b=GDGlUHWo+tns3klEdnPk/q9yJX4GXKWKvq0IgVf/QQ1XwEa5QuGOWFJUdEjI1Puwo2
-         5tbBzGtRUjhaC+c47KOfhOTOH85f8jxFA1oj0MDFtBJDJq2kvhVWoNWMJiOiOkqDc35g
-         lI2Qbs6Co+czoSMsKZ1LMso2tjWrOOyN1ZGPRg+rEc0gBvTUPyD01ZFZToCezwXBGvw/
-         sfj9naRp4m0sj3HqjOn+nHQa41j6LrtiHtYqLF00bnGHpIsrm2v0SLFCoWKzFiw7qZ8I
-         8UB1uk94YYpb8kd1gW6Og6CNxTsUaQ31orrtlCAglRsA5tXxBfFhg7hlW82Lpye7jNF0
-         AgOg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=Fyr98K7S1me9TsMulAhHdp7GU89gOrJm0h1JtvOHlB0=;
+        b=xQt92rSVbUhIW0RUSe+a5dUAFpojuf3F2c+B5mHWLwCvLXv/a38X2zd24j02uBA0nu
+         UeGao/FopMdZdbY3unLpwAe6Iq1tVXnG/+90dL2zx1EeDgCy2l4kbANg0lV8CBDV3tRK
+         sNqWOLqSZgAmDTBV5tBmJ/xM5YB5VYOgxiZMfH4st3hGyLaBYSeV4diVhQErAdEheRm9
+         4rbBhQPfU69JDeKanL4XRWWk9jkYKIRDZ3neKyHAPRjp/Zf5+rf//zNtbegqYqZM0okG
+         pBfvX5e9xNM3SKHvZStZ9hMVftrOcw8f0fj7KIK6I3LvTncj5dJJiZNbl7TiHQrENDhn
+         O1LQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id 192si726287pgb.488.2019.05.08.07.44.34
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w14si24148884ply.226.2019.05.08.07.44.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:35 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        Wed, 08 May 2019 07:44:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:34 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:39 -0700
 X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,446,1549958400"; 
+   d="scan'208";a="169656525"
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga002.jf.intel.com with ESMTP; 08 May 2019 07:44:29 -0700
+  by fmsmga002.fm.intel.com with ESMTP; 08 May 2019 07:44:35 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 7AD4C26B; Wed,  8 May 2019 17:44:28 +0300 (EEST)
+	id 15EF358A; Wed,  8 May 2019 17:44:29 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -106,12 +109,13 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 00/62] Intel MKTME enabling
-Date: Wed,  8 May 2019 17:43:20 +0300
-Message-Id: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 09/62] x86/mm: Preserve KeyID on pte_modify() and pgprot_modify()
+Date: Wed,  8 May 2019 17:43:29 +0300
+Message-Id: <20190508144422.13171-10-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -119,381 +123,58 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-= Intro =
+An encrypted VMA will have KeyID stored in vma->vm_page_prot. This way
+we don't need to do anything special to setup encrypted page table
+entries and don't need to reserve space for KeyID in a VMA.
 
-The patchset brings enabling of Intel Multi-Key Total Memory Encryption.
-It consists of changes into multiple subsystems:
+This patch changes _PAGE_CHG_MASK to include KeyID bits. Otherwise they
+are going to be stripped from vm_page_prot on the first pgprot_modify().
 
- * Core MM: infrastructure for allocation pages, dealing with encrypted VMAs
-   and providing API setup encrypted mappings.
- * arch/x86: feature enumeration, program keys into hardware, setup
-   page table entries for encrypted pages and more.
- * Key management service: setup and management of encryption keys.
- * DMA/IOMMU: dealing with encrypted memory on IO side.
- * KVM: interaction with virtualization side.
- * Documentation: description of APIs and usage examples.
+Define PTE_PFN_MASK_MAX similar to PTE_PFN_MASK but based on
+__PHYSICAL_MASK_SHIFT. This way we include whole range of bits
+architecturally available for PFN without referencing physical_mask and
+mktme_keyid_mask variables.
 
-The patchset is huge. This submission aims to give view to the full picture and
-get feedback on the overall design. The patchset will be split into more
-digestible pieces later.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/include/asm/pgtable_types.h | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
 
-Please review. Any feedback is welcome.
-
-= Overview =
-
-Multi-Key Total Memory Encryption (MKTME)[1] is a technology that allows
-transparent memory encryption in upcoming Intel platforms.  It uses a new
-instruction (PCONFIG) for key setup and selects a key for individual pages by
-repurposing physical address bits in the page tables.
-
-These patches add support for MKTME into the existing kernel keyring subsystem
-and add a new mprotect_encrypt() system call that can be used by applications
-to encrypt anonymous memory with keys obtained from the keyring.
-
-This architecture supports encrypting both normal, volatile DRAM and persistent
-memory.  However, these patches do not implement persistent memory support.  We
-anticipate adding that support next.
-
-== Hardware Background ==
-
-MKTME is built on top of an existing single-key technology called TME.  TME
-encrypts all system memory using a single key generated by the CPU on every
-boot of the system. TME provides mitigation against physical attacks, such as
-physically removing a DIMM or watching memory bus traffic.
-
-MKTME enables the use of multiple encryption keys[2], allowing selection of the
-encryption key per-page using the page tables.  Encryption keys are programmed
-into each memory controller and the same set of keys is available to all
-entities on the system with access to that memory (all cores, DMA engines,
-etc...).
-
-MKTME inherits many of the mitigations against hardware attacks from TME.  Like
-TME, MKTME does not mitigate vulnerable or malicious operating systems or
-virtual machine managers.  MKTME offers additional mitigations when compared to
-TME.
-
-TME and MKTME use the AES encryption algorithm in the AES-XTS mode.  This mode,
-typically used for block-based storage devices, takes the physical address of
-the data into account when encrypting each block.  This ensures that the
-effective key is different for each block of memory. Moving encrypted content
-across physical address results in garbage on read, mitigating block-relocation
-attacks.  This property is the reason many of the discussed attacks require
-control of a shared physical page to be handed from the victim to the attacker.
-
-== MKTME-Provided Mitigations ==
-
-MKTME adds a few mitigations against attacks that are not mitigated when using
-TME alone.  The first set are mitigations against software attacks that are
-familiar today:
-
- * Kernel Mapping Attacks: information disclosures that leverage the
-   kernel direct map are mitigated against disclosing user data.
- * Freed Data Leak Attacks: removing an encryption key from the
-   hardware mitigates future user information disclosure.
-
-The next set are attacks that depend on specialized hardware, such as an “evil
-DIMM” or a DDR interposer:
-
- * Cross-Domain Replay Attack: data is captured from one domain
-   (guest) and replayed to another at a later time.
- * Cross-Domain Capture and Delayed Compare Attack: data is captured
-   and later analyzed to discover secrets.
- * Key Wear-out Attack: data is captured and analyzed in order to
-   Weaken the AES encryption itself.
-
-More details on these attacks are below.
-
-=== Kernel Mapping Attacks ===
-
-Information disclosure vulnerabilities leverage the kernel direct map because
-many vulnerabilities involve manipulation of kernel data structures (examples:
-CVE-2017-7277, CVE-2017-9605).  We normally think of these bugs as leaking
-valuable *kernel* data, but they can leak application data when application
-pages are recycled for kernel use.
-
-With this MKTME implementation, there is a direct map created for each MKTME
-KeyID which is used whenever the kernel needs to access plaintext.  But, all
-kernel data structures are accessed via the direct map for KeyID-0.  Thus,
-memory reads which are not coordinated with the KeyID get garbage (for example,
-accessing KeyID-4 data with the KeyID-0 mapping).
-
-This means that if sensitive data encrypted using MKTME is leaked via the
-KeyID-0 direct map, ciphertext decrypted with the wrong key will be disclosed.
-To disclose plaintext, an attacker must “pivot” to the correct direct mapping,
-which is non-trivial because there are no kernel data structures in the
-KeyID!=0 direct mapping.
-
-=== Freed Data Leak Attack ===
-
-The kernel has a history of bugs around uninitialized data.  Usually, we think
-of these bugs as leaking sensitive kernel data, but they can also be used to
-leak application secrets.
-
-MKTME can help mitigate the case where application secrets are leaked:
-
- * App (or VM) places a secret in a page
- * App exits or frees memory to kernel allocator
- * Page added to allocator free list
- * Attacker reallocates page to a purpose where it can read the page
-
-Now, imagine MKTME was in use on the memory being leaked.  The data can only be
-leaked as long as the key is programmed in the hardware.  If the key is
-de-programmed, like after all pages are freed after a guest is shut down, any
-future reads will just see ciphertext.
-
-Basically, the key is a convenient choke-point: you can be more confident that
-data encrypted with it is inaccessible once the key is removed.
-
-=== Cross-Domain Replay Attack ===
-
-MKTME mitigates cross-domain replay attacks where an attacker replaces an
-encrypted block owned by one domain with a block owned by another domain.
-MKTME does not prevent this replacement from occurring, but it does mitigate
-plaintext from being disclosed if the domains use different keys.
-
-With TME, the attack could be executed by:
- * A victim places secret in memory, at a given physical address.
-   Note: AES-XTS is what restricts the attack to being performed at a
-   single physical address instead of across different physical
-   addresses
- * Attacker captures victim secret’s ciphertext
- * Later on, after victim frees the physical address, attacker gains
-   ownership
- * Attacker puts the ciphertext at the address and get the secret
-   plaintext
-
-But, due to the presumably different keys used by the attacker and the victim,
-the attacker can not successfully decrypt old ciphertext.
-
-=== Cross-Domain Capture and Delayed Compare Attack ===
-
-This is also referred to as a kind of dictionary attack.
-
-Similarly, MKTME protects against cross-domain capture-and-compare attacks.
-Consider the following scenario:
- * A victim places a secret in memory, at a known physical address
- * Attacker captures victim’s ciphertext
- * Attacker gains control of the target physical address, perhaps
-   after the victim’s VM is shut down or its memory reclaimed.
- * Attacker computes and writes many possible plaintexts until new
-   ciphertext matches content captured previously.
-
-Secrets which have low (plaintext) entropy are more vulnerable to this attack
-because they reduce the number of possible plaintexts an attacker has to
-compute and write.
-
-The attack will not work if attacker and victim uses different keys.
-
-=== Key Wear-out Attack ===
-
-Repeated use of an encryption key might be used by an attacker to infer
-information about the key or the plaintext, weakening the encryption.  The
-higher the bandwidth of the encryption engine, the more vulnerable the key is
-to wear-out.  The MKTME memory encryption hardware works at the speed of the
-memory bus, which has high bandwidth.
-
-Such a weakness has been demonstrated[3] on a theoretical cipher with similar
-properties as AES-XTS.
-
-An attack would take the following steps:
- * Victim system is using TME with AES-XTS-128
- * Attacker repeatedly captures ciphertext/plaintext pairs (can be
-   Performed with online hardware attack like an interposer).
- * Attacker compels repeated use of the key under attack for a
-   sustained time period without a system reboot[4].
- * Attacker discovers a cipertext collision (two plaintexts
-   translating to the same ciphertext)
- * Attacker can induce controlled modifications to the targeted
-   plaintext by modifying the colliding ciphertext
-
-MKTME mitigates key wear-out in two ways:
- * Keys can be rotated periodically to mitigate wear-out.  Since TME
-   keys are generated at boot, rotation of TME keys requires a
-   reboot.  In contrast, MKTME allows rotation while the system is
-   booted.  An application could implement a policy to rotate keys at
-   a frequency which is not feasible to attack.
- * In the case that MKTME is used to encrypt two guests’ memory with
-   two different keys, an attack on one guest’s key would not weaken
-   the key used in the second guest.
-
---
-
-[1] https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
-[2] The MKTME architecture supports up to 16 bits of KeyIDs, so a
-    maximum of 65535 keys on top of the “TME key” at KeyID-0.  The
-    first implementation is expected to support 5 bits, making 63 keys
-    available to applications.  However, this is not guaranteed.  The
-    number of available keys could be reduced if, for instance,
-    additional physical address space is desired over additional
-    KeyIDs.
-[3] http://web.cs.ucdavis.edu/~rogaway/papers/offsets.pdf
-[4] This sustained time required for an attack could vary from days
-    to years depending on the attacker’s goals.
-
-Alison Schofield (33):
-  x86/pconfig: Set a valid encryption algorithm for all MKTME commands
-  keys/mktme: Introduce a Kernel Key Service for MKTME
-  keys/mktme: Preparse the MKTME key payload
-  keys/mktme: Instantiate and destroy MKTME keys
-  keys/mktme: Move the MKTME payload into a cache aligned structure
-  keys/mktme: Strengthen the entropy of CPU generated MKTME keys
-  keys/mktme: Set up PCONFIG programming targets for MKTME keys
-  keys/mktme: Program MKTME keys into the platform hardware
-  keys/mktme: Set up a percpu_ref_count for MKTME keys
-  keys/mktme: Require CAP_SYS_RESOURCE capability for MKTME keys
-  keys/mktme: Store MKTME payloads if cmdline parameter allows
-  acpi: Remove __init from acpi table parsing functions
-  acpi/hmat: Determine existence of an ACPI HMAT
-  keys/mktme: Require ACPI HMAT to register the MKTME Key Service
-  acpi/hmat: Evaluate topology presented in ACPI HMAT for MKTME
-  keys/mktme: Do not allow key creation in unsafe topologies
-  keys/mktme: Support CPU hotplug for MKTME key service
-  keys/mktme: Find new PCONFIG targets during memory hotplug
-  keys/mktme: Program new PCONFIG targets with MKTME keys
-  keys/mktme: Support memory hotplug for MKTME keys
-  mm: Generalize the mprotect implementation to support extensions
-  syscall/x86: Wire up a system call for MKTME encryption keys
-  x86/mm: Set KeyIDs in encrypted VMAs for MKTME
-  mm: Add the encrypt_mprotect() system call for MKTME
-  x86/mm: Keep reference counts on encrypted VMAs for MKTME
-  mm: Restrict MKTME memory encryption to anonymous VMAs
-  selftests/x86/mktme: Test the MKTME APIs
-  x86/mktme: Overview of Multi-Key Total Memory Encryption
-  x86/mktme: Document the MKTME provided security mitigations
-  x86/mktme: Document the MKTME kernel configuration requirements
-  x86/mktme: Document the MKTME Key Service API
-  x86/mktme: Document the MKTME API for anonymous memory encryption
-  x86/mktme: Demonstration program using the MKTME APIs
-
-Jacob Pan (3):
-  iommu/vt-d: Support MKTME in DMA remapping
-  x86/mm: introduce common code for mem encryption
-  x86/mm: Use common code for DMA memory encryption
-
-Kai Huang (2):
-  mm, x86: export several MKTME variables
-  kvm, x86, mmu: setup MKTME keyID to spte for given PFN
-
-Kirill A. Shutemov (24):
-  mm: Do no merge VMAs with different encryption KeyIDs
-  mm: Add helpers to setup zero page mappings
-  mm/ksm: Do not merge pages with different KeyIDs
-  mm/page_alloc: Unify alloc_hugepage_vma()
-  mm/page_alloc: Handle allocation for encrypted memory
-  mm/khugepaged: Handle encrypted pages
-  x86/mm: Mask out KeyID bits from page table entry pfn
-  x86/mm: Introduce variables to store number, shift and mask of KeyIDs
-  x86/mm: Preserve KeyID on pte_modify() and pgprot_modify()
-  x86/mm: Detect MKTME early
-  x86/mm: Add a helper to retrieve KeyID for a page
-  x86/mm: Add a helper to retrieve KeyID for a VMA
-  x86/mm: Add hooks to allocate and free encrypted pages
-  x86/mm: Map zero pages into encrypted mappings correctly
-  x86/mm: Rename CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING
-  x86/mm: Allow to disable MKTME after enumeration
-  x86/mm: Calculate direct mapping size
-  x86/mm: Implement syncing per-KeyID direct mappings
-  x86/mm: Handle encrypted memory in page_to_virt() and __pa()
-  mm/page_ext: Export lookup_page_ext() symbol
-  mm/rmap: Clear vma->anon_vma on unlink_anon_vmas()
-  x86/mm: Disable MKTME on incompatible platform configurations
-  x86/mm: Disable MKTME if not all system memory supports encryption
-  x86: Introduce CONFIG_X86_INTEL_MKTME
-
- .../admin-guide/kernel-parameters.rst         |   1 +
- .../admin-guide/kernel-parameters.txt         |  11 +
- Documentation/x86/mktme/index.rst             |  13 +
- .../x86/mktme/mktme_configuration.rst         |  17 +
- Documentation/x86/mktme/mktme_demo.rst        |  53 ++
- Documentation/x86/mktme/mktme_encrypt.rst     |  57 ++
- Documentation/x86/mktme/mktme_keys.rst        |  96 +++
- Documentation/x86/mktme/mktme_mitigations.rst | 150 ++++
- Documentation/x86/mktme/mktme_overview.rst    |  57 ++
- Documentation/x86/x86_64/mm.txt               |   4 +
- arch/alpha/include/asm/page.h                 |   2 +-
- arch/x86/Kconfig                              |  29 +-
- arch/x86/entry/syscalls/syscall_32.tbl        |   1 +
- arch/x86/entry/syscalls/syscall_64.tbl        |   1 +
- arch/x86/include/asm/intel-family.h           |   2 +
- arch/x86/include/asm/intel_pconfig.h          |  14 +-
- arch/x86/include/asm/mem_encrypt.h            |  29 +
- arch/x86/include/asm/mktme.h                  |  93 +++
- arch/x86/include/asm/page.h                   |   4 +
- arch/x86/include/asm/page_32.h                |   1 +
- arch/x86/include/asm/page_64.h                |   4 +-
- arch/x86/include/asm/pgtable.h                |  19 +
- arch/x86/include/asm/pgtable_types.h          |  23 +-
- arch/x86/include/asm/setup.h                  |   6 +
- arch/x86/kernel/cpu/intel.c                   |  58 +-
- arch/x86/kernel/head64.c                      |   4 +
- arch/x86/kernel/setup.c                       |   3 +
- arch/x86/kvm/mmu.c                            |  18 +-
- arch/x86/mm/Makefile                          |   3 +
- arch/x86/mm/init_64.c                         |  68 ++
- arch/x86/mm/kaslr.c                           |  11 +-
- arch/x86/mm/mem_encrypt_common.c              |  28 +
- arch/x86/mm/mktme.c                           | 630 ++++++++++++++
- drivers/acpi/hmat/hmat.c                      |  67 ++
- drivers/acpi/tables.c                         |  10 +-
- drivers/firmware/efi/efi.c                    |  25 +-
- drivers/iommu/intel-iommu.c                   |  29 +-
- fs/dax.c                                      |   3 +-
- fs/exec.c                                     |   4 +-
- fs/userfaultfd.c                              |   7 +-
- include/asm-generic/pgtable.h                 |   8 +
- include/keys/mktme-type.h                     |  39 +
- include/linux/acpi.h                          |   9 +-
- include/linux/dma-direct.h                    |   4 +-
- include/linux/efi.h                           |   1 +
- include/linux/gfp.h                           |  51 +-
- include/linux/intel-iommu.h                   |   9 +-
- include/linux/mem_encrypt.h                   |  23 +-
- include/linux/migrate.h                       |  14 +-
- include/linux/mm.h                            |  27 +-
- include/linux/page_ext.h                      |  11 +-
- include/linux/syscalls.h                      |   2 +
- include/uapi/asm-generic/unistd.h             |   4 +-
- kernel/fork.c                                 |   2 +
- kernel/sys_ni.c                               |   2 +
- mm/compaction.c                               |   3 +
- mm/huge_memory.c                              |   6 +-
- mm/khugepaged.c                               |  10 +
- mm/ksm.c                                      |  17 +
- mm/madvise.c                                  |   2 +-
- mm/memory.c                                   |   3 +-
- mm/mempolicy.c                                |  30 +-
- mm/migrate.c                                  |   4 +-
- mm/mlock.c                                    |   2 +-
- mm/mmap.c                                     |  31 +-
- mm/mprotect.c                                 |  98 ++-
- mm/page_alloc.c                               |  50 ++
- mm/page_ext.c                                 |   5 +
- mm/rmap.c                                     |   4 +-
- mm/userfaultfd.c                              |   3 +-
- security/keys/Makefile                        |   1 +
- security/keys/mktme_keys.c                    | 768 ++++++++++++++++++
- .../selftests/x86/mktme/encrypt_tests.c       | 433 ++++++++++
- .../testing/selftests/x86/mktme/flow_tests.c  | 266 ++++++
- tools/testing/selftests/x86/mktme/key_tests.c | 526 ++++++++++++
- .../testing/selftests/x86/mktme/mktme_test.c  | 300 +++++++
- 76 files changed, 4301 insertions(+), 122 deletions(-)
- create mode 100644 Documentation/x86/mktme/index.rst
- create mode 100644 Documentation/x86/mktme/mktme_configuration.rst
- create mode 100644 Documentation/x86/mktme/mktme_demo.rst
- create mode 100644 Documentation/x86/mktme/mktme_encrypt.rst
- create mode 100644 Documentation/x86/mktme/mktme_keys.rst
- create mode 100644 Documentation/x86/mktme/mktme_mitigations.rst
- create mode 100644 Documentation/x86/mktme/mktme_overview.rst
- create mode 100644 arch/x86/include/asm/mktme.h
- create mode 100644 arch/x86/mm/mem_encrypt_common.c
- create mode 100644 arch/x86/mm/mktme.c
- create mode 100644 include/keys/mktme-type.h
- create mode 100644 security/keys/mktme_keys.c
- create mode 100644 tools/testing/selftests/x86/mktme/encrypt_tests.c
- create mode 100644 tools/testing/selftests/x86/mktme/flow_tests.c
- create mode 100644 tools/testing/selftests/x86/mktme/key_tests.c
- create mode 100644 tools/testing/selftests/x86/mktme/mktme_test.c
-
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index d6ff0bbdb394..7d6f68431538 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -117,12 +117,25 @@
+ 				 _PAGE_ACCESSED | _PAGE_DIRTY)
+ 
+ /*
+- * Set of bits not changed in pte_modify.  The pte's
+- * protection key is treated like _PAGE_RW, for
+- * instance, and is *not* included in this mask since
+- * pte_modify() does modify it.
++ * Set of bits not changed in pte_modify.
++ *
++ * The pte's protection key is treated like _PAGE_RW, for instance, and is
++ * *not* included in this mask since pte_modify() does modify it.
++ *
++ * They include the physical address and the memory encryption keyID.
++ * The paddr and the keyID never occupy the same bits at the same time.
++ * But, a given bit might be used for the keyID on one system and used for
++ * the physical address on another. As an optimization, we manage them in
++ * one unit here since their combination always occupies the same hardware
++ * bits. PTE_PFN_MASK_MAX stores combined mask.
++ *
++ * Cast PAGE_MASK to a signed type so that it is sign-extended if
++ * virtual addresses are 32-bits but physical addresses are larger
++ * (ie, 32-bit PAE).
+  */
+-#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
++#define PTE_PFN_MASK_MAX \
++	(((signed long)PAGE_MASK) & ((1ULL << __PHYSICAL_MASK_SHIFT) - 1))
++#define _PAGE_CHG_MASK	(PTE_PFN_MASK_MAX | _PAGE_PCD | _PAGE_PWT |		\
+ 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+ 			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
+ #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
 -- 
 2.20.1
 
