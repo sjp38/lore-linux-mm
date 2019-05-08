@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A967AC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78C6FC04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F027216B7
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F027216B7
+	by mail.kernel.org (Postfix) with ESMTP id 45301216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45301216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7188D6B02A7; Wed,  8 May 2019 10:44:56 -0400 (EDT)
+	id 2D4C56B02AA; Wed,  8 May 2019 10:44:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6CA6C6B02AA; Wed,  8 May 2019 10:44:56 -0400 (EDT)
+	id 2AC006B02AC; Wed,  8 May 2019 10:44:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E34D6B02AC; Wed,  8 May 2019 10:44:56 -0400 (EDT)
+	id 19CA56B02AE; Wed,  8 May 2019 10:44:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F37516B02AE
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:55 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id x5so11673793pll.2
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:55 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D51006B02AA
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:56 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 14so12804865pgo.14
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=YaEUfUd5VoDz+D3t/tMnMmtVbfr/7wfrUagdOS99llw=;
-        b=ToNCawtoYgp8Zm4OvHDJC5jj0RKOi9oy5KUJhzx/KNyZnml5j6y2lFq3cHytigpnbB
-         5sl+7j5epazBoSomQ3RsrKRO5rr3UvxT5TzqJf7AydE9SEqOsdlleYl/GziNeLZABgrU
-         M12X23lkWOBDvd/5P9JoAwNZKaOK3H2uLC0icMkQxD/Pa2Ykyxmg14E77yzJUK5NnsYw
-         6vCZqwy9jH5bDT6W4xgBQDLtnPSv66rAB5tIw8pVCrNpArrwv39y7FxpAgy+zIxdGToh
-         8mnR6ETflb70cjJcgoj4sJkDRTz/XQEvbfbuBtO3wWBTNJjiKE+PdNrjwbKS1jo4oyxf
-         iYOA==
+        bh=0Q0yXtZW5uGIkggk/JKR2b6AmJ5y5De3E5tHqrEiJuk=;
+        b=n1wxyoN/V4OARiw2x4Wdaaivf1AAYZnmFhXopNXu6LiKHOoqjqW6GmBOlK8DfUvee2
+         EuGcJvapznX+m622SliCqsMRVMbICXg0e/IXF3AJuGYAsfja+TD4n8W9L3gZCePpLTQe
+         9c5FL/0OMygXNj5nRzO3WBJ+kI3lXCZs4mdndzOvGW+2/MmrIWqoLnfZVmQVjBTpHBnu
+         lKHwuozk9rkqNrD7YKMBdF3wgtA5C+xXuxRTjcn+irP6zbdUe4SXYfQONzHRg/N9XtRH
+         cJ+5099U6rQUuq4g56uV36pTf0+pflfdXS6gEiQL/Zf2DuRtItyGxNZsm716yh/19scD
+         BtvA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVzzDAd4kWtjj65zKqM4F0axihe5rcQVgN3lhOU09NCyQwZWrcc
-	+mE6fDKUpxe2VawjvXDupXBO0m0dTbR1XZdgyURZRdyA5WP3Mh8xMCoZzVXWVfIWKs3XF2KtmYG
-	9QAmWEJ0gjvmJJxzXorG31gqp7AJOluVrFktUZkHr6tS3ex2lobBvXpqPnLrrE9WKZQ==
-X-Received: by 2002:a17:902:7797:: with SMTP id o23mr15676458pll.147.1557326695656;
+X-Gm-Message-State: APjAAAXLfwHfnO658ocZr0CNItJ87ewVdg1wX1CmeektQTBAIy8OaTwB
+	5f+d2t3bk5oHr+zUmsX/s13a2UfAQQLVjpmYLeBVz6RGA1vq8cfB6pjriEBO3+7rlRPQWxUrqOy
+	k9YBESggAcjFi36J34SnmXHIK1qAXiBq06nmDGGKUkzQlZcdiVDQ1A/+3IA5TP2Ga1w==
+X-Received: by 2002:a63:4621:: with SMTP id t33mr44541403pga.246.1557326696511;
+        Wed, 08 May 2019 07:44:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzIDkgBOrYtoDrQiRYnqj3u4WG0jXfFIsWKf/lvncoY9kziqooct/HZ7chOIUWDDybZJTsp
+X-Received: by 2002:a63:4621:: with SMTP id t33mr44541259pga.246.1557326695210;
         Wed, 08 May 2019 07:44:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz42zjHxqR6sPA8w9dDWq6219x4ZJ3VitxwoHgyPh+hUDtcjpsfy8OMUukz23Hw02C4t/Je
-X-Received: by 2002:a17:902:7797:: with SMTP id o23mr15676246pll.147.1557326693604;
-        Wed, 08 May 2019 07:44:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326693; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1557326695; cv=none;
         d=google.com; s=arc-20160816;
-        b=id2hoIGodRL6MQxj3dT/ew2F5daWd/hraJGA111TnveYzspx73+fuGoWy/rq2hj2tw
-         ogezj6P6SxqQ5l25nlAN4phIMvOVeIfICSoMGGVHwN38n4YD6TpUHipXzN3y0Jdh3JEo
-         W++mqveuv8CBGkhno8JGoIvs5isbkyk/1loBk4LcLead8OX7Ntt3MR+TiyyjAQx4Cjgr
-         hyr+yZi8CuQ9DpLmTcP0I/myDdlGEozROiskvSxIpvvvKVKNFfsr7rl8/gLL1NgLyu1k
-         Q9w3cRobo9kQQsOliQxj5uqHUSVAf0hqV+oUTuB+S932QMs5SZ69gDmgHLlfNRHJzA94
-         S8Pw==
+        b=fHdPTUfHdAFY4e8GWiKfVftqBd97dp1tvJMdxezlm5UZ/ZUBgTuFoYQs4EJw8FhRJe
+         RpDp/Bh80SnSFjWDRyBPcufE5RFqa4UwV8xcz5FD8kftBgZTvGcWXSYHWMwNWCvYVX4M
+         aFQ/Y1xLd0lBNfVbT8nMab2WeaUq9IisrGJo7/FIe+79HI/gVapfZWUZNSPPMFDXITkF
+         8fDkiBScLWSrhytcIhk6J3Fi5cmnI+fQDZswqatyluyxMLTIKVNtePdtJuX+lNDep+3/
+         1pFJ7pyHMsaKDH2qGn28b2LhDpXvC8DHBLbK0n17o6pYWEas2fcnCPkgiWirEZMPZH7D
+         EAVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=YaEUfUd5VoDz+D3t/tMnMmtVbfr/7wfrUagdOS99llw=;
-        b=pfMKJI1bkPvmbkG2jRrtOSdL6uNhgyM0XJRjAk/5kIHIFF8QPT5d/g3E6EpTBR3gT7
-         OKZ3l8EY3N3a0YQSV+1femotZ+HMbTPo+WHlJaR0ynf/aPOEHLBWN60WFDsufr2uw4rd
-         2XlNYmc6qKt5Bzhwjt2rhf8+bka0uQmrRjwUmZ1xlk4g8F/lURuxsMIdeOYQ4sd3HObD
-         1WRPElXw9Y9c/1S61b2GptmqGacgNAavhBMdxP0utP+1avTxACxg1EIvQVdxamCAlfhc
-         F3+vd2BNBvr7tx7kjukwbsQAOVQDknDCDoZGXwsice6Jpoz2gD+i6oShyhVhv1B/eAuS
-         6MYg==
+        bh=0Q0yXtZW5uGIkggk/JKR2b6AmJ5y5De3E5tHqrEiJuk=;
+        b=CpR7f3z9xuyN/VrRGsKo82DFhqNoRbWPVX+VzvMO1FEniWVEE1tkaTSYlWHwdyppV9
+         4AxBKhjKrzNF4bhSFHb6Ca5uZtA5qFLGhSj2MprZGfwznfsb1OjnCg7MkW9qg+pxef72
+         J9ieZWd9bfDABZ5TVENJ9WL6bAevrL6IFXaoSX/+KpB324Pl9RizHTI+v/EGVdSeNGRJ
+         fTSfhCVhvXaDDkh+JmcORb3RFiSaEj4cOqJmDNiSJ2I/u/KU9xj89v28E+5ispgxp9iQ
+         Tgx+gPP6QREYTONdxkmFgYdh7u3AHzozvvlwnUCpagejrm16VSXGYbOEMbJohhYQOZGT
+         mtlw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id t16si6593003plm.65.2019.05.08.07.44.53
+        by mx.google.com with ESMTPS id t16si6593003plm.65.2019.05.08.07.44.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:53 -0700 (PDT)
+        Wed, 08 May 2019 07:44:55 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:53 -0700
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:54 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by fmsmga005.fm.intel.com with ESMTP; 08 May 2019 07:44:49 -0700
+  by orsmga006.jf.intel.com with ESMTP; 08 May 2019 07:44:49 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id A1F3611C1; Wed,  8 May 2019 17:44:31 +0300 (EEST)
+	id BCB7F11CF; Wed,  8 May 2019 17:44:31 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 59/62] x86/mktme: Document the MKTME kernel configuration requirements
-Date: Wed,  8 May 2019 17:44:19 +0300
-Message-Id: <20190508144422.13171-60-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 61/62] x86/mktme: Document the MKTME API for anonymous memory encryption
+Date: Wed,  8 May 2019 17:44:21 +0300
+Message-Id: <20190508144422.13171-62-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -126,43 +126,83 @@ From: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/x86/mktme/index.rst               |  1 +
- Documentation/x86/mktme/mktme_configuration.rst | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+)
- create mode 100644 Documentation/x86/mktme/mktme_configuration.rst
+ Documentation/x86/mktme/index.rst         |  1 +
+ Documentation/x86/mktme/mktme_encrypt.rst | 57 +++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)
+ create mode 100644 Documentation/x86/mktme/mktme_encrypt.rst
 
 diff --git a/Documentation/x86/mktme/index.rst b/Documentation/x86/mktme/index.rst
-index a3a29577b013..0f021cc4a2db 100644
+index 8cf2b7d62091..ca3c76adc596 100644
 --- a/Documentation/x86/mktme/index.rst
 +++ b/Documentation/x86/mktme/index.rst
-@@ -7,3 +7,4 @@ Multi-Key Total Memory Encryption (MKTME)
- 
-    mktme_overview
+@@ -9,3 +9,4 @@ Multi-Key Total Memory Encryption (MKTME)
     mktme_mitigations
-+   mktme_configuration
-diff --git a/Documentation/x86/mktme/mktme_configuration.rst b/Documentation/x86/mktme/mktme_configuration.rst
+    mktme_configuration
+    mktme_keys
++   mktme_encrypt
+diff --git a/Documentation/x86/mktme/mktme_encrypt.rst b/Documentation/x86/mktme/mktme_encrypt.rst
 new file mode 100644
-index 000000000000..91d2f80c736e
+index 000000000000..5cdffabc610f
 --- /dev/null
-+++ b/Documentation/x86/mktme/mktme_configuration.rst
-@@ -0,0 +1,17 @@
-+MKTME Configuration
-+===================
++++ b/Documentation/x86/mktme/mktme_encrypt.rst
+@@ -0,0 +1,57 @@
++MKTME API: system call encrypt_mprotect()
++=========================================
 +
-+CONFIG_X86_INTEL_MKTME
-+        MKTME is enabled by selecting CONFIG_X86_INTEL_MKTME on Intel
-+        platforms supporting the MKTME feature.
++Synopsis
++--------
++int encrypt_mprotect(void \*addr, size_t len, int prot, key_serial_t serial);
 +
-+mktme_storekeys
-+        mktme_storekeys is a kernel cmdline parameter.
++Where *key_serial_t serial* is the serial number of a key allocated
++using the MKTME Key Service.
 +
-+        This parameter allows the kernel to store the user specified
-+        MKTME key payload. Storing this payload means that the MKTME
-+        Key Service can always allow the addition of new physical
-+        packages. If the mktme_storekeys parameter is not present,
-+        users key data will not be stored, and new physical packages
-+        may only be added to the system if no user type MKTME keys
-+        are programmed.
++Description
++-----------
++    encrypt_mprotect() encrypts the memory pages containing any part
++    of the address range in the interval specified by addr and len.
++
++    encrypt_mprotect() supports the legacy mprotect() behavior plus
++    the enabling of memory encryption. That means that in addition
++    to encrypting the memory, the protection flags will be updated
++    as requested in the call.
++
++    The *addr* and *len* must be aligned to a page boundary.
++
++    The caller must have *KEY_NEED_VIEW* permission on the key.
++
++    The range of memory that is to be protected must be mapped as
++    *ANONYMOUS*.
++
++Errors
++------
++    In addition to the Errors returned from legacy mprotect()
++    encrypt_mprotect will return:
++
++    ENOKEY *serial* parameter does not represent a valid key.
++
++    EINVAL *len* parameter is not page aligned.
++
++    EACCES Caller does not have *KEY_NEED_VIEW* permission on the key.
++
++EXAMPLE
++--------
++  Allocate an MKTME Key::
++        serial = add_key("mktme", "name", "type=cpu algorithm=aes-xts-128" @u
++
++  Map ANONYMOUS memory::
++        ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
++
++  Protect memory::
++        ret = syscall(SYS_encrypt_mprotect, ptr, size, PROT_READ|PROT_WRITE,
++                      serial);
++
++  Use the encrypted memory
++
++  Free memory::
++        ret = munmap(ptr, size);
++
++  Free the key resource::
++        ret = keyctl(KEYCTL_INVALIDATE, serial);
 -- 
 2.20.1
 
