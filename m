@@ -4,89 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37045C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BBE5C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EABE4216B7
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EABE4216B7
+	by mail.kernel.org (Postfix) with ESMTP id 1AABE216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AABE216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47FC56B02B2; Wed,  8 May 2019 10:46:05 -0400 (EDT)
+	id 541F26B02B8; Wed,  8 May 2019 10:46:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 431D16B02B4; Wed,  8 May 2019 10:46:05 -0400 (EDT)
+	id 51BD36B02BA; Wed,  8 May 2019 10:46:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2F77E6B02B5; Wed,  8 May 2019 10:46:05 -0400 (EDT)
+	id 3E6306B02BB; Wed,  8 May 2019 10:46:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E701A6B02B2
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:04 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id o1so12798278pgv.15
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:04 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ED6726B02B8
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:14 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id t1so12766972pfa.10
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=LCcp+NaHSkyxYVzCq9AR5JBhCaNxEkGTOS5HXRjuHDo=;
-        b=LPEsTKcIUXHl0rF2Hl2IhdO5Wu/tFOdEX1v8G/1hQIDlr7RRcU2SF/PEPqM3X35qsS
-         tXMyXWMdnke9JmtKZ6NZlAuilFt7Gv8qKH6xwWOob3DMMURTbXDTcqkTDX0hONwVRwId
-         eq+ZgVtpc7wQKiEAuJ747KE/+lYF4/Tp1KQyk0bikJXc/G+g1kvUyUydlg3ggja4aHbs
-         7Jgtp3P8+ABX4dZM7XaJ6oEsuKiCRye+lqS1vg0w7NtLRj7PI5LYQ3u64JDZh54xUIfO
-         mtRU5nIAk0U/9xZ+Ur6CKEUTENDBt66AHWet00+1AGViQivsTTq3mQlmz9NpCK64Kqa3
-         /7DQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUcMAR0TGpJY+mNQ0MW2jU27CVpoiAYFeZSlgd/8c7zejcTJfjI
-	iTzWIaLcADKBXU0SVRIPA3pzRRNUAWU1OUTMxeKVWpxoahRoijZ/yoIng0zoPDT4XF11q640pxZ
-	Sn2TIjy6kpJp1IznD7m1KSlQigYmxys9POKTe2BMJBdREIrr7rlXi/nhuohRMlyPUMw==
-X-Received: by 2002:a63:309:: with SMTP id 9mr26246793pgd.49.1557326764537;
-        Wed, 08 May 2019 07:46:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwU88KlhYmdT1IBJ9WlCz9a7YAauc6jNWNm4kvBq1ByU57KkwfA0H7MD6TI9OAwkLjkX0aQ
-X-Received: by 2002:a63:309:: with SMTP id 9mr26237618pgd.49.1557326686078;
+        bh=SWcujcOdjJ4n7cFeyFQDmfheevccd9AmduaPEsJQk94=;
+        b=nB2RrcYcllDG6uEF9bBTv7ffhCBQigT1w46MIm3LqLIT4w/6lSfyyXeHPGvmO7eVze
+         hiPsbMgGYhuhjU+9CCx06I53J2/N6gMUYykf5sD6PprSItsOIIDwrlysaXwzikaCiOEE
+         14hnG5pUtQZwm4VUiCqC31xdFRFGEXx55EQQdrQZTue3WxVyrWvpiTgKvZVAo/WOFWTn
+         uyu/uY7Mncp1KTqjnTCShOJbPEz27g/Xsu31mFNcADZzvfEV6TwsxMiTnIqDbVyK8Qq7
+         YGyrq0aayl80NDIJuMa4ysqbGSBN7OIsbUlvgpoj+vG6To7V3P9ViWdPr2/71/WeM+y4
+         L0rA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUhbfZ7IuTM/4ESxTlkpCF5SR92Uj77kVG/Sxgbv48N7x27Ew48
+	tNAVUZ3RizbOpqpLJ/jXXTgZKz+vqvOpS98/1UdlB6GLHwNqeiBjMhW3F5lO+touIQ+o5Dl3C5/
+	JWEuAPHeCA22wZKRKGnO/hxVR5ui06XFv89YVkfrmSkZE07JhQtrd5b73+CF53eW5yQ==
+X-Received: by 2002:a62:d244:: with SMTP id c65mr48978738pfg.173.1557326774629;
+        Wed, 08 May 2019 07:46:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUrb/LH30TxSBw6+bYVvZEYgsglB2JC4qm9O5sihWnZZ9byCF/FFss9+HwAebcVwtJ8lqY
+X-Received: by 2002:a62:d244:: with SMTP id c65mr48968261pfg.173.1557326686337;
         Wed, 08 May 2019 07:44:46 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557326686; cv=none;
         d=google.com; s=arc-20160816;
-        b=HdmBoTBYJm4hk8dzD35fJcE9MZZcrRwxMhMKsUeM9G0SgPGHvQOd5CtvU/YsVlv/XZ
-         /HKkuNlYoix67ZLCsNPPPD70RNqKQyiAUHaw0RJAz65sSGen382BZFM70QdSrK2vkJB3
-         olLhaKqmf3o3p87WNdnEcbCo8zlpCppe5UCbFeXPD1lgh1PhcGYomJPuw0LCitd54N5z
-         6WqXq2Oo5N2QmFYu4qm1li073bz9f2SMcrgHmpbuZsQjz4ylv4w5UGxko9KJcU+ZxzYh
-         SD7fdaRVfO3aD9nrf3XK9a3Ir0R3n1ebfqwscx8Bn4iBlEwtxkE8pwd0bxBKh/fkMl2G
-         70EA==
+        b=sJoJm/K2w3bJ2I1Iw+d+xdINrvGH01O8jqmoVz9bSjinqNKUQbqipvd2g9PbUkyApr
+         cEmxwGzB07TMIU6zCW3rpFVNm4Ik2gtmulsCY4zeLzngsm+jL6ocd7rpfdeerUCRXM8B
+         FHHtuYPlkOF8rTeioBHg26vpsg59d7b14bc1U/Z2X2p1WMCdsi0k7jBYy3Obe7YnssMT
+         zGjAqSUqYoheH3fVtWbLacysmAKJQbF5ERhWMm51rsHjmW/W2/NskZUj/CXJRGuQ8X5s
+         X+xk7peR2CVrIxxmEezJKuv/H+0NSCFItr9LPUBGOEIDZhi9o23Hzn5jIeDnDwTyG3ka
+         G/PQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=LCcp+NaHSkyxYVzCq9AR5JBhCaNxEkGTOS5HXRjuHDo=;
-        b=zbSlDPoRfnET4YD5uRBmRzmqtxhg2WgInizUi+yiM3mVKz2SvgKIU5oTjzVEe42ngS
-         /AbcHA2+4g5UbwpC+AAKJvx/8v4VjcK5hR3t6zUbg18RfUEX20IvOJ7bniN8NniIROc3
-         fK8pxbaM0cP4iqrFBOojDzpcM/aWDpMkctuDQCoeiGyNX2I7ZkI8cCgl5d+lmb34C7P7
-         51mytxJJOBGYpxW7vRf7JQrYyaOc/JWBJ8+AiUk+sjp9W5NChHhIvmvoLbelmAo/8aXV
-         /SPA/+apvG9iTqmqgLUOUD0ZQCh9UwoI5vplzHHbLU6yhzulqR6Gmx65IXI75RaR0WdV
-         e6Ig==
+        bh=SWcujcOdjJ4n7cFeyFQDmfheevccd9AmduaPEsJQk94=;
+        b=GBfzGpfc82Qt2FIfQyCZUBUC3Jg03IUW7/Fx4R1fDH3zjq+JT5Ck3MP1fnszST6lbK
+         VoeayH8eeLc5p1y5QhoQZYcd32qlxHI3CAnyUzf03ESoak0Syy4tD5PpzA7PhSrSjHnU
+         ay+2tnpRKS/1oS5xDzjtovfwBlPbSqc2fuhJrEgk2kqsjTv3z8orOfkYdFP7eqX3lzsW
+         fbbG6exW/2bhX9IA8Gjqvu2qNc8hLzbp1YqfxKo57jTGRdw+FfnrLN2GJzpVGTzsPez3
+         3hLWd9LpY4H945iTOoi5ehavk7MhExYqy93om4cvuLWI/r9LIgyGqMZPKtpLbS8t47/a
+         lblQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id s184si23372828pfs.275.2019.05.08.07.44.45
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 184si24250871pfg.32.2019.05.08.07.44.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 May 2019 07:44:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:45 -0700
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:46 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga007.jf.intel.com with ESMTP; 08 May 2019 07:44:40 -0700
+  by orsmga005.jf.intel.com with ESMTP; 08 May 2019 07:44:41 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id CED38A79; Wed,  8 May 2019 17:44:29 +0300 (EEST)
+	id 51199B86; Wed,  8 May 2019 17:44:30 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 23/62] keys/mktme: Introduce a Kernel Key Service for MKTME
-Date: Wed,  8 May 2019 17:43:43 +0300
-Message-Id: <20190508144422.13171-24-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 33/62] acpi: Remove __init from acpi table parsing functions
+Date: Wed,  8 May 2019 17:43:53 +0300
+Message-Id: <20190508144422.13171-34-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -123,138 +123,91 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-MKTME (Multi-Key Total Memory Encryption) is a technology that allows
-transparent memory encryption in upcoming Intel platforms. MKTME will
-support multiple encryption domains, each having their own key.
+ACPI table parsing functions are useful outside of init time.
 
-The MKTME key service will manage the hardware encryption keys. It
-will map Userspace Keys to Hardware KeyIDs and program the hardware
-with the user requested encryption options.
+For example, the MKTME (Multi-Key Total Memory Encryption) key
+service will evaluate the ACPI HMAT table when the first key
+creation request occurs.  This will happen after init time.
 
-Here the mapping structure and associated helpers are introduced,
-as well as the key service initialization and registration.
+Additionally, the table parsing functions can be used when
+_HMA objects are evaluated at runtime. The _HMA object provides
+a completely new HMAT, overriding the existing table. The table
+parsing functions will come in handy for those events.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/Makefile     |  1 +
- security/keys/mktme_keys.c | 98 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 99 insertions(+)
- create mode 100644 security/keys/mktme_keys.c
+ drivers/acpi/tables.c | 10 +++++-----
+ include/linux/acpi.h  |  4 ++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/security/keys/Makefile b/security/keys/Makefile
-index 9cef54064f60..28799be801a9 100644
---- a/security/keys/Makefile
-+++ b/security/keys/Makefile
-@@ -30,3 +30,4 @@ obj-$(CONFIG_ASYMMETRIC_KEY_TYPE) += keyctl_pkey.o
- obj-$(CONFIG_BIG_KEYS) += big_key.o
- obj-$(CONFIG_TRUSTED_KEYS) += trusted.o
- obj-$(CONFIG_ENCRYPTED_KEYS) += encrypted-keys/
-+obj-$(CONFIG_X86_INTEL_MKTME) += mktme_keys.o
-diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-new file mode 100644
-index 000000000000..b5e8289f041b
---- /dev/null
-+++ b/security/keys/mktme_keys.c
-@@ -0,0 +1,98 @@
-+// SPDX-License-Identifier: GPL-3.0
-+
-+/* Documentation/x86/mktme_keys.rst */
-+
-+#include <linux/init.h>
-+#include <linux/key.h>
-+#include <linux/key-type.h>
-+#include <linux/mm.h>
-+#include <keys/user-type.h>
-+
-+#include "internal.h"
-+
-+/* 1:1 Mapping between Userspace Keys (struct key) and Hardware KeyIDs */
-+struct mktme_mapping {
-+	unsigned int	mapped_keyids;
-+	struct key	*key[];
-+};
-+
-+struct mktme_mapping *mktme_map;
-+
-+static inline long mktme_map_size(void)
-+{
-+	long size = 0;
-+
-+	size += sizeof(*mktme_map);
-+	size += sizeof(mktme_map->key[0]) * (mktme_nr_keyids + 1);
-+	return size;
-+}
-+
-+int mktme_map_alloc(void)
-+{
-+	mktme_map = kvzalloc(mktme_map_size(), GFP_KERNEL);
-+	if (!mktme_map)
-+		return -ENOMEM;
-+	return 0;
-+}
-+
-+int mktme_reserve_keyid(struct key *key)
-+{
-+	int i;
-+
-+	if (mktme_map->mapped_keyids == mktme_nr_keyids)
-+		return 0;
-+
-+	for (i = 1; i <= mktme_nr_keyids; i++) {
-+		if (mktme_map->key[i] == 0) {
-+			mktme_map->key[i] = key;
-+			mktme_map->mapped_keyids++;
-+			return i;
-+		}
-+	}
-+	return 0;
-+}
-+
-+void mktme_release_keyid(int keyid)
-+{
-+	mktme_map->key[keyid] = 0;
-+	mktme_map->mapped_keyids--;
-+}
-+
-+int mktme_keyid_from_key(struct key *key)
-+{
-+	int i;
-+
-+	for (i = 1; i <= mktme_nr_keyids; i++) {
-+		if (mktme_map->key[i] == key)
-+			return i;
-+	}
-+	return 0;
-+}
-+
-+struct key_type key_type_mktme = {
-+	.name		= "mktme",
-+	.describe	= user_describe,
-+};
-+
-+static int __init init_mktme(void)
-+{
-+	int ret;
-+
-+	/* Verify keys are present */
-+	if (mktme_nr_keyids < 1)
-+		return 0;
-+
-+	/* Mapping of Userspace Keys to Hardware KeyIDs */
-+	if (mktme_map_alloc())
-+		return -ENOMEM;
-+
-+	ret = register_key_type(&key_type_mktme);
-+	if (!ret)
-+		return ret;			/* SUCCESS */
-+
-+	kvfree(mktme_map);
-+
-+	return -ENOMEM;
-+}
-+
-+late_initcall(init_mktme);
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index 3d0da38f94c6..35646b0fa7eb 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -47,7 +47,7 @@ static char *mps_inti_flags_trigger[] = { "dfl", "edge", "res", "level" };
+ 
+ static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
+ 
+-static int acpi_apic_instance __initdata;
++static int acpi_apic_instance;
+ 
+ enum acpi_subtable_type {
+ 	ACPI_SUBTABLE_COMMON,
+@@ -63,7 +63,7 @@ struct acpi_subtable_entry {
+  * Disable table checksum verification for the early stage due to the size
+  * limitation of the current x86 early mapping implementation.
+  */
+-static bool acpi_verify_table_checksum __initdata = false;
++static bool acpi_verify_table_checksum = false;
+ 
+ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
+ {
+@@ -294,7 +294,7 @@ acpi_get_subtable_type(char *id)
+  * On success returns sum of all matching entries for all proc handlers.
+  * Otherwise, -ENODEV or -EINVAL is returned.
+  */
+-static int __init
++static int
+ acpi_parse_entries_array(char *id, unsigned long table_size,
+ 		struct acpi_table_header *table_header,
+ 		struct acpi_subtable_proc *proc, int proc_num,
+@@ -370,7 +370,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
+ 	return errs ? -EINVAL : count;
+ }
+ 
+-int __init
++int
+ acpi_table_parse_entries_array(char *id,
+ 			 unsigned long table_size,
+ 			 struct acpi_subtable_proc *proc, int proc_num,
+@@ -402,7 +402,7 @@ acpi_table_parse_entries_array(char *id,
+ 	return count;
+ }
+ 
+-int __init
++int
+ acpi_table_parse_entries(char *id,
+ 			unsigned long table_size,
+ 			int entry_id,
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 7c7515b0767e..75078fc9b6b3 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -240,11 +240,11 @@ int acpi_numa_init (void);
+ 
+ int acpi_table_init (void);
+ int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
+-int __init acpi_table_parse_entries(char *id, unsigned long table_size,
++int acpi_table_parse_entries(char *id, unsigned long table_size,
+ 			      int entry_id,
+ 			      acpi_tbl_entry_handler handler,
+ 			      unsigned int max_entries);
+-int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
++int acpi_table_parse_entries_array(char *id, unsigned long table_size,
+ 			      struct acpi_subtable_proc *proc, int proc_num,
+ 			      unsigned int max_entries);
+ int acpi_table_parse_madt(enum acpi_madt_type id,
 -- 
 2.20.1
 
