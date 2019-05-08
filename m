@@ -2,174 +2,203 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25B5BC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 12:20:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2C9AC04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 12:50:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D123021530
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 12:20:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="rwrtMH5v"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D123021530
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E74620989
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 12:50:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E74620989
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 586F76B0278; Wed,  8 May 2019 08:20:42 -0400 (EDT)
+	id EBE946B0007; Wed,  8 May 2019 08:50:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5116C6B027A; Wed,  8 May 2019 08:20:42 -0400 (EDT)
+	id E6EE16B0008; Wed,  8 May 2019 08:50:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3D8E36B027C; Wed,  8 May 2019 08:20:42 -0400 (EDT)
+	id D36DA6B000A; Wed,  8 May 2019 08:50:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 031916B0278
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 08:20:42 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id y9so1681781plt.11
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 05:20:41 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 85B416B0007
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 08:50:36 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c1so15815718edi.20
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 05:50:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Vy0vJPC+R/qK4BTy9W8k2EK+1DkuBwwYmX4Im7RV/1I=;
-        b=IqiUxr4VUfmK4FXQm0RWl/0FTDji7BxD/CZ0c1zJeLmlEZljnesjspUCqxvo64iXGc
-         aHVpp85ldGHADE3leF3qoocac+n7gUYJefPWaldeAcHzgn2JbMPSXthzD1dD3B9hGUC9
-         4FFSvc0ayO12R0+2QwYQSbGAtYIAx7tvWzImp/SO8LF2TAtOgDVzMLaorOlr4XzVPAKr
-         GiWJioBREYFTn5KhQ/NnJMP+TzeWoAYgRkHc+j6p/MJ96qXqX7rSG79W6wBv77xogni0
-         vuSjpud6lvI/MGZq7xj4H5GngPxWVsgpULpOms5221xulhNRst0nZhfbOSvcEngU3jLZ
-         ahyQ==
-X-Gm-Message-State: APjAAAUDp3/G3lqL6zylTBeYq4iuAYHxO0NhgdmsjA+wys0zekSTIgfL
-	Uzj+oVGNjQawb9shG/IO6or5d8Dw+GQYwaHD3jifHC05keZxDR10tRwHcdLWZ2hPA/m3jaDGIL7
-	rSzBMlUjA7MzpXSwhmibIwfR+64UeavcUGHwO9z78aHaFg02RT+17Wk8haHTGb82osA==
-X-Received: by 2002:a63:1820:: with SMTP id y32mr46284127pgl.287.1557318041605;
-        Wed, 08 May 2019 05:20:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqzRLWNrgHi+s5Ip2wLQJPAvsTogDP8HVgj3j0VqLiswG1x3pCarv51D414eC4uzpjvEA8
-X-Received: by 2002:a63:1820:: with SMTP id y32mr46284060pgl.287.1557318040706;
-        Wed, 08 May 2019 05:20:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557318040; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=WwK673gLV/3ycptBHv5Do6aXOIvtBxyQ9rIEWQPniXA=;
+        b=I1L8lemMToBGsZzGWsOtKmU0f3OMv75lYB2Xk/CEtEBUI4uH02AufzPMUfqDA7R8qb
+         E+zy+Q/5yZ1/GoCScxRTU5BEENhxKA2jciMcxL/cWQIxbzjk7sFcEL+dJKqVTCSeAAdy
+         QVkCS/jgdtyoSEffX809qygAbxBEKu8es+2bwMDBVPcYrcQyxK5s0dRA2TJNrWEmU5zR
+         6x+j1yQwyWBYn63+Qig+4L4dzvqpkQsYcHGcccHApTTJEH/BCs/0GhgtOqKCcB8XmmlX
+         8bEoTfZiid7Hjl3bq/W/dJAr6aTsrnRo+B7u7jq8qHXsfXEpfl9kJGT5KBLglEZAlP/p
+         wElA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAXmYZYEopjepO3xKGku0MWd1b6icnWIeGi8i+9E9IkgZ1wPaMbY
+	Sg4XaBNjvynHULaCRtzuv6yculgmNUIlZfYC9bzLWeQtairkN9i+hE6tIYb5OvHCQK9eOW/Z3Sg
+	271fsU3IuyIoVJecQDGUKdj2tpQ4SItry2Bby/XrXlQJatyFCbnPz3xJUvyKQvoTabQ==
+X-Received: by 2002:a17:906:6a1a:: with SMTP id o26mr29449137ejr.170.1557319836052;
+        Wed, 08 May 2019 05:50:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwonhIFiH+G4w6kyrJ4MqqIc3S2wyn/Rz22Uh8yi0EwxI3YiTNb02oVsLn12qL/oC603d5z
+X-Received: by 2002:a17:906:6a1a:: with SMTP id o26mr29449065ejr.170.1557319834983;
+        Wed, 08 May 2019 05:50:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557319834; cv=none;
         d=google.com; s=arc-20160816;
-        b=F6ZuVb5XxgP2F6K/aSOa4Bl978XbWjU9AW0880BvmnQMuFaFUX2WU1YAl4fmfUGf+u
-         UijaQAGN+xe+zpx5UQD8DHXg8U8BvtCecOu/dNlTinvCSe9XrVrCn8o7M65osYx2f6Hy
-         W3ZHDge3Lw6NcUUSrWSfWEN34djOZ2D4ye48Fha5NEVZlJNTmxMHWhmwOCFgeImPRorX
-         BX81/F2/FGkU0Wp5W+Cjylmv2t/4ubBxfKMDUEI9JnXmIu2fC1E3K7GShHOg6NuHjkY7
-         7aHzA+ELE+Wnsi8Ylh0rBU6qIOzl4bmsdcT4l4dCoccQ3mPkazams6MKP/RpKB0+/R+i
-         7Mog==
+        b=gm8hNesL8hapol54npbaJBb9AM1BUfsAr9jWNGqY968NzZPlkuQgb7OcAd9zeTVGt2
+         +H1xfwnAwkEaX7Cu22rdnjBHhqscsxxh+XJ9a2LqBPOfBfEVfvTtWIDJ66Xundlieqk4
+         V7n4QwoT0SUy58dw/U8Uq2kB9nYpNtI1mlRWo1adHc6p3XBMeKERHDOxHSnIXYdzWUeA
+         WK5/LQ9jJvB3DH7Or2zIgiF8Xu6ssi2waionlgMNYCA9dLvjPFsfWhgY3k6OWQFDTjyd
+         PCiypuK/vWEMnxeJuhcX9aBT4fn9TstkXIbc+CwjAZ8h5NLRdixQy4YDilQFFV2mRGlK
+         zcmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Vy0vJPC+R/qK4BTy9W8k2EK+1DkuBwwYmX4Im7RV/1I=;
-        b=Une5N2yr/O9LVihUpQAcBJv5ESSkrWdhc/eGA90btLB3kBhHUqBEY3rKrAufW1Qnv+
-         2aL4dN8NO0BdS9Br+Iae5gYEblkzjYmOLZBDrG8R5Kgj9JAgijPgRtVycwUlqrR/N7j/
-         DZt7CQ45DdIrpTiKBq9iUxjFPRlijRN7BoLoyLIJNbQa/FTilvOnkOygQMWP+rI0NeKg
-         RrFtzHnRd13NHjoixxIUOBJ3v8JdzXZFL4c/U5o0kzfTqzP6oJFqJVcoWRBKuwZOIfrR
-         /1KDG+MgJiGwc1Pm90165uIG91XN2YsOQWB/BMggU/6L2VYGdYI+sxsLJKD8dyMlpfwm
-         O4vA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=WwK673gLV/3ycptBHv5Do6aXOIvtBxyQ9rIEWQPniXA=;
+        b=YO8GRZX3BEyybhp1z8f3bcQhe2sFTvfTkcsCRGigjUhzr2kPI2UYIi2msxXUgSUNsf
+         /fg4WzDB8cn+jDQz+U/g779tFoQz/+umbl9gRdtYHn96Jj2bmtSknv+DhezSqAec1MN7
+         XuU5e0GxlYEnxBuHE2fC8Nx2dYf0179jsc9w7wqxc/GoWpjQQrusf/tJhas25hwHc/IZ
+         CYPChowoOMoPd6V22VsbxcDkTU8FTpAvAvZgY90SlnBggFIJ8BfW+Igxx0JJo95ybiTK
+         NwNiNCzKVhTsqCmKmr3nfuM7u0RVz67kkJqx+f8YWVuAk4QCsik/LePFh+Zfjacm4i8B
+         M92g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=rwrtMH5v;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c13si23455058plo.175.2019.05.08.05.20.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 05:20:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a18si5183043edt.154.2019.05.08.05.50.34
+        for <linux-mm@kvack.org>;
+        Wed, 08 May 2019 05:50:34 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=rwrtMH5v;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x48CJBEV086953;
-	Wed, 8 May 2019 12:20:31 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=Vy0vJPC+R/qK4BTy9W8k2EK+1DkuBwwYmX4Im7RV/1I=;
- b=rwrtMH5vFY76MnriFuwWJRty7cv6d48ndLvoH9qa0iSpe18cQhaRn84K+EEAZ1el4f/y
- JYXzNPHiRG6Um3c2LeXmrh0vIUgokB68rrApoaQDWIhQiq3xdWk5gSEBW5t2CsNm+NQD
- vMj6o0elaMb6F0MU58KC4FWtRSn89CRe22TBfRL7zCGITD8/HSnJoDvmL6xh8b//HGVN
- 0/+i+9yb5Er16ot7xGaUWYdgVLnSKYTBDh5U+VgaaiAGanyy3YqtlO3+pRPaxxQxAHqK
- Taf9LSC6aD/fmeyve7zi016PT3fCR2HgfwqDVjH/4iBaBbfLBHPj+ptzQwZZXQN8uHEa Qg== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2s94b63etg-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 08 May 2019 12:20:31 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x48CJL8V107697;
-	Wed, 8 May 2019 12:20:30 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3020.oracle.com with ESMTP id 2s94ag20en-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 08 May 2019 12:20:30 +0000
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x48CKNew007185;
-	Wed, 8 May 2019 12:20:24 GMT
-Received: from kadam (/41.57.98.10)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 08 May 2019 05:20:22 -0700
-Date: Wed, 8 May 2019 15:20:10 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: Alexandru Ardelean <alexandru.ardelean@analog.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org,
-        linux-ide@vger.kernel.org, linux-clk@vger.kernel.org,
-        linux-rpi-kernel@lists.infradead.org,
-        linux-arm-kernel@lists.infradead.org,
-        linux-rockchip@lists.infradead.org, linux-pm@vger.kernel.org,
-        linux-gpio@vger.kernel.org, dri-devel@lists.freedesktop.org,
-        intel-gfx@lists.freedesktop.org, linux-omap@vger.kernel.org,
-        linux-mmc@vger.kernel.org, linux-wireless@vger.kernel.org,
-        netdev@vger.kernel.org, linux-pci@vger.kernel.org,
-        linux-tegra@vger.kernel.org, devel@driverdev.osuosl.org,
-        linux-usb@vger.kernel.org, kvm@vger.kernel.org,
-        linux-fbdev@vger.kernel.org, linux-mtd@lists.infradead.org,
-        cgroups@vger.kernel.org, linux-mm@kvack.org,
-        linux-security-module@vger.kernel.org, linux-integrity@vger.kernel.org,
-        alsa-devel@alsa-project.org, gregkh@linuxfoundation.org,
-        andriy.shevchenko@linux.intel.com
-Subject: Re: [PATCH 09/16] mmc: sdhci-xenon: use new match_string()
- helper/macro
-Message-ID: <20190508122010.GC21059@kadam>
-References: <20190508112842.11654-1-alexandru.ardelean@analog.com>
- <20190508112842.11654-11-alexandru.ardelean@analog.com>
+       spf=pass (google.com: best guess record for domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A6F5380D;
+	Wed,  8 May 2019 05:50:33 -0700 (PDT)
+Received: from [10.1.196.75] (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2459A3F575;
+	Wed,  8 May 2019 05:50:30 -0700 (PDT)
+Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
+To: Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>,
+ "will.deacon@arm.com" <will.deacon@arm.com>,
+ Catalin Marinas <Catalin.Marinas@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>
+Cc: "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>,
+ "qemu-arm@nongnu.org" <qemu-arm@nongnu.org>,
+ "eric.auger@redhat.com" <eric.auger@redhat.com>,
+ Igor Mammedov <imammedo@redhat.com>, Laszlo Ersek <lersek@redhat.com>,
+ "peter.maydell@linaro.org" <peter.maydell@linaro.org>,
+ Linuxarm <linuxarm@huawei.com>,
+ "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>,
+ Jonathan Cameron <jonathan.cameron@huawei.com>, "xuwei (O)"
+ <xuwei5@huawei.com>
+References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
+Date: Wed, 8 May 2019 13:50:29 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190508112842.11654-11-alexandru.ardelean@analog.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9250 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=644
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905080079
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9250 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=665 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905080079
+In-Reply-To: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2019 at 02:28:35PM +0300, Alexandru Ardelean wrote:
-> -static const char * const phy_types[] = {
-> -	"emmc 5.0 phy",
-> -	"emmc 5.1 phy"
-> -};
-> -
->  enum xenon_phy_type_enum {
->  	EMMC_5_0_PHY,
->  	EMMC_5_1_PHY,
->  	NR_PHY_TYPES
+Hi Shameer,
 
-There is no need for NR_PHY_TYPES now so you could remove that as well.
+On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
+> Hi,
+> 
+> This series here[0] attempts to add support for PCDIMM in QEMU for
+> ARM/Virt platform and has stumbled upon an issue as it is not clear(at least
+> from Qemu/EDK2 point of view) how in physical world the hotpluggable
+> memory is handled by kernel.
+> 
+> The proposed implementation in Qemu, builds the SRAT and DSDT parts
+> and uses GED device to trigger the hotplug. This works fine.
+> 
+> But when we added the DT node corresponding to the PCDIMM(cold plug
+> scenario), we noticed that Guest kernel see this memory during early boot
+> even if we are booting with ACPI. Because of this, hotpluggable memory
+> may end up in zone normal and make it non-hot-un-pluggable even if Guest
+> boots with ACPI.
+> 
+> Further discussions[1] revealed that, EDK2 UEFI has no means to interpret the
+> ACPI content from Qemu(this is designed to do so) and uses DT info to
+> build the GetMemoryMap(). To solve this, introduced "hotpluggable" property
+> to DT memory node(patches #7 & #8 from [0]) so that UEFI can differentiate
+> the nodes and exclude the hotpluggable ones from GetMemoryMap().
+> 
+> But then Laszlo rightly pointed out that in order to accommodate the changes
+> into UEFI we need to know how exactly Linux expects/handles all the
+> hotpluggable memory scenarios. Please find the discussion here[2].
+> 
+> For ease, I am just copying the relevant comment from Laszlo below,
+> 
+> /******
+> "Given patches #7 and #8, as I understand them, the firmware cannot distinguish
+>   hotpluggable & present, from hotpluggable & absent. The firmware can only
+>   skip both hotpluggable cases. That's fine in that the firmware will hog neither
+>   type -- but is that OK for the OS as well, for both ACPI boot and DT boot?
+> 
+> Consider in particular the "hotpluggable & present, ACPI boot" case. Assuming
+> we modify the firmware to skip "hotpluggable" altogether, the UEFI memmap
+> will not include the range despite it being present at boot. Presumably, ACPI
+> will refer to the range somehow, however. Will that not confuse the OS?
+> 
+> When Igor raised this earlier, I suggested that hotpluggable-and-present should
+> be added by the firmware, but also allocated immediately, as EfiBootServicesData
+> type memory. This will prevent other drivers in the firmware from allocating AcpiNVS
+> or Reserved chunks from the same memory range, the UEFI memmap will contain
+> the range as EfiBootServicesData, and then the OS can release that allocation in
+> one go early during boot.
+> 
+> But this really has to be clarified from the Linux kernel's expectations. Please
+> formalize all of the following cases:
+> 
+> OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report as  DT/ACPI should report as
+> -----------------  ------------------  -------------------------------  ------------------------
+> DT                 present             ?                                ?
+> DT                 absent              ?                                ?
+> ACPI               present             ?                                ?
+> ACPI               absent              ?                                ?
+> 
+> Again, this table is dictated by Linux."
+> 
+> ******/
+> 
+> Could you please take a look at this and let us know what is expected here from
+> a Linux kernel view point.
 
-regards,
-dan carpenter
+For arm64, so far we've not even been considering DT-based hotplug - as 
+far as I'm aware there would still be a big open question there around 
+notification mechanisms and how to describe them. The DT stuff so far 
+has come from the PowerPC folks, so it's probably worth seeing what 
+their ideas are.
+
+ACPI-wise I've always assumed/hoped that hotplug-related things should 
+be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do" 
+would be enough for us.
+
+Robin.
+
+> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed any valid
+> points above).
+> 
+> Thanks,
+> Shameer
+> [0] https://patchwork.kernel.org/cover/10890919/
+> [1] https://patchwork.kernel.org/patch/10863299/
+> [2] https://patchwork.kernel.org/patch/10890937/
+> 
+> 
 
