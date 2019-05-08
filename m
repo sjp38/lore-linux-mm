@@ -4,89 +4,91 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A8A7C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39326C04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEBC021734
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEBC021734
+	by mail.kernel.org (Postfix) with ESMTP id EBCAE216B7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:46:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBCAE216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44C076B029A; Wed,  8 May 2019 10:44:51 -0400 (EDT)
+	id 6AC4D6B0294; Wed,  8 May 2019 10:44:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 175EF6B029F; Wed,  8 May 2019 10:44:51 -0400 (EDT)
+	id 395896B0299; Wed,  8 May 2019 10:44:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E413C6B0296; Wed,  8 May 2019 10:44:50 -0400 (EDT)
+	id F072E6B029A; Wed,  8 May 2019 10:44:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF536B0296
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B30AA6B0297
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:50 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id l13so12821434pgp.3
+Received: by mail-pl1-f199.google.com with SMTP id h12so3686968pll.20
         for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=7eEV193O1yOekktulhSkIW0ieskAH9Mu6tK3MJFJ1ek=;
-        b=UwYJOVIbL5KnuMk6y1gUtUOcaMIZCDrRQRxyjAgSptQ4bzUcMBUbq4GMjTvq6Ubkq5
-         5rSZm5FgcQjqd8K5aHoXqxIQIKUNbVogYLKkuD0EWPP0rOZzly7K2l7Vs8DEkmiFWIwh
-         xd9CkIjRwiq8MfLw/kUBCT/wHKzAdQAgYkOPRW/l/dDx74XivoobfBdkDdjwRsApXk/8
-         k5ADmeVVB9Bnbz/DO3tyv2jXeCeLnMQrrKaUnLH5+uPIgKISGqVGrMngPWNcogewoTeS
-         3IUj1HNlX4BrgKdgIwlhVNdCvamJ5IVmsy/kvi74YWUY89jRcraszRSNG0hKrTOVYUIr
-         shVA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWwdTPpOddW5kkAnDyCB56PSF4rOI7ucxNP4qkupwYCf+sFHUCg
-	uTcm2nBoO3PThTSxgkpNqDQs/FfhPkGxkJENw3FJMqmf1RlegLsaDzCuXMHF1WqT/ZzTTbULd2x
-	clqW5nLZulGYznfVz8X9NMpS558RJpWtnMCMwG+TCemV+R8OXnDDRK3UAqxqYmtw/iQ==
-X-Received: by 2002:a17:902:684b:: with SMTP id f11mr39991296pln.96.1557326690301;
+        bh=018UgTJ/DlaExsBeCC+mPQWwJqpTOkW1qegnhZScuV8=;
+        b=csfgWsPCDr9L2Lh3FB4zJvll+Y/NnkpoXo8OOF26d8FEXaQuSt1aztFCmxWO5fs1db
+         MoOX/jktqAg5lEnuVL68kCCIP66JP1oUPo+NZqa9NEolV4fz31VCjQHuuAwjUr/9MWoS
+         P/GDW37RU/T6lko4i6RuaXYutW0EG4lDRwMnkzKjIIBc4T6hX3QQSer1kEsy6tdKwcgM
+         bOpDwiubBV82D03x099uXngeCMHHhK84o2OMWekHLv3JvzEnVABSu57UsQc2ttoAnkZ+
+         0oocLeIR2eyfYla9viiN9kMd+cOxQOf/+0iLnxyC49T0LILPOAw/drDF6V2SScsQH8Ro
+         2IFg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUsx6t0BY4YsNFcr4/4CZ7igTd2Rk0VbZyGgKjkQ0+NO7M2GFs5
+	GmFsFzpvXlFrRGvvNSsiTWczABRLXasY2FoWbP+ILMf9Y4Kh546Gv5i129csQtcK0AksiVrGrJ/
+	B2YLcLXl9SBYUru9SdHS5CxVYcoulwaLcD6oLrW96ZU0gHLz6IFMAAMoByt94NxKs3A==
+X-Received: by 2002:a63:e550:: with SMTP id z16mr47672840pgj.329.1557326690383;
         Wed, 08 May 2019 07:44:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzGwtETZMcVWA5tJeFt3lJmBt2h2a6fxNfy6uQMqdsddeQfttQZZRquhmw1aJ3lLZTskRsd
-X-Received: by 2002:a17:902:684b:: with SMTP id f11mr39991146pln.96.1557326688959;
-        Wed, 08 May 2019 07:44:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326688; cv=none;
+X-Google-Smtp-Source: APXvYqyIO9juUSnQtnsd4NeyzGy1v37YGOOoiLJ7sv0YIj6RkrEJwcFv5fPookjCKnCgWZvWCjwD
+X-Received: by 2002:a63:e550:: with SMTP id z16mr47672705pgj.329.1557326689098;
+        Wed, 08 May 2019 07:44:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326689; cv=none;
         d=google.com; s=arc-20160816;
-        b=R+Uvqn7gzP1Fdc8Ai1btaEfTwxVfEwH1Lahk/AYitTqTKDABsyF3Wulk9NVnvo2kBS
-         d7iQZJLZGOK9mt/+/LdJM/t81/PEB3RcI3b38wFHCychEofQ0lJesA1MB+O2TIDAmUQC
-         vL96QyXfUJslGg3otss0V6BHgpiNpZ7UKEoyHYHGfwqeXFFblIky+3SrAU2LBPNn81QI
-         YniMy3p2mBZY3HC9GRVsRCXCPDbBlB5s9gHgigVBS9UyaiXULp/JPee6kU++RxL2XjxE
-         m0vFVArRipmFlManijskR0AZZpOD4/BJH62bRzKJt6GKX4TQZcENkxhgQsWwoTeIe5Ij
-         kahg==
+        b=AkmmHFbAGf8v/KhKSJFbcYdSmPZi41GjXtl8B5H8cBIBBJ7wVNtyQ6FEL3A3oPou5d
+         BdRvrs4sS3o2NrROVhS28SKOyp/P3yFP0SqH9Ei3NqPChslRwTDFHV2rANANXq2uE0ok
+         hUqbGEJW89KXJJRBQ3KGaxrhOQaNxa5vlcaa/qSJWnqFQDL74UdEx6JIbwflt3KRGBwY
+         NZ/i/CPK90EeNBLGdvaSrzNH9LcMs7hWqv+QtKLGwoUTT8yhwh19oYYyxi8Onhjgd7F4
+         pI6PscGEqr5o5M5/GJHxjNEq+o4A33xMT8LGzcvTbkyH8YpgoPNewYuBfYMA7hGSZqfD
+         yj7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=7eEV193O1yOekktulhSkIW0ieskAH9Mu6tK3MJFJ1ek=;
-        b=EgOMfucKTPjkgeW+Xh5BZuD/rnMVXvlSVvNfv0pqmzvSvCdBqNqmjLlhNY0j9dFi5m
-         G7LZSWvFGJ5Zn1QFwChUy+3s0WSdhPXKcu8wtok19DZnqDn4YI8RF9PMOoy/1gYPmfVP
-         uuF9pwpg4Nmx61KCZ0eDuFkJOYQXIB/uJ2YAdkwd27SXB44IgrQHZhRX6uTtJ+TSh7YP
-         Giy76dKhgX0z2tI2wyDp0n5GGp8MEILMzn5Cc25S2GPWk0mBmTG2Zmg1WymvFMi/JFj6
-         UOern+Vizt47/g5BGkz9LVGw/YSJriZ8XQjiWsrXlBMGo++JtXREyWqQBY9CPCbmo/z8
-         HlLQ==
+        bh=018UgTJ/DlaExsBeCC+mPQWwJqpTOkW1qegnhZScuV8=;
+        b=UnZEB2SNlXvRkk1z21okME1pN82FwFK1YmSB1KWZLdzCRSbWu/RYA9K+l5tNb/QVmi
+         BfRDGdBFeDWcwsybqB4mglyEvs0GbQEcJT/J5PTOg4YhB+aoMcGHb0U39MIqnlkcb8K5
+         1XT9ML3XH7LPPd2txuiFugsft9cNj1vxhsBpZbUK0iwSY2eMlo1gh2RaC6TQ0KjK6qNI
+         diiMXnJFzJJr9dnTl6JuZTTfWC/j7iY53kwPctmlfQvAFPb0FBxNt38ImY/D2GLr/3J+
+         yL2gD2Vq0g/zVwPqEkY4IizvZXWSzSFudGbghuHJuLuZ/lBkLDa5RwUKdwEeJf98Isr+
+         +ZJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id g13si12322802pgs.161.2019.05.08.07.44.48
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 184si24250871pfg.32.2019.05.08.07.44.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Wed, 08 May 2019 07:44:49 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:48 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:48 -0700
 X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,446,1549958400"; 
+   d="scan'208";a="169656563"
 Received: from black.fi.intel.com ([10.237.72.28])
-  by fmsmga004.fm.intel.com with ESMTP; 08 May 2019 07:44:44 -0700
+  by fmsmga002.fm.intel.com with ESMTP; 08 May 2019 07:44:44 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 9190FC01; Wed,  8 May 2019 17:44:30 +0300 (EEST)
+	id B16F3D2B; Wed,  8 May 2019 17:44:30 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +109,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 38/62] keys/mktme: Support CPU hotplug for MKTME key service
-Date: Wed,  8 May 2019 17:43:58 +0300
-Message-Id: <20190508144422.13171-39-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 40/62] keys/mktme: Program new PCONFIG targets with MKTME keys
+Date: Wed,  8 May 2019 17:44:00 +0300
+Message-Id: <20190508144422.13171-41-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -123,129 +125,86 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-The MKTME encryption hardware resides on each physical package.
-The encryption hardware includes 'Key Tables' that must be
-programmed identically across all physical packages in the
-platform. Although every CPU in a package can program its key
-table, the kernel uses one lead CPU per package for programming.
+When a new PCONFIG target is added to an MKTME platform, its
+key table needs to be programmed to match the key tables across
+the entire platform. This type of newly added PCONFIG target
+may appear during a memory hotplug event.
 
-CPU Hotplug Teardown
---------------------
-MKTME manages CPU hotplug teardown to make sure the ability to
-program all packages is preserved when MKTME keys are present.
+This key programming path will differ from the normal key
+programming path in that it will only program a single PCONFIG
+target, AND, it will only do that programming if allowed.
 
-When MKTME keys are not currently programmed, simply allow
-the teardown, and set "mktme_allow_keys" to false. This will
-force a re-evaluation of the platform topology before the next
-key creation. If this CPU teardown mattered, MKTME key service
-will report an error and fail to create the key. (User can
-online that CPU and try again)
+Allowed means that either user type keys are stored, or, no
+user type keys are currently programmed.
 
-When MKTME keys are currently programmed, allow teardowns
-of non 'lead CPU's' and of CPUs where another, core sibling
-CPU, can take over as lead. Do not allow teardown of any
-lead CPU that would render a hardware key table unreachable!
+So, after checking if programming is allowable, this helper
+function will program the one new PCONFIG target, with all
+the currently programmed keys.
 
-CPU Hotplug Startup
--------------------
-CPUs coming online are of interest to the key service, but since
-the service never needs to block a CPU startup event, nor does it
-need to prepare for an onlining CPU, a callback is not implemented.
-
-MKTME will catch the availability of the new CPU, if it is
-needed, at the next key creation time. If keys are not allowed,
-that new CPU will be part of the topology evaluation to determine
-if keys should now be allowed.
+This will be used in MKTME's memory notifier callback supporting
+MEM_GOING_ONLINE events.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/mktme_keys.c | 51 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 48 insertions(+), 3 deletions(-)
+ security/keys/mktme_keys.c | 44 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
 
 diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index 734e1d28eb24..3dfc0647f1e5 100644
+index 2c975c48fe44..489dddb8c623 100644
 --- a/security/keys/mktme_keys.c
 +++ b/security/keys/mktme_keys.c
-@@ -102,9 +102,9 @@ void mktme_percpu_ref_release(struct percpu_ref *ref)
- 		return;
- 	}
- 	percpu_ref_exit(ref);
--	spin_lock_irqsave(&mktme_map_lock, flags);
-+	spin_lock_irqsave(&mktme_lock, flags);
- 	mktme_release_keyid(keyid);
--	spin_unlock_irqrestore(&mktme_map_lock, flags);
-+	spin_unlock_irqrestore(&mktme_lock, flags);
+@@ -582,6 +582,50 @@ static int mktme_get_new_pconfig_target(void)
+ 	return new_target;
  }
  
- enum mktme_opt_id {
-@@ -506,9 +506,46 @@ static int mktme_alloc_pconfig_targets(void)
- 	return 0;
- }
- 
-+static int mktme_cpu_teardown(unsigned int cpu)
++static int mktme_program_new_pconfig_target(int new_pkg)
 +{
-+	int new_leadcpu, ret = 0;
-+	unsigned long flags;
-+
-+	/* Do not allow key programming during cpu hotplug event */
-+	spin_lock_irqsave(&mktme_lock, flags);
++	struct mktme_payload *payload;
++	int cpu, keyid, ret;
 +
 +	/*
-+	 * When no keys are in use, allow the teardown, and set
-+	 * mktme_allow_keys to FALSE. That forces an evaluation
-+	 * of the topology before the next key creation.
++	 * Only program new target when user type keys are stored or,
++	 * no user type keys are currently programmed.
 +	 */
-+	if (!mktme_map->mapped_keyids) {
-+		mktme_allow_keys = false;
-+		goto out;
-+	}
-+	/* Teardown CPU is not a lead CPU. Allow teardown. */
-+	if (!cpumask_test_cpu(cpu, mktme_leadcpus))
-+		goto out;
++	if (!mktme_storekeys &&
++	    (bitmap_weight(mktme_bitmap_user_type, mktme_nr_keyids)))
++		return -EPERM;
 +
-+	/* Teardown CPU is a lead CPU. Look for a new lead CPU. */
-+	new_leadcpu = cpumask_any_but(topology_core_cpumask(cpu), cpu);
-+
-+	if (new_leadcpu < nr_cpumask_bits) {
-+		/* New lead CPU found. Update the programming mask */
-+		__cpumask_clear_cpu(cpu, mktme_leadcpus);
-+		__cpumask_set_cpu(new_leadcpu, mktme_leadcpus);
-+	} else {
-+		/* New lead CPU not found. Do not allow CPU teardown */
-+		ret = -1;
++	/* Set mktme_leadcpus to only include new target */
++	cpumask_clear(mktme_leadcpus);
++	for_each_online_cpu(cpu) {
++		if (topology_physical_package_id(cpu) == new_pkg) {
++			__cpumask_set_cpu(cpu, mktme_leadcpus);
++			break;
++		}
 +	}
-+out:
-+	spin_unlock_irqrestore(&mktme_lock, flags);
++	/* Program the stored keys into the new key table */
++	for (keyid = 1; keyid <= mktme_nr_keyids; keyid++) {
++		/*
++		 * When a KeyID slot is not in use, the corresponding key
++		 * pointer is 0. '-1' is an intermediate state where the
++		 * key is on it's way out, but not gone yet. Program '-1's.
++		 */
++		if (mktme_map->key[keyid] == 0)
++			continue;
++
++		payload = &mktme_key_store[keyid];
++		ret = mktme_program_keyid(keyid, payload);
++		if (ret != MKTME_PROG_SUCCESS) {
++			/* Quit on first failure to program key table */
++			pr_debug("mktme: %s\n", mktme_error[ret].msg);
++			ret = -ENOKEY;
++			break;
++		}
++	}
++	mktme_update_pconfig_targets();		/* Restore mktme_leadcpus */
 +	return ret;
 +}
 +
  static int __init init_mktme(void)
  {
--	int ret;
-+	int ret, cpuhp;
- 
- 	/* Verify keys are present */
- 	if (mktme_nr_keyids < 1)
-@@ -553,10 +590,18 @@ static int __init init_mktme(void)
- 	if (!mktme_key_store)
- 		goto free_bitmap;
- 
-+	cpuhp = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-+					  "keys/mktme_keys:online",
-+					  NULL, mktme_cpu_teardown);
-+	if (cpuhp < 0)
-+		goto free_store;
-+
- 	ret = register_key_type(&key_type_mktme);
- 	if (!ret)
- 		return ret;			/* SUCCESS */
- 
-+	cpuhp_remove_state_nocalls(cpuhp);
-+free_store:
- 	kfree(mktme_key_store);
- free_bitmap:
- 	bitmap_free(mktme_bitmap_user_type);
+ 	int ret, cpuhp;
 -- 
 2.20.1
 
