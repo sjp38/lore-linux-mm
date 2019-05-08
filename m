@@ -2,129 +2,205 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2ACDC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 10:33:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB89FC04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:04:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6904C21479
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 10:33:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6904C21479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 8329820675
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:04:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8329820675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F27336B0007; Wed,  8 May 2019 06:33:12 -0400 (EDT)
+	id 17ADC6B000A; Wed,  8 May 2019 07:04:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED6936B0008; Wed,  8 May 2019 06:33:12 -0400 (EDT)
+	id 12C2F6B000C; Wed,  8 May 2019 07:04:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9F3F6B000A; Wed,  8 May 2019 06:33:12 -0400 (EDT)
+	id F34896B000D; Wed,  8 May 2019 07:04:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8426B0007
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 06:33:12 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c1so15580628edi.20
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 03:33:12 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4A86B000A
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 07:04:17 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id z130so37316915ywb.14
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 04:04:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=kHKXOE0hd25mZipRI/XQORTPma8qf63F5MXrMGRmQjc=;
-        b=rqE0GRUgjdYPX6y9u61wsyRRLGs/KrNoASFYlrHeekXqyud9h2Kgjx25XBVXcapczA
-         G0Jno8ktKNHVSVOdmQYcJwSjokQUR7Ok6kPFCA/0j5Xd1c4Qcryd6l889vJavJsOruhd
-         ZB4GqotICj0utFunsRgrcL2SJAul1LOM2fcCKatewJs+u5xWzRv9kkt8hj7lg0Ktoqma
-         OLvWMRtBeN0kwwD5lOKKJmt/MEMK5ZNUAqhTRl0gWHl/Q1Zwdb2jAEpWlANLpT2I4AJ7
-         Z2ZOCH7J9gv06OXwIKYkvvm/1QYi3F8QTiEVDLvxI4kgaEr24QIKHuN04YceBk1tXNGK
-         vcfQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAXGM2/DSJwufas6kSvk4xFoEkqtFzg0aD5bJRV+fJ6N714feGRg
-	Hp2ICoW7HupbMYJHcQYUXesv7K2kxyj/YydiGCv82b4sXJo4P0pamxTeoIBzuFenFcg3kXmV8Zx
-	p67JugdFXLfW6wsf/eySLyxD3P5PW4PyxgAfW7wCLr5Z2oMJRqsZYDSDOT0uKUfVZMg==
-X-Received: by 2002:a17:906:1e89:: with SMTP id e9mr14663965ejj.161.1557311592141;
-        Wed, 08 May 2019 03:33:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy26UaPSAYK6UauKpNvy7qOgRRIAjdttdKH15qGh3bXR8Nd39I1OAMyZI1QRb7HRAVurQzz
-X-Received: by 2002:a17:906:1e89:: with SMTP id e9mr14663900ejj.161.1557311591066;
-        Wed, 08 May 2019 03:33:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557311591; cv=none;
+         :cc:subject:in-reply-to:references:mime-version
+         :content-transfer-encoding:message-id;
+        bh=++RW+Yq1VggbO0WQlCZcVrG5WQFJ+c3J3ekC2wplYd4=;
+        b=Z843JeCyoNEeuBHFOy1ZyleUwvX9+8Mb6orQCYrTBKntPctETBWxfu1Ti3Fxnj8em9
+         1Fyta5sWq08R/rPgqPr47Z2+ftrBK2Q8F/d9MP3wT3zrpnySWJQM/Ga8y1YUd6vrnJwQ
+         jGkQaRkiLhvHgL+n9H88SRzVq6gHsx3HgIMBTqv5hC5mbCGrFFff/4qRuuPIo0gM2/K2
+         fHOORHX+2NxHjrJaFHzQ85vvm+Kh5LP3NzeWA0B1WJRFNNgiGt3KORXBl8btnJwvJ3xK
+         Pb9zjotxooFH3IyZBAyAQt07ReHHfmaJUTNndchLSGKAnBrdtbUQzFOsByf6MWaRS6mx
+         JE9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXzt7CQYP62BIdHLZinvaCmvOMyMDPBInA6prsZlgxFHspBFSFp
+	chB3q6Wvp0BGd4UOUcSqaSa6XKwv5XTBlYPVsGx2Y7FwAfbhKJp5sk/hC7PiVZ3Omn8+7jkWAob
+	98VOEoq0HhTKtJQVMWMiCtAxRXkc3HjCEX6wAih3TE3Z1FUBdCpRV+stpTzUyRs+n8w==
+X-Received: by 2002:a81:2f4e:: with SMTP id v75mr25671322ywv.14.1557313457563;
+        Wed, 08 May 2019 04:04:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwZNe9TKVTfFb9j74acoCnVmFRHL3ZI+vpLOIq9AzR3HZlECRqqrbVv8en8mCQHTPefYKBp
+X-Received: by 2002:a81:2f4e:: with SMTP id v75mr25671270ywv.14.1557313456836;
+        Wed, 08 May 2019 04:04:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557313456; cv=none;
         d=google.com; s=arc-20160816;
-        b=OHtfFEm2MV/Kz6bfBtC+Dw8o29W+eR2As7e35KgpeJWsRUmK+ez31iGhHByOocPQyO
-         jv49KVlbYQVR/OOUpsztBpoz7+E+xxr40XyC125IrfaSIPae6gXuZMUJQblo0CBDRjbz
-         7zzlp/VnYx4hM4dZF8t1Cc9u87CsNhSBP5N0KdhfK6iqtH4XS4saNDQ0qAHhkyOKZGfs
-         R5jzRTgGGzm/l/nKKUra9FuqkubaiJMuVeWHh/Cqb3pl3vcdd0IC/G3Pz73ZA4u5vatF
-         OmBNGY7Pey5cQ/2opt7Hd/FA/hj+JHy6XUlXdZY1uT8FM1yfkD9uRM7bs6IO6ycdlrpE
-         tm3w==
+        b=F+7sLEOn0h290fCdZ4ATwiANZ6RNiOBEFyQaeu9j/RanKRUFnwO/5D53gR5BdMul2o
+         vyl2LxInS0h9rwr+AkbbkQO4rI4I2JCcVJxnUaCzDalm6frmoYHfVJWVvN8FYahNQvhY
+         urG0HwR2RDkTfpZOLmg9KHFaSQjNuRIXxdWfD21o0KIhnQCv+2EHUkLW481JYqPg94I6
+         +zs+g18Ak+f43gOZxIOUIsBOx7rtVc+Ux3wKXpOfI9gZVIQJtMTjtJuAUcmqTcIXcVey
+         GwDxQyqGGHoZdWhHNV7wsJfCpmWbh45o5XKNMZoRGU14qlAGCrUOG2xcUdbB7O2d+4tv
+         XMIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=kHKXOE0hd25mZipRI/XQORTPma8qf63F5MXrMGRmQjc=;
-        b=LU1wxbI+gS0h5A3SA8fbjIMzhcMIRY5cL7K4TxJhGTl/5X03MtsYXzYiG/F3y/xRT/
-         pnmdFLo+RNh0rIP7IC5vcW3C+56qUUC3xtVB5rnQ8i7kQb7OHcGn/DrUn9DqreRiiMry
-         Y08FM4dniy+HEnYoAl+aQa00nBePd5e0Ue/OpjkJi/fBMdt5O+KHZs7htP7Mw1MWgKP/
-         oH3gFaVkj8iS+7bokPierBMLgMwSxbQMzPxZ08hQj3zYQ5Zgm2GbVsqxdLyczhN7t5xe
-         3WWbE5eKsgw8eMCKTYTcGdbVYDYVXJZ/JIQ2CDtVhxRe4ukRujXIVUHgfS1KoijAYMqo
-         ptHA==
+        h=message-id:content-transfer-encoding:mime-version:references
+         :in-reply-to:subject:cc:to:from:date;
+        bh=++RW+Yq1VggbO0WQlCZcVrG5WQFJ+c3J3ekC2wplYd4=;
+        b=HAEQ13xbWHdUPvZnkXRgn9vMMxVDBIvGo/5KgigeH7+d8RJ/i59DajB9+ICmPSOA1f
+         y2AZL8DTFa14iZjfmJkbjK3SO0ICL7zc6bHyVvSf77GI23b5Sfa5f7hRjC0noilDRbSD
+         87GF1uPa4W5GybHl0UV1BBGbp7FqpbI+wiL2fasZyMCfkMr/J4AMlDTEzC1nDsAfp5Q7
+         q+R7NVxS65Gpfsy4dUxCkVGfIddXNEh+CEoYJpjFJKcGvz0L4rTgCX1Gw6iYM95UYIK4
+         ypi+Phj1c98skiPHFYvTUHegMZ7+xL7WYdjYZaGAM6nNud2zlCXGilqRjF4lE+obOYPs
+         /0AA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id gz22si5361025ejb.181.2019.05.08.03.33.10
+       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f11si6495239ywb.70.2019.05.08.04.04.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 03:33:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) client-ip=81.17.249.8;
+        Wed, 08 May 2019 04:04:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 8DC9E98817
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:33:10 +0000 (UTC)
-Received: (qmail 30530 invoked from network); 8 May 2019 10:33:10 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 8 May 2019 10:33:10 -0000
-Date: Wed, 8 May 2019 11:33:08 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Dexuan Cui <decui@microsoft.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Roman Gushchin <guro@fb.com>, Hugh Dickins <hughd@google.com>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	"dchinner@redhat.com" <dchinner@redhat.com>,
-	Greg Thelen <gthelen@google.com>,
-	Kuo-Hsin Yang <vovoy@chromium.org>
-Subject: Re: isolate_lru_pages(): kernel BUG at mm/vmscan.c:1689!
-Message-ID: <20190508103308.GF18914@techsingularity.net>
-References: <PU1P153MB01693FF5EF3419ACA9A8E1FDBF3B0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
+       spf=pass (google.com: domain of gerald.schaefer@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=gerald.schaefer@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x48B30TR128996
+	for <linux-mm@kvack.org>; Wed, 8 May 2019 07:04:16 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2sbucrqvb0-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 08 May 2019 07:04:16 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Wed, 8 May 2019 12:04:14 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 8 May 2019 12:04:09 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x48B48wv58327292
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 8 May 2019 11:04:08 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2CB9AAE056;
+	Wed,  8 May 2019 11:04:08 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 84F9DAE058;
+	Wed,  8 May 2019 11:04:07 +0000 (GMT)
+Received: from thinkpad (unknown [9.152.212.151])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed,  8 May 2019 11:04:07 +0000 (GMT)
+Date: Wed, 8 May 2019 13:04:06 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+        Alexander Duyck
+ <alexander.duyck@gmail.com>,
+        LKML <linux-kernel@vger.kernel.org>, stable
+ <stable@vger.kernel.org>,
+        Mikhail Zaslonko <zaslonko@linux.ibm.com>,
+        Michal
+ Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>,
+        Mikhail Gavrilov
+ <mikhail.v.gavrilov@gmail.com>,
+        Dave Hansen <dave.hansen@intel.com>,
+        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+        Pasha Tatashin
+ <Pavel.Tatashin@microsoft.com>,
+        Martin Schwidefsky
+ <schwidefsky@de.ibm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Sasha Levin
+ <alexander.levin@microsoft.com>,
+        linux-mm <linux-mm@kvack.org>
+Subject: Re: [PATCH AUTOSEL 4.14 62/95] mm, memory_hotplug: initialize
+ struct pages for the full memory section
+In-Reply-To: <20190507171806.GG1747@sasha-vm>
+References: <20190507053826.31622-1-sashal@kernel.org>
+	<20190507053826.31622-62-sashal@kernel.org>
+	<CAKgT0Uc8ywg8zrqyM9G+Ws==+yOfxbk6FOMHstO8qsizt8mqXA@mail.gmail.com>
+	<CAHk-=win03Q09XEpYmk51VTdoQJTitrr8ON9vgajrLxV8QHk2A@mail.gmail.com>
+	<20190507170208.GF1747@sasha-vm>
+	<CAHk-=wi5M-CC3CUhmQZOvQE2xJgfBgrgyAxp+tE=1n3DaNocSg@mail.gmail.com>
+	<20190507171806.GG1747@sasha-vm>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <PU1P153MB01693FF5EF3419ACA9A8E1FDBF3B0@PU1P153MB0169.APCP153.PROD.OUTLOOK.COM>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19050811-0016-0000-0000-000002798757
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050811-0017-0000-0000-000032D63610
+Message-Id: <20190508130406.3c9237c1@thinkpad>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-08_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1031 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905080071
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 01, 2019 at 11:49:10PM +0000, Dexuan Cui wrote:
-> Hi,
-> Today I got the below BUG in isolate_lru_pages() when building the kernel.
-> 
-> My current running kernel, which exhibits the BUG, is based on the mainline kernel's commit 
-> 262d6a9a63a3 ("Merge branch 'x86-urgent-for-linus' of git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip").
-> 
-> Looks nobody else reported the issue recently.
-> 
+On Tue, 7 May 2019 13:18:06 -0400
+Sasha Levin <sashal@kernel.org> wrote:
 
-That is missing some fixes that were merged for 5.1, particularly
-6b0868c820ff ("mm/compaction.c: correct zone boundary handling when
-resetting pageblock skip hints"). Can you try reproducing this under 5.1
-at least?
+> On Tue, May 07, 2019 at 10:15:19AM -0700, Linus Torvalds wrote:
+> >On Tue, May 7, 2019 at 10:02 AM Sasha Levin <sashal@kernel.org> wrote:
+> >>
+> >> I got it wrong then. I'll fix it up and get efad4e475c31 in instead.
+> >
+> >Careful. That one had a bug too, and we have 891cb2a72d82 ("mm,
+> >memory_hotplug: fix off-by-one in is_pageblock_removable").
+> >
+> >All of these were *horribly* and subtly buggy, and might be
+> >intertwined with other issues. And only trigger on a few specific
+> >machines where the memory map layout is just right to trigger some
+> >special case or other, and you have just the right config.
+> >
+> >It might be best to verify with Michal Hocko. Michal?
+> 
+> Michal, is there a testcase I can plug into kselftests to make sure we
+> got this right (and don't regress)? We care a lot about memory hotplug
+> working right.
 
--- 
-Mel Gorman
-SUSE Labs
+We hit the panics on s390 with special z/VM memory layout, but they both
+can be triggered simply by using mem= kernel parameter (and
+CONFIG_DEBUG_VM_PGFLAGS=y).
+
+With "mem=3075M" (and w/o the commits efad4e475c31 + 24feb47c5fa5), it
+can be triggered by reading from
+/sys/devices/system/memory/memory<x>/valid_zones, or from
+/sys/devices/system/memory/memory<x>/removable, with <x> being the last
+memory block.
+
+This is with 256MB section size and memory block size. On LPAR, with
+256MB section size and 1GB memory block size, for some reason the
+"removable" issue doesn't trigger, only the "valid_zones" issue.
+
+Using lsmem will also trigger it, as it reads both the valid_zones and
+the removable attribute for all memory blocks. So, a test with
+not-section-aligned mem= parameter and using lsmem could be an option.
+
+Regards,
+Gerald
 
