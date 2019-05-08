@@ -3,105 +3,108 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 035DDC04AAB
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2A9CC46460
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BB521214AF
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB521214AF
+	by mail.kernel.org (Postfix) with ESMTP id B60A5216C4
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B60A5216C4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 70E9E6B026F; Wed,  8 May 2019 02:18:03 -0400 (EDT)
+	id 33F126B0270; Wed,  8 May 2019 02:18:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E4816B0270; Wed,  8 May 2019 02:18:03 -0400 (EDT)
+	id 314776B0271; Wed,  8 May 2019 02:18:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AD5B6B0271; Wed,  8 May 2019 02:18:03 -0400 (EDT)
+	id 1DC026B0272; Wed,  8 May 2019 02:18:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 248266B026F
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 02:18:03 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f1so3855928pfb.0
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 23:18:03 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE08E6B0270
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 02:18:04 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id j62so36027227ywe.3
+        for <linux-mm@kvack.org>; Tue, 07 May 2019 23:18:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:message-id;
-        bh=EWDwpjZZgdEdYfUucqT500NcxqqXwlQVEbW1HYDX34E=;
-        b=rZzRMGwkXjH3rcor5gpOiKlM75eAknIu9v2x7Mr3dH8EHNi/L0Uxwqi9tmQzWQfRa1
-         mJgkMncNT1gwQ1rw/xc/RsAky2Cmv6xL7jTbbcyvAazQqyMzAgAx/J4PhrCbdFdbHu+Y
-         5tITO5CvRwARUkRc0HQmzq/jabVn3bdGs5bxJLKezKtOtcduCrei7MCtfMcOzA59iZRS
-         BWkBdjwfZtag1yWGSGpOsjyVt27W8EJmLjC+Tiz/l4N6g1LpBI0UpZ+qQGppyOe7Hp5N
-         AJaNwd8erDzo1D99DUDIynpWW9NVZ/mI1BbKojTbkOjqDZhlRzbgF+0XWIy8wYVOdmoU
-         5RHA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAULLok1iFyGG05b5Yk4rjW3lwbqV0YeY0b4xJECYG1yilzbl0hy
-	JLzjMvnVoZ7nnAhJQsQ1xPqD6Fc4zprCS+hBc6KMDyd8uNr50gmrRAC8rwOG2W1gH12vecJp2DT
-	qbwa+YUL3G3mV4D56x3OB/6Wo5TFMMoqGAhn5L2NLBcknbiQQDLXYsEXOdtYO3T3m6w==
-X-Received: by 2002:a62:579b:: with SMTP id i27mr27809906pfj.205.1557296282822;
-        Tue, 07 May 2019 23:18:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxoX3HMm7r+DAE+M5e1fl3SFj34+nw0bDzub09Yj2jdts1Zx1sq9iYrLv1HHy/o/fCDiQ4
-X-Received: by 2002:a62:579b:: with SMTP id i27mr27809846pfj.205.1557296281852;
-        Tue, 07 May 2019 23:18:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557296281; cv=none;
+        bh=/leJoppBbu58KfkuaC8uSH1NOeb3DKSZGT2KpEsXBa4=;
+        b=nenhvNaPiO9vkNH6OO4R3mwtfF9U20/relLKIb2k+aafmle95ngtbexS/R0VguwOFJ
+         L2bJeZ6Ol1cmSl2IOsmz6vABjiAFZxAz9GHb3vxUSeWi3d5tQc40zOzaFWU5SBOx8e3B
+         8iPPU4GewTrcapjf16nQypgPre72lTBfciJd1saKoVD1irHMEpoGp8ytz+gUfL3hDixo
+         pCm0+tYYzhoIBAR+rIa7DA1V5bUCTdNzKcjlBtfT6buCeEVvhea2HKnSaNkL6f5jqXIs
+         nJgtc9SJfgitqbYwlSHthCDz7zvdlucHZgK8pr0QrHsJpKaIdgOjeBz3wHidYynLRrza
+         GsMQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVr4ieggVkJyZ29/KHkh4KeGihOQ/AFib8KLpDuhl0cWvLxK2XT
+	iJoDX8I6XFpa1wW45oXPjKUpBUCuygCBEfTK5ROkAwzBNESjrJX+3ZI2R9TrANTSAOVCFHPRvuG
+	7l6KLiSEmkehUS4Y5cCb/hntNHr3oHFq1ULkGMuQwFa+pbQakKlc3rk9QhFZP5R+PkA==
+X-Received: by 2002:a25:2254:: with SMTP id i81mr10554104ybi.343.1557296284737;
+        Tue, 07 May 2019 23:18:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfrw43NMm846KwB0xy4D0GUpbrUcD416blzIoY3zRw2exvMfhYIAgMkWiEg+X+8t0KNuK3
+X-Received: by 2002:a25:2254:: with SMTP id i81mr10554062ybi.343.1557296283703;
+        Tue, 07 May 2019 23:18:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557296283; cv=none;
         d=google.com; s=arc-20160816;
-        b=gtc1ZTSgssnrg1uz7y8FxmJWDXlvyUb38vjOBJR4tRj3faFqJwwm6LgGQ1lBP8i+8o
-         uk/zmIBssnqz2MaEJg7a5kc+4iGaLS7N6gtMvAXAcbR+N65Vn4j0IrVpjclkeyo8ctjh
-         gEGtdwUuMrWlnHKiV7yfpdP5B3R5mJDX046XW72iJXT/3ELPWdD6G4+KuWekASBoEB76
-         b70M8Yc7ZjEB7YjsYez/uwIsLHF0L+sg9jjnexSRgA1Xp/dIp3sChOxHSf6kuILQPE/A
-         C1Nb2psPX9V+YPpiRA2rweJT67csP+84R8qQBZsZymzwxfHZy5M3djcSQltJPFizbIUf
-         XG+g==
+        b=nbkqu3JGrXQMI76qpQiLUaEZAb7uWbKnAiKHFbvu82uvQMLEVO/zQUOPHj8Rlwi662
+         CLD0MRdZdFrlgwSUZa+o4Xa3TWUp4dTV3dVUCZeaPiF/7j2oFrMBX0KdxS+G4H2wdTDb
+         uKKmmjsO+4a4bqfdfZ8JsuivUCLO7yXC0I0fWrt8GhhNt4E3VTPFi4n+HPtnRpSuZTYr
+         74Wn10WIyXMnYi5EacOgUk807B7mbRXBgny/+MjmO7CbtxDexYpubuDaP0NYDTTuluuD
+         edf/ZTBjhh0gTyB6fc38EbcwaAIYZJWyN0NIeW3SKiXUDe3iSPQW8NnbJdAqhX5SP8Mz
+         rBmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=EWDwpjZZgdEdYfUucqT500NcxqqXwlQVEbW1HYDX34E=;
-        b=d3UFwUF94jL2TA6DS64uWn3Na/bv0fwsuNYL2Q7cvv0/5S+yrsVVOGRn68t8xFWP2M
-         XvtcBKtw6jgupRqEzdyuXiBPH/fpZITp1o6YrjGAL0+/VcZC/FuGsUEqmle0MkE1ugDx
-         KFTHrLJK1mdfGLqMQ3+vXdS3AOl2KZKhbRqrievO6mKUT70sPv9qXuS4vkVmtPdlXma/
-         yEiFb6kSAMvvPicaEQVDYBz4pGsuz/yyaoKToJMA3UPWlgdLNGIkq5xy16YWl9w9Sc4+
-         2mpLa5qsmri17E159EEJ+dQVGhBDa+G4PqPqpKe1BfSk6LxJA8OHz0i5/U04jtO3kpfZ
-         cBrA==
+        bh=/leJoppBbu58KfkuaC8uSH1NOeb3DKSZGT2KpEsXBa4=;
+        b=JnVSFmR6vg4nOA2wplOMJvlQF/FEs2gY58JfF21WBUdFYvyfCrtqJ2XxDxbkEp/IAn
+         u+3mdC/cHAYvgDBLHQVhykunzPnbaYuRoG/YFgdqaDKNzy5nDheLbXoYSYWz/AM8gcSF
+         3LZcWnaikEoJYrHWwPhdbHxam/JcKAMZinSxIwkh02hsOlLpu1UtL39F0GKCpHFIT/TX
+         Vgaz6C3A1icfpz9kPRgwcGhktjElN03X403G/fltfuK1I9rx7E1YsK1BKYgwGvwphzax
+         8JbxNiY62uD23oGq+D0PeI5VcnzWGLalOBeQjKyycuwhAv+Y1pVNlbGB89kK2Iyl3meB
+         69LQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r8si20916475pgg.345.2019.05.07.23.18.01
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g6si6218805ywg.457.2019.05.07.23.18.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 23:18:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 07 May 2019 23:18:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x486HmxT034051
-	for <linux-mm@kvack.org>; Wed, 8 May 2019 02:18:01 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sbpupfdb6-1
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x486GaKA131181
+	for <linux-mm@kvack.org>; Wed, 8 May 2019 02:18:03 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sbr09vfq9-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 May 2019 02:18:00 -0400
+	for <linux-mm@kvack.org>; Wed, 08 May 2019 02:18:03 -0400
 Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 8 May 2019 07:17:58 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Wed, 8 May 2019 07:18:00 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 8 May 2019 07:17:49 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x486Hmp335127468
+	Wed, 8 May 2019 07:17:53 +0100
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x486HqZd51970112
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 8 May 2019 06:17:48 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5DD2752050;
-	Wed,  8 May 2019 06:17:48 +0000 (GMT)
+	Wed, 8 May 2019 06:17:52 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5B44EA4057;
+	Wed,  8 May 2019 06:17:52 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 142CDA405B;
+	Wed,  8 May 2019 06:17:49 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id 2163652074;
-	Wed,  8 May 2019 06:17:45 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 08 May 2019 09:17:44 +0300
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed,  8 May 2019 06:17:48 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 08 May 2019 09:17:48 +0300
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Arnd Bergmann <arnd@arndb.de>,
@@ -124,22 +127,22 @@ Cc: Arnd Bergmann <arnd@arndb.de>,
         linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org,
         linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org,
         Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 08/14] mips: switch to generic version of pte allocation
-Date: Wed,  8 May 2019 09:17:05 +0300
+Subject: [PATCH v2 09/14] nds32: switch to generic version of pte allocation
+Date: Wed,  8 May 2019 09:17:06 +0300
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1557296232-15361-1-git-send-email-rppt@linux.ibm.com>
 References: <1557296232-15361-1-git-send-email-rppt@linux.ibm.com>
 X-TM-AS-GCONF: 00
-x-cbid: 19050806-0012-0000-0000-000003196C54
+x-cbid: 19050806-0028-0000-0000-0000036B6E5C
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19050806-0013-0000-0000-00002151EC5C
-Message-Id: <1557296232-15361-9-git-send-email-rppt@linux.ibm.com>
+x-cbparentid: 19050806-0029-0000-0000-0000242AEA24
+Message-Id: <1557296232-15361-10-git-send-email-rppt@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-08_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=860 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1905080040
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -147,83 +150,87 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-MIPS allocates kernel PTE pages with
+The nds32 implementation of pte_alloc_one_kernel() differs from the generic
+in the use of __GFP_RETRY_MAYFAIL flag, which is removed after the
+conversion.
 
-	__get_free_pages(GFP_KERNEL | __GFP_ZERO, PTE_ORDER)
+The nds32 version of pte_alloc_one() missed the call to pgtable_page_ctor()
+and also used __GFP_RETRY_MAYFAIL. Switching it to use generic
+__pte_alloc_one() for the PTE page allocation ensures that page table
+constructor is run and the user page tables are allocated with
+__GFP_ACCOUNT.
 
-and user PTE pages with
+The conversion to the generic version of pte_free_kernel() removes the NULL
+check for pte.
 
-	pte = alloc_pages(GFP_KERNEL, PTE_ORDER)
-
-and then uses clear_highpage(pte) to zero out the allocated page for the
-user page tables.
-
-The PTE_ORDER is hardwired to zero, which makes MIPS implementation almost
-identical to the generic one.
-
-Switch MIPS to the generic version that does exactly the same thing for the
-kernel page tables and adds __GFP_ACCOUNT for the user PTEs.
-
-The pte_free_kernel() and pte_free() versions on mips are identical to the
-generic ones and can be simply dropped.
+The pte_free() version on nds32 is identical to the generic one and can be
+simply dropped.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Acked-by: Paul Burton <paul.burton@mips.com>
 ---
- arch/mips/include/asm/pgalloc.h | 33 ++-------------------------------
- 1 file changed, 2 insertions(+), 31 deletions(-)
+ arch/nds32/include/asm/pgalloc.h | 31 ++++---------------------------
+ 1 file changed, 4 insertions(+), 27 deletions(-)
 
-diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
-index 27808d9..aa16b85 100644
---- a/arch/mips/include/asm/pgalloc.h
-+++ b/arch/mips/include/asm/pgalloc.h
-@@ -13,6 +13,8 @@
- #include <linux/mm.h>
- #include <linux/sched.h>
+diff --git a/arch/nds32/include/asm/pgalloc.h b/arch/nds32/include/asm/pgalloc.h
+index 3c5fee5..954696c 100644
+--- a/arch/nds32/include/asm/pgalloc.h
++++ b/arch/nds32/include/asm/pgalloc.h
+@@ -9,6 +9,9 @@
+ #include <asm/tlbflush.h>
+ #include <asm/proc-fns.h>
  
++#define __HAVE_ARCH_PTE_ALLOC_ONE
 +#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
 +
- static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
- 	pte_t *pte)
- {
-@@ -50,37 +52,6 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- 	free_pages((unsigned long)pgd, PGD_ORDER);
- }
+ /*
+  * Since we have only two-level page tables, these are trivial
+  */
+@@ -22,22 +25,11 @@ extern void pgd_free(struct mm_struct *mm, pgd_t * pgd);
+ 
+ #define check_pgt_cache()		do { } while (0)
  
 -static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 -{
--	return (pte_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PTE_ORDER);
--}
+-	pte_t *pte;
 -
--static inline struct page *pte_alloc_one(struct mm_struct *mm)
--{
--	struct page *pte;
+-	pte =
+-	    (pte_t *) __get_free_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL |
+-				      __GFP_ZERO);
 -
--	pte = alloc_pages(GFP_KERNEL, PTE_ORDER);
--	if (!pte)
--		return NULL;
--	clear_highpage(pte);
--	if (!pgtable_page_ctor(pte)) {
--		__free_page(pte);
--		return NULL;
--	}
 -	return pte;
 -}
 -
--static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ {
+ 	pgtable_t pte;
+ 
+-	pte = alloc_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO, 0);
++	pte = __pte_alloc_one(mm, GFP_PGTABLE_USER);
+ 	if (pte)
+ 		cpu_dcache_wb_page((unsigned long)page_address(pte));
+ 
+@@ -45,21 +37,6 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
+ }
+ 
+ /*
+- * Free one PTE table.
+- */
+-static inline void pte_free_kernel(struct mm_struct *mm, pte_t * pte)
 -{
--	free_pages((unsigned long)pte, PTE_ORDER);
+-	if (pte) {
+-		free_page((unsigned long)pte);
+-	}
 -}
 -
 -static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 -{
--	pgtable_page_dtor(pte);
--	__free_pages(pte, PTE_ORDER);
+-	__free_page(pte);
 -}
 -
- #define __pte_free_tlb(tlb,pte,address)			\
- do {							\
- 	pgtable_page_dtor(pte);				\
+-/*
+  * Populate the pmdp entry with a pointer to the pte.  This pmd is part
+  * of the mm address space.
+  *
 -- 
 2.7.4
 
