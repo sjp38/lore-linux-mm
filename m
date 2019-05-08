@@ -2,149 +2,193 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78BD2C04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 13:50:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06E36C04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13E1121530
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 13:50:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="GgArHWlW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13E1121530
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C73EC205ED
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:44:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C73EC205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 829C66B0003; Wed,  8 May 2019 09:50:39 -0400 (EDT)
+	id 542906B0003; Wed,  8 May 2019 10:44:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DA646B0005; Wed,  8 May 2019 09:50:39 -0400 (EDT)
+	id 4F3F86B0005; Wed,  8 May 2019 10:44:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67B9C6B0007; Wed,  8 May 2019 09:50:39 -0400 (EDT)
+	id 3E2B86B0007; Wed,  8 May 2019 10:44:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC8A6B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 09:50:39 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 72so2054486otv.23
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 06:50:39 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 043356B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:36 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id x5so11673304pll.2
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=2EurxZMr2RolSsa7vNYJaos3juIlj/g/eKIBE0b5hok=;
-        b=paahf8rwy+srg4WJfGhfYLzVH/c0cB+6A8Lj/shvnWbeHDnQvUVQHFuZKDwtAyxamy
-         L0rAsYeM2FAUXe40qL/mugfUm0xySxlt3JIMIvvvWxfCOt4Ve0+AsuNXH/K+gxhprcOK
-         fXFH5jhnNHEx8KUo1P1obNJy2etWgAhkLGz2Xgz5HP/AvnZ3xLR2vcgBv4iJFEVN7goC
-         KS5UbFw9FVExHwLwsmGDQulWpN92mumAhaEoaL239rxC9zqPnNau/sPKHIZgaYgxtxrd
-         CDnofhl3TMUWPnJIkcmGpFDJRTBgjNF9uRo4d6B2v6wCzFwjj85ptMukp278O6dIhMUY
-         2ong==
-X-Gm-Message-State: APjAAAW+q5Eq3v8VxwUynJGAh+Na3C1elDVF3Jcd17qHVPIlcJbzoZu6
-	1RC9IhBWf3ctQ2KhUwqbzfZ1ko/TXVSXREqHtludnYZsvN0hmyrr4fF3S77Tu25+KmyoUT9RlVv
-	3hTlus+hZMgSdqq6WUVXcwKr9Eys3xu0VZ7qD1fsItMVbm/ZaqfivFy5W6Jxej/BEmA==
-X-Received: by 2002:aca:3d57:: with SMTP id k84mr2157307oia.106.1557323438921;
-        Wed, 08 May 2019 06:50:38 -0700 (PDT)
-X-Received: by 2002:aca:3d57:: with SMTP id k84mr2157269oia.106.1557323438129;
-        Wed, 08 May 2019 06:50:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557323438; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=TCzL5NUW6PZPJubSx6ptHjsKfaI6lzp6k1fXbK9hDAA=;
+        b=E4zaHzphJnWUFgrhLXlD7E5/1fTdiw6d1D8aAXdAjlcKwCAeiBATDOjlou2QCQ/aAG
+         HE4FurlQQ5QHg5Xex3eUApm2NOYZ2qtHUY2/h5G/t8wfVpteT4tK4v6UtsrdlvczV4W1
+         dC5fhynyKfPMqVR4FW2FWwNbb75AMRBCe8enoAK4XjCnOKy5aDTBGw476951PoN2mbyK
+         UZbRBeAwbVSLClcqLypfSmXHrQ9AkIebqCeTZ28v0tXfbIaFnsy3b/7SODkn2jWCwPMm
+         ul2/b7DqARKl5q1ICf8J6kOCtT0RjjYk8akqO53+9ecVS4iReCkTvJvHTRFivAO7BLg5
+         XMrw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUXLCgaG4y13LKzsGSjVfUG3vPeynzyVcgrmx4KtitIpP90+LDI
+	IlqjYR7FcYBpguisiBC2BumPyH3L01OGGRq0aYcBCSIyfSbfGCqY3DEc6uneH6d/SmNcsdLre+h
+	m8zdjEJZn0VOEPFeRZ3D/PoCvxq649rrVzh4jU/cgWzlrm86h6Pk367AjDYJeeFHUOw==
+X-Received: by 2002:aa7:8d81:: with SMTP id i1mr49144532pfr.127.1557326675662;
+        Wed, 08 May 2019 07:44:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzc29sqrZkB2s6XTIv3IzMR1fos3Xo3p6HigBax9sP8R6iCQeeRAQtkDJaePKwUKHjlr0YU
+X-Received: by 2002:aa7:8d81:: with SMTP id i1mr49144447pfr.127.1557326674865;
+        Wed, 08 May 2019 07:44:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326674; cv=none;
         d=google.com; s=arc-20160816;
-        b=EjSYa6q4d1NfkeGwjpVYG3xiOH3mxpEP0kREaEG2+t1/opLPncuhfpU+cq6B1WNaCn
-         ACvlpf39ZUtbbXxkhzDaIqU9vOxd78FQ5ZVRRFxU/WSp+par3cu3us1wqxOPLwXB9PxG
-         Q/WqLrJGD0QUKJKhaQOVs0YykRO5gmpAYnVcfmqQcua3pDKTJpjkJYRgwyA9U0YLCw6w
-         l0gSvcTN1bPR7jd7/3YZ6jZ8+KIjcANbxm0SRXNSbfFBEayjINK1pnONz3EAop4Jm58b
-         KGebQbJTwT8CQzqaAHHygej2QtsSqDGIQV2AbCAt74cL49Hva4WZsGTZ1ZVij9gCKBYc
-         rNMg==
+        b=ppGi6IvfcSraB1kT6Tn1jJH0Zg5Pb3qziZy6In0+Qsls64WHL5ztRc/MLuLsYIAS7z
+         3//PqESt37jn/PQ4p19i52B+SilbH3sPW2tnSvA+Vbgw9VSF+EIvptLsBGnzjPleHenb
+         QxKzvO4CeYYDljNpN/wf8bgiJzps6VA6+xnGjHfGAeTTARmpvKEOraS3urD9O+kprFUJ
+         S3/ejOBxZdo/1B0n0NfBxruvZduU45IF0xikqs+nAG6B4xYFNUuOy2TeF+3n3cINyq7p
+         QfTyDJAY1B28wNPvd6ndkWb2Jf6LDcws+zk/80dFWs9zabPxp5WDZN2zVR/UsWmUdcZq
+         Oq1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=2EurxZMr2RolSsa7vNYJaos3juIlj/g/eKIBE0b5hok=;
-        b=yzqSnyaiYJOkYwsUCIa/7+RtRt+7k8vaT3McfDBOFsAWoU99tU0nmAMEHhpXobLDa1
-         Lyv1pxyk3kePaLRp2T9lV21a7+Fghf8+Q5GFhPisFDd0YHfWtwTd6XL8bBfQlzE3+KWE
-         xNLpuAhnSHK+dVSdHYnwn6fYtPVD93BlmHqfHEzRj+Y7d1exNKwPr5k8mZh1NNcxdc4D
-         xCRBnUp251yoLsI1gbF2jVRC11RGUJqwd81fW6FiRxQ+Q3uhvNhX/t3xoUau64t0/qGC
-         8eYupEo5XC0jpwv3/rnJ8VDzSJwe4ZLzsavf1k6cCQF6qIuM5tGmbfYMmExsmVYs9dZO
-         zAxw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=TCzL5NUW6PZPJubSx6ptHjsKfaI6lzp6k1fXbK9hDAA=;
+        b=h5oRWp7p+xjyZtGyjOXbqMxDmb5PY01Lf7vpVSGEvh5ByEr3FkSPAUFzFe2I2NerH+
+         hykD6Kqda/5F1F+eYBbaYAS8ypfaxiLBJJRRMHm3XQfP6KNQ4olSr87rtLazLqA9t0Hz
+         g4moB7ZrRKgfSzYDSUp026wqVXGXtCc+hc3eddTOzm42703q5Ub1rpcFNGo+QFyafKvU
+         nl4OI+XhkX9r60UFHF3TQepQW9XCvzb99MAOoqfAj5Zo3Cm1iCxwtgiRSb796HQnlPNF
+         02K65VqCaGFs0aP92RxtPMAMRBxDYh6b9RLTYoVBzT57GChPdkFMPCZdvdrj3jV0RMxc
+         8luQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GgArHWlW;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s84sor7148231oib.9.2019.05.08.06.50.37
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id 192si726287pgb.488.2019.05.08.07.44.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 May 2019 06:50:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 May 2019 07:44:34 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GgArHWlW;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=2EurxZMr2RolSsa7vNYJaos3juIlj/g/eKIBE0b5hok=;
-        b=GgArHWlWkQXoHwkDnK52AErLjHNxY5Gtmfi45DghAvzYSBWNm6e7PeK3JgF31tT39u
-         Q8JR+JNhhGsG4Y7l9oZGDgiuq1Vd5RwpB/qtfTMetqQ89+0JLpGSnC6dCfhpwx19hpSY
-         dW71jKTymLLEW0H/kPBh86F7O8Pl6ugXsxDoo7RkHtzfBaDJhKBBOLKKOiQUz6mX4dfy
-         /qJ/gwBQBKlIHCytwcPCDVmTqECvadxzkRYOgECHpEhiJhC26ncnwbpfGzSI5baBNh4g
-         EXfGGgHq+v/FJ3xWAj5JIAmNaj4uBs1RsRNGNVmeAZDVHZ7DoyszSVQnNrDKMABq0UGH
-         +EKw==
-X-Google-Smtp-Source: APXvYqyeIjtF65mpJyGOqNS4h3BV3LQvlNHfYva0fI5IeZSoAKQb2exqaAUh3L7sY+Pt68OUPCAnfn3ZcLOt3M41mPQ=
-X-Received: by 2002:aca:4208:: with SMTP id p8mr2432775oia.105.1557323437130;
- Wed, 08 May 2019 06:50:37 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:34 -0700
+X-ExtLoop1: 1
+Received: from black.fi.intel.com ([10.237.72.28])
+  by orsmga002.jf.intel.com with ESMTP; 08 May 2019 07:44:29 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id A94D92DA; Wed,  8 May 2019 17:44:28 +0300 (EEST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>,
+	x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>
+Cc: Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>,
+	linux-mm@kvack.org,
+	kvm@vger.kernel.org,
+	keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 03/62] mm/ksm: Do not merge pages with different KeyIDs
+Date: Wed,  8 May 2019 17:43:23 +0300
+Message-Id: <20190508144422.13171-4-kirill.shutemov@linux.intel.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-References: <20190507183804.5512-1-david@redhat.com> <20190507183804.5512-8-david@redhat.com>
- <CAPcyv4h2PgzQZrD0UU=4Qz_yH2C_hiYQyqV9U7CCkjpmHZ5xjQ@mail.gmail.com> <1d369ae4-7183-b455-646a-65bbbe697281@redhat.com>
-In-Reply-To: <1d369ae4-7183-b455-646a-65bbbe697281@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 8 May 2019 06:50:25 -0700
-Message-ID: <CAPcyv4jtS6G_ZqLCdO4gOjS9K2cuX=ywFHemhSb46aQvS8pa8A@mail.gmail.com>
-Subject: Re: [PATCH v2 7/8] mm/memory_hotplug: Make unregister_memory_block_under_nodes()
- never fail
-To: David Hildenbrand <david@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, 
-	Linux-sh <linux-sh@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rafael@kernel.org>, 
-	Alex Deucher <alexander.deucher@amd.com>, "David S. Miller" <davem@davemloft.net>, 
-	Mark Brown <broonie@kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>, 
-	Oscar Salvador <osalvador@suse.de>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 8, 2019 at 12:22 AM David Hildenbrand <david@redhat.com> wrote:
->
->
-> >>  drivers/base/node.c  | 18 +++++-------------
-> >>  include/linux/node.h |  5 ++---
-> >>  2 files changed, 7 insertions(+), 16 deletions(-)
-> >>
-> >> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> >> index 04fdfa99b8bc..9be88fd05147 100644
-> >> --- a/drivers/base/node.c
-> >> +++ b/drivers/base/node.c
-> >> @@ -803,20 +803,14 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, void *arg)
-> >>
-> >>  /*
-> >>   * Unregister memory block device under all nodes that it spans.
-> >> + * Has to be called with mem_sysfs_mutex held (due to unlinked_nodes).
-> >
-> > Given this comment can bitrot relative to the implementation lets
-> > instead add an explicit:
-> >
-> >     lockdep_assert_held(&mem_sysfs_mutex);
->
-> That would require to make the mutex non-static. Is that what you
-> suggest, or any other alternative?
+KeyID indicates what key to use to encrypt and decrypt page's content.
+Depending on the implementation a cipher text may be tied to physical
+address of the page. It means that pages with an identical plain text
+would appear different if KSM would look at a cipher text. It effectively
+disables KSM for encrypted pages.
 
-If the concern is other code paths taking the lock when they shouldn't
-then you could make a public "lockdep_assert_mem_sysfs_held()" to do
-the same, but I otherwise think the benefit of inline lock validation
-is worth the price of adding a new non-static symbol.
+In addition, some implementations may not allow to read cipher text at all.
+
+KSM compares plain text instead (transparently to KSM code).
+
+But we still need to make sure that pages with identical plain text will
+not be merged together if they are encrypted with different keys.
+
+To make it work kernel only allows merging pages with the same KeyID.
+The approach guarantees that the merged page can be read by all users.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm.h |  7 +++++++
+ mm/ksm.c           | 17 +++++++++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 13c40c43ce00..07c36f4673f6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1606,6 +1606,13 @@ static inline int vma_keyid(struct vm_area_struct *vma)
+ }
+ #endif
+ 
++#ifndef page_keyid
++static inline int page_keyid(struct page *page)
++{
++	return 0;
++}
++#endif
++
+ #ifdef CONFIG_SHMEM
+ /*
+  * The vma_is_shmem is not inline because it is used only by slow
+diff --git a/mm/ksm.c b/mm/ksm.c
+index fc64874dc6f4..91bce4799c45 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1227,6 +1227,23 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
+ 	if (!PageAnon(page))
+ 		goto out;
+ 
++	/*
++	 * KeyID indicates what key to use to encrypt and decrypt page's
++	 * content.
++	 *
++	 * KSM compares plain text instead (transparently to KSM code).
++	 *
++	 * But we still need to make sure that pages with identical plain
++	 * text will not be merged together if they are encrypted with
++	 * different keys.
++	 *
++	 * To make it work kernel only allows merging pages with the same KeyID.
++	 * The approach guarantees that the merged page can be read by all
++	 * users.
++	 */
++	if (kpage && page_keyid(page) != page_keyid(kpage))
++		goto out;
++
+ 	/*
+ 	 * We need the page lock to read a stable PageSwapCache in
+ 	 * write_protect_page().  We use trylock_page() instead of
+-- 
+2.20.1
 
