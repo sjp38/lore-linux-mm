@@ -2,146 +2,143 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E51B3C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 16:55:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15E1DC46470
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 16:58:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9572F20850
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 16:55:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9572F20850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id C82E62173B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 16:58:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WvagHzfk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C82E62173B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C2036B026F; Wed,  8 May 2019 12:55:41 -0400 (EDT)
+	id 5A1F86B0270; Wed,  8 May 2019 12:58:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0730B6B0270; Wed,  8 May 2019 12:55:41 -0400 (EDT)
+	id 52B0E6B0273; Wed,  8 May 2019 12:58:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7BE96B0271; Wed,  8 May 2019 12:55:40 -0400 (EDT)
+	id 3A47C6B0275; Wed,  8 May 2019 12:58:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B0A646B026F
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 12:55:40 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id t1so13003184pfa.10
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 09:55:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F36916B0270
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 12:58:40 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i123so8552237pfb.19
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 09:58:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=GNbhTnMzX6/69PbfLQg12/hwhIPtoMD7iF1hBAfIxdc=;
-        b=YA4FJ9IqICaQsuVtf8otUnQM2VNrqSIL/ozdY+k12D7pnwZZQivm8ANSIFx9NWn2NG
-         M1KQ1s0E9VjOyqZDyPoi/LexGMe4/PRbO5Qds8kYipAhvnxHzE4GoC0A+56I57IW+02U
-         9WLfZlcfRhZm4IL3yarCElKoMcjpchXbDYZtVwUmEbYQqir6Wryx8umKxTCg3jfT6vu2
-         G1/eC5EHfx+weU/9pFBSEPG0J8rPCILkI+hxqtlqxd/a72qV7UuHidbqcHSSMYi8tsoD
-         z4gWYGfYOja3jltfGruY6+RqCOlWgZcCiIbZu6aDO87jmI30CrsLWzPYXBdXOMJZilzW
-         Ne8Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWZpnssZhACYTaDGr2np4s/vMjbdBLvTzvK1b4EUSLGGUXkJ6yX
-	9nTn5sVxBYE7jJN/kpGvcamBqkYnLqxaTeGlZCTS2RVqoYCvhYo+u/kXQFuu43TCtn/xfIHJN77
-	w4nEwgPZsgVmzOeiNhwKKrxLMzylYllbNT+GuNJPecGSD6Ur+0lsUWWJjdpbVE+O9ew==
-X-Received: by 2002:a17:902:302:: with SMTP id 2mr49133952pld.232.1557334540256;
-        Wed, 08 May 2019 09:55:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydYiHVYjdnX8K2FnU5ynnKD8dAs++ztdXZpC4b8vwoiI6LtoqFQTOQO5tqyo9Qg3RwBq61
-X-Received: by 2002:a17:902:302:: with SMTP id 2mr49133835pld.232.1557334539100;
-        Wed, 08 May 2019 09:55:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557334539; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=x2WuU/X5fa5tUVfwJobGS2HfWE2m292r4J/u47Wd82s=;
+        b=qv5RT3O4x3h53KWQBWEYNrM1ta6YmR85yXbn6dTBBYmUSFzdCPahIyRHvHWQxsfLmO
+         txcKBcJybe293RhonUP0wITFSLLaC1J1FWb+gBxyxWihgf3QUT4DtYxQcCtVtImYsN4V
+         UKOAxTEUdyx8qxXMmftXu5hpHkz7aVke5OWH3r/KdjDNbhNYi/3NYjqNe6YgHn2mOPhw
+         Lxs2oF6ANX1GPHBAJc56zf1bdn4F8DU+on4RLFesBpCtbnpaTHfzG+IVKv17gc9uJM8N
+         73YzN8o92e7vxYn4RNJrmG1sO3lz9cI5dUXte/tUd/gQuK3GHwAZPrarP6ePr+ZxtJcW
+         btBQ==
+X-Gm-Message-State: APjAAAUHUZB0zgz17zr6w2+Jfv8OY8RZXolw+6rKNjTzgXqyEWKNYgFr
+	VMvrMxjr+hcam0WHBIxdO4h/a/rfnd81jPkJtu7WW/ML7UoBMQQeS3sBUtzIAlugtKxd9DqdWQ5
+	ziTSIyZwpCg5PPCMG34spiafSYMVshWnD1vo8HPWWzkbrsQZuCGjOXBUq4hRxKKBBSw==
+X-Received: by 2002:a65:6655:: with SMTP id z21mr47853903pgv.33.1557334720628;
+        Wed, 08 May 2019 09:58:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyX9MuznRWBWWaFbs6cfvMiy3ujgyHqtOEuNU2QcKjBsVdg01gmUj0GzWQ20mBSxQB8UQay
+X-Received: by 2002:a65:6655:: with SMTP id z21mr47853821pgv.33.1557334719892;
+        Wed, 08 May 2019 09:58:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557334719; cv=none;
         d=google.com; s=arc-20160816;
-        b=rO6gJrTA+VwKJZJ16GAkCWZsVXUFHzmyXQg8T/RnkUnFpVuYmba1sNsvOft3ovuzBj
-         0vwNttL1J3EXoLiBeQUrd/KqCLJrtac+YqmjSmZ8n8Lw7zW4ieAeDyid/r3YkCgVPaJa
-         B2Bto9nWvZgJBT/KtgSD2KBOj0HSavc7hgXLbmX6Xx8VhEft1SIkcxcs/mTO+P8JPocB
-         QT1oaStQt1hk1Y+pB16AU486uDbmCYN3VVFRwoqXAwiKbCAOTal4rxmqkdhaH5LI3gBj
-         wBc9PBX7mxPisgFrQMZdNofIh053xcewWBQyrrSkLQvr9mpbse2wImboKXI3B3XsQ7bI
-         k4CA==
+        b=Ta18BMj91mn7eSlP7ftqyhHG/ip0i/hY8ViTAEWXAkA1/hLm7ovvY9fudcUkzwghi0
+         1yHl0gHFzizAZpxp7MAi2VT2c4hv0aDGHuJDkNmBuWFZNQ78+EWWIJ36yB/Rs1kd5Eo1
+         Sdvs8cdznC4byxYWjrA59ffuH+6j3BW2UpDan2FmeubW1FXneEr9QO9zX9cFmU6x3hze
+         NLbNO+CRltfqoZszTDrr6/MDn9vBdZHIbDm1tvdOjApVF6rVC7Q3jKJKcDf8cxIdzq8g
+         C7kzQy0MwGyN39sQGZ9+/FKz99IdQDFAqu72yF7t7kqmhW244jEX+MVQNkXKnQZPxkvz
+         v0TA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=GNbhTnMzX6/69PbfLQg12/hwhIPtoMD7iF1hBAfIxdc=;
-        b=RuzWjbc2PHSOdaq0ZtjL99zJZ5v85cmN+z+QQeQSyC3EzfFV+kpCptuhTcElEyQ325
-         KA7jBV3sT9isS+/oP9MNSgcvPE/me26w/+QKnbcGf0qsBRi7rzi1rrxYvYb9HdSdsQIx
-         g0J4mN3W3qScrRZLSiGQfI5Ak0npgOhlTQc1UVVkbeaJVEIylWTGxX7W1p2+Ikb6xu/L
-         EpIX4gALcPO47dMQJbwtvB+aYtrxpKpjaR97jiKunTPdLqElL+6V8ILfdCcXardEPDjU
-         YYIZ5nmNqTMEfCEZyhS4H4j7gaNLN/mSxslFrCKZhgjPI3KOHQACna1/aCpNs3NoLda6
-         1lxg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=x2WuU/X5fa5tUVfwJobGS2HfWE2m292r4J/u47Wd82s=;
+        b=WiOg5xpO9ImYpLNN/UpYgqJzHJE4f6QVXkmF8sv2n7TyvQgI909GRVXGuOg6pDQfcD
+         s+KYMzSWQYdmv6DCACXAvuUg8RcoOPnYP/C0R3q/ofW2b1aXINs+qx9weGlHF6QNPZMk
+         PtVP5t2WRjHL3sHUebFXLraNasTT+GyzdkmciNgtvopDV0BpKECs/dz//sCb863Qt3my
+         6b5vnHYofe1INRRfkLE7ewOhvXOAWOYyByoZ2I49kH4yiu3wpcsBApHEoU+O7gTt/6az
+         d6d9uhevd0PEtlNtHwvkUgBxzEamnH/Ju36broMziJVHw/JkfQVRlUzXUqqadDlIWUPO
+         SKLw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id s17si23534252pfm.170.2019.05.08.09.55.37
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WvagHzfk;
+       spf=pass (google.com: best guess record for domain of batv+a133233defd210c95f45+5736+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+a133233defd210c95f45+5736+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id w13si10517933pge.212.2019.05.08.09.58.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 09:55:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 08 May 2019 09:58:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+a133233defd210c95f45+5736+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04395;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=4;SR=0;TI=SMTPD_---0TRCE-nj_1557334521;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TRCE-nj_1557334521)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 09 May 2019 00:55:25 +0800
-Subject: Re: [PATCH] mm: filemap: correct the comment about VM_FAULT_RETRY
-To: josef@toxicpanda.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <66e2f965-4f4d-a755-69b3-5342aa761ff3@linux.alibaba.com>
-Date: Wed, 8 May 2019 09:55:21 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WvagHzfk;
+       spf=pass (google.com: best guess record for domain of batv+a133233defd210c95f45+5736+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+a133233defd210c95f45+5736+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=x2WuU/X5fa5tUVfwJobGS2HfWE2m292r4J/u47Wd82s=; b=WvagHzfkLT5uNstZZ33NzU8f4
+	hVRF06AuCxJhAWvqiZKox4/2Nfevff1DInfGoORtzQW+kOTzEwOz2D0pN1WsVfq3c0szMFWAsntze
+	flir9K6/Xz58geaWHO0lBGR8m/i0p8MjqeGp8pxnONpBNbMwqgXhj60gzgD/nNxjh1sUqYc7evbBi
+	amGm5itevVi3gSAVbNmFKXK7tPwhMvTUfCrbQ99DOdeKj2WMEHulKQNkmG2v0IzJib2n4UwagtS2Q
+	WJK03LVZfAXQ883EK+5tiBm397uUhr8ew+Rmmq5FzR7mmvyCV4pgMPI+POmu/zHUsi0bEK5DNuY7C
+	chf1RE70Q==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hOPtm-00039J-A2; Wed, 08 May 2019 16:58:30 +0000
+Date: Wed, 8 May 2019 09:58:30 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 52/62] x86/mm: introduce common code for mem
+ encryption
+Message-ID: <20190508165830.GA11815@infradead.org>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-53-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190508144422.13171-53-kirill.shutemov@linux.intel.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ping.
+On Wed, May 08, 2019 at 05:44:12PM +0300, Kirill A. Shutemov wrote:
+> +EXPORT_SYMBOL_GPL(__mem_encrypt_dma_set);
+> +
+> +phys_addr_t __mem_encrypt_dma_clear(phys_addr_t paddr)
+> +{
+> +	if (sme_active())
+> +		return __sme_clr(paddr);
+> +
+> +	return paddr & ~mktme_keyid_mask;
+> +}
+> +EXPORT_SYMBOL_GPL(__mem_encrypt_dma_clear);
 
-
-Josef, any comment on this one?
-
-
-Thanks,
-
-Yang
-
-
-
-On 4/25/19 4:22 PM, Yang Shi wrote:
-> The commit 6b4c9f446981 ("filemap: drop the mmap_sem for all blocking
-> operations") changed when mmap_sem is dropped during filemap page fault
-> and when returning VM_FAULT_RETRY.
->
-> Correct the comment to reflect the change.
->
-> Cc: Josef Bacik <josef@toxicpanda.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
->   mm/filemap.c | 6 ++----
->   1 file changed, 2 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d78f577..f0d6250 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2545,10 +2545,8 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
->    *
->    * vma->vm_mm->mmap_sem must be held on entry.
->    *
-> - * If our return value has VM_FAULT_RETRY set, it's because
-> - * lock_page_or_retry() returned 0.
-> - * The mmap_sem has usually been released in this case.
-> - * See __lock_page_or_retry() for the exception.
-> + * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
-> + * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
->    *
->    * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
->    * has not been released.
+In general nothing related to low-level dma address should ever
+be exposed to modules.  What is your intended user for these two?
 
