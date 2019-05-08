@@ -2,187 +2,252 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0DCEC04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:16:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5EC3C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:26:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 59B3020989
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:16:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="y/TCL95R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59B3020989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F12220989
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 20:26:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F12220989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA92F6B0003; Wed,  8 May 2019 16:16:31 -0400 (EDT)
+	id 097E46B0003; Wed,  8 May 2019 16:26:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E58CD6B0005; Wed,  8 May 2019 16:16:31 -0400 (EDT)
+	id 04A336B0005; Wed,  8 May 2019 16:26:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D20AC6B0007; Wed,  8 May 2019 16:16:31 -0400 (EDT)
+	id E79536B0007; Wed,  8 May 2019 16:26:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E7D6B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 16:16:31 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id d12so88462itl.5
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 13:16:31 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C5DA76B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 16:26:21 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id b46so204975qte.6
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 13:26:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=RNyiBPHYmMKPy9Ae5WLvwYN+r0cY1awKN5dSIQUf1PM=;
-        b=l2R48Rli3NiVGL2CI0Gr+xeh3bWIPaO7OMGsGsWU9OfTegfqHwEHzwOOrypw63kS2u
-         tj6l0p4z2YBH96p34kcgqEcLwk6ycz6bkjbX4wSUP5gQyHrHOQ4f7YM3lZiGPN0nEsX7
-         6VRK4vmONs9e+KmHTFFedZPm02UlWH6LhQu4waEOaAa4YgrFX12cwdn6mKPUn8SIb59S
-         osvFnN0PYWXGgYSebUWTnQo10OEefuIg8woT+MMKz6wExbUUNDChO+eo9ZHIL8lJc+O9
-         tpU5yWQ53qx8lGI1lAiSmWuz3D5Or7c0+HvUA5IEC492JRzj/TLWW/uma9INjkxarDiF
-         Uriw==
-X-Gm-Message-State: APjAAAWBdpiFe7H1ZzDFy4q1TgvFiydLsJJc8GyT8WLbp2bnmWrsZh6P
-	U8jGI3728hC2xlGkpQZ2Haf6dXQySHiRfTjgExoFnzuQyss8sppmiYuV/H8fLaxrgES7j4CluKS
-	D+/B6qSt7mXFKud0kRSfBYUq1dIaSMKS2XKb8gsrF17R+3QT3+tId9TunDjcSK3U0CA==
-X-Received: by 2002:a24:478a:: with SMTP id t132mr5024917itb.123.1557346591380;
-        Wed, 08 May 2019 13:16:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywoQnjJAg+IJsdFC0bnKQsA8MobXFQcp1nynkyKgqhxXhEOYKnlkUro4V+uQZi9OiMuqCO
-X-Received: by 2002:a24:478a:: with SMTP id t132mr5024872itb.123.1557346590480;
-        Wed, 08 May 2019 13:16:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557346590; cv=none;
+        bh=i3K+aC6oh3nHkKBolesJxB87q22raEk9yaetGxzfsjU=;
+        b=jT8VwlCu3nKb6GOpckoGZYESTQfS5BgdcjBGZDvzUMpzE8GHRNl4+Sjzck8wCZWwuc
+         QKvXTr5SisILbClC287YwOryXSNEI7oSt3SoXFdpYMkDA2JWg+kd60IaTyPIdIrEo+AE
+         hxCADMTLS7C6EbXDyqAT54KbhawUzdxMCpJ2CeCApWd+2v2LqQtLaDgH5oa5zb6Olx+R
+         CBdvxpSLURmmjQQr55ordUxqZBQNgmgsKz4Ju7NY1pYQrthL19mKjXgP98U4SEWELV5H
+         /b/rFA1LTlHLFHI6dwYvIdeoQv1COR+QkHAr+YYZiRxlQgorvSlkCuZvZwTw6JjPB1x+
+         7GVA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXnqWm4J2EWzDQffdQYL+64o8WuvxH49N1K4sG/zao5xtuL74bD
+	YBVI63kvO+ya2zaOHdBobDwbM+oFTo1JMFXYS7sLfw2GID4kjo5FjlJQQG27dv4FZasjrtzvl+m
+	r2XmnlTS73G8WLO7kOE/vu1nKNhB6HLF2csIV/eHp8Mp7mmFxczQmP1nlM+US5b+Bkw==
+X-Received: by 2002:a0c:980b:: with SMTP id c11mr143555qvd.115.1557347181497;
+        Wed, 08 May 2019 13:26:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrnm58W7imsrqBfdNMYaPvWBYBHlImrIRLY78aet3N28bLQpIjnM+zd1hqOGUQNzSQ1/+t
+X-Received: by 2002:a0c:980b:: with SMTP id c11mr143511qvd.115.1557347180780;
+        Wed, 08 May 2019 13:26:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557347180; cv=none;
         d=google.com; s=arc-20160816;
-        b=nfVcPXM3kf9JjDZMqm2TneiAlp7bjY24MXNKOWJiViWgyeUE2zYRspbQLQzQJKwUf0
-         DLRkg0nNtcgP/AwgZ338ohkAoCdSiw/ZwzxGwKf4P4kAFoFpqAT5JxoeZFV6GDNjqh/f
-         I3/wzgw3qnPZq3g3GN9IKMi72GZ5QauZtxP5p9pF45aLZrQJe6rWVOukHG0yOd8dOCKh
-         zoWiX1z5uF9RAq+erwa4mBrTi/OyEARH/btobj8orAXDPIawt9sMUlgQVCTJ/V7G4a7r
-         c6hsXHFYeRloH8oWzdTX2mraLTQ+Hx8A3wKbjfgsdKUB1UBO5HP5HPcoT5HHfNeCn94H
-         SRvA==
+        b=oPysABBPGSng01350vsIteiGQbC2Rl+rggqBrV+HDSuVfou7CbeswbZk8bYC9AmPYl
+         CT3Vbz9uRuhJ1AnCD3PlNHMWXYAGZOfQbho0jnw7hAPjG7dUUJfYWdfLZg07AOkizEMX
+         horeKTvKgIOJsJcdQoX+5ls7iN5/0ieBOZWzXGinOCqti9ONu9oD3Ru41SAaMpmmrJKD
+         CDrdyAScNx1YsD/thnSVh+hvYz7gbK1f3jpsdZ9rtn36K8EEeMGCJiVmmd+mzSaaUvu+
+         JVVs/Ax5ZLb3u/+g241w+3UM6cT2A/pzuBLfdQvHdIGETOy0ay0DMVW//UXKoRV26SX2
+         21rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=RNyiBPHYmMKPy9Ae5WLvwYN+r0cY1awKN5dSIQUf1PM=;
-        b=ZtAydNAEP5DBbaI0kHdqjUSVNrCk32Gazu8YIIa+7elIF1bESXDnFdXfHksafKj0jG
-         7Q2UthqLK9oiJevUrwt2si1/OSnlaSFeQANDGXT8RpTzWDEBIRUT2L96nMgDGmL1QbcC
-         0gRvmzQdJctQRwjZFG0Epv9bV6wpOqRjAS25EcdPjAHzu1dpKsPBnLQhPE+bw8UrP4+b
-         Mwd4HRvMg8bJ4aPAirdJ2Bg5hUg8DlSOeiOrZ6pmipya4UsXFq4mr1CLC4KAnK7wU8W8
-         xz6R8pgvuDTVZPYwXVBBZ1aNW8OipY2gmEYbGG8mlpSF/kQ0LexeQSKt0sfuWs9jX0Uy
-         OuLA==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=i3K+aC6oh3nHkKBolesJxB87q22raEk9yaetGxzfsjU=;
+        b=SeaAcxRu7opwKQjEzxTCW4LcpgMIi4X5Ct/uv2AC7SdozTD7igz6nGKvpsLkk9bRzi
+         FcPYufKg9x1fmBF1qOtgvzlsukvNUO6S7Smc16SsjD7Jo2HZgwWJ21QA8f+sRARgIfkm
+         w/sO0gPz1kxCr2Jxg8wuZRHHCTgUjn7QMun/rnMLwmuhTxOFt5Pun7ECul/DwPVJnjCh
+         o0nO1f9px7JAQtGKzrhxCzBtpMAjv1L4XhciP6fy/cJJGtbjbiumbH4UTaiXiM2h5XCI
+         f4MGYvNrEiTZt2Aue/a2j1mmzKxviChEoZ4fq5vwvCUC9uCCTpKPpVs4xKoto4Umyix7
+         5I1g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="y/TCL95R";
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c23si5049ioi.71.2019.05.08.13.16.30
+       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c7si12523367qtm.365.2019.05.08.13.26.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 13:16:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Wed, 08 May 2019 13:26:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="y/TCL95R";
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x48KE7Sw139454;
-	Wed, 8 May 2019 20:16:21 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=RNyiBPHYmMKPy9Ae5WLvwYN+r0cY1awKN5dSIQUf1PM=;
- b=y/TCL95Rml3dD4NpWNmcSltG1tNIp46T5O+MdFYvMJD9CGl0ObYJAHZ+EBHDVsfaoLxR
- HNuv4F9EbW+pwZ3JnWtmXK1IaBTnVvo0f5bZt3PKv8mi6LnvDz073Pe4CTHHYWXXw8bG
- 8GDjv8SM8UXXY8bYJmV0Rbi6m8TAXJuHgCrnieYQbYrIbfoXJLRAgEHG0Zj8XqV1UhLx
- w+Rxq6LZ6j8pQiOP8jcrMHhECLb+xBSx7hlx+ptO9ACBfbgKblb5dQAcT+TAL41qfKSl
- D5SBBKtV7/kN2aG5rRydMzzAsCsy6liumZZhjKRGvxEQmj7wASMO7K05iqKQrNLE1Tlk Aw== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2130.oracle.com with ESMTP id 2s94b66prj-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 08 May 2019 20:16:21 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x48KF9SY093762;
-	Wed, 8 May 2019 20:16:20 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2s94bac3s1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 08 May 2019 20:16:20 +0000
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x48KGIXK020586;
-	Wed, 8 May 2019 20:16:18 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 08 May 2019 13:16:17 -0700
-Subject: Re: [PATCH] hugetlbfs: always use address space in inode for resv_map
- pointer
-To: yuyufen <yuyufen@huawei.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
-References: <20190416065058.GB11561@dhcp22.suse.cz>
- <20190419204435.16984-1-mike.kravetz@oracle.com>
- <fafe9985-7db1-b65c-523d-875ab4b3b3b8@huawei.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5d7dc0d5-7cd3-eb95-a1e7-9c68fe393647@oracle.com>
-Date: Wed, 8 May 2019 13:16:09 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BBB083083391;
+	Wed,  8 May 2019 20:26:19 +0000 (UTC)
+Received: from lacos-laptop-7.usersys.redhat.com (ovpn-120-255.rdu2.redhat.com [10.10.120.255])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 99F891001DDD;
+	Wed,  8 May 2019 20:26:13 +0000 (UTC)
+Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
+To: Robin Murphy <robin.murphy@arm.com>,
+ Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>,
+ "will.deacon@arm.com" <will.deacon@arm.com>,
+ Catalin Marinas <Catalin.Marinas@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>
+Cc: "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>,
+ "qemu-arm@nongnu.org" <qemu-arm@nongnu.org>,
+ "eric.auger@redhat.com" <eric.auger@redhat.com>,
+ Igor Mammedov <imammedo@redhat.com>,
+ "peter.maydell@linaro.org" <peter.maydell@linaro.org>,
+ Linuxarm <linuxarm@huawei.com>,
+ "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>,
+ Jonathan Cameron <jonathan.cameron@huawei.com>, "xuwei (O)"
+ <xuwei5@huawei.com>
+References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
+ <ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
+From: Laszlo Ersek <lersek@redhat.com>
+Message-ID: <190831a5-297d-addb-ea56-645afb169efb@redhat.com>
+Date: Wed, 8 May 2019 22:26:12 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <fafe9985-7db1-b65c-523d-875ab4b3b3b8@huawei.com>
+In-Reply-To: <ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9251 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=976
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905080124
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9251 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905080124
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Wed, 08 May 2019 20:26:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/8/19 12:10 AM, yuyufen wrote:
-> On 2019/4/20 4:44, Mike Kravetz wrote:
->> Continuing discussion about commit 58b6e5e8f1ad ("hugetlbfs: fix memory
->> leak for resv_map") brought up the issue that inode->i_mapping may not
->> point to the address space embedded within the inode at inode eviction
->> time.  The hugetlbfs truncate routine handles this by explicitly using
->> inode->i_data.  However, code cleaning up the resv_map will still use
->> the address space pointed to by inode->i_mapping.  Luckily, private_data
->> is NULL for address spaces in all such cases today but, there is no
->> guarantee this will continue.
->>
->> Change all hugetlbfs code getting a resv_map pointer to explicitly get
->> it from the address space embedded within the inode.  In addition, add
->> more comments in the code to indicate why this is being done.
->>
->> Reported-by: Yufen Yu <yuyufen@huawei.com>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-...
+On 05/08/19 14:50, Robin Murphy wrote:
+> Hi Shameer,
 > 
-> Dose this patch have been applied?
-
-Andrew has pulled it into his tree.  However, I do not believe there has
-been an ACK or Review, so am not sure of the exact status.
-
-> I think it is better to add fixes label, like:
-> Fixes: 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
+> On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
+>> Hi,
+>>
+>> This series here[0] attempts to add support for PCDIMM in QEMU for
+>> ARM/Virt platform and has stumbled upon an issue as it is not clear(at
+>> least
+>> from Qemu/EDK2 point of view) how in physical world the hotpluggable
+>> memory is handled by kernel.
+>>
+>> The proposed implementation in Qemu, builds the SRAT and DSDT parts
+>> and uses GED device to trigger the hotplug. This works fine.
+>>
+>> But when we added the DT node corresponding to the PCDIMM(cold plug
+>> scenario), we noticed that Guest kernel see this memory during early boot
+>> even if we are booting with ACPI. Because of this, hotpluggable memory
+>> may end up in zone normal and make it non-hot-un-pluggable even if Guest
+>> boots with ACPI.
+>>
+>> Further discussions[1] revealed that, EDK2 UEFI has no means to
+>> interpret the
+>> ACPI content from Qemu(this is designed to do so) and uses DT info to
+>> build the GetMemoryMap(). To solve this, introduced "hotpluggable"
+>> property
+>> to DT memory node(patches #7 & #8 from [0]) so that UEFI can
+>> differentiate
+>> the nodes and exclude the hotpluggable ones from GetMemoryMap().
+>>
+>> But then Laszlo rightly pointed out that in order to accommodate the
+>> changes
+>> into UEFI we need to know how exactly Linux expects/handles all the
+>> hotpluggable memory scenarios. Please find the discussion here[2].
+>>
+>> For ease, I am just copying the relevant comment from Laszlo below,
+>>
+>> /******
+>> "Given patches #7 and #8, as I understand them, the firmware cannot
+>> distinguish
+>>   hotpluggable & present, from hotpluggable & absent. The firmware can
+>> only
+>>   skip both hotpluggable cases. That's fine in that the firmware will
+>> hog neither
+>>   type -- but is that OK for the OS as well, for both ACPI boot and DT
+>> boot?
+>>
+>> Consider in particular the "hotpluggable & present, ACPI boot" case.
+>> Assuming
+>> we modify the firmware to skip "hotpluggable" altogether, the UEFI memmap
+>> will not include the range despite it being present at boot.
+>> Presumably, ACPI
+>> will refer to the range somehow, however. Will that not confuse the OS?
+>>
+>> When Igor raised this earlier, I suggested that
+>> hotpluggable-and-present should
+>> be added by the firmware, but also allocated immediately, as
+>> EfiBootServicesData
+>> type memory. This will prevent other drivers in the firmware from
+>> allocating AcpiNVS
+>> or Reserved chunks from the same memory range, the UEFI memmap will
+>> contain
+>> the range as EfiBootServicesData, and then the OS can release that
+>> allocation in
+>> one go early during boot.
+>>
+>> But this really has to be clarified from the Linux kernel's
+>> expectations. Please
+>> formalize all of the following cases:
+>>
+>> OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report
+>> as  DT/ACPI should report as
+>> -----------------  ------------------ 
+>> -------------------------------  ------------------------
+>> DT                 present             ?                                ?
+>> DT                 absent              ?                                ?
+>> ACPI               present             ?                                ?
+>> ACPI               absent              ?                                ?
+>>
+>> Again, this table is dictated by Linux."
+>>
+>> ******/
+>>
+>> Could you please take a look at this and let us know what is expected
+>> here from
+>> a Linux kernel view point.
 > 
-> Since the commit 58b6e5e8f1a has been merged to stable, this patch also be needed.
-> https://www.spinics.net/lists/stable/msg298740.html
+> For arm64, so far we've not even been considering DT-based hotplug - as
+> far as I'm aware there would still be a big open question there around
+> notification mechanisms and how to describe them. The DT stuff so far
+> has come from the PowerPC folks, so it's probably worth seeing what
+> their ideas are.
+> 
+> ACPI-wise I've always assumed/hoped that hotplug-related things should
+> be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do"
+> would be enough for us.
 
-It must have been the AI that decided 58b6e5e8f1a needed to go to stable.
-Even though this technically does not fix 58b6e5e8f1a, I'm OK with adding
-the Fixes: to force this to go to the same stable trees.
+As far as I can see in UEFI v2.8 -- and I had checked the spec before
+dumping the table with the many question marks on Shameer --, all the
+hot-plug language in the spec refers to USB and PCI hot-plug in the
+preboot environment. There is not a single word about hot-plug at OS
+runtime (regarding any device or component type), nor about memory
+hot-plug (at any time).
 
--- 
-Mike Kravetz
+Looking to x86 appears valid -- so what does the Linux kernel expect on
+that architecture, in the "ACPI" rows of the table?
+
+Shameer: if you (Huawei) are represented on the USWG / ASWG, I suggest
+re-raising the question on those lists too; at least the "ACPI" rows of
+the table.
+
+Thanks!
+Laszlo
+
+> 
+> Robin.
+> 
+>> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed
+>> any valid
+>> points above).
+>>
+>> Thanks,
+>> Shameer
+>> [0] https://patchwork.kernel.org/cover/10890919/
+>> [1] https://patchwork.kernel.org/patch/10863299/
+>> [2] https://patchwork.kernel.org/patch/10890937/
+>>
+>>
 
