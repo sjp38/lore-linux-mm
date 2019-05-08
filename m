@@ -4,95 +4,96 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DDD6C04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:30:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C15FBC04AAB
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:30:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D6FE1214C6
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:30:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7524521019
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 11:30:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=analog.onmicrosoft.com header.i=@analog.onmicrosoft.com header.b="q7IP+9NQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6FE1214C6
+	dkim=pass (1024-bit key) header.d=analog.onmicrosoft.com header.i=@analog.onmicrosoft.com header.b="OQVIVgK5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7524521019
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=analog.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7AA246B0271; Wed,  8 May 2019 07:30:04 -0400 (EDT)
+	id 22C7B6B0273; Wed,  8 May 2019 07:30:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 781506B0272; Wed,  8 May 2019 07:30:04 -0400 (EDT)
+	id 202796B0274; Wed,  8 May 2019 07:30:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 621DB6B0273; Wed,  8 May 2019 07:30:04 -0400 (EDT)
+	id 07CEC6B0275; Wed,  8 May 2019 07:30:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EDFE6B0271
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 07:30:04 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id v11so7807801ion.22
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 04:30:04 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC94B6B0273
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 07:30:09 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id m207so7030190oig.4
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 04:30:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=pjcT89AhZdKkG8M5isLXr+VAVcRFhlBYogTm1g/4pg8=;
-        b=aEcW+qiDtg0Iat2Pr5CefSPLfpgqio5+XIgQ/K2epNTwXPGFmJGveUmhu9Z4Mufx62
-         jQhrRw0u2Htu2F7svaHmYsBsQLfp41Wuk3eATJn8dlUC/V7kdueJ7CDEVsv/2yN2EOZF
-         YJa6+iGo7niArqDY6kGClg/ZjCmeDz4rkkslD3ExdFtZO6+sPsymsHEZcTTw9pX8dvOC
-         ug7l+lHO5wlNKU5gC11oLCr3wr+p/j1dRm5tYIA6j/6dprAlatlAkRVLR/ey7ufBtgH9
-         98v0D7NRmyCyjy6mCKbIDH0UKcJCoGIneBE6EpNF8a14iQG+uI+IxtAx9BcBNo2k+z8t
-         HH1A==
-X-Gm-Message-State: APjAAAUdhZ+6ECGmwRa3ZVMLjyYWlm86OBiogyskeeSfKdUrq2iPaPc6
-	p21zLGrllPFIDM5toSLNSJET6aTvktko1WyabMn0MRoOTXGnDGbdTuQMI02VWydgDCcjbj4a+jq
-	V6U1644RO0TewpM9WQguhT+lbmRaYofMF2EekV+TYDy64Nm4MXH0tx9HgmkWIyj2CEQ==
-X-Received: by 2002:a24:b701:: with SMTP id h1mr2969787itf.178.1557315003981;
-        Wed, 08 May 2019 04:30:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0Lr/7/vA6TM4fThfIGJC+wKAfSImUclNDhLFqUQQfUu/shacNuWrBuCfivGYJDcx9o1DW
-X-Received: by 2002:a24:b701:: with SMTP id h1mr2969744itf.178.1557315003292;
-        Wed, 08 May 2019 04:30:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557315003; cv=none;
+        bh=TppapvdTdEWShhGPGCPSH9uz8QgU5Op8E8ytcSMFOwg=;
+        b=bnMeMZtZSJbnEk97l2BVTEIs/NMZxYDxLfNPa6LX1T6oUxNiAvkChcH/2AMOAzvLs4
+         AhQvTjEFahTWFnF4KnwTPPSlowmgHmUyYeebFXDme5bCuN8+SD1NBYHChIrLjjzn1jOf
+         Frj/edPB1ygGLkVBNX+Wctt3jZyJCkXHRhR7jkJv+Tm+1+3R1fRBZtlTZrjQRDI8OuEy
+         S4Mzkus8Yz2rIo5cl06UpxKj7ZBdQh9jV+taInU0eEUqVcQ6zZ4bJGiZi6ma3dmHDkHF
+         m89gm6+Sp/RGrfjC/7MyXKlFcBj5XkyQ1KUb6OBL/sBAIZdncsp2VJYYlRVA6sePo7jG
+         pY0Q==
+X-Gm-Message-State: APjAAAUdKXitTxBVBZ3kfpDynfLNpkVxLyrWQ73lJ/5ZuYUSi1/L2KSI
+	bSkS8B8nLDIe4d/2EfMyCSLpVx2NhBpPpA20caMw5dDh39SUjB+hYF1vvnjRUOKWVd+8DsWa/ID
+	O9lzJiwVEFEcuN2aAytYUrqMFJninDd/aqcIDDTxpRqcbnDoM9ld1/3WOU9lbX4yBRA==
+X-Received: by 2002:aca:3d89:: with SMTP id k131mr1213244oia.37.1557315009553;
+        Wed, 08 May 2019 04:30:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzaP2ekh8fDFfxM6MJtiQfuMxGBZi3l6y3xW1zWtA4xwrSN+WTjRjorYKBnFM/8vXjQXA82
+X-Received: by 2002:aca:3d89:: with SMTP id k131mr1213193oia.37.1557315008343;
+        Wed, 08 May 2019 04:30:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557315008; cv=none;
         d=google.com; s=arc-20160816;
-        b=OgvyqpbS5YdRA0T+FyQetB+tohsJLCbpB5ua3NwSd0fjtFdeWqm2GgqgQUyxigfB7l
-         /Cfq/SgIuNMs1ETAMh4iIbrLvqV4mLqWyWbB8xhdbkGPRGwQBpWNPtSfLDW3aefdKj/A
-         9CJxNCMDuxqYgsOsGQSkKTnU03Wn1Ll2xnlkX5Ylv/2yB3dPn3OQAS6toiBhCqp95E5z
-         jspyEXP4Dkcl2//XYuKreKGc3UpcoG1NWCECfxOqbT7M4ws2hHm2lRboU+43srcbbzby
-         ckw6XVYMEaRAY4o2YMKx3aUiYByIZFtjJYkEeV61cmmxa0cSVKAGk0MxamVry3WVIQna
-         TQKQ==
+        b=sG65As/mGIShHkNDQ59IgINDZBPzE7oMES4wgakLiPsii6KpGA8jcYqdRottdB94zc
+         X1VQD7nGtsAzMjpKXL247kGHwus1eIsylGM7bH0z4lWyeXZr6XO/BEfsMSZxnZeUGmaw
+         AWAx7CYw/aRaGPO/0gZ5oIMR4xdu8M4bioId8bRVGMp3vwmpA/y9iuRGDVhAi+H1x9qb
+         7lqsKZn+YDtiA9is7RjiSEVddg4+SPX0jswL85+XCzpTzLDcVOWVEOK4kt0TJ0vpIQY1
+         V99tb/Nu1wkukMeDTl1ra+ESIE01QvP7iABd78YXdO/akhU4JnvQVasQSLSiyiINEyIU
+         vGJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
          :from:dkim-signature;
-        bh=pjcT89AhZdKkG8M5isLXr+VAVcRFhlBYogTm1g/4pg8=;
-        b=FpmIC12YjxPGkSOlbio8hj/zlAKpPzHy7IIre+Em82t7bpkeiaKcBWB3V4dn1YMIqU
-         FSYNGYkTerD1p8Z9qd7qDR4UnpdfzvY+gRlsRC18hUVnMVYeAPzGQI9w0wULu7GOsi+2
-         2HaXoHoOuwJUwsJrwNl5RWszCtenxmN8AkxXgi2W3E8CzHC57t8a1XuE769rg7Jbft1l
-         gEbFgPqqPfJPKUrHfKVpJMrjuLKujABIFZJR9Zb62CSa2MdudXkLoKQYMWMtvk0bKRK/
-         7EeouumK7upixIGNU7ksZ+T4AXPXXrziItbwIC+hWuXDBYSMB4pNlE4M0KoktHWFUCib
-         3Mzg==
+        bh=TppapvdTdEWShhGPGCPSH9uz8QgU5Op8E8ytcSMFOwg=;
+        b=gwPyhKZRYbSqD5s0V0fkpdbnSmYOkUDUJAgKBcdlULzo77/2PW3CXZRkiStsQC9Kjk
+         PVfDPlcHelrvnaojIWyJ9ot7fr9I7xHeAaqYHxiEVThp8hQUdYI3UAm7D8vbwYcTjX5K
+         5E7Ir3h/lUmcW8pPJuRDh++f/ohUV3DnFOiDRva23oHbnF1aKi6oDkw3bP3Vh1a6fRNn
+         qTbO02cDzvDk44/BeUOeWebDDUVS4uKWzLpEn+scBOO43vd/LnxiXIUt8qODYnarm4cH
+         pN6ZbIjnERfkrqYjxqaOawuosIcFzAD1ZAFHFaiP/9DvBHWKRYLR8XqkClHgkLODghPt
+         /4+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=q7IP+9NQ;
-       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.72.58 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (mail-eopbgr720058.outbound.protection.outlook.com. [40.107.72.58])
-        by mx.google.com with ESMTPS id s10si1727456ita.9.2019.05.08.04.30.03
+       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=OQVIVgK5;
+       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 2a01:111:f400:fe49::624 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0624.outbound.protection.outlook.com. [2a01:111:f400:fe49::624])
+        by mx.google.com with ESMTPS id k19si10160683otl.158.2019.05.08.04.30.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 08 May 2019 04:30:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.72.58 as permitted sender) client-ip=40.107.72.58;
+        Wed, 08 May 2019 04:30:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandru.ardelean@analog.com designates 2a01:111:f400:fe49::624 as permitted sender) client-ip=2a01:111:f400:fe49::624;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=q7IP+9NQ;
-       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.72.58 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
+       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=OQVIVgK5;
+       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 2a01:111:f400:fe49::624 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  d=analog.onmicrosoft.com; s=selector1-analog-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=pjcT89AhZdKkG8M5isLXr+VAVcRFhlBYogTm1g/4pg8=;
- b=q7IP+9NQa5EDYubf+Njn1bcwKqmHVEVEGwgvxF4CCCebgPyhKgL87yUmH6oKqvITyTy7ly7BzqJF9CuibfYxh1CD7eVrjMoC5DQyzQjqpnGGsZvQUhXfV78CE1aOuzWdCyhisJf3G2Zqgl4Qabaoo9JYILLYMMWBWRQ5g29Xp+w=
-Received: from MWHPR03CA0049.namprd03.prod.outlook.com (2603:10b6:301:3b::38)
- by MWHPR03MB3134.namprd03.prod.outlook.com (2603:10b6:301:3c::27) with
+ bh=TppapvdTdEWShhGPGCPSH9uz8QgU5Op8E8ytcSMFOwg=;
+ b=OQVIVgK5JxJMqIfsuBpJyNhsOscNjrf8QoWcS71HKHv5ECSFl4t6qL8cjbEvHO9onyxqCP7Eiq7Wxh8YLQX/ufSvCV0VABMsC9ZaqNqGS8uuuvsMFWUm0Wa0qvupkiH+emRfafnbKdPIl4OkQQXlSvhfm9OK1pHqR4K81+Fv0Z8=
+Received: from CY4PR03CA0091.namprd03.prod.outlook.com (2603:10b6:910:4d::32)
+ by BLUPR03MB550.namprd03.prod.outlook.com (2a01:111:e400:880::28) with
  Microsoft SMTP Server (version=TLS1_2,
- cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.1856.11; Wed, 8 May
- 2019 11:29:57 +0000
-Received: from BL2NAM02FT003.eop-nam02.prod.protection.outlook.com
- (2a01:111:f400:7e46::201) by MWHPR03CA0049.outlook.office365.com
- (2603:10b6:301:3b::38) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.1856.12; Wed, 8 May
+ 2019 11:30:03 +0000
+Received: from BL2NAM02FT017.eop-nam02.prod.protection.outlook.com
+ (2a01:111:f400:7e46::204) by CY4PR03CA0091.outlook.office365.com
+ (2603:10b6:910:4d::32) with Microsoft SMTP Server (version=TLS1_2,
  cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.20.1878.21 via Frontend
- Transport; Wed, 8 May 2019 11:29:57 +0000
+ Transport; Wed, 8 May 2019 11:30:03 +0000
 Authentication-Results: spf=pass (sender IP is 137.71.25.55)
  smtp.mailfrom=analog.com; lists.freedesktop.org; dkim=none (message not
  signed) header.d=none;lists.freedesktop.org; dmarc=bestguesspass action=none
@@ -101,16 +102,16 @@ Received-SPF: Pass (protection.outlook.com: domain of analog.com designates
  137.71.25.55 as permitted sender) receiver=protection.outlook.com;
  client-ip=137.71.25.55; helo=nwd2mta1.analog.com;
 Received: from nwd2mta1.analog.com (137.71.25.55) by
- BL2NAM02FT003.mail.protection.outlook.com (10.152.76.204) with Microsoft SMTP
+ BL2NAM02FT017.mail.protection.outlook.com (10.152.77.174) with Microsoft SMTP
  Server (version=TLS1_0, cipher=TLS_RSA_WITH_AES_256_CBC_SHA) id 15.20.1856.11
- via Frontend Transport; Wed, 8 May 2019 11:29:56 +0000
+ via Frontend Transport; Wed, 8 May 2019 11:30:02 +0000
 Received: from NWD2HUBCAS7.ad.analog.com (nwd2hubcas7.ad.analog.com [10.64.69.107])
-	by nwd2mta1.analog.com (8.13.8/8.13.8) with ESMTP id x48BTu06023698
+	by nwd2mta1.analog.com (8.13.8/8.13.8) with ESMTP id x48BU1rk023711
 	(version=TLSv1/SSLv3 cipher=AES256-SHA bits=256 verify=OK);
-	Wed, 8 May 2019 04:29:56 -0700
+	Wed, 8 May 2019 04:30:01 -0700
 Received: from saturn.analog.com (10.50.1.244) by NWD2HUBCAS7.ad.analog.com
  (10.64.69.107) with Microsoft SMTP Server id 14.3.408.0; Wed, 8 May 2019
- 07:29:56 -0400
+ 07:30:01 -0400
 From: Alexandru Ardelean <alexandru.ardelean@analog.com>
 To: <linuxppc-dev@lists.ozlabs.org>, <linux-kernel@vger.kernel.org>,
 	<linux-ide@vger.kernel.org>, <linux-clk@vger.kernel.org>,
@@ -128,9 +129,9 @@ To: <linuxppc-dev@lists.ozlabs.org>, <linux-kernel@vger.kernel.org>,
 	<linux-integrity@vger.kernel.org>, <alsa-devel@alsa-project.org>
 CC: <gregkh@linuxfoundation.org>, <andriy.shevchenko@linux.intel.com>,
 	Alexandru Ardelean <alexandru.ardelean@analog.com>
-Subject: [PATCH 07/16] device connection: use new match_string() helper/macro
-Date: Wed, 8 May 2019 14:28:33 +0300
-Message-ID: <20190508112842.11654-9-alexandru.ardelean@analog.com>
+Subject: [PATCH 08/16] cpufreq/intel_pstate: remove NULL entry + use match_string()
+Date: Wed, 8 May 2019 14:28:34 +0300
+Message-ID: <20190508112842.11654-10-alexandru.ardelean@analog.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190508112842.11654-1-alexandru.ardelean@analog.com>
 References: <20190508112842.11654-1-alexandru.ardelean@analog.com>
@@ -140,65 +141,79 @@ X-ADIRoutedOnPrem: True
 X-EOPAttributedMessage: 0
 X-MS-Office365-Filtering-HT: Tenant
 X-Forefront-Antispam-Report:
-	CIP:137.71.25.55;IPV:NLI;CTRY:US;EFV:NLI;SFV:NSPM;SFS:(10009020)(1496009)(346002)(396003)(136003)(376002)(39860400002)(2980300002)(199004)(189003)(36756003)(50226002)(246002)(47776003)(8936002)(8676002)(2906002)(48376002)(70586007)(76176011)(54906003)(4326008)(106002)(70206006)(86362001)(51416003)(2201001)(107886003)(14444005)(316002)(110136005)(16586007)(7696005)(486006)(11346002)(53416004)(126002)(476003)(2616005)(446003)(44832011)(2441003)(50466002)(7636002)(305945005)(7416002)(6666004)(426003)(186003)(5660300002)(336012)(478600001)(77096007)(1076003)(356004)(26005)(921003)(83996005)(1121003)(2101003);DIR:OUT;SFP:1101;SCL:1;SRVR:MWHPR03MB3134;H:nwd2mta1.analog.com;FPR:;SPF:Pass;LANG:en;PTR:nwd2mail10.analog.com;A:1;MX:1;
+	CIP:137.71.25.55;IPV:NLI;CTRY:US;EFV:NLI;SFV:NSPM;SFS:(10009020)(1496009)(376002)(396003)(136003)(39860400002)(346002)(2980300002)(199004)(189003)(8676002)(77096007)(47776003)(50466002)(50226002)(26005)(478600001)(336012)(51416003)(186003)(2616005)(1076003)(2201001)(7696005)(246002)(426003)(86362001)(110136005)(106002)(305945005)(126002)(16586007)(446003)(2441003)(316002)(11346002)(54906003)(476003)(486006)(36756003)(107886003)(76176011)(53416004)(8936002)(5660300002)(4326008)(7416002)(356004)(6666004)(7636002)(44832011)(2906002)(48376002)(70586007)(70206006)(921003)(1121003)(2101003)(83996005);DIR:OUT;SFP:1101;SCL:1;SRVR:BLUPR03MB550;H:nwd2mta1.analog.com;FPR:;SPF:Pass;LANG:en;PTR:nwd2mail10.analog.com;A:1;MX:1;
 X-MS-PublicTrafficType: Email
-X-MS-Office365-Filtering-Correlation-Id: 91c3809a-bbd8-4770-1064-08d6d3a87fc5
+X-MS-Office365-Filtering-Correlation-Id: 86204a62-8a3c-4b5a-9dba-08d6d3a8834f
 X-Microsoft-Antispam:
-	BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4709054)(2017052603328);SRVR:MWHPR03MB3134;
-X-MS-TrafficTypeDiagnostic: MWHPR03MB3134:
+	BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4709054)(2017052603328);SRVR:BLUPR03MB550;
+X-MS-TrafficTypeDiagnostic: BLUPR03MB550:
 X-Microsoft-Antispam-PRVS:
-	<MWHPR03MB3134ADED8AEA2DE87EDA3597F9320@MWHPR03MB3134.namprd03.prod.outlook.com>
-X-MS-Oob-TLC-OOBClassifiers: OLM:6108;
+	<BLUPR03MB550ACAC1A7934C08542BCC1F9320@BLUPR03MB550.namprd03.prod.outlook.com>
+X-MS-Oob-TLC-OOBClassifiers: OLM:541;
 X-Forefront-PRVS: 0031A0FFAF
 X-MS-Exchange-SenderADCheck: 1
 X-Microsoft-Antispam-Message-Info:
-	vPHqUyoLZcW0hVOhWn9GTqMZTbShobrGD2/ViAb1u/5/xckKY/lz+Bdz9sVMaISB5ZX+9BzGInurLqmM2FwjifOIAfCaB8oBwVzIS8pCv9hhyB42Iq3xXxptH5PZSBgO+M5i2dwNxoYHH/OfZkBJA5ivGIM3gJVbqng57UMMXQ2w+fpSmMh4cSgClNCxo8N5onzhk1RNY/exNSfBdSN+Djs9KjT6E9pvBp/NmRaLYmuLC6ZT+yMJ9koDYkjHuyWAEmz0HO0dNrjGBmAXW52KixyJ8drIdiD8EfBe6ovS9H4IykWVZ+zhpPAJrX7aE7bNhPgAj6OIz76YE9VndH2HHEjnLTtm3qOeMcvAav+dbYvG6K++r8veVFChlLmcP/tySHd8yyqVyS0HojCmo6O6IxxBOqhu4D25Gwq0FyInxLU=
+	rxv/XoCD6aaHG0TrRZkKWXDRcX000pKd7bfq3vJ62ePHcuWPHuGNJPBOqwgOijZqx3E8HU+x999IZl+ba88JfR0vYIb7Obj0j1eZUKusZuk8BQ/3y6BrYo03I2LI4DxBWK7qu2MZ9Itfu0i5LUpmIJtONUQwaJE75922TD4j9KqTqEJtt7Oe/4c20rd7gXAxLMfmFvG64Cz4/6AKOCc11G5CrFVaAO+gYxZukEzvn6JfBa8EqYvBAsn6lRm+PFLP0hqCZn/uR2nN9VOclRHqQPxm+Va0rH6apLh63EtDW7LtpBEfmUsSBBtIhzfYTLNJ1UfI6Mz02xdbaV19/8eub1YBOgpTClnEpYZAmVHWy3iJ9vzMVWpkffbsdAGUPXMahcgSR5z55fgI7Obs6j3WIQGQdzC6GP62894A4z71zMk=
 X-OriginatorOrg: analog.com
-X-MS-Exchange-CrossTenant-OriginalArrivalTime: 08 May 2019 11:29:56.9840
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 08 May 2019 11:30:02.9332
  (UTC)
-X-MS-Exchange-CrossTenant-Network-Message-Id: 91c3809a-bbd8-4770-1064-08d6d3a87fc5
+X-MS-Exchange-CrossTenant-Network-Message-Id: 86204a62-8a3c-4b5a-9dba-08d6d3a8834f
 X-MS-Exchange-CrossTenant-Id: eaa689b4-8f87-40e0-9c6f-7228de4d754a
 X-MS-Exchange-CrossTenant-OriginalAttributedTenantConnectingIp: TenantId=eaa689b4-8f87-40e0-9c6f-7228de4d754a;Ip=[137.71.25.55];Helo=[nwd2mta1.analog.com]
 X-MS-Exchange-CrossTenant-FromEntityHeader: HybridOnPrem
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR03MB3134
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BLUPR03MB550
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The `device_connection` struct is defined as:
-struct device_connection {
-        struct fwnode_handle    *fwnode;
-        const char              *endpoint[2];
-        const char              *id;
-        struct list_head        list;
-};
+The change is mostly cosmetic.
 
-The `endpoint` member is a static array of strings (on the struct), so
-using the match_string() (which does an ARRAY_SIZE((con->endpoint)) should
-be fine.
+The `energy_perf_strings` array is static, so match_string() can be used
+(which will implicitly do a ARRAY_SIZE(energy_perf_strings)).
 
-The recent change to match_string() (to ignore NULL entries up to the size
-of the array) shouldn't affect this.
+The only small benefit here, is the reduction of the array size by 1
+element.
 
 Signed-off-by: Alexandru Ardelean <alexandru.ardelean@analog.com>
 ---
- drivers/base/devcon.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/cpufreq/intel_pstate.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/base/devcon.c b/drivers/base/devcon.c
-index 7bc1c619b721..4a2338665585 100644
---- a/drivers/base/devcon.c
-+++ b/drivers/base/devcon.c
-@@ -70,7 +70,7 @@ void *device_connection_find_match(struct device *dev, const char *con_id,
- 	mutex_lock(&devcon_lock);
+diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
+index 6ed1e705bc05..ab9a0b34b900 100644
+--- a/drivers/cpufreq/intel_pstate.c
++++ b/drivers/cpufreq/intel_pstate.c
+@@ -593,8 +593,7 @@ static const char * const energy_perf_strings[] = {
+ 	"performance",
+ 	"balance_performance",
+ 	"balance_power",
+-	"power",
+-	NULL
++	"power"
+ };
+ static const unsigned int epp_values[] = {
+ 	HWP_EPP_PERFORMANCE,
+@@ -680,8 +679,8 @@ static ssize_t show_energy_performance_available_preferences(
+ 	int i = 0;
+ 	int ret = 0;
  
- 	list_for_each_entry(con, &devcon_list, list) {
--		ep = __match_string(con->endpoint, 2, devname);
-+		ep = match_string(con->endpoint, devname);
- 		if (ep < 0)
- 			continue;
+-	while (energy_perf_strings[i] != NULL)
+-		ret += sprintf(&buf[ret], "%s ", energy_perf_strings[i++]);
++	for (; i < ARRAY_SIZE(energy_perf_strings); i++)
++		ret += sprintf(&buf[ret], "%s ", energy_perf_strings[i]);
+ 
+ 	ret += sprintf(&buf[ret], "\n");
+ 
+@@ -701,7 +700,7 @@ static ssize_t store_energy_performance_preference(
+ 	if (ret != 1)
+ 		return -EINVAL;
+ 
+-	ret = __match_string(energy_perf_strings, -1, str_preference);
++	ret = match_string(energy_perf_strings, str_preference);
+ 	if (ret < 0)
+ 		return ret;
  
 -- 
 2.17.1
