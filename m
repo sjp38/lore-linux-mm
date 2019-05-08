@@ -3,103 +3,96 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA7C7C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 23:09:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC0F5C46470
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 23:15:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E80D216C4
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 23:09:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E80D216C4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 845992173B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 23:15:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 845992173B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7D7E6B0003; Wed,  8 May 2019 19:09:32 -0400 (EDT)
+	id 216266B0007; Wed,  8 May 2019 19:15:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2EF56B0005; Wed,  8 May 2019 19:09:32 -0400 (EDT)
+	id 1EBB36B0008; Wed,  8 May 2019 19:15:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 944CB6B0007; Wed,  8 May 2019 19:09:32 -0400 (EDT)
+	id 0B5A66B000A; Wed,  8 May 2019 19:15:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 46F386B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 19:09:32 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f41so122727ede.1
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 16:09:32 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AFAE96B0007
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 19:15:53 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id 18so125647eds.5
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 16:15:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :subject:from:to:cc:date:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=79UeR8o+ymrE6lfaFv9K4P5R/+C7ki3AuBoGYxhNSX8=;
-        b=K9qrVdXKlNUt2oNX31yD2dexbAe2iI/yzqvcJtA9pmMGbVJCw/5+yug7USNNwMt+jq
-         j/EFtj9l9yeoE++Au+6MnVjOA4SXTpOO583jiTR2aaIDoPd5bVKLN8nVUS1x+xiG2WKF
-         KZWCb4tSfpYWYjgfEWVpU1xkUzYtwRQDi8DRswJwdCHFSDuBhI7AluhmEhI6gqcmUZgv
-         smDx8HWIp/FIdob8ORYySsiM/UA1T8X/Wtpuu4K8LtIFcNyH64bqjvd3cno76wAhBBn3
-         y+7oI9Ndq6NqsvQjLVgu4lz2gdtWmNmKQZ7qyRbyt9+bWEQocjINxWiKjzqDcTqNUX0G
-         uJfg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.com designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.com
-X-Gm-Message-State: APjAAAUCcgRx2SIRHYHDcQt+VakRpXd+HCnms9IPJk+ysGx2f5igwkWy
-	1ReQlKEBLkmb+uFpd9Xud+3Ga0RAApWKPJAmYDI9T6KxcUu2rnchiT/8SVzB0vaL5eUY+Jy9nfQ
-	Mkqh0UdYv7Kdcavi27m9cVMNXJP9A2TYcOUDDPj96XaHGm0Vlq8u5h7edQR/jywT4Gg==
-X-Received: by 2002:a50:9203:: with SMTP id i3mr391301eda.172.1557356971804;
-        Wed, 08 May 2019 16:09:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzS/gSOnQPCPZZ/X8/VAO+bwqeGB5PM43jBkiJ13UDqxYzf60Rqv664dJLltSn4V16jwePC
-X-Received: by 2002:a50:9203:: with SMTP id i3mr391238eda.172.1557356970789;
-        Wed, 08 May 2019 16:09:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557356970; cv=none;
+        bh=Xz/HxjxQhpyBlaLyGOeCXufofjcQYStu7sDauDbFE+U=;
+        b=UeQgsHZahPZESq3FDBeqEMaeAPHiALmsR8IxQUxtlv59KtGDZJ/n5GD6j0sRuZ8LIF
+         M3MqQ9Hd4eklBVU9UvafGcpo5LfAz3urUvTV2y2UQlJSlQQe4GJpr8ZQfokTPzzy+LAA
+         p2rTqMUjwN7NJzwUF65y2UjAT4La9I7Bw4Hs48yl8bnXybOs5i98JRCUYyQ5WMiuDigD
+         WUeYESn9QIoLv1O1u79S+epk3PNYmnRKJY5HYaF8MVod0XekqjdkgDZ8uRA5jwf6JtwK
+         gUmpCfxnzJzlBWxeEcki4jsfAdDhbqSaIO3WL7UTfbS03elb+pkizqnMkTAya9AEswLc
+         U5RQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXtPhhih5YkXpr2jRO4um9vWmjtRV35BVf97r3j3YDTMVIeb//G
+	kJ3MqMx937II+CMtxzaBBEanBpUdhvc//dYPNyoAOKKLKT+ynebBYXFNJjyswa92Rl378/xnBRF
+	e+HNrsF5weeTFrMtIiqryXFq9kej2yTQRzKZDDc5JW2OtjVwynutFi1Pc10pFelMnWA==
+X-Received: by 2002:a50:b68b:: with SMTP id d11mr427554ede.42.1557357353310;
+        Wed, 08 May 2019 16:15:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyZKNyZS+UafYr6+4E9UcBKBdt6vqHmj+SnlWbWPNh3lTY/H2TgXlaYdt12kVH0EVA/sHb
+X-Received: by 2002:a50:b68b:: with SMTP id d11mr427490ede.42.1557357352390;
+        Wed, 08 May 2019 16:15:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557357352; cv=none;
         d=google.com; s=arc-20160816;
-        b=R9tEtjSlXgZ0wKp+GXhHOtTI8GObdC1NXqztIwsYpgWYXT0v26sHAaRRIOfaWUzhvy
-         xmFFpQ4QSru859CbR1BJJl8BTJapMrO11YkTOMhjFSc0A7XiKSQpIeQEvcL/VCfnC/og
-         KtBR0aQIohYYs0drAXEps20kuiEBJ2Zmy4nDnybxmD2mgO2m8AbOZhCaKEKdwpxa0Pu4
-         Mq8BcpDfPf2k8NhjIuRWujApYOI3gtJsT4OE75ozVJLJSutR0dXsr7b+D5rqHpvCHZDG
-         h9iNhdvDnjtdZjsTo02fBj9VlkfN4aEaqpkgVWJwmIJl3OlSM1cIDvrJBddv1jhELwF5
-         4FwA==
+        b=yLrqquaVZmjgcrK0Fbgg6+Toe/JAITzHmQJdQ9EyHZnQvUOnF+woKiEJyZwNzn2352
+         Z78IGRtdX77h2ZqOn5vZXZD/CW45tnPHIuubbJ1FT22pwuiZWwmEsKBdmvLN9wGfR+UM
+         JcOb7DE5CQ00bcr9gfRhZPX3C0TP/ycz/UE0Kx+gMqdW/+MfvPay4ZnyHNvhgsOX5hv6
+         xcaB4hpDxWIXTSU0jdnJmvjdIniKOyQrRz8Fsf6wCy7R9A4wPGGQqStDRg4IxHZZajNU
+         AP876CpFTk4slS4rrv8r4nJ+i5pJuDr+7fRKexP17ZOx8Deil92KtVLh+wunfnG6UNjo
+         jSmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to:date
          :cc:to:from:subject:message-id;
-        bh=79UeR8o+ymrE6lfaFv9K4P5R/+C7ki3AuBoGYxhNSX8=;
-        b=bCWMCR6ed8xnmME6+iYCsiDv9LUmifoj/ePn/6alzbvoqIcx9jEyarKqJwM2rsgqUW
-         BslhSbMX/3eNNFyWY/DakwgC0IK+Fac1dD/t2yfBYqo1fFC/eutwFy+OcP4rzVSwfDF/
-         AbmclrPydLa4nQszmjoH93/E78VD1OvnNsBbJXIuXrzPeoGOqBmBfu2AYzfaYeMP+IPh
-         VDP6DNWEAUUYJKpTFDfcp6K5iWULYy+OZXvLyATTfxxZfhmXHzQaAvBL9c6WsaVl0aB9
-         OlKkChj2IRKA0UWcHPdHc2Q1Ubs4yZNNEsITZYWjiT/Rbyo3WccmFtx1MeQBasHUTLI6
-         QAnw==
+        bh=Xz/HxjxQhpyBlaLyGOeCXufofjcQYStu7sDauDbFE+U=;
+        b=VqQAZP0GyqRlb0LTqaG8kCcs88totWeKpzxgjKMMnIySiphqic887XIGIB8QHzbwy7
+         4wgunZOIccLPUTIzyR9o1LKx0Ep2Phf3KIbBIMPdrlHS7TN801Tv/9d0LJx+ROVZ0bus
+         Sq1sET0UpBddGC8RHjIcEn+tlBaSP3NMKdWB7ctBUKd/TynG15XsR+iW69LoAcrpOLqV
+         BM56H7BFj6F4Lm4xYhbt43pz82popfxwRJ5BCUCrbcRXGRKDgnXQ4+oxC7do/JIuicEX
+         gDvIL2ymhppoBgLJ+S63rvRAqXFn5JsON8ChBdRtfbOxhi+km0e9a1k0VrOt/Iu2DVaA
+         P15A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.com designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.com
-Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id g23si157394ejm.69.2019.05.08.16.09.30
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 37si206329edz.124.2019.05.08.16.15.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 16:09:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.com designates 195.135.221.5 as permitted sender) client-ip=195.135.221.5;
+        Wed, 08 May 2019 16:15:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.com designates 195.135.221.5 as permitted sender) smtp.mailfrom=osalvador@suse.com
-Received: from emea4-mta.ukb.novell.com ([10.120.13.87])
-	by smtp.nue.novell.com with ESMTP (TLS encrypted); Thu, 09 May 2019 01:09:30 +0200
-Received: from [192.168.1.138] (nwb-a10-snat.microfocus.com [10.120.13.201])
-	by emea4-mta.ukb.novell.com with ESMTP (TLS encrypted); Thu, 09 May 2019 00:09:14 +0100
-Message-ID: <1557356938.3028.35.camel@suse.com>
-Subject: Re: [PATCH v2 5/8] mm/memory_hotplug: Drop MHP_MEMBLOCK_API
-From: osalvador <osalvador@suse.com>
-To: David Hildenbrand <david@redhat.com>, Dan Williams
-	 <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List
- <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linuxppc-dev
- <linuxppc-dev@lists.ozlabs.org>, linux-s390 <linux-s390@vger.kernel.org>, 
- Linux-sh <linux-sh@vger.kernel.org>, Andrew Morton
- <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Pavel Tatashin
- <pasha.tatashin@soleen.com>, Wei Yang <richard.weiyang@gmail.com>, Joonsoo
- Kim <iamjoonsoo.kim@lge.com>, Qian Cai <cai@lca.pw>, Arun KS
- <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-Date: Thu, 09 May 2019 01:08:58 +0200
-In-Reply-To: <edd762a1-c012-fe05-a72e-2505cd98188a@redhat.com>
-References: <20190507183804.5512-1-david@redhat.com>
-	 <20190507183804.5512-6-david@redhat.com>
-	 <CAPcyv4ge1pSOopfHof4USn=7Skc-UV4Xhd_s=h+M9VXSp_p1XQ@mail.gmail.com>
-	 <d83fec16-ceff-2f6f-72e1-48996187d5ba@redhat.com>
-	 <CAPcyv4iRQteuT9yESvbUyhp3KVVgTXDiGAo+TwPCM_4f0CzBgg@mail.gmail.com>
-	 <edd762a1-c012-fe05-a72e-2505cd98188a@redhat.com>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7B7EAAF0C;
+	Wed,  8 May 2019 23:15:51 +0000 (UTC)
+Message-ID: <1557357332.3028.42.camel@suse.de>
+Subject: Re: [PATCH v8 09/12] mm/sparsemem: Support sub-section hotplug
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Logan
+ Gunthorpe <logang@deltatee.com>, Pavel Tatashin
+ <pasha.tatashin@soleen.com>,  linux-nvdimm@lists.01.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Date: Thu, 09 May 2019 01:15:32 +0200
+In-Reply-To: <155718601407.130019.14248061058774128227.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: 
+	<155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <155718601407.130019.14248061058774128227.stgit@dwillia2-desk3.amr.corp.intel.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Mailer: Evolution 3.26.1 
 Mime-Version: 1.0
@@ -110,20 +103,94 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-05-08 at 09:39 +0200, David Hildenbrand wrote:
-> However I haven't really thought it through yet, smalles like that
-> could
-> as well just be handled by the caller of
-> arch_add_memory()/arch_remove_memory() eventually, passing it via
-> something like the altmap parameter.
-> 
-> Let's leave it in place for now, we can talk about that once we have
-> new
-> patches from Oscar.
-Hi David,
+On Mon, 2019-05-06 at 16:40 -0700, Dan Williams wrote:
+> @@ -741,49 +895,31 @@ int __meminit sparse_add_section(int nid,
+> unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+>  	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+> -	struct mem_section_usage *usage;
+>  	struct mem_section *ms;
+>  	struct page *memmap;
+>  	int ret;
 
-I plan to send a new patchset once this is and Dan's are merged,
-otherwise I will have a mayhem with the conflicts.
+I already pointed this out in v7, but:
 
-I also plan/want to review this patchset, but time is tight this week.
+>  
+> -	/*
+> -	 * no locking for this, because it does its own
+> -	 * plus, it does a kmalloc
+> -	 */
+>  	ret = sparse_index_init(section_nr, nid);
+>  	if (ret < 0 && ret != -EEXIST)
+>  		return ret;
+
+sparse_index_init() only returns either -ENOMEM or 0, so the above can
+be:
+
+	if (ret < 0) or if (ret)
+
+> -	ret = 0;
+> -	memmap = populate_section_memmap(start_pfn,
+> PAGES_PER_SECTION, nid,
+> -			altmap);
+> -	if (!memmap)
+> -		return -ENOMEM;
+> -	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
+> -	if (!usage) {
+> -		depopulate_section_memmap(start_pfn,
+> PAGES_PER_SECTION, altmap);
+> -		return -ENOMEM;
+> -	}
+>  
+> -	ms = __pfn_to_section(start_pfn);
+> -	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+> -		ret = -EEXIST;
+> -		goto out;
+> -	}
+> +	memmap = section_activate(nid, start_pfn, nr_pages, altmap);
+> +	if (IS_ERR(memmap))
+> +		return PTR_ERR(memmap);
+> +	ret = 0;
+
+If we got here, sparse_index_init must have returned 0, so ret already
+contains 0.
+We can remove the assignment.
+
+>  
+>  	/*
+>  	 * Poison uninitialized struct pages in order to catch
+> invalid flags
+>  	 * combinations.
+>  	 */
+> -	page_init_poison(memmap, sizeof(struct page) *
+> PAGES_PER_SECTION);
+> +	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page)
+> * nr_pages);
+>  
+> +	ms = __pfn_to_section(start_pfn);
+>  	section_mark_present(ms);
+> -	sparse_init_one_section(ms, section_nr, memmap, usage);
+> +	sparse_init_one_section(ms, section_nr, memmap, ms->usage);
+>  
+> -out:
+> -	if (ret < 0) {
+> -		kfree(usage);
+> -		depopulate_section_memmap(start_pfn,
+> PAGES_PER_SECTION, altmap);
+> -	}
+> +	if (ret < 0)
+> +		section_deactivate(start_pfn, nr_pages, nid,
+> altmap);
+
+AFAICS, ret is only set by the return code from sparse_index_init, so
+we cannot really get to this code being ret different than 0.
+So we can remove the above two lines.
+
+I will start reviewing the patches that lack review from this version
+soon.
+
+-- 
+Oscar Salvador
+SUSE L3
 
