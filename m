@@ -4,89 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 191DEC04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D123C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8540217F4
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8540217F4
+	by mail.kernel.org (Postfix) with ESMTP id EB400217D7
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:45:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB400217D7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9418B6B0272; Wed,  8 May 2019 10:44:45 -0400 (EDT)
+	id D80B86B0271; Wed,  8 May 2019 10:44:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67C8B6B0271; Wed,  8 May 2019 10:44:45 -0400 (EDT)
+	id D311A6B0273; Wed,  8 May 2019 10:44:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42F5C6B0273; Wed,  8 May 2019 10:44:45 -0400 (EDT)
+	id C47236B0274; Wed,  8 May 2019 10:44:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 046436B0272
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6806B0273
 	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:44:45 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n4so12805179pgm.19
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:44 -0700 (PDT)
+Received: by mail-pf1-f198.google.com with SMTP id c12so12789397pfb.2
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:44:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=oy9k/lofk32Hk6frBD0fIszp4fG0mb5SPdi5BaNsex0=;
-        b=bq+tJnqHFCcDCxkygtkTyfFZlYORMrDWu2pW4ZHZQd4O/6Yol6KqKraGtG0m96e4z7
-         lOiruj8yKySzrd6ZVD+ItpUlT0dD8OKbIpXOiUoczAT5GUdBQNVJ3oyNrusq3V3yT5R3
-         +CG7VAbHhwiSpV2gKZJNKiuiyIsfGYH+RiV8mllcD4FWD+f3p9BD7btJfJTRAntHuWu3
-         Nt3DHgA42LnYJ6x9pCWWyF7zleHnebAsbTI2eeJQzMj7R5e2FtOpVRLjXXoHadoxqWeP
-         xWtcw/SNsPv1e3HCN7eW/gC90jj6LW6kFSFHof16hYGt1lA8wOmW/852q33+/fDdhTzN
-         eLXw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU5We+X8SwkPN0YglPJTfdCjYoJWCwjt5dALNXqC3rqnzMFFNKw
-	BrZ6QRPoZm75Tc+kmZo7eA3Ynt1qX2KqfDBVL6b1kl7y/J2SX5W6czZLMRied1x+Ij4Ulzn3Sz5
-	Ing8M6eqpnZHF4+N2CsnYE525B5uckbPMp1N7nFlbcPXFyEG4MupIhXn+xFcvKznUMg==
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr12379005pgv.96.1557326684679;
+        bh=aDWClVMg7o0q6W+CS5Ktmi+M2XAVNiQkNlzid5TzL2w=;
+        b=Hok3L4IAKIkzww6wmTRR+S6IzL67iL7cITa83PZR0GxA+c4+S6QUVa4hY1RBGN3JGB
+         ENZ6GvcaRJ4nvBOc3RaBq6IC9fg7MYdQ/XP4woIhDPQxisTW5aFO8XOA342lORjKPruk
+         SKNtUPtGsgCQQJhHhgA8iah+54i5wbT3ueM+N2VSVfVo5G6yE+VlFCRhY8OstS/OtFAp
+         fwglgPCMNU7jfcEr8NDHsVTYpBuMVVxDOf6EB5/gqpnj3i7A0voMf/ykLq+MjajQbXLh
+         NLJbn0vkKOS9/3RslbHXvym3YjwZpabv+llP4WDKLOP9JMDrX+3xUH/8ct1HFgYHYD53
+         +eqw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVYkTdmOV0u4BgG5A82XwcRNJOIKhf5DH79uLT9Dbku4EdTD/tr
+	Aotl4ThJ1hQOQomh7XUp/VsLadr9NfCboXRXuegKZ0gbn8V1IphSnDUKyEGu9pnbsoIul8tUWJl
+	n8nIKsrR9UGiSjQXLafOe7LmSlbmS9fksREvJMlfQ7JuOIWavAEaAIdIgYEJLNr67jw==
+X-Received: by 2002:a62:304:: with SMTP id 4mr47689780pfd.99.1557326685201;
+        Wed, 08 May 2019 07:44:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJuEgsmxgVa4orqBKQYDEToIZMgx/7vkhUVHTN2NqycH3R11i0nrLR9q9iDTMtCwBkX/Th
+X-Received: by 2002:a62:304:: with SMTP id 4mr47689686pfd.99.1557326684264;
         Wed, 08 May 2019 07:44:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5jLFhqm0AsnCbDCfFh4/aAkwl+KWrQ5yqvWdC/+g2LCC+w/bmxSFqqhUrfOEAtv2hWzXU
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr12378922pgv.96.1557326683838;
-        Wed, 08 May 2019 07:44:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326683; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1557326684; cv=none;
         d=google.com; s=arc-20160816;
-        b=njr+sm+PUUyr542jK2q5NRY0zox9jm/LTKoXQFKd//AUZ83dOdDWKbmBEBptlVQLaA
-         T2NF90iXKjDotEC1bzqeQrVYTJvyWFUm4HPKZJ7LizS1PRMqnN/iXeVc/AKadNTQzMdv
-         NwwOvD81md/ggAHj/+9uH/w2MfdJDBm63x6MQ93nUeZq1I6qbMj19fenA3+lpQkkG7Ln
-         64PbbZjtJqeYsKWZdrPV6IwQAagfVNfuHgusgYattAxP8+Kd8p+VAs9ag1/l9zD0WLu2
-         J7yEMtbqZSwaSHIliJQV/KUgFPU36diFB6pTwGNPaq21sp8I5ra7gfgAfevscYPhsNEv
-         kJIA==
+        b=pnPPI/wgWYRFaGJXmTe9Am6sDBr1pSqSBdMoLPDndOK+pskVlQj+gaK0U7POgIeCwp
+         Qushnng1twCM3vA2InO/5Ud9ePupOFj4pyFhuhv1w+hexrg6qglq3NfXtXj1DH2uth1s
+         TwLj3FHUnjrQHY0/TPDSrN4x4w7dqDBSz3MCYobz735jwNv1h5S+nGG+s4F7bXxYlGsr
+         8p1TsCFYD2/2Hfq2xB4Z6CTJdeKhmgrvvyZWYW9obc9pWmn1siCKclfpWXZT71G7i1pF
+         tWkbrYRu6GoUhqhQdIcL9lzYq//msGYZyD6JwrhTPGIsdWDswYVce/V5brv6V3cpovq/
+         33nQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=oy9k/lofk32Hk6frBD0fIszp4fG0mb5SPdi5BaNsex0=;
-        b=jJtqpLiYjJcjArVE7AFxkAhEmfEsKfuVrzmZDXMzMtEhm3YuYIMUFlc0z4eMbkwQYk
-         MHxJgsFN60UqvmnqreuLjYdqJMsZRjHEOTFoQbDz5WAfSFvKC6zxE1k5fHZWQrgMzNsb
-         z1eFtWRcJ+lh3KgSsM1K+dPcRj4TkroPW3H/I0OGeqyUH6usFyzQyWVs1GKyAF2uxJ0z
-         lOCwitqwAn85ekOlC7Bo1lk8dvwIM7wHZl/ZZeOZFHX85JhlKBqNy+ZAnsZ+8J6Ptl8K
-         ks6X2tHO6zvgBam+uW/f6vLdd31DWpWtUn+keYSaR7nCW8iQ0Yk46VOCWBwqIYY2HwtT
-         OqIQ==
+        bh=aDWClVMg7o0q6W+CS5Ktmi+M2XAVNiQkNlzid5TzL2w=;
+        b=jTzoDvpCI34QTAt74/RZ0Ed3ZQY7wxRT6Q9YyPZWME/7fL4FTTy0BcjTjeTRNKwsOp
+         mC8J1LFEK1SQ/hocb0D4nKftGIUb89mS7wYi7k8gbZLZYCvUjVJeIHszS861yI/NEvF2
+         zbjG7wBuox/4BPp2xRbhvYTLdRQY1TqDMOjVpEeIUwQJ3gteJRwXmW0MZ41v0xuJSgx/
+         j4tL16Qy+Faqt9zKKen5unnkGGAxUn21n8H/SXpWprclib7/47Muk8RRdkccBXafOFAg
+         4jqzqiz15wTPAyMiO5HgkNQ53HRxhtp3llCkgcZvAHLsDa8x4ENg2mgq/VWb/uRAPqQv
+         YfnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 90si19482350plb.86.2019.05.08.07.44.43
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id g13si12322802pgs.161.2019.05.08.07.44.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:43 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Wed, 08 May 2019 07:44:44 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:43 -0700
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:43 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by fmsmga006.fm.intel.com with ESMTP; 08 May 2019 07:44:39 -0700
+  by fmsmga004.fm.intel.com with ESMTP; 08 May 2019 07:44:39 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 6629B926; Wed,  8 May 2019 17:44:29 +0300 (EEST)
+	id B90ABA50; Wed,  8 May 2019 17:44:29 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 15/62] x86/mm: Rename CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING
-Date: Wed,  8 May 2019 17:43:35 +0300
-Message-Id: <20190508144422.13171-16-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 21/62] mm/rmap: Clear vma->anon_vma on unlink_anon_vmas()
+Date: Wed,  8 May 2019 17:43:41 +0300
+Message-Id: <20190508144422.13171-22-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -121,41 +121,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rename the option to CONFIG_MEMORY_PHYSICAL_PADDING. It will be used
-not only for KASLR.
+If all pages in the VMA got unmapped there's no reason to link it into
+original anon VMA hierarchy: it cannot possibly share any pages with
+other VMA.
+
+Set vma->anon_vma to NULL on unlink_anon_vmas(). With the change VMA
+can be reused. The new anon VMA will be allocated on the first fault.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/Kconfig    | 2 +-
- arch/x86/mm/kaslr.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mm/rmap.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 62fc3fda1a05..62cfb381fee3 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -2201,7 +2201,7 @@ config RANDOMIZE_MEMORY
+diff --git a/mm/rmap.c b/mm/rmap.c
+index b30c7c71d1d9..4ec2aee7baa3 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -400,8 +400,10 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+ 		list_del(&avc->same_vma);
+ 		anon_vma_chain_free(avc);
+ 	}
+-	if (vma->anon_vma)
++	if (vma->anon_vma) {
+ 		vma->anon_vma->degree--;
++		vma->anon_vma = NULL;
++	}
+ 	unlock_anon_vma_root(root);
  
- 	   If unsure, say Y.
- 
--config RANDOMIZE_MEMORY_PHYSICAL_PADDING
-+config MEMORY_PHYSICAL_PADDING
- 	hex "Physical memory mapping padding" if EXPERT
- 	depends on RANDOMIZE_MEMORY
- 	default "0xa" if MEMORY_HOTPLUG
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index d669c5e797e0..2228cc7d6b42 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -103,7 +103,7 @@ void __init kernel_randomize_memory(void)
- 	 */
- 	BUG_ON(kaslr_regions[0].base != &page_offset_base);
- 	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
--		CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING;
-+		CONFIG_MEMORY_PHYSICAL_PADDING;
- 
- 	/* Adapt phyiscal memory region size based on available memory */
- 	if (memory_tb < kaslr_regions[0].size_tb)
+ 	/*
 -- 
 2.20.1
 
