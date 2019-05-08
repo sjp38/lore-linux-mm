@@ -2,241 +2,213 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD5FDC04AAD
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C775C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 07:10:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 962BC214AF
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 06:18:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 962BC214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 49D6821019
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 07:10:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49D6821019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4284C6B027B; Wed,  8 May 2019 02:18:27 -0400 (EDT)
+	id CDAA86B0003; Wed,  8 May 2019 03:10:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FFBA6B027C; Wed,  8 May 2019 02:18:27 -0400 (EDT)
+	id C8A3F6B0005; Wed,  8 May 2019 03:10:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EE766B027D; Wed,  8 May 2019 02:18:27 -0400 (EDT)
+	id B51C36B0007; Wed,  8 May 2019 03:10:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E2866B027B
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 02:18:27 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id 11so36052383ywt.12
-        for <linux-mm@kvack.org>; Tue, 07 May 2019 23:18:27 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1486B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 03:10:52 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id g80so1057952otg.12
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 00:10:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:message-id;
-        bh=bKEkXuUB0aT6OqT4IPvc1dAm0vfoKxIg4G5OqzwkthI=;
-        b=F76cMSHZAtcnJfhWvdbONOhGdmXHFDsGrsoiKT7Ytwfa8QZxW+V6Cqo8LR3bpd7MXj
-         OW5TUCzaiGfNJ/Lr8dMxydvf6i57mJPXHN72OOMPVVBKWCbejuw++NbMv6w4weKfD8Oy
-         JkobxpNYv00qwrJZyEtR6V9Nxxgz13WhS3twDTWNwTBogW+pkxA/7Vu8nkQvO32uiR8l
-         w5RlDL3clibHbYKqb5FeU0Be0GX3bafbUyBjIIWZPJeEj925Ap+Aex9oLM+MeA144Yfb
-         n+FvBAK0ff/DAS8TC/mVneFScer3V726RV8xV6CqXRvsjrHi0F44TgwmlDVHKNNyWShL
-         Og4A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW1SAtqq2JvfnIsR8DBR2jfPPCU8+VFdUUcLBAoLTg3xVUqZ/67
-	06aA6b98qvJ7N2cf3NG3rheEnLdWWkjTE/IfqGtGsVhCsLolzvlcc/UYMXbQOW9FRqoXe6kecG2
-	3T1QsrjCcmFMJlLNfe8ARmD4OaPSJqgTm2t/uEb2jbvLAGOfEHTDoCGqLvVsnrH/t9Q==
-X-Received: by 2002:a25:d257:: with SMTP id j84mr22604016ybg.326.1557296306825;
-        Tue, 07 May 2019 23:18:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjGAkTPprdLJpHfwldkgkdcFCs73L+HkooiUnTludYtyC+VaV3c3HknSyPNZZtpThnwyi1
-X-Received: by 2002:a25:d257:: with SMTP id j84mr22603987ybg.326.1557296305725;
-        Tue, 07 May 2019 23:18:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557296305; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=0Ncq8cjjI7Q7fLshVftWbvJPKEJGfCmWwL6iDwfzqpE=;
+        b=hpx03AYAKWQIK6QA5+Zi6+ehJ32jIIwx1C7c2K19rF27WPg1aFij0DWbRfkgTXYQQM
+         BjxMoFBocLp6fFMbRrJoDgyelf+lRDN/pvJVGvSR1UCyOmObZYp91NuGOFTDphVGJa+m
+         vnbGWc73ExV9tWDpLw56j8TrwU+c1tZ1+M31e/MDk/7cmupgE1PkO+cLBAatLMw2is2g
+         5UdmzqCL6tbTR4EPZzsV0AkceRzgn+ZtNERpO9+SPPhIO1E5MXlChuSjFyVJXT1/kTpI
+         bYo0Q9sXGOyW8MPtUwjGqkssCZW60lThzs4B0SBIw7XusNWnQavNCyaOQIzpTWyodDfO
+         NHYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+X-Gm-Message-State: APjAAAUX0JQFLdcLw6BtrnJ7ksr4aGeSQrchSmc5XOz3fTSq9Ctk8DFz
+	E6OaRlEd4v2+moJjrfrt4TKzE6B5NNgBeNU8VaK7k01uYnXAmigLEdxIgsAWmu9PNJ4RAsXZqYa
+	JLy68jGXpQX32vijWFaFpfKXNr5qpYu1wpEvCWmLZTVU9htR8nsUofXrrrl0h5qqg2w==
+X-Received: by 2002:aca:5803:: with SMTP id m3mr1230670oib.4.1557299452153;
+        Wed, 08 May 2019 00:10:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxC46XK0LWH4hAyKTHiICAbscQYvHE7JeGxNXZZVdZoyq8RisOb3j8EWbyHeQL48Wc4ZVxm
+X-Received: by 2002:aca:5803:: with SMTP id m3mr1230643oib.4.1557299451282;
+        Wed, 08 May 2019 00:10:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557299451; cv=none;
         d=google.com; s=arc-20160816;
-        b=L8J24XtV1CNkpmUKbAZ4M1lMcTPAfKvCfaN3MrgZEI+cNY1SCKzUcO2fn2HETHG1jk
-         bHVNwoSvFK2sYbk1+BtjtoRM5ql93h1jodF2BYObcUr17xMCriXFKUics90FjhGNXaXA
-         g06BDPa4hPevxJLesyHEMdmqmAwGzIskayuHChZcP4iQ8Mo3Hz5smSQuZiVh0qnuGHak
-         ZRR1iUMLOw+TPAUpHdfSuFJxDUDMX+TXPsRcClaEHeWRHIUC6hKQgt6opxrlfrOBOCHN
-         IRUiGzg7c3Fp0tR6IcBx2S54x48h0tbQIoYy9mkQZPBuulTtaHZnrma0Es483GUv6VDz
-         woHw==
+        b=VhD4ZohWb1AXzxwdRI3yjVud9gg0Qi27XjsRMuCUf0yb/Yy+CdFhaweWNY2uX2kQRr
+         9K/VVy7SyWpCibxStjGkBL5HqErpcthY2qX+chV6lbeenJaBe1VUMy6QDUxIoIpNPlcX
+         Uw5JZ8Hg32i5rg7Z9a9Q2YATTJp3pNC6y+ejZ5gaEfMj5gSORuxKs5sNNlujns0ZwU9l
+         vqGFfNrTdkmsEHTP/VyYoAN9XdBMDfvN23rjTrR8DqnvzdOISi7EpIWMmHCGvWfvCEya
+         RNOHnK/epNNWuYVK726ZrMV1l94VsEvNKqc7qxGlY4O+vM1EltCbuuzaoIBJE9GlNfKM
+         oY2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=bKEkXuUB0aT6OqT4IPvc1dAm0vfoKxIg4G5OqzwkthI=;
-        b=CYbqPl9OEgD3VojOrMQBtNasXe0o8QWT/fcZ/iVzp5fDft1PI799kgJn1Ik56jOO6q
-         WZJtGW3fMXIN8rkD5aBZFbbU6B7UgVOROMgMFKmmw0ldIdLZNFn5EbXbskKmbEp0mxqC
-         tLxM+9yA9jz3NnU/cfYG8eRi6n0lvBUTroxCCsRbJDTWRxCv6t0NCB/ZnHwOH5COfAFI
-         Cu7GZ7AzOqqKkwr8FfU+ZmV1olV3HjVHhjgnt8zZZsbqlx8396apDG6qz09w0oqFNatT
-         Gw9oGmNPEijl2TUJUXCqW2JvhuXrh6EM1CJOB3dUvS9NFo7aHoPw5c3+Vsgi6OqfbNVo
-         fP8g==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=0Ncq8cjjI7Q7fLshVftWbvJPKEJGfCmWwL6iDwfzqpE=;
+        b=YF5vN1ZWQBFM/eYa9qcndOXOxE8cALBmMwTqP7ftsu0cKTImi1G8XiIFOIifjgHrtF
+         CsxWsxpUqTgr7xLnfrjIM0JSI/IrNPFoypylZBFWH4NIe4x2KwvLngQETTkweFne+Z6G
+         OearjUoP49Sica4hNk8I2Wio86/NcsdUebH9I7pdTNxmwzVPi0nUl3EGcZ4wOSvdaKvP
+         HSHvfdj6aI4N9qmHrx+yaVS5h0XLIW6qq09sC9LE/dn4z4Dlw897510tks6Q4a+SUS/1
+         87T1WgqJFuwkIUEzjK5Ip+8hxGr05YKbc5x6K/bufla41EjVHSAVfu0kxybvGrNs5eF+
+         aXsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h5si6153726ywh.129.2019.05.07.23.18.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 May 2019 23:18:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTP id o206si2556712oib.61.2019.05.08.00.10.50
+        for <linux-mm@kvack.org>;
+        Wed, 08 May 2019 00:10:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x486Glic015234
-	for <linux-mm@kvack.org>; Wed, 8 May 2019 02:18:25 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2sbq4h6gx3-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 May 2019 02:18:25 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 8 May 2019 07:18:22 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 8 May 2019 07:18:13 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x486ICnC48693404
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 8 May 2019 06:18:12 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 0FC5252051;
-	Wed,  8 May 2019 06:18:12 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id C2D5252057;
-	Wed,  8 May 2019 06:18:08 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 08 May 2019 09:18:08 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>,
-        Anshuman Khandual <anshuman.khandual@arm.com>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Geert Uytterhoeven <geert@linux-m68k.org>,
-        Greentime Hu <green.hu@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>,
-        Guo Ren <guoren@kernel.org>, Helge Deller <deller@gmx.de>,
-        Ley Foon Tan <lftan@altera.com>, Matthew Wilcox <willy@infradead.org>,
-        Matt Turner <mattst88@gmail.com>,
-        Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>,
-        Palmer Dabbelt <palmer@sifive.com>, Paul Burton <paul.burton@mips.com>,
-        Richard Kuo <rkuo@codeaurora.org>, Richard Weinberger <richard@nod.at>,
-        Russell King <linux@armlinux.org.uk>, Sam Creasey <sammy@sammy.net>,
-        x86@kernel.org, linux-alpha@vger.kernel.org,
-        linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-        linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org,
-        linux-m68k@lists.linux-m68k.org, linux-mips@vger.kernel.org,
-        linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-riscv@lists.infradead.org,
-        linux-um@lists.infradead.org, nios2-dev@lists.rocketboards.org,
-        Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 14/14] unicore32: switch to generic version of pte allocation
-Date: Wed,  8 May 2019 09:17:11 +0300
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1557296232-15361-1-git-send-email-rppt@linux.ibm.com>
-References: <1557296232-15361-1-git-send-email-rppt@linux.ibm.com>
-X-TM-AS-GCONF: 00
-x-cbid: 19050806-0028-0000-0000-0000036B6E67
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19050806-0029-0000-0000-0000242AEA29
-Message-Id: <1557296232-15361-15-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-08_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=751 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905080040
+       spf=pass (google.com: domain of yuyufen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuyufen@huawei.com
+Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 410D641BD71046C7F0A4;
+	Wed,  8 May 2019 15:10:18 +0800 (CST)
+Received: from [127.0.0.1] (10.177.219.49) by DGGEMS410-HUB.china.huawei.com
+ (10.3.19.210) with Microsoft SMTP Server id 14.3.439.0; Wed, 8 May 2019
+ 15:10:08 +0800
+Subject: Re: [PATCH] hugetlbfs: always use address space in inode for resv_map
+ pointer
+To: Mike Kravetz <mike.kravetz@oracle.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>
+CC: Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi
+	<n-horiguchi@ah.jp.nec.com>, "Kirill A . Shutemov"
+	<kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>,
+	<stable@vger.kernel.org>, <yuyufen@huawei.com>
+References: <20190416065058.GB11561@dhcp22.suse.cz>
+ <20190419204435.16984-1-mike.kravetz@oracle.com>
+From: yuyufen <yuyufen@huawei.com>
+Message-ID: <fafe9985-7db1-b65c-523d-875ab4b3b3b8@huawei.com>
+Date: Wed, 8 May 2019 15:10:06 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Gecko/20100101
+ Thunderbird/52.2.1
+MIME-Version: 1.0
+In-Reply-To: <20190419204435.16984-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Originating-IP: [10.177.219.49]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Replace __get_free_page() and alloc_pages() calls with the generic
-__pte_alloc_one_kernel() and __pte_alloc_one().
 
-There is no functional change for the kernel PTE allocation.
 
-The difference for the user PTEs, is that the clear_pte_table() is now
-called after pgtable_page_ctor() and the addition of __GFP_ACCOUNT to the
-GFP flags.
+On 2019/4/20 4:44, Mike Kravetz wrote:
+> Continuing discussion about commit 58b6e5e8f1ad ("hugetlbfs: fix memory
+> leak for resv_map") brought up the issue that inode->i_mapping may not
+> point to the address space embedded within the inode at inode eviction
+> time.  The hugetlbfs truncate routine handles this by explicitly using
+> inode->i_data.  However, code cleaning up the resv_map will still use
+> the address space pointed to by inode->i_mapping.  Luckily, private_data
+> is NULL for address spaces in all such cases today but, there is no
+> guarantee this will continue.
+>
+> Change all hugetlbfs code getting a resv_map pointer to explicitly get
+> it from the address space embedded within the inode.  In addition, add
+> more comments in the code to indicate why this is being done.
+>
+> Reported-by: Yufen Yu <yuyufen@huawei.com>
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>   fs/hugetlbfs/inode.c | 11 +++++++++--
+>   mm/hugetlb.c         | 19 ++++++++++++++++++-
+>   2 files changed, 27 insertions(+), 3 deletions(-)
+>
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 9285dd4f4b1c..cbc649cd1722 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -499,8 +499,15 @@ static void hugetlbfs_evict_inode(struct inode *inode)
+>   	struct resv_map *resv_map;
+>   
+>   	remove_inode_hugepages(inode, 0, LLONG_MAX);
+> -	resv_map = (struct resv_map *)inode->i_mapping->private_data;
+> -	/* root inode doesn't have the resv_map, so we should check it */
+> +
+> +	/*
+> +	 * Get the resv_map from the address space embedded in the inode.
+> +	 * This is the address space which points to any resv_map allocated
+> +	 * at inode creation time.  If this is a device special inode,
+> +	 * i_mapping may not point to the original address space.
+> +	 */
+> +	resv_map = (struct resv_map *)(&inode->i_data)->private_data;
+> +	/* Only regular and link inodes have associated reserve maps */
+>   	if (resv_map)
+>   		resv_map_release(&resv_map->refs);
+>   	clear_inode(inode);
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 6cdc7b2d9100..b30e97b0ef37 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -740,7 +740,15 @@ void resv_map_release(struct kref *ref)
+>   
+>   static inline struct resv_map *inode_resv_map(struct inode *inode)
+>   {
+> -	return inode->i_mapping->private_data;
+> +	/*
+> +	 * At inode evict time, i_mapping may not point to the original
+> +	 * address space within the inode.  This original address space
+> +	 * contains the pointer to the resv_map.  So, always use the
+> +	 * address space embedded within the inode.
+> +	 * The VERY common case is inode->mapping == &inode->i_data but,
+> +	 * this may not be true for device special inodes.
+> +	 */
+> +	return (struct resv_map *)(&inode->i_data)->private_data;
+>   }
+>   
+>   static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
+> @@ -4477,6 +4485,11 @@ int hugetlb_reserve_pages(struct inode *inode,
+>   	 * called to make the mapping read-write. Assume !vma is a shm mapping
+>   	 */
+>   	if (!vma || vma->vm_flags & VM_MAYSHARE) {
+> +		/*
+> +		 * resv_map can not be NULL as hugetlb_reserve_pages is only
+> +		 * called for inodes for which resv_maps were created (see
+> +		 * hugetlbfs_get_inode).
+> +		 */
+>   		resv_map = inode_resv_map(inode);
+>   
+>   		chg = region_chg(resv_map, from, to);
+> @@ -4568,6 +4581,10 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+>   	struct hugepage_subpool *spool = subpool_inode(inode);
+>   	long gbl_reserve;
+>   
+> +	/*
+> +	 * Since this routine can be called in the evict inode path for all
+> +	 * hugetlbfs inodes, resv_map could be NULL.
+> +	 */
+>   	if (resv_map) {
+>   		chg = region_del(resv_map, start, end);
+>   		/*
 
-The pte_free() and pte_free_kernel() versions are identical to the generic
-ones and can be simply dropped.
+Dose this patch have been applied?
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/unicore32/include/asm/pgalloc.h | 36 ++++++++----------------------------
- 1 file changed, 8 insertions(+), 28 deletions(-)
+I think it is better to add fixes label, like:
+Fixes: 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
 
-diff --git a/arch/unicore32/include/asm/pgalloc.h b/arch/unicore32/include/asm/pgalloc.h
-index 7cceabe..dd09af6 100644
---- a/arch/unicore32/include/asm/pgalloc.h
-+++ b/arch/unicore32/include/asm/pgalloc.h
-@@ -17,6 +17,10 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- 
-+#define __HAVE_ARCH_PTE_ALLOC_ONE_KERNEL
-+#define __HAVE_ARCH_PTE_ALLOC_ONE
-+#include <asm-generic/pgalloc.h>
-+
- #define check_pgt_cache()		do { } while (0)
- 
- #define _PAGE_USER_TABLE	(PMD_TYPE_TABLE | PMD_PRESENT)
-@@ -28,17 +32,14 @@ extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
- #define pgd_alloc(mm)			get_pgd_slow(mm)
- #define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
- 
--#define PGALLOC_GFP	(GFP_KERNEL | __GFP_ZERO)
--
- /*
-  * Allocate one PTE table.
-  */
- static inline pte_t *
- pte_alloc_one_kernel(struct mm_struct *mm)
- {
--	pte_t *pte;
-+	pte_t *pte = __pte_alloc_one_kernel(mm);
- 
--	pte = (pte_t *)__get_free_page(PGALLOC_GFP);
- 	if (pte)
- 		clean_dcache_area(pte, PTRS_PER_PTE * sizeof(pte_t));
- 
-@@ -50,35 +51,14 @@ pte_alloc_one(struct mm_struct *mm)
- {
- 	struct page *pte;
- 
--	pte = alloc_pages(PGALLOC_GFP, 0);
-+	pte = __pte_alloc_one(mm, GFP_PGTABLE_USER);
- 	if (!pte)
- 		return NULL;
--	if (!PageHighMem(pte)) {
--		void *page = page_address(pte);
--		clean_dcache_area(page, PTRS_PER_PTE * sizeof(pte_t));
--	}
--	if (!pgtable_page_ctor(pte)) {
--		__free_page(pte);
--	}
--
-+	if (!PageHighMem(pte))
-+		clean_pte_table(page_address(pte));
- 	return pte;
- }
- 
--/*
-- * Free one PTE table.
-- */
--static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
--{
--	if (pte)
--		free_page((unsigned long)pte);
--}
--
--static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
--{
--	pgtable_page_dtor(pte);
--	__free_page(pte);
--}
--
- static inline void __pmd_populate(pmd_t *pmdp, unsigned long pmdval)
- {
- 	set_pmd(pmdp, __pmd(pmdval));
--- 
-2.7.4
+Since the commit 58b6e5e8f1a has been merged to stable, this patch also 
+be needed.
+https://www.spinics.net/lists/stable/msg298740.html
+
+
+
+
 
