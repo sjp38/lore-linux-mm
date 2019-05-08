@@ -4,89 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58110C04A6B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68A6DC04AAD
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D7D0216B7
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D7D0216B7
+	by mail.kernel.org (Postfix) with ESMTP id 2719F21019
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 14:47:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2719F21019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 541EA6B02CD; Wed,  8 May 2019 10:46:38 -0400 (EDT)
+	id 542376B02CE; Wed,  8 May 2019 10:46:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4CBC76B02CE; Wed,  8 May 2019 10:46:38 -0400 (EDT)
+	id 4F3726B02D0; Wed,  8 May 2019 10:46:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BB7E6B02CF; Wed,  8 May 2019 10:46:38 -0400 (EDT)
+	id 2F78E6B02D1; Wed,  8 May 2019 10:46:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8EF6B02CD
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:37 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id g6so11611311plp.18
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:37 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ECA326B02CE
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 10:46:39 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id a8so12756163pgq.22
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 07:46:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=mGWxsgZUF78DJoxLPILHTD5pkaTBsUb3oE6oZjmsOWU=;
-        b=k6CyMnwJ9PjW+xoRcU8V40pfWDI1SBa7l5ehSPcf0p6FXW9xHKsecvyN7Ct2DCfEzG
-         8nzxP2i23+Zv0xoucHQMD2+0FGXqQsA7W9XNRMnC6X2hAx5SizQtXkO+jQIovQTsIEQa
-         oXX6W7mI2dovRrcXy6ci+2H6NuV6PtKCfassBZAiqLU6aoh6MMbsDjnyWoMGR5s4XJVR
-         +J2+YZgH6Aia1/rPd88c49X5UXSs5WPIjdWEdnC6hUTMKT1DPV/kgBpB7G2zKiIduItM
-         bzLB9AUikBooZ1Pp/teA9VH1Jr1ve6fzhhfN6kZ7wOAFQlG6Iodx6AxqNNstyeLg+37L
-         WCAA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXR62c2XOfPBuquh9KkndjRQt0PUu6wVhcj3klOOqAx7iTgbrSa
-	7bwPbm4KA49cyVdaGGX7Snnve41ChNRExKFtpq49usUrvb04A6uFkvby7oRm/5hSAwtSlH57NSD
-	kNlxcepuWAIvqKzb+y3Tsduvag95njHrPm2vCzbPQgg1s6hU7MWHPt3wz0BWLDp9vWA==
-X-Received: by 2002:a63:fb01:: with SMTP id o1mr47062579pgh.135.1557326797590;
-        Wed, 08 May 2019 07:46:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOIIcS2jceyJjtVwqnIyN7TpXsxOal8bx/pni3Wn6D+fIOwH7/znRpUwjI4WT/HJTLVpBY
-X-Received: by 2002:a63:fb01:: with SMTP id o1mr47049800pgh.135.1557326684644;
-        Wed, 08 May 2019 07:44:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557326684; cv=none;
+        bh=X9QkOLXl8U4kOl6hj7oonvayj1eU917miOT+8zfFaek=;
+        b=jIzWQRS8+QFHCBQLRudGMq96QzdIBRsUIrX52FSz7VJQiySeDh6P/eQmI8jNRMajDC
+         /UEKMsZI5ZgbgC6SpRbRRxbajBIp/71Ml017O39aBjV+JceDQOmkYCi3JbGBHhq6s8xY
+         a1VL6sPy6fLGuZM3udIu1kaS4vjhpnbmZctQj91k+V7HmvC4gK88NOrHNcXtIjhAVI9T
+         ufT5USxFX9Iy4aHPfYufijgJ7YrMVryTlOAWHjSp2Euwk3lB2EM5EJKoNVjdKYliHJfG
+         vZIJd5W9L2WboVPrYryg66jH57FhZG0Uuo+xZbaPw6BPhU29ALfG2coMeEx0Xo7bro4L
+         97Qg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXtN+QqSTaEFkkM5Mr2Fsa7/8OCVwth4wc+/c0q5H3wcsWQtWAX
+	6hgwHKqG317VDC5O2YQB85Ts83CrEKJXxYZ3zhXvopt4TkUbmSzTCX7n28o1VNQL32FkZ/L9Bgm
+	1XuEVnpa+aCoAYyZBLt1ceP6ueNpjWJ4BunnoOaENAGnPG4Vlpd2h7n8RUvCxHUaKFA==
+X-Received: by 2002:a63:5041:: with SMTP id q1mr47708733pgl.386.1557326799613;
+        Wed, 08 May 2019 07:46:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjugaw7kVdR4h8rravtx3RIbF8E1V4it2giQ7Rt0X4RsCX5l3KJWNO3x5EZKi3AzbrneyN
+X-Received: by 2002:a63:5041:: with SMTP id q1mr47696417pgl.386.1557326693817;
+        Wed, 08 May 2019 07:44:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557326693; cv=none;
         d=google.com; s=arc-20160816;
-        b=n73DIKdtSD/8WWfKx2BSSVnqZw21/hRPKWu/AFvPRwsGrKRiHqD0I29bANCMoi5WWU
-         nF69j5eAlrgOlzCrxOwAzM3LuP/hcV8s9RBHuRFjK4/9+6FMF4FTcPb2DYEXqZKOoIJj
-         mTZlQUcoeDbQu7Fu3rT0ol6EI8UeLKyDN4sLm3YjB+1lDolM8TTVHdCgdvLvVL7sTUqu
-         GrcHnYsl90pyzmwX9zIpDY8ms5BYOJMzOPWM9Hzj1MGn51RP7caYHs7P75ByxTydgPmx
-         dLjBk+Ley7przrhBQg3s88Bam9UiYOP3ZXxMSPTEK4dlbtbEPKJEZ7uUdlgKVZM77L9E
-         OtIw==
+        b=g7um2pu0rIEqNyouRp3lGMFyBWb5e+0gqoEHcs5lcx6jH3azG4i08OMndTnau+j5kC
+         vLUd4Wi7u43yWF5jkl+QwNKc569THM/FJNd62ScDgi9dAZ81wqKeV3MhPuAfh/D0sYZ8
+         7S6tlqCY5Bgsy7WChbNhF0CrfKBtUwLcRuSq2TPIHt/6FEj8IuL5WwUgmCXwrArN0HYR
+         0grjP0pghXcGXN06kbjly4OFetdPH7P3hVw0pZa5UxBXnGmI4q5MuaMJ7LfOIFg7vUxw
+         G/tMqop+QolXxQm8+IHlXPRQ0YLUwjkJhCZGEfbxJw9VaJ0Cfze+BK6S6GhdfyOJ12++
+         VFYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=mGWxsgZUF78DJoxLPILHTD5pkaTBsUb3oE6oZjmsOWU=;
-        b=gLtN9K549ynInWu7XSpU0vrpFjwSxOf76krtDdeRrkczu3pai2tJqru6s9BhJg7eKW
-         twFJ+ACoD7m12WQ1ko26dXTM1uX5flUNJisE3nmKFAOwJ1lHgNYNpYZ9QDauCgacySjO
-         R22x1WA1zzR+JM6+WOn9vkgbo0GlUsUlk5Fc4kLeoEtYHcE74rYDroACi3KJ81qRgfpH
-         pLfnOCn+w/ecnWbR9afYjaamoadfSDksmew3pimM5ylzmfqIAvUd3rMRB8EWWszfHCiW
-         O3jwaZosmek3k5LCyQaK6Zr/CJ4DeXMZQHzuNK5r6L7eBsUncAgH007HocNkAZhntAnT
-         MmFQ==
+        bh=X9QkOLXl8U4kOl6hj7oonvayj1eU917miOT+8zfFaek=;
+        b=VKhYOnp5PkMtILTnTZDmiDxjhshd6uD87mSXm7KcH3xAOxfBX3RwLnSsmSKposkcLZ
+         w1I0j9Gdz+v8s1I0NlLiGSDYcAYTMxmF7KmAMK4qvqD7joJmufbvGg8Ze46qOhfaRd2G
+         IklqqvEbYZNwfCwpPM+1EQYDQqVvzc6I8UMv1C0dxHYOf52aQXAB7fdtCAvtjp5ObgkW
+         RAOY/MNVMzB1taflAVPVuL+jUHUDIiiJcS4NMyBAZJhpM5QP1rD5U8FpJw9Gdw3k6FXZ
+         kd8Ku/3eeoH2Ay7+rpZQZLMZxyzD0ZDzvqflOuV54NomAB9fT7mfKSa/WASoLuSKMAEl
+         HE4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id e61si23294206plb.123.2019.05.08.07.44.44
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d11si23177393pgj.84.2019.05.08.07.44.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 07:44:44 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        Wed, 08 May 2019 07:44:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:44 -0700
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 May 2019 07:44:53 -0700
 X-ExtLoop1: 1
 Received: from black.fi.intel.com ([10.237.72.28])
-  by FMSMGA003.fm.intel.com with ESMTP; 08 May 2019 07:44:39 -0700
+  by fmsmga001.fm.intel.com with ESMTP; 08 May 2019 07:44:48 -0700
 Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id 93F2C9B1; Wed,  8 May 2019 17:44:29 +0300 (EEST)
+	id 721A41175; Wed,  8 May 2019 17:44:31 +0300 (EEST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
@@ -107,9 +107,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 18/62] x86/mm: Implement syncing per-KeyID direct mappings
-Date: Wed,  8 May 2019 17:43:38 +0300
-Message-Id: <20190508144422.13171-19-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 55/62] x86/mm: Disable MKTME if not all system memory supports encryption
+Date: Wed,  8 May 2019 17:44:15 +0300
+Message-Id: <20190508144422.13171-56-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
@@ -121,570 +121,126 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For MKTME we use per-KeyID direct mappings. This allows kernel to have
-access to encrypted memory.
+UEFI memory attribute EFI_MEMORY_CPU_CRYPTO indicates whether the memory
+region supports encryption.
 
-sync_direct_mapping() sync per-KeyID direct mappings with a canonical
-one -- KeyID-0.
+Kernel doesn't handle situation when only part of the system memory
+supports encryption.
 
-The function tracks changes in the canonical mapping:
- - creating or removing chunks of the translation tree;
- - changes in mapping flags (i.e. protection bits);
- - splitting huge page mapping into a page table;
- - replacing page table with a huge page mapping;
-
-The function need to be called on every change to the direct mapping:
-hotplug, hotremove, changes in permissions bits, etc.
-
-The function is nop until MKTME is enabled.
+Disable MKTME if not all system memory supports encryption.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/mktme.h |   6 +
- arch/x86/mm/init_64.c        |  10 +
- arch/x86/mm/mktme.c          | 441 +++++++++++++++++++++++++++++++++++
- 3 files changed, 457 insertions(+)
+ arch/x86/mm/mktme.c        | 29 +++++++++++++++++++++++++++++
+ drivers/firmware/efi/efi.c | 25 +++++++++++++------------
+ include/linux/efi.h        |  1 +
+ 3 files changed, 43 insertions(+), 12 deletions(-)
 
-diff --git a/arch/x86/include/asm/mktme.h b/arch/x86/include/asm/mktme.h
-index 454d6d7c791d..bd6707e73219 100644
---- a/arch/x86/include/asm/mktme.h
-+++ b/arch/x86/include/asm/mktme.h
-@@ -59,6 +59,8 @@ static inline void arch_free_page(struct page *page, int order)
- 		free_encrypted_page(page, order);
- }
- 
-+int sync_direct_mapping(void);
-+
- #else
- #define mktme_keyid_mask	((phys_addr_t)0)
- #define mktme_nr_keyids		0
-@@ -73,6 +75,10 @@ static inline bool mktme_enabled(void)
- 
- static inline void mktme_disable(void) {}
- 
-+static inline int sync_direct_mapping(void)
-+{
-+	return 0;
-+}
- #endif
- 
- #endif
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 3a08d707eec8..ad4ea3703faf 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -693,6 +693,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
- {
- 	bool pgd_changed = false;
- 	unsigned long vaddr, vaddr_start, vaddr_end, vaddr_next, paddr_last;
-+	int ret;
- 
- 	paddr_last = paddr_end;
- 	vaddr = (unsigned long)__va(paddr_start);
-@@ -726,6 +727,9 @@ kernel_physical_mapping_init(unsigned long paddr_start,
- 		pgd_changed = true;
- 	}
- 
-+	ret = sync_direct_mapping();
-+	WARN_ON(ret);
-+
- 	if (pgd_changed)
- 		sync_global_pgds(vaddr_start, vaddr_end - 1);
- 
-@@ -1135,10 +1139,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
- static void __meminit
- kernel_physical_mapping_remove(unsigned long start, unsigned long end)
- {
-+	int ret;
- 	start = (unsigned long)__va(start);
- 	end = (unsigned long)__va(end);
- 
- 	remove_pagetable(start, end, true, NULL);
-+	ret = sync_direct_mapping();
-+	WARN_ON(ret);
- }
- 
- int __ref arch_remove_memory(int nid, u64 start, u64 size,
-@@ -1247,6 +1254,7 @@ void mark_rodata_ro(void)
- 	unsigned long text_end = PFN_ALIGN(&__stop___ex_table);
- 	unsigned long rodata_end = PFN_ALIGN(&__end_rodata);
- 	unsigned long all_end;
-+	int ret;
- 
- 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
- 	       (end - start) >> 10);
-@@ -1280,6 +1288,8 @@ void mark_rodata_ro(void)
- 	free_kernel_image_pages((void *)text_end, (void *)rodata_start);
- 	free_kernel_image_pages((void *)rodata_end, (void *)_sdata);
- 
-+	ret = sync_direct_mapping();
-+	WARN_ON(ret);
- 	debug_checkwx();
- }
- 
 diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
-index 9221c894e8e9..024165c9c7f3 100644
+index 12f4266cf7ea..60b479686ea5 100644
 --- a/arch/x86/mm/mktme.c
 +++ b/arch/x86/mm/mktme.c
-@@ -1,6 +1,8 @@
+@@ -1,6 +1,7 @@
  #include <linux/mm.h>
  #include <linux/highmem.h>
+ #include <linux/rmap.h>
++#include <linux/efi.h>
  #include <asm/mktme.h>
-+#include <asm/pgalloc.h>
-+#include <asm/tlbflush.h>
+ #include <asm/pgalloc.h>
+ #include <asm/tlbflush.h>
+@@ -33,9 +34,37 @@ void mktme_disable(void)
  
- /* Mask to extract KeyID from physical address. */
- phys_addr_t mktme_keyid_mask;
-@@ -36,6 +38,8 @@ static bool need_page_mktme(void)
- static void init_page_mktme(void)
+ static bool need_page_mktme(void)
  {
- 	static_branch_enable(&mktme_enabled_key);
++	int nid;
 +
-+	sync_direct_mapping();
+ 	/* Make sure keyid doesn't collide with extended page flags */
+ 	BUILD_BUG_ON(__NR_PAGE_EXT_FLAGS > 16);
+ 
++	for_each_node_state(nid, N_MEMORY) {
++		const efi_memory_desc_t *md;
++		unsigned long node_start, node_end;
++
++		node_start = node_start_pfn(nid) << PAGE_SHIFT;
++		node_end = node_end_pfn(nid) << PAGE_SHIFT;
++
++		for_each_efi_memory_desc(md) {
++			u64 efi_start = md->phys_addr;
++			u64 efi_end = md->phys_addr + PAGE_SIZE * md->num_pages;
++
++			if (md->attribute & EFI_MEMORY_CPU_CRYPTO)
++				continue;
++			if (efi_start > node_end)
++				continue;
++			if (efi_end  < node_start)
++				continue;
++
++			printk("Memory range %#llx-%#llx: doesn't support encryption\n",
++					efi_start, efi_end);
++			printk("Disable MKTME\n");
++			mktme_disable();
++			break;
++		}
++	}
++
+ 	return !!mktme_nr_keyids;
  }
  
- struct page_ext_operations page_mktme_ops = {
-@@ -96,3 +100,440 @@ void free_encrypted_page(struct page *page, int order)
- 		page++;
- 	}
+diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+index 55b77c576c42..239b2edc78d3 100644
+--- a/drivers/firmware/efi/efi.c
++++ b/drivers/firmware/efi/efi.c
+@@ -848,25 +848,26 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
+ 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
+ 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+ 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+-		     EFI_MEMORY_NV |
++		     EFI_MEMORY_NV | EFI_MEMORY_CPU_CRYPTO |
+ 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
+ 		snprintf(pos, size, "|attr=0x%016llx]",
+ 			 (unsigned long long)attr);
+ 	else
+ 		snprintf(pos, size,
+-			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
++			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+ 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+ 			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
+-			 attr & EFI_MEMORY_NV      ? "NV"  : "",
+-			 attr & EFI_MEMORY_XP      ? "XP"  : "",
+-			 attr & EFI_MEMORY_RP      ? "RP"  : "",
+-			 attr & EFI_MEMORY_WP      ? "WP"  : "",
+-			 attr & EFI_MEMORY_RO      ? "RO"  : "",
+-			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
+-			 attr & EFI_MEMORY_WB      ? "WB"  : "",
+-			 attr & EFI_MEMORY_WT      ? "WT"  : "",
+-			 attr & EFI_MEMORY_WC      ? "WC"  : "",
+-			 attr & EFI_MEMORY_UC      ? "UC"  : "");
++			 attr & EFI_MEMORY_NV         ? "NV"  : "",
++			 attr & EFI_MEMORY_CPU_CRYPTO ? "CR"  : "",
++			 attr & EFI_MEMORY_XP         ? "XP"  : "",
++			 attr & EFI_MEMORY_RP         ? "RP"  : "",
++			 attr & EFI_MEMORY_WP         ? "WP"  : "",
++			 attr & EFI_MEMORY_RO         ? "RO"  : "",
++			 attr & EFI_MEMORY_UCE        ? "UCE" : "",
++			 attr & EFI_MEMORY_WB         ? "WB"  : "",
++			 attr & EFI_MEMORY_WT         ? "WT"  : "",
++			 attr & EFI_MEMORY_WC         ? "WC"  : "",
++			 attr & EFI_MEMORY_UC         ? "UC"  : "");
+ 	return buf;
  }
-+
-+static int sync_direct_mapping_pte(unsigned long keyid,
-+		pmd_t *dst_pmd, pmd_t *src_pmd,
-+		unsigned long addr, unsigned long end)
-+{
-+	pte_t *src_pte, *dst_pte;
-+	pte_t *new_pte = NULL;
-+	bool remove_pte;
-+
-+	/*
-+	 * We want to unmap and free the page table if the source is empty and
-+	 * the range covers whole page table.
-+	 */
-+	remove_pte = !src_pmd && PAGE_ALIGNED(addr) && PAGE_ALIGNED(end);
-+
-+	/*
-+	 * PMD page got split into page table.
-+	 * Clear PMD mapping. Page table will be established instead.
-+	 */
-+	if (pmd_large(*dst_pmd)) {
-+		spin_lock(&init_mm.page_table_lock);
-+		pmd_clear(dst_pmd);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	/* Allocate a new page table if needed. */
-+	if (pmd_none(*dst_pmd)) {
-+		new_pte = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+		if (!new_pte)
-+			return -ENOMEM;
-+		dst_pte = new_pte + pte_index(addr + keyid * direct_mapping_size);
-+	} else {
-+		dst_pte = pte_offset_map(dst_pmd, addr + keyid * direct_mapping_size);
-+	}
-+	src_pte = src_pmd ? pte_offset_map(src_pmd, addr) : NULL;
-+
-+	spin_lock(&init_mm.page_table_lock);
-+
-+	do {
-+		pteval_t val;
-+
-+		if (!src_pte || pte_none(*src_pte)) {
-+			set_pte(dst_pte, __pte(0));
-+			goto next;
-+		}
-+
-+		if (!pte_none(*dst_pte)) {
-+			/*
-+			 * Sanity check: PFNs must match between source
-+			 * and destination even if the rest doesn't.
-+			 */
-+			BUG_ON(pte_pfn(*dst_pte) != pte_pfn(*src_pte));
-+		}
-+
-+		/* Copy entry, but set KeyID. */
-+		val = pte_val(*src_pte) | keyid << mktme_keyid_shift;
-+		val &= __supported_pte_mask;
-+		set_pte(dst_pte, __pte(val));
-+next:
-+		addr += PAGE_SIZE;
-+		dst_pte++;
-+		if (src_pte)
-+			src_pte++;
-+	} while (addr != end);
-+
-+	if (new_pte)
-+		pmd_populate_kernel(&init_mm, dst_pmd, new_pte);
-+
-+	if (remove_pte) {
-+		__free_page(pmd_page(*dst_pmd));
-+		pmd_clear(dst_pmd);
-+	}
-+
-+	spin_unlock(&init_mm.page_table_lock);
-+
-+	return 0;
-+}
-+
-+static int sync_direct_mapping_pmd(unsigned long keyid,
-+		pud_t *dst_pud, pud_t *src_pud,
-+		unsigned long addr, unsigned long end)
-+{
-+	pmd_t *src_pmd, *dst_pmd;
-+	pmd_t *new_pmd = NULL;
-+	bool remove_pmd = false;
-+	unsigned long next;
-+	int ret = 0;
-+
-+	/*
-+	 * We want to unmap and free the page table if the source is empty and
-+	 * the range covers whole page table.
-+	 */
-+	remove_pmd = !src_pud && IS_ALIGNED(addr, PUD_SIZE) && IS_ALIGNED(end, PUD_SIZE);
-+
-+	/*
-+	 * PUD page got split into page table.
-+	 * Clear PUD mapping. Page table will be established instead.
-+	 */
-+	if (pud_large(*dst_pud)) {
-+		spin_lock(&init_mm.page_table_lock);
-+		pud_clear(dst_pud);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	/* Allocate a new page table if needed. */
-+	if (pud_none(*dst_pud)) {
-+		new_pmd = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+		if (!new_pmd)
-+			return -ENOMEM;
-+		dst_pmd = new_pmd + pmd_index(addr + keyid * direct_mapping_size);
-+	} else {
-+		dst_pmd = pmd_offset(dst_pud, addr + keyid * direct_mapping_size);
-+	}
-+	src_pmd = src_pud ? pmd_offset(src_pud, addr) : NULL;
-+
-+	do {
-+		pmd_t *__src_pmd = src_pmd;
-+
-+		next = pmd_addr_end(addr, end);
-+		if (!__src_pmd || pmd_none(*__src_pmd)) {
-+			if (pmd_none(*dst_pmd))
-+				goto next;
-+			if (pmd_large(*dst_pmd)) {
-+				spin_lock(&init_mm.page_table_lock);
-+				set_pmd(dst_pmd, __pmd(0));
-+				spin_unlock(&init_mm.page_table_lock);
-+				goto next;
-+			}
-+			__src_pmd = NULL;
-+		}
-+
-+		if (__src_pmd && pmd_large(*__src_pmd)) {
-+			pmdval_t val;
-+
-+			if (pmd_large(*dst_pmd)) {
-+				/*
-+				 * Sanity check: PFNs must match between source
-+				 * and destination even if the rest doesn't.
-+				 */
-+				BUG_ON(pmd_pfn(*dst_pmd) != pmd_pfn(*__src_pmd));
-+			} else if (!pmd_none(*dst_pmd)) {
-+				/*
-+				 * Page table is replaced with a PMD page.
-+				 * Free and unmap the page table.
-+				 */
-+				__free_page(pmd_page(*dst_pmd));
-+				spin_lock(&init_mm.page_table_lock);
-+				pmd_clear(dst_pmd);
-+				spin_unlock(&init_mm.page_table_lock);
-+			}
-+
-+			/* Copy entry, but set KeyID. */
-+			val = pmd_val(*__src_pmd) | keyid << mktme_keyid_shift;
-+			val &= __supported_pte_mask;
-+			spin_lock(&init_mm.page_table_lock);
-+			set_pmd(dst_pmd, __pmd(val));
-+			spin_unlock(&init_mm.page_table_lock);
-+			goto next;
-+		}
-+
-+		ret = sync_direct_mapping_pte(keyid, dst_pmd, __src_pmd,
-+				addr, next);
-+next:
-+		addr = next;
-+		dst_pmd++;
-+		if (src_pmd)
-+			src_pmd++;
-+	} while (addr != end && !ret);
-+
-+	if (new_pmd) {
-+		spin_lock(&init_mm.page_table_lock);
-+		pud_populate(&init_mm, dst_pud, new_pmd);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	if (remove_pmd) {
-+		spin_lock(&init_mm.page_table_lock);
-+		__free_page(pud_page(*dst_pud));
-+		pud_clear(dst_pud);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	return ret;
-+}
-+
-+static int sync_direct_mapping_pud(unsigned long keyid,
-+		p4d_t *dst_p4d, p4d_t *src_p4d,
-+		unsigned long addr, unsigned long end)
-+{
-+	pud_t *src_pud, *dst_pud;
-+	pud_t *new_pud = NULL;
-+	bool remove_pud = false;
-+	unsigned long next;
-+	int ret = 0;
-+
-+	/*
-+	 * We want to unmap and free the page table if the source is empty and
-+	 * the range covers whole page table.
-+	 */
-+	remove_pud = !src_p4d && IS_ALIGNED(addr, P4D_SIZE) && IS_ALIGNED(end, P4D_SIZE);
-+
-+	/*
-+	 * P4D page got split into page table.
-+	 * Clear P4D mapping. Page table will be established instead.
-+	 */
-+	if (p4d_large(*dst_p4d)) {
-+		spin_lock(&init_mm.page_table_lock);
-+		p4d_clear(dst_p4d);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	/* Allocate a new page table if needed. */
-+	if (p4d_none(*dst_p4d)) {
-+		new_pud = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+		if (!new_pud)
-+			return -ENOMEM;
-+		dst_pud = new_pud + pud_index(addr + keyid * direct_mapping_size);
-+	} else {
-+		dst_pud = pud_offset(dst_p4d, addr + keyid * direct_mapping_size);
-+	}
-+	src_pud = src_p4d ? pud_offset(src_p4d, addr) : NULL;
-+
-+	do {
-+		pud_t *__src_pud = src_pud;
-+
-+		next = pud_addr_end(addr, end);
-+		if (!__src_pud || pud_none(*__src_pud)) {
-+			if (pud_none(*dst_pud))
-+				goto next;
-+			if (pud_large(*dst_pud)) {
-+				spin_lock(&init_mm.page_table_lock);
-+				set_pud(dst_pud, __pud(0));
-+				spin_unlock(&init_mm.page_table_lock);
-+				goto next;
-+			}
-+			__src_pud = NULL;
-+		}
-+
-+		if (__src_pud && pud_large(*__src_pud)) {
-+			pudval_t val;
-+
-+			if (pud_large(*dst_pud)) {
-+				/*
-+				 * Sanity check: PFNs must match between source
-+				 * and destination even if the rest doesn't.
-+				 */
-+				BUG_ON(pud_pfn(*dst_pud) != pud_pfn(*__src_pud));
-+			} else if (!pud_none(*dst_pud)) {
-+				/*
-+				 * Page table is replaced with a pud page.
-+				 * Free and unmap the page table.
-+				 */
-+				__free_page(pud_page(*dst_pud));
-+				spin_lock(&init_mm.page_table_lock);
-+				pud_clear(dst_pud);
-+				spin_unlock(&init_mm.page_table_lock);
-+			}
-+
-+			/* Copy entry, but set KeyID. */
-+			val = pud_val(*__src_pud) | keyid << mktme_keyid_shift;
-+			val &= __supported_pte_mask;
-+			spin_lock(&init_mm.page_table_lock);
-+			set_pud(dst_pud, __pud(val));
-+			spin_unlock(&init_mm.page_table_lock);
-+			goto next;
-+		}
-+
-+		ret = sync_direct_mapping_pmd(keyid, dst_pud, __src_pud,
-+				addr, next);
-+next:
-+		addr = next;
-+		dst_pud++;
-+		if (src_pud)
-+			src_pud++;
-+	} while (addr != end && !ret);
-+
-+	if (new_pud) {
-+		spin_lock(&init_mm.page_table_lock);
-+		p4d_populate(&init_mm, dst_p4d, new_pud);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	if (remove_pud) {
-+		spin_lock(&init_mm.page_table_lock);
-+		__free_page(p4d_page(*dst_p4d));
-+		p4d_clear(dst_p4d);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	return ret;
-+}
-+
-+static int sync_direct_mapping_p4d(unsigned long keyid,
-+		pgd_t *dst_pgd, pgd_t *src_pgd,
-+		unsigned long addr, unsigned long end)
-+{
-+	p4d_t *src_p4d, *dst_p4d;
-+	p4d_t *new_p4d_1 = NULL, *new_p4d_2 = NULL;
-+	bool remove_p4d = false;
-+	unsigned long next;
-+	int ret = 0;
-+
-+	/*
-+	 * We want to unmap and free the page table if the source is empty and
-+	 * the range covers whole page table.
-+	 */
-+	remove_p4d = !src_pgd && IS_ALIGNED(addr, PGDIR_SIZE) && IS_ALIGNED(end, PGDIR_SIZE);
-+
-+	/* Allocate a new page table if needed. */
-+	if (pgd_none(*dst_pgd)) {
-+		new_p4d_1 = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+		if (!new_p4d_1)
-+			return -ENOMEM;
-+		dst_p4d = new_p4d_1 + p4d_index(addr + keyid * direct_mapping_size);
-+	} else {
-+		dst_p4d = p4d_offset(dst_pgd, addr + keyid * direct_mapping_size);
-+	}
-+	src_p4d = src_pgd ? p4d_offset(src_pgd, addr) : NULL;
-+
-+	do {
-+		p4d_t *__src_p4d = src_p4d;
-+
-+		next = p4d_addr_end(addr, end);
-+		if (!__src_p4d || p4d_none(*__src_p4d)) {
-+			if (p4d_none(*dst_p4d))
-+				goto next;
-+			__src_p4d = NULL;
-+		}
-+
-+		ret = sync_direct_mapping_pud(keyid, dst_p4d, __src_p4d,
-+				addr, next);
-+next:
-+		addr = next;
-+		dst_p4d++;
-+
-+		/*
-+		 * Direct mappings are 1TiB-aligned. With 5-level paging it
-+		 * means that on PGD level there can be misalignment between
-+		 * source and distiantion.
-+		 *
-+		 * Allocate the new page table if dst_p4d crosses page table
-+		 * boundary.
-+		 */
-+		if (!((unsigned long)dst_p4d & ~PAGE_MASK) && addr != end) {
-+			if (pgd_none(dst_pgd[1])) {
-+				new_p4d_2 = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-+				if (!new_p4d_2)
-+					ret = -ENOMEM;
-+				dst_p4d = new_p4d_2;
-+			} else {
-+				dst_p4d = p4d_offset(dst_pgd + 1, 0);
-+			}
-+		}
-+		if (src_p4d)
-+			src_p4d++;
-+	} while (addr != end && !ret);
-+
-+	if (new_p4d_1 || new_p4d_2) {
-+		spin_lock(&init_mm.page_table_lock);
-+		if (new_p4d_1)
-+			pgd_populate(&init_mm, dst_pgd, new_p4d_1);
-+		if (new_p4d_2)
-+			pgd_populate(&init_mm, dst_pgd + 1, new_p4d_2);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	if (remove_p4d) {
-+		spin_lock(&init_mm.page_table_lock);
-+		__free_page(pgd_page(*dst_pgd));
-+		pgd_clear(dst_pgd);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+
-+	return ret;
-+}
-+
-+static int sync_direct_mapping_keyid(unsigned long keyid)
-+{
-+	pgd_t *src_pgd, *dst_pgd;
-+	unsigned long addr, end, next;
-+	int ret = 0;
-+
-+	addr = PAGE_OFFSET;
-+	end = PAGE_OFFSET + direct_mapping_size;
-+
-+	dst_pgd = pgd_offset_k(addr + keyid * direct_mapping_size);
-+	src_pgd = pgd_offset_k(addr);
-+
-+	do {
-+		pgd_t *__src_pgd = src_pgd;
-+
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none(*__src_pgd)) {
-+			if (pgd_none(*dst_pgd))
-+				continue;
-+			__src_pgd = NULL;
-+		}
-+
-+		ret = sync_direct_mapping_p4d(keyid, dst_pgd, __src_pgd,
-+				addr, next);
-+	} while (dst_pgd++, src_pgd++, addr = next, addr != end && !ret);
-+
-+	return ret;
-+}
-+
-+/*
-+ * For MKTME we maintain per-KeyID direct mappings. This allows kernel to have
-+ * access to encrypted memory.
-+ *
-+ * sync_direct_mapping() sync per-KeyID direct mappings with a canonical
-+ * one -- KeyID-0.
-+ *
-+ * The function tracks changes in the canonical mapping:
-+ *  - creating or removing chunks of the translation tree;
-+ *  - changes in mapping flags (i.e. protection bits);
-+ *  - splitting huge page mapping into a page table;
-+ *  - replacing page table with a huge page mapping;
-+ *
-+ * The function need to be called on every change to the direct mapping:
-+ * hotplug, hotremove, changes in permissions bits, etc.
-+ *
-+ * The function is nop until MKTME is enabled.
-+ */
-+int sync_direct_mapping(void)
-+{
-+	int i, ret = 0;
-+
-+	if (!mktme_enabled())
-+		return 0;
-+
-+	for (i = 1; !ret && i <= mktme_nr_keyids; i++)
-+		ret = sync_direct_mapping_keyid(i);
-+
-+	flush_tlb_all();
-+
-+	return ret;
-+}
+ 
+diff --git a/include/linux/efi.h b/include/linux/efi.h
+index 6ebc2098cfe1..4b2d0b1a75dc 100644
+--- a/include/linux/efi.h
++++ b/include/linux/efi.h
+@@ -112,6 +112,7 @@ typedef	struct {
+ #define EFI_MEMORY_MORE_RELIABLE \
+ 				((u64)0x0000000000010000ULL)	/* higher reliability */
+ #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
++#define EFI_MEMORY_CPU_CRYPTO 	((u64)0x0000000000080000ULL)	/* memory encryption supported */
+ #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
+ #define EFI_MEMORY_DESCRIPTOR_VERSION	1
+ 
 -- 
 2.20.1
 
