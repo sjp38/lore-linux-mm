@@ -2,304 +2,175 @@ Return-Path: <SRS0=OmxZ=TI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1883EC04AAB
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:35:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04D48C04A6B
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:50:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A153F2053B
-	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:35:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A153F2053B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B466F20989
+	for <linux-mm@archiver.kernel.org>; Wed,  8 May 2019 08:50:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B466F20989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 101966B0003; Wed,  8 May 2019 04:35:34 -0400 (EDT)
+	id 515306B0003; Wed,  8 May 2019 04:50:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B2E76B0005; Wed,  8 May 2019 04:35:34 -0400 (EDT)
+	id 49DF06B0005; Wed,  8 May 2019 04:50:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE2676B0007; Wed,  8 May 2019 04:35:33 -0400 (EDT)
+	id 319BA6B0007; Wed,  8 May 2019 04:50:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD286B0003
-	for <linux-mm@kvack.org>; Wed,  8 May 2019 04:35:33 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id f25so213766qkk.22
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 01:35:33 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ECDA46B0003
+	for <linux-mm@kvack.org>; Wed,  8 May 2019 04:50:45 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id j1so12207912pff.1
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 01:50:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=ZuJrtuIQ6NREOIFPk7z1wJQl0dyt8jdg4/r7soAERnc=;
-        b=VkV8d7YKe8pfdCTPG4PyC8NDiq/FhAYGd+eK588CNBFz3KyG7UJI/6p4u3lrStSts4
-         Hn6pdEmYNSceVclmZxy48mY0HQ4tZ6bMpqdSK4oMzIRd/ubbIJ9ryrHE+t3AyiIgLSvI
-         aQYeuXjf09pq3G6Ku04p8YFKo/21bI8J7GPgaFuPDP2fpnv9OqBwTfmiyH6GAZlTM4ON
-         S/FiLPcTGOOoZ7EraPY8ElszHLBwxFPkhk0iZaMLhWCPJYGPas0C6ELk27xNapgh0RRj
-         JFnr7n+een7uhH+J2c99YLsMfAMQqsM7n+XK3EdwBSMggU7xjO3wZoLfY0S3LdCHyL+5
-         ACZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVmfJswfPeN7VGzGhMRlYRJFO7WFWctwTDL/Nh+fiPwckA/vXU+
-	OBHUnSI45D1lBWAaUaZrDL4C8pKfUQo6/NQS1pcQXH+vBYPyLj4NNEXJFCaEay6wldZwx5muu5K
-	Dy8f8RSaI8QnJwIqaw/lAwDfIn9VqtAuXWpUWLfYPpigtEnzapBWVu7Q9Xss5C6AmLw==
-X-Received: by 2002:ac8:1aa4:: with SMTP id x33mr15185626qtj.69.1557304533554;
-        Wed, 08 May 2019 01:35:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3lg43I0GMAYMWjZUKnxoDfrdVjat8NxC+Umpzh36snfaEeffkygoHrF1r82S3RfEqqfUC
-X-Received: by 2002:ac8:1aa4:: with SMTP id x33mr15185584qtj.69.1557304532723;
-        Wed, 08 May 2019 01:35:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557304532; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=jDec5mGkTzDSo66HA2ZoS1SqKW0pSUZEjG48OuEVTNk=;
+        b=XF8KQ1LruWPOD+iXWhSQZlgF/1D/LrIFJnBD83igLhR7UUCjtO5W0tPtsk2PftAnYs
+         raWYHjZvjWpD8bo6oVLH6JnCzLdk2Uq41S2QyFoz9mJtlN1ysW0GRYrp3vB4y3T+BSKs
+         AJrXtJuO5tUKVRMCBxzGmWc8Oj6tJbXCYzA6uCw1NUjXTm1M6e7iC4ewscfcOX/vCz3y
+         X41WzD+lgk2QL04i6gTAXX1HdG/oU0xCFYIHdqcj7Whek8Fr7SoONq7BTVIBHL/DeYjU
+         YDHCtHIB39PLvhwdVl8gzEDEZ+Gshxr9Y0rLI+eAh3wOxxsXbpbGWM2w6bwLWDdpTClL
+         n1tg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVoqkq1xNfJ8JuhzGKrey+nMiUyewl+fTpTHlLTX7fT7C4HFSSu
+	lwdDeZRVR4JTG2K5DxUQgkP0zzkUXsBZHbfI9JDv7p+czxEtLvcAWFchLI1hh60XAoV4Nl/eE9d
+	h6jZWAAD9wIFou3klBphX+MMBErA/+dKF9kr8T1vUR3SVSioMlj+ER7hnR3emxVKlyQ==
+X-Received: by 2002:a62:520b:: with SMTP id g11mr45565938pfb.215.1557305445618;
+        Wed, 08 May 2019 01:50:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxFfjNMP6c6rG/vdJrvCzLrRgECL6ffjF474El3yZddWJQa3em4hunvDpLFrH4l3Bnm7f2M
+X-Received: by 2002:a62:520b:: with SMTP id g11mr45565862pfb.215.1557305444452;
+        Wed, 08 May 2019 01:50:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557305444; cv=none;
         d=google.com; s=arc-20160816;
-        b=qv52cmyQ8cXaNe9IL/zlhqCagriaYfgWMb2xmDnP7nJzOLLbhRIhcTzMDUVtyelfye
-         JVjphQutBablCW1w19fc8vXrXqYRgrKPSQtngbHQx5psHoL59HF1Rma2G9f7EhzBsghE
-         OX/Iu/WgJlAI51GLNM8knfX+v1k03lDzoLb/Bi2Z0oHAsdtO4f/jO9HOL7793ieswney
-         KQVQKdHAGkgzRYUGYHaRIZtW22JIGbfUmdq7uVwgv9Hn/WRsNwPi4ZG7Vsd1eh9n7sRB
-         Ot/2wSFWsnNQUUTFCCrzn5lahzNS/i3dX6VyzxPj8Dr6HgHov6W69o2iWob3gJRDpkuE
-         jdMw==
+        b=BNC1ZV3AJ3sGrFsEmuQr+vQ/tO3MXL3jBlDM+CfP9WuvSX36Clg0sUJ/0DvVIITA6b
+         B5mzJz0n/EdrQGmuPu1YKc39l4DKhdusJqsbf0NGFfMDqACcjaFVq6tknMgAtYuc5nyQ
+         feV5AGllPMNI71bTp8RCna26nB0Z1zwSEwzffc8tyhf+Oo2ok8C5NeMSwKI+GsW/1COk
+         IeAqk6deFzVz8m+B5ITf3Mtdojkuy5KNzTQ2nA/C9F+UeCZ1LJxj5RKzl8ws+IQEYxnr
+         WKNEO4rE+izIUK7Ccf0kNjT7rQ25umX1s6Ddn+EAF/c9Wy5qJ8AnFAmRv2WqeBPurCMz
+         +HHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=ZuJrtuIQ6NREOIFPk7z1wJQl0dyt8jdg4/r7soAERnc=;
-        b=tvvTCR0fROTK122tjw+zQVQ8z+QQLA/uaQT41dD73PxquatEcA/KGZI/JBc85JFmps
-         L9AgtUsZ2qYshpgJJiH/mXfeQYyqEdYSrIT3W+Bx/dr7dNo3YsfC3Fjy5QQ2fdvVwj8D
-         xMt24peCC/AyjtquzeV6L+qdndbXTw4ELwjw2VzJanoR66PkSeE39fdYLDOfHLMeHqMS
-         3sLG2ezooNxJ95UREKgVZcYH+Xu7qoSLFjD0WLc5dRzXyI/yMeggG1qtRPmx3cj5Rj9D
-         qh0Ot88CuFtNj6Szm0htFxCxaGe3zZpER/aZzhewO2Z1UqUfxTgy6ymhewDlmDvgGARq
-         NRfQ==
+        h=message-id:date:subject:cc:to:from;
+        bh=jDec5mGkTzDSo66HA2ZoS1SqKW0pSUZEjG48OuEVTNk=;
+        b=YVQbhmYySdAHCN7wLbCOjVzzClNGfjOwr3u4W5Hff9wMrk9Hs87HVhnP15+sYpxf4a
+         tBEgo7TKEPGrzNDFzTbFy3N6sKnIzlqKK4TJCe5j03p3/a7Scxz5F4QmdZYuoJeB1ZYy
+         Dggm7Q8kjCuT5ANpDc6dy5qqh+ZfblDIMxb9ToJv4759swBHL7EZGcoD5HwneNiBolPZ
+         CBACnNbd7eRldltW5a4Ztp/Emd5t4BiJUu1jrvQD261qGj/NnqYY53qsvGOxkzlvnNdf
+         NjNhERcN6IkOmLIThHwfllJgeRnfb4ypkLxZgfYn+Mh8Lm5owkc32m/oUGEVzzuRXlhD
+         XBCw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e15si3796566qto.336.2019.05.08.01.35.32
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id cn4si468105plb.244.2019.05.08.01.50.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 May 2019 01:35:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 08 May 2019 01:50:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9C383302451A;
-	Wed,  8 May 2019 08:35:31 +0000 (UTC)
-Received: from [10.36.117.63] (ovpn-117-63.ams2.redhat.com [10.36.117.63])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B6A1460C67;
-	Wed,  8 May 2019 08:35:27 +0000 (UTC)
-Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
- after arch_add_memory()
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, akpm@linux-foundation.org,
- Dan Williams <dan.j.williams@intel.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>, Ingo Molnar <mingo@kernel.org>,
- Andrew Banman <andrew.banman@hpe.com>, Oscar Salvador <osalvador@suse.de>,
- Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- Qian Cai <cai@lca.pw>, Wei Yang <richard.weiyang@gmail.com>,
- Arun KS <arunks@codeaurora.org>, Mathieu Malaterre <malat@debian.org>
-References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-5-david@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
- dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
- QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
- XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
- Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
- PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
- WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
- UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
- jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
- B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
- ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
- BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
- 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
- xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
- jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
- s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
- m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
- MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
- z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
- dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
- UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
- 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
- uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
- 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
- 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
- xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
- 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
- hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
- u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
- gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
- rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
- BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
- KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
- NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
- YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
- lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
- qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
- C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
- W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
- TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
- +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <094f6f72-b02f-585f-6ffa-d631c71808d6@redhat.com>
-Date: Wed, 8 May 2019 10:35:26 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190507183804.5512-5-david@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 08 May 2019 08:35:32 +0000 (UTC)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x488gS5J147199
+	for <linux-mm@kvack.org>; Wed, 8 May 2019 04:50:43 -0400
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2sbtp6458w-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 08 May 2019 04:50:43 -0400
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 8 May 2019 09:50:41 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 8 May 2019 09:50:39 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x488ocTv41877528
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 8 May 2019 08:50:38 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 09E4C11C050;
+	Wed,  8 May 2019 08:50:38 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B426511C05B;
+	Wed,  8 May 2019 08:50:36 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed,  8 May 2019 08:50:36 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 08 May 2019 11:50:36 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] mm/mprotect: fix compilation warning because of unused 'mm' varaible
+Date: Wed,  8 May 2019 11:50:32 +0300
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19050808-0012-0000-0000-000003197922
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19050808-0013-0000-0000-00002151F9D3
+Message-Id: <1557305432-4940-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-08_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=900 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905080056
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07.05.19 20:38, David Hildenbrand wrote:
-> Only memory to be added to the buddy and to be onlined/offlined by
-> user space using memory block devices needs (and should have!) memory
-> block devices.
-> 
-> Factor out creation of memory block devices Create all devices after
-> arch_add_memory() succeeded. We can later drop the want_memblock parameter,
-> because it is now effectively stale.
-> 
-> Only after memory block devices have been added, memory can be onlined
-> by user space. This implies, that memory is not visible to user space at
-> all before arch_add_memory() succeeded.
-> 
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Andrew Banman <andrew.banman@hpe.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Qian Cai <cai@lca.pw>
-> Cc: Wei Yang <richard.weiyang@gmail.com>
-> Cc: Arun KS <arunks@codeaurora.org>
-> Cc: Mathieu Malaterre <malat@debian.org>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
-> ---
->  drivers/base/memory.c  | 70 ++++++++++++++++++++++++++----------------
->  include/linux/memory.h |  2 +-
->  mm/memory_hotplug.c    | 15 ++++-----
->  3 files changed, 53 insertions(+), 34 deletions(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 6e0cb4fda179..862c202a18ca 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -701,44 +701,62 @@ static int add_memory_block(int base_section_nr)
->  	return 0;
->  }
->  
-> +static void unregister_memory(struct memory_block *memory)
-> +{
-> +	BUG_ON(memory->dev.bus != &memory_subsys);
-> +
-> +	/* drop the ref. we got via find_memory_block() */
-> +	put_device(&memory->dev);
-> +	device_unregister(&memory->dev);
-> +}
-> +
->  /*
-> - * need an interface for the VM to add new memory regions,
-> - * but without onlining it.
-> + * Create memory block devices for the given memory area. Start and size
-> + * have to be aligned to memory block granularity. Memory block devices
-> + * will be initialized as offline.
->   */
-> -int hotplug_memory_register(int nid, struct mem_section *section)
-> +int hotplug_memory_register(unsigned long start, unsigned long size)
->  {
-> -	int ret = 0;
-> +	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
-> +	unsigned long start_pfn = PFN_DOWN(start);
-> +	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
-> +	unsigned long pfn;
->  	struct memory_block *mem;
-> +	int ret = 0;
->  
-> -	mutex_lock(&mem_sysfs_mutex);
-> +	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
-> +	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
->  
-> -	mem = find_memory_block(section);
-> -	if (mem) {
-> -		mem->section_count++;
-> -		put_device(&mem->dev);
-> -	} else {
-> -		ret = init_memory_block(&mem, section, MEM_OFFLINE);
-> +	mutex_lock(&mem_sysfs_mutex);
-> +	for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
-> +		mem = find_memory_block(__pfn_to_section(pfn));
-> +		if (mem) {
-> +			WARN_ON_ONCE(false);
-> +			put_device(&mem->dev);
-> +			continue;
-> +		}
-> +		ret = init_memory_block(&mem, __pfn_to_section(pfn),
-> +					MEM_OFFLINE);
->  		if (ret)
-> -			goto out;
-> -		mem->section_count++;
-> +			break;
-> +		mem->section_count = memory_block_size_bytes() /
-> +				     MIN_MEMORY_BLOCK_SIZE;
-> +	}
-> +	if (ret) {
-> +		end_pfn = pfn;
-> +		for (pfn = start_pfn; pfn != end_pfn; pfn += block_nr_pages) {
-> +			mem = find_memory_block(__pfn_to_section(pfn));
-> +			if (!mem)
-> +				continue;
-> +			mem->section_count = 0;
-> +			unregister_memory(mem);
-> +		}
->  	}
-> -
-> -out:
->  	mutex_unlock(&mem_sysfs_mutex);
->  	return ret;
->  }
->  
-> -static void
-> -unregister_memory(struct memory_block *memory)
-> -{
-> -	BUG_ON(memory->dev.bus != &memory_subsys);
-> -
-> -	/* drop the ref. we got via find_memory_block() */
-> -	put_device(&memory->dev);
-> -	device_unregister(&memory->dev);
-> -}
-> -
-> -void unregister_memory_section(struct mem_section *section)
-> +static int remove_memory_section(struct mem_section *section)
->  {
+Since commit 0cbe3e26abe0 ("mm: update ptep_modify_prot_start/commit to
+take vm_area_struct as arg") the only place that uses the local 'mm'
+variable in change_pte_range() is the call to set_pte_at().
 
-The function change is misplaces in this patch will drop it so this
-patch compiles without the other patches.
+Many architectures define set_pte_at() as macro that does not use the 'mm'
+parameter, which generates the following compilation warning:
 
+ CC      mm/mprotect.o
+mm/mprotect.c: In function 'change_pte_range':
+mm/mprotect.c:42:20: warning: unused variable 'mm' [-Wunused-variable]
+  struct mm_struct *mm = vma->vm_mm;
+                    ^~
 
+Fix it by passing vma->mm to set_pte_at() and dropping the local 'mm'
+variable in change_pte_range().
+
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ mm/mprotect.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 028c724..61bfe24 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -39,7 +39,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable, int prot_numa)
+ {
+-	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *pte, oldpte;
+ 	spinlock_t *ptl;
+ 	unsigned long pages = 0;
+@@ -136,7 +135,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 				newpte = swp_entry_to_pte(entry);
+ 				if (pte_swp_soft_dirty(oldpte))
+ 					newpte = pte_swp_mksoft_dirty(newpte);
+-				set_pte_at(mm, addr, pte, newpte);
++				set_pte_at(vma->mm, addr, pte, newpte);
+ 
+ 				pages++;
+ 			}
 -- 
-
-Thanks,
-
-David / dhildenb
+2.7.4
 
