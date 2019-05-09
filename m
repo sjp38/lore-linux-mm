@@ -2,265 +2,275 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+X-Spam-Status: No, score=-14.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78AD7C04AB3
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:50:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 864ADC04AB3
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 13:23:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26A862173C
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:50:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26A862173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0988A21479
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 13:23:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="B8KVmFpY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0988A21479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B76186B0007; Thu,  9 May 2019 08:50:17 -0400 (EDT)
+	id 5D9C96B0003; Thu,  9 May 2019 09:23:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B226C6B0008; Thu,  9 May 2019 08:50:17 -0400 (EDT)
+	id 58C996B0006; Thu,  9 May 2019 09:23:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E9D96B000A; Thu,  9 May 2019 08:50:17 -0400 (EDT)
+	id 452096B000A; Thu,  9 May 2019 09:23:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7FC6B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:50:17 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id z7so2484486qtb.9
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:50:17 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BFF76B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 09:23:41 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id k65so973127vkh.6
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 06:23:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=2+s6zssvfsedkTyHpYnjMQnkR4KM0Kq9ayiaiu1MvvI=;
-        b=ILhx+q7gPZ8I9hJ6G1pxGS4yliKas3r7iYOg7tf9Kp8N0xshzeHtMuLGQTWLK20VxF
-         GIsc9PZ1xIX+JFj5SSiYNG1P3kHWFnCT6zPp7lWYeUdgIZfnvSqqEWCNNVSn9XwvFtgo
-         2yXHtCs+apnYtk/VwnkvvPhTwQivJX3f4/WJM9mSpMgSnB5f+6RTlq/no4nw/vySxY9E
-         lbpANM9Muwtv4k6BUM67aWzwoSu2rxjk12oEh7XIHEQoxqPy0sA9/2z2rmIVTzl74IqO
-         vpMoPGEb4uBolFlTa3Tc/gK4mJZOn7c6SjwV6em7R1S9qDV3+wgOHjaTE5nOCFerB+d0
-         16fA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXFS685VsIdhbw19KAUEkBsvmf0WFBMqE6zODjW9DVQKy/J7VCB
-	5DO8Qny2N+0RItQa2qkoOBP2/mXOZB0Gl1ecIe8JSllC+fisDWxqnGXqPGmcBgVxLx08aEeonsP
-	+OQjpb0hBSM/13E+UGHGeSSoEt/Jkx4Mtz8w+F8NufoxFU9lQJUpSX9DGoLGN1am+Ww==
-X-Received: by 2002:a0c:99ca:: with SMTP id y10mr3398115qve.8.1557406217222;
-        Thu, 09 May 2019 05:50:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyggZmVatEBVtiMYHXii1GxXN6l6+shwZZSOeOYi2k8H0o9gVjgJ1Xou649DTbjIxG5qXo0
-X-Received: by 2002:a0c:99ca:: with SMTP id y10mr3398058qve.8.1557406216631;
-        Thu, 09 May 2019 05:50:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557406216; cv=none;
+        bh=sff58sBqd6I3jr2LoJpmtNzqy1jhnIaSBJFG4nsnerE=;
+        b=LzEq67tm6/T2bVYDWEg76lZdcfqanPTGLA9LH341cLqaL+FAjAHK4VQtXEFeNjL6BE
+         AFZRKgAQ9L61KBWuFosokzHaPF101Sfu9Z7i2yBkm7IIUf1OYCg+ONwV9uOD8CyGRLs3
+         5CUN025SrAZexlQukmwCNBIbvy1FhZmPiuLC32U0vu+A/VVdgkUfxqoSPfz/uAE5AwLX
+         aW0mTzwroVNciaKHXpNbhjWIzl86DyGfqsdoYBx6rInVo1ORVa7K+jf4bCLcfCNaG1BO
+         IT7HNKeOc1Dfw5qBCY2lL8b+UXbze36OCdGLGVXNHZ85gceOErUXvp2Qam3KEgP6Rm7P
+         OIBw==
+X-Gm-Message-State: APjAAAVzAWh0yqYjlskkAaKg6okfzr2lVEXvAjMUXzTYSmuEuLzpn91a
+	zzu3LiA1ExWMJBvV2YuXkK+/pulKUFDfIyOmsyrUSUugaNr8dUQqw22ex/4r1LBTeSY6HcN8tj6
+	V0NOmItnLZ/+FZgW1KEuKd+6vq/RBjtcMJtbg0XFkX2+6NdlZ91x1apGVBp3K49dj9Q==
+X-Received: by 2002:a1f:8cca:: with SMTP id o193mr1669605vkd.11.1557408220695;
+        Thu, 09 May 2019 06:23:40 -0700 (PDT)
+X-Received: by 2002:a1f:8cca:: with SMTP id o193mr1669528vkd.11.1557408219587;
+        Thu, 09 May 2019 06:23:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557408219; cv=none;
         d=google.com; s=arc-20160816;
-        b=y2DiOLUS925gHx1Uny0i6lCLcwWoBr/MePlAlzvFuJtwzG5UMIejYqPcXxVRPyDFs7
-         G3vtXNInWZRCUcf50mFk+w2E/9Am8KePjO4pgSuTuQCQ1n3fbM7o8CI+lLvuVCYdR/Mk
-         4A0xSuE3HHd/Mzs3I0jNbSB262gFB18M3zcRJ8ai9kpFdOY4AVp9m3DO8AU6mFpPh9Tj
-         10bfCLwgrnkKpBRr0UmRxnbpMF1ZWWgNFqG5FK8/FpImk2sMpSATqfLQF/sqY//h64In
-         SfojcJQo1vNkZKREGAYquQ2Q7TYevpTCfLZEBsxeZ1POuvVayqzY20ahCIjhRpHVBjpI
-         PCBg==
+        b=mXu6OiSXKR/+dwAkbIbh1RytV4IqibxGoiow2IwCN98A8PIoPH3yEaubweBGUWB2dx
+         3khVGaVz95odNAZ4CnmyYMOgBiG8sKl0Nm7oCwDVYGubHujRMadxXOwaBKoTixri2Jxv
+         RJ5l4rz5jbId0plpfFGFIM51kjn0qVsE3u3U0cJeF1eDn61+JIyaJ/aWtAeLF9+bkD5u
+         J1SI04XKEHEkKmlfHboFBLeoR4i37ctHvb0tMfaP4YhR5ORCYODE2miVAS7muQajoMBw
+         RXW4YkN85wpeeenZnvQt08SiQIl0MGGFzSpJkPTm8MUGO+MZUXZvw6+UzPQzY6A16cja
+         LBFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=2+s6zssvfsedkTyHpYnjMQnkR4KM0Kq9ayiaiu1MvvI=;
-        b=jAUsHi5W/tq1unqsTdefvMGPGVcoe8bXyG1zM8Eu6FH1lMfsrlVyV3RDifxcFEqUZw
-         JBeZV5nO+k+c5TjSofV+cNFjt49Jbh7NtctREeUbRiZQ2jaok4esf/nxWNCxd/SHTJzg
-         c8wV+qljqBeMnmdZhzSh9fGIMiS0XAYViy00dpM5da5B55rvPXWJYS9s3TvkWZZonb4d
-         UEaPWEu6waS/da/9ndKry1FU6re7CXXRnZFjMheFe6QELOXR7F1YPOz7jTdSUc80lUxL
-         LbNGEh2ugd4nGunG1Xg91Gu0DYx/621XOi0Al9/9dnSxRJ0qEKORDki8BFVH87Jo3Sz/
-         kHbg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=sff58sBqd6I3jr2LoJpmtNzqy1jhnIaSBJFG4nsnerE=;
+        b=so3qDFsKdUU5WKS6Tn47uF9b8GVjtfJ15dFiS13P7+gWBO1i1wZs8zgqO3lk6jZ0CM
+         T8cEOu7lIfQI+EHF8m7LF7+qkJEXYRdnorzQ/iQ07JMHkYwDrZshUVFnPlLXYvXM7k2A
+         LatmGq/Ai8PmFhNGikIZ73OhoVj5RSFvqNAGSN9EROqsV/9pOkpG+AiI7d3CVpduu3JL
+         6dFQiywuMbL2tKSyj+M9T0IJFaCmvpP+MlfodCn396ybs/JRnljaZ3g8df+9hJmPGYhH
+         c5MVxyCWf5hUaDzKUZLsrSzZYvoykhLBslCIR8HY5bf/3qb6S1z46FqLn9rxiE0Fxiao
+         JHSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n41si1345776qtc.178.2019.05.09.05.50.16
+       dkim=pass header.i=@google.com header.s=20161025 header.b=B8KVmFpY;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g20sor981720vsq.122.2019.05.09.06.23.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 05:50:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 09 May 2019 06:23:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A047EF74A3;
-	Thu,  9 May 2019 12:50:15 +0000 (UTC)
-Received: from [10.36.117.56] (ovpn-117-56.ams2.redhat.com [10.36.117.56])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D03855783;
-	Thu,  9 May 2019 12:50:11 +0000 (UTC)
-Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
- after arch_add_memory()
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>, Ingo Molnar <mingo@kernel.org>,
- Andrew Banman <andrew.banman@hpe.com>, Oscar Salvador <osalvador@suse.de>,
- Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>,
- Mathieu Malaterre <malat@debian.org>
-References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-5-david@redhat.com>
- <20190509124302.at7jltfrycj7sxbd@master>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <85a81b34-4f8d-9649-939a-f722528e37ee@redhat.com>
-Date: Thu, 9 May 2019 14:50:11 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=B8KVmFpY;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=sff58sBqd6I3jr2LoJpmtNzqy1jhnIaSBJFG4nsnerE=;
+        b=B8KVmFpYir3rnGiAmtbgvsOw3dAWOQSkdZJUYG8fS5wXW80tGeFcMS4JftdHCYf7RR
+         cDRIZtR8K5J268kAxu4OAWuxKySPy+9UpAcpWshQlpBVWX0GKbokVQ4WVwHnGohtrNM8
+         6P+KeAUmebTGRqhnEjTmpruGfm4SKQJzZsEbArjpju6Sh9ejzvD67gSqXFNu/OpJko4u
+         a96bv2j3YgkaJ+zcoJy6czXaap8XM7C9eHsCadPG208r6U1LH04GjvIarBzxyBpH6b00
+         JagTxOBnoo0lssjXVRA3qvqhb2MOtjD4aZrbW0thhi1/ZJJlrN6xhujGn3AChqmUWtg7
+         2ZZA==
+X-Google-Smtp-Source: APXvYqwqW1Oquf8DAl74l6krQGTZ6Q5Lm130MtNSPSwLB1iofEZlAVrSXg8AEP36V6GqFHDuK+CN6QVFaD2IWmXNX+I=
+X-Received: by 2002:a67:7241:: with SMTP id n62mr2198744vsc.217.1557408218840;
+ Thu, 09 May 2019 06:23:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190509124302.at7jltfrycj7sxbd@master>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 09 May 2019 12:50:15 +0000 (UTC)
+References: <20190508153736.256401-1-glider@google.com> <20190508153736.256401-4-glider@google.com>
+ <CAGXu5jJS=KgLwetdmDAUq9+KhUFTd=jnCES3BZJm+qBwUBmLjQ@mail.gmail.com>
+In-Reply-To: <CAGXu5jJS=KgLwetdmDAUq9+KhUFTd=jnCES3BZJm+qBwUBmLjQ@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Thu, 9 May 2019 15:23:26 +0200
+Message-ID: <CAG_fn=VbJXHsqAeBD+g6zJ8WVTko4Ev2xytXrcJ-ztEWm7kOOA@mail.gmail.com>
+Subject: Re: [PATCH 3/4] gfp: mm: introduce __GFP_NOINIT
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09.05.19 14:43, Wei Yang wrote:
-> On Tue, May 07, 2019 at 08:38:00PM +0200, David Hildenbrand wrote:
->> Only memory to be added to the buddy and to be onlined/offlined by
->> user space using memory block devices needs (and should have!) memory
->> block devices.
->>
->> Factor out creation of memory block devices Create all devices after
->> arch_add_memory() succeeded. We can later drop the want_memblock parameter,
->> because it is now effectively stale.
->>
->> Only after memory block devices have been added, memory can be onlined
->> by user space. This implies, that memory is not visible to user space at
->> all before arch_add_memory() succeeded.
->>
->> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->> Cc: "Rafael J. Wysocki" <rafael@kernel.org>
->> Cc: David Hildenbrand <david@redhat.com>
->> Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Ingo Molnar <mingo@kernel.org>
->> Cc: Andrew Banman <andrew.banman@hpe.com>
->> Cc: Oscar Salvador <osalvador@suse.de>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->> Cc: Qian Cai <cai@lca.pw>
->> Cc: Wei Yang <richard.weiyang@gmail.com>
->> Cc: Arun KS <arunks@codeaurora.org>
->> Cc: Mathieu Malaterre <malat@debian.org>
->> Signed-off-by: David Hildenbrand <david@redhat.com>
->> ---
->> drivers/base/memory.c  | 70 ++++++++++++++++++++++++++----------------
->> include/linux/memory.h |  2 +-
->> mm/memory_hotplug.c    | 15 ++++-----
->> 3 files changed, 53 insertions(+), 34 deletions(-)
->>
->> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
->> index 6e0cb4fda179..862c202a18ca 100644
->> --- a/drivers/base/memory.c
->> +++ b/drivers/base/memory.c
->> @@ -701,44 +701,62 @@ static int add_memory_block(int base_section_nr)
->> 	return 0;
->> }
->>
->> +static void unregister_memory(struct memory_block *memory)
->> +{
->> +	BUG_ON(memory->dev.bus != &memory_subsys);
->> +
->> +	/* drop the ref. we got via find_memory_block() */
->> +	put_device(&memory->dev);
->> +	device_unregister(&memory->dev);
->> +}
->> +
->> /*
->> - * need an interface for the VM to add new memory regions,
->> - * but without onlining it.
->> + * Create memory block devices for the given memory area. Start and size
->> + * have to be aligned to memory block granularity. Memory block devices
->> + * will be initialized as offline.
->>  */
->> -int hotplug_memory_register(int nid, struct mem_section *section)
->> +int hotplug_memory_register(unsigned long start, unsigned long size)
->> {
->> -	int ret = 0;
->> +	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
->> +	unsigned long start_pfn = PFN_DOWN(start);
->> +	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
->> +	unsigned long pfn;
->> 	struct memory_block *mem;
->> +	int ret = 0;
->>
->> -	mutex_lock(&mem_sysfs_mutex);
->> +	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
->> +	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
-> 
-> After this change, the call flow looks like this:
-> 
-> add_memory_resource
->     check_hotplug_memory_range
->     hotplug_memory_register
-> 
-> Since in check_hotplug_memory_range() has checked the boundary, do we need to
-> check here again?
-> 
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, May 8, 2019 at 9:16 PM
+To: Alexander Potapenko
+Cc: Andrew Morton, Christoph Lameter, Kees Cook, Laura Abbott,
+Linux-MM, linux-security-module, Kernel Hardening, Masahiro Yamada,
+James Morris, Serge E. Hallyn, Nick Desaulniers, Kostya Serebryany,
+Dmitry Vyukov, Sandeep Patil, Randy Dunlap, Jann Horn, Mark Rutland
 
-I prefer to check for such requirements explicitly in applicable places,
-especially if they are placed in different files. Makes code easier to
-get. WARN_ON_ONCE will indicate that this has to be assured by the caller.
+> On Wed, May 8, 2019 at 8:38 AM Alexander Potapenko <glider@google.com> wr=
+ote:
+> > When passed to an allocator (either pagealloc or SL[AOU]B), __GFP_NOINI=
+T
+> > tells it to not initialize the requested memory if the init_on_alloc
+> > boot option is enabled. This can be useful in the cases newly allocated
+> > memory is going to be initialized by the caller right away.
+> >
+> > __GFP_NOINIT doesn't affect init_on_free behavior, except for SLOB,
+> > where init_on_free implies init_on_alloc.
+> >
+> > __GFP_NOINIT basically defeats the hardening against information leaks
+> > provided by init_on_alloc, so one should use it with caution.
+> >
+> > This patch also adds __GFP_NOINIT to alloc_pages() calls in SL[AOU]B.
+> > Doing so is safe, because the heap allocators initialize the pages they
+> > receive before passing memory to the callers.
+> >
+> > Slowdown for the initialization features compared to init_on_free=3D0,
+> > init_on_alloc=3D0:
+> >
+> > hackbench, init_on_free=3D1:  +6.84% sys time (st.err 0.74%)
+> > hackbench, init_on_alloc=3D1: +7.25% sys time (st.err 0.72%)
+> >
+> > Linux build with -j12, init_on_free=3D1:  +8.52% wall time (st.err 0.42=
+%)
+> > Linux build with -j12, init_on_free=3D1:  +24.31% sys time (st.err 0.47=
+%)
+> > Linux build with -j12, init_on_alloc=3D1: -0.16% wall time (st.err 0.40=
+%)
+> > Linux build with -j12, init_on_alloc=3D1: +1.24% sys time (st.err 0.39%=
+)
+> >
+> > The slowdown for init_on_free=3D0, init_on_alloc=3D0 compared to the
+> > baseline is within the standard error.
+> >
+> > Signed-off-by: Alexander Potapenko <glider@google.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> > Cc: James Morris <jmorris@namei.org>
+> > Cc: "Serge E. Hallyn" <serge@hallyn.com>
+> > Cc: Nick Desaulniers <ndesaulniers@google.com>
+> > Cc: Kostya Serebryany <kcc@google.com>
+> > Cc: Dmitry Vyukov <dvyukov@google.com>
+> > Cc: Kees Cook <keescook@chromium.org>
+> > Cc: Sandeep Patil <sspatil@android.com>
+> > Cc: Laura Abbott <labbott@redhat.com>
+> > Cc: Randy Dunlap <rdunlap@infradead.org>
+> > Cc: Jann Horn <jannh@google.com>
+> > Cc: Mark Rutland <mark.rutland@arm.com>
+> > Cc: linux-mm@kvack.org
+> > Cc: linux-security-module@vger.kernel.org
+> > Cc: kernel-hardening@lists.openwall.com
+> > ---
+> >  include/linux/gfp.h | 6 +++++-
+> >  include/linux/mm.h  | 2 +-
+> >  kernel/kexec_core.c | 2 +-
+> >  mm/slab.c           | 2 +-
+> >  mm/slob.c           | 3 ++-
+> >  mm/slub.c           | 1 +
+> >  6 files changed, 11 insertions(+), 5 deletions(-)
+> >
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index fdab7de7490d..66d7f5604fe2 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -44,6 +44,7 @@ struct vm_area_struct;
+> >  #else
+> >  #define ___GFP_NOLOCKDEP       0
+> >  #endif
+> > +#define ___GFP_NOINIT          0x1000000u
+>
+> I mentioned this in the other patch, but I think this needs to be
+> moved ahead of GFP_NOLOCKDEP and adjust the values for GFP_NOLOCKDEP
+> and to leave the IS_ENABLED() test in __GFP_BITS_SHIFT alone.
+Do we really need this blinking GFP_NOLOCKDEP bit at all?
+This approach doesn't scale, we can't even have a second feature that
+has a bit depending on the config settings.
+Cannot we just fix the number of bits instead?
 
-Thanks!
+> >  /* If the above are modified, __GFP_BITS_SHIFT may need updating */
+> >
+> >  /*
+> > @@ -208,16 +209,19 @@ struct vm_area_struct;
+> >   * %__GFP_COMP address compound page metadata.
+> >   *
+> >   * %__GFP_ZERO returns a zeroed page on success.
+> > + *
+> > + * %__GFP_NOINIT requests non-initialized memory from the underlying a=
+llocator.
+> >   */
+> >  #define __GFP_NOWARN   ((__force gfp_t)___GFP_NOWARN)
+> >  #define __GFP_COMP     ((__force gfp_t)___GFP_COMP)
+> >  #define __GFP_ZERO     ((__force gfp_t)___GFP_ZERO)
+> > +#define __GFP_NOINIT   ((__force gfp_t)___GFP_NOINIT)
+> >
+> >  /* Disable lockdep for GFP context tracking */
+> >  #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+> >
+> >  /* Room for N __GFP_FOO bits */
+> > -#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
+> > +#define __GFP_BITS_SHIFT (25)
+>
+> AIUI, this will break non-CONFIG_LOCKDEP kernels: it should just be:
+>
+> -#define __GFP_BITS_SHIFT (23 + IS_ENABLED(CONFIG_LOCKDEP))
+> +#define __GFP_BITS_SHIFT (24 + IS_ENABLED(CONFIG_LOCKDEP))
+>
+> >  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+> >
+> >  /**
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index ee1a1092679c..8ab152750eb4 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -2618,7 +2618,7 @@ DECLARE_STATIC_KEY_FALSE(init_on_alloc);
+> >  static inline bool want_init_on_alloc(gfp_t flags)
+> >  {
+> >         if (static_branch_unlikely(&init_on_alloc))
+> > -               return true;
+> > +               return !(flags & __GFP_NOINIT);
+> >         return flags & __GFP_ZERO;
+>
+> What do you think about renaming __GFP_NOINIT to __GFP_NO_AUTOINIT or som=
+ething?
+>
+> Regardless, yes, this is nice.
+>
+> --
+> Kees Cook
 
--- 
 
-Thanks,
 
-David / dhildenb
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
