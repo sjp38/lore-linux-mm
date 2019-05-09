@@ -2,201 +2,143 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 263A2C04AAF
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 04:43:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5A07C04AAF
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 04:46:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC8F420989
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 04:43:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Lt/DTI5w"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC8F420989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id ACA582173C
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 04:46:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACA582173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1E3266B0003; Thu,  9 May 2019 00:43:08 -0400 (EDT)
+	id 478716B0007; Thu,  9 May 2019 00:46:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 16D446B0006; Thu,  9 May 2019 00:43:08 -0400 (EDT)
+	id 402836B0008; Thu,  9 May 2019 00:46:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0365F6B0007; Thu,  9 May 2019 00:43:08 -0400 (EDT)
+	id 2CAF96B000A; Thu,  9 May 2019 00:46:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 920926B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 00:43:07 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id u6so189524lfi.5
-        for <linux-mm@kvack.org>; Wed, 08 May 2019 21:43:07 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D10026B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 00:46:57 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r20so548866edp.17
+        for <linux-mm@kvack.org>; Wed, 08 May 2019 21:46:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=e3NuoyA6DsdN8vS1rlRQd+bW+avLSVguOFGnQl9Uq1o=;
-        b=sW1y25BDZWQQ74v5OgUQvMzzYe6/a3vFJaooRWmpUcOOfF0GOniVUbHVSMfgOQTjey
-         UInH6OaBS0DTI3LW4aQpdVOYhURDMkI6ZPx8KinuYr9+mTG9UPdJ2G86w2ysCZu1WyUx
-         CQJ90ygITgHVKl/X4i0PSoAnXm/VMn5mq1z1/5B31cTsMsH46SVm/PPnNsL5MGxRasWZ
-         QH9Ru+vvoAV8fjTxQTGuD3J0V0K4JmmTzANrXiZ1bJWVcX+Uo8wU5mUzEFzvvoA1eiy4
-         MCZkro6+ytsTe4RUqFrjrID9QP3BrxisFxrwH7c5BRk/oDpwNeUVeImGJPk+F5aubmiK
-         AC4g==
-X-Gm-Message-State: APjAAAUqo8rhDnBAqlcxq7lnF0ytIGhfr1Iza4Qrb27aWnX/key0ht4R
-	NNuec+jrEJVw9mymo3bn0NNNsinX/XXaU//zpy2gfQLExbFY/5lfX+CnlNVR6Ls8xterVgOL+M7
-	uosg82J2nCXTEzNzGKPbCaa5csIiUdie+kOvf++OPCCO8i5T3PJjfwgSQ0c82AbyNXw==
-X-Received: by 2002:a2e:9e47:: with SMTP id g7mr853395ljk.48.1557376986733;
-        Wed, 08 May 2019 21:43:06 -0700 (PDT)
-X-Received: by 2002:a2e:9e47:: with SMTP id g7mr853353ljk.48.1557376985781;
-        Wed, 08 May 2019 21:43:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557376985; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=erpFmp3VLDsAOMv7VvMVAaqBi78LNY8tDAh1d6RKhCY=;
+        b=ny+Mp35E93bP1ze2IrO5ltO/3m/Ope4WDfwJyQFojVLSr66YH5rhB5ALZ9Lfde/RoC
+         qUcNDRvwcvj0WuHth0BNgaZUaytG1L0hfFnEIwADxICFmgpfj96ZAt8bsUiLj+V47Htv
+         F0Q6jAJMSaZUCbbtyxUko92ceSe3SBC+DfwprGvzZSPfZTzgoWGtcX+JFpdpTlyCR7qV
+         /pOjfWIQow6Am7B1Kia4CyQzse49LVDZWQSeHrNZ1ey62fKYG/3B8oH+sBkQCOh4IQVK
+         lq0UlXnDYqlS+7lvTnPOiPg4Y3sKJz7j23MmWP5H87V02CeQ1mv7dySl1li9SMSJMJ27
+         UDpg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAX5fWRtIBi8wkiGRagfmu39cPPGxcDoIezcMZ3x4wD8Tp8KjnYS
+	qZ+O8hqel7An3dF1kIDwgnUB07N4dXD3AaDLI1v8RNZE9FNJo2MZGN+cUlry4ghFiRfNDKYBqcf
+	+v6LSPbkEh06HSTQBRFvik08bc0rf5qoZQXnQAMpuhbXw7JYAn3Yq0eaBCLIozeZGfA==
+X-Received: by 2002:a17:906:1545:: with SMTP id c5mr1473312ejd.135.1557377217290;
+        Wed, 08 May 2019 21:46:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5Lnpa7WiwiLPjwVoNcov1ETM12lRxkhwXggGtP+1cE9WnHPjlJK+EUTvFxS7VflBgoTw1
+X-Received: by 2002:a17:906:1545:: with SMTP id c5mr1473272ejd.135.1557377216261;
+        Wed, 08 May 2019 21:46:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557377216; cv=none;
         d=google.com; s=arc-20160816;
-        b=K1khbPZrvrPiTHZ62dFqskmtS6lIGyTaFP+eUNmNyBgfEu0ezlWPf6VMj7MsLiAhGk
-         36/TGIo86RVl7tcibvo9d8bXhCsc0XHN/gXXMs2xLvbi001HWbHTnHE0hEWMDfxs3E2+
-         K+Kig8pPvhdbTCWp2pmyqYUlCmljv12q9kCVhZIaovyxKddm7/V2EweJqkiYCidOiDvM
-         QgJMT55aNAl0aoC38J+Guf+1fQnJRZNaqGuA7tIajuihU+/wq2d0Cwhon+vJ77O8va4x
-         wnG7tSg079Dq1Hj2RhJ2oqxq8zDi1QmNlATUYEtgxse2CQMTQodGWob+erJowIRCcK2+
-         qyQw==
+        b=H4bq3whlbC4/R049UPljOi/Gv5vbgQlm4lzITrTRNWD39gPUGQXuyOOmuS5OfYBGlR
+         wA+4GDSusP4bBOo4VVpAFZ+xf7CexmDT2DaXIJ0TKYKEvy4dOxG8eQgF6+Ckv4DrWkHo
+         fFmOR6uXyUL7r05YAFIWHX4jhmAoZTAMcsAuRuO+L4LFOxYfiTpDd4TuCbp06mECKZsc
+         Lzxvt2lXXTu9VvPA5OMV2Sx3MmlL8mm7CmviGfJYuTf7bg1FIPIp2LJJZYm5vdJ/NR/p
+         3kjHPJHOty2/qzZecfyiT/ZmRXpRKGN5pu8D5JG7BEWTN7cuvWvM1r1MBDNYQZI3ekPt
+         It2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=e3NuoyA6DsdN8vS1rlRQd+bW+avLSVguOFGnQl9Uq1o=;
-        b=0fV48aIQfx8FA0LExWL0hyXGONSs7oliFm5T8MsQW4OCjyvP2LbGZQ9rYzQIRAdwI+
-         PNAA8n6PorbHLlcsR7H5F8ct6f4M+ySflvPCuu3IXvq1EQQyD4ej74WEGfp7K3gJm2+N
-         5gGP2Ef+qjFtFtuZLL+6SEyfqLmyshlYFfnjMf2sT6oQ78EUMkI+jQIIcpdhUrZ4gFIF
-         kuat5jRcqTw3VZNWF/3YuBgnwMBwVVPfKWg6c+BGYprsVVbw0ZZJSY3TkSOYuHWcDjHs
-         n//xKH2igeBRwUlLyb/HSLcDHNuDFUw2sZ/Hd5FFntqN0fenRz3DLP2MyMyoUucU60Vr
-         fCLw==
+        h=message-id:date:subject:cc:to:from;
+        bh=erpFmp3VLDsAOMv7VvMVAaqBi78LNY8tDAh1d6RKhCY=;
+        b=zzoUcSXlkX8P5xFAIzrgwuYsdZkQesSY3KB4ss6/4BGZsD7FuZuP7LXqAgh7Byx6RH
+         pC6L8rmj2muQRPgr228sspTXksJjq7gcgMxXq6U/iIINcSHuK1oqOey4hzUmq4+NolLF
+         nsq6cVD3JZ5LCRiUDP3vTupnVRUZxtTuXVFDDifyphN9UlrCTeDgqve61CzTh9BH+wX/
+         KBppFR34YNr79+icfEVHuvHNXpyTNL88L13Y2XZ1E9PjtLDEZZ0bB4nDHqzJefe+R2Pd
+         Mn2BWuPmC/PAUEj+BnvqlhuaJB2ayhgJYxJId6qmsxXuasBDbVYLdrqEOGNgaPg5j2Jd
+         q6RA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Lt/DTI5w";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i16sor264677ljj.1.2019.05.08.21.43.05
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 May 2019 21:43:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j8si488185ejd.47.2019.05.08.21.46.55
+        for <linux-mm@kvack.org>;
+        Wed, 08 May 2019 21:46:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Lt/DTI5w";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=e3NuoyA6DsdN8vS1rlRQd+bW+avLSVguOFGnQl9Uq1o=;
-        b=Lt/DTI5wNAIhQ/6m6siviyT/JhbAp3rvLyUD63xEOH2IAg2pMCbMTS5GVTmn+YjFEr
-         pnlVWawZ4nlMIvBOt171hzqJoikbtkxHGB0/mAiy4+T0Rw2CoC2QP83rkkwOknkyTrVW
-         IRuOvLBwGlgkRwVCBqoWuPwWjarfOB15lA5TfomCotP/1mkZgzE2vDNTJwjtVgAPyFrS
-         MJpWxa//z66mbSVrM03P8D5yOr826PzQmL+znaT8rF9P0GSt8GxB25i3hV1aFx4c6bFG
-         01Sw6nLVbznCBMk4a/bLRUHhV8ZEFJoUM3gjiFpUeSDeboJ9cpOKY0J2miFZ1Gf+wdk2
-         AoeQ==
-X-Google-Smtp-Source: APXvYqyahlAiHd3my+REndsaCdCPgpOP53l6bfy+BbUj2xIO/9159X2NF1ynIXXakgT60wBBaFKFYZTmcckc0FIv784=
-X-Received: by 2002:a2e:7e0a:: with SMTP id z10mr855035ljc.9.1557376985164;
- Wed, 08 May 2019 21:43:05 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190506232942.12623-1-rcampbell@nvidia.com> <20190506232942.12623-5-rcampbell@nvidia.com>
- <CAFqt6zbhLQuw2N5-=Nma-vHz1BkWjviOttRsPXmde8U1Oocz0Q@mail.gmail.com> <fa2078fd-3ec7-5503-94d7-c4d1a766029a@nvidia.com>
-In-Reply-To: <fa2078fd-3ec7-5503-94d7-c4d1a766029a@nvidia.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Thu, 9 May 2019 10:12:52 +0530
-Message-ID: <CAFqt6zbL1r6+G6f-4-cpktyNZ929d4tNfQDt4oHXqeHoC9chHw@mail.gmail.com>
-Subject: Re: [PATCH 4/5] mm/hmm: hmm_vma_fault() doesn't always call hmm_range_unregister()
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, 
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, 
-	Balbir Singh <bsingharora@gmail.com>, Dan Carpenter <dan.carpenter@oracle.com>, 
-	Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DF70C374;
+	Wed,  8 May 2019 21:46:54 -0700 (PDT)
+Received: from p8cg001049571a15.arm.com (unknown [10.163.1.46])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id BB8733F575;
+	Wed,  8 May 2019 21:46:47 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+To: linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Will Deacon <will.deacon@arm.com>,
+	Toshi Kani <toshi.kani@hpe.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	James Morse <james.morse@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Laura Abbott <labbott@redhat.com>
+Subject: [PATCH V3 0/2] mm/ioremap: Check virtual address alignment
+Date: Thu,  9 May 2019 10:16:15 +0530
+Message-Id: <1557377177-20695-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 7, 2019 at 11:42 PM Ralph Campbell <rcampbell@nvidia.com> wrote:
->
->
-> On 5/7/19 6:15 AM, Souptick Joarder wrote:
-> > On Tue, May 7, 2019 at 5:00 AM <rcampbell@nvidia.com> wrote:
-> >>
-> >> From: Ralph Campbell <rcampbell@nvidia.com>
-> >>
-> >> The helper function hmm_vma_fault() calls hmm_range_register() but is
-> >> missing a call to hmm_range_unregister() in one of the error paths.
-> >> This leads to a reference count leak and ultimately a memory leak on
-> >> struct hmm.
-> >>
-> >> Always call hmm_range_unregister() if hmm_range_register() succeeded.
-> >
-> > How about * Call hmm_range_unregister() in error path if
-> > hmm_range_register() succeeded* ?
->
-> Sure, sounds good.
-> I'll include that in v2.
+This series makes sure that ioremap_page_range()'s input virtual address
+alignment is checked along with physical address before creating huge page
+kernel mappings to avoid problems related to random freeing of PMD or PTE
+pgtable pages potentially with existing valid entries. It also cleans up
+arm64 pgtable page address offset in [pud|pmd]_free_[pmd|pte]_page().
 
-Thanks.
->
-> >>
-> >> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> >> Cc: John Hubbard <jhubbard@nvidia.com>
-> >> Cc: Ira Weiny <ira.weiny@intel.com>
-> >> Cc: Dan Williams <dan.j.williams@intel.com>
-> >> Cc: Arnd Bergmann <arnd@arndb.de>
-> >> Cc: Balbir Singh <bsingharora@gmail.com>
-> >> Cc: Dan Carpenter <dan.carpenter@oracle.com>
-> >> Cc: Matthew Wilcox <willy@infradead.org>
-> >> Cc: Souptick Joarder <jrdr.linux@gmail.com>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> ---
-> >>   include/linux/hmm.h | 3 ++-
-> >>   1 file changed, 2 insertions(+), 1 deletion(-)
-> >>
-> >> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> >> index 35a429621e1e..fa0671d67269 100644
-> >> --- a/include/linux/hmm.h
-> >> +++ b/include/linux/hmm.h
-> >> @@ -559,6 +559,7 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
-> >>                  return (int)ret;
-> >>
-> >>          if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
-> >> +               hmm_range_unregister(range);
-> >>                  /*
-> >>                   * The mmap_sem was taken by driver we release it here and
-> >>                   * returns -EAGAIN which correspond to mmap_sem have been
-> >> @@ -570,13 +571,13 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
-> >>
-> >>          ret = hmm_range_fault(range, block);
-> >>          if (ret <= 0) {
-> >> +               hmm_range_unregister(range);
-> >
-> > what is the reason to moved it up ?
->
-> I moved it up because the normal calling pattern is:
->      down_read(&mm->mmap_sem)
->      hmm_vma_fault()
->          hmm_range_register()
->          hmm_range_fault()
->          hmm_range_unregister()
->      up_read(&mm->mmap_sem)
->
-> I don't think it is a bug to unlock mmap_sem and then unregister,
-> it is just more consistent nesting.
+Changes in V3:
 
-Ok. I think, adding it in change log will be helpful :)
->
-> >>                  if (ret == -EBUSY || !ret) {
-> >>                          /* Same as above, drop mmap_sem to match old API. */
-> >>                          up_read(&range->vma->vm_mm->mmap_sem);
-> >>                          ret = -EBUSY;
-> >>                  } else if (ret == -EAGAIN)
-> >>                          ret = -EBUSY;
-> >> -               hmm_range_unregister(range);
-> >>                  return ret;
-> >>          }
-> >>          return 0;
-> >> --
-> >> 2.20.1
-> >>
+- Added virtual address alignment check in ioremap_page_range()
+- Dropped VM_WARN_ONCE() as input virtual addresses are aligned for sure
+
+Changes in V2: (https://patchwork.kernel.org/patch/10922795/)
+
+- Replaced WARN_ON_ONCE() with VM_WARN_ONCE() as per Catalin
+
+Changes in V1: (https://patchwork.kernel.org/patch/10921135/)
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: James Morse <james.morse@arm.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Robin Murphy <robin.murphy@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>
+
+Anshuman Khandual (2):
+  mm/ioremap: Check virtual address alignment while creating huge mappings
+  arm64/mm: Change offset base address in [pud|pmd]_free_[pmd|pte]_page()
+
+ arch/arm64/mm/mmu.c | 6 +++---
+ lib/ioremap.c       | 6 ++++++
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+-- 
+2.20.1
 
