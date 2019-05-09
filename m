@@ -2,299 +2,254 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 350F6C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:56:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9660C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:06:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC3802177E
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:56:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="sjWzpAf+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC3802177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 6F14F2177B
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:06:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F14F2177B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 243256B0003; Thu,  9 May 2019 15:56:29 -0400 (EDT)
+	id C47336B0003; Thu,  9 May 2019 17:06:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F3CC6B0006; Thu,  9 May 2019 15:56:29 -0400 (EDT)
+	id BF8AD6B0006; Thu,  9 May 2019 17:06:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0E3146B0007; Thu,  9 May 2019 15:56:29 -0400 (EDT)
+	id AC0386B0007; Thu,  9 May 2019 17:06:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C80556B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 15:56:28 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d5so1599013pga.3
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 12:56:28 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B2026B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:06:44 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id k15so3399603qki.4
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:06:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=;
-        b=NfgUmddDP2fdTKEuauuRwQizxu1cx8QO5QU5tXOY02yWxtWqZdQw8G8LMHIwvUCAGF
-         ShBfxQjd9HpHA8xTTmd9zwroYYwZwSg6kO5hSnVlyQc1QUh1cmL6RgbjHlzCcpx2pBeE
-         uANoVQl0NPDN2Muj491lvKKpNfRTQyWfngE5A1oKBL3E8V3PZc2HvOXAYcAg+XXRAX3W
-         tRbtgdherAzZtR+mPoJI7bqNQcS2MjO1Ucb6IN0Ka4r5KmMK/fObr1MSvx3oq1kh95iF
-         r/rduxDnwnrrghs2VzjUec5HzZHy0UM+LqRTu7Ws1TZerHXEfhSNqU0JK8LEwQ2actwT
-         xogw==
-X-Gm-Message-State: APjAAAXE90exCJ/EKAKjvchwiVyx4IxCqByJEcPDsRJlU5LThZc5wOVg
-	AfqumPSvnaBt3Iji69vsRdLmdG45vf6xHMpwe+Bt5kt7lpdzPsBRT0qU67uLpDfUqVAFSYQQ61J
-	XzWCtPZeKtym3LerjmrPcv/kZaGUoX+IYfDiW+sSWNQHAGcBsDFs/K8ayHxBO1fnH5A==
-X-Received: by 2002:a17:902:9a83:: with SMTP id w3mr7761102plp.241.1557431788203;
-        Thu, 09 May 2019 12:56:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfJIKZqvlSuefaEXYQkSb8ayljq3+REe09vUrN8utkbfCro/LFfnLq+GGLc3wL1kdFOsUc
-X-Received: by 2002:a17:902:9a83:: with SMTP id w3mr7761017plp.241.1557431787204;
-        Thu, 09 May 2019 12:56:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557431787; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding:thread-topic:thread-index;
+        bh=Zle0EOxhkjIur0vZBNLm5bBmFk7EynbR0yS3T77Ek8k=;
+        b=YFzvzj/xP73U+tIl/obiZ16Wwe5p8h+/1Nk6aJoI9yM0z9ZK0rZsUDRIVVMwrUIn7C
+         dsxxIhj7yn8L+FkRA5vNlgiipGgQVImkzQ/WHZgkwjX/w3gFhsGBP/7Y9Sj7YM9em4ue
+         BD9RkTnw/3JVBcobea/+zB6nKQ4nlUp5rtzeVy9lONI8GfYz6VVy4KjmVzDXEYuwaW76
+         wBnPCFUYz/5uQxROEncAbEvVQkphDqNHOW1S7WVLjHL3tpRrkEEUSAFfsF5fWuOiAm8B
+         yGyXOApXLWKc86iII5v11ybohMRnsWNU1IlIQyILOQ/Uo/aVOH47qhnjGGEC1DFYa2cL
+         y9EQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV5N0N1Smx/Go2znfvmjwpnPE5q+pglDVq0SNH+dnBQfvOsqzIb
+	N+a0biPRAWKgs/JCoKKq4fuKWAoH1vH1fIHi9hpP6mpLgACq0jPm60ftPcdzSUBEZAMFoi3Wo20
+	MZKr6Hylj5KUVY3Pg6yy2PYmYt8cpZmUpkoHODDP2foPmXLQzkuDpNIch5UiWj6KqiA==
+X-Received: by 2002:aed:2071:: with SMTP id 104mr6009311qta.223.1557436004260;
+        Thu, 09 May 2019 14:06:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdUJxyF6eD2e8KjthR4KkRi7Wirgp7U1CqXNpf081uHPjpNI1uHvULwK5cccDuSqoGdBCJ
+X-Received: by 2002:aed:2071:: with SMTP id 104mr6009248qta.223.1557436003389;
+        Thu, 09 May 2019 14:06:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557436003; cv=none;
         d=google.com; s=arc-20160816;
-        b=I/rLUMUray5UmcHibDnLUuEwvadDygf75pI3TIkxHirDyh5pMUOxA5Rk5O+9YOG9Og
-         eK5oXhOnxQR1V9k7zmKbPs0keAR1kzgBYCpDpuSlnkAW0PX6kJtRGgIAydYM7s/y7KTm
-         ZhbQJL5GLdQly/5pgtZNXqFeePl95ci9Yj6IN3hVFsvZQjtgy8JvPKBvwg6biWzsjyDu
-         7dj+RYV3up6JM+nereM1bJAsAsRKdcZvcrBEtXUV3zmpxFMjvdN1GWfYBoWFy9Z/qcLI
-         6aLK3WJe1jO2uI7nrFwspzuVvA7KzhRF6aoeCwE0cg3qayJ/h3iCFdJY6brpcdeXQkqk
-         MBiQ==
+        b=HWzq/zHg5TOQEPoELP4Z18c0hEpHJI9IheQpSlhK9IcDCeWPh0FNxW1LGdCgR0YsPJ
+         c/3d6IjEO4PEva6v0J0HS1kbPvtYytC6v3/wxZKY5/vhrEy74Te5CwBb/mPAGG24hoVS
+         s/sWCFwZ4gxQY4fQxDeNocyQwY/kJC6FlqfNqB2CfZ8VK6AM6tn3sXLFQ27jE8fA4XHy
+         4gi1YhBnzrAazyv/XUCwhWjWUa0vcYHplSztObNR7ylYA8VrlyY6zAEp9/IHl4kzI/gq
+         eT1TqlSOWaj7oqv0FG5j1cMGhE0VkTmBGu4Csp8dkI186vZhYS1ZDAcV7wjuV9Vzms/F
+         49Tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=;
-        b=DZ1OjsicP331lZZT03/kGT4yK84XtMyxrvLtOm70zbuiWS9YL/i9pr7bauCgMbCDCj
-         4FD5AMHG2UpMMpZrc353um6RmhqvI8lFlIsM4bi3OVHNV1pQyLvAqYuzlGS90XJwrY8o
-         4HSdIR7BiNsMAk0qANPMcqqGXmTsvwT4L0KnP57Kiur8hbiephQeR0AnNYViXh/nRzW5
-         Z0jcTLULdU5ry7XOdimEgU2CnOXWzEj4FLBpewxrDGYwLx0xFGhfw+MfUoT/H1W8QLRG
-         gDkgIGKJ+hJtYgOeQoZqORwcVnitsMUgZ7lGnEOg0hcE0tUhPrRmPQfjIJ/A0AbNhN2k
-         b0Ig==
+        h=thread-index:thread-topic:content-transfer-encoding:mime-version
+         :subject:references:in-reply-to:message-id:cc:to:from:date;
+        bh=Zle0EOxhkjIur0vZBNLm5bBmFk7EynbR0yS3T77Ek8k=;
+        b=eodR64K6i68B9Vz/vfcYBkptFc+2f0fMjOK8f9CUE5dwZXa6wnzQHNsqILYLC6G8w+
+         u8ELCA0fRGCdlMbILQLPtx86aTAOumwbceDjqGC5Hsn6uJgu8bTFoadB/hYoHUYjiJCa
+         Mvlh19VEWDeo4XGuso+FlfWsv+CXMXL3W8pZ2bQsopcSX894WVK6epvGMA3+z75tjmg8
+         /8siE9sJnivoqjBqup0yFbyzu8qfYbNy/LdUPXGiYDMIeTnLSFjmqF1J7TCPvjpZOqzX
+         UP+PnF04RLF+0Hmf9eQa+GJpeuWvilPFGpV4wTtgqzfp1AEdWCf7CAFiq5atyPEGlTEY
+         pg7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sjWzpAf+;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v1si4278609plo.191.2019.05.09.12.56.26
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z31si2257011qtz.218.2019.05.09.14.06.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 12:56:27 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 May 2019 14:06:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sjWzpAf+;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=; b=sjWzpAf+RG2sk7Xun0Y3JguxV
-	Clw1VlgAF/0VHkox15p7PkRgGlnwoIoavF+resBPd0UAGNn4gi97iGsnxZirGpFCSa6ap5WOqu0XI
-	4JQ+eSoyPMii+x8peXrFm/WTEcesMShFMutGTh4ovK/0s7M+xAiz5DLPpslbg6CuvDwEGl4th5As8
-	+leYhoatWAVVGYkU4jZkU+mLA/BrV9kLnkCKewWS/Xkrxw6sp81AOu3UUPhSV6CLlwmEsuGcmR/3U
-	9LDMxX6avTpVNSNJkBEsIXjtiaaqgiGrqCaoTO6DA3FHyal3Wgqo28gxNRm9WTA1u4U/D3QzaRrrD
-	w+Xph81gQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hOp9T-00066y-M8; Thu, 09 May 2019 19:56:23 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 3640623E95D36; Thu,  9 May 2019 21:56:21 +0200 (CEST)
-Date: Thu, 9 May 2019 21:56:21 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, jstancek@redhat.com,
-	akpm@linux-foundation.org, stable@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com,
-	namit@vmware.com, minchan@kernel.org, Mel Gorman <mgorman@suse.de>
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5F1C718DF7C;
+	Thu,  9 May 2019 21:06:42 +0000 (UTC)
+Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 290C460CCD;
+	Thu,  9 May 2019 21:06:42 +0000 (UTC)
+Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
+	by colo-mx.corp.redhat.com (Postfix) with ESMTP id BFA7E18089C9;
+	Thu,  9 May 2019 21:06:41 +0000 (UTC)
+Date: Thu, 9 May 2019 17:06:38 -0400 (EDT)
+From: Jan Stancek <jstancek@redhat.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Nadav Amit <namit@vmware.com>, Will Deacon <will.deacon@arm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	aneesh kumar <aneesh.kumar@linux.vnet.ibm.com>, npiggin@gmail.com, 
+	minchan@kernel.org, Mel Gorman <mgorman@suse.de>, 
+	Jan Stancek <jstancek@redhat.com>
+Message-ID: <249230644.21949166.1557435998550.JavaMail.zimbra@redhat.com>
+In-Reply-To: <84720bb8-bf3d-8c10-d675-0670f13b2efc@linux.alibaba.com>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com> <20190509083726.GA2209@brain-police> <20190509103813.GP2589@hirez.programming.kicks-ass.net> <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com> <20190509182435.GA2623@hirez.programming.kicks-ass.net> <84720bb8-bf3d-8c10-d675-0670f13b2efc@linux.alibaba.com>
 Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
  flush
-Message-ID: <20190509195621.GM2650@hirez.programming.kicks-ass.net>
-References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190509083726.GA2209@brain-police>
- <20190509103813.GP2589@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190509103813.GP2589@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.40.204.125, 10.4.195.2]
+Thread-Topic: mmu_gather: remove __tlb_reset_range() for force flush
+Thread-Index: lzhSy8AmrVc0ek4MkypS7izuJweOyw==
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 09 May 2019 21:06:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 09, 2019 at 12:38:13PM +0200, Peter Zijlstra wrote:
 
-> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-> index 99740e1dd273..fe768f8d612e 100644
-> --- a/mm/mmu_gather.c
-> +++ b/mm/mmu_gather.c
-> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
->  		unsigned long start, unsigned long end)
->  {
->  	/*
-> -	 * If there are parallel threads are doing PTE changes on same range
-> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
-> -	 * flush by batching, a thread has stable TLB entry can fail to flush
-> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
-> -	 * forcefully if we detect parallel PTE batching threads.
-> +	 * Sensible comment goes here..
->  	 */
-> -	if (mm_tlb_flush_nested(tlb->mm)) {
-> -		__tlb_reset_range(tlb);
-> -		__tlb_adjust_range(tlb, start, end - start);
-> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
-> +		/*
-> +		 * Since we're can't tell what we actually should have
-> +		 * flushed flush everything in the given range.
-> +		 */
-> +		tlb->start = start;
-> +		tlb->end = end;
-> +		tlb->freed_tables = 1;
-> +		tlb->cleared_ptes = 1;
-> +		tlb->cleared_pmds = 1;
-> +		tlb->cleared_puds = 1;
-> +		tlb->cleared_p4ds = 1;
->  	}
->  
->  	tlb_flush_mmu(tlb);
+----- Original Message -----
+> 
+> 
+> On 5/9/19 11:24 AM, Peter Zijlstra wrote:
+> > On Thu, May 09, 2019 at 05:36:29PM +0000, Nadav Amit wrote:
+> >>> On May 9, 2019, at 3:38 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >>> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+> >>> index 99740e1dd273..fe768f8d612e 100644
+> >>> --- a/mm/mmu_gather.c
+> >>> +++ b/mm/mmu_gather.c
+> >>> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+> >>> 		unsigned long start, unsigned long end)
+> >>> {
+> >>> 	/*
+> >>> -	 * If there are parallel threads are doing PTE changes on same range
+> >>> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+> >>> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+> >>> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+> >>> -	 * forcefully if we detect parallel PTE batching threads.
+> >>> +	 * Sensible comment goes here..
+> >>> 	 */
+> >>> -	if (mm_tlb_flush_nested(tlb->mm)) {
+> >>> -		__tlb_reset_range(tlb);
+> >>> -		__tlb_adjust_range(tlb, start, end - start);
+> >>> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
+> >>> +		/*
+> >>> +		 * Since we're can't tell what we actually should have
+> >>> +		 * flushed flush everything in the given range.
+> >>> +		 */
+> >>> +		tlb->start = start;
+> >>> +		tlb->end = end;
+> >>> +		tlb->freed_tables = 1;
+> >>> +		tlb->cleared_ptes = 1;
+> >>> +		tlb->cleared_pmds = 1;
+> >>> +		tlb->cleared_puds = 1;
+> >>> +		tlb->cleared_p4ds = 1;
+> >>> 	}
+> >>>
+> >>> 	tlb_flush_mmu(tlb);
+> >> As a simple optimization, I think it is possible to hold multiple nesting
+> >> counters in the mm, similar to tlb_flush_pending, for freed_tables,
+> >> cleared_ptes, etc.
+> >>
+> >> The first time you set tlb->freed_tables, you also atomically increase
+> >> mm->tlb_flush_freed_tables. Then, in tlb_flush_mmu(), you just use
+> >> mm->tlb_flush_freed_tables instead of tlb->freed_tables.
+> > That sounds fraught with races and expensive; I would much prefer to not
+> > go there for this arguably rare case.
+> >
+> > Consider such fun cases as where CPU-0 sees and clears a PTE, CPU-1
+> > races and doesn't see that PTE. Therefore CPU-0 sets and counts
+> > cleared_ptes. Then if CPU-1 flushes while CPU-0 is still in mmu_gather,
+> > it will see cleared_ptes count increased and flush that granularity,
+> > OTOH if CPU-1 flushes after CPU-0 completes, it will not and potentiall
+> > miss an invalidate it should have had.
+> >
+> > This whole concurrent mmu_gather stuff is horrible.
+> >
+> >    /me ponders more....
+> >
+> > So I think the fundamental race here is this:
+> >
+> > 	CPU-0				CPU-1
+> >
+> > 	tlb_gather_mmu(.start=1,	tlb_gather_mmu(.start=2,
+> > 		       .end=3);			       .end=4);
+> >
+> > 	ptep_get_and_clear_full(2)
+> > 	tlb_remove_tlb_entry(2);
+> > 	__tlb_remove_page();
+> > 					if (pte_present(2)) // nope
+> >
+> > 					tlb_finish_mmu();
+> >
+> > 					// continue without TLBI(2)
+> > 					// whoopsie
+> >
+> > 	tlb_finish_mmu();
+> > 	  tlb_flush()		->	TLBI(2)
+> 
+> I'm not quite sure if this is the case Jan really met. But, according to
+> his test, once correct tlb->freed_tables and tlb->cleared_* are set, his
+> test works well.
 
-So PPC-radix has page-size dependent TLBI, but the above doesn't work
-for them, because they use the tlb_change_page_size() interface and
-don't look at tlb->cleared_p*().
+My theory was following sequence:
 
-Concequently, they have their own special magic :/
+t1: map_write_unmap()                 t2: dummy()
 
-Nick, how about you use the tlb_change_page_size() interface to
-find/flush on the page-size boundaries, but otherwise use the
-tlb->cleared_p* flags to select which actual sizes to flush?
+  map_address = mmap()
+  map_address[i] = 'b'
+  munmap(map_address)
+  downgrade_write(&mm->mmap_sem);
+  unmap_region()
+  tlb_gather_mmu()
+    inc_tlb_flush_pending(tlb->mm);
+  free_pgtables()
+    tlb->freed_tables = 1
+    tlb->cleared_pmds = 1
 
-AFAICT that should work just fine for you guys. Maybe something like so?
+                                        pthread_exit()
+                                        madvise(thread_stack, 8M, MADV_DONTNEED)
+                                          zap_page_range()
+                                            tlb_gather_mmu()
+                                              inc_tlb_flush_pending(tlb->mm);
 
-(fwiw, there's an aweful lot of almost identical functions there)
+  tlb_finish_mmu()
+    if (mm_tlb_flush_nested(tlb->mm))
+      __tlb_reset_range()
+        tlb->freed_tables = 0
+        tlb->cleared_pmds = 0
+    __flush_tlb_range(last_level = 0)
+  ...
+  map_address = mmap()
+    map_address[i] = 'b'
+      <page fault loop>
+      # PTE appeared valid to me,
+      # so I suspected stale TLB entry at higher level as result of "freed_tables = 0"
 
----
 
-diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c
-index 6a23b9ebd2a1..efc99ef78db6 100644
---- a/arch/powerpc/mm/tlb-radix.c
-+++ b/arch/powerpc/mm/tlb-radix.c
-@@ -692,7 +692,7 @@ static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_
- 
- static inline void __radix__flush_tlb_range(struct mm_struct *mm,
- 					unsigned long start, unsigned long end,
--					bool flush_all_sizes)
-+					bool pflush, bool hflush, bool gflush)
- 
- {
- 	unsigned long pid;
-@@ -734,14 +734,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
- 				_tlbie_pid(pid, RIC_FLUSH_TLB);
- 		}
- 	} else {
--		bool hflush = flush_all_sizes;
--		bool gflush = flush_all_sizes;
- 		unsigned long hstart, hend;
- 		unsigned long gstart, gend;
- 
--		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
--			hflush = true;
--
- 		if (hflush) {
- 			hstart = (start + PMD_SIZE - 1) & PMD_MASK;
- 			hend = end & PMD_MASK;
-@@ -758,7 +753,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
- 
- 		asm volatile("ptesync": : :"memory");
- 		if (local) {
--			__tlbiel_va_range(start, end, pid, page_size, mmu_virtual_psize);
-+			if (pflush)
-+				__tlbiel_va_range(start, end, pid,
-+						page_size, mmu_virtual_psize);
- 			if (hflush)
- 				__tlbiel_va_range(hstart, hend, pid,
- 						PMD_SIZE, MMU_PAGE_2M);
-@@ -767,7 +764,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
- 						PUD_SIZE, MMU_PAGE_1G);
- 			asm volatile("ptesync": : :"memory");
- 		} else {
--			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);
-+			if (pflush)
-+				__tlbie_va_range(start, end, pid,
-+						page_size, mmu_virtual_psize);
- 			if (hflush)
- 				__tlbie_va_range(hstart, hend, pid,
- 						PMD_SIZE, MMU_PAGE_2M);
-@@ -785,12 +784,17 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
- 		     unsigned long end)
- 
- {
-+	bool hflush = false;
-+
- #ifdef CONFIG_HUGETLB_PAGE
- 	if (is_vm_hugetlb_page(vma))
- 		return radix__flush_hugetlb_tlb_range(vma, start, end);
- #endif
- 
--	__radix__flush_tlb_range(vma->vm_mm, start, end, false);
-+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+		hflush = true;
-+
-+	__radix__flush_tlb_range(vma->vm_mm, start, end, true, hflush, false);
- }
- EXPORT_SYMBOL(radix__flush_tlb_range);
- 
-@@ -881,49 +885,14 @@ void radix__tlb_flush(struct mmu_gather *tlb)
- 	 */
- 	if (tlb->fullmm) {
- 		__flush_all_mm(mm, true);
--#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
--	} else if (mm_tlb_flush_nested(mm)) {
--		/*
--		 * If there is a concurrent invalidation that is clearing ptes,
--		 * then it's possible this invalidation will miss one of those
--		 * cleared ptes and miss flushing the TLB. If this invalidate
--		 * returns before the other one flushes TLBs, that can result
--		 * in it returning while there are still valid TLBs inside the
--		 * range to be invalidated.
--		 *
--		 * See mm/memory.c:tlb_finish_mmu() for more details.
--		 *
--		 * The solution to this is ensure the entire range is always
--		 * flushed here. The problem for powerpc is that the flushes
--		 * are page size specific, so this "forced flush" would not
--		 * do the right thing if there are a mix of page sizes in
--		 * the range to be invalidated. So use __flush_tlb_range
--		 * which invalidates all possible page sizes in the range.
--		 *
--		 * PWC flush probably is not be required because the core code
--		 * shouldn't free page tables in this path, but accounting
--		 * for the possibility makes us a bit more robust.
--		 *
--		 * need_flush_all is an uncommon case because page table
--		 * teardown should be done with exclusive locks held (but
--		 * after locks are dropped another invalidate could come
--		 * in), it could be optimized further if necessary.
--		 */
--		if (!tlb->need_flush_all)
--			__radix__flush_tlb_range(mm, start, end, true);
--		else
--			radix__flush_all_mm(mm);
--#endif
--	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
--		if (!tlb->need_flush_all)
--			radix__flush_tlb_mm(mm);
--		else
--			radix__flush_all_mm(mm);
- 	} else {
- 		if (!tlb->need_flush_all)
--			radix__flush_tlb_range_psize(mm, start, end, psize);
-+			__radix__flush_tlb_range(mm, start, end,
-+					tlb->cleared_pte,
-+				        tlb->cleared_pmd,
-+					tlb->cleared_pud);
- 		else
--			radix__flush_tlb_pwc_range_psize(mm, start, end, psize);
-+			radix__flush_all_mm(mm);
- 	}
- 	tlb->need_flush_all = 0;
- }
+I'm happy to apply/run any debug patches to get more data that would help.
+
+> 
+> >
+> >
+> > And we can fix that by having tlb_finish_mmu() sync up. Never let a
+> > concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
+> > have completed.
+> 
+> Not sure if this will scale well.
+> 
+> >
+> > This should not be too hard to make happen.
+> 
+> 
 
