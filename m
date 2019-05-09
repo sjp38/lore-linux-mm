@@ -2,286 +2,191 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2381C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A488C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 490FB2173C
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="EUI93GA4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 490FB2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id DD1F6217D6
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD1F6217D6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C80E76B000A; Thu,  9 May 2019 12:22:16 -0400 (EDT)
+	id 618FF6B000C; Thu,  9 May 2019 12:22:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C314F6B000C; Thu,  9 May 2019 12:22:16 -0400 (EDT)
+	id 5C99A6B000D; Thu,  9 May 2019 12:22:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B20EF6B000D; Thu,  9 May 2019 12:22:16 -0400 (EDT)
+	id 4B8436B000E; Thu,  9 May 2019 12:22:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AD826B000A
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:22:16 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id n3so1946101pff.4
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:22:16 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 15F716B000C
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:22:51 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id x5so1854338pll.2
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:22:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:dkim-signature;
-        bh=ySdKjZ9iDZbJHfdPC29dq/u2NCS/NhGwmS58wZMyvw8=;
-        b=OJSJUkI/2p6jOdBcXdIWudBdbCTTCGJorDTys4Ug3yEQtzWI/NpGgk0w90SKKfWzFh
-         +tVk+7nOMpJH0wcqdcs9q3o5nd6vOvu2qA+ygYcF0vO3NMiviLo9onVNKAhTPyc5JwXz
-         CMY+jHrwwmQIo8QUpiOZAffMKyaT5VDGCqyH7rOTX2trC3qa4M9RPOUSzcu2FzOzMDmQ
-         zWOxYAmgzfvrz9jEXClUkwbgC02DfgmLFk0aRDM6kT8ZIwAQrRM5HBGZ2n06xJhZLNSk
-         Y/SRNUp0lp1rfKn7uDcLujizEMsBKcKFEAFfYXGz19eG6J/sPNua/cvMbWce1MJV9p3N
-         5m9w==
-X-Gm-Message-State: APjAAAXs3M4RIP5PhO4D6mfUkOiCetiungI8JvMTNnIECRXBygVTa1PD
-	kGtPBa3gNzrLZflUV/ixFwz5/2YYBZCDqYr6MAbWcYLRU/GxI3MWkFeMqqb15wLDTpgQ6rsuNik
-	peM3ki+Sy4YzjlTiexIhbsX+73n8OoiwuUafUFtopMyfXAfyH3Kvx3k3s/yRs+UqJhg==
-X-Received: by 2002:a62:be13:: with SMTP id l19mr6586420pff.137.1557418936039;
-        Thu, 09 May 2019 09:22:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwd25vuOu3KUY8/bweUQwXjzkgihX6LJE3QR+n4nMEyqt45UWnajfbZ+FjWuEhLzuZePUSX
-X-Received: by 2002:a62:be13:: with SMTP id l19mr6586293pff.137.1557418935053;
-        Thu, 09 May 2019 09:22:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557418935; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=MnJUOeGEfxoXATq898/79HSPqxNr6uBR2VgKy0JDKm8=;
+        b=cI0d6U038z1tlNAbCmFJGGssd5rkSxBrKxdjQhZnWN0zibkjO67TIKakre2/xsyjqo
+         MN67q/TJ8gY3NCYjLjWylUPdMJsJQdTvTWNrytUEVTJvhSyK3jts1gZV2ZGykzhHbpkw
+         mwB/Zkpr2FAVp2Ng7bMwek9YT4mw+Y0s424VnMvDZSw2Lrt7Y4sE+1awbazJi8KUTPeq
+         mvA0IzOTB3Q49KXHEhsWU8vv43nqon8Sc/RebO0QGc+sHTgiRJYdIKLAxxJFFRzxK41a
+         K0hkYoJMzebtatl807NUGNYu5D1ZYR2zsIc0Y2dCTkXhuAP4H/IPQ0/iju+1ytjF3ddh
+         tzIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVjIGwejX6tCdtJ+KF7AJx3rmBHb6+QS2kIBPwIn+fWP6SFaf26
+	j8QCWmndRknPefpd54NiyNAc+gl7VtvDEfNn3UURAWu8RzOdIhBBMHe8/n/WLXoXTI5GriBmRrQ
+	SJxqTBUUF//wigncWLpCISkRmt5ng8WsOc/4EZ9+zqxQZ6n7GQB0snaXfNqlvI4m0tQ==
+X-Received: by 2002:aa7:8e04:: with SMTP id c4mr6470044pfr.48.1557418970717;
+        Thu, 09 May 2019 09:22:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwVL09ur8DF/uXa3vFWKKNV3C3Q71OvFC+rw3AvNfVg3wXvvsRJGDNaL/K9Mb7YJQ6Y2Xv0
+X-Received: by 2002:aa7:8e04:: with SMTP id c4mr6469964pfr.48.1557418970051;
+        Thu, 09 May 2019 09:22:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557418970; cv=none;
         d=google.com; s=arc-20160816;
-        b=X+WFuhjEU7qDegeZlsI0hwNMBwx8STGWY5Jph0KjlULDa3YdTYnfi1zgQK9sdRXCe1
-         rH41cdT+1pHPUKLrLd2bW+3sq2KrCRNTWGMcCz7MZKuMwEtot2q6w9P32g2e3/auWt2k
-         yaJcH/SibTTg+jYWKAvz/Dvfq/n5nBOxeJ5MSN5D7vJiYfXI78aKjsD1wzUbXAOft+g+
-         4wcgNO9nOQVgfGCPpBYIPCJjy/lr24M5BvRvVBpGqFxq33oz8Tehkjk9ll4nNMmlpUr0
-         Z53Ne5SzLQ+g5NRSgnBR17+gLnGe8KuT7v8eZSMga4lfTXte/PhYSQTc7sTeSa70Q3Zr
-         lOvQ==
+        b=PKa9Xu+fOPDqRxRKEcrK+brrFmAft9bZAemtE8lelQkA+BAM1I4DqhX7it1nmlpHIr
+         UER0LtuzKsoiyGEW7SqP8l9Dkajg0vBgkEUxm6nW9Hw1cS9RhNnkybEjphfgKjaFCf1D
+         FxBVR2DG+w9RHkfeoFmrqN+poyo9m2q5yzKsU3lVdgj7ga6p7IfktbXK4CEvn0JUaLxr
+         Mzc4M+oRChLJfWPl9SHFkQ8fGtmzoqD3o8SFp8GGf3uUg98zO3n9+Umx8xZbgMo0EtYh
+         cCisR9HWxqLAB/LSjYoggTEhXXVq6GkHHT5J2YjrbAF8tFJ5ul9WkUr8V+53t2HkTVrj
+         deQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
-         :subject:cc:to:from;
-        bh=ySdKjZ9iDZbJHfdPC29dq/u2NCS/NhGwmS58wZMyvw8=;
-        b=OQKvCQ0go0Pe8ZC6NzCPmrWUkaTTlO9WUAmk9XZLN6J2DReb4a0thmeYSnLnVXNFhb
-         KmS4wUvGSB8kSdF3xiz6n8soHTFvEhTjo2UFpYtVTWnhRJAZZJ57c59dnj6EBYMTfz2z
-         8BByTOW+rtNQGdiSXFa96oXSKKaPwXXTZsC0nRV9g4Nd7QCNkI73hLPBFHLUfD54/KUa
-         bwo32bUiZBiINp3+VpyFEu20p7D/N00uVMsaJjKtsND5pE37q1dIkoGT238fjeUYFq9/
-         W+ePzw9WI/VuBR5Iqd7o4DvXU+F14hML5NL5km5knIHsfBEnv5he3Jfe1OkUrDik2Lk/
-         N35w==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=MnJUOeGEfxoXATq898/79HSPqxNr6uBR2VgKy0JDKm8=;
+        b=NiaEMVytZRw8KczHQI3LeT8odF7bvoqT9PGEdEyD7qem680asQ19hehdDGfpz50ues
+         8deTEo7UJAJWVcyQ5FnfRwiSiU5eG1NrcDjidw1qI4dsfdkgmVcXMc5GZ7pP5+ObzKcd
+         frOsOVDOKHNcnuHruBcslhAEkVmYYfpFElwAn2c1qagoWnKSAyv7JhkDf0hnFOK0Sd+g
+         Hf7gxdxO0qubuab3yqnLV4h2wdIlyPbOMqeuUpLgsPtBtiK7k0LgqgZaZ4CFoQeJt4VH
+         VGCNiAUOI/xHGy4ZuFdBf+L2K2ks/CsC4UKuqMfjPCMMUlyaQopmbTKAY36V9+yoIGFY
+         ap/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=EUI93GA4;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id d18si3644829pgi.335.2019.05.09.09.22.14
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id o15si3909382pgh.181.2019.05.09.09.22.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:22:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Thu, 09 May 2019 09:22:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=EUI93GA4;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cd453920000>; Thu, 09 May 2019 09:21:38 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 09 May 2019 09:22:14 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 09 May 2019 09:22:14 -0700
-Received: from [10.2.173.119] (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 9 May
- 2019 16:22:13 +0000
-From: Zi Yan <ziy@nvidia.com>
-To: Keith Busch <keith.busch@intel.com>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: migrate: remove unused mode argument
-Date: Thu, 9 May 2019 09:22:12 -0700
-X-Mailer: MailMate (1.12.4r5629)
-Message-ID: <E467C4E8-5049-4A3A-A95C-5F921372DBE5@nvidia.com>
-In-Reply-To: <20190508210301.8472-1-keith.busch@intel.com>
-References: <20190508210301.8472-1-keith.busch@intel.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 May 2019 09:22:37 -0700
+X-ExtLoop1: 1
+Received: from fmsmsx108.amr.corp.intel.com ([10.18.124.206])
+  by fmsmga004.fm.intel.com with ESMTP; 09 May 2019 09:22:37 -0700
+Received: from fmsmsx125.amr.corp.intel.com (10.18.125.40) by
+ FMSMSX108.amr.corp.intel.com (10.18.124.206) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 9 May 2019 09:22:36 -0700
+Received: from crsmsx103.amr.corp.intel.com (172.18.63.31) by
+ FMSMSX125.amr.corp.intel.com (10.18.125.40) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 9 May 2019 09:22:36 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.116]) by
+ CRSMSX103.amr.corp.intel.com ([169.254.4.184]) with mapi id 14.03.0415.000;
+ Thu, 9 May 2019 10:22:33 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: RE: [PATCH 02/11] mm: Pass order to __alloc_pages_nodemask in GFP
+ flags
+Thread-Topic: [PATCH 02/11] mm: Pass order to __alloc_pages_nodemask in GFP
+ flags
+Thread-Index: AQHVBIqaXqt0fPnBZEirHr/43yV0JKZh+T+AgAFAwAD//8NusA==
+Date: Thu, 9 May 2019 16:22:33 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79D0CEBC@CRSMSX101.amr.corp.intel.com>
+References: <20190507040609.21746-1-willy@infradead.org>
+ <20190507040609.21746-3-willy@infradead.org>
+ <20190509015015.GA26131@iweiny-DESK2.sc.intel.com>
+ <20190509135816.GA23561@bombadil.infradead.org>
+In-Reply-To: <20190509135816.GA23561@bombadil.infradead.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNDFmY2E1MjYtY2U5OS00ZmI1LTk2NDYtODg4MmFlOTI2NGEzIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiamlnWkpnNU5yWXFGbXphSndCeGxCTTVTUDhMNXVFNFQwaENOdGhiQ2kzWnc4b1FHMzlPXC9RaTYxeGlTY1pWQ08ifQ==
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.0.600.7
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: multipart/signed;
-	boundary="=_MailMate_D55B932C-DC6B-48B0-9229-E44DA113B614_=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1557418898; bh=ySdKjZ9iDZbJHfdPC29dq/u2NCS/NhGwmS58wZMyvw8=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
-	 In-Reply-To:References:MIME-Version:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type;
-	b=EUI93GA4ttAr2n8YJz3lLugkYHenkt+B2kD2AFgwpaIE14wmjmfQz9se4bF17j6XP
-	 rtmP1nATTgjnm/aFPEysdnbpxwZIKd0KrpX2XB5xcw9rPlUtZ1je9hqWxQpsB6ubme
-	 GVzTpoMf2aQld2/F60OWJ8/LuYKr7jWLAgKxDvNzvDqy87mdBWR5Rq4ULl8uPjAKZz
-	 JH5F77RhNmP2rBczNB2NfZxSXhiGl7Js/TyJlFEV85PSXuZDyUzNs5qzaiK6/BRPVS
-	 9kpCny6NlgJ65KgH7u5+YrrHvFHKBIuNTq/QsSuj2HUeB65pb3J1Oh1Ub1+80wI6Gp
-	 /Pp0/T8zeYDrg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=_MailMate_D55B932C-DC6B-48B0-9229-E44DA113B614_=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+>=20
+> On Wed, May 08, 2019 at 06:50:16PM -0700, Ira Weiny wrote:
+> > On Mon, May 06, 2019 at 09:06:00PM -0700, Matthew Wilcox wrote:
+> > > Save marshalling an extra argument in all the callers at the expense
+> > > of using five bits of the GFP flags.  We still have three GFP bits
+> > > remaining after doing this (and we can release one more by
+> > > reallocating NORETRY, RETRY_MAYFAIL and NOFAIL).
+>=20
+> > > -static void *dsalloc_pages(size_t size, gfp_t flags, int cpu)
+> > > +static void *dsalloc_pages(size_t size, gfp_t gfp, int cpu)
+> > >  {
+> > >  	unsigned int order =3D get_order(size);
+> > >  	int node =3D cpu_to_node(cpu);
+> > >  	struct page *page;
+> > >
+> > > -	page =3D __alloc_pages_node(node, flags | __GFP_ZERO, order);
+> > > +	page =3D __alloc_pages_node(node, gfp | __GFP_ZERO |
+> > > +__GFP_ORDER(order));
+> >
+> > Order was derived from size in this function.  Is this truely equal to
+> > the old function?
+> >
+> > At a minimum if I am wrong the get_order call above should be removed,
+> no?
+>=20
+> I think you have a misunderstanding, but I'm not sure what it is.
+>=20
+> Before this patch, we pass 'order' (a small integer generally less than 1=
+0) in
+> the bottom few bits of a parameter called 'order'.  After this patch, we =
+pass
+> the order in some of the high bits of the GFP flags.  So we can't remove =
+the
+> call to get_order() because that's what calculates 'order' from 'size'.
 
-On 8 May 2019, at 14:03, Keith Busch wrote:
+Ah I see it now.  Sorry was thinking the wrong thing when I saw that line.
 
-> migrate_page_move_mapping() doesn't use the mode argument. Remove it
-> and update callers accordingly.
->
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  fs/aio.c                | 2 +-
->  fs/f2fs/data.c          | 2 +-
->  fs/iomap.c              | 2 +-
->  fs/ubifs/file.c         | 2 +-
->  include/linux/migrate.h | 3 +--
->  mm/migrate.c            | 7 +++----
->  6 files changed, 8 insertions(+), 10 deletions(-)
->
-> diff --git a/fs/aio.c b/fs/aio.c
-> index 3490d1fa0e16..1a1568861b4e 100644
-> --- a/fs/aio.c
-> +++ b/fs/aio.c
-> @@ -425,7 +425,7 @@ static int aio_migratepage(struct address_space *ma=
-pping, struct page *new,
->  	BUG_ON(PageWriteback(old));
->  	get_page(new);
->
-> -	rc =3D migrate_page_move_mapping(mapping, new, old, mode, 1);
-> +	rc =3D migrate_page_move_mapping(mapping, new, old, 1);
->  	if (rc !=3D MIGRATEPAGE_SUCCESS) {
->  		put_page(new);
->  		goto out_unlock;
-> diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-> index 9727944139f2..0eb7a8cd3138 100644
-> --- a/fs/f2fs/data.c
-> +++ b/fs/f2fs/data.c
-> @@ -2801,7 +2801,7 @@ int f2fs_migrate_page(struct address_space *mappi=
-ng,
->  	/* one extra reference was held for atomic_write page */
->  	extra_count =3D atomic_written ? 1 : 0;
->  	rc =3D migrate_page_move_mapping(mapping, newpage,
-> -				page, mode, extra_count);
-> +				page, extra_count);
->  	if (rc !=3D MIGRATEPAGE_SUCCESS) {
->  		if (atomic_written)
->  			mutex_unlock(&fi->inmem_lock);
-> diff --git a/fs/iomap.c b/fs/iomap.c
-> index abdd18e404f8..f26f4846a00b 100644
-> --- a/fs/iomap.c
-> +++ b/fs/iomap.c
-> @@ -571,7 +571,7 @@ iomap_migrate_page(struct address_space *mapping, s=
-truct page *newpage,
->  {
->  	int ret;
->
-> -	ret =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
-> +	ret =3D migrate_page_move_mapping(mapping, newpage, page, 0);
->  	if (ret !=3D MIGRATEPAGE_SUCCESS)
->  		return ret;
->
-> diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-> index 5d2ffb1a45fc..d906ebc24049 100644
-> --- a/fs/ubifs/file.c
-> +++ b/fs/ubifs/file.c
-> @@ -1481,7 +1481,7 @@ static int ubifs_migrate_page(struct address_spac=
-e *mapping,
->  {
->  	int rc;
->
-> -	rc =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
-> +	rc =3D migrate_page_move_mapping(mapping, newpage, page, 0);
->  	if (rc !=3D MIGRATEPAGE_SUCCESS)
->  		return rc;
->
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index e13d9bf2f9a5..7f04754c7f2b 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -77,8 +77,7 @@ extern void migrate_page_copy(struct page *newpage, s=
-truct page *page);
->  extern int migrate_huge_page_move_mapping(struct address_space *mappin=
-g,
->  				  struct page *newpage, struct page *page);
->  extern int migrate_page_move_mapping(struct address_space *mapping,
-> -		struct page *newpage, struct page *page, enum migrate_mode mode,
-> -		int extra_count);
-> +		struct page *newpage, struct page *page, int extra_count);
->  #else
->
->  static inline void putback_movable_pages(struct list_head *l) {}
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 663a5449367a..85f46bfcf141 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -397,8 +397,7 @@ static int expected_page_refs(struct address_space =
-*mapping, struct page *page)
->   * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
->   */
->  int migrate_page_move_mapping(struct address_space *mapping,
-> -		struct page *newpage, struct page *page, enum migrate_mode mode,
-> -		int extra_count)
-> +		struct page *newpage, struct page *page, int extra_count)
->  {
->  	XA_STATE(xas, &mapping->i_pages, page_index(page));
->  	struct zone *oldzone, *newzone;
-> @@ -684,7 +683,7 @@ int migrate_page(struct address_space *mapping,
->
->  	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
->
-> -	rc =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
-> +	rc =3D migrate_page_move_mapping(mapping, newpage, page, 0);
->
->  	if (rc !=3D MIGRATEPAGE_SUCCESS)
->  		return rc;
-> @@ -783,7 +782,7 @@ static int __buffer_migrate_page(struct address_spa=
-ce *mapping,
->  		}
->  	}
->
-> -	rc =3D migrate_page_move_mapping(mapping, newpage, page, mode, 0);
-> +	rc =3D migrate_page_move_mapping(mapping, newpage, page, 0);
->  	if (rc !=3D MIGRATEPAGE_SUCCESS)
->  		goto unlock_buffers;
->
-> -- =
+Yep you are correct,
+Ira
 
-> 2.14.4
 
-LGTM. Thanks. Reviewed-by: Zi Yan <ziy@nvidia.com>
-
---
-Best Regards,
-Yan Zi
-
---=_MailMate_D55B932C-DC6B-48B0-9229-E44DA113B614_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAlzUU7QPHHppeUBudmlk
-aWEuY29tAAoJEJ2yUfNrYfqKnUkQAK9rbLf2cOrj9h93jrKYpeYgZqnKGGcQyykq
-+UA0H9ZxEjiDtHTVUD3FrV8x3Ob3lIA3JgDdFfrBN/B2NaeVKEfld+wWjJD5f2rI
-+c0H+CF0KO4y2LLw271nnRy9FqAMMeQZyyIoyQwlbTSZZNedX02tslPWE+2bG2rv
-9SHDXneZTqy7J+IpqwJxHJ852TceZxzdq4OasH9yGvhw7/WsMUd6DIGaDmmxvZe/
-1F4udER7OU7n5fBIlz3kJlmQst8LbtIqtRc+h3O14xxmNmO+lYFMYTDsJNPVwoOJ
-1IwjzC6Pqg1Z0vCPdoMiSis1YmdVca84bIhyN8OvKp57nvw5JsFSwhuWL7X9m3J5
-YYqG4z2+9RKzvatfAcpAqwt54Em+SEZBdOL73K6yErZQ+1mnt84lxkcWjSoErNjG
-/7BCpCqGC4iUe6t17vQyQCYYDTFT7BTB/vI4Rr5GMJJ6VzCLW1iFfty0H9LrHeoe
-MO3fUJTaF3N40X16HqE3sjn4Uyzx/lO/LSqEhLqtS6+2jH/Ug70Hc7153MnLVrz0
-vZ3iK7GdrEgN3TNO+cL6N1HleQnRiSZXGKx4TZmyQphtI+susUgcgHIO8rR6eAqO
-57K0vx7x5OuPgvuMvlVSdM9WDI89UciKytujSWMZeDA74yTifCc8cC+HRYN+Y0sm
-9AlPC9+M
-=Yv8g
------END PGP SIGNATURE-----
-
---=_MailMate_D55B932C-DC6B-48B0-9229-E44DA113B614_=--
+>=20
+> > > +#define __GFP_ORDER(order) ((__force gfp_t)(order <<
+> __GFP_BITS_SHIFT))
+> > > +#define __GFP_ORDER_PMD	__GFP_ORDER(PMD_SHIFT -
+> PAGE_SHIFT)
+> > > +#define __GFP_ORDER_PUD	__GFP_ORDER(PUD_SHIFT -
+> PAGE_SHIFT)
+> > > +
+> > > +/*
+> > > + * Extract the order from a GFP bitmask.
+> > > + * Must be the top bits to avoid an AND operation.  Don't let
+> > > + * __GFP_BITS_SHIFT get over 27, or we won't be able to encode
+> > > +orders
+> > > + * above 15 (some architectures allow configuring MAX_ORDER up to
+> > > +64,
+> > > + * but I doubt larger than 31 are ever used).
+> > > + */
+> > > +#define gfp_order(gfp)	(((__force unsigned int)gfp) >>
+> __GFP_BITS_SHIFT)
 
