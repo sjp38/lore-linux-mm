@@ -3,102 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0A2DC46460
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 08:38:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7534C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 09:57:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6913221744
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 08:38:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6913221744
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 85639206A3
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 09:57:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85639206A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 022FC6B0006; Thu,  9 May 2019 04:38:16 -0400 (EDT)
+	id C434C6B0003; Thu,  9 May 2019 05:57:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F14306B0007; Thu,  9 May 2019 04:38:15 -0400 (EDT)
+	id BF3BB6B0006; Thu,  9 May 2019 05:57:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DDD356B0008; Thu,  9 May 2019 04:38:15 -0400 (EDT)
+	id B311C6B0007; Thu,  9 May 2019 05:57:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A496B0006
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 04:38:15 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n23so956927edv.9
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 01:38:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 67F506B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 05:57:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r20so1084221edp.17
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 02:57:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=O2KShyBqSJLCxUT3fi/0YWuS/rV8/KBo3iJoQxI4XfU=;
-        b=kThTlmhxAQt/9QhpCDNEW4oUnomujtnpjXJZucZiTCH5xxeYMjBw1GFz9CFYYduwdu
-         jdoaE3hoRaEOn0vEnfXvv4l+cuTN+FoYMVXHzQDAOY64TFSeWcgAMUeskb+lcsQXDk/g
-         di8+Z6g+bN+Wtv7PpsmoguYMM1Lpg/p5qeZ4eF+n5yoDKzUeMNtTxy3QQhYEERo3ic+x
-         emY7M+oGedm5ivXEZmpBdNduSU/rspURD0Vja0sEH8T1emPQvhxt55LdjSm5vPLKtoKI
-         FiGWSfS/GqIco6HAYw5WOJG6263AC8MXAbYumtR/cWWjjsjOF2KM68GXdiNBSBjcpCJn
-         /fcQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Gm-Message-State: APjAAAUPgxOoIDgviQ6dtlkmELXjfnWcIUKOVEzp1gC4YHW0NHXBxR3+
-	F47vSrrZKZSACspSd+Znc/gP8Q52H36lhVQNbDHBK7FlswYFAGrlpyt3AIas4j8k20eXLZ0drQv
-	cyQ4Bc5aeAdqJnwLdnRySqvDHrABM2tFPEk3zmSTlE4aQBkyoN23ZH0D47ZwSOSYmMg==
-X-Received: by 2002:a50:8ed8:: with SMTP id x24mr2489984edx.183.1557391095164;
-        Thu, 09 May 2019 01:38:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqznECippNQL+8vKDyup1Sk0PuIFTEN7KU8JxS6GkVKLctl2KXBGM1DqKTs4jaobyCo+XQ
-X-Received: by 2002:a50:8ed8:: with SMTP id x24mr2489921edx.183.1557391094051;
-        Thu, 09 May 2019 01:38:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557391094; cv=none;
+        bh=ytdoicVPJcmrbdhJNzAyrGzNk0Z/0QzZ+RLmMTI0ffs=;
+        b=rtU3j5/CYL02dMBccwuxeKQE7t6kiR0V7HvI9m+oeg+B364rpNubN91j8rFS0v5a/s
+         YkMo+5jfzwk4JYb66w5AMI0jvlIvlulU6lZiAgmk3TSP7SdT+QZl9OHd2U6ClxzPfkgY
+         y0lmIQkDtSUOozk3qufnPTraEsvbSxethvuNtLtlNzUqcoiJGo0kVpzhcQ5L5N0/+xdN
+         sgFmaQ5KXyM4Ai1k1oi9bYqdeiulUhlfQipcN1FZXJUsr1iLPUtX0SCcToRiirV9SxYH
+         RORcZ/kJYVdaFilsDBfQBXapHepUtzP6+h7DYfRPYqnlY9jsFB9v6OfD5qViJU1GjziC
+         QG5w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAVR+KyVETaetyQXC5mG2VGwrfXRISe3GdFhFpbyvGXAQp8NNvCY
+	j9+d9FTgY/uDJC8VZDG/rExsUkDZO7zzzmEPNoxUnFH6HcNoL/RlBr4hJRpEiG0gwpE+TLyZOs9
+	yyBuiM4QKKig/Z5zvCWHvA+2EYFKXhdMz0hRyjKzI0TjyQpt0dbR2cfGgc3th1exN6Q==
+X-Received: by 2002:a50:bb24:: with SMTP id y33mr2816632ede.116.1557395847920;
+        Thu, 09 May 2019 02:57:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOO1bTMUiMz0tb8QSXtgRJRp2TPt161bSfIRANQYh4TTAPs7FqRNE1uwQ82HJeFtcAZ+ZW
+X-Received: by 2002:a50:bb24:: with SMTP id y33mr2816563ede.116.1557395846810;
+        Thu, 09 May 2019 02:57:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557395846; cv=none;
         d=google.com; s=arc-20160816;
-        b=V+9UZ4E2FZdggksGgufQ/uM+sBIinUoZtzLdZ1COqFw2nZFSd6VzNSap4zVOfgihm4
-         nntJMGnSDy+HxgOGlRvynn9E0GHAuTOzVBP1GXckQGBhRX2BNhrugTACOYjTW3YDKCB3
-         o3EaspIjZgvaQi9A3zfxQVVMRahWBTHweHVVqEkoRC1Stvx3c3TNFq4A6yW5NEQLQrg2
-         r8DWj9zvJdGux0sW8XUFs7vh7w+swHMBMRFMFPsT93pXYf65mjohCNYiuFIVkWP0H3h7
-         GQJHksJgUdebMH8c8bsyc5Y5hcQ2lbirsDobTCAnx3YyGEQGy9YXHQLagtXHhsnDDTLY
-         tK4A==
+        b=qXZC1NiKsHZlITbPQsXJZOIHS+H6rscqRSwhH3WCOP0mO9o+3J5jZkWOSd06znnlXy
+         vfe8o/7pjhefHRME70Q7TpRkZJMGRL9S8+t+viZBnd9VgImnaeKYAqK6ibWrqvWFpqNI
+         mXlLpkVjU4xEqMIV/olDm80GOis5pdk2CJ6jLjZ6g16+6XGSD8NE9L1uR1QogmSlsb1C
+         9Zm2daxMMhQEKFJ+A4w+U5i59WJnQMhkRHKGOY5Ruwqzy2yMevI1DM0SK2qJNYaS6n9T
+         6e6IpE92kvYQ2c4hAuN/NN0KIGTdJS5fsBzT7WzHFUBM89LiPAX7gycZVK6iFl41sAQm
+         60OQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=O2KShyBqSJLCxUT3fi/0YWuS/rV8/KBo3iJoQxI4XfU=;
-        b=Z1z09kH6XqbjyWma1moSfK4AFF3d/4qhnAjr8e/M+M5Mh9Lel6K0OkXUhZ+pqTMqSU
-         LQjZpebM7crUKbW/RKA5b7tbOUaZnl7irnb+LGq3Onh4Kd4GxMOVmcmDMnxWXrgfSK73
-         0Jx2M+8a0V5voecNqXmTsTsG6kNAj315nXZybovy5rKdBwPxmsvq8jAF5TYXXpCNfY6V
-         9XJ3+TJcD0Tysyb/hgmyjjh3xZ6USbTnF8c9hQ1h6wUXhGLn60RUp1c0P4HUnNVDJ8WV
-         2RAkeCEm/dYQloth6Y84pSvhMSGP0SJNcAFq68LBi3QUdW5u0lDdeUqxqpqBwCHWcFz2
-         UzgA==
+        bh=ytdoicVPJcmrbdhJNzAyrGzNk0Z/0QzZ+RLmMTI0ffs=;
+        b=xOVJ88yoJRZsaJ1a+zkKePaJBxCIn+c34yEj8eKYEBRTaEXyYlzKKTOimzon9BBbod
+         TpN3X282IpaX3Mo6muejckWbQCg0HGIQ1yJp5qnTPGjaOxfMX1A4A9UB1FZbMWDerO2c
+         TA2RNxm9+OfY4WhcqsutYns4XcmikEwF3WOfYPNNQvu/Jw2TRQ8SyQbTfECV2HDNjbyL
+         D7Vt1GqhKvUaxhMu55W9rV7B/f6ofHR11ITTjeuru3U6pGioU4HKRIWWKNX3fivvVGCK
+         gCZ+jITKW6oYVuFtn7VPqLBYD03FMCv33N156eA39Oi76Bvezdpi23ByIx7aQE2KhOaL
+         NMCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e3si856447edi.91.2019.05.09.01.38.13
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id y46si1031844edc.298.2019.05.09.02.57.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 01:38:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 09 May 2019 02:57:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 39F3EAC10;
-	Thu,  9 May 2019 08:38:13 +0000 (UTC)
-Date: Thu, 9 May 2019 09:38:10 +0100
-From: Mel Gorman <mgorman@suse.de>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	David Rientjes <rientjes@google.com>,
-	Zi Yan <zi.yan@cs.rutgers.edu>,
-	Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
- allocations"
-Message-ID: <20190509083810.GH14242@suse.de>
-References: <20190503223146.2312-1-aarcange@redhat.com>
- <20190503223146.2312-3-aarcange@redhat.com>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 60DA61C299F
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 10:57:26 +0100 (IST)
+Received: (qmail 28448 invoked from network); 9 May 2019 09:57:26 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 9 May 2019 09:57:26 -0000
+Date: Thu, 9 May 2019 10:57:24 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: syzbot <syzbot+d84c80f9fe26a0f7a734@syzkaller.appspotmail.com>
+Cc: akpm@linux-foundation.org, aryabinin@virtuozzo.com, cai@lca.pw,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com,
+	syzkaller-bugs@googlegroups.com, vbabka@suse.cz
+Subject: Re: BUG: unable to handle kernel paging request in
+ isolate_freepages_block
+Message-ID: <20190509095724.GG18914@techsingularity.net>
+References: <0000000000003beebd0588492456@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190503223146.2312-3-aarcange@redhat.com>
+In-Reply-To: <0000000000003beebd0588492456@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,112 +103,46 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 03, 2019 at 06:31:46PM -0400, Andrea Arcangeli wrote:
-> This reverts commit 2f0799a0ffc033bf3cc82d5032acc3ec633464c2.
+On Tue, May 07, 2019 at 02:50:05AM -0700, syzbot wrote:
+> Hello,
 > 
-> commit 2f0799a0ffc033bf3cc82d5032acc3ec633464c2 was rightfully applied
-> to avoid the risk of a severe regression that was reported by the
-> kernel test robot at the end of the merge window. Now we understood
-> the regression was a false positive and was caused by a significant
-> increase in fairness during a swap trashing benchmark. So it's safe to
-> re-apply the fix and continue improving the code from there. The
-> benchmark that reported the regression is very useful, but it provides
-> a meaningful result only when there is no significant alteration in
-> fairness during the workload. The removal of __GFP_THISNODE increased
-> fairness.
+> syzbot found the following crash on:
 > 
-> __GFP_THISNODE cannot be used in the generic page faults path for new
-> memory allocations under the MPOL_DEFAULT mempolicy, or the allocation
-> behavior significantly deviates from what the MPOL_DEFAULT semantics
-> are supposed to be for THP and 4k allocations alike.
+> HEAD commit:    baf76f0c slip: make slhc_free() silently accept an error p..
+> git tree:       upstream
+> console output: https://syzkaller.appspot.com/x/log.txt?x=16dbe6cca00000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=a42d110b47dd6b36
+> dashboard link: https://syzkaller.appspot.com/bug?extid=d84c80f9fe26a0f7a734
+> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
 > 
-> Setting THP defrag to "always" or using MADV_HUGEPAGE (with THP defrag
-> set to "madvise") has never meant to provide an implicit MPOL_BIND on
-> the "current" node the task is running on, causing swap storms and
-> providing a much more aggressive behavior than even zone_reclaim_node
-> = 3.
+> Unfortunately, I don't have any reproducer for this crash yet.
 > 
-> Any workload who could have benefited from __GFP_THISNODE has now to
-> enable zone_reclaim_mode=1||2||3. __GFP_THISNODE implicitly provided
-> the zone_reclaim_mode behavior, but it only did so if THP was enabled:
-> if THP was disabled, there would have been no chance to get any 4k
-> page from the current node if the current node was full of pagecache,
-> which further shows how this __GFP_THISNODE was misplaced in
-> MADV_HUGEPAGE. MADV_HUGEPAGE has never been intended to provide any
-> zone_reclaim_mode semantics, in fact the two are orthogonal,
-> zone_reclaim_mode = 1|2|3 must work exactly the same with
-> MADV_HUGEPAGE set or not.
-> 
-> The performance characteristic of memory depends on the hardware
-> details. The numbers below are obtained on Naples/EPYC architecture
-> and the N/A projection extends them to show what we should aim for in
-> the future as a good THP NUMA locality default. The benchmark used
-> exercises random memory seeks (note: the cost of the page faults is
-> not part of the measurement).
-> 
-> D0 THP | D0 4k | D1 THP | D1 4k | D2 THP | D2 4k | D3 THP | D3 4k | ...
-> 0%     | +43%  | +45%   | +106% | +131%  | +224% | N/A    | N/A
-> 
-> D0 means distance zero (i.e. local memory), D1 means distance
-> one (i.e. intra socket memory), D2 means distance two (i.e. inter
-> socket memory), etc...
-> 
-> For the guest physical memory allocated by qemu and for guest mode kernel
-> the performance characteristic of RAM is more complex and an ideal
-> default could be:
-> 
-> D0 THP | D1 THP | D0 4k | D2 THP | D1 4k | D3 THP | D2 4k | D3 4k | ...
-> 0%     | +58%   | +101% | N/A    | +222% | N/A    | N/A   | N/A
-> 
-> NOTE: the N/A are projections and haven't been measured yet, the
-> measurement in this case is done on a 1950x with only two NUMA nodes.
-> The THP case here means THP was used both in the host and in the
-> guest.
-> 
-> After applying this commit the THP NUMA locality order that we'll get
-> out of MADV_HUGEPAGE is this:
-> 
-> D0 THP | D1 THP | D2 THP | D3 THP | ... | D0 4k | D1 4k | D2 4k | D3 4k | ...
-> 
-> Before this commit it was:
-> 
-> D0 THP | D0 4k | D1 4k | D2 4k | D3 4k | ...
-> 
-> Even if we ignore the breakage of large workloads that can't fit in a
-> single node that the __GFP_THISNODE implicit "current node" mbind
-> caused, the THP NUMA locality order provided by __GFP_THISNODE was
-> still not the one we shall aim for in the long term (i.e. the first
-> one at the top).
-> 
-> After this commit is applied, we can introduce a new allocator multi
-> order API and to replace those two alloc_pages_vmas calls in the page
-> fault path, with a single multi order call:
-> 
-> 	unsigned int order = (1 << HPAGE_PMD_ORDER) | (1 << 0);
-> 	page = alloc_pages_multi_order(..., &order);
-> 	if (!page)
-> 		goto out;
-> 	if (!(order & (1 << 0))) {
-> 		VM_WARN_ON(order != 1 << HPAGE_PMD_ORDER);
-> 		/* THP fault */
-> 	} else {
-> 		VM_WARN_ON(order != 1 << 0);
-> 		/* 4k fallback */
-> 	}
-> 
-> The page allocator logic has to be altered so that when it fails on
-> any zone with order 9, it has to try again with a order 0 before
-> falling back to the next zone in the zonelist.
-> 
-> After that we need to do more measurements and evaluate if adding an
-> opt-in feature for guest mode is worth it, to swap "DN 4k | DN+1 THP"
-> with "DN+1 THP | DN 4k" at every NUMA distance crossing.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+How reproducible is it and can the following (compile tested only) patch
+be tested please? I'm thinking it's a similar class of bug to 6b0868c820ff
+("mm/compaction.c: correct zone boundary handling when resetting pageblock
+skip hints")
 
--- 
-Mel Gorman
-SUSE Labs
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 3319e0872d01..ae4d99d31b61 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1228,7 +1228,7 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
+ 
+ 	/* Pageblock boundaries */
+ 	start_pfn = pageblock_start_pfn(pfn);
+-	end_pfn = min(start_pfn + pageblock_nr_pages, zone_end_pfn(cc->zone));
++	end_pfn = min(start_pfn + pageblock_nr_pages, zone_end_pfn(cc->zone) - 1);
+ 
+ 	/* Scan before */
+ 	if (start_pfn != pfn) {
+@@ -1239,7 +1239,7 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
+ 
+ 	/* Scan after */
+ 	start_pfn = pfn + nr_isolated;
+-	if (start_pfn != end_pfn)
++	if (start_pfn < end_pfn)
+ 		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
+ 
+ 	/* Skip this pageblock in the future as it's full or nearly full */
 
