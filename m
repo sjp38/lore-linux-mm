@@ -2,231 +2,221 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4283C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:25:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B113CC04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:43:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9747621744
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:25:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 649AD21479
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:43:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fXxBmE7z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9747621744
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="X8+t1ymT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 649AD21479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 31FCC6B0007; Thu,  9 May 2019 08:25:31 -0400 (EDT)
+	id F20846B0007; Thu,  9 May 2019 08:43:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A96F6B0008; Thu,  9 May 2019 08:25:31 -0400 (EDT)
+	id ED05E6B0008; Thu,  9 May 2019 08:43:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 173116B000A; Thu,  9 May 2019 08:25:31 -0400 (EDT)
+	id D98DE6B000A; Thu,  9 May 2019 08:43:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A84D56B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:25:30 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id i127so454657lji.1
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:25:30 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D05D6B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:43:05 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y12so1405957ede.19
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:43:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
-        b=knZIwH9A9ssY0WFK6V1BF/C2N6IDU7/iggkki3t5HQYQ4ICFS5mTegBQqrM1M9BxEt
-         hQyLTDgRWH3xlMdlPdIKvTe80sgf4MwObRUyIuDAV/HDUMwDMeLy1uRkekqB5ZT0GUiR
-         eQ//70uI8mnwSlNoRrbTlxpoPpGapxZFR2vmSmkXnv9vXBKbkB6uUF1Mm/WqOIqUaL9o
-         bYRa+JqTanyRQD4SPHvchrnFaaDOzpYP4+V56ZybaqIkV8qd0BOxkXrxZODPq6CrW0UJ
-         rMN9tKHuPBWBNiHT38Yfyk4orP6brWJOr27NRl1LmtrmlJX+6IGNeTOd1mjH2jMD/c3R
-         sjzg==
-X-Gm-Message-State: APjAAAXISQuSUxol9F9RRRTDW4ZDvDhPcnCDtKRjeot34KqbqtsnQlw7
-	gWzpgMTxzZIU5DcqMuZVl+CA2LHe8yCh/R4fXP8B3LRW5wUZhsDuaHT7hX16Y/A8vGHmbWx2XTJ
-	JmafBuZqGJKM+FD/dB/NxIxoC1BUxg4NGLZ8qoSl6TNQ8QKZz/IuMWI6LMqv8Dh7z7g==
-X-Received: by 2002:a2e:94c7:: with SMTP id r7mr2233179ljh.91.1557404729766;
-        Thu, 09 May 2019 05:25:29 -0700 (PDT)
-X-Received: by 2002:a2e:94c7:: with SMTP id r7mr2233134ljh.91.1557404728739;
-        Thu, 09 May 2019 05:25:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557404728; cv=none;
+         :message-id:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
+        b=DH8YSU8Re1cdubhBatJZ0fJhGlHysRqBmhZAWcgaNZLEOSeTPk0sYZ+xB6NVFZDqRf
+         etLlnjgFrKVr66Kmz2AlXJNkLubMklsd4GlxUrr230J8B8fAHoenvTwxrbqhZ3f1LhTi
+         zE6xTjpkJNvk+BrKIsqxAUfURbnaXiIANLtNR7+AFqovj6xqtFPRkn9ZeRxH+OtLPvBt
+         ChAykA3OvuiKti9lPVqE75xP9dujwf8Vm+yQJqQNWcNoGZ8IM1Ju5Hy+O+uJMToReOB2
+         4VGuUgnkPFDXaXh0l/BJpH+/vTTDXNEDy8zFFmb4DbGiolwAsbflYR7ZrDi4qsPgYQNs
+         a15A==
+X-Gm-Message-State: APjAAAXMjwfzIqnnvLUARrN9AxMv9ENncU3rkZ9b6jcAgYIN+gvSozXx
+	8Os005b+jnXFBKSlLCZPR4I6s76KfdG7pUr5ajEfxcklIAkuqPpBhX4EhoaUI2V4x0TKNChlE+q
+	idYG3vamxA6LY0bCZpNpqHiNJwYABUrRu+5P6e6dV4tLgtfULvYHSgRQHO8DEVc9IOA==
+X-Received: by 2002:a17:906:f91:: with SMTP id q17mr3028068ejj.63.1557405785100;
+        Thu, 09 May 2019 05:43:05 -0700 (PDT)
+X-Received: by 2002:a17:906:f91:: with SMTP id q17mr3028003ejj.63.1557405784175;
+        Thu, 09 May 2019 05:43:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557405784; cv=none;
         d=google.com; s=arc-20160816;
-        b=jRxV8/W/2WGW46+38QWdrEvq1Le+CFJPn2e0P3elzpqm+qtAxzormBlIoGldPGHAAY
-         a+hzUeGArgOksD7kHgVtsFmcj2OvyCNNI2JSm2aldKPrthGKHBKr5C9+1Xc7vOwJI38q
-         gLEcEgfHtT+GwxTyn931QU7o29f1IhtIif70JW0Hb/yBa4v7wsAd7H5EEl45Txi1PPzJ
-         1aQoY1bDKJG2KwXJeNsz/DA5wWE84GRKrxkW7qu+RNoMCZeQnX7cJSOQ3INdFgMYtCUh
-         oHDaBBatN5KrVyT0O9+m5jDPTiFtii2tH2fLPylzampGiT8xsqeDOjC+5KoAyRlzW4Tx
-         PsiQ==
+        b=PUmbVYBuCNtBI0KlfJ0VbHa1J8iawWbN0W2PEoOXUxRiGdt8x7iGA09dRVd6TLMsAP
+         ODOLIYUxqWQYRctvgFsTDMdPltpcnM2KJGBBAc1OYqvw64qIbvsWzgDQPB7FNUFfjJ3s
+         0QBDLG1ew6gxo5fy9u0omoTyopeEtyYrvB03Datjz7318UmL3wmRGchycCRV0rDDxU8F
+         WK83BpFri9QaBNqPh/XTrP8+m53JnvzUGVgtzpvvvkP0bKrYanwjf5frZhW0tRZXtofQ
+         kEKipb2AR20ZpkDFbOlGXvoQbvIKxkdGzQiNqDL3hebbqySHVl7w3MebaccT/lT/ilY1
+         dwww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
-        b=arhmWLHtY6vwgQRZv05zNktxWPaTay1FooVl6FDlOocT8ItrTrkjOvUCG2Gvn3TA/K
-         hi9kUDuMIDA7siO55UvnkM+Y8CMKHItcFKPo73m/YCum2mNJK2c1Qhw85tWB1dCC85OY
-         I98izTkIsHoqlIQKh8Bdp/GpqaFEkmbAE8hKBrL2Q3ENycGz5lgx+KnqbgFGnRGeFWHr
-         tTLHzefiM8MXhqdqJ5HQFNXPkn8U9uN29YRtxpfDsot8mshq1cXrsooohsJrCch+WAd5
-         uml1p9vceGam0W2SeohTZt1m5/syuGdkkPHvGrkmbs0ikwKOOGOF69Jd3pMN0/oU8jZT
-         PIKg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
+        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
+        b=KFtrC0bQ+99GxSQdkI91ejzZ5J3be1PsvRDgljfvuMZ1m3NBdwh78rRcal+BuR6oQ3
+         fOGYvaPm9YzZnu4dqBpBdCdmPxkYcMefuOal+XftZHsp42drjb1FkMXRdHT98V9OfFba
+         ma99jTONYk89MXSbnwbA5UUqnJtCpvaaaNgEVlKoC0CPsLMwH45MOzmsFdQMrmAUKu78
+         PZuaCXxgDY2EakchefNxJgXaN5JFXPdS/2KwMADJ87smEsZag9x0ziNFy60muh9GP7us
+         VJUP3v1XNl5jbtQOZqDRngrO+nWXypyxjmL7057FbGOD5FRs1o6f8tPrcA3FksIw98ka
+         ri4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fXxBmE7z;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=X8+t1ymT;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s6sor1188760ljs.19.2019.05.09.05.25.28
+        by mx.google.com with SMTPS id gu10sor654854ejb.58.2019.05.09.05.43.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 09 May 2019 05:25:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 09 May 2019 05:43:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fXxBmE7z;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=X8+t1ymT;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
-        b=fXxBmE7ze/Z+gLUgPusLSOjeC8DPRni8xSXs72THlqUgvZ+YkB7C2X2joI2yabhZE3
-         8p3jL+zSxjqkE6WDx9RdpWMHV1BE+w1kk8V/mtEhJpgbCLjSPVymx2kjkrzPGSAIjr7D
-         w45LanlpZrGomO0jnZvIOzl4VSSIY4E3z+gyzmExHr1o6buuZO0GHkOYXoWSCeqrQLSb
-         FlCkYEZRTrKaSU02Al80SESzb5ftUvtSa4dEV1Il4KRbvvZUIkjl7K++UhJMBcIliYoC
-         xFLukUi+LA2L9H8oQGAQXR71a6J/JTXgKcmL1WnzuE5ndqFELwKSjnp7ngbqhxZBf77S
-         RirQ==
-X-Google-Smtp-Source: APXvYqwy62cie0c9VYiWdxvOgL2dz0bVljr6TDZHfH9f2UgG36OiRDna8QWxOvWyDUp4EYX5rZFmew==
-X-Received: by 2002:a2e:814e:: with SMTP id t14mr2163558ljg.25.1557404728231;
-        Thu, 09 May 2019 05:25:28 -0700 (PDT)
-Received: from esperanza ([176.120.239.149])
-        by smtp.gmail.com with ESMTPSA id y7sm306917ljj.34.2019.05.09.05.25.27
+        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
+        b=X8+t1ymTYcyltAjf8v1dQF+XWnX6+Ka0h/n/Sp7NhymDucJNtZxdecMYnob2Injauf
+         prmYn1KR0VaeFSnO5nN8SN73MXJZF0qI0mBEWIBZB9pui+fjXk9cWdDD+EyINCqMgx1Q
+         PT6yJp94Qz0hthu8VQ2H1YaSFHjZ38HZ42VY4SnfYBSPXK/HDzFbSeoj3OQPuaOLAeFe
+         eEJ1P8uvRoUwH9aNBvgmstZw14Q6XOf7bFPU079ouZQh/1QDXXkqf2kPgwMwSU+bFA7e
+         LD8hzyVTjeLmlSqIETgbTm+FSLcZYsbhL7kX75dUPEc6gceTAXEWMhIGe/3LdCM831GM
+         7kmA==
+X-Google-Smtp-Source: APXvYqwSMvc+IkN0goCuzZGHyfnoTzg7aUzcqfUpVzHNwIsf6cZyZm3yry5tEzCvNGV+FZLlTxCadw==
+X-Received: by 2002:a17:906:1984:: with SMTP id g4mr3006437ejd.260.1557405783809;
+        Thu, 09 May 2019 05:43:03 -0700 (PDT)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id e21sm300748ejk.86.2019.05.09.05.43.02
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 05:25:27 -0700 (PDT)
-Date: Thu, 9 May 2019 15:25:26 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-To: Jiri Slaby <jslaby@suse.cz>
+        Thu, 09 May 2019 05:43:02 -0700 (PDT)
+Date: Thu, 9 May 2019 12:43:02 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+To: David Hildenbrand <david@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org,
-	Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
-Message-ID: <20190509122526.ck25wscwanooxa3t@esperanza>
-References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
- <20190429105939.11962-1-jslaby@suse.cz>
+	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+	akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>
+Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
+ after arch_add_memory()
+Message-ID: <20190509124302.at7jltfrycj7sxbd@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20190507183804.5512-1-david@redhat.com>
+ <20190507183804.5512-5-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190429105939.11962-1-jslaby@suse.cz>
+In-Reply-To: <20190507183804.5512-5-david@redhat.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 29, 2019 at 12:59:39PM +0200, Jiri Slaby wrote:
-> We have a single node system with node 0 disabled:
->   Scanning NUMA topology in Northbridge 24
->   Number of physical nodes 2
->   Skipping disabled node 0
->   Node 1 MemBase 0000000000000000 Limit 00000000fbff0000
->   NODE_DATA(1) allocated [mem 0xfbfda000-0xfbfeffff]
+On Tue, May 07, 2019 at 08:38:00PM +0200, David Hildenbrand wrote:
+>Only memory to be added to the buddy and to be onlined/offlined by
+>user space using memory block devices needs (and should have!) memory
+>block devices.
+>
+>Factor out creation of memory block devices Create all devices after
+>arch_add_memory() succeeded. We can later drop the want_memblock parameter,
+>because it is now effectively stale.
+>
+>Only after memory block devices have been added, memory can be onlined
+>by user space. This implies, that memory is not visible to user space at
+>all before arch_add_memory() succeeded.
+>
+>Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+>Cc: David Hildenbrand <david@redhat.com>
+>Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+>Cc: Andrew Morton <akpm@linux-foundation.org>
+>Cc: Ingo Molnar <mingo@kernel.org>
+>Cc: Andrew Banman <andrew.banman@hpe.com>
+>Cc: Oscar Salvador <osalvador@suse.de>
+>Cc: Michal Hocko <mhocko@suse.com>
+>Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+>Cc: Qian Cai <cai@lca.pw>
+>Cc: Wei Yang <richard.weiyang@gmail.com>
+>Cc: Arun KS <arunks@codeaurora.org>
+>Cc: Mathieu Malaterre <malat@debian.org>
+>Signed-off-by: David Hildenbrand <david@redhat.com>
+>---
+> drivers/base/memory.c  | 70 ++++++++++++++++++++++++++----------------
+> include/linux/memory.h |  2 +-
+> mm/memory_hotplug.c    | 15 ++++-----
+> 3 files changed, 53 insertions(+), 34 deletions(-)
+>
+>diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>index 6e0cb4fda179..862c202a18ca 100644
+>--- a/drivers/base/memory.c
+>+++ b/drivers/base/memory.c
+>@@ -701,44 +701,62 @@ static int add_memory_block(int base_section_nr)
+> 	return 0;
+> }
 > 
-> This causes crashes in memcg when system boots:
->   BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
->   #PF error: [normal kernel read fault]
-> ...
->   RIP: 0010:list_lru_add+0x94/0x170
-> ...
->   Call Trace:
->    d_lru_add+0x44/0x50
->    dput.part.34+0xfc/0x110
->    __fput+0x108/0x230
->    task_work_run+0x9f/0xc0
->    exit_to_usermode_loop+0xf5/0x100
+>+static void unregister_memory(struct memory_block *memory)
+>+{
+>+	BUG_ON(memory->dev.bus != &memory_subsys);
+>+
+>+	/* drop the ref. we got via find_memory_block() */
+>+	put_device(&memory->dev);
+>+	device_unregister(&memory->dev);
+>+}
+>+
+> /*
+>- * need an interface for the VM to add new memory regions,
+>- * but without onlining it.
+>+ * Create memory block devices for the given memory area. Start and size
+>+ * have to be aligned to memory block granularity. Memory block devices
+>+ * will be initialized as offline.
+>  */
+>-int hotplug_memory_register(int nid, struct mem_section *section)
+>+int hotplug_memory_register(unsigned long start, unsigned long size)
+> {
+>-	int ret = 0;
+>+	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
+>+	unsigned long start_pfn = PFN_DOWN(start);
+>+	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
+>+	unsigned long pfn;
+> 	struct memory_block *mem;
+>+	int ret = 0;
 > 
-> It is reproducible as far as 4.12. I did not try older kernels. You have
-> to have a new enough systemd, e.g. 241 (the reason is unknown -- was not
-> investigated). Cannot be reproduced with systemd 234.
-> 
-> The system crashes because the size of lru array is never updated in
-> memcg_update_all_list_lrus and the reads are past the zero-sized array,
-> causing dereferences of random memory.
-> 
-> The root cause are list_lru_memcg_aware checks in the list_lru code.
-> The test in list_lru_memcg_aware is broken: it assumes node 0 is always
-> present, but it is not true on some systems as can be seen above.
-> 
-> So fix this by checking the first online node instead of node 0.
-> 
-> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: <cgroups@vger.kernel.org>
-> Cc: <linux-mm@kvack.org>
-> Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> ---
->  mm/list_lru.c | 6 +-----
->  1 file changed, 1 insertion(+), 5 deletions(-)
-> 
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> index 0730bf8ff39f..7689910f1a91 100644
-> --- a/mm/list_lru.c
-> +++ b/mm/list_lru.c
-> @@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
->  
->  static inline bool list_lru_memcg_aware(struct list_lru *lru)
->  {
-> -	/*
-> -	 * This needs node 0 to be always present, even
-> -	 * in the systems supporting sparse numa ids.
-> -	 */
-> -	return !!lru->node[0].memcg_lrus;
-> +	return !!lru->node[first_online_node].memcg_lrus;
->  }
->  
->  static inline struct list_lru_one *
+>-	mutex_lock(&mem_sysfs_mutex);
+>+	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
+>+	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
 
-Yep, I didn't expect node 0 could ever be unavailable, my bad.
-The patch looks fine to me:
+After this change, the call flow looks like this:
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+add_memory_resource
+    check_hotplug_memory_range
+    hotplug_memory_register
 
-However, I tend to agree with Michal that (ab)using node[0].memcg_lrus
-to check if a list_lru is memcg aware looks confusing. I guess we could
-simply add a bool flag to list_lru instead. Something like this, may be:
+Since in check_hotplug_memory_range() has checked the boundary, do we need to
+check here again?
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index aa5efd9351eb..d5ceb2839a2d 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -54,6 +54,7 @@ struct list_lru {
- #ifdef CONFIG_MEMCG_KMEM
- 	struct list_head	list;
- 	int			shrinker_id;
-+	bool			memcg_aware;
- #endif
- };
- 
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 0730bf8ff39f..8e605e40a4c6 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
- 
- static inline bool list_lru_memcg_aware(struct list_lru *lru)
- {
--	/*
--	 * This needs node 0 to be always present, even
--	 * in the systems supporting sparse numa ids.
--	 */
--	return !!lru->node[0].memcg_lrus;
-+	return lru->memcg_aware;
- }
- 
- static inline struct list_lru_one *
-@@ -451,6 +447,7 @@ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
- {
- 	int i;
- 
-+	lru->memcg_aware = memcg_aware;
- 	if (!memcg_aware)
- 		return 0;
- 
+-- 
+Wei Yang
+Help you, Help me
 
