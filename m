@@ -7,116 +7,116 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D978AC04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:07:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFAE1C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:09:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F24D2177E
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:07:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 801632173B
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:09:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Zuhx6KBF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F24D2177E
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="c5sPk/UW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 801632173B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2053E6B000C; Thu,  9 May 2019 12:07:41 -0400 (EDT)
+	id 166EF6B000A; Thu,  9 May 2019 12:09:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B5066B000D; Thu,  9 May 2019 12:07:41 -0400 (EDT)
+	id 1181B6B000C; Thu,  9 May 2019 12:09:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07CB06B000E; Thu,  9 May 2019 12:07:41 -0400 (EDT)
+	id 006DD6B000D; Thu,  9 May 2019 12:09:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DD84A6B000C
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:07:40 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id k8so2553704itd.0
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:07:40 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D39B56B000A
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:09:25 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id t196so2550912ita.7
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:09:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=NVGYH0XHby9mmyeGkuUXvJdFcYxk3J6W0cOvDLlMUJI=;
-        b=GfDWDfcVg29ZXoDMEMFBq8A7hbLZfg896Tn+RbHIwHnzxql9aF14sK+I6Lcxz4EjHo
-         DA4YtBDjnLVW0i8FaA3FBOmrxq1fMBfgoYurmBU9SfO4R3D41owAleOEAIaqMVkXKXpr
-         BbcR/BpRfZxICrkLZkoOgJ6xFlvxyyzeA6BHmUK/0tFrwFiQiakkf4a+QXBLV7BTXxpn
-         6MASZHMMih4cnLW1gH4gMlAGGkP8LSvhgh/3p2/Df3vC2oPyvOkbqgCZn/tYYGfxOE0D
-         vXkJWLb4BPYlR1M6pYuRO8i3oLbqzGrNvXiY0htEhS7gGnYLBw4MazzehZ481wUcjmvx
-         vFaA==
-X-Gm-Message-State: APjAAAVyO8CkgN092vKfOFQ3EaiNEHx2TTtP4ULrhM3xOMx8rqcLeGkP
-	QFXqqrqo+l1Y9ECCddh4XOsXc8e46xBGxEgU3TLCyfx+/aL8pp/H9OqU/1eKl+XRUi17X+ExpTq
-	8oKP0/EphHVggBa69TZCyO5xl5VGqGVKirQeSpkY6u84jBCpvULXWkx27y8E71rMEUA==
-X-Received: by 2002:a05:660c:50:: with SMTP id p16mr3717238itk.146.1557418060539;
-        Thu, 09 May 2019 09:07:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzssxOXRR9kOI/WUZsZNQbtigj7Obr4xHQu2NI2gTgoj8+mHwl6JpHykASNvs2WtTop7Pt6
-X-Received: by 2002:a05:660c:50:: with SMTP id p16mr3717154itk.146.1557418059567;
-        Thu, 09 May 2019 09:07:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557418059; cv=none;
+        bh=0ju7H5Gj2niL871BBOn8Ga4UpgCjBl63hHSs8faALiA=;
+        b=Lt4dMdwFjQrtI5UBlqgd1HzU5VlgqoAE0S02nMCXwdFh761ByTLQuanO9xMDWlrUVy
+         qPHciq0EdWJeO46oG0KXY4nkz8EZZC1yn9690x3N9Q4TD/XpLvUPBVJIb38OsLKi4kO2
+         XYi1FDAhV6/D27v94Z0IO9ouXFfLzDpYF+LHMY5oYMYHTLVfL5mKm8NbwWYC1jsqT/15
+         X9TQhkuKFdH8HrfS8tDNRVHkX+P0nDjov2P5dD7qyFhlI9MSc7kj9bBpXDsQMXz0p8ul
+         48K7HMjIYN9ZFBJFUFG9/wwPuuL15JNgB7ka5r775r/tGM4RdbWtnSB7PU6OfTKPZQgD
+         ZR/Q==
+X-Gm-Message-State: APjAAAUwD5y1OlDsrnIwa6J3XH7qy/Xn3Wggh2TkKyFwDyRHep9BB8jX
+	r4nLd1ODwiPw23ChihPdGrCq4OLfq2Kdt0cap04H2G3qY46dkk0/XeBwuSTz9hC74SFhFmt8Em1
+	sBo3DW9TWoSS8mE+j6ggk9BXymp4Fe7vdJZV0YM0X5MX0tmUnKBFDqzV2YOvF9cxBwA==
+X-Received: by 2002:a24:c2c1:: with SMTP id i184mr3620843itg.82.1557418165568;
+        Thu, 09 May 2019 09:09:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwa++UOUVCPNK13RQsnG7otqWZbUYq+g2/xuasvfxKn11JrxOghWfbZl/e9maCefWAQaxaw
+X-Received: by 2002:a24:c2c1:: with SMTP id i184mr3620797itg.82.1557418164934;
+        Thu, 09 May 2019 09:09:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557418164; cv=none;
         d=google.com; s=arc-20160816;
-        b=K6K+Iy0dUIFcisAdf96RZtgwYbiuV9+p7JCZv4vnVHDQJFPrffTn4N4K+ZMaHQStQo
-         VeNxi9Ojv35PCf8EYr6qrt5KA78wUAU6+4coqFDFJlZ/mrLcDmXsLvzuU+cfAbtfEHdj
-         kg6oeVDZCYmdws7bwR/TDAia3jCUDWESeG7AtGdIhiPcStlVI+IA/x7l2j5aSZhDMRCv
-         eeC18F3ll/C1r98n7TyTs1hedafEplUUBXhGdGAsiceSUf3aO5QEE/Ve1R+JmAPntfWM
-         6zLKcuKES31zQ8Q5erCw46hFDz9de4hkpoxXlgcKso94eMg2sjot8BLQd2CBRXVbSaLR
-         MVtw==
+        b=0phZ0/KnLy0dBGYBpvxVQfXbZzIgDd6jCOZbUj/pdlGNaZpgHJ2p9vbHUrQE0EmXFk
+         JKuxeWcKYhfF3YfcyhMu85Oq5BchSavJGp8y2XfsCPW9uEdbNttfnANutunI44JOq1R1
+         R3eZmNBOIUgMWBNbzXpjAiJzaSLnqAv+35lUFDGpvig5CiGeTQG78/M3TZto2ioxmal6
+         IAVYeADhkFQRAftK+V22z5wAwA9vTrdXt0Z9izU5Yhs4bkfdks32pBvoLcuVZvqnMAll
+         gsHR0uGJJFVis/PsJ/rOwCJv5Xv+YQ8X7EkRLWRFoC6sO3rse0H66PcMNimMCiFkyETT
+         4YUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=NVGYH0XHby9mmyeGkuUXvJdFcYxk3J6W0cOvDLlMUJI=;
-        b=MgFxyxjdJZ/bKlAq3OTis/+7RSE6QEJ+cLaOgvTAwMfvAYjac3qHtLK3SLz8vlo1wr
-         hdLRlZM8cYPgcBg+3VtCU9xK4i0l9RlNvi1rq+2+G8HlwcWeGyG7rCuTgJSps0n7kTNn
-         ZF4clPW7/1erCyeHW4s6r5BjMNi9TxdBw3pNO30UgGyAeSLW3nJVYE9BXWxNaeFj/EjZ
-         uf5BqoQiNCmEH10ItB/uKa8yoba6sXHpQmi3fTViwMlBIqkCJ2xO2SfrhxLdtrs2E3Fn
-         4HcZBapLWBevsVLeea9zAk3wyIqjZrpJ65kLQT21KhTjB4ogzohf2YSqTs3EiXu4prNP
-         LZ0A==
+        bh=0ju7H5Gj2niL871BBOn8Ga4UpgCjBl63hHSs8faALiA=;
+        b=qW/nylIhHNdaCtOPMaiuGh+sc8LmPmoN2RfB1It4FoNqDXEHiLRZ2ZKyiuwhn5U+2d
+         PQSkhqxfE2tUt4VvClSTPLBB7/GBWWHnv2rqvoxuu2qiAWLTwaHFJQRZLU58EDJrS3S0
+         nAaD5Mk/MHTf68yPVNygx3aTX5qjTnx9MJVgxrg6AD4FR5wdwZoeji2bw1m0Fzd91Y9s
+         yyF6x9mWlCy+u5p9UhJW8cs/F9hDqdj85MTJgUxNcn4XcQ2jl9SEbr6QihTSlDnBz0P6
+         +JI9puyf8KemK6jdDmoluT3UtUt7C9NWv2ro/0a/OL/T/NfQqOdwdvJy9EYNjtUC4U8T
+         dGng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Zuhx6KBF;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="c5sPk/UW";
        spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id l125si1727961itl.142.2019.05.09.09.07.39
+        by mx.google.com with ESMTPS id n7si1873379jah.63.2019.05.09.09.09.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:07:39 -0700 (PDT)
+        Thu, 09 May 2019 09:09:24 -0700 (PDT)
 Received-SPF: pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Zuhx6KBF;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="c5sPk/UW";
        spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49G45Bt084958;
-	Thu, 9 May 2019 16:07:34 GMT
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49G41OP084863;
+	Thu, 9 May 2019 16:09:20 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=NVGYH0XHby9mmyeGkuUXvJdFcYxk3J6W0cOvDLlMUJI=;
- b=Zuhx6KBF03D4sbzFJBYrPcOti8y68kH09lRoZi33teE1ALdB5B0gZwRprt8Q3h2uRBqK
- gS2QwdnN6huCIBHNvrSbYkW+Ey58b9ROHXooo6HelsugaGKhmyEQBas+SiNXu9+luH5z
- J5OERohj7mlWv+n7RqiaUtlmQwYMUZ29cR9Mc2oJ2zEPGebfAZCDotyidPoFUwt/3f3N
- 15+f1kVwADR6NXEo9bNga1+zdymzkuHNC9SQXouPePz9JOy0DZuwtITJ8W1NkhX3aIeN
- v15pow2qS/J09k75VhLZ08aNneZQeYnTFNd7huX/fazGOqIzi8eZ2YTVF5mHwUFs0VV+ Qg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2s94bgbyus-1
+ bh=0ju7H5Gj2niL871BBOn8Ga4UpgCjBl63hHSs8faALiA=;
+ b=c5sPk/UWjvgCBKfpceUko8ZPiLjVtYZaJKfjeFrS72vCgisTcb/wqPpU408mjOlf1zAt
+ N1dzXSOlBOYvO2FncI11/uZ6nX23dOWmdBrDMUjR1+aL79jZzdLe0yfSDijwAMGgDo7t
+ Jwd8WePcB86Gdcg6BPC/D+blKGY+7lLdlbQc2A15l75HX8D8fJUSlZ9YvE3sij/XmWAR
+ XtmMALWB/8Q2p3irGRUnm4mJb2te+1BFPLTPjInczB9VrVVJKnEKiaBZLN9I5+4vaK3N
+ qmmdijdE3imqVZbniq7DGl8Ig6/MmEpd721BGHN8sPajfXcxwCio29Ce9ZhcvXUEPi2z tA== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2130.oracle.com with ESMTP id 2s94bgc066-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 09 May 2019 16:07:33 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49G7672142274;
-	Thu, 9 May 2019 16:07:33 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3020.oracle.com with ESMTP id 2schvywx4m-1
+	Thu, 09 May 2019 16:09:19 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49G75FA107183;
+	Thu, 9 May 2019 16:07:19 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3030.oracle.com with ESMTP id 2scpy5rqhu-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 09 May 2019 16:07:32 +0000
+	Thu, 09 May 2019 16:07:19 +0000
 Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x49G7VDb010297;
-	Thu, 9 May 2019 16:07:31 GMT
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x49G7G0I017023;
+	Thu, 9 May 2019 16:07:16 GMT
 Received: from oracle.com (/75.80.107.76)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 09 May 2019 09:07:31 -0700
+	with ESMTP ; Thu, 09 May 2019 09:07:16 -0700
 From: Larry Bassel <larry.bassel@oracle.com>
 To: mike.kravetz@oracle.com, willy@infradead.org, dan.j.williams@intel.com,
         linux-mm@kvack.org, linux-kernel@vger.kernel.org,
         linux-nvdimm@lists.01.org
 Cc: Larry Bassel <larry.bassel@oracle.com>
-Subject: [PATCH, RFC 2/2] Implement sharing/unsharing of PMDs for FS/DAX
-Date: Thu,  9 May 2019 09:05:33 -0700
-Message-Id: <1557417933-15701-3-git-send-email-larry.bassel@oracle.com>
+Subject: [PATCH, RFC 1/2] Add config option to enable FS/DAX PMD sharing
+Date: Thu,  9 May 2019 09:05:32 -0700
+Message-Id: <1557417933-15701-2-git-send-email-larry.bassel@oracle.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1557417933-15701-1-git-send-email-larry.bassel@oracle.com>
 References: <1557417933-15701-1-git-send-email-larry.bassel@oracle.com>
@@ -137,254 +137,27 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is based on (but somewhat different from) what hugetlbfs
-does to share/unshare page tables.
+If enabled, sharing of FS/DAX PMDs will be attempted.
 
 Signed-off-by: Larry Bassel <larry.bassel@oracle.com>
 ---
- include/linux/hugetlb.h |   4 ++
- mm/huge_memory.c        |  32 ++++++++++++++
- mm/hugetlb.c            |  21 ++++++++--
- mm/memory.c             | 108 +++++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 160 insertions(+), 5 deletions(-)
+ arch/x86/Kconfig | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 11943b6..9ed9542 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -142,6 +142,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
- int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
- void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
- 				unsigned long *start, unsigned long *end);
-+unsigned long page_table_shareable(struct vm_area_struct *svma,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pgoff_t idx);
-+bool vma_shareable(struct vm_area_struct *vma, unsigned long addr);
- struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
- 			      int write);
- struct page *follow_huge_pd(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b6a34b3..e1627c3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1747,6 +1747,33 @@ static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
- 	mm_dec_nr_ptes(mm);
- }
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index e721273..e11702e 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -297,6 +297,9 @@ config ARCH_SUSPEND_POSSIBLE
+ config ARCH_WANT_HUGE_PMD_SHARE
+ 	def_bool y
  
-+#ifdef CONFIG_MAY_SHARE_FSDAX_PMD
-+static int unshare_huge_pmd(struct mm_struct *mm, unsigned long addr,
-+			    pmd_t *pmdp)
-+{
-+	pgd_t *pgd = pgd_offset(mm, addr);
-+	p4d_t *p4d = p4d_offset(pgd, addr);
-+	pud_t *pud = pud_offset(p4d, addr);
++config MAY_SHARE_FSDAX_PMD
++	def_bool y
 +
-+	WARN_ON(page_count(virt_to_page(pmdp)) == 0);
-+	if (page_count(virt_to_page(pmdp)) == 1)
-+		return 0;
-+
-+	pud_clear(pud);
-+	put_page(virt_to_page(pmdp));
-+	mm_dec_nr_pmds(mm);
-+	return 1;
-+}
-+
-+#else
-+static int unshare_huge_pmd(struct mm_struct *mm, unsigned long addr,
-+			    pmd_t *pmdp)
-+{
-+	return 0;
-+}
-+
-+#endif
-+
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
-@@ -1764,6 +1791,11 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	 * pgtable_trans_huge_withdraw after finishing pmdp related
- 	 * operations.
- 	 */
-+	if (unshare_huge_pmd(vma->vm_mm, addr, pmd)) {
-+		spin_unlock(ptl);
-+		return 1;
-+	}
-+
- 	orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
- 			tlb->fullmm);
- 	tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 641cedf..919a290 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4594,9 +4594,9 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
- }
+ config ARCH_WANT_GENERAL_HUGETLB
+ 	def_bool y
  
- #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
--static unsigned long page_table_shareable(struct vm_area_struct *svma,
--				struct vm_area_struct *vma,
--				unsigned long addr, pgoff_t idx)
-+unsigned long page_table_shareable(struct vm_area_struct *svma,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pgoff_t idx)
- {
- 	unsigned long saddr = ((idx - svma->vm_pgoff) << PAGE_SHIFT) +
- 				svma->vm_start;
-@@ -4619,7 +4619,7 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
- 	return saddr;
- }
- 
--static bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-+bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
- {
- 	unsigned long base = addr & PUD_MASK;
- 	unsigned long end = base + PUD_SIZE;
-@@ -4763,6 +4763,19 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
- 				unsigned long *start, unsigned long *end)
- {
- }
-+
-+unsigned long page_table_shareable(struct vm_area_struct *svma,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pgoff_t idx)
-+{
-+	return 0;
-+}
-+
-+bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-+{
-+	return false;
-+}
-+
- #define want_pmd_share()	(0)
- #endif /* CONFIG_ARCH_WANT_HUGE_PMD_SHARE */
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index f7d962d..4c1814c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3845,6 +3845,109 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
- 	return 0;
- }
- 
-+#ifdef CONFIG_MAY_SHARE_FSDAX_PMD
-+static pmd_t *huge_pmd_offset(struct mm_struct *mm,
-+			      unsigned long addr, unsigned long sz)
-+{
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		return NULL;
-+	p4d = p4d_offset(pgd, addr);
-+	if (!p4d_present(*p4d))
-+		return NULL;
-+
-+	pud = pud_offset(p4d, addr);
-+	if (sz != PUD_SIZE && pud_none(*pud))
-+		return NULL;
-+	/* hugepage or swap? */
-+	if (pud_huge(*pud) || !pud_present(*pud))
-+		return (pmd_t *)pud;
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (sz != PMD_SIZE && pmd_none(*pmd))
-+		return NULL;
-+	/* hugepage or swap? */
-+	if (pmd_huge(*pmd) || !pmd_present(*pmd))
-+		return pmd;
-+
-+	return NULL;
-+}
-+
-+static pmd_t *pmd_share(struct mm_struct *mm, pud_t *pud, unsigned long addr)
-+{
-+	struct vm_area_struct *vma = find_vma(mm, addr);
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-+			vma->vm_pgoff;
-+	struct vm_area_struct *svma;
-+	unsigned long saddr;
-+	pmd_t *spmd = NULL;
-+	pmd_t *pmd;
-+	spinlock_t *ptl;
-+
-+	if (!vma_shareable(vma, addr))
-+		return pmd_alloc(mm, pud, addr);
-+
-+	i_mmap_lock_write(mapping);
-+
-+	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-+		if (svma == vma)
-+			continue;
-+
-+		saddr = page_table_shareable(svma, vma, addr, idx);
-+		if (saddr) {
-+			spmd = huge_pmd_offset(svma->vm_mm, saddr,
-+					       vma_mmu_pagesize(svma));
-+			if (spmd) {
-+				get_page(virt_to_page(spmd));
-+				break;
-+			}
-+		}
-+	}
-+
-+	if (!spmd)
-+		goto out;
-+
-+	ptl = pmd_lockptr(mm, spmd);
-+	spin_lock(ptl);
-+
-+	if (pud_none(*pud)) {
-+		pud_populate(mm, pud,
-+			    (pmd_t *)((unsigned long)spmd & PAGE_MASK));
-+		mm_inc_nr_pmds(mm);
-+	} else {
-+		put_page(virt_to_page(spmd));
-+	}
-+	spin_unlock(ptl);
-+out:
-+	pmd = pmd_alloc(mm, pud, addr);
-+	i_mmap_unlock_write(mapping);
-+	return pmd;
-+}
-+
-+static bool may_share_pmd(struct vm_area_struct *vma)
-+{
-+	if (vma_is_fsdax(vma))
-+		return true;
-+	return false;
-+}
-+#else
-+static pmd_t *pmd_share(struct mm_struct *mm, pud_t *pud, unsigned long addr)
-+{
-+	return pmd_alloc(mm, pud, addr);
-+}
-+
-+static bool may_share_pmd(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
-+#endif
-+
- /*
-  * By the time we get here, we already hold the mm semaphore
-  *
-@@ -3898,7 +4001,10 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
- 		}
- 	}
- 
--	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
-+	if (unlikely(may_share_pmd(vma)))
-+		vmf.pmd = pmd_share(mm, vmf.pud, address);
-+	else
-+		vmf.pmd = pmd_alloc(mm, vmf.pud, address);
- 	if (!vmf.pmd)
- 		return VM_FAULT_OOM;
- 	if (pmd_none(*vmf.pmd) && __transparent_hugepage_enabled(vma)) {
 -- 
 1.8.3.1
 
