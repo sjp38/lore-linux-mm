@@ -5,188 +5,286 @@ X-Spam-Level:
 X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A488C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CBDF3C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:35:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD1F6217D6
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:22:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD1F6217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 6D4072173C
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:35:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D4072173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 618FF6B000C; Thu,  9 May 2019 12:22:51 -0400 (EDT)
+	id DFD1E6B0003; Thu,  9 May 2019 12:35:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C99A6B000D; Thu,  9 May 2019 12:22:51 -0400 (EDT)
+	id DAEB16B0006; Thu,  9 May 2019 12:35:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B8436B000E; Thu,  9 May 2019 12:22:51 -0400 (EDT)
+	id C753A6B0007; Thu,  9 May 2019 12:35:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 15F716B000C
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:22:51 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id x5so1854338pll.2
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:22:51 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C5D6B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:35:34 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id l20so3145686qtq.21
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:35:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=MnJUOeGEfxoXATq898/79HSPqxNr6uBR2VgKy0JDKm8=;
-        b=cI0d6U038z1tlNAbCmFJGGssd5rkSxBrKxdjQhZnWN0zibkjO67TIKakre2/xsyjqo
-         MN67q/TJ8gY3NCYjLjWylUPdMJsJQdTvTWNrytUEVTJvhSyK3jts1gZV2ZGykzhHbpkw
-         mwB/Zkpr2FAVp2Ng7bMwek9YT4mw+Y0s424VnMvDZSw2Lrt7Y4sE+1awbazJi8KUTPeq
-         mvA0IzOTB3Q49KXHEhsWU8vv43nqon8Sc/RebO0QGc+sHTgiRJYdIKLAxxJFFRzxK41a
-         K0hkYoJMzebtatl807NUGNYu5D1ZYR2zsIc0Y2dCTkXhuAP4H/IPQ0/iju+1ytjF3ddh
-         tzIA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVjIGwejX6tCdtJ+KF7AJx3rmBHb6+QS2kIBPwIn+fWP6SFaf26
-	j8QCWmndRknPefpd54NiyNAc+gl7VtvDEfNn3UURAWu8RzOdIhBBMHe8/n/WLXoXTI5GriBmRrQ
-	SJxqTBUUF//wigncWLpCISkRmt5ng8WsOc/4EZ9+zqxQZ6n7GQB0snaXfNqlvI4m0tQ==
-X-Received: by 2002:aa7:8e04:: with SMTP id c4mr6470044pfr.48.1557418970717;
-        Thu, 09 May 2019 09:22:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVL09ur8DF/uXa3vFWKKNV3C3Q71OvFC+rw3AvNfVg3wXvvsRJGDNaL/K9Mb7YJQ6Y2Xv0
-X-Received: by 2002:aa7:8e04:: with SMTP id c4mr6469964pfr.48.1557418970051;
-        Thu, 09 May 2019 09:22:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557418970; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Z3wQEF6tMh8M20m6RPRu/K8V03r1TTBjl7ghso4mRWo=;
+        b=DJ3tYGQMgtujDS5gHYYQIDq7jlUpfXphx7d/GwP68QCmFy9aTnmAIpjW20G69bN8qy
+         wpIHPXyzPoBmouPbOmLgM0F7SefaCwF0pSYKZBsXjwkrgyqpNM9iHXVrBGa4BKoWaPUG
+         knikkNOleL6rKsgQxEa+DcTiVMPhAzBQ0WSELDVpgn+Aqa/IYatcJQIbdDQX44xG4O3T
+         zkQLhn1/M/fDeX8WQo3Aq4EDaXzokVqUMarIWyCSHBYg6nh6YTEeLOh7/b2Y+bc+AKjx
+         AFIpubNUKxAw/YKAsGAfuW2AvLrSApwmkHykDeLnrDzAcTJKQs9D5UxZYVq8mOjBLqvz
+         Bdxw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUVH7SnPTfMqzraE+ia+kZCFBbcccD/68hvJ8HZi9eCuzgSg/DW
+	sz6+AnT6joSBkw9Skdg8+pgvPsroKI0PbeYgIK4ilc5CGbPg12jpJaYvF6lL7We+dSP44Rc3Imc
+	H1ZmLRDoO/TFnte65LF5P+azOzO46oY7Mmgpv3hNS8wJfCq+Tk5Wdh7mRwAJwcBdZMA==
+X-Received: by 2002:a37:4e94:: with SMTP id c142mr4044277qkb.274.1557419734398;
+        Thu, 09 May 2019 09:35:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlolSoYdS33E4VTXuhdhThNMyrgc9pQXLdxEOH8obZi4c3eUg0nbyC2Z5juBZtGJviSy15
+X-Received: by 2002:a37:4e94:: with SMTP id c142mr4044202qkb.274.1557419733558;
+        Thu, 09 May 2019 09:35:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557419733; cv=none;
         d=google.com; s=arc-20160816;
-        b=PKa9Xu+fOPDqRxRKEcrK+brrFmAft9bZAemtE8lelQkA+BAM1I4DqhX7it1nmlpHIr
-         UER0LtuzKsoiyGEW7SqP8l9Dkajg0vBgkEUxm6nW9Hw1cS9RhNnkybEjphfgKjaFCf1D
-         FxBVR2DG+w9RHkfeoFmrqN+poyo9m2q5yzKsU3lVdgj7ga6p7IfktbXK4CEvn0JUaLxr
-         Mzc4M+oRChLJfWPl9SHFkQ8fGtmzoqD3o8SFp8GGf3uUg98zO3n9+Umx8xZbgMo0EtYh
-         cCisR9HWxqLAB/LSjYoggTEhXXVq6GkHHT5J2YjrbAF8tFJ5ul9WkUr8V+53t2HkTVrj
-         deQQ==
+        b=TLprqI1QaK+cPGdzRU3N2BevvN6DdbZHeu+xKRicSL3dkeRsuI03wjkM6gsC8KvtDu
+         NuCdE5ZFCn5MNuGrfoea0LUmZX/9cdtE+mKlP35x85VgvrzK/yXtRPBbz7veUvghMDL5
+         Ko0MD6ryuJxxLae4Vc6ZJ/THppeMKO1aqzBMyKaZQM3Zl+gKJhruT84KeQVXcwZEn1m0
+         zGS0EscvBvSIQ6YWFOIfQ/uJA9b6Z0/iX3HUw5IGz4dcrE4tqb8r+Pnb+6lQmpCIv498
+         sEAMntsH/Rc1qP1VGOp7YX5dWz8JGtQQRpR/wSXpiIrhnoV3poBR9OXpMzkBt0CDH1N9
+         RMLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=MnJUOeGEfxoXATq898/79HSPqxNr6uBR2VgKy0JDKm8=;
-        b=NiaEMVytZRw8KczHQI3LeT8odF7bvoqT9PGEdEyD7qem680asQ19hehdDGfpz50ues
-         8deTEo7UJAJWVcyQ5FnfRwiSiU5eG1NrcDjidw1qI4dsfdkgmVcXMc5GZ7pP5+ObzKcd
-         frOsOVDOKHNcnuHruBcslhAEkVmYYfpFElwAn2c1qagoWnKSAyv7JhkDf0hnFOK0Sd+g
-         Hf7gxdxO0qubuab3yqnLV4h2wdIlyPbOMqeuUpLgsPtBtiK7k0LgqgZaZ4CFoQeJt4VH
-         VGCNiAUOI/xHGy4ZuFdBf+L2K2ks/CsC4UKuqMfjPCMMUlyaQopmbTKAY36V9+yoIGFY
-         ap/A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=Z3wQEF6tMh8M20m6RPRu/K8V03r1TTBjl7ghso4mRWo=;
+        b=up/IQIzT3Fv7FMbrmLRHz+y3aHqxwEw1Ad8UcszllyA6pX6x3cSaMK9CPz5OC6U+Vp
+         Wk8FCNC7ttmVzLX038gaILa+K1E9xVKx3AkQOAz8D3H4lK+kFIQXN8uEJKe53ppUvme6
+         X4DCU0xcmIn7Pz1AHL6iZu+YV9EA4xW9DNLOlLAb3Rbi6ZDcOQREjqUhOcSV41lIeXBQ
+         +fjBe2ZGql7Ur5fP9GMvavO2BFUu1AAV8RVPVyC+Y4bADLyosBaUSGyUSHVai2K7ZN7q
+         VvtzaSsdCWTFNDpNOph2TpPip/+lt5SFVJ4O8HC471jo+5/V6ZCAAwQ9AH2s48yH/lOm
+         3H7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id o15si3909382pgh.181.2019.05.09.09.22.49
+       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c185si1154232qkd.249.2019.05.09.09.35.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:22:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Thu, 09 May 2019 09:35:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 May 2019 09:22:37 -0700
-X-ExtLoop1: 1
-Received: from fmsmsx108.amr.corp.intel.com ([10.18.124.206])
-  by fmsmga004.fm.intel.com with ESMTP; 09 May 2019 09:22:37 -0700
-Received: from fmsmsx125.amr.corp.intel.com (10.18.125.40) by
- FMSMSX108.amr.corp.intel.com (10.18.124.206) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 9 May 2019 09:22:36 -0700
-Received: from crsmsx103.amr.corp.intel.com (172.18.63.31) by
- FMSMSX125.amr.corp.intel.com (10.18.125.40) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Thu, 9 May 2019 09:22:36 -0700
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.116]) by
- CRSMSX103.amr.corp.intel.com ([169.254.4.184]) with mapi id 14.03.0415.000;
- Thu, 9 May 2019 10:22:33 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: Matthew Wilcox <willy@infradead.org>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: RE: [PATCH 02/11] mm: Pass order to __alloc_pages_nodemask in GFP
- flags
-Thread-Topic: [PATCH 02/11] mm: Pass order to __alloc_pages_nodemask in GFP
- flags
-Thread-Index: AQHVBIqaXqt0fPnBZEirHr/43yV0JKZh+T+AgAFAwAD//8NusA==
-Date: Thu, 9 May 2019 16:22:33 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79D0CEBC@CRSMSX101.amr.corp.intel.com>
-References: <20190507040609.21746-1-willy@infradead.org>
- <20190507040609.21746-3-willy@infradead.org>
- <20190509015015.GA26131@iweiny-DESK2.sc.intel.com>
- <20190509135816.GA23561@bombadil.infradead.org>
-In-Reply-To: <20190509135816.GA23561@bombadil.infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNDFmY2E1MjYtY2U5OS00ZmI1LTk2NDYtODg4MmFlOTI2NGEzIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiamlnWkpnNU5yWXFGbXphSndCeGxCTTVTUDhMNXVFNFQwaENOdGhiQ2kzWnc4b1FHMzlPXC9RaTYxeGlTY1pWQ08ifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 630CB308FC5E;
+	Thu,  9 May 2019 16:35:32 +0000 (UTC)
+Received: from Igors-MacBook-Pro (ovpn-204-72.brq.redhat.com [10.40.204.72])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9E91A5B680;
+	Thu,  9 May 2019 16:35:26 +0000 (UTC)
+Date: Thu, 9 May 2019 18:35:20 +0200
+From: Igor Mammedov <imammedo@redhat.com>
+To: Laszlo Ersek <lersek@redhat.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, Shameerali Kolothum Thodi
+ <shameerali.kolothum.thodi@huawei.com>, "will.deacon@arm.com"
+ <will.deacon@arm.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Anshuman
+ Khandual <anshuman.khandual@arm.com>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>,
+ "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "qemu-arm@nongnu.org"
+ <qemu-arm@nongnu.org>, "eric.auger@redhat.com" <eric.auger@redhat.com>,
+ "peter.maydell@linaro.org" <peter.maydell@linaro.org>, Linuxarm
+ <linuxarm@huawei.com>, "ard.biesheuvel@linaro.org"
+ <ard.biesheuvel@linaro.org>, Jonathan Cameron
+ <jonathan.cameron@huawei.com>, "xuwei (O)" <xuwei5@huawei.com>
+Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
+Message-ID: <20190509183520.6dc47f2e@Igors-MacBook-Pro>
+In-Reply-To: <190831a5-297d-addb-ea56-645afb169efb@redhat.com>
+References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
+	<ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
+	<190831a5-297d-addb-ea56-645afb169efb@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 09 May 2019 16:35:32 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->=20
-> On Wed, May 08, 2019 at 06:50:16PM -0700, Ira Weiny wrote:
-> > On Mon, May 06, 2019 at 09:06:00PM -0700, Matthew Wilcox wrote:
-> > > Save marshalling an extra argument in all the callers at the expense
-> > > of using five bits of the GFP flags.  We still have three GFP bits
-> > > remaining after doing this (and we can release one more by
-> > > reallocating NORETRY, RETRY_MAYFAIL and NOFAIL).
->=20
-> > > -static void *dsalloc_pages(size_t size, gfp_t flags, int cpu)
-> > > +static void *dsalloc_pages(size_t size, gfp_t gfp, int cpu)
-> > >  {
-> > >  	unsigned int order =3D get_order(size);
-> > >  	int node =3D cpu_to_node(cpu);
-> > >  	struct page *page;
-> > >
-> > > -	page =3D __alloc_pages_node(node, flags | __GFP_ZERO, order);
-> > > +	page =3D __alloc_pages_node(node, gfp | __GFP_ZERO |
-> > > +__GFP_ORDER(order));
-> >
-> > Order was derived from size in this function.  Is this truely equal to
-> > the old function?
-> >
-> > At a minimum if I am wrong the get_order call above should be removed,
-> no?
->=20
-> I think you have a misunderstanding, but I'm not sure what it is.
->=20
-> Before this patch, we pass 'order' (a small integer generally less than 1=
-0) in
-> the bottom few bits of a parameter called 'order'.  After this patch, we =
-pass
-> the order in some of the high bits of the GFP flags.  So we can't remove =
-the
-> call to get_order() because that's what calculates 'order' from 'size'.
+On Wed, 8 May 2019 22:26:12 +0200
+Laszlo Ersek <lersek@redhat.com> wrote:
 
-Ah I see it now.  Sorry was thinking the wrong thing when I saw that line.
-
-Yep you are correct,
-Ira
-
-
+> On 05/08/19 14:50, Robin Murphy wrote:
+> > Hi Shameer,
+> >=20
+> > On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
+> >> Hi,
+> >>
+> >> This series here[0] attempts to add support for PCDIMM in QEMU for
+> >> ARM/Virt platform and has stumbled upon an issue as it is not clear(at
+> >> least
+> >> from Qemu/EDK2 point of view) how in physical world the hotpluggable
+> >> memory is handled by kernel.
+> >>
+> >> The proposed implementation in Qemu, builds the SRAT and DSDT parts
+> >> and uses GED device to trigger the hotplug. This works fine.
+> >>
+> >> But when we added the DT node corresponding to the PCDIMM(cold plug
+> >> scenario), we noticed that Guest kernel see this memory during early b=
+oot
+> >> even if we are booting with ACPI. Because of this, hotpluggable memory
+> >> may end up in zone normal and make it non-hot-un-pluggable even if Gue=
+st
+> >> boots with ACPI.
+> >>
+> >> Further discussions[1] revealed that, EDK2 UEFI has no means to
+> >> interpret the
+> >> ACPI content from Qemu(this is designed to do so) and uses DT info to
+> >> build the GetMemoryMap(). To solve this, introduced "hotpluggable"
+> >> property
+> >> to DT memory node(patches #7 & #8 from [0]) so that UEFI can
+> >> differentiate
+> >> the nodes and exclude the hotpluggable ones from GetMemoryMap().
+> >>
+> >> But then Laszlo rightly pointed out that in order to accommodate the
+> >> changes
+> >> into UEFI we need to know how exactly Linux expects/handles all the
+> >> hotpluggable memory scenarios. Please find the discussion here[2].
+> >>
+> >> For ease, I am just copying the relevant comment from Laszlo below,
+> >>
+> >> /******
+> >> "Given patches #7 and #8, as I understand them, the firmware cannot
+> >> distinguish
+> >> =C2=A0 hotpluggable & present, from hotpluggable & absent. The firmwar=
+e can
+> >> only
+> >> =C2=A0 skip both hotpluggable cases. That's fine in that the firmware =
+will
+> >> hog neither
+> >> =C2=A0 type -- but is that OK for the OS as well, for both ACPI boot a=
+nd DT
+> >> boot?
+> >>
+> >> Consider in particular the "hotpluggable & present, ACPI boot" case.
+> >> Assuming
+> >> we modify the firmware to skip "hotpluggable" altogether, the UEFI mem=
+map
+> >> will not include the range despite it being present at boot.
+> >> Presumably, ACPI
+> >> will refer to the range somehow, however. Will that not confuse the OS?
+> >>
+> >> When Igor raised this earlier, I suggested that
+> >> hotpluggable-and-present should
+> >> be added by the firmware, but also allocated immediately, as
+> >> EfiBootServicesData
+> >> type memory. This will prevent other drivers in the firmware from
+> >> allocating AcpiNVS
+> >> or Reserved chunks from the same memory range, the UEFI memmap will
+> >> contain
+> >> the range as EfiBootServicesData, and then the OS can release that
+> >> allocation in
+> >> one go early during boot.
+> >>
+> >> But this really has to be clarified from the Linux kernel's
+> >> expectations. Please
+> >> formalize all of the following cases:
+> >>
+> >> OS boot (DT/ACPI)=C2=A0 hotpluggable & ...=C2=A0 GetMemoryMap() should=
+ report
+> >> as=C2=A0 DT/ACPI should report as
+> >> -----------------=C2=A0 ------------------=C2=A0
+> >> -------------------------------=C2=A0 ------------------------
+> >> DT=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 present=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+ ?
+> >> DT=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 absent=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0 ?
+> >> ACPI=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0 present=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?
+> >> ACPI=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0 absent=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?
+> >>
+> >> Again, this table is dictated by Linux."
+> >>
+> >> ******/
+> >>
+> >> Could you please take a look at this and let us know what is expected
+> >> here from
+> >> a Linux kernel view point.
+> >=20
+> > For arm64, so far we've not even been considering DT-based hotplug - as
+> > far as I'm aware there would still be a big open question there around
+> > notification mechanisms and how to describe them. The DT stuff so far
+> > has come from the PowerPC folks, so it's probably worth seeing what
+> > their ideas are.
+> >=20
+> > ACPI-wise I've always assumed/hoped that hotplug-related things should
+> > be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do"
+> > would be enough for us.
 >=20
-> > > +#define __GFP_ORDER(order) ((__force gfp_t)(order <<
-> __GFP_BITS_SHIFT))
-> > > +#define __GFP_ORDER_PMD	__GFP_ORDER(PMD_SHIFT -
-> PAGE_SHIFT)
-> > > +#define __GFP_ORDER_PUD	__GFP_ORDER(PUD_SHIFT -
-> PAGE_SHIFT)
-> > > +
-> > > +/*
-> > > + * Extract the order from a GFP bitmask.
-> > > + * Must be the top bits to avoid an AND operation.  Don't let
-> > > + * __GFP_BITS_SHIFT get over 27, or we won't be able to encode
-> > > +orders
-> > > + * above 15 (some architectures allow configuring MAX_ORDER up to
-> > > +64,
-> > > + * but I doubt larger than 31 are ever used).
-> > > + */
-> > > +#define gfp_order(gfp)	(((__force unsigned int)gfp) >>
-> __GFP_BITS_SHIFT)
+> As far as I can see in UEFI v2.8 -- and I had checked the spec before
+> dumping the table with the many question marks on Shameer --, all the
+> hot-plug language in the spec refers to USB and PCI hot-plug in the
+> preboot environment. There is not a single word about hot-plug at OS
+> runtime (regarding any device or component type), nor about memory
+> hot-plug (at any time).
+>
+> Looking to x86 appears valid -- so what does the Linux kernel expect on
+> that architecture, in the "ACPI" rows of the table?
+
+I could only answer from QEMU x86 perspective.
+QEMU for x86 guests currently doesn't add hot-pluggable RAM into E820
+because of different linux guests tend to cannibalize it, making it non
+unpluggable. The last culprit I recall was KASLR.
+
+So I'd refrain from reporting hotpluggable RAM in GetMemoryMap() if
+it's possible (it's probably hack (spec deosn't say anything about it)
+but it mostly works for Linux (plug/unplug) and Windows guest also
+fine with plug part (no unplug there)).
+
+As for physical systems, there are out there ones that do report
+hotpluggable RAM in GetMemoryMap().
+
+> Shameer: if you (Huawei) are represented on the USWG / ASWG, I suggest
+> re-raising the question on those lists too; at least the "ACPI" rows of
+> the table.
+>=20
+> Thanks!
+> Laszlo
+>=20
+> >=20
+> > Robin.
+> >=20
+> >> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed
+> >> any valid
+> >> points above).
+> >>
+> >> Thanks,
+> >> Shameer
+> >> [0] https://patchwork.kernel.org/cover/10890919/
+> >> [1] https://patchwork.kernel.org/patch/10863299/
+> >> [2] https://patchwork.kernel.org/patch/10890937/
+> >>
+> >>
+>=20
 
