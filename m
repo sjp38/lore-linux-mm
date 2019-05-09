@@ -2,254 +2,242 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9660C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:06:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D382AC04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:21:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F14F2177B
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:06:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F14F2177B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7298F21744
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:21:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="BayIfWjW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7298F21744
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C47336B0003; Thu,  9 May 2019 17:06:44 -0400 (EDT)
+	id 0F26A6B0007; Thu,  9 May 2019 17:21:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF8AD6B0006; Thu,  9 May 2019 17:06:44 -0400 (EDT)
+	id 07C726B0008; Thu,  9 May 2019 17:21:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC0386B0007; Thu,  9 May 2019 17:06:44 -0400 (EDT)
+	id E85B86B000A; Thu,  9 May 2019 17:21:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2026B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:06:44 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id k15so3399603qki.4
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:06:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92CC26B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:21:41 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c26so2440611eda.15
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:21:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:message-id:in-reply-to:references:subject:mime-version
-         :content-transfer-encoding:thread-topic:thread-index;
-        bh=Zle0EOxhkjIur0vZBNLm5bBmFk7EynbR0yS3T77Ek8k=;
-        b=YFzvzj/xP73U+tIl/obiZ16Wwe5p8h+/1Nk6aJoI9yM0z9ZK0rZsUDRIVVMwrUIn7C
-         dsxxIhj7yn8L+FkRA5vNlgiipGgQVImkzQ/WHZgkwjX/w3gFhsGBP/7Y9Sj7YM9em4ue
-         BD9RkTnw/3JVBcobea/+zB6nKQ4nlUp5rtzeVy9lONI8GfYz6VVy4KjmVzDXEYuwaW76
-         wBnPCFUYz/5uQxROEncAbEvVQkphDqNHOW1S7WVLjHL3tpRrkEEUSAFfsF5fWuOiAm8B
-         yGyXOApXLWKc86iII5v11ybohMRnsWNU1IlIQyILOQ/Uo/aVOH47qhnjGGEC1DFYa2cL
-         y9EQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV5N0N1Smx/Go2znfvmjwpnPE5q+pglDVq0SNH+dnBQfvOsqzIb
-	N+a0biPRAWKgs/JCoKKq4fuKWAoH1vH1fIHi9hpP6mpLgACq0jPm60ftPcdzSUBEZAMFoi3Wo20
-	MZKr6Hylj5KUVY3Pg6yy2PYmYt8cpZmUpkoHODDP2foPmXLQzkuDpNIch5UiWj6KqiA==
-X-Received: by 2002:aed:2071:: with SMTP id 104mr6009311qta.223.1557436004260;
-        Thu, 09 May 2019 14:06:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdUJxyF6eD2e8KjthR4KkRi7Wirgp7U1CqXNpf081uHPjpNI1uHvULwK5cccDuSqoGdBCJ
-X-Received: by 2002:aed:2071:: with SMTP id 104mr6009248qta.223.1557436003389;
-        Thu, 09 May 2019 14:06:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557436003; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
+        b=lKdQMgIKYnW0Wi6QZu7bB1xaOg3s1TkLKHyh+fiRRypBUi27vdloZMFtwC+L6eTtto
+         S1lNvvKG8raXh7oObAkD7FIHgeH+NoCyYEM9bI2nhtN8NioyD96NhlgaXqk7w9wJiTaG
+         VfN9xFlwwIamLebWE0T7/SOG5gYStJs8wsQ/faZkMxo5lYs+OBejEVFyTRkeoiG9LgLg
+         Dc0BI7Su0DsOXWCu0MkMg7sV7i7QpLCHrzTfq5GjIYgmwaEAzd6Uhjag1ICJYic76BeK
+         W1v64jBEuzb2jxF3bArEL5r6JTdr+DvqFvHSbe9ZdsHKwQArhmSBzgv6aGEkbaSEOiAw
+         eInA==
+X-Gm-Message-State: APjAAAX2B0JCG5GnOlb4KojPKoaKczts8Js6aNSDTC3bzd5yDS197Euk
+	yvAbFv/v8D4d1Q92zC5aArNveWTI1uJsjtyKQN5h23BIVJtY+zVQGla5F/TFVQCe+WNjcNZ85kc
+	Zr/Uo+GekzP1tMq5b0MRSTbhgi165ws+GUhirEi9OTInw0gdmltZOYN/vkNj+MYUoiQ==
+X-Received: by 2002:a50:b1e3:: with SMTP id n32mr6549434edd.55.1557436901076;
+        Thu, 09 May 2019 14:21:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyiJuSF6npDyNO5J+/Wr8T15445SAyoJP9eAVCfee1J5mKftuXr6OWhswfEIAc/cgB7RQTn
+X-Received: by 2002:a50:b1e3:: with SMTP id n32mr6549368edd.55.1557436900204;
+        Thu, 09 May 2019 14:21:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557436900; cv=none;
         d=google.com; s=arc-20160816;
-        b=HWzq/zHg5TOQEPoELP4Z18c0hEpHJI9IheQpSlhK9IcDCeWPh0FNxW1LGdCgR0YsPJ
-         c/3d6IjEO4PEva6v0J0HS1kbPvtYytC6v3/wxZKY5/vhrEy74Te5CwBb/mPAGG24hoVS
-         s/sWCFwZ4gxQY4fQxDeNocyQwY/kJC6FlqfNqB2CfZ8VK6AM6tn3sXLFQ27jE8fA4XHy
-         4gi1YhBnzrAazyv/XUCwhWjWUa0vcYHplSztObNR7ylYA8VrlyY6zAEp9/IHl4kzI/gq
-         eT1TqlSOWaj7oqv0FG5j1cMGhE0VkTmBGu4Csp8dkI186vZhYS1ZDAcV7wjuV9Vzms/F
-         49Tw==
+        b=ymA2I1/0D/DswxZZ0l5DaQeEy70WwjBPbfA31FqjTAN/459k/PfxAK65wFG1S2Z+Mi
+         1aCMx8yGRrBCHCG4/wCMTV0MthIz2iAzROeKdWOOx+7Ok0+P6LhMpZc2Ug50uvC5oGZW
+         iwKUvoZWpt1BICmcHUtnKC1ClWcHTKpaScQRDH4qilnCZLvYJEISu8/cmym1IKPoMlhH
+         OJYWQhgqx2IpF4XOmvXZD+nkrbe70F9K0BlzR+Vil3EMMmumbKjBtpP/acxJ5HhHVtmn
+         b7Nqsp2ezMdUp1yh4tLYEnlX/mFGNCaa6mDlwKD0lEDHvwube/QXTuBRrmoJxLOWoS2d
+         v8iA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:thread-topic:content-transfer-encoding:mime-version
-         :subject:references:in-reply-to:message-id:cc:to:from:date;
-        bh=Zle0EOxhkjIur0vZBNLm5bBmFk7EynbR0yS3T77Ek8k=;
-        b=eodR64K6i68B9Vz/vfcYBkptFc+2f0fMjOK8f9CUE5dwZXa6wnzQHNsqILYLC6G8w+
-         u8ELCA0fRGCdlMbILQLPtx86aTAOumwbceDjqGC5Hsn6uJgu8bTFoadB/hYoHUYjiJCa
-         Mvlh19VEWDeo4XGuso+FlfWsv+CXMXL3W8pZ2bQsopcSX894WVK6epvGMA3+z75tjmg8
-         /8siE9sJnivoqjBqup0yFbyzu8qfYbNy/LdUPXGiYDMIeTnLSFjmqF1J7TCPvjpZOqzX
-         UP+PnF04RLF+0Hmf9eQa+GJpeuWvilPFGpV4wTtgqzfp1AEdWCf7CAFiq5atyPEGlTEY
-         pg7g==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
+        b=fjNztENsqy5N6brloEjat3ZPa9e23BmrOP/Z549jo6UlF2gIycQWAyR1eP1eKzPcpr
+         TJS7ix2GediD3TOFf4il4xdaSRteAyS4gZuBXgwrYqU4cLCQ9FoMWC9mkE97vXVbyk0s
+         xRr7uxpiP5qfVZ52Yncgq1gMb8xwEkB4ScFr+QH84tFBFwcyz7RbDLJRGKVFFTr2w6ID
+         B0bzTM7p46FtCHZGXAEgkxtNRwFX1DQMjfmY7iuTiOnwGtfJfcK6K7yzQ0v+GiWPcyqp
+         qQYabSEUC8rbU+3hrCx+8MwMiFIKInkyiJGPVdW17M29Kku3oHal8QiRZKi50OqSxwCH
+         vMJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z31si2257011qtz.218.2019.05.09.14.06.43
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=BayIfWjW;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800051.outbound.protection.outlook.com. [40.107.80.51])
+        by mx.google.com with ESMTPS id 56si2439968edu.170.2019.05.09.14.21.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 14:06:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 09 May 2019 14:21:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) client-ip=40.107.80.51;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5F1C718DF7C;
-	Thu,  9 May 2019 21:06:42 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 290C460CCD;
-	Thu,  9 May 2019 21:06:42 +0000 (UTC)
-Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id BFA7E18089C9;
-	Thu,  9 May 2019 21:06:41 +0000 (UTC)
-Date: Thu, 9 May 2019 17:06:38 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-To: Yang Shi <yang.shi@linux.alibaba.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Nadav Amit <namit@vmware.com>, Will Deacon <will.deacon@arm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	aneesh kumar <aneesh.kumar@linux.vnet.ibm.com>, npiggin@gmail.com, 
-	minchan@kernel.org, Mel Gorman <mgorman@suse.de>, 
-	Jan Stancek <jstancek@redhat.com>
-Message-ID: <249230644.21949166.1557435998550.JavaMail.zimbra@redhat.com>
-In-Reply-To: <84720bb8-bf3d-8c10-d675-0670f13b2efc@linux.alibaba.com>
-References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com> <20190509083726.GA2209@brain-police> <20190509103813.GP2589@hirez.programming.kicks-ass.net> <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com> <20190509182435.GA2623@hirez.programming.kicks-ass.net> <84720bb8-bf3d-8c10-d675-0670f13b2efc@linux.alibaba.com>
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=BayIfWjW;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
+ b=BayIfWjWGds+5ehDm+E3QNBMjkoaLsMHNzXjge6At0s+vUIcal9XTbXvJVxKZsxoLn4qGeN6WasRDP8O6kFQhWJO+sw09RKDaLE253t28XDUxEORMnpyENsNkvfydpQRFsYjwzaFy1evLFqyPanXXMeK81WaRTiu9TXBGOpeCeU=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB4711.namprd05.prod.outlook.com (52.135.233.89) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1878.17; Thu, 9 May 2019 21:21:35 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::b057:917a:f098:6098]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::b057:917a:f098:6098%7]) with mapi id 15.20.1900.006; Thu, 9 May 2019
+ 21:21:35 +0000
+From: Nadav Amit <namit@vmware.com>
+To: Peter Zijlstra <peterz@infradead.org>
+CC: Yang Shi <yang.shi@linux.alibaba.com>, "jstancek@redhat.com"
+	<jstancek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>, Linux-MM
+	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Aneesh Kumar K .
+ V" <aneesh.kumar@linux.vnet.ibm.com>, Nick Piggin <npiggin@gmail.com>, Nadav
+ Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman
+	<mgorman@suse.de>, Will Deacon <will.deacon@arm.com>
 Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
  flush
+Thread-Topic: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Thread-Index: AQHVBlNcdgyGQHvMg0ymTH6Y7O8srKZjDs8AgAANcoCAAAcZgIAABfcAgAAkYwA=
+Date: Thu, 9 May 2019 21:21:35 +0000
+Message-ID: <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
+ <20190509182435.GA2623@hirez.programming.kicks-ass.net>
+ <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
+ <20190509191120.GD2623@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190509191120.GD2623@hirez.programming.kicks-ass.net>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [66.170.99.2]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 2810e6c4-675e-4fc1-1aa3-08d6d4c450db
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB4711;
+x-ms-traffictypediagnostic: BYAPR05MB4711:
+x-microsoft-antispam-prvs:
+ <BYAPR05MB471114BC0825CCAB9BBD74BFD0330@BYAPR05MB4711.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 003245E729
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(136003)(396003)(366004)(376002)(346002)(51444003)(199004)(189003)(6916009)(2906002)(81166006)(81156014)(6512007)(82746002)(4326008)(8936002)(53936002)(478600001)(7416002)(6246003)(83716004)(7736002)(6436002)(305945005)(54906003)(6486002)(68736007)(229853002)(14454004)(14444005)(256004)(8676002)(6116002)(3846002)(33656002)(6506007)(102836004)(86362001)(25786009)(2616005)(316002)(476003)(66066001)(11346002)(486006)(53546011)(99286004)(36756003)(5660300002)(446003)(186003)(76176011)(66446008)(76116006)(73956011)(66946007)(26005)(66476007)(66556008)(64756008)(71190400001)(71200400001);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB4711;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ c3R+O4MqUzDTikTMFffNmxOnPyDUZBlAn0A1vCHn35I1/OKLr9Wl3n+58PzRQUdQOwVmWrQReUS9j551U1BPA1tOWKszTSLbaoAahzoKBQjj2AJxhMxW2vi4CXi8d/uT6FmSdl3UohBfcFYE8C7lKnZDIh6pbpK5mh9FZSAcu8iOZ/2YU+EDrnWVKxpR83px8YXxzWa3pzKfMmhH+n/hTQnKSis5PoLD6WAAJlymiwTx/OhfFlLaB/GDaeLANg2dj4kmJE+yBCL+/MFa+JkJFlSwPKOfBUidU9rdSL405hFue5j5bqXS+TtUk8LUwqVUI1KmH2mPYKqOq/21nT2D1MlYjvsWFzZYWrVlnbebVIROgVk6wJfGLqFtni0rG4qse+f+BDMO6CzV9yQ++QvorbRKqGBNVGnCqTlVgRN+Bzg=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <37B461CEAAF13447B2A08CEACA55FAE5@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.40.204.125, 10.4.195.2]
-Thread-Topic: mmu_gather: remove __tlb_reset_range() for force flush
-Thread-Index: lzhSy8AmrVc0ek4MkypS7izuJweOyw==
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 09 May 2019 21:06:42 +0000 (UTC)
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 2810e6c4-675e-4fc1-1aa3-08d6d4c450db
+X-MS-Exchange-CrossTenant-originalarrivaltime: 09 May 2019 21:21:35.3619
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB4711
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
------ Original Message -----
-> 
-> 
-> On 5/9/19 11:24 AM, Peter Zijlstra wrote:
-> > On Thu, May 09, 2019 at 05:36:29PM +0000, Nadav Amit wrote:
-> >>> On May 9, 2019, at 3:38 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >>> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-> >>> index 99740e1dd273..fe768f8d612e 100644
-> >>> --- a/mm/mmu_gather.c
-> >>> +++ b/mm/mmu_gather.c
-> >>> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
-> >>> 		unsigned long start, unsigned long end)
-> >>> {
-> >>> 	/*
-> >>> -	 * If there are parallel threads are doing PTE changes on same range
-> >>> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
-> >>> -	 * flush by batching, a thread has stable TLB entry can fail to flush
-> >>> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
-> >>> -	 * forcefully if we detect parallel PTE batching threads.
-> >>> +	 * Sensible comment goes here..
-> >>> 	 */
-> >>> -	if (mm_tlb_flush_nested(tlb->mm)) {
-> >>> -		__tlb_reset_range(tlb);
-> >>> -		__tlb_adjust_range(tlb, start, end - start);
-> >>> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
-> >>> +		/*
-> >>> +		 * Since we're can't tell what we actually should have
-> >>> +		 * flushed flush everything in the given range.
-> >>> +		 */
-> >>> +		tlb->start = start;
-> >>> +		tlb->end = end;
-> >>> +		tlb->freed_tables = 1;
-> >>> +		tlb->cleared_ptes = 1;
-> >>> +		tlb->cleared_pmds = 1;
-> >>> +		tlb->cleared_puds = 1;
-> >>> +		tlb->cleared_p4ds = 1;
-> >>> 	}
-> >>>
-> >>> 	tlb_flush_mmu(tlb);
-> >> As a simple optimization, I think it is possible to hold multiple nesting
-> >> counters in the mm, similar to tlb_flush_pending, for freed_tables,
-> >> cleared_ptes, etc.
-> >>
-> >> The first time you set tlb->freed_tables, you also atomically increase
-> >> mm->tlb_flush_freed_tables. Then, in tlb_flush_mmu(), you just use
-> >> mm->tlb_flush_freed_tables instead of tlb->freed_tables.
-> > That sounds fraught with races and expensive; I would much prefer to not
-> > go there for this arguably rare case.
-> >
-> > Consider such fun cases as where CPU-0 sees and clears a PTE, CPU-1
-> > races and doesn't see that PTE. Therefore CPU-0 sets and counts
-> > cleared_ptes. Then if CPU-1 flushes while CPU-0 is still in mmu_gather,
-> > it will see cleared_ptes count increased and flush that granularity,
-> > OTOH if CPU-1 flushes after CPU-0 completes, it will not and potentiall
-> > miss an invalidate it should have had.
-> >
-> > This whole concurrent mmu_gather stuff is horrible.
-> >
-> >    /me ponders more....
-> >
-> > So I think the fundamental race here is this:
-> >
-> > 	CPU-0				CPU-1
-> >
-> > 	tlb_gather_mmu(.start=1,	tlb_gather_mmu(.start=2,
-> > 		       .end=3);			       .end=4);
-> >
-> > 	ptep_get_and_clear_full(2)
-> > 	tlb_remove_tlb_entry(2);
-> > 	__tlb_remove_page();
-> > 					if (pte_present(2)) // nope
-> >
-> > 					tlb_finish_mmu();
-> >
-> > 					// continue without TLBI(2)
-> > 					// whoopsie
-> >
-> > 	tlb_finish_mmu();
-> > 	  tlb_flush()		->	TLBI(2)
-> 
-> I'm not quite sure if this is the case Jan really met. But, according to
-> his test, once correct tlb->freed_tables and tlb->cleared_* are set, his
-> test works well.
-
-My theory was following sequence:
-
-t1: map_write_unmap()                 t2: dummy()
-
-  map_address = mmap()
-  map_address[i] = 'b'
-  munmap(map_address)
-  downgrade_write(&mm->mmap_sem);
-  unmap_region()
-  tlb_gather_mmu()
-    inc_tlb_flush_pending(tlb->mm);
-  free_pgtables()
-    tlb->freed_tables = 1
-    tlb->cleared_pmds = 1
-
-                                        pthread_exit()
-                                        madvise(thread_stack, 8M, MADV_DONTNEED)
-                                          zap_page_range()
-                                            tlb_gather_mmu()
-                                              inc_tlb_flush_pending(tlb->mm);
-
-  tlb_finish_mmu()
-    if (mm_tlb_flush_nested(tlb->mm))
-      __tlb_reset_range()
-        tlb->freed_tables = 0
-        tlb->cleared_pmds = 0
-    __flush_tlb_range(last_level = 0)
-  ...
-  map_address = mmap()
-    map_address[i] = 'b'
-      <page fault loop>
-      # PTE appeared valid to me,
-      # so I suspected stale TLB entry at higher level as result of "freed_tables = 0"
-
-
-I'm happy to apply/run any debug patches to get more data that would help.
-
-> 
-> >
-> >
-> > And we can fix that by having tlb_finish_mmu() sync up. Never let a
-> > concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
-> > have completed.
-> 
-> Not sure if this will scale well.
-> 
-> >
-> > This should not be too hard to make happen.
-> 
-> 
+WyBSZXN0b3JpbmcgdGhlIHJlY2lwaWVudHMgYWZ0ZXIgbWlzdGFrZW5seSBwcmVzc2luZyByZXBs
+eSBpbnN0ZWFkIG9mDQpyZXBseS1hbGwgXQ0KDQo+IE9uIE1heSA5LCAyMDE5LCBhdCAxMjoxMSBQ
+TSwgUGV0ZXIgWmlqbHN0cmEgPHBldGVyekBpbmZyYWRlYWQub3JnPiB3cm90ZToNCj4gDQo+IE9u
+IFRodSwgTWF5IDA5LCAyMDE5IGF0IDA2OjUwOjAwUE0gKzAwMDAsIE5hZGF2IEFtaXQgd3JvdGU6
+DQo+Pj4gT24gTWF5IDksIDIwMTksIGF0IDExOjI0IEFNLCBQZXRlciBaaWpsc3RyYSA8cGV0ZXJ6
+QGluZnJhZGVhZC5vcmc+IHdyb3RlOg0KPj4+IA0KPj4+IE9uIFRodSwgTWF5IDA5LCAyMDE5IGF0
+IDA1OjM2OjI5UE0gKzAwMDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+IA0KPj4+PiBBcyBhIHNpbXBs
+ZSBvcHRpbWl6YXRpb24sIEkgdGhpbmsgaXQgaXMgcG9zc2libGUgdG8gaG9sZCBtdWx0aXBsZSBu
+ZXN0aW5nDQo+Pj4+IGNvdW50ZXJzIGluIHRoZSBtbSwgc2ltaWxhciB0byB0bGJfZmx1c2hfcGVu
+ZGluZywgZm9yIGZyZWVkX3RhYmxlcywNCj4+Pj4gY2xlYXJlZF9wdGVzLCBldGMuDQo+Pj4+IA0K
+Pj4+PiBUaGUgZmlyc3QgdGltZSB5b3Ugc2V0IHRsYi0+ZnJlZWRfdGFibGVzLCB5b3UgYWxzbyBh
+dG9taWNhbGx5IGluY3JlYXNlDQo+Pj4+IG1tLT50bGJfZmx1c2hfZnJlZWRfdGFibGVzLiBUaGVu
+LCBpbiB0bGJfZmx1c2hfbW11KCksIHlvdSBqdXN0IHVzZQ0KPj4+PiBtbS0+dGxiX2ZsdXNoX2Zy
+ZWVkX3RhYmxlcyBpbnN0ZWFkIG9mIHRsYi0+ZnJlZWRfdGFibGVzLg0KPj4+IA0KPj4+IFRoYXQg
+c291bmRzIGZyYXVnaHQgd2l0aCByYWNlcyBhbmQgZXhwZW5zaXZlOyBJIHdvdWxkIG11Y2ggcHJl
+ZmVyIHRvIG5vdA0KPj4+IGdvIHRoZXJlIGZvciB0aGlzIGFyZ3VhYmx5IHJhcmUgY2FzZS4NCj4+
+PiANCj4+PiBDb25zaWRlciBzdWNoIGZ1biBjYXNlcyBhcyB3aGVyZSBDUFUtMCBzZWVzIGFuZCBj
+bGVhcnMgYSBQVEUsIENQVS0xDQo+Pj4gcmFjZXMgYW5kIGRvZXNuJ3Qgc2VlIHRoYXQgUFRFLiBU
+aGVyZWZvcmUgQ1BVLTAgc2V0cyBhbmQgY291bnRzDQo+Pj4gY2xlYXJlZF9wdGVzLiBUaGVuIGlm
+IENQVS0xIGZsdXNoZXMgd2hpbGUgQ1BVLTAgaXMgc3RpbGwgaW4gbW11X2dhdGhlciwNCj4+PiBp
+dCB3aWxsIHNlZSBjbGVhcmVkX3B0ZXMgY291bnQgaW5jcmVhc2VkIGFuZCBmbHVzaCB0aGF0IGdy
+YW51bGFyaXR5LA0KPj4+IE9UT0ggaWYgQ1BVLTEgZmx1c2hlcyBhZnRlciBDUFUtMCBjb21wbGV0
+ZXMsIGl0IHdpbGwgbm90IGFuZCBwb3RlbnRpYWxsDQo+Pj4gbWlzcyBhbiBpbnZhbGlkYXRlIGl0
+IHNob3VsZCBoYXZlIGhhZC4NCj4+IA0KPj4gQ1BVLTAgd291bGQgc2VuZCBhIFRMQiBzaG9vdGRv
+d24gcmVxdWVzdCB0byBDUFUtMSB3aGVuIGl0IGlzIGRvbmUsIHNvIEkNCj4+IGRvbuKAmXQgc2Vl
+IHRoZSBwcm9ibGVtLiBUaGUgVExCIHNob290ZG93biBtZWNoYW5pc20gaXMgaW5kZXBlbmRlbnQg
+b2YgdGhlDQo+PiBtbXVfZ2F0aGVyIGZvciB0aGUgbWF0dGVyLg0KPiANCj4gRHVoLi4gSSBzdGls
+bCBkb24ndCBsaWtlIHRob3NlIHVuY29uZGl0aW9uYWwgbW0gd2lkZSBhdG9taWMgY291bnRlcnMu
+DQo+IA0KPj4+IFRoaXMgd2hvbGUgY29uY3VycmVudCBtbXVfZ2F0aGVyIHN0dWZmIGlzIGhvcnJp
+YmxlLg0KPj4+IA0KPj4+IC9tZSBwb25kZXJzIG1vcmUuLi4uDQo+Pj4gDQo+Pj4gU28gSSB0aGlu
+ayB0aGUgZnVuZGFtZW50YWwgcmFjZSBoZXJlIGlzIHRoaXM6DQo+Pj4gDQo+Pj4gCUNQVS0wCQkJ
+CUNQVS0xDQo+Pj4gDQo+Pj4gCXRsYl9nYXRoZXJfbW11KC5zdGFydD0xLAl0bGJfZ2F0aGVyX21t
+dSguc3RhcnQ9MiwNCj4+PiAJCSAgICAgICAuZW5kPTMpOwkJCSAgICAgICAuZW5kPTQpOw0KPj4+
+IA0KPj4+IAlwdGVwX2dldF9hbmRfY2xlYXJfZnVsbCgyKQ0KPj4+IAl0bGJfcmVtb3ZlX3RsYl9l
+bnRyeSgyKTsNCj4+PiAJX190bGJfcmVtb3ZlX3BhZ2UoKTsNCj4+PiAJCQkJCWlmIChwdGVfcHJl
+c2VudCgyKSkgLy8gbm9wZQ0KPj4+IA0KPj4+IAkJCQkJdGxiX2ZpbmlzaF9tbXUoKTsNCj4+PiAN
+Cj4+PiAJCQkJCS8vIGNvbnRpbnVlIHdpdGhvdXQgVExCSSgyKQ0KPj4+IAkJCQkJLy8gd2hvb3Bz
+aWUNCj4+PiANCj4+PiAJdGxiX2ZpbmlzaF9tbXUoKTsNCj4+PiAJICB0bGJfZmx1c2goKQkJLT4J
+VExCSSgyKQ0KPj4+IA0KPj4+IA0KPj4+IEFuZCB3ZSBjYW4gZml4IHRoYXQgYnkgaGF2aW5nIHRs
+Yl9maW5pc2hfbW11KCkgc3luYyB1cC4gTmV2ZXIgbGV0IGENCj4+PiBjb25jdXJyZW50IHRsYl9m
+aW5pc2hfbW11KCkgY29tcGxldGUgdW50aWwgYWxsIGNvbmN1cnJlbmN0IG1tdV9nYXRoZXJzDQo+
+Pj4gaGF2ZSBjb21wbGV0ZWQuDQo+Pj4gDQo+Pj4gVGhpcyBzaG91bGQgbm90IGJlIHRvbyBoYXJk
+IHRvIG1ha2UgaGFwcGVuLg0KPj4gDQo+PiBUaGlzIHN5bmNocm9uaXphdGlvbiBzb3VuZHMgbXVj
+aCBtb3JlIGV4cGVuc2l2ZSB0aGFuIHdoYXQgSSBwcm9wb3NlZC4gQnV0IEkNCj4+IGFncmVlIHRo
+YXQgY2FjaGUtbGluZXMgdGhhdCBtb3ZlIGZyb20gb25lIENQVSB0byBhbm90aGVyIG1pZ2h0IGJl
+Y29tZSBhbg0KPj4gaXNzdWUuIEJ1dCBJIHRoaW5rIHRoYXQgdGhlIHNjaGVtZSBJIHN1Z2dlc3Rl
+ZCB3b3VsZCBtaW5pbWl6ZSB0aGlzIG92ZXJoZWFkLg0KPiANCj4gV2VsbCwgaXQgd291bGQgaGF2
+ZSBhIGxvdCBtb3JlIHVuY29uZGl0aW9uYWwgYXRvbWljIG9wcy4gTXkgc2NoZW1lIG9ubHkNCj4g
+d2FpdHMgd2hlbiB0aGVyZSBpcyBhY3R1YWwgY29uY3VycmVuY3kuDQoNCldlbGwsIHNvbWV0aGlu
+ZyBoYXMgdG8gZ2l2ZS4gSSBkaWRu4oCZdCB0aGluayB0aGF0IGlmIHRoZSBzYW1lIGNvcmUgZG9l
+cyB0aGUNCmF0b21pYyBvcCBpdCB3b3VsZCBiZSB0b28gZXhwZW5zaXZlLg0KDQo+IEkgX3RoaW5r
+XyBzb21ldGhpbmcgbGlrZSB0aGUgYmVsb3cgb3VnaHQgdG8gd29yaywgYnV0IGl0cyBub3QgZXZl
+biBiZWVuDQo+IG5lYXIgYSBjb21waWxlci4gVGhlIG9ubHkgcHJvYmxlbSBpcyB0aGUgdW5jb25k
+aXRpb25hbCB3YWtldXA7IHdlIGNhbg0KPiBwbGF5IGdhbWVzIHRvIGF2b2lkIHRoYXQgaWYgd2Ug
+d2FudCB0byBjb250aW51ZSB3aXRoIHRoaXMuDQo+IA0KPiBJZGVhbGx5IHdlJ2Qgb25seSBkbyB0
+aGlzIHdoZW4gdGhlcmUncyBiZWVuIGFjdHVhbCBvdmVybGFwLCBidXQgSSd2ZSBub3QNCj4gZm91
+bmQgYSBzZW5zaWJsZSB3YXkgdG8gZGV0ZWN0IHRoYXQuDQo+IA0KPiBkaWZmIC0tZ2l0IGEvaW5j
+bHVkZS9saW51eC9tbV90eXBlcy5oIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+IGluZGV4
+IDRlZjRiYmU3OGExZC4uYjcwZTM1NzkyZDI5IDEwMDY0NA0KPiAtLS0gYS9pbmNsdWRlL2xpbnV4
+L21tX3R5cGVzLmgNCj4gKysrIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+IEBAIC01OTAs
+NyArNTkwLDEyIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBkZWNfdGxiX2ZsdXNoX3BlbmRpbmcoc3Ry
+dWN0IG1tX3N0cnVjdCAqbW0pDQo+IAkgKg0KPiAJICogVGhlcmVmb3JlIHdlIG11c3QgcmVseSBv
+biB0bGJfZmx1c2hfKigpIHRvIGd1YXJhbnRlZSBvcmRlci4NCj4gCSAqLw0KPiAtCWF0b21pY19k
+ZWMoJm1tLT50bGJfZmx1c2hfcGVuZGluZyk7DQo+ICsJaWYgKGF0b21pY19kZWNfYW5kX3Rlc3Qo
+Jm1tLT50bGJfZmx1c2hfcGVuZGluZykpIHsNCj4gKwkJd2FrZV91cF92YXIoJm1tLT50bGJfZmx1
+c2hfcGVuZGluZyk7DQo+ICsJfSBlbHNlIHsNCj4gKwkJd2FpdF9ldmVudF92YXIoJm1tLT50bGJf
+Zmx1c2hfcGVuZGluZywNCj4gKwkJCSAgICAgICAhYXRvbWljX3JlYWRfYWNxdWlyZSgmbW0tPnRs
+Yl9mbHVzaF9wZW5kaW5nKSk7DQo+ICsJfQ0KPiB9DQoNCkl0IHN0aWxsIHNlZW1zIHZlcnkgZXhw
+ZW5zaXZlIHRvIG1lLCBhdCBsZWFzdCBmb3IgY2VydGFpbiB3b3JrbG9hZHMgKGUuZy4sDQpBcGFj
+aGUgd2l0aCBtdWx0aXRocmVhZGVkIE1QTSkuDQoNCkl0IG1heSBiZSBwb3NzaWJsZSB0byBhdm9p
+ZCBmYWxzZS1wb3NpdGl2ZSBuZXN0aW5nIGluZGljYXRpb25zICh3aGVuIHRoZQ0KZmx1c2hlcyBk
+byBub3Qgb3ZlcmxhcCkgYnkgY3JlYXRpbmcgYSBuZXcgc3RydWN0IG1tdV9nYXRoZXJfcGVuZGlu
+Zywgd2l0aA0Kc29tZXRoaW5nIGxpa2U6DQoNCiAgc3RydWN0IG1tdV9nYXRoZXJfcGVuZGluZyB7
+DQogCXU2NCBzdGFydDsNCgl1NjQgZW5kOw0KCXN0cnVjdCBtbXVfZ2F0aGVyX3BlbmRpbmcgKm5l
+eHQ7DQogIH0NCg0KdGxiX2ZpbmlzaF9tbXUoKSB3b3VsZCB0aGVuIGl0ZXJhdGUgb3ZlciB0aGUg
+bW0tPm1tdV9nYXRoZXJfcGVuZGluZw0KKHBvaW50aW5nIHRvIHRoZSBsaW5rZWQgbGlzdCkgYW5k
+IGZpbmQgd2hldGhlciB0aGVyZSBpcyBhbnkgb3ZlcmxhcC4gVGhpcw0Kd291bGQgc3RpbGwgcmVx
+dWlyZSBzeW5jaHJvbml6YXRpb24gKGFjcXVpcmluZyBhIGxvY2sgd2hlbiBhbGxvY2F0aW5nIGFu
+ZA0KZGVhbGxvY2F0aW5nIG9yIHNvbWV0aGluZyBmYW5jaWVyKS4NCg0K
 
