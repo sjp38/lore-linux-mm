@@ -2,221 +2,189 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B113CC04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:43:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 674CDC04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 649AD21479
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:43:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="X8+t1ymT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 649AD21479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 34BAE21479
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:45:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34BAE21479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F20846B0007; Thu,  9 May 2019 08:43:05 -0400 (EDT)
+	id BC5FF6B0007; Thu,  9 May 2019 08:45:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED05E6B0008; Thu,  9 May 2019 08:43:05 -0400 (EDT)
+	id B008B6B0008; Thu,  9 May 2019 08:45:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D98DE6B000A; Thu,  9 May 2019 08:43:05 -0400 (EDT)
+	id 9793C6B000A; Thu,  9 May 2019 08:45:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D05D6B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:43:05 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y12so1405957ede.19
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:43:05 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A5B16B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:45:02 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id v3so2408773qtp.23
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:45:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
-        b=DH8YSU8Re1cdubhBatJZ0fJhGlHysRqBmhZAWcgaNZLEOSeTPk0sYZ+xB6NVFZDqRf
-         etLlnjgFrKVr66Kmz2AlXJNkLubMklsd4GlxUrr230J8B8fAHoenvTwxrbqhZ3f1LhTi
-         zE6xTjpkJNvk+BrKIsqxAUfURbnaXiIANLtNR7+AFqovj6xqtFPRkn9ZeRxH+OtLPvBt
-         ChAykA3OvuiKti9lPVqE75xP9dujwf8Vm+yQJqQNWcNoGZ8IM1Ju5Hy+O+uJMToReOB2
-         4VGuUgnkPFDXaXh0l/BJpH+/vTTDXNEDy8zFFmb4DbGiolwAsbflYR7ZrDi4qsPgYQNs
-         a15A==
-X-Gm-Message-State: APjAAAXMjwfzIqnnvLUARrN9AxMv9ENncU3rkZ9b6jcAgYIN+gvSozXx
-	8Os005b+jnXFBKSlLCZPR4I6s76KfdG7pUr5ajEfxcklIAkuqPpBhX4EhoaUI2V4x0TKNChlE+q
-	idYG3vamxA6LY0bCZpNpqHiNJwYABUrRu+5P6e6dV4tLgtfULvYHSgRQHO8DEVc9IOA==
-X-Received: by 2002:a17:906:f91:: with SMTP id q17mr3028068ejj.63.1557405785100;
-        Thu, 09 May 2019 05:43:05 -0700 (PDT)
-X-Received: by 2002:a17:906:f91:: with SMTP id q17mr3028003ejj.63.1557405784175;
-        Thu, 09 May 2019 05:43:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557405784; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding:thread-topic:thread-index;
+        bh=+phK1cVXiJnNn5EyClT7CUVOqZ4BhMstBmQ1KciQlp0=;
+        b=cn7Q4+dO4ymvdvmuRQDPCjOGc/VR8F0h5DSq1mH3BPEWlvXTgq1LCxi+yTt5InuhZV
+         D3W8AWIDEIBza3oCrbWmEJpCwRzYrN03kdpyRRnWQaGj/bVfrxKuSEKIwExdBeESH//r
+         ed27ZVvDQ6P++O939Tb4Ps/ECmUge5i8VZnZ/WpFZOcNCYij3qBHX9hxTpXo/ttw6/6b
+         NPGD0lc21jai2Xy377UDZF8YbVW4J7RQz71iEkEIyPwN7yIZ+UHaaxy6JAsXsdt02LEy
+         U31Let59walfjiCZ4n7efB9mLgIUcae3Yk1sapfI+VapO4jGixZZUTj/DBmMum0ppVgf
+         mD0g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUU9z6Si06zX74dTJq+9qLFEdcTroHQXWWG6o1TPri6lPxb7lvQ
+	oA3R2LKr4DpbfflYzVaVuuP54qWhbtQ8CUbEpAOcxVrZ8fOnpf9eMbauL80qZH0d2yq34tVUQVY
+	52lRl0bQBSMJojRekn1P/mkKY1o5GhdDNfFIRsKO8a1oLLrrsDOJmiANXvmn+dUzoxw==
+X-Received: by 2002:aed:23d5:: with SMTP id k21mr3417494qtc.191.1557405902121;
+        Thu, 09 May 2019 05:45:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+2nP/fOzwtM0X8FLM16ouzlWj8+5YVlQQuk9ro03ZHiBglci4bPlaLLJZtiR0IloJZbU0
+X-Received: by 2002:aed:23d5:: with SMTP id k21mr3417436qtc.191.1557405901379;
+        Thu, 09 May 2019 05:45:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557405901; cv=none;
         d=google.com; s=arc-20160816;
-        b=PUmbVYBuCNtBI0KlfJ0VbHa1J8iawWbN0W2PEoOXUxRiGdt8x7iGA09dRVd6TLMsAP
-         ODOLIYUxqWQYRctvgFsTDMdPltpcnM2KJGBBAc1OYqvw64qIbvsWzgDQPB7FNUFfjJ3s
-         0QBDLG1ew6gxo5fy9u0omoTyopeEtyYrvB03Datjz7318UmL3wmRGchycCRV0rDDxU8F
-         WK83BpFri9QaBNqPh/XTrP8+m53JnvzUGVgtzpvvvkP0bKrYanwjf5frZhW0tRZXtofQ
-         kEKipb2AR20ZpkDFbOlGXvoQbvIKxkdGzQiNqDL3hebbqySHVl7w3MebaccT/lT/ilY1
-         dwww==
+        b=WFbTGQV+Y6sRL1HBnRjyq02Pz/qNXlcVKgtbn9P5wcs6jGz/1Fz09NZWL3a2xlaJJy
+         1GmFVyYzsBGFlUhPVMiekJgRdwaqKzAsVHZwINogaf+C7swcUYx1cT6eyKIHlW7WmObt
+         HJL8G0gp1Q9IyYvv4EWuGJzgHRLFhXh/pZluBEVoTgNBVJlU9+04AyX74leOxsL7VgOQ
+         WbClfy63AW8jCvb+MuOPv6DK/W8bi/E1Zm5+keaoY8hAdbKEbS+7p2F9jpM+exIVtFAF
+         6HSIu5rXjfQGNu+i39kZVab7mSfaN3c1xrI55fBoobB6YWZ7gqoeuoCtu3FYs7HQig2T
+         gpqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
-        b=KFtrC0bQ+99GxSQdkI91ejzZ5J3be1PsvRDgljfvuMZ1m3NBdwh78rRcal+BuR6oQ3
-         fOGYvaPm9YzZnu4dqBpBdCdmPxkYcMefuOal+XftZHsp42drjb1FkMXRdHT98V9OfFba
-         ma99jTONYk89MXSbnwbA5UUqnJtCpvaaaNgEVlKoC0CPsLMwH45MOzmsFdQMrmAUKu78
-         PZuaCXxgDY2EakchefNxJgXaN5JFXPdS/2KwMADJ87smEsZag9x0ziNFy60muh9GP7us
-         VJUP3v1XNl5jbtQOZqDRngrO+nWXypyxjmL7057FbGOD5FRs1o6f8tPrcA3FksIw98ka
-         ri4A==
+        h=thread-index:thread-topic:content-transfer-encoding:mime-version
+         :subject:references:in-reply-to:message-id:cc:to:from:date;
+        bh=+phK1cVXiJnNn5EyClT7CUVOqZ4BhMstBmQ1KciQlp0=;
+        b=tGVVxqqjeQ/IH+7GfIKg6d2E7CydP8BDVPWGr0ASoqL1tDXXz1KLm1kCRe0KevHsKJ
+         ZIbLKkumiLxLZr20dY3PQ5udhTYPuJEg66R/PnB9xhPufUsUq0IvJX9dSfb0qgW2kjFT
+         yYy8YaO5NZxIoJThp8hdzhKPfJOe5OTCJnIGEgxjuC/xrlilwZWLAB30o0kTezlaZy2Z
+         A6thoJ6UgdDberwAte31fpFI4tG0nSn5/Jh9VyY9fsBuuVtpf44iJd1J4/iG9gjZn0bi
+         l3MNKtyhGQxax6H2dMkTNDImxvZtr5dR1GHvJ+GI36BtyAZPVkTbwIU1go8tlDJP5m/m
+         yK5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=X8+t1ymT;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id gu10sor654854ejb.58.2019.05.09.05.43.03
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u90si1523523qvu.24.2019.05.09.05.45.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 May 2019 05:43:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 May 2019 05:45:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=X8+t1ymT;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=QsgdOJDYHn/tfXe+apw05fuvXqjWkWLQh0vbJ3o4icQ=;
-        b=X8+t1ymTYcyltAjf8v1dQF+XWnX6+Ka0h/n/Sp7NhymDucJNtZxdecMYnob2Injauf
-         prmYn1KR0VaeFSnO5nN8SN73MXJZF0qI0mBEWIBZB9pui+fjXk9cWdDD+EyINCqMgx1Q
-         PT6yJp94Qz0hthu8VQ2H1YaSFHjZ38HZ42VY4SnfYBSPXK/HDzFbSeoj3OQPuaOLAeFe
-         eEJ1P8uvRoUwH9aNBvgmstZw14Q6XOf7bFPU079ouZQh/1QDXXkqf2kPgwMwSU+bFA7e
-         LD8hzyVTjeLmlSqIETgbTm+FSLcZYsbhL7kX75dUPEc6gceTAXEWMhIGe/3LdCM831GM
-         7kmA==
-X-Google-Smtp-Source: APXvYqwSMvc+IkN0goCuzZGHyfnoTzg7aUzcqfUpVzHNwIsf6cZyZm3yry5tEzCvNGV+FZLlTxCadw==
-X-Received: by 2002:a17:906:1984:: with SMTP id g4mr3006437ejd.260.1557405783809;
-        Thu, 09 May 2019 05:43:03 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id e21sm300748ejk.86.2019.05.09.05.43.02
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 05:43:02 -0700 (PDT)
-Date: Thu, 9 May 2019 12:43:02 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	"mike.travis@hpe.com" <mike.travis@hpe.com>,
-	Ingo Molnar <mingo@kernel.org>,
-	Andrew Banman <andrew.banman@hpe.com>,
-	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: Re: [PATCH v2 4/8] mm/memory_hotplug: Create memory block devices
- after arch_add_memory()
-Message-ID: <20190509124302.at7jltfrycj7sxbd@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-5-david@redhat.com>
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 75C62369D2;
+	Thu,  9 May 2019 12:45:00 +0000 (UTC)
+Received: from colo-mx.corp.redhat.com (colo-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.21])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5FDE64F84;
+	Thu,  9 May 2019 12:45:00 +0000 (UTC)
+Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
+	by colo-mx.corp.redhat.com (Postfix) with ESMTP id 31EFE3FAF4;
+	Thu,  9 May 2019 12:45:00 +0000 (UTC)
+Date: Thu, 9 May 2019 08:44:57 -0400 (EDT)
+From: Jan Stancek <jstancek@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>, Yang Shi <yang.shi@linux.alibaba.com>, 
+	akpm@linux-foundation.org, stable@vger.kernel.org, 
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
+	aneesh kumar <aneesh.kumar@linux.vnet.ibm.com>, npiggin@gmail.com, 
+	namit@vmware.com, minchan@kernel.org, Mel Gorman <mgorman@suse.de>, 
+	Jan Stancek <jstancek@redhat.com>
+Message-ID: <436298752.21855393.1557405897147.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com> <20190509083726.GA2209@brain-police> <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190507183804.5512-5-david@redhat.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.40.204.125, 10.4.195.27]
+Thread-Topic: mmu_gather: remove __tlb_reset_range() for force flush
+Thread-Index: DI/vebM+Rldg1xz41Sw2XzYn9lA53w==
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 09 May 2019 12:45:00 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2019 at 08:38:00PM +0200, David Hildenbrand wrote:
->Only memory to be added to the buddy and to be onlined/offlined by
->user space using memory block devices needs (and should have!) memory
->block devices.
->
->Factor out creation of memory block devices Create all devices after
->arch_add_memory() succeeded. We can later drop the want_memblock parameter,
->because it is now effectively stale.
->
->Only after memory block devices have been added, memory can be onlined
->by user space. This implies, that memory is not visible to user space at
->all before arch_add_memory() succeeded.
->
->Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
->Cc: "Rafael J. Wysocki" <rafael@kernel.org>
->Cc: David Hildenbrand <david@redhat.com>
->Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Ingo Molnar <mingo@kernel.org>
->Cc: Andrew Banman <andrew.banman@hpe.com>
->Cc: Oscar Salvador <osalvador@suse.de>
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->Cc: Qian Cai <cai@lca.pw>
->Cc: Wei Yang <richard.weiyang@gmail.com>
->Cc: Arun KS <arunks@codeaurora.org>
->Cc: Mathieu Malaterre <malat@debian.org>
->Signed-off-by: David Hildenbrand <david@redhat.com>
->---
-> drivers/base/memory.c  | 70 ++++++++++++++++++++++++++----------------
-> include/linux/memory.h |  2 +-
-> mm/memory_hotplug.c    | 15 ++++-----
-> 3 files changed, 53 insertions(+), 34 deletions(-)
->
->diff --git a/drivers/base/memory.c b/drivers/base/memory.c
->index 6e0cb4fda179..862c202a18ca 100644
->--- a/drivers/base/memory.c
->+++ b/drivers/base/memory.c
->@@ -701,44 +701,62 @@ static int add_memory_block(int base_section_nr)
-> 	return 0;
-> }
+
+> > I don't think we can elide the call __tlb_reset_range() entirely, since I
+> > think we do want to clear the freed_pXX bits to ensure that we walk the
+> > range with the smallest mapping granule that we have. Otherwise couldn't we
+> > have a problem if we hit a PMD that had been cleared, but the TLB
+> > invalidation for the PTEs that used to be linked below it was still
+> > pending?
 > 
->+static void unregister_memory(struct memory_block *memory)
->+{
->+	BUG_ON(memory->dev.bus != &memory_subsys);
->+
->+	/* drop the ref. we got via find_memory_block() */
->+	put_device(&memory->dev);
->+	device_unregister(&memory->dev);
->+}
->+
-> /*
->- * need an interface for the VM to add new memory regions,
->- * but without onlining it.
->+ * Create memory block devices for the given memory area. Start and size
->+ * have to be aligned to memory block granularity. Memory block devices
->+ * will be initialized as offline.
->  */
->-int hotplug_memory_register(int nid, struct mem_section *section)
->+int hotplug_memory_register(unsigned long start, unsigned long size)
-> {
->-	int ret = 0;
->+	unsigned long block_nr_pages = memory_block_size_bytes() >> PAGE_SHIFT;
->+	unsigned long start_pfn = PFN_DOWN(start);
->+	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
->+	unsigned long pfn;
-> 	struct memory_block *mem;
->+	int ret = 0;
+> That's tlb->cleared_p*, and yes agreed. That is, right until some
+> architecture has level dependent TLBI instructions, at which point we'll
+> need to have them all set instead of cleared.
 > 
->-	mutex_lock(&mem_sysfs_mutex);
->+	BUG_ON(!IS_ALIGNED(start, memory_block_size_bytes()));
->+	BUG_ON(!IS_ALIGNED(size, memory_block_size_bytes()));
+> > Perhaps we should just set fullmm if we see that here's a concurrent
+> > unmapper rather than do a worst-case range invalidation. Do you have a
+> > feeling
+> > for often the mm_tlb_flush_nested() triggers in practice?
+> 
+> Quite a bit for certain workloads I imagine, that was the whole point of
+> doing it.
+> 
+> Anyway; am I correct in understanding that the actual problem is that
+> we've cleared freed_tables and the ARM64 tlb_flush() will then not
+> invalidate the cache and badness happens?
 
-After this change, the call flow looks like this:
+That is my understanding, only last level is flushed, which is not enough.
 
-add_memory_resource
-    check_hotplug_memory_range
-    hotplug_memory_register
+> 
+> Because so far nobody has actually provided a coherent description of
+> the actual problem we're trying to solve. But I'm thinking something
+> like the below ought to do.
 
-Since in check_hotplug_memory_range() has checked the boundary, do we need to
-check here again?
+I applied it (and fixed small typo: s/tlb->full_mm/tlb->fullmm/).
+It fixes the problem for me.
 
--- 
-Wei Yang
-Help you, Help me
+> 
+> 
+> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+> index 99740e1dd273..fe768f8d612e 100644
+> --- a/mm/mmu_gather.c
+> +++ b/mm/mmu_gather.c
+> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>  		unsigned long start, unsigned long end)
+>  {
+>  	/*
+> -	 * If there are parallel threads are doing PTE changes on same range
+> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+> -	 * forcefully if we detect parallel PTE batching threads.
+> +	 * Sensible comment goes here..
+>  	 */
+> -	if (mm_tlb_flush_nested(tlb->mm)) {
+> -		__tlb_reset_range(tlb);
+> -		__tlb_adjust_range(tlb, start, end - start);
+> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
+> +		/*
+> +		 * Since we're can't tell what we actually should have
+> +		 * flushed flush everything in the given range.
+> +		 */
+> +		tlb->start = start;
+> +		tlb->end = end;
+> +		tlb->freed_tables = 1;
+> +		tlb->cleared_ptes = 1;
+> +		tlb->cleared_pmds = 1;
+> +		tlb->cleared_puds = 1;
+> +		tlb->cleared_p4ds = 1;
+>  	}
+>  
+>  	tlb_flush_mmu(tlb);
+> 
 
