@@ -2,153 +2,231 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D024C04AB3
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:23:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4283C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:25:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0354521744
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:23:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9747621744
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 12:25:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Qk8MMLe0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0354521744
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fXxBmE7z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9747621744
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 321776B0003; Thu,  9 May 2019 08:23:09 -0400 (EDT)
+	id 31FCC6B0007; Thu,  9 May 2019 08:25:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D4886B0006; Thu,  9 May 2019 08:23:09 -0400 (EDT)
+	id 2A96F6B0008; Thu,  9 May 2019 08:25:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E8116B0007; Thu,  9 May 2019 08:23:09 -0400 (EDT)
+	id 173116B000A; Thu,  9 May 2019 08:25:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C35BF6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:23:08 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f41so1390008ede.1
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:23:08 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A84D56B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 08:25:30 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id i127so454657lji.1
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 05:25:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=kK0i9uM3pyYFcRAwxUAkFyXbwheiX8gFOss9me4xCFo=;
-        b=FMEUhdXau61VPvmp248sGODZaquYv3y4fSAz66CVtp3YVMQIVSJRJkzr9b4vlaTOUY
-         Ixg7yEyr0iJ/fZDVzS++CdQNnaeXSLkiJxM5/3+zY0UH8x1+Y7Ipt7LwhEYQTlMFIDDF
-         eQt3ES3HRSowJiJNwX+6ZOx1p/xq/nMNptRU94oMqlTBpU/LNgDkqifVSBVSrmaL7b9r
-         SJ9edfWTTSJyiN2DPjyMG4bAFbYGdszIE9ZdrF4zI9SOWGQntWLIl5RmTDTR8Ma1L/GQ
-         IZcuP7DCf6VOXA25b54akOk5UIfSmHxNMVJeTxmC910a29U0Vkl1qLQVSYX6luYeEppu
-         1pMQ==
-X-Gm-Message-State: APjAAAVCcLpvBj+QUpW+gDOIcymOEUb4aKz5fZLpoN8EHiVqxmFOqfYS
-	rZFzy+NABAfxAUmptaiYtLgCpmhXv2Y96Phhc4n5/uDrXDvCh2DO192SaQ6yv82Yd8sHRx7XtFb
-	D1YHF4dM9ojZQlcOlZ9TFTQw7zN2IfjSeczKXFYYKRDTpvCsWw7gUFgcyeHaItG2Uhw==
-X-Received: by 2002:a50:a951:: with SMTP id m17mr3454228edc.79.1557404588124;
-        Thu, 09 May 2019 05:23:08 -0700 (PDT)
-X-Received: by 2002:a50:a951:: with SMTP id m17mr3454146edc.79.1557404587254;
-        Thu, 09 May 2019 05:23:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557404587; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
+        b=knZIwH9A9ssY0WFK6V1BF/C2N6IDU7/iggkki3t5HQYQ4ICFS5mTegBQqrM1M9BxEt
+         hQyLTDgRWH3xlMdlPdIKvTe80sgf4MwObRUyIuDAV/HDUMwDMeLy1uRkekqB5ZT0GUiR
+         eQ//70uI8mnwSlNoRrbTlxpoPpGapxZFR2vmSmkXnv9vXBKbkB6uUF1Mm/WqOIqUaL9o
+         bYRa+JqTanyRQD4SPHvchrnFaaDOzpYP4+V56ZybaqIkV8qd0BOxkXrxZODPq6CrW0UJ
+         rMN9tKHuPBWBNiHT38Yfyk4orP6brWJOr27NRl1LmtrmlJX+6IGNeTOd1mjH2jMD/c3R
+         sjzg==
+X-Gm-Message-State: APjAAAXISQuSUxol9F9RRRTDW4ZDvDhPcnCDtKRjeot34KqbqtsnQlw7
+	gWzpgMTxzZIU5DcqMuZVl+CA2LHe8yCh/R4fXP8B3LRW5wUZhsDuaHT7hX16Y/A8vGHmbWx2XTJ
+	JmafBuZqGJKM+FD/dB/NxIxoC1BUxg4NGLZ8qoSl6TNQ8QKZz/IuMWI6LMqv8Dh7z7g==
+X-Received: by 2002:a2e:94c7:: with SMTP id r7mr2233179ljh.91.1557404729766;
+        Thu, 09 May 2019 05:25:29 -0700 (PDT)
+X-Received: by 2002:a2e:94c7:: with SMTP id r7mr2233134ljh.91.1557404728739;
+        Thu, 09 May 2019 05:25:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557404728; cv=none;
         d=google.com; s=arc-20160816;
-        b=eHdo9VFzG0sRTB8v/ZN51xqAj47vUiYTAW1+SH1Et5bYL7VdbpnWBVh/sqFfuOYm5q
-         uemer8S/kd4l9zwQNsE7JrqCoRRFI93e2bYHssFmN+gsvRBG9GUF4khjR0DGW5jZnc+D
-         LTIVLyAbKcgvH/JWC2AMwnG30ZMfYY2vTyNgXhIqyT6b17BkPXsE0QlFvVM1ogUF33Rs
-         Mwx175bXD/RDyfroqPLo4lWhIINeXqE2kE1kP7IhqHUMqobfNNxJ6XpN6BUqkRznjkBb
-         wHLjYkqKjLfCZQNTh944xHfXMbZPEvAa63j4+NJuTezJSZrbPJjeYG6TDcE/DEz44aaB
-         4TvQ==
+        b=jRxV8/W/2WGW46+38QWdrEvq1Le+CFJPn2e0P3elzpqm+qtAxzormBlIoGldPGHAAY
+         a+hzUeGArgOksD7kHgVtsFmcj2OvyCNNI2JSm2aldKPrthGKHBKr5C9+1Xc7vOwJI38q
+         gLEcEgfHtT+GwxTyn931QU7o29f1IhtIif70JW0Hb/yBa4v7wsAd7H5EEl45Txi1PPzJ
+         1aQoY1bDKJG2KwXJeNsz/DA5wWE84GRKrxkW7qu+RNoMCZeQnX7cJSOQ3INdFgMYtCUh
+         oHDaBBatN5KrVyT0O9+m5jDPTiFtii2tH2fLPylzampGiT8xsqeDOjC+5KoAyRlzW4Tx
+         PsiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=kK0i9uM3pyYFcRAwxUAkFyXbwheiX8gFOss9me4xCFo=;
-        b=X96uLCl4HforHRSkXNgmaLBDYBpMM8SN5P0SMEHE9sf/zJduGeToD7iOeAj+id3GMZ
-         T43AqsteOTpM5e73QVyESy7WkY2AxY8EL8mtq6eLo48mdDGCUSh30yY0e19QycSwVifw
-         aJwmr7qNx7+2OLTxwe+rBQ3n7APqopTVBGgQLY4r9E85I5D4N1rQtYhKXTQ3lspkXxlR
-         /ye0oCb7cSP8ukysIfGT9FtML/ab6FyIqLomqOuCDqEcdFeqKHjSQuUI+MtMo+EHFlpV
-         JEZeCJrsav6U4J94fD7fjHAebFMqxknxleoh+r79byMqVsVWl6SQKOdP+TZ0vsSZ8FOk
-         Flhg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
+        b=arhmWLHtY6vwgQRZv05zNktxWPaTay1FooVl6FDlOocT8ItrTrkjOvUCG2Gvn3TA/K
+         hi9kUDuMIDA7siO55UvnkM+Y8CMKHItcFKPo73m/YCum2mNJK2c1Qhw85tWB1dCC85OY
+         I98izTkIsHoqlIQKh8Bdp/GpqaFEkmbAE8hKBrL2Q3ENycGz5lgx+KnqbgFGnRGeFWHr
+         tTLHzefiM8MXhqdqJ5HQFNXPkn8U9uN29YRtxpfDsot8mshq1cXrsooohsJrCch+WAd5
+         uml1p9vceGam0W2SeohTZt1m5/syuGdkkPHvGrkmbs0ikwKOOGOF69Jd3pMN0/oU8jZT
+         PIKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Qk8MMLe0;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fXxBmE7z;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m18sor656184ejb.22.2019.05.09.05.23.06
+        by mx.google.com with SMTPS id s6sor1188760ljs.19.2019.05.09.05.25.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 09 May 2019 05:23:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 09 May 2019 05:25:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Qk8MMLe0;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fXxBmE7z;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=kK0i9uM3pyYFcRAwxUAkFyXbwheiX8gFOss9me4xCFo=;
-        b=Qk8MMLe0+SuyWjMgP91XatGFW2t4dggZxTtSGYKpznsJLPVr8BcONtuSS7vK2+gf7K
-         AOz8f2Re+43WGH4w2gU97ZACFASGwvlJ9BsYZk/I6zKhqxZtdFYrjX/38dnU40HQkh1U
-         G4tN2R4s9R9CwWJ/bmndCbeWVPryUwwLWlbwiPDwH/eQq8vJx/xuBrsY/S0DY47vftPl
-         beRNHavogoku7ouurr5Qk28cy6CYq3fUoDbbB7XwFqW/xUFQkGf9jzXQyPoxzYSR02oS
-         LuXCyGRPIx2GXpfe/NaXJcWMPc29xGk8RCsL4VkdyzOoOb94p8cK40z5g0o66s7TUtCa
-         IGkw==
-X-Google-Smtp-Source: APXvYqx/LQ9p+oEzzHrZ1uIdWPZDCJZ5+WDWvbYvuz3X/C9E2PgZsOqljcdk3brSDSoy+FnXpjuuOw==
-X-Received: by 2002:a17:906:5013:: with SMTP id s19mr2949960ejj.203.1557404586529;
-        Thu, 09 May 2019 05:23:06 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id c2sm299961eja.61.2019.05.09.05.23.05
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=bgwFcpr4h0CqLDwaKDRvVqsaxrlGDdYtmYdrXixSeUQ=;
+        b=fXxBmE7ze/Z+gLUgPusLSOjeC8DPRni8xSXs72THlqUgvZ+YkB7C2X2joI2yabhZE3
+         8p3jL+zSxjqkE6WDx9RdpWMHV1BE+w1kk8V/mtEhJpgbCLjSPVymx2kjkrzPGSAIjr7D
+         w45LanlpZrGomO0jnZvIOzl4VSSIY4E3z+gyzmExHr1o6buuZO0GHkOYXoWSCeqrQLSb
+         FlCkYEZRTrKaSU02Al80SESzb5ftUvtSa4dEV1Il4KRbvvZUIkjl7K++UhJMBcIliYoC
+         xFLukUi+LA2L9H8oQGAQXR71a6J/JTXgKcmL1WnzuE5ndqFELwKSjnp7ngbqhxZBf77S
+         RirQ==
+X-Google-Smtp-Source: APXvYqwy62cie0c9VYiWdxvOgL2dz0bVljr6TDZHfH9f2UgG36OiRDna8QWxOvWyDUp4EYX5rZFmew==
+X-Received: by 2002:a2e:814e:: with SMTP id t14mr2163558ljg.25.1557404728231;
+        Thu, 09 May 2019 05:25:28 -0700 (PDT)
+Received: from esperanza ([176.120.239.149])
+        by smtp.gmail.com with ESMTPSA id y7sm306917ljj.34.2019.05.09.05.25.27
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 05:23:05 -0700 (PDT)
-Date: Thu, 9 May 2019 12:23:04 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: David Hildenbrand <david@redhat.com>
+        Thu, 09 May 2019 05:25:27 -0700 (PDT)
+Date: Thu, 9 May 2019 15:25:26 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Jiri Slaby <jslaby@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
-	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: Re: [PATCH v2 1/8] mm/memory_hotplug: Simplify and fix
- check_hotplug_memory_range()
-Message-ID: <20190509122304.haksywk3p2ks6gcg@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190507183804.5512-1-david@redhat.com>
- <20190507183804.5512-2-david@redhat.com>
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org,
+	Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
+Message-ID: <20190509122526.ck25wscwanooxa3t@esperanza>
+References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
+ <20190429105939.11962-1-jslaby@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190507183804.5512-2-david@redhat.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190429105939.11962-1-jslaby@suse.cz>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 07, 2019 at 08:37:57PM +0200, David Hildenbrand wrote:
->By converting start and size to page granularity, we actually ignore
->unaligned parts within a page instead of properly bailing out with an
->error.
->
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: Oscar Salvador <osalvador@suse.de>
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: David Hildenbrand <david@redhat.com>
->Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->Cc: Qian Cai <cai@lca.pw>
->Cc: Wei Yang <richard.weiyang@gmail.com>
->Cc: Arun KS <arunks@codeaurora.org>
->Cc: Mathieu Malaterre <malat@debian.org>
->Signed-off-by: David Hildenbrand <david@redhat.com>
+On Mon, Apr 29, 2019 at 12:59:39PM +0200, Jiri Slaby wrote:
+> We have a single node system with node 0 disabled:
+>   Scanning NUMA topology in Northbridge 24
+>   Number of physical nodes 2
+>   Skipping disabled node 0
+>   Node 1 MemBase 0000000000000000 Limit 00000000fbff0000
+>   NODE_DATA(1) allocated [mem 0xfbfda000-0xfbfeffff]
+> 
+> This causes crashes in memcg when system boots:
+>   BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+>   #PF error: [normal kernel read fault]
+> ...
+>   RIP: 0010:list_lru_add+0x94/0x170
+> ...
+>   Call Trace:
+>    d_lru_add+0x44/0x50
+>    dput.part.34+0xfc/0x110
+>    __fput+0x108/0x230
+>    task_work_run+0x9f/0xc0
+>    exit_to_usermode_loop+0xf5/0x100
+> 
+> It is reproducible as far as 4.12. I did not try older kernels. You have
+> to have a new enough systemd, e.g. 241 (the reason is unknown -- was not
+> investigated). Cannot be reproduced with systemd 234.
+> 
+> The system crashes because the size of lru array is never updated in
+> memcg_update_all_list_lrus and the reads are past the zero-sized array,
+> causing dereferences of random memory.
+> 
+> The root cause are list_lru_memcg_aware checks in the list_lru code.
+> The test in list_lru_memcg_aware is broken: it assumes node 0 is always
+> present, but it is not true on some systems as can be seen above.
+> 
+> So fix this by checking the first online node instead of node 0.
+> 
+> Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: <cgroups@vger.kernel.org>
+> Cc: <linux-mm@kvack.org>
+> Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+> ---
+>  mm/list_lru.c | 6 +-----
+>  1 file changed, 1 insertion(+), 5 deletions(-)
+> 
+> diff --git a/mm/list_lru.c b/mm/list_lru.c
+> index 0730bf8ff39f..7689910f1a91 100644
+> --- a/mm/list_lru.c
+> +++ b/mm/list_lru.c
+> @@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
+>  
+>  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+>  {
+> -	/*
+> -	 * This needs node 0 to be always present, even
+> -	 * in the systems supporting sparse numa ids.
+> -	 */
+> -	return !!lru->node[0].memcg_lrus;
+> +	return !!lru->node[first_online_node].memcg_lrus;
+>  }
+>  
+>  static inline struct list_lru_one *
 
-Reviewed-by: Wei Yang <richardw.yang@linux.intel.com>
+Yep, I didn't expect node 0 could ever be unavailable, my bad.
+The patch looks fine to me:
 
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
--- 
-Wei Yang
-Help you, Help me
+However, I tend to agree with Michal that (ab)using node[0].memcg_lrus
+to check if a list_lru is memcg aware looks confusing. I guess we could
+simply add a bool flag to list_lru instead. Something like this, may be:
+
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index aa5efd9351eb..d5ceb2839a2d 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -54,6 +54,7 @@ struct list_lru {
+ #ifdef CONFIG_MEMCG_KMEM
+ 	struct list_head	list;
+ 	int			shrinker_id;
++	bool			memcg_aware;
+ #endif
+ };
+ 
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 0730bf8ff39f..8e605e40a4c6 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
+ 
+ static inline bool list_lru_memcg_aware(struct list_lru *lru)
+ {
+-	/*
+-	 * This needs node 0 to be always present, even
+-	 * in the systems supporting sparse numa ids.
+-	 */
+-	return !!lru->node[0].memcg_lrus;
++	return lru->memcg_aware;
+ }
+ 
+ static inline struct list_lru_one *
+@@ -451,6 +447,7 @@ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
+ {
+ 	int i;
+ 
++	lru->memcg_aware = memcg_aware;
+ 	if (!memcg_aware)
+ 		return 0;
+ 
 
