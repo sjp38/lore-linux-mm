@@ -2,242 +2,291 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D382AC04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:21:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DE97C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7298F21744
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:21:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="BayIfWjW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7298F21744
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	by mail.kernel.org (Postfix) with ESMTP id 3761A217D7
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3761A217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F26A6B0007; Thu,  9 May 2019 17:21:42 -0400 (EDT)
+	id B66356B0003; Thu,  9 May 2019 17:48:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07C726B0008; Thu,  9 May 2019 17:21:42 -0400 (EDT)
+	id B16596B0006; Thu,  9 May 2019 17:48:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E85B86B000A; Thu,  9 May 2019 17:21:41 -0400 (EDT)
+	id 9DE356B0007; Thu,  9 May 2019 17:48:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 92CC26B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:21:41 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id c26so2440611eda.15
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:21:41 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE676B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:48:24 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id f82so3507092qkb.9
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:48:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
-        b=lKdQMgIKYnW0Wi6QZu7bB1xaOg3s1TkLKHyh+fiRRypBUi27vdloZMFtwC+L6eTtto
-         S1lNvvKG8raXh7oObAkD7FIHgeH+NoCyYEM9bI2nhtN8NioyD96NhlgaXqk7w9wJiTaG
-         VfN9xFlwwIamLebWE0T7/SOG5gYStJs8wsQ/faZkMxo5lYs+OBejEVFyTRkeoiG9LgLg
-         Dc0BI7Su0DsOXWCu0MkMg7sV7i7QpLCHrzTfq5GjIYgmwaEAzd6Uhjag1ICJYic76BeK
-         W1v64jBEuzb2jxF3bArEL5r6JTdr+DvqFvHSbe9ZdsHKwQArhmSBzgv6aGEkbaSEOiAw
-         eInA==
-X-Gm-Message-State: APjAAAX2B0JCG5GnOlb4KojPKoaKczts8Js6aNSDTC3bzd5yDS197Euk
-	yvAbFv/v8D4d1Q92zC5aArNveWTI1uJsjtyKQN5h23BIVJtY+zVQGla5F/TFVQCe+WNjcNZ85kc
-	Zr/Uo+GekzP1tMq5b0MRSTbhgi165ws+GUhirEi9OTInw0gdmltZOYN/vkNj+MYUoiQ==
-X-Received: by 2002:a50:b1e3:: with SMTP id n32mr6549434edd.55.1557436901076;
-        Thu, 09 May 2019 14:21:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyiJuSF6npDyNO5J+/Wr8T15445SAyoJP9eAVCfee1J5mKftuXr6OWhswfEIAc/cgB7RQTn
-X-Received: by 2002:a50:b1e3:: with SMTP id n32mr6549368edd.55.1557436900204;
-        Thu, 09 May 2019 14:21:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557436900; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=b14ETQ08BDpJ+XbGo1kDctCFcuvTcql9PWqCtdcbh9k=;
+        b=kltLCmt0hnn0Dl5/LVoZS/aXxcw3p/0RNiZjRcRVvJFblDktIAgHNF1uUshh/vKfuN
+         DEjTSlOrZ+NabLplpwAtrbOpdx/Wz92tzEYVjcMPi8XCBKiS7C62e+o4Ay4bqMGXbFrX
+         vOu9Rd9PLlkYV+P/COix97kQRP6GW1neiSYRwGjVmH6WgmixKTpMzdtZlAwkJSlJE4Ia
+         gPItNCrPDp2u9bnxcv6IoRY2Kvwy0IvJM1MIhXhBvELVDd8VINfj3y1eK9+OwOEiq+qJ
+         Z6fC61Oxu3aT66XdmDFf3K3IrUSX+a20kIxeOomofvUQ23fEIB1DOyYw2F6TIHT3MeB8
+         VxVQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVWoxG5IT9AJiUW9w1w0P6T1rMl41eaQ6cF25JKe/pp4qPINLla
+	4gfHLbjpkvC3mG0Iyo5wZ+HlvJ+DP02Bkj3z8Im8OPosPw1Jkea5lF31w6EpQVwIa+5FJBRJUE2
+	0fqe1LqpRNWNDmCLHII8AFdRT56yrKu9wvT5nzQLeI2V2YHdoajVR/YVj/3A58n1cJA==
+X-Received: by 2002:ac8:1c59:: with SMTP id j25mr2069008qtk.358.1557438504245;
+        Thu, 09 May 2019 14:48:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTVjutQtTl6EzFnwukJ9kX9Gm8n7275emcFYxkmuVAiG6HgJeaVwraAZCqLVGyeNLznNkh
+X-Received: by 2002:ac8:1c59:: with SMTP id j25mr2068946qtk.358.1557438503135;
+        Thu, 09 May 2019 14:48:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557438503; cv=none;
         d=google.com; s=arc-20160816;
-        b=ymA2I1/0D/DswxZZ0l5DaQeEy70WwjBPbfA31FqjTAN/459k/PfxAK65wFG1S2Z+Mi
-         1aCMx8yGRrBCHCG4/wCMTV0MthIz2iAzROeKdWOOx+7Ok0+P6LhMpZc2Ug50uvC5oGZW
-         iwKUvoZWpt1BICmcHUtnKC1ClWcHTKpaScQRDH4qilnCZLvYJEISu8/cmym1IKPoMlhH
-         OJYWQhgqx2IpF4XOmvXZD+nkrbe70F9K0BlzR+Vil3EMMmumbKjBtpP/acxJ5HhHVtmn
-         b7Nqsp2ezMdUp1yh4tLYEnlX/mFGNCaa6mDlwKD0lEDHvwube/QXTuBRrmoJxLOWoS2d
-         v8iA==
+        b=pRNAjL542r6tV225irG6oY6YxlEYQstFczBNewY+g8YoSSlYAsQ+isR9WHZr4kzwpY
+         9nHqWtmZfER7G/Ud34SUk4rw8rjrWKY+Jpp/BN3L4ifYUEt26OilHxZEsOuLZWSMDa2T
+         ox6jFHH6gMMs5wfJG/2kA/9PXOitaH5pm/Gy/Y6D/QnJapRWmTGZJHtS4y0fw0JFZ8Ow
+         LxXLaF0H7adma298YoWwtBWXYxYUh2CjoUltPgRzXvKq22nkZFnY+vRPG/TaJe/3tJ7A
+         7Od2LMAE4b+G2bd8jspzmRNucDFjv6QZk1a9qnEN1ZtKZBKav4Z9ESzQul/H5x5+r9Js
+         FCQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
-        b=fjNztENsqy5N6brloEjat3ZPa9e23BmrOP/Z549jo6UlF2gIycQWAyR1eP1eKzPcpr
-         TJS7ix2GediD3TOFf4il4xdaSRteAyS4gZuBXgwrYqU4cLCQ9FoMWC9mkE97vXVbyk0s
-         xRr7uxpiP5qfVZ52Yncgq1gMb8xwEkB4ScFr+QH84tFBFwcyz7RbDLJRGKVFFTr2w6ID
-         B0bzTM7p46FtCHZGXAEgkxtNRwFX1DQMjfmY7iuTiOnwGtfJfcK6K7yzQ0v+GiWPcyqp
-         qQYabSEUC8rbU+3hrCx+8MwMiFIKInkyiJGPVdW17M29Kku3oHal8QiRZKi50OqSxwCH
-         vMJw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=b14ETQ08BDpJ+XbGo1kDctCFcuvTcql9PWqCtdcbh9k=;
+        b=NxatoApbHoRxUimYb6YjvM0TJ5r06CuePmBCS4rct2+086BIeGHuATRErkKkZdqviv
+         TGhtnxkvR4soC82ctR+RMEZo7FoMG/ETgXBEzY2At4Q8onPO7eZejz6JdoUQAMoqq56j
+         9zM0hBMzqCu6RR865I7qFPyJsImHi5xfDOpYLPbqVo0Mjcuftk8moLG9g0ax69VUGMHr
+         U2RSnlHpsbz5UXbYkKaioH5tX/TehOtyc1v3eX/3Q3PcL8yXRJCmcswwK5yvBbzqUCm7
+         zh1ClW/U+hXLBvCMlzQ3AQxBS4I0Y1/KF+4mG/YyeVMiNzFYuaHE/NZAmUft/ATqaHw/
+         FK0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=BayIfWjW;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800051.outbound.protection.outlook.com. [40.107.80.51])
-        by mx.google.com with ESMTPS id 56si2439968edu.170.2019.05.09.14.21.39
+       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a18si329346qtm.379.2019.05.09.14.48.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 09 May 2019 14:21:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) client-ip=40.107.80.51;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 May 2019 14:48:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector2 header.b=BayIfWjW;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=3uR7HRLZE1AAqz9VCIR4SL1BD4Igne+yoNtHXMu3t6s=;
- b=BayIfWjWGds+5ehDm+E3QNBMjkoaLsMHNzXjge6At0s+vUIcal9XTbXvJVxKZsxoLn4qGeN6WasRDP8O6kFQhWJO+sw09RKDaLE253t28XDUxEORMnpyENsNkvfydpQRFsYjwzaFy1evLFqyPanXXMeK81WaRTiu9TXBGOpeCeU=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB4711.namprd05.prod.outlook.com (52.135.233.89) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1878.17; Thu, 9 May 2019 21:21:35 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::b057:917a:f098:6098]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::b057:917a:f098:6098%7]) with mapi id 15.20.1900.006; Thu, 9 May 2019
- 21:21:35 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Peter Zijlstra <peterz@infradead.org>
-CC: Yang Shi <yang.shi@linux.alibaba.com>, "jstancek@redhat.com"
-	<jstancek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>, Linux-MM
-	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Aneesh Kumar K .
- V" <aneesh.kumar@linux.vnet.ibm.com>, Nick Piggin <npiggin@gmail.com>, Nadav
- Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman
-	<mgorman@suse.de>, Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
- flush
-Thread-Topic: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
- flush
-Thread-Index: AQHVBlNcdgyGQHvMg0ymTH6Y7O8srKZjDs8AgAANcoCAAAcZgIAABfcAgAAkYwA=
-Date: Thu, 9 May 2019 21:21:35 +0000
-Message-ID: <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
-References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190509083726.GA2209@brain-police>
- <20190509103813.GP2589@hirez.programming.kicks-ass.net>
- <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
- <20190509182435.GA2623@hirez.programming.kicks-ass.net>
- <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
- <20190509191120.GD2623@hirez.programming.kicks-ass.net>
-In-Reply-To: <20190509191120.GD2623@hirez.programming.kicks-ass.net>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.2]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 2810e6c4-675e-4fc1-1aa3-08d6d4c450db
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB4711;
-x-ms-traffictypediagnostic: BYAPR05MB4711:
-x-microsoft-antispam-prvs:
- <BYAPR05MB471114BC0825CCAB9BBD74BFD0330@BYAPR05MB4711.namprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 003245E729
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(136003)(396003)(366004)(376002)(346002)(51444003)(199004)(189003)(6916009)(2906002)(81166006)(81156014)(6512007)(82746002)(4326008)(8936002)(53936002)(478600001)(7416002)(6246003)(83716004)(7736002)(6436002)(305945005)(54906003)(6486002)(68736007)(229853002)(14454004)(14444005)(256004)(8676002)(6116002)(3846002)(33656002)(6506007)(102836004)(86362001)(25786009)(2616005)(316002)(476003)(66066001)(11346002)(486006)(53546011)(99286004)(36756003)(5660300002)(446003)(186003)(76176011)(66446008)(76116006)(73956011)(66946007)(26005)(66476007)(66556008)(64756008)(71190400001)(71200400001);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB4711;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- c3R+O4MqUzDTikTMFffNmxOnPyDUZBlAn0A1vCHn35I1/OKLr9Wl3n+58PzRQUdQOwVmWrQReUS9j551U1BPA1tOWKszTSLbaoAahzoKBQjj2AJxhMxW2vi4CXi8d/uT6FmSdl3UohBfcFYE8C7lKnZDIh6pbpK5mh9FZSAcu8iOZ/2YU+EDrnWVKxpR83px8YXxzWa3pzKfMmhH+n/hTQnKSis5PoLD6WAAJlymiwTx/OhfFlLaB/GDaeLANg2dj4kmJE+yBCL+/MFa+JkJFlSwPKOfBUidU9rdSL405hFue5j5bqXS+TtUk8LUwqVUI1KmH2mPYKqOq/21nT2D1MlYjvsWFzZYWrVlnbebVIROgVk6wJfGLqFtni0rG4qse+f+BDMO6CzV9yQ++QvorbRKqGBNVGnCqTlVgRN+Bzg=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <37B461CEAAF13447B2A08CEACA55FAE5@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 1E63A81112;
+	Thu,  9 May 2019 21:48:22 +0000 (UTC)
+Received: from lacos-laptop-7.usersys.redhat.com (ovpn-120-234.rdu2.redhat.com [10.10.120.234])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 14BC65DF49;
+	Thu,  9 May 2019 21:48:15 +0000 (UTC)
+Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
+To: Igor Mammedov <imammedo@redhat.com>
+Cc: Robin Murphy <robin.murphy@arm.com>,
+ Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>,
+ "will.deacon@arm.com" <will.deacon@arm.com>,
+ Catalin Marinas <Catalin.Marinas@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>,
+ "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>,
+ "qemu-arm@nongnu.org" <qemu-arm@nongnu.org>,
+ "eric.auger@redhat.com" <eric.auger@redhat.com>,
+ "peter.maydell@linaro.org" <peter.maydell@linaro.org>,
+ Linuxarm <linuxarm@huawei.com>,
+ "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>,
+ Jonathan Cameron <jonathan.cameron@huawei.com>, "xuwei (O)"
+ <xuwei5@huawei.com>
+References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
+ <ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
+ <190831a5-297d-addb-ea56-645afb169efb@redhat.com>
+ <20190509183520.6dc47f2e@Igors-MacBook-Pro>
+From: Laszlo Ersek <lersek@redhat.com>
+Message-ID: <cd2aa867-5367-b470-0a2b-33897697c23f@redhat.com>
+Date: Thu, 9 May 2019 23:48:13 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 2810e6c4-675e-4fc1-1aa3-08d6d4c450db
-X-MS-Exchange-CrossTenant-originalarrivaltime: 09 May 2019 21:21:35.3619
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB4711
+In-Reply-To: <20190509183520.6dc47f2e@Igors-MacBook-Pro>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 09 May 2019 21:48:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-WyBSZXN0b3JpbmcgdGhlIHJlY2lwaWVudHMgYWZ0ZXIgbWlzdGFrZW5seSBwcmVzc2luZyByZXBs
-eSBpbnN0ZWFkIG9mDQpyZXBseS1hbGwgXQ0KDQo+IE9uIE1heSA5LCAyMDE5LCBhdCAxMjoxMSBQ
-TSwgUGV0ZXIgWmlqbHN0cmEgPHBldGVyekBpbmZyYWRlYWQub3JnPiB3cm90ZToNCj4gDQo+IE9u
-IFRodSwgTWF5IDA5LCAyMDE5IGF0IDA2OjUwOjAwUE0gKzAwMDAsIE5hZGF2IEFtaXQgd3JvdGU6
-DQo+Pj4gT24gTWF5IDksIDIwMTksIGF0IDExOjI0IEFNLCBQZXRlciBaaWpsc3RyYSA8cGV0ZXJ6
-QGluZnJhZGVhZC5vcmc+IHdyb3RlOg0KPj4+IA0KPj4+IE9uIFRodSwgTWF5IDA5LCAyMDE5IGF0
-IDA1OjM2OjI5UE0gKzAwMDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+IA0KPj4+PiBBcyBhIHNpbXBs
-ZSBvcHRpbWl6YXRpb24sIEkgdGhpbmsgaXQgaXMgcG9zc2libGUgdG8gaG9sZCBtdWx0aXBsZSBu
-ZXN0aW5nDQo+Pj4+IGNvdW50ZXJzIGluIHRoZSBtbSwgc2ltaWxhciB0byB0bGJfZmx1c2hfcGVu
-ZGluZywgZm9yIGZyZWVkX3RhYmxlcywNCj4+Pj4gY2xlYXJlZF9wdGVzLCBldGMuDQo+Pj4+IA0K
-Pj4+PiBUaGUgZmlyc3QgdGltZSB5b3Ugc2V0IHRsYi0+ZnJlZWRfdGFibGVzLCB5b3UgYWxzbyBh
-dG9taWNhbGx5IGluY3JlYXNlDQo+Pj4+IG1tLT50bGJfZmx1c2hfZnJlZWRfdGFibGVzLiBUaGVu
-LCBpbiB0bGJfZmx1c2hfbW11KCksIHlvdSBqdXN0IHVzZQ0KPj4+PiBtbS0+dGxiX2ZsdXNoX2Zy
-ZWVkX3RhYmxlcyBpbnN0ZWFkIG9mIHRsYi0+ZnJlZWRfdGFibGVzLg0KPj4+IA0KPj4+IFRoYXQg
-c291bmRzIGZyYXVnaHQgd2l0aCByYWNlcyBhbmQgZXhwZW5zaXZlOyBJIHdvdWxkIG11Y2ggcHJl
-ZmVyIHRvIG5vdA0KPj4+IGdvIHRoZXJlIGZvciB0aGlzIGFyZ3VhYmx5IHJhcmUgY2FzZS4NCj4+
-PiANCj4+PiBDb25zaWRlciBzdWNoIGZ1biBjYXNlcyBhcyB3aGVyZSBDUFUtMCBzZWVzIGFuZCBj
-bGVhcnMgYSBQVEUsIENQVS0xDQo+Pj4gcmFjZXMgYW5kIGRvZXNuJ3Qgc2VlIHRoYXQgUFRFLiBU
-aGVyZWZvcmUgQ1BVLTAgc2V0cyBhbmQgY291bnRzDQo+Pj4gY2xlYXJlZF9wdGVzLiBUaGVuIGlm
-IENQVS0xIGZsdXNoZXMgd2hpbGUgQ1BVLTAgaXMgc3RpbGwgaW4gbW11X2dhdGhlciwNCj4+PiBp
-dCB3aWxsIHNlZSBjbGVhcmVkX3B0ZXMgY291bnQgaW5jcmVhc2VkIGFuZCBmbHVzaCB0aGF0IGdy
-YW51bGFyaXR5LA0KPj4+IE9UT0ggaWYgQ1BVLTEgZmx1c2hlcyBhZnRlciBDUFUtMCBjb21wbGV0
-ZXMsIGl0IHdpbGwgbm90IGFuZCBwb3RlbnRpYWxsDQo+Pj4gbWlzcyBhbiBpbnZhbGlkYXRlIGl0
-IHNob3VsZCBoYXZlIGhhZC4NCj4+IA0KPj4gQ1BVLTAgd291bGQgc2VuZCBhIFRMQiBzaG9vdGRv
-d24gcmVxdWVzdCB0byBDUFUtMSB3aGVuIGl0IGlzIGRvbmUsIHNvIEkNCj4+IGRvbuKAmXQgc2Vl
-IHRoZSBwcm9ibGVtLiBUaGUgVExCIHNob290ZG93biBtZWNoYW5pc20gaXMgaW5kZXBlbmRlbnQg
-b2YgdGhlDQo+PiBtbXVfZ2F0aGVyIGZvciB0aGUgbWF0dGVyLg0KPiANCj4gRHVoLi4gSSBzdGls
-bCBkb24ndCBsaWtlIHRob3NlIHVuY29uZGl0aW9uYWwgbW0gd2lkZSBhdG9taWMgY291bnRlcnMu
-DQo+IA0KPj4+IFRoaXMgd2hvbGUgY29uY3VycmVudCBtbXVfZ2F0aGVyIHN0dWZmIGlzIGhvcnJp
-YmxlLg0KPj4+IA0KPj4+IC9tZSBwb25kZXJzIG1vcmUuLi4uDQo+Pj4gDQo+Pj4gU28gSSB0aGlu
-ayB0aGUgZnVuZGFtZW50YWwgcmFjZSBoZXJlIGlzIHRoaXM6DQo+Pj4gDQo+Pj4gCUNQVS0wCQkJ
-CUNQVS0xDQo+Pj4gDQo+Pj4gCXRsYl9nYXRoZXJfbW11KC5zdGFydD0xLAl0bGJfZ2F0aGVyX21t
-dSguc3RhcnQ9MiwNCj4+PiAJCSAgICAgICAuZW5kPTMpOwkJCSAgICAgICAuZW5kPTQpOw0KPj4+
-IA0KPj4+IAlwdGVwX2dldF9hbmRfY2xlYXJfZnVsbCgyKQ0KPj4+IAl0bGJfcmVtb3ZlX3RsYl9l
-bnRyeSgyKTsNCj4+PiAJX190bGJfcmVtb3ZlX3BhZ2UoKTsNCj4+PiAJCQkJCWlmIChwdGVfcHJl
-c2VudCgyKSkgLy8gbm9wZQ0KPj4+IA0KPj4+IAkJCQkJdGxiX2ZpbmlzaF9tbXUoKTsNCj4+PiAN
-Cj4+PiAJCQkJCS8vIGNvbnRpbnVlIHdpdGhvdXQgVExCSSgyKQ0KPj4+IAkJCQkJLy8gd2hvb3Bz
-aWUNCj4+PiANCj4+PiAJdGxiX2ZpbmlzaF9tbXUoKTsNCj4+PiAJICB0bGJfZmx1c2goKQkJLT4J
-VExCSSgyKQ0KPj4+IA0KPj4+IA0KPj4+IEFuZCB3ZSBjYW4gZml4IHRoYXQgYnkgaGF2aW5nIHRs
-Yl9maW5pc2hfbW11KCkgc3luYyB1cC4gTmV2ZXIgbGV0IGENCj4+PiBjb25jdXJyZW50IHRsYl9m
-aW5pc2hfbW11KCkgY29tcGxldGUgdW50aWwgYWxsIGNvbmN1cnJlbmN0IG1tdV9nYXRoZXJzDQo+
-Pj4gaGF2ZSBjb21wbGV0ZWQuDQo+Pj4gDQo+Pj4gVGhpcyBzaG91bGQgbm90IGJlIHRvbyBoYXJk
-IHRvIG1ha2UgaGFwcGVuLg0KPj4gDQo+PiBUaGlzIHN5bmNocm9uaXphdGlvbiBzb3VuZHMgbXVj
-aCBtb3JlIGV4cGVuc2l2ZSB0aGFuIHdoYXQgSSBwcm9wb3NlZC4gQnV0IEkNCj4+IGFncmVlIHRo
-YXQgY2FjaGUtbGluZXMgdGhhdCBtb3ZlIGZyb20gb25lIENQVSB0byBhbm90aGVyIG1pZ2h0IGJl
-Y29tZSBhbg0KPj4gaXNzdWUuIEJ1dCBJIHRoaW5rIHRoYXQgdGhlIHNjaGVtZSBJIHN1Z2dlc3Rl
-ZCB3b3VsZCBtaW5pbWl6ZSB0aGlzIG92ZXJoZWFkLg0KPiANCj4gV2VsbCwgaXQgd291bGQgaGF2
-ZSBhIGxvdCBtb3JlIHVuY29uZGl0aW9uYWwgYXRvbWljIG9wcy4gTXkgc2NoZW1lIG9ubHkNCj4g
-d2FpdHMgd2hlbiB0aGVyZSBpcyBhY3R1YWwgY29uY3VycmVuY3kuDQoNCldlbGwsIHNvbWV0aGlu
-ZyBoYXMgdG8gZ2l2ZS4gSSBkaWRu4oCZdCB0aGluayB0aGF0IGlmIHRoZSBzYW1lIGNvcmUgZG9l
-cyB0aGUNCmF0b21pYyBvcCBpdCB3b3VsZCBiZSB0b28gZXhwZW5zaXZlLg0KDQo+IEkgX3RoaW5r
-XyBzb21ldGhpbmcgbGlrZSB0aGUgYmVsb3cgb3VnaHQgdG8gd29yaywgYnV0IGl0cyBub3QgZXZl
-biBiZWVuDQo+IG5lYXIgYSBjb21waWxlci4gVGhlIG9ubHkgcHJvYmxlbSBpcyB0aGUgdW5jb25k
-aXRpb25hbCB3YWtldXA7IHdlIGNhbg0KPiBwbGF5IGdhbWVzIHRvIGF2b2lkIHRoYXQgaWYgd2Ug
-d2FudCB0byBjb250aW51ZSB3aXRoIHRoaXMuDQo+IA0KPiBJZGVhbGx5IHdlJ2Qgb25seSBkbyB0
-aGlzIHdoZW4gdGhlcmUncyBiZWVuIGFjdHVhbCBvdmVybGFwLCBidXQgSSd2ZSBub3QNCj4gZm91
-bmQgYSBzZW5zaWJsZSB3YXkgdG8gZGV0ZWN0IHRoYXQuDQo+IA0KPiBkaWZmIC0tZ2l0IGEvaW5j
-bHVkZS9saW51eC9tbV90eXBlcy5oIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+IGluZGV4
-IDRlZjRiYmU3OGExZC4uYjcwZTM1NzkyZDI5IDEwMDY0NA0KPiAtLS0gYS9pbmNsdWRlL2xpbnV4
-L21tX3R5cGVzLmgNCj4gKysrIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+IEBAIC01OTAs
-NyArNTkwLDEyIEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBkZWNfdGxiX2ZsdXNoX3BlbmRpbmcoc3Ry
-dWN0IG1tX3N0cnVjdCAqbW0pDQo+IAkgKg0KPiAJICogVGhlcmVmb3JlIHdlIG11c3QgcmVseSBv
-biB0bGJfZmx1c2hfKigpIHRvIGd1YXJhbnRlZSBvcmRlci4NCj4gCSAqLw0KPiAtCWF0b21pY19k
-ZWMoJm1tLT50bGJfZmx1c2hfcGVuZGluZyk7DQo+ICsJaWYgKGF0b21pY19kZWNfYW5kX3Rlc3Qo
-Jm1tLT50bGJfZmx1c2hfcGVuZGluZykpIHsNCj4gKwkJd2FrZV91cF92YXIoJm1tLT50bGJfZmx1
-c2hfcGVuZGluZyk7DQo+ICsJfSBlbHNlIHsNCj4gKwkJd2FpdF9ldmVudF92YXIoJm1tLT50bGJf
-Zmx1c2hfcGVuZGluZywNCj4gKwkJCSAgICAgICAhYXRvbWljX3JlYWRfYWNxdWlyZSgmbW0tPnRs
-Yl9mbHVzaF9wZW5kaW5nKSk7DQo+ICsJfQ0KPiB9DQoNCkl0IHN0aWxsIHNlZW1zIHZlcnkgZXhw
-ZW5zaXZlIHRvIG1lLCBhdCBsZWFzdCBmb3IgY2VydGFpbiB3b3JrbG9hZHMgKGUuZy4sDQpBcGFj
-aGUgd2l0aCBtdWx0aXRocmVhZGVkIE1QTSkuDQoNCkl0IG1heSBiZSBwb3NzaWJsZSB0byBhdm9p
-ZCBmYWxzZS1wb3NpdGl2ZSBuZXN0aW5nIGluZGljYXRpb25zICh3aGVuIHRoZQ0KZmx1c2hlcyBk
-byBub3Qgb3ZlcmxhcCkgYnkgY3JlYXRpbmcgYSBuZXcgc3RydWN0IG1tdV9nYXRoZXJfcGVuZGlu
-Zywgd2l0aA0Kc29tZXRoaW5nIGxpa2U6DQoNCiAgc3RydWN0IG1tdV9nYXRoZXJfcGVuZGluZyB7
-DQogCXU2NCBzdGFydDsNCgl1NjQgZW5kOw0KCXN0cnVjdCBtbXVfZ2F0aGVyX3BlbmRpbmcgKm5l
-eHQ7DQogIH0NCg0KdGxiX2ZpbmlzaF9tbXUoKSB3b3VsZCB0aGVuIGl0ZXJhdGUgb3ZlciB0aGUg
-bW0tPm1tdV9nYXRoZXJfcGVuZGluZw0KKHBvaW50aW5nIHRvIHRoZSBsaW5rZWQgbGlzdCkgYW5k
-IGZpbmQgd2hldGhlciB0aGVyZSBpcyBhbnkgb3ZlcmxhcC4gVGhpcw0Kd291bGQgc3RpbGwgcmVx
-dWlyZSBzeW5jaHJvbml6YXRpb24gKGFjcXVpcmluZyBhIGxvY2sgd2hlbiBhbGxvY2F0aW5nIGFu
-ZA0KZGVhbGxvY2F0aW5nIG9yIHNvbWV0aGluZyBmYW5jaWVyKS4NCg0K
+On 05/09/19 18:35, Igor Mammedov wrote:
+> On Wed, 8 May 2019 22:26:12 +0200
+> Laszlo Ersek <lersek@redhat.com> wrote:
+> 
+>> On 05/08/19 14:50, Robin Murphy wrote:
+>>> Hi Shameer,
+>>>
+>>> On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
+>>>> Hi,
+>>>>
+>>>> This series here[0] attempts to add support for PCDIMM in QEMU for
+>>>> ARM/Virt platform and has stumbled upon an issue as it is not clear(at
+>>>> least
+>>>> from Qemu/EDK2 point of view) how in physical world the hotpluggable
+>>>> memory is handled by kernel.
+>>>>
+>>>> The proposed implementation in Qemu, builds the SRAT and DSDT parts
+>>>> and uses GED device to trigger the hotplug. This works fine.
+>>>>
+>>>> But when we added the DT node corresponding to the PCDIMM(cold plug
+>>>> scenario), we noticed that Guest kernel see this memory during early boot
+>>>> even if we are booting with ACPI. Because of this, hotpluggable memory
+>>>> may end up in zone normal and make it non-hot-un-pluggable even if Guest
+>>>> boots with ACPI.
+>>>>
+>>>> Further discussions[1] revealed that, EDK2 UEFI has no means to
+>>>> interpret the
+>>>> ACPI content from Qemu(this is designed to do so) and uses DT info to
+>>>> build the GetMemoryMap(). To solve this, introduced "hotpluggable"
+>>>> property
+>>>> to DT memory node(patches #7 & #8 from [0]) so that UEFI can
+>>>> differentiate
+>>>> the nodes and exclude the hotpluggable ones from GetMemoryMap().
+>>>>
+>>>> But then Laszlo rightly pointed out that in order to accommodate the
+>>>> changes
+>>>> into UEFI we need to know how exactly Linux expects/handles all the
+>>>> hotpluggable memory scenarios. Please find the discussion here[2].
+>>>>
+>>>> For ease, I am just copying the relevant comment from Laszlo below,
+>>>>
+>>>> /******
+>>>> "Given patches #7 and #8, as I understand them, the firmware cannot
+>>>> distinguish
+>>>>   hotpluggable & present, from hotpluggable & absent. The firmware can
+>>>> only
+>>>>   skip both hotpluggable cases. That's fine in that the firmware will
+>>>> hog neither
+>>>>   type -- but is that OK for the OS as well, for both ACPI boot and DT
+>>>> boot?
+>>>>
+>>>> Consider in particular the "hotpluggable & present, ACPI boot" case.
+>>>> Assuming
+>>>> we modify the firmware to skip "hotpluggable" altogether, the UEFI memmap
+>>>> will not include the range despite it being present at boot.
+>>>> Presumably, ACPI
+>>>> will refer to the range somehow, however. Will that not confuse the OS?
+>>>>
+>>>> When Igor raised this earlier, I suggested that
+>>>> hotpluggable-and-present should
+>>>> be added by the firmware, but also allocated immediately, as
+>>>> EfiBootServicesData
+>>>> type memory. This will prevent other drivers in the firmware from
+>>>> allocating AcpiNVS
+>>>> or Reserved chunks from the same memory range, the UEFI memmap will
+>>>> contain
+>>>> the range as EfiBootServicesData, and then the OS can release that
+>>>> allocation in
+>>>> one go early during boot.
+>>>>
+>>>> But this really has to be clarified from the Linux kernel's
+>>>> expectations. Please
+>>>> formalize all of the following cases:
+>>>>
+>>>> OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report
+>>>> as  DT/ACPI should report as
+>>>> -----------------  ------------------ 
+>>>> -------------------------------  ------------------------
+>>>> DT                 present             ?                                ?
+>>>> DT                 absent              ?                                ?
+>>>> ACPI               present             ?                                ?
+>>>> ACPI               absent              ?                                ?
+>>>>
+>>>> Again, this table is dictated by Linux."
+>>>>
+>>>> ******/
+>>>>
+>>>> Could you please take a look at this and let us know what is expected
+>>>> here from
+>>>> a Linux kernel view point.
+>>>
+>>> For arm64, so far we've not even been considering DT-based hotplug - as
+>>> far as I'm aware there would still be a big open question there around
+>>> notification mechanisms and how to describe them. The DT stuff so far
+>>> has come from the PowerPC folks, so it's probably worth seeing what
+>>> their ideas are.
+>>>
+>>> ACPI-wise I've always assumed/hoped that hotplug-related things should
+>>> be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do"
+>>> would be enough for us.
+>>
+>> As far as I can see in UEFI v2.8 -- and I had checked the spec before
+>> dumping the table with the many question marks on Shameer --, all the
+>> hot-plug language in the spec refers to USB and PCI hot-plug in the
+>> preboot environment. There is not a single word about hot-plug at OS
+>> runtime (regarding any device or component type), nor about memory
+>> hot-plug (at any time).
+>>
+>> Looking to x86 appears valid -- so what does the Linux kernel expect on
+>> that architecture, in the "ACPI" rows of the table?
+> 
+> I could only answer from QEMU x86 perspective.
+> QEMU for x86 guests currently doesn't add hot-pluggable RAM into E820
+> because of different linux guests tend to cannibalize it, making it non
+> unpluggable. The last culprit I recall was KASLR.
+> 
+> So I'd refrain from reporting hotpluggable RAM in GetMemoryMap() if
+> it's possible (it's probably hack (spec deosn't say anything about it)
+> but it mostly works for Linux (plug/unplug) and Windows guest also
+> fine with plug part (no unplug there)).
+
+I can accept this as a perfectly valid design. Which would mean, QEMU should mark each hotpluggable RAM range in the DTB for the firmware with the special new property, regardless of its initial ("cold") plugged-ness, and then the firmware will not expose the range in the GCD memory space map, and consequently in the UEFI memmap either.
+
+IOW, our table is, thus far:
+
+OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report as  DT/ACPI should report as
+-----------------  ------------------  -------------------------------  ------------------------
+DT                 present             ABSENT                           ?
+DT                 absent              ABSENT                           ?
+ACPI               present             ABSENT                           PRESENT
+ACPI               absent              ABSENT                           ABSENT
+
+In the firmware, I only need to care about the GetMemoryMap() column, so I can work with this. Can someone please file a feature request at <https://bugzilla.tianocore.org/>, for the ArmVirtPkg Package, with these detais?
+
+Thanks
+Laszlo
+
+> 
+> As for physical systems, there are out there ones that do report
+> hotpluggable RAM in GetMemoryMap().
+> 
+>> Shameer: if you (Huawei) are represented on the USWG / ASWG, I suggest
+>> re-raising the question on those lists too; at least the "ACPI" rows of
+>> the table.
+>>
+>> Thanks!
+>> Laszlo
+>>
+>>>
+>>> Robin.
+>>>
+>>>> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed
+>>>> any valid
+>>>> points above).
+>>>>
+>>>> Thanks,
+>>>> Shameer
+>>>> [0] https://patchwork.kernel.org/cover/10890919/
+>>>> [1] https://patchwork.kernel.org/patch/10863299/
+>>>> [2] https://patchwork.kernel.org/patch/10890937/
+>>>>
+>>>>
+>>
+> 
 
