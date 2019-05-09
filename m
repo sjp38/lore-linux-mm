@@ -2,200 +2,182 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7CBFC46470
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:34:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3142C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:36:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C28A217D9
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:34:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C28A217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
+	by mail.kernel.org (Postfix) with ESMTP id 70E60217D6
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:36:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70E60217D6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05EC06B0006; Thu,  9 May 2019 14:34:00 -0400 (EDT)
+	id 20AEB6B0007; Thu,  9 May 2019 14:36:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F02F16B0007; Thu,  9 May 2019 14:33:59 -0400 (EDT)
+	id 1E1C16B0008; Thu,  9 May 2019 14:36:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7CEF6B0008; Thu,  9 May 2019 14:33:59 -0400 (EDT)
+	id 0D0F16B000A; Thu,  9 May 2019 14:36:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A01C66B0006
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 14:33:59 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id t1so2161801pfa.10
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 11:33:59 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C7C7E6B0007
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 14:36:04 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id a90so2047504plc.7
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 11:36:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yqiI+x42OXIbUvTBPZc5iTEkpFbz64YiBLYaRAWuA0c=;
-        b=h7YBt7DUtBr5/CgWGXj1BaLWseI9quUybM+R4RpS+EZo/jfxLA20BNWAqKY8e+F9VZ
-         ZW3m27/MfBrCXNHTLwfdCz7Nuvf9r++Adad7mU/pLp86ZuHW8fqPP7dLk9auqoYcvDQ9
-         ifb9JNG67wmzrERgD9HpZEtYI0/c/pJ6NpkBrut/I/zNdIgUFKGHchoXMmSvSBQzWFXO
-         QDunkK9S3gj1e2IdFY5XyRkw6Pe39H88FrvSQGpIrnGrcHGQMkiNcn144pK8K0hgHJcB
-         aNnc1N4alqGkvFKMjBLzxzktVVB0sK19egqvPPJnR2w7KGYrlCBgzd4L5kkAzUIxa9pq
-         OneQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Gm-Message-State: APjAAAV5wfbphuZTbeWnUXzF5pNmMv2V5yceyZWC+4G+hz84Xb2Vcpkv
-	JguRaMLmx9fsFrKX4MgJ3S10FXgBRIMccA110wBjuqydQUX1Rfmrt1XOE48dKrfsTWoCwcewtRs
-	Vk24Mw8mYnhMoTq8bNzFj4fbmCUfF4wioDEm95TmdLtHyK3gJpkXgodgAAiwKAtk=
-X-Received: by 2002:a17:902:74cc:: with SMTP id f12mr7197526plt.213.1557426839291;
-        Thu, 09 May 2019 11:33:59 -0700 (PDT)
-X-Received: by 2002:a17:902:74cc:: with SMTP id f12mr7197412plt.213.1557426838262;
-        Thu, 09 May 2019 11:33:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557426838; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=MNZi0wb7i89e7LGK+vmwloLSRrvJFBs0CaspD1gInGA=;
+        b=BnPzqK+fLlnRdFoIsm2yqKEmtm6YQTWRGqMFX3F/wquHMvnDb5zS0eL+0Nso3axlNf
+         8wSrf2qn+b9RtpdMzl9DEF/bIp5lOeb37Ck89tWBMYNNYVBUzYVQoG3DwIfrZNUG3fwM
+         kukviKhbZJrpdHr/zqsvj6iqdRPLXDxeDgAO2K/g40R1seCauF4VrlLPxFniUQ1y+MOB
+         V2EHXlg7o6uXGbw4XvdQn/Gsri21L0EX5T37hDKRQ3LrNZ8pcXg9ZhPBMi5sZEbNEdcR
+         iuddTUBYD2+nE2rBAFBaEn1g4lhTcv3oXPOUAwhdqLMzlzx1soTmJFYLSOmdpb/XWNxT
+         V2ZA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVYph0jbm9yzM+0Nn6CwhG1305cZFPb4gECqOqeVtrU6fGmgqmD
+	5ZJ2L3DcwMs/suruNggwFU/aIKAiCHmCIkZdoX9Kv6ZLWkyy2UeNgZz99ufgSkIvEOs4QcvlgAU
+	2M2x5qlqKQxa00/SS30c56iw9l6tYeDs5bQEjjPvuyFofbxFrNwthII6wwvxTVZ1Qww==
+X-Received: by 2002:a17:902:a01:: with SMTP id 1mr7271627plo.36.1557426964417;
+        Thu, 09 May 2019 11:36:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwgSlX/oxoM5NYzXZg4pc92/lvJw5lfOFxq+htUeBUizsoIPSt4tEkGZ+TcKdbqh8ua6k6R
+X-Received: by 2002:a17:902:a01:: with SMTP id 1mr7271553plo.36.1557426963743;
+        Thu, 09 May 2019 11:36:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557426963; cv=none;
         d=google.com; s=arc-20160816;
-        b=s3/hupx2PT2R8stKFpuQrLj5HyyhhFLySK59mfqP4co6QtrPEr/I4re6dTf1mbPLFZ
-         H3QFTkDj196C0++Qc0atnoNLmdjthOCvwX87y24pJnVVK6iMD2aH0gyqY/LwSvVd/GlP
-         8T7ZYfrUIljompD/n166RNByOEiAhMRNr8BS17RkZ/+ExSq+FH9ydSmEErauKmahqujc
-         DmeifIkeFnnr4KTJmW5pJBK3LX0hTnxRUCApW+Wd5nU8AtyXajGvA3zaAeHd/uza2Um3
-         IT0C/MuYibbDiTb4/VOhy6FHVz9HXCKbM9W7yDyxuH0zHn7dDr4btOGRDZWLCiFrSyAS
-         zbog==
+        b=B8xi5UoEIDBYpiXFBIb2wNTrAgI0tmyD7UpjkgvPK0jcMh4gG2t8LlD69lGdZ1+twL
+         z6W03jJCh1Rhfv4UfwpvFcR5vPmyDGFpvM0Sy6leLpK0/Hbjtt4AJuS5WklY7cJ4QfNZ
+         ZH5Vjl+GFsnBBW1gbohKnjVV/PShbk7P1aKpHImavIMO44iz/olDIAaejKNnCLoscZsj
+         kTr3pJvGUYnXEwGxjXgsnfRgkpoiCh2L0s4ev95gAS2QgfW4mfww4Jv3OtbKRZx+WALo
+         cWE9FFppaCPTY482InWAo+SUaoUbCFkcA0N3Dp1UhXMPrRhgOejb/i3LTMccQtk02+BF
+         sXqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yqiI+x42OXIbUvTBPZc5iTEkpFbz64YiBLYaRAWuA0c=;
-        b=xVN7WHOOXBL/6wuBlRvCVkStfvezLOFyY3XmyurUbXPejSWJGdSSN2pa4bhIPOSfbY
-         sq1avXJg4TUpVgdBmtaoWaegUepHzKodGGAj1+vu1/0Xm0yUxMvWjy//3Z+Ta8OvTa/y
-         dAHL62VgiVzWtqa9HTRBhKwyI7/MP3jHTJwlPZeVDat1E2F42nbRjVkNhPxTAuPSuMdL
-         QSOIBArpSToFRvbyVRkKtiObkFOSaNzVw4ePDLSwj2gR+Hk/KZyOeaQdvEnpDgc8jKCq
-         wv81F+hbryqj7oNHf5je+SpKgnSrRXUz57CZ37DqHVYfs3czmKs+xQBuBfjyBLtS0qkD
-         zH8Q==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=MNZi0wb7i89e7LGK+vmwloLSRrvJFBs0CaspD1gInGA=;
+        b=wNEs4EbNwN/9KzjeR1xiQs5Jgp1Bukm+uDYuecTnZ+uZjTF9xogL68+B2o7YWIRVxT
+         IHgPLeqevOYL1UHF10xWA1esJDySZhEKXCd39ts/qXNK2LiYGtqxV3XA66M5+6eJL4jI
+         ARZ9WYksrt9BOKKPomEqYLkNles9vdlFMSUOo+E001aS9DwkQugQ5TLBbTNWxlOxTXMc
+         /peOjyZfk2vKIA+p1xjiSZY5yXySK2o3Yoz7Uiz9/EDlxab5mS4HEVwHrtP7tkevrEME
+         KnY3Cn6N+QFZjrmvVngyQ5Q1ej6EuDsYwmk1eoeLUpWhPRpu3Ja2gEepWOcpvs+QnANG
+         PoVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u14sor3809527pfl.8.2019.05.09.11.33.58
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
+        by mx.google.com with ESMTPS id g10si3957806pgs.397.2019.05.09.11.36.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 May 2019 11:33:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 May 2019 11:36:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Google-Smtp-Source: APXvYqyEc1uZevZKY+jNDHPdN0qC+8kcKlru+7ZgfAEEO+vBJPv7McdJDqNHLDhPTA7XqyJ/yigK1g==
-X-Received: by 2002:aa7:980e:: with SMTP id e14mr7485557pfl.142.1557426837664;
-        Thu, 09 May 2019 11:33:57 -0700 (PDT)
-Received: from sultan-box.localdomain ([2601:200:c001:5f40:7687:d078:2931:7298])
-        by smtp.gmail.com with ESMTPSA id o2sm7914179pgq.1.2019.05.09.11.33.55
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 11:33:56 -0700 (PDT)
-Date: Thu, 9 May 2019 11:33:53 -0700
-From: Sultan Alsawaf <sultan@kerneltoast.com>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Christian Brauner <christian@brauner.io>,
-	Daniel Colascione <dancol@google.com>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Kees Cook <keescook@chromium.org>,
-	Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190509183353.GA13018@sultan-box.localdomain>
-References: <20190318002949.mqknisgt7cmjmt7n@brauner.io>
- <20190318235052.GA65315@google.com>
- <20190319221415.baov7x6zoz7hvsno@brauner.io>
- <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507153154.GA5750@redhat.com>
- <20190507163520.GA1131@sultan-box.localdomain>
- <20190509155646.GB24526@redhat.com>
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R211e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TRHO45d_1557426956;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TRHO45d_1557426956)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 10 May 2019 02:36:00 +0800
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+To: Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>
+Cc: jstancek@redhat.com, akpm@linux-foundation.org, stable@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com, namit@vmware.com,
+ minchan@kernel.org, Mel Gorman <mgorman@suse.de>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <20190509105446.GL2650@hirez.programming.kicks-ass.net>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <6a907073-67ec-04fe-aaae-c1adcb62e3df@linux.alibaba.com>
+Date: Thu, 9 May 2019 11:35:55 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190509155646.GB24526@redhat.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190509105446.GL2650@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 09, 2019 at 05:56:46PM +0200, Oleg Nesterov wrote:
-> Impossible ;) I bet lockdep should report the deadlock as soon as find_victims()
-> calls find_lock_task_mm() when you already have a locked victim.
 
-I hope you're not a betting man ;)
 
-With the following configured:
-CONFIG_DEBUG_RT_MUTEXES=y
-CONFIG_DEBUG_SPINLOCK=y
-# CONFIG_DEBUG_SPINLOCK_BITE_ON_BUG is not set
-CONFIG_DEBUG_SPINLOCK_PANIC_ON_BUG=y
-CONFIG_DEBUG_MUTEXES=y
-CONFIG_DEBUG_WW_MUTEX_SLOWPATH=y
-CONFIG_DEBUG_LOCK_ALLOC=y
-CONFIG_PROVE_LOCKING=y
-CONFIG_LOCKDEP=y
-CONFIG_LOCK_STAT=y
-CONFIG_DEBUG_LOCKDEP=y
-CONFIG_DEBUG_ATOMIC_SLEEP=y
-# CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
-# CONFIG_LOCK_TORTURE_TEST is not set
+On 5/9/19 3:54 AM, Peter Zijlstra wrote:
+> On Thu, May 09, 2019 at 12:38:13PM +0200, Peter Zijlstra wrote:
+>
+>> That's tlb->cleared_p*, and yes agreed. That is, right until some
+>> architecture has level dependent TLBI instructions, at which point we'll
+>> need to have them all set instead of cleared.
+>> Anyway; am I correct in understanding that the actual problem is that
+>> we've cleared freed_tables and the ARM64 tlb_flush() will then not
+>> invalidate the cache and badness happens?
+>>
+>> Because so far nobody has actually provided a coherent description of
+>> the actual problem we're trying to solve. But I'm thinking something
+>> like the below ought to do.
+> There's another 'fun' issue I think. For architectures like ARM that
+> have range invalidation and care about VM_EXEC for I$ invalidation, the
+> below doesn't quite work right either.
+>
+> I suspect we also have to force: tlb->vma_exec = 1.
 
-And a printk added in vtsk_is_duplicate() to print when a duplicate is detected,
-and my phone's memory cut in half to make simple_lmk do something, this is what
-I observed:
-taimen:/ # dmesg | grep lockdep
-[    0.000000] \x09RCU lockdep checking is enabled.
-taimen:/ # dmesg | grep simple_lmk
-[   23.211091] simple_lmk: Killing android.carrier with adj 906 to free 37420 kiB
-[   23.211160] simple_lmk: Killing oadcastreceiver with adj 906 to free 36784 kiB
-[   23.248457] simple_lmk: Killing .apps.translate with adj 904 to free 45884 kiB
-[   23.248720] simple_lmk: Killing ndroid.settings with adj 904 to free 42868 kiB
-[   23.313417] simple_lmk: DUPLICATE VTSK!
-[   23.313440] simple_lmk: Killing ndroid.keychain with adj 906 to free 33680 kiB
-[   23.313513] simple_lmk: Killing com.whatsapp with adj 904 to free 51436 kiB
-[   34.646695] simple_lmk: DUPLICATE VTSK!
-[   34.646717] simple_lmk: Killing ndroid.apps.gcs with adj 906 to free 37956 kiB
-[   34.646792] simple_lmk: Killing droid.apps.maps with adj 904 to free 63600 kiB
-taimen:/ # dmesg | grep lockdep
-[    0.000000] \x09RCU lockdep checking is enabled.
-taimen:/ # 
+Isn't the below code in tlb_flush enough to guarantee this?
 
-> As for https://github.com/kerneltoast/android_kernel_google_wahoo/commit/afc8c9bf2dbde95941253c168d1adb64cfa2e3ad
-> Well,
-> 
-> 	mmdrop(mm);
-> 	simple_lmk_mm_freed(mm);
-> 
-> looks racy because mmdrop(mm) can free this mm_struct. Yes, simple_lmk_mm_freed()
-> does not dereference this pointer, but the same memory can be re-allocated as
-> another ->mm for the new task which can be found by find_victims(), and _in theory_
-> this all can happen in between, so the "victims[i].mm == mm" can be false positive.
-> 
-> And this also means that simple_lmk_mm_freed() should clear victims[i].mm when
-> it detects "victims[i].mm == mm", otherwise we have the same theoretical race,
-> victims_to_kill is only cleared when the last victim goes away.
+...
+} else if (tlb->end) {
+                struct vm_area_struct vma = {
+                        .vm_mm = tlb->mm,
+                        .vm_flags = (tlb->vma_exec ? VM_EXEC    : 0) |
+                                    (tlb->vma_huge ? VM_HUGETLB : 0),
+                };
+...
 
-Fair point. Putting simple_lmk_mm_freed(mm) right before mmdrop(mm), and
-sprinkling in a cmpxchg in simple_lmk_mm_freed() should fix that up.
-
-> Another nit... you can drop tasklist_lock right after the 1st "find_victims" loop.
-
-True!
-
-> And it seems that you do not really need to walk the "victims" array twice after that,
-> you can do everything in a single loop, but this is cosmetic.
-
-Won't this result in potentially holding the task lock way longer than necessary
-for multiple tasks that aren't going to be killed?
-
-Thanks,
-Sultan
+>
+> And I don't think there's an architecture that cares, but depending on
+> details I can construct cases where any setting of tlb->vm_hugetlb is
+> wrong, so that is _awesome_. But I suspect the sane thing for now is to
+> force it 0.
+>
+>> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+>> index 99740e1dd273..fe768f8d612e 100644
+>> --- a/mm/mmu_gather.c
+>> +++ b/mm/mmu_gather.c
+>> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>>   		unsigned long start, unsigned long end)
+>>   {
+>>   	/*
+>> -	 * If there are parallel threads are doing PTE changes on same range
+>> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+>> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+>> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+>> -	 * forcefully if we detect parallel PTE batching threads.
+>> +	 * Sensible comment goes here..
+>>   	 */
+>> -	if (mm_tlb_flush_nested(tlb->mm)) {
+>> -		__tlb_reset_range(tlb);
+>> -		__tlb_adjust_range(tlb, start, end - start);
+>> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
+>> +		/*
+>> +		 * Since we're can't tell what we actually should have
+>> +		 * flushed flush everything in the given range.
+>> +		 */
+>> +		tlb->start = start;
+>> +		tlb->end = end;
+>> +		tlb->freed_tables = 1;
+>> +		tlb->cleared_ptes = 1;
+>> +		tlb->cleared_pmds = 1;
+>> +		tlb->cleared_puds = 1;
+>> +		tlb->cleared_p4ds = 1;
+>>   	}
+>>   
+>>   	tlb_flush_mmu(tlb);
 
