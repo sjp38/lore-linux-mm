@@ -2,291 +2,249 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DE97C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EAD2C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3761A217D7
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3761A217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B034217D7
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 21:48:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B034217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B66356B0003; Thu,  9 May 2019 17:48:24 -0400 (EDT)
+	id 9B7F46B0006; Thu,  9 May 2019 17:48:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B16596B0006; Thu,  9 May 2019 17:48:24 -0400 (EDT)
+	id 967FD6B0007; Thu,  9 May 2019 17:48:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9DE356B0007; Thu,  9 May 2019 17:48:24 -0400 (EDT)
+	id 87ED06B0008; Thu,  9 May 2019 17:48:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE676B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:48:24 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id f82so3507092qkb.9
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:48:24 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E086B0006
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 17:48:44 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e20so2510616pgm.16
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 14:48:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=b14ETQ08BDpJ+XbGo1kDctCFcuvTcql9PWqCtdcbh9k=;
-        b=kltLCmt0hnn0Dl5/LVoZS/aXxcw3p/0RNiZjRcRVvJFblDktIAgHNF1uUshh/vKfuN
-         DEjTSlOrZ+NabLplpwAtrbOpdx/Wz92tzEYVjcMPi8XCBKiS7C62e+o4Ay4bqMGXbFrX
-         vOu9Rd9PLlkYV+P/COix97kQRP6GW1neiSYRwGjVmH6WgmixKTpMzdtZlAwkJSlJE4Ia
-         gPItNCrPDp2u9bnxcv6IoRY2Kvwy0IvJM1MIhXhBvELVDd8VINfj3y1eK9+OwOEiq+qJ
-         Z6fC61Oxu3aT66XdmDFf3K3IrUSX+a20kIxeOomofvUQ23fEIB1DOyYw2F6TIHT3MeB8
-         VxVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVWoxG5IT9AJiUW9w1w0P6T1rMl41eaQ6cF25JKe/pp4qPINLla
-	4gfHLbjpkvC3mG0Iyo5wZ+HlvJ+DP02Bkj3z8Im8OPosPw1Jkea5lF31w6EpQVwIa+5FJBRJUE2
-	0fqe1LqpRNWNDmCLHII8AFdRT56yrKu9wvT5nzQLeI2V2YHdoajVR/YVj/3A58n1cJA==
-X-Received: by 2002:ac8:1c59:: with SMTP id j25mr2069008qtk.358.1557438504245;
-        Thu, 09 May 2019 14:48:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzTVjutQtTl6EzFnwukJ9kX9Gm8n7275emcFYxkmuVAiG6HgJeaVwraAZCqLVGyeNLznNkh
-X-Received: by 2002:ac8:1c59:: with SMTP id j25mr2068946qtk.358.1557438503135;
-        Thu, 09 May 2019 14:48:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557438503; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=OIQNx2d/+mVTowVXtcojaWTvLZRNQX8jh2h/mheu//g=;
+        b=nVBHHhbpxZsTJSMrudNRxVpYlemL+1UdMn07iqGr9tLxLiNWD8DKflmHyaZKr4Svyp
+         v0V4wgykZR7iQDwo9lvVRAKl1nk/eyM/39kOih1TPK0bVVpP5xsAzwXYZU7geTSdwjCk
+         d5ByMNMqG9ngF9MpEWZoqK1b3B1RFXrd8IFi7wgXvWPiceuDpEcAhoL/1vWFj+bL0RF0
+         LgpIPI2e0PuQExZHpUJtgzFsK6QIkv1+omma5pjkig0kb5kNlvjlGB7bsw2dA2xd8I4J
+         GUKoaPmgQfGT5ehCrlHXlZOJ6IqSKO9tLeaP63UUiItiG6NrS7IZmN/YDlit1345FKfB
+         xBuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAX5/bCBkq8+c4qrWTlLeYGOaYvjf7+9s0r5DbrYB3+N68TanALN
+	c0pZgmnOlFiKznjGeMqEzp1kyA4la/hOsNaY3G41Vu8ia+5AK01LelLL4c2qfOPdvWGwFNjDcEb
+	ffZHC3StaimCI4Vq6ZwF3SZfb9oF4PZnQ1ZNXFavNDGchRSgUNXqDvdTEc8AGLjfHvg==
+X-Received: by 2002:a63:cf:: with SMTP id 198mr8574856pga.228.1557438523887;
+        Thu, 09 May 2019 14:48:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+/kcUlbUSRnWYvMvhqNrFQHbSQm5M4sHX4Ia/KSt1golcUmwi/3CJL8/AjdSpuSaVu/QT
+X-Received: by 2002:a63:cf:: with SMTP id 198mr8574791pga.228.1557438522921;
+        Thu, 09 May 2019 14:48:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557438522; cv=none;
         d=google.com; s=arc-20160816;
-        b=pRNAjL542r6tV225irG6oY6YxlEYQstFczBNewY+g8YoSSlYAsQ+isR9WHZr4kzwpY
-         9nHqWtmZfER7G/Ud34SUk4rw8rjrWKY+Jpp/BN3L4ifYUEt26OilHxZEsOuLZWSMDa2T
-         ox6jFHH6gMMs5wfJG/2kA/9PXOitaH5pm/Gy/Y6D/QnJapRWmTGZJHtS4y0fw0JFZ8Ow
-         LxXLaF0H7adma298YoWwtBWXYxYUh2CjoUltPgRzXvKq22nkZFnY+vRPG/TaJe/3tJ7A
-         7Od2LMAE4b+G2bd8jspzmRNucDFjv6QZk1a9qnEN1ZtKZBKav4Z9ESzQul/H5x5+r9Js
-         FCQw==
+        b=gVVhN4wN2qBKfM9Bib/bdusNspUAyB9RYbDCokQm2JCvsY6zod/FCWB0dFKUd0qNDo
+         kOixwHULEy+HS2pBC1td2ymc/1s4P9aZMq/r8+JH/rkE1La1qpHt+QP6pgMDWfIX3Slg
+         PtRNB0/uweC2Ys33NLotLTcUXPEWWhkZ7mf+vXr7Qy/4bQ/Sae+/tmGwX9hZgD3BARfC
+         y3iY4R6Odz1JNPvQinPzQ5M5wJQ8afD8yIxmMYc2Xr+0KdozZ1/hJOJAL43YjPReLo0f
+         2sTNMqBPoLwEEs6u+y1kw2RVol7M96EDntPC9nt8wnZyHAfLPTDfqy3HvWT4/xmkQrvG
+         NLVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=b14ETQ08BDpJ+XbGo1kDctCFcuvTcql9PWqCtdcbh9k=;
-        b=NxatoApbHoRxUimYb6YjvM0TJ5r06CuePmBCS4rct2+086BIeGHuATRErkKkZdqviv
-         TGhtnxkvR4soC82ctR+RMEZo7FoMG/ETgXBEzY2At4Q8onPO7eZejz6JdoUQAMoqq56j
-         9zM0hBMzqCu6RR865I7qFPyJsImHi5xfDOpYLPbqVo0Mjcuftk8moLG9g0ax69VUGMHr
-         U2RSnlHpsbz5UXbYkKaioH5tX/TehOtyc1v3eX/3Q3PcL8yXRJCmcswwK5yvBbzqUCm7
-         zh1ClW/U+hXLBvCMlzQ3AQxBS4I0Y1/KF+4mG/YyeVMiNzFYuaHE/NZAmUft/ATqaHw/
-         FK0A==
+        bh=OIQNx2d/+mVTowVXtcojaWTvLZRNQX8jh2h/mheu//g=;
+        b=NKEfbbKz5h9Zw7/ivM7ZJ6mlgrgx1cqBNng4JyDeG5Ycit+sJHdWoiCpweepe365OM
+         PfVojg5qQzuoXiTKwlAfxqwOERVED11LOdWpn+rbUfy+qWkjD3saaPxzg/RdhBZD/hsL
+         2Ivvj8h7QL361B01NJ1hfM08JyOIyUyYI4FIM6crXEROKzBTDQpEtgtNVcsSBAsTWonr
+         XA4QslNWLz2R8tyUsQVtA16yUcO/ieRVSrt5DkOHk40TYBYTYBRWFaS2cqr+MER7MEWQ
+         jJvbVkGSoRe2k056UQ4qROcVn4e7zboUO54uCNXFvFkzd5XR4HEThQiAmyLZxQkSrL6X
+         3c0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a18si329346qtm.379.2019.05.09.14.48.22
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id c25si4948368pfr.94.2019.05.09.14.48.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 14:48:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 09 May 2019 14:48:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lersek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lersek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1E63A81112;
-	Thu,  9 May 2019 21:48:22 +0000 (UTC)
-Received: from lacos-laptop-7.usersys.redhat.com (ovpn-120-234.rdu2.redhat.com [10.10.120.234])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 14BC65DF49;
-	Thu,  9 May 2019 21:48:15 +0000 (UTC)
-Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
-To: Igor Mammedov <imammedo@redhat.com>
-Cc: Robin Murphy <robin.murphy@arm.com>,
- Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>,
- "will.deacon@arm.com" <will.deacon@arm.com>,
- Catalin Marinas <Catalin.Marinas@arm.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>,
- "linux-arm-kernel@lists.infradead.org"
- <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>,
- "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>,
- "qemu-arm@nongnu.org" <qemu-arm@nongnu.org>,
- "eric.auger@redhat.com" <eric.auger@redhat.com>,
- "peter.maydell@linaro.org" <peter.maydell@linaro.org>,
- Linuxarm <linuxarm@huawei.com>,
- "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>,
- Jonathan Cameron <jonathan.cameron@huawei.com>, "xuwei (O)"
- <xuwei5@huawei.com>
-References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
- <ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
- <190831a5-297d-addb-ea56-645afb169efb@redhat.com>
- <20190509183520.6dc47f2e@Igors-MacBook-Pro>
-From: Laszlo Ersek <lersek@redhat.com>
-Message-ID: <cd2aa867-5367-b470-0a2b-33897697c23f@redhat.com>
-Date: Thu, 9 May 2019 23:48:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R101e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TRHcHwW_1557438515;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TRHcHwW_1557438515)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 10 May 2019 05:48:39 +0800
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+To: Jan Stancek <jstancek@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Nadav Amit <namit@vmware.com>, Will Deacon <will.deacon@arm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ aneesh kumar <aneesh.kumar@linux.vnet.ibm.com>, npiggin@gmail.com,
+ minchan@kernel.org, Mel Gorman <mgorman@suse.de>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
+ <20190509182435.GA2623@hirez.programming.kicks-ass.net>
+ <84720bb8-bf3d-8c10-d675-0670f13b2efc@linux.alibaba.com>
+ <249230644.21949166.1557435998550.JavaMail.zimbra@redhat.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <6f606e4f-d151-0c43-11f4-4a78e6dfabbf@linux.alibaba.com>
+Date: Thu, 9 May 2019 14:48:35 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190509183520.6dc47f2e@Igors-MacBook-Pro>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <249230644.21949166.1557435998550.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 09 May 2019 21:48:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/09/19 18:35, Igor Mammedov wrote:
-> On Wed, 8 May 2019 22:26:12 +0200
-> Laszlo Ersek <lersek@redhat.com> wrote:
-> 
->> On 05/08/19 14:50, Robin Murphy wrote:
->>> Hi Shameer,
->>>
->>> On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
->>>> Hi,
->>>>
->>>> This series here[0] attempts to add support for PCDIMM in QEMU for
->>>> ARM/Virt platform and has stumbled upon an issue as it is not clear(at
->>>> least
->>>> from Qemu/EDK2 point of view) how in physical world the hotpluggable
->>>> memory is handled by kernel.
->>>>
->>>> The proposed implementation in Qemu, builds the SRAT and DSDT parts
->>>> and uses GED device to trigger the hotplug. This works fine.
->>>>
->>>> But when we added the DT node corresponding to the PCDIMM(cold plug
->>>> scenario), we noticed that Guest kernel see this memory during early boot
->>>> even if we are booting with ACPI. Because of this, hotpluggable memory
->>>> may end up in zone normal and make it non-hot-un-pluggable even if Guest
->>>> boots with ACPI.
->>>>
->>>> Further discussions[1] revealed that, EDK2 UEFI has no means to
->>>> interpret the
->>>> ACPI content from Qemu(this is designed to do so) and uses DT info to
->>>> build the GetMemoryMap(). To solve this, introduced "hotpluggable"
->>>> property
->>>> to DT memory node(patches #7 & #8 from [0]) so that UEFI can
->>>> differentiate
->>>> the nodes and exclude the hotpluggable ones from GetMemoryMap().
->>>>
->>>> But then Laszlo rightly pointed out that in order to accommodate the
->>>> changes
->>>> into UEFI we need to know how exactly Linux expects/handles all the
->>>> hotpluggable memory scenarios. Please find the discussion here[2].
->>>>
->>>> For ease, I am just copying the relevant comment from Laszlo below,
->>>>
->>>> /******
->>>> "Given patches #7 and #8, as I understand them, the firmware cannot
->>>> distinguish
->>>>   hotpluggable & present, from hotpluggable & absent. The firmware can
->>>> only
->>>>   skip both hotpluggable cases. That's fine in that the firmware will
->>>> hog neither
->>>>   type -- but is that OK for the OS as well, for both ACPI boot and DT
->>>> boot?
->>>>
->>>> Consider in particular the "hotpluggable & present, ACPI boot" case.
->>>> Assuming
->>>> we modify the firmware to skip "hotpluggable" altogether, the UEFI memmap
->>>> will not include the range despite it being present at boot.
->>>> Presumably, ACPI
->>>> will refer to the range somehow, however. Will that not confuse the OS?
->>>>
->>>> When Igor raised this earlier, I suggested that
->>>> hotpluggable-and-present should
->>>> be added by the firmware, but also allocated immediately, as
->>>> EfiBootServicesData
->>>> type memory. This will prevent other drivers in the firmware from
->>>> allocating AcpiNVS
->>>> or Reserved chunks from the same memory range, the UEFI memmap will
->>>> contain
->>>> the range as EfiBootServicesData, and then the OS can release that
->>>> allocation in
->>>> one go early during boot.
->>>>
->>>> But this really has to be clarified from the Linux kernel's
->>>> expectations. Please
->>>> formalize all of the following cases:
->>>>
->>>> OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report
->>>> as  DT/ACPI should report as
->>>> -----------------  ------------------ 
->>>> -------------------------------  ------------------------
->>>> DT                 present             ?                                ?
->>>> DT                 absent              ?                                ?
->>>> ACPI               present             ?                                ?
->>>> ACPI               absent              ?                                ?
->>>>
->>>> Again, this table is dictated by Linux."
->>>>
->>>> ******/
->>>>
->>>> Could you please take a look at this and let us know what is expected
->>>> here from
->>>> a Linux kernel view point.
->>>
->>> For arm64, so far we've not even been considering DT-based hotplug - as
->>> far as I'm aware there would still be a big open question there around
->>> notification mechanisms and how to describe them. The DT stuff so far
->>> has come from the PowerPC folks, so it's probably worth seeing what
->>> their ideas are.
->>>
->>> ACPI-wise I've always assumed/hoped that hotplug-related things should
->>> be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do"
->>> would be enough for us.
+
+
+On 5/9/19 2:06 PM, Jan Stancek wrote:
+> ----- Original Message -----
 >>
->> As far as I can see in UEFI v2.8 -- and I had checked the spec before
->> dumping the table with the many question marks on Shameer --, all the
->> hot-plug language in the spec refers to USB and PCI hot-plug in the
->> preboot environment. There is not a single word about hot-plug at OS
->> runtime (regarding any device or component type), nor about memory
->> hot-plug (at any time).
->>
->> Looking to x86 appears valid -- so what does the Linux kernel expect on
->> that architecture, in the "ACPI" rows of the table?
-> 
-> I could only answer from QEMU x86 perspective.
-> QEMU for x86 guests currently doesn't add hot-pluggable RAM into E820
-> because of different linux guests tend to cannibalize it, making it non
-> unpluggable. The last culprit I recall was KASLR.
-> 
-> So I'd refrain from reporting hotpluggable RAM in GetMemoryMap() if
-> it's possible (it's probably hack (spec deosn't say anything about it)
-> but it mostly works for Linux (plug/unplug) and Windows guest also
-> fine with plug part (no unplug there)).
-
-I can accept this as a perfectly valid design. Which would mean, QEMU should mark each hotpluggable RAM range in the DTB for the firmware with the special new property, regardless of its initial ("cold") plugged-ness, and then the firmware will not expose the range in the GCD memory space map, and consequently in the UEFI memmap either.
-
-IOW, our table is, thus far:
-
-OS boot (DT/ACPI)  hotpluggable & ...  GetMemoryMap() should report as  DT/ACPI should report as
------------------  ------------------  -------------------------------  ------------------------
-DT                 present             ABSENT                           ?
-DT                 absent              ABSENT                           ?
-ACPI               present             ABSENT                           PRESENT
-ACPI               absent              ABSENT                           ABSENT
-
-In the firmware, I only need to care about the GetMemoryMap() column, so I can work with this. Can someone please file a feature request at <https://bugzilla.tianocore.org/>, for the ArmVirtPkg Package, with these detais?
-
-Thanks
-Laszlo
-
-> 
-> As for physical systems, there are out there ones that do report
-> hotpluggable RAM in GetMemoryMap().
-> 
->> Shameer: if you (Huawei) are represented on the USWG / ASWG, I suggest
->> re-raising the question on those lists too; at least the "ACPI" rows of
->> the table.
->>
->> Thanks!
->> Laszlo
->>
+>> On 5/9/19 11:24 AM, Peter Zijlstra wrote:
+>>> On Thu, May 09, 2019 at 05:36:29PM +0000, Nadav Amit wrote:
+>>>>> On May 9, 2019, at 3:38 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+>>>>> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+>>>>> index 99740e1dd273..fe768f8d612e 100644
+>>>>> --- a/mm/mmu_gather.c
+>>>>> +++ b/mm/mmu_gather.c
+>>>>> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>>>>> 		unsigned long start, unsigned long end)
+>>>>> {
+>>>>> 	/*
+>>>>> -	 * If there are parallel threads are doing PTE changes on same range
+>>>>> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+>>>>> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+>>>>> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+>>>>> -	 * forcefully if we detect parallel PTE batching threads.
+>>>>> +	 * Sensible comment goes here..
+>>>>> 	 */
+>>>>> -	if (mm_tlb_flush_nested(tlb->mm)) {
+>>>>> -		__tlb_reset_range(tlb);
+>>>>> -		__tlb_adjust_range(tlb, start, end - start);
+>>>>> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
+>>>>> +		/*
+>>>>> +		 * Since we're can't tell what we actually should have
+>>>>> +		 * flushed flush everything in the given range.
+>>>>> +		 */
+>>>>> +		tlb->start = start;
+>>>>> +		tlb->end = end;
+>>>>> +		tlb->freed_tables = 1;
+>>>>> +		tlb->cleared_ptes = 1;
+>>>>> +		tlb->cleared_pmds = 1;
+>>>>> +		tlb->cleared_puds = 1;
+>>>>> +		tlb->cleared_p4ds = 1;
+>>>>> 	}
+>>>>>
+>>>>> 	tlb_flush_mmu(tlb);
+>>>> As a simple optimization, I think it is possible to hold multiple nesting
+>>>> counters in the mm, similar to tlb_flush_pending, for freed_tables,
+>>>> cleared_ptes, etc.
+>>>>
+>>>> The first time you set tlb->freed_tables, you also atomically increase
+>>>> mm->tlb_flush_freed_tables. Then, in tlb_flush_mmu(), you just use
+>>>> mm->tlb_flush_freed_tables instead of tlb->freed_tables.
+>>> That sounds fraught with races and expensive; I would much prefer to not
+>>> go there for this arguably rare case.
 >>>
->>> Robin.
+>>> Consider such fun cases as where CPU-0 sees and clears a PTE, CPU-1
+>>> races and doesn't see that PTE. Therefore CPU-0 sets and counts
+>>> cleared_ptes. Then if CPU-1 flushes while CPU-0 is still in mmu_gather,
+>>> it will see cleared_ptes count increased and flush that granularity,
+>>> OTOH if CPU-1 flushes after CPU-0 completes, it will not and potentiall
+>>> miss an invalidate it should have had.
 >>>
->>>> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed
->>>> any valid
->>>> points above).
->>>>
->>>> Thanks,
->>>> Shameer
->>>> [0] https://patchwork.kernel.org/cover/10890919/
->>>> [1] https://patchwork.kernel.org/patch/10863299/
->>>> [2] https://patchwork.kernel.org/patch/10890937/
->>>>
->>>>
+>>> This whole concurrent mmu_gather stuff is horrible.
+>>>
+>>>     /me ponders more....
+>>>
+>>> So I think the fundamental race here is this:
+>>>
+>>> 	CPU-0				CPU-1
+>>>
+>>> 	tlb_gather_mmu(.start=1,	tlb_gather_mmu(.start=2,
+>>> 		       .end=3);			       .end=4);
+>>>
+>>> 	ptep_get_and_clear_full(2)
+>>> 	tlb_remove_tlb_entry(2);
+>>> 	__tlb_remove_page();
+>>> 					if (pte_present(2)) // nope
+>>>
+>>> 					tlb_finish_mmu();
+>>>
+>>> 					// continue without TLBI(2)
+>>> 					// whoopsie
+>>>
+>>> 	tlb_finish_mmu();
+>>> 	  tlb_flush()		->	TLBI(2)
+>> I'm not quite sure if this is the case Jan really met. But, according to
+>> his test, once correct tlb->freed_tables and tlb->cleared_* are set, his
+>> test works well.
+> My theory was following sequence:
+>
+> t1: map_write_unmap()                 t2: dummy()
+>
+>    map_address = mmap()
+>    map_address[i] = 'b'
+>    munmap(map_address)
+>    downgrade_write(&mm->mmap_sem);
+>    unmap_region()
+>    tlb_gather_mmu()
+>      inc_tlb_flush_pending(tlb->mm);
+>    free_pgtables()
+>      tlb->freed_tables = 1
+>      tlb->cleared_pmds = 1
+>
+>                                          pthread_exit()
+>                                          madvise(thread_stack, 8M, MADV_DONTNEED)
+
+I'm not quite familiar with the implementation detail of pthread_exit(), 
+does pthread_exit() call MADV_DONTNEED all the time? I don't see your 
+test call it. If so this pattern is definitely possible.
+
+>                                            zap_page_range()
+>                                              tlb_gather_mmu()
+>                                                inc_tlb_flush_pending(tlb->mm);
+>
+>    tlb_finish_mmu()
+>      if (mm_tlb_flush_nested(tlb->mm))
+>        __tlb_reset_range()
+>          tlb->freed_tables = 0
+>          tlb->cleared_pmds = 0
+>      __flush_tlb_range(last_level = 0)
+>    ...
+>    map_address = mmap()
+>      map_address[i] = 'b'
+>        <page fault loop>
+>        # PTE appeared valid to me,
+>        # so I suspected stale TLB entry at higher level as result of "freed_tables = 0"
+>
+>
+> I'm happy to apply/run any debug patches to get more data that would help.
+>
+>>>
+>>> And we can fix that by having tlb_finish_mmu() sync up. Never let a
+>>> concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
+>>> have completed.
+>> Not sure if this will scale well.
 >>
-> 
+>>> This should not be too hard to make happen.
+>>
 
