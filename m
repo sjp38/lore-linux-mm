@@ -2,156 +2,200 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 696A1C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:29:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7CBFC46470
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:34:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13DE5217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:29:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="sJnQ4Ar2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13DE5217F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 7C28A217D9
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 18:34:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C28A217D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 93B6B6B0003; Thu,  9 May 2019 14:29:05 -0400 (EDT)
+	id 05EC06B0006; Thu,  9 May 2019 14:34:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8EBEF6B0006; Thu,  9 May 2019 14:29:05 -0400 (EDT)
+	id F02F16B0007; Thu,  9 May 2019 14:33:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7DA476B0007; Thu,  9 May 2019 14:29:05 -0400 (EDT)
+	id D7CEF6B0008; Thu,  9 May 2019 14:33:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4433F6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 14:29:05 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id q73so2136272pfi.17
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 11:29:05 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A01C66B0006
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 14:33:59 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id t1so2161801pfa.10
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 11:33:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=71Qbv1zVs7uzCNDDdAMdwTNNjRic0Q+rhbAYpm3/nu4=;
-        b=Wa+p8KY6ccwS1L5ZcK/nhJGsg4s+wmxyAqb4bykJo9i59F7NnYw3vDC1BG5j7g387+
-         YSGVHsd1+6+BZqwufypnlHT3XBp5l9UWyUxUHierUXncBkj47Yhmvzcuxv/zhuiwu/uK
-         U2/Oo1lDY+sKXqBDcVAQV3/FbTkrwzMwpeqMByrfmRfQqQwnw94oqkTHqjqSk2LjtxSk
-         1BBvGYJvVvk22kDkQfDOC8aDpt+QrQyp6J4o5P+8v8AbBUAiGGGJAd7Z5hKlL+bo7HDn
-         fnU1KIwEWCwu+WUMDg64TqrUdxKou0/saXTYiB93Fg8BU3oKMJsRkyU3YbaNcKHeTJrZ
-         088g==
-X-Gm-Message-State: APjAAAWFu7GqVuS4LHrqF+K2MGJPdDdlC6TbdepsapsOs2Y96fcXQ/YO
-	R+vkX4uCYpUxSZ5AG76F8ZQBXd+iroexvW/SuIkPU5v4kDxwRRmkCNo5/emUuzeAZdTTQ8/6PzD
-	gydDD0Y+Qt/DthtonCsBWpkmdrayHabeoD8ee4TITo5PR2BTqLqDpXl9XR0/bNKk4/Q==
-X-Received: by 2002:a62:14d6:: with SMTP id 205mr7466080pfu.4.1557426544947;
-        Thu, 09 May 2019 11:29:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKdyI/ODEfmdvfsrp9gFFjxD4WHN+A5gVjskdvn5rhANjqnfO9gySKYhf6HJPkE7WfceNT
-X-Received: by 2002:a62:14d6:: with SMTP id 205mr7465994pfu.4.1557426544081;
-        Thu, 09 May 2019 11:29:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557426544; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=yqiI+x42OXIbUvTBPZc5iTEkpFbz64YiBLYaRAWuA0c=;
+        b=h7YBt7DUtBr5/CgWGXj1BaLWseI9quUybM+R4RpS+EZo/jfxLA20BNWAqKY8e+F9VZ
+         ZW3m27/MfBrCXNHTLwfdCz7Nuvf9r++Adad7mU/pLp86ZuHW8fqPP7dLk9auqoYcvDQ9
+         ifb9JNG67wmzrERgD9HpZEtYI0/c/pJ6NpkBrut/I/zNdIgUFKGHchoXMmSvSBQzWFXO
+         QDunkK9S3gj1e2IdFY5XyRkw6Pe39H88FrvSQGpIrnGrcHGQMkiNcn144pK8K0hgHJcB
+         aNnc1N4alqGkvFKMjBLzxzktVVB0sK19egqvPPJnR2w7KGYrlCBgzd4L5kkAzUIxa9pq
+         OneQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
+X-Gm-Message-State: APjAAAV5wfbphuZTbeWnUXzF5pNmMv2V5yceyZWC+4G+hz84Xb2Vcpkv
+	JguRaMLmx9fsFrKX4MgJ3S10FXgBRIMccA110wBjuqydQUX1Rfmrt1XOE48dKrfsTWoCwcewtRs
+	Vk24Mw8mYnhMoTq8bNzFj4fbmCUfF4wioDEm95TmdLtHyK3gJpkXgodgAAiwKAtk=
+X-Received: by 2002:a17:902:74cc:: with SMTP id f12mr7197526plt.213.1557426839291;
+        Thu, 09 May 2019 11:33:59 -0700 (PDT)
+X-Received: by 2002:a17:902:74cc:: with SMTP id f12mr7197412plt.213.1557426838262;
+        Thu, 09 May 2019 11:33:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557426838; cv=none;
         d=google.com; s=arc-20160816;
-        b=zDdnOmk5ySaIwOEuf/HjcTIk/DVRAZiE++KQUwLKA9a8ZkVi0VXI3q2OZgzA5NDWdc
-         /MHqorlE4Xg7tmVAXGiZQz8iErWxSjXVRR4wQZ4RvRsGp6QeQvR+jljFUNFxYnJUamHX
-         cU1Chbnlqpi6WflY9YD1TzGCdCDs0bUtWR0u2pg8oXC0u9R8Z7JBiNgtbTuOXry7RbKz
-         gzsOtBV9an9taKB1+e8dvfM/NfX8TpacHXAx8NnRqe4I6aDJqJmw4mNLjz6Jh+MWPWGz
-         wt30Gqq1T+teT6Vy/2ub9dfp2D74UK9UcpmG+7/1uN4azLHi+fjlragZgoWZwlNtgXJg
-         jOHQ==
+        b=s3/hupx2PT2R8stKFpuQrLj5HyyhhFLySK59mfqP4co6QtrPEr/I4re6dTf1mbPLFZ
+         H3QFTkDj196C0++Qc0atnoNLmdjthOCvwX87y24pJnVVK6iMD2aH0gyqY/LwSvVd/GlP
+         8T7ZYfrUIljompD/n166RNByOEiAhMRNr8BS17RkZ/+ExSq+FH9ydSmEErauKmahqujc
+         DmeifIkeFnnr4KTJmW5pJBK3LX0hTnxRUCApW+Wd5nU8AtyXajGvA3zaAeHd/uza2Um3
+         IT0C/MuYibbDiTb4/VOhy6FHVz9HXCKbM9W7yDyxuH0zHn7dDr4btOGRDZWLCiFrSyAS
+         zbog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=71Qbv1zVs7uzCNDDdAMdwTNNjRic0Q+rhbAYpm3/nu4=;
-        b=Y6BxkqPd78nbuiLwTWDWZPnZ/IITCV5by4XUZf8RsAgV0DrQ4QzoPmBjtbJtFpiJb7
-         nKnn7IDx7Epjwid1ES1K5ieDGEVD0mHIFVecV1PJE1Zx9dHphe1Nj/67WgNiIcjuYyD1
-         ZssQ+JEDwRPDh45m9Ekz64uwuvJjYqqpkkwAqQl5H/uFJAEYLo6bNvwpOyiAfG+l92nr
-         fsLh741l9NvJYh6fpINwYolGbliegRhCOCRLZ1cL1uFXakNSV/AwJUM2APoOSNSCzUoc
-         GHwKa+CAtEbof6RMrgC70SfW375PZ7FN8+ZOJ0Wk/KEbvcVH4x0DMW7iiHm//r9ITTB/
-         DbWg==
+         :message-id:subject:cc:to:from:date;
+        bh=yqiI+x42OXIbUvTBPZc5iTEkpFbz64YiBLYaRAWuA0c=;
+        b=xVN7WHOOXBL/6wuBlRvCVkStfvezLOFyY3XmyurUbXPejSWJGdSSN2pa4bhIPOSfbY
+         sq1avXJg4TUpVgdBmtaoWaegUepHzKodGGAj1+vu1/0Xm0yUxMvWjy//3Z+Ta8OvTa/y
+         dAHL62VgiVzWtqa9HTRBhKwyI7/MP3jHTJwlPZeVDat1E2F42nbRjVkNhPxTAuPSuMdL
+         QSOIBArpSToFRvbyVRkKtiObkFOSaNzVw4ePDLSwj2gR+Hk/KZyOeaQdvEnpDgc8jKCq
+         wv81F+hbryqj7oNHf5je+SpKgnSrRXUz57CZ37DqHVYfs3czmKs+xQBuBfjyBLtS0qkD
+         zH8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sJnQ4Ar2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a7si3892936pgw.133.2019.05.09.11.29.03
+       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u14sor3809527pfl.8.2019.05.09.11.33.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 11:29:04 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Thu, 09 May 2019 11:33:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sJnQ4Ar2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=71Qbv1zVs7uzCNDDdAMdwTNNjRic0Q+rhbAYpm3/nu4=; b=sJnQ4Ar2j9VBEKP2/r1+NukeZ
-	VTgE2fa07/IBn44q+nYgua8tQph/KICQY9eB/5HeXsY7FPpi8Gmf8umbjtPFCZSxnR6zFvWGTrHj8
-	ylCLpOu+eIULK/8mRBrcY4ucOf3fKF+5DPo0pYO9New00DYZ5mMCnvnJTdxRhCUxTPOkAtHo+kSLp
-	EXjFxZ8RCgqr2Dp5u9+H70DPCLI9oA0B1a3hyvurg7OjN8U/78iymSenidehqKWXYqm+S8QIkuRJV
-	VgXGO1x6AbuzTQEPuvS7ziSEAR1ywDZZNk6X/YaACVZWl8ztPRP2fOT5qK/JNjljn4iqFy9E+Hc8J
-	L4o9/9QAw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hOnmw-0004PS-PJ; Thu, 09 May 2019 18:29:02 +0000
-Date: Thu, 9 May 2019 11:29:02 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: "Weiny, Ira" <ira.weiny@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC 00/11] Remove 'order' argument from many mm functions
-Message-ID: <20190509182902.GA11738@bombadil.infradead.org>
-References: <20190507040609.21746-1-willy@infradead.org>
- <20190509015809.GB26131@iweiny-DESK2.sc.intel.com>
- <20190509140713.GB23561@bombadil.infradead.org>
- <2807E5FD2F6FDA4886F6618EAC48510E79D0CFDA@CRSMSX101.amr.corp.intel.com>
+       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
+X-Google-Smtp-Source: APXvYqyEc1uZevZKY+jNDHPdN0qC+8kcKlru+7ZgfAEEO+vBJPv7McdJDqNHLDhPTA7XqyJ/yigK1g==
+X-Received: by 2002:aa7:980e:: with SMTP id e14mr7485557pfl.142.1557426837664;
+        Thu, 09 May 2019 11:33:57 -0700 (PDT)
+Received: from sultan-box.localdomain ([2601:200:c001:5f40:7687:d078:2931:7298])
+        by smtp.gmail.com with ESMTPSA id o2sm7914179pgq.1.2019.05.09.11.33.55
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 09 May 2019 11:33:56 -0700 (PDT)
+Date: Thu, 9 May 2019 11:33:53 -0700
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Christian Brauner <christian@brauner.io>,
+	Daniel Colascione <dancol@google.com>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	linux-mm <linux-mm@kvack.org>,
+	kernel-team <kernel-team@android.com>,
+	Andy Lutomirski <luto@amacapital.net>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Kees Cook <keescook@chromium.org>,
+	Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190509183353.GA13018@sultan-box.localdomain>
+References: <20190318002949.mqknisgt7cmjmt7n@brauner.io>
+ <20190318235052.GA65315@google.com>
+ <20190319221415.baov7x6zoz7hvsno@brauner.io>
+ <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io>
+ <20190320015249.GC129907@google.com>
+ <20190507021622.GA27300@sultan-box.localdomain>
+ <20190507153154.GA5750@redhat.com>
+ <20190507163520.GA1131@sultan-box.localdomain>
+ <20190509155646.GB24526@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2807E5FD2F6FDA4886F6618EAC48510E79D0CFDA@CRSMSX101.amr.corp.intel.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190509155646.GB24526@redhat.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 09, 2019 at 04:48:39PM +0000, Weiny, Ira wrote:
-> > On Wed, May 08, 2019 at 06:58:09PM -0700, Ira Weiny wrote:
-> > > On Mon, May 06, 2019 at 09:05:58PM -0700, Matthew Wilcox wrote:
-> > > > It's possible to save a few hundred bytes from the kernel text by
-> > > > moving the 'order' argument into the GFP flags.  I had the idea
-> > > > while I was playing with THP pagecache (notably, I didn't want to add an
-> > 'order'
-> > > > parameter to pagecache_get_page())
-> > ...
-> > > > Anyway, this is just a quick POC due to me being on an aeroplane for
-> > > > most of today.  Maybe we don't want to spend five GFP bits on this.
-> > > > Some bits of this could be pulled out and applied even if we don't
-> > > > want to go for the main objective.  eg rmqueue_pcplist() doesn't use
-> > > > its gfp_flags argument.
-> > >
-> > > Over all I may just be a simpleton WRT this but I'm not sure that the
-> > > added complexity justifies the gain.
-> > 
-> > I'm disappointed that you see it as added complexity.  I see it as reducing
-> > complexity.  With this patch, we can simply pass GFP_PMD as a flag to
-> > pagecache_get_page(); without it, we have to add a fifth parameter to
-> > pagecache_get_page() and change all the callers to pass '0'.
-> 
-> I don't disagree for pagecache_get_page().
-> 
-> I'm not saying we should not do this.  But this seems odd to me.
-> 
-> Again I'm probably just being a simpleton...
+On Thu, May 09, 2019 at 05:56:46PM +0200, Oleg Nesterov wrote:
+> Impossible ;) I bet lockdep should report the deadlock as soon as find_victims()
+> calls find_lock_task_mm() when you already have a locked victim.
 
-This concerns me, though.  I see it as being a simplification, but if
-other people see it as a complication, then it's not.  Perhaps I didn't
-take the patches far enough for you to see benefit?  We have quite the
-thicket of .*alloc_page.* functions, and I can't keep them all straight.
-Between taking, or not taking, the nodeid, the gfp mask, the order, a VMA
-and random other crap; not to mention the NUMA vs !NUMA implementations,
-this is crying out for simplification.
+I hope you're not a betting man ;)
 
-It doesn't help that I screwed up the __get_free_pages patch.  I should
-have grepped and realised that we had over 200 callers and it's not
-worth changing them all as part of this patchset.
+With the following configured:
+CONFIG_DEBUG_RT_MUTEXES=y
+CONFIG_DEBUG_SPINLOCK=y
+# CONFIG_DEBUG_SPINLOCK_BITE_ON_BUG is not set
+CONFIG_DEBUG_SPINLOCK_PANIC_ON_BUG=y
+CONFIG_DEBUG_MUTEXES=y
+CONFIG_DEBUG_WW_MUTEX_SLOWPATH=y
+CONFIG_DEBUG_LOCK_ALLOC=y
+CONFIG_PROVE_LOCKING=y
+CONFIG_LOCKDEP=y
+CONFIG_LOCK_STAT=y
+CONFIG_DEBUG_LOCKDEP=y
+CONFIG_DEBUG_ATOMIC_SLEEP=y
+# CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
+# CONFIG_LOCK_TORTURE_TEST is not set
+
+And a printk added in vtsk_is_duplicate() to print when a duplicate is detected,
+and my phone's memory cut in half to make simple_lmk do something, this is what
+I observed:
+taimen:/ # dmesg | grep lockdep
+[    0.000000] \x09RCU lockdep checking is enabled.
+taimen:/ # dmesg | grep simple_lmk
+[   23.211091] simple_lmk: Killing android.carrier with adj 906 to free 37420 kiB
+[   23.211160] simple_lmk: Killing oadcastreceiver with adj 906 to free 36784 kiB
+[   23.248457] simple_lmk: Killing .apps.translate with adj 904 to free 45884 kiB
+[   23.248720] simple_lmk: Killing ndroid.settings with adj 904 to free 42868 kiB
+[   23.313417] simple_lmk: DUPLICATE VTSK!
+[   23.313440] simple_lmk: Killing ndroid.keychain with adj 906 to free 33680 kiB
+[   23.313513] simple_lmk: Killing com.whatsapp with adj 904 to free 51436 kiB
+[   34.646695] simple_lmk: DUPLICATE VTSK!
+[   34.646717] simple_lmk: Killing ndroid.apps.gcs with adj 906 to free 37956 kiB
+[   34.646792] simple_lmk: Killing droid.apps.maps with adj 904 to free 63600 kiB
+taimen:/ # dmesg | grep lockdep
+[    0.000000] \x09RCU lockdep checking is enabled.
+taimen:/ # 
+
+> As for https://github.com/kerneltoast/android_kernel_google_wahoo/commit/afc8c9bf2dbde95941253c168d1adb64cfa2e3ad
+> Well,
+> 
+> 	mmdrop(mm);
+> 	simple_lmk_mm_freed(mm);
+> 
+> looks racy because mmdrop(mm) can free this mm_struct. Yes, simple_lmk_mm_freed()
+> does not dereference this pointer, but the same memory can be re-allocated as
+> another ->mm for the new task which can be found by find_victims(), and _in theory_
+> this all can happen in between, so the "victims[i].mm == mm" can be false positive.
+> 
+> And this also means that simple_lmk_mm_freed() should clear victims[i].mm when
+> it detects "victims[i].mm == mm", otherwise we have the same theoretical race,
+> victims_to_kill is only cleared when the last victim goes away.
+
+Fair point. Putting simple_lmk_mm_freed(mm) right before mmdrop(mm), and
+sprinkling in a cmpxchg in simple_lmk_mm_freed() should fix that up.
+
+> Another nit... you can drop tasklist_lock right after the 1st "find_victims" loop.
+
+True!
+
+> And it seems that you do not really need to walk the "victims" array twice after that,
+> you can do everything in a single loop, but this is cosmetic.
+
+Won't this result in potentially holding the task lock way longer than necessary
+for multiple tasks that aren't going to be killed?
+
+Thanks,
+Sultan
 
