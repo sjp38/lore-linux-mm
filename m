@@ -2,200 +2,151 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41825C04AB3
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:49:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E288FC04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:52:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAB222177E
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:49:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A4452204EC
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:52:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ngKRs85U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAB222177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lZ76QuoW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4452204EC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C33F6B0007; Thu,  9 May 2019 12:49:18 -0400 (EDT)
+	id 53E016B0003; Thu,  9 May 2019 12:52:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 825946B0008; Thu,  9 May 2019 12:49:18 -0400 (EDT)
+	id 515D76B0005; Thu,  9 May 2019 12:52:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69EB56B000A; Thu,  9 May 2019 12:49:18 -0400 (EDT)
+	id 405036B0007; Thu,  9 May 2019 12:52:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D196B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:49:18 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 61so805110plr.21
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:49:18 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9DB6B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:52:36 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s32so3223895qts.8
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:52:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=gE30E8WxB7hYkwUgNS86rgGRZVvaab/3r9G8N035r+M=;
-        b=ddysf4ubtKId+UfH6xBU7JRw9gMGk9/Rsm3tvCs1J/zFB4dSNCdaHpi3oUAczIj+Z7
-         6hvF9FhVGvAb6nbtQ/qMacqZUWdQcPjf0zzBWsZLAdo0UszTfynQOrZfWVNszLvCYoAc
-         6txS3q7ACrmWdXKojthnoxSjQZjB+K8m78RW6fU41d3Y86jbPfSAyia8znTvF44qOlqs
-         /CDHn9LgUlcN55MWcb/zuwwbP1kJDjh0xC/qtROjuEjRn/xswIhCdrxGvcucO6A3bO/C
-         zJg4Sn1Zxg3nOOR+94Qa8G17lV3ZqTkwdgmRqZFF592ZZocYyu8kQgDiDrDmtHTwGrJu
-         W8Sw==
-X-Gm-Message-State: APjAAAXOjajPxaLo3asag2/tXaDoT8efvVn681iDV/6rrCLa84nWOXKt
-	MFjC/Bd3LaCorZu1ipqB92B0dOLB+b/g8W6ONJxvjuiPru9v3IUQ+0hP70xqnpAZSDf9M6ubhOj
-	WAmNiBh9WccSwsjZLqYejWrnxRW3b1Lc/vT9RAseNXoBHAetf3YBx6JqOOdbcF6hLhw==
-X-Received: by 2002:aa7:9ac4:: with SMTP id x4mr6705494pfp.43.1557420557717;
-        Thu, 09 May 2019 09:49:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwJnENtUYQ4r4ZLhFzaSJtQvgCw2zm9JTPk1UaKq1ygUO/xdHBjzu0zxkueREY1g5j2IOwF
-X-Received: by 2002:aa7:9ac4:: with SMTP id x4mr6705401pfp.43.1557420556975;
-        Thu, 09 May 2019 09:49:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557420556; cv=none;
+        bh=jUsBtZeNw5FNZWL8p+EHmLQcD3RYdpay6K7eQaM/McY=;
+        b=MPFUcQ46MLWnE3wlTDia5Lv22Pi/1UcIuiBdMBpFROmlTF/S6Go1HayG2iRmuu2bsy
+         iPYZLMkif9QqHquYvW4pdClFER25X4bXklTMvZ/mq1MrtVr6MAyp4p7TS9QRSaZX9M54
+         sDGu9FJlVDXcYg85jraTDw09/4VQUIyhIK7VLt9zcORriLfmz6DVndVPhp5h7BdwAaDm
+         zX70gr2dtU6uX++WU/A1gSjBCA/Xk2lAoOszb6WaO/PFsDGYEF/IrCV2j/fFAi4IViT/
+         WZU4p5xIlNmOveazvtv1MbsAa38B0DfiXkCtfKu8eEUWIOrzMuKbsWBv7HZJZlcFTDPf
+         u2vQ==
+X-Gm-Message-State: APjAAAU6xKVCXOwFRQIqi1b+rrXNTUYOnJvZUpirl0l+iCDtOrD+VwBV
+	5XrgBScu2ZSdBlX7/pEC/oVGbpgl1bmTWkut0CRedn5OSJ/XSjsRQvT2Q4VPzYpQsO0NahU3jhd
+	/XkrwbQf2SH/J1YCIbsUfR+c6W+kT8fJc+LLAmJJbJvaEF/TrPzv7aRIoWrfayxY=
+X-Received: by 2002:a0c:afd4:: with SMTP id t20mr4708311qvc.128.1557420755886;
+        Thu, 09 May 2019 09:52:35 -0700 (PDT)
+X-Received: by 2002:a0c:afd4:: with SMTP id t20mr4708281qvc.128.1557420755379;
+        Thu, 09 May 2019 09:52:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557420755; cv=none;
         d=google.com; s=arc-20160816;
-        b=KxwNSKKFeIjWh/1SvKGzNbXVWE2/t8KBM6nBmH53QOyQWDBgNo6c9u7aRAi4Evgwci
-         yLgZcxoH7yo+io1wZflEF5LSDsXD++gnJ2LFjDO3IFGsWKOCwaSNHzmrIEGKkloPD51u
-         NefR9XTHT02KYDuVdfJhv8BBdHeOOLplmVqBkMYzSVA5H/vGDMuhiFW9Rqu1xq8KzLys
-         RoV1x43fi+FaFQ4lItFqgzLU0WU0MiWzSccPBk4UkPsfsx8MUwDOYdYgoS2gzBXUQM8V
-         CY2PwZ+kiwmWV2Tw+pbEPIF2MxQOxYZprQYBRAOb7TQm4TXT3ul0KdcxPKqOsvKrBsUq
-         FTMg==
+        b=o/WenYRYryCwR2COvCy3rPaTqSlV5SAu0owEXPJ4gx9ri7XIJcdJRtt0Lb+QIeAgxp
+         ZDw9T1jT41o9y0ySDI0AiXLa28jDpGZSPeCYmWGRIboBgmSHQLacgXZbxf/VTyozNF7Y
+         FIWDOzfg9Bh2OFW3pjjFx1IbBauQy3xw/mppY/GPBII8dO2tS2piBNB3YEKXPeaVLNm4
+         b24CAMxQwdOnA0pL1/GgV28TvHVxXjDY9/oYSFvTQUDObkHkP4xR0CGerRLEUU9zG24A
+         lIN84bIyEcTLNeet4967fRGMzwJ5IZTfdu/fZbe8A6GMqh0jJsMQJ9cPDd6h/HuF/emy
+         i1Qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=gE30E8WxB7hYkwUgNS86rgGRZVvaab/3r9G8N035r+M=;
-        b=IEPLJ5QL/w7kNExe+0PqPxQLer9j5vpFwWlEHT0gdESftduIOce7asn0lvXImhTNNd
-         x6eYgm5G1z+3NJygPNiYRYrKO6ppuR+8kQJrQat1TQD9bVmK5wzaguyX+KFGwCGvpZnA
-         igZ9queNTn0xnhDeUSZLf4Ow0Kx3EYoapapIAvTq9aaZ5RNn5Zx0p9e9VBBgY9Q9zaVt
-         rUReXPjiCfwEvohZYzlXlU+qUJ/5hQGi5+Vt7grfYhKyYg+QU4eCpNP1DnTnzkgibZ7o
-         xzxL0iswxeruBmyi+KCt7u0ykHHzxjEj+aXwsRs0ywrKqVFABVXCQzjGXq90SSpW5l2c
-         Z0mQ==
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=jUsBtZeNw5FNZWL8p+EHmLQcD3RYdpay6K7eQaM/McY=;
+        b=q1OM/K0m5ONVk9OoaSsTICg2GkgwnAOnXd6m4FcF+5D+YWnxdPWK2Lh10Fb2yeUkOo
+         gsHif+3SPn/za/9oPnvJWRJfmI0pk2RiXdt18zcUPWP2q86Y4oDGaEylrrrCkofKSmcS
+         5lwEhJJGMSLZs3XTK5JzHWCCFZvYAfzv5kBZHFo0Md+cO7uTyHFdYPTi7cOiw80zs9XT
+         0Mc9AvIT8Pxpt5u+hPWCgEtk2itMBfUDQYH9BmQkmeY57VAX/Pm7dDuj2imvT3mMtpvW
+         VeLrkJvsdxyBj9z0VCuv8Sk2A2Y0K4jWo2WCCo1rbicsD/3KIGgCxwOHJgfQ3u1jT95M
+         jEhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ngKRs85U;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f7si3820372pgq.522.2019.05.09.09.49.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lZ76QuoW;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11sor3321955qtc.28.2019.05.09.09.52.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 09 May 2019 09:49:16 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Thu, 09 May 2019 09:52:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ngKRs85U;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=gE30E8WxB7hYkwUgNS86rgGRZVvaab/3r9G8N035r+M=; b=ngKRs85UnQEDP1Ga/hab969hD
-	GJhNmb9d7tPvBnkqLCuslGiXSWmVI/YSrhJAMIgJuJwkw746cyxl7cwv8I6dGzS6Junajeay76jrx
-	HR2KCrYlqSTd3LCJXwhsGsmRX2EzQ5w4lmVfrYKm9xKmhkuTwxeDVt10+iLMa0liuT/qBloRrFU9+
-	+s9EaOjVbm3Po1En6NrE1SP2yh58GpTqxbb0d2n15TtyBbMpGFzuaUU9mOnubwtx3OetcFPcCQx0z
-	N8Xo9IhQywCFx1ybna0TEVHom1/suyCkds4AdGVeWmPkgZ5kmq0oABWghyswJnZyRZly6+T9heD12
-	/O8LeqsOw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hOmEM-0004xN-Cr; Thu, 09 May 2019 16:49:14 +0000
-Date: Thu, 9 May 2019 09:49:14 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Larry Bassel <larry.bassel@oracle.com>
-Cc: mike.kravetz@oracle.com, dan.j.williams@intel.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
-Subject: Re: [PATCH, RFC 2/2] Implement sharing/unsharing of PMDs for FS/DAX
-Message-ID: <20190509164914.GA3862@bombadil.infradead.org>
-References: <1557417933-15701-1-git-send-email-larry.bassel@oracle.com>
- <1557417933-15701-3-git-send-email-larry.bassel@oracle.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lZ76QuoW;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=jUsBtZeNw5FNZWL8p+EHmLQcD3RYdpay6K7eQaM/McY=;
+        b=lZ76QuoWP/RlQ75YXkOJcraYtkNTORpFzzVYzxh33URZ1VMjG3Xx5DjtZ3CHin9xa5
+         fS/xGH7+lJxkoHr7QwVmyDAjbeF7nvOmxv9beDILF+sB+8CiqCfnpouLazaG1HGm4wWr
+         sSEbhOG5/jozTrc/fsmtxtN959XvvWOXy5liSIq+k6J+n2dlsbSH6ap+adywXTDR7kLx
+         KiqF0AAJVljqXt6esw6EBUoQy090O3TR79BAiDBzt0e3J3KThFw2L3AVAsylb2+p2P5b
+         a2N9dHCQk3vpX1jSLasmI3wCY61bPxdTWmHGDEdgCCrPI+I3gdezXTWfZ9jvSdaQw7fz
+         mByg==
+X-Google-Smtp-Source: APXvYqx1t5kT+XXZFiBv+VqPqn8kVEYcdTa7Y4TE5pWMD/WmWnopKPh7/3rEKvsPEmRwg0IA9htZcQ==
+X-Received: by 2002:ac8:19f5:: with SMTP id s50mr4695898qtk.281.1557420754955;
+        Thu, 09 May 2019 09:52:34 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:c346])
+        by smtp.gmail.com with ESMTPSA id x47sm1527214qth.68.2019.05.09.09.52.33
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 May 2019 09:52:34 -0700 (PDT)
+Date: Thu, 9 May 2019 09:52:32 -0700
+From: Tejun Heo <tj@kernel.org>
+To: "Welty, Brian" <brian.welty@intel.com>
+Cc: cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>,
+	Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>, intel-gfx@lists.freedesktop.org,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	RDMA mailing list <linux-rdma@vger.kernel.org>,
+	Leon Romanovsky <leon@kernel.org>, kenny.ho@amd.com
+Subject: Re: [RFC PATCH 0/5] cgroup support for GPU devices
+Message-ID: <20190509165232.GW374014@devbig004.ftw2.facebook.com>
+References: <20190501140438.9506-1-brian.welty@intel.com>
+ <20190506152643.GL374014@devbig004.ftw2.facebook.com>
+ <cf58b047-d678-ad89-c9b6-96fc6b01c1d7@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1557417933-15701-3-git-send-email-larry.bassel@oracle.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <cf58b047-d678-ad89-c9b6-96fc6b01c1d7@intel.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 09, 2019 at 09:05:33AM -0700, Larry Bassel wrote:
-> This is based on (but somewhat different from) what hugetlbfs
-> does to share/unshare page tables.
+Hello,
 
-Wow, that worked out far more cleanly than I was expecting to see.
+On Tue, May 07, 2019 at 12:50:50PM -0700, Welty, Brian wrote:
+> There might still be merit in having a 'device mem' cgroup controller.
+> The resource model at least is then no longer mixed up with host memory.
+> RDMA community seemed to have some interest in a common controller at
+> least for device memory aspects.
+> Thoughts on this?   I believe could still reuse the 'struct mem_cgroup' data
+> structure.  There should be some opportunity to reuse charging APIs and
+> have some nice integration with HMM for charging to device memory, depending
+> on backing store.
 
-> @@ -4763,6 +4763,19 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
->  				unsigned long *start, unsigned long *end)
->  {
->  }
-> +
-> +unsigned long page_table_shareable(struct vm_area_struct *svma,
-> +				   struct vm_area_struct *vma,
-> +				   unsigned long addr, pgoff_t idx)
-> +{
-> +	return 0;
-> +}
-> +
-> +bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	return false;
-> +}
+Library-ish sharing is fine but in terms of interface, I think it'd be
+better to keep them separate at least for now.  Down the line maybe
+these resources will interact with each other in a more integrated way
+but I don't think it's a good idea to try to design and implement
+resource models for something like that preemptively.
 
-I don't think you need these stubs, since the only caller of them is
-also gated by MAY_SHARE_FSDAX_PMD ... right?
+Thanks.
 
-> +	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-> +		if (svma == vma)
-> +			continue;
-> +
-> +		saddr = page_table_shareable(svma, vma, addr, idx);
-> +		if (saddr) {
-> +			spmd = huge_pmd_offset(svma->vm_mm, saddr,
-> +					       vma_mmu_pagesize(svma));
-> +			if (spmd) {
-> +				get_page(virt_to_page(spmd));
-> +				break;
-> +			}
-> +		}
-> +	}
-
-I'd be tempted to reduce the indentation here:
-
-	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-		if (svma == vma)
-			continue;
-
-		saddr = page_table_shareable(svma, vma, addr, idx);
-		if (!saddr)
-			continue;
-
-		spmd = huge_pmd_offset(svma->vm_mm, saddr,
-					vma_mmu_pagesize(svma));
-		if (spmd)
-			break;
-	}
-
-
-> +	if (!spmd)
-> +		goto out;
-
-... and move the get_page() down to here, so we don't split the
-"when we find it" logic between inside and outside the loop.
-
-	get_page(virt_to_page(spmd));
-
-> +
-> +	ptl = pmd_lockptr(mm, spmd);
-> +	spin_lock(ptl);
-> +
-> +	if (pud_none(*pud)) {
-> +		pud_populate(mm, pud,
-> +			    (pmd_t *)((unsigned long)spmd & PAGE_MASK));
-> +		mm_inc_nr_pmds(mm);
-> +	} else {
-> +		put_page(virt_to_page(spmd));
-> +	}
-> +	spin_unlock(ptl);
-> +out:
-> +	pmd = pmd_alloc(mm, pud, addr);
-> +	i_mmap_unlock_write(mapping);
-
-I would swap these two lines.  There's no need to hold the i_mmap_lock
-while allocating this PMD, is there?  I mean, we don't for the !may_share
-case.
+-- 
+tejun
 
