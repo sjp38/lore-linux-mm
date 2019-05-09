@@ -2,277 +2,151 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D12EEC04AB2
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:45:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6250EC04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:47:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8555321019
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:45:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8555321019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 23A1F21019
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:47:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kkjYqCrQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23A1F21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 320876B0003; Thu,  9 May 2019 12:45:36 -0400 (EDT)
+	id B354B6B0005; Thu,  9 May 2019 12:47:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D1DB6B0005; Thu,  9 May 2019 12:45:36 -0400 (EDT)
+	id AE5F36B0007; Thu,  9 May 2019 12:47:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C0AA6B0007; Thu,  9 May 2019 12:45:36 -0400 (EDT)
+	id 9AD706B0008; Thu,  9 May 2019 12:47:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D7C7A6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:45:35 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d21so1993332pfr.3
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:45:35 -0700 (PDT)
+Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 788A76B0005
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:47:26 -0400 (EDT)
+Received: by mail-vk1-f197.google.com with SMTP id v22so1194538vkv.12
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:47:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=D3aFNc7dbZW5EjhkBt+ZwiWx1T89WJFwSLnjFse0QRQ=;
-        b=bT1tJ8np6SqrnEGOZrQ/J0xMLxuaDaIJEKqU6pum0MKbjN1sRP0KdYi/w+FG6TKhsW
-         kJJJjeythlsPwoUKtxsd9ZZnA7x+6MP18JaXzr6+WFmNudxrWV6/TH751o9G0LKltb4f
-         FCiIiVCKhEzui/nsfWLzOrMrvjGASycHp7ab8JZEudPZeSpurWw8mA8N+Wrvo9PJEWci
-         ltXnZ5UHpi5uYnVZN5TZvuv1d+r6NglwMuXhxoSHgKXb0wmiPi92wD6/XHMkcw4WzFnF
-         vmhExormktt9xJqlR2h/WYgf8nlUvyiaoFK7mQcyOTbL2VNX5Ltcoc2++KOZ9VjVdJAv
-         A03w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUqNLkTKJn+1DuAp/l3RpjAb9xemrQ6U0n6d+IzFlYSXCX91nY6
-	znwPFfa5I2X1zCB8gmex5ngf347Xah/XDimZzHQycc+hfg1p22LrhPi1R2H2kuSoNSNHZOOoy0u
-	mGzHekV+pCgXg1AS41BUsAdr8hI2Iz2K62IbFmHFnxcC2TL2Mr7O3wqnJsC6I6Z+JJA==
-X-Received: by 2002:aa7:8a81:: with SMTP id a1mr6516788pfc.121.1557420335350;
-        Thu, 09 May 2019 09:45:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy7Y4G7ZUWW7nC+G225ZnCZijy7X+go9+mv5ZwStr7bNM/lflqoWLWTvQNcOZx3WMp4ji2H
-X-Received: by 2002:aa7:8a81:: with SMTP id a1mr6516666pfc.121.1557420334468;
-        Thu, 09 May 2019 09:45:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557420334; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TOD9m5ani8ZrZtUR06eegEmPqO4qUZMEv0GTuqKapM0=;
+        b=kHGUpvgHEG1HQVbVdF3FyVDsO8cq7A6LwRGU6yygyFAag5wmU1e/OaTLmm22yEUk2N
+         5bbSSIIQBYiFFVMdq/JW9kuGmGwZtfUUUgPqbMILdgfO+1FgQQl6LyZzgr24eo+jYOYa
+         JxB0x+0XhBcrE9nt6Kc5RxduK6XtJWoIWwr4L9LH3ORCRQp9WPLfmM3SPiA30Vv+vTGR
+         8xmGFIRUD19SO3qZEtJvptwS/QiylCWFc8BLcilL9BjlrR5Kb5TiWKLuIG+BZ0DFHeON
+         xwEufZRaSMslYk6f/DfL0gjh3hFJ3OPtvyJPVL0S+GHzCd5WLNF7+0XYozXicjrQVu5S
+         p3Sg==
+X-Gm-Message-State: APjAAAXMoS5dZjHlIeJ5+fW/J8+aI8SPzBmwmk7qko6sTd861vNkU2Oo
+	R8d6vbpA/+7S7n9o+4+UAkp+h+frzIPuV6nk3AgksmKtdlkIiyR4f2QhRS/Ek+rgVM955tMVryp
+	rQM/okgz88OZ6emMEyjZy1R86zKLrL8T//7Z0E8ofCaPaesu8Rh5A1uJO72LWIHNGog==
+X-Received: by 2002:a67:7b8c:: with SMTP id w134mr3104673vsc.219.1557420446205;
+        Thu, 09 May 2019 09:47:26 -0700 (PDT)
+X-Received: by 2002:a67:7b8c:: with SMTP id w134mr3104638vsc.219.1557420445451;
+        Thu, 09 May 2019 09:47:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557420445; cv=none;
         d=google.com; s=arc-20160816;
-        b=PO1/jDvn0tj7gzrdoaBbbOimYUGcRv574nxYj1nekmfnBmYiKLekgktnF1fDLY+MPr
-         saUiXjtSN/eCTZg67s4GACe5hK1svRWbtxdgUPa+7QJqpjdBnGTfqX8eqjehBpom0T65
-         hu7Lm+blabFcR2spTtUHARKpmcf3TDBveGMTmW/zTOCagFxr4DZYnMElGUQQPIUBqi+A
-         gRUYPDNeFl54uYRBopTFEbVeySjNCCkXxPv02k/ciw74yYwoYkn9g3ku+bbBaWN/U50X
-         jJwVhIoNXuSZn3MDyn6X9HQYCOucArPlTpsPOv8NNjJOyhtiloP0JahtmdmoSsYyEc6i
-         M16g==
+        b=ITbvM0Pxpd1YBviegjyinZhkfAdQHPnECI0e2/lKS6LC5w7+nyBhr9SHU+WAhcqw87
+         ulU+pbi8nhI1q1dR6xga+PYHiDAstkH8QJLdmnkgQfeoH7UniZeKSX2qzeuYb5cVEVRa
+         sFN+9JjtT8T+wJ8TPYiTyxOvTJHuTzOqpTV5ZdQgWPn1nDyvmA7bO/ftlwmywXyWreTt
+         7eUsVGtCGd3LyM6ArAJezp1K1PZGLxgpVCjJ0N0WOVlbLYIZcxypn+Cto0hrLS2jthv+
+         eNfbwYZyJGqiRLQG2bRJbUObKltKR4LB3B0k59qM1DAv5vVZ0EzMhnqpJbNURqccUvdA
+         Uo9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :cc:to:from:subject;
-        bh=D3aFNc7dbZW5EjhkBt+ZwiWx1T89WJFwSLnjFse0QRQ=;
-        b=o74vjmO4JJHnouR49srG7r2+61IuRQHflFJSy5xXlV58VZ70/7nYq2E9/eRZJwZhhj
-         KuoVx5WhgtkAV3C0b48ai+Av1h/tmvUbGWyn5tKqWtsQ6VhdKGzxmnCujUpGXXae/2pX
-         hDnqXul1og0P2ePD3EeutfsBNZuc/xOa297n7Icu/GkffeTMwedluRGWqxgL+B3fvxPS
-         bykXzM5bL/tYVwTlcKNL/8dMRg7x/CbjbMwEfI0iTyINp9fVq+ggWhVyslwNXc5zsc4x
-         G8jsnZCGVtnuZ+Jz4ENXMOTgVz/V5NStpasN/SVDQ2fhy8diYxrgl/kMO/uvhngw6g3I
-         zBqA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TOD9m5ani8ZrZtUR06eegEmPqO4qUZMEv0GTuqKapM0=;
+        b=uzPlcdsf1KMMj8Rm1ahCQH0HCnFgZR/BhRhhDF1mygMAVYaMKoAO0P0QTTIgQvzGPA
+         vnYHtCe9pcoRsOAqIGQyeRIpa5bWMToUwStvPaCKzepRVQ0Wk6MSBWPaBeeS+Tx5aqkP
+         Rh2VAniGFoBMeJ13o9Rt+oNYB/2SIExn970L0+/p5lOqWHNevwwhPFeOGQZyeJOpeLyV
+         UuChxUU4Fdqwm4UMm6zjMJJcsRoOHavPxq0yXQ8aboYqPtv056xcdKs47yqlDkg05z9A
+         BRPIIZour0i6J0SnIh/cxE+eOwAA20Xo0RWFbQTSWscBGNnS3YEpS91JKTa0bIidaoL3
+         ZHkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id x21si3349892pln.224.2019.05.09.09.45.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kkjYqCrQ;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p25sor1361977uao.15.2019.05.09.09.47.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:45:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Thu, 09 May 2019 09:47:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 May 2019 09:45:33 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.60,450,1549958400"; 
-   d="scan'208";a="170026874"
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga002.fm.intel.com with ESMTP; 09 May 2019 09:45:33 -0700
-Subject: [PATCH] mm/huge_memory: Fix vmf_insert_pfn_{pmd, pud}() crash,
- handle unaligned addresses
-From: Dan Williams <dan.j.williams@intel.com>
-To: akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, Piotr Balcer <piotr.balcer@intel.com>,
- Yan Ma <yan.ma@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Chandan Rajendra <chandan@linux.ibm.com>, Jan Kara <jack@suse.cz>,
- Matthew Wilcox <willy@infradead.org>, Souptick Joarder <jrdr.linux@gmail.com>,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-fsdevel@vger.kernel.org
-Date: Thu, 09 May 2019 09:31:41 -0700
-Message-ID: <155741946350.372037.11148198430068238140.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kkjYqCrQ;
+       spf=pass (google.com: domain of pankajssuryawanshi@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pankajssuryawanshi@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TOD9m5ani8ZrZtUR06eegEmPqO4qUZMEv0GTuqKapM0=;
+        b=kkjYqCrQ5OGG+/hCecsHd/H7hfbb1ksW7F69CkE1T1fE/5SY4riNBHew4FB6VanXBT
+         0q34uNp/dmGT6m+bSTfegYUWOf+aomEL0P+nmoAMfj7VrtIzqqhT/mYv9AWZPbe/LuJR
+         8/tOJXs83BhT+kiebbDIUIoO5crI7NtpvWyTj6KBh7EBuf0ZV7vPJSwQftIYiGY+XxEy
+         ONdbfoYirAiggeNSGVmQq7Ab7YIrv7JEOHQ1o9QNkSZ1hnAXnfzSNj1typ+mnA63ouoo
+         e9i/zpLln4H5BtdPaqcvRDQC3RpJ2YGKaK4RH/AjZ4YVVaRKqxjFTPna9oCcbuq4Oocp
+         U3yQ==
+X-Google-Smtp-Source: APXvYqzIZa4LzmjuxILdnDq1vkqq826kSC1u+DR9Z3NyiMKZfQXFRoCQ354oIVUkTTl9N6h7IJPL5vktO9I0O4rujQI=
+X-Received: by 2002:ab0:1410:: with SMTP id b16mr1999491uae.1.1557420445101;
+ Thu, 09 May 2019 09:47:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+References: <CACDBo57s_ZxmxjmRrCSwaqQzzO5r0SadzMhseeb9X0t0mOwJZA@mail.gmail.com>
+ <11029.1556774479@turing-police> <CACDBo54xXk-68MTsxw2K12gD0eGO0Xpq0rw60E3AX+2OEi3igw@mail.gmail.com>
+ <26e83e08-3249-e73f-2049-f36b44af8d8a@suse.cz>
+In-Reply-To: <26e83e08-3249-e73f-2049-f36b44af8d8a@suse.cz>
+From: Pankaj Suryawanshi <pankajssuryawanshi@gmail.com>
+Date: Thu, 9 May 2019 22:17:14 +0530
+Message-ID: <CACDBo56LBKsxqsHAi=Jd6ZJoZsSpFJ5a_DbwEx9h+=FJjr0rhw@mail.gmail.com>
+Subject: Re: Page Allocation Failure and Page allocation stalls
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: =?UTF-8?Q?Valdis_Kl=C4=93tnieks?= <valdis.kletnieks@vt.edu>, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	kernelnewbies@kernelnewbies.org, Michal Hocko <mhocko@kernel.org>, minchan@kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Starting with commit c6f3c5ee40c1 "mm/huge_memory.c: fix modifying of
-page protection by insert_pfn_pmd()" vmf_insert_pfn_pmd() internally
-calls pmdp_set_access_flags(). That helper enforces a pmd aligned
-@address argument via VM_BUG_ON() assertion.
+On Mon, May 6, 2019 at 2:35 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> On 5/3/19 7:44 PM, Pankaj Suryawanshi wrote:
+> >> First possibility that comes to mind is that a usermodehelper got launched, and
+> >> it then tried to fork with a very large active process image.  Do we have any
+> >> clues what was going on?  Did a device get hotplugged?
+> >
+> > Yes,The system is android and it tries to allocate memory for video
+> > player from CMA reserved memory using custom octl call for dma apis.
+>
+> The stacktrace doesn't look like a CMA allocation though. That would be
+> doing alloc_contig_range(), not kmalloc(). Could be some CMA area setup
+> issue?
+>
+I know cma uses alloc_contig_range() but using dma api it will uses
+many functions.
+the failure is coming from dma_common_contiguous_remap() for kmalloc ,
+and which is called by dma_alloc_attr for cma allocation.
 
-Update the implementation to take a 'struct vm_fault' argument directly
-and apply the address alignment fixup internally to fix crash signatures
-like:
+Please let me know, how to avoid page allocation stalls. any reason ?
+Cpu Utilization issue ? or I am running out of memory ?
 
-    kernel BUG at arch/x86/mm/pgtable.c:515!
-    invalid opcode: 0000 [#1] SMP NOPTI
-    CPU: 51 PID: 43713 Comm: java Tainted: G           OE     4.19.35 #1
-    [..]
-    RIP: 0010:pmdp_set_access_flags+0x48/0x50
-    [..]
-    Call Trace:
-     vmf_insert_pfn_pmd+0x198/0x350
-     dax_iomap_fault+0xe82/0x1190
-     ext4_dax_huge_fault+0x103/0x1f0
-     ? __switch_to_asm+0x40/0x70
-     __handle_mm_fault+0x3f6/0x1370
-     ? __switch_to_asm+0x34/0x70
-     ? __switch_to_asm+0x40/0x70
-     handle_mm_fault+0xda/0x200
-     __do_page_fault+0x249/0x4f0
-     do_page_fault+0x32/0x110
-     ? page_fault+0x8/0x30
-     page_fault+0x1e/0x30
+My System configuration is
+2GB RAM
+Memory Spilt 2G/2G
+vmalloc=1024M
+CMA=1024
+Max contiguous memory required 390M
 
-Cc: <stable@vger.kernel.org>
-Fixes: c6f3c5ee40c1 ("mm/huge_memory.c: fix modifying of page protection by insert_pfn_pmd()")
-Reported-by: Piotr Balcer <piotr.balcer@intel.com>
-Tested-by: Yan Ma <yan.ma@intel.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-Cc: Chandan Rajendra <chandan@linux.ibm.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
-
- drivers/dax/device.c    |    6 ++----
- fs/dax.c                |    6 ++----
- include/linux/huge_mm.h |    6 ++----
- mm/huge_memory.c        |   16 ++++++++++------
- 4 files changed, 16 insertions(+), 18 deletions(-)
-
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index e428468ab661..996d68ff992a 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -184,8 +184,7 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
- 
- 	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
- 
--	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, *pfn,
--			vmf->flags & FAULT_FLAG_WRITE);
-+	return vmf_insert_pfn_pmd(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
- }
- 
- #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-@@ -235,8 +234,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
- 
- 	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
- 
--	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, *pfn,
--			vmf->flags & FAULT_FLAG_WRITE);
-+	return vmf_insert_pfn_pud(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
- }
- #else
- static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
-diff --git a/fs/dax.c b/fs/dax.c
-index e5e54da1715f..83009875308c 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1575,8 +1575,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
- 		}
- 
- 		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
--		result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
--					    write);
-+		result = vmf_insert_pfn_pmd(vmf, pfn, write);
- 		break;
- 	case IOMAP_UNWRITTEN:
- 	case IOMAP_HOLE:
-@@ -1686,8 +1685,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
- 		ret = vmf_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
- #ifdef CONFIG_FS_DAX_PMD
- 	else if (order == PMD_ORDER)
--		ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
--			pfn, true);
-+		ret = vmf_insert_pfn_pmd(vmf, pfn, FAULT_FLAG_WRITE);
- #endif
- 	else
- 		ret = VM_FAULT_FALLBACK;
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 381e872bfde0..7cd5c150c21d 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -47,10 +47,8 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
- extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, pgprot_t newprot,
- 			int prot_numa);
--vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
--			pmd_t *pmd, pfn_t pfn, bool write);
--vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
--			pud_t *pud, pfn_t pfn, bool write);
-+vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
-+vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
- enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_FLAG,
- 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 165ea46bf149..4310c6e9e5a3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -793,11 +793,13 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 		pte_free(mm, pgtable);
- }
- 
--vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
--			pmd_t *pmd, pfn_t pfn, bool write)
-+vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write)
- {
-+	unsigned long addr = vmf->address & PMD_MASK;
-+	struct vm_area_struct *vma = vmf->vma;
- 	pgprot_t pgprot = vma->vm_page_prot;
- 	pgtable_t pgtable = NULL;
-+
- 	/*
- 	 * If we had pmd_special, we could avoid all these restrictions,
- 	 * but we need to be consistent with PTEs and architectures that
-@@ -820,7 +822,7 @@ vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
- 
- 	track_pfn_insert(vma, &pgprot, pfn);
- 
--	insert_pfn_pmd(vma, addr, pmd, pfn, pgprot, write, pgtable);
-+	insert_pfn_pmd(vma, addr, vmf->pmd, pfn, pgprot, write, pgtable);
- 	return VM_FAULT_NOPAGE;
- }
- EXPORT_SYMBOL_GPL(vmf_insert_pfn_pmd);
-@@ -869,10 +871,12 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 	spin_unlock(ptl);
- }
- 
--vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
--			pud_t *pud, pfn_t pfn, bool write)
-+vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write)
- {
-+	unsigned long addr = vmf->address & PUD_MASK;
-+	struct vm_area_struct *vma = vmf->vma;
- 	pgprot_t pgprot = vma->vm_page_prot;
-+
- 	/*
- 	 * If we had pud_special, we could avoid all these restrictions,
- 	 * but we need to be consistent with PTEs and architectures that
-@@ -889,7 +893,7 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
- 
- 	track_pfn_insert(vma, &pgprot, pfn);
- 
--	insert_pfn_pud(vma, addr, pud, pfn, pgprot, write);
-+	insert_pfn_pud(vma, addr, vmf->pud, pfn, pgprot, write);
- 	return VM_FAULT_NOPAGE;
- }
- EXPORT_SYMBOL_GPL(vmf_insert_pfn_pud);
+> > Please let me know how to overcome this issues, or how to reduce
+> > fragmentation of memory so that higher order allocation get suuceed ?
+> >
+> > Thanks
+> >
+>
 
