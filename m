@@ -2,144 +2,156 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C51B0C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:48:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EAF0C04AB3
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:48:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B5572177E
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:48:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WtlE+P3H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B5572177E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F2B6C2177E
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:48:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2B6C2177E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2AB056B0007; Thu,  9 May 2019 12:48:07 -0400 (EDT)
+	id A4AA16B0005; Thu,  9 May 2019 12:48:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 259976B0008; Thu,  9 May 2019 12:48:07 -0400 (EDT)
+	id 9FBB16B0008; Thu,  9 May 2019 12:48:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 149256B000A; Thu,  9 May 2019 12:48:07 -0400 (EDT)
+	id 911546B000A; Thu,  9 May 2019 12:48:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EA0706B0007
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:48:06 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id v3so3164067qtp.23
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:48:06 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA7B6B0005
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:48:44 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id bg6so1882370plb.8
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:48:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=LnyOr6ZjvYu5ZxnoPdE4jqzxN1EqnDnnop6FdcNjWUo=;
-        b=npkKHgoxemQM5U1xnyiPWeSsdm1PmM5OfEgBFKab1Ve/AR97jaoAhMjAqh4dgozYOc
-         T7QYrwMRsSw+oqFPU3Cb8KiIqA4ZR/NUFeMVEFzDs39dzAYo3OZTBhPNPY2w1Wre3R8M
-         +KK7qR8Rnko6Sdi/m2t09mbA2e36PvfzaXIa9AgWm9uW9NqhpiwoHxYDD2+dKYN2rj93
-         zCvl0ozOY8fqFnWJ/t9eb78/HMGK3/AQXB71+Ril2YBNSrhGzNHrboZedgtfs4KhP6ks
-         McWJm5jOWHjdOEcz9bTUSyJR0tUc/lKVEmAQGdY+tk8HCdFI7P/xAmaNEEk80+Op/nkm
-         GzzA==
-X-Gm-Message-State: APjAAAUWJN8M90RKYCtNKJ3QiZeQESUIv9B8u3lX4EnpesnITg9VNE6j
-	b0SHfu7b6s8cUvChI3im3OipPtMzEmOpQEhwgfPOvxe4Tducb4F6491MGY1PfuyMd0/qpps7Fsf
-	/JtR/SCwDNC0jcFVbBXD34Ykxm49/Q5ruEeb5+2F0c334CU6PBdXTpkPu2egjZA8=
-X-Received: by 2002:a37:6291:: with SMTP id w139mr4231777qkb.285.1557420486570;
-        Thu, 09 May 2019 09:48:06 -0700 (PDT)
-X-Received: by 2002:a37:6291:: with SMTP id w139mr4231719qkb.285.1557420485915;
-        Thu, 09 May 2019 09:48:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557420485; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=CcplOEA58I9A9LKH/m/9sE+I+WbpLEYM/Bu2MwgVwqo=;
+        b=tV4+Mil1I35Hxo6NTWN95y3qwMTQR8NmxeeFbx9Pf6qF7dpb/PUdwYTvdnsIdsBPoy
+         P+le7PD0ddH+mQnhr7xtGN0fAVhl7NXwVqGRUa/By6IywVUXmqyp7/A/5JlyL+WwKy50
+         aHFjhCELJMD8ouitGw4oSMKAUZBE2e5dz8a9eoNyGUHgCk1AbP7Ry5n0RJdFAaZ9cCTi
+         c1iDc2rGz5xqQcBTqV7N7TOi4JSgNw6I0tDceEAamxWoXPafg+/RTmanIFKnHtPvS4co
+         +NZ4aNfenAkiG5g5I2zn1hxDfm/mn1ZHRg9dUdkEJbuH75mKf28poNBhtN4D5QX/u+Pu
+         atmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUID0WjBHySeRHa+7+KJJ9mZdvY0VhowNpLkDzxx3sMsVtaFMti
+	wDxSjkzWkws2cBe0Op37aG2B/2vG7Y71c1Bt0YW7WI9P0RevmjmFfgy30nF2a5YCHxk8HUqC4G/
+	LrC/8mBk0qxYsX5jzgRFaDA5t2pV29FqybQd/Fqu58RezpKWWAEfKwMkDhmqQ6YNT4g==
+X-Received: by 2002:aa7:8d81:: with SMTP id i1mr6669538pfr.127.1557420524073;
+        Thu, 09 May 2019 09:48:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqywiUC2GgGK49EM8RrUimF+E7QzjxCDIFcIK9n4y8ievai3B+itQaROGDzUAf8UmX5PRqeS
+X-Received: by 2002:aa7:8d81:: with SMTP id i1mr6669449pfr.127.1557420523336;
+        Thu, 09 May 2019 09:48:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557420523; cv=none;
         d=google.com; s=arc-20160816;
-        b=hsv3+dFvYoyfZQIyRJh3Z3fqHzPQrINQcaV3iFIWyAISzPKCUBuyyPp7Rpch9U6ACi
-         tt+LXfbteaEeheXxW2nYmOM06q2b8X0SBrKb8nZ1OTc62Std0YrpQPhbPNOV9tDjSzn0
-         AyzTzZJRF7vO+Cksi0uysBrXjrUyIoKsx1BvBubj/on2qZQeSAeQ3jG/s1qLV9fa3ydb
-         jzmcA6g6wDv5+3sYbG1m8NFTFTYpOhLMOB2cWCd9IeZmmdigQkHQIC6UqD0X0JcQEMM9
-         4Gna0jaAHXajWURUvwBZwDVDaOASbwYoqRozL5Q2KXzEkXsStZk7Okp5xoTGjbxc5meM
-         uJDA==
+        b=Q7ExuLXWjTM9/ofxvuLXVetwCn7drkuEWM/I5B7BgcN82D0LyEQ9dlpuRMDqa+zIE0
+         PP84TY33fDhId65zYzr3PrL6yT0IRgouw42nPy7B+Wd/SNa7CE2SGayDvYH81m545iXN
+         VqRGwn2/E7QGEf/oSeYHVBj2PVLVhqs3DNv2PvWn6xpZTcwy/e3T0y0iXduLnTvyNgEx
+         0YMVGKboW/XyJ20rxgWOyKd75Jx7jxzX4UsOljCRf3o85N/oj+4fM5x28yPvKYd3r6tz
+         03BmjuYrVA4n28jYbFtdoHArpOFxRWmUDi2BHV3Du7Z2Db5CEs2xyYVuMTM//Ogah+GL
+         6khA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=LnyOr6ZjvYu5ZxnoPdE4jqzxN1EqnDnnop6FdcNjWUo=;
-        b=Ojr04NIxkG4bNj1f1L+23xWPvNCfHFKQxJiwF4rhfAD/pd30wbTnFBAlybiJoy2QQm
-         P9UYiDEy1Nq83DDM2lmq+P5K/eeyqNcKpBKYR1gGp+YsTN4gictPZeT2izWJcXnFcgBE
-         yYSCIZvaw/8vIFEBw4RkvXP5mi7x0ah3ZZsPBrupvie8zNXg6iOEqTrn53NNMutSmQcq
-         dcOBjiefveCEB4uXhPJ4V08NNf6txc5LvByresDykcNaZaSnKC/VAtId2XJriJtFwQYH
-         /7tOUA7TA+LqAtujnLTI79A+48WRyMkDpqpaAaQNA46fQ22xmnpcNzG5dTc3JdrYKWlv
-         Sj5g==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=CcplOEA58I9A9LKH/m/9sE+I+WbpLEYM/Bu2MwgVwqo=;
+        b=GLGpA7kHLzQJ6Epasn7KomDetPMd6a8HTlvZ9/eJV1AsrpK536wOIOHfJ1pAbm8146
+         C7SjOIaXfjlG2adI0GgN39tp3m6+wL7F3LjyM2EvJiVhFh3i/wC/3VU9ApvPfTmFyyZo
+         eda0htvcWvgay79BMpgoQXKWS1tUrxJJAtLF0kWkHJ2WxpqDrHv16rLY1ZXdcjLL1WO5
+         Hebemg37qqJHZrfo2qVESB9OT20momSlkQZydhJ7TrInR5hG8V3qnYwJeDd3FvHp5Non
+         u7XLeUilsuILFJrty8FtX6ZgIk3a5dDk7wpya7DbWxDy1UnLLn5ATFDgJrR7K/y+AOR8
+         MIuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WtlE+P3H;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i125sor1474418qkc.80.2019.05.09.09.48.05
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id co15si3774082plb.330.2019.05.09.09.48.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 May 2019 09:48:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WtlE+P3H;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=LnyOr6ZjvYu5ZxnoPdE4jqzxN1EqnDnnop6FdcNjWUo=;
-        b=WtlE+P3HplSNzxMK41/9RDh/agT6ECvTArx0nyXfmTrqPeHrI1dlhmlFbPSfGkf1XZ
-         EYVC00Ie/P5VHI9oUnao//YW5RN8bj/xIucPH7Q/LYeBAdXtCUCS/XxnY7WS+mq9dW2i
-         5lwvj7qHtwSwBTEOzvM2SvOlykhHzpReUEhhvVvxi0Hfp2iyuYjfZAWqy7XHNGKTYO+H
-         YAyFa3LhmBg1NdPHNsxPtPyrL2XMHNUoFsOsh2HSY1Cgn+dtXhVzNfcMhhrJyrnofCCa
-         ZvZOw4hQFIjgJEZjHFxoAk1Ys0ZUq4sSZLUgfd31jwkZmUizT8dr7fLkoPKDGCXNyHpL
-         V+dg==
-X-Google-Smtp-Source: APXvYqxj1UpguRUHZlnsD2pdtF8y8Y6jpDdLG+5qOZpB2lOkj/swrowMpce7P5mkPHFxmjEnZklzJQ==
-X-Received: by 2002:ae9:df44:: with SMTP id t65mr4225788qkf.126.1557420485515;
-        Thu, 09 May 2019 09:48:05 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:c346])
-        by smtp.gmail.com with ESMTPSA id m31sm1466763qtm.46.2019.05.09.09.48.03
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:48:04 -0700 (PDT)
-Date: Thu, 9 May 2019 09:48:02 -0700
-From: Tejun Heo <tj@kernel.org>
-To: zhangliguang <zhangliguang@linux.alibaba.com>
-Cc: akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH] fs/writeback: Attach inode's wb to root if needed
-Message-ID: <20190509164802.GV374014@devbig004.ftw2.facebook.com>
-References: <1557389033-39649-1-git-send-email-zhangliguang@linux.alibaba.com>
+        Thu, 09 May 2019 09:48:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 May 2019 09:48:42 -0700
+X-ExtLoop1: 1
+Received: from fmsmsx105.amr.corp.intel.com ([10.18.124.203])
+  by fmsmga008.fm.intel.com with ESMTP; 09 May 2019 09:48:42 -0700
+Received: from crsmsx151.amr.corp.intel.com (172.18.7.86) by
+ FMSMSX105.amr.corp.intel.com (10.18.124.203) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 9 May 2019 09:48:42 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.116]) by
+ CRSMSX151.amr.corp.intel.com ([169.254.3.202]) with mapi id 14.03.0415.000;
+ Thu, 9 May 2019 10:48:40 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: RE: [RFC 00/11] Remove 'order' argument from many mm functions
+Thread-Topic: [RFC 00/11] Remove 'order' argument from many mm functions
+Thread-Index: AQHVBIpK9Pwsdx9BbkOGUkIop65yuaZh+3SAgAFBDID//8MJwA==
+Date: Thu, 9 May 2019 16:48:39 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79D0CFDA@CRSMSX101.amr.corp.intel.com>
+References: <20190507040609.21746-1-willy@infradead.org>
+ <20190509015809.GB26131@iweiny-DESK2.sc.intel.com>
+ <20190509140713.GB23561@bombadil.infradead.org>
+In-Reply-To: <20190509140713.GB23561@bombadil.infradead.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNTFkOGZlMmEtNTk2OC00M2ZhLTkyNDEtOTIxODU3ZDVjNDUwIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiY3VUbEdOYVdoaUNuUlwvZFVXV2Z2QThRc1pnT25ad1JVdFFKZ0RrbmJPenBhWkVUS3lVendcL3doZXIzRkRzM0U5In0=
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.0.600.7
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1557389033-39649-1-git-send-email-zhangliguang@linux.alibaba.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001374, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+> On Wed, May 08, 2019 at 06:58:09PM -0700, Ira Weiny wrote:
+> > On Mon, May 06, 2019 at 09:05:58PM -0700, Matthew Wilcox wrote:
+> > > It's possible to save a few hundred bytes from the kernel text by
+> > > moving the 'order' argument into the GFP flags.  I had the idea
+> > > while I was playing with THP pagecache (notably, I didn't want to add=
+ an
+> 'order'
+> > > parameter to pagecache_get_page())
+> ...
+> > > Anyway, this is just a quick POC due to me being on an aeroplane for
+> > > most of today.  Maybe we don't want to spend five GFP bits on this.
+> > > Some bits of this could be pulled out and applied even if we don't
+> > > want to go for the main objective.  eg rmqueue_pcplist() doesn't use
+> > > its gfp_flags argument.
+> >
+> > Over all I may just be a simpleton WRT this but I'm not sure that the
+> > added complexity justifies the gain.
+>=20
+> I'm disappointed that you see it as added complexity.  I see it as reduci=
+ng
+> complexity.  With this patch, we can simply pass GFP_PMD as a flag to
+> pagecache_get_page(); without it, we have to add a fifth parameter to
+> pagecache_get_page() and change all the callers to pass '0'.
 
-On Thu, May 09, 2019 at 04:03:53PM +0800, zhangliguang wrote:
-> There might have tons of files queued in the writeback, awaiting for
-> writing back. Unfortunately, the writeback's cgroup has been dead. In
-> this case, we reassociate the inode with another writeback cgroup, but
-> we possibly can't because the writeback associated with the dead cgroup
-> is the only valid one. In this case, the new writeback is allocated,
-> initialized and associated with the inode. It causes unnecessary high
-> system load and latency.
-> 
-> This fixes the issue by enforce moving the inode to root cgroup when the
-> previous binding cgroup becomes dead. With it, no more unnecessary
-> writebacks are created, populated and the system load decreased by about
-> 6x in the online service we encounted:
->     Without the patch: about 30% system load
->     With the patch:    about  5% system load
+I don't disagree for pagecache_get_page().
 
-Can you please describe the scenario with more details?  I'm having a
-bit of hard time understanding the amount of cpu cycles being
-consumed.
+I'm not saying we should not do this.  But this seems odd to me.
 
-Thanks.
-
--- 
-tejun
+Again I'm probably just being a simpleton...
+Ira
+=20
 
