@@ -2,289 +2,226 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBDF3C04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:35:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22CA2C04AB2
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:43:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D4072173C
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:35:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D4072173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C978E21019
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 16:43:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="W5NPu7UN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C978E21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFD1E6B0003; Thu,  9 May 2019 12:35:34 -0400 (EDT)
+	id 6302B6B0003; Thu,  9 May 2019 12:43:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAEB16B0006; Thu,  9 May 2019 12:35:34 -0400 (EDT)
+	id 606D56B0006; Thu,  9 May 2019 12:43:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C753A6B0007; Thu,  9 May 2019 12:35:34 -0400 (EDT)
+	id 4A82A6B0007; Thu,  9 May 2019 12:43:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A2C5D6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:35:34 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id l20so3145686qtq.21
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:35:34 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 286B46B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 12:43:35 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id w84so1185851vkd.23
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 09:43:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=Z3wQEF6tMh8M20m6RPRu/K8V03r1TTBjl7ghso4mRWo=;
-        b=DJ3tYGQMgtujDS5gHYYQIDq7jlUpfXphx7d/GwP68QCmFy9aTnmAIpjW20G69bN8qy
-         wpIHPXyzPoBmouPbOmLgM0F7SefaCwF0pSYKZBsXjwkrgyqpNM9iHXVrBGa4BKoWaPUG
-         knikkNOleL6rKsgQxEa+DcTiVMPhAzBQ0WSELDVpgn+Aqa/IYatcJQIbdDQX44xG4O3T
-         zkQLhn1/M/fDeX8WQo3Aq4EDaXzokVqUMarIWyCSHBYg6nh6YTEeLOh7/b2Y+bc+AKjx
-         AFIpubNUKxAw/YKAsGAfuW2AvLrSApwmkHykDeLnrDzAcTJKQs9D5UxZYVq8mOjBLqvz
-         Bdxw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUVH7SnPTfMqzraE+ia+kZCFBbcccD/68hvJ8HZi9eCuzgSg/DW
-	sz6+AnT6joSBkw9Skdg8+pgvPsroKI0PbeYgIK4ilc5CGbPg12jpJaYvF6lL7We+dSP44Rc3Imc
-	H1ZmLRDoO/TFnte65LF5P+azOzO46oY7Mmgpv3hNS8wJfCq+Tk5Wdh7mRwAJwcBdZMA==
-X-Received: by 2002:a37:4e94:: with SMTP id c142mr4044277qkb.274.1557419734398;
-        Thu, 09 May 2019 09:35:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxlolSoYdS33E4VTXuhdhThNMyrgc9pQXLdxEOH8obZi4c3eUg0nbyC2Z5juBZtGJviSy15
-X-Received: by 2002:a37:4e94:: with SMTP id c142mr4044202qkb.274.1557419733558;
-        Thu, 09 May 2019 09:35:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557419733; cv=none;
+        bh=scoklaUKCwoyF6C6A+2vS8qnRMGu4PDFVwRfwqNtv98=;
+        b=qix4g2LhtKIJvSl25Cq8dyczKx/wz4HHAQjv+O06mXtLYeEjdhoeqPGfzXJAwEiwx8
+         JCsr5VNpi1f4SJv2t3k9GsBwHUNNyS34FK7SPKEYugUWyommSJwrO7nVyEfKAb5EKfJo
+         rim5ZVdKJ1DlZz8bg2t8mjxHmOVNzuL119/VGSOws1ghkXVZqDJ+8RL2HlNR/zCea9QC
+         aN2NkadfALWA1J4YZKl9fdD0rZa1/PFsw3fBW2A7Um20WFk3zKnREjpZlN2pMbkPDEoV
+         DQHCof99lkGVyRT/PUtLnPoS71laatsJukCBLwqs1XVM5WZMK2LrvSNot3TW8bTdKwLS
+         mhsQ==
+X-Gm-Message-State: APjAAAVuLOxKGxrA2vwHHy4fYCkEF4SyTkhs+6RQ6mJN6c2jrzFQizCx
+	DPBSRpG8qRJqk6RFyptnDXoeBkQHRUMO8liGFEavItyvbu2DpZKqcnyFHSe8S5Cb98mOe0ntf3e
+	6oB8vMdaxBulEhe1qvZIEodod2dlurTHi6oiFh1LchbljDeKBLVPjpzpppkOGc0w8Mg==
+X-Received: by 2002:ac5:c542:: with SMTP id d2mr2247596vkl.57.1557420214835;
+        Thu, 09 May 2019 09:43:34 -0700 (PDT)
+X-Received: by 2002:ac5:c542:: with SMTP id d2mr2247563vkl.57.1557420214110;
+        Thu, 09 May 2019 09:43:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557420214; cv=none;
         d=google.com; s=arc-20160816;
-        b=TLprqI1QaK+cPGdzRU3N2BevvN6DdbZHeu+xKRicSL3dkeRsuI03wjkM6gsC8KvtDu
-         NuCdE5ZFCn5MNuGrfoea0LUmZX/9cdtE+mKlP35x85VgvrzK/yXtRPBbz7veUvghMDL5
-         Ko0MD6ryuJxxLae4Vc6ZJ/THppeMKO1aqzBMyKaZQM3Zl+gKJhruT84KeQVXcwZEn1m0
-         zGS0EscvBvSIQ6YWFOIfQ/uJA9b6Z0/iX3HUw5IGz4dcrE4tqb8r+Pnb+6lQmpCIv498
-         sEAMntsH/Rc1qP1VGOp7YX5dWz8JGtQQRpR/wSXpiIrhnoV3poBR9OXpMzkBt0CDH1N9
-         RMLg==
+        b=Fiw/IxQKu32OWiFkKN07lJ/k1spcLL6lZHYyGNrS4rXrmcsASId+CFHwUFeXcIrhBj
+         gVHhGY4HUZminpJ/tg3sxzqRr7oz+5NCAT/7C4EZFKLjtVt+BilAETGN8U2ohn7B4DFO
+         LeBcNM2SyDmduVsTCNt1dNGUcfuLJUUB3QBeno29iSmb4XV2hfi+bGiwIIkRE5sQUWJa
+         HjZGBH0y097si8onSeJf0+ylw6ShhzI1NSLaghP+ep4BrIUOCI2NBWX8p6hytbxrR/Jr
+         WvalwyeHbymbAu3bjHE21WcOflS00uMpgpLuWmwsp9yEa2OqFvsVRX7r/NT9pAAstzWl
+         Xskw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=Z3wQEF6tMh8M20m6RPRu/K8V03r1TTBjl7ghso4mRWo=;
-        b=up/IQIzT3Fv7FMbrmLRHz+y3aHqxwEw1Ad8UcszllyA6pX6x3cSaMK9CPz5OC6U+Vp
-         Wk8FCNC7ttmVzLX038gaILa+K1E9xVKx3AkQOAz8D3H4lK+kFIQXN8uEJKe53ppUvme6
-         X4DCU0xcmIn7Pz1AHL6iZu+YV9EA4xW9DNLOlLAb3Rbi6ZDcOQREjqUhOcSV41lIeXBQ
-         +fjBe2ZGql7Ur5fP9GMvavO2BFUu1AAV8RVPVyC+Y4bADLyosBaUSGyUSHVai2K7ZN7q
-         VvtzaSsdCWTFNDpNOph2TpPip/+lt5SFVJ4O8HC471jo+5/V6ZCAAwQ9AH2s48yH/lOm
-         3H7Q==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=scoklaUKCwoyF6C6A+2vS8qnRMGu4PDFVwRfwqNtv98=;
+        b=kG5iRfZppkeCcgS68eAsgQ6UF5jY+MRYveBT5FdRfLOwr7PbSuEhyhvGnMor6C/SBW
+         UTjupX67kan6MJUYnUfWVu6dsDgRqLsU2lY73vyes+L8FcCFA1h55eFiTkwJ8gycPkwd
+         RDMMM1Z5mU3x70D4xt4KeZ7t8UfuCqXWGY5sAFsyVqVAgIDja64ehP46QXvz+kC245y2
+         UXnxCQnFqqgQi5zCFj0AVBXfyjTXJa9NCpE5S2+wLl+t1vuIBuLCgOrb9n1tDq4hkbQe
+         N36qzVCRwW9rrmhK6Kngs+cF53BaH1wqfsfeK40Ov2uZGnrlOZIwoRQiQJxmV8paNbxb
+         z7TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c185si1154232qkd.249.2019.05.09.09.35.33
+       dkim=pass header.i=@google.com header.s=20161025 header.b=W5NPu7UN;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w7sor955928vkd.5.2019.05.09.09.43.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 09:35:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 09 May 2019 09:43:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of imammedo@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=imammedo@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 630CB308FC5E;
-	Thu,  9 May 2019 16:35:32 +0000 (UTC)
-Received: from Igors-MacBook-Pro (ovpn-204-72.brq.redhat.com [10.40.204.72])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9E91A5B680;
-	Thu,  9 May 2019 16:35:26 +0000 (UTC)
-Date: Thu, 9 May 2019 18:35:20 +0200
-From: Igor Mammedov <imammedo@redhat.com>
-To: Laszlo Ersek <lersek@redhat.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, Shameerali Kolothum Thodi
- <shameerali.kolothum.thodi@huawei.com>, "will.deacon@arm.com"
- <will.deacon@arm.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Anshuman
- Khandual <anshuman.khandual@arm.com>,
- "linux-arm-kernel@lists.infradead.org"
- <linux-arm-kernel@lists.infradead.org>, linux-mm <linux-mm@kvack.org>,
- "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "qemu-arm@nongnu.org"
- <qemu-arm@nongnu.org>, "eric.auger@redhat.com" <eric.auger@redhat.com>,
- "peter.maydell@linaro.org" <peter.maydell@linaro.org>, Linuxarm
- <linuxarm@huawei.com>, "ard.biesheuvel@linaro.org"
- <ard.biesheuvel@linaro.org>, Jonathan Cameron
- <jonathan.cameron@huawei.com>, "xuwei (O)" <xuwei5@huawei.com>
-Subject: Re: [Question] Memory hotplug clarification for Qemu ARM/virt
-Message-ID: <20190509183520.6dc47f2e@Igors-MacBook-Pro>
-In-Reply-To: <190831a5-297d-addb-ea56-645afb169efb@redhat.com>
-References: <5FC3163CFD30C246ABAA99954A238FA83F1B6A66@lhreml524-mbs.china.huawei.com>
-	<ca5f7231-6924-0720-73a5-766eb13ee331@arm.com>
-	<190831a5-297d-addb-ea56-645afb169efb@redhat.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=W5NPu7UN;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=scoklaUKCwoyF6C6A+2vS8qnRMGu4PDFVwRfwqNtv98=;
+        b=W5NPu7UNCMvXR4FF+Orajnb/B6NZxQzAvi9Rnniu5D1QBMIj1zEd1ZOTFs7N0YCb4h
+         obNz04dmCAXeV8V10GEaxiDmcRhVkfNt0Sm9pD4dYF/C1vabNRy4tyw/q7pPU4tQMNfr
+         KhlKXF2buBmjsDZq5ypkF3nP3KBRvADS4tobRjqeogywxqaPTtWxqDz5C5JWDdqIo4q9
+         nGlCgGUJ8Vitujn2OgVQsAdeVHSP6yhMv9Ya4xWGm4t8jYixlVweNEFJSk9DnlVnYaO1
+         kTMxqWZfeq5kV4no0PIgvREzErEcSEXQqIUq8unew+2G0z3iFWyYgkfqg9umSa6KielS
+         6rXg==
+X-Google-Smtp-Source: APXvYqyCrNILIPE1aM9yj+g5z6EqLOv3bZuyYJ/RoOpitBlKLPTF4cJxqZd//NaX8Rp91mG9W2FyALdArcIfwkl6nKs=
+X-Received: by 2002:a1f:ae4b:: with SMTP id x72mr2336739vke.29.1557420213429;
+ Thu, 09 May 2019 09:43:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+References: <20190508153736.256401-1-glider@google.com> <20190508153736.256401-2-glider@google.com>
+ <CAGXu5jKfxYfRQS+CouYZc8-BMEWR1U3kwshu4892pM0pmmACGw@mail.gmail.com>
+In-Reply-To: <CAGXu5jKfxYfRQS+CouYZc8-BMEWR1U3kwshu4892pM0pmmACGw@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Thu, 9 May 2019 18:43:21 +0200
+Message-ID: <CAG_fn=UDyVpZz5=oP4HHdYCB43NnXG1sLypRXopyEk9qgq471A@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Laura Abbott <labbott@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 09 May 2019 16:35:32 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 May 2019 22:26:12 +0200
-Laszlo Ersek <lersek@redhat.com> wrote:
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, May 8, 2019 at 9:02 PM
+To: Alexander Potapenko
+Cc: Andrew Morton, Christoph Lameter, Kees Cook, Laura Abbott,
+Linux-MM, linux-security-module, Kernel Hardening, Masahiro Yamada,
+James Morris, Serge E. Hallyn, Nick Desaulniers, Kostya Serebryany,
+Dmitry Vyukov, Sandeep Patil, Randy Dunlap, Jann Horn, Mark Rutland
 
-> On 05/08/19 14:50, Robin Murphy wrote:
-> > Hi Shameer,
-> >=20
-> > On 08/05/2019 11:15, Shameerali Kolothum Thodi wrote:
-> >> Hi,
-> >>
-> >> This series here[0] attempts to add support for PCDIMM in QEMU for
-> >> ARM/Virt platform and has stumbled upon an issue as it is not clear(at
-> >> least
-> >> from Qemu/EDK2 point of view) how in physical world the hotpluggable
-> >> memory is handled by kernel.
-> >>
-> >> The proposed implementation in Qemu, builds the SRAT and DSDT parts
-> >> and uses GED device to trigger the hotplug. This works fine.
-> >>
-> >> But when we added the DT node corresponding to the PCDIMM(cold plug
-> >> scenario), we noticed that Guest kernel see this memory during early b=
-oot
-> >> even if we are booting with ACPI. Because of this, hotpluggable memory
-> >> may end up in zone normal and make it non-hot-un-pluggable even if Gue=
-st
-> >> boots with ACPI.
-> >>
-> >> Further discussions[1] revealed that, EDK2 UEFI has no means to
-> >> interpret the
-> >> ACPI content from Qemu(this is designed to do so) and uses DT info to
-> >> build the GetMemoryMap(). To solve this, introduced "hotpluggable"
-> >> property
-> >> to DT memory node(patches #7 & #8 from [0]) so that UEFI can
-> >> differentiate
-> >> the nodes and exclude the hotpluggable ones from GetMemoryMap().
-> >>
-> >> But then Laszlo rightly pointed out that in order to accommodate the
-> >> changes
-> >> into UEFI we need to know how exactly Linux expects/handles all the
-> >> hotpluggable memory scenarios. Please find the discussion here[2].
-> >>
-> >> For ease, I am just copying the relevant comment from Laszlo below,
-> >>
-> >> /******
-> >> "Given patches #7 and #8, as I understand them, the firmware cannot
-> >> distinguish
-> >> =C2=A0 hotpluggable & present, from hotpluggable & absent. The firmwar=
-e can
-> >> only
-> >> =C2=A0 skip both hotpluggable cases. That's fine in that the firmware =
-will
-> >> hog neither
-> >> =C2=A0 type -- but is that OK for the OS as well, for both ACPI boot a=
-nd DT
-> >> boot?
-> >>
-> >> Consider in particular the "hotpluggable & present, ACPI boot" case.
-> >> Assuming
-> >> we modify the firmware to skip "hotpluggable" altogether, the UEFI mem=
-map
-> >> will not include the range despite it being present at boot.
-> >> Presumably, ACPI
-> >> will refer to the range somehow, however. Will that not confuse the OS?
-> >>
-> >> When Igor raised this earlier, I suggested that
-> >> hotpluggable-and-present should
-> >> be added by the firmware, but also allocated immediately, as
-> >> EfiBootServicesData
-> >> type memory. This will prevent other drivers in the firmware from
-> >> allocating AcpiNVS
-> >> or Reserved chunks from the same memory range, the UEFI memmap will
-> >> contain
-> >> the range as EfiBootServicesData, and then the OS can release that
-> >> allocation in
-> >> one go early during boot.
-> >>
-> >> But this really has to be clarified from the Linux kernel's
-> >> expectations. Please
-> >> formalize all of the following cases:
-> >>
-> >> OS boot (DT/ACPI)=C2=A0 hotpluggable & ...=C2=A0 GetMemoryMap() should=
- report
-> >> as=C2=A0 DT/ACPI should report as
-> >> -----------------=C2=A0 ------------------=C2=A0
-> >> -------------------------------=C2=A0 ------------------------
-> >> DT=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 present=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
- ?
-> >> DT=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 absent=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 ?
-> >> ACPI=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 present=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?
-> >> ACPI=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 absent=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ?
-> >>
-> >> Again, this table is dictated by Linux."
-> >>
-> >> ******/
-> >>
-> >> Could you please take a look at this and let us know what is expected
-> >> here from
-> >> a Linux kernel view point.
-> >=20
-> > For arm64, so far we've not even been considering DT-based hotplug - as
-> > far as I'm aware there would still be a big open question there around
-> > notification mechanisms and how to describe them. The DT stuff so far
-> > has come from the PowerPC folks, so it's probably worth seeing what
-> > their ideas are.
-> >=20
-> > ACPI-wise I've always assumed/hoped that hotplug-related things should
-> > be sufficiently well-specified in UEFI that "do whatever x86/IA-64 do"
-> > would be enough for us.
->=20
-> As far as I can see in UEFI v2.8 -- and I had checked the spec before
-> dumping the table with the many question marks on Shameer --, all the
-> hot-plug language in the spec refers to USB and PCI hot-plug in the
-> preboot environment. There is not a single word about hot-plug at OS
-> runtime (regarding any device or component type), nor about memory
-> hot-plug (at any time).
+> On Wed, May 8, 2019 at 8:38 AM Alexander Potapenko <glider@google.com> wr=
+ote:
+> > The new options are needed to prevent possible information leaks and
+> > make control-flow bugs that depend on uninitialized values more
+> > deterministic.
 >
-> Looking to x86 appears valid -- so what does the Linux kernel expect on
-> that architecture, in the "ACPI" rows of the table?
+> I like having this available on both alloc and free. This makes it
+> much more configurable for the end users who can adapt to their work
+> loads, etc.
+>
+> > Linux build with -j12, init_on_free=3D1:  +24.42% sys time (st.err 0.52=
+%)
+> > [...]
+> > Linux build with -j12, init_on_alloc=3D1: +0.57% sys time (st.err 0.40%=
+)
+>
+> Any idea why there is such a massive difference here? This seems to
+> high just for cache-locality effects of touching all the freed pages.
+I've measured a single `make -j12` again under perf stat.
 
-I could only answer from QEMU x86 perspective.
-QEMU for x86 guests currently doesn't add hot-pluggable RAM into E820
-because of different linux guests tend to cannibalize it, making it non
-unpluggable. The last culprit I recall was KASLR.
+The numbers for init_on_alloc=3D1 were:
 
-So I'd refrain from reporting hotpluggable RAM in GetMemoryMap() if
-it's possible (it's probably hack (spec deosn't say anything about it)
-but it mostly works for Linux (plug/unplug) and Windows guest also
-fine with plug part (no unplug there)).
+        4936513177      cache-misses              #    8.056 % of all
+cache refs      (44.44%)
+       61278262461      cache-references
+               (44.45%)
+          42844784      page-faults
+     1449630221347      L1-dcache-loads
+               (44.45%)
+       50569965485      L1-dcache-load-misses     #    3.49% of all
+L1-dcache hits    (44.44%)
+      299987258588      L1-icache-load-misses
+               (44.44%)
+     1449857258648      dTLB-loads
+               (44.45%)
+         826292490      dTLB-load-misses          #    0.06% of all
+dTLB cache hits   (44.44%)
+       22028472701      iTLB-loads
+               (44.44%)
+         858451905      iTLB-load-misses          #    3.90% of all
+iTLB cache hits   (44.45%)
+     162.120107145 seconds time elapsed
 
-As for physical systems, there are out there ones that do report
-hotpluggable RAM in GetMemoryMap().
+, and for init_on_free=3D1:
 
-> Shameer: if you (Huawei) are represented on the USWG / ASWG, I suggest
-> re-raising the question on those lists too; at least the "ACPI" rows of
-> the table.
->=20
-> Thanks!
-> Laszlo
->=20
-> >=20
-> > Robin.
-> >=20
-> >> (Hi Laszlo/Igor/Eric, please feel free to add/change if I have missed
-> >> any valid
-> >> points above).
-> >>
-> >> Thanks,
-> >> Shameer
-> >> [0] https://patchwork.kernel.org/cover/10890919/
-> >> [1] https://patchwork.kernel.org/patch/10863299/
-> >> [2] https://patchwork.kernel.org/patch/10890937/
-> >>
-> >>
->=20
+        6666716777      cache-misses              #   10.862 % of all
+cache refs      (44.45%)
+       61378258434      cache-references
+               (44.46%)
+          42850913      page-faults
+     1449986416063      L1-dcache-loads
+               (44.45%)
+       51277338771      L1-dcache-load-misses     #    3.54% of all
+L1-dcache hits    (44.45%)
+      298295905805      L1-icache-load-misses
+               (44.44%)
+     1450378031344      dTLB-loads
+               (44.43%)
+         807011341      dTLB-load-misses          #    0.06% of all
+dTLB cache hits   (44.44%)
+       22044976638      iTLB-loads
+               (44.44%)
+         846377845      iTLB-load-misses          #    3.84% of all
+iTLB cache hits   (44.45%)
+     164.427054893 seconds time elapsed
+
+
+(note that we don't see the speed difference under perf)
+
+init_on_free=3D1 causes 1.73B more cache misses than init_on_alloc=3D1.
+If I'm understanding correctly, a cache miss costs 12-14 cycles on my
+3GHz Skylake CPU, which can explain explain a 7-8-second difference
+between the two modes.
+But as I just realized this is both kernel and userspace, so while the
+difference is almost correct for wall time (120s for init_on_alloc,
+130s for init_on_free) this doesn't tell much about the time spent in
+the kernel.
+
+> --
+> Kees Cook
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
