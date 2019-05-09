@@ -2,104 +2,118 @@ Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8215DC04AB3
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:32:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 350F6C04AB1
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:56:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30C2E2177E
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:32:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30C2E2177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id BC3802177E
+	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 19:56:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="sjWzpAf+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC3802177E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CF0F6B0003; Thu,  9 May 2019 15:32:25 -0400 (EDT)
+	id 243256B0003; Thu,  9 May 2019 15:56:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 980966B0006; Thu,  9 May 2019 15:32:25 -0400 (EDT)
+	id 1F3CC6B0006; Thu,  9 May 2019 15:56:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 847266B0007; Thu,  9 May 2019 15:32:25 -0400 (EDT)
+	id 0E3146B0007; Thu,  9 May 2019 15:56:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 35ABC6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 15:32:25 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id p14so2262232edc.4
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 12:32:25 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C80556B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 15:56:28 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id d5so1599013pga.3
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 12:56:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=7y4z8bpKG/Cce8JVQIP7uMPttJ3Qh3TlIsnFT09bpXI=;
-        b=jsC27vEsq80MLQH6y7Wt8YbMCEniT5NihdMyapwyoTd0gk4TAVfj37/+K6hHRpxS3K
-         CJQMLewRajNJ4Qidmd4vk7J9pK/NyDhJguBYkuSdFTqS9yt373I4tctQjCtYI1IUuvlo
-         xVRL03D3xMHiZE5u7smNgkhbYF74VX776kAJ73fdWEpHXCd17uECZ1lNceF5GMTjoMUK
-         2LAhjqYeO/TJp0e+eKXYG0ZU2RivwfJ5HXTmC4CLUCMZAnIOF3LbV/b+FZYBEn0/DV6T
-         s5TBf6uQT+0pxM/qNPPYsD2Mm+HacGnwA8J1foEnbPjLz+Pgwf+cYwlDPICVUKBnzS49
-         r10A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAXDL7BWFuT0XUM0BTA0DW/MYVW6AwVXzoHjoOMfMQQIxqEwDNkD
-	VY+zTGxJJIuNGMsQokDazjQ5JptLKxLt3uCp4d+gOxHez/k+1a+zpBG8khFfzTRLw9zrXZDKm6r
-	L549V4VBYR55lWNr1rhEFDY0Phw9wcVK9Mxl7DjKZOLR9jeip6GAB7slVDmslAHxHAA==
-X-Received: by 2002:a17:906:e2c2:: with SMTP id gr2mr4915487ejb.45.1557430344677;
-        Thu, 09 May 2019 12:32:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw80LeqMdLAb7S1MQ8FM/TwIpGtqpr5yqgQXbO6Kn55pdkzL7nDaZthcGJ9XQvePwDhtBzC
-X-Received: by 2002:a17:906:e2c2:: with SMTP id gr2mr4915428ejb.45.1557430343434;
-        Thu, 09 May 2019 12:32:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557430343; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=;
+        b=NfgUmddDP2fdTKEuauuRwQizxu1cx8QO5QU5tXOY02yWxtWqZdQw8G8LMHIwvUCAGF
+         ShBfxQjd9HpHA8xTTmd9zwroYYwZwSg6kO5hSnVlyQc1QUh1cmL6RgbjHlzCcpx2pBeE
+         uANoVQl0NPDN2Muj491lvKKpNfRTQyWfngE5A1oKBL3E8V3PZc2HvOXAYcAg+XXRAX3W
+         tRbtgdherAzZtR+mPoJI7bqNQcS2MjO1Ucb6IN0Ka4r5KmMK/fObr1MSvx3oq1kh95iF
+         r/rduxDnwnrrghs2VzjUec5HzZHy0UM+LqRTu7Ws1TZerHXEfhSNqU0JK8LEwQ2actwT
+         xogw==
+X-Gm-Message-State: APjAAAXE90exCJ/EKAKjvchwiVyx4IxCqByJEcPDsRJlU5LThZc5wOVg
+	AfqumPSvnaBt3Iji69vsRdLmdG45vf6xHMpwe+Bt5kt7lpdzPsBRT0qU67uLpDfUqVAFSYQQ61J
+	XzWCtPZeKtym3LerjmrPcv/kZaGUoX+IYfDiW+sSWNQHAGcBsDFs/K8ayHxBO1fnH5A==
+X-Received: by 2002:a17:902:9a83:: with SMTP id w3mr7761102plp.241.1557431788203;
+        Thu, 09 May 2019 12:56:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfJIKZqvlSuefaEXYQkSb8ayljq3+REe09vUrN8utkbfCro/LFfnLq+GGLc3wL1kdFOsUc
+X-Received: by 2002:a17:902:9a83:: with SMTP id w3mr7761017plp.241.1557431787204;
+        Thu, 09 May 2019 12:56:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557431787; cv=none;
         d=google.com; s=arc-20160816;
-        b=LRFY2EIIjeDLul66I8Smfp5woyHyGc7DpM6Qw1vPTNZHPQT07PN6yoKJ9mq500wAHG
-         JBZrPjr10SofLZtThiMm3xwdIZKByGXSbF6KbPnbLDP1VX0qUrl3rlLhXz2ClL5zDH0A
-         gzPqHD/ElepJhHFLWAt8JRv4IrJIlpGWF2OO/v3CiE4cdfC74T0u7tlSCcJIRXQ6qeXj
-         Ydcxjr1C1nhPqtIy+1XJrZsXa7aeQwgeWj7avKMzS4RP2Js7nqwAHP6uc8YlNIi0EGcQ
-         7S4rNInU9etDmif9/LpFBKo6ziQP8K3LRfYD/gJRwax6PFY666UiCmDgEeQtJRAKUFD8
-         Qrcw==
+        b=I/rLUMUray5UmcHibDnLUuEwvadDygf75pI3TIkxHirDyh5pMUOxA5Rk5O+9YOG9Og
+         eK5oXhOnxQR1V9k7zmKbPs0keAR1kzgBYCpDpuSlnkAW0PX6kJtRGgIAydYM7s/y7KTm
+         ZhbQJL5GLdQly/5pgtZNXqFeePl95ci9Yj6IN3hVFsvZQjtgy8JvPKBvwg6biWzsjyDu
+         7dj+RYV3up6JM+nereM1bJAsAsRKdcZvcrBEtXUV3zmpxFMjvdN1GWfYBoWFy9Z/qcLI
+         6aLK3WJe1jO2uI7nrFwspzuVvA7KzhRF6aoeCwE0cg3qayJ/h3iCFdJY6brpcdeXQkqk
+         MBiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=7y4z8bpKG/Cce8JVQIP7uMPttJ3Qh3TlIsnFT09bpXI=;
-        b=XfI3VRS1i3gTZZvXpGEkl9R+FYMz7rsZTWirpFzRpCCUTwySl5kooc0CdXGWpphDiE
-         ZC2K0EFHFa2roGA2SDpWHvtdM4b7kDg8J99TOQ6vz/II2oCD6lcUveoTOPhC7ZrMrx9c
-         kT4507Yot29PvpjleALSarV6/6hUjAu+dVHgFeSGK3HAWeN11IKEa4gH+HWjBR4HUoBF
-         EpmVEMDjI+RewPyQ4/anTy7FRSqrR9AWp8UhnvTFrGigEuU6z2iyMQoiDS8c80f80Mb/
-         /g5hYl6gmlvxs9e5fgOvHfq2IW6p66C0nMP11Iw7/fUeSQ9PZz5pFX3v0eJaJkyODkWU
-         1+IA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=;
+        b=DZ1OjsicP331lZZT03/kGT4yK84XtMyxrvLtOm70zbuiWS9YL/i9pr7bauCgMbCDCj
+         4FD5AMHG2UpMMpZrc353um6RmhqvI8lFlIsM4bi3OVHNV1pQyLvAqYuzlGS90XJwrY8o
+         4HSdIR7BiNsMAk0qANPMcqqGXmTsvwT4L0KnP57Kiur8hbiephQeR0AnNYViXh/nRzW5
+         Z0jcTLULdU5ry7XOdimEgU2CnOXWzEj4FLBpewxrDGYwLx0xFGhfw+MfUoT/H1W8QLRG
+         gDkgIGKJ+hJtYgOeQoZqORwcVnitsMUgZ7lGnEOg0hcE0tUhPrRmPQfjIJ/A0AbNhN2k
+         b0Ig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x7si2237441edx.116.2019.05.09.12.32.23
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sjWzpAf+;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v1si4278609plo.191.2019.05.09.12.56.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 12:32:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 09 May 2019 12:56:27 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A7E6BAE16;
-	Thu,  9 May 2019 19:32:22 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id ED4D81E3C7F; Thu,  9 May 2019 21:32:19 +0200 (CEST)
-Date: Thu, 9 May 2019 21:32:19 +0200
-From: Jan Kara <jack@suse.cz>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, stable@vger.kernel.org,
-	Piotr Balcer <piotr.balcer@intel.com>, Yan Ma <yan.ma@intel.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Chandan Rajendra <chandan@linux.ibm.com>, Jan Kara <jack@suse.cz>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH] mm/huge_memory: Fix vmf_insert_pfn_{pmd, pud}() crash,
- handle unaligned addresses
-Message-ID: <20190509193219.GH23589@quack2.suse.cz>
-References: <155741946350.372037.11148198430068238140.stgit@dwillia2-desk3.amr.corp.intel.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=sjWzpAf+;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=ot8IQXIdycRfbnAGWMYEHNduuMkLuyWPm0ppqN5UQU8=; b=sjWzpAf+RG2sk7Xun0Y3JguxV
+	Clw1VlgAF/0VHkox15p7PkRgGlnwoIoavF+resBPd0UAGNn4gi97iGsnxZirGpFCSa6ap5WOqu0XI
+	4JQ+eSoyPMii+x8peXrFm/WTEcesMShFMutGTh4ovK/0s7M+xAiz5DLPpslbg6CuvDwEGl4th5As8
+	+leYhoatWAVVGYkU4jZkU+mLA/BrV9kLnkCKewWS/Xkrxw6sp81AOu3UUPhSV6CLlwmEsuGcmR/3U
+	9LDMxX6avTpVNSNJkBEsIXjtiaaqgiGrqCaoTO6DA3FHyal3Wgqo28gxNRm9WTA1u4U/D3QzaRrrD
+	w+Xph81gQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hOp9T-00066y-M8; Thu, 09 May 2019 19:56:23 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 3640623E95D36; Thu,  9 May 2019 21:56:21 +0200 (CEST)
+Date: Thu, 9 May 2019 21:56:21 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, jstancek@redhat.com,
+	akpm@linux-foundation.org, stable@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	aneesh.kumar@linux.vnet.ibm.com, npiggin@gmail.com,
+	namit@vmware.com, minchan@kernel.org, Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Message-ID: <20190509195621.GM2650@hirez.programming.kicks-ass.net>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <155741946350.372037.11148198430068238140.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20190509103813.GP2589@hirez.programming.kicks-ass.net>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -107,182 +121,180 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 09-05-19 09:31:41, Dan Williams wrote:
-> Starting with commit c6f3c5ee40c1 "mm/huge_memory.c: fix modifying of
-> page protection by insert_pfn_pmd()" vmf_insert_pfn_pmd() internally
-> calls pmdp_set_access_flags(). That helper enforces a pmd aligned
-> @address argument via VM_BUG_ON() assertion.
-> 
-> Update the implementation to take a 'struct vm_fault' argument directly
-> and apply the address alignment fixup internally to fix crash signatures
-> like:
-> 
->     kernel BUG at arch/x86/mm/pgtable.c:515!
->     invalid opcode: 0000 [#1] SMP NOPTI
->     CPU: 51 PID: 43713 Comm: java Tainted: G           OE     4.19.35 #1
->     [..]
->     RIP: 0010:pmdp_set_access_flags+0x48/0x50
->     [..]
->     Call Trace:
->      vmf_insert_pfn_pmd+0x198/0x350
->      dax_iomap_fault+0xe82/0x1190
->      ext4_dax_huge_fault+0x103/0x1f0
->      ? __switch_to_asm+0x40/0x70
->      __handle_mm_fault+0x3f6/0x1370
->      ? __switch_to_asm+0x34/0x70
->      ? __switch_to_asm+0x40/0x70
->      handle_mm_fault+0xda/0x200
->      __do_page_fault+0x249/0x4f0
->      do_page_fault+0x32/0x110
->      ? page_fault+0x8/0x30
->      page_fault+0x1e/0x30
-> 
-> Cc: <stable@vger.kernel.org>
-> Fixes: c6f3c5ee40c1 ("mm/huge_memory.c: fix modifying of page protection by insert_pfn_pmd()")
-> Reported-by: Piotr Balcer <piotr.balcer@intel.com>
-> Tested-by: Yan Ma <yan.ma@intel.com>
-> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> Cc: Chandan Rajendra <chandan@linux.ibm.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Souptick Joarder <jrdr.linux@gmail.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Thu, May 09, 2019 at 12:38:13PM +0200, Peter Zijlstra wrote:
 
-Looks good to me. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
-> 
->  drivers/dax/device.c    |    6 ++----
->  fs/dax.c                |    6 ++----
->  include/linux/huge_mm.h |    6 ++----
->  mm/huge_memory.c        |   16 ++++++++++------
->  4 files changed, 16 insertions(+), 18 deletions(-)
-> 
-> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> index e428468ab661..996d68ff992a 100644
-> --- a/drivers/dax/device.c
-> +++ b/drivers/dax/device.c
-> @@ -184,8 +184,7 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
->  
->  	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
->  
-> -	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, *pfn,
-> -			vmf->flags & FAULT_FLAG_WRITE);
-> +	return vmf_insert_pfn_pmd(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
->  }
->  
->  #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-> @@ -235,8 +234,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
->  
->  	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
->  
-> -	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, *pfn,
-> -			vmf->flags & FAULT_FLAG_WRITE);
-> +	return vmf_insert_pfn_pud(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
->  }
->  #else
->  static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
-> diff --git a/fs/dax.c b/fs/dax.c
-> index e5e54da1715f..83009875308c 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1575,8 +1575,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
->  		}
->  
->  		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
-> -		result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
-> -					    write);
-> +		result = vmf_insert_pfn_pmd(vmf, pfn, write);
->  		break;
->  	case IOMAP_UNWRITTEN:
->  	case IOMAP_HOLE:
-> @@ -1686,8 +1685,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
->  		ret = vmf_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
->  #ifdef CONFIG_FS_DAX_PMD
->  	else if (order == PMD_ORDER)
-> -		ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
-> -			pfn, true);
-> +		ret = vmf_insert_pfn_pmd(vmf, pfn, FAULT_FLAG_WRITE);
->  #endif
->  	else
->  		ret = VM_FAULT_FALLBACK;
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 381e872bfde0..7cd5c150c21d 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -47,10 +47,8 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned long addr, pgprot_t newprot,
->  			int prot_numa);
-> -vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> -			pmd_t *pmd, pfn_t pfn, bool write);
-> -vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> -			pud_t *pud, pfn_t pfn, bool write);
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
->  enum transparent_hugepage_flag {
->  	TRANSPARENT_HUGEPAGE_FLAG,
->  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 165ea46bf149..4310c6e9e5a3 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -793,11 +793,13 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  		pte_free(mm, pgtable);
->  }
->  
-> -vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> -			pmd_t *pmd, pfn_t pfn, bool write)
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write)
+> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+> index 99740e1dd273..fe768f8d612e 100644
+> --- a/mm/mmu_gather.c
+> +++ b/mm/mmu_gather.c
+> @@ -244,15 +244,20 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>  		unsigned long start, unsigned long end)
 >  {
-> +	unsigned long addr = vmf->address & PMD_MASK;
-> +	struct vm_area_struct *vma = vmf->vma;
->  	pgprot_t pgprot = vma->vm_page_prot;
->  	pgtable_t pgtable = NULL;
-> +
 >  	/*
->  	 * If we had pmd_special, we could avoid all these restrictions,
->  	 * but we need to be consistent with PTEs and architectures that
-> @@ -820,7 +822,7 @@ vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
+> -	 * If there are parallel threads are doing PTE changes on same range
+> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+> -	 * forcefully if we detect parallel PTE batching threads.
+> +	 * Sensible comment goes here..
+>  	 */
+> -	if (mm_tlb_flush_nested(tlb->mm)) {
+> -		__tlb_reset_range(tlb);
+> -		__tlb_adjust_range(tlb, start, end - start);
+> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->full_mm) {
+> +		/*
+> +		 * Since we're can't tell what we actually should have
+> +		 * flushed flush everything in the given range.
+> +		 */
+> +		tlb->start = start;
+> +		tlb->end = end;
+> +		tlb->freed_tables = 1;
+> +		tlb->cleared_ptes = 1;
+> +		tlb->cleared_pmds = 1;
+> +		tlb->cleared_puds = 1;
+> +		tlb->cleared_p4ds = 1;
+>  	}
 >  
->  	track_pfn_insert(vma, &pgprot, pfn);
->  
-> -	insert_pfn_pmd(vma, addr, pmd, pfn, pgprot, write, pgtable);
-> +	insert_pfn_pmd(vma, addr, vmf->pmd, pfn, pgprot, write, pgtable);
->  	return VM_FAULT_NOPAGE;
->  }
->  EXPORT_SYMBOL_GPL(vmf_insert_pfn_pmd);
-> @@ -869,10 +871,12 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  	spin_unlock(ptl);
->  }
->  
-> -vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> -			pud_t *pud, pfn_t pfn, bool write)
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write)
->  {
-> +	unsigned long addr = vmf->address & PUD_MASK;
-> +	struct vm_area_struct *vma = vmf->vma;
->  	pgprot_t pgprot = vma->vm_page_prot;
-> +
->  	/*
->  	 * If we had pud_special, we could avoid all these restrictions,
->  	 * but we need to be consistent with PTEs and architectures that
-> @@ -889,7 +893,7 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  
->  	track_pfn_insert(vma, &pgprot, pfn);
->  
-> -	insert_pfn_pud(vma, addr, pud, pfn, pgprot, write);
-> +	insert_pfn_pud(vma, addr, vmf->pud, pfn, pgprot, write);
->  	return VM_FAULT_NOPAGE;
->  }
->  EXPORT_SYMBOL_GPL(vmf_insert_pfn_pud);
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+>  	tlb_flush_mmu(tlb);
+
+So PPC-radix has page-size dependent TLBI, but the above doesn't work
+for them, because they use the tlb_change_page_size() interface and
+don't look at tlb->cleared_p*().
+
+Concequently, they have their own special magic :/
+
+Nick, how about you use the tlb_change_page_size() interface to
+find/flush on the page-size boundaries, but otherwise use the
+tlb->cleared_p* flags to select which actual sizes to flush?
+
+AFAICT that should work just fine for you guys. Maybe something like so?
+
+(fwiw, there's an aweful lot of almost identical functions there)
+
+---
+
+diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c
+index 6a23b9ebd2a1..efc99ef78db6 100644
+--- a/arch/powerpc/mm/tlb-radix.c
++++ b/arch/powerpc/mm/tlb-radix.c
+@@ -692,7 +692,7 @@ static unsigned long tlb_local_single_page_flush_ceiling __read_mostly = POWER9_
+ 
+ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
+ 					unsigned long start, unsigned long end,
+-					bool flush_all_sizes)
++					bool pflush, bool hflush, bool gflush)
+ 
+ {
+ 	unsigned long pid;
+@@ -734,14 +734,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
+ 				_tlbie_pid(pid, RIC_FLUSH_TLB);
+ 		}
+ 	} else {
+-		bool hflush = flush_all_sizes;
+-		bool gflush = flush_all_sizes;
+ 		unsigned long hstart, hend;
+ 		unsigned long gstart, gend;
+ 
+-		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+-			hflush = true;
+-
+ 		if (hflush) {
+ 			hstart = (start + PMD_SIZE - 1) & PMD_MASK;
+ 			hend = end & PMD_MASK;
+@@ -758,7 +753,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
+ 
+ 		asm volatile("ptesync": : :"memory");
+ 		if (local) {
+-			__tlbiel_va_range(start, end, pid, page_size, mmu_virtual_psize);
++			if (pflush)
++				__tlbiel_va_range(start, end, pid,
++						page_size, mmu_virtual_psize);
+ 			if (hflush)
+ 				__tlbiel_va_range(hstart, hend, pid,
+ 						PMD_SIZE, MMU_PAGE_2M);
+@@ -767,7 +764,9 @@ static inline void __radix__flush_tlb_range(struct mm_struct *mm,
+ 						PUD_SIZE, MMU_PAGE_1G);
+ 			asm volatile("ptesync": : :"memory");
+ 		} else {
+-			__tlbie_va_range(start, end, pid, page_size, mmu_virtual_psize);
++			if (pflush)
++				__tlbie_va_range(start, end, pid,
++						page_size, mmu_virtual_psize);
+ 			if (hflush)
+ 				__tlbie_va_range(hstart, hend, pid,
+ 						PMD_SIZE, MMU_PAGE_2M);
+@@ -785,12 +784,17 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+ 		     unsigned long end)
+ 
+ {
++	bool hflush = false;
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	if (is_vm_hugetlb_page(vma))
+ 		return radix__flush_hugetlb_tlb_range(vma, start, end);
+ #endif
+ 
+-	__radix__flush_tlb_range(vma->vm_mm, start, end, false);
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
++		hflush = true;
++
++	__radix__flush_tlb_range(vma->vm_mm, start, end, true, hflush, false);
+ }
+ EXPORT_SYMBOL(radix__flush_tlb_range);
+ 
+@@ -881,49 +885,14 @@ void radix__tlb_flush(struct mmu_gather *tlb)
+ 	 */
+ 	if (tlb->fullmm) {
+ 		__flush_all_mm(mm, true);
+-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
+-	} else if (mm_tlb_flush_nested(mm)) {
+-		/*
+-		 * If there is a concurrent invalidation that is clearing ptes,
+-		 * then it's possible this invalidation will miss one of those
+-		 * cleared ptes and miss flushing the TLB. If this invalidate
+-		 * returns before the other one flushes TLBs, that can result
+-		 * in it returning while there are still valid TLBs inside the
+-		 * range to be invalidated.
+-		 *
+-		 * See mm/memory.c:tlb_finish_mmu() for more details.
+-		 *
+-		 * The solution to this is ensure the entire range is always
+-		 * flushed here. The problem for powerpc is that the flushes
+-		 * are page size specific, so this "forced flush" would not
+-		 * do the right thing if there are a mix of page sizes in
+-		 * the range to be invalidated. So use __flush_tlb_range
+-		 * which invalidates all possible page sizes in the range.
+-		 *
+-		 * PWC flush probably is not be required because the core code
+-		 * shouldn't free page tables in this path, but accounting
+-		 * for the possibility makes us a bit more robust.
+-		 *
+-		 * need_flush_all is an uncommon case because page table
+-		 * teardown should be done with exclusive locks held (but
+-		 * after locks are dropped another invalidate could come
+-		 * in), it could be optimized further if necessary.
+-		 */
+-		if (!tlb->need_flush_all)
+-			__radix__flush_tlb_range(mm, start, end, true);
+-		else
+-			radix__flush_all_mm(mm);
+-#endif
+-	} else if ( (psize = radix_get_mmu_psize(page_size)) == -1) {
+-		if (!tlb->need_flush_all)
+-			radix__flush_tlb_mm(mm);
+-		else
+-			radix__flush_all_mm(mm);
+ 	} else {
+ 		if (!tlb->need_flush_all)
+-			radix__flush_tlb_range_psize(mm, start, end, psize);
++			__radix__flush_tlb_range(mm, start, end,
++					tlb->cleared_pte,
++				        tlb->cleared_pmd,
++					tlb->cleared_pud);
+ 		else
+-			radix__flush_tlb_pwc_range_psize(mm, start, end, psize);
++			radix__flush_all_mm(mm);
+ 	}
+ 	tlb->need_flush_all = 0;
+ }
 
