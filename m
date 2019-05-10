@@ -4,79 +4,80 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09A28C04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7363EC04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C468D216C4
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 26C67216C4
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="r7XvTFvU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C468D216C4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WvgmbUmS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26C67216C4
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC7F96B0289; Fri, 10 May 2019 09:50:43 -0400 (EDT)
+	id 3EF5A6B028F; Fri, 10 May 2019 09:50:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7CDC6B0293; Fri, 10 May 2019 09:50:43 -0400 (EDT)
+	id 27DEC6B0297; Fri, 10 May 2019 09:50:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 759166B028D; Fri, 10 May 2019 09:50:43 -0400 (EDT)
+	id A40CD6B0290; Fri, 10 May 2019 09:50:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D226B028D
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 36EF96B0288
 	for <linux-mm@kvack.org>; Fri, 10 May 2019 09:50:43 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 61so2646839plr.21
+Received: by mail-pg1-f199.google.com with SMTP id h14so4067241pgn.23
         for <linux-mm@kvack.org>; Fri, 10 May 2019 06:50:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=dfTZNTkYRHK8kF0M38AMgEw9C3ttVHJ548y3MQnHBKE=;
-        b=G8+wR28SaN4CuNa/3PR4l2EJnaTGNCJ7FxM92Nq8xyDbK1LIXcZ9JmgYdDOUEYYDTh
-         cK4+N3kLxuD2sf3wI9SdvpBah98/huAxVheBG0zeVN/9KXsT+niDNJm67zfl1XODZ1nB
-         bR2vKkPnYrxV6Z7zfQaeUeFhKjmreim9Rm3inCF1tMq/gjOIKPMjzfh3Ma29gJ/l0F8t
-         6xd2mn78BN679HmCLcqbcNALgaNzIp9sruHnq9uUB0HdgIAIKuqqS/D2mABnls73b9/j
-         Cnqg9JTn+a8uqKmOsTQre77qIhqBOiNnC4+ls1V0Otr1uyjF8wGvaLViLDpvcu89nULC
-         kiOA==
-X-Gm-Message-State: APjAAAUoKSMkBlcPfbE1nWVc0L6ngzbFd1eSo2FSkOklHSR4UHxT1Ahc
-	Vyl44SyN86t41tfwqPpub5U8tzSV2u1gsZw5h8Nu2PWUcHhKBZvz8sOnI0w8OAFmctmty5AzGxj
-	PC4yoSfKlWWoYznV/PekloriiqKuVCdLw+ND2t1A6EEV7OBvBTylX78NL6sw5aQ42Lw==
-X-Received: by 2002:a63:4710:: with SMTP id u16mr2821497pga.447.1557496242633;
+        bh=q9WVpS/XRZo3IbNhcOGMhrxuleT/Y4xb+FSNGOlKeoQ=;
+        b=Rquy+5w6Umt4kBYCV6GjMiD6rRuTgmEuuFCrzXdoFlBTr4RiamvO3u8F0bndiou33g
+         fMYghkEll5mHFBBYQ/MKID2dMJsrfjmz3Smdt1ZOk7lyc7aWejHpHVi46asVXJs7jNMr
+         EvByoxTQqCDLMsvH9ljwI8eBeVxU+t4i49JfkUjXqZZonpHUly2p34R50lYRkofVfeG/
+         7fiAsldzJ3pWGVJ7ru9tq0LapJhu6PweD1aoastotmmIcXz9qnFZ5zPFhLOR8Ms6ajup
+         8+T9uKBMjv4lS/MIwC9MkWPcjfd+7jWVIA1ftOk1Ju9QRuPwQy/5d2REDyONSY9NnMXs
+         A0/g==
+X-Gm-Message-State: APjAAAVM0HYEk+N7EcVXXE1KzYFARAqMdJkQCzgSLo4oqDx5usQgyM2D
+	sXgJ8+iu1DuRWQMmLti4TrtsKN+lY/teCR53QM/DeEqJ07pToYNula8VsZxzYrN8w6IiKgj9ryQ
+	QnfeGlqNMwD2kFJlDM4AzJmN8MfYUqZsiffKJypoXYEKJub+9IL41IAceDxCSvwnQFg==
+X-Received: by 2002:a62:2e46:: with SMTP id u67mr14523532pfu.206.1557496242681;
         Fri, 10 May 2019 06:50:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+GF16ObzBonVdVoUXCD8PA/K3xbEHoxxbJbLKE6VEOjUtRoPTdi3lZsWIfS582Kk/urrz
-X-Received: by 2002:a63:4710:: with SMTP id u16mr2821319pga.447.1557496241087;
+X-Google-Smtp-Source: APXvYqzg9Fg7hAF2VClkjVbShwzweJPoMQOZU6fthZOUsUV8iBS3v/pvXrWlN2oh99WW8CJJ2PzN
+X-Received: by 2002:a62:2e46:: with SMTP id u67mr14523369pfu.206.1557496241389;
         Fri, 10 May 2019 06:50:41 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557496241; cv=none;
         d=google.com; s=arc-20160816;
-        b=Brum14NBK+iscMQNdtrXtl6jqkQF1Dx6MBNok4lFnFa6EZ2qLutbUEuSODdMjxj0cy
-         U8r6Ny+DaJf9VR0JyNmm+6FSP7mR188Ph1zrV04SUXes+GI6H+ZMvf/yehmTnOAU/9Uj
-         zbEgj81Up3/aHT/RPWUAVniL03lGD7stKzGQHmgFAGIXwjoriAzXf35Q3U2Qmfadz4XR
-         wprhtj6j0XvzRWyMFLb96nhFAMYa3ONnhuon9WTWgSL9kezEX9vBn5SK3FpguwoKwPTW
-         XvhzS8Be4t6lBm3DVEAIc4efV4AEqTx3XFtbR8geXWX7QSdGaDFrDnBGnOP3qVr8FmGn
-         L1EQ==
+        b=N3PxyrgUbN7zchhLmu8b8v0B3BlohLqXh5Gp3LxLa/96UKKhHV+bm9AY5EAjg06RmO
+         hcXozsokAfhy3uZKxhxxz18GjZ2WmibrAbrpwViH/CrZZmMNd02IlPrpqjbzpARklDVJ
+         nz7QxQsu4RjksdE13RYEVbg8WjC+vpptRysempecQGPkUA6BNC5Qb3k9mz2qURvP3jgu
+         /viFLrrXMQ457wE/Jc8SALqZiEt9TeVfI9FNLTgK9BqCvxMZLDnBZ8yq9wFZZdDxQyr4
+         m0NktoogcOw+11LIghKBbprh0G4shJTJFJ2X3khquE0X8ShFuwbPKjo/0Fipky/chiug
+         eH6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=dfTZNTkYRHK8kF0M38AMgEw9C3ttVHJ548y3MQnHBKE=;
-        b=x9TiAREFVLw+0cTObCElhEci0246Z7rXyE3sVQactd/gcUkUvTPrfl0aQFBEXBJZNg
-         Uku3lGSEarlLXdoSPB1x2tIs+Vuh420WZme93pxr/v0p9WFAQ/+yYJmmQZKzcqbbWbdy
-         kleGma4rnLRSTsJHYZ2PErvpJAayPZc2tCTKQMt1taK3rf9tbc+/o95BVkTvQ9uzLXKn
-         NQbuSmFjaSQeuLgULvqOE0g/h3n7wDu4YH7mLlvtdMbdb8E/rhzKkjf/CF2jjGFg65Kn
-         mttZk2OMVCVaKymFzfu6KDuR5ZokNa/myI02BkOOAv6W4p4zoRc4TiGfa9Bc1e7AiAv0
-         z8JA==
+        bh=q9WVpS/XRZo3IbNhcOGMhrxuleT/Y4xb+FSNGOlKeoQ=;
+        b=PcKh7EKRJhJ9b5/X4FG7U0vkNIUS3in2/iMhMT+BNxGnBaPar5OjvyoLn1YWstdOXK
+         Dz3Q01D17CjexGiTFmgr6w9V4VATYXLuvGB1m4bxAjsLMCEwTG5GACT13+CQvmCtlCU+
+         xZbotKgUxiVlHRxzOhxD/RG+DnwZlc7Hfd/ltZL6CW+a1ln/HFJqWSgfMDh0u4utpgwu
+         Sj9sE1TWxI7cSRNrbst03Rce6OmTXW/FWpIiriYi1YjEnTSlkxBSBRyVVMZAN7cD5aKc
+         3e0HeOERAPKNEUIbQjGwotc+so4jhc/UwroSLDWNRSBxmlNsAN1lqe5l512iGw1Qvshh
+         4hUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=r7XvTFvU;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WvgmbUmS;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q197si7116983pgq.411.2019.05.10.06.50.40
+        by mx.google.com with ESMTPS id k13si7264703pgh.410.2019.05.10.06.50.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 10 May 2019 06:50:41 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=r7XvTFvU;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WvgmbUmS;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=References:In-Reply-To:Message-Id:
@@ -84,20 +85,20 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=dfTZNTkYRHK8kF0M38AMgEw9C3ttVHJ548y3MQnHBKE=; b=r7XvTFvUvtbaqkLFA0EBIY99Z
-	UEhWg2KML4+gAOsDFbJFwYFz/0eHVayWVfm+dAYrATCf+k94BVXktRkkIuaNekUM9bOzPDTsigkk3
-	rbavvdW18UMXltdkdwjjwPMuVcrTsfXXuxQC6r6yzzK5hwQZavvyJ2o5zUzmNhYFVlVJRW2Mcxm8x
-	hLXxDlYocLWq24OOizh99SYfjh732Zej/0szhF81+8B+0ASVGQW/oPvz29rGnOi/WPVggJy51YMJT
-	tMIfPWxlbRoZx3Os0gcCMB1E4e0V1v+WsgXTntD/UDzqfRuR4vzpotkfQ3pvdUFgdFQFCZ7nFgKwW
-	6R7fhJi3g==;
+	 bh=q9WVpS/XRZo3IbNhcOGMhrxuleT/Y4xb+FSNGOlKeoQ=; b=WvgmbUmStQViYakqufiN4FIn1
+	lgm/TlYgHi600Llt/L9Ii78ZqHf1cltvEXFjJocIzTFpyt+1nvLPk2BoCOj3O/apZj34mSsIAaGN3
+	AXZXysEDw9B/9gpozNWuyWdhfAF3PFn+aaBBX69q6rFvoRguojWs5MAjZ6ZJV/TQmgygBSwSbqZbm
+	P4GODopxHzI7Sb0FDUfBAd8DdH0iUCV5YhDBajkPKKegaDHBq/wlpCb8BwhWfG6MRHLSZl9r3qPvD
+	sI1hPIqKDb2MKToxM0ePVJz6Y46f9djvzCPXylyLC/ixQ74BwYRlamhPsblDjeP3HeT1K3E+Lty8U
+	QhGSuOUvA==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hP5v6-0004TY-IU; Fri, 10 May 2019 13:50:40 +0000
+	id 1hP5v6-0004Tj-Sz; Fri, 10 May 2019 13:50:40 +0000
 From: Matthew Wilcox <willy@infradead.org>
 To: linux-mm@kvack.org
 Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-Subject: [PATCH v2 03/15] mm: Pass order to __alloc_pages in GFP flags
-Date: Fri, 10 May 2019 06:50:26 -0700
-Message-Id: <20190510135038.17129-4-willy@infradead.org>
+Subject: [PATCH v2 05/15] mm: Pass order to alloc_pages_current in GFP flags
+Date: Fri, 10 May 2019 06:50:28 -0700
+Message-Id: <20190510135038.17129-6-willy@infradead.org>
 X-Mailer: git-send-email 2.14.5
 In-Reply-To: <20190510135038.17129-1-willy@infradead.org>
 References: <20190510135038.17129-1-willy@infradead.org>
@@ -113,50 +114,62 @@ Matches the change to the __alloc_pages_nodemask API.
 
 Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
 ---
- include/linux/gfp.h | 8 +++-----
- mm/mempolicy.c      | 2 +-
- 2 files changed, 4 insertions(+), 6 deletions(-)
+ include/linux/gfp.h |  4 ++--
+ mm/mempolicy.c      | 10 ++++------
+ 2 files changed, 6 insertions(+), 8 deletions(-)
 
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index c466b08df0ec..9ddc7703ea81 100644
+index 9ddc7703ea81..94ba8a6172e4 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
-@@ -478,11 +478,9 @@ static inline void arch_alloc_page(struct page *page, int order) { }
- struct page *
- __alloc_pages_nodemask(gfp_t gfp_mask, int preferred_nid, nodemask_t *nodemask);
+@@ -511,12 +511,12 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ }
  
--static inline struct page *
--__alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
-+static inline struct page *__alloc_pages(gfp_t gfp, int preferred_nid)
+ #ifdef CONFIG_NUMA
+-extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
++extern struct page *alloc_pages_current(gfp_t gfp_mask);
+ 
+ static inline struct page *
+ alloc_pages(gfp_t gfp_mask, unsigned int order)
  {
--	return __alloc_pages_nodemask(gfp_mask | __GFP_ORDER(order),
--			preferred_nid, NULL);
-+	return __alloc_pages_nodemask(gfp, preferred_nid, NULL);
+-	return alloc_pages_current(gfp_mask, order);
++	return alloc_pages_current(gfp_mask | __GFP_ORDER(order));
  }
- 
- /*
-@@ -495,7 +493,7 @@ __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
- 	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
- 	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !node_online(nid));
- 
--	return __alloc_pages(gfp_mask, order, nid);
-+	return __alloc_pages(gfp_mask | __GFP_ORDER(order), nid);
- }
- 
- /*
+ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+ 			struct vm_area_struct *vma, unsigned long addr,
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 310ad69effdd..0a22f106edb2 100644
+index 8d5375cdd928..eec0b9c21962 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -2011,7 +2011,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+@@ -2108,13 +2108,12 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+  *      	%GFP_HIGHMEM highmem allocation,
+  *      	%GFP_FS     don't call back into a file system.
+  *      	%GFP_ATOMIC don't sleep.
+- *	@order: Power of two of allocation size in pages. 0 is a single page.
+  *
+  *	Allocate a page from the kernel page pool.  When not in
+- *	interrupt context and apply the current process NUMA policy.
++ *	interrupt context apply the current process NUMA policy.
+  *	Returns NULL when no page can be allocated.
+  */
+-struct page *alloc_pages_current(gfp_t gfp, unsigned order)
++struct page *alloc_pages_current(gfp_t gfp)
  {
+ 	struct mempolicy *pol = &default_policy;
  	struct page *page;
+@@ -2127,10 +2126,9 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 	 * nor system default_policy
+ 	 */
+ 	if (pol->mode == MPOL_INTERLEAVE)
+-		page = alloc_page_interleave(gfp | __GFP_ORDER(order),
+-				interleave_nodes(pol));
++		page = alloc_page_interleave(gfp, interleave_nodes(pol));
+ 	else
+-		page = __alloc_pages_nodemask(gfp | __GFP_ORDER(order),
++		page = __alloc_pages_nodemask(gfp,
+ 				policy_node(gfp, pol, numa_node_id()),
+ 				policy_nodemask(gfp, pol));
  
--	page = __alloc_pages(gfp, order, nid);
-+	page = __alloc_pages(gfp | __GFP_ORDER(order), nid);
- 	/* skip NUMA_INTERLEAVE_HIT counter update if numa stats is disabled */
- 	if (!static_branch_likely(&vm_numa_stat_key))
- 		return page;
 -- 
 2.20.1
 
