@@ -3,100 +3,98 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-3.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8328C04AB3
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 12:56:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9620C04AB3
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:00:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2E9D2177B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 12:56:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2E9D2177B
+	by mail.kernel.org (Postfix) with ESMTP id 752BE21479
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:00:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 752BE21479
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 191276B0281; Fri, 10 May 2019 08:56:58 -0400 (EDT)
+	id EAD266B0282; Fri, 10 May 2019 09:00:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1415D6B0282; Fri, 10 May 2019 08:56:58 -0400 (EDT)
+	id E36876B0284; Fri, 10 May 2019 09:00:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0305E6B0283; Fri, 10 May 2019 08:56:57 -0400 (EDT)
+	id D73436B0285; Fri, 10 May 2019 09:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AACD26B0281
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 08:56:57 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id z5so4015103edz.3
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 05:56:57 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A308A6B0282
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 09:00:30 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id n23so4020519edv.9
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 06:00:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:mime-version
          :content-transfer-encoding:date:from:to:cc:subject:in-reply-to
          :references:message-id:user-agent;
-        bh=/6Zze3qXUGgsFeFUevlaAX/mtgmxc2dKqlNLAmBq2uI=;
-        b=pwvEP9ttp4cjNyC7GfHdn1kEyj1lCrwU1rp3H+Re/cmf7R9xFgK1igM2a6U2TNsr3P
-         BYLoWuf6OPe3Sv9xU7qrM9EqyHrxAJSzoIuZypZryGDlWkJdsft5xV4x4tjHvf1cR26R
-         ogCQ2NRNngVWByD6NiKTAI6lCRk/J5TZzKJFW1n/Gk4LiQhZw7eV2qqMpBLDCmENILoD
-         GnmE6SttAjigODCA7wNlcfjBeS4U+bcOl0o27YuTihKywfR1RUTeX+LgV9an47Uo6Mw7
-         XtqGbhwYIXl8kbyRxBxqO80Fqj/91PRCID0ga9XU5q7BluAASo7i4gEGkYkDbEQncRFj
-         BHtA==
+        bh=NBREdM08tymyVQfiChpYiD2+PTE/DbgIN8n0yrgglKs=;
+        b=IxRz2cRNiu0UUIVII9CHo8S1T+MLDqfqigFDf+d2+q8zeQt97vbn/tX4F7ddt6zFnU
+         70pDj9vIBmtQo9IWXkYZ+qceidKNPvN5jYcQftsRedPZTAwmrr6bqDCMT8k4P+V0ZR/7
+         dsl8cb3KmwJkTE6rzSDNYxGFS3k+MEOkVdqmN6Jx2iJitXlAXJ8qamsRcZMkj6LXR84X
+         ctDWgR9E44QHJf/L4Cif0851SD/tA7sJOI9w52Jd9rFXT7oDfgy/oZUHyRwrBR0dICv6
+         ivKNdb1Zoc22cbuc71wn73XnDMNrqFlWnxRtpM3nfFxxPLF5oCIoSzN/q44nMIsy+Jya
+         bkNg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAXXgc4rJqc2Z53xA6XKHy8D8e54jlKt97XCuOckG7tmqcrA4mz0
-	GOfbviFu0AEjOYmoEJNpbOmQVm2De/sr8lwqbMhVytfVf0ffxjqWe4lk42ixkMnuM8GIWcFKq/w
-	o2MN3t5QsVr3xZ+tW6EeR3lCUMe4AL+Hg0vx47G/VCffUzdDf1nSt8pbInP/ZtRopYw==
-X-Received: by 2002:a50:87f5:: with SMTP id 50mr10490243edz.58.1557493017265;
-        Fri, 10 May 2019 05:56:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjzKBCAF5Fpa+69+9FWFZkdlj5ZbFLb9nKSeboWORanYIDpZmqfNOv0Zt2IEEVDkX1UFcz
-X-Received: by 2002:a50:87f5:: with SMTP id 50mr10490141edz.58.1557493016078;
-        Fri, 10 May 2019 05:56:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557493016; cv=none;
+X-Gm-Message-State: APjAAAXEJyjaeV+uUjk6oIYtzdqGseMLrZ4QRlPBR3bbqavu+s3BQYM0
+	Ap++AA8buE7d+b+MZINwSTTSEFpqRv+du53lfQUSJLobn5DrwXE2usnZLbw9luSJRBCXck/O06c
+	SiiCuwiLhwNKrothoixmSamhCkhjAchrk8ZDF50GVtJmdBrA6dCT1E+mwuFCRuTzK3g==
+X-Received: by 2002:a05:6402:149a:: with SMTP id e26mr10679372edv.241.1557493230254;
+        Fri, 10 May 2019 06:00:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzRMGCnUyTATZUiHFazkGHpf1KTqUsdojL4tJ39RGV8k754xWOxn5nbFEZM+7v9p1YdGrx
+X-Received: by 2002:a05:6402:149a:: with SMTP id e26mr10678665edv.241.1557493225989;
+        Fri, 10 May 2019 06:00:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557493225; cv=none;
         d=google.com; s=arc-20160816;
-        b=pHrHn1to2Q3bFzLd/CbOs6TTPdwehcJeGorBeLNyQCyS+dWV3cWG/vh0/j5Cu/18xM
-         cmactCpQfz83p9N9FTtSaAkNvDeVlNtwfmOMhrSfDYs/f45LBQxiF6seuCV7zrPchbBs
-         Uom/EVJwcE/U0wPD3MYEqUlpGjUqm+XQTitYBC1TK/2ZprEqVu2CAMhl4UYiyHAFeH7i
-         I1AHaCkvPhy17Y2uQHk0SH68AGCIb0fpwn/YxbFJLosw1+w9/iHC06TaowVVZGRI03DL
-         wMjd3laA45OM3GMa+bZpFpWfPP3oGEXiguzFLn12r0XlKc8frKg1eyzfJmpIpFeys2Ix
-         O03A==
+        b=Eck4844N8kKokSWV0gW/0i9O1X1dywrhbXV1h9MGZjUsN0MgoOKYB9qyVV+mzVx7Kj
+         2FtbI8U3z5Pg5+/paNyhEYOy7ySc6/LdTwdxK2xk0SNv5Ve5ic2tQahkEOCB+itdK1PB
+         3oVZrkcTm6dWmH1FsJYjUk1CbZqLdgw8tgAlCDGM05t/16RtLYy+ufMERh+OwdyXsUBa
+         5y0o+HgYPYVgkOZC0T1dZ59aRqWKkzOpjLC8DkMoI+d2DbcLj2rNIHAyE+HCdKiahroE
+         KpGJug+f5H5Uz0fqX876hgnnYrpzjY2HmkJ/Z8t2Xe4LC431K8tiN3tZ12c2tX7tFWLx
+         KKgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:message-id:references:in-reply-to:subject:cc:to:from
          :date:content-transfer-encoding:mime-version;
-        bh=/6Zze3qXUGgsFeFUevlaAX/mtgmxc2dKqlNLAmBq2uI=;
-        b=uarQOvXBc15W82SgBlk3Y9EfyJwujdChqFtrAf9jx/Q4pPBRGQhzct2Y/o2anoNwSu
-         efkY0UlnT9vi/cpsZ5/TLZYrO9V0GDxOIxni36l1oeC6kcjPurO52SoI6BG27lvfoIke
-         t+76zqGf/BbVQNZwk4mQChnGAH4Yrxq5cTyyy0AHVX1YMepvrlJXqI4km/dUdRuNq6hs
-         gVQgAM4X2Zh14Ej6BnfmREcCzuzLheQWUwBy9gwq1vr8rdpOFwKrAlGZ3ZfPpvCSt0N6
-         TH5WVMaHV2edeH5S9Be/M1wTVIaxcJx4X0vEQ7Saw3dAzFUXNOoug07FJElnjwwUcbxQ
-         TDoQ==
+        bh=NBREdM08tymyVQfiChpYiD2+PTE/DbgIN8n0yrgglKs=;
+        b=mFPaIbVxKKIXnCiRRvKHtsRikbMMJsOPYYb6Kv5ZYVlz6kejnuuGgT+7sSEX/UX7EX
+         bXbhS92xUKnacpCwkz3bjoI9bkJX9z2UCMyhfHqJ+j91fqU+QIRXodIetqI13txRuCI6
+         W6RL7xd21GY4Z21am/gmfzpaFMAVHEKSswddXgXQapjliHaQNfi7AtgxVWlC0+SiAgC/
+         sj2bMDnrMc4lfCJzffmXc0UN2C8sEV7F6AIxjYKB8niSORzwSF8x7ILiPKQnndklFg/1
+         mXajtnmtn6tN57O+o/DZWvA7A/vHWljaRRYCs+67d40LnDzzmQol1GiVkJKX2OeXR95Q
+         giGg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ot8si1422666ejb.275.2019.05.10.05.56.55
-        for <linux-mm@kvack.org>
+        by mx.google.com with ESMTPS id l4si383658edd.297.2019.05.10.06.00.25
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 May 2019 05:56:56 -0700 (PDT)
+        Fri, 10 May 2019 06:00:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 851FFAE2C;
-	Fri, 10 May 2019 12:56:55 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 749EDAEC6;
+	Fri, 10 May 2019 13:00:25 +0000 (UTC)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII;
  format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Fri, 10 May 2019 14:56:54 +0200
+Date: Fri, 10 May 2019 15:00:25 +0200
 From: osalvador@suse.de
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>, Vlastimil
  Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, Pavel
- Tatashin <pasha.tatashin@soleen.com>, Jane Chu <jane.chu@oracle.com>,
- linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v8 03/12] mm/sparsemem: Add helpers track active portions
- of a section at boot
-In-Reply-To: <155718598213.130019.10989541248734713186.stgit@dwillia2-desk3.amr.corp.intel.com>
+ Tatashin <pasha.tatashin@soleen.com>, linux-nvdimm@lists.01.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, owner-linux-mm@kvack.org
+Subject: Re: [PATCH v8 08/12] mm/sparsemem: Prepare for sub-section ranges
+In-Reply-To: <155718600896.130019.3565988182718346388.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155718598213.130019.10989541248734713186.stgit@dwillia2-desk3.amr.corp.intel.com>
-Message-ID: <5ce1d8dfe8e485616f9ade30fade88a5@suse.de>
+ <155718600896.130019.3565988182718346388.stgit@dwillia2-desk3.amr.corp.intel.com>
+Message-ID: <3b031a3e721fd81dcfd5fa344e2a5bd0@suse.de>
 X-Sender: osalvador@suse.de
 User-Agent: Roundcube Webmail
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -105,33 +103,23 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-05-07 01:39, Dan Williams wrote:
-> Prepare for hot{plug,remove} of sub-ranges of a section by tracking a
-> sub-section active bitmask, each bit representing a PMD_SIZE span of 
-> the
-> architecture's memory hotplug section size.
+On 2019-05-07 01:40, Dan Williams wrote:
+> Prepare the memory hot-{add,remove} paths for handling sub-section
+> ranges by plumbing the starting page frame and number of pages being
+> handled through arch_{add,remove}_memory() to
+> sparse_{add,remove}_one_section().
 > 
-> The implications of a partially populated section is that pfn_valid()
-> needs to go beyond a valid_section() check and read the sub-section
-> active ranges from the bitmask. The expectation is that the bitmask
-> (subsection_map) fits in the same cacheline as the valid_section() 
-> data,
-> so the incremental performance overhead to pfn_valid() should be
-> negligible.
+> This is simply plumbing, small cleanups, and some identifier renames. 
+> No
+> intended functional changes.
 > 
 > Cc: Michal Hocko <mhocko@suse.com>
 > Cc: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Logan Gunthorpe <logang@deltatee.com>
 > Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Tested-by: Jane Chu <jane.chu@oracle.com>
+> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
 > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Now that the handling is done in pfn/nr_pages, it looks better to me:
-
 Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
-Thanks
-
 
 
