@@ -2,259 +2,154 @@ Return-Path: <SRS0=iTus=TK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F32FC04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 16:16:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 89F1AC04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 16:23:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 293452070D
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 16:16:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="jTF0ls4c"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 293452070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 510A720882
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 16:23:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 510A720882
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7B1136B0003; Fri, 10 May 2019 12:16:38 -0400 (EDT)
+	id DEDC86B0003; Fri, 10 May 2019 12:23:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 762356B0005; Fri, 10 May 2019 12:16:38 -0400 (EDT)
+	id D76BA6B0005; Fri, 10 May 2019 12:23:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6294C6B0006; Fri, 10 May 2019 12:16:38 -0400 (EDT)
+	id C3EFB6B0006; Fri, 10 May 2019 12:23:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4148F6B0003
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 12:16:38 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id v11so4550338ion.22
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 09:16:38 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB516B0003
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 12:23:28 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id n21so6721364qtp.15
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 09:23:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ikyWD5tw3+Fa2klAswpQ3zG257Y/SYQKpSWVthHNaDQ=;
-        b=Vvbrn6cCNpUuS2WB0IvBnYshn5rnVKPUkiOf3SFbb9maJOZh1FnDvPKV/srYxzAeDW
-         q2+Lrk96c8h0ai3tsHp3ZPNdhIs3G+6RSbyrck1NTk+P/fGVSR9dYY8gYWd1z5tr97lK
-         YLyJwPek9lr+kN8EmQzVvwVuyK+cB9Q0aD6Xoys3N+brDZnV+EM7kWVI+RbDPWSmorRR
-         jW2P5+nR7SwRQR8x5a2O6FmtHaGr0CfiQuONzp53QFUsIubvo1RtK2/gFRb5mVfZTKfE
-         QtogutkOf4iNYzHkksjWFpFmEzFzCKrlWa+fsUSNpA5HJE06xlQW/9cKcXi98LM4FJ/y
-         RNyw==
-X-Gm-Message-State: APjAAAX/uG313L2yQd/Ff4M8s0aeToKqC2QzTJm5Bt44v6HLhHnh3G41
-	dGI55m7UpCK6vVmqFQtI0vmDQo+eF76pC/n4dXXG9AHL6y0USzFIzq5YtxDaJpNK3w5MZm9L0Ks
-	weiCndj2wcbov/R4+q3i6vwTM/9ciS0Yn4bAptHdMw0V2WqgEhSxnipHRq/garTd/uQ==
-X-Received: by 2002:a24:8d42:: with SMTP id w63mr8399579itd.114.1557504997956;
-        Fri, 10 May 2019 09:16:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5l/DpBJ92jKvx3tL3y+jmZMfS7ndSz9+pJybbtKhkDtU9IXWitfYr5B2fyHVWS0A9rQv+
-X-Received: by 2002:a24:8d42:: with SMTP id w63mr8399495itd.114.1557504997100;
-        Fri, 10 May 2019 09:16:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557504997; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:organization
+         :from:in-reply-to:references:to:cc:subject:mime-version:content-id
+         :date:message-id;
+        bh=0V6ssH/ZsWY6BA9FaRBVW8yCxaXZ0hWMnRzrL8jpJ9k=;
+        b=Z+wFdRLW7N7pYcINNMWRIcY/RTwC9aJMwCS9Bgl90B2GsPrA1UbuSscOixxVC6MG/w
+         4nTj/amuRCyLW6cq6uTlGrjH5BIitEp3tqqfL5Fnt8ta0UGSKrei7h1BOzDn18M08wmb
+         lsk2ElQxMtAMratYT4VoeKoDZpLY9Sy6zqCbZE3AN9lv1Qx/aYQA+6ShrdjOBglP52eS
+         P/3F0idVgtki0lBwDH551LcZAiKvc/2KKzv4wVim11pFZQdaL7twDWQ1HYRjPuFjATmU
+         DfJED5pD1EA00P13vGwfdn8YZpDBg/G8ThpL9Uj8RMVdNcoWWBxK6xq1f21SQKt7kxKu
+         r39g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWckZDkVSW8EnhHXpHHVASsnlwBvXoqRSY0vJ29WKWbf9juvG7o
+	vGBEI0xzV+UEuTv6uapTHGk17iEsTUXaNPlhARunsnoBJpGT4zVtWU7bGz98H68gHrAWf6kiLYc
+	DlG1VrcrMq+5o6rs9Wxe6ZcRNkrIYN0IRRxbPSuUP/S0RwHhxZ+ysdYqBvMNjugfGaA==
+X-Received: by 2002:a0c:e583:: with SMTP id t3mr9997559qvm.74.1557505408434;
+        Fri, 10 May 2019 09:23:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxsC0FpzLjaKYPZLVj5dB5J5erMpO3ZdZ3UeEmtIqTg69/nCnYiNg8gR4rkrfMrcXJgGveZ
+X-Received: by 2002:a0c:e583:: with SMTP id t3mr9997522qvm.74.1557505407870;
+        Fri, 10 May 2019 09:23:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557505407; cv=none;
         d=google.com; s=arc-20160816;
-        b=Goy8u9RTAWiKiM+yEGpM6BEZq6ZyVn7lxX7hJhxuW42eIE5v0rM4YTwhkbL+LSOojy
-         al4yS2kZh1Uby2i9jLklRcEg78SyKrexKfvMhw/BvIudlg/HKbH36tqQ6x1FGBaxwnki
-         Wytz6d+Lx1ySUFMbmWBjkV6HUtrbHFEuAsDvmPCmkju+q1Kb4qMll/zgflc3LS93oTZF
-         L7dcXcf6llFUhmLCx+Kso9eWINQ4UF96EJF0q/z/CC6gjsuE4lfBBfyIlBwVU7zWeTc6
-         ySSc6y/9faIGjOHS70fo3Okcu1lTPf9gGXId+ty0KkjJ7UkCltdt/Wuy3dsRnoAYPzRC
-         T/PA==
+        b=GcKw+Ektx8TlZRONKpbfv1e3E/bY7q9uFsXLuX7Qn3STQ7AG9Faclp1i9K9mBbVTHU
+         iIZl5es3VXf9l+x8Rcb9+UzFnTHFM256u4GFLanF444rLXsOyCAJteBaxbOpgEJrYMnS
+         VcWjRnr1GbrFbOKGCbcPC09ucO7LneMgjzzcNOA9a4jF+ElS3l720nVOE7ZCoDG6mAZU
+         LSwe0RNeva24GLzK2zV3S1Q1MRs2hqlF7Tztx3Roc+l+vLYAgQXVnSI9kvdJUeo18ohM
+         3Af6Oel+5oT7aPp5XvMGy8bNGhu3QIKt1KwdzDUClnczFEb2oyr0JiwvYOMh1OhcAc0b
+         vb0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ikyWD5tw3+Fa2klAswpQ3zG257Y/SYQKpSWVthHNaDQ=;
-        b=i08D4PY/rCKkXNHcYcGbi86+nr76tHhHUK4l1lRYpPlaVpjsbNUhzzaw0aDY7x9Rcl
-         6MJsW/DRc7THRGkozq9a/2I3zWjKAawTKEFW/9MEiJZJFtx56gIEUVrAssfu6Eo/eq40
-         BKN/lAulniSRgvp6tzgNHOE6lWN309Y5nzW31B3RYFCrySSUrIgZC1Z8A/rdRSSyFidA
-         BaurKcgR/UI/P5HTOTOmvxgis5W+vkypGuT/Gap1IwXFQM4+4gPpJtQoTaQ4J5KC4L5P
-         ovK6Pgb8HplH4SsE9n9HquZnHVBz+mYCgIym4qaUMP40dvGc15tYPYc/T8L44w4pyWfG
-         9iug==
+        h=message-id:date:content-id:mime-version:subject:cc:to:references
+         :in-reply-to:from:organization;
+        bh=0V6ssH/ZsWY6BA9FaRBVW8yCxaXZ0hWMnRzrL8jpJ9k=;
+        b=tm6xK1x8SvLaadFgqfmE9igDUhMJOumAdclHz0kW+P3R5pTK3fDh/0njemV60xRrSG
+         5ELbcwPWjU8VBhOP98NGNoUE1wu1Fhya529Q2HVxIzdPlRNQnRxvn9snoIojPvmgDAsv
+         ypCZF9TMcs58KEVbZLDEhJjzdNXMS7dkMFqAaJLVjKx10uTWRDKbZaissIXOF2tuT0+s
+         SuTCEFxeMW7p+ROjoJYk22XlOu4zt5VkbTECs+z7NJ64OT7AQ9amNY+jXcnZPJPKsR/y
+         sAN62FhBrJLApmHfVJApw2242G2GmE8rPYXoaHoqzAPvOww8qM16wd4PoWA5mLB2Ek4/
+         OKDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=jTF0ls4c;
-       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id j196si3819856itb.62.2019.05.10.09.16.36
+       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h4si847095qvd.18.2019.05.10.09.23.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 May 2019 09:16:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Fri, 10 May 2019 09:23:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=jTF0ls4c;
-       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AG8faU027900;
-	Fri, 10 May 2019 16:16:22 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=ikyWD5tw3+Fa2klAswpQ3zG257Y/SYQKpSWVthHNaDQ=;
- b=jTF0ls4cyPu4lSedw8dhdKuv+vpLCt0VH3bLgDV9dvGWnvAVyKs31jEKWxt23CxWULLe
- KdKut0Bqm/TJKO/jJzsWynABfRlBIs8SJs4xOeoYPDb3KD0IHG7KBeJo5FxJgkD+AhXw
- CFZOeUR/vri7jNs8vQaK2dJgqlPlpR8RMPBLJXtdvnovfc14TIJ+JFvbc6f+Fi9by9yA
- RWK/2h22VkMcoqAg4JfIVgk6812bBv2eGY1biLyyCsCZxQB2gRme7+xocJJq6CDx/Fnz
- MrTVuCkawwTYm0ebBeD30KgDpatU8Jk+d022WGuXpOS2WXl2+Vd4j5rJ6u5GvvCCouIE Jg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2s94bgj6dx-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 10 May 2019 16:16:21 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AGFATp008060;
-	Fri, 10 May 2019 16:16:21 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2schw0gr97-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 10 May 2019 16:16:21 +0000
-Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4AGGIAk029191;
-	Fri, 10 May 2019 16:16:18 GMT
-Received: from ubuette (/75.80.107.76)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 10 May 2019 16:16:17 +0000
-Date: Fri, 10 May 2019 09:16:07 -0700
-From: Larry Bassel <larry.bassel@oracle.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Larry Bassel <larry.bassel@oracle.com>, mike.kravetz@oracle.com,
-        dan.j.williams@intel.com, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
-Subject: Re: [PATCH, RFC 2/2] Implement sharing/unsharing of PMDs for FS/DAX
-Message-ID: <20190510161607.GB27674@ubuette>
-References: <1557417933-15701-1-git-send-email-larry.bassel@oracle.com>
- <1557417933-15701-3-git-send-email-larry.bassel@oracle.com>
- <20190509164914.GA3862@bombadil.infradead.org>
+       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 31B92309264F;
+	Fri, 10 May 2019 16:23:27 +0000 (UTC)
+Received: from warthog.procyon.org.uk (ovpn-120-61.rdu2.redhat.com [10.10.120.61])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 274125ED33;
+	Fri, 10 May 2019 16:23:23 +0000 (UTC)
+Organization: Red Hat UK Ltd. Registered Address: Red Hat UK Ltd, Amberley
+	Place, 107-111 Peascod Street, Windsor, Berkshire, SI4 1TE, United
+	Kingdom.
+	Registered in England and Wales under Company Registration No. 3798903
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20190510135031.1e8908fd@carbon>
+References: <20190510135031.1e8908fd@carbon> <14647.1557415738@warthog.procyon.org.uk>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: dhowells@redhat.com, Christoph Lameter <cl@linux.com>,
+    Andrew Morton <akpm@linux-foundation.org>,
+    linux-mm <linux-mm@kvack.org>
+Subject: Re: Bulk kmalloc
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190509164914.GA3862@bombadil.infradead.org>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905100110
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905100110
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <3260.1557505403.1@warthog.procyon.org.uk>
+Date: Fri, 10 May 2019 17:23:23 +0100
+Message-ID: <3261.1557505403@warthog.procyon.org.uk>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 10 May 2019 16:23:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09 May 19 09:49, Matthew Wilcox wrote:
-> On Thu, May 09, 2019 at 09:05:33AM -0700, Larry Bassel wrote:
-> > This is based on (but somewhat different from) what hugetlbfs
-> > does to share/unshare page tables.
-> 
-> Wow, that worked out far more cleanly than I was expecting to see.
+Jesper Dangaard Brouer <brouer@redhat.com> wrote:
 
-Yes, I was pleasantly surprised. As I've mentioned already, I 
-think this is at least partially due to the nature of DAX.
+> > Is it possible to use kmem_cache_alloc_bulk() with kmalloc slabs to
+> > effect a bulk kmalloc?
+> 
+> Well, we have kfree_bulk() which is a simple wrapper around
+> kmem_cache_free_bulk() (as Christoph make me handle that case).
+> 
+> We/I didn't code the kmalloc_bulk() variant.
+> 
+> What is you use case?
 
-> 
-> > @@ -4763,6 +4763,19 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
-> >  				unsigned long *start, unsigned long *end)
-> >  {
-> >  }
-> > +
-> > +unsigned long page_table_shareable(struct vm_area_struct *svma,
-> > +				   struct vm_area_struct *vma,
-> > +				   unsigned long addr, pgoff_t idx)
-> > +{
-> > +	return 0;
-> > +}
-> > +
-> > +bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-> > +{
-> > +	return false;
-> > +}
-> 
-> I don't think you need these stubs, since the only caller of them is
-> also gated by MAY_SHARE_FSDAX_PMD ... right?
+afs_do_lookup() allocates an array of file status records and an array of
+callback records:
 
-These are also called in mm/hugetlb.c, but those calls are gated by
-CONFIG_ARCH_WANT_HUGE_PMD_SHARE. In fact if this is not set (though
-it is the default), then one wouldn't get FS/DAX sharing even if
-MAY_SHARE_FSDAX_PMD is set. I think that this isn't what we want
-(perhaps the real question is how should these two config options interact?).
-Removing the stubs would fix this and I will make that change.
+	/* Need space for examining all the selected files */
+	inode = ERR_PTR(-ENOMEM);
+	cookie->statuses = kcalloc(cookie->nr_fids, sizeof(struct afs_file_status),
+				   GFP_KERNEL);
+	if (!cookie->statuses)
+		goto out;
 
-Maybe these two functions should be moved into mm/memory.c as well.
+	cookie->callbacks = kcalloc(cookie->nr_fids, sizeof(struct afs_callback),
+				    GFP_KERNEL);
+	if (!cookie->callbacks)
+		goto out_s;
 
-> 
-> > +	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-> > +		if (svma == vma)
-> > +			continue;
-> > +
-> > +		saddr = page_table_shareable(svma, vma, addr, idx);
-> > +		if (saddr) {
-> > +			spmd = huge_pmd_offset(svma->vm_mm, saddr,
-> > +					       vma_mmu_pagesize(svma));
-> > +			if (spmd) {
-> > +				get_page(virt_to_page(spmd));
-> > +				break;
-> > +			}
-> > +		}
-> > +	}
-> 
-> I'd be tempted to reduce the indentation here:
-> 
-> 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-> 		if (svma == vma)
-> 			continue;
-> 
-> 		saddr = page_table_shareable(svma, vma, addr, idx);
-> 		if (!saddr)
-> 			continue;
-> 
-> 		spmd = huge_pmd_offset(svma->vm_mm, saddr,
-> 					vma_mmu_pagesize(svma));
-> 		if (spmd)
-> 			break;
-> 	}
-> 
-> 
-> > +	if (!spmd)
-> > +		goto out;
-> 
-> ... and move the get_page() down to here, so we don't split the
-> "when we find it" logic between inside and outside the loop.
-> 
-> 	get_page(virt_to_page(spmd));
-> 
-> > +
-> > +	ptl = pmd_lockptr(mm, spmd);
-> > +	spin_lock(ptl);
-> > +
-> > +	if (pud_none(*pud)) {
-> > +		pud_populate(mm, pud,
-> > +			    (pmd_t *)((unsigned long)spmd & PAGE_MASK));
-> > +		mm_inc_nr_pmds(mm);
-> > +	} else {
-> > +		put_page(virt_to_page(spmd));
-> > +	}
-> > +	spin_unlock(ptl);
-> > +out:
-> > +	pmd = pmd_alloc(mm, pud, addr);
-> > +	i_mmap_unlock_write(mapping);
-> 
-> I would swap these two lines.  There's no need to hold the i_mmap_lock
-> while allocating this PMD, is there?  I mean, we don't for the !may_share
-> case.
-> 
+These, however, may go to order-1 allocations or higher if nr_fids > 39, say,
+and it may be as many as 50 for AFS3 or 1024 for YFS.
 
-These were done in the style of functions already in mm/hugetlb.c and I was
-trying to change as little as necessary in my copy of those. I agree that
-these are good suggestions. One could argue that if these changes
-were made, they should also be made in mm/hugetlb.c, though
-this is perhaps beyond the scope of getting FS/DAX PMD sharing
-implemented -- your thoughts?
+Also, I'd like to combine the afs_file_status record with the afs_callback
+record inside another struct so that I can pass these around in more places
+and fix the locking over applying them to the relevant inodes.
 
-Thanks for the review, I'll wait a few more days for other comments
-and then send out a v2.
+So what I want to do is to allocate an array of pointers to {status,callback}
+records and then bulk allocate those records.  As it happens, the tuple is
+just shy of 128 bytes, so they should fit into that slab very nicely.
 
-Larry
+Note also that the records are transient - they're freed at the end of the
+operation.
+
+David
 
