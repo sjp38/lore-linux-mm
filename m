@@ -2,122 +2,265 @@ Return-Path: <SRS0=iTus=TK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 966FCC04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 19:21:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B80FC04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 19:38:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51CE1217D6
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 19:21:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E2ECF217D7
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 19:38:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RG6JA6QN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51CE1217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Zt8jGCiU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2ECF217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF2C86B0003; Fri, 10 May 2019 15:21:54 -0400 (EDT)
+	id 51E7E6B0006; Fri, 10 May 2019 15:38:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7BC16B0005; Fri, 10 May 2019 15:21:54 -0400 (EDT)
+	id 4CE276B0008; Fri, 10 May 2019 15:38:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B1CBB6B0006; Fri, 10 May 2019 15:21:54 -0400 (EDT)
+	id 36F046B000A; Fri, 10 May 2019 15:38:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 68B776B0003
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 15:21:54 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id 17so1096769lfr.14
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 12:21:54 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 09D596B0006
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 15:38:57 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id a29so2742995oiy.18
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 12:38:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=t0G6g+QlT1lYek9dfa7x5K+eunPVkjOM3Q338RLnfYQ=;
-        b=FmqlCTjuszPjdVPicGwjC2z4EY58OmEGxDM2RLdLDXqzUcpa27C8m8zY6R/U/9fFdE
-         d4XmR2C0BuIBHOrAELZJzNskkcS07EJwsxwAVN41BuHY3XpSlnVwtHmI1GkEn+sUQAxB
-         RqR1oHYo0J6huucoEx6hNO0rRuomqOHMvA9CFHYrOrD7khGB7ubcgtUt/4GLUv9rk2Lr
-         c6iN6Sg82j0Mgx03diUb/X90Xgt47l1gkr5SKZrYBEi70qRQ2kuVKmUZSJN42ookCMrz
-         mRn769ncG2dPXxZXd7ClkPIVfr6pk5Jai/hfAvCgd1XCq999K2cE7uLXHMQWGMiNqx/5
-         ZLqA==
-X-Gm-Message-State: APjAAAWFy2tJ+6gxCqwds6uGEKe8FdgRMTW4uYhtuOVOoVvV0ycmIjG7
-	VYxAckxin16j+tU3Vm3RzKRW9LF++PLAXVLsmcOfeDmg5MDshfoP/Tm/dfHSNEexFQPz9JCfK0B
-	zOXzK+6rFHcX8dBhlQcgaLvV44q15ej9HfpWdOon282wlqcXCXGpOmQgH9e6kZV1UuA==
-X-Received: by 2002:a19:a554:: with SMTP id o81mr6880106lfe.117.1557516113643;
-        Fri, 10 May 2019 12:21:53 -0700 (PDT)
-X-Received: by 2002:a19:a554:: with SMTP id o81mr6880075lfe.117.1557516112722;
-        Fri, 10 May 2019 12:21:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557516112; cv=none;
+        bh=3zZWqRpm0G05NjcSiIIAbzIcEiDmVjoOHWcOK0h9db0=;
+        b=gc0TAVN7pZHNNzowknuMwkuDWncZyhC+3/5uDXbZs9lye1zTqRHzWalq+m92Va4YvL
+         sOAFoT7lakBw1b8ZVKmNx+sf9dDCRgCBq2IBXQajV6HTz27fWSgzFJ4aDVwvHtS9dkw6
+         xXVMcHK7qoQZNmTfU5ilYdypsZ+z6BiDFvoRShE0e1jJ/YOr/WRx4YMAUHWF0nfDKk1V
+         EulQEQqPPcCw9kZrbM52D+ZPCDBfLk8TlX6yJciRdxJ5bIN/AKegYWKjg8HRDqM8ueND
+         S09Dcjv9xIec9YMDVPdM+10ye43D5n472xQNNFXvvlYkuxL0tQ3+80MqMkE8iX7UAMlk
+         UxTQ==
+X-Gm-Message-State: APjAAAWiBe/bAnJDOkRoxD16+edM5JCOHK96VrDtPuSuIvFDB/2gKjqp
+	RyQoEPbsx9/5PFQoHlB3sFOhZo3a4rI8T/K51ADTvo9YxUmNjtEQxFUSF9vPs/sWygLOHvjjcUW
+	QkAWC8hpVPivqFnuvREVYdkOth4znIzmAuRaoaa03+Gyp14K8MDHmBtJ8TceAY/GAVQ==
+X-Received: by 2002:a05:6830:2056:: with SMTP id f22mr8374864otp.323.1557517136639;
+        Fri, 10 May 2019 12:38:56 -0700 (PDT)
+X-Received: by 2002:a05:6830:2056:: with SMTP id f22mr8374828otp.323.1557517135935;
+        Fri, 10 May 2019 12:38:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557517135; cv=none;
         d=google.com; s=arc-20160816;
-        b=OgsK0u5BnfuEj2V3oy6V8P6YdqmN+Rx9TJX6qwG6L13+ZTvCkK5KXGdEyLFLwmrNO2
-         4/K4NBfcmefP8RvdJBrJlcSB+mhBu6yaoAbyf6mS2oEpqu5S5O9HXobjr5oA5p/wnxbT
-         rGjl/LUE8R+ksA7WBaX6hX/CB7HFfMWnOOzJX7KfQ/Jo9r9dceu5tqAL4TnzxRR+v5Y+
-         W1h5o2H6DmU2suVaFfR2Mvz215kPbU6AfxowgyJpx7j1dAH66ZmEemchlyhnMhlDbp5L
-         DBsUq7KcTLSkaRs/DLE6GiT064pYAd8+8dNRSC7xCu3d9dZK9wwIjfukaHlngQCTUHqc
-         Dujg==
+        b=a/6JxO5m6mtZTJu1DR9u99ghzPMqinTLa0eaD1fFOcvg9Kx41FVsky3INfmnbT3Pvv
+         CaAw4rC2IZWLSmxwlz9P5O7DuJEgMQ2M6I6EuhmElECYQ+ZAmig9mgW+vDjfwK+J3sxK
+         NK91HZJugKmU8uHgSf7rQMAEYO6A+9s+uaablfC6BAjXUzwThDhkln9YBb69XxzB8doL
+         iIuU+BQUaXHAiRQCB/RPcvIimPz7PyOXksvxhYaLg1ArZ9agHLYgWoj3CCeSdQTBlzKZ
+         dfY3AEOLwaMce9FCbfTvlezQOE4p5yfVQxKgdM17qdhV51DGKGu6NTuG3G7Sg074IIv3
+         OnxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=t0G6g+QlT1lYek9dfa7x5K+eunPVkjOM3Q338RLnfYQ=;
-        b=Adyim9+WSPULeBjUO6Zsn0tVCMXO51dsDMSM9Jr4MdhpodtqEVAkzY7xqi/FHuUFJO
-         nd71ZzXTtlyNkdhKDm4NFSLanpzqOMROpossS+NlHD3hFGAl0coLjnwseaMS5H1ozHRm
-         gqbO0yN/Ri9oCqA7WiaSXnndRLzxtf/wSsYSGBHUS4nImK93O0pbaSHpf7MfZ2ckpyaJ
-         CW4ajliWl8Tj4B22KHsB7H1YODDdG6yQoI7b5LamGxMs4ddzlbreoNtM3qG9bpUXsIK/
-         h0CW/3g4mXJzd3lvbgGHBL2vPJdCE1vlGirrcNSp46mPxr913yHFlGXLlBm2UiHVul59
-         pVgA==
+        bh=3zZWqRpm0G05NjcSiIIAbzIcEiDmVjoOHWcOK0h9db0=;
+        b=tPXExRv76BgJx0iWxtyZ5oSU7e1ZO0bDrUK23skmjZsBuBnVSlCW2lOazrYwQonfJt
+         GCwERhKnQ5sk8BQPwZ6jZDWWb5jHnNGMN2VYNIN/hY1W1/WGGpxonLPV7kfsOEL8KMwo
+         HzXUa/u5F077iBpN2VLltwtwxeSsE9qKbQXOwsX4dA6rTcElaAznys5lQxYMhrNGGIYM
+         m5c1jnBwc3BHDmB4N50z5YsZkcfPoBkqZMieYsVaKWGv/kLtEiJvq6fOZJQFNKrrxQWV
+         5EC0oy9Ws3NZCyK3cFMpQ4+EozPwr6HVuPrNpMgG9pknHKGQzbR+H8bkz/006vOFFKjE
+         3FKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RG6JA6QN;
-       spf=pass (google.com: domain of 9erthalion6@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=9erthalion6@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zt8jGCiU;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15sor4035455ljg.18.2019.05.10.12.21.52
+        by mx.google.com with SMTPS id p124sor2926369oia.101.2019.05.10.12.38.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 10 May 2019 12:21:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 9erthalion6@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 10 May 2019 12:38:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RG6JA6QN;
-       spf=pass (google.com: domain of 9erthalion6@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=9erthalion6@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Zt8jGCiU;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=t0G6g+QlT1lYek9dfa7x5K+eunPVkjOM3Q338RLnfYQ=;
-        b=RG6JA6QNLCgv71H1icikEWlkycb3cIkJ3NL88wIenfZp2ygAPEypiPQhqtTLWt6SAr
-         yglkcDF+A1NSLWYwdgddBPQTgJit3F9zivgTJdYhcyswwfzfECZ7Ltgr250d9tWbLBiY
-         ucnN1rjaEESDJKQ9Jo/P0DCSM/3Y4zT+wMqDfnuJ63AV+bRWIJH8UcgbU+PhCxV2hrHF
-         5emZ5/jTE2QxJt7ZPt9436bcd+MXGZ/DWth9OC1nt7aijsQQWGwYUltJ92JRO0pWVs6t
-         BwfMjtJSNbzhE7Y+cv5OBaTz4RQ1YwX51uTOKbv+lyUR/8B6gzhAin+MopokYvDbnPu6
-         y7EA==
-X-Google-Smtp-Source: APXvYqxAgFyn5Nwf1qRQ0uRft/LbdxptYx9BG5rFGd1EQT45rdh8oLA4/0M4YfsO7p3cR2ye/pj+atkI7H96b4Hoep0=
-X-Received: by 2002:a2e:96d9:: with SMTP id d25mr6598503ljj.78.1557516112248;
- Fri, 10 May 2019 12:21:52 -0700 (PDT)
+        bh=3zZWqRpm0G05NjcSiIIAbzIcEiDmVjoOHWcOK0h9db0=;
+        b=Zt8jGCiU6tsVp+EvLvEH/lbyUyD0S8Rz6P6AcA7tfrddxC67ogCCxcpPcWKqgoNncU
+         u26bqCA1xFFK3nyrZN3NSXUnii3hhRz1OnCgLU3OXi6fDoMD5goKG2VunEj/pVe4FDNR
+         QWnGG1KfiHfJLEKn0I9/4BJxx+uOFgBoX9aBBimHHlyeYvWdcOJyEhcMttB9M8QYkZLH
+         MS3cw9AXYX4vA5p5vI7ijwbkyNNbhf0SFF8kFb3hQfgh5pyEgogzeKxd+k4VgtyD3l1c
+         7WAqnGYDb0k77o8owtjnxY+4cVmWwK1z8YK89qYEpPpQWF45MSURi+S4GYD5g23Yj2rm
+         ZtsA==
+X-Google-Smtp-Source: APXvYqyXAc2U9OVVTkJlhijyyyFcw3I1yzqRpW/J5S9roDJzRnWHqxvYbqh6OC5OXma3KlWvNDW/uVv/L6RXEOBtXtU=
+X-Received: by 2002:aca:de57:: with SMTP id v84mr6606243oig.149.1557517135140;
+ Fri, 10 May 2019 12:38:55 -0700 (PDT)
 MIME-Version: 1.0
-References: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com>
-In-Reply-To: <1554804700-7813-1-git-send-email-laoar.shao@gmail.com>
-From: Dmitry Dolgov <9erthalion6@gmail.com>
-Date: Fri, 10 May 2019 21:24:45 +0200
-Message-ID: <CA+q6zcVe0j7JZj8716e8CTdLDSxeE7_daRxOO9s=stWxkxGC0Q@mail.gmail.com>
-Subject: Re: [PATCH] mm/vmscan: expose cgroup_ino for memcg reclaim tracepoints
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org, 
-	shaoyafang@didiglobal.com
+References: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155718597192.130019.7128788290111464258.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <dd7b53bd986d79a94ac0b08e32336e44@suse.de>
+In-Reply-To: <dd7b53bd986d79a94ac0b08e32336e44@suse.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 10 May 2019 12:38:43 -0700
+Message-ID: <CAPcyv4i1zQb-D-8iB3hr8ipMHH2yV8ssxh+Zeh2aeMw0ZJASfg@mail.gmail.com>
+Subject: Re: [PATCH v8 01/12] mm/sparsemem: Introduce struct mem_section_usage
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, owner-linux-mm@kvack.org
 Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000262, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Apr 9, 2019 at 12:12 PM Yafang Shao <laoar.shao@gmail.com> wrote:
+On Fri, May 10, 2019 at 6:30 AM <osalvador@suse.de> wrote:
 >
-> We can use the exposed cgroup_ino to trace specified cgroup.
+> On 2019-05-07 01:39, Dan Williams wrote:
+> > Towards enabling memory hotplug to track partial population of a
+> > section, introduce 'struct mem_section_usage'.
+> >
+> > A pointer to a 'struct mem_section_usage' instance replaces the
+> > existing
+> > pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
+> > 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
+> > house a new 'subsection_map' bitmap.  The new bitmap enables the memory
+> > hot{plug,remove} implementation to act on incremental sub-divisions of
+> > a
+> > section.
+> >
+> > The default SUBSECTION_SHIFT is chosen to keep the 'subsection_map' no
+> > larger than a single 'unsigned long' on the major architectures.
+> > Alternatively an architecture can define ARCH_SUBSECTION_SHIFT to
+> > override the default PMD_SHIFT. Note that PowerPC needs to use
+> > ARCH_SUBSECTION_SHIFT to workaround PMD_SHIFT being a non-constant
+> > expression on PowerPC.
+> >
+> > The primary motivation for this functionality is to support platforms
+> > that mix "System RAM" and "Persistent Memory" within a single section,
+> > or multiple PMEM ranges with different mapping lifetimes within a
+> > single
+> > section. The section restriction for hotplug has caused an ongoing saga
+> > of hacks and bugs for devm_memremap_pages() users.
+> >
+> > Beyond the fixups to teach existing paths how to retrieve the 'usemap'
+> > from a section, and updates to usemap allocation path, there are no
+> > expected behavior changes.
+> >
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > Cc: Oscar Salvador <osalvador@suse.de>
+> > Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> > Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> > Cc: Paul Mackerras <paulus@samba.org>
+> > Cc: Michael Ellerman <mpe@ellerman.id.au>
+> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  arch/powerpc/include/asm/sparsemem.h |    3 +
+> >  include/linux/mmzone.h               |   48 +++++++++++++++++++-
+> >  mm/memory_hotplug.c                  |   18 ++++----
+> >  mm/page_alloc.c                      |    2 -
+> >  mm/sparse.c                          |   81
+> > +++++++++++++++++-----------------
+> >  5 files changed, 99 insertions(+), 53 deletions(-)
+> >
+> > diff --git a/arch/powerpc/include/asm/sparsemem.h
+> > b/arch/powerpc/include/asm/sparsemem.h
+> > index 3192d454a733..1aa3c9303bf8 100644
+> > --- a/arch/powerpc/include/asm/sparsemem.h
+> > +++ b/arch/powerpc/include/asm/sparsemem.h
+> > @@ -10,6 +10,9 @@
+> >   */
+> >  #define SECTION_SIZE_BITS       24
+> >
+> > +/* Reflect the largest possible PMD-size as the subsection-size
+> > constant */
+> > +#define ARCH_SUBSECTION_SHIFT 24
+> > +
+>
+> I guess this is done because PMD_SHIFT is defined at runtime rather at
+> compile time,
+> right?
 
-As far as I see, this patch didn't make it through yet, but sounds like a
-useful feature. It needs to be rebased, since mm_vmscan_memcg_reclaim_begin /
-mm_vmscan_memcg_softlimit_reclaim_begin now have may_writepage and
-classzone_idx, but overall looks good. I've checket it out with cgroup2 and
-ftrace, works as expected.
+Correct, PowerPC has:
+
+    #define PMD_SHIFT (PAGE_SHIFT + PTE_INDEX_SIZE)
+    #define PTE_INDEX_SIZE  __pte_index_size
+
+...where __pte_index_size is variable established at kernel init time.
+
+> >  #endif /* CONFIG_SPARSEMEM */
+> >
+> >  #ifdef CONFIG_MEMORY_HOTPLUG
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 70394cabaf4e..ef8d878079f9 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -1160,6 +1160,44 @@ static inline unsigned long
+> > section_nr_to_pfn(unsigned long sec)
+> >  #define SECTION_ALIGN_UP(pfn)        (((pfn) + PAGES_PER_SECTION - 1) &
+> > PAGE_SECTION_MASK)
+> >  #define SECTION_ALIGN_DOWN(pfn)      ((pfn) & PAGE_SECTION_MASK)
+> >
+> > +/*
+> > + * SUBSECTION_SHIFT must be constant since it is used to declare
+> > + * subsection_map and related bitmaps without triggering the
+> > generation
+> > + * of variable-length arrays. The most natural size for a subsection
+> > is
+> > + * a PMD-page. For architectures that do not have a constant PMD-size
+> > + * ARCH_SUBSECTION_SHIFT can be set to a constant max size, or
+> > otherwise
+> > + * fallback to 2MB.
+> > + */
+> > +#if defined(ARCH_SUBSECTION_SHIFT)
+> > +#define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+> > +#elif defined(PMD_SHIFT)
+> > +#define SUBSECTION_SHIFT (PMD_SHIFT)
+> > +#else
+> > +/*
+> > + * Memory hotplug enabled platforms avoid this default because they
+> > + * either define ARCH_SUBSECTION_SHIFT, or PMD_SHIFT is a constant,
+> > but
+> > + * this is kept as a backstop to allow compilation on
+> > + * !ARCH_ENABLE_MEMORY_HOTPLUG archs.
+> > + */
+> > +#define SUBSECTION_SHIFT 21
+> > +#endif
+> > +
+> > +#define PFN_SUBSECTION_SHIFT (SUBSECTION_SHIFT - PAGE_SHIFT)
+> > +#define PAGES_PER_SUBSECTION (1UL << PFN_SUBSECTION_SHIFT)
+> > +#define PAGE_SUBSECTION_MASK ((~(PAGES_PER_SUBSECTION-1)))
+> > +
+> > +#if SUBSECTION_SHIFT > SECTION_SIZE_BITS
+> > +#error Subsection size exceeds section size
+> > +#else
+> > +#define SUBSECTIONS_PER_SECTION (1UL << (SECTION_SIZE_BITS -
+> > SUBSECTION_SHIFT))
+> > +#endif
+>
+> On powerpc, SUBSECTIONS_PER_SECTION will equal 1 (so one big section),
+> is that to be expected?
+
+Yes, it turns out that PowerPC has no real need for subsection support
+since they were already using small 16MB sections from day one.
+
+> Will subsection_map_init handle this right?
+
+Yes, should work as subsection_map_index() will always return 0. Which
+means that 'end' will always be 0:
+
+    pfns = min(nr_pages, PAGES_PER_SECTION
+        - (pfn & ~PAGE_SECTION_MASK));
+    end = subsection_map_index(pfn + pfns - 1);
+
+...and then the bitmap manipulation:
+
+    bitmap_set(ms->usage->subsection_map, idx, end - idx + 1);
+
+...will only ever set bit0.
 
