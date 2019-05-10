@@ -1,193 +1,153 @@
-Return-Path: <SRS0=5q+O=TJ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=iTus=TK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5348FC04AB1
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 23:32:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D33BC04AB2
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 00:16:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02AD3217F9
-	for <linux-mm@archiver.kernel.org>; Thu,  9 May 2019 23:32:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="y2nCTlnf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02AD3217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 470BE2085A
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 00:16:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 470BE2085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96AF86B0003; Thu,  9 May 2019 19:32:17 -0400 (EDT)
+	id C2F586B0003; Thu,  9 May 2019 20:16:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F3F56B0006; Thu,  9 May 2019 19:32:17 -0400 (EDT)
+	id BDDFE6B0006; Thu,  9 May 2019 20:16:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7BA1C6B0007; Thu,  9 May 2019 19:32:17 -0400 (EDT)
+	id ACD226B0007; Thu,  9 May 2019 20:16:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D1C6B0003
-	for <linux-mm@kvack.org>; Thu,  9 May 2019 19:32:17 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id t63so3767228qkh.0
-        for <linux-mm@kvack.org>; Thu, 09 May 2019 16:32:17 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 745086B0003
+	for <linux-mm@kvack.org>; Thu,  9 May 2019 20:16:46 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id o1so2765797pgv.15
+        for <linux-mm@kvack.org>; Thu, 09 May 2019 17:16:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=C9aIasraSha+Unahg2EAZJgXu4Vii1PBVVz7t26PHMo=;
-        b=fDfPeEb+hsWPJLkebENBrcQLIe4ZB3s1QdPY7QY+72xZEsz07o5e8A4RajiQrYhw/2
-         oWcFwVUQvv8SuLgiAsQLPJltDwipnWO+/+Av5+FqOddyLKVnsTQrAvlVfwIxawGaQAFd
-         QNMqVktWUAESk+aESTGrjG532xu755/C0zL0j+Wk7Xz3Ow7wYRsMsYeSAOL2B/B0HIqS
-         xAtIRsldJuIg8Lx/6kXkhq/2Q9DSnpUyxRIp4xdjJzybK9ujiYYqLsYxgFixfuw3QiAf
-         tqzSyNcNtC6aI+DKhlLseqAmRKLV2fv6wLK5lXYWhIWhb5d5OgEgfUq7Rxdvv9PgecZR
-         vo2w==
-X-Gm-Message-State: APjAAAXRPFVR4nv6FFw2Y+t4FghcLn9NBNY4iscBpmHbyo53nN/iqruk
-	rxQQm8lvi9PD+/1Z30GChgy8ALAYs6eR89c5N3REuyma7lla8ETidQQhAncnRE8AgTc4QzP+RFb
-	29Hx7yyLw+rng9fbCUNHDaeAyBryP2Gxnk7tIG6Zzh3qAkzlvQytkzY4XYlmJ9gKJtA==
-X-Received: by 2002:a37:9103:: with SMTP id t3mr6212529qkd.78.1557444737067;
-        Thu, 09 May 2019 16:32:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwC5UvqQExou7Q1pr88CoPAbKwD+eFtlkYBPRIjvWbbG70T9MlaBRwrA0Z9A+HtXmr+ghji
-X-Received: by 2002:a37:9103:: with SMTP id t3mr6212484qkd.78.1557444736468;
-        Thu, 09 May 2019 16:32:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557444736; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=kQcAB26OKDmQZCpxfRv57kduaPGhS8fCw6twnIJnydg=;
+        b=XoIuIdxLTrF3nldlZHhXa308GTsVEprEDMAJhV4HrMM/5NdEOyJPVUY3T3/PnW/2Wm
+         1grn1F/inU+91C6rzubd6BDPZrdHT4ZdqTh75qIK92wc9H+W2n0SvlYyP8he1YUKiX/y
+         5D9LJKnIQhE8jMArTSm+SGJEmszzNwz4GnPF+6jw/eZjiaCQEDJ0N8SNC8kXTqjBtzhf
+         zF/jX4EK1pguzNfuBpOtMnUuewxEgCU3SgGH1uUTCub50zgnmaYcJ326UDZTaO2Q39Yr
+         9v84hoqEOfEovD/xD9A3TlIihUWaJdBbNB8DENhyO8X54xEsK+bRwnXe1sXS9LZLNvW0
+         vUhw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAW0fybh5yD4NVRY2Fi1s3/cYw3zLysEqWvesPS1L5W//1pihoq9
+	9Aoa6ESmqOg86OXTSHNWVG1MFhx7ifZYVsvdnUYInI0XocS2Gq5cnCURxaRRnz3/Izkhe7aVag6
+	6i7CDvLevXUcC2O0ULvrOVwgdJMS8oTPpuetEewrZ5k39JpqZiXO0M9MdzbMyk8+SEg==
+X-Received: by 2002:a65:49c7:: with SMTP id t7mr9584401pgs.324.1557447406137;
+        Thu, 09 May 2019 17:16:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzqTzWpaJbz/oZ4tuH8bqEq21va4dT50hegi+nWsqqsRrlFsRz2LoQ61tnRwgjB51VsDF9G
+X-Received: by 2002:a65:49c7:: with SMTP id t7mr9584288pgs.324.1557447404801;
+        Thu, 09 May 2019 17:16:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557447404; cv=none;
         d=google.com; s=arc-20160816;
-        b=IHtwdOVFcNGyK98+uQa3Azs5xZCD9DqvcHrVK6pN/RYwGw7FIrQG2Y/EZDdvMwNGVB
-         wwqgDjvOe1CA5PUuUv5mtt53GaJzMfzvH0N3WWUUejdz8zkJxgjHOBreDVK7LG5qZmZB
-         ATcqWtfs06Es+LYzMv4SNGY7U2Zo2Nxtf9zdyviFC+M7xggv1c/xs8kMTPFJ9X9InFE4
-         Ew/a3bfTlZAaALzPKOdHq0kKmHIfU2ButPc112BIeFmAzmLDmkVsDS+T75+mkbL8qur2
-         cMV22kTZwCj4XCEvL/XCVL84rBwmQsCLUZLOSbaANHbeVtALAC0VBck8NexPi7isxibM
-         WU4w==
+        b=K1gHC2h0pNo32ALjmYgT1Cup+IN57dZIJ0TIbZ+RlJASjK4x03I0u5YTo5xY5PQKKo
+         ZFhB95UtBbT0P4YZMMwZkTYDe2BJdvFFQSnfqU8q/YvhksW7j9DAxwUCUtHbdpHQlGx0
+         M0QbhlQn7vSfyVUxNU4qfPRHxUfyCTNRHUmK7glYYWHLXKiWNAuXJwnBQRuSFNFMYJeC
+         qzg+gxalLcYCzO052864xlODWeXob1CaP0JbizuLiq3rpmKZXonfa2/LU0HCAgTQK+Qz
+         g6YnRzRneqkOGSG4cA3M1sul6WeJKac/Ti+WNfIAza/wKGxXB/0EgTfHeMvsKBo2ltWt
+         XPcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=C9aIasraSha+Unahg2EAZJgXu4Vii1PBVVz7t26PHMo=;
-        b=kxfwbWsqENLBr4yRC4FSkpGAA9nkRn+N+GXdzhdJXCFF5YkDQ2A17XeGiWOB3subkR
-         FX6dEP3aOJ6B5+z9MDKdcYafrgskD6GHkYDtysfTAEavAxoyJA9C6owf4dL+H/gRDdp1
-         m5ENsJKqOjkAMJMnRnbPy2bs6NlCXUenoi617+DQULdsVaqTYrZYW7botuWUCDfE4R/2
-         md+uk2FTq5DXm+Kz3IDwCStmQ/eameMoMgT1vxnVOSMumWBWtL/EzrcOLuKJTNMVvlgb
-         w8SZMY1WNyTxvMxDbpYOsXV8GP1Xgp2kMFnEQYROpEixr8tl5a+DZ30TbI308+wa9Ea6
-         DvVw==
+        h=message-id:date:subject:cc:to:from;
+        bh=kQcAB26OKDmQZCpxfRv57kduaPGhS8fCw6twnIJnydg=;
+        b=LqDoV1VUuY502BQiSNfSvMtl36Y/vh7NWqM6CeD7bpKrmtxOLudmmulMaXXkzMk21P
+         NJsFBV1vWAXjM+y5cB5hx7xLKmlOXGmRn4oDQ9uGZIWMZ27HCYekY3wY3aXaFK+2+Hc3
+         h1z+HnBeyVyXkVJ3kNzLiybtSJPLn78dSAJFQAtrf1jCXitnhp1QmbuNGSwahTaNh0To
+         CBfp1les32WxaMffHvsHzy7jzjdHSn2Gn4CqiWpPnGdxb/2/IqDpchCPM2ouZSntDC8q
+         bz7rLSN+gbRgXDwaScKvZPr/qM08rZDBed+DRxg/CokRbfT95vAzZ/93qkhVIk9D3VRu
+         NIrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=y2nCTlnf;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id p51si2549020qvc.16.2019.05.09.16.32.16
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id cf2si5431551plb.50.2019.05.09.17.16.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 May 2019 16:32:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 09 May 2019 17:16:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=y2nCTlnf;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49NOFCS051217;
-	Thu, 9 May 2019 23:32:07 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=C9aIasraSha+Unahg2EAZJgXu4Vii1PBVVz7t26PHMo=;
- b=y2nCTlnf47trHDM7FlSPumjUEArfp40Mam9pSSNWxp9tuaJdDpHfRlBbsNprh6FslJfZ
- CvffXORALuUweL8ITV6SGhxWVWMt2j6NrHdSPkZHRCipnwSD3grZ15DUe+bjBfe5am5x
- SXCqanmEWrfk9VJwiMvC25XHGG7jzJ5zPOQdrVRqQR2/I/MnYgCPVdAPNy8tW/rq8+qW
- zmNbRVRI0WtRAy0cYaYpH9+07mv5C38mtNYXtZpE0xWroBvWiWhm4bTc0qSaeSW6kFI7
- 7M2N6W29+txJqiVcRhJ0MTLSmTxAHH1heZY68DbVfcRUPRsENUrC7pbw8x18yZp0yV76 +g== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2130.oracle.com with ESMTP id 2s94b6e0e9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 09 May 2019 23:32:07 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x49NVUVU125728;
-	Thu, 9 May 2019 23:32:06 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2s94ah2qat-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 09 May 2019 23:32:05 +0000
-Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x49NW3rL010577;
-	Thu, 9 May 2019 23:32:04 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 09 May 2019 16:32:03 -0700
-Subject: Re: [PATCH] hugetlbfs: always use address space in inode for resv_map
- pointer
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: yuyufen <yuyufen@huawei.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        stable@vger.kernel.org
-References: <20190416065058.GB11561@dhcp22.suse.cz>
- <20190419204435.16984-1-mike.kravetz@oracle.com>
- <fafe9985-7db1-b65c-523d-875ab4b3b3b8@huawei.com>
- <5d7dc0d5-7cd3-eb95-a1e7-9c68fe393647@oracle.com>
- <20190509161135.00b542e5b4d0996b5089ea02@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <31754605-5425-a2aa-b16f-ad89772c27b9@oracle.com>
-Date: Thu, 9 May 2019 16:32:02 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <20190509161135.00b542e5b4d0996b5089ea02@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=735
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905090134
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=805 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905090134
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R211e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TRHy6CV_1557447393;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TRHy6CV_1557447393)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 10 May 2019 08:16:39 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: ying.huang@intel.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	mgorman@techsingularity.net,
+	kirill.shutemov@linux.intel.com,
+	hughd@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: vmscan: correct nr_reclaimed for THP
+Date: Fri, 10 May 2019 08:16:32 +0800
+Message-Id: <1557447392-61607-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/9/19 4:11 PM, Andrew Morton wrote:
-> On Wed, 8 May 2019 13:16:09 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> 
->>> I think it is better to add fixes label, like:
->>> Fixes: 58b6e5e8f1ad ("hugetlbfs: fix memory leak for resv_map")
->>>
->>> Since the commit 58b6e5e8f1a has been merged to stable, this patch also be needed.
->>> https://www.spinics.net/lists/stable/msg298740.html
->>
->> It must have been the AI that decided 58b6e5e8f1a needed to go to stable.
-> 
-> grr.
-> 
->> Even though this technically does not fix 58b6e5e8f1a, I'm OK with adding
->> the Fixes: to force this to go to the same stable trees.
-> 
-> Why are we bothering with any of this, given that
-> 
-> : Luckily, private_data is NULL for address spaces in all such cases
-> : today but, there is no guarantee this will continue.
-> 
-> ?
+Since commit bd4c82c22c36 ("mm, THP, swap: delay splitting THP after
+swapped out"), THP can be swapped out in a whole.  But, nr_reclaimed
+still gets inc'ed by one even though a whole THP (512 pages) gets
+swapped out.
 
-You are right.  For stable releases, I do not see any way for this to
-be an issue.  We are lucky today (and in the past).  The patch is there
-to guard against code changes which may cause this condition to change
-in the future.
+This doesn't make too much sense to memory reclaim.  For example, direct
+reclaim may just need reclaim SWAP_CLUSTER_MAX pages, reclaiming one THP
+could fulfill it.  But, if nr_reclaimed is not increased correctly,
+direct reclaim may just waste time to reclaim more pages,
+SWAP_CLUSTER_MAX * 512 pages in worst case.
 
-Yufen Yu, do you see this actually fixing a problem in stable releases?
-I believe you originally said this is not a problem today, which would
-also imply older releases.  Just want to make sure I am not missing something.
+This change may result in more reclaimed pages than scanned pages showed
+by /proc/vmstat since scanning one head page would reclaim 512 base pages.
+
+Cc: "Huang, Ying" <ying.huang@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+I'm not quite sure if it was the intended behavior or just omission. I tried
+to dig into the review history, but didn't find any clue. I may miss some
+discussion.
+
+ mm/vmscan.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fd9de50..7e026ec 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1446,7 +1446,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 		unlock_page(page);
+ free_it:
+-		nr_reclaimed++;
++		/* 
++		 * THP may get swapped out in a whole, need account
++		 * all base pages.
++		 */
++		nr_reclaimed += (1 << compound_order(page));
+ 
+ 		/*
+ 		 * Is there need to periodically free_page_list? It would
 -- 
-Mike Kravetz
-
-> Even though 58b6e5e8f1ad was inappropriately backported, the above
-> still holds, so what problem does a backport of "hugetlbfs: always use
-> address space in inode for resv_map pointer" actually solve?
-> 
-> And yes, some review of this would be nice
+1.8.3.1
 
