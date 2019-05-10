@@ -2,310 +2,182 @@ Return-Path: <SRS0=iTus=TK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9EA4C04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 21:03:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA6A5C04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 22:32:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FE1E21841
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 21:03:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FE1E21841
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 471262084A
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 22:32:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Im7/W2PP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 471262084A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCD7B6B0003; Fri, 10 May 2019 17:03:18 -0400 (EDT)
+	id A683E6B0003; Fri, 10 May 2019 18:32:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C57DD6B0005; Fri, 10 May 2019 17:03:18 -0400 (EDT)
+	id A18756B0005; Fri, 10 May 2019 18:32:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF7AD6B0006; Fri, 10 May 2019 17:03:18 -0400 (EDT)
+	id 8DEE76B0006; Fri, 10 May 2019 18:32:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A7D6B0003
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 17:03:18 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id j66so11868806ywa.17
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 14:03:18 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4546B0003
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 18:32:37 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id w25so5333809ioc.1
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 15:32:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=iS/v05UnfXmNJTrLhCcfslGQtQddd9ZUeOkOH+EYMe4=;
-        b=SODWLzRhXJR0ui61l/9kUb8RWrAtFvqauJnoiMQV85Ik4jcBXeVwElZ0bp5tWZT1sQ
-         FYtsZTJt+MZsqLIBQiPrkxu0gxDTtBsN8u8BbECtLPc8oKpZAOQ4PnwOVabUhAOTo0nw
-         cE+2tikzcCfYYD4qGwuIyDjlpa6MLVqKBWURpCP1Jobo+ho7wiuANXer0V3eQ/Lcx7Oq
-         GdiZkJov0Us5UAEyW3tZwznBLMNZjFFVk2RCiVxHtG9SW6RL5cUQQrdKkvXUBpxjqsZ5
-         qwba0awOQV2yUJ131DgVGjUl4EUqDPtV7/v8OPJu6qGNtfkkNpKIEQkwy7rkR691EcJb
-         m3Yw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWwwonRcX+qkSnxzbfh6ZWZvZbR8oOU+L/bg+WioXsMfipBOxN/
-	/V5Hda+/aHWSoMmJ1NGhWUlUcdxmz90nV897Qa4BRXm9EuhhU+HX/BWex7F2bUulEr70QtDEMnw
-	O3rcHjdaTnBOIeLCFE/ZLxhCjGJymTt94mREGOoshFTYER9fQu1I2uQcv721+pGfuOQ==
-X-Received: by 2002:a25:2256:: with SMTP id i83mr6753507ybi.407.1557522198305;
-        Fri, 10 May 2019 14:03:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxG6PaIUN9VONFGkmvuaYYGwW5zAAp7s7wWvhNIPVJT+JLw8nWDmUoc57e3y05FPeEmkeDp
-X-Received: by 2002:a25:2256:: with SMTP id i83mr6753460ybi.407.1557522197432;
-        Fri, 10 May 2019 14:03:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557522197; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+        b=HHBfvBgFBObxitGuPGp2X8qU821ZeN5ETo2MlGkz96RJ+OPd2VhcnHOHNyymV5OXcQ
+         R9TsayIhfgdJZRaftztZmXXK3u8ncaRuPUB2bE9v4ZlQ5uDYMoAdZ+rPd0HnA7stN5f+
+         pMVVqoTCcpaIzvZfsALy64PuIqEIqZZQtDUVf8pFylAZjWcRklxR1f+OZ27Kv0gTdlgs
+         ywBPhc4eRUbdjsf1jr8jvlsp4aFrf/V2CHdXFZwrdEhrMX4EzcuRe5udB4VLUsvgFlh3
+         8c8ZR2eVl8JggwGWR10LmS5pNQGzA1tWQXT7Y4SaCEJYDO7NmNV/rhO3WNXJYgnKdcC9
+         AXiQ==
+X-Gm-Message-State: APjAAAVXWvpj8qNcaGwwj36fGTKqvKGnQXy53KT8kEKBmaVegOcMPKEX
+	gUnF9Sa+1NvOpgSBNAWYXDEp7mXwHXG830jB084NVx/0gFGlvqJ8OWyyVu6jjctat8hzQQF2A/v
+	FpqG0I4f8WxA992V4QfCVPTWmmZkrrh05wqTFh+FYIEJvFdogeGgu2HqmO2Gh9gUJZQ==
+X-Received: by 2002:a24:5255:: with SMTP id d82mr1766098itb.104.1557527557116;
+        Fri, 10 May 2019 15:32:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmrEjt2ftufUeFDLv6+ymdBZr/I4dEhA8jmBDpTvP+zlGxhVcY2qaXPKGiBNY0I98uOHe/
+X-Received: by 2002:a24:5255:: with SMTP id d82mr1766047itb.104.1557527556353;
+        Fri, 10 May 2019 15:32:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557527556; cv=none;
         d=google.com; s=arc-20160816;
-        b=f/Fu+CuY8h/AjMfRB3zddpEiRC7aKr49doMECgQi58QLJtiWZZqaLPUgx8kOOjhqPF
-         gJ3g8gcY+qEinb9QhmwX63oxwEIyUzMDkiJw+YspZhfhwtBBX+W/oRlLvVPbLpVd9T0F
-         DCdk3LLevs1w9l8IyWuFm1qjFZHqcrysaHJyr4lomiWRtimhaaHpR6bfUwqXCyla7DuR
-         YvhCZna8AYk1XMfIh0fxXJfEA74SmGeDPNEOgm86j3sjYu2E5Cn3onxYW2bRMS1obPDz
-         ckL3EnRUgkjhlzKrXg+3OBHAJMwwT9Fnzii2LyrPCSwITvw6z1ktkNi+S0ctYdE/afD2
-         X+zw==
+        b=a6W576F3bCq+qhREnltVvwU3GGNsmJxGAAt471HkgGp2dniq7ulKYBMHErJcb37f+w
+         oc2qZLHD28lBz2Og2xs/tQDU634RgZVEvg/JMoHlHYn0GWa7jWy40vD+kqigXR2h18lZ
+         /RpwGpCvr8X5PT16HvyQM3RHr5wD4cLGpk03sXOj3X7uB+F3nvvP9qpzKvYyV8Gykibh
+         DUtn3bvLDqp1Z9vk5fwjInkpDJvy3Bz/zu75Ze+gvKZGHV/Bvs/NCdd+5+uWXpfDm98s
+         jU486PbKNuSadEx/Lx9dmMsLPOYSgjxA7/VLulOip7Y5WnjozER8E3SYi59KBjQKNIyt
+         1ntg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=iS/v05UnfXmNJTrLhCcfslGQtQddd9ZUeOkOH+EYMe4=;
-        b=gArvzn6PTGw/T8hKE9UFMEAgZ7z7qUuTPkvO+vKHstL8VrBga+dTz+8a2URHhoGMOh
-         JFbnlriggRzct4SVgumcseBqa0jQxg6NMcGQfmV8Y5ATSI1/B2jGSQQxWCzrEWn8+YuX
-         1jMQPM+u1qkQ+ev888YSvxBSDpaLAaeg58BByYTzOM4/EhIabfpU9Cg8RgI7g3iakBKu
-         7eQ90lECvDpO1MZteP2Hgp6bCXMsxuA/1XNzl1tZKl4vxo8NMZKTDX8VZbcRHCZ/76Ye
-         lN4JhXu4w7zbtjYRSlFpRDw2EgWoUSxCF7QGh9tdIyzKWB3n2696tt41HlnzZxKtxht4
-         rwjA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+        b=XjEcYUVPOl1sjluAwWvIDnHuoY4g2YpNuCfmbpVxp5T5w2PPJgLZAoik8kliDD3TiK
+         BVknfgcAkC/lS7VU09w2Rr+oKWeoqRMiO1y7CLRY8IXJJnbVOtUPZxPeNoqTcuLFeSsK
+         b2Hi65tn9zDeoD6sVVUNYlPDdayDzEGt3nSJ6qjhv0qx2Mh6snXbMECgt53kFsh9cud+
+         7Y+a7Zb50cc24O+3fgyUvkYp/0kp04RqM7sXZbAHnq1hh6KD8h/kz1XPyosZWvptk6d0
+         xbV5iBLNxEG2JEhRtxGp9/V/8apaNpZzUib1PurK+SQTTlaql6rdTD3wXg0qdUR1dLjG
+         rBwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f188si344055ywb.400.2019.05.10.14.03.17
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="Im7/W2PP";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id n139si4460555itn.51.2019.05.10.15.32.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 May 2019 14:03:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Fri, 10 May 2019 15:32:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4AKfsO8102029
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 17:03:17 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sdgcw9265-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 17:03:16 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Fri, 10 May 2019 22:03:14 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 10 May 2019 22:03:10 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4AL3Arr26083446
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 10 May 2019 21:03:10 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E0B78AE051;
-	Fri, 10 May 2019 21:03:09 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 46D64AE045;
-	Fri, 10 May 2019 21:03:07 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.24.29.91])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Fri, 10 May 2019 21:03:06 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: stable@vger.kernel.org, Piotr Balcer <piotr.balcer@intel.com>,
-        Yan Ma <yan.ma@intel.com>, Chandan Rajendra <chandan@linux.ibm.com>,
-        Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>,
-        Souptick Joarder <jrdr.linux@gmail.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH] mm/huge_memory: Fix vmf_insert_pfn_{pmd, pud}() crash, handle unaligned addresses
-In-Reply-To: <155741946350.372037.11148198430068238140.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <155741946350.372037.11148198430068238140.stgit@dwillia2-desk3.amr.corp.intel.com>
-Date: Fri, 10 May 2019 16:02:50 -0500
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="Im7/W2PP";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AK45wh039777;
+	Fri, 10 May 2019 20:13:33 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+ b=Im7/W2PPPpHfDTA/f/veY3VgqZbdhJmOMX+Ew+sizNZyO5+bt1NW9T3xkxLS4OdwhHV1
+ nprMbTBXGwMkfd/2FGxRKZKnDITdod8ChKTvVgqax7ypDvFtrZCSzd0Xntea4Rf/2Uu3
+ lJOrCEsv9LdQhGuoDWd/CWKXJgoyMwBJYNmNvGj2egrPJKYUgdpypnJxkHFQ3dWl1PHv
+ 0HSgLcqKOX5lqRCtCimDkafzE5f3nsMeR2kqdTE/xBipAXtXEQ5zErsh4nYC0jUQWNAJ
+ N5wm83cY4/i3Ud0cN5nPDCjjk5ysreUyeddMWP2H/9LK5855BoE42m5O1RquLY9MsmK9 UQ== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2130.oracle.com with ESMTP id 2s94b6kduy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 10 May 2019 20:13:33 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AKD9m6168502;
+	Fri, 10 May 2019 20:13:33 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3020.oracle.com with ESMTP id 2schw0m3an-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 10 May 2019 20:13:33 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4AKDUR0014393;
+	Fri, 10 May 2019 20:13:30 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 10 May 2019 13:13:30 -0700
+Date: Fri, 10 May 2019 16:13:30 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Bruce ZHANG <bo.zhang@nxp.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+        "guro@fb.com" <guro@fb.com>, "mhocko@suse.com" <mhocko@suse.com>,
+        "vbabka@suse.cz" <vbabka@suse.cz>,
+        "jannh@google.com" <jannh@google.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>, mgorman@techsingularity.net
+Subject: Re: [PATCH] mm,vmstat: correct pagetypeinfo statistics when show
+Message-ID: <20190510201330.qqbzzapxe2t4nv2l@ca-dmjordan1.us.oracle.com>
+References: <1557491480-19857-1-git-send-email-bo.zhang@nxp.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19051021-0016-0000-0000-0000027A7518
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19051021-0017-0000-0000-000032D73249
-Message-Id: <87ef56c9ad.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-09_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905100134
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1557491480-19857-1-git-send-email-bo.zhang@nxp.com>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9253 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905100131
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9253 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905100131
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+On Fri, May 10, 2019 at 12:36:48PM +0000, Bruce ZHANG wrote:
+> The "Free pages count per migrate type at order" are shown with the
+> order from 0 ~ (MAX_ORDER-1), while "Page block order" just print
+> pageblock_order. If the macro CONFIG_HUGETLB_PAGE is defined, the
+> pageblock_order may not be equal to (MAX_ORDER-1).
 
-> Starting with commit c6f3c5ee40c1 "mm/huge_memory.c: fix modifying of
-> page protection by insert_pfn_pmd()" vmf_insert_pfn_pmd() internally
-> calls pmdp_set_access_flags(). That helper enforces a pmd aligned
-> @address argument via VM_BUG_ON() assertion.
->
-> Update the implementation to take a 'struct vm_fault' argument directly
-> and apply the address alignment fixup internally to fix crash signatures
-> like:
->
->     kernel BUG at arch/x86/mm/pgtable.c:515!
->     invalid opcode: 0000 [#1] SMP NOPTI
->     CPU: 51 PID: 43713 Comm: java Tainted: G           OE     4.19.35 #1
->     [..]
->     RIP: 0010:pmdp_set_access_flags+0x48/0x50
->     [..]
->     Call Trace:
->      vmf_insert_pfn_pmd+0x198/0x350
->      dax_iomap_fault+0xe82/0x1190
->      ext4_dax_huge_fault+0x103/0x1f0
->      ? __switch_to_asm+0x40/0x70
->      __handle_mm_fault+0x3f6/0x1370
->      ? __switch_to_asm+0x34/0x70
->      ? __switch_to_asm+0x40/0x70
->      handle_mm_fault+0xda/0x200
->      __do_page_fault+0x249/0x4f0
->      do_page_fault+0x32/0x110
->      ? page_fault+0x8/0x30
->      page_fault+0x1e/0x30
->
+All of this is true, but why is it wrong?                            
+                                                                                 
+It makes sense that "Page block order" corresponds to pageblock_order,           
+regardless of whether pageblock_order == MAX_ORDER-1.                            
+                                                                                 
+Cc Mel, who added these two lines.
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-
-> Cc: <stable@vger.kernel.org>
-> Fixes: c6f3c5ee40c1 ("mm/huge_memory.c: fix modifying of page protection by insert_pfn_pmd()")
-> Reported-by: Piotr Balcer <piotr.balcer@intel.com>
-> Tested-by: Yan Ma <yan.ma@intel.com>
-> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> Cc: Chandan Rajendra <chandan@linux.ibm.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Souptick Joarder <jrdr.linux@gmail.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: Zhang Bo <bo.zhang@nxp.com>
 > ---
->
->  drivers/dax/device.c    |    6 ++----
->  fs/dax.c                |    6 ++----
->  include/linux/huge_mm.h |    6 ++----
->  mm/huge_memory.c        |   16 ++++++++++------
->  4 files changed, 16 insertions(+), 18 deletions(-)
->
-> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> index e428468ab661..996d68ff992a 100644
-> --- a/drivers/dax/device.c
-> +++ b/drivers/dax/device.c
-> @@ -184,8 +184,7 @@ static vm_fault_t __dev_dax_pmd_fault(struct dev_dax *dev_dax,
+>  mm/vmstat.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 6389e87..b0089cf 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1430,8 +1430,8 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+>  	if (!node_state(pgdat->node_id, N_MEMORY))
+>  		return 0;
 >  
->  	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
->  
-> -	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, *pfn,
-> -			vmf->flags & FAULT_FLAG_WRITE);
-> +	return vmf_insert_pfn_pmd(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
->  }
->  
->  #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-> @@ -235,8 +234,7 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
->  
->  	*pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
->  
-> -	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, *pfn,
-> -			vmf->flags & FAULT_FLAG_WRITE);
-> +	return vmf_insert_pfn_pud(vmf, *pfn, vmf->flags & FAULT_FLAG_WRITE);
->  }
->  #else
->  static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
-> diff --git a/fs/dax.c b/fs/dax.c
-> index e5e54da1715f..83009875308c 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1575,8 +1575,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
->  		}
->  
->  		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
-> -		result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
-> -					    write);
-> +		result = vmf_insert_pfn_pmd(vmf, pfn, write);
->  		break;
->  	case IOMAP_UNWRITTEN:
->  	case IOMAP_HOLE:
-> @@ -1686,8 +1685,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
->  		ret = vmf_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
->  #ifdef CONFIG_FS_DAX_PMD
->  	else if (order == PMD_ORDER)
-> -		ret = vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
-> -			pfn, true);
-> +		ret = vmf_insert_pfn_pmd(vmf, pfn, FAULT_FLAG_WRITE);
->  #endif
->  	else
->  		ret = VM_FAULT_FALLBACK;
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 381e872bfde0..7cd5c150c21d 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -47,10 +47,8 @@ extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
->  extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned long addr, pgprot_t newprot,
->  			int prot_numa);
-> -vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> -			pmd_t *pmd, pfn_t pfn, bool write);
-> -vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> -			pud_t *pud, pfn_t pfn, bool write);
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
->  enum transparent_hugepage_flag {
->  	TRANSPARENT_HUGEPAGE_FLAG,
->  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 165ea46bf149..4310c6e9e5a3 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -793,11 +793,13 @@ static void insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  		pte_free(mm, pgtable);
->  }
->  
-> -vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
-> -			pmd_t *pmd, pfn_t pfn, bool write)
-> +vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write)
->  {
-> +	unsigned long addr = vmf->address & PMD_MASK;
-> +	struct vm_area_struct *vma = vmf->vma;
->  	pgprot_t pgprot = vma->vm_page_prot;
->  	pgtable_t pgtable = NULL;
-> +
->  	/*
->  	 * If we had pmd_special, we could avoid all these restrictions,
->  	 * but we need to be consistent with PTEs and architectures that
-> @@ -820,7 +822,7 @@ vm_fault_t vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  
->  	track_pfn_insert(vma, &pgprot, pfn);
->  
-> -	insert_pfn_pmd(vma, addr, pmd, pfn, pgprot, write, pgtable);
-> +	insert_pfn_pmd(vma, addr, vmf->pmd, pfn, pgprot, write, pgtable);
->  	return VM_FAULT_NOPAGE;
->  }
->  EXPORT_SYMBOL_GPL(vmf_insert_pfn_pmd);
-> @@ -869,10 +871,12 @@ static void insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  	spin_unlock(ptl);
->  }
->  
-> -vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> -			pud_t *pud, pfn_t pfn, bool write)
-> +vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write)
->  {
-> +	unsigned long addr = vmf->address & PUD_MASK;
-> +	struct vm_area_struct *vma = vmf->vma;
->  	pgprot_t pgprot = vma->vm_page_prot;
-> +
->  	/*
->  	 * If we had pud_special, we could avoid all these restrictions,
->  	 * but we need to be consistent with PTEs and architectures that
-> @@ -889,7 +893,7 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  
->  	track_pfn_insert(vma, &pgprot, pfn);
->  
-> -	insert_pfn_pud(vma, addr, pud, pfn, pgprot, write);
-> +	insert_pfn_pud(vma, addr, vmf->pud, pfn, pgprot, write);
->  	return VM_FAULT_NOPAGE;
->  }
->  EXPORT_SYMBOL_GPL(vmf_insert_pfn_pud);
+> -	seq_printf(m, "Page block order: %d\n", pageblock_order);
+> -	seq_printf(m, "Pages per block:  %lu\n", pageblock_nr_pages);
+> +	seq_printf(m, "Page block order: %d\n", MAX_ORDER - 1);
+> +	seq_printf(m, "Pages per block:  %lu\n", MAX_ORDER_NR_PAGES);
+>  	seq_putc(m, '\n');
+>  	pagetypeinfo_showfree(m, pgdat);
+>  	pagetypeinfo_showblockcount(m, pgdat);
+> -- 
+> 1.9.1
+> 
 
