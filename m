@@ -6,84 +6,84 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF184C04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 07:21:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55FBDC04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 07:21:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9DBB5217D6
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 07:21:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DBB5217D6
+	by mail.kernel.org (Postfix) with ESMTP id 125E8217D6
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 07:21:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 125E8217D6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B8E86B0010; Fri, 10 May 2019 03:21:36 -0400 (EDT)
+	id 59AAE6B026A; Fri, 10 May 2019 03:21:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 96A416B0269; Fri, 10 May 2019 03:21:36 -0400 (EDT)
+	id 522E96B026B; Fri, 10 May 2019 03:21:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 833B76B026A; Fri, 10 May 2019 03:21:36 -0400 (EDT)
+	id 39EAB6B026C; Fri, 10 May 2019 03:21:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 62FEB6B0010
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 03:21:36 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id h16so4639336qke.11
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 00:21:36 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5836B026A
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 03:21:38 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id a12so4680840qkb.3
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 00:21:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=mlMuZ+baS9vhQtlkYflvWcBmyvS2Oox5GVM3xd9Ae4c=;
-        b=biuQiSe+Nld0dzatZU9m/JYNwP4bABaybzvCsy6dCI4vdGn1PqrpFnK5EhLqkt8VEs
-         GnnltG6frN+JIRQo8GWrxc1jGe3xh3GdxwS5Z+K1EADGvivV3ndnU/pltCt1v08l8M+c
-         MtIKl/R0gawqHWqXrUjyHMkeHG0pFVcg4zqFnYRbsV0R+Bnns3/3dV7x1+w/wJQclgos
-         leYgQ+NzmB1vxel67zN1ut0/uTPwMMK+Lq2pWbidePnHWIWFdRlXC//9VZMg8T2NN/ek
-         ZyXLVEAXXprvsR2n2ItN5i28IatqbSSmDUaMcMkcufKYvj3pe+0sWJD4EruHUl/f+N//
-         Lfxg==
+        bh=UYXKxPKXPsTybNC4JZhfndIieIgXto0Au/T3tY/gXyg=;
+        b=pnWPnqwnV0EssN1TibGFxLx4ekHgf0wbHAVabCb5bHwcaUi468gk7FjB9jfpdBub/q
+         PHtjE19BO+ySKsHArqVeQguG4I/m8kmpj1l9lxQP64ERghmCor0+dIL3hjLHg7seOIHc
+         saZTIKHm+ds4ZV1GCEl8aTstPHBMoU80DVQeeu6bshzAwXDh/+qLETgbO6bDk9zxQ2FI
+         mMijAbb7FriMv/yq07Ul5mjej9jqc/N742Sw/2VHhsWILrOum8FyH9IIBiGN1iNNwVJ3
+         vaZMTaGT9AyIBdlHC8iLU8u4WscpcyJ80Ev67aUQZ8NKLSPqjSFYfpXP6hyfL0aNld33
+         rsCA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUOABhqRcoBpV4hmmhgHeVSvGkTarXgrcPX9ZXtjYDmZ0U0ALEE
-	BjaKhdAHJ5Hs7QGK3kJyIWn/S43A0BzOh3byS9dLU+zR3fDcrQiszA2xN9NP8C9bgk8GMRgbZg/
-	ZLrxn9d2cUZ6BysIlcMWasZr7xQbnB8EIjYZpNmR1WS/6c0EQBzZvH3zYzp/LJJ5sUg==
-X-Received: by 2002:ac8:3702:: with SMTP id o2mr8012560qtb.119.1557472896106;
-        Fri, 10 May 2019 00:21:36 -0700 (PDT)
-X-Received: by 2002:ac8:3702:: with SMTP id o2mr8012497qtb.119.1557472894928;
-        Fri, 10 May 2019 00:21:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557472894; cv=none;
+X-Gm-Message-State: APjAAAVlj7Wel7hri7EIpAR0odV4NPPRe+BsRzuRBbB3kSMCTHueSUC4
+	pFBaSmNMYDeSgyvZJLctu/3HgVE/ZeCpn7+OfQCcqM97dmOk1MO8w2IDr/AlvnfNXnAi9ofsSGx
+	RELYyhZEJZF1ZLDqqoZVThOILvMgN5YOS7aRcBSHS9JRrwiuZP0IFKiK+URPQley48w==
+X-Received: by 2002:ac8:1671:: with SMTP id x46mr8142681qtk.240.1557472897829;
+        Fri, 10 May 2019 00:21:37 -0700 (PDT)
+X-Received: by 2002:ac8:1671:: with SMTP id x46mr8142653qtk.240.1557472897209;
+        Fri, 10 May 2019 00:21:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557472897; cv=none;
         d=google.com; s=arc-20160816;
-        b=hmO7SH84wDWeyIpicWGazIyliYcTN7LneEMbdXmXP4eXr/j+xH5o6SiCR1BNc89zNG
-         uX9IsPgj6DmajIxMhMoo6IUCAgns5k6NiwprUHXUUOoVicZhTiG5QQ2P/IDWE3x5e02t
-         LG29Vipjncjibu+HbFF4UVm9xo6nvxYTqCiYeYOiXvGeBFNWvx+priLcNynhIHk+c7m3
-         7Lqz6kHmAwwm2zoRjgslgQL3mxOgh6tiN7fDmyVSMOPQzvZcILvY0FhRHbaDZBnfHFQU
-         OJV2/FjsSfSnwCSfxGWrbDy/bJlxDsnAywmqHJkc8YDqPlt7Ew6ZolaIMMCDk8Z77jWv
-         qCtw==
+        b=U27kWFEEcGQZFk5D7I8/os0iZq1i1LXECATQor1w7AH/u60qGHP0If8xUV293zYbJv
+         /syEHhlldhKAkh7AUkdxTJxvINmaRro+g2vseKsMR6MZBFJEet7dQ1ok/ifATfPgXUFD
+         pzp+e0P6TpDfunQoy/R4RJlLBgjVI971NjtPGqEtHFosxg6h806gJngJo0nqlUMzxonq
+         qD6Swr0/VQC6yElbo1sSTcDUXqkWtOvsqtGJa3hswAP6Yy/J4keGaI7b7kbnFPTm0tBJ
+         cQcAfHaPdQ42kIOpI5TvXGxytUVT7aILXG65mvGwPYbJDP37ZtgAevD6C/18w2JNodtw
+         NmYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=mlMuZ+baS9vhQtlkYflvWcBmyvS2Oox5GVM3xd9Ae4c=;
-        b=TaKIvCVlxrY+q+253Ep5RJe9LP94wYZ5IUK4pZPdLCF/NPXMrxAedSc+w16P6PhKLL
-         EC4hepi+2yUU5L62lmfEdXA+e4a67s8dOjAkSdseduHIqm0swU1h0XTQCTMYF5i2d4lO
-         PMPAjCQjaQ0Xwjo7pi6No0VMUz+7uGErmeDGFn198Eh+7uC1VkFo5b9zSAxTB8dtiQ0q
-         0AEw/DM6s5V2f/tXhnb5/5l0Plif6dSUgFZzspdbI924870NW3Lyz37HgYH7DDI+bDj2
-         Z87rG3IO+Ue5oMiZUxWb+ldFzd/IJtMgogINzvJR8mekTn+Gan0jAfeO/G/H8f2qP2D5
-         O3VA==
+        bh=UYXKxPKXPsTybNC4JZhfndIieIgXto0Au/T3tY/gXyg=;
+        b=BqQTRu/9Y/DwptajCOM6RSr4cbwO9Y/TH897zMye1XnYmu3TeNwyUi3G2pfaiZ0Ism
+         IHw/blYGkz9Kr5wOsTfiXb7RAihaludjHjxo02EFKia8HYQnScCz9xyGhxF/amr4/q+G
+         ntI+KsrEBNZ+MCwP6PRK9MnWc1mQwRJ0DWG3iu39qX+iyCW2IIsLpoWBjaydPsL9VA2/
+         V8xKV8oppjcftO9v9E6+ZVeIYqW+r82ES3mhxrNes15TjQUL423qppUg03ka0xViyOSx
+         Tsmk6vC63km3PvzRzbAug1NcaQIj6sBBzLhEoifmv840LegA+YVSbkZppz54Y4N5x57t
+         3asQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s29sor3539250qve.49.2019.05.10.00.21.34
+        by mx.google.com with SMTPS id y12sor3533473qve.24.2019.05.10.00.21.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 10 May 2019 00:21:34 -0700 (PDT)
+        Fri, 10 May 2019 00:21:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqz/+ynrCsQP/BLl+LKcOs3x84+6OIoUVWb8hO3FNCiBMNoBPIf1oHQue0SdB9Zjhf1ZT6HdwQ==
-X-Received: by 2002:a0c:b28e:: with SMTP id r14mr7753580qve.158.1557472894619;
-        Fri, 10 May 2019 00:21:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxw5WeE0e1Tl0rCWVbYdCmPx9jVnpRz2LqMlAgWX6iwo8mnCouCMFYdDyqwFsbfVQdq2npsFA==
+X-Received: by 2002:a0c:b907:: with SMTP id u7mr7761329qvf.189.1557472896947;
+        Fri, 10 May 2019 00:21:36 -0700 (PDT)
 Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id 124sm1641385qkj.59.2019.05.10.00.21.33
+        by smtp.gmail.com with ESMTPSA id b19sm2308808qkk.51.2019.05.10.00.21.35
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 10 May 2019 00:21:33 -0700 (PDT)
+        Fri, 10 May 2019 00:21:36 -0700 (PDT)
 From: Oleksandr Natalenko <oleksandr@redhat.com>
 To: linux-kernel@vger.kernel.org
 Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
@@ -94,9 +94,9 @@ Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
 	Timofey Titovets <nefelim4ag@gmail.com>,
 	Aaron Tomlin <atomlin@redhat.com>,
 	linux-mm@kvack.org
-Subject: [PATCH RFC 3/4] mm/ksm: allow anonymous memory automerging
-Date: Fri, 10 May 2019 09:21:24 +0200
-Message-Id: <20190510072125.18059-4-oleksandr@redhat.com>
+Subject: [PATCH RFC 4/4] mm/ksm: add automerging documentation
+Date: Fri, 10 May 2019 09:21:25 +0200
+Message-Id: <20190510072125.18059-5-oleksandr@redhat.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190510072125.18059-1-oleksandr@redhat.com>
 References: <20190510072125.18059-1-oleksandr@redhat.com>
@@ -108,148 +108,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce 2 KSM modes:
-
-  * madvise, which is default and maintains old behaviour; and
-  * always, in which new anonymous allocations are marked as eligible
-    for merging.
-
-The mode is controlled either via sysfs or via kernel cmdline for VMAs
-to be marked as soon as possible during the boot process.
-
-Previously introduced ksm_enter() helper is used to hook into
-do_anonymous_page() and mark each eligible VMA as ready for merging.
-This avoids introducing separate kthread to walk through the task/VMAs
-list.
+Document KSM "always" mode kernel cmdline option as well as
+corresponding sysfs knob.
 
 Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
 ---
- include/linux/ksm.h |  3 +++
- mm/ksm.c            | 65 +++++++++++++++++++++++++++++++++++++++++++++
- mm/memory.c         |  6 +++++
- 3 files changed, 74 insertions(+)
+ Documentation/admin-guide/kernel-parameters.txt | 7 +++++++
+ Documentation/admin-guide/mm/ksm.rst            | 7 +++++++
+ 2 files changed, 14 insertions(+)
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index bc13f228e2ed..3c076b35259c 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -21,6 +21,9 @@ struct mem_cgroup;
- #ifdef CONFIG_KSM
- int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 		unsigned long end, int advice, unsigned long *vm_flags);
-+#ifdef VM_UNMERGEABLE
-+bool ksm_mode_always(void);
-+#endif
- int ksm_enter(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long *vm_flags);
- int __ksm_enter(struct mm_struct *mm);
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 0fb5f850087a..6a2280b875cc 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -295,6 +295,12 @@ static int ksm_nr_node_ids = 1;
- static unsigned long ksm_run = KSM_RUN_STOP;
- static void wait_while_offlining(void);
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index 2b8ee90bb644..510766a3fa05 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2008,6 +2008,13 @@
+ 			0: force disabled
+ 			1: force enabled
  
-+#ifdef VM_UNMERGEABLE
-+#define KSM_MODE_MADVISE	0
-+#define KSM_MODE_ALWAYS		1
-+static unsigned long ksm_mode = KSM_MODE_MADVISE;
-+#endif
++	ksm_mode=
++			[KNL]
++			Format: [madvise|always]
++			Default: madvise
++			Can be used to control the default behavior of the system
++			with respect to merging anonymous memory.
 +
- static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
- static DECLARE_WAIT_QUEUE_HEAD(ksm_iter_wait);
- static DEFINE_MUTEX(ksm_thread_mutex);
-@@ -2478,6 +2484,36 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 	return 0;
- }
+ 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
+ 			Default is 0 (don't ignore, but inject #GP)
  
-+#ifdef VM_UNMERGEABLE
-+bool ksm_mode_always(void)
-+{
-+	return ksm_mode == KSM_MODE_ALWAYS;
-+}
-+
-+static int __init setup_ksm_mode(char *str)
-+{
-+	int ret = 0;
-+
-+	if (!str)
-+		goto out;
-+
-+	if (!strcmp(str, "madvise")) {
-+		ksm_mode = KSM_MODE_MADVISE;
-+		ret = 1;
-+	} else if (!strcmp(str, "always")) {
-+		ksm_mode = KSM_MODE_ALWAYS;
-+		ret = 1;
-+	}
-+
-+out:
-+	if (!ret)
-+		pr_warn("ksm_mode= cannot parse, ignored\n");
-+
-+	return ret;
-+}
-+__setup("ksm_mode=", setup_ksm_mode);
-+#endif
-+
- int ksm_enter(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long *vm_flags)
- {
-@@ -2881,6 +2917,35 @@ static void wait_while_offlining(void)
- 	static struct kobj_attribute _name##_attr = \
- 		__ATTR(_name, 0644, _name##_show, _name##_store)
+diff --git a/Documentation/admin-guide/mm/ksm.rst b/Documentation/admin-guide/mm/ksm.rst
+index 9303786632d1..9af730640da7 100644
+--- a/Documentation/admin-guide/mm/ksm.rst
++++ b/Documentation/admin-guide/mm/ksm.rst
+@@ -78,6 +78,13 @@ KSM daemon sysfs interface
+ The KSM daemon is controlled by sysfs files in ``/sys/kernel/mm/ksm/``,
+ readable by all but writable only by root:
  
-+#ifdef VM_UNMERGEABLE
-+static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr,
-+	char *buf)
-+{
-+	switch (ksm_mode) {
-+	case KSM_MODE_MADVISE:
-+		return sprintf(buf, "always [madvise]\n");
-+	case KSM_MODE_ALWAYS:
-+		return sprintf(buf, "[always] madvise\n");
-+	}
++mode
++        * set madvise to deduplicate only madvised memory
++        * set always to allow deduplicating all the anonymous memory
++          (applies to newly allocated memory only)
 +
-+	return sprintf(buf, "always [madvise]\n");
-+}
++        Default: madvise (maintains old behaviour)
 +
-+static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
-+	const char *buf, size_t count)
-+{
-+	if (!memcmp("madvise", buf, min(sizeof("madvise")-1, count)))
-+		ksm_mode = KSM_MODE_MADVISE;
-+	else if (!memcmp("always", buf, min(sizeof("always")-1, count)))
-+		ksm_mode = KSM_MODE_ALWAYS;
-+	else
-+		return -EINVAL;
-+
-+	return count;
-+}
-+KSM_ATTR(mode);
-+#endif
-+
- static ssize_t sleep_millisecs_show(struct kobject *kobj,
- 				    struct kobj_attribute *attr, char *buf)
- {
-diff --git a/mm/memory.c b/mm/memory.c
-index ab650c21bccd..08f3f92de310 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2994,6 +2994,12 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	update_mmu_cache(vma, vmf->address, vmf->pte);
- unlock:
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-+
-+#if defined(CONFIG_KSM) && defined(VM_UNMERGEABLE)
-+	if (ksm_mode_always())
-+		ksm_enter(vma->vm_mm, vma, &vma->vm_flags);
-+#endif
-+
- 	return ret;
- release:
- 	mem_cgroup_cancel_charge(page, memcg, false);
+ pages_to_scan
+         how many pages to scan before ksmd goes to sleep
+         e.g. ``echo 100 > /sys/kernel/mm/ksm/pages_to_scan``.
 -- 
 2.21.0
 
