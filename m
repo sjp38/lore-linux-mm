@@ -7,77 +7,77 @@ X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D403C04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAC3FC04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 441AF216C4
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6D09D216C4
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 13:50:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="r/0QAaBE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 441AF216C4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="r6bl2BJo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D09D216C4
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6FAE76B028C; Fri, 10 May 2019 09:50:44 -0400 (EDT)
+	id B2B356B0295; Fri, 10 May 2019 09:50:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 628426B0298; Fri, 10 May 2019 09:50:44 -0400 (EDT)
+	id 7FA256B0297; Fri, 10 May 2019 09:50:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C7296B0296; Fri, 10 May 2019 09:50:43 -0400 (EDT)
+	id 649716B0293; Fri, 10 May 2019 09:50:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 867466B028F
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C4DCB6B028C
 	for <linux-mm@kvack.org>; Fri, 10 May 2019 09:50:43 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id a17so4172911pff.6
+Received: by mail-pf1-f199.google.com with SMTP id 17so4156776pfi.12
         for <linux-mm@kvack.org>; Fri, 10 May 2019 06:50:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=YXi2Vb1hST3grI1sk61d7V/axR7tySOZeDPQ8IsaO4o=;
-        b=qXIHMmIhm2aE1m8H/3Go74qfefRwPUYRFIxicQAKajpAAK+8SGoc78i4HKUMMRkLS/
-         EpD+6Tmow3HD+c5gXaU2laxgfO+MYWOoqsfsnVGHTmVAibrwIdFTeqfUjRUDBCDsp7tp
-         XDzB2NqDU5psDVk0k19Py7K4fmGKT9886VbnmRKQJsg5llDX+JMA3otc+7CuizUXKkWB
-         Fa+WUDV4g6u/HNmtWrhqreyspyD4x4b+zsApeWULIln6yDpBdoE8QViesALpz6CxYIbo
-         63rmkl9Dnn/7D4NCJTKEZA4H57+zMMklxWmrltjgPv/XaIAMJGRudoNs1Ixix/ueOwxb
-         weyA==
-X-Gm-Message-State: APjAAAUZFgkD9fPYLqa5RqWi2HCPh650VJ+293b5qyfwpE6wRtWC/EBZ
-	MqXypAy+oyOM9EN23bFr40jx1ENYKbfhEwpRidyVxYOB29B6OgDXiOCj1GYuD4lZ0uhUH9EOqbW
-	TX24e/doHp7gWNSBV5Y1k0dkgo0UHj7UBzBM4fVzsBvUh4+8qgp+yiGE8v/w3WAgi8g==
-X-Received: by 2002:a17:902:be09:: with SMTP id r9mr13131507pls.215.1557496243133;
+        bh=YfkW4qIwUGsBhoWlrqnKDkQtprDC3cp1HvmKaBgk21U=;
+        b=aDkB/Z0C9xoM1Vivx5CgOAzmM5hcE5SgQ98t/HjFldlaNHMARpp+kCBuQy/QxkZdqy
+         joasoF2ssWNJ+mWr4n3z/33ddC804gepGb/emmvX8BloBNqkKPeu9Wg7cmlBfHsBVgCY
+         I/Z5ULOWZNurDhRvquvPGt4YVL+Gh74G4/+eOYu1j3iViXC/uE2sc1wBfSd+FQf8foQP
+         ZZ6UdcACp24xHYyW7nGek2wnOEons49qclmYv1lHAIQleb9KJxqjO00Lh12QUs15926S
+         tjzDKd91VOufr48AJVkt9PV8oNiwo4Co/jPzgGw3CtRFvee9hZ+bPXBY2IBSSslvm/pr
+         /ARw==
+X-Gm-Message-State: APjAAAUCf9g9BUxmn9Fxv+7w11/eQnietNqW4RlcXxrsBzeBbxi0RlNk
+	r0XzHOE2LphX/qs3dmVh7o2jhpaQGdjpkDZ1YvsxTw2uAkE1769kIg8H1KrcFKk2YQNO1DZ2nAo
+	SyDtnHIjSRr09kcnTVOuf5QS5jtBZswTn5/xiolVzgwmH6cMhv6g30XRoVSzc6EQd0Q==
+X-Received: by 2002:aa7:87d7:: with SMTP id i23mr14160332pfo.211.1557496243503;
         Fri, 10 May 2019 06:50:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxoqLtWodtWl08KLD2Df46yILHObzagoHzcs5cvWQKV7IwZbgG6QzsOP6+p3rmgkQPOVmhx
-X-Received: by 2002:a17:902:be09:: with SMTP id r9mr13131401pls.215.1557496242142;
+X-Google-Smtp-Source: APXvYqxUEx6mD+hlNyVbcEeyhK+/k+3qsYH5FjJ+JO9vWEvq2qhbgCtpmvE2LZtn4KMaJklK/XGu
+X-Received: by 2002:aa7:87d7:: with SMTP id i23mr14160190pfo.211.1557496242455;
         Fri, 10 May 2019 06:50:42 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557496242; cv=none;
         d=google.com; s=arc-20160816;
-        b=0TmwaEwWmu5CrJKf4FpJgcNqRYWylgZ/hqXRkhEGe9KAl5Y5jzGn4yES9JzvodAwjS
-         lgk2fcWZDdiRTfSMFrTD2qNAxiRdypJ1UogTxj39C+poGEqb1AQq7tbQdLkCYV5i90na
-         VEyn3N5Ec6XQv745ePrk6pQXeShZp0f0bJyT+XVT+yS6sNnQSVfygxFUh6q4yaIiHnZ4
-         J59EqN9T6J6jp233g751xfUrrBoRM68S449K6zm/djWKTJNkXKRfXW1X4zn2TpXuZaJH
-         NifdV7DxOt2HT0qLbP+HFjfVHCvpbU9OdzldleL6UuHIerju6ObyxEdscPGqCYGGsn2e
-         ggkA==
+        b=XJgRmsPsfFsXkvtAnCnTme3SblUVZyiEC5C1uD5jwKjsgLgEjsvKxlLvL+c60X9Zmm
+         c1C1hw+f+sdYplr41Bg15A+u6Hw4IqA+Lo0ybCtSF6GW+SV8SOKbq2n1dSs3005zUKZG
+         reOA88Ft1IDyGzYhptJIuti1hSpWpi/VMXRAb9/bEnlRD4pq3MRDBacyfLIQRaIcDFtf
+         Cz4cTH7tugzi1A9mb+l+OWYUXvYQUQgiCw/7e8/DyFwr9mBDSRQwPQbLGtgcz+oDCP5o
+         qjB74wzR2mvIGcxksHKJEMZ6As6rNf/7ah+icYSAxOTEMFRUWArGRdyrV5fLBclTj1eJ
+         I5lQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=YXi2Vb1hST3grI1sk61d7V/axR7tySOZeDPQ8IsaO4o=;
-        b=E+hRqocoFEEjAYFyY1xpi7+MthTbcAQbUPAluxPa2bBPCfkDQSYv5Ep7W9pdopnIX0
-         7cQtlH+rFurk3fn2oLimrHrpkAcNcqnzz8ZT5GW1W4U143MkvOudjU5Zbmf2Ke0VUE4e
-         86cY9WkfwC7qId+ZN6y9HFghKayoeSGCZhcwPBwxOBUZErRQvaFZMaGIpNP0H4ZzJ8xN
-         UaVh7wUatGEaQJr0vPRCu7xkSMChdBihlJmDhUWv8clb9LkwSmJFaKOawHXENgVS7iuL
-         XOluvk9kWOAIOs6wCiI/3mY0qde6VSDZd7k9ZVMscxVLvpQEBDkkuArk+GP2leM61pKS
-         sLdg==
+        bh=YfkW4qIwUGsBhoWlrqnKDkQtprDC3cp1HvmKaBgk21U=;
+        b=u8A2ZOyEcxFFkQOlTw/h6IXfTTfUUAzA3hejNJU8adh5AxRoqOOlQdc+ST3pvH5J1t
+         DJuHpg/V38wcG5xckM0FKEmV+ZGttCGUqfy7bxw0/T8071oHkRtsmUjL3zRmsmpUBsGK
+         EdTcGlHlOOzs8fREQ3TBIgf3LHemjk3iURhow1mwiTrrqnb6/2jNrABf3jkQa+SiijbJ
+         UJs70aSlqoo0MB3SIMynQ+ide3GdUmUuHe+icMnTKMW78mORpATSLuAehKAb658hN7OS
+         q1o26V45apM9TljCxxczjWrAaPoFz5wBT72EoDyuPraesAyet1im1BdQKyqc+es/4jsR
+         o9UQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="r/0QAaBE";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=r6bl2BJo;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id b15si7943894pfb.231.2019.05.10.06.50.42
+        by mx.google.com with ESMTPS id 37si7248083pgm.55.2019.05.10.06.50.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Fri, 10 May 2019 06:50:42 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="r/0QAaBE";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=r6bl2BJo;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=References:In-Reply-To:Message-Id:
@@ -85,20 +85,20 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=YXi2Vb1hST3grI1sk61d7V/axR7tySOZeDPQ8IsaO4o=; b=r/0QAaBET2nYELz9uZmSUU8Se
-	/QC0ORBAefxx0rya7fkAsJm05M+NuVuuth/V5L2dBsHzOW0+Lmxnbz7pjLr9zV3pdQUtzvBEj6TLy
-	jPavN0ikTdwiN6D9DZgO6doOKE33lMZmlYn9CZUHdCUZjHtMvTnoyt+1r5qBXYCgalk3/vcZ9dY5c
-	KpGJvXjztdarzB1Xd2ZxZyC2z9KGmzIjV1O1W59NOzTilUZ/nnxgDLl3CNi/bomPaU6hyxW7tZDbb
-	Q5d4e3IFpfYcxqW6m7Y4v37ZiBgxOWtQZcoD6b6nE7pyAqKf/WNL/bfo9ql9WVK/3qyiTMGhZodGY
-	uZmo5ULow==;
+	 bh=YfkW4qIwUGsBhoWlrqnKDkQtprDC3cp1HvmKaBgk21U=; b=r6bl2BJoeDq9XStVs7LDpm78J
+	N+brn3qzoRVrTGMHVJVNOH6OPs4OqDiewvgZCiCiYDnOTqxNFldQcZtKLs0p7tPG7zBG4ay6GB44S
+	VnK0Jb8PqeUiiWz2sm1sVrrvz+JGFlL3Mj44iAmHrJkrbhCqmDwJeYRWWvO2ysgKJOHBohsZwVYG4
+	lJaVtqCmecRn2QiIEA5fxvrPL9n2uUmyH5yyMMcUDXYV0ofpp2eSOW4Q2tmpXQxteCieeudSxUYiB
+	c0OqHWqwSFVG2XviJuhSsF2h3rk+3ArLIFuWeSmiO2Vb1k7UlHqZzcUZF/cNdRKNX5+kB+tlv46pW
+	AmkJ0XmWg==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hP5v7-0004UH-Lj; Fri, 10 May 2019 13:50:41 +0000
+	id 1hP5v7-0004UT-Vb; Fri, 10 May 2019 13:50:41 +0000
 From: Matthew Wilcox <willy@infradead.org>
 To: linux-mm@kvack.org
 Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-Subject: [PATCH v2 10/15] mm: Pass order to rmqueue in GFP flags
-Date: Fri, 10 May 2019 06:50:33 -0700
-Message-Id: <20190510135038.17129-11-willy@infradead.org>
+Subject: [PATCH v2 12/15] mm: Pass order to __alloc_pages_cpuset_fallback in GFP flags
+Date: Fri, 10 May 2019 06:50:35 -0700
+Message-Id: <20190510135038.17129-13-willy@infradead.org>
 X-Mailer: git-send-email 2.14.5
 In-Reply-To: <20190510135038.17129-1-willy@infradead.org>
 References: <20190510135038.17129-1-willy@infradead.org>
@@ -114,37 +114,41 @@ Matches the change to the __alloc_pages_nodemask API.
 
 Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
 ---
- mm/page_alloc.c | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ mm/page_alloc.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 91d8bafa7945..6cff996289be 100644
+index 38211bc541a7..d4ac38780e44 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3186,11 +3186,10 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
-  * Allocate a page from the given zone. Use pcplists for order-0 allocations.
-  */
- static inline
--struct page *rmqueue(struct zone *preferred_zone,
--			struct zone *zone, unsigned int order,
--			gfp_t gfp_flags, unsigned int alloc_flags,
--			int migratetype)
-+struct page *rmqueue(struct zone *preferred_zone, struct zone *zone,
-+		gfp_t gfp_flags, unsigned int alloc_flags, int migratetype)
+@@ -3697,8 +3697,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ }
+ 
+ static inline struct page *
+-__alloc_pages_cpuset_fallback(gfp_t gfp_mask, unsigned int order,
+-			      unsigned int alloc_flags,
++__alloc_pages_cpuset_fallback(gfp_t gfp_mask, unsigned int alloc_flags,
+ 			      const struct alloc_context *ac)
  {
-+	unsigned int order = gfp_order(gfp_flags);
- 	unsigned long flags;
  	struct page *page;
+@@ -3794,7 +3793,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		 * reserves
+ 		 */
+ 		if (gfp_mask & __GFP_NOFAIL)
+-			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
++			page = __alloc_pages_cpuset_fallback(gfp_mask,
+ 					ALLOC_NO_WATERMARKS, ac);
+ 	}
+ out:
+@@ -4556,7 +4555,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 * could deplete whole memory reserves which would just make
+ 		 * the situation worse
+ 		 */
+-		page = __alloc_pages_cpuset_fallback(gfp_mask, order, ALLOC_HARDER, ac);
++		page = __alloc_pages_cpuset_fallback(gfp_mask, ALLOC_HARDER, ac);
+ 		if (page)
+ 			goto got_pg;
  
-@@ -3613,7 +3612,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 		}
- 
- try_this_zone:
--		page = rmqueue(ac->preferred_zoneref->zone, zone, order,
-+		page = rmqueue(ac->preferred_zoneref->zone, zone,
- 				gfp_mask, alloc_flags, ac->migratetype);
- 		if (page) {
- 			prep_new_page(page, gfp_mask, alloc_flags);
 -- 
 2.20.1
 
