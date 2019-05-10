@@ -6,115 +6,115 @@ X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A445C04A6B
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 09:13:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C517C04A6B
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 09:15:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3B5321479
-	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 09:13:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D54D221479
+	for <linux-mm@archiver.kernel.org>; Fri, 10 May 2019 09:15:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=analog.onmicrosoft.com header.i=@analog.onmicrosoft.com header.b="UtgaGDmS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3B5321479
+	dkim=pass (1024-bit key) header.d=analog.onmicrosoft.com header.i=@analog.onmicrosoft.com header.b="P6j9qkyh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D54D221479
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=analog.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4335C6B026E; Fri, 10 May 2019 05:13:36 -0400 (EDT)
+	id 766276B0271; Fri, 10 May 2019 05:15:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E5846B0270; Fri, 10 May 2019 05:13:36 -0400 (EDT)
+	id 6F1206B0272; Fri, 10 May 2019 05:15:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2860C6B0271; Fri, 10 May 2019 05:13:36 -0400 (EDT)
+	id 542FF6B0273; Fri, 10 May 2019 05:15:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F23846B026E
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 05:13:35 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id e88so2609918ote.14
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 02:13:35 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F3C086B0271
+	for <linux-mm@kvack.org>; Fri, 10 May 2019 05:15:37 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id n52so3559040edd.2
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 02:15:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=Cd+V8yqGMykCDx3832Gazx49N+DzcZoh0jyuHRt5ol4=;
-        b=D/huqV0TF44/bajPGFEElUnCOp6kpUGo3OywNPQdUiBKC3bxh9Yoy2JZnmux5RQVya
-         fTxHYcGuIVwEHAQQXS4B/33J3F5m0riuernHLg4LJ76cskc3x4gXWVcvZj0nJtXIjqLb
-         yOUmC+14bQURty7q9/xWrpwwBacaGuVBX1zzMFUjwvsm415T8BxNyVidzd29c5Wg2XCk
-         Hth/vYuiwpSuXTPdaegp5+eHa2wmt7fXrLZNLFze6/pBTnRPHizkTpuvCFTy1VJ/b0XQ
-         35as/nUQ/zHfkBdBfpgNEzurwowpmLxYMmrbZizWsnXfFC0QqGv4bTskH3Dl4XXI3xkI
-         SBjA==
-X-Gm-Message-State: APjAAAXc4oTrIH19gigfZeJj6ZyXQRjiUG3JykAGu2UJmnhWtzFA4KPN
-	mIdg2zGHJYBJEKwO2MFg+tc1STwTl2E7j18hI+NIjC29pkNOqpoCbFmjarNBmSeWMjLo+3XOrhF
-	yyDuU2MxsAfiV6xvU6sqMFvryZB7SpUs4TzEYILNpENo4T/gVBO8FPyT1NdkE8ycJLg==
-X-Received: by 2002:a9d:74c9:: with SMTP id a9mr3092819otl.218.1557479615585;
-        Fri, 10 May 2019 02:13:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQBZFYcFUeHfNNFPhl+4vK10tiKoDOfoolmOa/vOA54qZiYOKqdswaL889GYisya71r7RX
-X-Received: by 2002:a9d:74c9:: with SMTP id a9mr3092788otl.218.1557479614711;
-        Fri, 10 May 2019 02:13:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557479614; cv=none;
+        bh=wSA47lRaD47gVkjnR4QZVVI1SlFOWw1QUqW5W1oYeBg=;
+        b=RF11p9kmJ2Yv7jLlFoD+wN0UNb34fUaW+PqGfT6OvdrKtCoct9TQgAGnTVoul+nwtU
+         IRLOc0oIRiRh5TRpdznVkWPYMUz3cJyfDI3JAxlQ1iyhrn6+X8IM63OftBkVgxWFvik0
+         Mb1R2Vr61RaLIehquVuvFgdZa+79GhfsgmJp8ndpBp0PruOtacGm8EBrX3KRaBvYEw9n
+         ZgSozATIV5gBy03Z9BfTj3FFjBfNZlGV3kNGGnSQOtJVOBGZ3IxrF8Nq6TCPqKnyywJs
+         cbkQdiXkt6rLxr/bpqh7TlSuulALh4nKAaV444DTmyDwYw2bQuruSAPub1DW/84YbkRL
+         QW/A==
+X-Gm-Message-State: APjAAAWmgnfQe4Gkq4WSi6/PF1ogNtEF2oyfiEPp1YasVLSjiWCF2fe/
+	fLobqnt//bbBGyK3C62DUuS0LJgcjC6coZnAl6PFJAmV4XGLwphU+kvwgEzX5cImXgMxwEMDynL
+	sJTgfzhTvHNidYJq+QrXrsnjKNXdYnMyZCv9/cjwcERGE7hejb1UpbXud1RT0+DbdTA==
+X-Received: by 2002:a17:906:3086:: with SMTP id 6mr5881173ejv.2.1557479737552;
+        Fri, 10 May 2019 02:15:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw3ISxqrfI1XWU0ygLcN7hldLAcc/lioqQ2aBAAGOMoB5m25iauISWhLAu6geBuG0K7wG2W
+X-Received: by 2002:a17:906:3086:: with SMTP id 6mr5881087ejv.2.1557479736296;
+        Fri, 10 May 2019 02:15:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557479736; cv=none;
         d=google.com; s=arc-20160816;
-        b=D2LTjc+EdtUGTssWGlcFIS3V4NcC6ODjZ1Pbri+pPBm6VJjxmtcDNf3IxUtq6+Y4rc
-         1qE9VfAC5Qab5EK22o8rPAA/9s2XCgprU1RXdVZ/To4QECGct9+UTKY8UB4yOLKt36Fb
-         taSoloZxxrhvU1eqybTCMIviQ+w1JWd6fHJVzes36954fxy6kPRD4e/6yqdNz2SpjUHh
-         S1Tq40641EDPCH8AlWXBprUTO956VbQNurFJ1AUbxOT/L7eJGlsvjlG04skVbDYHutKc
-         RkJp6sEnCZq5ucAEBl+LOJ5krVjUHOMjhHpLGuOAlBTN05zoQy7ePP70QOm4siO3zL0p
-         XFgQ==
+        b=YOrw+7hAT0HNnNRj7GpgOCJb3kLnbrLrxPOfu4I4SN3B1vFnURgCahSVRbeuR5alrC
+         rBJPslJXPDgnJ0HeDh8SGVXbZmwBDkpHMkVMv0yPKCYv6hHi5Hoyi5yTMzEqnApvkFmC
+         LsXVEjKAJo8KD7ruFhLphtxd+jAOBVAuJ7YAXArjKBSd3eT6UyCLSMHuvSTmybSc8mK9
+         3Mmx8KGWT0DTB3lav/lWyMPYkO3hSPrURZ4VLyjZ3nahqcpPpNhwlYUvYgH9ac2Ng925
+         EDCWuigcepJAVK+R29ui6N0186SErEwkudR8x03sFt438BHj9dBPiM/D9rvUI3C5+aKr
+         l9fg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=Cd+V8yqGMykCDx3832Gazx49N+DzcZoh0jyuHRt5ol4=;
-        b=hkg6RzyX+LrdoXHKP9zp+9m30m6KaUIJmk/x+7gL4jaNmn2COQ611tNNf6Lhi4WuCS
-         D05JPiBCCWPfUiBCp3XX3iNLd4Nij63htPLQsjisHIrnl/L6ImUbm3DxGnbEaEhm02+l
-         2l1vWuwcgMMNvBoSn2iYnzaq0AeXA/dM1CuNnIeliwBwMMf6gsxiXdNZ1ZzlLBOQIyUB
-         +78aw0ZqJt8goYY6JO5pLTRvT+kQr4SPfTKqIu7YW9rz7PMYPe5VoTg04frYXQ5qwRE1
-         cFgqEXulvDldPPK1SZ+BfYduh4czSmPhdF2x6jv8XXLZz/Q6cXExP5lgajPoEtyNDfUG
-         662Q==
+        bh=wSA47lRaD47gVkjnR4QZVVI1SlFOWw1QUqW5W1oYeBg=;
+        b=hCbj/LFauZdoCuCOrDI4KnmMdme5L/d/P+zQqD5PJyq/nDW0stjYl9B2bfLMJT7Vr7
+         vUQ4cq5qPfTT6kbRxRvSWE8qelG5OhPA3Osy6A84W9B4Z09mKzMIKV4X9O3upaMH5TDY
+         pGZgX8wiDG9Tl6gsDreJCB9Fl0XymftvEw0KnULzY/tD4kaZtSSPWpzRJ9mCh5ogsnI1
+         RSc/Oiq9isGyyYJ6IOxcGK6BJFVbWq9z995tombyPxh8mPhIm5XXG2Kmawt1L9UN8E2s
+         l3v+lQfNe85s9khrhgte/D+i2b1khLDe0DCg7NG4YkRuO/XzQP/GQsdyU3U4vaOkfMwF
+         oX3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=UtgaGDmS;
-       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.89 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730089.outbound.protection.outlook.com. [40.107.73.89])
-        by mx.google.com with ESMTPS id u79si2849668oif.72.2019.05.10.02.13.34
+       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=P6j9qkyh;
+       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.69 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
+Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730069.outbound.protection.outlook.com. [40.107.73.69])
+        by mx.google.com with ESMTPS id m18si3524081edm.173.2019.05.10.02.15.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 10 May 2019 02:13:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.89 as permitted sender) client-ip=40.107.73.89;
+        Fri, 10 May 2019 02:15:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.69 as permitted sender) client-ip=40.107.73.69;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=UtgaGDmS;
-       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.89 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
+       dkim=pass header.i=@analog.onmicrosoft.com header.s=selector1-analog-com header.b=P6j9qkyh;
+       spf=pass (google.com: domain of alexandru.ardelean@analog.com designates 40.107.73.69 as permitted sender) smtp.mailfrom=alexandru.Ardelean@analog.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  d=analog.onmicrosoft.com; s=selector1-analog-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Cd+V8yqGMykCDx3832Gazx49N+DzcZoh0jyuHRt5ol4=;
- b=UtgaGDmS/mFN7LqP4rRanlhIErtROJDfXKgcIeQ1c2pUsTHgWkYu7j96Yd2lPftDdz2wXx3xkpYor7R+H8gftiZOSJxx+ATBAk9fPgRuYm3L0Lav4JU1SKRoMBgfFlLd2aeYeN4GFuH2989f+gy+Ay1+8Dk0VQ9Sau1g+bv3pvo=
-Received: from BN3PR03CA0101.namprd03.prod.outlook.com (2603:10b6:400:4::19)
- by BN3PR03MB2257.namprd03.prod.outlook.com (2a01:111:e400:c5f1::17) with
- Microsoft SMTP Server (version=TLS1_2,
- cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.1878.22; Fri, 10 May
- 2019 09:13:30 +0000
-Received: from BL2NAM02FT032.eop-nam02.prod.protection.outlook.com
- (2a01:111:f400:7e46::206) by BN3PR03CA0101.outlook.office365.com
- (2603:10b6:400:4::19) with Microsoft SMTP Server (version=TLS1_2,
+ bh=wSA47lRaD47gVkjnR4QZVVI1SlFOWw1QUqW5W1oYeBg=;
+ b=P6j9qkyh/W9HoJNWlkiVn/q6miOnRfxuL4pYK6RankU/nkLaNOXsosVR+gcsuu3XAwFd6cCTRB1MoJlA6P/+7hwoSPcs/v94ubYmmHkZsEjQZMDFPXRh598iyCuxRg3vxxT0+p7oYdCqVHV63UCp9RKgx9ZRCph3+zfILCQVp14=
+Received: from DM6PR03CA0057.namprd03.prod.outlook.com (20.178.24.34) by
+ BN3PR03MB2257.namprd03.prod.outlook.com (10.167.5.145) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1878.22; Fri, 10 May 2019 09:15:30 +0000
+Received: from SN1NAM02FT044.eop-nam02.prod.protection.outlook.com
+ (2a01:111:f400:7e44::209) by DM6PR03CA0057.outlook.office365.com
+ (2603:10b6:5:100::34) with Microsoft SMTP Server (version=TLS1_2,
  cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.20.1878.21 via Frontend
- Transport; Fri, 10 May 2019 09:13:29 +0000
-Authentication-Results: spf=pass (sender IP is 137.71.25.57)
+ Transport; Fri, 10 May 2019 09:15:30 +0000
+Authentication-Results: spf=pass (sender IP is 137.71.25.55)
  smtp.mailfrom=analog.com; vger.kernel.org; dkim=none (message not signed)
  header.d=none;vger.kernel.org; dmarc=bestguesspass action=none
  header.from=analog.com;
 Received-SPF: Pass (protection.outlook.com: domain of analog.com designates
- 137.71.25.57 as permitted sender) receiver=protection.outlook.com;
- client-ip=137.71.25.57; helo=nwd2mta2.analog.com;
-Received: from nwd2mta2.analog.com (137.71.25.57) by
- BL2NAM02FT032.mail.protection.outlook.com (10.152.77.169) with Microsoft SMTP
+ 137.71.25.55 as permitted sender) receiver=protection.outlook.com;
+ client-ip=137.71.25.55; helo=nwd2mta1.analog.com;
+Received: from nwd2mta1.analog.com (137.71.25.55) by
+ SN1NAM02FT044.mail.protection.outlook.com (10.152.72.173) with Microsoft SMTP
  Server (version=TLS1_0, cipher=TLS_RSA_WITH_AES_256_CBC_SHA) id 15.20.1856.11
- via Frontend Transport; Fri, 10 May 2019 09:13:29 +0000
-Received: from NWD2HUBCAS8.ad.analog.com (nwd2hubcas8.ad.analog.com [10.64.69.108])
-	by nwd2mta2.analog.com (8.13.8/8.13.8) with ESMTP id x4A9DRsE000406
+ via Frontend Transport; Fri, 10 May 2019 09:15:29 +0000
+Received: from NWD2HUBCAS9.ad.analog.com (nwd2hubcas9.ad.analog.com [10.64.69.109])
+	by nwd2mta1.analog.com (8.13.8/8.13.8) with ESMTP id x4A9FSgk007201
 	(version=TLSv1/SSLv3 cipher=AES256-SHA bits=256 verify=OK);
-	Fri, 10 May 2019 02:13:27 -0700
+	Fri, 10 May 2019 02:15:28 -0700
 Received: from NWD2MBX7.ad.analog.com ([fe80::190e:f9c1:9a22:9663]) by
- NWD2HUBCAS8.ad.analog.com ([fe80::90a0:b93e:53c6:afee%12]) with mapi id
- 14.03.0415.000; Fri, 10 May 2019 05:13:27 -0400
+ NWD2HUBCAS9.ad.analog.com ([fe80::44a2:871b:49ab:ea47%12]) with mapi id
+ 14.03.0415.000; Fri, 10 May 2019 05:15:28 -0400
 From: "Ardelean, Alexandru" <alexandru.Ardelean@analog.com>
-To: "dan.carpenter@oracle.com" <dan.carpenter@oracle.com>
+To: "andriy.shevchenko@linux.intel.com" <andriy.shevchenko@linux.intel.com>,
+	"gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
 CC: "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
 	"linux-ide@vger.kernel.org" <linux-ide@vger.kernel.org>,
@@ -123,9 +123,8 @@ CC: "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
 	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
 	"cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
 	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
-	"linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>,
-	"andriy.shevchenko@linux.intel.com" <andriy.shevchenko@linux.intel.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-omap@vger.kernel.org"
+	"linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "linux-omap@vger.kernel.org"
 	<linux-omap@vger.kernel.org>, "linux-gpio@vger.kernel.org"
 	<linux-gpio@vger.kernel.org>, "linux-security-module@vger.kernel.org"
 	<linux-security-module@vger.kernel.org>, "devel@driverdev.osuosl.org"
@@ -133,8 +132,8 @@ CC: "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
 	<linux-integrity@vger.kernel.org>, "linux-fbdev@vger.kernel.org"
 	<linux-fbdev@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
 	<dri-devel@lists.freedesktop.org>, "linux-rpi-kernel@lists.infradead.org"
-	<linux-rpi-kernel@lists.infradead.org>, "gregkh@linuxfoundation.org"
-	<gregkh@linuxfoundation.org>, "linux-arm-kernel@lists.infradead.org"
+	<linux-rpi-kernel@lists.infradead.org>,
+	"linux-arm-kernel@lists.infradead.org"
 	<linux-arm-kernel@lists.infradead.org>, "netdev@vger.kernel.org"
 	<netdev@vger.kernel.org>, "alsa-devel@alsa-project.org"
 	<alsa-devel@alsa-project.org>, "linux-rockchip@lists.infradead.org"
@@ -144,18 +143,17 @@ CC: "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
 	<linux-wireless@vger.kernel.org>, "linux-mtd@lists.infradead.org"
 	<linux-mtd@lists.infradead.org>, "linux-tegra@vger.kernel.org"
 	<linux-tegra@vger.kernel.org>
-Subject: Re: [PATCH 09/16] mmc: sdhci-xenon: use new match_string()
- helper/macro
-Thread-Topic: [PATCH 09/16] mmc: sdhci-xenon: use new match_string()
- helper/macro
-Thread-Index: AQHVBZFjC5krcc3G0k+g00YBPwx6V6ZhaK0AgAAShYCAAt35AA==
-Date: Fri, 10 May 2019 09:13:26 +0000
-Message-ID: <31be52eb1a1abbc99a24729f5c65619235cb201f.camel@analog.com>
+Subject: Re: [PATCH 03/16] lib,treewide: add new match_string() helper/macro
+Thread-Topic: [PATCH 03/16] lib,treewide: add new match_string() helper/macro
+Thread-Index: AQHVBZFQXT7pBvOEwE+osXNwuBSvQKZhdwMAgAACFgCAAADdAIAC38WA
+Date: Fri, 10 May 2019 09:15:27 +0000
+Message-ID: <4df165bc4247e60aa4952fd55cb0c77e60712767.camel@analog.com>
 References: <20190508112842.11654-1-alexandru.ardelean@analog.com>
-	 <20190508112842.11654-11-alexandru.ardelean@analog.com>
-	 <20190508122010.GC21059@kadam>
-	 <2ec6812d6bf2f33860c7c816c641167a31eb2ed6.camel@analog.com>
-In-Reply-To: <2ec6812d6bf2f33860c7c816c641167a31eb2ed6.camel@analog.com>
+	 <20190508112842.11654-5-alexandru.ardelean@analog.com>
+	 <20190508131128.GL9224@smile.fi.intel.com>
+	 <20190508131856.GB10138@kroah.com>
+	 <b2440bc9485456a7a90a488c528997587b22088b.camel@analog.com>
+In-Reply-To: <b2440bc9485456a7a90a488c528997587b22088b.camel@analog.com>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
@@ -163,31 +161,31 @@ X-MS-TNEF-Correlator:
 x-originating-ip: [10.50.1.244]
 x-adiroutedonprem: True
 Content-Type: text/plain; charset="utf-8"
-Content-ID: <BB59C46108248B4E9B7153CD2DF23B7C@analog.com>
+Content-ID: <BE5857B429D5854D8FB2F6D2ED721097@analog.com>
 Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 X-EOPAttributedMessage: 0
 X-MS-Office365-Filtering-HT: Tenant
 X-Forefront-Antispam-Report:
-	CIP:137.71.25.57;IPV:NLI;CTRY:US;EFV:NLI;SFV:NSPM;SFS:(10009020)(1496009)(39860400002)(136003)(376002)(396003)(346002)(2980300002)(189003)(199004)(486006)(126002)(86362001)(186003)(436003)(426003)(11346002)(6916009)(2351001)(476003)(2501003)(478600001)(2616005)(47776003)(336012)(446003)(229853002)(5640700003)(5660300002)(305945005)(70206006)(70586007)(6116002)(7406005)(3846002)(7416002)(118296001)(7736002)(8676002)(54906003)(8936002)(6246003)(7636002)(102836004)(76176011)(7696005)(246002)(2486003)(23676004)(36756003)(26005)(356004)(316002)(2906002)(50466002)(14454004)(4326008)(106002)(14444005);DIR:OUT;SFP:1101;SCL:1;SRVR:BN3PR03MB2257;H:nwd2mta2.analog.com;FPR:;SPF:Pass;LANG:en;PTR:nwd2mail11.analog.com;MX:1;A:1;
+	CIP:137.71.25.55;IPV:NLI;CTRY:US;EFV:NLI;SFV:NSPM;SFS:(10009020)(1496009)(39860400002)(136003)(376002)(396003)(346002)(2980300002)(189003)(199004)(486006)(126002)(86362001)(186003)(436003)(426003)(11346002)(476003)(2501003)(478600001)(2616005)(47776003)(336012)(446003)(229853002)(5660300002)(305945005)(70206006)(70586007)(6116002)(3846002)(7416002)(118296001)(7736002)(8676002)(54906003)(8936002)(6246003)(7636002)(102836004)(76176011)(110136005)(7696005)(246002)(2486003)(23676004)(36756003)(26005)(356004)(316002)(2906002)(50466002)(14454004)(4326008)(106002)(142933001);DIR:OUT;SFP:1101;SCL:1;SRVR:BN3PR03MB2257;H:nwd2mta1.analog.com;FPR:;SPF:Pass;LANG:en;PTR:nwd2mail10.analog.com;MX:1;A:1;
 X-MS-PublicTrafficType: Email
-X-MS-Office365-Filtering-Correlation-Id: ed9fe5e3-db8d-4bcc-4243-08d6d527c4a6
+X-MS-Office365-Filtering-Correlation-Id: fa9ce3d9-4ae4-4703-3aac-08d6d5280c52
 X-Microsoft-Antispam:
 	BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4709054)(2017052603328)(7193020);SRVR:BN3PR03MB2257;
 X-MS-TrafficTypeDiagnostic: BN3PR03MB2257:
 X-Microsoft-Antispam-PRVS:
-	<BN3PR03MB22575AF9CEACED448826345BF90C0@BN3PR03MB2257.namprd03.prod.outlook.com>
+	<BN3PR03MB2257FE51D1B5A3F49D339355F90C0@BN3PR03MB2257.namprd03.prod.outlook.com>
 X-MS-Oob-TLC-OOBClassifiers: OLM:9508;
 X-Forefront-PRVS: 0033AAD26D
 X-MS-Exchange-SenderADCheck: 1
 X-Microsoft-Antispam-Message-Info:
-	hz7ohuHgjnC+2gC26Y3onOT2s7J5axPm+umLFJQFpWgNQk6MlgOTYWYEOsKdiXoy1GNT+vGczdwJR2hzhjkPPM1uQL11kNZN6SYSWyKfr2kiZbabqEYBPxg7icedXBmdO+rbB5SwWFk2CrIhe/7lkW+xgUYjQGNgYAWGE0lXiIRaorInlOmQTMPz663NCbL7aaCb7ajYyo05LxXNUMEKTW2Pof7owMPxVhD448BZPhIoBbV1UHHwV/vrelBEVbXLtRY94OqIxeAe7xTw2lhziZuN15WfFYwjblJa6OE/jYP1PkRLhqh4l1AN/UYxDW/icpD8nSoxxD0H5PPn7qhAU0pjn6TkUKbqtid8LuApVz3z+EfmjXcQFNq5JLTewszxUxStGHfqcWVxcM/2aY0TjxPPu7OPuaGxGQvTycbDhqM=
+	U4QfQ9HE8G1hEmln7GMZMyZmGsSziLWs3MNhXESgKInyvjzvkf4zPUY0jxBs8jtBjx7o2HFh8RIrr84vqRJr33sBZ52u9jfyq+UnxjAZSIrQ7IYKCUViOV5wTfc+RZS4gKq+m/p9jOSvcbzSH0ANK7KYyLAnpQ4IIqqF/SOcdGtx+WMbS/bT2TaFvdKuG59b7NKK6kGPGcMgRa7VYxax9zMBVy+dB0vsn0G86Hyi3v99BIScotX2/E538fCfuzOtpR0Q6tUTkRJPRYlQSs8X/zugHmiwjsghQR5RqizMR7EABuUEf3qu55yG2t4YMjpnXTwsjzfXpumUi61GtQtgLgw/49vgzi5xG43Mo9YB/ngdoLZaVP0/kyKOb+jNhjx6GOpJZiy+Hc8kiON1awKOp8PYEbFqiQg2JSn2ulHzU0I=
 X-OriginatorOrg: analog.com
-X-MS-Exchange-CrossTenant-OriginalArrivalTime: 10 May 2019 09:13:29.7933
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 10 May 2019 09:15:29.1206
  (UTC)
-X-MS-Exchange-CrossTenant-Network-Message-Id: ed9fe5e3-db8d-4bcc-4243-08d6d527c4a6
+X-MS-Exchange-CrossTenant-Network-Message-Id: fa9ce3d9-4ae4-4703-3aac-08d6d5280c52
 X-MS-Exchange-CrossTenant-Id: eaa689b4-8f87-40e0-9c6f-7228de4d754a
-X-MS-Exchange-CrossTenant-OriginalAttributedTenantConnectingIp: TenantId=eaa689b4-8f87-40e0-9c6f-7228de4d754a;Ip=[137.71.25.57];Helo=[nwd2mta2.analog.com]
+X-MS-Exchange-CrossTenant-OriginalAttributedTenantConnectingIp: TenantId=eaa689b4-8f87-40e0-9c6f-7228de4d754a;Ip=[137.71.25.55];Helo=[nwd2mta1.analog.com]
 X-MS-Exchange-CrossTenant-FromEntityHeader: HybridOnPrem
 X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN3PR03MB2257
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -196,30 +194,25 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gV2VkLCAyMDE5LTA1LTA4IGF0IDE2OjI2ICswMzAwLCBBbGV4YW5kcnUgQXJkZWxlYW4gd3Jv
-dGU6DQo+IE9uIFdlZCwgMjAxOS0wNS0wOCBhdCAxNToyMCArMDMwMCwgRGFuIENhcnBlbnRlciB3
-cm90ZToNCj4gPiANCj4gPiANCj4gPiBPbiBXZWQsIE1heSAwOCwgMjAxOSBhdCAwMjoyODozNVBN
-ICswMzAwLCBBbGV4YW5kcnUgQXJkZWxlYW4gd3JvdGU6DQo+ID4gPiAtc3RhdGljIGNvbnN0IGNo
-YXIgKiBjb25zdCBwaHlfdHlwZXNbXSA9IHsNCj4gPiA+IC0gICAgICJlbW1jIDUuMCBwaHkiLA0K
-PiA+ID4gLSAgICAgImVtbWMgNS4xIHBoeSINCj4gPiA+IC19Ow0KPiA+ID4gLQ0KPiA+ID4gIGVu
-dW0geGVub25fcGh5X3R5cGVfZW51bSB7DQo+ID4gPiAgICAgICBFTU1DXzVfMF9QSFksDQo+ID4g
-PiAgICAgICBFTU1DXzVfMV9QSFksDQo+ID4gPiAgICAgICBOUl9QSFlfVFlQRVMNCj4gPiANCj4g
-PiBUaGVyZSBpcyBubyBuZWVkIGZvciBOUl9QSFlfVFlQRVMgbm93IHNvIHlvdSBjb3VsZCByZW1v
-dmUgdGhhdCBhcyB3ZWxsLg0KPiA+IA0KPiANCj4gSSB0aG91Z2h0IHRoZSBzYW1lLg0KPiBUaGUg
-b25seSByZWFzb24gdG8ga2VlcCBOUl9QSFlfVFlQRVMsIGlzIGZvciBwb3RlbnRpYWwgZnV0dXJl
-IHBhdGNoZXMsDQo+IHdoZXJlIGl0IHdvdWxkIGJlIGp1c3QgMSBhZGRpdGlvbg0KPiANCj4gIGVu
-dW0geGVub25fcGh5X3R5cGVfZW51bSB7DQo+ICAgICAgIEVNTUNfNV8wX1BIWSwNCj4gICAgICAg
-RU1NQ181XzFfUEhZLA0KPiArICAgICAgRU1NQ181XzJfUEhZLA0KPiAgICAgICBOUl9QSFlfVFlQ
-RVMNCj4gICB9DQo+IA0KPiBEZXBlbmRpbmcgb24gc3R5bGUvcHJlZmVyZW5jZSBvZiBob3cgdG8g
-ZG8gZW51bXMgKGFsbG93IGNvbW1hIG9uIGxhc3QNCj4gZW51bQ0KPiBvciBub3QgYWxsb3cgY29t
-bWEgb24gbGFzdCBlbnVtIHZhbHVlKSwgYWRkaW5nIG5ldyBlbnVtIHZhbHVlcyB3b3VkbCBiZSAy
-DQo+IGFkZGl0aW9ucyArIDEgZGVsZXRpb24gbGluZXMuDQo+IA0KPiAgZW51bSB4ZW5vbl9waHlf
-dHlwZV9lbnVtIHsNCj4gICAgICAgRU1NQ181XzBfUEhZLA0KPiAtICAgICAgRU1NQ181XzFfUEhZ
-DQo+ICsgICAgICBFTU0NCj4gQ181XzFfUEhZLA0KPiArICAgICAgRU1NQ181XzJfUEhZDQo+ICB9
-DQo+IA0KPiBFaXRoZXIgd2F5IChsZWF2ZSBOUl9QSFlfVFlQRVMgb3IgcmVtb3ZlIE5SX1BIWV9U
-WVBFUykgaXMgZmluZSBmcm9tIG15DQo+IHNpZGUuDQo+IA0KDQpQcmVmZXJlbmNlIG9uIHRoaXMg
-Pw0KSWYgbm8gb2JqZWN0aW9uIFtub2JvZHkgaW5zaXN0c10gSSB3b3VsZCBrZWVwLg0KDQpJIGRv
-bid0IGZlZWwgc3Ryb25nbHkgYWJvdXQgaXQgW2Ryb3BwaW5nIE5SX1BIWV9UWVBFUyBvciBub3Rd
-Lg0KDQpUaGFua3MNCkFsZXgNCg0KPiBUaGFua3MNCj4gQWxleA0KPiANCj4gPiByZWdhcmRzLA0K
-PiA+IGRhbiBjYXJwZW50ZXINCj4gPiANCg==
+T24gV2VkLCAyMDE5LTA1LTA4IGF0IDE2OjIyICswMzAwLCBBbGV4YW5kcnUgQXJkZWxlYW4gd3Jv
+dGU6DQo+IE9uIFdlZCwgMjAxOS0wNS0wOCBhdCAxNToxOCArMDIwMCwgR3JlZyBLSCB3cm90ZToN
+Cj4gPiANCj4gPiANCj4gPiBPbiBXZWQsIE1heSAwOCwgMjAxOSBhdCAwNDoxMToyOFBNICswMzAw
+LCBBbmR5IFNoZXZjaGVua28gd3JvdGU6DQo+ID4gPiBPbiBXZWQsIE1heSAwOCwgMjAxOSBhdCAw
+MjoyODoyOVBNICswMzAwLCBBbGV4YW5kcnUgQXJkZWxlYW4gd3JvdGU6DQo+ID4gPiA+IFRoaXMg
+Y2hhbmdlIHJlLWludHJvZHVjZXMgYG1hdGNoX3N0cmluZygpYCBhcyBhIG1hY3JvIHRoYXQgdXNl
+cw0KPiA+ID4gPiBBUlJBWV9TSVpFKCkgdG8gY29tcHV0ZSB0aGUgc2l6ZSBvZiB0aGUgYXJyYXku
+DQo+ID4gPiA+IFRoZSBtYWNybyBpcyBhZGRlZCBpbiBhbGwgdGhlIHBsYWNlcyB0aGF0IGRvDQo+
+ID4gPiA+IGBtYXRjaF9zdHJpbmcoX2EsIEFSUkFZX1NJWkUoX2EpLCBzKWAsIHNpbmNlIHRoZSBj
+aGFuZ2UgaXMgcHJldHR5DQo+ID4gPiA+IHN0cmFpZ2h0Zm9yd2FyZC4NCj4gPiA+IA0KPiA+ID4g
+Q2FuIHlvdSBzcGxpdCBpbmNsdWRlL2xpbnV4LyBjaGFuZ2UgZnJvbSB0aGUgcmVzdD8NCj4gPiAN
+Cj4gPiBUaGF0IHdvdWxkIGJyZWFrIHRoZSBidWlsZCwgd2h5IGRvIHlvdSB3YW50IGl0IHNwbGl0
+IG91dD8gIFRoaXMgbWFrZXMNCj4gPiBzZW5zZSBhbGwgYXMgYSBzaW5nbGUgcGF0Y2ggdG8gbWUu
+DQo+ID4gDQo+IA0KPiBOb3QgcmVhbGx5Lg0KPiBJdCB3b3VsZCBiZSBqdXN0IGJlIHRoZSBuZXcg
+bWF0Y2hfc3RyaW5nKCkgaGVscGVyL21hY3JvIGluIGEgbmV3IGNvbW1pdC4NCj4gQW5kIHRoZSBj
+b252ZXJzaW9ucyBvZiB0aGUgc2ltcGxlIHVzZXJzIG9mIG1hdGNoX3N0cmluZygpICh0aGUgb25l
+cyB1c2luZw0KPiBBUlJBWV9TSVpFKCkpIGluIGFub3RoZXIgY29tbWl0Lg0KPiANCg0KSSBzaG91
+bGQgaGF2ZSBhc2tlZCBpbiBteSBwcmV2aW91cyByZXBseS4NCkxlYXZlIHRoaXMgYXMtaXMgb3Ig
+cmUtZm9ybXVsYXRlIGluIDIgcGF0Y2hlcyA/DQoNCk5vIHN0cm9uZyBwcmVmZXJlbmNlIGZyb20g
+bXkgc2lkZS4NCg0KVGhhbmtzDQpBbGV4DQoNCj4gVGhhbmtzDQo+IEFsZXgNCj4gDQo+ID4gdGhh
+bmtzLA0KPiA+IA0KPiA+IGdyZWcgay1oDQo=
 
