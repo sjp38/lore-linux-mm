@@ -7,111 +7,111 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
 	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 065B1C04A6B
-	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 01:00:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18DBAC04AB1
+	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 04:00:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8FD8B217D7
-	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 01:00:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9E95221479
+	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 04:00:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="td/xf/W+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FD8B217D7
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qqWw4eDn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E95221479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00C146B0006; Fri, 10 May 2019 21:00:54 -0400 (EDT)
+	id 04A016B0003; Sat, 11 May 2019 00:00:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F00686B0007; Fri, 10 May 2019 21:00:53 -0400 (EDT)
+	id F3C886B0005; Sat, 11 May 2019 00:00:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC7886B0008; Fri, 10 May 2019 21:00:53 -0400 (EDT)
+	id E2BBD6B0006; Sat, 11 May 2019 00:00:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3166B0006
-	for <linux-mm@kvack.org>; Fri, 10 May 2019 21:00:53 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id s24so5558673iot.0
-        for <linux-mm@kvack.org>; Fri, 10 May 2019 18:00:53 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C46056B0003
+	for <linux-mm@kvack.org>; Sat, 11 May 2019 00:00:28 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id z2so5689583iog.12
+        for <linux-mm@kvack.org>; Fri, 10 May 2019 21:00:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=lm+P6joQ1QqptWVYne/zYLFwZLOPp9hC9fwmLqLR9Ro=;
-        b=ZIQ5IJBOHLCPkG/8fOaBaqt6B4uBbqBCocq+6FBZOqk4LsqVIP62JPR+PfBfOPlXt/
-         3KsWDtwyyYXz6gM/StA9HaTvatkAM9LY+HGNz3tokwRqLuYe1cCbRir8kgNrp/0e1ijb
-         2J872Wj6Zp5nNQ1TVnuO7MIdQ0E+LRNbqxT0H0czc0RBMGU/1DPJcxsH8q1+VNIA3pTq
-         jvshL2neCXlDii6i/WUPx8jx8Y3UO+CnYXko5/buHjFTU2TSy/D8Er4U6UutkL2zGylP
-         TXczy5rEX6PtU1voKNAwsZcg6s9xQtGB9PKdwqzv/UZLTwZnhPKNdBjyus+WAFBgsJsM
-         fw5A==
-X-Gm-Message-State: APjAAAWQ6eq+U24Ao6DZzjD751eoZAYaHufRKiOy7Re0w0MFt4DSKBSa
-	q7TQAkAdFHkMYgYT3IoXrjhwZfm8fGKp5MqC3uZMVouJWZio9QYV9r1vEFnJovQqUs8cJCM8sHb
-	CtUg8dtQJXQEJd5SEsLpnS4TdFS+Coih7iqIuHiKUtaVPYiK44nmVq1bIKn1R/bBtEA==
-X-Received: by 2002:a02:cc29:: with SMTP id o9mr10757825jap.6.1557536453562;
-        Fri, 10 May 2019 18:00:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcm+byyDjwY3ufvSaayFfBD4Dfun4CZT9yKmDcqRYWlAdmLG8P2avPJ1vpoUqCK88d6ZyI
-X-Received: by 2002:a02:cc29:: with SMTP id o9mr10757785jap.6.1557536452850;
-        Fri, 10 May 2019 18:00:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557536452; cv=none;
+        bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+        b=gUx8foo1SMNBFCq/02K9UZSafpEce+9TJAUynlVGgxNBGQFaOZCR6AHFWMZr9Tfgtf
+         Zkgu151lQApIDo269i8pP8IMNHsByCIdKUxbbDGN/lQJeipkIOTJtUj5VqXFr8qPeMlW
+         kMEmey4bn5yGJBynyKbIrRApJEEtYj/Sq8WrucGNPBI7osgWDbycmiObuvVTt0zBjoo/
+         NP9UN1cfHinbqPd+Om0ukC1S3zGJoHSegkCoYXTY3tmSOliyU9HA+PUyoZHf/G5NMJTW
+         x2w8AWBf1gAfLNIefd3T7Z9q/g+hkKIFDIUln8JFDcUqIMP3dpY0ojWKaaVR/vbVxC99
+         WhJA==
+X-Gm-Message-State: APjAAAWLSiKF2lznfZYfdO3PEAvasgiIxZHrzadaWBy/vmxCbQAW1i5l
+	NNEmy7X3++4SDqbc65vkYG1DbyXFMV2PohybKAOnsfM3YIlCEDotD+C3g/B6gzgXjZIRLHUyNhi
+	tX9kLIYiJU2J5KbbOVzbaj2yIN7b03tmUhZqlqoiz8nEICFMQ7JEfgs29NBVo5ZYt8Q==
+X-Received: by 2002:a02:c6d8:: with SMTP id r24mr10345219jan.93.1557547228536;
+        Fri, 10 May 2019 21:00:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxH9N7iG5YNgDwmXLVPd7jIGMZOs+5DVq1+ZmUz2yLS5WaMvSV+HpXJBCh0Htyk08tvr1q4
+X-Received: by 2002:a02:c6d8:: with SMTP id r24mr10345179jan.93.1557547227582;
+        Fri, 10 May 2019 21:00:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557547227; cv=none;
         d=google.com; s=arc-20160816;
-        b=RtOspr3lb3hF1S7NH3az8ccSyP9Ff/P/7otf9GrGEsTPi7Wuagf4QwByLSfm9dSGyg
-         pkdMvsmGbKmwp6vjiY7Z+/ZTtdZ7VJi9vN6KX9e1q+Es/AbKSzrAmiCwW8C+q5Tzipmc
-         HGbKunLNW2tu2VJW9hmLV1GiPoeQDGThLT7gx5gzXm13K3KbOBgb/+Nn8ZYFv8z8lvlr
-         TcYjw0HJ+URIWjv+YnQFX//LbAv1e5fEznKZqA2grmhWU4azHhKkiYBhv0kNuQ/YPCMv
-         Grp/QLPMSIWUovc8D1mc4sOvnU9edzJjDtiN9AXqzKBQodsNL9PYURvRT6B+n1CXlLcy
-         0cNQ==
+        b=VHe4wx3Kja5Z7Utloz2vMoSI9dAfvvBNq365edseo6Fo3lpMhXi8KubJGpUZ979CRO
+         cHXBgWfQmuuLeUr8XIzGn+xhbuWPssKG1K4L/YEY4toGZ546nkpqLrdZYyKABx8ew6Vd
+         eSqsCxE4CxHjSA2b2iiISFAX/YpcZx7XOUVrklzvuLsUotzF3WvEN8mc6PlwyVGtpcQh
+         lloJ95Lxct1L1RMMAgEvzR+M2nZesXhXTpLKoDTjoYuAac+cQLaNnk/bM/6+EU66MbWH
+         3p/YfjySHpw1ag58GwmQTB8hQAQAv3my4gPw2VdDr9oPFXNXdte6P2vLCDwVDmm0ng9A
+         FCAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lm+P6joQ1QqptWVYne/zYLFwZLOPp9hC9fwmLqLR9Ro=;
-        b=WLmykgIld/1mwUl8Vx13a5Bx8BJrNeLcao6ceCS5Jgh+vvEfNIv7wtuUz29mTlfJF3
-         GcaqERMSrWkY3Xom1UpFPoKS75P6ny/dfnenIAxYjYNSWtLK+77XLxrbPo11xo/Zi8sB
-         enZQr5Z3NUYiuqfNlZdgazfF84t3UYhHtQD+ymwUFPL5Q0JZkZ/E7SAnABQX1/jo4GeR
-         HmVk9p8klQm68PwLYscUo40rNA9eKI2pItQgKk8vv/gsbpnDMS6SGAAJNEENcPVApb5V
-         YWhz4yKLJWlzyCP+q9vD5I6YgFyl/CNHCOJ4mkzhDk1pt77BkdDIUJ9vnSq1TO0pWCrw
-         D9/A==
+        bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+        b=lTdhXpz2y2w5XlBvJBKBKAtoLFbPkuYVnr+JW7maSMwOSzsxEZ31SxHOtqYDK+NK/n
+         ltYiBqOvy9rvi8GNCMpBq35QML+ISC51ZoNiLRhXAXgwPM37wwAz6nfdXqsjf2WGiVZr
+         5+n47Up9PpobQRS23YQXU/JjV2YC7U0yp9QvJMf2sS1f4RzvIprw06BwjW5LktV+Q0pF
+         bld2Umwur6wujC5GqyPRaM2MDtV7+uxyRhADAigZS94O2fxm87rrwNj6XgSHbRtyYlVy
+         xYT2l7xZECgkDxWQ399LDBBgzNjU451FVIJffuznPpzVllyUqjE8SFweC6rbCqu9ismo
+         ADXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="td/xf/W+";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qqWw4eDn;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id e64si4657822itc.58.2019.05.10.18.00.52
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id g11si4239509ioq.13.2019.05.10.21.00.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 May 2019 18:00:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Fri, 10 May 2019 21:00:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="td/xf/W+";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qqWw4eDn;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AImlKq162457;
-	Fri, 10 May 2019 18:51:02 GMT
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ALJeqp094644;
+	Fri, 10 May 2019 21:25:01 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
  : subject : message-id : references : mime-version : content-type :
  in-reply-to; s=corp-2018-07-02;
- bh=lm+P6joQ1QqptWVYne/zYLFwZLOPp9hC9fwmLqLR9Ro=;
- b=td/xf/W+Z9aWLrHlGQLQiwCMCwzeOWjcRpVANJYKzil+953fmdouUrbLlXOS2Ias9SLp
- JqUEvctI7bxyDscWoF239yQMPET4VBnVy+9FDbzFbrwIVffbxLi53qlbO0YrORj5Rt9K
- CaV+W17rZN+kytcmoSmP1yP9JcRuZI47zlh7m7ial/bitpXaA2VeFm4M9qnQGIjNA027
- lcujM49R0xccSR7DjzqPO9DTcVY/6A4xpDCnrgA47wFHBagJ94SvWXRHzjoNKuqmm34R
- ImKRHopIpOhDzdvlc+eWmmVtEyUQn7ddpjoS+Gw20LhK1NGKiIq/08dyPjEmOB846myK wg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2s94bgk0qk-1
+ bh=HQU/yTn++wPSBAcGmojosLc1CYCiplH6O/ztlYTzsZI=;
+ b=qqWw4eDnTPwrFdZ8Sfwv2TAww4/8wHZFtDss+9Y+/9yakVIUU9fZawamL3xQczlg9/47
+ md0SWbe/ThwPXVI6X6mGYMXKHfJaXeJ0W0Ip8+oygmlSxDevirQDj3ZvcpQZKskee+Cv
+ mZyrHDiB5BRyW2Hs8YLFb56kiqm8IxZihHxHI7FF8oHidP3QdZJii42tgW61o4g6bdPA
+ vTTVQcgxpTO0xTlf2l3mpcx0olVjQJ+JfrBFAAIJmlQPqgjV7za7rRbE/IM7Zv9P9vj2
+ 0/rGSUBX2PGHD7/soQE2KnRFVc1MeIC1rt/kVNKu/EDpYKQGyQdAj9RH04MIU5X0O1Wu UQ== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2130.oracle.com with ESMTP id 2s94b6kp0d-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 10 May 2019 18:51:02 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4AIm7St170695;
-	Fri, 10 May 2019 18:49:01 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2schw0jxd5-1
+	Fri, 10 May 2019 21:25:01 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ALNX3A054568;
+	Fri, 10 May 2019 21:25:00 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2s94ahkhy7-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 10 May 2019 18:49:01 +0000
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4AImxDS009316;
-	Fri, 10 May 2019 18:49:00 GMT
+	Fri, 10 May 2019 21:25:00 +0000
+Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4ALOvYJ022471;
+	Fri, 10 May 2019 21:24:58 GMT
 Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 10 May 2019 11:48:59 -0700
-Date: Fri, 10 May 2019 14:49:00 -0400
+	with ESMTP ; Fri, 10 May 2019 14:24:57 -0700
+Date: Fri, 10 May 2019 17:24:55 -0400
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
 To: Bruce ZHANG <bo.zhang@nxp.com>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
@@ -120,24 +120,24 @@ Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
         "jannh@google.com" <jannh@google.com>,
         "linux-mm@kvack.org" <linux-mm@kvack.org>, mgorman@techsingularity.net
 Subject: Re: [PATCH] mm,vmstat: correct pagetypeinfo statistics when show
-Message-ID: <20190510184900.tf5r74rtiblmifyq@ca-dmjordan1.us.oracle.com>
+Message-ID: <20190510212455.mzmk2p6awhm33xjm@ca-dmjordan1.us.oracle.com>
 References: <1557491480-19857-1-git-send-email-bo.zhang@nxp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <1557491480-19857-1-git-send-email-bo.zhang@nxp.com>
 User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9253 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905100122
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9252 signatures=668686
+ engine=8.0.1-1810050000 definitions=main-1905100136
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9253 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905100122
+ definitions=main-1905100136
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -150,11 +150,11 @@ On Fri, May 10, 2019 at 12:36:48PM +0000, Bruce ZHANG wrote:
 > pageblock_order. If the macro CONFIG_HUGETLB_PAGE is defined, the
 > pageblock_order may not be equal to (MAX_ORDER-1).
 
-All of this is true, but why do you think it's wrong?
-
-It makes sense that "Page block order" corresponds to pageblock_order,
-regardless of whether pageblock_order == MAX_ORDER-1.
-
+All of this is true, but why is it wrong?                                        
+                                                                                 
+It makes sense that "Page block order" corresponds to pageblock_order,           
+regardless of whether pageblock_order == MAX_ORDER-1.                            
+                                                                                 
 Cc Mel, who added these two lines.
 
 > Signed-off-by: Zhang Bo <bo.zhang@nxp.com>
