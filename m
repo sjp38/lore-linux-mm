@@ -5,98 +5,102 @@ X-Spam-Level:
 X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4EA8EC04AB4
-	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 16:09:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD1BC04A6B
+	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 16:09:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6FFF2173E
-	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 16:09:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0B64B2146F
+	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 16:09:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rT6GYZe9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6FFF2173E
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="i3YEIaQI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B64B2146F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 476636B0006; Sun, 12 May 2019 12:09:43 -0400 (EDT)
+	id 895F16B0007; Sun, 12 May 2019 12:09:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4272A6B0007; Sun, 12 May 2019 12:09:43 -0400 (EDT)
+	id 844F06B0008; Sun, 12 May 2019 12:09:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3153D6B0008; Sun, 12 May 2019 12:09:43 -0400 (EDT)
+	id 734F96B000A; Sun, 12 May 2019 12:09:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1036D6B0006
-	for <linux-mm@kvack.org>; Sun, 12 May 2019 12:09:43 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id q7so1432780vsp.13
-        for <linux-mm@kvack.org>; Sun, 12 May 2019 09:09:43 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 55C0C6B0007
+	for <linux-mm@kvack.org>; Sun, 12 May 2019 12:09:58 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id c4so20771807ywd.0
+        for <linux-mm@kvack.org>; Sun, 12 May 2019 09:09:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=ZQi/sjipIMJL03RXDXGUBdRsbi1X2/+nI6E1TTfR44o=;
-        b=Xqpvdz/v/LVTOzGHRYAkMMJx0G0CV87qgAWqXINjKuI5rUjSMe6XCBZvRbITuqTj4z
-         P44L539Ef4sCdaYNeTR0g32WlwfjdVYy+ISfGEMKlBZcauzHvOAoiLmX+Zzd82TSoORJ
-         UhEa/QDc2lfwqN5oTlYN6r7f/9iUPbKu6OgbH12ug3hhtw7w02IwyKIhr2urZaCJlUmX
-         D6iqBpDGTRPdHq/X26gnffFeCxF1nA3MQGjzFUKWA+54YWIIDNyLJSFwcZoRTbCrxDV8
-         piSvYK5A9TzE2C6PkiwKSdjN2yRx2v3Ctz/LfTJkt4IPe7460pkVZMqIZBW42ivG2dsZ
-         pVJg==
-X-Gm-Message-State: APjAAAX/XVa68hLaZxqXXZJh/UJZj6NVc4cDePe9H4xV7OzZKe5iCwic
-	/iztnZMTIfWRrwfjIVJNhg6wEerqoQXgBnyQ4pAvUoDEuXpb4010FEC/3Jd4TdRh5hRmU3XPkor
-	azNa0ajPKD02Yi+p3ppcnBuSlMzN1PXSc5jS6aP71UF25vNRBf7nqOG2dVi8AI1rhJA==
-X-Received: by 2002:a9f:3381:: with SMTP id p1mr3224684uab.40.1557677382667;
-        Sun, 12 May 2019 09:09:42 -0700 (PDT)
-X-Received: by 2002:a9f:3381:: with SMTP id p1mr3224648uab.40.1557677381879;
-        Sun, 12 May 2019 09:09:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557677381; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=pNYDYF29KQTiDsLTir5ePdeguGYagzUQEsurF8lSHbY=;
+        b=WFRynx6DlwdmXm4bghDOm3RJ+vi+Nu8gFhhWaULEiMiUlKEmp1GaZcive+TivS2jNC
+         uygYEARQQZGrv2oNBD44En0soakNIVxXTTQOeHiH2kkSbtliS7R9c5l1r00uI8XAGloT
+         8XtvrsQvGveCmTIARHYTmbv/EqyvNnsLjCyrF03YMTa8YShF8pGFg1l44uDQh4hJHMPD
+         WYub+ltCguRqRfZQM3ZNxlS41fmnF1nrVjZ/y8RHC9Dj1kO7k2+GDHhBqpdXOalwh06L
+         KjnyAXJkdv7ET0FPqEGGIIg8Dh6gE2PILih+9IMUL9s6W8/xEm775fLgejde1ZLFTU7Q
+         swKg==
+X-Gm-Message-State: APjAAAWEogQ/Xx7A+S4nOidfLjy6lS0+pAWvhxcsCudIyFVr0JSNghTb
+	EBsj118fbaXnvW4+lRWTzbUw17Hedfp5qPETIsuayFNALG8kkiX7zAHaOGX6QhLjtaqTpKBdr3b
+	ASKGXrb2W24t8ELSGOQr/Hy38S1Xji4HTW7RU6ttQKJFthWvHpo8/qVHl4zFIaq6WDg==
+X-Received: by 2002:a81:55ce:: with SMTP id j197mr11272003ywb.435.1557677397983;
+        Sun, 12 May 2019 09:09:57 -0700 (PDT)
+X-Received: by 2002:a81:55ce:: with SMTP id j197mr11271971ywb.435.1557677397267;
+        Sun, 12 May 2019 09:09:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557677397; cv=none;
         d=google.com; s=arc-20160816;
-        b=z/P7aYBb46THCv6/HhKxqCBfiKRZlFM2Jn36JbZNXV82rAX9JlYV5OYvRv6n1uZnJB
-         rJZ55s8bllmJ0pp+pcegK+EW9AkWsb8O/cv/gUjyT7ytqU8F5jLPUIQqr/HuuKnQWpN+
-         7lVAm+R6FiHn6sXXuOrl6xWnMa6OMrpvXMcHz46sXf+srQiDEkbp+BV53jL1nElqjpSC
-         8R4j0yJjnT+G1lhHMNMX4kuhJMNjZecbAH7nZYcO2miJwV14HuN6Tohg0ABudsmTGFtx
-         uFyuAUgQyx4OJ9weiZzmJl/7/Z7KcQanG6WVbEoM8ldJrkzaI3nsDWU33gB7Eatfic2p
-         CFlQ==
+        b=xopfTLU6XjuDt5sGhCUJGEjBIndRBsjfBYzt4/iMbKYVwFOaXuDtG1a5OqYlLqbEcD
+         7ynFfGpjzpK3WcpTjPsiMqmmHh5WKdipfd3Fk2zW8wQvTgG7djnPHBlsWGlW/k4Lvbdn
+         QM7O+TTkakWoYwTd1F/Kq8o41kx42zD2vv4OYZpYSJuCT7guUDfI1MH1z2Oh0QxaSkDi
+         rmyeC66GTcpJm52TCt9yqJHIG+szlklx5qTzurHimv2h9rNzWGWOxsOuaQVp2qg8Ddd6
+         ct43P0lTiVON00TYl3S6GccswP/QX53FOrW5bR/gkJnGp523xwK6xm6OmJjRgFkAIL1/
+         qTSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=ZQi/sjipIMJL03RXDXGUBdRsbi1X2/+nI6E1TTfR44o=;
-        b=Ut9+ZBwJYvPxQbGewXKKXhNpVClvrM/YQNf84XO+0ACgIc6kn5FgUxUwAuG3XlLbIT
-         FG2ZU02okR2Zwo/ll7NJ2ZNKEYL/4HEj/VyggLPZsV3lpZe2x7YTdUDOKG8rDKxpFNWo
-         15o4UcPMrC21zcui/Np63CW7mHIRfrKzX9KXxnJ2z7hFJxvumWBJDCyY9bovNV7R5RVw
-         gjLf4KdipZVgzdPY8vcrEkydqmBL+4iHDh4VWTBnFJTZAiQWv/rnE+j1fhh4nicjRIKV
-         dpHWrSwEaf6yuBaFTqjt3hQHzvHFf/wjfA1l7Pabgt0yr/JPwAzkHodQGKSvyjtfe/WR
-         R29g==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=pNYDYF29KQTiDsLTir5ePdeguGYagzUQEsurF8lSHbY=;
+        b=PLqcdAtlBXDUb28WPUnCIAe5ZI6lVwrmlYEZTFTok9i9SepANVC0y8K+Nm8M6JuFqY
+         oPvBgqLDk9t4YenvdRpS7MHAbkpcSP6Ka5xBDITF9o91TTHPkFFUVjXHSM7tQHRs4DR4
+         D38B31Xkzj/ZhtqsYK1jVUlKSt8MoAGmhYMe67HSAdWu4RVEQC2+hTrCbaE9WfGgRWhi
+         mJ/aAQrQtpcZeP2lF298V4aUiSCSoQhqGO79GwADyn0U7+7cMciBePfb6u08hyA9vRYx
+         gX/3fWCDowbPtvLLRO3wBAkcSqTE+HUv9BDcGbQour7CWlL4Fk9cTUbaN+JvYzIG1rdI
+         NSuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rT6GYZe9;
-       spf=pass (google.com: domain of 3ruxyxagkcb4mb4e88f5aiiaf8.6igfchor-ggep46e.ila@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3RUXYXAgKCB4MB4E88F5AIIAF8.6IGFCHOR-GGEP46E.ILA@flex--shakeelb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=i3YEIaQI;
+       spf=pass (google.com: domain of 3vexyxagkcc0bqjtnnukpxxpun.lxvurwdg-vvtejlt.xap@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3VEXYXAgKCC0bQJTNNUKPXXPUN.LXVURWdg-VVTeJLT.XaP@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id x186sor1663762vsc.24.2019.05.12.09.09.41
+        by mx.google.com with SMTPS id i18sor5603361ybp.28.2019.05.12.09.09.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 12 May 2019 09:09:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ruxyxagkcb4mb4e88f5aiiaf8.6igfchor-ggep46e.ila@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Sun, 12 May 2019 09:09:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3vexyxagkcc0bqjtnnukpxxpun.lxvurwdg-vvtejlt.xap@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rT6GYZe9;
-       spf=pass (google.com: domain of 3ruxyxagkcb4mb4e88f5aiiaf8.6igfchor-ggep46e.ila@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3RUXYXAgKCB4MB4E88F5AIIAF8.6IGFCHOR-GGEP46E.ILA@flex--shakeelb.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=i3YEIaQI;
+       spf=pass (google.com: domain of 3vexyxagkcc0bqjtnnukpxxpun.lxvurwdg-vvtejlt.xap@flex--shakeelb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3VEXYXAgKCC0bQJTNNUKPXXPUN.LXVURWdg-VVTeJLT.XaP@flex--shakeelb.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=ZQi/sjipIMJL03RXDXGUBdRsbi1X2/+nI6E1TTfR44o=;
-        b=rT6GYZe9JljSs+O2RaDoCdYaRjz42r+UWesVjP61KLuG6brTai+B8I0s6wONcIdeUT
-         ZgBS6h91WxDWjJLdDl7mdy4nSk0wB5tEBBSyUohFeLAeQOweZF4nSJgoeSX+Z5lOzW7w
-         w1Kh4U5cruF03Fr6NcBIc2mu420URojoYNetRwXEgPNIIXNvzdCfMX4cuXwBaod2hE8y
-         AcVWU+jdpmBSZ75RVzArG/oirAEeyO6gh8KNjZ7rVUrwOjObNx6lGpqFGYsn7BWv0Bz4
-         yPD+2/26OCSf5xX0lvA/2dklhzgpKqeKHWI2sajCsyjGu0mYRjb04/FHoNtrsslXB/MH
-         Fe+A==
-X-Google-Smtp-Source: APXvYqzwH4rxmIbxD+iMOiqD9UQKKFw9tWXDR5aDKuxRx6lP62JMAnkQ546tt3tD+hmPNt6X3Uoy8PlTi8nDoA==
-X-Received: by 2002:a67:dd0c:: with SMTP id y12mr1988351vsj.119.1557677381452;
- Sun, 12 May 2019 09:09:41 -0700 (PDT)
-Date: Sun, 12 May 2019 09:09:26 -0700
-Message-Id: <20190512160927.80042-1-shakeelb@google.com>
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=pNYDYF29KQTiDsLTir5ePdeguGYagzUQEsurF8lSHbY=;
+        b=i3YEIaQIHO/PR2+mMIFIpaGHrsGtdYQBTKhgEeVGdXy6IjrQUWW5WGYFsXSjxoy4Qa
+         5xlboHTgv9cyDLZ9V2BO/jEBAklDBwaVlu3TrXjcaV9JkSH4r/P/p1LzRbEzXM8NGGqh
+         aRossIettQVPYRP2lRDcOH67U+qYdSZGyj8FX4IOWj8uCAckk7xaZVr5GB9pAj4t4hz5
+         tsXRN5yNqBGxFb7yJ9dJbrVjuLxoYHIHNy5JGiw3cCLlaZQjNXt/bf4IpwEQgLEKf8BV
+         SFS4JqfbN/IHML9PTuVHjyceb1Le0/n+fA3YtuBOVoJ7+b6QgRQjGdnyBJBvvSOkAeon
+         Uifw==
+X-Google-Smtp-Source: APXvYqwFjUEgIaKr0kbwdw7yEWcBwWFgnrXBu4fdjexDy0pGsGSbQmVSEDWFzUFaVoq6HIRtK7D5ckxThWerQA==
+X-Received: by 2002:a25:585:: with SMTP id 127mr10890358ybf.60.1557677396951;
+ Sun, 12 May 2019 09:09:56 -0700 (PDT)
+Date: Sun, 12 May 2019 09:09:27 -0700
+In-Reply-To: <20190512160927.80042-1-shakeelb@google.com>
+Message-Id: <20190512160927.80042-2-shakeelb@google.com>
 Mime-Version: 1.0
+References: <20190512160927.80042-1-shakeelb@google.com>
 X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
-Subject: [RESEND PATCH v2 1/2] memcg, oom: no oom-kill for __GFP_RETRY_MAYFAIL
+Subject: [RESEND PATCH v2 2/2] memcg, fsnotify: no oom-kill for remote memcg charging
 From: Shakeel Butt <shakeelb@google.com>
 To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
 	Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
@@ -110,51 +114,65 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The documentation of __GFP_RETRY_MAYFAIL clearly mentioned that the
-OOM killer will not be triggered and indeed the page alloc does not
-invoke OOM killer for such allocations. However we do trigger memcg
-OOM killer for __GFP_RETRY_MAYFAIL. Fix that. This flag will used later
-to not trigger oom-killer in the charging path for fanotify and inotify
-event allocations.
+The commit d46eb14b735b ("fs: fsnotify: account fsnotify metadata to
+kmemcg") added remote memcg charging for fanotify and inotify event
+objects. The aim was to charge the memory to the listener who is
+interested in the events but without triggering the OOM killer.
+Otherwise there would be security concerns for the listener. At the
+time, oom-kill trigger was not in the charging path. A parallel work
+added the oom-kill back to charging path i.e. commit 29ef680ae7c2
+("memcg, oom: move out_of_memory back to the charge path"). So to not
+trigger oom-killer in the remote memcg, explicitly add
+__GFP_RETRY_MAYFAIL to the fanotigy and inotify event allocations.
 
 Signed-off-by: Shakeel Butt <shakeelb@google.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Roman Gushchin <guro@fb.com>
 ---
 Changelog since v1:
-- commit message updated.
+- Fixed usage of __GFP_RETRY_MAYFAIL flag.
 
- mm/memcontrol.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ fs/notify/fanotify/fanotify.c        | 5 ++++-
+ fs/notify/inotify/inotify_fsnotify.c | 7 +++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2535e54e7989..9548dfcae432 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2294,7 +2294,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	unsigned long nr_reclaimed;
- 	bool may_swap = true;
- 	bool drained = false;
--	bool oomed = false;
- 	enum oom_status oom_status;
+diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
+index 6b9c27548997..f78fd4c8f12d 100644
+--- a/fs/notify/fanotify/fanotify.c
++++ b/fs/notify/fanotify/fanotify.c
+@@ -288,10 +288,13 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
+ 	/*
+ 	 * For queues with unlimited length lost events are not expected and
+ 	 * can possibly have security implications. Avoid losing events when
+-	 * memory is short.
++	 * memory is short. Also make sure to not trigger OOM killer in the
++	 * target memcg for the limited size queues.
+ 	 */
+ 	if (group->max_events == UINT_MAX)
+ 		gfp |= __GFP_NOFAIL;
++	else
++		gfp |= __GFP_RETRY_MAYFAIL;
  
- 	if (mem_cgroup_is_root(memcg))
-@@ -2381,7 +2380,7 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	if (nr_retries--)
- 		goto retry;
+ 	/* Whoever is interested in the event, pays for the allocation. */
+ 	memalloc_use_memcg(group->memcg);
+diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
+index ff30abd6a49b..17c08daa1ba7 100644
+--- a/fs/notify/inotify/inotify_fsnotify.c
++++ b/fs/notify/inotify/inotify_fsnotify.c
+@@ -99,9 +99,12 @@ int inotify_handle_event(struct fsnotify_group *group,
+ 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+ 			      fsn_mark);
  
--	if (gfp_mask & __GFP_RETRY_MAYFAIL && oomed)
-+	if (gfp_mask & __GFP_RETRY_MAYFAIL)
- 		goto nomem;
+-	/* Whoever is interested in the event, pays for the allocation. */
++	/*
++	 * Whoever is interested in the event, pays for the allocation. However
++	 * do not trigger the OOM killer in the target memcg.
++	 */
+ 	memalloc_use_memcg(group->memcg);
+-	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
++	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
+ 	memalloc_unuse_memcg();
  
- 	if (gfp_mask & __GFP_NOFAIL)
-@@ -2400,7 +2399,6 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	switch (oom_status) {
- 	case OOM_SUCCESS:
- 		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
--		oomed = true;
- 		goto retry;
- 	case OOM_FAILED:
- 		goto force;
+ 	if (unlikely(!event)) {
 -- 
 2.21.0.1020.gf2820cf01a-goog
 
