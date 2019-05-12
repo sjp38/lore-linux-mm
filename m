@@ -1,144 +1,184 @@
-Return-Path: <SRS0=ybLw=TL=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=ZOUz=TM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A5CFC04AB1
-	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 23:29:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32A5BC04AB4
+	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 04:35:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4CC52184B
-	for <linux-mm@archiver.kernel.org>; Sat, 11 May 2019 23:29:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CBBEE2089E
+	for <linux-mm@archiver.kernel.org>; Sun, 12 May 2019 04:35:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="nU6413kV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4CC52184B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="gtj/vqFS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBBEE2089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 653316B0003; Sat, 11 May 2019 19:29:00 -0400 (EDT)
+	id 45C6C6B0003; Sun, 12 May 2019 00:35:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6037C6B0005; Sat, 11 May 2019 19:29:00 -0400 (EDT)
+	id 40C9E6B0005; Sun, 12 May 2019 00:35:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 51A466B0006; Sat, 11 May 2019 19:29:00 -0400 (EDT)
+	id 2D4306B0006; Sun, 12 May 2019 00:35:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B1306B0003
-	for <linux-mm@kvack.org>; Sat, 11 May 2019 19:29:00 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f1so6858975pfb.0
-        for <linux-mm@kvack.org>; Sat, 11 May 2019 16:29:00 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 11A7D6B0003
+	for <linux-mm@kvack.org>; Sun, 12 May 2019 00:35:24 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id l20so10834010qtq.21
+        for <linux-mm@kvack.org>; Sat, 11 May 2019 21:35:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=es864z3d4LIjwNS1NE+AwOG5dicN2shdSWnMht9wQZw=;
-        b=OSFVlcEYg4R3MIYy4skvdgc0ljyvyqE4IS5FHcZtJnNbBCGkUQ1xrJXEEmYzIDDQjQ
-         V53OJAg3VR/xe8htBWTW618tTi9gWGHrkvkJMoX9Qt8lFp3YW70KW0ygw2WG0l2Iil/c
-         Bf0fYSmm0Hgb8QePxjag90uxedTvAkcxhQ7RvWAkmz8s1hcbEYTr0uxQvT7a39boaE4A
-         8pimy6sjsffixqMzApUfJjNNV3n5ZGGtW30hNI5yTmSfSevGKzHMdMoi7ZiGTOWWpArv
-         Cas4uTr7Ipd2HrBDl3xgbAS+k0dudPGkXddY+2K5pw71zvWuZmvipXBGshHdIVCUhw2E
-         5l9A==
-X-Gm-Message-State: APjAAAU9QGfrsCugc/5aQMRvO7sb9UrVrcmm1wbH88vikyrcpMS+UEmL
-	HE0CdOwueMbxclLwxqvp+CXDsvx2l9l+66dy7zwDufQZ6lfKsjTlXPI2EAZfIM2mLuwpYLUKt9a
-	+MU2Z4RXOZaP1tmQBq8wTIc2j5SORdqNMBBUSIwWEKjK4HmSGQvap0hvCF3SZEcnlIQ==
-X-Received: by 2002:a17:902:e48d:: with SMTP id cj13mr22604360plb.156.1557617339556;
-        Sat, 11 May 2019 16:28:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzk8PtQUQr7QrTXJ/kmMwH+BVPtW+v6Gaj308zNEAE42SQ1f9x7ydqzc1Xpgdh+gx0qswlG
-X-Received: by 2002:a17:902:e48d:: with SMTP id cj13mr22604302plb.156.1557617338608;
-        Sat, 11 May 2019 16:28:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557617338; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=dPdaQ04OQMGwU42dwLeynqlwiEFIdM5ipI+2HR6a1s4=;
+        b=odyheaVLBp7TMXSwOF7uqxMyuv/e0axWgSKU2dUwKtTBVmP7FCigXIRAni2C0ZqMo/
+         PcMzxelMnGny7bpPmrjN+NgNzjNRsDCFnTcB40cpqPq27huGRnheXOGpn4Vru5l7Fstq
+         udK7vWPqNAW3p46pNpyu9UZSL2QlyK41StQsgy/eqSM7eWcoGYjDi9qrO/EXZJivmfkj
+         w5NviD+DPlBs3xcPhXV6uQfS3vqJJ/BQFbasUwu+6+zn6lVdvgSeCnYWDGvsduWP1h1K
+         0+OXFea5pYRLMQJGSOrT4HalaEF+MjB2wPWFX+EKnF9Y9vvprM1/NLUYuSo9W1PpHbMw
+         EKYA==
+X-Gm-Message-State: APjAAAXoH5UFeWFOc1YaGOUvnzqeX4EtaxCGr52cJEnZ0LABlMOEeYN/
+	kKQO4xQrTtfuwaTVOflzlKIiIBKdUwBdOALeNZxlhpU43FPjwuNp7xxHfMWdzuB8ZRYMntF6Y+1
+	Of8w/IJcRybQZ8Hzhuk79udcbokgach2X1NWaNZ4MJ8LUjptY0npXcOSL3uwd7ypLxQ==
+X-Received: by 2002:a37:7986:: with SMTP id u128mr17051297qkc.45.1557635723719;
+        Sat, 11 May 2019 21:35:23 -0700 (PDT)
+X-Received: by 2002:a37:7986:: with SMTP id u128mr17051240qkc.45.1557635722776;
+        Sat, 11 May 2019 21:35:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557635722; cv=none;
         d=google.com; s=arc-20160816;
-        b=QZL+EIjLEI3CbR1Le2sm+Zq47S3pWVhCuRS49HdrmuzeBav24LCV7QxstnQv0XhfYs
-         fUi67ojt25eTdNW7Iol214Xq1zAI1APVMrKOYp/g7PXjyDh5hZdhuYjxof0+WkBDZjqc
-         ciNOThsYhavNszQT6G7np7tiRgoQ3EgNHU86v1epeUSoT/mflRSjZlxR7a937Yl2vZEs
-         6UgXIuh3iz/QaGt+QtLpnPkBihdXI1FGVA089Var2M6PaVvqTuyLsROAxncei0PWkGpr
-         /NiV0cWdyhQtScdrkw519Nvd5bdTrGwxZ+TqWLwbZRj1MUydmwzC4aCuLuFSy5rt7jie
-         e3fg==
+        b=0aWTyf0Qh2a6mDkGlnBiHK1ovfAoZxX52JA2ra29kEpBpRObMwhulhHxJMv/kmf1iM
+         uLs2rqoZ9lgT+2dcnZG+4i403KaFMtSlrpzmUycnkvLBWAGGGxlEzYjfp4UL1NJBUZbx
+         lg4eyi6D3FsjyvmmZ/esgor6zE7NbfoAsaS/dK2LW08jhPfBdiE90ZTDl7IrNlMh6OWu
+         Hd9fd8b1Hkk0osPemob+GFUz5gikFeFYv1vk7GGCJyhEncYeqzKd/k7x90bDZnhyrox3
+         aRhwewkWPwrPvk0DdxaKVNMm/F3/wspT2bBlCiBo1XMd68x1OR8eNKAOaLgh4Vdcq4UQ
+         DR8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=es864z3d4LIjwNS1NE+AwOG5dicN2shdSWnMht9wQZw=;
-        b=jjmL0zp7dmRJZ8JR9Tr2J4HXtrIZliSsGKcRbvd8ViqeyoN/Xy3ulI7CMNgQnsGx0q
-         0M1f3E26Undl1ussJIut5I/JuQsh6Hnnr/mFGemVHpmvAYdK4j3VLkYOLgPHg/ez20Na
-         lybEouPEIKnMGBxlfkePnbaOAe7hR0dITrbsepN6bEubpeG7PaJP8CQ/l8917kvrhOVH
-         aVNF+XguEyV/koAfEHcF+TDupyjq2PkOse2HN3ogO5T9ph8u0SvgSM1B3pQU7rqOfzIe
-         0cAot9fB0NgKQbedYmVcosaT0izeXEi/5XLiuyMfTzCDAdOursFB5gWho/L439VC3Ove
-         ncKQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=dPdaQ04OQMGwU42dwLeynqlwiEFIdM5ipI+2HR6a1s4=;
+        b=k+D7Do79ESPZSR8jAAnIax+n4yxM+uzWD8pZi/hTm0O/ncmIe7xhWtMRtnS2vjlKr/
+         SfU40A4wsZkrFSV/PzrcyXNflHLl4kMepPotImpzEGO71WHR5w2YFykFfzmo7TvlLb+r
+         4GuMKTIbMBAdMQqPFkbP1kwi+bMpbpj5DAb/QEQt1h0NFc8aynJCRXvfZpngpqEOQGF9
+         nZ6fUMPvRvrguNT53VL/KaQ6jsdpc0c0k16qHx5gfS1tNsTpIhdIpe7HCATNhUiDd7/F
+         h+S0qnviEWZC9+PDK4PBR9Z8o++jwFZUc/TGBvzfjdm2ubPJqRxFqpcFRQNDuCvW86Qv
+         MhYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=nU6413kV;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c22si12194133pfr.15.2019.05.11.16.28.58
+       dkim=pass header.i=@lca.pw header.s=google header.b="gtj/vqFS";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y20sor12655969qtk.52.2019.05.11.21.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 11 May 2019 16:28:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Sat, 11 May 2019 21:35:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=nU6413kV;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E07EA2183F;
-	Sat, 11 May 2019 23:28:57 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557617338;
-	bh=BHuLhxI5aHGVG83YqK2/hCHQq9kJO+FuJp6SI28BFfI=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=nU6413kVDb+PIGWHElsfQ6tapvlj2bCz/1bmMGpNgUPeXxkuwKNe3Dy0uTFp1NVY8
-	 oCufa71IzIzaWeO/VIMqQoTq+iMdsqzx/TsBpN8ie3xb6RkIk7GGM5lGedl+Hb2ar0
-	 7aa1ZW3Ce8KqrZFOGYDQ5AU7/0gQmNKz5IGJ7VEw=
-Date: Sat, 11 May 2019 16:28:57 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Yafang Shao <laoar.shao@gmail.com>, jack@suse.cz, linux-mm@kvack.org,
- shaoyafang@didiglobal.com
-Subject: Re: [PATCH] mm/page-writeback: introduce tracepoint for
- wait_on_page_writeback
-Message-Id: <20190511162857.12e08e792b32d9cff1fb630a@linux-foundation.org>
-In-Reply-To: <20190428210538.GB956@dhcp22.suse.cz>
-References: <1556274402-19018-1-git-send-email-laoar.shao@gmail.com>
-	<20190426112542.bf1cd9fe8e9ed7a659642643@linux-foundation.org>
-	<20190428210538.GB956@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@lca.pw header.s=google header.b="gtj/vqFS";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=dPdaQ04OQMGwU42dwLeynqlwiEFIdM5ipI+2HR6a1s4=;
+        b=gtj/vqFS/ws9nX0lxJcywKgYAZdqHJJb4vL/tZ+2R7I6Exl8SCCT7HaTwvmrB2Yj2H
+         SUzH4VhZPlI/HROyYk4qt6HtZSax9kDys+YNj6qhlXo4jBaMZaYiCbjf/5uDONIEBTy7
+         Tp9d0mTyCX5Gvb5vM7my+jvPZWPq9O5PD4D1kQmMhPS+CHgfrcJIZnzFZRiN5T0mtKUR
+         HnQ3U7MuG0YjkJFU/0tPcfOlZ6kShz+RVP1IB9GRzHKbwDIttPMGGRdwKjcDHKLPwyX7
+         aZO0Qw7FW/GyAjk5DLGfxwdJhinfsGKM+GpQyYc1PsRSn1XbOpRc6T1MJG7x0eA5GbfB
+         GpUw==
+X-Google-Smtp-Source: APXvYqzwDUmg+Md2mff4foee6rHIFv6KDP9kS5NCEcqkWVWSn/2AZSbj0Pa5JyccSK9BiECN+H5XrA==
+X-Received: by 2002:ac8:3785:: with SMTP id d5mr18133800qtc.166.1557635722507;
+        Sat, 11 May 2019 21:35:22 -0700 (PDT)
+Received: from ovpn-121-162.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id t63sm4887472qka.33.2019.05.11.21.35.20
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 11 May 2019 21:35:21 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mhocko@kernel.org,
+	brho@google.com,
+	kernelfans@gmail.com,
+	dave.hansen@intel.com,
+	rppt@linux.ibm.com,
+	peterz@infradead.org,
+	mpe@ellerman.id.au,
+	mingo@elte.hu,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/hotplug: fix a null-ptr-deref during NUMA boot
+Date: Sun, 12 May 2019 00:34:42 -0400
+Message-Id: <20190512043442.11212-1-cai@lca.pw>
+X-Mailer: git-send-email 2.20.1 (Apple Git-117)
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 28 Apr 2019 23:05:38 +0200 Michal Hocko <mhocko@suse.com> wrote:
+The linux-next commit ("x86, numa: always initialize all possible
+nodes") introduced a crash below during boot for systems with a
+memory-less node. This is due to CPUs that get onlined during SMP boot,
+but that onlining triggers a page fault in bus_add_device() during
+device registration:
 
-> On Fri 26-04-19 11:25:42, Andrew Morton wrote:
-> > On Fri, 26 Apr 2019 18:26:42 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
-> [...]
-> > > +/*
-> > > + * Wait for a page to complete writeback
-> > > + */
-> > > +void wait_on_page_writeback(struct page *page)
-> > > +{
-> > > +	if (PageWriteback(page)) {
-> > > +		trace_wait_on_page_writeback(page, page_mapping(page));
-> > > +		wait_on_page_bit(page, PG_writeback);
-> > > +	}
-> > > +}
-> > > +EXPORT_SYMBOL_GPL(wait_on_page_writeback);
-> > 
-> > But this is a stealth change to the wait_on_page_writeback() licensing.
-> 
-> Why do we have to put that out of line in the first place?
+	error = sysfs_create_link(&bus->p->devices_kset->kobj,
 
-Seems like a good thing to do from a size and icache-footprint POV. 
-wait_on_page_writeback() has a ton of callsites and the allmodconfig
-out-of-line version is around 600 bytes of code (gack).
+bus->p is NULL. That "p" is the subsys_private struct, and it should
+have been set in,
 
-> Btw. wait_on_page_bit is EXPORT_SYMBOL...
+	postcore_initcall(register_node_type);
 
-OK, I'll leave wait_on_page_writeback() as EXPROT_SYMBOL().
+but that happens in do_basic_setup() after smp_init().
+
+The old code had set this node online via alloc_node_data(), so when it
+came time to do_cpu_up() -> try_online_node(), the node was already up
+and nothing happened.
+
+Now, it attempts to online the node, which registers the node with
+sysfs, but that can't happen before the 'node' subsystem is registered.
+
+Since kernel_init() is running by a kernel thread that is in
+SYSTEM_SCHEDULINGi state, fixed this skipping registering with sysfs
+during the early boot in __try_online_node().
+
+Call Trace:
+ device_add+0x43e/0x690
+ device_register+0x107/0x110
+ __register_one_node+0x72/0x150
+ __try_online_node+0x8f/0xd0
+ try_online_node+0x2b/0x50
+ do_cpu_up+0x46/0xf0
+ cpu_up+0x13/0x20
+ smp_init+0x6e/0xd0
+ kernel_init_freeable+0xe5/0x21f
+ kernel_init+0xf/0x180
+ ret_from_fork+0x1f/0x30
+
+Reported-by: Barret Rhoden <brho@google.com>
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memory_hotplug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b236069ff0d8..5970dd65d698 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1034,7 +1034,7 @@ static int __try_online_node(int nid, u64 start, bool set_node_online)
+ 	pg_data_t *pgdat;
+ 	int ret = 1;
+ 
+-	if (node_online(nid))
++	if (node_online(nid) || system_state == SYSTEM_SCHEDULING)
+ 		return 0;
+ 
+ 	pgdat = hotadd_new_pgdat(nid, start);
+-- 
+2.20.1 (Apple Git-117)
 
