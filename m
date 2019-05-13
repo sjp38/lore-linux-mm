@@ -2,324 +2,238 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14F31C04AB1
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 21:02:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01639C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 21:09:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9297216E3
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 21:02:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9297216E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9849A208C3
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 21:09:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="FSfBXyoh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9849A208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35A7F6B000A; Mon, 13 May 2019 17:02:04 -0400 (EDT)
+	id 4406E6B000D; Mon, 13 May 2019 17:09:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E6826B000C; Mon, 13 May 2019 17:02:04 -0400 (EDT)
+	id 3EFE96B000E; Mon, 13 May 2019 17:09:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 137A46B000D; Mon, 13 May 2019 17:02:04 -0400 (EDT)
+	id 2E0706B0010; Mon, 13 May 2019 17:09:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C70C26B000A
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 17:02:03 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r75so2225429pfc.15
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 14:02:03 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA7196B000D
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 17:09:07 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e20so9957940pgm.16
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 14:09:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=Hz9unt/uciM/ygAmqtld9GENvR5FMLR6DW0Up+uWrL8=;
-        b=kbF1CiD2yv6wggmFMGTBAx6sFgWHrjzyPqrZCrH3KqszIbu39vq6/c9VfxlSkeDPOk
-         KN3nNKqTK9g3PH6yGyPr794LBuuwZJ0EeoR/iAeOWmjZeP48W2ecp4RGcDlfVn61SGJ3
-         8rB+fKHegVh7LyN7Bch6//PSYmexWl17tfEJHsZ4WQPwhQ6Peb+f/YMIhzmsDQuveVFA
-         Su4ncoSS4aQRVYJ90pPSZJWO2jJEL1LxmROvc01VWfi1p7HrKDb902zar4z7zW3l7ceL
-         oHHNVblWSTdkUVfkHSgQEwVLHFjQfYUNqqbDYnnfZgKDDZNRS5LwkbXFdN6TKD3N5cji
-         PydA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUQNWjcVbnoysF3WA0jmM8+UOsZYhXEraC3N+dNnelp0C7mf9Yn
-	1L2yFwWX/uK6BzbZuJKkRwhCTaHwDS2Z7JYPewGFNbptBYP6kBy2+FdxJt9JUxkGOZCHM6JrDT2
-	gcNpj5FEYfmm0gLnSw6iXxx8oDPR3A8cJNLIIih74bX2KnwmZSd7EdUZoJdAD1PaX8g==
-X-Received: by 2002:a62:5f42:: with SMTP id t63mr10968229pfb.83.1557781323412;
-        Mon, 13 May 2019 14:02:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxtkSOXd9NcGN5ARMK4YmRnfMV7VcunPuCg1C03fE3fjVYqfTyF6k3EhgmbBY/wP3zXS2bZ
-X-Received: by 2002:a62:5f42:: with SMTP id t63mr10968081pfb.83.1557781322099;
-        Mon, 13 May 2019 14:02:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557781322; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=etxC2fIO+k7WqJJbgmpaQKX6DDfUoMBtn3qTvkFV+tE=;
+        b=keeMyMHY8oTDyo5cRvRag8u5Ll4M0Ufu7ALG652bCtZqOJKLLvhilHcZzpatRKW8KU
+         UkTwJoHD+wkAEtMv7piWqA+nR4veECFiBRYArDQlpa3OX0/Cn6yOweGMxPBB4ExUVwbt
+         7WQ5+xBisocUoQk8u+jry7ImzSLZgtMpa3P5MdDSOYyK5X+8wJa0hCILL1VCE0gNaNUi
+         eOnkrgGetsN3Zc5lYAyuEkygsIR2vPxpRp8/pqw6I8FjWWcMcf0Lzr6GmvdDllvnOd8j
+         6KIb0PEXClo+jzHAWq9CpPw17qgsIjaITaez9IDTst8rNf2xfz92kJccaZA3HTQjJPsi
+         00jA==
+X-Gm-Message-State: APjAAAUN5IRSDC2aSBnL7OmGlUo/wDx1Ho5TEy1fi7N+7bznJDt+9LQ3
+	WwD4WVKTmAmvgk3Lobh9t5eJaHXMZrrOS9YQYpPkAh7NXxqYhcX1mA3qTPimWAVE4GqtKcwwOyo
+	NUsIbHI30tnyc6aDjbRcqIb7gTqlA5EtxJ5SLD+7zIfi0zIrU8jOD4/D3CNQUW+JzKg==
+X-Received: by 2002:a63:5d46:: with SMTP id o6mr33684349pgm.217.1557781747443;
+        Mon, 13 May 2019 14:09:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSf7Rprr1+RHUOGHQceUg1bDc+uXT1QmF0EA5kK9SJnV3B4PCv8Rf4uXJwsnRPpzmDZ5sN
+X-Received: by 2002:a63:5d46:: with SMTP id o6mr33684280pgm.217.1557781746504;
+        Mon, 13 May 2019 14:09:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557781746; cv=none;
         d=google.com; s=arc-20160816;
-        b=QdsZqnIiQXEd5lXDwMc95mzFNmPkZpieoZLZML4QRoF+YEjsP8jlsVONB8V+dzA/tN
-         5rPgeHLJn1F2UQjZ8wZGOSIvC/K3jPFTjtHkYyxz7rNf5lZJF9dz5nPC6Z0M+oMQEWwh
-         9gF6iUgAN9SQhZtOOXLuKT6kQGTV9bEUiPMzmm5mWCzht8D8tK9Z5pLUVSaNcpJB/sZp
-         U83Jy+6PQaN5/Ntl+IFgOM+yyEIC8jRAtsR19WK1tLAC7QnWJH8eDFPvL3w0yu+3UIRo
-         25LEB9J4QM6VvUWKv87TsN82qYolsN6o2AN3gRFgr6chFxzAYMQZCZKD69RlRWdgiWwd
-         S8PQ==
+        b=Th/spuBFesNKXiqWIRgrd8IGb6DBHn+oMJv1jsW6/khV7MZMucfKtgHIlEBTwhVVZj
+         EEbQTtNvJ6A6edRVYeI7uPwi3nCgj+jaJijRxn9q5XnsCoIVVvK3VCIRIVVZB0T5T7sx
+         dMDPRNOdHWCahklWVQUbp1iV2Pnv9CXo3f7nZlB9lQcMnSANQOacYSNUeWEPbpN56Yuf
+         BuLVg6PqWkt734mY+bAa1cUODDeemVaAAqjh5Q/sLO03fPiweYZwpVUxopMQ/zBItSG/
+         /YiLlhMz7eoJdzhjWc7tKzZXj2Km3tK6jstvp6XLxmb+SVzOFOlX6Rbtw0yQOtSGXfYu
+         W/xw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=Hz9unt/uciM/ygAmqtld9GENvR5FMLR6DW0Up+uWrL8=;
-        b=fja0YjPOZhMplumZzvnKlPR3mJOepXGsK4kblNgsU8WltP65URk3Obb1vLuMseF0iv
-         npWYj6Tp5RQh4AvNSUgCkZr+7AW2jtYq1rl/+IuJncqE74Fj2qfuTCqxqMmXdt7YZ9qC
-         LiARckySxAAutHn6iSfez6N3+MVXm8G/4yR+G3A+gQe48tnMmTewDcIyXgrQBQwaVL1d
-         ealwD9ogVM0fuzPHT/qxXhms0ieDx3zgnt3VFKfr/jxVdfPwJuenNjneDj+32Sb6Kvun
-         NZJ2pkBPrnv0e2oNeBp8YL3pHe3bvpx39wL8agH9Dle7LZoLCqRO0SEVUmXftjKePXCb
-         qnzA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=etxC2fIO+k7WqJJbgmpaQKX6DDfUoMBtn3qTvkFV+tE=;
+        b=toMuXnYTbFfBr9egnVVT6GqMm42i6QTe/rjANuDtzrRMnVsEKCQGEGcgjy1v6A5rOC
+         lpIFyK12FeSwNsymB9pe97irFW6cs92Q4rgQXTXDWm/qpxGx6uniEKeWGmUa6lYz3Wa6
+         CtIfXBW+X5A/aPpQSVLuWf4VVItq2qCy4DLWV4ZrpaVS7mIeEKyFO47e85NErzkVMJ0k
+         IB2tPie8xtJxaC7xBmR78S/3lQX3F5JbUCt0prBOqP6IRnZRdrGaGn9KUg34EWVMCu9W
+         iP8w/rq6SvhIXt370Qr+atXKj0lHESbxlGy2WvfL/XQmG5dad8rzGwcQR6mU0AVqEd9H
+         d6tA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y3si16835843plt.133.2019.05.13.14.02.01
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FSfBXyoh;
+       spf=pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id b4si18268914plr.116.2019.05.13.14.09.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 14:02:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Mon, 13 May 2019 14:09:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4DKwTvW029170
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 17:02:01 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sferdk6yp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 17:02:01 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 13 May 2019 22:01:58 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 13 May 2019 22:01:53 +0100
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4DL1qrL54722776
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 21:01:52 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 420FFA404D;
-	Mon, 13 May 2019 21:01:52 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5FEF5A4040;
-	Mon, 13 May 2019 21:01:50 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.233])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 13 May 2019 21:01:50 +0000 (GMT)
-Date: Tue, 14 May 2019 00:01:48 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, David Hildenbrand <david@redhat.com>,
-        Jane Chu <jane.chu@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Robin Murphy <robin.murphy@arm.com>,
-        Anshuman Khandual <anshuman.khandual@arm.com>,
-        Logan Gunthorpe <logang@deltatee.com>,
-        Paul Mackerras <paulus@samba.org>, Toshi Kani <toshi.kani@hpe.com>,
-        Oscar Salvador <osalvador@suse.de>, Jeff Moyer <jmoyer@redhat.com>,
-        Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
-        stable@vger.kernel.org,
-        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-        linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v8 00/12] mm: Sub-section memory hotplug support
-References: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19051321-4275-0000-0000-000003345D88
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19051321-4276-0000-0000-00003843DADB
-Message-Id: <20190513210148.GA21574@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-13_13:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905130139
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=FSfBXyoh;
+       spf=pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DL3koI146771;
+	Mon, 13 May 2019 21:08:42 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=etxC2fIO+k7WqJJbgmpaQKX6DDfUoMBtn3qTvkFV+tE=;
+ b=FSfBXyohrOkcDcJUQjU9IbWERTb6TScchNOdnSNATyPYzF7SZ0/RAhT0ZrdjyrPMnhQj
+ h4RPVcu565duvAFebok/LJcd3c+xOgFjoqRauIXFjbEJdhkRIGze08wA7ECcSvhk9i93
+ E6X7epEf32cPFEeU2/FPfvjsJ9PLMW1Sy5Pn/KT6EkP/xN5fE+ebLUMdOpjI3KJ6CHpK
+ TmS0Hmd3gx43vcCfYcH8WTla1Bup+aUHzerBHUIbKaD8IgaIATMHWplVrL8bftDDajWD
+ cNf3OemKPk7HniAOw7L0LkBrGsprAuU21bairPt9pBdhGlGDr+TYe4lgM+ZDHyPjmbeR nA== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2130.oracle.com with ESMTP id 2sdkwdj031-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 13 May 2019 21:08:42 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DL7aVk089303;
+	Mon, 13 May 2019 21:08:42 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3020.oracle.com with ESMTP id 2se0tvskr8-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 13 May 2019 21:08:42 +0000
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4DL8TlR001785;
+	Mon, 13 May 2019 21:08:36 GMT
+Received: from [192.168.14.112] (/79.180.238.224)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 13 May 2019 14:08:29 -0700
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.1 \(3445.4.7\))
+Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
+From: Liran Alon <liran.alon@oracle.com>
+In-Reply-To: <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
+Date: Tue, 14 May 2019 00:08:23 +0300
+Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
+        Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>,
+        X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>,
+        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+        jan.setjeeilers@oracle.com, Jonathan Adams <jwadams@google.com>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+ <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
+To: Andy Lutomirski <luto@kernel.org>
+X-Mailer: Apple Mail (2.3445.4.7)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905130141
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905130140
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Dan,
 
-On Mon, May 06, 2019 at 04:39:26PM -0700, Dan Williams wrote:
-> Changes since v7 [1]:
 
-Sorry for jumping late, but presuming there will be v9, it'd be great if it
-would also include include updates to
-Documentation/admin-guide/mm/memory-hotplug.rst and
-Documentation/vm/memory-model.rst
- 
-> - Make subsection helpers pfn based rather than physical-address based
->   (Oscar and Pavel)
-> 
-> - Make subsection bitmap definition scalable for different section and
->   sub-section sizes across architectures. As a result:
-> 
->       unsigned long map_active
-> 
->   ...is converted to:
-> 
->       DECLARE_BITMAP(subsection_map, SUBSECTIONS_PER_SECTION)
-> 
->   ...and the helpers are renamed with a 'subsection' prefix. (Pavel)
-> 
-> - New in this version is a touch of arch/powerpc/include/asm/sparsemem.h
->   in "[PATCH v8 01/12] mm/sparsemem: Introduce struct mem_section_usage"
->   to define ARCH_SUBSECTION_SHIFT.
-> 
-> - Drop "mm/sparsemem: Introduce common definitions for the size and mask
->   of a section" in favor of Robin's "mm/memremap: Rename and consolidate
->   SECTION_SIZE" (Pavel)
-> 
-> - Collect some more Reviewed-by tags. Patches that still lack review
->   tags: 1, 3, 9 - 12
-> 
-> [1]: https://lore.kernel.org/lkml/155677652226.2336373.8700273400832001094.stgit@dwillia2-desk3.amr.corp.intel.com/
-> 
-> ---
-> [merge logistics]
-> 
-> Hi Andrew,
-> 
-> These are too late for v5.2, I'm posting this v8 during the merge window
-> to maintain the review momentum. 
-> 
-> ---
-> [cover letter]
-> 
-> The memory hotplug section is an arbitrary / convenient unit for memory
-> hotplug. 'Section-size' units have bled into the user interface
-> ('memblock' sysfs) and can not be changed without breaking existing
-> userspace. The section-size constraint, while mostly benign for typical
-> memory hotplug, has and continues to wreak havoc with 'device-memory'
-> use cases, persistent memory (pmem) in particular. Recall that pmem uses
-> devm_memremap_pages(), and subsequently arch_add_memory(), to allocate a
-> 'struct page' memmap for pmem. However, it does not use the 'bottom
-> half' of memory hotplug, i.e. never marks pmem pages online and never
-> exposes the userspace memblock interface for pmem. This leaves an
-> opening to redress the section-size constraint.
-> 
-> To date, the libnvdimm subsystem has attempted to inject padding to
-> satisfy the internal constraints of arch_add_memory(). Beyond
-> complicating the code, leading to bugs [2], wasting memory, and limiting
-> configuration flexibility, the padding hack is broken when the platform
-> changes this physical memory alignment of pmem from one boot to the
-> next. Device failure (intermittent or permanent) and physical
-> reconfiguration are events that can cause the platform firmware to
-> change the physical placement of pmem on a subsequent boot, and device
-> failure is an everyday event in a data-center.
-> 
-> It turns out that sections are only a hard requirement of the
-> user-facing interface for memory hotplug and with a bit more
-> infrastructure sub-section arch_add_memory() support can be added for
-> kernel internal usages like devm_memremap_pages(). Here is an analysis
-> of the current design assumptions in the current code and how they are
-> addressed in the new implementation:
-> 
-> Current design assumptions:
-> 
-> - Sections that describe boot memory (early sections) are never
->   unplugged / removed.
-> 
-> - pfn_valid(), in the CONFIG_SPARSEMEM_VMEMMAP=y, case devolves to a
->   valid_section() check
-> 
-> - __add_pages() and helper routines assume all operations occur in
->   PAGES_PER_SECTION units.
-> 
-> - The memblock sysfs interface only comprehends full sections
-> 
-> New design assumptions:
-> 
-> - Sections are instrumented with a sub-section bitmask to track (on x86)
->   individual 2MB sub-divisions of a 128MB section.
-> 
-> - Partially populated early sections can be extended with additional
->   sub-sections, and those sub-sections can be removed with
->   arch_remove_memory(). With this in place we no longer lose usable memory
->   capacity to padding.
-> 
-> - pfn_valid() is updated to look deeper than valid_section() to also check the
->   active-sub-section mask. This indication is in the same cacheline as
->   the valid_section() so the performance impact is expected to be
->   negligible. So far the lkp robot has not reported any regressions.
-> 
-> - Outside of the core vmemmap population routines which are replaced,
->   other helper routines like shrink_{zone,pgdat}_span() are updated to
->   handle the smaller granularity. Core memory hotplug routines that deal
->   with online memory are not touched.
-> 
-> - The existing memblock sysfs user api guarantees / assumptions are
->   not touched since this capability is limited to !online
->   !memblock-sysfs-accessible sections.
-> 
-> Meanwhile the issue reports continue to roll in from users that do not
-> understand when and how the 128MB constraint will bite them. The current
-> implementation relied on being able to support at least one misaligned
-> namespace, but that immediately falls over on any moderately complex
-> namespace creation attempt. Beyond the initial problem of 'System RAM'
-> colliding with pmem, and the unsolvable problem of physical alignment
-> changes, Linux is now being exposed to platforms that collide pmem
-> ranges with other pmem ranges by default [3]. In short,
-> devm_memremap_pages() has pushed the venerable section-size constraint
-> past the breaking point, and the simplicity of section-aligned
-> arch_add_memory() is no longer tenable.
-> 
-> These patches are exposed to the kbuild robot on my libnvdimm-pending
-> branch [4], and a preview of the unit test for this functionality is
-> available on the 'subsection-pending' branch of ndctl [5].
-> 
-> [2]: https://lore.kernel.org/r/155000671719.348031.2347363160141119237.stgit@dwillia2-desk3.amr.corp.intel.com
-> [3]: https://github.com/pmem/ndctl/issues/76
-> [4]: https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=libnvdimm-pending
-> [5]: https://github.com/pmem/ndctl/commit/7c59b4867e1c
-> 
-> ---
-> 
-> Dan Williams (11):
->       mm/sparsemem: Introduce struct mem_section_usage
->       mm/sparsemem: Add helpers track active portions of a section at boot
->       mm/hotplug: Prepare shrink_{zone,pgdat}_span for sub-section removal
->       mm/sparsemem: Convert kmalloc_section_memmap() to populate_section_memmap()
->       mm/hotplug: Kill is_dev_zone() usage in __remove_pages()
->       mm: Kill is_dev_zone() helper
->       mm/sparsemem: Prepare for sub-section ranges
->       mm/sparsemem: Support sub-section hotplug
->       mm/devm_memremap_pages: Enable sub-section remap
->       libnvdimm/pfn: Fix fsdax-mode namespace info-block zero-fields
->       libnvdimm/pfn: Stop padding pmem namespaces to section alignment
-> 
-> Robin Murphy (1):
->       mm/memremap: Rename and consolidate SECTION_SIZE
-> 
-> 
->  arch/powerpc/include/asm/sparsemem.h |    3 
->  arch/x86/mm/init_64.c                |    4 
->  drivers/nvdimm/dax_devs.c            |    2 
->  drivers/nvdimm/pfn.h                 |   15 -
->  drivers/nvdimm/pfn_devs.c            |   95 +++------
->  include/linux/memory_hotplug.h       |    7 -
->  include/linux/mm.h                   |    4 
->  include/linux/mmzone.h               |   93 +++++++--
->  kernel/memremap.c                    |   63 ++----
->  mm/hmm.c                             |    2 
->  mm/memory_hotplug.c                  |  172 +++++++++-------
->  mm/page_alloc.c                      |    8 -
->  mm/sparse-vmemmap.c                  |   21 +-
->  mm/sparse.c                          |  369 +++++++++++++++++++++++-----------
->  14 files changed, 511 insertions(+), 347 deletions(-)
-> 
+> On 13 May 2019, at 21:17, Andy Lutomirski <luto@kernel.org> wrote:
+>=20
+>> I expect that the KVM address space can eventually be expanded to =
+include
+>> the ioctl syscall entries. By doing so, and also adding the KVM page =
+table
+>> to the process userland page table (which should be safe to do =
+because the
+>> KVM address space doesn't have any secret), we could potentially =
+handle the
+>> KVM ioctl without having to switch to the kernel pagetable (thus =
+effectively
+>> eliminating KPTI for KVM). Then the only overhead would be if a =
+VM-Exit has
+>> to be handled using the full kernel address space.
+>>=20
+>=20
+> In the hopefully common case where a VM exits and then gets re-entered
+> without needing to load full page tables, what code actually runs?
+> I'm trying to understand when the optimization of not switching is
+> actually useful.
+>=20
+> Allowing ioctl() without switching to kernel tables sounds...
+> extremely complicated.  It also makes the dubious assumption that user
+> memory contains no secrets.
 
--- 
-Sincerely yours,
-Mike.
+Let me attempt to clarify what we were thinking when creating this patch =
+series:
+
+1) It is never safe to execute one hyperthread inside guest while it=E2=80=
+=99s sibling hyperthread runs in a virtual address space which contains =
+secrets of host or other guests.
+This is because we assume that using some speculative gadget (such as =
+half-Spectrev2 gadget), it will be possible to populate *some* CPU core =
+resource which could then be *somehow* leaked by the hyperthread running =
+inside guest. In case of L1TF, this would be data populated to the L1D =
+cache.
+
+2) Because of (1), every time a hyperthread runs inside host kernel, we =
+must make sure it=E2=80=99s sibling is not running inside guest. i.e. We =
+must kick the sibling hyperthread outside of guest using IPI.
+
+3) =46rom (2), we should have theoretically deduced that for every =
+#VMExit, there is a need to kick the sibling hyperthread also outside of =
+guest until the #VMExit is completed. Such a patch series was =
+implemented at some point but it had (obviously) significant performance =
+hit.
+
+4) The main goal of this patch series is to preserve (2), but to avoid =
+the overhead specified in (3).
+
+The way this patch series achieves (4) is by observing that during the =
+run of a VM, most #VMExits can be handled rather quickly and locally =
+inside KVM and doesn=E2=80=99t need to reference any data that is not =
+relevant to this VM or KVM code. Therefore, if we will run these =
+#VMExits in an isolated virtual address space (i.e. KVM isolated address =
+space), there is no need to kick the sibling hyperthread from guest =
+while these #VMExits handlers run.
+The hope is that the very vast majority of #VMExit handlers will be able =
+to completely run without requiring to switch to full address space. =
+Therefore, avoiding the performance hit of (2).
+However, for the very few #VMExits that does require to run in full =
+kernel address space, we must first kick the sibling hyperthread outside =
+of guest and only then switch to full kernel address space and only once =
+all hyperthreads return to KVM address space, then allow then to enter =
+into guest.
+
+=46rom this reason, I think the above paragraph (that was added to my =
+original cover letter) is incorrect.
+I believe that we should by design treat all exits to userspace VMM =
+(e.g. QEMU) as slow-path that should not be optimised and therefore ok =
+to switch address space (and therefore also kick sibling hyperthread). =
+Similarly, all IOCTLs handlers are also slow-path and therefore it =
+should be ok for them to also not run in KVM isolated address space.
+
+-Liran
+
+
+
+
+
+
+
+
 
