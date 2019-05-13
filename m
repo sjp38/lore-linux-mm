@@ -2,192 +2,252 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D62F5C46460
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:41:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E64B5C04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:43:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94EC6208CB
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:41:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94EC6208CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 89A5C21019
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:43:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89A5C21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FD476B0292; Mon, 13 May 2019 08:41:16 -0400 (EDT)
+	id 0B34C6B0294; Mon, 13 May 2019 08:43:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AD436B0293; Mon, 13 May 2019 08:41:16 -0400 (EDT)
+	id 065066B0295; Mon, 13 May 2019 08:43:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 179D86B0294; Mon, 13 May 2019 08:41:16 -0400 (EDT)
+	id E93FE6B0296; Mon, 13 May 2019 08:43:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BEDFF6B0292
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:41:15 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e21so17796236edr.18
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:41:15 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D9FF6B0294
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:43:13 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id m2so1429728ljj.13
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:43:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=B3/5KVxcV14Z3CNwkL8+C4WdthZw+XLxneP2GR8JpAA=;
-        b=alQ9y8hBckKYXqF/9KA866pq4C8UkdAjYD8qqKObJ2i61cc3XTK1i/RPOW7zz8JNhY
-         +OazHaX5pKKZe5JO00R1N5hZafVSil8GfHyDAMK9oPEn3nqTfyZm7ni3E/3t8D5nmNT1
-         ghzqt4KHQ4XBwpsQiDj+nFSzo7RUP4FjXJZdxPmdqRV8TUn8p3OdkZ5Y0VBV93dSbNkG
-         g3DSixTSCQs5Bw/dy0wmcbtd0t5xYx5RLMwipd8fEzxsfHLAdkfORQcNvDPL2Z8jgNmo
-         u2rea3BhSG+Do9WxsnjxzjItIsRlLTo44QGHWikIGndSjl8+EK4Er8QlskHdGoaJAjPS
-         QhdQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX3ilF24B5t3WHowOqqCCh7JaH/cWarG1At/Jzvi46xrHQOfPVl
-	/bwgy+6wE+h8jOpXSXYtG/MHbCfc+gS+SA24XxzXuAJKUsHwPImoIEoi44huB+JpfOaQgqK6mFs
-	o8zDrVCSt7WAOJ2xVwpvw6sn0rNvIeLkfqiKlhYYBm6cekUOjSRXy0DPZUHDcqZw=
-X-Received: by 2002:a50:9470:: with SMTP id q45mr29301229eda.269.1557751275348;
-        Mon, 13 May 2019 05:41:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy39Ui8sOqUpfo0sJtXyHbYjtt0TYTXeGyIVXcYR529BQuJPic2d4BgQ13RFTOb8DjejJcQ
-X-Received: by 2002:a50:9470:: with SMTP id q45mr29301156eda.269.1557751274453;
-        Mon, 13 May 2019 05:41:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557751274; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=8PtUPN8e7qUv2UN0FXZGfwXYQHrkmndzYfGOtuSHB2s=;
+        b=Z08DSzTrbHtE/HSA+Gg0MCRRRpP9hLNjEMuiHx1WsrJxYi58FTomxpNnZTKLqmxUDx
+         cYMoAIsEaodyD2EsMzKdbTaTbK8P/wq325ybNHBmc3UeyPDK6yVNM2RdbHRZ84R5/JWj
+         cQbUr0mPujSt3S+dTKhy/t8CEFFibENBxoCv3SyXOzuo5OxiDfonBzmevYqhD1cdEGY+
+         5Ucm2cDJmlwBk2lJCLAjbEESambxjPN5eQscl2AV04d3cT/CgLQCaV3gckKUJdBqXJqt
+         FCfj8FgqObLNfSj2LRTViN7yEHNi5NX/FxkSWB1hNNCNnKYYDxCXVNiXmGjzli6L3627
+         lypA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAU7EjbYS+s/bJd2lZY9f+DIwPH4gea5/DHfgZPgullZRYDTWhP/
+	py1lkI4C38zLDouQtuZ/x7HZXG/s98gCFJSEXJSelS9vzW0GtA1d51iTrxgxUWn17sRFY333vOU
+	fdtGt+5mj3+y/daSvV+DIt4aVAu83f+p9jonaFhM2dGqO9sUGy9pX8OkQMcvTm5TIXA==
+X-Received: by 2002:a2e:8583:: with SMTP id b3mr14396522lji.136.1557751392448;
+        Mon, 13 May 2019 05:43:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhucoBlSctDkPyBoa78rqvFX4H9DrOQ21a/XbgOnf2qQbKlwoV/kpOuNc56NGBeRGRL3Ym
+X-Received: by 2002:a2e:8583:: with SMTP id b3mr14396461lji.136.1557751391006;
+        Mon, 13 May 2019 05:43:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557751391; cv=none;
         d=google.com; s=arc-20160816;
-        b=dpUKtIfn+4JmlB855ylaK2KRK2nh2XeNdX6eAUCgrVb/3NLAgpaEV5GDzwI/GN73IN
-         oYTAHp0MaGRsD7yj9slU+kbHgNQvPzpD7gUCBhVjuTiIRSPkGvYTMhWd5XDMYANuvNFx
-         xkFuEOE9icwsqxHXeJbebNte3JrjNnba/Os1C5PHr9eE/888bqPBIK9JsQDoitU/q9fy
-         7/KXfeqURaj1dApnvsldrVHfsmpV6ASznazE48EEWG3Tg8GxIFuboV7THIocZUGWEbmf
-         zHSvBCbWWjtrUHbLwwxHxQNL9jkahAsmZ7eQgNH5Hrkd9qjIvR6qVB194LcNN5iWSvtj
-         rFdg==
+        b=FXT6e7SZFbSGketbOFmO8RiGAtQ9sCzvBI0mP7u2YkiXDg2rSj674vdlAeMs65N+4M
+         PE8dY+D2Hdp+Qdx1l2TwwD0/UdFDi1BTJlpr5ll21I+hB5LzA7eW6nFj5ElQ1fJr22rq
+         mHOR87ElFLt3Hy2qs7VybsI04CFP+PVaPd+UtbsIn8Ct7PY3EIXCgYqV0ds64E1hDn1H
+         DoWC+ljIt2BCbH0klYNTKmk0XoJnlBwQrobpN5+GuS7noSGl9CJJxDkEBvqHmX8jQUd8
+         N6kiya82+5oN8VbktzkCgAwWhefroz1MwhOflyElgBiCj+d/WPDfPSgFcTTcoi0n+RZB
+         /6Iw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=B3/5KVxcV14Z3CNwkL8+C4WdthZw+XLxneP2GR8JpAA=;
-        b=URK48zChk2c9rnyG0O/PtwNK+d28Z9BmW9uvUi5VgLzLcXuHbtGNSKaNOw53RwF2vf
-         wuZI3lbGAWDgF6YeIbwe+vYq/4uLTuyzFYhEW6Z8cwTvEe2YXl5hka1TA9XN+X7sAXAX
-         VmjUu1qS0ApPYanfjDqut3I8EqoX9/8JRy06hz/DS9lHxIHuoZojAYRFKNeXQWr9ldYn
-         38u5rBK4VzAzLGTLhwx6n4dBPIm4wT9FtAPHOK+b6DwhOKTSaq3U3o/uEN1QqPJqk8tx
-         p+iqWJ1/ooR+HRCGCF3cSstv6+76m7H03Xwpch3XCCgVL7tXddCCx89ZjoUhIvW3GYf+
-         pBZQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=8PtUPN8e7qUv2UN0FXZGfwXYQHrkmndzYfGOtuSHB2s=;
+        b=0KG6umq8X3ihM0TkjsrhQr4ECoYxNoe/2LHzw6QgGANfk4g203LQpLQyPjaN9Rk7zn
+         +8mKrqJLhZbUXCnPh7amdGLv0zcHRJstLMce6BoL/WL+7KNMWhx0JvT0OkahK+sCFY4L
+         oouLLITR+Ct9PDMzhTci7TbgqGpHZ5prH+GN3jGrhWmftu0l3ivOcN+Qt0s6FlM/Tdav
+         7mGcFfWH/D3J1vL7sxuY6wlDxxrmLMXcQUQp9BXSL5HqH5/qnZm6z9L/x5DU7XX5kzTp
+         b8KW/ZaYBIc+aPsfbb/1Q77C4LF6sEURdAwcPsscicPbSpTDDOzEwJWs/Wqqivv1XZ0I
+         HEjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f19si2551133ejr.194.2019.05.13.05.41.14
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id p24si5286391lji.174.2019.05.13.05.43.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 05:41:14 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 13 May 2019 05:43:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9A2D7AF60;
-	Mon, 13 May 2019 12:41:13 +0000 (UTC)
-Date: Mon, 13 May 2019 14:41:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, brho@google.com, kernelfans@gmail.com,
-	dave.hansen@intel.com, rppt@linux.ibm.com, peterz@infradead.org,
-	mpe@ellerman.id.au, mingo@elte.hu, osalvador@suse.de,
-	luto@kernel.org, tglx@linutronix.de, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
- boot
-Message-ID: <20190513124112.GH24036@dhcp22.suse.cz>
-References: <20190512054829.11899-1-cai@lca.pw>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hQAIQ-000695-3a; Mon, 13 May 2019 15:43:10 +0300
+Subject: Re: [PATCH] mm: Introduce page_size()
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+References: <20190510181242.24580-1-willy@infradead.org>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
+Date: Mon, 13 May 2019 15:43:08 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190512054829.11899-1-cai@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190510181242.24580-1-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun 12-05-19 01:48:29, Qian Cai wrote:
-> The linux-next commit ("x86, numa: always initialize all possible
-> nodes") introduced a crash below during boot for systems with a
-> memory-less node. This is due to CPUs that get onlined during SMP boot,
-> but that onlining triggers a page fault in bus_add_device() during
-> device registration:
-> 
-> 	error = sysfs_create_link(&bus->p->devices_kset->kobj,
-> 
-> bus->p is NULL. That "p" is the subsys_private struct, and it should
-> have been set in,
-> 
-> 	postcore_initcall(register_node_type);
-> 
-> but that happens in do_basic_setup() after smp_init().
-> 
-> The old code had set this node online via alloc_node_data(), so when it
-> came time to do_cpu_up() -> try_online_node(), the node was already up
-> and nothing happened.
-> 
-> Now, it attempts to online the node, which registers the node with
-> sysfs, but that can't happen before the 'node' subsystem is registered.
-> 
-> Since kernel_init() is running by a kernel thread that is in
-> SYSTEM_SCHEDULING state, fixed this by skipping registering with sysfs
-> during the early boot in __try_online_node().
+Hi, Matthew,
 
-Relying on SYSTEM_SCHEDULING looks really hackish. Why cannot we simply
-drop try_online_node from do_cpu_up? Your v2 remark below suggests that
-we need to call node_set_online because something later on depends on
-that. Btw. why do we even allocate a pgdat from this path? This looks
-really messy.
-
-> Call Trace:
->  device_add+0x43e/0x690
->  device_register+0x107/0x110
->  __register_one_node+0x72/0x150
->  __try_online_node+0x8f/0xd0
->  try_online_node+0x2b/0x50
->  do_cpu_up+0x46/0xf0
->  cpu_up+0x13/0x20
->  smp_init+0x6e/0xd0
->  kernel_init_freeable+0xe5/0x21f
->  kernel_init+0xf/0x180
->  ret_from_fork+0x1f/0x30
+On 10.05.2019 21:12, Matthew Wilcox wrote:
+> From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 > 
-> Reported-by: Barret Rhoden <brho@google.com>
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> It's unnecessarily hard to find out the size of a potentially large page.
+> Replace 'PAGE_SIZE << compound_order(page)' with 'page_size(page)'.
+> 
+> Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
 > ---
+>  arch/arm/mm/flush.c                           | 3 +--
+>  arch/arm64/mm/flush.c                         | 3 +--
+>  arch/ia64/mm/init.c                           | 2 +-
+>  drivers/staging/android/ion/ion_system_heap.c | 4 ++--
+>  drivers/target/tcm_fc/tfc_io.c                | 3 +--
+>  fs/io_uring.c                                 | 2 +-
+>  include/linux/hugetlb.h                       | 2 +-
+>  include/linux/mm.h                            | 9 +++++++++
+>  lib/iov_iter.c                                | 2 +-
+>  mm/kasan/common.c                             | 8 +++-----
+>  mm/nommu.c                                    | 2 +-
+>  mm/page_vma_mapped.c                          | 3 +--
+>  mm/rmap.c                                     | 6 ++----
+>  mm/slob.c                                     | 2 +-
+>  mm/slub.c                                     | 4 ++--
+>  net/xdp/xsk.c                                 | 2 +-
+>  16 files changed, 29 insertions(+), 28 deletions(-)
 > 
-> v2: Set the node online as it have CPUs. Otherwise, those memory-less nodes will
->     end up being not in sysfs i.e., /sys/devices/system/node/.
-> 
->  mm/memory_hotplug.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b236069ff0d8..6eb2331fa826 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1037,6 +1037,18 @@ static int __try_online_node(int nid, u64 start, bool set_node_online)
->  	if (node_online(nid))
->  		return 0;
+> diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+> index 58469623b015..c68a120de28b 100644
+> --- a/arch/arm/mm/flush.c
+> +++ b/arch/arm/mm/flush.c
+> @@ -207,8 +207,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
+>  	 * coherent with the kernels mapping.
+>  	 */
+>  	if (!PageHighMem(page)) {
+> -		size_t page_size = PAGE_SIZE << compound_order(page);
+> -		__cpuc_flush_dcache_area(page_address(page), page_size);
+> +		__cpuc_flush_dcache_area(page_address(page), page_size(page));
+>  	} else {
+>  		unsigned long i;
+>  		if (cache_is_vipt_nonaliasing()) {
+> diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
+> index 5c9073bace83..280fdbc3bfa5 100644
+> --- a/arch/arm64/mm/flush.c
+> +++ b/arch/arm64/mm/flush.c
+> @@ -67,8 +67,7 @@ void __sync_icache_dcache(pte_t pte)
+>  	struct page *page = pte_page(pte);
 >  
-> +	/*
-> +	 * Here is called by cpu_up() to online a node without memory from
-> +	 * kernel_init() which guarantees that "set_node_online" is true which
-> +	 * will set the node online as it have CPUs but not ready to call
-> +	 * register_one_node() as "node_subsys" has not been initialized
-> +	 * properly yet.
-> +	 */
-> +	if (system_state == SYSTEM_SCHEDULING) {
-> +		node_set_online(nid);
-> +		return 0;
-> +	}
-> +
->  	pgdat = hotadd_new_pgdat(nid, start);
->  	if (!pgdat) {
->  		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
-> -- 
-> 2.20.1 (Apple Git-117)
+>  	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+> -		sync_icache_aliases(page_address(page),
+> -				    PAGE_SIZE << compound_order(page));
+> +		sync_icache_aliases(page_address(page), page_size(page));
+>  }
+>  EXPORT_SYMBOL_GPL(__sync_icache_dcache);
+>  
+> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> index d28e29103bdb..cc4061cd9899 100644
+> --- a/arch/ia64/mm/init.c
+> +++ b/arch/ia64/mm/init.c
+> @@ -63,7 +63,7 @@ __ia64_sync_icache_dcache (pte_t pte)
+>  	if (test_bit(PG_arch_1, &page->flags))
+>  		return;				/* i-cache is already coherent with d-cache */
+>  
+> -	flush_icache_range(addr, addr + (PAGE_SIZE << compound_order(page)));
+> +	flush_icache_range(addr, addr + page_size(page));
+>  	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
+>  }
+>  
+> diff --git a/drivers/staging/android/ion/ion_system_heap.c b/drivers/staging/android/ion/ion_system_heap.c
+> index aa8d8425be25..b83a1d16bd89 100644
+> --- a/drivers/staging/android/ion/ion_system_heap.c
+> +++ b/drivers/staging/android/ion/ion_system_heap.c
+> @@ -120,7 +120,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
+>  		if (!page)
+>  			goto free_pages;
+>  		list_add_tail(&page->lru, &pages);
+> -		size_remaining -= PAGE_SIZE << compound_order(page);
+> +		size_remaining -= page_size(page);
+>  		max_order = compound_order(page);
+>  		i++;
+>  	}
+> @@ -133,7 +133,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
+>  
+>  	sg = table->sgl;
+>  	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
+> -		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
+> +		sg_set_page(sg, page, page_size(page), 0);
+>  		sg = sg_next(sg);
+>  		list_del(&page->lru);
+>  	}
+> diff --git a/drivers/target/tcm_fc/tfc_io.c b/drivers/target/tcm_fc/tfc_io.c
+> index 1eb1f58e00e4..83c1ec65dbcc 100644
+> --- a/drivers/target/tcm_fc/tfc_io.c
+> +++ b/drivers/target/tcm_fc/tfc_io.c
+> @@ -148,8 +148,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
+>  					   page, off_in_page, tlen);
+>  			fr_len(fp) += tlen;
+>  			fp_skb(fp)->data_len += tlen;
+> -			fp_skb(fp)->truesize +=
+> -					PAGE_SIZE << compound_order(page);
+> +			fp_skb(fp)->truesize += page_size(page);
+>  		} else {
+>  			BUG_ON(!page);
+>  			from = kmap_atomic(page + (mem_off >> PAGE_SHIFT));
+> diff --git a/fs/io_uring.c b/fs/io_uring.c
+> index fdc18321d70c..2c37da095517 100644
+> --- a/fs/io_uring.c
+> +++ b/fs/io_uring.c
+> @@ -2891,7 +2891,7 @@ static int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
+>  	}
+>  
+>  	page = virt_to_head_page(ptr);
+> -	if (sz > (PAGE_SIZE << compound_order(page)))
+> +	if (sz > page_size(page))
+>  		return -EINVAL;
+>  
+>  	pfn = virt_to_phys(ptr) >> PAGE_SHIFT;
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index edf476c8cfb9..2e909072a41f 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -472,7 +472,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+>  static inline struct hstate *page_hstate(struct page *page)
+>  {
+>  	VM_BUG_ON_PAGE(!PageHuge(page), page);
+> -	return size_to_hstate(PAGE_SIZE << compound_order(page));
+> +	return size_to_hstate(page_size(page));
+>  }
+>  
+>  static inline unsigned hstate_index_to_shift(unsigned index)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0e8834ac32b7..0208f77bab63 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -772,6 +772,15 @@ static inline void set_compound_order(struct page *page, unsigned int order)
+>  	page[1].compound_order = order;
+>  }
+>  
+> +/*
+> + * Returns the number of bytes in this potentially compound page.
+> + * Must be called with the head page, not a tail page.
+> + */
+> +static inline unsigned long page_size(struct page *page)
+> +{
 
--- 
-Michal Hocko
-SUSE Labs
+Maybe we should underline commented head page limitation with VM_BUG_ON()?
+
+Kirill
 
