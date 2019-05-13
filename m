@@ -6,104 +6,105 @@ X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5000C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:17:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B17AC04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:18:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF3F72085A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:17:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 445342085A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:18:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="M73groKW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF3F72085A
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VJfYnS+5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 445342085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C1BA6B0008; Mon, 13 May 2019 14:17:30 -0400 (EDT)
+	id D9A446B0008; Mon, 13 May 2019 14:18:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 44BC16B000A; Mon, 13 May 2019 14:17:30 -0400 (EDT)
+	id D4B8E6B000A; Mon, 13 May 2019 14:18:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2ECBA6B000C; Mon, 13 May 2019 14:17:30 -0400 (EDT)
+	id C3AE66B000C; Mon, 13 May 2019 14:18:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EA68A6B0008
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 14:17:29 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id o1so9683619pgv.15
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:17:29 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C54C6B0008
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 14:18:55 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b69so1896279plb.9
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:18:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RXmaEukWCV36ZGd13nL2HHyXvZXbzVLzc6CzdUvQtq0=;
-        b=grAy0KNe91GT5N1DlzzH6e2qaUdU5jzXcKU3uisSIUmHgS9A0ppwAiqQ7K5hklrkWx
-         3OtjtiCwZWkXiOoxk0JKZxOje2nvsNUvus7PsHFZrWT+NJ/exlpd3zVRF0vyPd5qVQLn
-         z8dmbJwTAPQPSQZ/brG2miZtOTt9Il7Z9uZxeL3Y4HH9JAmqY9KzbvlOHfuukD1Xan3I
-         gMeb0BR4cgr71vh3dTLV0I+8OtdT9ydclUq+8CuJZ+Y33cKFPFjL1TmyC3tp+JYlfgnC
-         wll3x0H9P2sgBl8JCgB4Ax5fFDI9hp/KjUm2v1eoWenEIfiMQE/7RH90RPKAKV9MlKSA
-         kSPw==
-X-Gm-Message-State: APjAAAXTUlnFjdzDPscmcuIluNMaYX/ekMWwFnIxNL+el2pg2Cr2NZaH
-	YGtilQoE4D4/xcyOEvtewF/PFOSitYF47XuwD5VjIbJRj8QsKSk6+3ikG2wfsEqktHeudsngLel
-	2VEzY73+pfsuwdFagDvViHmiiu2PmayJeBPeoUa9vpR4oUkXMf81aGrMz2K8I0X1mfA==
-X-Received: by 2002:aa7:928b:: with SMTP id j11mr35551712pfa.200.1557771449396;
-        Mon, 13 May 2019 11:17:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJiOuaDiJwQ5tIqUPF3MQB61zJyiUaVhgf+gG45WzzDZ9Xmnpo3TFvkpa3HW7XyWo5/4MK
-X-Received: by 2002:aa7:928b:: with SMTP id j11mr35551469pfa.200.1557771447402;
-        Mon, 13 May 2019 11:17:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557771447; cv=none;
+        bh=E9lLDpiAybp5oI5DGq5XRxoJEmZNLZXtN8BwGUOu470=;
+        b=Z7cjwuCYDnarvaLXrAijVqhUiU+rAAxekjfXvuINmGHaquHEobCANgHQ6IDt3Huwng
+         ITSrySPHRIIUaWSxOVxnBemrHSmYAEYUkPvpRrnI06CuUNnHh7LsoXReQlZvYv94DxU6
+         iPXDHooYV293e04szfd87swb7t6Ec9vtocQSO/cIyqwGxfVJP5tjNF3PRwLhJqK/AdrH
+         WA++6YLDrFeLoPYFXEbGJcvVM/Ib+ywh103uSlC1/JXfK+wlytHmd6uM+BFp1ZcKIRw2
+         ytsw79WruyHKBq5lqKaXyc0t1w3IBn+wcxPphIPqteyoDnIGj1itgd3o4ZD+/etc7gh8
+         KI2Q==
+X-Gm-Message-State: APjAAAXMsLNwzcR+xEXl/MS2Y+mYxA5IWX3xcwC01/erGNo56KWUpL3b
+	NiwQLVJ2SpN9/9AQ/byDjVKhQcyokQsGiZjKur+Sq5vIwQbmdhT5ez20n/eoKIvcXN7Ky/QvKLW
+	nbQL3zm6jd9j9x3bYO5oomngVKPRcIYp0Mg8bIt/XxCR2Tb+ADHx5VUhovF4rTspohg==
+X-Received: by 2002:aa7:93bb:: with SMTP id x27mr34813487pff.104.1557771535249;
+        Mon, 13 May 2019 11:18:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9lhY5JV5pJPCwEfJmdbweT4M0uyMvLbaCWkmKujniLakteeuTby45Kj9zHJ4uuBAJgCkq
+X-Received: by 2002:aa7:93bb:: with SMTP id x27mr34813417pff.104.1557771534650;
+        Mon, 13 May 2019 11:18:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557771534; cv=none;
         d=google.com; s=arc-20160816;
-        b=uIuyvARcr58esCw9Ai8hAyr0rpombPRSeGJWAud0l2BwiKRFCKhJvgbWEa57c88KcK
-         oW1tLMddAG3+6ROqLJZU1yexehMNyjfRUMlgdq6MIfT3rNoFV0qBbeD3cjGcBEHrGekF
-         5J4+p41pd1OEfOHJlajyluDsesYb21ofd+MFoYzQqrkj0/crxS9GYU1FzU9noZnlWWA3
-         FOwhvJ0S39rQ6itCKhCTsCzeJYm56azf+3L+f9oTsaiq4TfhR9OuurO+My4iaWgnQYR+
-         XVg/VzNn4G4WOGKJCVWbn9fL3Tc3sKrgiKQfy0UMR0kLx18URRei1bwef+ZzbQtSXk4M
-         +08A==
+        b=BcwAhr4ezn4Gbb4hBFL8jCvdPdjoF1+QYgD767VG3gSc+j/y6oJIsFRUkf0BnBrZ1x
+         UdDUhyDZwDCLXeZEQlZLxujRRWzu8TQDUy0VpHKmnBhPCaG4HUsL3P/Rn1c/kSnI/1Hh
+         e1OehhTb6q478nTP8gkI/Vk1BZZmMN7RvWPInKL79O8nQmC58wQlXera/VSQ61HNq1CJ
+         3N4if3SLJT2uaC7zFrgsgDhFvPSpzdOFjDlzNnPkTrbYB0rpG+uOzgXisL43iMPxUSRV
+         40YT8uafDVlxEoAePRpMCwe9lUx5ERF3mAe0dlHk4V29UNrVVLPvUSTChB7z3Y+ux1Qc
+         AuWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=RXmaEukWCV36ZGd13nL2HHyXvZXbzVLzc6CzdUvQtq0=;
-        b=VCW/nd35UHNO7vZAlqh3elV2vRMI4+ea3pYxOzjoktpgI45+ml5yEuU3YB2SpThrlR
-         aPSVx6ifFpsdk3WwRi79P8JRcoc66aDkJA4TpswU7SlnviR0dd1x9+0VHv3zU8Qtg7rq
-         rs4V0ueYOWVFhRTOGebCe1UKrV1qYf8y0QTIwoK11pSCg8GMWWXXiqeIknhzEpZ1RbfB
-         kFzRgkfqId9T6qeNuQshiQk18rfuPsFvFNM0KzQEXKU7lC9EaxT5rCER0MaSiFGW9ZVL
-         PFnfFww3aX9wtYoaFNwsi1MfK9UpS8jPGuGvCIe90jPNXNMqy8yyfDyTVY8Grm4w2MyD
-         /Slg==
+        bh=E9lLDpiAybp5oI5DGq5XRxoJEmZNLZXtN8BwGUOu470=;
+        b=T6HGt6GCxUyADPR85sojBXDhR20DYZniQ9wFKClVYpZ8HgqPedbAHv1X2nEuCF69VB
+         ksLtLR3hPPY/SxHmUol0GWmxTIi8paDY5hSDMuE1hfqtyhv7Ms9X7fiLZh7nrIeBTUVK
+         i1wO2XHp1pL3N9RQ6yw8z61k842XAck45FxUsnewcgAXV9bpEdoR3/Cjv8CyLijnFgdD
+         5bRGwT7TLOT0YVWf3lEK/VEEzgo75mFqty8I7shXBKZl3+/BwvnC4wQiht/fJf8TgDTl
+         +WMgp0yK4xBr58kEi7nr71I/FV4/CUurjfbBX8RT6SVHDtQ+qJgHJYKmU+7I4vi46ndR
+         uExg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=M73groKW;
+       dkim=pass header.i=@kernel.org header.s=default header.b=VJfYnS+5;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f12si17368950pgo.388.2019.05.13.11.17.27
+        by mx.google.com with ESMTPS id q125si3552728pfq.163.2019.05.13.11.18.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 11:17:27 -0700 (PDT)
+        Mon, 13 May 2019 11:18:54 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=M73groKW;
+       dkim=pass header.i=@kernel.org header.s=default header.b=VJfYnS+5;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f52.google.com (mail-wm1-f52.google.com [209.85.128.52])
+Received: from mail-wr1-f41.google.com (mail-wr1-f41.google.com [209.85.221.41])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C7C2A21019
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 18:17:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 131F2216B7
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 18:18:54 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557771447;
-	bh=lPPXPrlCXnec9ArL5Smn4WZ7XgjTRPHq0b2cg72c7do=;
+	s=default; t=1557771534;
+	bh=0D70YYCaYJ/0FfOh4xzmgNQF/8UOkldQ6uPFbgG5pwI=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=M73groKWN7tiM88HUylA0BevMADMrkXxMAX5GrLV+GI8cDdt8upEqFbWjtmTbBtWf
-	 B1fbMLLC4Ig6Ha6q/7u8EsjeSgkgTLTRZg/th8dDdkCQSgF5F8U6hLZj14iprJmgc3
-	 c3GN5DwMXPdaJcryEnpckEV58wfnaOyIRu/KMP3g=
-Received: by mail-wm1-f52.google.com with SMTP id i3so303360wml.4
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:17:26 -0700 (PDT)
-X-Received: by 2002:a1c:eb18:: with SMTP id j24mr17403247wmh.32.1557771445393;
- Mon, 13 May 2019 11:17:25 -0700 (PDT)
+	b=VJfYnS+5yGbxOPZ/IrGIvPvGQ3MWsey8Zcw2ynEdyFK0bMhb6EA9kn+qh0dub8jNy
+	 BUnM34hwwZ1Svmkf5b+KeyY5QW3SWsWXC0ncGsSlKjnU7m5z/A5Z5cT9X6y3liCLay
+	 edErDf2BS2T6yENCy2PLIQTWiBRyIZLCTwIbQJ9Q=
+Received: by mail-wr1-f41.google.com with SMTP id o4so16390173wra.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:18:54 -0700 (PDT)
+X-Received: by 2002:adf:ec42:: with SMTP id w2mr17777817wrn.77.1557771532684;
+ Mon, 13 May 2019 11:18:52 -0700 (PDT)
 MIME-Version: 1.0
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
-In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com> <1557758315-12667-19-git-send-email-alexandre.chartre@oracle.com>
+In-Reply-To: <1557758315-12667-19-git-send-email-alexandre.chartre@oracle.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 13 May 2019 11:17:14 -0700
-X-Gmail-Original-Message-ID: <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
-Message-ID: <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
-Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
+Date: Mon, 13 May 2019 11:18:41 -0700
+X-Gmail-Original-Message-ID: <CALCETrWUKZv=wdcnYjLrHDakamMBrJv48wp2XBxZsEmzuearRQ@mail.gmail.com>
+Message-ID: <CALCETrWUKZv=wdcnYjLrHDakamMBrJv48wp2XBxZsEmzuearRQ@mail.gmail.com>
+Subject: Re: [RFC KVM 18/27] kvm/isolation: function to copy page table
+ entries for percpu buffer
 To: Alexandre Chartre <alexandre.chartre@oracle.com>
 Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, 
 	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
@@ -119,21 +120,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I expect that the KVM address space can eventually be expanded to include
-> the ioctl syscall entries. By doing so, and also adding the KVM page table
-> to the process userland page table (which should be safe to do because the
-> KVM address space doesn't have any secret), we could potentially handle the
-> KVM ioctl without having to switch to the kernel pagetable (thus effectively
-> eliminating KPTI for KVM). Then the only overhead would be if a VM-Exit has
-> to be handled using the full kernel address space.
+On Mon, May 13, 2019 at 7:39 AM Alexandre Chartre
+<alexandre.chartre@oracle.com> wrote:
+>
+> pcpu_base_addr is already mapped to the KVM address space, but this
+> represents the first percpu chunk. To access a per-cpu buffer not
+> allocated in the first chunk, add a function which maps all cpu
+> buffers corresponding to that per-cpu buffer.
+>
+> Also add function to clear page table entries for a percpu buffer.
 >
 
-In the hopefully common case where a VM exits and then gets re-entered
-without needing to load full page tables, what code actually runs?
-I'm trying to understand when the optimization of not switching is
-actually useful.
-
-Allowing ioctl() without switching to kernel tables sounds...
-extremely complicated.  It also makes the dubious assumption that user
-memory contains no secrets.
+This needs some kind of clarification so that readers can tell whether
+you're trying to map all percpu memory or just map a specific
+variable.  In either case, you're making a dubious assumption that
+percpu memory contains no secrets.
 
