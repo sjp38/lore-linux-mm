@@ -2,136 +2,124 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D975C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 22:37:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F740C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 22:55:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0481208C3
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 22:37:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0481208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2386120862
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 22:55:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KyFd5GNJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2386120862
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 758966B0003; Mon, 13 May 2019 18:37:08 -0400 (EDT)
+	id 994086B0003; Mon, 13 May 2019 18:55:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 70A836B0006; Mon, 13 May 2019 18:37:08 -0400 (EDT)
+	id 91E396B0006; Mon, 13 May 2019 18:55:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F8306B0007; Mon, 13 May 2019 18:37:08 -0400 (EDT)
+	id 7BFEE6B0007; Mon, 13 May 2019 18:55:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4352A6B0003
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 18:37:08 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id j15so14121348qke.18
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 15:37:08 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F8E76B0003
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 18:55:17 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e16so3387471pga.4
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 15:55:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=P75sRUYLI27NZtg7mkJ56w9o4ebRNoI96nvNkzLaJRs=;
-        b=ijH7is1oIvGisjU+sTLQVbC8C7ozNInwpuCXS43LdLhDKVlh64kqrzdd9kPDjA4//l
-         L+nev69UEX1Y4+kIT8a8DsTRCgQhbyE6D4qOsk40TwMYt2nnxOekrEp3ZPlPcOyiKgSP
-         JNcV5Ow8Eo55S287sFyxQH2+teoQmEji8RFtKVwqTX5eEqLaJz6zOyItmbQoFcLvVjwP
-         /sSeceTRjJMAcYkBd+of9Bb3/RSB5Hga5hfPLO/81jyWtjGdaZpfFRwSfXouXjkbu6s2
-         hui6W6reVuNiiahAmSML9sazoDsGGHHnehdMiVoizZGbmI/FAleIriPTy3KvlES1k+8w
-         5EWg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUCvq3bxluD8oDq5pyUIxv/7ZVYVyhISCyrseQrmrHni5pJr1sE
-	+d/xol1agvwWn8VKvs7DGkghdPZXIr1nZGC7pjvUS8NNjANjTFKFQtRDEosyiR5+wz03/ln8TBR
-	ooqjbEFmHXj2Ga7JoeKaNDP54rL9PcrNEk9lCVyiffE3RNnLlh0RerY0ztYuuRlLM8w==
-X-Received: by 2002:aed:3fa7:: with SMTP id s36mr26421724qth.124.1557787028079;
-        Mon, 13 May 2019 15:37:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwZlsNi5w0p7GFEjriEEI7dK0GgTnzMgeu6UXduNAo9ntGwAsTuzkWckLhf9aSY8WB+MsBm
-X-Received: by 2002:aed:3fa7:: with SMTP id s36mr26421691qth.124.1557787027554;
-        Mon, 13 May 2019 15:37:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557787027; cv=none;
+        h=x-gm-message-state:subject:dkim-signature:from:in-reply-to
+         :references:message-id:date:to:cc;
+        bh=2XfFOVErCvtSiCuJNCL1VLmjWzldZYKATH6UJBX/sSk=;
+        b=abiwmGPCuY3nJQ6kjlhv9e2hvwoAFAfUy8ZZrq+xIg6rR5kmAFdfKbalZ+Jddgn8Ah
+         1DLpKqPl2BKua59o2Bl/iLDrcn/QDQBHKUJ7QpHWXBvYA2BhTRjT4PLxQdLFj80A9JFp
+         VYC8N7RCRnJ6eT9jiO2BlHnTxZ7p0ri1kCWSoFmCYFFl+5XpdB5Rl0NMQogpetGyBjt/
+         CpyfC6o7pYcuTBzK/6oEC9EumGWyDEGqMwhAUQMobT0yarElc6QrdppZfGNm3utHzUqE
+         uE+p5XRAvDqAN+pnDSEEvJ0OdVAHigzA3cB6a//1fUo9TVa4JrE6HMv3JNHKjo0coOsK
+         HoLA==
+X-Gm-Message-State: APjAAAVB1xdkpdG6HsXWqHk+//jmmShvIfVV+Ja4nV+FbOqOK79yjEec
+	uWlwyoICsQXWwofsW7riOj5J279fgzPtT7QRNmnAdf1owzu1KQxB42rnk1UXEqNJR/tVYpCZDF+
+	A7qQFrN6umyCnklDounezb15hQm0o+KG15sgBo14vGXFCN8hUdu7ck07LdBo08ur3PQ==
+X-Received: by 2002:a63:5907:: with SMTP id n7mr34775159pgb.416.1557788116943;
+        Mon, 13 May 2019 15:55:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz2/OszQQ1yvRcU1EoV+QKeqfIekA9+M8VSSrAj/K5Fz2X/UZwCTAzcRQ34s6Wff0UoX1NQ
+X-Received: by 2002:a63:5907:: with SMTP id n7mr34775108pgb.416.1557788116282;
+        Mon, 13 May 2019 15:55:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557788116; cv=none;
         d=google.com; s=arc-20160816;
-        b=t8FZ1039ROJmLnPF6GEgscS+UudKMz2Ve4hI04gXMz4mvfg2fCJIiFX6s9W24naP0H
-         XS+g6UIRaABKMxvXnJ/XuxcFEzK0z1akgF0J6484KJ4o3ob8c2mAfYOWv4a31nsp8Xrd
-         uzzNWg/jeLBBIfJSFuiDkyGKjULtjLup6R3X0KuV+uv1D3/bu5leeyBS1wWivjdVa+Is
-         X/BWBHtVi5Gz49/vP7tI1R86FqL45AaxjlaYnAGJHxX19z79HKj70V7OlhqJAH4U1mgy
-         zyRMYnP++U+HNwQiC+mF43vCbCRjoAKyBvd9SP7E0s87qRo0jkzS8ztnzVZUH+SQ1ea/
-         UC3Q==
+        b=QsDdfvtC+NkSTFAyI47wnJAh6YEOnMWOT2pWmgjJxLFGWZwIqY8KcfygeUAK/gJx4+
+         r6y7L3xr9sKvE6+YA7w59uXhnr23Ox0naj+KtxWZ0zBgqDbPmcMudx7LXcxN0j9MKwm8
+         GHOFb+8OqzmL5Opg22WtCVleMYPd3aSTYTYRRRBYREYw1BiOWmF5CRd/h0s2ZYCVF8o6
+         BSdEfrau2bcHHFx/tG//qxZrlZRyyh51/DPycEg+NloJqdIlwMyzYFtU+D9j602bWAa7
+         /Q8c/srQOqCUedVEZpXwbh4YCStcc/JZYs6AN5dJajWv5BJg85/8VrDuF0Rz3p3YhJe5
+         QnKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=P75sRUYLI27NZtg7mkJ56w9o4ebRNoI96nvNkzLaJRs=;
-        b=XrxnbqrG520JCq/K5qzRMt2yJhM7xRcr5jOZKsuLrFxyNSJciusaSesajVDYVVs4+V
-         dGtq8vRgSfJV7SPvQ1wpcOdSApbC426sfEXFEnvQ32zigoLKFvkVmzMXAh1A/cWP3r12
-         V/En4cgRhkqB9n5GOI/1RtcP/imJ17a1Za7Kfp3oDHYE908mCWLIvW5DqTRo+4CeULko
-         ldbSNda/sN9fLLosLbfLeeFeM6qLmW7ms1jsDZ/TXpK6aJ7HziLOaZeK9SnwfnIrqiT0
-         PoP09mCmeg2YCjSVYte/oaB69uD/3mLEuzHxJhH4BGtWrJSrm2e9xGRO8S4urtfAnGZs
-         7DEw==
+        h=cc:to:date:message-id:references:in-reply-to:from:dkim-signature
+         :subject;
+        bh=2XfFOVErCvtSiCuJNCL1VLmjWzldZYKATH6UJBX/sSk=;
+        b=UTSB509ugX0dF8xq6C/QS9gI8mRXwVNsD6VEVok24EPI1wjCvoHB6BDRf9V8rIa0So
+         1DW+cxsxFdVCd7TOdpu2eTb6WmkZ3NvVr/wfwsYgKKVCTx2XAj+NP7DKBem42LIW5obP
+         xRPRDeO7gM+tV+8A0YlP6MeaqS1qZCuA08LXnVKCRqYoCiC2RAReWHCFbk3bQaoADCXb
+         XEwT2/lRrzDmBY5UBHPISSkilqTlm71fa7u+Iv2UalmEaKMO0l51UCeoKTspXJfx0ez0
+         LLV6FZ/J2KXbciXQEmv9zrycNFxsrh71hU3k2qj8qbOmEdj0ZPlSFDkSFHxsf0IUqRjl
+         EdAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c41si4237111qve.63.2019.05.13.15.37.07
+       dkim=pass header.i=@kernel.org header.s=default header.b=KyFd5GNJ;
+       spf=pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=pr-tracker-bot@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a25si18462658pff.119.2019.05.13.15.55.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 15:37:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 13 May 2019 15:55:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3FB3D4E90E;
-	Mon, 13 May 2019 22:37:06 +0000 (UTC)
-Received: from redhat.com (ovpn-112-22.rdu2.redhat.com [10.10.112.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id B73AD60856;
-	Mon, 13 May 2019 22:37:04 +0000 (UTC)
-Date: Mon, 13 May 2019 18:37:01 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kuehling, Felix" <Felix.Kuehling@amd.com>,
-	"alex.deucher@amd.com" <alex.deucher@amd.com>,
-	"airlied@gmail.com" <airlied@gmail.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"Yang, Philip" <Philip.Yang@amd.com>
-Subject: Re: [PATCH 1/2] mm/hmm: support automatic NUMA balancing
-Message-ID: <20190513223700.GA673@redhat.com>
-References: <20190510195258.9930-1-Felix.Kuehling@amd.com>
- <20190510195258.9930-2-Felix.Kuehling@amd.com>
- <20190513142720.3334a98cbabaae67b4ffbb5a@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190513142720.3334a98cbabaae67b4ffbb5a@linux-foundation.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Mon, 13 May 2019 22:37:06 +0000 (UTC)
+       dkim=pass header.i=@kernel.org header.s=default header.b=KyFd5GNJ;
+       spf=pass (google.com: domain of pr-tracker-bot@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=pr-tracker-bot@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Subject: Re: [GIT PULL] percpu changes for v5.2-rc1
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1557788115;
+	bh=zoUDwhLvAd1vhaGU8kBKsxlklp/ynJ4RVpUUR8CYCX0=;
+	h=From:In-Reply-To:References:Date:To:Cc:From;
+	b=KyFd5GNJcWCd8uLj33Y8/HURKSkaKNmVgzqUOGuiThMNJ7NFnfPjFWziVUxw8TUcz
+	 5QPVZ2GhLw5TMrqMA/l2b/qKr3/+eIBQM1UKW6Z6BCW9Rpfx55qGqH2sRjQ2bW63Zx
+	 SqsegLhcxqbDzDzUyRphYbsVO/L1NqRixMGDUFis=
+From: pr-tracker-bot@kernel.org
+In-Reply-To: <20190513185241.GA74787@dennisz-mbp>
+References: <20190513185241.GA74787@dennisz-mbp>
+X-PR-Tracked-List-Id: <linux-kernel.vger.kernel.org>
+X-PR-Tracked-Message-Id: <20190513185241.GA74787@dennisz-mbp>
+X-PR-Tracked-Remote: git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.2
+X-PR-Tracked-Commit-Id: 198790d9a3aeaef5792d33a560020861126edc22
+X-PR-Merge-Tree: torvalds/linux.git
+X-PR-Merge-Refname: refs/heads/master
+X-PR-Merge-Commit-Id: 3aff5fac54d722f363eac7db94536bffb55ca43f
+Message-Id: <155778811588.1812.12003345020716870482.pr-tracker-bot@kernel.org>
+Date: Mon, 13 May 2019 22:55:15 +0000
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>,
+ Christoph Lameter <cl@linux.com>, 
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 02:27:20PM -0700, Andrew Morton wrote:
-> On Fri, 10 May 2019 19:53:23 +0000 "Kuehling, Felix" <Felix.Kuehling@amd.com> wrote:
-> 
-> > From: Philip Yang <Philip.Yang@amd.com>
-> > 
-> > While the page is migrating by NUMA balancing, HMM failed to detect this
-> > condition and still return the old page. Application will use the new
-> > page migrated, but driver pass the old page physical address to GPU,
-> > this crash the application later.
-> > 
-> > Use pte_protnone(pte) to return this condition and then hmm_vma_do_fault
-> > will allocate new page.
-> > 
-> > Signed-off-by: Philip Yang <Philip.Yang@amd.com>
-> 
-> This should have included your signed-off-by:, since you were on the
-> patch delivery path.  I'll make that change to my copy of the patch,
-> OK?
+The pull request you sent on Mon, 13 May 2019 14:52:41 -0400:
 
-Yes it should have included that.
+> git://git.kernel.org/pub/scm/linux/kernel/git/dennis/percpu.git for-5.2
+
+has been merged into torvalds/linux.git:
+https://git.kernel.org/torvalds/c/3aff5fac54d722f363eac7db94536bffb55ca43f
+
+Thank you!
+
+-- 
+Deet-doot-dot, I am a bot.
+https://korg.wiki.kernel.org/userdoc/prtracker
 
