@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67A04C04AB1
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 622F3C04AAA
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 203FD2084A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 17E242084A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="mJcTtw57"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 203FD2084A
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="cackC5e/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17E242084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0C056B026C; Mon, 13 May 2019 10:39:24 -0400 (EDT)
+	id 988016B026D; Mon, 13 May 2019 10:39:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A94296B026D; Mon, 13 May 2019 10:39:24 -0400 (EDT)
+	id 8EB566B026E; Mon, 13 May 2019 10:39:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 872A86B026E; Mon, 13 May 2019 10:39:24 -0400 (EDT)
+	id 73CBB6B026F; Mon, 13 May 2019 10:39:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 647EF6B026D
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:24 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id t7so9968534iof.21
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:24 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 484FE6B026D
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:27 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id l193so2755147ita.8
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=GS3GihsPyz7Y99NHOiQDTtmA0apAWQh5Zi8mHVLNyoo=;
-        b=FLYyjDQcBuD4avZ+Qy/pj+cV38PJNjW9Mix+dRF5KIrLvTyQJejuOlFWpzcuMxZfu0
-         USa2MiJl5dLCPwMdO0X0HWPdNcrea90UjWSWBx2ywn3Cbi7+e0WOStJK1Jd80JkTop+R
-         4WbR1+17PZAAIv9MWjfC1JNGz8WyeD09fzMpu6+4Nczo8vJ1BOGQxXM67rEZPTW/xXzJ
-         UhrXgxZzxoQn7dm6SXMOI2UziP11mu1fbsqRCODtmw+3PGZhyfrT5TG3spkb9YxuAjeq
-         KXLcop1juMuR1vVoVRrDfNvP/bQ8lj0jBQmvHsSMUk82iOOVLB47M4DSqbJS1zyz703E
-         RdNg==
-X-Gm-Message-State: APjAAAV5WCkgg9Do5LpDUiste5MCb1Tf4cxKfcQo0NB3E3oRckX18Ea1
-	o8HtbyBkOB111c0guELr38nNpNxWTj9A5UV0XtetRRlUT57UovBpM0pz9qomBzQypF8C76Gkfg1
-	Cv56H6MOlPRJHT+sOyVsfx2zwuAE5TSGZwuXXeXongrd/haxdORybqhR5c1glijrP7Q==
-X-Received: by 2002:a6b:c046:: with SMTP id q67mr17080730iof.157.1557758364147;
-        Mon, 13 May 2019 07:39:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwdbo7JLruPmcq4GNDhZvuhPWyq3SGvkcS+u81HPBOdD15TxIRqdvugTpsGX5FZzY3sDpwK
-X-Received: by 2002:a6b:c046:: with SMTP id q67mr17080681iof.157.1557758363420;
-        Mon, 13 May 2019 07:39:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557758363; cv=none;
+        bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
+        b=piDYExRTFfeUF6XkxVMbxVOtozhjY1EJGNFLHaPUBNjCrUaEZ40gDY/w/dKL2M76r4
+         sGcm9llkyIHRWPJzwnJVOIY3LKsB5zpxTuGCkIXJstW0GOq80MRLap+LJZNOt9QGOKuz
+         dncf7OYexlPypqL5q307QEq7FiASrTfNGDJNDb7D8x03VrkPlyEz/TcxlpmY4x1/woCN
+         7c7kCnFyb3WaNJNcOjLQYYegjxAoxhCbdgOF5FXYvpvthnQTUclkbDrYVTQORYGZrZ8Z
+         +GRmFGKRrdmegLGiLaUBnZ2AF0ka2L7WK1rLBT7OAvpXzecV2FAnGSll20M9Wq5jYxPe
+         ksgQ==
+X-Gm-Message-State: APjAAAVMRCq/4QmIcNd7g/aa3fRHgnbrERxFwZFOvPaeBjmYJJL18o9o
+	ujMnHpJx0pwOhN/FuLQTwXhhU2ctq7UXD1oaqZSX/5w1u5XQGn6i+hKnTHWE0+xRy06Upuz8fwt
+	xuYM6t61eG2gCXHvF9Td8ESwFdqVO7grKIhq9iqEwm3fCbVyD9LGnFccbHjnq5zPJUg==
+X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661240iou.29.1557758367073;
+        Mon, 13 May 2019 07:39:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQExO2FUE+CYKtkjFEET3dW29Ayk44bbP+TIruMPLyd5GcaoyGddH65NbT4h1mRqLQVZ6N
+X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661192iou.29.1557758366316;
+        Mon, 13 May 2019 07:39:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557758366; cv=none;
         d=google.com; s=arc-20160816;
-        b=iA82Hb/iXOH2W8fS6BqNqH39ley0pD27DxfTxGbTCpnXIY1WkFDJYMM2e9JuRmDh6V
-         4DgZv6KtEz1rDpJUwmPCKAta5moio224omhl0KdA1wVBEYMW0E684cBYfspO6AXAkvUZ
-         dn+FWYp9faYJaEj/clhA3BHXn4vct7+XWW/LdDCxw08WvBalfHmUv3/8ivUSiMvxRDU0
-         ++bEkVtS0tAJO6Zm2mFzEVXH8vU3GSIzV3+l0qHWw7PivHe/54aLvlt8K43kyaQgwaRP
-         0YtxhmMeq6p2i/4Ofj9kp5w1hhB7UItG0ryzN0zoG85AZg7TlXxAHhPRGBauz9ZiAfzP
-         p7Gg==
+        b=I+2T+mtdXaBoCI0oknwsio7WhmYH6N2haYMa2omVmQCQcg6DSORUncOpNkAhZTdeoj
+         q1QnpDC3azh9bXnhIS5PQfohfLgWzmnZ9lgMeHPtXU1hq3GoM5HvBpQwyQHNofDq7ucy
+         JsmwRdQSZ8iP0lZg/9jSeOIqgKk8C6h8aDK8BjovT71Mskn5QpaO7ulYEz33nrcnjHft
+         lYS1D5XsxgQTSiwl8o406qAEL0wXciTvP8OYWOH0v+zA0WqHHZBBE4NhcbPeZl8DJi8W
+         VLkSeidhDDVeYH3DrcaNaeQst4izZlP/lLQHNyjQyEZSBm90NwkKhOlrGzN4JhOF7J8+
+         mUPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=GS3GihsPyz7Y99NHOiQDTtmA0apAWQh5Zi8mHVLNyoo=;
-        b=iZJIS1uSSblQRFIhJgTDTqsd/08RUlExVcA78YB4NtFhQKFSOmzxvA5Pk0QLgupf8T
-         UQ/K/i3pmUYft2PH45utW4FcIr+2JaOwUixyZ/PGaWOsGqo9wSR/5o0KDIsZlp+Fi2Vj
-         TGcJzI7lGvo3CkXPU/I2atlB2ajbmEMhmg6kfq41oqagfdsGwpPtD8sj3uFI8Eh1wmk4
-         uK/dh1fktwwhJTUB6uOHuQTlrCGgNF5HvtxJDVFRq5P/ZVfTjqkjhDTUOljXeDmJRM54
-         qdu1qSoUn/ZNIdaBEktJl16b9u1rIB4IMonv5qr5/F1upMii5h8o46YpmiwlKMUmXIJX
-         n1GA==
+        bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
+        b=qk1WRF8rtcOYXHlINqEwmHYiv9u3zKNy6cBYRZ5gQhG7q+uT1SZVMYuC2UtQAs8mx4
+         lwuBK1+0YKSUoR0nyteMY5ajImKbxRZbmg6mdwYJuGzIU/RD4iEgrVAaTkz+vOEWGA2y
+         9+VhwcozHY0ftQRD1/dXKjW79VEQjnZ3yqfvr6DJjVE/6jbrf6ozJVgCkT3t6066Q1uG
+         FQ1+5MsaaMJPgUz8WgczjnNqBBTz0C+jQczhisVHmWHsg2Gb05XjHoprdJ6kQs/ujTm0
+         KPvPLc5JbgCh4R/AWFiINk0rbfeR/WjcKCisU87WlyktCv4MRKTDKv/rTlZPUunvMc4p
+         RZUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=mJcTtw57;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="cackC5e/";
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id b123si8132262ith.61.2019.05.13.07.39.23
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id c17si82803itc.40.2019.05.13.07.39.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 07:39:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Mon, 13 May 2019 07:39:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=mJcTtw57;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="cackC5e/";
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DESlCI171427;
-	Mon, 13 May 2019 14:38:54 GMT
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd28F193025;
+	Mon, 13 May 2019 14:39:16 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=GS3GihsPyz7Y99NHOiQDTtmA0apAWQh5Zi8mHVLNyoo=;
- b=mJcTtw571vBY/DqchePtoK+a2fMaLqNsWff99ts41cz3uW81AVh8k2kIjQIXfkadX5Q3
- 6F/E6e4/O6myTDqiwNYcUSpAOVMeeIBt5z6sBwlWmvIiYKdfzx0Qg4nsfGs0iR0Ee/ws
- 8fyDT/ryZpc/Obi/2zRq7DJqs0810bOvF26HLCD7ir3wtStKFUFAa7Ws6PKz+Pu1UJQL
- dU9UJa5EK8+LYETRyQ5DuH2DbGMtHYVtA2jgoPUK3ziD1XjXnCkAD9TDmm7V4635R9i5
- XflzqnTQJehHeZrV5CJoVBXa8ETCmtisHC5rPPYYhukBl0cMbZnPTDNSWhzzDSLkexDm Fw== 
+ bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
+ b=cackC5e/rN14Atf5QlnsuYve24xrmHKk5OAv4LozaAp9vhiUL7E7xPH3kbnOM8VYLH+M
+ qQZDMDajYAWzXDX4pYfxSi/cFR9+miTzGtpQvwsGANTuO936Hac7155wikox7cO9zHM6
+ D6VSW0wFlH4kS9hhjEHDuhBzZL61Y1YPaaQ9QapuqevDj5phnii9KR4rMc6oFyvj+0cK
+ chnwMcSACXVNjOAa1xqmZO14HcVVu9E4v0xi+ZQhdjbaq/Q1oelYLJg/hz12bN7CBmtg
+ 1H1C0ZDiqvGmCSUtMdjVlrxOudApkaffggciBhogmTfWK5aks2i24a2IdgYkJ3LSxlPk OA== 
 Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2sdnttfecf-1
+	by aserp2130.oracle.com with ESMTP id 2sdkwdfkwq-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 14:38:54 +0000
+	Mon, 13 May 2019 14:39:16 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQ7022780;
-	Mon, 13 May 2019 14:38:50 GMT
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQF022780;
+	Mon, 13 May 2019 14:39:13 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -107,112 +107,137 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         linux-kernel@vger.kernel.org
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, alexandre.chartre@oracle.com
-Subject: [RFC KVM 04/27] KVM: x86: Switch to KVM address space on entry to guest
-Date: Mon, 13 May 2019 16:38:12 +0200
-Message-Id: <1557758315-12667-5-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC KVM 12/27] kvm/isolation: add KVM page table entry allocation functions
+Date: Mon, 13 May 2019 16:38:20 +0200
+Message-Id: <1557758315-12667-13-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905130102
+ definitions=main-1905130103
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Liran Alon <liran.alon@oracle.com>
+These functions allocate p4d/pud/pmd/pte pages and ensure that
+pages are in the KVM page table.
 
-Switch to KVM address space on entry to guest and switch
-out on immediately at exit (before enabling host interrupts).
-
-For now, this is not effectively switching, we just remain on
-the kernel address space. In addition, we switch back as soon
-as we exit guest, which makes KVM #VMExit handlers still run
-with full host address space.
-
-However, this introduces the entry points and places for switching.
-
-Next commits will change switch to happen only when necessary.
-
-Signed-off-by: Liran Alon <liran.alon@oracle.com>
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/kvm/isolation.c |   20 ++++++++++++++++++++
- arch/x86/kvm/isolation.h |    2 ++
- arch/x86/kvm/x86.c       |    8 ++++++++
- 3 files changed, 30 insertions(+), 0 deletions(-)
+ arch/x86/kvm/isolation.c |   94 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 94 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
-index 74bc0cd..35aa659 100644
+index b29a09b..6ec86df 100644
 --- a/arch/x86/kvm/isolation.c
 +++ b/arch/x86/kvm/isolation.c
-@@ -119,3 +119,23 @@ void kvm_isolation_uninit(void)
- 	kvm_isolation_uninit_mm();
- 	pr_info("KVM: x86: End of isolated address space\n");
+@@ -248,6 +248,100 @@ static inline void kvm_p4d_free(struct mm_struct *mm, p4d_t *p4d)
+ 	p4d_free(mm, PGTD_ALIGN(p4d));
  }
+ 
++/*
++ * kvm_pXX_alloc() functions are equivalent to kernel pXX_alloc()
++ * functions but, in addition, they ensure that page table pointers
++ * are in the KVM page table. Otherwise an error is returned.
++ */
 +
-+void kvm_isolation_enter(void)
++static pte_t *kvm_pte_alloc(struct mm_struct *mm, pmd_t *pmd,
++			    unsigned long addr)
 +{
-+	if (address_space_isolation) {
-+		/*
-+		 * Switches to kvm_mm should happen from vCPU thread,
-+		 * which should not be a kernel thread with no mm
-+		 */
-+		BUG_ON(current->active_mm == NULL);
-+		/* TODO: switch to kvm_mm */
++	pte_t *pte;
++
++	if (pmd_none(*pmd)) {
++		pte = pte_alloc_kernel(pmd, addr);
++		if (!pte) {
++			pr_debug("PTE: ERR ALLOC\n");
++			return ERR_PTR(-ENOMEM);
++		}
++		if (!kvm_add_pgt_directory(pte, PGT_LEVEL_PTE)) {
++			kvm_pte_free(mm, pte);
++			return ERR_PTR(-EINVAL);
++		}
++	} else {
++		pte = kvm_pte_offset(pmd, addr);
 +	}
++
++	return pte;
 +}
 +
-+void kvm_isolation_exit(void)
++static pmd_t *kvm_pmd_alloc(struct mm_struct *mm, pud_t *pud,
++			    unsigned long addr)
 +{
-+	if (address_space_isolation) {
-+		/* TODO: Kick sibling hyperthread before switch to host mm */
-+		/* TODO: switch back to original mm */
++	pmd_t *pmd;
++
++	if (pud_none(*pud)) {
++		pmd = pmd_alloc(mm, pud, addr);
++		if (!pmd) {
++			pr_debug("PMD: ERR ALLOC\n");
++			return ERR_PTR(-ENOMEM);
++		}
++		if (!kvm_add_pgt_directory(pmd, PGT_LEVEL_PMD)) {
++			kvm_pmd_free(mm, pmd);
++			return ERR_PTR(-EINVAL);
++		}
++	} else {
++		pmd = kvm_pmd_offset(pud, addr);
 +	}
++
++	return pmd;
 +}
-diff --git a/arch/x86/kvm/isolation.h b/arch/x86/kvm/isolation.h
-index cf8c7d4..595f62c 100644
---- a/arch/x86/kvm/isolation.h
-+++ b/arch/x86/kvm/isolation.h
-@@ -4,5 +4,7 @@
- 
- extern int kvm_isolation_init(void);
- extern void kvm_isolation_uninit(void);
-+extern void kvm_isolation_enter(void);
-+extern void kvm_isolation_exit(void);
- 
- #endif
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 4b7cec2..85700e0 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -7896,6 +7896,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
- 		goto cancel_injection;
- 	}
- 
-+	kvm_isolation_enter();
 +
- 	if (req_immediate_exit) {
- 		kvm_make_request(KVM_REQ_EVENT, vcpu);
- 		kvm_x86_ops->request_immediate_exit(vcpu);
-@@ -7946,6 +7948,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
- 
- 	vcpu->arch.last_guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
- 
-+	/*
-+	 * TODO: Move this to where we architectually need to access
-+	 * host (or other VM) sensitive data
-+	 */
-+	kvm_isolation_exit();
++static pud_t *kvm_pud_alloc(struct mm_struct *mm, p4d_t *p4d,
++			    unsigned long addr)
++{
++	pud_t *pud;
 +
- 	vcpu->mode = OUTSIDE_GUEST_MODE;
- 	smp_wmb();
++	if (p4d_none(*p4d)) {
++		pud = pud_alloc(mm, p4d, addr);
++		if (!pud) {
++			pr_debug("PUD: ERR ALLOC\n");
++			return ERR_PTR(-ENOMEM);
++		}
++		if (!kvm_add_pgt_directory(pud, PGT_LEVEL_PUD)) {
++			kvm_pud_free(mm, pud);
++			return ERR_PTR(-EINVAL);
++		}
++	} else {
++		pud = kvm_pud_offset(p4d, addr);
++	}
++
++	return pud;
++}
++
++static p4d_t *kvm_p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
++			    unsigned long addr)
++{
++	p4d_t *p4d;
++
++	if (pgd_none(*pgd)) {
++		p4d = p4d_alloc(mm, pgd, addr);
++		if (!p4d) {
++			pr_debug("P4D: ERR ALLOC\n");
++			return ERR_PTR(-ENOMEM);
++		}
++		if (!kvm_add_pgt_directory(p4d, PGT_LEVEL_P4D)) {
++			kvm_p4d_free(mm, p4d);
++			return ERR_PTR(-EINVAL);
++		}
++	} else {
++		p4d = kvm_p4d_offset(pgd, addr);
++	}
++
++	return p4d;
++}
++
  
+ static int kvm_isolation_init_mm(void)
+ {
 -- 
 1.7.1
 
