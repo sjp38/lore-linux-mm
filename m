@@ -2,174 +2,177 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 164C3C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:18:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E39BC04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:20:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C891F2133F
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:18:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AD74D208C3
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:20:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="s+iOIvIz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C891F2133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="D0OIEpdn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD74D208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5201A6B027F; Mon, 13 May 2019 11:18:13 -0400 (EDT)
+	id 56E0D6B0280; Mon, 13 May 2019 11:20:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D0826B0280; Mon, 13 May 2019 11:18:13 -0400 (EDT)
+	id 51E1B6B0281; Mon, 13 May 2019 11:20:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BF446B0281; Mon, 13 May 2019 11:18:13 -0400 (EDT)
+	id 3E6076B0282; Mon, 13 May 2019 11:20:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D7836B027F
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 11:18:13 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id u131so4746346itc.1
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 08:18:13 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCE06B0280
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 11:20:50 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id p4so3743371qkj.17
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 08:20:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=7dwMUJzRttDvJYwhnTS2pvQini1VnZvpMgmhpc63TNI=;
-        b=UQKzE4xUaUoioae7RRFM+7qBZ8TctVoewKvl1Nc30FeqlY02Jv0BvX+XUhj0NZ2J9f
-         egf88cjOvDrv7GgOHefod+xSoj3ZgZNoj05agzhoGE0hKXw8eyaFnp/zuKQRyOxar4T0
-         VrOAHuEHbQdAJrKIYqZ5ziJzJXmlbqBh+HDKbrlfodLm5QwBYROK9rIQKqrIBD48H6qj
-         eokFw9WeHlMVK7WOJwZIw7vQff46eZH2keZihfsmKuUmIJauUiG7KM6nyq5GdcANT/QP
-         wZo6kIaJzWaY6L8RNz6XdYsoXo4HtjZp/SI0+P2UMWtM6thXiLjt7LfpWYb8wHJCnter
-         UnqA==
-X-Gm-Message-State: APjAAAXpwN7NmdwwJQAk8yW7HeYHmVR8QkqFA9fCSeyTI1XReWR0aBO4
-	05eLNyooXz928Eyg4K+ZftPl3mwNRGH5fR3nP4N2mjATMOJ/gsB+qh1wHm9lC60moeuswuvszyN
-	xnWYe/xD2P7mmVifkSuAGV6MCx+caJtEF+ASoh+a0gKb4l8X/Xa7+x0p8x2OsC8gWWg==
-X-Received: by 2002:a02:c90a:: with SMTP id t10mr18179494jao.68.1557760692882;
-        Mon, 13 May 2019 08:18:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwKLjYwTGs+xX/EsXxnBrcIgG0QRp5OZ9PN4naZ3MS3Y5IzCbWz47lbW1ZBL7L10Ed//y57
-X-Received: by 2002:a02:c90a:: with SMTP id t10mr18179465jao.68.1557760692328;
-        Mon, 13 May 2019 08:18:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557760692; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=GfucGi6E8CEofLJ0x44J7XInrISOaZYfjQZg3ZcUxv4=;
+        b=RFGwEJQ8s3ATvXEqgtNdfAZ7dCoS6aH1PYTFFA+OqIFVY/MQlQVZOiuKokuGzheCIP
+         XYz7a/zANhVujeqVjV9jFYObdKZB9VNUw25840JUG/PiNmsYNiG+itE10/LvCqmXhB9n
+         GwZDQrcqVVIXLM6TxV8qv95yAid+siPmc+oRq3OPsaENIR/hCenwhSBwQC93zpgZ9KOS
+         +gge+tJ1unzgxSeYeHy8Dg/rSsLuLR6DLcUKpeLdawDcLlBLthKRp2RKRWjyL0jgqM6d
+         FeZx4suWK3BP4+v8ftIGzGB/1aWQe0gohqE7XRPtb7xqgQQfFVroW9I3KGybiYGLu6+P
+         9rfA==
+X-Gm-Message-State: APjAAAX6U0ikNJekmbSslDjxq1mDt03JCMdZq6eqFlkYG+CFZQHiQUTv
+	xVG08THtzOhrH6nJ960L2ON2RRArJy6JbRUkZCwOfib2QLvCdSQrpdF+kJI5DLQlkcTepLRxxt2
+	FrHZCChRtLOtEop4y2M8+gJz59XAEmCRYJBcuDEaiAx4BjirQuUuqfsYVYWrVb7Araw==
+X-Received: by 2002:ac8:410d:: with SMTP id q13mr23631264qtl.44.1557760849854;
+        Mon, 13 May 2019 08:20:49 -0700 (PDT)
+X-Received: by 2002:ac8:410d:: with SMTP id q13mr23631202qtl.44.1557760849185;
+        Mon, 13 May 2019 08:20:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557760849; cv=none;
         d=google.com; s=arc-20160816;
-        b=tID2Z40EGilb3+cMLIMC/sUzeceE+iFjFLT7Cjpz4DOCp3X18JCKtekq/hEU+u1PEM
-         FG45BHc6QzIIpRlZPw0d/FmqBXfIdbMSX+iqI0soYr0h27pDHOxxpKG0ZBhTdVCrkM81
-         fb44LRB28/lSP82q7GB2jzpy5UJlZ1PCqUi4A2SRjSYYAqI69bC1ykcpvetRuchcpAad
-         tYTaPRxBBErzRaSv0TbZM6lXUrfrtfrhbZCF4TR2NPh1HEYr3ipQUEHE4pwYdH8qQNj1
-         qB4vuzCmdbhrtG7/70xLjWYijgxXYT19w0CtvbaQwVWZL+Jcvzbjv6Awkw+6g+ktcrzG
-         SWvw==
+        b=Y8g9tzu78fsDfwVnScsXfVbhpz35Nd/+8S+DCqt52QgHWybTs2I5Rj6Kydp+Gyu+Mt
+         gq4pCX0JZBASQPikZLiVfVXIi+iaB8rnNHp63EJY3rCWeYFn6g1ROCEol9KjUIUxGyOV
+         10QPK3UvRwrU4GnhBUYma70tHzJ1aMiwbIn2Sj021p/cVLIzwAGPkKVXfJGWEyNQ+6+c
+         xjlqvKhPFnyvCM1VX56GXn6icb7MZJjzBERk7oLZLAs9T8qanGapd/tXW7uRC5HjPsRJ
+         I0j7lZbcPFWBAWmFJI0uMFv42rXHWlAOhNhyeBnfzRSzZUDT/+qwOqj1kJKpQHKj1DK1
+         FunA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=7dwMUJzRttDvJYwhnTS2pvQini1VnZvpMgmhpc63TNI=;
-        b=GOn/1D2sJ6sMOftxzESthfJtjGQrKVStKKcgNhKyV3FewfEl3sR6zFNpEKvhVfC8j9
-         AkrgNEGZ4DTzAoEoyo9mbsT/khMxXFYNPHwwdgOvJ7/i/3riPAMISrCKGwfrxbUh/tvH
-         k4PdHYiKTgrWqXb9Ku02WHZzwlnTX4pJy6N5wf/YXExpN9mENpznMZSM01haELV3F/wE
-         grUyD2BKxw0L85wEkAPZCcl97LuD4he5cQpRJW6M8FH6mJ9N2eQVCCVEPIOr9MJcAGGD
-         my8C49Fww5rsvM1mi6wBD2jwJWd+BnIuy2tY3yCq8Q+Sf6bpu5WWpKHluS3UQst/pPoa
-         2/CA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=GfucGi6E8CEofLJ0x44J7XInrISOaZYfjQZg3ZcUxv4=;
+        b=0RrXM2CxtY6coq/Na160yk17p4j3YMVM2NswFNxbKDOWM1DL9UdHX6hdVD2hpBFYfJ
+         UJt0HSRBK8jXy30nV4WKr3bqz7O/y8UH8kTZICbQsXOYpjZTqASYmPf7UxIqqTC1IpzH
+         rjNoms7+BtJU2wqv81T2iKuvaXIMt1pN+2NiZWbHU4Dj/nSM0B8OMvK3mB2+LDyBABr3
+         W3NX5lRnDh0qTDkonPgoFdR6HMeyC1booJ9mLjh6EOOdJ3CCJtsDGtUniOtJidhwSg9h
+         SNt3fJ9yjICKp9XaSi7leNT4IPUx+xKzh29CcioFwgvWPZ7FwqkTGIkORfReBlyLBv14
+         s4QA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=s+iOIvIz;
-       spf=pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id t9si8689398itj.76.2019.05.13.08.18.12
+       dkim=pass header.i=@lca.pw header.s=google header.b=D0OIEpdn;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 41sor17608293qtx.29.2019.05.13.08.20.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 08:18:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Mon, 13 May 2019 08:20:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=s+iOIvIz;
-       spf=pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DF9oxF029760;
-	Mon, 13 May 2019 15:17:54 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=7dwMUJzRttDvJYwhnTS2pvQini1VnZvpMgmhpc63TNI=;
- b=s+iOIvIzPv8p+qdn5Lp87nwsGe8piEJpWQ3OZW90Gqa7nfhqwc5jki1ocfhV8tfSYzyW
- ERQWmQkk0Drp6M39yqnyF2g5hWg8ckFsDEpZVMimRtrkJrFmN42X06Mw0JuVxtOyFXFQ
- ZM3y1OBAffh3lZwD1UORvYQyqw2FVoBLsR/ICZWoOVz30V9X8ZVIhod3gTSiGDDdcVAE
- BIDNG0vWG0mrq+wPCV1tkOBE/AwOEA2iQNd9Wj0ltYBVmaSz96NorsvT640eIhHYb7gR
- dKR2h7IcfhTPGL9nD1ygG8RWeV0LY/JCpb8KY+qu5uHfxDcfChNM5u9rLq4YgfLdHDAE yw== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2120.oracle.com with ESMTP id 2sdq1q7m9k-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 15:17:53 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DFHYQU140196;
-	Mon, 13 May 2019 15:17:53 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2sdnqj1a07-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 15:17:53 +0000
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4DFHo3J020928;
-	Mon, 13 May 2019 15:17:50 GMT
-Received: from [10.30.3.22] (/213.57.127.2)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 13 May 2019 08:17:49 -0700
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 11.1 \(3445.4.7\))
-Subject: Re: [RFC KVM 01/27] kernel: Export memory-management symbols required
- for KVM address space isolation
-From: Liran Alon <liran.alon@oracle.com>
-In-Reply-To: <20190513151550.GZ2589@hirez.programming.kicks-ass.net>
-Date: Mon, 13 May 2019 18:17:42 +0300
-Cc: Alexandre Chartre <alexandre.chartre@oracle.com>, pbonzini@redhat.com,
-        rkrcmar@redhat.com, tglx@linutronix.de, mingo@redhat.com, bp@alien8.de,
-        hpa@zytor.com, dave.hansen@linux.intel.com, luto@kernel.org,
-        kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, konrad.wilk@oracle.com,
-        jan.setjeeilers@oracle.com, jwadams@google.com
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <6CAE8F45-E2C0-453F-B2C8-12D9BBE6B8D7@oracle.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <1557758315-12667-2-git-send-email-alexandre.chartre@oracle.com>
- <20190513151550.GZ2589@hirez.programming.kicks-ass.net>
-To: Peter Zijlstra <peterz@infradead.org>
-X-Mailer: Apple Mail (2.3445.4.7)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905130105
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905130105
+       dkim=pass header.i=@lca.pw header.s=google header.b=D0OIEpdn;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=GfucGi6E8CEofLJ0x44J7XInrISOaZYfjQZg3ZcUxv4=;
+        b=D0OIEpdn+YwCQTnRAHTG8T8EZftzb3SJgXdK6HoKO14Hl7lohlc9qu8Qx9GIxfzmjd
+         +OQRyofjp2c2yjwr3YA5BRJRsMoPHxbGztnpjPONaocSLiNKVocK7lviF1MDmNlZbbdr
+         E8e9lAWNNMmtujKHBXRuNVF2XJh2YMqDQqSZKWVH6QfqEyGhwXmd0WC3yxCrPFBymB3L
+         W+3f8jFiO3tdnNigELzQFmpvjr/O3S/1Uer8kJBKfamBZHZa06V0eVhYkApnGS1WRRcW
+         VJCXjMstRY0GehlTY0TOyyUqDwIM6j3vimhmnr44uEBIYr0H8jFUzAQblZZVXIffxf0B
+         bsJw==
+X-Google-Smtp-Source: APXvYqzNCg/Lbhg5+o+INUC/kV+a1p/OwOuOK9EYoWevkihzXrAQ0dYEeibOxkl3lJrup7k5j+U7mw==
+X-Received: by 2002:ac8:392c:: with SMTP id s41mr24553433qtb.34.1557760848842;
+        Mon, 13 May 2019 08:20:48 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id 17sm6813770qkg.30.2019.05.13.08.20.47
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 08:20:47 -0700 (PDT)
+Message-ID: <1557760846.6132.25.camel@lca.pw>
+Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
+ boot
+From: Qian Cai <cai@lca.pw>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, brho@google.com, kernelfans@gmail.com, 
+	dave.hansen@intel.com, rppt@linux.ibm.com, peterz@infradead.org, 
+	mpe@ellerman.id.au, mingo@elte.hu, osalvador@suse.de, luto@kernel.org, 
+	tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Date: Mon, 13 May 2019 11:20:46 -0400
+In-Reply-To: <20190513140448.GJ24036@dhcp22.suse.cz>
+References: <20190512054829.11899-1-cai@lca.pw>
+	 <20190513124112.GH24036@dhcp22.suse.cz> <1557755039.6132.23.camel@lca.pw>
+	 <20190513140448.GJ24036@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 2019-05-13 at 16:04 +0200, Michal Hocko wrote:
+> On Mon 13-05-19 09:43:59, Qian Cai wrote:
+> > On Mon, 2019-05-13 at 14:41 +0200, Michal Hocko wrote:
+> > > On Sun 12-05-19 01:48:29, Qian Cai wrote:
+> > > > The linux-next commit ("x86, numa: always initialize all possible
+> > > > nodes") introduced a crash below during boot for systems with a
+> > > > memory-less node. This is due to CPUs that get onlined during SMP boot,
+> > > > but that onlining triggers a page fault in bus_add_device() during
+> > > > device registration:
+> > > > 
+> > > > 	error = sysfs_create_link(&bus->p->devices_kset->kobj,
+> > > > 
+> > > > bus->p is NULL. That "p" is the subsys_private struct, and it should
+> > > > have been set in,
+> > > > 
+> > > > 	postcore_initcall(register_node_type);
+> > > > 
+> > > > but that happens in do_basic_setup() after smp_init().
+> > > > 
+> > > > The old code had set this node online via alloc_node_data(), so when it
+> > > > came time to do_cpu_up() -> try_online_node(), the node was already up
+> > > > and nothing happened.
+> > > > 
+> > > > Now, it attempts to online the node, which registers the node with
+> > > > sysfs, but that can't happen before the 'node' subsystem is registered.
+> > > > 
+> > > > Since kernel_init() is running by a kernel thread that is in
+> > > > SYSTEM_SCHEDULING state, fixed this by skipping registering with sysfs
+> > > > during the early boot in __try_online_node().
+> > > 
+> > > Relying on SYSTEM_SCHEDULING looks really hackish. Why cannot we simply
+> > > drop try_online_node from do_cpu_up? Your v2 remark below suggests that
+> > > we need to call node_set_online because something later on depends on
+> > > that. Btw. why do we even allocate a pgdat from this path? This looks
+> > > really messy.
+> > 
+> > See the commit cf23422b9d76 ("cpu/mem hotplug: enable CPUs online before
+> > local
+> > memory online")
+> > 
+> > It looks like try_online_node() in do_cpu_up() is needed for memory hotplug
+> > which is to put its node online if offlined and then hotadd_new_pgdat()
+> > calls
+> > build_all_zonelists() to initialize the zone list.
+> 
+> Well, do we still have to followthe logic that the above (unreviewed)
+> commit has established? The hotplug code in general made a lot of ad-hoc
+> design decisions which had to be revisited over time. If we are not
+> allocating pgdats for newly added memory then we should really make sure
+> to do so at a proper time and hook. I am not sure about CPU vs. memory
+> init ordering but even then I would really prefer if we could make the
+> init less obscure and _documented_.
 
-
-> On 13 May 2019, at 18:15, Peter Zijlstra <peterz@infradead.org> wrote:
->=20
-> On Mon, May 13, 2019 at 04:38:09PM +0200, Alexandre Chartre wrote:
->> From: Liran Alon <liran.alon@oracle.com>
->>=20
->> Export symbols needed to create, manage, populate and switch
->> a mm from a kernel module (kvm in this case).
->>=20
->> This is a hacky way for now to start.
->> This should be changed to some suitable memory-management API.
->=20
-> This should not be exported at all, ever, end of story.
->=20
-> Modules do not get to play with address spaces like that.
-
-I agree=E2=80=A6 No doubt about that. This should never be merged like =
-this.
-It=E2=80=99s just to have an initial PoC of the concept so we can:
-1) Messure performance impact of concept.
-2) Get feedback on appropriate design and APIs from community.
-
--Liran
+I don't know, but I think it is a good idea to keep the existing logic rather
+than do a big surgery unless someone is able to confirm it is not breaking NUMA
+node physical hotplug.
 
