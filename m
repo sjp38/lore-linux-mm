@@ -2,255 +2,192 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75325C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:38:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D62F5C46460
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:41:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E00F6206A3
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:38:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E00F6206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 94EC6208CB
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:41:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94EC6208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6829E6B0291; Mon, 13 May 2019 08:38:04 -0400 (EDT)
+	id 2FD476B0292; Mon, 13 May 2019 08:41:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60CB66B0292; Mon, 13 May 2019 08:38:04 -0400 (EDT)
+	id 2AD436B0293; Mon, 13 May 2019 08:41:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4FA7A6B0293; Mon, 13 May 2019 08:38:04 -0400 (EDT)
+	id 179D86B0294; Mon, 13 May 2019 08:41:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D858B6B0291
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:38:03 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id 7so867834ljr.23
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:38:03 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BEDFF6B0292
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:41:15 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e21so17796236edr.18
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:41:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BNLw4dXHVs+3YbZavyFWQ85r28ai+bzPwKdrCIO8Mms=;
-        b=qu28lQMShz3iuV4zVrC7cZt2NfW7DdTdy/trppxk26X83PHiWnfXLCT0HRvHoZWQXJ
-         4yU5BB5ihPeHxHBE17lJPeN7w6+IdnTv448Z2Pm4IoE0jVydYlxq/xuv56IVbpnpW65l
-         +fqLT6AWdQgsxscLm1sD26tsDQEH6LyCnkBHvoZ9tL4qZOMTJ2XwedPsUle00YHUa7Sf
-         uOOXUnmSWQUC+I1a90rFEFpZad6bF0o/3rWHQoTk/WgQYBcQVr1SvgF5Yyuv2oJzMw9C
-         IBZpruEAvFJpsoLY/YoqBlCKN2OAaUrJbxIqz2pbYeDlMXEXFkgALmgW7zGiXN7IjpmW
-         durQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAVHfiENGOxg3G9oqy78L6k/jRPvtNgAb7rTcZBGBDDXgRtPLcYr
-	PUrbb2kAUBtA5SS3gMm3wPzaCij8l8Oh0HeYV6Be0GsF/riYpsG8hK3/Pz02m+G4zG50i5r8rMR
-	/OH39LfUDnkCZa6KTrOZfR3V9OaOKwt7lGyPLQ6EwSzXs5SHQulbiyw+n3/z6hU+rew==
-X-Received: by 2002:ac2:41d7:: with SMTP id d23mr2939020lfi.118.1557751083099;
-        Mon, 13 May 2019 05:38:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwynzJFpAn39txAdoOmMi2tPvesoUWbVIhWSpYTYW8D9It5hAEwGDibxHot+KrK3uSGIOxN
-X-Received: by 2002:ac2:41d7:: with SMTP id d23mr2938962lfi.118.1557751081764;
-        Mon, 13 May 2019 05:38:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557751081; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=B3/5KVxcV14Z3CNwkL8+C4WdthZw+XLxneP2GR8JpAA=;
+        b=alQ9y8hBckKYXqF/9KA866pq4C8UkdAjYD8qqKObJ2i61cc3XTK1i/RPOW7zz8JNhY
+         +OazHaX5pKKZe5JO00R1N5hZafVSil8GfHyDAMK9oPEn3nqTfyZm7ni3E/3t8D5nmNT1
+         ghzqt4KHQ4XBwpsQiDj+nFSzo7RUP4FjXJZdxPmdqRV8TUn8p3OdkZ5Y0VBV93dSbNkG
+         g3DSixTSCQs5Bw/dy0wmcbtd0t5xYx5RLMwipd8fEzxsfHLAdkfORQcNvDPL2Z8jgNmo
+         u2rea3BhSG+Do9WxsnjxzjItIsRlLTo44QGHWikIGndSjl8+EK4Er8QlskHdGoaJAjPS
+         QhdQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAX3ilF24B5t3WHowOqqCCh7JaH/cWarG1At/Jzvi46xrHQOfPVl
+	/bwgy+6wE+h8jOpXSXYtG/MHbCfc+gS+SA24XxzXuAJKUsHwPImoIEoi44huB+JpfOaQgqK6mFs
+	o8zDrVCSt7WAOJ2xVwpvw6sn0rNvIeLkfqiKlhYYBm6cekUOjSRXy0DPZUHDcqZw=
+X-Received: by 2002:a50:9470:: with SMTP id q45mr29301229eda.269.1557751275348;
+        Mon, 13 May 2019 05:41:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy39Ui8sOqUpfo0sJtXyHbYjtt0TYTXeGyIVXcYR529BQuJPic2d4BgQ13RFTOb8DjejJcQ
+X-Received: by 2002:a50:9470:: with SMTP id q45mr29301156eda.269.1557751274453;
+        Mon, 13 May 2019 05:41:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557751274; cv=none;
         d=google.com; s=arc-20160816;
-        b=lf7vcRltgg9kzb/gRX4qnpXVk8sCAcP0C89FyGAnhH32Gq+Po/jw0mqcKTcycdDbcV
-         xApUiCek6mJg9WMoSdYqzvtWVHxdEuFL0mxlYDE4F8GVBZvia74tofwEOWAA1cilMy5y
-         rbqfResplNPK7+k3L0COBMF4Qx8XCbUiI74IjuMg8YiY+JO5ik/z0HqgiKeAIp/3kH0L
-         9lrTV8cdt08Guw8L4yiiNWe+jAhINvrGBiBeBOWLuHR+EfhH3DY20YDbtVEWXPvyjTuY
-         7VVn++PhEp+p8tuO+PmTxBGB6eHy9kDxc++u1Wbvu4KkmA5fq3x+9U7ungc2NtIZErxx
-         n4RA==
+        b=dpUKtIfn+4JmlB855ylaK2KRK2nh2XeNdX6eAUCgrVb/3NLAgpaEV5GDzwI/GN73IN
+         oYTAHp0MaGRsD7yj9slU+kbHgNQvPzpD7gUCBhVjuTiIRSPkGvYTMhWd5XDMYANuvNFx
+         xkFuEOE9icwsqxHXeJbebNte3JrjNnba/Os1C5PHr9eE/888bqPBIK9JsQDoitU/q9fy
+         7/KXfeqURaj1dApnvsldrVHfsmpV6ASznazE48EEWG3Tg8GxIFuboV7THIocZUGWEbmf
+         zHSvBCbWWjtrUHbLwwxHxQNL9jkahAsmZ7eQgNH5Hrkd9qjIvR6qVB194LcNN5iWSvtj
+         rFdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=BNLw4dXHVs+3YbZavyFWQ85r28ai+bzPwKdrCIO8Mms=;
-        b=Dzu/SEiCS1krpjgwthdPV4xB/hM6klbIIgVJ1YAs0abh7bzCT7wofzP2g93OUdX9Nl
-         TnNE552qMQVNptUi+QPnacEHUOGWKp5XtE4+S40H1LSTZB4gjQeTsCq95Kvsjo66Sfsw
-         COvBSuT2RmhqRJjFaH5wWrZBka2zbhGEJJa3mE7rSV9VjCocRmuIlJsa4ML09tRE1Ok9
-         i3JlY7ATBhMiv74tBaqCv44XFtE6Ev4di75iIInJoJ8vBIBZl66SHsnv63ug0tBJrwvL
-         qr99kEjBfJD6AWX2k3NhV5v053dVSr4IfzTPt0DKiaqbmTM3yrrlEkRGaqzD9FWu+N9v
-         Q5mg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=B3/5KVxcV14Z3CNwkL8+C4WdthZw+XLxneP2GR8JpAA=;
+        b=URK48zChk2c9rnyG0O/PtwNK+d28Z9BmW9uvUi5VgLzLcXuHbtGNSKaNOw53RwF2vf
+         wuZI3lbGAWDgF6YeIbwe+vYq/4uLTuyzFYhEW6Z8cwTvEe2YXl5hka1TA9XN+X7sAXAX
+         VmjUu1qS0ApPYanfjDqut3I8EqoX9/8JRy06hz/DS9lHxIHuoZojAYRFKNeXQWr9ldYn
+         38u5rBK4VzAzLGTLhwx6n4dBPIm4wT9FtAPHOK+b6DwhOKTSaq3U3o/uEN1QqPJqk8tx
+         p+iqWJ1/ooR+HRCGCF3cSstv6+76m7H03Xwpch3XCCgVL7tXddCCx89ZjoUhIvW3GYf+
+         pBZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id w19si10682766lfe.82.2019.05.13.05.38.01
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f19si2551133ejr.194.2019.05.13.05.41.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 05:38:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Mon, 13 May 2019 05:41:14 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hQADM-00063i-Vj; Mon, 13 May 2019 15:37:57 +0300
-Subject: Re: [PATCH RFC 0/4] mm/ksm: add option to automerge VMAs
-To: Oleksandr Natalenko <oleksandr@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>,
- Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>,
- Pavel Tatashin <pasha.tatashin@soleen.com>,
- Timofey Titovets <nefelim4ag@gmail.com>, Aaron Tomlin <atomlin@redhat.com>,
- linux-mm@kvack.org
-References: <20190510072125.18059-1-oleksandr@redhat.com>
- <36a71f93-5a32-b154-b01d-2a420bca2679@virtuozzo.com>
- <20190513113314.lddxv4kv5ajjldae@butterfly.localdomain>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <a3870e32-3a27-e6df-fcb2-79080cdd167a@virtuozzo.com>
-Date: Mon, 13 May 2019 15:37:56 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9A2D7AF60;
+	Mon, 13 May 2019 12:41:13 +0000 (UTC)
+Date: Mon, 13 May 2019 14:41:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Qian Cai <cai@lca.pw>
+Cc: akpm@linux-foundation.org, brho@google.com, kernelfans@gmail.com,
+	dave.hansen@intel.com, rppt@linux.ibm.com, peterz@infradead.org,
+	mpe@ellerman.id.au, mingo@elte.hu, osalvador@suse.de,
+	luto@kernel.org, tglx@linutronix.de, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
+ boot
+Message-ID: <20190513124112.GH24036@dhcp22.suse.cz>
+References: <20190512054829.11899-1-cai@lca.pw>
 MIME-Version: 1.0
-In-Reply-To: <20190513113314.lddxv4kv5ajjldae@butterfly.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190512054829.11899-1-cai@lca.pw>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13.05.2019 14:33, Oleksandr Natalenko wrote:
-> Hi.
+On Sun 12-05-19 01:48:29, Qian Cai wrote:
+> The linux-next commit ("x86, numa: always initialize all possible
+> nodes") introduced a crash below during boot for systems with a
+> memory-less node. This is due to CPUs that get onlined during SMP boot,
+> but that onlining triggers a page fault in bus_add_device() during
+> device registration:
 > 
-> On Mon, May 13, 2019 at 01:38:43PM +0300, Kirill Tkhai wrote:
->> On 10.05.2019 10:21, Oleksandr Natalenko wrote:
->>> By default, KSM works only on memory that is marked by madvise(). And the
->>> only way to get around that is to either:
->>>
->>>   * use LD_PRELOAD; or
->>>   * patch the kernel with something like UKSM or PKSM.
->>>
->>> Instead, lets implement a so-called "always" mode, which allows marking
->>> VMAs as mergeable on do_anonymous_page() call automatically.
->>>
->>> The submission introduces a new sysctl knob as well as kernel cmdline option
->>> to control which mode to use. The default mode is to maintain old
->>> (madvise-based) behaviour.
->>>
->>> Due to security concerns, this submission also introduces VM_UNMERGEABLE
->>> vmaflag for apps to explicitly opt out of automerging. Because of adding
->>> a new vmaflag, the whole work is available for 64-bit architectures only.
->>>> This patchset is based on earlier Timofey's submission [1], but it doesn't
->>> use dedicated kthread to walk through the list of tasks/VMAs.
->>>
->>> For my laptop it saves up to 300 MiB of RAM for usual workflow (browser,
->>> terminal, player, chats etc). Timofey's submission also mentions
->>> containerised workload that benefits from automerging too.
->>
->> This all approach looks complicated for me, and I'm not sure the shown profit
->> for desktop is big enough to introduce contradictory vma flags, boot option
->> and advance page fault handler. Also, 32/64bit defines do not look good for
->> me. I had tried something like this on my laptop some time ago, and
->> the result was bad even in absolute (not in memory percentage) meaning.
->> Isn't LD_PRELOAD trick enough to desktop? Your workload is same all the time,
->> so you may statically insert correct preload to /etc/profile and replace
->> your mmap forever.
->>
->> Speaking about containers, something like this may have a sense, I think.
->> The probability of that several containers have the same pages are higher,
->> than that desktop applications have the same pages; also LD_PRELOAD for
->> containers is not applicable. 
+> 	error = sysfs_create_link(&bus->p->devices_kset->kobj,
 > 
-> Yes, I get your point. But the intention is to avoid another hacky trick
-> (LD_PRELOAD), thus *something* should *preferably* be done on the
-> kernel level instead.
-
-I don't think so. Does userspace hack introduce some overhead? It does not
-look so. Why should we think about mergeable VMAs in page fault handler?!
-This is the last thing we want to think in page fault handler.
-
-Also, there is difficult synchronization in page fault handlers, and it's
-easy to make a mistake. So, there is a mistake in [3/4], and you call
-ksm_enter() with mmap_sem read locked, while normal way is to call it
-with write lock (see madvise_need_mmap_write()).
-
-So, let's don't touch this path. Small optimization for unlikely case will
-introduce problems in optimization for likely case in the future.
-
->> But 1)this could be made for trusted containers only (are there similar
->> issues with KSM like with hardware side-channel attacks?!);
+> bus->p is NULL. That "p" is the subsys_private struct, and it should
+> have been set in,
 > 
-> Regarding side-channel attacks, yes, I think so. Were those openssl guys
-> who complained about it?..
+> 	postcore_initcall(register_node_type);
 > 
->> 2) the most
->> shared data for containers in my experience is file cache, which is not
->> supported by KSM.
->>
->> There are good results by the link [1], but it's difficult to analyze
->> them without knowledge about what happens inside them there.
->>
->> Some of tests have "VM" prefix. What the reason the hypervisor don't mark
->> their VMAs as mergeable? Can't this be fixed in hypervisor? What is the
->> generic reason that VMAs are not marked in all the tests?
+> but that happens in do_basic_setup() after smp_init().
 > 
-> Timofey, could you please address this?
+> The old code had set this node online via alloc_node_data(), so when it
+> came time to do_cpu_up() -> try_online_node(), the node was already up
+> and nothing happened.
 > 
-> Also, just for the sake of another piece of stats here:
+> Now, it attempts to online the node, which registers the node with
+> sysfs, but that can't happen before the 'node' subsystem is registered.
 > 
-> $ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
-> 526
+> Since kernel_init() is running by a kernel thread that is in
+> SYSTEM_SCHEDULING state, fixed this by skipping registering with sysfs
+> during the early boot in __try_online_node().
 
-This all requires attentive analysis. The number looks pretty big for me.
-What are the pages you get merged there? This may be just zero pages,
-you have identical.
+Relying on SYSTEM_SCHEDULING looks really hackish. Why cannot we simply
+drop try_online_node from do_cpu_up? Your v2 remark below suggests that
+we need to call node_set_online because something later on depends on
+that. Btw. why do we even allocate a pgdat from this path? This looks
+really messy.
 
-E.g., your browser want to work fast. It introduces smart schemes,
-and preallocates many pages in background (mmap + write 1 byte to a page),
-so in further it save some time (no page fault + alloc), when page is
-really needed. But your change merges these pages and kills this
-optimization. Sounds not good, does this?
-
-I think, we should not think we know and predict better than application
-writers, what they want from kernel. Let's people decide themselves
-in dependence of their workload. The only exception is some buggy
-or old applications, which impossible to change, so force madvise
-workaround may help. But only in case there are really such applications...
-
-I'd researched what pages you have duplicated in these 526 MB. Maybe
-you find, no action is required or a report to userspace application
-to use madvise is needed.
-
->> In case of there is a fundamental problem of calling madvise, can't we
->> just implement an easier workaround like a new write-only file:
->>
->> #echo $task > /sys/kernel/mm/ksm/force_madvise
->>
->> which will mark all anon VMAs as mergeable for a passed task's mm?
->>
->> A small userspace daemon may write mergeable tasks there from time to time.
->>
->> Then we won't need to introduce additional vm flags and to change
->> anon pagefault handler, and the changes will be small and only
->> related to mm/ksm.c, and good enough for both 32 and 64 bit machines.
+> Call Trace:
+>  device_add+0x43e/0x690
+>  device_register+0x107/0x110
+>  __register_one_node+0x72/0x150
+>  __try_online_node+0x8f/0xd0
+>  try_online_node+0x2b/0x50
+>  do_cpu_up+0x46/0xf0
+>  cpu_up+0x13/0x20
+>  smp_init+0x6e/0xd0
+>  kernel_init_freeable+0xe5/0x21f
+>  kernel_init+0xf/0x180
+>  ret_from_fork+0x1f/0x30
 > 
-> Yup, looks appealing. Two concerns, though:
+> Reported-by: Barret Rhoden <brho@google.com>
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
 > 
-> 1) we are falling back to scanning through the list of tasks (I guess
-> this is what we wanted to avoid, although this time it happens in the
-> userspace);
+> v2: Set the node online as it have CPUs. Otherwise, those memory-less nodes will
+>     end up being not in sysfs i.e., /sys/devices/system/node/.
+> 
+>  mm/memory_hotplug.c | 12 ++++++++++++
+>  1 file changed, 12 insertions(+)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index b236069ff0d8..6eb2331fa826 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1037,6 +1037,18 @@ static int __try_online_node(int nid, u64 start, bool set_node_online)
+>  	if (node_online(nid))
+>  		return 0;
+>  
+> +	/*
+> +	 * Here is called by cpu_up() to online a node without memory from
+> +	 * kernel_init() which guarantees that "set_node_online" is true which
+> +	 * will set the node online as it have CPUs but not ready to call
+> +	 * register_one_node() as "node_subsys" has not been initialized
+> +	 * properly yet.
+> +	 */
+> +	if (system_state == SYSTEM_SCHEDULING) {
+> +		node_set_online(nid);
+> +		return 0;
+> +	}
+> +
+>  	pgdat = hotadd_new_pgdat(nid, start);
+>  	if (!pgdat) {
+>  		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
+> -- 
+> 2.20.1 (Apple Git-117)
 
-IMO, this should be made only for tasks, which are known to be buggy
-(which can't call madvise). Yes, scanning will be required.
-
-> 2) what kinds of opt-out we should maintain? Like, what if force_madvise
-> is called, but the task doesn't want some VMAs to be merged? This will
-> required new flag anyway, it seems. And should there be another
-> write-only file to unmerge everything forcibly for specific task?
-
-For example,
-
-Merge:
-#echo $task > /sys/kernel/mm/ksm/force_madvise
-
-Unmerge:
-#echo -$task > /sys/kernel/mm/ksm/force_madvise
-
-In case of task don't want to merge some VMA, we just should skip it at all.
-
-But firstly we probably should check, that we really need this, and why
-existing applications don't call madvise directly. Now we just don't know,
-what happens.
-
-Kirill
-
-P.S. This all above is my opinion. Let's wait, what other people think.
+-- 
+Michal Hocko
+SUSE Labs
 
