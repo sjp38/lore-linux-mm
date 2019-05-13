@@ -2,103 +2,101 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94B5FC04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A2704C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 493B02084A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 41B912084A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IIHbvoJP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 493B02084A
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="tdbGd1yQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41B912084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00DD46B000A; Mon, 13 May 2019 10:39:11 -0400 (EDT)
+	id 2CEA46B000C; Mon, 13 May 2019 10:39:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E8B786B000C; Mon, 13 May 2019 10:39:10 -0400 (EDT)
+	id 25B276B000D; Mon, 13 May 2019 10:39:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB6F06B000D; Mon, 13 May 2019 10:39:10 -0400 (EDT)
+	id EDC006B000E; Mon, 13 May 2019 10:39:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E52C6B000A
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:10 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id t7so9968082iof.21
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:10 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B3E6B000C
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:11 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id d22so10034251ioh.14
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=1/A8dPg6N3BCp1dVVHZldE7IkiS+8kPsjdwBuin2g4s=;
-        b=ERTGHeUuiioq1OWvXy6sEDTDYd7llPdRfyr9iKsmfOKLYWUUAeircmg8EHe+QaSFJM
-         1kDlA7L7tbhamUCF36fiQOh3jDH6Jff8U9qsYhA9K0B8zCeAdeyDcOXWrXQkL7ah98Cm
-         3Ru+qn3IsMt19KemE46PB5ryXppc3TEjdYfTV720QsT4tjWQiyiflSl99wq7MTQ9BSCX
-         HmPqC06ivWBXkly3Zrptzy2f5xhqcz2hL0Y2gs8lVNFJsfzBl/HrInyn/QP4T00sWX+h
-         gMb37R9//Cy6+KEFPDEhwtOGNWxZ3kNd6eoKnbntVkZDzVxM488p3E5afMJxlCf7de7N
-         /rPQ==
-X-Gm-Message-State: APjAAAXd8pWjJyx2iYh0t+w2j5pwBP+4Fv6ooZEnjYU+sJV/Ej9oVfJ9
-	jfqn3eC2Ksr0gqWs+TMWCpVtmvJcbO4A0nZ8neL2+bmSZJkCLe4CkeTW2yytApcE035KNI7ECl+
-	z+hLYy/WtTCYTOMbaIlkD2cWAShUhlQNGrSIkeqvdtLRsXfJIRIvQF3xR1q5SL3pL7Q==
-X-Received: by 2002:a5e:cb47:: with SMTP id h7mr13273714iok.69.1557758350389;
+         :message-id;
+        bh=ifMnSLMpPWbgJn6YEl+7RVCx3XHk6F0JJYnRIh9GBh0=;
+        b=pr9QAFeteaqHX0np9ZPuv1DTFbDXPcuSMNCY4pjjSIZKs9WpFp19Bsj1QY0c487I1I
+         wthnhUcha1v72lrBCgLt1lg6IbentxK/mPMaTjJfz9UY+ekWEbFo1CEPO6RYpwkU3ziG
+         KJxQhxHvmzzEUF8xg4fIDER+4bYVtW3gudHxmrY/Bt6k036rm+Nl/YokmN4rs5+WTLQz
+         E0OJPp2kdMMOmkUT5HVj/1UCjX3/xOLM/mmvaIcJSIezomU7HQzXqrmFPLJbH29YFVsv
+         0VsFdPhBRiWtZJepI+Jcx7STtlFHdJULZXtrsRUCkqakHSkDeJo4WvlYNsB6e47g3cy1
+         ybbQ==
+X-Gm-Message-State: APjAAAU8NfekYA/J3Y7EUF5e3KaHkgsRJDpseCisGFL49L6wKfjt0xGG
+	IY6Gu/fQSs1UccRWbigOPOe0t/FVAOM0BCv4ay9ks7AOVEa+xkkLXJOeAXfrrJrDl88wj/ef361
+	eh7F0AtQhT6uSAHAmRAxBOi1xEduP2wQbClv4kli7umbmixn3QDE8n8Z4QEpMD1QKDQ==
+X-Received: by 2002:a24:108b:: with SMTP id 133mr18565513ity.15.1557758350920;
         Mon, 13 May 2019 07:39:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQRIyc6T+QCpSHaHEnXG902/BpiESTYryP4+wPP4TN7G+goh2cLkfWU/YrGAHTV+W+gnzq
-X-Received: by 2002:a5e:cb47:: with SMTP id h7mr13273671iok.69.1557758349703;
+X-Google-Smtp-Source: APXvYqz6u1tGZTzPm6Vwgi4d0v4VYv8c33w9JyYu858LCaqhM06AgqQzDnoqM20WYJHidk3etugq
+X-Received: by 2002:a24:108b:: with SMTP id 133mr18565431ity.15.1557758349701;
         Mon, 13 May 2019 07:39:09 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1557758349; cv=none;
         d=google.com; s=arc-20160816;
-        b=XbeooR9vGBUgnKe+RMnUiRuxBB0pQJVJe/iW5VKViCGZ2s/2II5sqnmaDyV8UQm6tc
-         ju90yF5zO8fUhDVEPbVZZ/GsuXDurv6F+nU8BLmiVe2geImFkBEZA6hNASKscOvqUh1+
-         eZ5/qgpkCgjq62o+9DkhggNn0C+AKeEI3Ny1xtYmlsLbZKphQ9z5jzoIjLbQPv/h+vK1
-         fQN6FAZBzeGheTHyI/tjoowENreeRYDBNoWT9YkJuOxH5BU8EF5n560KJT9Xgc81EFyk
-         tjIBCNwqiPJP2nPUfA5RCbSOyZrsYq9xPkO751UjSlDiijA0tfP7Lurd5V0D1T9JxKYZ
-         ORbg==
+        b=1HSSOevBQ88QoeaKmC+qvcmz+yzreIF/dxtS4sLs6uGIS+U1Mo2r0mkQb0f+Mjxb7I
+         I9RmvNkB6xTFB3+VAUNGtSIS9i/9JxrFKHPQEfRM2E+QRV18Ssb6WAbbneZfYEuVgr0C
+         Z8zA/1LXccz3oZDSfiYL6I+KSx03HFgnBGZlIZ6JhGkFrVJ27iPX4LlhbWrNuWqlY6ur
+         t55CakFsoCABPUphTlp58teIABIP4KyhRtfG+GgavFPFKlhAW2csPBxXBIZfEvyqbjjB
+         PqQcDfj+r01LG93Vki9IU6mugkEYbBXrI8JCKanpUAjpjRUbE3MXjwYoq+3ojV8tCP8T
+         VikA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=1/A8dPg6N3BCp1dVVHZldE7IkiS+8kPsjdwBuin2g4s=;
-        b=qoEYpSZd0TTjq1dNK3yNuzXxIZkC7S5UpKQIzFYrydEirbvDBGVvIb8iBxkh3MVy02
-         pMeB/yFnsjhXIuvrw/XNhOTavS8qF0vp7qXYI1tgaLGTDNzhCqTRizNyGvE6DXaQd3ys
-         ucQF3ufGIjnM1ZJx3ZZRhtbv637eEGsWPK1BqgCAqXcnmMmLEwnZW4i186gN8RmmWbVK
-         6FKgQZs2SDJalK3T6tZO7e12JMycCwViyibKz8pe0yhZ3M05wbTAjSRLdgVwmKToftK8
-         rYbGZmf5/hvqDwj5WQ8B63iVdyHWdsrqOduoHgk0yTe+Ztc0dF4iWgTIW6gfr8ob3TPx
-         BpQw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=ifMnSLMpPWbgJn6YEl+7RVCx3XHk6F0JJYnRIh9GBh0=;
+        b=DBOPexFpcSD0HuXiXvVn1RdRycB47XjgxSH+1o5+L+hyled6vPe5u5SlfWUuTNm92U
+         6gd+MjHAp1+eeYCcWpx8eibLQsr0N3Hnf3CTRXg+ruM2mjg3FiIGsAwFnstWDRLGbp6Y
+         Nc0LOOLw8sFO4fPMaiiFA/rQic+k12ivIGHKiCm64QQqCMjyOFkHUdIC45lACTF7R8jV
+         VE2hihlcg9FCEI1iCqiKfyqrVhnZAAhA/7GfAwY0UDydATaylFgOkKxfIpfnr9twFr9j
+         21y4++xGsUAkStJXHsQT6viaqLMUjl7BwKrghmRi4rvUFdoDCmTwpYkmseCu7duMP98U
+         0npQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IIHbvoJP;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tdbGd1yQ;
        spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id h1si8195330itl.18.2019.05.13.07.39.09
+        by mx.google.com with ESMTPS id a137si8017382ita.68.2019.05.13.07.39.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 13 May 2019 07:39:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IIHbvoJP;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=tdbGd1yQ;
        spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DESwxh183032;
-	Mon, 13 May 2019 14:38:50 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=1/A8dPg6N3BCp1dVVHZldE7IkiS+8kPsjdwBuin2g4s=;
- b=IIHbvoJP5+K/6hJmjo6mwDCr+XYe5WkcmTj/jZgsHQd++1A3nrRugabuYhfepHXTNKMa
- V+W5LQ4oABEgMC2/bRAoDFfs1URTJrv1FkjV3nZfJhEh3aTydJM7O9zVMLE+XCLnCNo0
- mgaCYQLJsGwxxqQvTsOBwgrZT+TlGys5Y+xXj8Q2b2tjQKrJs5qkBiGxQsdVfxbT4cvm
- AvsvkAn4MmTs1z4WmXxi/1KuzDaA9HLi5wH7yN5hYhVDuggPf0x5mUO+bX8AKL3WJ1Pd
- Vh+iMejI0gUwJY+npXZCvzmO6WQnPg//1CrX7b7e8J9CRrNauyV7gxxNmcg6wsYTegjc qw== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2sdkwdfksf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 14:38:50 +0000
-Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQ4022780;
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DESlR7182654;
 	Mon, 13 May 2019 14:38:42 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id; s=corp-2018-07-02;
+ bh=ifMnSLMpPWbgJn6YEl+7RVCx3XHk6F0JJYnRIh9GBh0=;
+ b=tdbGd1yQvHkyjTMFuK6wI5Ue4qt+LydLnEpefsOEuKdFqRq2LdsItTl/KbdLv+S7hbhS
+ ulYB/K/LXyUeE5ratgp+dTXWLygfGRss5HDsoxCIj/q7YkZKQxux7Fuey0v5dS2CWsqv
+ hX4STOZNgSeQSWKhNZhMVldF5ghxJowWtWLEo0ZcvFdEgnX+/WaWFDHBw58vaBzb+fAm
+ ngdYgKLaAne2EA57L4ckGaTlxl8dmhn5LBBR2OmjC3s5HKKO53JMFneOJrQFSPAov5gA
+ r/8VgZZEGfrB+ci9xUw4EQYoIcbLzVW2GsjwXiR3GbhYOrch/pEC0tLSsVOnUVhraxje pQ== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by aserp2130.oracle.com with ESMTP id 2sdkwdfkrg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 13 May 2019 14:38:42 +0000
+Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQ3022780;
+	Mon, 13 May 2019 14:38:36 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -107,15 +105,13 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         linux-kernel@vger.kernel.org
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, alexandre.chartre@oracle.com
-Subject: [RFC KVM 01/27] kernel: Export memory-management symbols required for KVM address space isolation
-Date: Mon, 13 May 2019 16:38:09 +0200
-Message-Id: <1557758315-12667-2-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC KVM 00/27] KVM Address Space Isolation
+Date: Mon, 13 May 2019 16:38:08 +0200
+Message-Id: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
-In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1905130102
@@ -125,99 +121,259 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Liran Alon <liran.alon@oracle.com>
+Hi,
 
-Export symbols needed to create, manage, populate and switch
-a mm from a kernel module (kvm in this case).
+This series aims to introduce the concept of KVM address space isolation.
+This is done as part of the upstream community effort to have exploit
+mitigations for CPU info-leaks vulnerabilities such as L1TF. 
 
-This is a hacky way for now to start.
-This should be changed to some suitable memory-management API.
+These patches are based on an original patches from Liran Alon, completed
+with additional patches to effectively create KVM address space different
+from the full kernel address space.
 
-Signed-off-by: Liran Alon <liran.alon@oracle.com>
-Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
+The current code is just an early POC, and it is not fully stable at the
+moment (unfortunately you can expect crashes/hangs, see the "Issues"
+section below). However I would like to start a discussion get feedback
+and opinions about this approach.
+
+Context
+=======
+
+The most naive approach to handle L1TF SMT-variant exploit is to just disable
+hyper-threading. But that is not practical for public cloud providers. As a
+second next best alternative, there is an approach to combine coscheduling
+together with flushing L1D cache on every VMEntry. By coscheduling I refer
+to some mechanism which on every VMExit from guest, kicks all sibling
+hyperthreads from guest aswell.
+
+However, this approach have some open issues:
+
+1. Kicking all sibling hyperthreads for every VMExit have significant
+   performance hit for some compute shapes (e.g. Emulated and PV).
+
+2. It assumes only CPU core resource which could be leaked by some
+   vulnerability is L1D cache. But future vulnerabilities may also be able
+   to leak other CPU core resources. Therefore, we would prefer to have a
+   mechanism which prevents these resources to be able to be loaded with
+   sensitive data to begin with.
+
+To better address (2), upstream community has discussed some mechanisms
+related to reducing data that is mapped on kernel virtual address space.
+Specifically:
+
+a. XPFO: Removes from physmap pages that currently should only be accessed
+   by userspace.
+
+b. Process-local memory allocations: Allows having a memory area in kernel
+   virtual address space that maps different content per-process. Then,
+   allocations made on this memory area can be hidden from other tasks in
+   the system running in kernel space. Most obvious use it to allocate
+   there per-vCPU and per-VM KVM structures.
+
+However, both (a)+(b) work in a black-list approach (where we decide which
+data is considered dangerous and remove it from kernel virtual address
+space) and don't address performance hit described at (1).
+
+
+Proposal
+========
+
+To handle both these points, this series introduce the mechanism of KVM
+address space isolation. Note that this mechanism completes (a)+(b) and
+don't contradict. In case this mechanism is also applied, (a)+(b) should
+still be applied to the full virtual address space as a defence-in-depth).
+
+The idea is that most of KVM #VMExit handlers code will run in a special
+KVM isolated address space which maps only KVM required code and per-VM
+information. Only once KVM needs to architectually access other (sensitive)
+data, it will switch from KVM isolated address space to full standard
+host address space. At this point, KVM will also need to kick all sibling
+hyperthreads to get out of guest (note that kicking all sibling hyperthreads
+is not implemented in this serie).
+
+Basically, we will have the following flow:
+
+  - qemu issues KVM_RUN ioctl
+  - KVM handles the ioctl and calls vcpu_run():
+    . KVM switches from the kernel address to the KVM address space
+    . KVM transfers control to VM (VMLAUNCH/VMRESUME)
+    . VM returns to KVM
+    . KVM handles VM-Exit:
+      . if handling need full kernel then switch to kernel address space
+      . else continues with KVM address space
+    . KVM loops in vcpu_run() or return
+  - KVM_RUN ioctl returns
+
+So, the KVM_RUN core function will mainly be executed using the KVM address
+space. The handling of a VM-Exit can require access to the kernel space
+and, in that case, we will switch back to the kernel address space.
+
+The high-level idea of how this is implemented is to create a separate
+struct_mm for KVM such that a vCPU thread will switch active_mm between
+it's original active_mm and kvm_mm when needed as described above. The
+idea is very similar to how kernel switches between task active_mm and
+efi_mm when calling EFI Runtime Services.
+
+Note that because we use the kernel TLB Manager to switch between kvm_mm
+and host_mm, we will effectively use TLB with PCID if enabled to make
+these switches fast. As all of this is managed internally in TLB Manager's
+switch_mm().
+
+
+Patches
+=======
+
+The proposed patches implement the necessary framework for creating kvm_mm
+and switching between host_mm and kvm_mm at appropriate times. They also
+provide functions for populating the KVM address space, and implement an
+actual KVM address space much smaller than the full kernel address space.
+
+- 01-08: add framework for switching between the kernel address space and
+  the KVM address space at appropriate times. Note that these patches do
+  not create or switch the address space yet. Address space switching is
+  implemented in patch 25.
+
+- 09-18: add a framework for populating and managing the KVM page table;
+  this also include mechanisms to ensure changes are effectively limited
+  to the KVM page table and no change is mistakenly propagated to the
+  kernel page table.
+
+- 19-23: populate the KVM page table.
+
+- 24: add page fault handler to handle and report missing mappings when
+  running with the KVM address space. This is based on an original idea
+  from Paul Turner.
+
+- 25: implement the actual switch between the kernel address space and
+  the KVM address space.
+
+- 26-27: populate the KVM page table with more data.
+
+
+If a fault occurs while running with the KVM address space, it will be
+reported on the console like this:
+
+[ 4840.727476] KVM isolation: page fault #0 (0) at fast_page_fault+0x13e/0x3e0 [kvm] on ffffea00005331f0 (0xffffea00005331f0)
+
+If the KVM page_fault_stack module parameter is set to non-zero (that's
+the default) then the stack of the fault will also be reported:
+
+[ 5025.630374] KVM isolation: page fault #0 (0) at fast_page_fault+0x100/0x3e0 [kvm] on ffff88003c718000 (0xffff88003c718000)
+[ 5025.631918] Call Trace:
+[ 5025.632782]  tdp_page_fault+0xec/0x260 [kvm]
+[ 5025.633395]  kvm_mmu_page_fault+0x74/0x5f0 [kvm]
+[ 5025.644467]  handle_ept_violation+0xc3/0x1a0 [kvm_intel]
+[ 5025.645218]  vmx_handle_exit+0xb9/0x600 [kvm_intel]
+[ 5025.645917]  vcpu_enter_guest+0xb88/0x1580 [kvm]
+[ 5025.646577]  kvm_arch_vcpu_ioctl_run+0x403/0x610 [kvm]
+[ 5025.647313]  kvm_vcpu_ioctl+0x3d5/0x650 [kvm]
+[ 5025.648538]  do_vfs_ioctl+0xaa/0x602
+[ 5025.650502]  SyS_ioctl+0x79/0x84
+[ 5025.650966]  do_syscall_64+0x79/0x1ae
+[ 5025.651487]  entry_SYSCALL_64_after_hwframe+0x151/0x0
+[ 5025.652200] RIP: 0033:0x7f74a2f1d997
+[ 5025.652710] RSP: 002b:00007f749f3ec998 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[ 5025.653769] RAX: ffffffffffffffda RBX: 0000562caa83e110 RCX: 00007f74a2f1d997
+[ 5025.654769] RDX: 0000000000000000 RSI: 000000000000ae80 RDI: 000000000000000c
+[ 5025.655769] RBP: 0000562caa83e1b3 R08: 0000562ca9b6fa50 R09: 0000000000000006
+[ 5025.656766] R10: 0000000000000000 R11: 0000000000000246 R12: 0000562ca9b552c0
+[ 5025.657764] R13: 0000000000801000 R14: 00007f74a59d4000 R15: 0000562caa83e110
+
+This allows to find out what is missing in the KVM address space.
+
+
+Issues
+======
+
+Limited tests have been done so far, and mostly with an empty single-vcpu
+VM (i.e. qemu-system-i386 -enable-kvm -smp 1). Single-vcpu VM is able to
+start and run a full OS but the system will eventually crash/hang at some
+point. Multiple vcpus will crash/hang much faster.
+
+
+Performance Impact
+==================
+
+As this is a RFC, the effective performance impact hasn't been measured
+yet. Current patches introduce two additional context switches (kernel to
+KVM, and KVM to kernel) on each KVM_RUN ioctl. Also additional context
+switches are added if a VM-Exit has to be handled using the full kernel
+address space.
+
+I expect that the KVM address space can eventually be expanded to include
+the ioctl syscall entries. By doing so, and also adding the KVM page table
+to the process userland page table (which should be safe to do because the
+KVM address space doesn't have any secret), we could potentially handle the
+KVM ioctl without having to switch to the kernel pagetable (thus effectively
+eliminating KPTI for KVM). Then the only overhead would be if a VM-Exit has
+to be handled using the full kernel address space.
+
+
+Thanks,
+
+alex.
+
 ---
- arch/x86/kernel/ldt.c |    1 +
- arch/x86/mm/tlb.c     |    3 ++-
- mm/memory.c           |    5 +++++
- 3 files changed, 8 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c
-index b2463fc..19a86e0 100644
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -401,6 +401,7 @@ void destroy_context_ldt(struct mm_struct *mm)
- 	free_ldt_struct(mm->context.ldt);
- 	mm->context.ldt = NULL;
- }
-+EXPORT_SYMBOL_GPL(destroy_context_ldt);
- 
- void ldt_arch_exit_mmap(struct mm_struct *mm)
- {
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 7f61431..a4db7f5 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -70,7 +70,7 @@ static void clear_asid_other(void)
- }
- 
- atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
--
-+EXPORT_SYMBOL_GPL(last_mm_ctx_id);
- 
- static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
- 			    u16 *new_asid, bool *need_flush)
-@@ -159,6 +159,7 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 	switch_mm_irqs_off(prev, next, tsk);
- 	local_irq_restore(flags);
- }
-+EXPORT_SYMBOL_GPL(switch_mm);
- 
- static void sync_current_stack_to_mm(struct mm_struct *mm)
- {
-diff --git a/mm/memory.c b/mm/memory.c
-index 36aac68..ede9335 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -434,6 +434,7 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd)
- 		pte_free(mm, new);
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(__pte_alloc);
- 
- int __pte_alloc_kernel(pmd_t *pmd)
- {
-@@ -453,6 +454,7 @@ int __pte_alloc_kernel(pmd_t *pmd)
- 		pte_free_kernel(&init_mm, new);
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(__pte_alloc_kernel);
- 
- static inline void init_rss_vec(int *rss)
- {
-@@ -4007,6 +4009,7 @@ int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
- 	spin_unlock(&mm->page_table_lock);
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(__p4d_alloc);
- #endif /* __PAGETABLE_P4D_FOLDED */
- 
- #ifndef __PAGETABLE_PUD_FOLDED
-@@ -4039,6 +4042,7 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
- 	spin_unlock(&mm->page_table_lock);
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(__pud_alloc);
- #endif /* __PAGETABLE_PUD_FOLDED */
- 
- #ifndef __PAGETABLE_PMD_FOLDED
-@@ -4072,6 +4076,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
- 	spin_unlock(ptl);
- 	return 0;
- }
-+EXPORT_SYMBOL_GPL(__pmd_alloc);
- #endif /* __PAGETABLE_PMD_FOLDED */
- 
- static int __follow_pte_pmd(struct mm_struct *mm, unsigned long address,
--- 
-1.7.1
+Alexandre Chartre (18):
+  kvm/isolation: function to track buffers allocated for the KVM page
+    table
+  kvm/isolation: add KVM page table entry free functions
+  kvm/isolation: add KVM page table entry offset functions
+  kvm/isolation: add KVM page table entry allocation functions
+  kvm/isolation: add KVM page table entry set functions
+  kvm/isolation: functions to copy page table entries for a VA range
+  kvm/isolation: keep track of VA range mapped in KVM address space
+  kvm/isolation: functions to clear page table entries for a VA range
+  kvm/isolation: improve mapping copy when mapping is already present
+  kvm/isolation: function to copy page table entries for percpu buffer
+  kvm/isolation: initialize the KVM page table with core mappings
+  kvm/isolation: initialize the KVM page table with vmx specific data
+  kvm/isolation: initialize the KVM page table with vmx VM data
+  kvm/isolation: initialize the KVM page table with vmx cpu data
+  kvm/isolation: initialize the KVM page table with the vcpu tasks
+  kvm/isolation: KVM page fault handler
+  kvm/isolation: initialize the KVM page table with KVM memslots
+  kvm/isolation: initialize the KVM page table with KVM buses
+
+Liran Alon (9):
+  kernel: Export memory-management symbols required for KVM address
+    space isolation
+  KVM: x86: Introduce address_space_isolation module parameter
+  KVM: x86: Introduce KVM separate virtual address space
+  KVM: x86: Switch to KVM address space on entry to guest
+  KVM: x86: Add handler to exit kvm isolation
+  KVM: x86: Exit KVM isolation on IRQ entry
+  KVM: x86: Switch to host address space when may access sensitive data
+  KVM: x86: Optimize branches which checks if address space isolation
+    enabled
+  kvm/isolation: implement actual KVM isolation enter/exit
+
+ arch/x86/include/asm/apic.h    |    4 +-
+ arch/x86/include/asm/hardirq.h |   10 +
+ arch/x86/include/asm/irq.h     |    1 +
+ arch/x86/kernel/cpu/common.c   |    2 +
+ arch/x86/kernel/dumpstack.c    |    1 +
+ arch/x86/kernel/irq.c          |   11 +
+ arch/x86/kernel/ldt.c          |    1 +
+ arch/x86/kernel/smp.c          |    2 +-
+ arch/x86/kvm/Makefile          |    2 +-
+ arch/x86/kvm/isolation.c       | 1773 ++++++++++++++++++++++++++++++++++++++++
+ arch/x86/kvm/isolation.h       |   40 +
+ arch/x86/kvm/mmu.c             |    3 +-
+ arch/x86/kvm/vmx/vmx.c         |  123 +++-
+ arch/x86/kvm/x86.c             |   44 +-
+ arch/x86/mm/fault.c            |   12 +
+ arch/x86/mm/tlb.c              |    4 +-
+ arch/x86/platform/uv/tlb_uv.c  |    2 +-
+ include/linux/kvm_host.h       |    2 +
+ include/linux/percpu.h         |    2 +
+ include/linux/sched.h          |    6 +
+ mm/memory.c                    |    5 +
+ mm/percpu.c                    |    6 +-
+ virt/kvm/arm/arm.c             |    4 +
+ virt/kvm/kvm_main.c            |    4 +-
+ 24 files changed, 2051 insertions(+), 13 deletions(-)
+ create mode 100644 arch/x86/kvm/isolation.c
+ create mode 100644 arch/x86/kvm/isolation.h
 
