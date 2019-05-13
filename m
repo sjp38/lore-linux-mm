@@ -2,214 +2,212 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99E37C04AB4
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:22:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 926FEC04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:36:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57C00206BF
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:22:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57C00206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 44E2520989
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:36:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Z+A0uN9k"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44E2520989
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D5DF66B000D; Mon, 13 May 2019 04:22:18 -0400 (EDT)
+	id D2BC16B0010; Mon, 13 May 2019 04:36:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D0F436B000E; Mon, 13 May 2019 04:22:18 -0400 (EDT)
+	id CDB9F6B0266; Mon, 13 May 2019 04:36:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD51A6B0010; Mon, 13 May 2019 04:22:18 -0400 (EDT)
+	id BCA656B0269; Mon, 13 May 2019 04:36:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3026B000D
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 04:22:18 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id t51so13637497qtb.11
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 01:22:18 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CAEE6B0010
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 04:36:18 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id h189so9381615ioa.13
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 01:36:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=T6/pQTNfWV+5FhfPspT7VB3KTL8ZP4icVJdClLngFMM=;
-        b=NKaBd+6r86OKC9oIT8bAavZ7aGHCRqhYKyElMBtosLkuzX33x2YDHhS5CpYOXu14Wh
-         uJG0Eu1euLvzcdtHHoaHw5mAH2fZIyjILN+M9MCpS2jCKcJ5d8kjIpENS7aPsqwxx070
-         EKQKaytdKTSL7YTOkhSvhtzla/h7ordcVUbCb+2TQ8P/QdTN1DuJo5t0p5WzWApvS4Yv
-         EzhHdTONYId/ITFcEL8rjwMtP7cCkaPpxDaHDe1Qe4OpUEGvNoA29HeLXT0bvlJj1mnu
-         msV8t1kXGPuo7QNMONPeFOduZHox5lugoWRs6UxkPeihU3KdNg0/llBp5TxZ/po3QReC
-         8ewg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVPpD8td6bwwNcE36G3zXTr99KiORL7TP6XygGzSCfnYyj3aDFU
-	VmDxDan7rw200LZj4Dby4w143j8+IrYayz8Rt5YuvfygQEQMXvbLgwUHpw7N1647uSUU7yHoAea
-	7+PgsXwDMqTGRnx0PoZ2AHGdj8d5VVIsEmG2fouRJRSYpQwwaDwzkl0sT+87m4DoKVA==
-X-Received: by 2002:a37:358:: with SMTP id 85mr20511875qkd.174.1557735738300;
-        Mon, 13 May 2019 01:22:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxGz1LQUUNRPtpkKqgOL5UwF5biw4ZRMm+sNzetqjTl343C04jfVXmfyZAzub9Bp3tWUopj
-X-Received: by 2002:a37:358:: with SMTP id 85mr20511843qkd.174.1557735737549;
-        Mon, 13 May 2019 01:22:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557735737; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=A/LTjUKq3u7qRwt9jLoPyIVtj9SXda11NSro60RTqLg=;
+        b=n+YMafLVkyyZBqhsHmftMxZHkijReBkdQFmTR1wu7ODcj72m0kVYijPEScf2svu3Z9
+         EMOtIXPYEgXw3QAbdvpBsUX6a6UyqSx+KJ3oAF/1FfH1GCEY+4yowt3hInzGnuBNNc4U
+         G4Y6IjIY/c+tQTBTnxwdEtUQuezQ/n8mS4knvR7sGYtjECoQBtYkYoJpxqSvlL7jQLXd
+         DUW2vhd1/0JOANoI/VkpD1R/acEGAfC5P6MNEz9NUsdy4HPZkYZvWAN+8OrMuBisXkJr
+         fxaBex6FviDGOAaqgFgwtCO5fA1FdVCvExzNgBS1tD8mCrL5t3n61Y3BMkXEsr2jiuKA
+         gBaQ==
+X-Gm-Message-State: APjAAAWR5jPzjmLPRx4CEH9lbbrTJ1KPkRQlpnTx8h32OnRQh/SkX/Z4
+	gAzBpwXGwKXZL3HjnzbL3Wf4ia6QfJ7rMEzDzkQAZBLShKaOH+k/oeVu/DV6qWotk/GGat+lsTO
+	CHrq5Cghg/3tD+n7CcaBpvvw8+nV82FIsoxDU7gNtqVa7K52Sh0m50A0gGjwxLlfsrw==
+X-Received: by 2002:a24:1a92:: with SMTP id 140mr16220365iti.26.1557736578278;
+        Mon, 13 May 2019 01:36:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwIeSVf60aIPdBLn6LrGBV3aCEfcEeXJmwKi1L4yZH6OwpwhgilQGJNF+jNOdZrMi07mo+f
+X-Received: by 2002:a24:1a92:: with SMTP id 140mr16220344iti.26.1557736577400;
+        Mon, 13 May 2019 01:36:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557736577; cv=none;
         d=google.com; s=arc-20160816;
-        b=G7iy/mny20y6mrWuNpa7lD/Xo58WRjYV+ELgYwHDeyojc+wI8PHM+BHqqtLemap9XX
-         RDxRzKWEcz+mBBeDkax0PsacRtp39Xpjmc+1Tm1z4ObYioL/oSXivPiUlt3NAr8+QhI9
-         mBfj9aZStqsVBy8kdagtrMLEUMf1CZXmeO4stmVPy+LpPl6mdtPhcdP4vYnE2C+WvCAU
-         1RV/Ri6hbOT80XUdtdvrHQu0ARGprmJyJnTPHyFBwwuvaar+EzSqokK/HOgQObkLOvLS
-         Kkb8jvMcMktQZjFxpEOmve0tDzcNRTaC0T0gEGE0K2t7LdCIVzH3O9I9EAh4SAyJNuCW
-         fsWw==
+        b=XYQ2pigYbM+pmdT6Lb7ItWG9pXLJ0HI4QeK4MBwKiWoXWfexgLzakozyvuz2L2Adsk
+         f+/t3HDYalaVXfEKgH18r9O3m+gLuELvYCn3pqZHLoELhG7mauOrrTXXBF6vHtwWyRdr
+         scqmw1ycJSAbx3sc/QHOozSRgbYjl7PFj6Q+uOV+iKMNelLIwYciNF9whh2EV0B0Cg3G
+         lcatq2Un8b1oVORTbovWFaQG2ogI/HH1yyuxALat7+iKPNEIg7NhsPSxplf+e6dWERC0
+         G0g0SmsTudYY1i3joeI4PjP+lvJQKC2hKWbOCsBO61+7xilX5JYjM1Uh0sNI4OEA6Wvf
+         m7sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=T6/pQTNfWV+5FhfPspT7VB3KTL8ZP4icVJdClLngFMM=;
-        b=uBG2oUSeLbcDkwGp3ZzTY7lZlxXbetrDj3AtcHI+aBefZgAceN33QZcDVrCim6iEJw
-         WizIz3RFsw0qtDeve0I0fvXyx+41LZKSxz5tN8mOZHptdSZWM3ochjUXRtrX/ISW3UJc
-         Im3dkNL4GjtX2KJ7CIWjBQcWDJEFxz2ZL/tppNqdjuriEknDOEk7Zww+n+bQ31QgJ5DT
-         Tfz0xfYdscN2me299xxpbqUSBzvou3XGkqBrG0Yi8wFe/8a2cWBSTQb3g1ZiYBRrDBDt
-         na/gu8F9l2D4U3nfc00ehdI6upwEgjWc0gIpqAIl224GSKyluWBagBj8MJ3jTza2rfEQ
-         9i6A==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=A/LTjUKq3u7qRwt9jLoPyIVtj9SXda11NSro60RTqLg=;
+        b=O1VyRXPzz/RzCiiY+4XuCMxfmZ68+8hx7ZAKay7JpUAc5FBK09ei9Q+8w0tsPO/YxO
+         ccyTaUSUVAnSFQwvtVKFZEXOkhPeyvAqd307OhvzJw8ntzx61U2aMT2WTRRHxIv2xVbl
+         h59X/2UmpX8RjN/mbql/sgww2ugpbYD6dcyxlBy7JDzlYe+gjrBf7KiUlqJP4hbunarZ
+         DvkReIRaPFP0rqKVfIsTOJnZlgnZwMx5IaIBWQ3WnL1i0BaTbih7BKzcRwtMhEuCY4Rl
+         8JCW9bwmGvXCKTWBcqpa45RbbK0ihnw0LlKXcFfIG+a8vnrhQw4qW10IClNioXOfJSrT
+         TQLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j30si229715qta.109.2019.05.13.01.22.17
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Z+A0uN9k;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f187si7616242itf.127.2019.05.13.01.36.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 01:22:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 13 May 2019 01:36:17 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 545A33082E24;
-	Mon, 13 May 2019 08:22:16 +0000 (UTC)
-Received: from [10.36.117.84] (ovpn-117-84.ams2.redhat.com [10.36.117.84])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6E67017500;
-	Mon, 13 May 2019 08:22:12 +0000 (UTC)
-Subject: Re: [PATCH V2 0/2] arm64/mm: Enable memory hot remove
-To: Anshuman Khandual <anshuman.khandual@arm.com>,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com,
- catalin.marinas@arm.com
-Cc: mhocko@suse.com, mgorman@techsingularity.net, james.morse@arm.com,
- mark.rutland@arm.com, robin.murphy@arm.com, cpandya@codeaurora.org,
- arunks@codeaurora.org, dan.j.williams@intel.com, osalvador@suse.de,
- cai@lca.pw, logang@deltatee.com, ira.weiny@intel.com
-References: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <bbfc6ede-01b2-2331-112e-fa28bc2591fb@redhat.com>
-Date: Mon, 13 May 2019 10:22:11 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=Z+A0uN9k;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
+	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=A/LTjUKq3u7qRwt9jLoPyIVtj9SXda11NSro60RTqLg=; b=Z+A0uN9kY/5akyp9FoyRxb1Be5
+	1Qigih1z3BK4FURzUf9KoYBXn/anfPh+e1A+sbbSS/HRRb8MLcbOyWKifHMJ6oOv0qad6VkOVfvEJ
+	iGe88evRSwyM6FRC08g6CBx0tpkMhp48t8Kbm6mK8WCsLjexMnSkrXTh+sRt2arZOAjGkP39tYOS7
+	T51OK83w1YaMZIPXUD9OPs7Wk3gDOWhiSrb6U2N47GR8LVKO99CX+8SHYzddKQgQtl0PQbA5ex2nJ
+	U5nzALEj53adVcan72GkNuBvJFAZ1nEhaMYuuT/t+BmkH3e2itGHs14rd1JPKaoMkAA5I9LKvYDEb
+	NeDXz1/A==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hQ6RL-0005UE-KR; Mon, 13 May 2019 08:36:07 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 25DFF2029FD7A; Mon, 13 May 2019 10:36:06 +0200 (CEST)
+Date: Mon, 13 May 2019 10:36:06 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Nadav Amit <namit@vmware.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>,
+	"jstancek@redhat.com" <jstancek@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Nick Piggin <npiggin@gmail.com>, Minchan Kim <minchan@kernel.org>,
+	Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Message-ID: <20190513083606.GL2623@hirez.programming.kicks-ass.net>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
+ <20190509182435.GA2623@hirez.programming.kicks-ass.net>
+ <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
+ <20190509191120.GD2623@hirez.programming.kicks-ass.net>
+ <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
 MIME-Version: 1.0
-In-Reply-To: <1555221553-18845-1-git-send-email-anshuman.khandual@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 13 May 2019 08:22:16 +0000 (UTC)
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.04.19 07:59, Anshuman Khandual wrote:
-> This series enables memory hot remove on arm64 after fixing a memblock
-> removal ordering problem in generic __remove_memory(). This is based
-> on the following arm64 working tree.
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
-> 
-> Testing:
-> 
-> Tested hot remove on arm64 for all 4K, 16K, 64K page config options with
-> all possible VA_BITS and PGTABLE_LEVELS combinations. Build tested on non
-> arm64 platforms.
-> 
-> Changes in V2:
-> 
-> - Added all received review and ack tags
-> - Split the series from ZONE_DEVICE enablement for better review
-> 
-> - Moved memblock re-order patch to the front as per Robin Murphy
-> - Updated commit message on memblock re-order patch per Michal Hocko
-> 
-> - Dropped [pmd|pud]_large() definitions
-> - Used existing [pmd|pud]_sect() instead of earlier [pmd|pud]_large()
-> - Removed __meminit and __ref tags as per Oscar Salvador
-> - Dropped unnecessary 'ret' init in arch_add_memory() per Robin Murphy
-> - Skipped calling into pgtable_page_dtor() for linear mapping page table
->   pages and updated all relevant functions
-> 
-> Changes in V1: (https://lkml.org/lkml/2019/4/3/28)
-> 
-> Anshuman Khandual (2):
->   mm/hotplug: Reorder arch_remove_memory() call in __remove_memory()
->   arm64/mm: Enable memory hot remove
-> 
->  arch/arm64/Kconfig               |   3 +
->  arch/arm64/include/asm/pgtable.h |   2 +
->  arch/arm64/mm/mmu.c              | 221 ++++++++++++++++++++++++++++++++++++++-
->  mm/memory_hotplug.c              |   3 +-
->  4 files changed, 225 insertions(+), 4 deletions(-)
-> 
+On Thu, May 09, 2019 at 09:21:35PM +0000, Nadav Amit wrote:
 
-What's the progress of this series? I'll need arch_remove_memory() for
-the series
+> >>> And we can fix that by having tlb_finish_mmu() sync up. Never let a
+> >>> concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
+> >>> have completed.
+> >>> 
+> >>> This should not be too hard to make happen.
+> >> 
+> >> This synchronization sounds much more expensive than what I proposed. But I
+> >> agree that cache-lines that move from one CPU to another might become an
+> >> issue. But I think that the scheme I suggested would minimize this overhead.
+> > 
+> > Well, it would have a lot more unconditional atomic ops. My scheme only
+> > waits when there is actual concurrency.
+> 
+> Well, something has to give. I didn’t think that if the same core does the
+> atomic op it would be too expensive.
 
-[PATCH v2 0/8] mm/memory_hotplug: Factor out memory block device handling
+They're still at least 20 cycles a pop, uncontended.
 
--- 
+> > I _think_ something like the below ought to work, but its not even been
+> > near a compiler. The only problem is the unconditional wakeup; we can
+> > play games to avoid that if we want to continue with this.
+> > 
+> > Ideally we'd only do this when there's been actual overlap, but I've not
+> > found a sensible way to detect that.
+> > 
+> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> > index 4ef4bbe78a1d..b70e35792d29 100644
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -590,7 +590,12 @@ static inline void dec_tlb_flush_pending(struct mm_struct *mm)
+> > 	 *
+> > 	 * Therefore we must rely on tlb_flush_*() to guarantee order.
+> > 	 */
+> > -	atomic_dec(&mm->tlb_flush_pending);
+> > +	if (atomic_dec_and_test(&mm->tlb_flush_pending)) {
+> > +		wake_up_var(&mm->tlb_flush_pending);
+> > +	} else {
+> > +		wait_event_var(&mm->tlb_flush_pending,
+> > +			       !atomic_read_acquire(&mm->tlb_flush_pending));
+> > +	}
+> > }
+> 
+> It still seems very expensive to me, at least for certain workloads (e.g.,
+> Apache with multithreaded MPM).
 
-Thanks,
+Is that Apache-MPM workload triggering this lots? Having a known
+benchmark for this stuff is good for when someone has time to play with
+things.
 
-David / dhildenb
+> It may be possible to avoid false-positive nesting indications (when the
+> flushes do not overlap) by creating a new struct mmu_gather_pending, with
+> something like:
+> 
+>   struct mmu_gather_pending {
+>  	u64 start;
+> 	u64 end;
+> 	struct mmu_gather_pending *next;
+>   }
+> 
+> tlb_finish_mmu() would then iterate over the mm->mmu_gather_pending
+> (pointing to the linked list) and find whether there is any overlap. This
+> would still require synchronization (acquiring a lock when allocating and
+> deallocating or something fancier).
+
+We have an interval_tree for this, and yes, that's how far I got :/
+
+The other thing I was thinking of is trying to detect overlap through
+the page-tables themselves, but we have a distinct lack of storage
+there.
+
+The things is, if this threaded monster runs on all CPUs (busy front end
+server) and does a ton of invalidation due to all the short lived
+request crud, then all the extra invalidations will add up too. Having
+to do process (machine in this case) wide invalidations is expensive,
+having to do more of them surely isn't cheap either.
+
+So there might be something to win here.
 
