@@ -2,108 +2,108 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9794DC04AAA
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:01:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7BC6C46470
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:02:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 46E892147A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:01:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7792D2168B
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:02:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YBdQmFv+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46E892147A
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="QnhBLyrl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7792D2168B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 093406B0280; Mon, 13 May 2019 12:01:32 -0400 (EDT)
+	id 154A46B0280; Mon, 13 May 2019 12:02:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 043F46B0282; Mon, 13 May 2019 12:01:32 -0400 (EDT)
+	id 106E06B0282; Mon, 13 May 2019 12:02:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E755E6B0284; Mon, 13 May 2019 12:01:31 -0400 (EDT)
+	id F10646B0284; Mon, 13 May 2019 12:02:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B19036B0280
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 12:01:31 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 63so9415792pga.18
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:01:31 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B91766B0280
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 12:02:47 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id k22so9835507pfg.18
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:02:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Ljy/U+bZu7KOD/jm5h/Nov5oW0yZ5jBLjvuaOwjQBsk=;
-        b=hFHzPOwgCupdldAR7+X1mmEkPMB/EzxDTRHscri++qZb91RbVSqR1hU4bY3KiU/33X
-         EAn2wMpBpI5k6VwShhEw+bQijFbiyqN3ONIZ1hqb1+SaoN+/p3EwEtODWe/nTZktH0xa
-         +H6xnWKoZzxJpaP+0eb2j31gBZJRBVm1Q6iiWMtydfE+z4FqrurGwa8PLkuGqxPPSl+2
-         U1+JGIItmPCjHKKCbyg8/v1xvMAbyeSBh74OaIOS24b+3p9mshjbafdwbZL5L6aa98N/
-         NnM+MvXlQWzjW2ng0ed3/C0vzqXxDknpODl10ptn0HDFR+SCeryIRA1j2eRqqq7f4V1p
-         nOkw==
-X-Gm-Message-State: APjAAAUizvdddw5slXIO9AhIvs1wMBlBPJfAZ/sj3O+4C+H6kx4lhxSM
-	SfMgqEnT5S3EPPWwGMKba+9PXP5rAa/D1D71WJ8Gep5UxDHM3kb37SBwlkjywkjXqgYdUVgEAOu
-	w3S2pPNjp9dTDK50uYhGHreBj4LIfX5YOz41opliIkGm1YQ0xjYXkbljmyFr5CO1+hw==
-X-Received: by 2002:a17:902:b614:: with SMTP id b20mr30369905pls.200.1557763291392;
-        Mon, 13 May 2019 09:01:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQYp7hA4AI5l+PAXXs/Fjyk6t6XI96LdGfy/zTJtOMLYzXlWOUIgBb6xnVh/d6aF1G8R1q
-X-Received: by 2002:a17:902:b614:: with SMTP id b20mr30369820pls.200.1557763290718;
-        Mon, 13 May 2019 09:01:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557763290; cv=none;
+        bh=eCJScE0b+VNTPBqsRt3H1dcVApPbPwSgCSFEuoANhc8=;
+        b=Y55b7DiaHOdJnMHhtd/c9qJdqikzPE94sXDJQDWYdwsfdHnjDncS7myAJHNT9ZIZSO
+         Om4RJAYaeuCGpHd8yvUYBfexT4kx3cXhcbEMD/ICVDsDMzs0N5zrtvXgnMyDiJWX/nol
+         Ijgd6DJTHi9LtfU2p/rM/RX1erKP/fEz9FPyvVbSbYXESlp5OGi+4Ut3OH5A5Lct7o8j
+         ZbZXhoJ+IbiJtKejNDhTUyU+Wm3J/BnwI8pLiagg/OZy7MmODlictYM6XgcYE9pZK1U5
+         Pw33tB38DpCkslcHm/XEaFF5j4HocnVEtd69RF4QD2Pjqg9VTdhgQPfGhNbYTiW0K1jL
+         jIbw==
+X-Gm-Message-State: APjAAAXpHTGR74tAunhDTNRlMsPEpO0U2xxp/KN5e5DNa7vl+0lrKdpB
+	Xpph7SbF6VoMDLvOhAq0+3/G0Ki+SNzzJb+g7ZqduabdsglzX5fLPp9ytKE+mkC62WFHkX+Dui9
+	ZefMZ1nWlB9edGLRp+NIYCF0PJJ4kHl7zr1T7C5LzfvWlLawLUBE+6Iz9JpYGfebZQw==
+X-Received: by 2002:a62:4595:: with SMTP id n21mr34777447pfi.79.1557763367459;
+        Mon, 13 May 2019 09:02:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwPYOxXxzfitGhiWQsDBbjPu5mmPqR47fusm4yuoa9DKMYaPo4yKkPplVPWv9mL7XaPqKfL
+X-Received: by 2002:a62:4595:: with SMTP id n21mr34777316pfi.79.1557763366635;
+        Mon, 13 May 2019 09:02:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557763366; cv=none;
         d=google.com; s=arc-20160816;
-        b=ctUOJUjGXnh8VnsGmxST5rVzA5mkbYjzpb63VWfd8myvmouwFAVOrDZXSgfyOVgtk4
-         yaof4qw90ah9N48cMTd7XaUkBB/Iry5ytnv+eUMTSR/udedWm3At9w4dNnQxVfa0jhr2
-         n90U+VwL/6pFniCBurEnzU9LFMbdiTXjsJYJttH+XWZvET8WvOXitKGwpu5HrO/HFKmA
-         GpAsNdi5uEEGZEJ3ljTaX+ryByHnOgS36hmSE2t6rxkH1FbdBUUM5dbp7l8M/1nJ49mW
-         bv0nZo7P62HLHH6y9cFrpvyHUX3i3GG8EDj0CK20oD7iVwQVo2/YMSTkqLpIhYDdLeKJ
-         XqZA==
+        b=K6oD4RgmvexmYHkCiESu2u+Quzs0L+H4NzERXmkVSxn+OqAOkuhoD59RPbKVlh98Jc
+         wa1CYFV00nAhYKHsFfWiJh5Ts6xq/1Pqs3JVbA5EMahzI1CgfDKGUNcg6ixP3juMPpFp
+         by/ccp9ckvZpGrQvt6m62N3KDi33M77/OsaUvcdZrKxaX9pHySp1Q5ci5SgHJtKalqWs
+         PH6wpHJ1fj5nFaDGCXFZR2lAc7Rc5RyQCbXhpPSOEde1BxzcNfMXTNM4ftkseZ5BFk48
+         TjTvtI5zTro15zViX+LxsbzNPTwfFehzodXlEdjZvuREme8PeTwO6gUn7LU+/nrmG6/S
+         WC6g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Ljy/U+bZu7KOD/jm5h/Nov5oW0yZ5jBLjvuaOwjQBsk=;
-        b=KTNicf/GeZL5VBBJ9eYHt34Qgq0hK4dT+iIXSZDup4FXuebwwdQSccy+fnL+ZvS3z6
-         +kVTtM9WkvJ80y5MPpdKKDD9zn3ZXvhcADgfOEzYBTLuRBkRAfI/hM/GVdUNL7/Fpgp6
-         rbM8UauKUjIR7mTGCLvDpOdeyoc29Oqd0ZPbisBnhQbUj6v674LBC7pGmOWvbZSmJHwZ
-         cnvKfVC8JM7GLllp+jnB6k2TZ4OOkYklSNeJMtmBgMV2OeNlUh3XvePUHAXTWvQP5b2U
-         tV6PkzDaLkoHs6v6OUe1G5YQoSUanxS0e8gsb5IiGi0OGEqwn8M1Nwr4XGhrfXZDFgMh
-         GBwQ==
+        bh=eCJScE0b+VNTPBqsRt3H1dcVApPbPwSgCSFEuoANhc8=;
+        b=btsDXjjepyk0OWFBpwLuhpNKUj3/3YOlqVW0cvQEhs2CZ8SupF7n+XTyQmy4vvO6ZZ
+         Xlve5DgpXJ6eDjF7B9LoVE1cKk3V+UZzeDJ6mRiNXXlN/ftC/F8AVhtlUCUt/b4vb3xm
+         PwPpcujPK/xQWrwCm1XGJH/ydEttaRZ9nnvZxm0Ub6hvuT8gMC3HrS98m6WGuox0nBo+
+         23TP+mj4mBRKR0KYTxR3WICsGgWBtKdwaMtUcchrxpBFX+t7rO8L4R3wUc+hTzVYNVfg
+         3LCJ1Ue+EsMQ8jyzd7nbH/6f8RNtLsDBm1LptwBjgBlRlre+q3nsxO/N7eepwiPr5Xd6
+         W1Qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YBdQmFv+;
+       dkim=pass header.i=@kernel.org header.s=default header.b=QnhBLyrl;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v40si16502367plg.409.2019.05.13.09.01.30
+        by mx.google.com with ESMTPS id 3si17679359pgt.305.2019.05.13.09.02.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 09:01:30 -0700 (PDT)
+        Mon, 13 May 2019 09:02:46 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YBdQmFv+;
+       dkim=pass header.i=@kernel.org header.s=default header.b=QnhBLyrl;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f50.google.com (mail-wm1-f50.google.com [209.85.128.50])
+Received: from mail-wr1-f50.google.com (mail-wr1-f50.google.com [209.85.221.50])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2370E21655
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 16:01:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1731E21881
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 16:02:46 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557763290;
-	bh=lEibKcwC5gVE6uqe1w9PcI6jNFCNtyn0TO/fffg8YH8=;
+	s=default; t=1557763366;
+	bh=beoZx4frclCxoXSfTxDXkTuSz0AY0hIAwe1mG3lYD+0=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=YBdQmFv+6f0ehcqPTdycmmzLGxIGw7o9OdfJad+Pew98TJbknjnEOFU5Ia677bZeP
-	 7yQRnNXKQ7beIL8WyMqISTgRWj+CyN9f5Tkextzwte6J/imWrq8bxznyj77y8IXwbR
-	 0OGW+acgJQTjsK+TkAhuAsfAx54+ZMBW+kf/71MQ=
-Received: by mail-wm1-f50.google.com with SMTP id f2so14279677wmj.3
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:01:30 -0700 (PDT)
-X-Received: by 2002:a7b:c844:: with SMTP id c4mr5457540wml.108.1557763286508;
- Mon, 13 May 2019 09:01:26 -0700 (PDT)
+	b=QnhBLyrlFAFdFMdYGjrxtpZTRix4ohkczb2rqgQsWALhgFd6D7tiD8w3qEuQjKa4t
+	 6gACJ1mq+rjkrjjgv78C9L1ngGrELfh60U9CNvxeFR0bF4yIiw25vABiO2v6YO8nwh
+	 2BOKdf6lHrzPUcK3M8mxJ2O4+dZiPBseqIuRUnko=
+Received: by mail-wr1-f50.google.com with SMTP id w12so15940309wrp.2
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:02:46 -0700 (PDT)
+X-Received: by 2002:adf:fb4a:: with SMTP id c10mr17614362wrs.309.1557763364695;
+ Mon, 13 May 2019 09:02:44 -0700 (PDT)
 MIME-Version: 1.0
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com> <1557758315-12667-26-git-send-email-alexandre.chartre@oracle.com>
-In-Reply-To: <1557758315-12667-26-git-send-email-alexandre.chartre@oracle.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com> <1557758315-12667-25-git-send-email-alexandre.chartre@oracle.com>
+In-Reply-To: <1557758315-12667-25-git-send-email-alexandre.chartre@oracle.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 13 May 2019 09:01:14 -0700
-X-Gmail-Original-Message-ID: <CALCETrWmvcrO0bBEw7iL-GnCED6hTz=FD+nANZkdQRo2R-w_3Q@mail.gmail.com>
-Message-ID: <CALCETrWmvcrO0bBEw7iL-GnCED6hTz=FD+nANZkdQRo2R-w_3Q@mail.gmail.com>
-Subject: Re: [RFC KVM 25/27] kvm/isolation: implement actual KVM isolation enter/exit
+Date: Mon, 13 May 2019 09:02:33 -0700
+X-Gmail-Original-Message-ID: <CALCETrXADiujgE6HJ95P_da5OyB05Z5CqR028da50aCUHv4Agg@mail.gmail.com>
+Message-ID: <CALCETrXADiujgE6HJ95P_da5OyB05Z5CqR028da50aCUHv4Agg@mail.gmail.com>
+Subject: Re: [RFC KVM 24/27] kvm/isolation: KVM page fault handler
 To: Alexandre Chartre <alexandre.chartre@oracle.com>
 Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, 
 	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
@@ -119,60 +119,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 7:40 AM Alexandre Chartre
+On Mon, May 13, 2019 at 7:39 AM Alexandre Chartre
 <alexandre.chartre@oracle.com> wrote:
 >
-> From: Liran Alon <liran.alon@oracle.com>
+> The KVM page fault handler handles page fault occurring while using
+> the KVM address space by switching to the kernel address space and
+> retrying the access (except if the fault occurs while switching
+> to the kernel address space). Processing of page faults occurring
+> while using the kernel address space is unchanged.
 >
-> KVM isolation enter/exit is done by switching between the KVM address
-> space and the kernel address space.
->
-> Signed-off-by: Liran Alon <liran.alon@oracle.com>
-> Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
-> ---
->  arch/x86/kvm/isolation.c |   30 ++++++++++++++++++++++++------
->  arch/x86/mm/tlb.c        |    1 +
->  include/linux/sched.h    |    1 +
->  3 files changed, 26 insertions(+), 6 deletions(-)
->
-> diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
-> index db0a7ce..b0c789f 100644
-> --- a/arch/x86/kvm/isolation.c
-> +++ b/arch/x86/kvm/isolation.c
-> @@ -1383,11 +1383,13 @@ static bool kvm_page_fault(struct pt_regs *regs, unsigned long error_code,
->         printk(KERN_DEFAULT "KVM isolation: page fault %ld at %pS on %lx (%pS) while switching mm\n"
->                "  cr3=%lx\n"
->                "  kvm_mm=%px pgd=%px\n"
-> -              "  active_mm=%px pgd=%px\n",
-> +              "  active_mm=%px pgd=%px\n"
-> +              "  kvm_prev_mm=%px pgd=%px\n",
->                error_code, (void *)regs->ip, address, (void *)address,
->                cr3,
->                &kvm_mm, kvm_mm.pgd,
-> -              active_mm, active_mm->pgd);
-> +              active_mm, active_mm->pgd,
-> +              current->kvm_prev_mm, current->kvm_prev_mm->pgd);
->         dump_stack();
->
->         return false;
-> @@ -1649,11 +1651,27 @@ void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu)
->         kvm_isolation_exit();
->  }
->
-> +static void kvm_switch_mm(struct mm_struct *mm)
-> +{
-> +       unsigned long flags;
-> +
-> +       /*
-> +        * Disable interrupt before updating active_mm, otherwise if an
-> +        * interrupt occurs during the switch then the interrupt handler
-> +        * can be mislead about the mm effectively in use.
-> +        */
-> +       local_irq_save(flags);
-> +       current->kvm_prev_mm = current->active_mm;
+> Page fault log is cleared when creating a vm so that page fault
+> information doesn't persist when qemu is stopped and restarted.
 
-Peter's NAK aside, why on Earth is this in task_struct?  You cannot
-possibly context switch while in isolation mode.
-
---Andy
+Are you saying that a page fault will just exit isolation?  This
+completely defeats most of the security, right?  Sure, it still helps
+with side channels, but not with actual software bugs.
 
