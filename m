@@ -2,124 +2,168 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19D62C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:01:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6D78C04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:10:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3742208CA
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:01:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="b8UGgDxX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3742208CA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 7E08E2086A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 18:10:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E08E2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 718BD6B0005; Mon, 13 May 2019 14:01:08 -0400 (EDT)
+	id 0F7B76B0005; Mon, 13 May 2019 14:10:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B2066B0007; Mon, 13 May 2019 14:01:08 -0400 (EDT)
+	id 0CF496B0007; Mon, 13 May 2019 14:10:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 568AD6B0008; Mon, 13 May 2019 14:01:08 -0400 (EDT)
+	id EB4EA6B0008; Mon, 13 May 2019 14:10:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 308196B0005
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 14:01:08 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id 49so8171828qtn.23
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:01:08 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1E96B0005
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 14:10:06 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id a12so13596384qkb.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 11:10:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=PlYvmqxRpVISnjsRFpBbrKcWou6q8G660sOR1uIfQB8=;
-        b=VrqJvKSgfPeNXjUkgZmW0lGy4aS+1IDJagb7NCjREsS0QEoWK7/KAjC1lMGMHMmPDw
-         Llz5RvvVbmvv0mbHkhcoYj1EYpHQYmx6Aei5rpqOPSxy0dDR9WVce1DLfVwIDEw4Hh2G
-         1FWMI17w7Q2FL1Drww98y2A/73bfgLvyC/mPO6BbYyH33aMZGHpKRA9Ttm/oBzZwQ2Ar
-         E/IRehktyEvhNnexIdu5FfHRHoPn0vDDso8NXbxsCMGLNCJT6sKaepZvhZy/m68eU6zN
-         vmK0LNlqKHwqHpaxAA89uYMVm5O03PBqOYD5me4eKruoMsiUfJsmctjfIrVYZ6TjNXxw
-         in4w==
-X-Gm-Message-State: APjAAAVawHHIpBnvyXhSKtLWVeO+XQ8BzAyElL9QY0nyOh2nIEh8hjJN
-	LD0RUnRbbrBRkkgp1hcDCLQuyOcpB3VxKUzzSlaBJuMaSpYos9mR+ZTcrQBNCg9G2trCUjRF94g
-	9GFQXniWK7mXsc8fbtRIH7dw/Jn2QpzBQJuOND3HpjcUpw9x0y9fMooUJ904DDjY=
-X-Received: by 2002:ac8:3702:: with SMTP id o2mr25296499qtb.119.1557770467913;
-        Mon, 13 May 2019 11:01:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJeU5BKZi6l6EKCqLRFvjCmBx0VSb/IIryvEN+/td+j6RDQX2QIxf3uUWGhYy0Y5kkhxyW
-X-Received: by 2002:ac8:3702:: with SMTP id o2mr25296372qtb.119.1557770466679;
-        Mon, 13 May 2019 11:01:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557770466; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=R8/txI0W2+q3QpmLYg0kWx8VfSmW9zxrPZWFMFqQ25g=;
+        b=Pwdhpwi+yyjhKYk7KeWA2JaY2J3WDpmDd2K02rVnF8WQ8ukEQ51tM38PAvFIi3vIyj
+         HVn5SvMRgGKaHl4up6Vge/8x7+SiSHg/IcTwppWJ7j8c8s7vOL8k1LEfQrrOzOoBr3jn
+         8ZhBgoHZcsXzTO3tjB+HHVM9NPYC4WAusKbIkgOXV5bJZg1Jb/e9o8K2Q+r3s0mkw5dh
+         MYN05liIeM6frPyHqSfMoHNoZgtImt/B5ksKHdp63rXDzcgs9rQ85Odj2L0PhVtwSGr7
+         P7gcwq5+BS3iooF+JOQ+yHFLeyHAzs35rodViMZC93aq36zet6wpnRzLOE8u0R7rEhTT
+         CldQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUFbSJ02ZQj7hZJZD81wC/ZtYHHe39O1pfP+tuiOCtvYT4VBVMz
+	xnrguVKBp8viyt68iTbiPR765x1Q7VeOJnLI6/1ROLbo/d1sUW/AG12JT9tVEaPIVZjBIxb4jaQ
+	FVFd4v/8S5XufduDLvTIiYcGZxepF4nv9Zpt1atjjb8DTRnzJX3I5nm2MAEushvKSgg==
+X-Received: by 2002:a37:9ce:: with SMTP id 197mr23686945qkj.190.1557771006513;
+        Mon, 13 May 2019 11:10:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwDMIXTc43kl1EbvzXOzd4gsWvWruMQDGmnlHVulFfBaPtjcKrZ3RP92gRVruCoD7ZuH677
+X-Received: by 2002:a37:9ce:: with SMTP id 197mr23686881qkj.190.1557771005858;
+        Mon, 13 May 2019 11:10:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557771005; cv=none;
         d=google.com; s=arc-20160816;
-        b=yoq0Hbz06hR5FBx9+yhgcAS4FlNaHp7ukqc4vtOjIaatLm0eOhct2YL2ehHn3LuJm5
-         ev89wW3YpgAvJpF66+tHfSbY51Hm58bcFIktoQuJooojp1GKR8KDGfXwfPdzDK8I1veg
-         XeeUVnta7FRkjlVqEsbWBQNnQuIbgJApdBB3f7oRHsUzcdKb6TKNpG9txBdFtL2KAmZQ
-         Yw2lqz1FQKsAZ0gGpUpvyLZeO5nk362yE0FIcJPehef455lgS3Nu2l1MN2zO7kQmcIhV
-         C0//IsFpHVkGh8p38ztfucKJNIzMuwWIBnYPQtkKuEBuHMZlqqoCGCcway0oe/rN99VO
-         SDhw==
+        b=APb1qNGpFbwdq780QkWfY4+/l/1I2St1lJdWkz+dAYZKJNhXdwmM9u7H4tByCE7Pn4
+         OH+ud9PQ6984lSijndclxdI9IZCJFu8oEHbxswQNc95riTVFVYI9n4jbXQhSg6hqhdaF
+         jD7he00+XvV47R5viDZpzwcSMXJ9X3pYypYEaJU8/MEMk4XqJFdwULrkiifd269H+we2
+         iDASNfFlK5PDNfhSLNOGYLfxJadqrVldlF9eXavAwm0nfGKHRZaqrfnuTZVYePdvR8Xd
+         CXRw8x1F/iGD3X6Iiewb8PGDfB57ZnkIlv0bDBWdDVPCMuXJfnrCzaXMv8j9qWyrdJkl
+         l+Sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=PlYvmqxRpVISnjsRFpBbrKcWou6q8G660sOR1uIfQB8=;
-        b=I56o3N+5+Kba3H9XejAc4Uu6crwcsN1phMKVj2g0Nx/UEnwk21RZWHPvVxohfQQ28E
-         Y1wMaARG2B5ly32E/ejvg/qkrPsu3PpQRKcN7hdJ56bHfR7NbCfkRW2vbf2hf2Y5x7oS
-         yU6tIRRYofrDi91GwskeEuxWFGOpA7kByRTVKu0lE6a0dU6xH5bTlKAQy+0aczCe8tpu
-         ckU68tKJw59e0uZOFL2UubIeznX7cQ6l1GEmd7hzAbFT09+3IfcOnR/2JngLCrCtP49F
-         XDdwquMOut4PCEiHa+bcukdujURgFS8WNkhtV7rdGsn6JwariVR885+vDldtP8DXlMCb
-         EC3w==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=R8/txI0W2+q3QpmLYg0kWx8VfSmW9zxrPZWFMFqQ25g=;
+        b=rhDAogve5y6ViODR1sBOmniTBjr8owImWz28sSvUhdfMIdExcVVa2g5OrhI/SEQqPX
+         40ZNFvDndzmiwL3qty5buMKkM4xoFPVOc6nkRRrETeYaBYym1I41W1ucJFsRKuj/KlZn
+         KNqde6wLRPsNDEt0gOSetcfKAfoy3owH1gCd8Q1uXHaQTIkEp0BQWOXEmk7tNiQLP68K
+         SWMV8AU+Qot6a1N2iUqZNRn6uDM6tH0b4wL67UfqXbnEhUrk/Fh5fBSprWb9gjrN83KH
+         2jj1sQQHG7npr4uWjnvwMlvuSaMz+7TIV1QMctzSQPH1n/YwebWWRIqgmaSR/SuG6Jnx
+         ojWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=b8UGgDxX;
-       spf=pass (google.com: domain of 0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@amazonses.com
-Received: from a9-54.smtp-out.amazonses.com (a9-54.smtp-out.amazonses.com. [54.240.9.54])
-        by mx.google.com with ESMTPS id y34si2230995qvf.20.2019.05.13.11.01.06
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v25si69894qkj.53.2019.05.13.11.10.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 13 May 2019 11:01:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@amazonses.com designates 54.240.9.54 as permitted sender) client-ip=54.240.9.54;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 11:10:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=b8UGgDxX;
-       spf=pass (google.com: domain of 0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1557770465;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=PlYvmqxRpVISnjsRFpBbrKcWou6q8G660sOR1uIfQB8=;
-	b=b8UGgDxXFtgOe6/nHEgwLitQKKdP6MaTm72eml72TE9fnqIiPmXw8fT7pLun0Kck
-	rTcHdXuzgkeKJJQmYht5nMnPLcckFMsU/bqzVWYwIlrnDkBQuekNUTWLhxi0ugBfjUe
-	6vhOsZoNl7l4/KTlnny/6ogqiyJ4zFkjdnQwfoKQ=
-Date: Mon, 13 May 2019 18:01:05 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Roman Gushchin <guro@fb.com>
-cc: Andrew Morton <akpm@linux-foundation.org>, 
-    Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org, 
-    linux-kernel@vger.kernel.org, kernel-team@fb.com, 
-    Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, 
-    Rik van Riel <riel@surriel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, 
-    cgroups@vger.kernel.org
-Subject: Re: [PATCH v3 4/7] mm: unify SLAB and SLUB page accounting
-In-Reply-To: <20190508202458.550808-5-guro@fb.com>
-Message-ID: <0100016ab25aef20-4552213a-13e1-4aff-ba52-e970f3ac7fd4-000000@email.amazonses.com>
-References: <20190508202458.550808-1-guro@fb.com> <20190508202458.550808-5-guro@fb.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E75513087951;
+	Mon, 13 May 2019 18:10:04 +0000 (UTC)
+Received: from redhat.com (ovpn-112-54.rdu2.redhat.com [10.10.112.54])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id B974E18A5D;
+	Mon, 13 May 2019 18:10:02 +0000 (UTC)
+Date: Mon, 13 May 2019 14:10:00 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] mm/hmm: HMM documentation updates and code fixes
+Message-ID: <20190513181000.GA30726@redhat.com>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190512150832.GB4238@redhat.com>
+ <89c6ce48-190b-65df-7c35-a0eb0f5d936f@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.05.13-54.240.9.54
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <89c6ce48-190b-65df-7c35-a0eb0f5d936f@nvidia.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Mon, 13 May 2019 18:10:05 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 May 2019, Roman Gushchin wrote:
+On Mon, May 13, 2019 at 10:26:59AM -0700, Ralph Campbell wrote:
+> 
+> 
+> On 5/12/19 8:08 AM, Jerome Glisse wrote:
+> > On Mon, May 06, 2019 at 04:29:37PM -0700, rcampbell@nvidia.com wrote:
+> > > From: Ralph Campbell <rcampbell@nvidia.com>
+> > > 
+> > > I hit a use after free bug in hmm_free() with KASAN and then couldn't
+> > > stop myself from cleaning up a bunch of documentation and coding style
+> > > changes. So the first two patches are clean ups, the last three are
+> > > the fixes.
+> > > 
+> > > Ralph Campbell (5):
+> > >    mm/hmm: Update HMM documentation
+> > >    mm/hmm: Clean up some coding style and comments
+> > >    mm/hmm: Use mm_get_hmm() in hmm_range_register()
+> > >    mm/hmm: hmm_vma_fault() doesn't always call hmm_range_unregister()
+> > >    mm/hmm: Fix mm stale reference use in hmm_free()
+> > 
+> > This patchset does not seems to be on top of
+> > https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-5.2-v3
+> > 
+> > So here we are out of sync, on documentation and code. If you
+> > have any fix for https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-5.2-v3
+> > then please submit something on top of that.
+> > 
+> > Cheers,
+> > Jérôme
+> > 
+> > > 
+> > >   Documentation/vm/hmm.rst | 139 ++++++++++++++++++-----------------
+> > >   include/linux/hmm.h      |  84 ++++++++++------------
+> > >   mm/hmm.c                 | 151 ++++++++++++++++-----------------------
+> > >   3 files changed, 174 insertions(+), 200 deletions(-)
+> > > 
+> > > -- 
+> > > 2.20.1
+> 
+> The patches are based on top of Andrew's mmotm tree
+> git://git.cmpxchg.org/linux-mmotm.git v5.1-rc6-mmotm-2019-04-25-16-30.
+> They apply cleanly to that git tag as well as your hmm-5.2-v3 branch
+> so I guess I am confused where we are out of sync.
 
-> Currently the page accounting code is duplicated in SLAB and SLUB
-> internals. Let's move it into new (un)charge_slab_page helpers
-> in the slab_common.c file. These helpers will be responsible
-> for statistics (global and memcg-aware) and memcg charging.
-> So they are replacing direct memcg_(un)charge_slab() calls.
+No disregard my email, i was trying to apply on top of wrong
+branch yesterday morning while catching up on big backlog of
+email. Failure was on my side.
 
-Looks good.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Cheers,
+Jérôme
 
