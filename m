@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23CA5C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C63BBC04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D25072084A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7B59D2084A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="MqxRlocD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D25072084A
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qAq8bRmq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B59D2084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7CEF6B0010; Mon, 13 May 2019 10:39:16 -0400 (EDT)
+	id E18B86B0266; Mon, 13 May 2019 10:39:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D06A86B0266; Mon, 13 May 2019 10:39:16 -0400 (EDT)
+	id D9F306B0269; Mon, 13 May 2019 10:39:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B81FF6B0269; Mon, 13 May 2019 10:39:16 -0400 (EDT)
+	id C24206B026A; Mon, 13 May 2019 10:39:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BEC16B0010
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:16 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id g63so12279408ita.6
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:16 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2016B0266
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:20 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id i16so2516877ioj.4
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=BckiUE2qwd6ce7s4e94ZCEH08ViWVb2Uhow4MmaOmmg=;
-        b=cCW7EJyyyiEMkzyWSb5Y9qMt4w+4+WGLbAoqk2HAf5Ny5u3KR3sLUEy+hm2G65mprQ
-         2aKBozA85jNAcexthHymh7Sm4jsm6YcDh2lZiyBtsMvkT1maGmZ/svtepFt5DsRh0qBA
-         Un5l2jME6f/4a1pNHZMH43nL20ZO4zn/mabBKOzTgT5VTbj18GBoqzHLQkXItsLYag70
-         ON0DSpC+lfUy4LMrr99IlRQSAWzjZNC8alVcJmzSi7K+qSAD/YFxdBzLObJPiaR340ad
-         PniEpPAPVM1O9dlwr1PrN9/HR39Z1X7KahyH0es7mmnGN4+Gro9k8hBc1zGDsDUMprG0
-         zgMQ==
-X-Gm-Message-State: APjAAAW10c8o4bYlmpSFngQQTTkri50/teT1UXZYn2vfrZxQQqEiqiKe
-	JW9SoyFSsREaiWQyxoDCfLeJO0wmrYBGGX2Ih52n4XBudUn0h2A7yY76eSBjeLVwhwyaMsIJhME
-	owYBIeaEOidpXUfPRQiNfgt/kwO6zqz19UTtCYh50JnEecproC/uDQNQGlyNPaHO8AQ==
-X-Received: by 2002:a24:1f50:: with SMTP id d77mr17645435itd.25.1557758356238;
-        Mon, 13 May 2019 07:39:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqfgMm/81O7+/n8LVlwszWYEPY/hPItHtexhaRLbnP4Da9OGzrHkgkp2B2zoqudlVVXDVf
-X-Received: by 2002:a24:1f50:: with SMTP id d77mr17645396itd.25.1557758355606;
-        Mon, 13 May 2019 07:39:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557758355; cv=none;
+        bh=wqdeci0HyBGB7YKvZMkvhcTkiB8MUENeuIRahUviMQQ=;
+        b=p/glfFEFzh6IVRB9pnsmcdQZl0HnbkeKHZ2D1M5/q+JO6Jd8lPK/mCMV12rgo8gDQC
+         +Ry1TSFDRmvqHMHqBLIBrtHWHvJo3NOhqB+MPsDpE+o/IFkR2UEwJGzwGyS2nikO+LTi
+         hFX6dSJ/pnSG5bdyUBi1aG9vCD0ayxXPKJvO1rbsTLkY2b0c108J9TDJOLKhzwm5Aq0A
+         Si4AUNQu6iKwQOg2ukcpd89dFf0VKrKL47BaxdRCPYSr+8L8fjpx3l11y9Gqf50tRKTX
+         9AWmeIUqS9vlGdmm0KefMRsNXmufS8p0ZdNsvpkzxMadE++yMQeaRHpH6xl/JwhSy0BG
+         ByCw==
+X-Gm-Message-State: APjAAAVUNQRV6K9aC8PzsRl7hX5p9mhPkTDCYDBasWzSaBDZ043PY9wM
+	/6EpG/utl8zAHvc8ktTQ0EITsGsibabLei5eb3mPwDRFxnz+edV9yO3LhvBcFR2fhMwHYZHD/ho
+	NXdvqFOmnW+GkO1StjhOHzjwj7Fqr5FmJKv9wQt9OTDr7CmrIMrV0temQsTU6qHtoDw==
+X-Received: by 2002:a5d:9dd2:: with SMTP id 18mr16342290ioo.7.1557758360369;
+        Mon, 13 May 2019 07:39:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbHyYgAUX4Aq3vb3o3mQEzZ8auOj/lQzJqO3TmDMqsVX5kZMF+1FmSAoWTemeOXBOfw+BV
+X-Received: by 2002:a5d:9dd2:: with SMTP id 18mr16342255ioo.7.1557758359629;
+        Mon, 13 May 2019 07:39:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557758359; cv=none;
         d=google.com; s=arc-20160816;
-        b=NRrpcRnuidmR/nzXWJ0ow3NhscjF84FrGBa58Pri/POz0cSnEkV34dSfKBFDyGHJ6w
-         fd6g9cMSIKPkDkbeiNvFv65vskcZcurfp2DL9SwEAp2/ZF+eA7HvrwhYcrXvuseEnY4S
-         MXaLiWL7G3hdXAgXj/32Mxyx3R0/D/vOMjOoECPguOgP1Jus3iaal6H9Jcbu0vKm4wAD
-         JPjyFtj2+h7yW669S2PMcY68BrarvcOh0TbOq9n3S5KxW1onLfCYYBnKAgv8j20wzD6F
-         uNgKEZV3L5u9hYQOyJLaxcNpl4WxI70ip1KNtuIrWqdGr61ey2SD2UMNHjhFxBQ72bBF
-         OjEw==
+        b=dpYEev6WzlRVo7uK7UAiQzEILQLqI5l8Qb2dBD8xthE8s5VX/RCRxEPrhi8pRWRA8S
+         u19Ry6t9wzwxrhY0ShB3RUqoS+whO+eEo8fKnkU2D+gQSqo3tHKGpqslmOsjJ3KsD8uE
+         e6xV6J6DxSIMJQSJpV9WGEPuSasekTruol3014cxeW64J/K/LJm7HC9+atQFlmhS+s5n
+         yeq0oJyHWAx1CT7K6PxZTGA6CFJPLi8YHNxyAdKU+FQU976tTtvqNOBVLFdK806HkVdh
+         kproeiOOFJusS9gNfH8dXZqocTtI58EQKpDkbu3zhOk/rVK43KVjlXZKu7AaZnAK0TPO
+         KTxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=BckiUE2qwd6ce7s4e94ZCEH08ViWVb2Uhow4MmaOmmg=;
-        b=y8OGPgDjh+kmlJ7bTzQGxxO7ygD+R/SvEtUATuB1Jo+5qedHUhQeY7pxIFu0mshAeN
-         d9C5BZPxzFGenkRTwPKirEGlxHwnRj2q39w+MMk7+O9TfBCfknNm/pWVND1/6FhkTssG
-         hf4PbeUwr11aEdr1nILxNvDjQ5/VNoikxFLkjTnBg+Ss8Ckog7iyNTuX6evafOxLNP78
-         2TYDSBx6zoEYFh18s4xvcAO5rjrvMhjuaraNlUdtcteqFZI7rqgvGUuHxgdcBqCmOlvK
-         FQcT/K4jRTjIuT0mhCTUEqjAhu7RlRBnUj1SAjoFeSyEGKryNqKsi+q32dPWcogc9V2j
-         e2Yg==
+        bh=wqdeci0HyBGB7YKvZMkvhcTkiB8MUENeuIRahUviMQQ=;
+        b=gGU6yI2JgyerelolOLgg1YAEEWuGBdhlPKvLAsnJJLORkz6zmeDGUHyVnkp3TCFAFG
+         hdZjbyB6XUNLOaYDSuuuwGfN+s+fbG+rUe9B2dVdwdSxSzddHMWPiy5UKZkRBuWnud+x
+         akDxNQoWDQaw8z683RRdNMmsNhdbQFofTPCh2QYH0ImI8da16T7FRboJBMDQabH28SeR
+         5SoCuGK52VI4R9VsuVJKF4nWimnI/0wN2oQRD+qmL8sSin8/zPu6diLqw0wh0MO3dCff
+         0FEq/ckBBn3EJoM/2mVQZ08EOmUduy71jNmq8EJyL6hY6o/Xc0e7bOxIQfI9Cht2NOGa
+         G1Tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=MqxRlocD;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qAq8bRmq;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id a7si8602214jap.6.2019.05.13.07.39.15
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id k195si8417716itb.11.2019.05.13.07.39.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 07:39:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Mon, 13 May 2019 07:39:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=MqxRlocD;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qAq8bRmq;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd2YY194903;
-	Mon, 13 May 2019 14:39:05 GMT
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd6qH181584;
+	Mon, 13 May 2019 14:39:08 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=BckiUE2qwd6ce7s4e94ZCEH08ViWVb2Uhow4MmaOmmg=;
- b=MqxRlocDO4PBVSKI4njGqiBJNQ3Dwy7bXoxOg336yVqnxDPoOo4C8bDcoA+hRinUelY/
- IfBGNpsi5hC0VByASVpiWMEgObQsMVJz2ebCqcSbAU7+bP+dXw4f4OP72FR/CyrWZMzm
- C5l9JlMKOqhD3L7yBz6qxyBISnDBFSOI418qbfcikgzUXjTPisA4nha1WqGfH00pB+fR
- MAPL3suB/BEgJ7y+NOdtYN4R08kIlmFj7UCcos/Hh23ufmYdF9aqYoILoddmclvElloo
- MtVyLdQhfuOp3oe6RJY+QcC2ZMynhm3bA4JOkdVlLXIFA7MOvRKhnhe+hFi0uBip4m9o lw== 
+ bh=wqdeci0HyBGB7YKvZMkvhcTkiB8MUENeuIRahUviMQQ=;
+ b=qAq8bRmqjLI4ZmGhxqxLQzFJ+Y7ZGe9B4tzqFa4rSPttIDYPwO8CyJSVFyohA4WGqJmF
+ PiEooyxx92pLb5i0rofSV4dZw0lAf84hAXIH/yxG0GncuXG6InmO4dJUyzjA+ryXZa3+
+ kpAk+nls/3Op+xDAehiDEtWmVkdLl1RWyWJ2r/dqXCkn+On4KPyzKvKpd3t0q+Al/+8t
+ OnREbE+Cqw+DpqL4613DUOyPi8UvLz/4anaHm7nytPek57wpfSd6QSOe3Wz14bi6e5IO
+ vMHSdlEGcaFkmj7ADxMP0X19oYbCmNWG6TEextjbaF9y0FnEIo95HqGb3w9D+rgQ3QCW PQ== 
 Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2120.oracle.com with ESMTP id 2sdq1q7aum-1
+	by userp2130.oracle.com with ESMTP id 2sdnttfeff-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 14:39:05 +0000
+	Mon, 13 May 2019 14:39:07 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQB022780;
-	Mon, 13 May 2019 14:39:02 GMT
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQA022780;
+	Mon, 13 May 2019 14:38:59 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -107,16 +107,16 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         linux-kernel@vger.kernel.org
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, alexandre.chartre@oracle.com
-Subject: [RFC KVM 08/27] KVM: x86: Optimize branches which checks if address space isolation enabled
-Date: Mon, 13 May 2019 16:38:16 +0200
-Message-Id: <1557758315-12667-9-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC KVM 07/27] KVM: x86: Switch to host address space when may access sensitive data
+Date: Mon, 13 May 2019 16:38:15 +0200
+Message-Id: <1557758315-12667-8-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=851 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1905130103
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -127,86 +127,139 @@ List-ID: <linux-mm.kvack.org>
 
 From: Liran Alon <liran.alon@oracle.com>
 
-As every entry to guest checks if should switch from host_mm to kvm_mm,
-these branches is at very hot path. Optimize them by using
-static_branch.
+Before this patch, we exited from KVM isolated address space to
+host address space as soon as we exit guest.
+
+Change code such that most of KVM #VMExit handlers will run in KVM
+isolated address space and switch back to host address space
+only before accessing sensitive data. Sensitive data is defined
+as either host data or other VM data.
+
+Currently, we switch from kvm_mm to host_mm on the following scenarios:
+1) When handling guest page-faults:
+   As this will access SPTs which contains host PFNs.
+2) On schedule-out of vCPU thread
+3) On write to guest virtual memory
+   (kvm_write_guest_virt_system() can pull in tons of pages)
+4) On return to userspace (e.g. QEMU)
+5) On prelog of IRQ handlers
 
 Signed-off-by: Liran Alon <liran.alon@oracle.com>
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/kvm/isolation.c |   11 ++++++++---
- arch/x86/kvm/isolation.h |    7 +++++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ arch/x86/kvm/isolation.c |    7 ++++++-
+ arch/x86/kvm/isolation.h |    3 +++
+ arch/x86/kvm/mmu.c       |    3 ++-
+ arch/x86/kvm/x86.c       |   12 +++++-------
+ 4 files changed, 16 insertions(+), 9 deletions(-)
 
 diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
-index eeb60c4..43fd924 100644
+index 22ff9c2..eeb60c4 100644
 --- a/arch/x86/kvm/isolation.c
 +++ b/arch/x86/kvm/isolation.c
-@@ -23,6 +23,9 @@ struct mm_struct kvm_mm = {
- 	.mmlist			= LIST_HEAD_INIT(kvm_mm.mmlist),
- };
+@@ -5,7 +5,6 @@
+  * KVM Address Space Isolation
+  */
  
-+DEFINE_STATIC_KEY_FALSE(kvm_isolation_enabled);
-+EXPORT_SYMBOL(kvm_isolation_enabled);
-+
- /*
-  * When set to true, KVM #VMExit handlers run in isolated address space
-  * which maps only KVM required code and per-VM information instead of
-@@ -118,15 +121,17 @@ int kvm_isolation_init(void)
- 
- 	kvm_isolation_set_handlers();
- 	pr_info("KVM: x86: Running with isolated address space\n");
-+	static_branch_enable(&kvm_isolation_enabled);
- 
- 	return 0;
+-#include <linux/kvm_host.h>
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
+ #include <linux/printk.h>
+@@ -133,6 +132,12 @@ void kvm_isolation_uninit(void)
+ 	pr_info("KVM: x86: End of isolated address space\n");
  }
  
- void kvm_isolation_uninit(void)
- {
--	if (!address_space_isolation)
-+	if (!kvm_isolation())
- 		return;
- 
-+	static_branch_disable(&kvm_isolation_enabled);
- 	kvm_isolation_clear_handlers();
- 	kvm_isolation_uninit_mm();
- 	pr_info("KVM: x86: End of isolated address space\n");
-@@ -140,7 +145,7 @@ void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu)
- 
++void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu)
++{
++	vcpu->arch.l1tf_flush_l1d = true;
++	kvm_isolation_exit();
++}
++
  void kvm_isolation_enter(void)
  {
--	if (address_space_isolation) {
-+	if (kvm_isolation()) {
- 		/*
- 		 * Switches to kvm_mm should happen from vCPU thread,
- 		 * which should not be a kernel thread with no mm
-@@ -152,7 +157,7 @@ void kvm_isolation_enter(void)
- 
- void kvm_isolation_exit(void)
- {
--	if (address_space_isolation) {
-+	if (kvm_isolation()) {
- 		/* TODO: Kick sibling hyperthread before switch to host mm */
- 		/* TODO: switch back to original mm */
- 	}
+ 	if (address_space_isolation) {
 diff --git a/arch/x86/kvm/isolation.h b/arch/x86/kvm/isolation.h
-index 1290d32..aa5e979 100644
+index 595f62c..1290d32 100644
 --- a/arch/x86/kvm/isolation.h
 +++ b/arch/x86/kvm/isolation.h
-@@ -4,6 +4,13 @@
+@@ -2,9 +2,12 @@
+ #ifndef ARCH_X86_KVM_ISOLATION_H
+ #define ARCH_X86_KVM_ISOLATION_H
  
- #include <linux/kvm_host.h>
- 
-+DECLARE_STATIC_KEY_FALSE(kvm_isolation_enabled);
-+
-+static inline bool kvm_isolation(void)
-+{
-+	return static_branch_likely(&kvm_isolation_enabled);
-+}
++#include <linux/kvm_host.h>
 +
  extern int kvm_isolation_init(void);
  extern void kvm_isolation_uninit(void);
  extern void kvm_isolation_enter(void);
+ extern void kvm_isolation_exit(void);
++extern void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu);
+ 
+ #endif
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index d9c7b45..a2b38de 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -23,6 +23,7 @@
+ #include "x86.h"
+ #include "kvm_cache_regs.h"
+ #include "cpuid.h"
++#include "isolation.h"
+ 
+ #include <linux/kvm_host.h>
+ #include <linux/types.h>
+@@ -4059,7 +4060,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
+ {
+ 	int r = 1;
+ 
+-	vcpu->arch.l1tf_flush_l1d = true;
++	kvm_may_access_sensitive_data(vcpu);
+ 	switch (vcpu->arch.apf.host_apf_reason) {
+ 	default:
+ 		trace_kvm_page_fault(fault_address, error_code);
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 85700e0..1db72c3 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -3307,6 +3307,8 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
+ 	 * guest. do_debug expects dr6 to be cleared after it runs, do the same.
+ 	 */
+ 	set_debugreg(0, 6);
++
++	kvm_may_access_sensitive_data(vcpu);
+ }
+ 
+ static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
+@@ -5220,7 +5222,7 @@ int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu, gva_t addr, void *val,
+ 				unsigned int bytes, struct x86_exception *exception)
+ {
+ 	/* kvm_write_guest_virt_system can pull in tons of pages. */
+-	vcpu->arch.l1tf_flush_l1d = true;
++	kvm_may_access_sensitive_data(vcpu);
+ 
+ 	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu,
+ 					   PFERR_WRITE_MASK, exception);
+@@ -7948,12 +7950,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
+ 
+ 	vcpu->arch.last_guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
+ 
+-	/*
+-	 * TODO: Move this to where we architectually need to access
+-	 * host (or other VM) sensitive data
+-	 */
+-	kvm_isolation_exit();
+-
+ 	vcpu->mode = OUTSIDE_GUEST_MODE;
+ 	smp_wmb();
+ 
+@@ -8086,6 +8082,8 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
+ 
+ 	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+ 
++	kvm_may_access_sensitive_data(vcpu);
++
+ 	return r;
+ }
+ 
 -- 
 1.7.1
 
