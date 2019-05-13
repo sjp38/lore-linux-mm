@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A23C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02310C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39B3B2084A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C9BC2084A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="m4RXoI1f"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39B3B2084A
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="2ar9gUe8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C9BC2084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDFF86B0270; Mon, 13 May 2019 10:39:35 -0400 (EDT)
+	id 9D0C36B0271; Mon, 13 May 2019 10:39:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C69356B0271; Mon, 13 May 2019 10:39:35 -0400 (EDT)
+	id 95C586B0272; Mon, 13 May 2019 10:39:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B0CCA6B0272; Mon, 13 May 2019 10:39:35 -0400 (EDT)
+	id 6ED446B0273; Mon, 13 May 2019 10:39:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AE776B0270
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:35 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id s16so4234557ioe.22
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:35 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC256B0271
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:38 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id q1so12293558itc.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=bWRO35KV4FFQ3ievQKGZUgx84GSk+HyQdow97r7zwRo=;
-        b=Js76tlH/DOubF1QxoOSPElcuDoIto+/8mfO9+o6RoMhGX4RLEHytnB+z14R4d5ToSv
-         e7hrYsTd2O7sHgV3HWrkDUUt4Gz6pOf7Lrw00y73T0jI+6IW224TogLB9RM6G8XxOlM9
-         NwHbbPNmXlHm0mqnzMp1e+vAzI9tm6trnykrAIcpJV+18+qMwoNRRRE/qIFbHhJc9Kjl
-         qnuT6It+Y+c9mi8fWkQHTfMq7Gmq9nJOK/X0AhLxxmmJpopd4YMM0VabyqBPbStdOrTZ
-         nlOtQ9R0BVfqHRhAWGhbYzozILZ8CGnKWaplVTJG3mr4VhnB8Sr/wc1pwhApSxq1Nsgl
-         xZtg==
-X-Gm-Message-State: APjAAAUsWvGY8GOBNRRA9dePaEJQL3isPZW9KEB5F1UXyt/IsZsFFXqh
-	Gh9ex6AFApNoPBSE+cz9ob4gnCE173yq/f54qtQef2wWavXoFCTHRPEMgXGPwWDPx8vXarJHctc
-	jKFuKFAZrXGgahkO/GC+rsCC33w0phmlPmVAqlBoauwe6omWwlkbQohdajHH7o4ZQSw==
-X-Received: by 2002:a6b:6619:: with SMTP id a25mr15889849ioc.131.1557758375294;
-        Mon, 13 May 2019 07:39:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+E1gvQJxoObq4NNNB9Vdx/wTnS4lNxJkOG5Z5SU7wyoo7yPtnUuGBA6ceN7dJojbAkySg
-X-Received: by 2002:a6b:6619:: with SMTP id a25mr15889800ioc.131.1557758374483;
-        Mon, 13 May 2019 07:39:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557758374; cv=none;
+        bh=kkqkMbnz+iek9dkeudKGJuXmnkn48lWfRSXOX7tv6jE=;
+        b=NiMKXPVbTLtNuPInDRiayZHjkO97F0TQteqQjDxiXn0yR8b6gqk+sZRwtTm5mNcAx/
+         R9xMkakA0q12Jc9+yVtYJi4sIRT6a6axeRXdwJk9kxvu9R6LWlQJeKsA6Yeo6ujocVBN
+         mqjkD09sVMnG32JsdDOo13GrxQ2E5AEiMWgdJyQJGc04DkoCYI25GfwjSLN0bIrX4Z4p
+         /sCgYCichmaSE3E7P4uJsdIX/gGx8gRp2DGQeGg3PLv2bEuNn9JWQAuUWjukKp4BN2Ul
+         smgXUbPRXTRs7+0JXgw27v6juAt2uTpr+W6v21zWs6IHBIu82bMDcLdqGV4YKU+gn7gm
+         UYEQ==
+X-Gm-Message-State: APjAAAUHV2CpbtTj/t7qZ9O1sRIK3XrZuOc8YQt8ectvbuKGt2ERviie
+	bvz+1qfynzSPIv6vWFvkdusNN5bOBvSJ+7wb58XcZCqBbcvkywYRYKUlErbLFSUv+4kyHZRXWpE
+	859Jq7QdkY47fX6aZMGyK18ueME80lL0CCsyUWMrsXOxLvOA4o2QTXgMoACp6bLMtNA==
+X-Received: by 2002:a24:5302:: with SMTP id n2mr1594214itb.27.1557758378018;
+        Mon, 13 May 2019 07:39:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmlGIflOsNIb1t35hwc1/JYO1dK1Z0yk7pUSYV3x9O1HXdG6vmERvtN8HzShv5RT7U4/GF
+X-Received: by 2002:a24:5302:: with SMTP id n2mr1594141itb.27.1557758377062;
+        Mon, 13 May 2019 07:39:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557758377; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q5rY7r9pfL/zdRi27+7G3TLHLcPcIt+YLNXKDwdVidmrj5Avcj+MyWiwuzRm3bn4WT
-         LzivXgNLYQ5I4CabRybVwD+qrc3mwLKFEkVbwQN0jjesRPAT4qG+DZgPVfaWds39LrSd
-         gHvzOMW7UdlYj/XwTOxbMOX3isNrb/SHUrlLL33/7ZlbmHIrHXdGcRYrjn2cFzmfkpox
-         8VTieLEa0zVdgGKOSeWv38TM6jCAlqMusQRirWD+qvsCOVxKe5DX16lqJxoaSD4zE85b
-         7iB9TEAMddoGBr+FMMlK8LqJpfFV/7KEdoUIyuihRdM1YRi8POdQJoueV8NLyVan0aVy
-         XYyA==
+        b=Eu0MRpn5ejIXt1k00OgZix2wojIQxfx8O1qHdS7wWvjdUo2AU4+DdeznctTuwZJwAG
+         cNfbbqAKwDZarPuJz5Vlno13sIvjsyVLNmMUVExUfNs1flA9ijJkvHBdq6Foej9zKNpU
+         m+IumeCU8GPmggsBoOXP8RxY67DIFlciN4KvN6ieOp8FYAGACwK0a/AP/nZTiX8iXapt
+         A3U0qHCMfArSHKXClfE4qBa2Bv3niwNzhXCHPcf/LkJGAdV/6TD4qrz2VBm8hql4blRt
+         pMDvHQERagv+M2N0sVzmH0LjXTRpxjsCr5V4l50HWmCjzl7rnQZFna9q1OaMnjJQtGIs
+         kx8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=bWRO35KV4FFQ3ievQKGZUgx84GSk+HyQdow97r7zwRo=;
-        b=a8PY4rHSQZFxbCssC2ux8ZYOa4fbk25Adg2aPhk2M/Qrb4cpxkwHedlrsZoEUcCxO3
-         nzu1DA5UDGfLzpeCXI71k/X2ApM2pqacdbtt/EITcfet4BmBuLC3QJQC69m8uqfQw2am
-         BvUbUsMM+kwxjLS5D4CKQRF82UuWE+Krr8iklkH3funcF3aUbfBFXnilUZOOTIaeAAYC
-         ZpEeZfPrqYtH3AKO60OeneP3q1y86RJYYEAeWF6H9yzc+GDjUQcFvKUEjpbqagGYUw/0
-         B/D2zy6Bm6UPSZEQA9lnpwvGLc1YRmz7XFAiwAJinaumdlAL+Jh4WvwR8C+t55MqqGlm
-         6VUw==
+        bh=kkqkMbnz+iek9dkeudKGJuXmnkn48lWfRSXOX7tv6jE=;
+        b=uAXk1kwJG4YxTWDihseU5FstclDdTCN8i93BYN39+xlomAVtsZe14YrTurSRLrsoWX
+         xwK3OCOqKwGNRPEZD2EZ7DRkAxf0Tr4vSXEV9GeJoACneyGJVN/OjrS8/iAD0kt6Cqwp
+         DAO3a0njldV3/X4xtrhVoHnH5mA2l1wqt0woUI/FScn8fUonFHwgiIV4nZh8ssmXp9yp
+         JzdCALgyeIr37SwbwpLMsvLmFlyFqZ0A3Z8y+0ZMJWCR2S+pB8rMBpY/NiFNQYclWPvx
+         7+/milrRnCB2+otvsTeAQ9Z34IhW6fC8P8wXuHSwt89WKQhuOKk1uWL/mIQQX2FmJAtn
+         TP7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m4RXoI1f;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2ar9gUe8;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id f17si8580946itk.6.2019.05.13.07.39.34
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f63si8070581itg.124.2019.05.13.07.39.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 07:39:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Mon, 13 May 2019 07:39:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m4RXoI1f;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2ar9gUe8;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd3Xk181510;
-	Mon, 13 May 2019 14:39:26 GMT
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd2tv193095;
+	Mon, 13 May 2019 14:39:28 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=bWRO35KV4FFQ3ievQKGZUgx84GSk+HyQdow97r7zwRo=;
- b=m4RXoI1fsAKJ65HwcxYTTiRielpSLksHyApCP0jeXXPvtewp5rwRVYDUYtxPM3t1rURV
- OUQPSWm2qaD3jmmQMsTFovUD4DnaSZ9GrLWp+D/fBi4LLvQVebxgVSc9OJHFf2CRAqzr
- jMs2DWV9OiHzkIdKAyWvrDZ3MS42p42Wdt2fSuBYwE1/w/asqQj5umS4w9GtEYvIA23u
- 3rWtsxf8YqaVnsN0/d1amhOkTseV2bABVDPs67GwZ9yZi2jVBvqt2G58KXhAHzSc5cet
- 2eTD9xR3JIRNVohIEeFBP6T1HxJGuEpp2qFDS0MQNFcDFncFDyVl1u6MqmF255tAofwm Xw== 
+ bh=kkqkMbnz+iek9dkeudKGJuXmnkn48lWfRSXOX7tv6jE=;
+ b=2ar9gUe8PEkk2N7E5R2hXBN+S8EK1bK+MAG3miC+Uo2QLiQpRtXqL81wyT3WFUlvaGIV
+ yFj+PnJKxx3M+EJiG2N5Wy2Ca0GxXFOvdr9H+PUOpN9ibTPdSwSw+PUxnSclUc/j8iqx
+ wwwphVvx1m+Qjgrj3A5zXZqSIA9u83IyoHXzPJ4+e91MJFKjD0UNIlFLxXBq84f1OvIs
+ RoXbf7KaYRZRzbEmfMM66PYK9PkQLGNLAw9R0GErJlNjc4FdSPRQilul0tfbzsHbejxk
+ biccPs2shvHGp4MSsXlJ7ox721gE8q5sCTOHoWye2NivkamyCR56V4G1+yL8MEIsUd/r kQ== 
 Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2sdnttfeh6-1
+	by aserp2130.oracle.com with ESMTP id 2sdkwdfkxs-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 14:39:25 +0000
+	Mon, 13 May 2019 14:39:28 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQI022780;
-	Mon, 13 May 2019 14:39:22 GMT
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQJ022780;
+	Mon, 13 May 2019 14:39:25 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -107,15 +107,15 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         linux-kernel@vger.kernel.org
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, alexandre.chartre@oracle.com
-Subject: [RFC KVM 15/27] kvm/isolation: keep track of VA range mapped in KVM address space
-Date: Mon, 13 May 2019 16:38:23 +0200
-Message-Id: <1557758315-12667-16-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC KVM 16/27] kvm/isolation: functions to clear page table entries for a VA range
+Date: Mon, 13 May 2019 16:38:24 +0200
+Message-Id: <1557758315-12667-17-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1905130103
@@ -125,134 +125,218 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This will be used when we have to clear mappings to ensure the same
-range is cleared at the same page table level it was copied.
+These functions will be used to unmapped memory from the KVM
+address space.
+
+When clearing mapping in the KVM page table, check that the clearing
+effectively happens in the KVM page table and there is no crossing of
+the KVM page table boundary (with references to the kernel page table),
+so that the kernel page table isn't mistakenly modified.
+
+Information (address, size, page table level) about address ranges
+mapped to the KVM page table is tracked, so mapping clearing is done
+with just specified the start address of the range.
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/kvm/isolation.c |   86 ++++++++++++++++++++++++++++++++++++++++++++-
- 1 files changed, 84 insertions(+), 2 deletions(-)
+ arch/x86/kvm/isolation.c |  172 ++++++++++++++++++++++++++++++++++++++++++++++
+ arch/x86/kvm/isolation.h |    1 +
+ 2 files changed, 173 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
-index 4f1b511..c8358a9 100644
+index c8358a9..e494a15 100644
 --- a/arch/x86/kvm/isolation.c
 +++ b/arch/x86/kvm/isolation.c
-@@ -61,6 +61,20 @@ struct pgt_directory_group {
- #define PGTD_ALIGN(entry)	\
- 	((typeof(entry))(((unsigned long)(entry)) & PAGE_MASK))
+@@ -758,6 +758,178 @@ int kvm_copy_ptes(void *ptr, unsigned long size)
+ }
+ EXPORT_SYMBOL(kvm_copy_ptes);
  
++static void kvm_clear_pte_range(pmd_t *pmd, unsigned long addr,
++				unsigned long end)
++{
++	pte_t *pte;
++
++	pte = kvm_pte_offset(pmd, addr);
++	if (IS_ERR(pte)) {
++		pr_debug("PTE not found, skip clearing\n");
++		return;
++	}
++	do {
++		pr_debug("PTE: %lx/%lx clear[%lx]\n", addr, end, (long)pte);
++		pte_clear(NULL, addr, pte);
++	} while (pte++, addr += PAGE_SIZE, addr < end);
++}
++
++static void kvm_clear_pmd_range(pud_t *pud, unsigned long addr,
++				unsigned long end, enum page_table_level level)
++{
++	pmd_t *pmd;
++	unsigned long next;
++
++	pmd = kvm_pmd_offset(pud, addr);
++	if (IS_ERR(pmd)) {
++		pr_debug("PMD not found, skip clearing\n");
++		return;
++	}
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none(*pmd))
++			continue;
++		BUG_ON(!pmd_present(*pmd));
++		if (level == PGT_LEVEL_PMD || pmd_trans_huge(*pmd) ||
++		    pmd_devmap(*pmd)) {
++			pr_debug("PMD: %lx/%lx clear[%lx]\n",
++			    addr, end, (long)pmd);
++			pmd_clear(pmd);
++			continue;
++		}
++		kvm_clear_pte_range(pmd, addr, next);
++	} while (pmd++, addr = next, addr < end);
++}
++
++static void kvm_clear_pud_range(p4d_t *p4d, unsigned long addr,
++				unsigned long end, enum page_table_level level)
++{
++	pud_t *pud;
++	unsigned long next;
++
++	pud = kvm_pud_offset(p4d, addr);
++	if (IS_ERR(pud)) {
++		pr_debug("PUD not found, skip clearing\n");
++		return;
++	}
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none(*pud))
++			continue;
++		if (level == PGT_LEVEL_PUD || pud_trans_huge(*pud) ||
++		    pud_devmap(*pud)) {
++			pr_debug("PUD: %lx/%lx clear[%lx]\n",
++			    addr, end, (long)pud);
++			pud_clear(pud);
++			continue;
++		}
++		kvm_clear_pmd_range(pud, addr, next, level);
++	} while (pud++, addr = next, addr < end);
++}
++
++static void kvm_clear_p4d_range(pgd_t *pgd, unsigned long addr,
++				unsigned long end, enum page_table_level level)
++{
++	p4d_t *p4d;
++	unsigned long next;
++
++	p4d = kvm_p4d_offset(pgd, addr);
++	if (IS_ERR(p4d)) {
++		pr_debug("P4D not found, skip clearing\n");
++		return;
++	}
++
++	do {
++		next = p4d_addr_end(addr, end);
++		if (p4d_none(*p4d))
++			continue;
++		if (level == PGT_LEVEL_P4D) {
++			pr_debug("P4D: %lx/%lx clear[%lx]\n",
++			    addr, end, (long)p4d);
++			p4d_clear(p4d);
++			continue;
++		}
++		kvm_clear_pud_range(p4d, addr, next, level);
++	} while (p4d++, addr = next, addr < end);
++}
++
++static void kvm_clear_pgd_range(struct mm_struct *mm, unsigned long addr,
++				unsigned long end, enum page_table_level level)
++{
++	pgd_t *pgd;
++	unsigned long next;
++
++	pgd = pgd_offset(mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none(*pgd))
++			continue;
++		if (level == PGT_LEVEL_PGD) {
++			pr_debug("PGD: %lx/%lx clear[%lx]\n",
++			    addr, end, (long)pgd);
++			pgd_clear(pgd);
++			continue;
++		}
++		kvm_clear_p4d_range(pgd, addr, next, level);
++	} while (pgd++, addr = next, addr < end);
++}
++
 +/*
-+ * Variables to keep track of address ranges mapped into the KVM
-+ * address space.
++ * Clear page table entries in the KVM page table. The level parameter
++ * specifies the page table level (PGD, P4D, PUD PMD, PTE) at which the
++ * clear should be done.
++ *
++ * WARNING: The KVM page table can have direct references to the kernel
++ * page table, at different levels (PGD, P4D, PUD, PMD). When clearing
++ * such references, if the level is incorrect (for example, clear at the
++ * PTE level while the mapping was done at PMD level), then the clearing
++ * will occur in the kernel page table and the system will likely crash
++ * on an unhandled page fault.
 + */
-+struct kvm_range_mapping {
-+	struct list_head list;
-+	void *ptr;
-+	size_t size;
-+	enum page_table_level level;
-+};
-+
-+static LIST_HEAD(kvm_range_mapping_list);
-+static DEFINE_MUTEX(kvm_range_mapping_lock);
-+
- 
- struct mm_struct kvm_mm = {
- 	.mm_rb			= RB_ROOT,
-@@ -91,6 +105,52 @@ struct mm_struct kvm_mm = {
- static bool __read_mostly address_space_isolation;
- module_param(address_space_isolation, bool, 0444);
- 
-+static struct kvm_range_mapping *kvm_get_range_mapping_locked(void *ptr,
-+							      bool *subset)
++static void kvm_clear_mapping(void *ptr, size_t size,
++			      enum page_table_level level)
 +{
-+	struct kvm_range_mapping *range;
++	unsigned long start = (unsigned long)ptr;
++	unsigned long end = start + ((unsigned long)size);
 +
-+	list_for_each_entry(range, &kvm_range_mapping_list, list) {
-+		if (range->ptr == ptr) {
-+			if (subset)
-+				*subset = false;
-+			return range;
-+		}
-+		if (ptr > range->ptr && ptr < range->ptr + range->size) {
-+			if (subset)
-+				*subset = true;
-+			return range;
-+		}
-+	}
-+
-+	return NULL;
++	pr_debug("CLEAR %px, %lx [%lx,%lx], level=%d\n",
++	    ptr, size, start, end, level);
++	kvm_clear_pgd_range(&kvm_mm, start, end, level);
 +}
 +
-+static struct kvm_range_mapping *kvm_get_range_mapping(void *ptr, bool *subset)
++/*
++ * Clear a range mapping in the KVM page table.
++ */
++void kvm_clear_range_mapping(void *ptr)
 +{
-+	struct kvm_range_mapping *range;
-+
-+	mutex_lock(&kvm_range_mapping_lock);
-+	range = kvm_get_range_mapping_locked(ptr, subset);
-+	mutex_unlock(&kvm_range_mapping_lock);
-+
-+	return range;
-+}
-+
-+static void kvm_free_all_range_mapping(void)
-+{
-+	struct kvm_range_mapping *range, *range_next;
-+
-+	mutex_lock(&kvm_range_mapping_lock);
-+
-+	list_for_each_entry_safe(range, range_next,
-+				 &kvm_range_mapping_list, list) {
-+		list_del(&range->list);
-+		kfree(range);
-+	}
-+
-+	mutex_unlock(&kvm_range_mapping_lock);
-+}
- 
- static struct pgt_directory_group *pgt_directory_group_create(void)
- {
-@@ -661,10 +721,30 @@ static int kvm_copy_mapping(void *ptr, size_t size, enum page_table_level level)
- {
- 	unsigned long addr = (unsigned long)ptr;
- 	unsigned long end = addr + ((unsigned long)size);
 +	struct kvm_range_mapping *range_mapping;
 +	bool subset;
-+	int err;
- 
- 	BUG_ON(current->mm == &kvm_mm);
--	pr_debug("KERNMAP COPY addr=%px size=%lx\n", ptr, size);
--	return kvm_copy_pgd_range(&kvm_mm, current->mm, addr, end, level);
-+	pr_debug("KERNMAP COPY addr=%px size=%lx level=%d\n", ptr, size, level);
 +
-+	range_mapping = kmalloc(sizeof(struct kvm_range_mapping), GFP_KERNEL);
-+	if (!range_mapping)
-+		return -ENOMEM;
++	mutex_lock(&kvm_range_mapping_lock);
 +
-+	err = kvm_copy_pgd_range(&kvm_mm, current->mm, addr, end, level);
-+	if (err) {
-+		kfree(range_mapping);
-+		return err;
++	range_mapping = kvm_get_range_mapping_locked(ptr, &subset);
++	if (!range_mapping) {
++		mutex_unlock(&kvm_range_mapping_lock);
++		pr_debug("CLEAR %px - range not found\n", ptr);
++		return;
++	}
++	if (subset) {
++		mutex_unlock(&kvm_range_mapping_lock);
++		pr_debug("CLEAR %px - ignored, subset of %px/%lx/%d\n",
++			 ptr, range_mapping->ptr, range_mapping->size,
++			 range_mapping->level);
++		return;
 +	}
 +
-+	INIT_LIST_HEAD(&range_mapping->list);
-+	range_mapping->ptr = ptr;
-+	range_mapping->size = size;
-+	range_mapping->level = level;
-+	list_add(&range_mapping->list, &kvm_range_mapping_list);
++	kvm_clear_mapping(range_mapping->ptr, range_mapping->size,
++	    range_mapping->level);
++	list_del(&range_mapping->list);
++	mutex_unlock(&kvm_range_mapping_lock);
 +
-+	return 0;
- }
- 
- 
-@@ -720,6 +800,8 @@ static void kvm_isolation_uninit_mm(void)
- 
- 	destroy_context(&kvm_mm);
- 
-+	kvm_free_all_range_mapping();
++	kfree(range_mapping);
++}
++EXPORT_SYMBOL(kvm_clear_range_mapping);
 +
- #ifdef CONFIG_PAGE_TABLE_ISOLATION
- 	/*
- 	 * With PTI, the KVM address space is defined in the user
+ 
+ static int kvm_isolation_init_mm(void)
+ {
+diff --git a/arch/x86/kvm/isolation.h b/arch/x86/kvm/isolation.h
+index e8c018a..7d3c985 100644
+--- a/arch/x86/kvm/isolation.h
++++ b/arch/x86/kvm/isolation.h
+@@ -17,5 +17,6 @@ static inline bool kvm_isolation(void)
+ extern void kvm_isolation_exit(void);
+ extern void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu);
+ extern int kvm_copy_ptes(void *ptr, unsigned long size);
++extern void kvm_clear_range_mapping(void *ptr);
+ 
+ #endif
 -- 
 1.7.1
 
