@@ -2,139 +2,131 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0052C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:01:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1316C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:04:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9CD29208CA
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:01:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CD29208CA
+	by mail.kernel.org (Postfix) with ESMTP id A80BC20989
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 12:04:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A80BC20989
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3434F6B028B; Mon, 13 May 2019 08:01:21 -0400 (EDT)
+	id 4ED516B028D; Mon, 13 May 2019 08:04:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FC246B028C; Mon, 13 May 2019 08:01:21 -0400 (EDT)
+	id 49E916B028E; Mon, 13 May 2019 08:04:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E3A36B028D; Mon, 13 May 2019 08:01:21 -0400 (EDT)
+	id 38C456B028F; Mon, 13 May 2019 08:04:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D776B028B
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:01:20 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id b19so2001887wrh.17
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:01:20 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 187156B028D
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:04:57 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id p190so12539261qke.10
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 05:04:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=kI2y91RRPGT/5VzkD7OKqqkIDn0uCsHkdT99PzPwrJo=;
-        b=Su3lxYA1zyl4a0yy/VsWl0cPp0eYoNODEsDB0R/+LrBZy2QoAuSsWCD1K8nsfLHKo7
-         T2z9SFhDDe2cEXuqdEEWEj36AHnsLE/poplFm+k3cbAhmqevO3KFT/eTBWEEyDi7Xlg2
-         7HpM8sHivZ66eWGTxEcL0Mix9M+n2UmkF9xOe8eHB101+lta2iSexsBKiuvnMnt9PTgt
-         q5IoSP3uC4TKeHK6/YjV5xWpJr8IJuGpYlvVqVYXWh5aD1YhW1N3HpZiX5wwPvL9osQk
-         MSreUuXW4DutYfyeWEuTn+oVzDCNQTnt/2LAOauZ8lNohq8PWKvifQswiEmabGZmWdjT
-         WWbg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXHSSwVveyfGRckv2Dm9C7pZbYp9k4uZK4MiU3GOKs2NX98LbVt
-	FtcN7Hj1ZrKMb4LRu3PipHOlCR5+78qtCnhyawYu9NCxHb78z5Dst1RIQqFeS8TeOvzSq7R8SPg
-	sxD9f0wqPrb4p4cQyI5znLW/nRqprIRFOrJMMGseilHQ/Mhp+J2c1GUeiWlK5kKcN9Q==
-X-Received: by 2002:a5d:68d2:: with SMTP id p18mr11214161wrw.56.1557748880325;
-        Mon, 13 May 2019 05:01:20 -0700 (PDT)
-X-Received: by 2002:a5d:68d2:: with SMTP id p18mr11214098wrw.56.1557748879490;
-        Mon, 13 May 2019 05:01:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557748879; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:organization
+         :from:in-reply-to:references:to:cc:subject:mime-version:content-id
+         :date:message-id;
+        bh=WRjxJbv6EkBOUfGfGrVWZ6SdRQ6i5rYK2+PVeKVllGQ=;
+        b=NnFJHogGyFFo4nskMgALvwuknG+DJCXZPAwMV4D6iI2t140wGKnpG85Fq3h1If6b0p
+         xaYQpQ53tbhGznUjiSctZ8czz4Cbs2Osvmd9DCXLnAFZl3K+Rz6Z1RreI/Fgi/JSIdRZ
+         vzEfI1QQKR438sAM6av1WANXTWStghQI8HHY8hRCGT2B1tNxSHLZPVZDX7qnDFrx8Faz
+         l9ykw+obCZzZN5Kw/aBB8b4+yj8H42fXEzzO3ZYejzOY54CAbfH0g61y4a9ALbcYA3X6
+         Te04wvSOCZdCdu4gYbkMd38RFGclX51dy70uw+bj6CKyHBCFLHXT4WCzTBaqcD1+MN/S
+         dDcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUHMJ/tG2X8KnL2fMaGMHxgkEP4H6TLfl0WuI+YYeuuJsIvLvsb
+	3H/dV2AcNad8gPP0/AArVXIc3a58/0oLRwnpULc7ujsbNbd+Dru5Tz1CDCKghe0t+O595R4j/aB
+	wBM7wWZZV/f6hzQ5HBZ44bh1kwivxQG1IxRNx2LEwt9v/E6LK7jubGKcTq+6oIblHVg==
+X-Received: by 2002:ae9:ec10:: with SMTP id h16mr22173381qkg.215.1557749096727;
+        Mon, 13 May 2019 05:04:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyHFiS4UCLtm61J8SSepmsQfQMxvJwUVIKOBpDHmGn9bKONrXYwGzs3EMDjPGtymY/qCKk
+X-Received: by 2002:ae9:ec10:: with SMTP id h16mr22173342qkg.215.1557749096169;
+        Mon, 13 May 2019 05:04:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557749096; cv=none;
         d=google.com; s=arc-20160816;
-        b=XNtOW+SQIGzZvhkTrYZHm8fFwgfHMWnxHDd7dEvnaHTs2KiSr5ROGdKes90K3oUKca
-         Zh4IsAz6hiXNArFjKGCv6EOo/jp8WXO8RujnmM2wA0AO6/ORLGqLQQco6ddnMxgt2Yaj
-         EevU3huuEt3X176Ld1qwLjJoeC5Jwv2ItbbKP7jnMvmcNgNdmOO2ePy7T+7kFLw3jajp
-         UjZ34GtP0waZBPa/SXmkABCIbgxZOFDWELfkzHlBzmRfW+1TZ3UxTcnKKS7BRJ0Y/BnN
-         FIWliLalUZ8qtQG7rhb6G5NyaZFK4DoTq1UcqCmWtExSMdvj6n02k84iHk2ch+3BYFNN
-         ZeCw==
+        b=MuqaLdOPMFfqdCNCOAMIdJN+r0vEC17/bpYrmyRCWdIC+CEhsNlGKpGcpCSHVXMyBr
+         OUMA+C2wEC/JyA7JcQihO29gh1DVQAW8nFos+eweXF9unrQ9LdEJiUgrNfhZ2Zj/pQ1n
+         Z+AhDxf6q6XS9W6tYCNKo2np4nRZLUkJveXw/gqfWX2KKljjIMisZre6Ujk30ySiH4KL
+         ZPjG+MG24z2oN1qDixiLPxeImsfCZgWzUXolRUpcD+rq95DzV74uAUoiQVpRD7B9KTSJ
+         BqYPXbfHrAKSjn2ye/AAC2F6D4EpLG8sDEG7ZA6p3YlRObUbFnvxUPCiGIuot76m1nHL
+         TUpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=kI2y91RRPGT/5VzkD7OKqqkIDn0uCsHkdT99PzPwrJo=;
-        b=OhX2h2mEXgWt0NwgYx0JRIjgJv61AqrrMcChJnGWFXUMEXBAdFDW2ysa4oyC+RxQQP
-         YfklJvbGaW4VcYQ4Ur6js/VgAiXcFMOElQKoMRlIUee3bu3k4R3zy/ZIC7H9Rq8PfCl8
-         uo+E7DPFOZGlTr3CBIlaOENbflB3tLZXSfuHik8q+OXtHluTTvUi7jMXNfQ1IYy9e6+1
-         4GhxzkI4QuiJRWUTtQQpGQ4SgTiTvt6B0XoKnLxMR47c8lT+Hk9R5htLjUemQKzXKkU2
-         DyVHxMlZ+VN+TqhbEyfa40pJr5wsQVMQt/Zh054FVHG0Zs4pn+df+vIleTm5VIZ1qEaG
-         /7Mg==
+        h=message-id:date:content-id:mime-version:subject:cc:to:references
+         :in-reply-to:from:organization;
+        bh=WRjxJbv6EkBOUfGfGrVWZ6SdRQ6i5rYK2+PVeKVllGQ=;
+        b=eqgi/sn7pBJua+nEXT926raSwJdPbfieY0kIb6NmqC0IDkbp7Gm4bse76xFTVKAR3M
+         1GyG1tZ/YMaLYFwfPQnY6aLqlowNUEBIbSO1/UQx2Rw6AxgQdDaBIXC3WzlkumP/4ckI
+         fNaEGSq5uoEuc9GmKsNG0JQTxBjgYZfNJzwZh+4SD4XmJlxQxLfSGPnB3X6QYV961laL
+         BuDXMcDpKrt++hOwYYX6cUHMl0izUZ8jl8N+ynqzTzjqOmvcWEYBQtiy/62OWERDU0S9
+         mO7Gvx5ObnfqgdnoGw6fxkRS1nabd3LRVGVJTuB1WyyRUbkPzL0iDAHzEwZ2UN60wG0z
+         1GYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b4sor106471wrt.16.2019.05.13.05.01.19
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c57si515367qte.12.2019.05.13.05.04.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 May 2019 05:01:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 05:04:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzzL7E0h8PEfT4wZH/Xu0YiRnxJ/Klb7n0tQrDUCbV+E+/M9iajly6wubYQTlzvmAr0yNz3Pw==
-X-Received: by 2002:adf:ce8e:: with SMTP id r14mr4611827wrn.289.1557748879134;
-        Mon, 13 May 2019 05:01:19 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id j10sm44012622wrb.0.2019.05.13.05.01.18
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 13 May 2019 05:01:18 -0700 (PDT)
-Date: Mon, 13 May 2019 14:01:17 +0200
-From: Oleksandr Natalenko <oleksandr@redhat.com>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Linux Kernel <linux-kernel@vger.kernel.org>,
-	Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Aaron Tomlin <atomlin@redhat.com>, linux-mm@kvack.org
-Subject: Re: [PATCH RFC 0/4] mm/ksm: add option to automerge VMAs
-Message-ID: <20190513120117.aeiij4v2ncu43yxt@butterfly.localdomain>
-References: <20190510072125.18059-1-oleksandr@redhat.com>
- <36a71f93-5a32-b154-b01d-2a420bca2679@virtuozzo.com>
- <20190513113314.lddxv4kv5ajjldae@butterfly.localdomain>
- <CAGqmi744Vef7iF0tuBO3uBtXbNCKYxBV_c-T_Eg3LKPY0rKcWA@mail.gmail.com>
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 574BE3079B90;
+	Mon, 13 May 2019 12:04:46 +0000 (UTC)
+Received: from warthog.procyon.org.uk (ovpn-120-61.rdu2.redhat.com [10.10.120.61])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1EFEA5D71E;
+	Mon, 13 May 2019 12:04:41 +0000 (UTC)
+Organization: Red Hat UK Ltd. Registered Address: Red Hat UK Ltd, Amberley
+	Place, 107-111 Peascod Street, Windsor, Berkshire, SI4 1TE, United
+	Kingdom.
+	Registered in England and Wales under Company Registration No. 3798903
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <20190510165001.GA3162@bombadil.infradead.org>
+References: <20190510165001.GA3162@bombadil.infradead.org> <20190510135031.1e8908fd@carbon> <14647.1557415738@warthog.procyon.org.uk> <3261.1557505403@warthog.procyon.org.uk>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: dhowells@redhat.com, Jesper Dangaard Brouer <brouer@redhat.com>,
+    Christoph Lameter <cl@linux.com>,
+    Andrew Morton <akpm@linux-foundation.org>,
+    linux-mm <linux-mm@kvack.org>
+Subject: Re: Bulk kmalloc
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGqmi744Vef7iF0tuBO3uBtXbNCKYxBV_c-T_Eg3LKPY0rKcWA@mail.gmail.com>
-User-Agent: NeoMutt/20180716
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4823.1557749080.1@warthog.procyon.org.uk>
+Date: Mon, 13 May 2019 13:04:40 +0100
+Message-ID: <4824.1557749080@warthog.procyon.org.uk>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Mon, 13 May 2019 12:04:50 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 02:48:29PM +0300, Timofey Titovets wrote:
-> > Also, just for the sake of another piece of stats here:
-> >
-> > $ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
-> > 526
-> 
-> IIRC, for calculate saving you must use (pages_shared - pages_sharing)
+Matthew Wilcox <willy@infradead.org> wrote:
 
-Based on Documentation/ABI/testing/sysfs-kernel-mm-ksm:
+> kvmalloc() is the normal solution here.  Usual reasons for not being
+> able to do that would be that you do DMA to the memory or that you need
+> to be able to free each of these objects individually.
 
-	pages_shared: how many shared pages are being used.
+I don't need to DMA to the memory - but it might be worth my while removing
+status, cb_expires_at, cb_version and cb_type from struct afs_vnode and
+replacing them with an RCU-managed pointer to an afs_status_cb struct.
 
-	pages_sharing: how many more sites are sharing them i.e. how
-	much saved.
+I could then use plain RCU rather than a seqlock to manage reading from the
+record (the problem being that updating these records cannot be done
+atomically).  That would allow me to make afs_d_revalidate() more efficient by
+doing the checks first in LOOKUP_RCU mode.
 
-and unless I'm missing something, this must be already accounted:
+I'm not sure it's worth the extra RCU load, though.
 
-[~]$ echo "$(cat /sys/kernel/mm/ksm/pages_shared) * 4 / 1024" | bc
-69
-
-[~]$ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
-563
-
--- 
-  Best regards,
-    Oleksandr Natalenko (post-factum)
-    Senior Software Maintenance Engineer
+David
 
