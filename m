@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 622F3C04AAA
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0E4CC04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17E242084A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 73E242084A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 14:39:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="cackC5e/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17E242084A
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="rJqFVfy/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73E242084A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 988016B026D; Mon, 13 May 2019 10:39:27 -0400 (EDT)
+	id 4F27B6B026E; Mon, 13 May 2019 10:39:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8EB566B026E; Mon, 13 May 2019 10:39:27 -0400 (EDT)
+	id 455D46B026F; Mon, 13 May 2019 10:39:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73CBB6B026F; Mon, 13 May 2019 10:39:27 -0400 (EDT)
+	id 25BCD6B0270; Mon, 13 May 2019 10:39:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 484FE6B026D
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:27 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id l193so2755147ita.8
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:27 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EE4C96B026E
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 10:39:32 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id y15so9986212iod.10
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 07:39:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
-        b=piDYExRTFfeUF6XkxVMbxVOtozhjY1EJGNFLHaPUBNjCrUaEZ40gDY/w/dKL2M76r4
-         sGcm9llkyIHRWPJzwnJVOIY3LKsB5zpxTuGCkIXJstW0GOq80MRLap+LJZNOt9QGOKuz
-         dncf7OYexlPypqL5q307QEq7FiASrTfNGDJNDb7D8x03VrkPlyEz/TcxlpmY4x1/woCN
-         7c7kCnFyb3WaNJNcOjLQYYegjxAoxhCbdgOF5FXYvpvthnQTUclkbDrYVTQORYGZrZ8Z
-         +GRmFGKRrdmegLGiLaUBnZ2AF0ka2L7WK1rLBT7OAvpXzecV2FAnGSll20M9Wq5jYxPe
-         ksgQ==
-X-Gm-Message-State: APjAAAVMRCq/4QmIcNd7g/aa3fRHgnbrERxFwZFOvPaeBjmYJJL18o9o
-	ujMnHpJx0pwOhN/FuLQTwXhhU2ctq7UXD1oaqZSX/5w1u5XQGn6i+hKnTHWE0+xRy06Upuz8fwt
-	xuYM6t61eG2gCXHvF9Td8ESwFdqVO7grKIhq9iqEwm3fCbVyD9LGnFccbHjnq5zPJUg==
-X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661240iou.29.1557758367073;
-        Mon, 13 May 2019 07:39:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQExO2FUE+CYKtkjFEET3dW29Ayk44bbP+TIruMPLyd5GcaoyGddH65NbT4h1mRqLQVZ6N
-X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661192iou.29.1557758366316;
-        Mon, 13 May 2019 07:39:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557758366; cv=none;
+        bh=HIfaAaJqDpQgZqOlqv93OYEN222yx/NWgo2RgdnE7Ys=;
+        b=Hb9+4ID65uTiE9KUVx+wbYarbn0Hh5dS5B6dm51whdZiCMV1IFNQ+shr1Pq8kRL3Mo
+         wRXknBlJ0wgqYU/s5IBEOollbpHnq2QCoU0ike1ES0zaNc/vnnfHjfzv1NUrbekpnKZn
+         Dmjz7X6UUMRDmg36LWeICov++xKtbU4se8ssrQLW10a7C/92cw5eXhaIFmjc7a0pI/Sg
+         sIBG0K74K6HVC/5uyG0VIFQ3HYDaq/wnznV5Og78ihkCX385yYiiZa+lmC57R5o2FsST
+         jez9sk2H8e4HA/JYC4ZqMa1zfDcDXAqJqHdXaRLwq6T9I1kw2/zYsqgVRg/5CUoZiShn
+         16lw==
+X-Gm-Message-State: APjAAAUoQz3KFTnCxOQ3BsuI5HL0sTN2/p8GjacY2vhm+ieL5jpGQPUm
+	ITNoXDpN7MeY10L6bOdwqYgDnzhkBY4IUs7SDwE/LbHdTCobR1c3YSFhTo/j9cjJKzp0kbFdd5W
+	TjcDihSOY6CWudph4S6QYVbPDmUXYtdimU2h1/it9DZViY5MTk9IVuAtpE0d1NynHRQ==
+X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661550iou.29.1557758372679;
+        Mon, 13 May 2019 07:39:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyrk6602vsJype93i5KY1HXl3KP7JuUx9bhHHCbgiye3/oiI4BhL8ekBX+N/x8xHo5Xjs/6
+X-Received: by 2002:a6b:14ce:: with SMTP id 197mr15661496iou.29.1557758371709;
+        Mon, 13 May 2019 07:39:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557758371; cv=none;
         d=google.com; s=arc-20160816;
-        b=I+2T+mtdXaBoCI0oknwsio7WhmYH6N2haYMa2omVmQCQcg6DSORUncOpNkAhZTdeoj
-         q1QnpDC3azh9bXnhIS5PQfohfLgWzmnZ9lgMeHPtXU1hq3GoM5HvBpQwyQHNofDq7ucy
-         JsmwRdQSZ8iP0lZg/9jSeOIqgKk8C6h8aDK8BjovT71Mskn5QpaO7ulYEz33nrcnjHft
-         lYS1D5XsxgQTSiwl8o406qAEL0wXciTvP8OYWOH0v+zA0WqHHZBBE4NhcbPeZl8DJi8W
-         VLkSeidhDDVeYH3DrcaNaeQst4izZlP/lLQHNyjQyEZSBm90NwkKhOlrGzN4JhOF7J8+
-         mUPw==
+        b=uRtRJ0CQfXDZad5M7fIKeeDL7Rh4LVuIawUA3g6yDhRiHLK7BeCbauMxTJbIsk/IXK
+         dcEJcBQjGdYI2cKgMfn0WiTEPIkNSbAzYMvL0Akyk9FNOOvcj34pMfj55lCtwcCvjmDF
+         eYHTVwYXMIqyP2H2LcZwaCV/eS+j8atPHg79cDpHTBM0mKBbRSRUhN73vBJum6+X9D3b
+         Yqx87tjG0Av619OIJSLqUNh57PU5EmX+buVvjghS8PHzuS+ng1bdtdGO5h6A0QMb+SE5
+         6ZKRlagqBzgru0YMtwQNjpgB7GcTHJi3YCelnM3cc+KGnsd+lgWmNlWvm4qrE4Az8vDC
+         V8NQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
-        b=qk1WRF8rtcOYXHlINqEwmHYiv9u3zKNy6cBYRZ5gQhG7q+uT1SZVMYuC2UtQAs8mx4
-         lwuBK1+0YKSUoR0nyteMY5ajImKbxRZbmg6mdwYJuGzIU/RD4iEgrVAaTkz+vOEWGA2y
-         9+VhwcozHY0ftQRD1/dXKjW79VEQjnZ3yqfvr6DJjVE/6jbrf6ozJVgCkT3t6066Q1uG
-         FQ1+5MsaaMJPgUz8WgczjnNqBBTz0C+jQczhisVHmWHsg2Gb05XjHoprdJ6kQs/ujTm0
-         KPvPLc5JbgCh4R/AWFiINk0rbfeR/WjcKCisU87WlyktCv4MRKTDKv/rTlZPUunvMc4p
-         RZUw==
+        bh=HIfaAaJqDpQgZqOlqv93OYEN222yx/NWgo2RgdnE7Ys=;
+        b=OICrLbwuoyogil5BoM5r39sDP4kpzDn+daqS8kvXCBwofG+tuiWnRnUojfRcrfTJuk
+         YgfMhUaZCszbxcwsCapRSZ18NcOrBYeFPdor2qggl4fqta4tP92MrQX1omNkLa1c3ker
+         Jc0fF+PTt2JyRaNJamiPFGHbkTirrGmqAxZeasxxLn8aBHk2kaV7hNprxHCMr1WZpSZ6
+         fxGh/OwJbAqYZYibaKoTJDWFtRpokmBj1UNueCD+5XHaEcJL4OSA+Cc2P19tQ86PLGNl
+         ZGNqSmR9Ckf9Awuawyn1HE7ifJP/d/L8y2jDF/C6gIzMiO7MqdYksQ6UIDZDwYIoIgp1
+         z4EA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="cackC5e/";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="rJqFVfy/";
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c17si82803itc.40.2019.05.13.07.39.26
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id g127si7640610jag.119.2019.05.13.07.39.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 07:39:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 13 May 2019 07:39:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="cackC5e/";
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="rJqFVfy/";
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd28F193025;
-	Mon, 13 May 2019 14:39:16 GMT
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DEd2pd194892;
+	Mon, 13 May 2019 14:39:23 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=3oQZsnmQ7NshrUK5gBFOiQdwJCmvyMk7rTDgLZ4eiR8=;
- b=cackC5e/rN14Atf5QlnsuYve24xrmHKk5OAv4LozaAp9vhiUL7E7xPH3kbnOM8VYLH+M
- qQZDMDajYAWzXDX4pYfxSi/cFR9+miTzGtpQvwsGANTuO936Hac7155wikox7cO9zHM6
- D6VSW0wFlH4kS9hhjEHDuhBzZL61Y1YPaaQ9QapuqevDj5phnii9KR4rMc6oFyvj+0cK
- chnwMcSACXVNjOAa1xqmZO14HcVVu9E4v0xi+ZQhdjbaq/Q1oelYLJg/hz12bN7CBmtg
- 1H1C0ZDiqvGmCSUtMdjVlrxOudApkaffggciBhogmTfWK5aks2i24a2IdgYkJ3LSxlPk OA== 
+ bh=HIfaAaJqDpQgZqOlqv93OYEN222yx/NWgo2RgdnE7Ys=;
+ b=rJqFVfy/BraQo2VV+vTf4vEU8uKTxNMJYqNUMPJntKe3SPbYIqJswWfe8FSX9DOUDUvq
+ NMeBPV/EFppUnPmGQYbDoMnmg/dC+wvoFJX/MAxWhRp9eR7c70Ir05eJ9ObgYhuTZIN0
+ D6O2EwvBsR4WuKaiukLz+63YyUEe8qIjPm7QE5ehY3t9v0MmShxoS6X2fFxg5nPXKcjD
+ 5e42nLFl9jyGEOT3WQUgTW0ZEa0BSwnYUeiOjo0jQFfif/6jx2982K9zu7DiWOea0CSj
+ W4Xl7iGJz5g3uHt6WP7akNTkktkKiod+MAJFVIj50sV+mpTRrNCEYkdwKX02CtXlEBbR ag== 
 Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2sdkwdfkwq-1
+	by userp2120.oracle.com with ESMTP id 2sdq1q7aws-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 14:39:16 +0000
+	Mon, 13 May 2019 14:39:23 +0000
 Received: from achartre-desktop.fr.oracle.com (dhcp-10-166-106-34.fr.oracle.com [10.166.106.34])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQF022780;
-	Mon, 13 May 2019 14:39:13 GMT
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x4DEcZQH022780;
+	Mon, 13 May 2019 14:39:19 GMT
 From: Alexandre Chartre <alexandre.chartre@oracle.com>
 To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
@@ -107,15 +107,15 @@ To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
         linux-kernel@vger.kernel.org
 Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
         jwadams@google.com, alexandre.chartre@oracle.com
-Subject: [RFC KVM 12/27] kvm/isolation: add KVM page table entry allocation functions
-Date: Mon, 13 May 2019 16:38:20 +0200
-Message-Id: <1557758315-12667-13-git-send-email-alexandre.chartre@oracle.com>
+Subject: [RFC KVM 14/27] kvm/isolation: functions to copy page table entries for a VA range
+Date: Mon, 13 May 2019 16:38:22 +0200
+Message-Id: <1557758315-12667-15-git-send-email-alexandre.chartre@oracle.com>
 X-Mailer: git-send-email 1.7.1
 In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9255 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1905130103
@@ -125,119 +125,275 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-These functions allocate p4d/pud/pmd/pte pages and ensure that
-pages are in the KVM page table.
+These functions are based on the copy_pxx_range() functions defined in
+mm/memory.c. The main difference is that a level parameter is specified
+to indicate the page table level (PGD, P4D, PUD PMD, PTE) at which the
+copy should be done. Also functions don't use a vma parameter, and
+don't alter the source page table even if an entry is bad.
+
+Also kvm_copy_pte_range() can be called with a non page-aligned buffer,
+so the buffer should be aligned with the page start so that the entire
+buffer is mapped if the end of buffer crosses a page.
+
+These functions will be used to populate the KVM page table.
 
 Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
 ---
- arch/x86/kvm/isolation.c |   94 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 94 insertions(+), 0 deletions(-)
+ arch/x86/kvm/isolation.c |  229 ++++++++++++++++++++++++++++++++++++++++++++++
+ arch/x86/kvm/isolation.h |    1 +
+ 2 files changed, 230 insertions(+), 0 deletions(-)
 
 diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
-index b29a09b..6ec86df 100644
+index b681e4f..4f1b511 100644
 --- a/arch/x86/kvm/isolation.c
 +++ b/arch/x86/kvm/isolation.c
-@@ -248,6 +248,100 @@ static inline void kvm_p4d_free(struct mm_struct *mm, p4d_t *p4d)
- 	p4d_free(mm, PGTD_ALIGN(p4d));
+@@ -450,6 +450,235 @@ static int kvm_set_pgd(pgd_t *pgd, pgd_t pgd_value)
  }
  
-+/*
-+ * kvm_pXX_alloc() functions are equivalent to kernel pXX_alloc()
-+ * functions but, in addition, they ensure that page table pointers
-+ * are in the KVM page table. Otherwise an error is returned.
-+ */
-+
-+static pte_t *kvm_pte_alloc(struct mm_struct *mm, pmd_t *pmd,
-+			    unsigned long addr)
-+{
-+	pte_t *pte;
-+
-+	if (pmd_none(*pmd)) {
-+		pte = pte_alloc_kernel(pmd, addr);
-+		if (!pte) {
-+			pr_debug("PTE: ERR ALLOC\n");
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		if (!kvm_add_pgt_directory(pte, PGT_LEVEL_PTE)) {
-+			kvm_pte_free(mm, pte);
-+			return ERR_PTR(-EINVAL);
-+		}
-+	} else {
-+		pte = kvm_pte_offset(pmd, addr);
-+	}
-+
-+	return pte;
-+}
-+
-+static pmd_t *kvm_pmd_alloc(struct mm_struct *mm, pud_t *pud,
-+			    unsigned long addr)
-+{
-+	pmd_t *pmd;
-+
-+	if (pud_none(*pud)) {
-+		pmd = pmd_alloc(mm, pud, addr);
-+		if (!pmd) {
-+			pr_debug("PMD: ERR ALLOC\n");
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		if (!kvm_add_pgt_directory(pmd, PGT_LEVEL_PMD)) {
-+			kvm_pmd_free(mm, pmd);
-+			return ERR_PTR(-EINVAL);
-+		}
-+	} else {
-+		pmd = kvm_pmd_offset(pud, addr);
-+	}
-+
-+	return pmd;
-+}
-+
-+static pud_t *kvm_pud_alloc(struct mm_struct *mm, p4d_t *p4d,
-+			    unsigned long addr)
-+{
-+	pud_t *pud;
-+
-+	if (p4d_none(*p4d)) {
-+		pud = pud_alloc(mm, p4d, addr);
-+		if (!pud) {
-+			pr_debug("PUD: ERR ALLOC\n");
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		if (!kvm_add_pgt_directory(pud, PGT_LEVEL_PUD)) {
-+			kvm_pud_free(mm, pud);
-+			return ERR_PTR(-EINVAL);
-+		}
-+	} else {
-+		pud = kvm_pud_offset(p4d, addr);
-+	}
-+
-+	return pud;
-+}
-+
-+static p4d_t *kvm_p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
-+			    unsigned long addr)
-+{
-+	p4d_t *p4d;
-+
-+	if (pgd_none(*pgd)) {
-+		p4d = p4d_alloc(mm, pgd, addr);
-+		if (!p4d) {
-+			pr_debug("P4D: ERR ALLOC\n");
-+			return ERR_PTR(-ENOMEM);
-+		}
-+		if (!kvm_add_pgt_directory(p4d, PGT_LEVEL_P4D)) {
-+			kvm_p4d_free(mm, p4d);
-+			return ERR_PTR(-EINVAL);
-+		}
-+	} else {
-+		p4d = kvm_p4d_offset(pgd, addr);
-+	}
-+
-+	return p4d;
-+}
-+
  
++static int kvm_copy_pte_range(struct mm_struct *dst_mm,
++			      struct mm_struct *src_mm, pmd_t *dst_pmd,
++			      pmd_t *src_pmd, unsigned long addr,
++			      unsigned long end)
++{
++	pte_t *src_pte, *dst_pte;
++
++	dst_pte = kvm_pte_alloc(dst_mm, dst_pmd, addr);
++	if (IS_ERR(dst_pte))
++		return PTR_ERR(dst_pte);
++
++	addr &= PAGE_MASK;
++	src_pte = pte_offset_map(src_pmd, addr);
++
++	do {
++		pr_debug("PTE: %lx/%lx set[%lx] = %lx\n",
++		    addr, addr + PAGE_SIZE, (long)dst_pte, pte_val(*src_pte));
++		set_pte_at(dst_mm, addr, dst_pte, *src_pte);
++
++	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr < end);
++
++	return 0;
++}
++
++static int kvm_copy_pmd_range(struct mm_struct *dst_mm,
++			      struct mm_struct *src_mm,
++			      pud_t *dst_pud, pud_t *src_pud,
++			      unsigned long addr, unsigned long end,
++			      enum page_table_level level)
++{
++	pmd_t *src_pmd, *dst_pmd;
++	unsigned long next;
++	int err;
++
++	dst_pmd = kvm_pmd_alloc(dst_mm, dst_pud, addr);
++	if (IS_ERR(dst_pmd))
++		return PTR_ERR(dst_pmd);
++
++	src_pmd = pmd_offset(src_pud, addr);
++
++	do {
++		next = pmd_addr_end(addr, end);
++		if (level == PGT_LEVEL_PMD || pmd_none(*src_pmd)) {
++			pr_debug("PMD: %lx/%lx set[%lx] = %lx\n",
++			    addr, next, (long)dst_pmd, pmd_val(*src_pmd));
++			err = kvm_set_pmd(dst_pmd, *src_pmd);
++			if (err)
++				return err;
++			continue;
++		}
++
++		if (!pmd_present(*src_pmd)) {
++			pr_warn("PMD: not present for [%lx,%lx]\n",
++			    addr, next - 1);
++			pmd_clear(dst_pmd);
++			continue;
++		}
++
++		if (pmd_trans_huge(*src_pmd) || pmd_devmap(*src_pmd)) {
++			pr_debug("PMD: %lx/%lx set[%lx] = %lx (huge/devmap)\n",
++			    addr, next, (long)dst_pmd, pmd_val(*src_pmd));
++			err = kvm_set_pmd(dst_pmd, *src_pmd);
++			if  (err)
++				return err;
++			continue;
++		}
++
++		err = kvm_copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
++					addr, next);
++		if (err) {
++			pr_err("PMD: ERR PTE addr=%lx next=%lx\n", addr, next);
++			return err;
++		}
++
++	} while (dst_pmd++, src_pmd++, addr = next, addr < end);
++
++	return 0;
++}
++
++static int kvm_copy_pud_range(struct mm_struct *dst_mm,
++			      struct mm_struct *src_mm,
++			      p4d_t *dst_p4d, p4d_t *src_p4d,
++			      unsigned long addr, unsigned long end,
++			      enum page_table_level level)
++{
++	pud_t *src_pud, *dst_pud;
++	unsigned long next;
++	int err;
++
++	dst_pud = kvm_pud_alloc(dst_mm, dst_p4d, addr);
++	if (IS_ERR(dst_pud))
++		return PTR_ERR(dst_pud);
++
++	src_pud = pud_offset(src_p4d, addr);
++
++	do {
++		next = pud_addr_end(addr, end);
++		if (level == PGT_LEVEL_PUD || pud_none(*src_pud)) {
++			pr_debug("PUD: %lx/%lx set[%lx] = %lx\n",
++			    addr, next, (long)dst_pud, pud_val(*src_pud));
++			err = kvm_set_pud(dst_pud, *src_pud);
++			if (err)
++				return err;
++			continue;
++		}
++
++		if (pud_trans_huge(*src_pud) || pud_devmap(*src_pud)) {
++			pr_debug("PUD: %lx/%lx set[%lx] = %lx (huge/devmap)\n",
++			    addr, next, (long)dst_pud, pud_val(*src_pud));
++			err = kvm_set_pud(dst_pud, *src_pud);
++			if (err)
++				return err;
++			continue;
++		}
++
++		err = kvm_copy_pmd_range(dst_mm, src_mm, dst_pud, src_pud,
++					addr, next, level);
++		if (err) {
++			pr_err("PUD: ERR PMD addr=%lx next=%lx\n", addr, next);
++			return err;
++		}
++
++	} while (dst_pud++, src_pud++, addr = next, addr < end);
++
++	return 0;
++}
++
++static int kvm_copy_p4d_range(struct mm_struct *dst_mm,
++				struct mm_struct *src_mm,
++				pgd_t *dst_pgd, pgd_t *src_pgd,
++				unsigned long addr, unsigned long end,
++				enum page_table_level level)
++{
++	p4d_t *src_p4d, *dst_p4d;
++	unsigned long next;
++	int err;
++
++	dst_p4d = kvm_p4d_alloc(dst_mm, dst_pgd, addr);
++	if (IS_ERR(dst_p4d))
++		return PTR_ERR(dst_p4d);
++
++	src_p4d = p4d_offset(src_pgd, addr);
++
++	do {
++		next = p4d_addr_end(addr, end);
++		if (level == PGT_LEVEL_P4D || p4d_none(*src_p4d)) {
++			pr_debug("P4D: %lx/%lx set[%lx] = %lx\n",
++			    addr, next, (long)dst_p4d, p4d_val(*src_p4d));
++
++			err = kvm_set_p4d(dst_p4d, *src_p4d);
++			if (err)
++				return err;
++			continue;
++		}
++
++		err = kvm_copy_pud_range(dst_mm, src_mm, dst_p4d, src_p4d,
++					addr, next, level);
++		if (err) {
++			pr_err("P4D: ERR PUD addr=%lx next=%lx\n", addr, next);
++			return err;
++		}
++
++	} while (dst_p4d++, src_p4d++, addr = next, addr < end);
++
++	return 0;
++}
++
++static int kvm_copy_pgd_range(struct mm_struct *dst_mm,
++				struct mm_struct *src_mm, unsigned long addr,
++				unsigned long end, enum page_table_level level)
++{
++	pgd_t *src_pgd, *dst_pgd;
++	unsigned long next;
++	int err;
++
++	dst_pgd = pgd_offset(dst_mm, addr);
++	src_pgd = pgd_offset(src_mm, addr);
++
++	do {
++		next = pgd_addr_end(addr, end);
++		if (level == PGT_LEVEL_PGD || pgd_none(*src_pgd)) {
++			pr_debug("PGD: %lx/%lx set[%lx] = %lx\n",
++			    addr, next, (long)dst_pgd, pgd_val(*src_pgd));
++			err = kvm_set_pgd(dst_pgd, *src_pgd);
++			if (err)
++				return err;
++			continue;
++		}
++
++		err = kvm_copy_p4d_range(dst_mm, src_mm, dst_pgd, src_pgd,
++					addr, next, level);
++		if (err) {
++			pr_err("PGD: ERR P4D addr=%lx next=%lx\n", addr, next);
++			return err;
++		}
++
++	} while (dst_pgd++, src_pgd++, addr = next, addr < end);
++
++	return 0;
++}
++
++/*
++ * Copy page table entries from the current page table (i.e. from the
++ * kernel page table) to the KVM page table. The level parameter specifies
++ * the page table level (PGD, P4D, PUD PMD, PTE) at which the copy should
++ * be done.
++ */
++static int kvm_copy_mapping(void *ptr, size_t size, enum page_table_level level)
++{
++	unsigned long addr = (unsigned long)ptr;
++	unsigned long end = addr + ((unsigned long)size);
++
++	BUG_ON(current->mm == &kvm_mm);
++	pr_debug("KERNMAP COPY addr=%px size=%lx\n", ptr, size);
++	return kvm_copy_pgd_range(&kvm_mm, current->mm, addr, end, level);
++}
++
++
++/*
++ * Copy page table PTE entries from the current page table to the KVM
++ * page table.
++ */
++int kvm_copy_ptes(void *ptr, unsigned long size)
++{
++	return kvm_copy_mapping(ptr, size, PGT_LEVEL_PTE);
++}
++EXPORT_SYMBOL(kvm_copy_ptes);
++
++
  static int kvm_isolation_init_mm(void)
  {
+ 	pgd_t *kvm_pgd;
+diff --git a/arch/x86/kvm/isolation.h b/arch/x86/kvm/isolation.h
+index aa5e979..e8c018a 100644
+--- a/arch/x86/kvm/isolation.h
++++ b/arch/x86/kvm/isolation.h
+@@ -16,5 +16,6 @@ static inline bool kvm_isolation(void)
+ extern void kvm_isolation_enter(void);
+ extern void kvm_isolation_exit(void);
+ extern void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu);
++extern int kvm_copy_ptes(void *ptr, unsigned long size);
+ 
+ #endif
 -- 
 1.7.1
 
