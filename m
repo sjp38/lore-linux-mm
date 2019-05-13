@@ -6,97 +6,98 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94414C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 11:27:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23851C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 11:30:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 467B8206A3
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 11:27:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D4425208C2
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 11:30:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IwWEzplk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 467B8206A3
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="mKtDdwld"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4425208C2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6F716B0281; Mon, 13 May 2019 07:27:25 -0400 (EDT)
+	id 705196B0283; Mon, 13 May 2019 07:30:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF8E26B0282; Mon, 13 May 2019 07:27:25 -0400 (EDT)
+	id 6B5856B0284; Mon, 13 May 2019 07:30:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9A296B0283; Mon, 13 May 2019 07:27:25 -0400 (EDT)
+	id 5A3596B0285; Mon, 13 May 2019 07:30:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5716B0281
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 07:27:25 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id g63so11837516ita.6
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 04:27:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4CA6B0283
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 07:30:13 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id t196so11913969ita.7
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 04:30:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=QlLTDpUw3LQEBrJUE4pLazn/f1TqZvICJfFNqlHW/BQ=;
-        b=DB7yfTL1lL56KrzXiFX61XyTlC47lgsBwQjK85O5LQ/j6q7Zp8FhshTBUWtrq7SitM
-         DLBcqhhSwQEz3k9H0RgbSBFgyUQYOTgIvyxAL0M+8q4D4AvF1OqNGkZNIiq0M27Ahmew
-         T1EnrerOXmSuqTr0cXS7tnH/QbAmTM5y090Ok8ULMRRpEPLOSl36/SuLY5Sm0kTMbTRL
-         7BXvxqN2zPBK3xsGvyrieGddcfet5uaC/QAT7LGmgQE0pW6I72cJ6BTETJ6xwzWjfVcq
-         tZNFPsPxaJ2mcTcsN4rVbb7jsJo5zzRhAo1BRV+GP+vBpyuLCJIpEoBXkqlBlGTVEckh
-         +kog==
-X-Gm-Message-State: APjAAAU2rzYdbsHgceOsUs/7Jt9yqEbqY8yGgdLfjM14XEMoW9PLfK28
-	f/4uDep4lmfO6AXEEUGTQz9020uDjCKLXEDRrDdMncaBvnNDmYO2oAmWntpOGtJxFkGVGUpw6rN
-	NHGQ4ABtQoimAn30it9lBW7OP3kGKZrVzzBNnYU7s3xh9U3DtPDEdWlAAGE2BRWZx+A==
-X-Received: by 2002:a24:910b:: with SMTP id i11mr14800819ite.76.1557746845389;
-        Mon, 13 May 2019 04:27:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw93NMeczaWXbBjmr+icPWAio6md3DJ8kqe0wWKo0DbuNHMfZZW6fCO+XIgpxnxWsX+/uES
-X-Received: by 2002:a24:910b:: with SMTP id i11mr14800798ite.76.1557746844561;
-        Mon, 13 May 2019 04:27:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557746844; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=tSqs9AMTThdU8qxkTIlNJvkPD11kfEkOfLcrJZGQml0=;
+        b=Q/IqF2Cn/Un1a/SWluMbSjPud+JAchdtzIcfkIxoQRJ2czmebdiNS8c/PhRQJkYYhf
+         oKG1Rcqt1dUC50vSPSEBVpQNyaJ0pZopjtVAMxPUin7+2439TNqqaZOYmj++On9oyKCI
+         XucImqTN36X/a/KUqsBE6dg4wu/DRuLgpj8rdRJN1+N6j4n6vd6oE5npxhTiTR9p9bro
+         FrpibLaEz4on0i1az1cCFfGeSApHmdYYjtk8nB41nRAi+t9Xxkd/EVqCP2aHkh076MuE
+         S1GMbByo/sUxP1jgilBtuydhZnEfI+GzcJQUhtwxJVH4x++79PG6+k0OELZ/wgHkMDU5
+         n6Tw==
+X-Gm-Message-State: APjAAAWUHDtygXc6T9y5wlB3S6bfMoWGObgwYjqhmbqPBH4RFw+NQSIC
+	3DPYnoajz//eqMXNkMews9I5kB91FgFr1e7PnEiWy3yCD4591JfxEZuUaeJ06meu7A8M4xqElj4
+	HEhvBB48vohrCiFs1ckLkhYZkx98ZaOmxZktVwlCtX+DW+0BHyE4+yHZCZLjggBuawg==
+X-Received: by 2002:a6b:9306:: with SMTP id v6mr16036034iod.278.1557747013034;
+        Mon, 13 May 2019 04:30:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXTceVLXxvfmfSZS3TsnUwtK8O8t5Hj42ybvG3IrYvjj4+hygOJ+1DTekHzBgfSANG58a+
+X-Received: by 2002:a6b:9306:: with SMTP id v6mr16035999iod.278.1557747012457;
+        Mon, 13 May 2019 04:30:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557747012; cv=none;
         d=google.com; s=arc-20160816;
-        b=oKl4D7zMMlQeBYVtX8z5L3gL5jA9xDxZi+RGBJRSeYA6K9laF/s+lD5khDPf3I92Yf
-         wqtnWVB+3q517zczYwsDW8k0cJFYUssXI/Olr5YGWMQ427xpe67F+Azx6VoW6ghFqu9f
-         XiVrcrKkroJClS6g0eZblkQ2OxuXQhgp1wBeAXOjqIYO3zbimAyjwkSoK0njYJjGnSqq
-         SL1AieXKL0rGguJE5TFE+SHYB8mMdde3JAMx3mZZaGfRchUq52bMma47YdfCevFnoIui
-         8suCFesCsxPxEgB11WvbCzdPG7KQQaI67SdYYpk2kLrIadn+NbCvIsasuVYr63CsSBsr
-         D80Q==
+        b=XePSz/Wudjqw/fYvGWxVwAJSwYkTZWTIfzTwyCK19ZXVKn3WWYkK70qr0+XU0Afc9j
+         jk71+7VTvfXhnoNr/4v+JAZN+B+EH4/Xn6DOeLlHErMnt1v4Zz80o7QOQS6WGffHFfwZ
+         A6H8+9bNCtYN7Y56YaVOls7/h13p0A44GZ9qnxfgJxXJpzpGmIUcmr9OtZFqDPdvFdQc
+         PNKk7STDW4igJN2udytnyWcgT2tM1MM66wN1Mo8K1z9bJHcA7UJ+3YzUqJDCtFQkEJHE
+         mC1ec49cQDzpherUKxCIYfkzGG3RTNQQPtzuklUewjLVXoK8Uw7t8iPKjGyoG1G50PJc
+         6DcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QlLTDpUw3LQEBrJUE4pLazn/f1TqZvICJfFNqlHW/BQ=;
-        b=XWfz+xG4XYIl5tZ7Z4r90qxpI1qrWRpnQHhidvd0GV1EABkIPiHaiq5IjgGb02uneh
-         KUD2I2ab14A2fLquiY0tXtqMtay3l0zYPp8x7ucD2AsO6mK9PnsosLJaaCfdJc0FFqkb
-         PpQU27hVp+BEIG9kaKUhjp2pFmDQ/OlpnqCU8J8T2daDibgHwc0qkLf3ijw9EFcvNL3+
-         g87ZtSbPLmqEHvE903NzwDaS6y6zo11M+mYr4ylGSHwwVc2Q7D0WpAnKpj++sSHf9D2e
-         xdM3BMqhgJglcfMo6S8nEjZ0SfgimDQvLybmpAkf1Ke2FnoU/BM8WXPeQ+4wrbL3W6fu
-         9BjA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=tSqs9AMTThdU8qxkTIlNJvkPD11kfEkOfLcrJZGQml0=;
+        b=eU1+mkkejAlKCkOdLs/3onqOpIPXqSLzwTtk7qBgxMyVIsmBOyecpPTOytP4cXBuwI
+         2IVnyrkiSVxxBaytYhwAmPZJkQlWXNfUIIRjjEhMIwDRcng9o9WaKQjpgAJek/7NQ8Bf
+         eg6l3CQyUDyMR0hlJmTpgM47+n/Ei9DVceo2Zn3XoU+bxN/eVTKDkZ4OCWoOOyI78XMW
+         3fVu8gIPi4siHZnSy23TeHuPtQc47bMQMzYTEFPYg6gkYPzD9A2X1iODhDYKKcOy45BB
+         ilnvNOQsaBhvXEfrfTo+5x/P3NGO3xVnglvI9nvAHfazXQE8JTWU1kaj42PuQOE4cfnG
+         xUhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=IwWEzplk;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=mKtDdwld;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 194si7802075itw.57.2019.05.13.04.27.24
+        by mx.google.com with ESMTPS id n64si3277601itn.79.2019.05.13.04.30.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 13 May 2019 04:27:24 -0700 (PDT)
+        Mon, 13 May 2019 04:30:12 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=IwWEzplk;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=mKtDdwld;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=QlLTDpUw3LQEBrJUE4pLazn/f1TqZvICJfFNqlHW/BQ=; b=IwWEzplkAkvkiV39U9/PKkoJb
-	Mbh2qFemubE06kI3RAvtqVE74136gc9EF11rwqkOIOqh3/Zllt/rNxayUsNYx6Yj8YS0buszvdTIM
-	Oq52Pqhn1KbDNJdTxbEQ422JPZew+5gXySaIlAa/rb9C1GdAjiksksYWL51W/r5Hso54fqJLiFOl4
-	2M4jC9VETnBTqBXWBiKdZWNGoC6oDaUtY6skxz7RpfawLsiEltTDWKsYd8p7rf9LOdhi6mI5GoZBb
-	mvTgrr+48M9/o80HvkCIe6Jk4fUIuU/z1rUoPxpqQo3zTyOR4J6/ryDq//uAqZ1NGHDLwtnhHKe+T
-	dPYpqSBng==;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
+	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=tSqs9AMTThdU8qxkTIlNJvkPD11kfEkOfLcrJZGQml0=; b=mKtDdwldcN/kKtSFZ0OV1rUjFo
+	L0YIrcHbDGvnobIZdBJsGGRK/3OtPHsv+pwLV+N1crHBYJixbIy69FalNoT/p/4bcCN1cV5IHVsPx
+	1dNG/4Vk/9aCZc92b8CJgD+YNhgSRAcPNl3KZ/TLk9E74FIR2Az+lbD+LU+GGH7oobSmE/E+yuxCj
+	3pUqBNcyeOrlFbqTfaU5n1OAQ1KlarZ24EXN5aLfmwf9029FrgMZyw06lw2T8ATqOEKpW1Zl5e5dr
+	XA37mg6cSNUgXrYFzhKxP6jHEXXxL378IkxE64xhKU9bPeNOsQZxvzCakjNE7FqeoqOM0Usnku0qB
+	J1UbWAYw==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hQ96x-0006dy-89; Mon, 13 May 2019 11:27:16 +0000
+	id 1hQ99k-0006em-4j; Mon, 13 May 2019 11:30:08 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 7CB452029F87D; Mon, 13 May 2019 13:27:12 +0200 (CEST)
-Date: Mon, 13 May 2019 13:27:12 +0200
+	id E04FD2029F87D; Mon, 13 May 2019 13:30:06 +0200 (CEST)
+Date: Mon, 13 May 2019 13:30:06 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: Nadav Amit <namit@vmware.com>
 Cc: Yang Shi <yang.shi@linux.alibaba.com>,
@@ -109,8 +110,9 @@ Cc: Yang Shi <yang.shi@linux.alibaba.com>,
 	Mel Gorman <mgorman@suse.de>, Will Deacon <will.deacon@arm.com>
 Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
  flush
-Message-ID: <20190513112712.GO2623@hirez.programming.kicks-ass.net>
-References: <20190509083726.GA2209@brain-police>
+Message-ID: <20190513113006.GP2623@hirez.programming.kicks-ass.net>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
  <20190509103813.GP2589@hirez.programming.kicks-ass.net>
  <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
  <20190509182435.GA2623@hirez.programming.kicks-ass.net>
@@ -118,12 +120,12 @@ References: <20190509083726.GA2209@brain-police>
  <20190509191120.GD2623@hirez.programming.kicks-ass.net>
  <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
  <20190513083606.GL2623@hirez.programming.kicks-ass.net>
- <20190513091205.GO2650@hirez.programming.kicks-ass.net>
- <847D4C2F-BD26-4BE0-A5BA-3C690D11BF77@vmware.com>
+ <75FD46B2-2E0C-41F2-9308-AB68C8780E33@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <847D4C2F-BD26-4BE0-A5BA-3C690D11BF77@vmware.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <75FD46B2-2E0C-41F2-9308-AB68C8780E33@vmware.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -131,34 +133,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 09:21:01AM +0000, Nadav Amit wrote:
-> > On May 13, 2019, at 2:12 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+On Mon, May 13, 2019 at 09:11:38AM +0000, Nadav Amit wrote:
+> BTW: sometimes you don’t see the effect of these full TLB flushes as much in
+> VMs. I encountered a strange phenomenon at the time - INVLPG for an
+> arbitrary page cause my Haswell machine flush the entire TLB, when the
+> INVLPG was issued inside a VM. It took me quite some time to analyze this
+> problem. Eventually Intel told me that’s part of what is called “page
+> fracturing” - if the host uses 4k pages in the EPT, they (usually) need to
+> flush the entire TLB for any INVLPG. That’s happens since they don’t know
+> the size of the flushed page.
 
-> >> The other thing I was thinking of is trying to detect overlap through
-> >> the page-tables themselves, but we have a distinct lack of storage
-> >> there.
-> > 
-> > We might just use some state in the pmd, there's still 2 _pt_pad_[12] in
-> > struct page to 'use'. So we could come up with some tlb generation
-> > scheme that would detect conflict.
-> 
-> It is rather easy to come up with a scheme (and I did similar things) if you
-> flush the table while you hold the page-tables lock. But if you batch across
-> page-tables it becomes harder.
-
-Yeah; finding that out now. I keep finding holes :/
-
-> Thinking about it while typing, perhaps it is simpler than I think - if you
-> need to flush range that runs across more than a single table, you are very
-> likely to flush a range of more than 33 entries, so anyhow you are likely to
-> do a full TLB flush.
-
-We can't rely on the 33, that x86 specific. Other architectures can have
-another (or no) limit on that.
-
-> So perhaps just avoiding the batching if only entries from a single table
-> are flushed would be enough.
-
-That's near to what Will suggested initially, just flush the entire
-thing when there's a conflict.
+Cute... if only they'd given us an interface to tell them... :-)
 
