@@ -2,216 +2,398 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74E07C46470
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 13:44:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C14CFC04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 13:54:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1BD4220879
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 13:44:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="PI4evEZq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BD4220879
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 727B921019
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 13:54:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 727B921019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F0BF6B0005; Mon, 13 May 2019 09:44:04 -0400 (EDT)
+	id 11A856B0007; Mon, 13 May 2019 09:54:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A1C56B0006; Mon, 13 May 2019 09:44:04 -0400 (EDT)
+	id 0A5246B0008; Mon, 13 May 2019 09:54:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38FEC6B0007; Mon, 13 May 2019 09:44:04 -0400 (EDT)
+	id E89186B000A; Mon, 13 May 2019 09:54:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7E06B0005
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 09:44:04 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id x23so12830663qka.19
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 06:44:04 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9171E6B0007
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 09:54:54 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x16so18090716edm.16
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 06:54:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=2QDl6grKdXugMhxYUcRUEzKdYNWZg6vAUEjXwfnBzkw=;
-        b=Y0kUJ0AHfqZx8mmOin/H0RkMLg5XquYLNhaJvvWmQqH9xRwIhAVwengcWffs1TPolC
-         3iJuzvit9n025sUt4LJG5HVBohtGUR86/77ygZQFOlAcJtDkVLkxNJgPItLLnWQ46C6z
-         Q50GlS0MEVUQZHyYsvHKWXiGp+KhpxnAbzDgVso1UeuQiumiWcHsOdejba7DLTagcxzB
-         4pesHTbQq7+e+SM+5putrX4OxZ/rm6jS/tSWFsbx5e5MmgnCDtlteniz3Q34YuyHNsqc
-         lGEJJLeGt+qPhcs+6tFALTfXgYmEpGiijkN8JozGbb+evhe5Ji9zLEJ0PIprHlo9T1rD
-         4r4w==
-X-Gm-Message-State: APjAAAU6AhCdh516DQmw0TCTipATg1tXmft6j0mmaH7Lpo29U4t2I7Lp
-	P1UYxhwnlaJPZxORLaLJ9ZoabTEX1o3wnB5L1QEBEY2wH5TtJYRGbBrjg56Sh6rAFWGrrGa2YlZ
-	iP7ONEStl30QCAroPbSUcFe9noQZXot0FsjEgSbATi4lA01RoCu0pM06h6kmaeC9a/w==
-X-Received: by 2002:a0c:ff44:: with SMTP id y4mr21672500qvt.238.1557755043745;
-        Mon, 13 May 2019 06:44:03 -0700 (PDT)
-X-Received: by 2002:a0c:ff44:: with SMTP id y4mr21672421qvt.238.1557755042729;
-        Mon, 13 May 2019 06:44:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557755042; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=SxAvRf3z6PTdGiUA9YQSQAWhEnq2aKom+aW5Nt71wDg=;
+        b=mSES8Y5umRV9BvsQmCKaNv27TeFTz6BFFwOjExPIcj1hk9h9squ6eNUb5j7R5+7mU0
+         orhBhh666fusbQOs8Q3LMb4yuMIY1tw7COjdYosmHJBBzQzdzowDOIuN04Kpwk503m5a
+         owtRv4ydk5rydokK6qBm7X/1TMP68UG6DiSkkN8cwjOeqyJKuCWoYk4EekHIkpGknjot
+         VH4UjHG4QmdKpnvHhmsQ2ut0Mta2CNqTvfpkFg0REhgcclw99QF+hZXxRDn9NH1sRqTr
+         0HiAupWbwian3BpHUwZGwl6p/GR0dSJnSx112vGSSNO0b1yVHokZ9jWouyEsIeN5yLSQ
+         o9ig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAXAzY5AQnsXUTVkcU91rJ2RkKF0rpQAahBmYZ4U7xhdLqqelne2
+	44Kepd61pVG5xXRSx2mCAqz8BzFnLt41oPMscUpe6b3sE2YaCzXXrL3hHZWqW7whDMYxGXQjcD+
+	Kr97T/Jv6i+zEMMFPNFJlaBG2fXQDxYl/dlSEwDikcQDPhYFBrJ05aESIu+yFA3BSKA==
+X-Received: by 2002:a17:906:4f8e:: with SMTP id o14mr21468211eju.168.1557755694132;
+        Mon, 13 May 2019 06:54:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyuB1u10qG7SHpKsVbzTcqu9JS2Av/XigFDuNtPuyIClAGTp54xPy8vi+41FywY//uKfFKC
+X-Received: by 2002:a17:906:4f8e:: with SMTP id o14mr21468138eju.168.1557755693081;
+        Mon, 13 May 2019 06:54:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557755693; cv=none;
         d=google.com; s=arc-20160816;
-        b=XlZW7wLIJF5Pcn4B2KFIXL8LuuJ8+A6HLOxx8OrG/Fa4zvgIGbSFnMIDv1njLUyod2
-         UPubOuDRgjrgyMCNkLrXLZ4YOL3aDfoj0I9rKh7qgPhizOvjVVyf0WCyeNBfbvMl8WdG
-         n5Z78BSSjgAAPc3FyJPv2I47had+8UaFak4boNx0kWoHlFmyvpMctK2P1/3ANa5/1qdw
-         wKKqUSe0SGRuRfHIU+oxsisDShBk9fvAH0rSm6F9Hqb4c9qqUMYCzoWCLpYzZCjZOGXR
-         UMGNh5wQB02AXGVwE0HaOz+4o4iSZLMy8HOdaweFhTQx7gx6bPH4GMbOq8t0U5UCYKyE
-         OOjg==
+        b=hSYpBpRBbe5vGqxcYJcAVbsJ+oablNJa+qD+TaKmtHif6gCtv+lNGYiE4+Xm25RIdI
+         HfwcJqXMUiwX15roulN00CjDjoGIoebhIQU8saU+Opkv/4lZbAquV4/lt8ZmXF+tCuTm
+         /n8St9MljRntBmYl5saBmG9FN7PyJ07L2eE+D1utB55KZ4vvjWpHzgCV5aoiBKdjNwtn
+         YTroTtJ/e6Ygnd/HLuU7RqpjuneYjnxive2UW5zffSVpB+LHWLJq/3RW+GOOhsnDELQq
+         Y3GdMjUANWMRd9xA0UecY0Ov2s7wHUI3vPz1IIgaRQUgsIJFDVIebQlORGOT+GEJkN6L
+         2skA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=2QDl6grKdXugMhxYUcRUEzKdYNWZg6vAUEjXwfnBzkw=;
-        b=dAJJv+SZDrwe4Ey9HDqxWZbcU9VLUGjFaYkz9O2E1I3kU+iS+sVkx42sKDbxckMF4d
-         b6JHNex9jwqonp83XCRDjvJoilQ+eSNxSbCiUFBJwMk422/civsLoFIvn7C91tZKwU/M
-         DMIlKTwg8zSg3KbJ0semXrAPoJJQJ22/N3ZCm9ALJhr8IIncV3QGQmtnyefHf8rrbORd
-         491hkHiTmN8KSRuSNd2Fr+pUZK9GVzn1AmzTCEcG+ljtzSkoLC7+yGrUa4GOA/H8o4Zj
-         ZtfD5MIdsiiHMpf4ayuPSuuYa4ig0wgGiWfzi3/3lQDdjyYN2FGbCgQFCz0mFgmYW30z
-         xqIg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=SxAvRf3z6PTdGiUA9YQSQAWhEnq2aKom+aW5Nt71wDg=;
+        b=vGYbf6QuwV+89Vhj0bOWC06/UT2BG99WE3Rw2s5Sj4OhcQmE+8CNyyro9ILYaeOnj6
+         AycZmT+TBP59RnrvjloCM9Tev8Xr8KHVOg0zABowXX3neelW4MlibiTqLsu6YmAazp7w
+         3pBNDS0ryBq58xvLoDWIMbhaxK7M3XB+0y096anco0+kKRQnOIJtj2WDmIXlUPfkLKGB
+         InkU2t3/xpRKEHK7KpqCtqqKznecao+f+sWUVq0mbtswDqB440fM9a0KEZdRj/50Sdo/
+         BXhaWIn04Kh+kbJFcUV9Dzdy5YXayhAtrtti7G7kLOQPmBfDpPzTxtP42IsxSpr98ky7
+         td3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=PI4evEZq;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y15sor7556669qka.102.2019.05.13.06.44.02
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b6si1382323edi.407.2019.05.13.06.54.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 May 2019 06:44:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=PI4evEZq;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=2QDl6grKdXugMhxYUcRUEzKdYNWZg6vAUEjXwfnBzkw=;
-        b=PI4evEZqraBE8yNXPNwxp4xmE2NyijJHNSsC7SfViFNImDgZ1AAwHTvYYvHWNnR3wJ
-         aSKxM7KkC3kgtnIk0XhwIa9Wy74Fs+F3fSPL/0kxJVZtEeFWXdQ2wz8bmI8EanvPLJIa
-         JZGmIVsQxCvb995ZVHcttoajnCWTYDD8EDPma13jIZ3VsfeY/35hW1u0naTipeY/FbdC
-         WD/A6+vJpnsoMUu3I1UkxnfMD41foxCLv86sD7T25x/23bK7M4ZaXje2B4sZ10cAYNd2
-         7E4pUHmtjmKvXmNVSU5Yrc2FZTuQHuetU8uxVlWRieV8DcYBY8Bxom/M7BCLiGUdmUSk
-         68vA==
-X-Google-Smtp-Source: APXvYqxjHoiLVV5dDlLcG6KTaJ0fU0NM6dQoETxAspMtmKMogQvEfztN5TXLDgEyCZ8FB74Xzl9biA==
-X-Received: by 2002:a05:620a:13fc:: with SMTP id h28mr21824042qkl.164.1557755042373;
-        Mon, 13 May 2019 06:44:02 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id d16sm4138827qtd.73.2019.05.13.06.44.00
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 06:44:01 -0700 (PDT)
-Message-ID: <1557755039.6132.23.camel@lca.pw>
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
- boot
-From: Qian Cai <cai@lca.pw>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, brho@google.com, kernelfans@gmail.com, 
-	dave.hansen@intel.com, rppt@linux.ibm.com, peterz@infradead.org, 
-	mpe@ellerman.id.au, mingo@elte.hu, osalvador@suse.de, luto@kernel.org, 
-	tglx@linutronix.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Mon, 13 May 2019 09:43:59 -0400
-In-Reply-To: <20190513124112.GH24036@dhcp22.suse.cz>
-References: <20190512054829.11899-1-cai@lca.pw>
-	 <20190513124112.GH24036@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Mon, 13 May 2019 06:54:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 47787AD64;
+	Mon, 13 May 2019 13:54:52 +0000 (UTC)
+Date: Mon, 13 May 2019 15:54:24 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v8 09/12] mm/sparsemem: Support sub-section hotplug
+Message-ID: <20190513135317.GA31168@linux>
+References: <155718596657.130019.17139634728875079809.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155718601407.130019.14248061058774128227.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <155718601407.130019.14248061058774128227.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-05-13 at 14:41 +0200, Michal Hocko wrote:
-> On Sun 12-05-19 01:48:29, Qian Cai wrote:
-> > The linux-next commit ("x86, numa: always initialize all possible
-> > nodes") introduced a crash below during boot for systems with a
-> > memory-less node. This is due to CPUs that get onlined during SMP boot,
-> > but that onlining triggers a page fault in bus_add_device() during
-> > device registration:
-> > 
-> > 	error = sysfs_create_link(&bus->p->devices_kset->kobj,
-> > 
-> > bus->p is NULL. That "p" is the subsys_private struct, and it should
-> > have been set in,
-> > 
-> > 	postcore_initcall(register_node_type);
-> > 
-> > but that happens in do_basic_setup() after smp_init().
-> > 
-> > The old code had set this node online via alloc_node_data(), so when it
-> > came time to do_cpu_up() -> try_online_node(), the node was already up
-> > and nothing happened.
-> > 
-> > Now, it attempts to online the node, which registers the node with
-> > sysfs, but that can't happen before the 'node' subsystem is registered.
-> > 
-> > Since kernel_init() is running by a kernel thread that is in
-> > SYSTEM_SCHEDULING state, fixed this by skipping registering with sysfs
-> > during the early boot in __try_online_node().
-> 
-> Relying on SYSTEM_SCHEDULING looks really hackish. Why cannot we simply
-> drop try_online_node from do_cpu_up? Your v2 remark below suggests that
-> we need to call node_set_online because something later on depends on
-> that. Btw. why do we even allocate a pgdat from this path? This looks
-> really messy.
+On Mon, May 06, 2019 at 04:40:14PM -0700, Dan Williams wrote:
+>  
+> +void subsection_mask_set(unsigned long *map, unsigned long pfn,
+> +		unsigned long nr_pages)
+> +{
+> +	int idx = subsection_map_index(pfn);
+> +	int end = subsection_map_index(pfn + nr_pages - 1);
+> +
+> +	bitmap_set(map, idx, end - idx + 1);
+> +}
+> +
+>  void subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+>  {
+>  	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
+> @@ -219,20 +235,17 @@ void subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+>  		return;
+>  
+>  	for (i = start_sec; i <= end_sec; i++) {
+> -		int idx, end;
+> -		unsigned long pfns;
+>  		struct mem_section *ms;
+> +		unsigned long pfns;
+>  
+> -		idx = subsection_map_index(pfn);
+>  		pfns = min(nr_pages, PAGES_PER_SECTION
+>  				- (pfn & ~PAGE_SECTION_MASK));
+> -		end = subsection_map_index(pfn + pfns - 1);
+> -
+>  		ms = __nr_to_section(i);
+> -		bitmap_set(ms->usage->subsection_map, idx, end - idx + 1);
+> +		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
+>  
+>  		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
+> -				pfns, idx, end - idx + 1);
+> +				pfns, subsection_map_index(pfn),
+> +				subsection_map_index(pfn + pfns - 1));
 
-See the commit cf23422b9d76 ("cpu/mem hotplug: enable CPUs online before local
-memory online")
+I would definetely add subsection_mask_set() and above change to Patch#3.
+I think it suits there better than here.
 
-It looks like try_online_node() in do_cpu_up() is needed for memory hotplug
-which is to put its node online if offlined and then hotadd_new_pgdat() calls
-build_all_zonelists() to initialize the zone list.
+>  
+>  		pfn += pfns;
+>  		nr_pages -= pfns;
+> @@ -319,6 +332,15 @@ static void __meminit sparse_init_one_section(struct mem_section *ms,
+>  		unsigned long pnum, struct page *mem_map,
+>  		struct mem_section_usage *usage)
+>  {
+> +	/*
+> +	 * Given that SPARSEMEM_VMEMMAP=y supports sub-section hotplug,
+> +	 * ->section_mem_map can not be guaranteed to point to a full
+> +	 *  section's worth of memory.  The field is only valid / used
+> +	 *  in the SPARSEMEM_VMEMMAP=n case.
+> +	 */
+> +	if (IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP))
+> +		mem_map = NULL;
+> +
+>  	ms->section_mem_map &= ~SECTION_MAP_MASK;
+>  	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
+>  							SECTION_HAS_MEM_MAP;
+> @@ -724,10 +746,142 @@ static void free_map_bootmem(struct page *memmap)
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>  #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+>  
+> +#ifndef CONFIG_MEMORY_HOTREMOVE
+> +static void free_map_bootmem(struct page *memmap)
+> +{
+> +}
+> +#endif
+> +
+> +static bool is_early_section(struct mem_section *ms)
+> +{
+> +	struct page *usage_page;
+> +
+> +	usage_page = virt_to_page(ms->usage);
+> +	if (PageSlab(usage_page) || PageCompound(usage_page))
+> +		return false;
+> +	else
+> +		return true;
+> +}
+> +
+> +static void section_deactivate(unsigned long pfn, unsigned long nr_pages,
+> +		int nid, struct vmem_altmap *altmap)
+> +{
+> +	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
+> +	DECLARE_BITMAP(tmp, SUBSECTIONS_PER_SECTION) = { 0 };
+> +	struct mem_section *ms = __pfn_to_section(pfn);
+> +	bool early_section = is_early_section(ms);
+> +	struct page *memmap = NULL;
+> +	unsigned long *subsection_map = ms->usage
+> +		? &ms->usage->subsection_map[0] : NULL;
+> +
+> +	subsection_mask_set(map, pfn, nr_pages);
+> +	if (subsection_map)
+> +		bitmap_and(tmp, map, subsection_map, SUBSECTIONS_PER_SECTION);
+> +
+> +	if (WARN(!subsection_map || !bitmap_equal(tmp, map, SUBSECTIONS_PER_SECTION),
+> +				"section already deactivated (%#lx + %ld)\n",
+> +				pfn, nr_pages))
+> +		return;
+> +
+> +	if (WARN(!IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)
+> +				&& nr_pages < PAGES_PER_SECTION,
+> +				"partial memory section removal not supported\n"))
+> +		return;
+> +
+> +	/*
+> +	 * There are 3 cases to handle across two configurations
+> +	 * (SPARSEMEM_VMEMMAP={y,n}):
+> +	 *
+> +	 * 1/ deactivation of a partial hot-added section (only possible
+> +	 * in the SPARSEMEM_VMEMMAP=y case).
+> +	 *    a/ section was present at memory init
+> +	 *    b/ section was hot-added post memory init
+> +	 * 2/ deactivation of a complete hot-added section
+> +	 * 3/ deactivation of a complete section from memory init
+> +	 *
+> +	 * For 1/, when subsection_map does not empty we will not be
+> +	 * freeing the usage map, but still need to free the vmemmap
+> +	 * range.
+> +	 *
+> +	 * For 2/ and 3/ the SPARSEMEM_VMEMMAP={y,n} cases are unified
+> +	 */
+> +	bitmap_xor(subsection_map, map, subsection_map, SUBSECTIONS_PER_SECTION);
+> +	if (bitmap_empty(subsection_map, SUBSECTIONS_PER_SECTION)) {
+> +		unsigned long section_nr = pfn_to_section_nr(pfn);
+> +
+> +		if (!early_section) {
+> +			kfree(ms->usage);
+> +			ms->usage = NULL;
+> +		}
+> +		memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
+> +		ms->section_mem_map = sparse_encode_mem_map(NULL, section_nr);
+> +	}
+> +
+> +	if (early_section && memmap)
+> +		free_map_bootmem(memmap);
+> +	else
+> +		depopulate_section_memmap(pfn, nr_pages, altmap);
+> +}
+> +
+> +static struct page * __meminit section_activate(int nid, unsigned long pfn,
+> +		unsigned long nr_pages, struct vmem_altmap *altmap)
+> +{
+> +	DECLARE_BITMAP(map, SUBSECTIONS_PER_SECTION) = { 0 };
+> +	struct mem_section *ms = __pfn_to_section(pfn);
+> +	struct mem_section_usage *usage = NULL;
+> +	unsigned long *subsection_map;
+> +	struct page *memmap;
+> +	int rc = 0;
+> +
+> +	subsection_mask_set(map, pfn, nr_pages);
+> +
+> +	if (!ms->usage) {
+> +		usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
+> +		if (!usage)
+> +			return ERR_PTR(-ENOMEM);
+> +		ms->usage = usage;
+> +	}
+> +	subsection_map = &ms->usage->subsection_map[0];
+> +
+> +	if (bitmap_empty(map, SUBSECTIONS_PER_SECTION))
+> +		rc = -EINVAL;
+> +	else if (bitmap_intersects(map, subsection_map, SUBSECTIONS_PER_SECTION))
+> +		rc = -EEXIST;
+> +	else
+> +		bitmap_or(subsection_map, map, subsection_map,
+> +				SUBSECTIONS_PER_SECTION);
+> +
+> +	if (rc) {
+> +		if (usage)
+> +			ms->usage = NULL;
+> +		kfree(usage);
+> +		return ERR_PTR(rc);
+> +	}
+> +
+> +	/*
+> +	 * The early init code does not consider partially populated
+> +	 * initial sections, it simply assumes that memory will never be
+> +	 * referenced.  If we hot-add memory into such a section then we
+> +	 * do not need to populate the memmap and can simply reuse what
+> +	 * is already there.
+> +	 */
+> +	if (nr_pages < PAGES_PER_SECTION && is_early_section(ms))
+> +		return pfn_to_page(pfn);
+> +
+> +	memmap = populate_section_memmap(pfn, nr_pages, nid, altmap);
+> +	if (!memmap) {
+> +		section_deactivate(pfn, nr_pages, nid, altmap);
+> +		return ERR_PTR(-ENOMEM);
+> +	}
+> +
+> +	return memmap;
+> +}
 
-> 
-> > Call Trace:
-> >  device_add+0x43e/0x690
-> >  device_register+0x107/0x110
-> >  __register_one_node+0x72/0x150
-> >  __try_online_node+0x8f/0xd0
-> >  try_online_node+0x2b/0x50
-> >  do_cpu_up+0x46/0xf0
-> >  cpu_up+0x13/0x20
-> >  smp_init+0x6e/0xd0
-> >  kernel_init_freeable+0xe5/0x21f
-> >  kernel_init+0xf/0x180
-> >  ret_from_fork+0x1f/0x30
-> > 
-> > Reported-by: Barret Rhoden <brho@google.com>
-> > Signed-off-by: Qian Cai <cai@lca.pw>
-> > ---
-> > 
-> > v2: Set the node online as it have CPUs. Otherwise, those memory-less nodes
-> > will
-> >     end up being not in sysfs i.e., /sys/devices/system/node/.
-> > 
-> >  mm/memory_hotplug.c | 12 ++++++++++++
-> >  1 file changed, 12 insertions(+)
-> > 
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index b236069ff0d8..6eb2331fa826 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1037,6 +1037,18 @@ static int __try_online_node(int nid, u64 start, bool
-> > set_node_online)
-> >  	if (node_online(nid))
-> >  		return 0;
-> >  
-> > +	/*
-> > +	 * Here is called by cpu_up() to online a node without memory from
-> > +	 * kernel_init() which guarantees that "set_node_online" is true
-> > which
-> > +	 * will set the node online as it have CPUs but not ready to call
-> > +	 * register_one_node() as "node_subsys" has not been initialized
-> > +	 * properly yet.
-> > +	 */
-> > +	if (system_state == SYSTEM_SCHEDULING) {
-> > +		node_set_online(nid);
-> > +		return 0;
-> > +	}
-> > +
-> >  	pgdat = hotadd_new_pgdat(nid, start);
-> >  	if (!pgdat) {
-> >  		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
-> > -- 
-> > 2.20.1 (Apple Git-117)
-> 
-> 
+I do not really like this.
+Sub-section scheme is only available on CONFIG_SPARSE_VMEMMAP, so I would rather
+have two internal __section_{activate,deactivate} functions for sparse-vmemmap and
+sparse-non-vmemmap.
+That way, we can hide all detail implementation and sub-section dance behind
+the __section_{activate,deactivate} functions.
+
+> +
+> @@ -741,49 +895,31 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+>  	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+> -	struct mem_section_usage *usage;
+>  	struct mem_section *ms;
+>  	struct page *memmap;
+>  	int ret;
+>  
+> -	/*
+> -	 * no locking for this, because it does its own
+> -	 * plus, it does a kmalloc
+> -	 */
+>  	ret = sparse_index_init(section_nr, nid);
+>  	if (ret < 0 && ret != -EEXIST)
+>  		return ret;
+> -	ret = 0;
+> -	memmap = populate_section_memmap(start_pfn, PAGES_PER_SECTION, nid,
+> -			altmap);
+> -	if (!memmap)
+> -		return -ENOMEM;
+> -	usage = kzalloc(mem_section_usage_size(), GFP_KERNEL);
+> -	if (!usage) {
+> -		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
+> -		return -ENOMEM;
+> -	}
+>  
+> -	ms = __pfn_to_section(start_pfn);
+> -	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+> -		ret = -EEXIST;
+> -		goto out;
+> -	}
+> +	memmap = section_activate(nid, start_pfn, nr_pages, altmap);
+> +	if (IS_ERR(memmap))
+> +		return PTR_ERR(memmap);
+> +	ret = 0;
+>  
+>  	/*
+>  	 * Poison uninitialized struct pages in order to catch invalid flags
+>  	 * combinations.
+>  	 */
+> -	page_init_poison(memmap, sizeof(struct page) * PAGES_PER_SECTION);
+> +	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+>  
+> +	ms = __pfn_to_section(start_pfn);
+>  	section_mark_present(ms);
+> -	sparse_init_one_section(ms, section_nr, memmap, usage);
+> +	sparse_init_one_section(ms, section_nr, memmap, ms->usage);
+>  
+> -out:
+> -	if (ret < 0) {
+> -		kfree(usage);
+> -		depopulate_section_memmap(start_pfn, PAGES_PER_SECTION, altmap);
+> -	}
+> +	if (ret < 0)
+> +		section_deactivate(start_pfn, nr_pages, nid, altmap);
+>  	return ret;
+>  }
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 34f322d14e62..daeb2d7d8dd0 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -900,13 +900,12 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+        int ret;
+ 
+        ret = sparse_index_init(section_nr, nid);
+-       if (ret < 0 && ret != -EEXIST)
++       if (ret < 0)
+                return ret;
+ 
+        memmap = section_activate(nid, start_pfn, nr_pages, altmap);
+        if (IS_ERR(memmap))
+                return PTR_ERR(memmap);
+-       ret = 0;
+ 
+        /*
+         * Poison uninitialized struct pages in order to catch invalid flags
+@@ -918,8 +917,6 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+        section_mark_present(ms);
+        sparse_init_one_section(ms, section_nr, memmap, ms->usage);
+ 
+-       if (ret < 0)
+-               section_deactivate(start_pfn, nr_pages, nid, altmap);
+        return ret;
+ }
+
+-- 
+Oscar Salvador
+SUSE L3
 
