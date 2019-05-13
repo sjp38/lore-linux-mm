@@ -3,178 +3,210 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D185C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:56:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45FB6C04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:00:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0D9E2084F
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 15:56:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 042C1208C3
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:00:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="LlxuNk4L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0D9E2084F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="AD3U09r7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 042C1208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 774F16B0280; Mon, 13 May 2019 11:56:17 -0400 (EDT)
+	id 7E6526B0280; Mon, 13 May 2019 12:00:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FE7C6B0281; Mon, 13 May 2019 11:56:17 -0400 (EDT)
+	id 797496B0282; Mon, 13 May 2019 12:00:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 550056B0282; Mon, 13 May 2019 11:56:17 -0400 (EDT)
+	id 6ADD26B0284; Mon, 13 May 2019 12:00:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 176826B0280
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 11:56:17 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i123so9854727pfb.19
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 08:56:17 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 329206B0280
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 12:00:28 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id b8so8623624pls.22
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:00:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=IDGztZNSk3EOeDwS/6bGjcJdmBuu3X/lohbpa7Ehouo=;
-        b=ekbzXxsehH176y46PCsAEKHjIoy31xYduHm4A3BhRbUVZiXcjyXwEk+xQCdfkz5Yf3
-         VZPbU7s3+px9wK9GtsWFkUgSIKZedxSu9kbKZR6765tgxKvXB0PHaBNDOoxzqnAQ36E6
-         HpGLdZWz+aECmFI7h4g6tq3gtDzzXRemXvQhizBRDIH5Yi0cA69vz7bjpY1A37hC/HTI
-         +yh7djkARt6JgTL9QBvkgvyhzDi3tlbTy9VQBQGR1DQEJjkW2z/ByFp/DqDowcQnXCt3
-         VOy/UY9FSfQwuF5V5Usb97hnEiFGRFX9Yfy5IZtgX9LeaccBUEc9xsLBIC963GrYrhYd
-         8jIQ==
-X-Gm-Message-State: APjAAAV2ZXhcxe1uob15QUY72+4l1egCIX96N72kr2ign4jFENM5hlqC
-	JTT2gkqw8xzE3YhKRWIBK9onbYNWcVlAQKdMk2+2VQw1tBhqGrKnoXLmX0v1/wyHbsB/IBtuLIx
-	pko7cXz9yxqMRqZ6cLNtNCYwSTMvuu/7O0BO8qcS+kjdGG4ao1fOhVO0BsRPVVQM9KQ==
-X-Received: by 2002:a63:b507:: with SMTP id y7mr32153209pge.237.1557762976767;
-        Mon, 13 May 2019 08:56:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJ+7WXGGENYnh9r5U7wCHvFP4w82hOnE4hNrvMTeHRLc2gpLHJBZyCufwm5NaLcEhcYQ9a
-X-Received: by 2002:a63:b507:: with SMTP id y7mr32153132pge.237.1557762976108;
-        Mon, 13 May 2019 08:56:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557762976; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=9cwGdwpNsId3jbcdh2kF6oX2uSsyHzellJ1hwDZnCY8=;
+        b=dKHOaezpcSOqp9NhpOrQO/w3OhthAJbJTJVjCZ0T3fUBAxWiu6eFYYfh5PjFaStkod
+         RbpcZINqGojG1J/xROGDvrSlT2rfWlOELgSq6yIilpnj3H62xJkTdhzzdh2L63659aHz
+         1GV8aq+7AN6WJRj1bCvCui9FkzSvlrrlFRLwUkkJLTZyT4F+HnVuW8mfDfRslH45lvv4
+         ksc5EVeXlCD4NtfDEeYadmKEweBM7wBh60bcLvAwB06elP0N/5sEuQAE2N2qzm210nkW
+         ETU4lKgzI/6ev8dxn3ts18RjedmkyWxFmL/BXCMulx6bxUVTwa0x7Q1H6PxQKBk9IAUw
+         K0VA==
+X-Gm-Message-State: APjAAAULQN8Q12bjxBbzFab8KL/KIR++fYP5kNU5wnr+eFSaw8TkTbpa
+	vKKsFcT+loRjXdvYH7fAowz/OVX2Ar5OVA2NxHJo4kbHxUFCPwhF6GK0nS3p7qmNqIofGRMoSXy
+	OW7Rn9iqfdToFbSstym6yHQz9LOKUJCs8YloyNWHB5CoJb9UghNyh8QNskEiGBLf4NQ==
+X-Received: by 2002:a62:414a:: with SMTP id o71mr34958654pfa.240.1557763227814;
+        Mon, 13 May 2019 09:00:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHpBSAYlHELxhexi0gUTgeoF/aDjod5rcIGlVCPghiqe74R8GDSbhS/FqJeeMD1DZLm2rZ
+X-Received: by 2002:a62:414a:: with SMTP id o71mr34958497pfa.240.1557763226822;
+        Mon, 13 May 2019 09:00:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557763226; cv=none;
         d=google.com; s=arc-20160816;
-        b=nint3Jw8Re1BMW60mu303RWVPJI7dQ8CNpgNiYWRTsk9E4QYy5YG3mhumOo0SiXkM2
-         +sqqNlH6t5K1cNI7GOgGHIBhD13SzE+fh3gpP5DlJ+Pl28db8zUJYrsrEfClS4kiaLwv
-         VsyuKoGTTuEq68Aid+p/W0XuuLG1MzKahbw82YU7ILRtqQkB0iWUHM8vqv/4igso052C
-         5ln4bJMxYyW/duhupG3chvGiF0N3cDZvmVh8/g7Ofg28y8VuONEiMnpWLpZl4IZsltdm
-         CanW1TIHtkHLMsd8LUn1jnvKW6nMMv7kmIutToUE9E84D6QqI6rJBfwSnRGt0Z3XvhSn
-         R9Ew==
+        b=bODDqBsfVjjFvMr5Duq2Eg6JAE3Oh5X3YBg3XOJHCXEyh4XRcdKI48zyo7VVu79GV+
+         N2uzWx8eOJ9UiLzGuGElVisOltfhoqY0ciqTiLRELg1Tbdudq1t9eTGWbV3kynAdtdcq
+         Y79mb9gkpXdb3p6zSeHx2wQU6QZ767636BDTPhtiW+8KtrlTglK5lcOGvg+H7nirguKF
+         GR6ajnxpqGBEjBbdKUrDcCM+1qon3+kWKR1FxGrAV3JzTatskgjd0vH79izvfrtrmptB
+         vjzfACS4uASOgQ/37b+mxAoj7cW0Hnfzm8ZWmAnvBmy9FhH1eT3u/6Mp/vXZ7uKvTbjO
+         9T4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=IDGztZNSk3EOeDwS/6bGjcJdmBuu3X/lohbpa7Ehouo=;
-        b=CFbbj6E/aSrmhJog53jCKfqE65KA9B71GKGq8Xaa26fW+1dzdzUzlxA3tqKpbateqR
-         ey1LWg5vN/zzGrKJ0eXMpTR91WRhlzuhxSdPsuVNln/FqdcmoNiUj+mLdQBZKpwUGjxc
-         lycU0U7DrXzLvjVkhxomyhMsnuqNQclGYPXND++47pwN56P+Jsl3juTexLE4Sw1ALxC2
-         nFzegSGz0SupSSuB28z7NxxdQZYgFo+/mn9tQBKD7ndPfTj8ADfngY+yikoDU3Xt7kk+
-         5lGqQ5v/rTO3IsNFjVHSj9TqbLnqeSRiXyVLK/mjb7DB46khbBdfbAkio1uRxPoljEDY
-         T/yg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=9cwGdwpNsId3jbcdh2kF6oX2uSsyHzellJ1hwDZnCY8=;
+        b=gCjUCH9B1UiGmXnCBaM0ExBPAmF2K23996w5oJ2D1TMnP8/kSC0nCfyM2B3JOgBWWX
+         9g5Hq4py0deF906KkM7L7fMIbd0as0c+9vZVoi9JqfKnPYxol6RFDCEH2l0vbp5POy0V
+         ojfcKOUez+CUjyWaZUaHJQDUE3zRpRruzl9KP2Z2WFxRYfxrFdqKjqAnIwtx/RhdgkkY
+         ZdG0/itAWXIGw5MBTSJawUMUzA+UzVMhcjAB+EeB5GuFIAz7HT0mKr2s2R8wNWqtz9u3
+         ttMI6kKTMpgG2XVdv+5oouQL36fWVFCr6B+eREydtD9p+2dYTizeZMMs71vUejmOREyV
+         76iA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LlxuNk4L;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id b14si8617pgk.423.2019.05.13.08.56.15
+       dkim=pass header.i=@kernel.org header.s=default header.b=AD3U09r7;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j12si16785749pgp.118.2019.05.13.09.00.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 08:56:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 13 May 2019 09:00:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LlxuNk4L;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DFs1hJ072718;
-	Mon, 13 May 2019 15:55:54 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=IDGztZNSk3EOeDwS/6bGjcJdmBuu3X/lohbpa7Ehouo=;
- b=LlxuNk4Ll9o+8qngaWj0VqzCQgTsSXzex1axGc7UkNh6H5gn9YstC9amPWxaaDjGAGxy
- Sxa/tWIucIiMuDc5eNs8xpePwQDo9RjRHZDlx4gteU7+7qD3qJfcGlJ8jfI4p0KU2bXF
- hTrOvWE9u4F+yBZzqkpFK8w/hbkYVOGGj1HI167yYV1YLAZhrm+AGaMuoc32h1acCEu+
- Sl+LCkuMuGLucQ66wPTJ9InxMzlRKZsSsAsH/9IxUOkunfxL+CHBTWsawzGKlt1dVVMx
- tOIPcxxVfu7ZL49L746BHIKd3GBFDSYj5TXX0IQIUKLyuedXoNGVX6/hX8WvrZ3cNXni Fw== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2130.oracle.com with ESMTP id 2sdkwdg710-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 15:55:54 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DFtFss087063;
-	Mon, 13 May 2019 15:55:53 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2sdmeajnva-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 15:55:53 +0000
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4DFtmTB016531;
-	Mon, 13 May 2019 15:55:49 GMT
-Received: from [10.166.106.34] (/10.166.106.34)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 13 May 2019 08:55:48 -0700
-Subject: Re: [RFC KVM 02/27] KVM: x86: Introduce address_space_isolation
- module parameter
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>,
-        X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>,
-        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
-        Jonathan Adams <jwadams@google.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <1557758315-12667-3-git-send-email-alexandre.chartre@oracle.com>
- <CALCETrUjLRgKH3XbZ+=pLCzPiFOV7DAvAYUvNLA7SMNkaNLEqQ@mail.gmail.com>
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <1c541cde-a502-032a-244b-96e110507224@oracle.com>
-Date: Mon, 13 May 2019 17:55:44 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@kernel.org header.s=default header.b=AD3U09r7;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com [209.85.128.48])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 3A494214C6
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 16:00:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1557763226;
+	bh=4bcLIFwRGdrxUSdLyYcDKBhiisD8Iba6LGdB6inApCI=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=AD3U09r7iadGQx9xKbeGtVco8OzKuPg56V0gCnVoJ/QhP1NKeI/l6NioJQod0RAw5
+	 efv1W0cVsndHHYOXwwIWp0FMOC+k8HgKKyi06hYNpjbnnmrFVtYZKLTdjORICG+SZu
+	 mNQUApnmoJ+bqhQLGnlM/Z/jq/ZnhSyCSOdz5iAQ=
+Received: by mail-wm1-f48.google.com with SMTP id 198so14404043wme.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:00:26 -0700 (PDT)
+X-Received: by 2002:a1c:eb18:: with SMTP id j24mr17012407wmh.32.1557763224812;
+ Mon, 13 May 2019 09:00:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALCETrUjLRgKH3XbZ+=pLCzPiFOV7DAvAYUvNLA7SMNkaNLEqQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905130109
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905130109
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+ <1557758315-12667-20-git-send-email-alexandre.chartre@oracle.com> <a9198e28-abe1-b980-597e-2d82273a2c17@intel.com>
+In-Reply-To: <a9198e28-abe1-b980-597e-2d82273a2c17@intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 13 May 2019 09:00:13 -0700
+X-Gmail-Original-Message-ID: <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
+Message-ID: <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
+Subject: Re: [RFC KVM 19/27] kvm/isolation: initialize the KVM page table with
+ core mappings
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Alexandre Chartre <alexandre.chartre@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, 
+	Radim Krcmar <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
+	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>, 
+	X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, jan.setjeeilers@oracle.com, 
+	Liran Alon <liran.alon@oracle.com>, Jonathan Adams <jwadams@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, May 13, 2019 at 8:50 AM Dave Hansen <dave.hansen@intel.com> wrote:
+>
+> > +     /*
+> > +      * Copy the mapping for all the kernel text. We copy at the PMD
+> > +      * level since the PUD is shared with the module mapping space.
+> > +      */
+> > +     rv = kvm_copy_mapping((void *)__START_KERNEL_map, KERNEL_IMAGE_SIZE,
+> > +          PGT_LEVEL_PMD);
+> > +     if (rv)
+> > +             goto out_uninit_page_table;
+>
+> Could you double-check this?  We (I) have had some repeated confusion
+> with the PTI code and kernel text vs. kernel data vs. __init.
+> KERNEL_IMAGE_SIZE looks to be 512MB which is quite a bit bigger than
+> kernel text.
+>
+> > +     /*
+> > +      * Copy the mapping for cpu_entry_area and %esp fixup stacks
+> > +      * (this is based on the PTI userland address space, but probably
+> > +      * not needed because the KVM address space is not directly
+> > +      * enterered from userspace). They can both be copied at the P4D
+> > +      * level since they each have a dedicated P4D entry.
+> > +      */
+> > +     rv = kvm_copy_mapping((void *)CPU_ENTRY_AREA_PER_CPU, P4D_SIZE,
+> > +          PGT_LEVEL_P4D);
+> > +     if (rv)
+> > +             goto out_uninit_page_table;
+>
+> cpu_entry_area is used for more than just entry from userspace.  The gdt
+> mapping, for instance, is needed everywhere.  You might want to go look
+> at 'struct cpu_entry_area' in some more detail.
+>
+> > +#ifdef CONFIG_X86_ESPFIX64
+> > +     rv = kvm_copy_mapping((void *)ESPFIX_BASE_ADDR, P4D_SIZE,
+> > +          PGT_LEVEL_P4D);
+> > +     if (rv)
+> > +             goto out_uninit_page_table;
+> > +#endif
+>
+> Why are these mappings *needed*?  I thought we only actually used these
+> fixup stacks for some crazy iret-to-userspace handling.  We're certainly
+> not doing that from KVM context.
+>
+> Am I forgetting something?
+>
+> > +#ifdef CONFIG_VMAP_STACK
+> > +     /*
+> > +      * Interrupt stacks are vmap'ed with guard pages, so we need to
+> > +      * copy mappings.
+> > +      */
+> > +     for_each_possible_cpu(cpu) {
+> > +             stack = per_cpu(hardirq_stack_ptr, cpu);
+> > +             pr_debug("IRQ Stack %px\n", stack);
+> > +             if (!stack)
+> > +                     continue;
+> > +             rv = kvm_copy_ptes(stack - IRQ_STACK_SIZE, IRQ_STACK_SIZE);
+> > +             if (rv)
+> > +                     goto out_uninit_page_table;
+> > +     }
+> > +
+> > +#endif
+>
+> I seem to remember that the KVM VMENTRY/VMEXIT context is very special.
+>  Interrupts (and even NMIs?) are disabled.  Would it be feasible to do
+> the switching in there so that we never even *get* interrupts in the KVM
+> context?
 
+That would be nicer.
 
-On 5/13/19 5:46 PM, Andy Lutomirski wrote:
-> On Mon, May 13, 2019 at 7:39 AM Alexandre Chartre
-> <alexandre.chartre@oracle.com> wrote:
->>
->> From: Liran Alon <liran.alon@oracle.com>
->>
->> Add the address_space_isolation parameter to the kvm module.
->>
->> When set to true, KVM #VMExit handlers run in isolated address space
->> which maps only KVM required code and per-VM information instead of
->> entire kernel address space.
-> 
-> Does the *entry* also get isolated?  If not, it seems less useful for
-> side-channel mitigation.
-> 
+Looking at this code, it occurs to me that mapping the IRQ stacks
+seems questionable.  As it stands, this series switches to a normal
+CR3 in some C code somewhere moderately deep in the APIC IRQ code.  By
+that time, I think you may have executed traceable code, and, if that
+happens, you lose.  i hate to say this, but any shenanigans like this
+patch does might need to happen in the entry code *before* even
+switching to the IRQ stack.  Or perhaps shortly thereafter.
 
-Yes, context is switched before VM entry. We switch back to kernel address
-space if VM-exit handler needs it or when exiting the KVM_RUN ioctl.
+We've talked about moving context tracking to C.  If we go that route,
+then this KVM context mess could go there, too -- we'd have a
+low-level C wrapper for each entry that would deal with getting us
+ready to run normal C code.
 
-alex.
+(We need to do something about terminology.  This kvm_mm thing isn't
+an mm in the normal sense.  An mm has normal kernel mappings and
+varying user mappings.  For example, the PTI "userspace" page tables
+aren't an mm.  And we really don't want a situation where the vmalloc
+fault code runs with the "kvm_mm" mm active -- it will totally
+malfunction.)
 
