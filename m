@@ -2,114 +2,112 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45FB6C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:00:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9794DC04AAA
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:01:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 042C1208C3
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:00:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 46E892147A
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 16:01:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="AD3U09r7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 042C1208C3
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YBdQmFv+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46E892147A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E6526B0280; Mon, 13 May 2019 12:00:28 -0400 (EDT)
+	id 093406B0280; Mon, 13 May 2019 12:01:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 797496B0282; Mon, 13 May 2019 12:00:28 -0400 (EDT)
+	id 043F46B0282; Mon, 13 May 2019 12:01:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6ADD26B0284; Mon, 13 May 2019 12:00:28 -0400 (EDT)
+	id E755E6B0284; Mon, 13 May 2019 12:01:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 329206B0280
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 12:00:28 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id b8so8623624pls.22
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:00:28 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B19036B0280
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 12:01:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 63so9415792pga.18
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:01:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=9cwGdwpNsId3jbcdh2kF6oX2uSsyHzellJ1hwDZnCY8=;
-        b=dKHOaezpcSOqp9NhpOrQO/w3OhthAJbJTJVjCZ0T3fUBAxWiu6eFYYfh5PjFaStkod
-         RbpcZINqGojG1J/xROGDvrSlT2rfWlOELgSq6yIilpnj3H62xJkTdhzzdh2L63659aHz
-         1GV8aq+7AN6WJRj1bCvCui9FkzSvlrrlFRLwUkkJLTZyT4F+HnVuW8mfDfRslH45lvv4
-         ksc5EVeXlCD4NtfDEeYadmKEweBM7wBh60bcLvAwB06elP0N/5sEuQAE2N2qzm210nkW
-         ETU4lKgzI/6ev8dxn3ts18RjedmkyWxFmL/BXCMulx6bxUVTwa0x7Q1H6PxQKBk9IAUw
-         K0VA==
-X-Gm-Message-State: APjAAAULQN8Q12bjxBbzFab8KL/KIR++fYP5kNU5wnr+eFSaw8TkTbpa
-	vKKsFcT+loRjXdvYH7fAowz/OVX2Ar5OVA2NxHJo4kbHxUFCPwhF6GK0nS3p7qmNqIofGRMoSXy
-	OW7Rn9iqfdToFbSstym6yHQz9LOKUJCs8YloyNWHB5CoJb9UghNyh8QNskEiGBLf4NQ==
-X-Received: by 2002:a62:414a:: with SMTP id o71mr34958654pfa.240.1557763227814;
-        Mon, 13 May 2019 09:00:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzHpBSAYlHELxhexi0gUTgeoF/aDjod5rcIGlVCPghiqe74R8GDSbhS/FqJeeMD1DZLm2rZ
-X-Received: by 2002:a62:414a:: with SMTP id o71mr34958497pfa.240.1557763226822;
-        Mon, 13 May 2019 09:00:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557763226; cv=none;
+        bh=Ljy/U+bZu7KOD/jm5h/Nov5oW0yZ5jBLjvuaOwjQBsk=;
+        b=hFHzPOwgCupdldAR7+X1mmEkPMB/EzxDTRHscri++qZb91RbVSqR1hU4bY3KiU/33X
+         EAn2wMpBpI5k6VwShhEw+bQijFbiyqN3ONIZ1hqb1+SaoN+/p3EwEtODWe/nTZktH0xa
+         +H6xnWKoZzxJpaP+0eb2j31gBZJRBVm1Q6iiWMtydfE+z4FqrurGwa8PLkuGqxPPSl+2
+         U1+JGIItmPCjHKKCbyg8/v1xvMAbyeSBh74OaIOS24b+3p9mshjbafdwbZL5L6aa98N/
+         NnM+MvXlQWzjW2ng0ed3/C0vzqXxDknpODl10ptn0HDFR+SCeryIRA1j2eRqqq7f4V1p
+         nOkw==
+X-Gm-Message-State: APjAAAUizvdddw5slXIO9AhIvs1wMBlBPJfAZ/sj3O+4C+H6kx4lhxSM
+	SfMgqEnT5S3EPPWwGMKba+9PXP5rAa/D1D71WJ8Gep5UxDHM3kb37SBwlkjywkjXqgYdUVgEAOu
+	w3S2pPNjp9dTDK50uYhGHreBj4LIfX5YOz41opliIkGm1YQ0xjYXkbljmyFr5CO1+hw==
+X-Received: by 2002:a17:902:b614:: with SMTP id b20mr30369905pls.200.1557763291392;
+        Mon, 13 May 2019 09:01:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyQYp7hA4AI5l+PAXXs/Fjyk6t6XI96LdGfy/zTJtOMLYzXlWOUIgBb6xnVh/d6aF1G8R1q
+X-Received: by 2002:a17:902:b614:: with SMTP id b20mr30369820pls.200.1557763290718;
+        Mon, 13 May 2019 09:01:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557763290; cv=none;
         d=google.com; s=arc-20160816;
-        b=bODDqBsfVjjFvMr5Duq2Eg6JAE3Oh5X3YBg3XOJHCXEyh4XRcdKI48zyo7VVu79GV+
-         N2uzWx8eOJ9UiLzGuGElVisOltfhoqY0ciqTiLRELg1Tbdudq1t9eTGWbV3kynAdtdcq
-         Y79mb9gkpXdb3p6zSeHx2wQU6QZ767636BDTPhtiW+8KtrlTglK5lcOGvg+H7nirguKF
-         GR6ajnxpqGBEjBbdKUrDcCM+1qon3+kWKR1FxGrAV3JzTatskgjd0vH79izvfrtrmptB
-         vjzfACS4uASOgQ/37b+mxAoj7cW0Hnfzm8ZWmAnvBmy9FhH1eT3u/6Mp/vXZ7uKvTbjO
-         9T4g==
+        b=ctUOJUjGXnh8VnsGmxST5rVzA5mkbYjzpb63VWfd8myvmouwFAVOrDZXSgfyOVgtk4
+         yaof4qw90ah9N48cMTd7XaUkBB/Iry5ytnv+eUMTSR/udedWm3At9w4dNnQxVfa0jhr2
+         n90U+VwL/6pFniCBurEnzU9LFMbdiTXjsJYJttH+XWZvET8WvOXitKGwpu5HrO/HFKmA
+         GpAsNdi5uEEGZEJ3ljTaX+ryByHnOgS36hmSE2t6rxkH1FbdBUUM5dbp7l8M/1nJ49mW
+         bv0nZo7P62HLHH6y9cFrpvyHUX3i3GG8EDj0CK20oD7iVwQVo2/YMSTkqLpIhYDdLeKJ
+         XqZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=9cwGdwpNsId3jbcdh2kF6oX2uSsyHzellJ1hwDZnCY8=;
-        b=gCjUCH9B1UiGmXnCBaM0ExBPAmF2K23996w5oJ2D1TMnP8/kSC0nCfyM2B3JOgBWWX
-         9g5Hq4py0deF906KkM7L7fMIbd0as0c+9vZVoi9JqfKnPYxol6RFDCEH2l0vbp5POy0V
-         ojfcKOUez+CUjyWaZUaHJQDUE3zRpRruzl9KP2Z2WFxRYfxrFdqKjqAnIwtx/RhdgkkY
-         ZdG0/itAWXIGw5MBTSJawUMUzA+UzVMhcjAB+EeB5GuFIAz7HT0mKr2s2R8wNWqtz9u3
-         ttMI6kKTMpgG2XVdv+5oouQL36fWVFCr6B+eREydtD9p+2dYTizeZMMs71vUejmOREyV
-         76iA==
+        bh=Ljy/U+bZu7KOD/jm5h/Nov5oW0yZ5jBLjvuaOwjQBsk=;
+        b=KTNicf/GeZL5VBBJ9eYHt34Qgq0hK4dT+iIXSZDup4FXuebwwdQSccy+fnL+ZvS3z6
+         +kVTtM9WkvJ80y5MPpdKKDD9zn3ZXvhcADgfOEzYBTLuRBkRAfI/hM/GVdUNL7/Fpgp6
+         rbM8UauKUjIR7mTGCLvDpOdeyoc29Oqd0ZPbisBnhQbUj6v674LBC7pGmOWvbZSmJHwZ
+         cnvKfVC8JM7GLllp+jnB6k2TZ4OOkYklSNeJMtmBgMV2OeNlUh3XvePUHAXTWvQP5b2U
+         tV6PkzDaLkoHs6v6OUe1G5YQoSUanxS0e8gsb5IiGi0OGEqwn8M1Nwr4XGhrfXZDFgMh
+         GBwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AD3U09r7;
+       dkim=pass header.i=@kernel.org header.s=default header.b=YBdQmFv+;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j12si16785749pgp.118.2019.05.13.09.00.26
+        by mx.google.com with ESMTPS id v40si16502367plg.409.2019.05.13.09.01.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 09:00:26 -0700 (PDT)
+        Mon, 13 May 2019 09:01:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AD3U09r7;
+       dkim=pass header.i=@kernel.org header.s=default header.b=YBdQmFv+;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f48.google.com (mail-wm1-f48.google.com [209.85.128.48])
+Received: from mail-wm1-f50.google.com (mail-wm1-f50.google.com [209.85.128.50])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3A494214C6
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 16:00:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2370E21655
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 16:01:30 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557763226;
-	bh=4bcLIFwRGdrxUSdLyYcDKBhiisD8Iba6LGdB6inApCI=;
+	s=default; t=1557763290;
+	bh=lEibKcwC5gVE6uqe1w9PcI6jNFCNtyn0TO/fffg8YH8=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=AD3U09r7iadGQx9xKbeGtVco8OzKuPg56V0gCnVoJ/QhP1NKeI/l6NioJQod0RAw5
-	 efv1W0cVsndHHYOXwwIWp0FMOC+k8HgKKyi06hYNpjbnnmrFVtYZKLTdjORICG+SZu
-	 mNQUApnmoJ+bqhQLGnlM/Z/jq/ZnhSyCSOdz5iAQ=
-Received: by mail-wm1-f48.google.com with SMTP id 198so14404043wme.3
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:00:26 -0700 (PDT)
-X-Received: by 2002:a1c:eb18:: with SMTP id j24mr17012407wmh.32.1557763224812;
- Mon, 13 May 2019 09:00:24 -0700 (PDT)
+	b=YBdQmFv+6f0ehcqPTdycmmzLGxIGw7o9OdfJad+Pew98TJbknjnEOFU5Ia677bZeP
+	 7yQRnNXKQ7beIL8WyMqISTgRWj+CyN9f5Tkextzwte6J/imWrq8bxznyj77y8IXwbR
+	 0OGW+acgJQTjsK+TkAhuAsfAx54+ZMBW+kf/71MQ=
+Received: by mail-wm1-f50.google.com with SMTP id f2so14279677wmj.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 09:01:30 -0700 (PDT)
+X-Received: by 2002:a7b:c844:: with SMTP id c4mr5457540wml.108.1557763286508;
+ Mon, 13 May 2019 09:01:26 -0700 (PDT)
 MIME-Version: 1.0
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <1557758315-12667-20-git-send-email-alexandre.chartre@oracle.com> <a9198e28-abe1-b980-597e-2d82273a2c17@intel.com>
-In-Reply-To: <a9198e28-abe1-b980-597e-2d82273a2c17@intel.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com> <1557758315-12667-26-git-send-email-alexandre.chartre@oracle.com>
+In-Reply-To: <1557758315-12667-26-git-send-email-alexandre.chartre@oracle.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 13 May 2019 09:00:13 -0700
-X-Gmail-Original-Message-ID: <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
-Message-ID: <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
-Subject: Re: [RFC KVM 19/27] kvm/isolation: initialize the KVM page table with
- core mappings
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Alexandre Chartre <alexandre.chartre@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, 
-	Radim Krcmar <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
-	Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+Date: Mon, 13 May 2019 09:01:14 -0700
+X-Gmail-Original-Message-ID: <CALCETrWmvcrO0bBEw7iL-GnCED6hTz=FD+nANZkdQRo2R-w_3Q@mail.gmail.com>
+Message-ID: <CALCETrWmvcrO0bBEw7iL-GnCED6hTz=FD+nANZkdQRo2R-w_3Q@mail.gmail.com>
+Subject: Re: [RFC KVM 25/27] kvm/isolation: implement actual KVM isolation enter/exit
+To: Alexandre Chartre <alexandre.chartre@oracle.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
 	Andrew Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>, 
 	X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
 	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, jan.setjeeilers@oracle.com, 
@@ -121,92 +119,60 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 8:50 AM Dave Hansen <dave.hansen@intel.com> wrote:
+On Mon, May 13, 2019 at 7:40 AM Alexandre Chartre
+<alexandre.chartre@oracle.com> wrote:
 >
-> > +     /*
-> > +      * Copy the mapping for all the kernel text. We copy at the PMD
-> > +      * level since the PUD is shared with the module mapping space.
-> > +      */
-> > +     rv = kvm_copy_mapping((void *)__START_KERNEL_map, KERNEL_IMAGE_SIZE,
-> > +          PGT_LEVEL_PMD);
-> > +     if (rv)
-> > +             goto out_uninit_page_table;
+> From: Liran Alon <liran.alon@oracle.com>
 >
-> Could you double-check this?  We (I) have had some repeated confusion
-> with the PTI code and kernel text vs. kernel data vs. __init.
-> KERNEL_IMAGE_SIZE looks to be 512MB which is quite a bit bigger than
-> kernel text.
+> KVM isolation enter/exit is done by switching between the KVM address
+> space and the kernel address space.
 >
-> > +     /*
-> > +      * Copy the mapping for cpu_entry_area and %esp fixup stacks
-> > +      * (this is based on the PTI userland address space, but probably
-> > +      * not needed because the KVM address space is not directly
-> > +      * enterered from userspace). They can both be copied at the P4D
-> > +      * level since they each have a dedicated P4D entry.
-> > +      */
-> > +     rv = kvm_copy_mapping((void *)CPU_ENTRY_AREA_PER_CPU, P4D_SIZE,
-> > +          PGT_LEVEL_P4D);
-> > +     if (rv)
-> > +             goto out_uninit_page_table;
+> Signed-off-by: Liran Alon <liran.alon@oracle.com>
+> Signed-off-by: Alexandre Chartre <alexandre.chartre@oracle.com>
+> ---
+>  arch/x86/kvm/isolation.c |   30 ++++++++++++++++++++++++------
+>  arch/x86/mm/tlb.c        |    1 +
+>  include/linux/sched.h    |    1 +
+>  3 files changed, 26 insertions(+), 6 deletions(-)
 >
-> cpu_entry_area is used for more than just entry from userspace.  The gdt
-> mapping, for instance, is needed everywhere.  You might want to go look
-> at 'struct cpu_entry_area' in some more detail.
+> diff --git a/arch/x86/kvm/isolation.c b/arch/x86/kvm/isolation.c
+> index db0a7ce..b0c789f 100644
+> --- a/arch/x86/kvm/isolation.c
+> +++ b/arch/x86/kvm/isolation.c
+> @@ -1383,11 +1383,13 @@ static bool kvm_page_fault(struct pt_regs *regs, unsigned long error_code,
+>         printk(KERN_DEFAULT "KVM isolation: page fault %ld at %pS on %lx (%pS) while switching mm\n"
+>                "  cr3=%lx\n"
+>                "  kvm_mm=%px pgd=%px\n"
+> -              "  active_mm=%px pgd=%px\n",
+> +              "  active_mm=%px pgd=%px\n"
+> +              "  kvm_prev_mm=%px pgd=%px\n",
+>                error_code, (void *)regs->ip, address, (void *)address,
+>                cr3,
+>                &kvm_mm, kvm_mm.pgd,
+> -              active_mm, active_mm->pgd);
+> +              active_mm, active_mm->pgd,
+> +              current->kvm_prev_mm, current->kvm_prev_mm->pgd);
+>         dump_stack();
 >
-> > +#ifdef CONFIG_X86_ESPFIX64
-> > +     rv = kvm_copy_mapping((void *)ESPFIX_BASE_ADDR, P4D_SIZE,
-> > +          PGT_LEVEL_P4D);
-> > +     if (rv)
-> > +             goto out_uninit_page_table;
-> > +#endif
+>         return false;
+> @@ -1649,11 +1651,27 @@ void kvm_may_access_sensitive_data(struct kvm_vcpu *vcpu)
+>         kvm_isolation_exit();
+>  }
 >
-> Why are these mappings *needed*?  I thought we only actually used these
-> fixup stacks for some crazy iret-to-userspace handling.  We're certainly
-> not doing that from KVM context.
->
-> Am I forgetting something?
->
-> > +#ifdef CONFIG_VMAP_STACK
-> > +     /*
-> > +      * Interrupt stacks are vmap'ed with guard pages, so we need to
-> > +      * copy mappings.
-> > +      */
-> > +     for_each_possible_cpu(cpu) {
-> > +             stack = per_cpu(hardirq_stack_ptr, cpu);
-> > +             pr_debug("IRQ Stack %px\n", stack);
-> > +             if (!stack)
-> > +                     continue;
-> > +             rv = kvm_copy_ptes(stack - IRQ_STACK_SIZE, IRQ_STACK_SIZE);
-> > +             if (rv)
-> > +                     goto out_uninit_page_table;
-> > +     }
-> > +
-> > +#endif
->
-> I seem to remember that the KVM VMENTRY/VMEXIT context is very special.
->  Interrupts (and even NMIs?) are disabled.  Would it be feasible to do
-> the switching in there so that we never even *get* interrupts in the KVM
-> context?
+> +static void kvm_switch_mm(struct mm_struct *mm)
+> +{
+> +       unsigned long flags;
+> +
+> +       /*
+> +        * Disable interrupt before updating active_mm, otherwise if an
+> +        * interrupt occurs during the switch then the interrupt handler
+> +        * can be mislead about the mm effectively in use.
+> +        */
+> +       local_irq_save(flags);
+> +       current->kvm_prev_mm = current->active_mm;
 
-That would be nicer.
+Peter's NAK aside, why on Earth is this in task_struct?  You cannot
+possibly context switch while in isolation mode.
 
-Looking at this code, it occurs to me that mapping the IRQ stacks
-seems questionable.  As it stands, this series switches to a normal
-CR3 in some C code somewhere moderately deep in the APIC IRQ code.  By
-that time, I think you may have executed traceable code, and, if that
-happens, you lose.  i hate to say this, but any shenanigans like this
-patch does might need to happen in the entry code *before* even
-switching to the IRQ stack.  Or perhaps shortly thereafter.
-
-We've talked about moving context tracking to C.  If we go that route,
-then this KVM context mess could go there, too -- we'd have a
-low-level C wrapper for each entry that would deal with getting us
-ready to run normal C code.
-
-(We need to do something about terminology.  This kvm_mm thing isn't
-an mm in the normal sense.  An mm has normal kernel mappings and
-varying user mappings.  For example, the PTI "userspace" page tables
-aren't an mm.  And we really don't want a situation where the vmalloc
-fault code runs with the "kvm_mm" mm active -- it will totally
-malfunction.)
+--Andy
 
