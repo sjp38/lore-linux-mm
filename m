@@ -2,260 +2,226 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13646C04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 17:00:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C316BC04AA7
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 17:06:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE5FA208CA
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 17:00:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 68D4120879
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 17:06:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="bIbPRVQM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE5FA208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="zIss71+o"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68D4120879
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 23B1D6B0005; Mon, 13 May 2019 13:00:57 -0400 (EDT)
+	id 124B06B0005; Mon, 13 May 2019 13:06:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1EB2C6B0008; Mon, 13 May 2019 13:00:57 -0400 (EDT)
+	id 0AF356B0008; Mon, 13 May 2019 13:06:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0653E6B0010; Mon, 13 May 2019 13:00:57 -0400 (EDT)
+	id E6AD86B0010; Mon, 13 May 2019 13:06:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C20056B0005
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 13:00:56 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f8so9581716pgp.9
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 10:00:56 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C20106B0005
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 13:06:17 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id s16so4562379ioe.22
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 10:06:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=4xiDPOzSHcQpk0xHvpIXFduYKLuE1ShLeQljNETPlH8=;
-        b=LeMl1HFeguPqTwqwQW8OYAx2AWH7pNWMRdagRtvF3GDlMQ3K6x3mZx+GhhL0krI50Y
-         i7/9lBH1qCxhoTrRDg8tg3lWG77OeFShh6gdbLLIvBKlX1dUQisgqswOkeq/UE+HNA3K
-         Zia3uj6zminsecL3Z2ZH6RL5afYOw53W86KK97QT9Pt2hFioegbY9/nRqvO3KtZPXd6p
-         J4DNuFVEAYZxx6XIf0bhL/QllBkkAunFabp4IQJMUOl1sWbfPp+7iO7clGTCoEYFIwig
-         qNN5J4ICzVZhIpY71zUGzswUBNzc0otJ7Kl5tmagGpZkI9E8FfZZY/ZfI/+WiseVh9yo
-         huYQ==
-X-Gm-Message-State: APjAAAUbUzsSkOCTfxQHGMAXocifyE1+C5KeaoIJzklLTydY0hA4QwLM
-	/1ATecZgTUBy3SCQxXzhh4Lo0sJxJA/DYsy0/V8RTejhheZSwQ565uFykSd08QqDmLpNcM0WrX9
-	1zoCoBcw47xcvlCMY47CRqI0dtCQZB4qjk6kjXHKWAN9jg0jW50XcH1mFfGZs5nO3cQ==
-X-Received: by 2002:a17:902:bd94:: with SMTP id q20mr10012454pls.146.1557766856247;
-        Mon, 13 May 2019 10:00:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqjrrjB6K0Pkh4+roSX0ssRobNesHAkBo4apbgfflA+i18/nBCJOBdpQPghziBMO8errKb
-X-Received: by 2002:a17:902:bd94:: with SMTP id q20mr10012316pls.146.1557766855267;
-        Mon, 13 May 2019 10:00:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557766855; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=eHLpfnWoWujPeilq2Vzxl8f6Oekfsot30OspAFhCnvA=;
+        b=KlHNMqDISTIH/dxUgZAnkQXl3gUok5t48279njcciNqhlfMo4mBgmhXBBGnA/cPy/f
+         e7Ga2VqXe+YseKwJmArsUd9DX3Y0Cwb4nDmovRE3BAvJyYYKjHnv0AHFQAttRxMGt2hG
+         aXMmW/PPnOEdfS7APF1MaHmlR0vbCHfHDNsI28KdTsiXsJIumUWu6h5wm3YLXNiPkSSu
+         YkGwrVOYEjpk46LLiE3rs5dEYF+329Ao2LsCXCujDr0wh8am7jcHJDdxU9cZCgn0U5nV
+         5Q04GZNAIkf9C1LhzPA1k7wKLklDFQJJvoTJBpdenGJrE6rWkU1727UQG/7ZVl3Czt01
+         f6bA==
+X-Gm-Message-State: APjAAAXjvL1A922F2yDpDopTE+Sa1/a9YFmBri/dHdjQtudjkU3wLNr4
+	LO9GjiYHwAIWjUNTcP+omf0LBJckdZL9v0N5d0H8COkM9FHmLBEwF1T78YwY/XF5vqcXQ7cvWWW
+	bZK+eRr9zXGluyjrH5K/iRcwQic4G5Rk/u2jgYjB+XIgQarVS3xGlhj7O/M3FaIW9/g==
+X-Received: by 2002:a24:6e90:: with SMTP id w138mr137442itc.150.1557767177528;
+        Mon, 13 May 2019 10:06:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwuQObBOMczc0BmfLvVJSZIV/B88O3CwdFAjm2Rk39o+Il9gRtgTBUZgwq4U3Jf/YZ5ptT5
+X-Received: by 2002:a24:6e90:: with SMTP id w138mr137378itc.150.1557767176521;
+        Mon, 13 May 2019 10:06:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557767176; cv=none;
         d=google.com; s=arc-20160816;
-        b=lVdhPJBCZSDzXtc/BK6YVgijlrADavvS1sO7j6/ljBVKMpooN9fSeagu6GWOhM4rAs
-         lK30/MYnz0h7/3OVYvjGMRiuKeOB9ZTDrVBSHkgGsFoSXo13cFTiXOE3Z22pv1LMnAIg
-         AulfXGAbvW7F00J51VzfsI0nVMc+0V2obVKuVaLGxx1dQZd6su/bhcpIlfEK9klDiEfu
-         zWQC19rpxzrWTosFVd0MDOPou7e08Jc+lxtHwcRmxm/uPuh3chExAuZ0G2eqZIEMek1e
-         NtLHknl1nRJ7szanpUU//A9RYbVLmEkeQYbh+EE34Ci/2vfWJ5wsN0XIAQgmxlxjannQ
-         /HDw==
+        b=AiX+WcNHPeaxLO7kKLHOF4gXtudj0WuA5zHlcV8eRsmRhlEY7ZL059L9uBWylWu4QB
+         6gJoKGPqKbesm+TcPPFkqD9al2AVBYmubiYCM1y/RMUcGRrxvGCeErZJVlHDNXN7Pj3T
+         krpYKsl+SWpgWpNPzdK+h1u0vAYD1BLWmsHyYtjYy1jYDqPlWtPQuFJO+hjyp9T3jr8G
+         Q6bQveuNSJHBUdD0BsPIKmR3v0a7SnXb4+995roXCpwND3wF688LNVHYyQQptU1TLGrq
+         ya1MUzx/quzPY4GWrQLtWleTx0CRQ3k3fecnIA2jGqGY6Giyk79wd8+j+FlwVPHvugXn
+         9Eiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=4xiDPOzSHcQpk0xHvpIXFduYKLuE1ShLeQljNETPlH8=;
-        b=c5iBd+sYYkorLxVZTJT8mwpeMmc1Gr8TvcdKRji9oVxxfkbp+VL+6/SXw4lIg3GuNQ
-         AIoZ9qnzgkkWQh+Si2U0gQ/dSU1KC5CAupmDziDWDoloKc+hWfOC3upnYoBS8atZ1/Bc
-         LNi2AznYF6sqtKI7HONAhOEt5apSuG1ezDyi9Nf6WU1wg46q14XkttUUUJe3TGao9xuR
-         ri+gFKFtD8TAlHjfN3LZGpqXO4Z/b6buW+jvTdOx0nJjQY4I2dDgx28SxKiPPyUo8JmM
-         7DKTBWDsSXrA+ds4687urZUNye51tJKgrcgbnrz/qGFhAI4ZsQ7YMoN6OBSK4Dua3D2+
-         yuHQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=eHLpfnWoWujPeilq2Vzxl8f6Oekfsot30OspAFhCnvA=;
+        b=EwThIDfHY3FsEfBWEkpEmRG3XTIxS+X8603ukPoNZQFBFV1H4FCYvLfXf0Ne+YqPeh
+         59iFq3i8Xd4Hl3jeBlKEbiVznF/9sFvc8mTLRtlFwPK4opqak1NjWh/l6ePUuAheiiZx
+         i7KOlvFcAytyG9bUlnnCu6ATXYRxRmOLwb7KSof0+8REWNNogYVvtdYCpt77ii9v3G5O
+         79HyuDYAp5bXvdUs6uJkTteGmfBaJlLNEp/b0o7WdaLtlr61FXOUNcVa7YAA9yY0q3Ee
+         DUNNfotKuKKpwRDoFrxaqHGR2h/XFDqA7FpApjg33jd2MGIc8jq3BHS4fk4BBi0fdJux
+         cBTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bIbPRVQM;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id cd7si8628338plb.377.2019.05.13.10.00.54
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=zIss71+o;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.72.75 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM05-CO1-obe.outbound.protection.outlook.com (mail-eopbgr720075.outbound.protection.outlook.com. [40.107.72.75])
+        by mx.google.com with ESMTPS id g11si7499507ioq.13.2019.05.13.10.06.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 10:00:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 13 May 2019 10:06:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.72.75 as permitted sender) client-ip=40.107.72.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=bIbPRVQM;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DGwgch132176;
-	Mon, 13 May 2019 17:00:37 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=4xiDPOzSHcQpk0xHvpIXFduYKLuE1ShLeQljNETPlH8=;
- b=bIbPRVQMgiUHCVQwzQuqCiiZIMI38WFqpvE61wvkwdHcTyhzPfLq4oD3+D8wgtXVJoxY
- 8pC1Vh0vbaJ30yemQlGtGrVuLAlyjkghNmAbqrM8fv46zQ94FvB757novPa3rKLV2imw
- 0Rsln4Ilxb01BbtFroGEkx5twV4K/0dcJwz27KIIJVo9abCRYhOxxhQrvBsDBZRIO9Ty
- fRd5tFBbwgLIO5OYE3zC4KfSunv09l19QUIWVVDyhKWbZBQOOX4YplDNz7gkK6j5i6n7
- j89WdQO6nRc6bsocVSBH3ck1exCVyYHV40l8U51e46C4tjj5CNcjBeBCdDLOJw5BdN4S vA== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2130.oracle.com with ESMTP id 2sdkwdgm9w-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 17:00:37 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4DGxHjO090835;
-	Mon, 13 May 2019 17:00:36 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2se0tvp1hb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 13 May 2019 17:00:36 +0000
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4DH0ZfW031069;
-	Mon, 13 May 2019 17:00:35 GMT
-Received: from [10.166.106.34] (/10.166.106.34)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 13 May 2019 10:00:35 -0700
-Subject: Re: [RFC KVM 19/27] kvm/isolation: initialize the KVM page table with
- core mappings
-To: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>,
-        X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>,
-        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
-        Jonathan Adams <jwadams@google.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <1557758315-12667-20-git-send-email-alexandre.chartre@oracle.com>
- <a9198e28-abe1-b980-597e-2d82273a2c17@intel.com>
- <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <ec26a85f-ff1c-89d9-5e6c-ff42e834c48d@oracle.com>
-Date: Mon, 13 May 2019 19:00:31 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
-MIME-Version: 1.0
-In-Reply-To: <CALCETrXYW-CfixanL3Wk5v_5Ex7WMe+7POV0VfBVHujfb6cvtQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=zIss71+o;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.72.75 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=eHLpfnWoWujPeilq2Vzxl8f6Oekfsot30OspAFhCnvA=;
+ b=zIss71+oKy+qkYWnO8iIPsiuerwJqUgQAT2ySU5TZnFJjPDu/z3rLw92rugKfP4UWcIj1sZH5gCZQA4oLBtTu6DLY+9kF9iDVNt6msCq9uLPwySXwaj7bsm8NamJEO+S+j1gr8hdDDJnyHxrL2XE2qT9S7hwNTI7vS0XFsqRxtw=
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
+ BYAPR05MB5029.namprd05.prod.outlook.com (20.177.230.211) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1900.14; Mon, 13 May 2019 17:06:03 +0000
+Received: from BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::b057:917a:f098:6098]) by BYAPR05MB4776.namprd05.prod.outlook.com
+ ([fe80::b057:917a:f098:6098%7]) with mapi id 15.20.1900.010; Mon, 13 May 2019
+ 17:06:03 +0000
+From: Nadav Amit <namit@vmware.com>
+To: Will Deacon <will.deacon@arm.com>
+CC: Peter Zijlstra <peterz@infradead.org>, Yang Shi
+	<yang.shi@linux.alibaba.com>, "jstancek@redhat.com" <jstancek@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org"
+	<stable@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML
+	<linux-kernel@vger.kernel.org>, "Aneesh Kumar K . V"
+	<aneesh.kumar@linux.vnet.ibm.com>, Nick Piggin <npiggin@gmail.com>, Minchan
+ Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Thread-Topic: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Thread-Index:
+ AQHVBlNcdgyGQHvMg0ymTH6Y7O8srKZjDs8AgAANcoCAAAcZgIAABfcAgAAkYwCABXN1AIAACeyAgAB8rgCAAAfegA==
+Date: Mon, 13 May 2019 17:06:03 +0000
+Message-ID: <43638259-8EDB-4B8D-A93D-A2E86D8B2489@vmware.com>
+References: <1557264889-109594-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190509083726.GA2209@brain-police>
+ <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
+ <20190509182435.GA2623@hirez.programming.kicks-ass.net>
+ <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
+ <20190509191120.GD2623@hirez.programming.kicks-ass.net>
+ <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
+ <20190513083606.GL2623@hirez.programming.kicks-ass.net>
+ <75FD46B2-2E0C-41F2-9308-AB68C8780E33@vmware.com>
+ <20190513163752.GA10754@fuggles.cambridge.arm.com>
+In-Reply-To: <20190513163752.GA10754@fuggles.cambridge.arm.com>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905130116
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905130116
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [50.204.119.4]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 47297cbe-ed62-467f-e6aa-08d6d7c547c8
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR05MB5029;
+x-ms-traffictypediagnostic: BYAPR05MB5029:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <BYAPR05MB50293E7CEBC629E4E9DC7419D00F0@BYAPR05MB5029.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 0036736630
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(376002)(346002)(39860400002)(396003)(366004)(51444003)(199004)(189003)(6306002)(66476007)(66556008)(64756008)(66446008)(66946007)(33656002)(54906003)(53546011)(4326008)(229853002)(2906002)(6506007)(14454004)(76116006)(83716004)(53936002)(73956011)(478600001)(486006)(76176011)(99286004)(476003)(966005)(3846002)(6116002)(14444005)(256004)(6512007)(6246003)(6916009)(102836004)(7416002)(36756003)(71190400001)(2616005)(305945005)(68736007)(316002)(66066001)(11346002)(71200400001)(6436002)(25786009)(5660300002)(446003)(86362001)(26005)(81166006)(6486002)(186003)(82746002)(7736002)(8676002)(81156014)(8936002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5029;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ M3YMOwND2CWU6vsD5LVIT2NkqoWdZ80ZU1tBtqKXZPzu8maZSifKTkZZjd8cYNNk3+58zbxpU6wvvVxjdBGtSSA5ve9wjXbnQHUxihk0Pmz5qh+6yXgmnz4KeraotmRDkNtc2J411Wv+88sjkMYtpn4oCiul8LBmqQEASl+JUgUl1O3/8urnOisBFN3JGrdsQKPibL9o/xG1Cl122bPDDmGa37B8JkS8bvWJHL6XE5hJhETE/qavChdxvZ7GrQ5bBHHek82u/o3pKnmVnw9L1zbwlNxnoHfQTfzXYYcjrASIOmdsXjeiKxohaCcDY9DB2JQxSInuMGAcRg5Y/v3cRw5g8GYh+YNtGWtz2YWW/pFDNQiF20aRaAAFUWoWfqJIGRbl2+phHDO2wHhe1O2LcApMOjKS3eQjUeWL59zTte8=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <CE53F45D5AB1584CAB1191AD54213E73@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 47297cbe-ed62-467f-e6aa-08d6d7c547c8
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 May 2019 17:06:03.1242
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5029
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 5/13/19 6:00 PM, Andy Lutomirski wrote:
-> On Mon, May 13, 2019 at 8:50 AM Dave Hansen <dave.hansen@intel.com> wrote:
->>
->>> +     /*
->>> +      * Copy the mapping for all the kernel text. We copy at the PMD
->>> +      * level since the PUD is shared with the module mapping space.
->>> +      */
->>> +     rv = kvm_copy_mapping((void *)__START_KERNEL_map, KERNEL_IMAGE_SIZE,
->>> +          PGT_LEVEL_PMD);
->>> +     if (rv)
->>> +             goto out_uninit_page_table;
->>
->> Could you double-check this?  We (I) have had some repeated confusion
->> with the PTI code and kernel text vs. kernel data vs. __init.
->> KERNEL_IMAGE_SIZE looks to be 512MB which is quite a bit bigger than
->> kernel text.
->>
->>> +     /*
->>> +      * Copy the mapping for cpu_entry_area and %esp fixup stacks
->>> +      * (this is based on the PTI userland address space, but probably
->>> +      * not needed because the KVM address space is not directly
->>> +      * enterered from userspace). They can both be copied at the P4D
->>> +      * level since they each have a dedicated P4D entry.
->>> +      */
->>> +     rv = kvm_copy_mapping((void *)CPU_ENTRY_AREA_PER_CPU, P4D_SIZE,
->>> +          PGT_LEVEL_P4D);
->>> +     if (rv)
->>> +             goto out_uninit_page_table;
->>
->> cpu_entry_area is used for more than just entry from userspace.  The gdt
->> mapping, for instance, is needed everywhere.  You might want to go look
->> at 'struct cpu_entry_area' in some more detail.
->>
->>> +#ifdef CONFIG_X86_ESPFIX64
->>> +     rv = kvm_copy_mapping((void *)ESPFIX_BASE_ADDR, P4D_SIZE,
->>> +          PGT_LEVEL_P4D);
->>> +     if (rv)
->>> +             goto out_uninit_page_table;
->>> +#endif
->>
->> Why are these mappings *needed*?  I thought we only actually used these
->> fixup stacks for some crazy iret-to-userspace handling.  We're certainly
->> not doing that from KVM context.
->>
->> Am I forgetting something?
->>
->>> +#ifdef CONFIG_VMAP_STACK
->>> +     /*
->>> +      * Interrupt stacks are vmap'ed with guard pages, so we need to
->>> +      * copy mappings.
->>> +      */
->>> +     for_each_possible_cpu(cpu) {
->>> +             stack = per_cpu(hardirq_stack_ptr, cpu);
->>> +             pr_debug("IRQ Stack %px\n", stack);
->>> +             if (!stack)
->>> +                     continue;
->>> +             rv = kvm_copy_ptes(stack - IRQ_STACK_SIZE, IRQ_STACK_SIZE);
->>> +             if (rv)
->>> +                     goto out_uninit_page_table;
->>> +     }
->>> +
->>> +#endif
->>
->> I seem to remember that the KVM VMENTRY/VMEXIT context is very special.
->>   Interrupts (and even NMIs?) are disabled.  Would it be feasible to do
->> the switching in there so that we never even *get* interrupts in the KVM
->> context?
-> 
-> That would be nicer.
-> 
-> Looking at this code, it occurs to me that mapping the IRQ stacks
-> seems questionable.  As it stands, this series switches to a normal
-> CR3 in some C code somewhere moderately deep in the APIC IRQ code.  By
-> that time, I think you may have executed traceable code, and, if that
-> happens, you lose.  i hate to say this, but any shenanigans like this
-> patch does might need to happen in the entry code *before* even
-> switching to the IRQ stack.  Or perhaps shortly thereafter.
->
-> We've talked about moving context tracking to C.  If we go that route,
-> then this KVM context mess could go there, too -- we'd have a
-> low-level C wrapper for each entry that would deal with getting us
-> ready to run normal C code.
-> 
-> (We need to do something about terminology.  This kvm_mm thing isn't
-> an mm in the normal sense.  An mm has normal kernel mappings and
-> varying user mappings.  For example, the PTI "userspace" page tables
-> aren't an mm.  And we really don't want a situation where the vmalloc
-> fault code runs with the "kvm_mm" mm active -- it will totally
-> malfunction.)
-> 
-
-One of my next step is to try to put the KVM page table in the PTI userspace
-page tables, and not switch CR3 on KVM_RUN ioctl. That way, we will run with
-a regular mm (but using the userspace page table). Then interrupt would switch
-CR3 to kernel page table (like paranoid idtentry currently do it).
-
-alex.
-
-
-
+PiBPbiBNYXkgMTMsIDIwMTksIGF0IDk6MzcgQU0sIFdpbGwgRGVhY29uIDx3aWxsLmRlYWNvbkBh
+cm0uY29tPiB3cm90ZToNCj4gDQo+IE9uIE1vbiwgTWF5IDEzLCAyMDE5IGF0IDA5OjExOjM4QU0g
+KzAwMDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+Pj4gT24gTWF5IDEzLCAyMDE5LCBhdCAxOjM2IEFN
+LCBQZXRlciBaaWpsc3RyYSA8cGV0ZXJ6QGluZnJhZGVhZC5vcmc+IHdyb3RlOg0KPj4+IA0KPj4+
+IE9uIFRodSwgTWF5IDA5LCAyMDE5IGF0IDA5OjIxOjM1UE0gKzAwMDAsIE5hZGF2IEFtaXQgd3Jv
+dGU6DQo+Pj4gDQo+Pj4+Pj4+IEFuZCB3ZSBjYW4gZml4IHRoYXQgYnkgaGF2aW5nIHRsYl9maW5p
+c2hfbW11KCkgc3luYyB1cC4gTmV2ZXIgbGV0IGENCj4+Pj4+Pj4gY29uY3VycmVudCB0bGJfZmlu
+aXNoX21tdSgpIGNvbXBsZXRlIHVudGlsIGFsbCBjb25jdXJyZW5jdCBtbXVfZ2F0aGVycw0KPj4+
+Pj4+PiBoYXZlIGNvbXBsZXRlZC4NCj4+Pj4+Pj4gDQo+Pj4+Pj4+IFRoaXMgc2hvdWxkIG5vdCBi
+ZSB0b28gaGFyZCB0byBtYWtlIGhhcHBlbi4NCj4+Pj4+PiANCj4+Pj4+PiBUaGlzIHN5bmNocm9u
+aXphdGlvbiBzb3VuZHMgbXVjaCBtb3JlIGV4cGVuc2l2ZSB0aGFuIHdoYXQgSSBwcm9wb3NlZC4g
+QnV0IEkNCj4+Pj4+PiBhZ3JlZSB0aGF0IGNhY2hlLWxpbmVzIHRoYXQgbW92ZSBmcm9tIG9uZSBD
+UFUgdG8gYW5vdGhlciBtaWdodCBiZWNvbWUgYW4NCj4+Pj4+PiBpc3N1ZS4gQnV0IEkgdGhpbmsg
+dGhhdCB0aGUgc2NoZW1lIEkgc3VnZ2VzdGVkIHdvdWxkIG1pbmltaXplIHRoaXMgb3ZlcmhlYWQu
+DQo+Pj4+PiANCj4+Pj4+IFdlbGwsIGl0IHdvdWxkIGhhdmUgYSBsb3QgbW9yZSB1bmNvbmRpdGlv
+bmFsIGF0b21pYyBvcHMuIE15IHNjaGVtZSBvbmx5DQo+Pj4+PiB3YWl0cyB3aGVuIHRoZXJlIGlz
+IGFjdHVhbCBjb25jdXJyZW5jeS4NCj4+Pj4gDQo+Pj4+IFdlbGwsIHNvbWV0aGluZyBoYXMgdG8g
+Z2l2ZS4gSSBkaWRu4oCZdCB0aGluayB0aGF0IGlmIHRoZSBzYW1lIGNvcmUgZG9lcyB0aGUNCj4+
+Pj4gYXRvbWljIG9wIGl0IHdvdWxkIGJlIHRvbyBleHBlbnNpdmUuDQo+Pj4gDQo+Pj4gVGhleSdy
+ZSBzdGlsbCBhdCBsZWFzdCAyMCBjeWNsZXMgYSBwb3AsIHVuY29udGVuZGVkLg0KPj4+IA0KPj4+
+Pj4gSSBfdGhpbmtfIHNvbWV0aGluZyBsaWtlIHRoZSBiZWxvdyBvdWdodCB0byB3b3JrLCBidXQg
+aXRzIG5vdCBldmVuIGJlZW4NCj4+Pj4+IG5lYXIgYSBjb21waWxlci4gVGhlIG9ubHkgcHJvYmxl
+bSBpcyB0aGUgdW5jb25kaXRpb25hbCB3YWtldXA7IHdlIGNhbg0KPj4+Pj4gcGxheSBnYW1lcyB0
+byBhdm9pZCB0aGF0IGlmIHdlIHdhbnQgdG8gY29udGludWUgd2l0aCB0aGlzLg0KPj4+Pj4gDQo+
+Pj4+PiBJZGVhbGx5IHdlJ2Qgb25seSBkbyB0aGlzIHdoZW4gdGhlcmUncyBiZWVuIGFjdHVhbCBv
+dmVybGFwLCBidXQgSSd2ZSBub3QNCj4+Pj4+IGZvdW5kIGEgc2Vuc2libGUgd2F5IHRvIGRldGVj
+dCB0aGF0Lg0KPj4+Pj4gDQo+Pj4+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBl
+cy5oIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+Pj4+PiBpbmRleCA0ZWY0YmJlNzhhMWQu
+LmI3MGUzNTc5MmQyOSAxMDA2NDQNCj4+Pj4+IC0tLSBhL2luY2x1ZGUvbGludXgvbW1fdHlwZXMu
+aA0KPj4+Pj4gKysrIGIvaW5jbHVkZS9saW51eC9tbV90eXBlcy5oDQo+Pj4+PiBAQCAtNTkwLDcg
+KzU5MCwxMiBAQCBzdGF0aWMgaW5saW5lIHZvaWQgZGVjX3RsYl9mbHVzaF9wZW5kaW5nKHN0cnVj
+dCBtbV9zdHJ1Y3QgKm1tKQ0KPj4+Pj4gCSAqDQo+Pj4+PiAJICogVGhlcmVmb3JlIHdlIG11c3Qg
+cmVseSBvbiB0bGJfZmx1c2hfKigpIHRvIGd1YXJhbnRlZSBvcmRlci4NCj4+Pj4+IAkgKi8NCj4+
+Pj4+IC0JYXRvbWljX2RlYygmbW0tPnRsYl9mbHVzaF9wZW5kaW5nKTsNCj4+Pj4+ICsJaWYgKGF0
+b21pY19kZWNfYW5kX3Rlc3QoJm1tLT50bGJfZmx1c2hfcGVuZGluZykpIHsNCj4+Pj4+ICsJCXdh
+a2VfdXBfdmFyKCZtbS0+dGxiX2ZsdXNoX3BlbmRpbmcpOw0KPj4+Pj4gKwl9IGVsc2Ugew0KPj4+
+Pj4gKwkJd2FpdF9ldmVudF92YXIoJm1tLT50bGJfZmx1c2hfcGVuZGluZywNCj4+Pj4+ICsJCQkg
+ICAgICAgIWF0b21pY19yZWFkX2FjcXVpcmUoJm1tLT50bGJfZmx1c2hfcGVuZGluZykpOw0KPj4+
+Pj4gKwl9DQo+Pj4+PiB9DQo+Pj4+IA0KPj4+PiBJdCBzdGlsbCBzZWVtcyB2ZXJ5IGV4cGVuc2l2
+ZSB0byBtZSwgYXQgbGVhc3QgZm9yIGNlcnRhaW4gd29ya2xvYWRzIChlLmcuLA0KPj4+PiBBcGFj
+aGUgd2l0aCBtdWx0aXRocmVhZGVkIE1QTSkuDQo+Pj4gDQo+Pj4gSXMgdGhhdCBBcGFjaGUtTVBN
+IHdvcmtsb2FkIHRyaWdnZXJpbmcgdGhpcyBsb3RzPyBIYXZpbmcgYSBrbm93bg0KPj4+IGJlbmNo
+bWFyayBmb3IgdGhpcyBzdHVmZiBpcyBnb29kIGZvciB3aGVuIHNvbWVvbmUgaGFzIHRpbWUgdG8g
+cGxheSB3aXRoDQo+Pj4gdGhpbmdzLg0KPj4gDQo+PiBTZXR0aW5nIEFwYWNoZTIgd2l0aCBtcG1f
+d29ya2VyIGNhdXNlcyBldmVyeSByZXF1ZXN0IHRvIGdvIHRocm91Z2gNCj4+IG1tYXAtd3JpdGV2
+LW11bm1hcCBmbG93IG9uIGV2ZXJ5IHRocmVhZC4gSSBkaWRu4oCZdCBydW4gdGhpcyB3b3JrbG9h
+ZCBhZnRlcg0KPj4gdGhlIHBhdGNoZXMgdGhhdCBkb3duZ3JhZGUgdGhlIG1tYXBfc2VtIHRvIHJl
+YWQgYmVmb3JlIHRoZSBwYWdlLXRhYmxlDQo+PiB6YXBwaW5nIHdlcmUgaW50cm9kdWNlZC4gSSBw
+cmVzdW1lIHRoZXNlIHBhdGNoZXMgd291bGQgYWxsb3cgdGhlIHBhZ2UtdGFibGUNCj4+IHphcHBp
+bmcgdG8gYmUgZG9uZSBjb25jdXJyZW50bHksIGFuZCB0aGVyZWZvcmUgd291bGQgaGl0IHRoaXMg
+Zmxvdy4NCj4gDQo+IEhtbSwgSSBkb24ndCB0aGluayBzbzogbXVubWFwKCkgc3RpbGwgaGFzIHRv
+IHRha2UgdGhlIHNlbWFwaG9yZSBmb3Igd3JpdGUNCj4gaW5pdGlhbGx5LCBzbyBpdCB3aWxsIGJl
+IHNlcmlhbGlzZWQgYWdhaW5zdCBvdGhlciBtdW5tYXAoKSB0aHJlYWRzIGV2ZW4NCj4gYWZ0ZXIg
+dGhleSd2ZSBkb3duZ3JhZGVkIGFmYWljdC4NCj4gDQo+IFRoZSBpbml0aWFsIGJ1ZyByZXBvcnQg
+d2FzIGFib3V0IGNvbmN1cnJlbnQgbWFkdmlzZSgpIHZzIG11bm1hcCgpLg0KDQpJIGd1ZXNzIHlv
+dSBhcmUgcmlnaHQgKGFuZCBJ4oCZbSB3cm9uZykuDQoNClNob3J0IHNlYXJjaCBzdWdnZXN0cyB0
+aGF0IGViaXp6eSBtaWdodCBiZSBhZmZlY3RlZCAoYSB0aHJlYWQgYnkgTWVsDQpHb3JtYW4pOiBo
+dHRwczovL2xrbWwub3JnL2xrbWwvMjAxNS8yLzIvNDkzDQoNCg==
 
