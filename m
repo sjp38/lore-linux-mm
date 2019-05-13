@@ -2,105 +2,103 @@ Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B82DC04AB1
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:51:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA5FAC04AB1
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:53:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F0462085A
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:51:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F0462085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5B94D208C3
+	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 08:53:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B94D208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 495C06B0006; Mon, 13 May 2019 04:51:17 -0400 (EDT)
+	id 09D696B026D; Mon, 13 May 2019 04:53:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 445EB6B000C; Mon, 13 May 2019 04:51:17 -0400 (EDT)
+	id 04D346B026E; Mon, 13 May 2019 04:53:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 30E506B000E; Mon, 13 May 2019 04:51:17 -0400 (EDT)
+	id E58566B026F; Mon, 13 May 2019 04:53:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D50046B0006
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 04:51:16 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r48so16911712eda.11
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 01:51:16 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 995506B026D
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 04:53:07 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d15so16917378edm.7
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 01:53:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=HedTAL7Jg7MJfkG2nL5FzwXD9+7+XcTxbbIDEQ2YCWM=;
-        b=LAu1/SGTjxehvw6HvgvHaWfOH0rwayLamW6ccQVwd/B1FuHIeKh+HaHdXfY6ba+nax
-         pEkNfVVMr9bQiwW8v5nr05EKB/NS/fBKecx7f3lWyGziwtf8yGeEmpBU13/gc3symCrv
-         1ZVfgmhlyvLu6AjMo/vhv7E8Ib7vx5pULt82C4iTsxrS5K5+1SjPPSamWAiPshMz2X62
-         SX/0tL4KnarCqMDeb2PEkjd8t1/GKWi9IaBfrNqlTOflakEYjAm279rwuDhvrK9xukck
-         rI1IemvPp0dIJsjuR305vTe0QaOeMOuR0OUqa9KH4qjBVGsdCfZX5/iE9HqinRt8YkW0
-         RRYw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVtLIj1ayJ38oT9lGw821Eudk51nlSUnh+Ul7z0kbxG4/JqBJiG
-	n7d21TsQlQPvMKmBlvuwIFJsEkgBhLBSvuqauWiMywDp7DDJt+mHPTzw/YBwi1aDM9VReD0kHlj
-	+etA2GtX6STBr+/8+nUAKkILPAUt+t27YmKytyHkdUYunhRElAoPF89E7rfS/Da8=
-X-Received: by 2002:a50:9765:: with SMTP id d34mr28153634edb.195.1557737476444;
-        Mon, 13 May 2019 01:51:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3hJlsVfDc48u/VNIipTdkG82L5DQjMdt4WpFy9j2veYbViuXjgV+1w+jzz/oDBqe8XEWU
-X-Received: by 2002:a50:9765:: with SMTP id d34mr28153578edb.195.1557737475712;
-        Mon, 13 May 2019 01:51:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557737475; cv=none;
+        bh=fJ1WyILG9AMBeCt6XjjkG0lQYb4oxHO7ZMF8WXIccBE=;
+        b=EHFYgHgi9bWC11htJ3hXxTlRHOLs4X2FC6F1fre6G1X+/MbxqGu5WaU/LbHSL7rRhb
+         9mMNPEdKqLNWsvpRe5CZzjrH6FTysD/7lUzkLud+xrILU4Z33wgDpw7PKjMIiu7YlTTl
+         BuDycvhiJkuehj1RKHNSs2eTXl3iXsMDmfsw3ySMggphUKZB1rXeJ73sWW3mx02LrcYz
+         9Crd0Q/h/UwOA41+Yv3BW21WoCW6ycYV1QGupQA2jJke1wU0M3z60b9Bq+I8GX5+J8EH
+         VfqUbjBNhdCeBbpy6vVCilTgTCeE3+amVC7/6brDG0z2lmsZBNOmvNjsn9ZONB8i5T4c
+         qVkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.35 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAW9Et10215IYrGuPZP1yqGiM393SQHaJPfsgmz/Fy4ek7I11RM8
+	vIHGyf3ooipL5idoLz+/tkj3KW12vuU7XwHvqZ0j2zah+wE4wUFLVDCk5jaIKGrGxKlwzlaaTiM
+	ruQM2PzMg/l4x1TD39JzlMOyEeBAjRrFsy6EKgDA51InwxNrXk+CJVV6GsCpxTTkkmA==
+X-Received: by 2002:a17:906:43c4:: with SMTP id j4mr21058036ejn.262.1557737587209;
+        Mon, 13 May 2019 01:53:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzY5izWsCm8ARqUoABnTWAGcZNb0Clpc/FJPNtMQQe/R2M9ApJ1xOzlYlaPpOqk7HAEJOMj
+X-Received: by 2002:a17:906:43c4:: with SMTP id j4mr21057987ejn.262.1557737586348;
+        Mon, 13 May 2019 01:53:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557737586; cv=none;
         d=google.com; s=arc-20160816;
-        b=cvEhvT2k3LK4n0vK686oQ4MQOSpMCJyGUYX+8DyXXUO7fPNT26bVQOq27fnIDGG80X
-         1QXmqQCPAl4v8wapmV9+sIVpkiLiBBocpdJnRcrWUeAHy0tU9IHr7BtRUUyv+xlfMwgn
-         x/UnnrOBA3mLE1S5ND2It790ny25dyyjhkU3YNfoOsx7FPEYtcPQuRLI01GbfQXSTKMA
-         s04xUFuiKs1UNahEMZaoP+3ZZF+A/v0XsIg3W5zacvOYuqrHF5YPPCE7UBuMtO8KeAUi
-         jLuejuR9lincsgQQgYuZ0dt7SdN7wy5vHrxf73uRKuy8LEFEuMR4LTr9fHkRhhWvjoMQ
-         OB8A==
+        b=IaqLbDrnDcILCxEMct5GRuMYelTqJjLX1ZGKBY47RobYuda9DuVjdO/NPhjPEZBkel
+         0QCtQshXhQ5L1L4M76p8cTbVoApS2qb0GtR4iC0Pxpru/TZeADTESw0tw6vT9TUaH0ip
+         JILY6NGWxKuWyHIols1BjR1ACRtlcWUBN8Fs6LtaTP7xDJCC2YUpe7zldEa0yXUlMLLb
+         wVfcQm1m+Rs8z/xdUr/l0yyKCu6EMBlCsDaD+GZpAQbM0zjuQMVob5KhuUf9yGf73elM
+         rKbxQawJAzPM03woQGrCze8Enxv7Je07S50s4gIyIgZQwCjz82eDaprJT2mV22jaoo3e
+         5xTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=HedTAL7Jg7MJfkG2nL5FzwXD9+7+XcTxbbIDEQ2YCWM=;
-        b=i2u7Iqi2t2pCe6DltCMtXA+fZdMrXFw/HzX9LQ+GmEkw61Yw0buZott9PmK2BW+v7l
-         pzVQhNuwE0fNnNdoE9FyKEfLjWZuC4mDhBsPpO6nsrdfTO9VesOPT/+wo3bvyRhXnUWn
-         ZyIkqQ5Bd/CosBF222AglZ8f6HUboMssn0eH9IaKw/4VOZtFVX09bDCELoNZtDrnDJ6g
-         rQlWW3PD3UzxBnS155Eei20JnyMocbNWGqwJoaPlP2SbWHbO+6TzExSTNECixmAdNgH1
-         FlLdcSCghzo+G2oDfxEO/zgIUBosqs1nu1rxwFb41L+CNS09/vTDV4NLv2KEzHT/wwM5
-         xkiQ==
+        bh=fJ1WyILG9AMBeCt6XjjkG0lQYb4oxHO7ZMF8WXIccBE=;
+        b=KyqhjdbdIE0jslD7ErsvvH5qW1kEbsrxdDEJi1X9vm5rBqA52yfk9QipJuFY7fi71y
+         poYbIzfERU7XGA92XDFw8fOK5q389KRWful8zOxoRltDUIgAf/PswVlMSdVeKscLrdsT
+         8G7JNUrPVfBlr5nrIwoIBRUeoWwmy4QHVGQ1Yi0ZVn1z6K3gMhzaW1puLPO1HMQ/yIGu
+         NH3b83uyjWozW6jxqH7FEvjIfsaEaeEcAB/YgYX4/f5+aGH0zWmaFsiD9NqMKG3TFvvN
+         fARDlK7NYBEPXJx2VRO9MU9EpOhcI5dCmaPzMITqk1d0LbZpWDPuav4ft6t6krUL6Dud
+         yOpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hh16si497337ejb.161.2019.05.13.01.51.15
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.35 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id i26si884343ede.246.2019.05.13.01.53.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 01:51:15 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 13 May 2019 01:53:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.35 as permitted sender) client-ip=81.17.249.35;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 12230AECD;
-	Mon, 13 May 2019 08:51:15 +0000 (UTC)
-Date: Mon, 13 May 2019 10:51:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Jan Kara <jack@suse.cz>,
-	Amir Goldstein <amir73il@gmail.com>, linux-mm@kvack.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [RESEND PATCH v2 2/2] memcg, fsnotify: no oom-kill for remote
- memcg charging
-Message-ID: <20190513085114.GD24036@dhcp22.suse.cz>
-References: <20190512160927.80042-1-shakeelb@google.com>
- <20190512160927.80042-2-shakeelb@google.com>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.35 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id DBBD0988D1
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 08:53:05 +0000 (UTC)
+Received: (qmail 16351 invoked from network); 13 May 2019 08:53:05 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 13 May 2019 08:53:05 -0000
+Date: Mon, 13 May 2019 09:53:04 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Bruce ZHANG <bo.zhang@nxp.com>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"guro@fb.com" <guro@fb.com>, "mhocko@suse.com" <mhocko@suse.com>,
+	"vbabka@suse.cz" <vbabka@suse.cz>,
+	"jannh@google.com" <jannh@google.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [PATCH] mm,vmstat: correct pagetypeinfo statistics when show
+Message-ID: <20190513085304.GJ18914@techsingularity.net>
+References: <1557491480-19857-1-git-send-email-bo.zhang@nxp.com>
+ <20190510184900.tf5r74rtiblmifyq@ca-dmjordan1.us.oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190512160927.80042-2-shakeelb@google.com>
+In-Reply-To: <20190510184900.tf5r74rtiblmifyq@ca-dmjordan1.us.oracle.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,51 +106,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun 12-05-19 09:09:27, Shakeel Butt wrote:
-[...]
-> diff --git a/fs/notify/fanotify/fanotify.c b/fs/notify/fanotify/fanotify.c
-> index 6b9c27548997..f78fd4c8f12d 100644
-> --- a/fs/notify/fanotify/fanotify.c
-> +++ b/fs/notify/fanotify/fanotify.c
-> @@ -288,10 +288,13 @@ struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
->  	/*
->  	 * For queues with unlimited length lost events are not expected and
->  	 * can possibly have security implications. Avoid losing events when
-> -	 * memory is short.
-> +	 * memory is short. Also make sure to not trigger OOM killer in the
-> +	 * target memcg for the limited size queues.
->  	 */
->  	if (group->max_events == UINT_MAX)
->  		gfp |= __GFP_NOFAIL;
-> +	else
-> +		gfp |= __GFP_RETRY_MAYFAIL;
->  
->  	/* Whoever is interested in the event, pays for the allocation. */
->  	memalloc_use_memcg(group->memcg);
-> diff --git a/fs/notify/inotify/inotify_fsnotify.c b/fs/notify/inotify/inotify_fsnotify.c
-> index ff30abd6a49b..17c08daa1ba7 100644
-> --- a/fs/notify/inotify/inotify_fsnotify.c
-> +++ b/fs/notify/inotify/inotify_fsnotify.c
-> @@ -99,9 +99,12 @@ int inotify_handle_event(struct fsnotify_group *group,
->  	i_mark = container_of(inode_mark, struct inotify_inode_mark,
->  			      fsn_mark);
->  
-> -	/* Whoever is interested in the event, pays for the allocation. */
-> +	/*
-> +	 * Whoever is interested in the event, pays for the allocation. However
-> +	 * do not trigger the OOM killer in the target memcg.
+On Fri, May 10, 2019 at 02:49:00PM -0400, Daniel Jordan wrote:
+> On Fri, May 10, 2019 at 12:36:48PM +0000, Bruce ZHANG wrote:
+> > The "Free pages count per migrate type at order" are shown with the
+> > order from 0 ~ (MAX_ORDER-1), while "Page block order" just print
+> > pageblock_order. If the macro CONFIG_HUGETLB_PAGE is defined, the
+> > pageblock_order may not be equal to (MAX_ORDER-1).
+> 
+> All of this is true, but why do you think it's wrong?
+> 
 
-Both comments would be much more helpful if they mentioned _why_ we do
-not want to trigger the OOM iller.
+Indeed, why is this wrong?
 
-> +	 */
->  	memalloc_use_memcg(group->memcg);
-> -	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT);
-> +	event = kmalloc(alloc_len, GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
->  	memalloc_unuse_memcg();
->  
->  	if (unlikely(!event)) {
+> It makes sense that "Page block order" corresponds to pageblock_order,
+> regardless of whether pageblock_order == MAX_ORDER-1.
+> 
+
+Page block order is related to the PMD huge page size, it's not directly
+related to MAX_ORDER other than MAX_ORDER is larger than
+pageblock_order.
+
+> Cc Mel, who added these two lines.
+> 
+> > Signed-off-by: Zhang Bo <bo.zhang@nxp.com>
+
+What's there is correct so unless there is a great explanation as to why
+it should be different;
+
+Naked-by: Mel Gorman <mgorman@techsingularity.net>
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
