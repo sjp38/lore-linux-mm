@@ -6,195 +6,199 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8546EC04A6B
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:04:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04051C04A6B
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:05:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C8912086A
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:04:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C8912086A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C16DA2086A
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:05:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C16DA2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B449B6B0003; Tue, 14 May 2019 00:04:58 -0400 (EDT)
+	id 5785A6B0005; Tue, 14 May 2019 00:05:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF5116B0005; Tue, 14 May 2019 00:04:58 -0400 (EDT)
+	id 529F06B0007; Tue, 14 May 2019 00:05:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C5B06B0007; Tue, 14 May 2019 00:04:58 -0400 (EDT)
+	id 3F2796B0008; Tue, 14 May 2019 00:05:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FCEA6B0003
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:04:58 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i3so21250943edr.12
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:04:58 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 209E56B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:05:30 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id v191so23636325ywc.11
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:05:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=kOrUJ2IQfms7No9IJ6qvL0WH3Pj2kqV3rUYuu0GkG6s=;
-        b=eZasAGaK+TTll0atexF/HPn696h5Gi6BNpdKm8Xrk2q1q8jx50lC5FURaxZ+yXKLuz
-         AY/eAnKG+b7PH/fBpapRKMBBxM7u/Kv3JlVrrpOFDF4g+cI/mT6FJ27ub5jFMl5fpRSr
-         h56pfAa8w3g/gjVXta+RKLRxKMZbetsI9ncapLPsU0JmAFi/depiQfQCKXiRY5MA7Lxz
-         CV9gde6XFqjQGQFV0ofZWYFf6eXpByCXR21wgQG48RuvFj22aT4TzZi+LCWcYBYGVn4W
-         OEP55R6A5By6zBSR7mkoOmACQDcl/cvXMK21McCzu6w2SF7Vqq1+PlEwMOkb6mtfdKi/
-         e9tA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAX6zdsToU6DBW4YzhzH7bVP1GLFxRUgZ/bC4G+xzwPpeTc+gRd8
-	sMCY6Ewzntz8GTyw0qGUmk/ebafgO6gXyB/R1tOaiMbDESlFBXPSZr617o8fRTnTNmNJ3o4TKvv
-	k3uwlARoKT6QxPnMk3Chb1atFSEl2+i1kpnrfP1sOojoVuSW1hOoCkDtCY2ESm3Ihnw==
-X-Received: by 2002:a17:906:5e10:: with SMTP id n16mr25039510eju.143.1557806697820;
-        Mon, 13 May 2019 21:04:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzfNS9M7kQpGCyz1sSyUSyjROD9vLbB4v0SRMvvS1vgiMABvAVNE+qQCjtsA985cpOt1lQI
-X-Received: by 2002:a17:906:5e10:: with SMTP id n16mr25039471eju.143.1557806696859;
-        Mon, 13 May 2019 21:04:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557806696; cv=none;
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=ukPV/+JTDZCXpcDbaMh08o5HG+V8ZwcMTXq3eIcJi/E=;
+        b=gZuPGN7QLDPDO6qEBHYioOc17hWBve3IcKzXvSU8lUFjt7gUNHfuaNwlX+CP05Y8yM
+         f8ASUvQnrW1EYIwHtq0sWUqzxSQKtbHSgvCD2It6gw66nQIYaQU5aVZtBm2cwR2stuc5
+         iP//L1DoIuE6a6QbIdV/RTj5zvKtQM6fvAage153Sa8J40UI692UZ1wsHesfTuRpWik/
+         mfRzxPATZWy6bmmrEshK/CwKmyMC9tYjVye12E8AseLlbYDb8M0BR8MXAeIOj9XpxFDb
+         nmegsUkQtvRiVRbMVeQHqHdX5qnnULWsq8GieMJtLT0Z4JZXLEjqcogb1pxPO+bbTv3Z
+         /GAg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVvDJqITGlOxBhgz3AoCjPxnsRNsfR2Iif7nGzOhK2n+Odd6lTN
+	LcyLv59G7jibDThB5MzYFMBhlQn8RpeB1eiXypJ309QkBSeQoYg02/nxMXG92Mk0HRPz7MZYrnA
+	QR5S+QVkHe0JlymQHMSOGqZW5ecmn9bcw94xRS426nCF3+Uf1MjnJipqZinjMWeCfqQ==
+X-Received: by 2002:a25:d08e:: with SMTP id h136mr14541189ybg.316.1557806729869;
+        Mon, 13 May 2019 21:05:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvccfUNtiGUbvTQRQ2XaXJmhpFpzjbDoCUD/AVRYcOjwoox7xA2Sy5qrEGt4rFhAEq/SaA
+X-Received: by 2002:a25:d08e:: with SMTP id h136mr14541172ybg.316.1557806729156;
+        Mon, 13 May 2019 21:05:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557806729; cv=none;
         d=google.com; s=arc-20160816;
-        b=TV/sI5xN5uT2dJz3aCd7Asxr0UEhFC+57SOMwzDgG6bqdGsjRvNGvCmiu4ZB8lMWOt
-         W9U+eTnj3I901JskDvh9/xX9nuCq/6cAZqk6Rwp1YB/npae1cguRKyYhifmcGqlMWMFb
-         PWnvPKVIceBizN6pSXRP/WL7Od4k7uwVKYAe2AHlAKHNyie++AphN4jN37wXVhxHLt1H
-         7p6QUQGJv+HfLbgwtS0+Wq7KjOXjBob6mbJs+JqQlry0QZxKdI3Z4DSSA0nr0VM3Dlz9
-         IeSObpzlqD+4NbM9s68pIXAQgKXQIQN8Ql1V6iUiM/griv0al0Z0I11AHA+Dp/MXrlof
-         KM/w==
+        b=Vbe+kjK4UTLC3J/xn50jzeIPUMjZx4KRiiKJhCaFenrjGLHUPwAaenN6JxXjdXdYVq
+         aIUFyC0zO/y4iRz/t0862E+tGNItQK1RfjJHh/YuIRTO7+a/E4lA5eZ72BedQ/tC7prw
+         gED4SrH/UX/l0AABIXGXR4Z3ChbESmcvADkseCjge5dE3FS7EdCFZzrOCIZT4lpBIkOn
+         CM12LfTOyk0GytMG44wd+DczkwVSgh0BsITsDAmhfAYmZNy3ikb2kcZ9UK4X9XbimF+R
+         sMOGoPCJtDeax1dMsgHKCIoHuJKs0FR0wjt8uXfRj3iaEt1JvYB1HIX3dwLVUWWC6lty
+         qvMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=kOrUJ2IQfms7No9IJ6qvL0WH3Pj2kqV3rUYuu0GkG6s=;
-        b=zoI/yuePWOwOpE/pbMaiNX8ByWGdXH/55ukCGF3k8yTavWvqs/yJjtmCFmNEQ5U/RC
-         NSTxO+wyVjno6T5oFQOxFbwAFUzdMwDi2zhk1nJIQG2GFBV9Be6ifc+XiPcKDz/9LJ32
-         tzr/AF7OrCV35Zis20P40FI8NvS1l0cmnnpKXQuNp9SQbcYD1D3BWc13RBgeGczfv+Nv
-         /RsbDw2dGJpFnN9hCQPgMuUPUkZF+SaystNP02bg6NuwhcdtsyQ9/dYWnIAq5FTNTjrm
-         gZ2ON7jUJnGrL3K4NMbEd0q21aYOtE31r2iCHyjcDC3tfmsXGkJuUjtPG32Hlsns9leA
-         SCCg==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=ukPV/+JTDZCXpcDbaMh08o5HG+V8ZwcMTXq3eIcJi/E=;
+        b=lzHHeAyUNboJx6Huab+zS2QJeVqxf59uWIZk408YUms6HRqtOUo9//g54LGTg8qVXb
+         vbfDH1IhvEoPrlXdczTgc314QzoN7JKanwKNlI/ijwP14geTGd5ZuvYpJP5gKTBuIIhr
+         Nre/3QbP+mKiq/JgY8pPZvxxH4fOxrI7MmpWlcm0s1CMrp0yR5QhUJq+2NbT3DIN2cju
+         jccGvojNEBIb12QaUJYQb87NWjSZv+UwE2PhWvsE4qDma2XelSlJs+FoSJLlpBYnX8pi
+         8KfZvVGsvMdulWdnPJdmagebdmN9OZ5g90UQ3j4js09xWCyxJhWuvy7oKtOqzW2iq3Hr
+         jC4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id j2si4456903ejt.260.2019.05.13.21.04.56
-        for <linux-mm@kvack.org>;
-        Mon, 13 May 2019 21:04:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d7si4463074ybb.464.2019.05.13.21.05.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 21:05:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 78EBB341;
-	Mon, 13 May 2019 21:04:55 -0700 (PDT)
-Received: from [10.163.1.137] (unknown [10.163.1.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8AD423F71E;
-	Mon, 13 May 2019 21:04:52 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm/nvdimm: Fix kernel crash on
- devm_mremap_pages_release
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
- linuxppc-dev@lists.ozlabs.org
-References: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <2f08e63e-5ff9-b036-1212-9345894cca26@arm.com>
-Date: Tue, 14 May 2019 09:35:01 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4E42ar7058963
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:05:28 -0400
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sfhn2ryqc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:05:28 -0400
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 14 May 2019 05:05:28 +0100
+Received: from b01cxnp23034.gho.pok.ibm.com (9.57.198.29)
+	by e11.ny.us.ibm.com (146.89.104.198) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 14 May 2019 05:05:25 +0100
+Received: from b01ledav004.gho.pok.ibm.com (b01ledav004.gho.pok.ibm.com [9.57.199.109])
+	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4E45OZ633161672
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 04:05:24 GMT
+Received: from b01ledav004.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3797211206B;
+	Tue, 14 May 2019 04:05:24 +0000 (GMT)
+Received: from b01ledav004.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 22F6811206E;
+	Tue, 14 May 2019 04:05:23 +0000 (GMT)
+Received: from [9.80.221.111] (unknown [9.80.221.111])
+	by b01ledav004.gho.pok.ibm.com (Postfix) with ESMTP;
+	Tue, 14 May 2019 04:05:22 +0000 (GMT)
+Subject: Re: [PATCH] mm/nvdimm: Use correct #defines instead of opencoding
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+References: <20190514025604.9997-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4iNgFbSq0Hqb+CStRhGWMHfXx7tL3vrDaQ95DcBBY8QCQ@mail.gmail.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Tue, 14 May 2019 09:35:21 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <CAPcyv4iNgFbSq0Hqb+CStRhGWMHfXx7tL3vrDaQ95DcBBY8QCQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19051404-2213-0000-0000-0000038D6545
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011095; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000285; SDB=6.01203018; UDB=6.00631432; IPR=6.00983938;
+ MB=3.00026877; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-14 04:05:27
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19051404-2214-0000-0000-00005E6D0FF7
+Message-Id: <f99c4f11-a43d-c2d3-ab4f-b7072d090351@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905140027
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/14/2019 08:23 AM, Aneesh Kumar K.V wrote:
-> When we initialize the namespace, if we support altmap, we don't initialize all the
-> backing struct page where as while releasing the namespace we look at some of
-> these uninitilized struct page. This results in a kernel crash as below.
-Yes this has been problematic which I have also previously encountered but in a bit
-different way (while searching memory resources).
-
+On 5/14/19 9:28 AM, Dan Williams wrote:
+> On Mon, May 13, 2019 at 7:56 PM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
+>>
+>> The nfpn related change is needed to fix the kernel message
+>>
+>> "number of pfns truncated from 2617344 to 163584"
+>>
+>> The change makes sure the nfpns stored in the superblock is right value.
+>>
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+>> ---
+>>   drivers/nvdimm/pfn_devs.c    | 6 +++---
+>>   drivers/nvdimm/region_devs.c | 8 ++++----
+>>   2 files changed, 7 insertions(+), 7 deletions(-)
+>>
+>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+>> index 347cab166376..6751ff0296ef 100644
+>> --- a/drivers/nvdimm/pfn_devs.c
+>> +++ b/drivers/nvdimm/pfn_devs.c
+>> @@ -777,8 +777,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>>                   * when populating the vmemmap. This *should* be equal to
+>>                   * PMD_SIZE for most architectures.
+>>                   */
+>> -               offset = ALIGN(start + reserve + 64 * npfns,
+>> -                               max(nd_pfn->align, PMD_SIZE)) - start;
+>> +               offset = ALIGN(start + reserve + sizeof(struct page) * npfns,
+>> +                              max(nd_pfn->align, PMD_SIZE)) - start;
 > 
-> kernel BUG at include/linux/mm.h:1034!
-What that would be ? Did not see a corresponding BUG_ON() line in the file.
-
-> cpu 0x2: Vector: 700 (Program Check) at [c00000024146b870]
->     pc: c0000000003788f8: devm_memremap_pages_release+0x258/0x3a0
->     lr: c0000000003788f4: devm_memremap_pages_release+0x254/0x3a0
->     sp: c00000024146bb00
->    msr: 800000000282b033
->   current = 0xc000000241382f00
->   paca    = 0xc00000003fffd680   irqmask: 0x03   irq_happened: 0x01
->     pid   = 4114, comm = ndctl
->  c0000000009bf8c0 devm_action_release+0x30/0x50
->  c0000000009c0938 release_nodes+0x268/0x2d0
->  c0000000009b95b4 device_release_driver_internal+0x164/0x230
->  c0000000009b638c unbind_store+0x13c/0x190
->  c0000000009b4f44 drv_attr_store+0x44/0x60
->  c00000000058ccc0 sysfs_kf_write+0x70/0xa0
->  c00000000058b52c kernfs_fop_write+0x1ac/0x290
->  c0000000004a415c __vfs_write+0x3c/0x70
->  c0000000004a85ac vfs_write+0xec/0x200
->  c0000000004a8920 ksys_write+0x80/0x130
->  c00000000000bee4 system_call+0x5c/0x70
-
-I saw this as memory hotplug problem with respect to ZONE_DEVICE based device memory.
-Hence a bit different explanation which I never posted. I guess parts of the commit
-message here can be used for a better comprehensive explanation of the problem.
-
-mm/hotplug: Initialize struct pages for vmem_altmap reserved areas
-
-The following ZONE_DEVICE ranges (altmap) have valid struct pages allocated
-from within device memory memmap range.
-
-A. Driver reserved area	[BASE -> BASE + RESV)
-B. Device mmap area	[BASE + RESV -> BASE + RESV + FREE]
-C. Device usable area	[BASE + RESV + FREE -> END]
-
-BASE - pgmap->altmap.base_pfn (pgmap->res.start >> PAGE_SHIFT)
-RESV - pgmap->altmap.reserve
-FREE - pgmap->altmap.free
-END  - pgmap->res->end >> PAGE_SHIFT
-
-Struct page init for all areas happens in two phases which detects altmap
-use case and init parts of the device range in each phase.
-
-1. memmap_init_zone		(Device mmap area)
-2. memmap_init_zone_device	(Device usable area)
-
-memmap_init_zone() skips driver reserved area and does not init the
-struct pages. This is problematic primarily for two reasons.
-
-Though NODE_DATA(device_node(dev))->node_zones[ZONE_DEVICE] contains the
-device memory range in it's entirety (in zone->spanned_pages) parts of this
-range does not have zone set to ZONE_DEVICE in their struct page.
-
-__remove_pages() called directly or from within arch_remove_memory() during
-ZONE_DEVICE tear down procedure (devm_memremap_pages_release) hits an error
-(like below) if there are reserved pages. This is because the first pfn of
-the device range (invariably also the first pfn from reserved area) cannot
-be identified belonging to ZONE_DEVICE. This erroneously leads range search
-within iomem_resource region which never had this device memory region. So
-this eventually ends up flashing the following error.
-
-Unable to release resource <0x0000000680000000-0x00000006bfffffff> (-22)
-
-Initialize struct pages for the driver reserved range while still staying
-clear from it's contents.
-
+> No, I think we need to record the page-size into the superblock format
+> otherwise this breaks in debug builds where the struct-page size is
+> extended.
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> ---
->  mm/page_alloc.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
+>>          } else if (nd_pfn->mode == PFN_MODE_RAM)
+>>                  offset = ALIGN(start + reserve, nd_pfn->align) - start;
+>>          else
+>> @@ -790,7 +790,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>>                  return -ENXIO;
+>>          }
+>>
+>> -       npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
+>> +       npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 59661106da16..892eabe1ec13 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5740,8 +5740,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->  
->  #ifdef CONFIG_ZONE_DEVICE
->  	/*
-> -	 * Honor reservation requested by the driver for this ZONE_DEVICE
-> -	 * memory. We limit the total number of pages to initialize to just
-> +	 * We limit the total number of pages to initialize to just
-Comment needs bit change to reflect on the fact that both driver reserved as
-well as mapped area (containing altmap struct pages) needs init here.
+> Similar comment, if the page size is variable then the superblock
+> needs to explicitly account for it.
+> 
+
+PAGE_SIZE is not really variable. What we can run into is the issue you 
+mentioned above. The size of struct page can change which means the 
+reserved space for keeping vmemmap in device may not be sufficient for 
+certain kernel builds.
+
+I was planning to add another patch that fails namespace init if we 
+don't have enough space to keep the struct page.
+
+Why do you suggest we need to have PAGE_SIZE as part of pfn superblock?
+
+-aneesh
 
