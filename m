@@ -6,135 +6,139 @@ X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AEB00C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 07:58:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0431CC04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 07:58:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 627B6208C3
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 07:58:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AE739208C3
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 07:58:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Cxu0Rbtn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 627B6208C3
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Qa00vacP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE739208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 037F26B0003; Tue, 14 May 2019 03:58:05 -0400 (EDT)
+	id 518AD6B0007; Tue, 14 May 2019 03:58:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F297A6B0005; Tue, 14 May 2019 03:58:04 -0400 (EDT)
+	id 4C96C6B0008; Tue, 14 May 2019 03:58:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF1476B0007; Tue, 14 May 2019 03:58:04 -0400 (EDT)
+	id 3B7EE6B000A; Tue, 14 May 2019 03:58:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A55016B0003
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 03:58:04 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d9so2190558pfo.13
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 00:58:04 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 004496B0007
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 03:58:28 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id h14so10949143pgn.23
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 00:58:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=Hm9Tm5LOAz3Yewu8iIsMrN/PygszNEAXdNiSHUZXasc=;
-        b=HfXU9LbA8ygGYFLHYq0IaZhzU7A77zch32WchJ4SCmiFp7cqtblP9PJtyCktpPXVWP
-         9OPptkBuOtq3L9Md6ByfhY+Jd+DIltgLtZvEljULPc7Y77uqRgQ0IteF9xkrfIFPYRUZ
-         2QQP2pjkqcsSMfbgW1rInWLWK11vEzEsvavPOh2frUzIbAOhH4+ak2Ri6tQc5P16t2rT
-         uvse5vDz1WrCI3KY5n+rcMxjgfy3Wsl78lIrhlUhVLtVN2LCu+mi/HUWXkhwEYaXy6O7
-         UDWIDP10nfWToooTPTn9LlmZnu3UU0UcQhD6B0HVZ0GotD3EV+7zmdqfiCwSvMUdzKMP
-         henw==
-X-Gm-Message-State: APjAAAV/LnuEuWNKmn/RKwWkLC9e609AH/HPbDUpRgxX8xW404u/fAf/
-	h/P45GKV6acldifMY8DvmxkyzfxiJeAlvlgAvv9FMn1H0szqK7dHVFDmus0pYr8KBz4v2Z0mk5z
-	DuPQNZMhJ2jWHt28WuqHnHczNGpgUQxT0ClTh21K/glUOxs2rJv3lrudC3soW15JSjg==
-X-Received: by 2002:a62:53:: with SMTP id 80mr10902240pfa.183.1557820683944;
-        Tue, 14 May 2019 00:58:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFYhlhs6yVmWnWWHsDkCaWTsImHBII/Va6/WEpidBsqH72zcucjTvF6FglX9YuYZILEBCu
-X-Received: by 2002:a62:53:: with SMTP id 80mr10902186pfa.183.1557820683141;
-        Tue, 14 May 2019 00:58:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557820683; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=APVvqr1lJvph+nzc+bHSkxPBxoL6T6+MikT3VYcFYTY=;
+        b=Rn1EYn6tCR/0FtgdxeZW2Ta1ZW3RC6JUK2xlRcXztmxUezfwPbFy4nzfD8VgkkQ5BA
+         Ikz3lDgHVfXmvv4f42mc7/ztlydGGlIRCzhs98p+UYChUOVVZwnjJPId87zeIZc+um6q
+         CZLyGwipFDp4mePbyzz5cDk5S5t+0BOCWLpcDSmEp400mVG5ORfnoPqzUIB3I/rF7PoC
+         kbJA2Z4uTNhr2I18oXnpE35XXqOjolR6MtY0wMWyKdMRolSq94klGnJ6wfTz0v78tuKj
+         js/GD3RhCQuTqYTmRMtsyKZMG/CnyboX4OxZkRtVbnKoRq27Q0B//oap4Z+ZZwopveUH
+         TYoQ==
+X-Gm-Message-State: APjAAAVN/0MLj9MVNTKYmTgpXwzDwl7+RsR8vk8kjnd8avNy92z1qr8c
+	qpe7KuO/ki34uYK/bZnR0zX19KpCD5L4HqNnBlCt2/zRKbZy/7wt07ddSO3etlMP7BLFyYwzUCv
+	PFV7jnXncj4u1w00KZTlWVaAVfj4oz0Jj9LSlT9k2iD1pYNj2ae8u/8Vz77OfPE29Hw==
+X-Received: by 2002:a63:3182:: with SMTP id x124mr35719792pgx.364.1557820707541;
+        Tue, 14 May 2019 00:58:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyaSB7unBjQ7LXqrPDDJl4gVB6UAp6H4ShzfiIbmXQECs7cMRAY7h6jfSC92l6/bZX4eQRX
+X-Received: by 2002:a63:3182:: with SMTP id x124mr35719757pgx.364.1557820706824;
+        Tue, 14 May 2019 00:58:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557820706; cv=none;
         d=google.com; s=arc-20160816;
-        b=tRyVr8KPkYwp7R6l2Hyjkvlzu/GfXdsEGtV7SkQUKQORtQ5CfgOk9SdyyqbiuA77CX
-         fXs1h+5h70VxKeI+h1ZAHYozJRjAVSSrUpMn7FwbVOK9wlAbZB6f5AZADbE9LqVPmJTc
-         OFoM3CmNXVtz/w9zy/zu2qPWzFu+UA57HTsBnHoBRa05pD5sHjYfu7UJOWAmaJkKm6ll
-         6igV6NFR0H7wH5xcxC62gcVpNiUWTDC+DQ1MQk+YYuwIRUel74Rg4dfD/EM67/mx9REo
-         7k8mw2dk1giBkHnqhsUY3Cj0d+RgOJWnIG8Wkk3jfHKBPz2Ee/JwE4CIE7JLK4pQ3QPS
-         q58g==
+        b=T2o32jgLv3v1wlWhtaGMFFGrd5Epr1xclY/qQpE5RE3GAZyQ1wxgxNQVOGWpVs/h95
+         3FGi0IQ9uTBJ4aGBVZ2GSpZp9YFM/Wqz+Bo6xRdNQsnc5cqYKJCX8thwohj3lmKgGpeZ
+         LVdhGvd+Asb2AQoBQZzfYL5C3qYVSTe3vKmPAw8SKoXSck7AK4IbH53YLqOGuxGXsbq8
+         /VpXqiIrOmmPsPSnMbQev3sKDMOT63okqSZVDgkyZSqk73W8Ee/3iIjDWYp987G8mGDI
+         paaTl+q4FAI/dTILqo8dJrC0bbstjdoy1oDchcbF3g7ZgsaPrXT/LGsYBuVWZXdIOYZ4
+         /2+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=Hm9Tm5LOAz3Yewu8iIsMrN/PygszNEAXdNiSHUZXasc=;
-        b=is++uI6UdXa1cd8w+v4IowbGTXNwpDJiFX8PIq2RKV5APKanUeyeJeTfZP0DjdOjRH
-         Nco5Y8PB0K8jVtySzvPNgMPqKUCd+k9ddp7TRFtyfF3pS129E11m0dRL/J1za341hoHz
-         yy4hh4GbRQdWZl0rb9TBdZ8L9+pBeb9r3hP0KkTEeAwV1qr2n9boLC2rzGf7RTfZmKGE
-         cTy/TtWtv9o008OoTvax1+DIe2qVzFcTgS7fVo6kCwtCGA4mbj0nhpLg0CoGmLe4he8b
-         c+ofHgg8nJ9ud5+3r1wsX2UL3KlEeczdKAVEWHAU1120MfXb1A2v0IuXnEpDpkyV2f5B
-         PEAg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=APVvqr1lJvph+nzc+bHSkxPBxoL6T6+MikT3VYcFYTY=;
+        b=L88pfAT4TJZPcarouCJeODGRFdmofhIjRBUQB8aEOqeBvi80rM+Toc3oYNz7dNVP4I
+         T6BmoAuJ7WUeByGlIaYX2h9KPiZwiXVginC0aH3jzGHYW2Zh3Ps1EuNhE7OtBSiF+zBb
+         YQxwk7RMi8shAJvpvYXTjd9aRmWa9edwoJJEZV9x0SB348eRa2hHPGpNadqfDxHoYnLw
+         8idRa0WA2kNiP7fwbXYBLe5qG4g+1bLxLS8IR5nYORiHLwl7jFNtJPMXNlelUbLOBACv
+         ZlilRfa+ksWw0Z7qicqEfJbGo/8JIBSQgPYu/dV23CE8S+Y1yw2ttWAf538MkgcHUMFQ
+         dUPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Cxu0Rbtn;
-       spf=pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Qa00vacP;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id bf1si176325plb.49.2019.05.14.00.58.02
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id t34si11083969pgm.396.2019.05.14.00.58.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 00:58:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Tue, 14 May 2019 00:58:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Cxu0Rbtn;
-       spf=pass (google.com: domain of liran.alon@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Qa00vacP;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E7rWLj013371;
-	Tue, 14 May 2019 07:57:44 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=Hm9Tm5LOAz3Yewu8iIsMrN/PygszNEAXdNiSHUZXasc=;
- b=Cxu0RbtnDfFw0XdHX1a2nnhh6Murm5HeXI3uwUQKENUOiWgCk+Uad2iC/dmeOx92QJ4c
- ArOiWnnJX0B4nK1vHuAdNSDrIwvsD3/DLRNjc+AfrPwlVG7eY1cpq+mQpPHLqKkSXGZM
- s3Zzb+PcTUXnnJoR0u5Vu0UtNpHoH2qD/++5S7CaEEHgYj+WZhVYhg7kpQ5gqvdiE6l6
- XxxsU8vhbvd8ChVXIr9Z9SYgOwqyAb6FiFlf+ykIotOkitY7klVomllhLJliLaJ/O8Ws
- 0PBgos6GaN0Wt4URNQU2Md4SGAZ5MlFC+MM9fI6bw4HS4Mi0ylZzQx9Igug9XTnyytC3 7g== 
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E7rZFV025235;
+	Tue, 14 May 2019 07:58:08 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=APVvqr1lJvph+nzc+bHSkxPBxoL6T6+MikT3VYcFYTY=;
+ b=Qa00vacPoKAcDmadtKFTWQ86hpzpK8edI+E8nptO4qmbHNiluW4rA72QRsqn8dqQgb+H
+ YGHr2ncstXf+JbqVMohLL2958KIfwz1ytfCJ7tbXXGN1fYU2kBNJ1BY7oD907Cqwg837
+ A61+vFfLiLoFKI7Ug++Agy45D9NhL2tIeOvullD7o5jCeYuuFEqelfAWsJg31pIUxGK3
+ zAykOuGR1A4gFP7D39sMxyz/OAWKeBzSF37EeCYYD6w2+diBlhHO4t4uR/f89UX7hgse
+ NPu/z0kCRo8ZxHnDBqoSzEiQzVrR8NVl4GGZs4KQwlhUmJ6N7g8nenjrZc4sJIEKLJad cQ== 
 Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2sdnttm1k1-1
+	by aserp2130.oracle.com with ESMTP id 2sdkwdm73v-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 07:57:44 +0000
+	Tue, 14 May 2019 07:58:08 +0000
 Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E7vHQ8144326;
-	Tue, 14 May 2019 07:57:43 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2sdmeax9ua-1
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E7vKet144428;
+	Tue, 14 May 2019 07:58:08 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3030.oracle.com with ESMTP id 2sdmeax9xs-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 07:57:43 +0000
-Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4E7vZFf007379;
-	Tue, 14 May 2019 07:57:37 GMT
-Received: from [10.0.5.57] (/213.57.127.10)
+	Tue, 14 May 2019 07:58:08 +0000
+Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4E7w7PM008960;
+	Tue, 14 May 2019 07:58:07 GMT
+Received: from [10.166.106.34] (/10.166.106.34)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 14 May 2019 07:57:35 +0000
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 11.1 \(3445.4.7\))
-Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
-From: Liran Alon <liran.alon@oracle.com>
-In-Reply-To: <20190514072941.GG2589@hirez.programming.kicks-ass.net>
-Date: Tue, 14 May 2019 10:57:29 +0300
-Cc: Andy Lutomirski <luto@kernel.org>,
-        Alexandre Chartre <alexandre.chartre@oracle.com>,
-        Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
+	with ESMTP ; Tue, 14 May 2019 00:58:07 -0700
+Subject: Re: [RFC KVM 06/27] KVM: x86: Exit KVM isolation on IRQ entry
+To: Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
         Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
         Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
         Dave Hansen <dave.hansen@linux.intel.com>,
         kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>,
         Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
         Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        jan.setjeeilers@oracle.com, Jonathan Adams <jwadams@google.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <F88E7218-04F2-4C86-A89E-D73695A03B0A@oracle.com>
+        jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
+        Jonathan Adams <jwadams@google.com>
 References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
- <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
- <20190514072941.GG2589@hirez.programming.kicks-ass.net>
-To: Peter Zijlstra <peterz@infradead.org>
-X-Mailer: Apple Mail (2.3445.4.7)
+ <1557758315-12667-7-git-send-email-alexandre.chartre@oracle.com>
+ <CALCETrUzAjUFGd=xZRmCbyLfvDgC_WbPYyXB=OznwTkcV-PKNw@mail.gmail.com>
+ <64c49aa6-e7f2-4400-9254-d280585b4067@oracle.com>
+ <CALCETrUd2UO=+JOb_008mGbPdfW5YJgQyw5H7D_CxOgaWv=gxw@mail.gmail.com>
+ <20190514070719.GD2589@hirez.programming.kicks-ass.net>
+From: Alexandre Chartre <alexandre.chartre@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <b17d8525-a83b-d37b-dfb4-f09ec3b6bcfc@oracle.com>
+Date: Tue, 14 May 2019 09:58:04 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <20190514070719.GD2589@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
@@ -153,42 +157,43 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
+On 5/14/19 9:07 AM, Peter Zijlstra wrote:
+> On Mon, May 13, 2019 at 11:13:34AM -0700, Andy Lutomirski wrote:
+>> On Mon, May 13, 2019 at 9:28 AM Alexandre Chartre
+>> <alexandre.chartre@oracle.com> wrote:
+> 
+>>> Actually, I am not sure this is effectively useful because the IRQ
+>>> handler is probably faulting before it tries to exit isolation, so
+>>> the isolation exit will be done by the kvm page fault handler. I need
+>>> to check that.
+>>>
+>>
+>> The whole idea of having #PF exit with a different CR3 than was loaded
+>> on entry seems questionable to me.  I'd be a lot more comfortable with
+>> the whole idea if a page fault due to accessing the wrong data was an
+>> OOPS and the code instead just did the right thing directly.
+> 
+> So I've ran into this idea before; it basically allows a lazy approach
+> to things.
+> 
+> I'm somewhat conflicted on things, on the one hand, changing CR3 from
+> #PF is a natural extention in that #PF already changes page-tables (for
+> userspace / vmalloc etc..), on the other hand, there's a thin line
+> between being lazy and being sloppy.
+> 
+> If we're going down this route; I think we need a very coherent design
+> and strong rules.
+> 
 
-> On 14 May 2019, at 10:29, Peter Zijlstra <peterz@infradead.org> wrote:
->=20
->=20
-> (please, wrap our emails at 78 chars)
->=20
-> On Tue, May 14, 2019 at 12:08:23AM +0300, Liran Alon wrote:
->=20
->> 3) =46rom (2), we should have theoretically deduced that for every
->> #VMExit, there is a need to kick the sibling hyperthread also outside
->> of guest until the #VMExit is completed.
->=20
-> That's not in fact quite true; all you have to do is send the IPI.
-> Having one sibling IPI the other sibling carries enough guarantees =
-that
-> the receiving sibling will not execute any further guest instructions.
->=20
-> That is, you don't have to wait on the VMExit to complete; you can =
-just
-> IPI and get on with things. Now, this is still expensive, But it is
-> heaps better than doing a full sync up between siblings.
->=20
+Right. We should particularly ensure that the KVM page-table remains a
+subset of the kernel page-table, in particular page-table changes (e.g.
+for vmalloc etc...) should happen in the kernel page-table and not in
+the kvm page-table.
 
-I agree.
+So we should probably enforce switching to the kernel page-table when
+doing operation like vmalloc. The current code doesn't enforce it, but
+I can see it faulting, when doing any allocation (because the kvm page
+table doesn't have all structures used during an allocation).
 
-I didn=E2=80=99t say you need to do full sync. You just need to IPI the =
-sibling
-hyperthreads before switching to the full kernel address space.
-But you need to make sure these sibling hyperthreads don=E2=80=99t get =
-back into
-the guest until all hyperthreads are running with KVM isolated address =
-space.
-
-It is still very expensive if done for every #VMExit. Which as I =
-explained,
-can be avoided in case we use the KVM isolated address space technique.
-
--Liran
+alex.
 
