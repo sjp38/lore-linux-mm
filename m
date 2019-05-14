@@ -2,186 +2,255 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61F6DC04AB7
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:06:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05A45C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:12:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EF1520879
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:06:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EF1520879
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9029D20873
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:12:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="eZvkGVIB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9029D20873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 931D46B0005; Tue, 14 May 2019 17:06:05 -0400 (EDT)
+	id 2EB446B0005; Tue, 14 May 2019 17:12:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E1EA6B0006; Tue, 14 May 2019 17:06:05 -0400 (EDT)
+	id 29D956B0006; Tue, 14 May 2019 17:12:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D0E56B0007; Tue, 14 May 2019 17:06:05 -0400 (EDT)
+	id 13D5F6B0007; Tue, 14 May 2019 17:12:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 465776B0005
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:06:05 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d7so318474pgc.8
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:06:05 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E5ECC6B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:12:06 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id o34so541112qte.5
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:12:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=h/9GWAD+PPT8SCoW1bambdWmBDsCkaFfMf6u86UHsJQ=;
-        b=AZD5uevZU6FEifmwrDCgC29BowyilZi1H9xhESQRg6NiUk08VmCB9MVmpl/5QZtB0o
-         HXDQAwvPTF9HAGctxj3cCjWLB2X9SnMp7rEAFYCMBCI/q3jZsBvYzcMk5HkrBj8Dx5N4
-         nsJBukWw0C2tcTqSVQ7R/xAS+7F7tprzurQmhkdU66oHSL9TV0Ui3yXUgr7X1EL0Jq4p
-         6TJoSKkrQaSzN0bCB71qChRqRyLxEtQpWxQc0wbNHTv8KsyNxFQdWSBCARXC+OjJP8u1
-         KV/gAgOTd+oruprTqpwxLzOMxz3eJn12pRxfzEGWFW8Lut3fUFSF8T6Zd3H+ZRGZ9fx5
-         3vZA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWjo73+/4coB05enu7zlTCKDoAfh5jZGKcpP4BFhS+AsiRS0yiH
-	XPtHxw00kbRpAf0QhPLNtgf2gBdtN+oYxDKsRM8hmQeuNqyXt7fRPvfWkhuIFZ8TIQ7hlPzLLut
-	3lM7B4TFRpBRp14pstxmA4w/G7VnRb8mGiaWzfNF8Qn8pXsA9B+pLtQK/uJ9ptLjSrQ==
-X-Received: by 2002:a17:902:694b:: with SMTP id k11mr40219499plt.307.1557867964937;
-        Tue, 14 May 2019 14:06:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQdFWm5Uu8rj3KetNngsaWIbr6UO0NY3NzJBIPPvEB49iqUn58bMZsYvuz1pl7aHp8zzDI
-X-Received: by 2002:a17:902:694b:: with SMTP id k11mr40219425plt.307.1557867964107;
-        Tue, 14 May 2019 14:06:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557867964; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=+Wr4AoBQ+WbNrtNZIjnG9aEHD3jB7iv08RurNxCwk54=;
+        b=F0R/bLUizEXcAKGTUVjVJHxQF7YEUqvHt0kFvjXFx5HzW4EiPmO8AHbG+QKKX8i9TA
+         kWFSHx4CmfiQ5+2PDAIUcetwSJg/kPFY7yyh/QVZMSuYC2+Mzh0EINKhZRmJTyx5KxsJ
+         MG60YgZXLrkFYk0s9QNN3/6CfAjVAv/UQZGkf51+AIJdqAbeuAnyUw0WpWMGtoYcnXBx
+         996a4kY4R3qSUuYqRVeB+faluFM7Lwnp53T6KZ5q/fD2lSxIAvpwNgA3nPMLgwaQV1Qy
+         A2nKcxu/lMt/KzbewVPWCos2P1p9sMh5dDhi52tdunOOB1Jp6mkBDnebbf8ybAYzAOvb
+         f0iA==
+X-Gm-Message-State: APjAAAVAmnvy3Pl5F283uKbLjmGKqF5RoNS0rUEzP93FKwkzCVe6lNi5
+	KLdbwTeAhbgShbXgiAK6j7B0Ja4U0iJtspwKrb5eFpudhh8VDy0FNcMqzmL5RpLB2JeeCzZLg93
+	jTveHqhLvrPId+wvZOfxykvkw362iDtMCtbH0Rgdm+p+Uoqx6ZVoRK7hcGiiRsFw=
+X-Received: by 2002:ac8:3f33:: with SMTP id c48mr32517873qtk.347.1557868326632;
+        Tue, 14 May 2019 14:12:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzSZ8Y+07TPORwqgDYtQYX/qem9ISvYHP6sx6Ao/IK6ueN05j9K0MUL7oZy1BDYgm88grM8
+X-Received: by 2002:ac8:3f33:: with SMTP id c48mr32517831qtk.347.1557868325994;
+        Tue, 14 May 2019 14:12:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557868325; cv=none;
         d=google.com; s=arc-20160816;
-        b=LMv/IkfsuchfhmQhLXtpWsaCbb6VN5VeeiWIKTRMnDv3S5mPKTfuV00PQLxDfsnQGr
-         VF7DFFKBo1HaRaauMZct+SSjhISRzRAy1iJTMfehoDv1MRe8jozGmJb0L3/lMCWkHiXs
-         8+XeAdsDmq9zNPW6seW711mkgVhJp6TQF9p1LMwS2YLCxrVk/5DY3lHIkWvX3ambSHLs
-         xlQj/NL2jTYIM9ujW7UGK6yQn8+6GJ7gUDE7DjwZEWwFvnhlisRqRLiIGedDf6H/BMRW
-         IyLBo21FT7FGakNE0c2Hj5tZ+fVO45ANzBgzjw3an/G8fOb82HfSNjnHxs1MEtTs3WHG
-         p/ig==
+        b=jnwXYRdpqQfNnFMrwcrTPUUhnoubwF1IC9Yd0hpYYCHAuvEQRQ2USaxBZCQfA2GjMx
+         Iq/YxgjGKCOnvbv7byUq1IlVaW3jRSAklzLcLZckSikf3LjfqvCvpdqQSBUlUfeOkeQE
+         V82peCv9Lr9QibuhCx9sHaUQSF4AYedBea4vY6vROjGEtzJtOhwxBNcQg4v5AJilQ8rC
+         AO7yHgEc1gKCbV3R5zBjnn8IeM8ALDoL0V0wCSV4rUds2Z30BdxnfkIykjhzVti/yN+7
+         vejkFyqYEFtbrVnK7OcJw1MtVb0oGCc9XrBRkz/vJlKB4ZHfNRmPE6MiYjI3/R5RpPOC
+         pAxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=h/9GWAD+PPT8SCoW1bambdWmBDsCkaFfMf6u86UHsJQ=;
-        b=xEWh1nsVrW017K811AOLGzk3HaTdJrIngaHMWE+vOtAkx6HAqjWwE0kpzF4vT8tZSY
-         CIrAoIt+7XaHooYSlV2hBksz2tgIVEUs+cPHuimVChhyHgLuUHXN5i8lPetiZ8Gf7pbb
-         8ZYCESEB+wLlqHppH9FNuqe9Ge9CycNPH9mwQrsXXaO5uzbi/7hNaEwOql3kW5haMM2E
-         /6zWD710NQc8HoTksEOV6UzoRCmXrP2G2/VKBCt/Wc1ypMlnI0hvblOM3kVgjnfp0XHC
-         Zufn9CvzvK57oYWC8LUePgUTyQaj5QCMx6Q9MuQw/NpP7gbQh/VAKyGNVx/HOwHvQ4R7
-         GrcA==
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=+Wr4AoBQ+WbNrtNZIjnG9aEHD3jB7iv08RurNxCwk54=;
+        b=KxHoTZiAO+/lJ9W0mBKvW51c4/swHeK1zwpdqpEelEMo2cfdXZAR0paIUVaEUu1R1p
+         fEiLKXcqqIoXZ/p6GIR3KHCoDjM4IRLoK294aSQkKjc1WCfzMshN6N36gwj7yBUW9wMg
+         lXX3Ey57CY5sEnibOFPsBYy/RFgMYBTh87ArmnnSXuZ8Ho2Lg/BXYknFsD6irL3ooOvn
+         9aWZkAbV6d9dCj7u8Ga6t1pF313MrqDQeNNg+PxBlESrmAwQQkTIqyUBHyIRs0+a3pHR
+         Hxu7jKMXgdilGkWU8hdRdytdUu2s3L2L5QlmZdsajBinq4LXr2oo4sM+dISBS3trpGmP
+         4Ewg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id y22si83124pfe.141.2019.05.14.14.06.03
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=eZvkGVIB;
+       spf=neutral (google.com: 40.107.68.55 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680055.outbound.protection.outlook.com. [40.107.68.55])
+        by mx.google.com with ESMTPS id d19si3351809qtn.150.2019.05.14.14.12.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 14:06:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sean.j.christopherson@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 14 May 2019 14:12:05 -0700 (PDT)
+Received-SPF: neutral (google.com: 40.107.68.55 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.68.55;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 May 2019 14:06:03 -0700
-X-ExtLoop1: 1
-Received: from sjchrist-coffee.jf.intel.com (HELO linux.intel.com) ([10.54.74.36])
-  by orsmga006.jf.intel.com with ESMTP; 14 May 2019 14:06:03 -0700
-Date: Tue, 14 May 2019 14:06:03 -0700
-From: Sean Christopherson <sean.j.christopherson@intel.com>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>,
-	Alexandre Chartre <alexandre.chartre@oracle.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim Krcmar <rkrcmar@redhat.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
-	Jonathan Adams <jwadams@google.com>
-Subject: Re: [RFC KVM 18/27] kvm/isolation: function to copy page table
- entries for percpu buffer
-Message-ID: <20190514210603.GD1977@linux.intel.com>
-References: <CALCETrWUKZv=wdcnYjLrHDakamMBrJv48wp2XBxZsEmzuearRQ@mail.gmail.com>
- <20190514070941.GE2589@hirez.programming.kicks-ass.net>
- <b8487de1-83a8-2761-f4a6-26c583eba083@oracle.com>
- <B447B6E8-8CEF-46FF-9967-DFB2E00E55DB@amacapital.net>
- <4e7d52d7-d4d2-3008-b967-c40676ed15d2@oracle.com>
- <CALCETrXtwksWniEjiWKgZWZAyYLDipuq+sQ449OvDKehJ3D-fg@mail.gmail.com>
- <e5fedad9-4607-0aa4-297e-398c0e34ae2b@oracle.com>
- <20190514170522.GW2623@hirez.programming.kicks-ass.net>
- <20190514180936.GA1977@linux.intel.com>
- <CALCETrVzbBLokip5n0KEyG6irH6aoEWqyNODTy8embpXhB1GQg@mail.gmail.com>
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=eZvkGVIB;
+       spf=neutral (google.com: 40.107.68.55 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=amdcloud.onmicrosoft.com; s=selector1-amd-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=+Wr4AoBQ+WbNrtNZIjnG9aEHD3jB7iv08RurNxCwk54=;
+ b=eZvkGVIBeP4DlpRrYqiY6bq9iQPg8OjNC/Bp4p8q5IE2DaUdCQU4zhat/ZJkNM1KPU2mva/XPoy5Rm4TntRYGfoX2sJzRQEwteIVgU+fkdLk/PcN4mXxm3Mzd8Fh0EpNUS6b6eV0jyTYNgFIBw9nmygawMkXAIrPEJzT7IZEGI8=
+Received: from MN2PR12MB3949.namprd12.prod.outlook.com (10.255.238.150) by
+ MN2PR12MB2989.namprd12.prod.outlook.com (20.178.241.16) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1878.25; Tue, 14 May 2019 21:12:04 +0000
+Received: from MN2PR12MB3949.namprd12.prod.outlook.com
+ ([fe80::b9af:29f1:fcab:6f6f]) by MN2PR12MB3949.namprd12.prod.outlook.com
+ ([fe80::b9af:29f1:fcab:6f6f%4]) with mapi id 15.20.1878.024; Tue, 14 May 2019
+ 21:12:04 +0000
+From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+To: "Deucher, Alexander" <Alexander.Deucher@amd.com>, Jerome Glisse
+	<jglisse@redhat.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "airlied@gmail.com"
+	<airlied@gmail.com>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "alex.deucher@amd.com"
+	<alex.deucher@amd.com>
+Subject: Re: [PATCH 2/2] mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for
+ non-blocking
+Thread-Topic: [PATCH 2/2] mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for
+ non-blocking
+Thread-Index: AQHVB2oH3gumKK8uVkW/G1cJvzIbZqZkyv6AgASsjwCAAAyWgIABoGIA
+Date: Tue, 14 May 2019 21:12:04 +0000
+Message-ID: <cf8bdc0c-96b9-8a73-69ca-a4aae11f36d5@amd.com>
+References: <20190510195258.9930-1-Felix.Kuehling@amd.com>
+ <20190510195258.9930-3-Felix.Kuehling@amd.com>
+ <20190510201403.GG4507@redhat.com>
+ <65328381-aa0d-353d-68dc-81060e7cebdf@amd.com>
+ <BN6PR12MB1809F26E6AF74BE9F96DB22DF70F0@BN6PR12MB1809.namprd12.prod.outlook.com>
+In-Reply-To:
+ <BN6PR12MB1809F26E6AF74BE9F96DB22DF70F0@BN6PR12MB1809.namprd12.prod.outlook.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [165.204.55.251]
+user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+x-clientproxiedby: YTOPR0101CA0061.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:14::38) To MN2PR12MB3949.namprd12.prod.outlook.com
+ (2603:10b6:208:16b::22)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Felix.Kuehling@amd.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 48f27e2d-0ef1-4474-c083-08d6d8b0d057
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:MN2PR12MB2989;
+x-ms-traffictypediagnostic: MN2PR12MB2989:
+x-ms-exchange-purlcount: 2
+x-microsoft-antispam-prvs:
+ <MN2PR12MB298911B82CC25BA9B49AFEB692080@MN2PR12MB2989.namprd12.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:3383;
+x-forefront-prvs: 0037FD6480
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(366004)(376002)(346002)(39860400002)(396003)(199004)(189003)(99286004)(66946007)(71190400001)(71200400001)(52116002)(6512007)(76176011)(31696002)(86362001)(66476007)(66556008)(73956011)(256004)(14444005)(64756008)(66446008)(66574012)(26005)(446003)(478600001)(6436002)(72206003)(36756003)(25786009)(966005)(110136005)(54906003)(58126008)(6116002)(3846002)(66066001)(4326008)(65956001)(65806001)(6506007)(386003)(53546011)(6306002)(102836004)(316002)(2906002)(64126003)(6486002)(31686004)(486006)(476003)(305945005)(14454004)(53936002)(81156014)(81166006)(229853002)(186003)(2616005)(7736002)(11346002)(5660300002)(8936002)(6246003)(65826007)(8676002)(68736007);DIR:OUT;SFP:1101;SCL:1;SRVR:MN2PR12MB2989;H:MN2PR12MB3949.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: amd.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ g8k529k8oFqSej3kV6GCS0dudwmO0TQmeUuQS7npheoukfhYS49HH/IvO08Zu6Qz6DxAzmBowjl2MQTRbycjUdmIQjQS6FrWb3EP6lVRHL0Qn1NL0ySMqyTriFGPo+e8KTbYADeVAs7ibWeY7ErtBJPgT2L6OS4OLCLrI5lSyhCJp2xr6GnCnA33V50ROKN3ThQ4TvvsUESpX+ap9RiwVEnuMt+F7IOpCBv25LgXnmXEHyhitEiGgIQUW5ecI4teoByKV5xT4RAham3vqJtEOSzoW21MkkvjSwQUmwt1zJ2rdyprNuM7sjF40OAxy1ixuY6ko8OhvPljGGdjwc/V4/MbWj1btnymjVFIIH4rboE3Ff75uIMsL9SLZKJHpdO2U5Lgn7sG4Wxbm9n6IBnPOKdiiuMPW/xkh/oDv+CWWO4=
+Content-Type: text/plain; charset="Windows-1252"
+Content-ID: <47E40BF62063C549A60D2FA213D1D422@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrVzbBLokip5n0KEyG6irH6aoEWqyNODTy8embpXhB1GQg@mail.gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+X-OriginatorOrg: amd.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 48f27e2d-0ef1-4474-c083-08d6d8b0d057
+X-MS-Exchange-CrossTenant-originalarrivaltime: 14 May 2019 21:12:04.2660
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MN2PR12MB2989
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2019 at 01:33:21PM -0700, Andy Lutomirski wrote:
-> On Tue, May 14, 2019 at 11:09 AM Sean Christopherson
-> <sean.j.christopherson@intel.com> wrote:
-> > For IRQs it's somewhat feasible, but not for NMIs since NMIs are unblocked
-> > on VMX immediately after VM-Exit, i.e. there's no way to prevent an NMI
-> > from occuring while KVM's page tables are loaded.
+
+On 2019-05-13 4:21 p.m., Deucher, Alexander wrote:
+> [CAUTION: External Email]
+> I reverted all the amdgpu HMM patches for 5.2 because they also=20
+> depended on this patch:
+> https://cgit.freedesktop.org/~agd5f/linux/commit/?h=3Ddrm-next-5.2-wip&id=
+=3Dce05ef71564f7cbe270cd4337c36ee720ea534db
+> which did not have a clear line of sight for 5.2 either.
+
+When was that? I saw "Use HMM for userptr" in Dave's 5.2-rc1 pull=20
+request to Linus.
+
+
+Regards,
+ =A0 Felix
+
+
+>
+> Alex
+> ------------------------------------------------------------------------
+> *From:* amd-gfx <amd-gfx-bounces@lists.freedesktop.org> on behalf of=20
+> Kuehling, Felix <Felix.Kuehling@amd.com>
+> *Sent:* Monday, May 13, 2019 3:36 PM
+> *To:* Jerome Glisse
+> *Cc:* linux-mm@kvack.org; airlied@gmail.com;=20
+> amd-gfx@lists.freedesktop.org; dri-devel@lists.freedesktop.org;=20
+> alex.deucher@amd.com
+> *Subject:* Re: [PATCH 2/2] mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for=20
+> non-blocking
+> [CAUTION: External Email]
+>
+> Hi Jerome,
+>
+> Do you want me to push the patches to your branch? Or are you going to
+> apply them yourself?
+>
+> Is your hmm-5.2-v3 branch going to make it into Linux 5.2? If so, do you
+> know when? I'd like to coordinate with Dave Airlie so that we can also
+> get that update into a drm-next branch soon.
+>
+> I see that Linus merged Dave's pull request for Linux 5.2, which
+> includes the first changes in amdgpu using HMM. They're currently broken
+> without these two patches.
+>
+> Thanks,
+> =A0=A0 Felix
+>
+> On 2019-05-10 4:14 p.m., Jerome Glisse wrote:
+> > [CAUTION: External Email]
 > >
-> > Back to Andy's question about enabling IRQs, the answer is "it depends".
-> > Exits due to INTR, NMI and #MC are considered high priority and are
-> > serviced before re-enabling IRQs and preemption[1].  All other exits are
-> > handled after IRQs and preemption are re-enabled.
+> > On Fri, May 10, 2019 at 07:53:24PM +0000, Kuehling, Felix wrote:
+> >> Don't set this flag by default in hmm_vma_do_fault. It is set
+> >> conditionally just a few lines below. Setting it unconditionally
+> >> can lead to handle_mm_fault doing a non-blocking fault, returning
+> >> -EBUSY and unlocking mmap_sem unexpectedly.
+> >>
+> >> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
+> > Reviewed-by: J=E9r=F4me Glisse <jglisse@redhat.com>
 > >
-> > A decent number of exit handlers are quite short, e.g. CPUID, most RDMSR
-> > and WRMSR, any event-related exit, etc...  But many exit handlers require
-> > significantly longer flows, e.g. EPT violations (page faults) and anything
-> > that requires extensive emulation, e.g. nested VMX.  In short, leaving
-> > IRQs disabled across all exits is not practical.
-> >
-> > Before going down the path of figuring out how to handle the corner cases
-> > regarding kvm_mm, I think it makes sense to pinpoint exactly what exits
-> > are a) in the hot path for the use case (configuration) and b) can be
-> > handled fast enough that they can run with IRQs disabled.  Generating that
-> > list might allow us to tightly bound the contents of kvm_mm and sidestep
-> > many of the corner cases, i.e. select VM-Exits are handle with IRQs
-> > disabled using KVM's mm, while "slow" VM-Exits go through the full context
-> > switch.
-> 
-> I suspect that the context switch is a bit of a red herring.  A
-> PCID-don't-flush CR3 write is IIRC under 300 cycles.  Sure, it's slow,
-> but it's probably minor compared to the full cost of the vm exit.  The
-> pain point is kicking the sibling thread.
-
-Speaking of PCIDs, a separate mm for KVM would mean consuming another
-ASID, which isn't good.
-
-> When I worked on the PTI stuff, I went to great lengths to never have
-> a copy of the vmalloc page tables.  The top-level entry is either
-> there or it isn't, so everything is always in sync.  I'm sure it's
-> *possible* to populate just part of it for this KVM isolation, but
-> it's going to be ugly.  It would be really nice if we could avoid it.
-> Unfortunately, this interacts unpleasantly with having the kernel
-> stack in there.  We can freely use a different stack (the IRQ stack,
-> for example) as long as we don't schedule, but that means we can't run
-> preemptable code.
-> 
-> Another issue is tracing, kprobes, etc -- I don't think anyone will
-> like it if a kprobe in KVM either dramatically changes performance by
-> triggering isolation exits or by crashing.  So you may need to
-> restrict the isolated code to a file that is compiled with tracing off
-> and has everything marked NOKPROBE.  Yuck.
-
-Right, and all of the above is largely why I suggested compiling a list
-of VM-Exits that "need" preferential treatment.  If the cumulative amount
-of code and data that needs to be accessed is tiny, then this might be
-feasible.  But if the goal is to be able to do things like handle IRQs
-using the KVM mm, ouch.
-
-> I hate to say this, but at what point do we declare that "if you have
-> SMT on, you get to keep both pieces, simultaneously!"?
+> >> ---
+> >>=A0=A0 mm/hmm.c | 2 +-
+> >>=A0=A0 1 file changed, 1 insertion(+), 1 deletion(-)
+> >>
+> >> diff --git a/mm/hmm.c b/mm/hmm.c
+> >> index b65c27d5c119..3c4f1d62202f 100644
+> >> --- a/mm/hmm.c
+> >> +++ b/mm/hmm.c
+> >> @@ -339,7 +339,7 @@ struct hmm_vma_walk {
+> >>=A0=A0 static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long =
+addr,
+> >>=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=
+=A0=A0=A0=A0 bool write_fault, uint64_t *pfn)
+> >>=A0=A0 {
+> >> -=A0=A0=A0=A0 unsigned int flags =3D FAULT_FLAG_ALLOW_RETRY | FAULT_FL=
+AG_REMOTE;
+> >> +=A0=A0=A0=A0 unsigned int flags =3D FAULT_FLAG_REMOTE;
+> >>=A0=A0=A0=A0=A0=A0=A0 struct hmm_vma_walk *hmm_vma_walk =3D walk->priva=
+te;
+> >>=A0=A0=A0=A0=A0=A0=A0 struct hmm_range *range =3D hmm_vma_walk->range;
+> >>=A0=A0=A0=A0=A0=A0=A0 struct vm_area_struct *vma =3D walk->vma;
+> >> --
+> >> 2.17.1
+> >>
+> _______________________________________________
+> amd-gfx mailing list
+> amd-gfx@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 
