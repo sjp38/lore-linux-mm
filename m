@@ -1,184 +1,375 @@
-Return-Path: <SRS0=GvbC=TN=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 622CDC04AA7
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 23:06:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A03BBC04AA7
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:01:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02EBA20879
-	for <linux-mm@archiver.kernel.org>; Mon, 13 May 2019 23:06:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02EBA20879
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mit.edu
+	by mail.kernel.org (Postfix) with ESMTP id 131C8208CA
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:01:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="jdreF2tH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 131C8208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 854946B0003; Mon, 13 May 2019 19:06:48 -0400 (EDT)
+	id 5D5356B0003; Mon, 13 May 2019 22:01:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 804726B0005; Mon, 13 May 2019 19:06:48 -0400 (EDT)
+	id 5862E6B0005; Mon, 13 May 2019 22:01:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F4DB6B0007; Mon, 13 May 2019 19:06:48 -0400 (EDT)
+	id 44D8B6B0007; Mon, 13 May 2019 22:01:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CA026B0003
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 19:06:48 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id d64so14243863qkg.20
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 16:06:48 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1DD6B0003
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 22:01:39 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id n21so8403397otq.16
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 19:01:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :subject:message-id:reply-to:mail-followup-to:mime-version
-         :content-disposition:user-agent;
-        bh=lDRFAUQrtyW4kpHrC8WhnYY1CpcvGqTdhl9uswTHvzU=;
-        b=lrs4429zjcaM/r2LxE1mD/oW/E+BJvy3EvBEbfYPb3g4Ov9qSp2NNvfv2bJce14kVE
-         Bdtud3KRhmAWy3ylaFv0IuXzxW0wZ8n7XRS8I9WRWH4qxtwGnPNycxPLbBaXPErmea7T
-         vTz3pT2si3m9BhWZfOCB4LxxMkUUjRLbzK7ojmQ2G5+4Is04jXfEJKbo8esInTdAMO07
-         Sxt7U68/y0PJpbhOOhrTV6hpdyoDc0VdYsNEEvwZJsuC5arleiyM4044hvMNMvoHUBwE
-         WPsdtCBOXIy7Izk7kJ+5W6ePL6/5TTGVxUMWgX+7NeP03t5aoK44hhkFWAfOFzW7Lkuj
-         MP1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-X-Gm-Message-State: APjAAAVisRhjPOY2F5AWxzl4dPPmYNbqwHZQzX2lblL0nC+UatQZ4R+o
-	WnQY1GsmJKYZd0PekdQZAEFb4HhlL7iwSfZqaXVNNSci8aSiL0wbcoDr/n6AEdccFQ+WfminbeU
-	akeCy1zVJpBmIi7psHjBEGfREu/X7fEJgK569+vzKOlyXbTAMDpg0wDze337Y/IJyyA==
-X-Received: by 2002:ac8:3459:: with SMTP id v25mr27342855qtb.67.1557788807912;
-        Mon, 13 May 2019 16:06:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzau1nYrAlEt9gtwO6G0ulWyDVWvZD/07EXENdmnFRt8FOqbOLjPansysIzwRHJwIRyGvhm
-X-Received: by 2002:ac8:3459:: with SMTP id v25mr27342777qtb.67.1557788806962;
-        Mon, 13 May 2019 16:06:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557788806; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :mime-version;
+        bh=FpZC5aGigdB4l85eO0XWWP18Xo4XkdCeyCGFFz7Y4RI=;
+        b=jdy1NV7OAktgpbV39DYZ4r7G2HSfRNsDXWayuzaPWsBmbB2hU+bPCDflVJRF086nZa
+         Cl8qP/UFMoBpMT0fs31SEkHzWKa+kpghyA63GLDrWdZbvXG4yzMpMO9n7DL+REZQd2Xw
+         nrsz/N8dI46K2tX2tzcFeFCRNFGu1Az2VUE18svc7Jp/bEMsGf5WQkVKDl2OpPkZQH4W
+         Ey8Ro+sd3AXmNjk9ZznuoujzezDqAUVmxwLrGBSFpeLt+JW1aqpPZLwG4w3d7JLKni6o
+         7bM/Gz3UenKY8oBeeg33G07Zd+TnKyk6hGJv9EpqYer2fagfPeI2G5qhUWzLHfnyIdzu
+         b4PA==
+X-Gm-Message-State: APjAAAWtp+YKEhEuvewPjCgE93HzQE/BjfKxPYeHNrPQua8A15ig5v4n
+	cOUas6IYOxUyjn3cYKlOBJdFnqcgUD3zsxdj6WSbVEz0PedRYZN6ziU3ar3WfbDEVGAMNB0JKGu
+	uT1Ta/hjlniX+SjU5cgulCg8G02c0k3heLnukQ3YH1BJPCG8eJgEqG77RWoS+TzoOGg==
+X-Received: by 2002:a54:4010:: with SMTP id x16mr1480070oie.75.1557799298686;
+        Mon, 13 May 2019 19:01:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHzwWLlh2DIPUvTPhmfS1R/N8cxCJxF5tbizEKa8YgJdCZ3IjMXCLKuqsj2TPETcVFjYIE
+X-Received: by 2002:a54:4010:: with SMTP id x16mr1480025oie.75.1557799297636;
+        Mon, 13 May 2019 19:01:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557799297; cv=none;
         d=google.com; s=arc-20160816;
-        b=SP5A4svfeUQqDx8kqw3Wh7Z0mbRKg+CfQDWK0JVjFdPK5O0T930iqNo4RBEdRHl/Yg
-         H2u/kW5f8x+SVi5L0Vng00FQIRfhBjabZ2P6p7t65/hLhyxlifi9FPoib2WrevQ0ud0n
-         RXQ+eiX19XzD7+JHWNdT/Jsb6t7H2TT/06AyVAN2TB+lVdgq6IkN/6RC7HS4gDACAY2F
-         k94VFJKDapgb7muJuplBGSzDJgXBXFxdcOUHjYHK5qYpXXLHjkQu4UJVCaZ4/m5ysAMF
-         AZOLpEtGymiaHwC6wrtajb9sNWGPjCMsuoUI6vp9XS7D3msSP32ZT7iwIuyQbxVZ3Ui5
-         paZg==
+        b=hlzCyfNqQzcc3SVUqiCTH31NFKHpf1FEwL9D8oyxpYPV6GjCD3SB00esaS6AqwCHWh
+         oa3cSV4GQwP5ncIozIriJsLczbFmmeT+gP172HgfZXNHVLv4HZ9nmc2sRYhFeiCfAAIP
+         QbA0IMFc4kEW68s5+Dju6Oa7S710Zt9IWYLHVIbt+i3p2CXOKbtFaRLLsmOjfYqbVUhl
+         Iqamn7a7IX8873xjEVkxMMUDcFfQcDFeS03gz+xQeoMiU/9S3fRC9zEmp9wpe8URC6Gv
+         lpwpjebIRZl8us3CmIJhx/17gaHFhacSV+LtlaMXDn8dNrsJhwB5FJdjKvllzE8gDSMf
+         cUdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:mail-followup-to
-         :reply-to:message-id:subject:to:from:date;
-        bh=lDRFAUQrtyW4kpHrC8WhnYY1CpcvGqTdhl9uswTHvzU=;
-        b=dAKy25ujrMd/jGD1cWyvNkxsAdgra+HVRyqVYiZ+6gq4bKjXx70OJbYKF1KFm26xvn
-         ze84gxhsd7I1fsF8OC0DdnYVZiPkHcKVBMvtKjETruM7RGFfswXbOvt3Gfv81uxRO+pD
-         dfrhK8NS2LfhXqHO9ifcpji+Ifo3X/WOMQWuS4mpsEOlZ4x38IbO0XUB7lK+voZBQ5NZ
-         RkE9MHa4R9NuBoyFxjb898Eodu+n52O7r1dIb/7A97zKq6ero+61N6duFTmT/91XNvsR
-         j2LgobOIgfW7btwa911AF+tus/iTwqc2xcwiSm1JMqJcV8MFLF+dT/+oPFoXNml7jGwB
-         88oQ==
+        h=mime-version:content-language:accept-language:message-id:date
+         :thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=FpZC5aGigdB4l85eO0XWWP18Xo4XkdCeyCGFFz7Y4RI=;
+        b=BII8MZp0XDS/ki3crikdMRrF1sS8jTchaE7eilkpXLc13cwhQPLlvo8XY00xh3eze2
+         S92b1pB9dE4gVASjB1iTEBQM8+RTar2ooAChIA7rZPY9S8ERjf9/4xgUr8DFGVfsJ6DH
+         /u3kwioBdW03mhd7hinViOp1QzFH9xRHW5LaEto7XElBxRYYbcB1+VZHR1Gt8NAv57rV
+         SyYoeGvZbLdlr9sXXMXazpPpCN3oqqhAolA/uNj7jkPhXG3QrFKWGddHIgdna93ObSdY
+         cLY/uGijfhdGPUTAZiFNc99vmn4ngDPmqfCoAKU+ls7CSTJhEGVQoOJ9CPqgjY5sgoET
+         lMBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu. [18.9.28.11])
-        by mx.google.com with ESMTPS id j30si1565517qta.109.2019.05.13.16.06.46
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=jdreF2tH;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.81.75 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-eopbgr810075.outbound.protection.outlook.com. [40.107.81.75])
+        by mx.google.com with ESMTPS id n18si6293603otf.204.2019.05.13.19.01.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 16:06:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) client-ip=18.9.28.11;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 13 May 2019 19:01:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.81.75 as permitted sender) client-ip=40.107.81.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from callcc.thunk.org (rrcs-67-53-55-100.west.biz.rr.com [67.53.55.100])
-	(authenticated bits=0)
-        (User authenticated as tytso@ATHENA.MIT.EDU)
-	by outgoing.mit.edu (8.14.7/8.12.4) with ESMTP id x4DN6hUY006602
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Mon, 13 May 2019 19:06:45 -0400
-Received: by callcc.thunk.org (Postfix, from userid 15806)
-	id 14F3A420024; Mon, 13 May 2019 19:06:43 -0400 (EDT)
-Date: Mon, 13 May 2019 19:06:43 -0400
-From: "Theodore Ts'o" <tytso@mit.edu>
-To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-mm@kvack.org, linux-block@vger.kernel.org,
-        netdev@vger.kernel.org, ksummit-discuss@lists.linuxfoundation.org
-Subject: Maintainer's / Kernel Summit 2019 planning kick-off
-Message-ID: <20190513230643.GA4347@mit.edu>
-Reply-To: tytso@mit.edu
-Mail-Followup-To: tytso@mit.edu, linux-kernel@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, netdev@vger.kernel.org,
-	ksummit-discuss@lists.linuxfoundation.org
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=jdreF2tH;
+       spf=pass (google.com: domain of namit@vmware.com designates 40.107.81.75 as permitted sender) smtp.mailfrom=namit@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=FpZC5aGigdB4l85eO0XWWP18Xo4XkdCeyCGFFz7Y4RI=;
+ b=jdreF2tHrnH/QmIqh/UdVXFm8m1erwKSr95iW+fvKatNP0ODgtHk/6Nj/ygpkEMr2lQ/pOX8uKCoG9uUhZI1y46pCpHL6xDZmBaanw15zBmqOtx6HJiIRtWaqlXyB5U0kCGYNPkSvs5aF1QjyaHIh5cgrp7dnzuKv9dJlDtK9Nk=
+Received: from BL0PR05MB4772.namprd05.prod.outlook.com (20.177.145.81) by
+ BL0PR05MB4722.namprd05.prod.outlook.com (20.177.145.27) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1900.15; Tue, 14 May 2019 02:01:34 +0000
+Received: from BL0PR05MB4772.namprd05.prod.outlook.com
+ ([fe80::448:ace5:a07a:d62c]) by BL0PR05MB4772.namprd05.prod.outlook.com
+ ([fe80::448:ace5:a07a:d62c%6]) with mapi id 15.20.1900.010; Tue, 14 May 2019
+ 02:01:34 +0000
+From: Nadav Amit <namit@vmware.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+CC: Will Deacon <will.deacon@arm.com>, "jstancek@redhat.com"
+	<jstancek@redhat.com>, "peterz@infradead.org" <peterz@infradead.org>,
+	"minchan@kernel.org" <minchan@kernel.org>, "mgorman@suse.de"
+	<mgorman@suse.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Thread-Topic: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Thread-Index: AQHVCfj1/ZS8SZ4p0ke1CH5gp1S1IA==
+Date: Tue, 14 May 2019 02:01:34 +0000
+Message-ID: <45c6096e-c3e0-4058-8669-75fbba415e07@email.android.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=namit@vmware.com; 
+x-originating-ip: [50.204.120.225]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 08297de2-d0ba-4875-6e6f-08d6d81017ae
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BL0PR05MB4722;
+x-ms-traffictypediagnostic: BL0PR05MB4722:
+x-microsoft-antispam-prvs:
+ <BL0PR05MB4722F593EDC92AE39350B17DD0080@BL0PR05MB4722.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:1332;
+x-forefront-prvs: 0037FD6480
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(39860400002)(366004)(136003)(396003)(376002)(51444003)(189003)(199004)(8936002)(6246003)(76116006)(81166006)(2906002)(25786009)(8676002)(73956011)(66476007)(66556008)(64756008)(66446008)(91956017)(6916009)(6116002)(53936002)(81156014)(66946007)(54896002)(31686004)(66066001)(3846002)(4326008)(5660300002)(6436002)(102836004)(9686003)(53546011)(71200400001)(316002)(229853002)(305945005)(99286004)(14444005)(256004)(7736002)(6506007)(6512007)(6486002)(68736007)(31696002)(476003)(86362001)(14454004)(478600001)(54906003)(186003)(486006)(26005)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:BL0PR05MB4722;H:BL0PR05MB4772.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ ZP8Oep27mvWjY/IbCjH6R+/KO022VwCPK36RmnySajZ8QGgm4zIXVn00XdFsQjyLP1y9Nw4HlIUkN++GRWrNLd2MRAG0QjJye1ljMFwd248qyIVUtNKGdmXBD6ASeV/moHQzHqtG/byKFsS4fbJNJYA8h6IOKC8hO6PKVwTqKZhb+IbqqIiSlWpoSxT0+t4dN8kptIUSbJyqr/osxhfRZnj8iH70YycynkHpLFQ6jmgbWHqnBq9rNH0AvZAfOq4o3f1l6Jw4GPOY97hm5/MJRPtmAt8VaSMh/MkFbO4ngRVw/656UV6dB3J7vbu4hTIJOepGHmCUQWXyZmJCTGnDwUxO62QvLvavNc3ImJlgdXOHaiI1oYl5uPrkyUimk1aTGA1F9jMXOGVVRltKQWiiFyx/lBF5nnfn7+vzFWh2cRA=
+Content-Type: multipart/alternative;
+	boundary="_000_45c6096ec3e04058866975fbba415e07emailandroidcom_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 08297de2-d0ba-4875-6e6f-08d6d81017ae
+X-MS-Exchange-CrossTenant-originalarrivaltime: 14 May 2019 02:01:34.6548
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BL0PR05MB4722
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[ Feel free to forward this to other Linux kernel mailing lists as
-  appropriate -- Ted ]
+--_000_45c6096ec3e04058866975fbba415e07emailandroidcom_
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 
-This year, the Maintainer's and Kernel Summit will be at the Corinthia
-Hotel in Lisbon, Portugal, September 9th -- 12th.  The Kernel Summit
-will be held as a track during the Linux Plumbers Conference
-September 9th -- 11th.  The Maintainer's Summit will be held
-afterwards, on September 12th.
+DQoNCk9uIE1heSAxMywgMjAxOSA0OjAxIFBNLCBZYW5nIFNoaSA8eWFuZy5zaGlAbGludXguYWxp
+YmFiYS5jb20+IHdyb3RlOg0KDQoNCk9uIDUvMTMvMTkgOTozOCBBTSwgV2lsbCBEZWFjb24gd3Jv
+dGU6DQo+IE9uIEZyaSwgTWF5IDEwLCAyMDE5IGF0IDA3OjI2OjU0QU0gKzA4MDAsIFlhbmcgU2hp
+IHdyb3RlOg0KPj4gZGlmZiAtLWdpdCBhL21tL21tdV9nYXRoZXIuYyBiL21tL21tdV9nYXRoZXIu
+Yw0KPj4gaW5kZXggOTk3NDBlMS4uNDY5NDkyZCAxMDA2NDQNCj4+IC0tLSBhL21tL21tdV9nYXRo
+ZXIuYw0KPj4gKysrIGIvbW0vbW11X2dhdGhlci5jDQo+PiBAQCAtMjQ1LDE0ICsyNDUsMzkgQEAg
+dm9pZCB0bGJfZmluaXNoX21tdShzdHJ1Y3QgbW11X2dhdGhlciAqdGxiLA0KPj4gICB7DQo+PiAg
+ICAgICAvKg0KPj4gICAgICAgICogSWYgdGhlcmUgYXJlIHBhcmFsbGVsIHRocmVhZHMgYXJlIGRv
+aW5nIFBURSBjaGFuZ2VzIG9uIHNhbWUgcmFuZ2UNCj4+IC0gICAgICogdW5kZXIgbm9uLWV4Y2x1
+c2l2ZSBsb2NrKGUuZy4sIG1tYXBfc2VtIHJlYWQtc2lkZSkgYnV0IGRlZmVyIFRMQg0KPj4gLSAg
+ICAgKiBmbHVzaCBieSBiYXRjaGluZywgYSB0aHJlYWQgaGFzIHN0YWJsZSBUTEIgZW50cnkgY2Fu
+IGZhaWwgdG8gZmx1c2gNCj4+IC0gICAgICogdGhlIFRMQiBieSBvYnNlcnZpbmcgcHRlX25vbmV8
+IXB0ZV9kaXJ0eSwgZm9yIGV4YW1wbGUgc28gZmx1c2ggVExCDQo+PiAtICAgICAqIGZvcmNlZnVs
+bHkgaWYgd2UgZGV0ZWN0IHBhcmFsbGVsIFBURSBiYXRjaGluZyB0aHJlYWRzLg0KPj4gKyAgICAg
+KiB1bmRlciBub24tZXhjbHVzaXZlIGxvY2sgKGUuZy4sIG1tYXBfc2VtIHJlYWQtc2lkZSkgYnV0
+IGRlZmVyIFRMQg0KPj4gKyAgICAgKiBmbHVzaCBieSBiYXRjaGluZywgb25lIHRocmVhZCBtYXkg
+ZW5kIHVwIHNlZWluZyBpbmNvbnNpc3RlbnQgUFRFcw0KPj4gKyAgICAgKiBhbmQgcmVzdWx0IGlu
+IGhhdmluZyBzdGFsZSBUTEIgZW50cmllcy4gIFNvIGZsdXNoIFRMQiBmb3JjZWZ1bGx5DQo+PiAr
+ICAgICAqIGlmIHdlIGRldGVjdCBwYXJhbGxlbCBQVEUgYmF0Y2hpbmcgdGhyZWFkcy4NCj4+ICsg
+ICAgICoNCj4+ICsgICAgICogSG93ZXZlciwgc29tZSBzeXNjYWxscywgZS5nLiBtdW5tYXAoKSwg
+bWF5IGZyZWUgcGFnZSB0YWJsZXMsIHRoaXMNCj4+ICsgICAgICogbmVlZHMgZm9yY2UgZmx1c2gg
+ZXZlcnl0aGluZyBpbiB0aGUgZ2l2ZW4gcmFuZ2UuIE90aGVyd2lzZSB0aGlzDQo+PiArICAgICAq
+IG1heSByZXN1bHQgaW4gaGF2aW5nIHN0YWxlIFRMQiBlbnRyaWVzIGZvciBzb21lIGFyY2hpdGVj
+dHVyZXMsDQo+PiArICAgICAqIGUuZy4gYWFyY2g2NCwgdGhhdCBjb3VsZCBzcGVjaWZ5IGZsdXNo
+IHdoYXQgbGV2ZWwgVExCLg0KPj4gICAgICAgICovDQo+PiAtICAgIGlmIChtbV90bGJfZmx1c2hf
+bmVzdGVkKHRsYi0+bW0pKSB7DQo+PiAtICAgICAgICAgICAgX190bGJfcmVzZXRfcmFuZ2UodGxi
+KTsNCj4+IC0gICAgICAgICAgICBfX3RsYl9hZGp1c3RfcmFuZ2UodGxiLCBzdGFydCwgZW5kIC0g
+c3RhcnQpOw0KPj4gKyAgICBpZiAobW1fdGxiX2ZsdXNoX25lc3RlZCh0bGItPm1tKSAmJiAhdGxi
+LT5mdWxsbW0pIHsNCj4+ICsgICAgICAgICAgICAvKg0KPj4gKyAgICAgICAgICAgICAqIFNpbmNl
+IHdlIGNhbid0IHRlbGwgd2hhdCB3ZSBhY3R1YWxseSBzaG91bGQgaGF2ZQ0KPj4gKyAgICAgICAg
+ICAgICAqIGZsdXNoZWQsIGZsdXNoIGV2ZXJ5dGhpbmcgaW4gdGhlIGdpdmVuIHJhbmdlLg0KPj4g
+KyAgICAgICAgICAgICAqLw0KPj4gKyAgICAgICAgICAgIHRsYi0+ZnJlZWRfdGFibGVzID0gMTsN
+Cj4+ICsgICAgICAgICAgICB0bGItPmNsZWFyZWRfcHRlcyA9IDE7DQo+PiArICAgICAgICAgICAg
+dGxiLT5jbGVhcmVkX3BtZHMgPSAxOw0KPj4gKyAgICAgICAgICAgIHRsYi0+Y2xlYXJlZF9wdWRz
+ID0gMTsNCj4+ICsgICAgICAgICAgICB0bGItPmNsZWFyZWRfcDRkcyA9IDE7DQo+PiArDQo+PiAr
+ICAgICAgICAgICAgLyoNCj4+ICsgICAgICAgICAgICAgKiBTb21lIGFyY2hpdGVjdHVyZXMsIGUu
+Zy4gQVJNLCB0aGF0IGhhdmUgcmFuZ2UgaW52YWxpZGF0aW9uDQo+PiArICAgICAgICAgICAgICog
+YW5kIGNhcmUgYWJvdXQgVk1fRVhFQyBmb3IgSS1DYWNoZSBpbnZhbGlkYXRpb24sIG5lZWQgZm9y
+Y2UNCj4+ICsgICAgICAgICAgICAgKiB2bWFfZXhlYyBzZXQuDQo+PiArICAgICAgICAgICAgICov
+DQo+PiArICAgICAgICAgICAgdGxiLT52bWFfZXhlYyA9IDE7DQo+PiArDQo+PiArICAgICAgICAg
+ICAgLyogRm9yY2Ugdm1hX2h1Z2UgY2xlYXIgdG8gZ3VhcmFudGVlIHNhZmVyIGZsdXNoICovDQo+
+PiArICAgICAgICAgICAgdGxiLT52bWFfaHVnZSA9IDA7DQo+PiArDQo+PiArICAgICAgICAgICAg
+dGxiLT5zdGFydCA9IHN0YXJ0Ow0KPj4gKyAgICAgICAgICAgIHRsYi0+ZW5kID0gZW5kOw0KPj4g
+ICAgICAgfQ0KPiBXaGlsc3QgSSB0aGluayB0aGlzIGlzIGNvcnJlY3QsIGl0IHdvdWxkIGJlIGlu
+dGVyZXN0aW5nIHRvIHNlZSB3aGV0aGVyDQo+IG9yIG5vdCBpdCdzIGFjdHVhbGx5IGZhc3RlciB0
+aGFuIGp1c3QgbnVraW5nIHRoZSB3aG9sZSBtbSwgYXMgSSBtZW50aW9uZWQNCj4gYmVmb3JlLg0K
+Pg0KPiBBdCBsZWFzdCBpbiB0ZXJtcyBvZiBnZXR0aW5nIGEgc2hvcnQtdGVybSBmaXgsIEknZCBw
+cmVmZXIgdGhlIGRpZmYgYmVsb3cNCj4gaWYgaXQncyBub3QgbWVhc3VyYWJseSB3b3JzZS4NCg0K
+SSBkaWQgYSBxdWljayB0ZXN0IHdpdGggZWJpenp5ICg5NiB0aHJlYWRzIHdpdGggNSBpdGVyYXRp
+b25zKSBvbiBteSB4ODYNClZNLCBpdCBzaG93cyBzbGlnaHRseSBzbG93ZG93biBvbiByZWNvcmRz
+L3MgYnV0IG11Y2ggbW9yZSBzeXMgdGltZSBzcGVudA0Kd2l0aCBmdWxsbW0gZmx1c2gsIHRoZSBi
+ZWxvdyBpcyB0aGUgZGF0YS4NCg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+IG5vZnVsbG1tICAgICAgICAgICAgICAgICBmdWxsbW0NCm9wcyAocmVjb3Jkcy9zKSAgICAgICAg
+ICAgICAgMjI1NjA2ICAgICAgICAgICAgICAgICAgMjI1MTE5DQpzeXMgKHMpICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgIDAuNjkgICAgICAgICAgICAgICAgICAgICAgICAxLjE0DQoNCkl0IGxv
+b2tzIHRoZSBzbGlnaHQgcmVkdWN0aW9uIG9mIHJlY29yZHMvcyBpcyBjYXVzZWQgYnkgdGhlIGlu
+Y3JlYXNlIG9mDQpzeXMgdGltZS4NCg0KPg0KPiBXaWxsDQo+DQo+IC0tLT44DQo+DQo+IGRpZmYg
+LS1naXQgYS9tbS9tbXVfZ2F0aGVyLmMgYi9tbS9tbXVfZ2F0aGVyLmMNCj4gaW5kZXggOTk3NDBl
+MWRkMjczLi5jYzI1MTQyMmQzMDcgMTAwNjQ0DQo+IC0tLSBhL21tL21tdV9nYXRoZXIuYw0KPiAr
+KysgYi9tbS9tbXVfZ2F0aGVyLmMNCj4gQEAgLTI1MSw4ICsyNTEsOSBAQCB2b2lkIHRsYl9maW5p
+c2hfbW11KHN0cnVjdCBtbXVfZ2F0aGVyICp0bGIsDQo+ICAgICAgICAgKiBmb3JjZWZ1bGx5IGlm
+IHdlIGRldGVjdCBwYXJhbGxlbCBQVEUgYmF0Y2hpbmcgdGhyZWFkcy4NCj4gICAgICAgICAqLw0K
+PiAgICAgICAgaWYgKG1tX3RsYl9mbHVzaF9uZXN0ZWQodGxiLT5tbSkpIHsNCj4gKyAgICAgICAg
+ICAgICB0bGItPmZ1bGxtbSA9IDE7DQo+ICAgICAgICAgICAgICAgIF9fdGxiX3Jlc2V0X3Jhbmdl
+KHRsYik7DQo+IC0gICAgICAgICAgICAgX190bGJfYWRqdXN0X3JhbmdlKHRsYiwgc3RhcnQsIGVu
+ZCAtIHN0YXJ0KTsNCj4gKyAgICAgICAgICAgICB0bGItPmZyZWVkX3RhYmxlcyA9IDE7DQo+ICAg
+ICAgICB9DQo+DQo+ICAgICAgICB0bGJfZmx1c2hfbW11KHRsYik7DQoNCg0KSSB0aGluayB0aGF0
+IHRoaXMgc2hvdWxkIGhhdmUgc2V0IG5lZWRfZmx1c2hfYWxsIGFuZCBub3QgZnVsbG1tLg0KDQo=
 
-As in previous years, the "Maintainer's Summit" is an invite-only,
-half-day event, where the primary focus will be process issues around
-Linux Kernel Development.  It will be limited to 30 invitees and a
-handful of sponsored attendees.  This makes it smaller than the first
-few kernel summits (which were limited to around 50 attendees).
+--_000_45c6096ec3e04058866975fbba415e07emailandroidcom_
+Content-Type: text/html; charset="utf-8"
+Content-ID: <8C0F575D40F3AB4A85DC195FDAAB11B7@onevmw.onmicrosoft.com>
+Content-Transfer-Encoding: base64
 
-The "Kernel Summit" is organized as a track which is run in parallel
-with the other tracks at the Linux Plumber's Conference (LPC), and is
-open to all registered attendees of LPC.
+PGh0bWw+DQo8aGVhZD4NCjxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVudD0i
+dGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjwvaGVhZD4NCjxib2R5Pg0KPGRpdiBkaXI9ImF1
+dG8iPjxicj4NCjxkaXYgZGlyPSJhdXRvIj48YnI+DQo8ZGl2IGNsYXNzPSJlbGlkZWQtdGV4dCI+
+T24gTWF5IDEzLCAyMDE5IDQ6MDEgUE0sIFlhbmcgU2hpICZsdDt5YW5nLnNoaUBsaW51eC5hbGli
+YWJhLmNvbSZndDsgd3JvdGU6PGJyIHR5cGU9ImF0dHJpYnV0aW9uIj4NCjxibG9ja3F1b3RlIHN0
+eWxlPSJtYXJnaW46MCAwIDAgMC44ZXg7Ym9yZGVyLWxlZnQ6MXB4ICNjY2Mgc29saWQ7cGFkZGlu
+Zy1sZWZ0OjFleCI+DQo8ZGl2Pjxmb250IHNpemU9IjIiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6
+MTFwdCI+DQo8ZGl2Pjxicj4NCjxicj4NCk9uIDUvMTMvMTkgOTozOCBBTSwgV2lsbCBEZWFjb24g
+d3JvdGU6PGJyPg0KJmd0OyBPbiBGcmksIE1heSAxMCwgMjAxOSBhdCAwNzoyNjo1NEFNICYjNDM7
+MDgwMCwgWWFuZyBTaGkgd3JvdGU6PGJyPg0KJmd0OyZndDsgZGlmZiAtLWdpdCBhL21tL21tdV9n
+YXRoZXIuYyBiL21tL21tdV9nYXRoZXIuYzxicj4NCiZndDsmZ3Q7IGluZGV4IDk5NzQwZTEuLjQ2
+OTQ5MmQgMTAwNjQ0PGJyPg0KJmd0OyZndDsgLS0tIGEvbW0vbW11X2dhdGhlci5jPGJyPg0KJmd0
+OyZndDsgJiM0MzsmIzQzOyYjNDM7IGIvbW0vbW11X2dhdGhlci5jPGJyPg0KJmd0OyZndDsgQEAg
+LTI0NSwxNCAmIzQzOzI0NSwzOSBAQCB2b2lkIHRsYl9maW5pc2hfbW11KHN0cnVjdCBtbXVfZ2F0
+aGVyICp0bGIsPGJyPg0KJmd0OyZndDsmbmJzcDsmbmJzcDsgezwhLS0gLS0+PGJyPg0KJmd0OyZn
+dDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgLyo8YnI+DQomZ3Q7Jmd0OyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAqIElmIHRoZXJlIGFyZSBw
+YXJhbGxlbCB0aHJlYWRzIGFyZSBkb2luZyBQVEUgY2hhbmdlcyBvbiBzYW1lIHJhbmdlPGJyPg0K
+Jmd0OyZndDsgLSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAqIHVuZGVyIG5vbi1leGNsdXNpdmUg
+bG9jayhlLmcuLCBtbWFwX3NlbSByZWFkLXNpZGUpIGJ1dCBkZWZlciBUTEI8YnI+DQomZ3Q7Jmd0
+OyAtJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7ICogZmx1c2ggYnkgYmF0Y2hpbmcsIGEgdGhyZWFk
+IGhhcyBzdGFibGUgVExCIGVudHJ5IGNhbiBmYWlsIHRvIGZsdXNoPGJyPg0KJmd0OyZndDsgLSZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAqIHRoZSBUTEIgYnkgb2JzZXJ2aW5nIHB0ZV9ub25lfCFw
+dGVfZGlydHksIGZvciBleGFtcGxlIHNvIGZsdXNoIFRMQjxicj4NCiZndDsmZ3Q7IC0mbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgKiBmb3JjZWZ1bGx5IGlmIHdlIGRldGVjdCBwYXJhbGxlbCBQVEUg
+YmF0Y2hpbmcgdGhyZWFkcy48YnI+DQomZ3Q7Jmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyAqIHVuZGVyIG5vbi1leGNsdXNpdmUgbG9jayAoZS5nLiwgbW1hcF9zZW0gcmVhZC1zaWRl
+KSBidXQgZGVmZXIgVExCPGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsgKiBmbHVzaCBieSBiYXRjaGluZywgb25lIHRocmVhZCBtYXkgZW5kIHVwIHNlZWluZyBpbmNv
+bnNpc3RlbnQgUFRFczxicj4NCiZndDsmZ3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+ICogYW5kIHJlc3VsdCBpbiBoYXZpbmcgc3RhbGUgVExCIGVudHJpZXMuJm5ic3A7IFNvIGZsdXNo
+IFRMQiBmb3JjZWZ1bGx5PGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsgKiBpZiB3ZSBkZXRlY3QgcGFyYWxsZWwgUFRFIGJhdGNoaW5nIHRocmVhZHMuPGJyPg0KJmd0
+OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgKjxicj4NCiZndDsmZ3Q7ICYjNDM7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7ICogSG93ZXZlciwgc29tZSBzeXNjYWxscywgZS5nLiBt
+dW5tYXAoKSwgbWF5IGZyZWUgcGFnZSB0YWJsZXMsIHRoaXM8YnI+DQomZ3Q7Jmd0OyAmIzQzOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAqIG5lZWRzIGZvcmNlIGZsdXNoIGV2ZXJ5dGhpbmcgaW4g
+dGhlIGdpdmVuIHJhbmdlLiBPdGhlcndpc2UgdGhpczxicj4NCiZndDsmZ3Q7ICYjNDM7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7ICogbWF5IHJlc3VsdCBpbiBoYXZpbmcgc3RhbGUgVExCIGVudHJp
+ZXMgZm9yIHNvbWUgYXJjaGl0ZWN0dXJlcyw8YnI+DQomZ3Q7Jmd0OyAmIzQzOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyAqIGUuZy4gYWFyY2g2NCwgdGhhdCBjb3VsZCBzcGVjaWZ5IGZsdXNoIHdo
+YXQgbGV2ZWwgVExCLjxicj4NCiZndDsmZ3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7ICovPGJyPg0KJmd0OyZndDsgLSZuYnNwOyZuYnNwOyZuYnNwOyBpZiAobW1f
+dGxiX2ZsdXNoX25lc3RlZCh0bGItJmd0O21tKSkgezwhLS0gLS0+PGJyPg0KJmd0OyZndDsgLSZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyBfX3RsYl9yZXNldF9yYW5nZSh0bGIpOzxicj4NCiZndDsmZ3Q7IC0mbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsg
+X190bGJfYWRqdXN0X3JhbmdlKHRsYiwgc3RhcnQsIGVuZCAtIHN0YXJ0KTs8YnI+DQomZ3Q7Jmd0
+OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyBpZiAobW1fdGxiX2ZsdXNoX25lc3RlZCh0bGItJmd0
+O21tKSAmYW1wOyZhbXA7ICF0bGItJmd0O2Z1bGxtbSkgezwhLS0gLS0+PGJyPg0KJmd0OyZndDsg
+JiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsgLyo8YnI+DQomZ3Q7Jmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAqIFNp
+bmNlIHdlIGNhbid0IHRlbGwgd2hhdCB3ZSBhY3R1YWxseSBzaG91bGQgaGF2ZTxicj4NCiZndDsm
+Z3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7ICogZmx1c2hlZCwgZmx1c2ggZXZlcnl0aGluZyBpbiB0
+aGUgZ2l2ZW4gcmFuZ2UuPGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgKi88YnI+
+DQomZ3Q7Jmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyB0bGItJmd0O2ZyZWVkX3RhYmxlcyA9IDE7PGJyPg0K
+Jmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgdGxiLSZndDtjbGVhcmVkX3B0ZXMgPSAxOzxicj4NCiZn
+dDsmZ3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHRsYi0mZ3Q7Y2xlYXJlZF9wbWRzID0gMTs8YnI+DQomZ3Q7
+Jmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyB0bGItJmd0O2NsZWFyZWRfcHVkcyA9IDE7PGJyPg0KJmd0OyZn
+dDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgdGxiLSZndDtjbGVhcmVkX3A0ZHMgPSAxOzxicj4NCiZndDsmZ3Q7
+ICYjNDM7PGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgLyo8YnI+DQomZ3Q7Jmd0OyAmIzQz
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyAqIFNvbWUgYXJjaGl0ZWN0dXJlcywgZS5nLiBBUk0sIHRoYXQgaGF2
+ZSByYW5nZSBpbnZhbGlkYXRpb248YnI+DQomZ3Q7Jmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAq
+IGFuZCBjYXJlIGFib3V0IFZNX0VYRUMgZm9yIEktQ2FjaGUgaW52YWxpZGF0aW9uLCBuZWVkIGZv
+cmNlPGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgKiB2bWFfZXhlYyBzZXQuPGJy
+Pg0KJmd0OyZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsgKi88YnI+DQomZ3Q7Jmd0OyAmIzQzOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyB0bGItJmd0O3ZtYV9leGVjID0gMTs8YnI+DQomZ3Q7Jmd0OyAmIzQzOzxicj4NCiZn
+dDsmZ3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IC8qIEZvcmNlIHZtYV9odWdlIGNsZWFyIHRvIGd1YXJhbnRl
+ZSBzYWZlciBmbHVzaCAqLzxicj4NCiZndDsmZ3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHRsYi0mZ3Q7dm1h
+X2h1Z2UgPSAwOzxicj4NCiZndDsmZ3Q7ICYjNDM7PGJyPg0KJmd0OyZndDsgJiM0MzsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsgdGxiLSZndDtzdGFydCA9IHN0YXJ0Ozxicj4NCiZndDsmZ3Q7ICYjNDM7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IHRs
+Yi0mZ3Q7ZW5kID0gZW5kOzxicj4NCiZndDsmZ3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7IH08YnI+DQomZ3Q7IFdoaWxzdCBJIHRoaW5rIHRoaXMgaXMgY29ycmVjdCwgaXQg
+d291bGQgYmUgaW50ZXJlc3RpbmcgdG8gc2VlIHdoZXRoZXI8YnI+DQomZ3Q7IG9yIG5vdCBpdCdz
+IGFjdHVhbGx5IGZhc3RlciB0aGFuIGp1c3QgbnVraW5nIHRoZSB3aG9sZSBtbSwgYXMgSSBtZW50
+aW9uZWQ8YnI+DQomZ3Q7IGJlZm9yZS48YnI+DQomZ3Q7PGJyPg0KJmd0OyBBdCBsZWFzdCBpbiB0
+ZXJtcyBvZiBnZXR0aW5nIGEgc2hvcnQtdGVybSBmaXgsIEknZCBwcmVmZXIgdGhlIGRpZmYgYmVs
+b3c8YnI+DQomZ3Q7IGlmIGl0J3Mgbm90IG1lYXN1cmFibHkgd29yc2UuPGJyPg0KPGJyPg0KSSBk
+aWQgYSBxdWljayB0ZXN0IHdpdGggZWJpenp5ICg5NiB0aHJlYWRzIHdpdGggNSBpdGVyYXRpb25z
+KSBvbiBteSB4ODYgPGJyPg0KVk0sIGl0IHNob3dzIHNsaWdodGx5IHNsb3dkb3duIG9uIHJlY29y
+ZHMvcyBidXQgbXVjaCBtb3JlIHN5cyB0aW1lIHNwZW50IDxicj4NCndpdGggZnVsbG1tIGZsdXNo
+LCB0aGUgYmVsb3cgaXMgdGhlIGRhdGEuPGJyPg0KPGJyPg0KJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IG5vZnVsbG1tJm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7IGZ1bGxtbTxicj4NCm9wcyAocmVjb3Jkcy9zKSAmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsgMjI1NjA2Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7IDIy
+NTExOTxicj4NCnN5cyAocykmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsgMC42OSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyAxLjE0PGJyPg0KPGJyPg0KSXQg
+bG9va3MgdGhlIHNsaWdodCByZWR1Y3Rpb24gb2YgcmVjb3Jkcy9zIGlzIGNhdXNlZCBieSB0aGUg
+aW5jcmVhc2Ugb2YgPGJyPg0Kc3lzIHRpbWUuPGJyPg0KPGJyPg0KJmd0Ozxicj4NCiZndDsgV2ls
+bDxicj4NCiZndDs8YnI+DQomZ3Q7IC0tLSZndDs4PGJyPg0KJmd0Ozxicj4NCiZndDsgZGlmZiAt
+LWdpdCBhL21tL21tdV9nYXRoZXIuYyBiL21tL21tdV9nYXRoZXIuYzxicj4NCiZndDsgaW5kZXgg
+OTk3NDBlMWRkMjczLi5jYzI1MTQyMmQzMDcgMTAwNjQ0PGJyPg0KJmd0OyAtLS0gYS9tbS9tbXVf
+Z2F0aGVyLmM8YnI+DQomZ3Q7ICYjNDM7JiM0MzsmIzQzOyBiL21tL21tdV9nYXRoZXIuYzxicj4N
+CiZndDsgQEAgLTI1MSw4ICYjNDM7MjUxLDkgQEAgdm9pZCB0bGJfZmluaXNoX21tdShzdHJ1Y3Qg
+bW11X2dhdGhlciAqdGxiLDxicj4NCiZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDsmbmJzcDsmbmJzcDsgKiBmb3JjZWZ1bGx5IGlmIHdlIGRldGVjdCBwYXJhbGxlbCBQVEUg
+YmF0Y2hpbmcgdGhyZWFkcy48YnI+DQomZ3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7ICovPGJyPg0KJmd0OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZu
+YnNwOyZuYnNwOyZuYnNwOyBpZiAobW1fdGxiX2ZsdXNoX25lc3RlZCh0bGItJmd0O21tKSkgezwh
+LS0gLS0+PGJyPg0KJmd0OyAmIzQzOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyB0bGItJmd0O2Z1bGxtbSA9IDE7
+PGJyPg0KJmd0OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBfX3RsYl9yZXNldF9y
+YW5nZSh0bGIpOzxicj4NCiZndDsgLSZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNw
+OyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyBfX3RsYl9hZGp1c3RfcmFuZ2Uo
+dGxiLCBzdGFydCwgZW5kIC0gc3RhcnQpOzxicj4NCiZndDsgJiM0MzsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsg
+dGxiLSZndDtmcmVlZF90YWJsZXMgPSAxOzxicj4NCiZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDsmbmJzcDsmbmJzcDsmbmJzcDsgfTxicj4NCiZndDsmbmJzcDsmbmJzcDsgPGJyPg0KJmd0OyZu
+YnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyZuYnNwOyB0bGJfZmx1c2hfbW11KHRs
+Yik7PGJyPg0KPGJyPg0KPC9kaXY+DQo8L3NwYW4+PC9mb250PjwvZGl2Pg0KPC9ibG9ja3F1b3Rl
+Pg0KPC9kaXY+DQo8YnI+DQo8L2Rpdj4NCjxkaXYgZGlyPSJhdXRvIj5JIHRoaW5rIHRoYXQgdGhp
+cyBzaG91bGQgaGF2ZSBzZXQgbmVlZF9mbHVzaF9hbGwgYW5kIG5vdCBmdWxsbW0uPC9kaXY+DQo8
+ZGl2IGRpcj0iYXV0byI+PGJyPg0KPC9kaXY+DQo8L2Rpdj4NCjwvYm9keT4NCjwvaHRtbD4NCg==
 
-Linus has a generated a list of 18 people to use as a core list.  The
-program committee will pick at least ten people from that list, and
-then use the rest of Linus's list as a starting point of people to be
-considered.  People who suggest topics that should be discussed on the
-Maintainer's summit will also be added to the list for consideration.
-To make topic suggestions for the Maintainer's Summit, please send
-e-mail to the ksummit-discuss@lists.linuxfoundation.org list with a
-subject prefix of [MAINTAINERS SUMMIT].
-
-The other job of the program committee will be to organize the program
-for the Kernel Summit.  The goal of the Kernel Summit track will be to
-provide a forum to discuss specific technical issues that would be
-easier to resolve in person than over e-mail.  The program committee
-will also consider "information sharing" topics if they are clearly of
-interest to the wider development community (i.e., advanced training
-in topics that would be useful to kernel developers).
-
-To suggest a topic for the Kernel Summit, please do two things.
-First, please tag your e-mail with [TECH TOPIC].  As before, please
-use a separate e-mail for each topic, and send the topic suggestions
-to the ksummit-discuss list.
-
-Secondly, please create a topic at the Linux Plumbers Conference
-proposal submission site and target it to the Kernel Summit track.
-For your convenience you can use:
-
-	http://bit.ly/lpc19-submit
-
-Please do both steps.  I'll try to notice if someone forgets one or
-the other, but your chances of making your proposal gets the necessary
-attention and consideration by submiting both to the mailing list and
-the web site.
-
-People who submit topic suggestions before May 31st and which are
-accepted, will be given a free admission to the Linux Plumbers
-Conference.
-
-We will reserving roughly half of the Kernel Summit slots for
-last-minute discussions that will be scheduled during the week of
-Plumber's, in an "unconference style".  This allows ideas that come up
-in hallway discussions, and in the LPC miniconferences, to be given
-scheduled, dedicated times for discussion.
-
-If you were not subscribed on to the kernel-discuss mailing list from
-last year (or if you had removed yourself after the kernel summit),
-you can subscribe to the discuss list using mailman:
-
-   https://lists.linuxfoundation.org/mailman/listinfo/ksummit-discuss
-
-The program committee this year is composed of the following people:
-
-Greg Kroah-Hartman
-Jens Axboe
-Jon Corbet
-Ted Ts'o
-Thomas Gleixner
+--_000_45c6096ec3e04058866975fbba415e07emailandroidcom_--
 
