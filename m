@@ -2,208 +2,201 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB294C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:34:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2BBCC04AB7
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:58:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5161D20675
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:34:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qQ5fpl3R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5161D20675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id A04B520862
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:58:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A04B520862
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 043B06B026B; Tue, 14 May 2019 04:34:17 -0400 (EDT)
+	id 1431E6B026D; Tue, 14 May 2019 04:58:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 01DAE6B026C; Tue, 14 May 2019 04:34:16 -0400 (EDT)
+	id 0CDE16B026E; Tue, 14 May 2019 04:58:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4BE26B026D; Tue, 14 May 2019 04:34:16 -0400 (EDT)
+	id ED60B6B026F; Tue, 14 May 2019 04:58:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AC8466B026B
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:34:16 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f1so11525417pfb.0
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 01:34:16 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D6166B026D
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:58:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l3so7945786edl.10
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 01:58:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Jt8E3lVLhJgEFEn3MWp6fWcs0kIahKV5qTQyv9mVy4Q=;
-        b=gs4Ce8x1EKC/oAmR2EGcbVNCPpHXInjsA6uiV/XCGaJxeavjtqAnmTEz1m5QSQh+1j
-         WzQQ//iFlkbjqBdhsFrqiyJiiqUAGygcVYuVQcDJhZBZrjFkTP4SsoIUCPcsdWsvfIPX
-         +1qHRgnsroyTiqY2fbt1bYqWFRVw6sZ/4sll/nynPTinjXjDVSLi2FaDRWr1jpGkH5ag
-         wmjqMFqfAw+WGd0OSBrWEEOcXW6ETL7YEC6bTI4w5iL8LnGA/DydriSLGUsOLmG+gzIe
-         PQrho+FSGpnD8qmIDQLTFvs5K5af0y+KeVmmJb0LNYUQ3F6YgWzhOeqFVvKJM3xTWoEX
-         mBrQ==
-X-Gm-Message-State: APjAAAXA/sZf14jB5noZBYNdOF7VLqiF8kNGYTEMWGJu7iysc5yLEnRX
-	qSlb4rovDqQ1bnWuHpEtQjp3EpCka12TMDnxnksRrAPs2wEUYPneGxHOe0CGvqd05BIMfcNg7sn
-	ZC7wLCT0vYZAWErhAD+eFCjdKvrY8vy3azuta6bCCftG+GCGO/ZEn16fG0U2WCuLo+w==
-X-Received: by 2002:a17:902:9a03:: with SMTP id v3mr37647281plp.27.1557822856254;
-        Tue, 14 May 2019 01:34:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw34u0rT7/0IEs1ajMqxBvCoMaA2yT4IdridthNP6GPevePT6N+u/otuzduTnck+tY30Fjr
-X-Received: by 2002:a17:902:9a03:: with SMTP id v3mr37647219plp.27.1557822855458;
-        Tue, 14 May 2019 01:34:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557822855; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3dzj8ryujYIVV80n1k8Gt8NgYZbMTLASDkaYohAI8uU=;
+        b=m7MFRR5hVUh4jR96y2D9k1O5NWrj2GkcFWUB71ZIugMIigQNmRmevQPRckZPNE2tjr
+         Hd1N+ozM6uDtHpdX8/ADNg6GtJwdG3Lhm9VAZnWEZ1bq6JQeqAjpXQm8SNwbYROQOUZO
+         0DtiAIIiawrsCizm3dYxBoTuR6Tss9PHduQ5MovO3oogL62zm6XqMR4UGtFuvLsYZIBG
+         p5AWdbI26pUGiqYgZdfr8l2uIFYWRtNIL1P/WNms6ZGEB9Dbxgp3/E+mT2oNs4wjfY2N
+         8SOlPrNL9lfc6xvsEQFRlaITimNwXpUvyf5QRfXHac8CdWPlNc/uezE1lfyMg/gc+zRA
+         7Kcg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Gm-Message-State: APjAAAWd5222BQ1iTJYsWaNI519sE+TS9gqn+MkakVihpeJyiLJMAa2B
+	Q/nheMMNRTq7WrYb7xNRfXyt02HpyAklO0BSUxYgOL/lQnctlcW5OZzRJRlNyLT0AheEb5kXW3V
+	s/cEPvlQAoc8SQDuuBpTpyQk2stDfvAQXPZxNDgr4Qdzn2YalzFMGXr0yt+WXhLXLww==
+X-Received: by 2002:aa7:ca4f:: with SMTP id j15mr34415453edt.276.1557824302101;
+        Tue, 14 May 2019 01:58:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYSp2XmjqsQ+67Xin9qTnil5QHsbs/KesqdRoU/SNo4c7MZVcAInd/d3eU+OZ/VX/tCI09
+X-Received: by 2002:aa7:ca4f:: with SMTP id j15mr34415377edt.276.1557824301122;
+        Tue, 14 May 2019 01:58:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557824301; cv=none;
         d=google.com; s=arc-20160816;
-        b=QlK2AdqfjkHXrwX3Ui8HH2M601NXWcY62kA+cHQeaqniLLMM19/6cNQd56+HUAmpUO
-         8tBfoA++6ogAi4nH3g70wptQQPcZHe+zD5RkLJd3atJlY8WFxhpI8vKILuG25YEiCR7Y
-         Ihc1gc07KjrggWoSz5gFjpYr9uK8r8xhTpFJLgxQNxXtHuQUyoeRdXJEtSXjKairIbeP
-         KPxP563PhrC7OF03lLkaLGcUhUbbeTxeIifWTz6NZ3/V0195CNsh8RxtAVZ0iZs8hKFk
-         lhGlkVN8oFYJA205zE4kiRq6itX1lyOsmKeHHNk63OzfCerjiAT9iiiFI31bg+pmU8uz
-         PJTw==
+        b=Xo7IQ0DryBQWWGGNMbq1GG5DMpgPPpVNyy+F6JXfZt8Tsd3nfnVVCt9tK52GhaYJwr
+         eY7RUQPkEBm6Ki4H+Uuheakj4LR5g8Jbd+5oQT4yGD9NbJBik+i9fCsEwE2/wFw9fl6p
+         pD19q0WoqD1ubAfWph4TQe0Y7raRvmpfmYDc8CC4y/YxxquP5EnmUFvu1vN2JNqgY7yG
+         8FIjTAj8c5Z0DiBt7mLVZaKfBD/iyHiIzonO7zWyfe0r4WPg6AZAfeIgTGBfFFrq/c4j
+         o8mW7BYf0gWaZb3usw/PhxCGFGROyMeas2ei02wqv7e88oF27To2wWI0UXqpjBjvdBj0
+         7D4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=Jt8E3lVLhJgEFEn3MWp6fWcs0kIahKV5qTQyv9mVy4Q=;
-        b=aGvSK8ngMD8UTUHuD7TKoq6t+SOg6FwNNL0wfT6B1YsF1Etx+qvHkYeoBj+aYNRapW
-         HinrAvlRa9YhxfUNNVwrrvfa1TCDSPwVMMHLNpP8rsCzjZtwm7HYt5do51xJl3xPX5UQ
-         xlww9uO0pHb0V6kvCzeCJ0JYPTXdheEjd3ZbHe/eHOvOZhvT6LppAsY4IZTDkp0PTDoM
-         efnihybncRnZ+SYKdf7m1+IsoillQQpz2WjN03aGzGJrdg3464p9oE7f13+l0mBFkquE
-         lf5EDHQgplLXPUIp3T4IPKE1lIM4X4drNWzzIgsxzwq20tENKQ7nTZtz2T9IvMASu0dY
-         tSbQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=3dzj8ryujYIVV80n1k8Gt8NgYZbMTLASDkaYohAI8uU=;
+        b=JywTDSZI5V0vZSkUNb7Z65FTnsBReWAj+unSEb25OpYJvZeupMQ6MCNbhQ7zNc4qLM
+         Uo2gBMNc+tyjjojbb370MyVw9Pco5/4wVNR8gPH1zM6adG0uUKXgIa07gRSfF0OSzqTJ
+         d8KZ2/Oc8+K6AmTmMc14o8prgT54xcwZtlMV7j+1RPvwhiEC5dG2s21WnXhqgzQq3iU5
+         5rR20yXXOYsZFwwUnZc3VNxAG3VOry1AasW8AMTcGS2nWZf/ghhL+SXQ0smZzfBSp9Y6
+         HpXEy18k7qykUp1VBpNZwmAtTqnxBG0DcrGWosD3bGwEyAX+DJhNKaIHME+/UCr1RlK+
+         rRCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qQ5fpl3R;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l61si8159382plb.288.2019.05.14.01.34.14
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q5si6647221edd.0.2019.05.14.01.58.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 01:34:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Tue, 14 May 2019 01:58:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qQ5fpl3R;
-       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E8TLGp056543;
-	Tue, 14 May 2019 08:33:58 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=Jt8E3lVLhJgEFEn3MWp6fWcs0kIahKV5qTQyv9mVy4Q=;
- b=qQ5fpl3RpL05hBrLUsIf1E+1aBvQCu2pudkdg7nNbgXKbiyQrs3rzMBl8DOqaVQHvlUo
- BEMxNYvh+HArNT8mJVSIONSMqsMK9XNYSZrJ6jhaDP2gpLbRtN/8Cfq3QYYSD/2QoUpN
- gY/xNBPRsOfaJO3Spebcq+HSYbB6hOT3UVOwvAYwWeOvBicWFXqngxnNbX9nmkLuRRBr
- kqTold+bwX7DdG8BDGFVbeoMJtAu5Szv1J4ICH0xH/ml/1B5RJ6ycOs5ilOrzToeBSDh
- opo8MwXBSHn7tq/EQfmSrfdI9mcEB23G40rmbZl4jGKA2UK2QMjkaCDlNwVn6Aphx8OT Lw== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2120.oracle.com with ESMTP id 2sdq1qc40q-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 08:33:58 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E8Xaii012801;
-	Tue, 14 May 2019 08:33:58 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2sdnqje85m-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 08:33:58 +0000
-Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4E8XtZr025473;
-	Tue, 14 May 2019 08:33:56 GMT
-Received: from [10.166.106.34] (/10.166.106.34)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 14 May 2019 08:33:55 +0000
-Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
-To: Liran Alon <liran.alon@oracle.com>, Andy Lutomirski <luto@kernel.org>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>,
-        X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>,
-        LKML <linux-kernel@vger.kernel.org>,
-        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        jan.setjeeilers@oracle.com, Jonathan Adams <jwadams@google.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
- <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
-From: Alexandre Chartre <alexandre.chartre@oracle.com>
-Organization: Oracle Corporation
-Message-ID: <d366fb99-16bc-30ef-71bd-ecd7d77c6c7c@oracle.com>
-Date: Tue, 14 May 2019 10:33:44 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 68BF8AE1C;
+	Tue, 14 May 2019 08:58:20 +0000 (UTC)
+Date: Tue, 14 May 2019 09:58:16 +0100
+From: Mel Gorman <mgorman@suse.de>
+To: Nadav Amit <namit@vmware.com>
+Cc: Will Deacon <will.deacon@arm.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	"jstancek@redhat.com" <jstancek@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Nick Piggin <npiggin@gmail.com>, Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Message-ID: <20190514085816.GB23719@suse.de>
+References: <20190509103813.GP2589@hirez.programming.kicks-ass.net>
+ <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
+ <20190509182435.GA2623@hirez.programming.kicks-ass.net>
+ <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
+ <20190509191120.GD2623@hirez.programming.kicks-ass.net>
+ <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
+ <20190513083606.GL2623@hirez.programming.kicks-ass.net>
+ <75FD46B2-2E0C-41F2-9308-AB68C8780E33@vmware.com>
+ <20190513163752.GA10754@fuggles.cambridge.arm.com>
+ <43638259-8EDB-4B8D-A93D-A2E86D8B2489@vmware.com>
 MIME-Version: 1.0
-In-Reply-To: <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905140063
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905140063
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <43638259-8EDB-4B8D-A93D-A2E86D8B2489@vmware.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, May 13, 2019 at 05:06:03PM +0000, Nadav Amit wrote:
+> > On May 13, 2019, at 9:37 AM, Will Deacon <will.deacon@arm.com> wrote:
+> > 
+> > On Mon, May 13, 2019 at 09:11:38AM +0000, Nadav Amit wrote:
+> >>> On May 13, 2019, at 1:36 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >>> 
+> >>> On Thu, May 09, 2019 at 09:21:35PM +0000, Nadav Amit wrote:
+> >>> 
+> >>>>>>> And we can fix that by having tlb_finish_mmu() sync up. Never let a
+> >>>>>>> concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
+> >>>>>>> have completed.
+> >>>>>>> 
+> >>>>>>> This should not be too hard to make happen.
+> >>>>>> 
+> >>>>>> This synchronization sounds much more expensive than what I proposed. But I
+> >>>>>> agree that cache-lines that move from one CPU to another might become an
+> >>>>>> issue. But I think that the scheme I suggested would minimize this overhead.
+> >>>>> 
+> >>>>> Well, it would have a lot more unconditional atomic ops. My scheme only
+> >>>>> waits when there is actual concurrency.
+> >>>> 
+> >>>> Well, something has to give. I didn???t think that if the same core does the
+> >>>> atomic op it would be too expensive.
+> >>> 
+> >>> They're still at least 20 cycles a pop, uncontended.
+> >>> 
+> >>>>> I _think_ something like the below ought to work, but its not even been
+> >>>>> near a compiler. The only problem is the unconditional wakeup; we can
+> >>>>> play games to avoid that if we want to continue with this.
+> >>>>> 
+> >>>>> Ideally we'd only do this when there's been actual overlap, but I've not
+> >>>>> found a sensible way to detect that.
+> >>>>> 
+> >>>>> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> >>>>> index 4ef4bbe78a1d..b70e35792d29 100644
+> >>>>> --- a/include/linux/mm_types.h
+> >>>>> +++ b/include/linux/mm_types.h
+> >>>>> @@ -590,7 +590,12 @@ static inline void dec_tlb_flush_pending(struct mm_struct *mm)
+> >>>>> 	 *
+> >>>>> 	 * Therefore we must rely on tlb_flush_*() to guarantee order.
+> >>>>> 	 */
+> >>>>> -	atomic_dec(&mm->tlb_flush_pending);
+> >>>>> +	if (atomic_dec_and_test(&mm->tlb_flush_pending)) {
+> >>>>> +		wake_up_var(&mm->tlb_flush_pending);
+> >>>>> +	} else {
+> >>>>> +		wait_event_var(&mm->tlb_flush_pending,
+> >>>>> +			       !atomic_read_acquire(&mm->tlb_flush_pending));
+> >>>>> +	}
+> >>>>> }
+> >>>> 
+> >>>> It still seems very expensive to me, at least for certain workloads (e.g.,
+> >>>> Apache with multithreaded MPM).
+> >>> 
+> >>> Is that Apache-MPM workload triggering this lots? Having a known
+> >>> benchmark for this stuff is good for when someone has time to play with
+> >>> things.
+> >> 
+> >> Setting Apache2 with mpm_worker causes every request to go through
+> >> mmap-writev-munmap flow on every thread. I didn???t run this workload after
+> >> the patches that downgrade the mmap_sem to read before the page-table
+> >> zapping were introduced. I presume these patches would allow the page-table
+> >> zapping to be done concurrently, and therefore would hit this flow.
+> > 
+> > Hmm, I don't think so: munmap() still has to take the semaphore for write
+> > initially, so it will be serialised against other munmap() threads even
+> > after they've downgraded afaict.
+> > 
+> > The initial bug report was about concurrent madvise() vs munmap().
+> 
+> I guess you are right (and I???m wrong).
+> 
+> Short search suggests that ebizzy might be affected (a thread by Mel
+> Gorman): https://lkml.org/lkml/2015/2/2/493
+> 
 
-On 5/13/19 11:08 PM, Liran Alon wrote:
-> 
-> 
->> On 13 May 2019, at 21:17, Andy Lutomirski <luto@kernel.org> wrote:
->>
->>> I expect that the KVM address space can eventually be expanded to include
->>> the ioctl syscall entries. By doing so, and also adding the KVM page table
->>> to the process userland page table (which should be safe to do because the
->>> KVM address space doesn't have any secret), we could potentially handle the
->>> KVM ioctl without having to switch to the kernel pagetable (thus effectively
->>> eliminating KPTI for KVM). Then the only overhead would be if a VM-Exit has
->>> to be handled using the full kernel address space.
->>>
->>
->> In the hopefully common case where a VM exits and then gets re-entered
->> without needing to load full page tables, what code actually runs?
->> I'm trying to understand when the optimization of not switching is
->> actually useful.
->>
->> Allowing ioctl() without switching to kernel tables sounds...
->> extremely complicated.  It also makes the dubious assumption that user
->> memory contains no secrets.
-> 
-> Let me attempt to clarify what we were thinking when creating this patch series:
-> 
-> 1) It is never safe to execute one hyperthread inside guest while it’s sibling hyperthread runs in a virtual address space which contains secrets of host or other guests.
-> This is because we assume that using some speculative gadget (such as half-Spectrev2 gadget), it will be possible to populate *some* CPU core resource which could then be *somehow* leaked by the hyperthread running inside guest. In case of L1TF, this would be data populated to the L1D cache.
-> 
-> 2) Because of (1), every time a hyperthread runs inside host kernel, we must make sure it’s sibling is not running inside guest. i.e. We must kick the sibling hyperthread outside of guest using IPI.
-> 
-> 3) From (2), we should have theoretically deduced that for every #VMExit, there is a need to kick the sibling hyperthread also outside of guest until the #VMExit is completed. Such a patch series was implemented at some point but it had (obviously) significant performance hit.
-> 
-> 4) The main goal of this patch series is to preserve (2), but to avoid the overhead specified in (3).
-> 
-> The way this patch series achieves (4) is by observing that during the run of a VM, most #VMExits can be handled rather quickly and locally inside KVM and doesn’t need to reference any data that is not relevant to this VM or KVM code. Therefore, if we will run these #VMExits in an isolated virtual address space (i.e. KVM isolated address space), there is no need to kick the sibling hyperthread from guest while these #VMExits handlers run.
-> The hope is that the very vast majority of #VMExit handlers will be able to completely run without requiring to switch to full address space. Therefore, avoiding the performance hit of (2).
-> However, for the very few #VMExits that does require to run in full kernel address space, we must first kick the sibling hyperthread outside of guest and only then switch to full kernel address space and only once all hyperthreads return to KVM address space, then allow then to enter into guest.
-> 
->  From this reason, I think the above paragraph (that was added to my original cover letter) is incorrect.
+Glibc has since been fixed to be less munmap/mmap intensive and the
+system CPU usage of ebizzy is generally negligible unless configured so
+specifically use mmap/munmap instead of malloc/free which is unrealistic
+for good application behaviour.
 
-Yes, I am wrong. The KVM page table can't be added to the process userland page
-table because this can leak secrets from userland. I was only thinking about
-performances to reduce the number of context switches. So just forget that
-paragraph :-)
-
-alex.
-
-
-> I believe that we should by design treat all exits to userspace VMM (e.g. QEMU) as slow-path that should not be optimised and therefore ok to switch address space (and therefore also kick sibling hyperthread). Similarly, all IOCTLs handlers are also slow-path and therefore it should be ok for them to also not run in KVM isolated address space.
-> 
-> -Liran
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
