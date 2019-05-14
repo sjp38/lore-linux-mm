@@ -2,160 +2,193 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EF672C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 17:31:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31C70C04AB7
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 18:09:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD18B20850
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 17:31:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD18B20850
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kerneltoast.com
+	by mail.kernel.org (Postfix) with ESMTP id DA86820850
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 18:09:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA86820850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C9886B0007; Tue, 14 May 2019 13:31:26 -0400 (EDT)
+	id 39B816B0005; Tue, 14 May 2019 14:09:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 479426B0008; Tue, 14 May 2019 13:31:26 -0400 (EDT)
+	id 34BE56B0006; Tue, 14 May 2019 14:09:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 340B86B000A; Tue, 14 May 2019 13:31:26 -0400 (EDT)
+	id 23AD56B0007; Tue, 14 May 2019 14:09:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 095616B0007
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 13:31:26 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id x23so3983288otp.5
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 10:31:26 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5F96B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:09:52 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id h7so971608pfq.22
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 11:09:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=ErzBDF5ta8fy4S6axV5usgeVf1icUMn3T8UVynCsAWs=;
-        b=WOGWsWinw4KlBxCsYk7frxI+9WyqI2uis/q1c6x524nkJ7i5t1kgbOopG2vbEW3rZz
-         33zBFvSyK1VmZLYfZlyqkDsJzgqr2Gde/tKPJeK3gvsPVB0DSWJMhydJbbm0BynG7MDE
-         KNu4qVZeDxGOm74i8vQ6qnR6cHrNZD9RhIFicUc+OkBJyslUuFoKWBPXBwCFroO8fTEF
-         aIGB8PJN3EhK521KGedWP8ftDT4CCyyqhsVkk7e6sKZ5xmKar8Tve5xc0pQQaR5zM7Qq
-         eyCLjtXpJ5Q9uujJnRwkR4PaPbCGBhrZ6fDwgqBOART6drppCddEsrJxF2bYLBeXKmTd
-         7Wog==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Gm-Message-State: APjAAAWpzTCHvhXjtEPadU0Ih7cwV435TDO9DQn+OgUFtUikSrxw+KIa
-	+ywvVbJX8zG7AwRcRkXc3DSXRO3/816kcw96bStqGvKy3/md/rpUWaXSTUhypt5OpoZ3C8iOnOb
-	RlYbdM5y6PhZq+rHtvQG4skl2VDkvEr45XbN90WgbgSyENXCcejVT6Hab4qw7xQk=
-X-Received: by 2002:aca:3f07:: with SMTP id m7mr3626820oia.179.1557855085649;
-        Tue, 14 May 2019 10:31:25 -0700 (PDT)
-X-Received: by 2002:aca:3f07:: with SMTP id m7mr3626764oia.179.1557855084765;
-        Tue, 14 May 2019 10:31:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557855084; cv=none;
+        bh=3UQS2XHTdSVGwXYnTPVMo1tYEHcx2ClEg4W90yUXbmw=;
+        b=iN/DhgAUbnAqcQjWqA8rix/r2OJJnTRqL2y4QF/r9+VCPKMeZ1s+GzOicKnEHTbkBG
+         KBSMX4Z/5FWStXXNPCHdmVXbhZeixAYnr2BvBZF49DiOoClTA0VweB6sENUbZcisKd8F
+         IRXfFJ/lUZQ0mdeZyeXDDBaNNwwYeG6nRdhOHPORMZtk4H6xW3iOZe3nGPaGLXS0jfP5
+         2LTHcu8HhQwDuWHHLODUbQZEtD9/+ZKh7+x7xPmLwE6skYuCDiV7/Qe4YAMVaBg8BI8y
+         vTj+V0FYTGnd2ZkjcrTH/y23tuDG/YBNXmbr6BVKdDEOJZzJlV3faVGPs1bYcT05EaRu
+         lfRw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVDwUuNyRCFGDAl9ehOlP0XX6gddGaBEBiNsiIk1WPzHnSBqrHQ
+	MZy63wNszI24Pdub4TlYG5qB8UygF4r1rzFCK9RD9BdMBkQpq+YTD5RxfjF8YFbAQiv7Aa+vn/r
+	/idpvhVmcGOUgbI7knfy8lPhLYaN2Vr7af8jccINUr+DXwVOhq+99D7eZeiHOvYtMqw==
+X-Received: by 2002:a62:4859:: with SMTP id v86mr12835146pfa.237.1557857392457;
+        Tue, 14 May 2019 11:09:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqylUUtmmrsCsNcpjks97Dbar3yb95c/vDrgXvFISh1BX4nM0mWPUQ38sj5DnubWv9Q8UkhO
+X-Received: by 2002:a62:4859:: with SMTP id v86mr12835081pfa.237.1557857391610;
+        Tue, 14 May 2019 11:09:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557857391; cv=none;
         d=google.com; s=arc-20160816;
-        b=DCWLzHJGT8VMw/axn6ycAmFw4ECbU4gDBVbi4j/dV2nnjwy5gU1mnbCfFM1YbrXSv7
-         IZHd7wHThHgNXWpKU71g21usF/ZRhtf4dA/FgyjD0m1BZFgBSqdvkLoc1ynrLjEJpAPB
-         j3YGZnsNiVvHPt/udPgUhap3dD3cUvgW53t9lEl4IHsfpuHiLXLFbzoHcEldkQQY87X+
-         09My0Yn3K3LFmPtVrdrzpxXeMfsq0hgUq33AnCdbn18JR+6M2mg1U0MXTFOWxmszddSl
-         yfwOtg6lRPxMlSMfnFIJgEv8G2PN/UCjI2gXXpNvSKtorCOG9DycUeGTqDzOLsryLQqC
-         EFKA==
+        b=s7bhdJN8NevPaxpgjrpt2OB/u/3yI39GgkUjqP9p4iAIx/ntXqpy9Jg26vrEgoZY6s
+         E6/UOQIAfASb18Ux7SKrlnIMhTcwqG1M7Ec+4oS8uDEfD5l9/1hDoRutUWWAL8jJoUUD
+         4y0f0nnku5efEKZ/H6nFyhWNKi0y+52jSUfTR1jEgov43/vIaq6Enb5FZc0uVctNRrZG
+         T1pKHxlw+hRThqNnw+dtVwLDdTRaaTWUDAdJ9HzJIU17Tc49UJzQ2GClfR/yTCir4KUx
+         VnnymNBjpgju2DcSqyLBKwTCjArWzjPohhXIQwCfQePGpPYWTT4uGqkGYgdL0mBqtU+n
+         gkwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=ErzBDF5ta8fy4S6axV5usgeVf1icUMn3T8UVynCsAWs=;
-        b=lWthQFgkWao9VZtR1us/Vjq42HnkdEHS8tubAhMOzm3RL3p1kihhsEBPkAhvSLJalQ
-         0H9FEZvnW1uhP4iMWXYd1JcbgeNjXdhbb8D923juoPO4D0wB+aE+qDF+j7XXnP6W8h1W
-         gPyGvHtEs0TD0LYvqKr4lSjKpC6CHBPDPY9uMzrhSyVNVR6YiNjopzIWPsswpNFQoowh
-         Jd6+dBcTibLEd2bLQUmL4Co1dOjHFxNTh55I80jelGXDq57MmdLa1NpamhfVRTY6EZch
-         8tMeYA1mC/ZVO4dEdCrfkTu3CJrpXx+AUltdYPzCQJebVFWLt0dW5d37Z7/ZrpJdHePR
-         KEjw==
+        bh=3UQS2XHTdSVGwXYnTPVMo1tYEHcx2ClEg4W90yUXbmw=;
+        b=XPYqTcD7RPsN7jRRUYp+rKpXO2oW33+BwPmwvmBh1BUz7UEyZzzchfGBTXc2RZakWM
+         bDPEfv8Z5oX+wcnUthDn9YsXnucfKRc2+XHgfNJWBJLtFcTscjma4fra6H9MprrPl54C
+         AyDce+xekXPo73KT8+N1ofjmxdWDzfJmJm7mRxk2X6vXHK/vtdOwsVLECPjuD3bJEGOV
+         Pa/7cwpfBWwY+oA6dp/yGuTNz6+h2M4fXnvV3iGtsfORUc98GDeDGrK/UtnThSPb30G8
+         hvK+BHLCThXSRXow90usibiQqztMJQAqFhI03aPFu9+eNuFpVe0pgK4ykWUhrcYGb6i5
+         eQJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7sor895383otr.101.2019.05.14.10.31.24
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id x3si21808548plb.347.2019.05.14.11.09.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 14 May 2019 10:31:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 May 2019 11:09:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sultan.kerneltoast@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sultan.kerneltoast@gmail.com
-X-Google-Smtp-Source: APXvYqxkxGAxP4ZnVEYXQ1pF+uY0YgUE1LJnsi3HHxrq+TOlnXkjSIbH/bnYS6xVvJ3PilYfe8glmw==
-X-Received: by 2002:a9d:362:: with SMTP id 89mr4306623otv.17.1557855084265;
-        Tue, 14 May 2019 10:31:24 -0700 (PDT)
-Received: from sultan-box.localdomain ([107.193.118.89])
-        by smtp.gmail.com with ESMTPSA id m25sm6357027otp.81.2019.05.14.10.31.21
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 14 May 2019 10:31:23 -0700 (PDT)
-Date: Tue, 14 May 2019 10:31:19 -0700
-From: Sultan Alsawaf <sultan@kerneltoast.com>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Oleg Nesterov <oleg@redhat.com>,
-	Christian Brauner <christian@brauner.io>,
-	Daniel Colascione <dancol@google.com>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Kees Cook <keescook@chromium.org>,
-	Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190514173119.GA19142@sultan-box.localdomain>
-References: <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507153154.GA5750@redhat.com>
- <20190507163520.GA1131@sultan-box.localdomain>
- <20190509155646.GB24526@redhat.com>
- <20190509183353.GA13018@sultan-box.localdomain>
- <20190510151024.GA21421@redhat.com>
- <20190513164555.GA30128@sultan-box.localdomain>
- <20190514124453.6fb1095d@oasis.local.home>
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 May 2019 11:09:50 -0700
+X-ExtLoop1: 1
+Received: from sjchrist-coffee.jf.intel.com (HELO linux.intel.com) ([10.54.74.36])
+  by orsmga007.jf.intel.com with ESMTP; 14 May 2019 11:09:50 -0700
+Date: Tue, 14 May 2019 11:09:36 -0700
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Alexandre Chartre <alexandre.chartre@oracle.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim Krcmar <rkrcmar@redhat.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
+	Jonathan Adams <jwadams@google.com>
+Subject: Re: [RFC KVM 18/27] kvm/isolation: function to copy page table
+ entries for percpu buffer
+Message-ID: <20190514180936.GA1977@linux.intel.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+ <1557758315-12667-19-git-send-email-alexandre.chartre@oracle.com>
+ <CALCETrWUKZv=wdcnYjLrHDakamMBrJv48wp2XBxZsEmzuearRQ@mail.gmail.com>
+ <20190514070941.GE2589@hirez.programming.kicks-ass.net>
+ <b8487de1-83a8-2761-f4a6-26c583eba083@oracle.com>
+ <B447B6E8-8CEF-46FF-9967-DFB2E00E55DB@amacapital.net>
+ <4e7d52d7-d4d2-3008-b967-c40676ed15d2@oracle.com>
+ <CALCETrXtwksWniEjiWKgZWZAyYLDipuq+sQ449OvDKehJ3D-fg@mail.gmail.com>
+ <e5fedad9-4607-0aa4-297e-398c0e34ae2b@oracle.com>
+ <20190514170522.GW2623@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190514124453.6fb1095d@oasis.local.home>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190514170522.GW2623@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2019 at 12:44:53PM -0400, Steven Rostedt wrote:
-> OK, this has gotten my attention.
+On Tue, May 14, 2019 at 07:05:22PM +0200, Peter Zijlstra wrote:
+> On Tue, May 14, 2019 at 06:24:48PM +0200, Alexandre Chartre wrote:
+> > On 5/14/19 5:23 PM, Andy Lutomirski wrote:
 > 
-> This thread is quite long, do you have a git repo I can look at, and
-> also where is the first task_lock() taken before the
-> find_lock_task_mm()?
+> > > How important is the ability to enable IRQs while running with the KVM
+> > > page tables?
+> > > 
+> > 
+> > I can't say, I would need to check but we probably need IRQs at least for
+> > some timers. Sounds like you would really prefer IRQs to be disabled.
+> > 
 > 
-> -- Steve
+> I think what amluto is getting at, is:
+> 
+> again:
+> 	local_irq_disable();
+> 	switch_to_kvm_mm();
+> 	/* do very little -- (A) */
+> 	VMEnter()
+> 
+> 		/* runs as guest */
+> 
+> 	/* IRQ happens */
+> 	WMExit()
+> 	/* inspect exit raisin */
+> 	if (/* IRQ pending */) {
+> 		switch_from_kvm_mm();
+> 		local_irq_restore();
+> 		goto again;
+> 	}
+> 
+> 
+> but I don't know anything about VMX/SVM at all, so the above might not
+> be feasible, specifically I read something about how VMX allows NMIs
+> where SVM did not somewhere around (A) -- or something like that,
+> earlier in this thread.
 
-Hi Steve,
+For IRQs it's somewhat feasible, but not for NMIs since NMIs are unblocked
+on VMX immediately after VM-Exit, i.e. there's no way to prevent an NMI
+from occuring while KVM's page tables are loaded.
 
-This is the git repo I work on: https://github.com/kerneltoast/android_kernel_google_wahoo
+Back to Andy's question about enabling IRQs, the answer is "it depends".
+Exits due to INTR, NMI and #MC are considered high priority and are
+serviced before re-enabling IRQs and preemption[1].  All other exits are
+handled after IRQs and preemption are re-enabled.
 
-With the newest simple_lmk iteration being this commit: https://github.com/kerneltoast/android_kernel_google_wahoo/commit/6b145b8c28b39f7047393169117f72ea7387d91c
+A decent number of exit handlers are quite short, e.g. CPUID, most RDMSR
+and WRMSR, any event-related exit, etc...  But many exit handlers require 
+significantly longer flows, e.g. EPT violations (page faults) and anything
+that requires extensive emulation, e.g. nested VMX.  In short, leaving
+IRQs disabled across all exits is not practical.
 
-This repo is based off the 4.4 kernel that Google ships on the Pixel 2/2XL.
+Before going down the path of figuring out how to handle the corner cases
+regarding kvm_mm, I think it makes sense to pinpoint exactly what exits
+are a) in the hot path for the use case (configuration) and b) can be
+handled fast enough that they can run with IRQs disabled.  Generating that
+list might allow us to tightly bound the contents of kvm_mm and sidestep
+many of the corner cases, i.e. select VM-Exits are handle with IRQs
+disabled using KVM's mm, while "slow" VM-Exits go through the full context
+switch.
 
-simple_lmk iterates through the entire task list more than once and locks
-potential victims using find_lock_task_mm(). It keeps these potential victims
-locked across the multiple times that the task list is iterated.
-
-The locking pattern that Oleg said should cause lockdep to complain is that
-iterating through the entire task list more than once can lead to locking the
-same task that was locked earlier with find_lock_task_mm(), and thus deadlock.
-But there is a check in simple_lmk that avoids locking potential victims that
-were already found, which avoids the deadlock, but lockdep doesn't know about
-the check (which is done with vtsk_is_duplicate()) and should therefore
-complain.
-
-Lockdep does not complain though.
-
-Sultan
+[1] Technically, IRQs are actually enabled when SVM services INTR.  SVM
+    hardware doesn't acknowledge the INTR/NMI on VM-Exit, but rather keeps
+    it pending until the event is unblocked, e.g. servicing a VM-Exit due
+    to an INTR is simply a matter of enabling IRQs.
 
