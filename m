@@ -2,298 +2,224 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CAD5C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:55:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4FC3C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:58:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 42D8520873
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:55:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6609C20873
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:58:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="d4unQ8zZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42D8520873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ecKhJl+i"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6609C20873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDC6C6B000A; Tue, 14 May 2019 17:55:27 -0400 (EDT)
+	id 3173D6B0005; Tue, 14 May 2019 17:58:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C66FF6B000C; Tue, 14 May 2019 17:55:27 -0400 (EDT)
+	id 2C7E16B0006; Tue, 14 May 2019 17:58:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B07526B000D; Tue, 14 May 2019 17:55:27 -0400 (EDT)
+	id 1B6696B0007; Tue, 14 May 2019 17:58:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F0586B000A
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:55:27 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id y185so427096ybc.18
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:55:27 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C59846B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:58:37 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id z13so208460wrn.14
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:58:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:in-reply-to:references:mime-version;
-        bh=A03AYshFiKbUQ0yCq/bPVpZ5Z4eXewT0wNUpNBIpBX4=;
-        b=bY+0zzCIzQikINxfcdWYPUCbUYKgb3dL/MhIoMB/Wq+xR3Xcd2QZO7pJywzhMq4JQR
-         dT2ASBS++CtOWFTkQHAcsWF7X2AMRnWQ/cJD1eBVYfBjj8eq1rtLnAURgDiA6eUEM9aq
-         pLP/bEliOw6bussbaAgkTy9cBpU9z6qJ2HCCKIHpbhA46Nty2+MdNHxbPOGnEUoOBR9o
-         g6Sc5lI/Kdj+O5fXr1qsONeNudfuob0/2VEdX2RgW11jj47yiEkYcgbdu3D28dzEYW1D
-         KPHPXIy56/lIk+hrkhJBwV44PwByxO3Oedz85K3ZjbwNsXzmVq66U5kE6M8zMzL6GBRW
-         5qpQ==
-X-Gm-Message-State: APjAAAVRc/soS8+AA4IKB5tP5oKUK2KWGY8+FIZ3Y0EzOZTBBqqDGWHV
-	rMofWQPnVqUajqm0rsxUakA3OlydTUDvEZ3jdKLqmiQlpZzaU6NHRVC9dJqeJeAasYZ+zUZ3wKd
-	DIaHNM0DyUnIJkcrnIw8AGRkbQCSC08raHfgD7rIjG5l05KCVCennPK+4zFinxqdMTw==
-X-Received: by 2002:a25:c590:: with SMTP id v138mr17598333ybe.53.1557870927238;
-        Tue, 14 May 2019 14:55:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxM4FvwzFq8lXOgxFr1oaHtdiwiG8hhchby+rHTLxbyGsgmY/ErPzKvTRpQsn4FhAvGjQO7
-X-Received: by 2002:a25:c590:: with SMTP id v138mr17598303ybe.53.1557870926405;
-        Tue, 14 May 2019 14:55:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557870926; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=9NVmY87YsNl5Doqv7XNGQ+SPMJOyZIesPiDpVpf5DtQ=;
+        b=Ld0NYuPHFHIVSOUa1cphgMnknhaBDqCgiwL/7FmmrDIoh+5JSBS7tjwtxgi80YFQrO
+         dMyC3bzBXMLnl9K1hCTbT1md+NDHu5myxkixdl36whhWC/JYvxN6o+emK46wL6svxVFp
+         p02oAM+zedlV+9eCvXPWFxLYPTMzXpKqqwavDP8O4d5cK/dZzKkmw1re/5kenyrXffzo
+         2f10X4jj5hSF2bpZLzuvEBr++OWCAXRtyCNukPICMG9XWwOxI9iZgXfrFszXFedVijBS
+         bsxs4jYLCy6XCgzkLkSt8QA7TuWafLXZK3bvmFjZEM/ozw3jYI9+ZRIGPDxyeqOqJsIc
+         1mdw==
+X-Gm-Message-State: APjAAAVxKzfSpY8zAXvpDyGK7aahH4Yd+xOv5vTLee6eVtDe7lgAHVf0
+	j85Yet5lAvvNGkb5cOM/NcIrNKrfYWQOKqoiBpgu2lNrAfEgrukOEq9rjnakHTl0qXLbYuL8reO
+	f5kb3Of837CDf1lD1lEDIIdVK47oQsjacK9C4SxAxYZq6Ponk4qN6n6pKYMxTZZYWcw==
+X-Received: by 2002:a1c:730c:: with SMTP id d12mr2179963wmb.47.1557871117242;
+        Tue, 14 May 2019 14:58:37 -0700 (PDT)
+X-Received: by 2002:a1c:730c:: with SMTP id d12mr2179940wmb.47.1557871116236;
+        Tue, 14 May 2019 14:58:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557871116; cv=none;
         d=google.com; s=arc-20160816;
-        b=w+wtjhOoIEXtrit+Dv2YAl961N7oowZADXCvcVjiUPmT7Mo9wMFx8IpISIH/2WfdgZ
-         bhvYQw/3kKAMDfLYvrf4vCHZTShtm8ASVQlXKEJqizI8WhGFOkBN3L1cnH3mtZWuM3j9
-         XrQadknsB9wf3pAYLg+NXktdmIBAW+tDs0sBswGqacDR5lvOS4L2A3F/fFDRhHI4DLo6
-         mbfYAFfGVclt9DiWJe2fhc78W4UlQcK1O5aMajlNJ3K2FOOliNezcXzHBfQxsoItniX/
-         L8PumyHQO/kzxdJcKFab+eOO+2gg7JQdNfixQMmayZfmM1Xzy9NLAZb8yiDrRPL1tUJG
-         yhYA==
+        b=0nFZW6zKO0+k+C1+l+pUae4stJePBS070wo/ORHgOByJL9+/hRnfRAlzXrlKHba2Ij
+         FV7rM18YmDOa/V/OGTr68yI+BDMI9Q07SsROYf6NWn7MdGCUkAKC/eg1W7cimAuRNYek
+         z1G94KhT4TuUTt4Ln13xBSPhSBxLVzc8SfX7iYyzPX4rGvxdK9J9+BLQuy+HUpnf5dOS
+         xyPTXtce4CA2cay1l8vlVBumuhZXuhG6TYMOIZh/zUGD0qn7knpBPG/u7yJq9IjwvzAQ
+         /ZuzGKXu0/iAP1g3wk52QH3iecnG68QOnBtWf0DMX0yX3lv7G2KgrMDJWz7tTm14fctC
+         cUaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject
-         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
-         :smtp-origin-hostprefix:dkim-signature;
-        bh=A03AYshFiKbUQ0yCq/bPVpZ5Z4eXewT0wNUpNBIpBX4=;
-        b=DoIfB9uJ9QyjD75QgICy792vggIQISD8VsHnaiRNNPEhhq3ezsWyGTQREBQbnnoIsA
-         xAxcFLt/Q1PBy5RQa9sS+PVHJOt1G+0L4Wd95UKYPUQFzfP16zSWsQ52hl40enu4uvSg
-         3mpD4A7+tyti1QhF0kEddJD0xWTml3xrwROqYNz5WT2YvWceXglYwXZmMvVC8op5gyAj
-         9mE5mKs0JcyDgykHT8uMGdUhdECEWU8tdF4S2TmJq2HH2sEisIsDWg+vIlP2CRBDQgIv
-         YfSndi/zgd1Kr+IVUoWs1JWZfvzeM8Ki+CZAuLBHA3co3DUBWN/BMhndAtCjKNfYvSjF
-         UVPg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=9NVmY87YsNl5Doqv7XNGQ+SPMJOyZIesPiDpVpf5DtQ=;
+        b=Z4htSSRhLWqsSygNqHzW/tULZrHfTlNJmpDIArJ2h17tBuFmlHkEtzuY6nYYhku8Iz
+         OGD7W1coOmmdKeLyrfSPcUKn2Ftgmol0IF1i9XoAb8jiCoKMhdnoy6jQKgzld7veJc6o
+         FyTCNjZZmXzhsfmDwprz+sHdZhhb6pXTHq3j1gti0M4SGzbKUYlKNrAZrBzLvWw+crqB
+         LZ2OiidSHn/EgIR51P7S6SGeRVZek3D2fNLAWrRNUyQc/kMnOF6BjXLpgN15iqFY4Gym
+         bb+HBvOlLwgz/E7W+YE9QDBmL+VVotxOEk8dS1UqIAO11hTFzc0j+o9ngyiqgMsqQprA
+         gTzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=d4unQ8zZ;
-       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 125si5224542yby.302.2019.05.14.14.55.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ecKhJl+i;
+       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w16sor39076wru.40.2019.05.14.14.58.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 14:55:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Tue, 14 May 2019 14:58:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=d4unQ8zZ;
-       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
-	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x4ELrUeA020485
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:55:26 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=A03AYshFiKbUQ0yCq/bPVpZ5Z4eXewT0wNUpNBIpBX4=;
- b=d4unQ8zZCvmRXYLUv8B7oSCdjekI/QhDlRNCjdDhi6/4EgqqWtiXgncPQ+uPGhjr8g3W
- MgLhS2EIgsAgsdaNSCnT7TOKlzwuZVx+dmCyWTcYsmViSfFjVDpaKia2mN/4WHcC8xcA
- PN/O/ibEdf55Ut0X8s3sWoizC2wxXFECP0k= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by m0089730.ppops.net with ESMTP id 2sfv362bv9-8
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:55:26 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Tue, 14 May 2019 14:54:55 -0700
-Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 829F1120772A8; Tue, 14 May 2019 14:39:41 -0700 (PDT)
-Smtp-Origin-Hostprefix: devvm
-From: Roman Gushchin <guro@fb.com>
-Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
-To: Andrew Morton <akpm@linux-foundation.org>,
-        Shakeel Butt
-	<shakeelb@google.com>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Michal Hocko
-	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
-        Christoph Lameter
-	<cl@linux.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
-        Roman Gushchin <guro@fb.com>
-Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v4 4/7] mm: unify SLAB and SLUB page accounting
-Date: Tue, 14 May 2019 14:39:37 -0700
-Message-ID: <20190514213940.2405198-5-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190514213940.2405198-1-guro@fb.com>
-References: <20190514213940.2405198-1-guro@fb.com>
-X-FB-Internal: Safe
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ecKhJl+i;
+       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=9NVmY87YsNl5Doqv7XNGQ+SPMJOyZIesPiDpVpf5DtQ=;
+        b=ecKhJl+imSaJo+zZms2mo6MckmfFL+/QNhjARw87RGRa/NK8KMH8shTz+qNgdpWZjv
+         jhQA1BpOZ8djGF6ar2lVXqWnfYvMOVvRG/sCDTwFp7NxDVvEIrYl3YBD6eiEo2CVot0X
+         C/Np9tZee7Ak7pc7FTtRBvM66mqbRpaMAAbzb5Umq2R1DcfEvxoDBIcU247owR9kr4Dz
+         h1GrPo2vZy0MEf0P6mzDTozqzIoyv5IiL4TaqplHH5XT3FruVZ/Geh1wUsSt343Cyhzp
+         izveqb2mRpa/VoDoWw8WRXVGg+V6Z3r6S9VubY0iOlFikc8HRImOACexjC/iLiPsM/Bj
+         r6bQ==
+X-Google-Smtp-Source: APXvYqzwNprXN29DZ7UGIYwaCejcGQrj8odhje28fvO/bO2B72vQuPKfuJUO5maKd2GmXcWawmIeZOQxcW/uFJwbcOk=
+X-Received: by 2002:adf:f44b:: with SMTP id f11mr6854913wrp.128.1557871115739;
+ Tue, 14 May 2019 14:58:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_13:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+References: <20190510195258.9930-1-Felix.Kuehling@amd.com> <20190510195258.9930-3-Felix.Kuehling@amd.com>
+ <20190510201403.GG4507@redhat.com> <65328381-aa0d-353d-68dc-81060e7cebdf@amd.com>
+ <BN6PR12MB1809F26E6AF74BE9F96DB22DF70F0@BN6PR12MB1809.namprd12.prod.outlook.com>
+ <cf8bdc0c-96b9-8a73-69ca-a4aae11f36d5@amd.com>
+In-Reply-To: <cf8bdc0c-96b9-8a73-69ca-a4aae11f36d5@amd.com>
+From: Alex Deucher <alexdeucher@gmail.com>
+Date: Tue, 14 May 2019 17:58:23 -0400
+Message-ID: <CADnq5_N_h6c5bkLRA9pmbhr4fcSUMe=3GCaO7JvsAsrCJ3vdLA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for non-blocking
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+Cc: "Deucher, Alexander" <Alexander.Deucher@amd.com>, Jerome Glisse <jglisse@redhat.com>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "airlied@gmail.com" <airlied@gmail.com>, 
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
+	"alex.deucher@amd.com" <alex.deucher@amd.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently the page accounting code is duplicated in SLAB and SLUB
-internals. Let's move it into new (un)charge_slab_page helpers
-in the slab_common.c file. These helpers will be responsible
-for statistics (global and memcg-aware) and memcg charging.
-So they are replacing direct memcg_(un)charge_slab() calls.
+On Tue, May 14, 2019 at 5:12 PM Kuehling, Felix <Felix.Kuehling@amd.com> wr=
+ote:
+>
+>
+> On 2019-05-13 4:21 p.m., Deucher, Alexander wrote:
+> > [CAUTION: External Email]
+> > I reverted all the amdgpu HMM patches for 5.2 because they also
+> > depended on this patch:
+> > https://cgit.freedesktop.org/~agd5f/linux/commit/?h=3Ddrm-next-5.2-wip&=
+id=3Dce05ef71564f7cbe270cd4337c36ee720ea534db
+> > which did not have a clear line of sight for 5.2 either.
+>
+> When was that? I saw "Use HMM for userptr" in Dave's 5.2-rc1 pull
+> request to Linus.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- mm/slab.c | 19 +++----------------
- mm/slab.h | 25 +++++++++++++++++++++++++
- mm/slub.c | 14 ++------------
- 3 files changed, 30 insertions(+), 28 deletions(-)
+https://patchwork.kernel.org/patch/10875587/
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 83000e46b870..32e6af9ed9af 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1389,7 +1389,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
- 								int nodeid)
- {
- 	struct page *page;
--	int nr_pages;
- 
- 	flags |= cachep->allocflags;
- 
-@@ -1399,17 +1398,11 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
- 		return NULL;
- 	}
- 
--	if (memcg_charge_slab(page, flags, cachep->gfporder, cachep)) {
-+	if (charge_slab_page(page, flags, cachep->gfporder, cachep)) {
- 		__free_pages(page, cachep->gfporder);
- 		return NULL;
- 	}
- 
--	nr_pages = (1 << cachep->gfporder);
--	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
--		mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, nr_pages);
--	else
--		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, nr_pages);
+Alex
+
+
+
+>
+>
+> Regards,
+>    Felix
+>
+>
+> >
+> > Alex
+> > -----------------------------------------------------------------------=
 -
- 	__SetPageSlab(page);
- 	/* Record if ALLOC_NO_WATERMARKS was set when allocating the slab */
- 	if (sk_memalloc_socks() && page_is_pfmemalloc(page))
-@@ -1424,12 +1417,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
- static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
- {
- 	int order = cachep->gfporder;
--	unsigned long nr_freed = (1 << order);
--
--	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
--		mod_lruvec_page_state(page, NR_SLAB_RECLAIMABLE, -nr_freed);
--	else
--		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE, -nr_freed);
- 
- 	BUG_ON(!PageSlab(page));
- 	__ClearPageSlabPfmemalloc(page);
-@@ -1438,8 +1425,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
- 	page->mapping = NULL;
- 
- 	if (current->reclaim_state)
--		current->reclaim_state->reclaimed_slab += nr_freed;
--	memcg_uncharge_slab(page, order, cachep);
-+		current->reclaim_state->reclaimed_slab += 1 << order;
-+	uncharge_slab_page(page, order, cachep);
- 	__free_pages(page, order);
- }
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index 4a261c97c138..c9a31120fa1d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -205,6 +205,12 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
- void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
- int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
- 
-+static inline int cache_vmstat_idx(struct kmem_cache *s)
-+{
-+	return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
-+		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
-+}
-+
- #ifdef CONFIG_MEMCG_KMEM
- 
- /* List of all root caches. */
-@@ -352,6 +358,25 @@ static inline void memcg_link_cache(struct kmem_cache *s,
- 
- #endif /* CONFIG_MEMCG_KMEM */
- 
-+static __always_inline int charge_slab_page(struct page *page,
-+					    gfp_t gfp, int order,
-+					    struct kmem_cache *s)
-+{
-+	int ret = memcg_charge_slab(page, gfp, order, s);
-+
-+	if (!ret)
-+		mod_lruvec_page_state(page, cache_vmstat_idx(s), 1 << order);
-+
-+	return ret;
-+}
-+
-+static __always_inline void uncharge_slab_page(struct page *page, int order,
-+					       struct kmem_cache *s)
-+{
-+	mod_lruvec_page_state(page, cache_vmstat_idx(s), -(1 << order));
-+	memcg_uncharge_slab(page, order, s);
-+}
-+
- static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
- {
- 	struct kmem_cache *cachep;
-diff --git a/mm/slub.c b/mm/slub.c
-index 8abd2d2a4ae4..13e415cc71b7 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1490,7 +1490,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
- 	else
- 		page = __alloc_pages_node(node, flags, order);
- 
--	if (page && memcg_charge_slab(page, flags, order, s)) {
-+	if (page && charge_slab_page(page, flags, order, s)) {
- 		__free_pages(page, order);
- 		page = NULL;
- 	}
-@@ -1683,11 +1683,6 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	if (!page)
- 		return NULL;
- 
--	mod_lruvec_page_state(page,
--		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
--		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
--		1 << oo_order(oo));
--
- 	inc_slabs_node(s, page_to_nid(page), page->objects);
- 
- 	return page;
-@@ -1721,18 +1716,13 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 			check_object(s, page, p, SLUB_RED_INACTIVE);
- 	}
- 
--	mod_lruvec_page_state(page,
--		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
--		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
--		-pages);
--
- 	__ClearPageSlabPfmemalloc(page);
- 	__ClearPageSlab(page);
- 
- 	page->mapping = NULL;
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
--	memcg_uncharge_slab(page, order, s);
-+	uncharge_slab_page(page, order, s);
- 	__free_pages(page, order);
- }
- 
--- 
-2.20.1
+> > *From:* amd-gfx <amd-gfx-bounces@lists.freedesktop.org> on behalf of
+> > Kuehling, Felix <Felix.Kuehling@amd.com>
+> > *Sent:* Monday, May 13, 2019 3:36 PM
+> > *To:* Jerome Glisse
+> > *Cc:* linux-mm@kvack.org; airlied@gmail.com;
+> > amd-gfx@lists.freedesktop.org; dri-devel@lists.freedesktop.org;
+> > alex.deucher@amd.com
+> > *Subject:* Re: [PATCH 2/2] mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for
+> > non-blocking
+> > [CAUTION: External Email]
+> >
+> > Hi Jerome,
+> >
+> > Do you want me to push the patches to your branch? Or are you going to
+> > apply them yourself?
+> >
+> > Is your hmm-5.2-v3 branch going to make it into Linux 5.2? If so, do yo=
+u
+> > know when? I'd like to coordinate with Dave Airlie so that we can also
+> > get that update into a drm-next branch soon.
+> >
+> > I see that Linus merged Dave's pull request for Linux 5.2, which
+> > includes the first changes in amdgpu using HMM. They're currently broke=
+n
+> > without these two patches.
+> >
+> > Thanks,
+> >    Felix
+> >
+> > On 2019-05-10 4:14 p.m., Jerome Glisse wrote:
+> > > [CAUTION: External Email]
+> > >
+> > > On Fri, May 10, 2019 at 07:53:24PM +0000, Kuehling, Felix wrote:
+> > >> Don't set this flag by default in hmm_vma_do_fault. It is set
+> > >> conditionally just a few lines below. Setting it unconditionally
+> > >> can lead to handle_mm_fault doing a non-blocking fault, returning
+> > >> -EBUSY and unlocking mmap_sem unexpectedly.
+> > >>
+> > >> Signed-off-by: Felix Kuehling <Felix.Kuehling@amd.com>
+> > > Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> > >
+> > >> ---
+> > >>   mm/hmm.c | 2 +-
+> > >>   1 file changed, 1 insertion(+), 1 deletion(-)
+> > >>
+> > >> diff --git a/mm/hmm.c b/mm/hmm.c
+> > >> index b65c27d5c119..3c4f1d62202f 100644
+> > >> --- a/mm/hmm.c
+> > >> +++ b/mm/hmm.c
+> > >> @@ -339,7 +339,7 @@ struct hmm_vma_walk {
+> > >>   static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long ad=
+dr,
+> > >>                            bool write_fault, uint64_t *pfn)
+> > >>   {
+> > >> -     unsigned int flags =3D FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_REM=
+OTE;
+> > >> +     unsigned int flags =3D FAULT_FLAG_REMOTE;
+> > >>        struct hmm_vma_walk *hmm_vma_walk =3D walk->private;
+> > >>        struct hmm_range *range =3D hmm_vma_walk->range;
+> > >>        struct vm_area_struct *vma =3D walk->vma;
+> > >> --
+> > >> 2.17.1
+> > >>
+> > _______________________________________________
+> > amd-gfx mailing list
+> > amd-gfx@lists.freedesktop.org
+> > https://lists.freedesktop.org/mailman/listinfo/amd-gfx
+> _______________________________________________
+> amd-gfx mailing list
+> amd-gfx@lists.freedesktop.org
+> https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 
