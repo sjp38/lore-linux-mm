@@ -2,173 +2,143 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C737FC04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:02:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F980C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:22:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79CF320881
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:02:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79CF320881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6BAAF20843
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:22:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BAAF20843
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2420E6B0007; Tue, 14 May 2019 08:02:30 -0400 (EDT)
+	id 16B2A6B0003; Tue, 14 May 2019 08:22:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1EE8A6B0008; Tue, 14 May 2019 08:02:30 -0400 (EDT)
+	id 11E356B0006; Tue, 14 May 2019 08:22:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0DDE66B000A; Tue, 14 May 2019 08:02:30 -0400 (EDT)
+	id 00C3D6B0007; Tue, 14 May 2019 08:22:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B2D006B0007
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 08:02:29 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y22so18750935eds.14
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 05:02:29 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AB8866B0003
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 08:22:07 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id k18so9890509wrl.4
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 05:22:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=xLo4b1OAYRv30TeuYjgpk/OjC183NLin3aZGUPtrEbI=;
-        b=Iq3KOmYTpdenLUxHeZ8k9AM6vZm8w/YDyTchPFc9JegHSp6fDvnLrGJEjK9r+d/f77
-         lN0ri8jbaZcMuFfgkeA12KAqK3ukDoOi/6yz/eSBqnsCsz91SKcUO7FZYDk6hz/jLOMp
-         L6OYK+dqwVvDdjqJMAwKFumXvc2XV7l2PLr64gGXNr4wFjEK8jc55kv9Zh/Fagf26+V9
-         nqiyqpts2brnc1hyS15mTeNKQKLsA0DSPVzj1I/WtL6cJqI+XU8Ne9p3/mOr/ooPNIMo
-         mrG/05O41f+uMJ2lflFET90hCSdvD97Em2iC4LNK952dxXYVs9Fu2ZUuaLJZ/eqNdTMN
-         cJsA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-X-Gm-Message-State: APjAAAW51WNndnoIPDh1rZ492+K0gZK2Urj7BzLTx1bDxDWLxeZtPSzs
-	RouImeJdaxPrUcuWb4erlMXxnEhGKkTbY5wAYt2g/6P5tEiY0FR7lmnpbQPkN8QLQlcMLLAhw9H
-	+Dgkg3Aae4A93ausd+m3cyol4ZdJ66ITskLnj0YFNCJ1uKU+B3FcRYrdFXn9JYSSdbA==
-X-Received: by 2002:a05:6402:8d8:: with SMTP id d24mr35546153edz.36.1557835349305;
-        Tue, 14 May 2019 05:02:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweWWZtum19xI5MbPPj4hH1AJX3OaxR7VZBg616c87TFstZYKuYQwytjlYtkJiCdwAwIcdc
-X-Received: by 2002:a05:6402:8d8:: with SMTP id d24mr35546034edz.36.1557835348291;
-        Tue, 14 May 2019 05:02:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557835348; cv=none;
+        bh=qayVS96zY1J0R6Jc99pitHz7f8TygGhnMtrO6wAoCLY=;
+        b=XKQORgVmm/6z1XUwH/7O++DlQBBN9M/3Q85emRgRYcmMGWh6WpkMx369WX+f0sT7QX
+         RD8srNDAsb7/BCBkMBpGiXkwDqraRWew0VcyFH+ufmmNx/PNnx5J9LIbDx8nAyWZ8wsd
+         OI5KBV5TgWwDoUTX+FzA/tfpZaPFmAaErYkSBJX9p6P8vfZx+qKwwubz/HX9D0endkuw
+         2CIotX+Pe73IfRxaasrv2aB/DKL9SAo5/RDtaGHWBQLwFspnhbcsjSRKW208oXpYEsGD
+         yZejGcTSnZfFqvtB6/Vdh2G4e4ytfaIxAc6u/5sCgNmmtT4H0LxGXUySR2EKRfRwCyou
+         j5vg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW1woQ4ZSQRDBjomuTZGDDmzvG0QdsrV+Lw9AYo9zDTg2ntaVYJ
+	9UlZNndeOyuQy+3mBjDhPvIU4W/t1VWibti4j4NQJOyXb92nwFichu3SAVpKNnyNUIEHZb38jgs
+	Ta8XqyZDIJDZr1FKLYi6hFKhNN/AYhKT2CocnVzocObmpROYLLS/p37wk2LOdTM3aRA==
+X-Received: by 2002:a5d:5544:: with SMTP id g4mr14264356wrw.327.1557836527309;
+        Tue, 14 May 2019 05:22:07 -0700 (PDT)
+X-Received: by 2002:a5d:5544:: with SMTP id g4mr14264286wrw.327.1557836526179;
+        Tue, 14 May 2019 05:22:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557836526; cv=none;
         d=google.com; s=arc-20160816;
-        b=b4bVClcjwtYLEA//cq6I/0sShBkqrY0XZtZC47V3dZE52qbMF4rsJBy8xthouJmbH7
-         C9z4WVI80TLSDD+DUyoymcvX4YtJPYa6MDnI14ni4m6kR/cWaxXre8AaWlDHlpLoA0Hw
-         UrAZPqzFqH3RFhV1GjeESIn8LPlknJDJqGEHIIQcmgyIq+ESHufuCpgZgH9evn3/GbtQ
-         JCJgaNEstCgwYVSHPwHtlPqKDXRc58NvIITYYUlJX+n92RJTsMaQnNAY33T2M8jhQMfh
-         ys+Z64Wcmb8WazNL42oEvIm0RsmAfcoZnWRNe0k28nEeOo7Eup7T6fPG7hfkt3jn6Fcq
-         LbGg==
+        b=cBKJrW9s186tA/UrQPhkQtL1X1yLZrsmCOTTDK/DkkLipoEW3JndZx2m1EYeXuRpZG
+         H+ES+96yPBHB88alwIbSm+i01Nj7YIWzxz/K4FPSwsWlsM3ecBcOwXAhjgupJ/NfzI3B
+         xLKX3/h/hcW8t/a930kJhF8+M8FtL4xm5UEpjH04OzCfoyTp6edrcSp3O93TRG4sXgr0
+         ZlBiKGCTHd0nhIDpqIgnZBpR5UGVN46NLiIbYZW6xjPPo0MBJXCUQbIV2cE6n7Yvvv9j
+         lvPIO9Ub4p6ZyaT7TiddGJ86oA4CaOgmCWtB6kcpvQRfzHnAndL08f+aRqGWg7eifJc4
+         Kbeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=xLo4b1OAYRv30TeuYjgpk/OjC183NLin3aZGUPtrEbI=;
-        b=rVIZCqIGkbdzkDOKIgXG+dPhA+3XM+f9bPcmV8EMfF8aKNPaxGi7oY0dd145P2wuQt
-         DDuScmgABgWNUHorxWRxreL5wZkR7qJ2kp2EZgZnHk0gW0CjD5uJLmvRcwycdhXXSRR4
-         wr6h3hxZU/kLwESIUynG0MPj6nsBCpgcPT9Pauib3+v0h+ZfooqYoRoffe5/QOFVpAxp
-         OcKOFw/PGeOwhncVcmT37kngLH/dNl8yPr4BwqeufGClJ+XPIrR2lW9ldB56lCugywyg
-         3Fz4IDhHV1jpdQe0IZga0EjPx+zreBBjhLhp0D2gT1I2zYHwl67P7QohWr8dZyv9xm2L
-         IcEw==
+        bh=qayVS96zY1J0R6Jc99pitHz7f8TygGhnMtrO6wAoCLY=;
+        b=x8+0u65bDPCB6Vyd4J+kvtKRs6GDO4+iW5iYdqrmDdMVhVsRwvzsBfEzMt9FNip6FO
+         Cx8C35ZTVlaGrIcGpFYn0Hh5VcdprwADALcwy7RqSDBOwecMs76biLrps81j2ZD2/vCu
+         pb4HxZaU67Rc4maVburgg26K2YjRgR7s7Ok3YCsQzBhtR5i6IikiOkejapD7cWChXL4O
+         skblO8xYve4QYUyYLJZ4nC8Lodk5HzxaEsvfNc0b8nLctdVXV38TKb1Adp8GazDxwfM2
+         PQ1wPeA/yUkGSXWrvy38uBZbLMVP1t2Hzylv6PTLWnFyAdslcTMPwD/t7LaWtfhosqxs
+         YZmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c6si1178294edb.238.2019.05.14.05.02.27
-        for <linux-mm@kvack.org>;
-        Tue, 14 May 2019 05:02:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w16sor3060766wru.40.2019.05.14.05.22.06
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 14 May 2019 05:22:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3890D341;
-	Tue, 14 May 2019 05:02:27 -0700 (PDT)
-Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8F02D3F71E;
-	Tue, 14 May 2019 05:02:25 -0700 (PDT)
-Date: Tue, 14 May 2019 13:02:20 +0100
-From: Will Deacon <will.deacon@arm.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, jstancek@redhat.com,
-	namit@vmware.com, minchan@kernel.org, mgorman@suse.de,
-	stable@vger.kernel.org, linux-mm@kvack.org,
+       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzsCEp7VbrRb6Vl8WtA7IteENteanfdFIhbcZA5iRmul1ICxBd3alvROKgMfbRA3KyhviSxLA==
+X-Received: by 2002:adf:9bd8:: with SMTP id e24mr16595634wrc.1.1557836525782;
+        Tue, 14 May 2019 05:22:05 -0700 (PDT)
+Received: from localhost (cpc111743-lutn13-2-0-cust844.9-3.cable.virginm.net. [82.17.115.77])
+        by smtp.gmail.com with ESMTPSA id a128sm2874817wma.23.2019.05.14.05.22.04
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 14 May 2019 05:22:04 -0700 (PDT)
+Date: Tue, 14 May 2019 13:22:03 +0100
+From: Aaron Tomlin <atomlin@redhat.com>
+To: Yury Norov <yury.norov@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Yury Norov <ynorov@marvell.com>, linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
- flush
-Message-ID: <20190514120220.GA16314@fuggles.cambridge.arm.com>
-References: <1557444414-12090-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190513163804.GB10754@fuggles.cambridge.arm.com>
- <20190514115223.GP2589@hirez.programming.kicks-ass.net>
+Subject: Re: [PATCH] mm/slub: avoid double string traverse in
+ kmem_cache_flags()
+Message-ID: <20190514122203.xvgxi4poajcs5lgx@atomlin.usersys.com>
+References: <20190501053111.7950-1-ynorov@marvell.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190514115223.GP2589@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
+In-Reply-To: <20190501053111.7950-1-ynorov@marvell.com>
+X-PGP-Key: http://pgp.mit.edu/pks/lookup?search=atomlin%40redhat.com
+X-PGP-Fingerprint: 7906 84EB FA8A 9638 8D1E  6E9B E2DE 9658 19CC 77D6
+User-Agent: NeoMutt/20180716-1637-ee8449
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2019 at 01:52:23PM +0200, Peter Zijlstra wrote:
-> On Mon, May 13, 2019 at 05:38:04PM +0100, Will Deacon wrote:
-> > On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
-> > > diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-> > > index 99740e1..469492d 100644
-> > > --- a/mm/mmu_gather.c
-> > > +++ b/mm/mmu_gather.c
-> > > @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
-> > >  {
-> > >  	/*
-> > >  	 * If there are parallel threads are doing PTE changes on same range
-> > > +	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
-> > > +	 * flush by batching, one thread may end up seeing inconsistent PTEs
-> > > +	 * and result in having stale TLB entries.  So flush TLB forcefully
-> > > +	 * if we detect parallel PTE batching threads.
-> > > +	 *
-> > > +	 * However, some syscalls, e.g. munmap(), may free page tables, this
-> > > +	 * needs force flush everything in the given range. Otherwise this
-> > > +	 * may result in having stale TLB entries for some architectures,
-> > > +	 * e.g. aarch64, that could specify flush what level TLB.
-> > >  	 */
-> > > +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
-> > > +		/*
-> > > +		 * Since we can't tell what we actually should have
-> > > +		 * flushed, flush everything in the given range.
-> > > +		 */
-> > > +		tlb->freed_tables = 1;
-> > > +		tlb->cleared_ptes = 1;
-> > > +		tlb->cleared_pmds = 1;
-> > > +		tlb->cleared_puds = 1;
-> > > +		tlb->cleared_p4ds = 1;
-> > > +
-> > > +		/*
-> > > +		 * Some architectures, e.g. ARM, that have range invalidation
-> > > +		 * and care about VM_EXEC for I-Cache invalidation, need force
-> > > +		 * vma_exec set.
-> > > +		 */
-> > > +		tlb->vma_exec = 1;
-> > > +
-> > > +		/* Force vma_huge clear to guarantee safer flush */
-> > > +		tlb->vma_huge = 0;
-> > > +
-> > > +		tlb->start = start;
-> > > +		tlb->end = end;
-> > >  	}
-> > 
-> > Whilst I think this is correct, it would be interesting to see whether
-> > or not it's actually faster than just nuking the whole mm, as I mentioned
-> > before.
-> > 
-> > At least in terms of getting a short-term fix, I'd prefer the diff below
-> > if it's not measurably worse.
+On Tue 2019-04-30 22:31 -0700, Yury Norov wrote:
+> If ',' is not found, kmem_cache_flags() calls strlen() to find the end
+> of line. We can do it in a single pass using strchrnul().
 > 
-> So what point? General paranoia? Either change should allow PPC to get
-> rid of its magic mushrooms, the below would be a little bit easier for
-> them because they already do full invalidate correct.
+> Signed-off-by: Yury Norov <ynorov@marvell.com>
+> ---
+>  mm/slub.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 4922a0394757..85f90370a293 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1317,9 +1317,7 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
+>  		char *end, *glob;
+>  		size_t cmplen;
+>  
+> -		end = strchr(iter, ',');
+> -		if (!end)
+> -			end = iter + strlen(iter);
+> +		end = strchrnul(iter, ',');
+>  
+>  		glob = strnchr(iter, end - iter, '*');
+>  		if (glob)
 
-Right; a combination of paranoia (need to remember to update this code
-to "flush everything" if we add new fields to the gather structure) but
-I also expected the performance to be better on arm64, where having two
-CPUs spamming TLBI messages at the same time is likely to suck.
+Fair enough.
 
-I'm super confused about the system time being reported as higher with
-this change.  That's really not what I expected.
+Acked-by: Aaron Tomlin <atomlin@redhat.com>
 
-Will
+-- 
+Aaron Tomlin
 
