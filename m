@@ -2,143 +2,127 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F980C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:22:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5139EC04AB7
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:23:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6BAAF20843
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:22:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BAAF20843
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 12D1F208CA
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:23:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Ebg+AHk1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12D1F208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16B2A6B0003; Tue, 14 May 2019 08:22:08 -0400 (EDT)
+	id A6AA26B0003; Tue, 14 May 2019 08:23:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 11E356B0006; Tue, 14 May 2019 08:22:08 -0400 (EDT)
+	id A1C0E6B0006; Tue, 14 May 2019 08:23:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 00C3D6B0007; Tue, 14 May 2019 08:22:07 -0400 (EDT)
+	id 90AD96B0007; Tue, 14 May 2019 08:23:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AB8866B0003
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 08:22:07 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id k18so9890509wrl.4
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 05:22:07 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6886C6B0003
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 08:23:26 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d9so2610585pfo.13
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 05:23:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=qayVS96zY1J0R6Jc99pitHz7f8TygGhnMtrO6wAoCLY=;
-        b=XKQORgVmm/6z1XUwH/7O++DlQBBN9M/3Q85emRgRYcmMGWh6WpkMx369WX+f0sT7QX
-         RD8srNDAsb7/BCBkMBpGiXkwDqraRWew0VcyFH+ufmmNx/PNnx5J9LIbDx8nAyWZ8wsd
-         OI5KBV5TgWwDoUTX+FzA/tfpZaPFmAaErYkSBJX9p6P8vfZx+qKwwubz/HX9D0endkuw
-         2CIotX+Pe73IfRxaasrv2aB/DKL9SAo5/RDtaGHWBQLwFspnhbcsjSRKW208oXpYEsGD
-         yZejGcTSnZfFqvtB6/Vdh2G4e4ytfaIxAc6u/5sCgNmmtT4H0LxGXUySR2EKRfRwCyou
-         j5vg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW1woQ4ZSQRDBjomuTZGDDmzvG0QdsrV+Lw9AYo9zDTg2ntaVYJ
-	9UlZNndeOyuQy+3mBjDhPvIU4W/t1VWibti4j4NQJOyXb92nwFichu3SAVpKNnyNUIEHZb38jgs
-	Ta8XqyZDIJDZr1FKLYi6hFKhNN/AYhKT2CocnVzocObmpROYLLS/p37wk2LOdTM3aRA==
-X-Received: by 2002:a5d:5544:: with SMTP id g4mr14264356wrw.327.1557836527309;
-        Tue, 14 May 2019 05:22:07 -0700 (PDT)
-X-Received: by 2002:a5d:5544:: with SMTP id g4mr14264286wrw.327.1557836526179;
-        Tue, 14 May 2019 05:22:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557836526; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=ovaUcWCRrSIqpnGvgTJrI7a7teTV+2l9ZYOtBT+OmF4=;
+        b=IUHXY/sEn6bQ/sRItqD2au8lm3XwJch/53mKIpOT2SMcwMnh3ciBmcTHHHstVR7wXY
+         Qgl5/yETzzspCjDwmBBiqu4uncjCdptC6sVJVA9OKhXIv5YZpAX6JTFOK5q6O+wSts9J
+         yrkRqDLU03xSETp52Mk//kUu+57j4OKhccMAurAgoBckJ7pqSj6JiAuHjMs3REb1up2T
+         +rGzSzviCJita4MG7jurxLvMitvXM+K4fXlxZgqoo9xR1dAp1juv3o74DpXv5QI7xohk
+         f+UGVNgREq4Vsj4CTYHsbB3mO0O6UIF76KiUYm1JubkP3ha89//UgFQWi7AGUtzg/BvG
+         U23Q==
+X-Gm-Message-State: APjAAAXrU2vWaz7u7JDEmUeSOB3kuDLLwtT1fJWlWaI2twEPWWnju5Vw
+	1VN2k/4163rz/TztEghNlrkn4CJdffMQd8w7AqPULB58qFgfIhCt955AmHTzuw6WuLaP0GF3Fj8
+	zRS68JTY7IeOFB0vn/6lTh7W4/n9iKISaZQkGyE4jAcFHw5XORtbs/lkqN1rdbqiL8Q==
+X-Received: by 2002:aa7:8e59:: with SMTP id d25mr39571512pfr.24.1557836605998;
+        Tue, 14 May 2019 05:23:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwcDu1/q9iB8Bh5RYqQm8AM3OmeIu7Oq9953IpkyboD3Ltq9e7tNbEN97EzUCT5TpmRuMMr
+X-Received: by 2002:aa7:8e59:: with SMTP id d25mr39571450pfr.24.1557836604958;
+        Tue, 14 May 2019 05:23:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557836604; cv=none;
         d=google.com; s=arc-20160816;
-        b=cBKJrW9s186tA/UrQPhkQtL1X1yLZrsmCOTTDK/DkkLipoEW3JndZx2m1EYeXuRpZG
-         H+ES+96yPBHB88alwIbSm+i01Nj7YIWzxz/K4FPSwsWlsM3ecBcOwXAhjgupJ/NfzI3B
-         xLKX3/h/hcW8t/a930kJhF8+M8FtL4xm5UEpjH04OzCfoyTp6edrcSp3O93TRG4sXgr0
-         ZlBiKGCTHd0nhIDpqIgnZBpR5UGVN46NLiIbYZW6xjPPo0MBJXCUQbIV2cE6n7Yvvv9j
-         lvPIO9Ub4p6ZyaT7TiddGJ86oA4CaOgmCWtB6kcpvQRfzHnAndL08f+aRqGWg7eifJc4
-         Kbeg==
+        b=FH2UFu3iwFyFBJKQAfw0uXhogsEYOoBSGl5WAw3yLWn5BSYyGCvBNq3LNZGhUYpZYJ
+         9RuPBw2rhzjhAg633JqbEv/8QePFvcYFcpsK9k4iw4RWcxYPbAOvLZbfBlX7akiG0rsY
+         uKrlNfJLbzfb0sabqYKlkeorxz3LJvJia1b7YW+V4QD/SCl/puBrQs87B2DtDWLmPz/G
+         z647LFZO9tbCvUKZuVzsXDFHEL90q2a4V85aSUBH2KPo2qJ7tMfZl+TFiVMQRoyRN32e
+         yfS8fpwqIiehvVwkTcIeTW6huXQ8W7pqrYeObuBtxatYemMem8sAFokwrrnGSuhDngF+
+         X/jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=qayVS96zY1J0R6Jc99pitHz7f8TygGhnMtrO6wAoCLY=;
-        b=x8+0u65bDPCB6Vyd4J+kvtKRs6GDO4+iW5iYdqrmDdMVhVsRwvzsBfEzMt9FNip6FO
-         Cx8C35ZTVlaGrIcGpFYn0Hh5VcdprwADALcwy7RqSDBOwecMs76biLrps81j2ZD2/vCu
-         pb4HxZaU67Rc4maVburgg26K2YjRgR7s7Ok3YCsQzBhtR5i6IikiOkejapD7cWChXL4O
-         skblO8xYve4QYUyYLJZ4nC8Lodk5HzxaEsvfNc0b8nLctdVXV38TKb1Adp8GazDxwfM2
-         PQ1wPeA/yUkGSXWrvy38uBZbLMVP1t2Hzylv6PTLWnFyAdslcTMPwD/t7LaWtfhosqxs
-         YZmg==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=ovaUcWCRrSIqpnGvgTJrI7a7teTV+2l9ZYOtBT+OmF4=;
+        b=eGX0X4DlsrbzEVBee7NB+e5Iy1/i2N2PNE4WdDaWDkqfm+2hah7B6yUPH1ybe2Hl40
+         LhQGBC0MeJJX1WHSisfSWCpE8jeRoL9XTI1yyC6oIFJzEinLgLrItXOaI68QwsOLAdz3
+         36lwuhWEEeVzf3brH5JhQH549bvAvEELBOBJ95tiTcyXDwQxzGagg0Si7LQKQakEuxkJ
+         J6S1RVo38iryhek0WOlFjIUIbhHmLRrmOotNCMIRi++HTYzrIupENPvJ6qonxtzcDFQe
+         X/NP26Z0T0Qho23vETBJo+ciWDHl/At2mDBeXvNE5cnBEo6TwylaFYi8jr/pqdceD/Ig
+         dwrw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w16sor3060766wru.40.2019.05.14.05.22.06
+       dkim=pass header.i=@kernel.org header.s=default header.b=Ebg+AHk1;
+       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g11si18937108plt.35.2019.05.14.05.23.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 14 May 2019 05:22:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 May 2019 05:23:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of atomlin@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=atomlin@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzsCEp7VbrRb6Vl8WtA7IteENteanfdFIhbcZA5iRmul1ICxBd3alvROKgMfbRA3KyhviSxLA==
-X-Received: by 2002:adf:9bd8:: with SMTP id e24mr16595634wrc.1.1557836525782;
-        Tue, 14 May 2019 05:22:05 -0700 (PDT)
-Received: from localhost (cpc111743-lutn13-2-0-cust844.9-3.cable.virginm.net. [82.17.115.77])
-        by smtp.gmail.com with ESMTPSA id a128sm2874817wma.23.2019.05.14.05.22.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 14 May 2019 05:22:04 -0700 (PDT)
-Date: Tue, 14 May 2019 13:22:03 +0100
-From: Aaron Tomlin <atomlin@redhat.com>
-To: Yury Norov <yury.norov@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Yury Norov <ynorov@marvell.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/slub: avoid double string traverse in
- kmem_cache_flags()
-Message-ID: <20190514122203.xvgxi4poajcs5lgx@atomlin.usersys.com>
-References: <20190501053111.7950-1-ynorov@marvell.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=Ebg+AHk1;
+       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [193.47.165.251])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0699720850;
+	Tue, 14 May 2019 12:23:23 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1557836604;
+	bh=ovaUcWCRrSIqpnGvgTJrI7a7teTV+2l9ZYOtBT+OmF4=;
+	h=Date:From:To:Cc:Subject:From;
+	b=Ebg+AHk11N2DV0tHSlNQqwSdCHRCKZ5TEkK09AKWwyElKUZNDZMVyGyyuOA2SIVLB
+	 TGhdMkHrxAXYP+0BgVJFy/foHuBo1XUQzLkqt4uN09VwqbgWPVq6T3X4/0XTAAzBjy
+	 2E3fppiJ0/ohbf/TTINeM6rBiCDvZYqCaLz5fHks=
+Date: Tue, 14 May 2019 15:23:21 +0300
+From: Leon Romanovsky <leon@kernel.org>
+To: RDMA mailing list <linux-rdma@vger.kernel.org>
+Cc: linux-netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>
+Subject: CFP: 4th RDMA Mini-Summit at LPC 2019
+Message-ID: <20190514122321.GH6425@mtr-leonro.mtl.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190501053111.7950-1-ynorov@marvell.com>
-X-PGP-Key: http://pgp.mit.edu/pks/lookup?search=atomlin%40redhat.com
-X-PGP-Fingerprint: 7906 84EB FA8A 9638 8D1E  6E9B E2DE 9658 19CC 77D6
-User-Agent: NeoMutt/20180716-1637-ee8449
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.004258, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 2019-04-30 22:31 -0700, Yury Norov wrote:
-> If ',' is not found, kmem_cache_flags() calls strlen() to find the end
-> of line. We can do it in a single pass using strchrnul().
-> 
-> Signed-off-by: Yury Norov <ynorov@marvell.com>
-> ---
->  mm/slub.c | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 4922a0394757..85f90370a293 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1317,9 +1317,7 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
->  		char *end, *glob;
->  		size_t cmplen;
->  
-> -		end = strchr(iter, ',');
-> -		if (!end)
-> -			end = iter + strlen(iter);
-> +		end = strchrnul(iter, ',');
->  
->  		glob = strnchr(iter, end - iter, '*');
->  		if (glob)
+This is a call for proposals for the 4th RDMA mini-summit at the Linux
+Plumbers Conference in Lisbon, Portugal, which will be happening on
+September 9-11h, 2019.
 
-Fair enough.
+We are looking for topics with focus on active audience discussions
+and problem solving. The preferable topic is up to 30 minutes with
+3-5 slides maximum.
 
-Acked-by: Aaron Tomlin <atomlin@redhat.com>
+This year, the LPC will include netdev track too and it is
+collocated with Kernel Summit, such timing makes an excellent
+opportunity to drive cross-tree solutions.
 
--- 
-Aaron Tomlin
+BTW, RDMA is not accepted yet as a track in LPC, but let's think
+positive and start collect topics.
+
+Thanks
 
