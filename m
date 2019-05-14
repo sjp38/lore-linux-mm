@@ -2,201 +2,203 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2BBCC04AB7
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:58:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD709C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 09:12:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A04B520862
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:58:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A04B520862
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 5325220675
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 09:12:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5325220675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1431E6B026D; Tue, 14 May 2019 04:58:23 -0400 (EDT)
+	id CF8D46B026F; Tue, 14 May 2019 05:12:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CDE16B026E; Tue, 14 May 2019 04:58:23 -0400 (EDT)
+	id CA91B6B0270; Tue, 14 May 2019 05:12:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED60B6B026F; Tue, 14 May 2019 04:58:22 -0400 (EDT)
+	id B96466B0271; Tue, 14 May 2019 05:12:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D6166B026D
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:58:22 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l3so7945786edl.10
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 01:58:22 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 54B946B026F
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 05:12:24 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id 17so2213280lfr.14
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 02:12:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3dzj8ryujYIVV80n1k8Gt8NgYZbMTLASDkaYohAI8uU=;
-        b=m7MFRR5hVUh4jR96y2D9k1O5NWrj2GkcFWUB71ZIugMIigQNmRmevQPRckZPNE2tjr
-         Hd1N+ozM6uDtHpdX8/ADNg6GtJwdG3Lhm9VAZnWEZ1bq6JQeqAjpXQm8SNwbYROQOUZO
-         0DtiAIIiawrsCizm3dYxBoTuR6Tss9PHduQ5MovO3oogL62zm6XqMR4UGtFuvLsYZIBG
-         p5AWdbI26pUGiqYgZdfr8l2uIFYWRtNIL1P/WNms6ZGEB9Dbxgp3/E+mT2oNs4wjfY2N
-         8SOlPrNL9lfc6xvsEQFRlaITimNwXpUvyf5QRfXHac8CdWPlNc/uezE1lfyMg/gc+zRA
-         7Kcg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Gm-Message-State: APjAAAWd5222BQ1iTJYsWaNI519sE+TS9gqn+MkakVihpeJyiLJMAa2B
-	Q/nheMMNRTq7WrYb7xNRfXyt02HpyAklO0BSUxYgOL/lQnctlcW5OZzRJRlNyLT0AheEb5kXW3V
-	s/cEPvlQAoc8SQDuuBpTpyQk2stDfvAQXPZxNDgr4Qdzn2YalzFMGXr0yt+WXhLXLww==
-X-Received: by 2002:aa7:ca4f:: with SMTP id j15mr34415453edt.276.1557824302101;
-        Tue, 14 May 2019 01:58:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYSp2XmjqsQ+67Xin9qTnil5QHsbs/KesqdRoU/SNo4c7MZVcAInd/d3eU+OZ/VX/tCI09
-X-Received: by 2002:aa7:ca4f:: with SMTP id j15mr34415377edt.276.1557824301122;
-        Tue, 14 May 2019 01:58:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557824301; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=RB8yoXW30Wow1zTg31J23rJgqH4zq4zDFZziGNsf208=;
+        b=em8a6R1qrvIjnGo43vs2QDNef9R4X2hR1m9PxA5gWOof3YUP1CKEpPr7rRX7YYZMem
+         Wy5fozTMjq+H9LkRO6tq9GmrI7cAFa4s24QNn3mtE0+oTTn7t5mlTdkWPN64vQdZSfCR
+         gbX6wmYULEtAQ0XVl5fgIUUaHj1zN7nUDmblKJ9PxHkS7OzKx5N17WxFyGjqAywQ3PoK
+         /4KXcA1kYLJv9KBz4hXGLPv4vmjjTgWa62VQnFerhUv9tpj3yrLrt3kgI72fmB7x6TB+
+         GON922w2Fwjut5iiQ3FhK5DqYdti7p6jmD7I8DWEgW0oIPn6fXZvOY7P6MWAALPr6VPt
+         a/Tw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUEgWKRmLJ5CreUGIcZuPYow4qjXdTxc0bqBKEZtAFuSZqhu4A2
+	Qc/nTGYBytoka1eic4UpqlDEBnQF6x7xdQGCTiI7sYrjIe0xyvBz27/2Qx2bniFW2iq+FMbb7n8
+	sJcTDD25CrxN7rL4kGvP3ui4QDYFjxRnYcC/TMekKa32Xm6Hg9q/QaQXb6xhF3+YEVg==
+X-Received: by 2002:a2e:94c7:: with SMTP id r7mr16608457ljh.91.1557825143539;
+        Tue, 14 May 2019 02:12:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx13YFRd9PdOKlo1GQe1XT/8Lb+jjn5cRUjFCggy+Gdq3aj3ARWVrhUE102qh2m5b2jMd3r
+X-Received: by 2002:a2e:94c7:: with SMTP id r7mr16608415ljh.91.1557825142335;
+        Tue, 14 May 2019 02:12:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557825142; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xo7IQ0DryBQWWGGNMbq1GG5DMpgPPpVNyy+F6JXfZt8Tsd3nfnVVCt9tK52GhaYJwr
-         eY7RUQPkEBm6Ki4H+Uuheakj4LR5g8Jbd+5oQT4yGD9NbJBik+i9fCsEwE2/wFw9fl6p
-         pD19q0WoqD1ubAfWph4TQe0Y7raRvmpfmYDc8CC4y/YxxquP5EnmUFvu1vN2JNqgY7yG
-         8FIjTAj8c5Z0DiBt7mLVZaKfBD/iyHiIzonO7zWyfe0r4WPg6AZAfeIgTGBfFFrq/c4j
-         o8mW7BYf0gWaZb3usw/PhxCGFGROyMeas2ei02wqv7e88oF27To2wWI0UXqpjBjvdBj0
-         7D4g==
+        b=vQ1r0gL4cFBXvVg6ogMJmwAqhu/lOILt0fm7rmumUWnZmHqffzn6d53NxxpZH8aUF7
+         1+sVAioY78PSXD/pt3CTY7Ptivsp/GrQv3oihTmsQzjwTPB1nIZ3iJinWwYi1kEAJWHH
+         riwXLAaqJVQ23uBhPz/KLohi0Zf32pT+e7i7kbqUvjBTW5JPz1VertZ7FsIkse4I6BQ+
+         wUn7eTNQej4PDGC4BJPaNdm+ORLxTYPCo7aBXFJYTugtAA0JtUPWyhoGq/Ic/qicckf8
+         c1iar42+BVFQuH1TQ2WlEGZRX36AUnlM3ItuQgQlKFBUowrxPUxrTQ2ne0/XDa/wpGoa
+         uxpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3dzj8ryujYIVV80n1k8Gt8NgYZbMTLASDkaYohAI8uU=;
-        b=JywTDSZI5V0vZSkUNb7Z65FTnsBReWAj+unSEb25OpYJvZeupMQ6MCNbhQ7zNc4qLM
-         Uo2gBMNc+tyjjojbb370MyVw9Pco5/4wVNR8gPH1zM6adG0uUKXgIa07gRSfF0OSzqTJ
-         d8KZ2/Oc8+K6AmTmMc14o8prgT54xcwZtlMV7j+1RPvwhiEC5dG2s21WnXhqgzQq3iU5
-         5rR20yXXOYsZFwwUnZc3VNxAG3VOry1AasW8AMTcGS2nWZf/ghhL+SXQ0smZzfBSp9Y6
-         HpXEy18k7qykUp1VBpNZwmAtTqnxBG0DcrGWosD3bGwEyAX+DJhNKaIHME+/UCr1RlK+
-         rRCg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=RB8yoXW30Wow1zTg31J23rJgqH4zq4zDFZziGNsf208=;
+        b=q3jTH2P5MD1gM0NlXlM32n2XQRbSwowBOHcb4rXTWQICQvg17VKZwRoRHlALxi8hq0
+         +73owWo9119ItRC8n4Hm4izwnNJxYltmgCXzKr4rGtoayEDZC0ksd0hoBovQif4/kn+h
+         PUBb3AO0YmRI1dDvr0mU8XyEnm3nnyTMONz8q/vPeP0ZWCrERETb2IKRpy+uLO7BOs8z
+         81K6H3AupdA0MANnXDhkDo3ar6+/+G+yBnPGR5xBh08WrrJlaAhDhKQfMSeVoLT7y/Hh
+         wW8TjrpKtdXEs6Isffja8JthqlOZBnOJ/ynIAIK7bvMbBQ6pF0QuputIiS97qAwpgaM9
+         OkLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q5si6647221edd.0.2019.05.14.01.58.20
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id l15si10720371lfh.2.2019.05.14.02.12.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 01:58:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 14 May 2019 02:12:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 68BF8AE1C;
-	Tue, 14 May 2019 08:58:20 +0000 (UTC)
-Date: Tue, 14 May 2019 09:58:16 +0100
-From: Mel Gorman <mgorman@suse.de>
-To: Nadav Amit <namit@vmware.com>
-Cc: Will Deacon <will.deacon@arm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	"jstancek@redhat.com" <jstancek@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
-	Nick Piggin <npiggin@gmail.com>, Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
- flush
-Message-ID: <20190514085816.GB23719@suse.de>
-References: <20190509103813.GP2589@hirez.programming.kicks-ass.net>
- <F22533A7-016F-4506-809A-7E86BAF24D5A@vmware.com>
- <20190509182435.GA2623@hirez.programming.kicks-ass.net>
- <04668E51-FD87-4D53-A066-5A35ABC3A0D6@vmware.com>
- <20190509191120.GD2623@hirez.programming.kicks-ass.net>
- <7DA60772-3EE3-4882-B26F-2A900690DA15@vmware.com>
- <20190513083606.GL2623@hirez.programming.kicks-ass.net>
- <75FD46B2-2E0C-41F2-9308-AB68C8780E33@vmware.com>
- <20190513163752.GA10754@fuggles.cambridge.arm.com>
- <43638259-8EDB-4B8D-A93D-A2E86D8B2489@vmware.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hQTTt-0001sf-Bj; Tue, 14 May 2019 12:12:17 +0300
+Subject: Re: [PATCH RFC 0/4] mm/ksm: add option to automerge VMAs
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>,
+ Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Timofey Titovets <nefelim4ag@gmail.com>, Aaron Tomlin <atomlin@redhat.com>,
+ linux-mm@kvack.org
+References: <20190510072125.18059-1-oleksandr@redhat.com>
+ <36a71f93-5a32-b154-b01d-2a420bca2679@virtuozzo.com>
+ <20190513113314.lddxv4kv5ajjldae@butterfly.localdomain>
+ <a3870e32-3a27-e6df-fcb2-79080cdd167a@virtuozzo.com>
+ <20190514063043.ojhsb6d3ohxx4wur@butterfly.localdomain>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <8f146863-5963-81b2-ed20-6428d1da353c@virtuozzo.com>
+Date: Tue, 14 May 2019 12:12:16 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <43638259-8EDB-4B8D-A93D-A2E86D8B2489@vmware.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190514063043.ojhsb6d3ohxx4wur@butterfly.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 05:06:03PM +0000, Nadav Amit wrote:
-> > On May 13, 2019, at 9:37 AM, Will Deacon <will.deacon@arm.com> wrote:
-> > 
-> > On Mon, May 13, 2019 at 09:11:38AM +0000, Nadav Amit wrote:
-> >>> On May 13, 2019, at 1:36 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >>> 
-> >>> On Thu, May 09, 2019 at 09:21:35PM +0000, Nadav Amit wrote:
-> >>> 
-> >>>>>>> And we can fix that by having tlb_finish_mmu() sync up. Never let a
-> >>>>>>> concurrent tlb_finish_mmu() complete until all concurrenct mmu_gathers
-> >>>>>>> have completed.
-> >>>>>>> 
-> >>>>>>> This should not be too hard to make happen.
-> >>>>>> 
-> >>>>>> This synchronization sounds much more expensive than what I proposed. But I
-> >>>>>> agree that cache-lines that move from one CPU to another might become an
-> >>>>>> issue. But I think that the scheme I suggested would minimize this overhead.
-> >>>>> 
-> >>>>> Well, it would have a lot more unconditional atomic ops. My scheme only
-> >>>>> waits when there is actual concurrency.
-> >>>> 
-> >>>> Well, something has to give. I didn???t think that if the same core does the
-> >>>> atomic op it would be too expensive.
-> >>> 
-> >>> They're still at least 20 cycles a pop, uncontended.
-> >>> 
-> >>>>> I _think_ something like the below ought to work, but its not even been
-> >>>>> near a compiler. The only problem is the unconditional wakeup; we can
-> >>>>> play games to avoid that if we want to continue with this.
-> >>>>> 
-> >>>>> Ideally we'd only do this when there's been actual overlap, but I've not
-> >>>>> found a sensible way to detect that.
-> >>>>> 
-> >>>>> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> >>>>> index 4ef4bbe78a1d..b70e35792d29 100644
-> >>>>> --- a/include/linux/mm_types.h
-> >>>>> +++ b/include/linux/mm_types.h
-> >>>>> @@ -590,7 +590,12 @@ static inline void dec_tlb_flush_pending(struct mm_struct *mm)
-> >>>>> 	 *
-> >>>>> 	 * Therefore we must rely on tlb_flush_*() to guarantee order.
-> >>>>> 	 */
-> >>>>> -	atomic_dec(&mm->tlb_flush_pending);
-> >>>>> +	if (atomic_dec_and_test(&mm->tlb_flush_pending)) {
-> >>>>> +		wake_up_var(&mm->tlb_flush_pending);
-> >>>>> +	} else {
-> >>>>> +		wait_event_var(&mm->tlb_flush_pending,
-> >>>>> +			       !atomic_read_acquire(&mm->tlb_flush_pending));
-> >>>>> +	}
-> >>>>> }
-> >>>> 
-> >>>> It still seems very expensive to me, at least for certain workloads (e.g.,
-> >>>> Apache with multithreaded MPM).
-> >>> 
-> >>> Is that Apache-MPM workload triggering this lots? Having a known
-> >>> benchmark for this stuff is good for when someone has time to play with
-> >>> things.
-> >> 
-> >> Setting Apache2 with mpm_worker causes every request to go through
-> >> mmap-writev-munmap flow on every thread. I didn???t run this workload after
-> >> the patches that downgrade the mmap_sem to read before the page-table
-> >> zapping were introduced. I presume these patches would allow the page-table
-> >> zapping to be done concurrently, and therefore would hit this flow.
-> > 
-> > Hmm, I don't think so: munmap() still has to take the semaphore for write
-> > initially, so it will be serialised against other munmap() threads even
-> > after they've downgraded afaict.
-> > 
-> > The initial bug report was about concurrent madvise() vs munmap().
+On 14.05.2019 09:30, Oleksandr Natalenko wrote:
+> Hi.
 > 
-> I guess you are right (and I???m wrong).
+> On Mon, May 13, 2019 at 03:37:56PM +0300, Kirill Tkhai wrote:
+>>> Yes, I get your point. But the intention is to avoid another hacky trick
+>>> (LD_PRELOAD), thus *something* should *preferably* be done on the
+>>> kernel level instead.
+>>
+>> I don't think so. Does userspace hack introduce some overhead? It does not
+>> look so. Why should we think about mergeable VMAs in page fault handler?!
+>> This is the last thing we want to think in page fault handler.
+>>
+>> Also, there is difficult synchronization in page fault handlers, and it's
+>> easy to make a mistake. So, there is a mistake in [3/4], and you call
+>> ksm_enter() with mmap_sem read locked, while normal way is to call it
+>> with write lock (see madvise_need_mmap_write()).
+>>
+>> So, let's don't touch this path. Small optimization for unlikely case will
+>> introduce problems in optimization for likely case in the future.
 > 
-> Short search suggests that ebizzy might be affected (a thread by Mel
-> Gorman): https://lkml.org/lkml/2015/2/2/493
+> Yup, you're right, I've missed the fact that write lock is needed there.
+> Re-vamping locking there is not my intention, so lets find another
+> solution.
 > 
+>>> Also, just for the sake of another piece of stats here:
+>>>
+>>> $ echo "$(cat /sys/kernel/mm/ksm/pages_sharing) * 4 / 1024" | bc
+>>> 526
+>>
+>> This all requires attentive analysis. The number looks pretty big for me.
+>> What are the pages you get merged there? This may be just zero pages,
+>> you have identical.
+>>
+>> E.g., your browser want to work fast. It introduces smart schemes,
+>> and preallocates many pages in background (mmap + write 1 byte to a page),
+>> so in further it save some time (no page fault + alloc), when page is
+>> really needed. But your change merges these pages and kills this
+>> optimization. Sounds not good, does this?
+>>
+>> I think, we should not think we know and predict better than application
+>> writers, what they want from kernel. Let's people decide themselves
+>> in dependence of their workload. The only exception is some buggy
+>> or old applications, which impossible to change, so force madvise
+>> workaround may help. But only in case there are really such applications...
+>>
+>> I'd researched what pages you have duplicated in these 526 MB. Maybe
+>> you find, no action is required or a report to userspace application
+>> to use madvise is needed.
+> 
+> OK, I agree, this is a good argument to move decision to userspace.
+> 
+>>> 2) what kinds of opt-out we should maintain? Like, what if force_madvise
+>>> is called, but the task doesn't want some VMAs to be merged? This will
+>>> required new flag anyway, it seems. And should there be another
+>>> write-only file to unmerge everything forcibly for specific task?
+>>
+>> For example,
+>>
+>> Merge:
+>> #echo $task > /sys/kernel/mm/ksm/force_madvise
+> 
+> Immediate question: what should be actually done on this? I see 2
+> options:
+> 
+> 1) mark all VMAs as mergeable + set some flag for mmap() to mark all
+> further allocations as mergeable as well;
+> 2) just mark all the VMAs as mergeable; userspace can call this
+> periodically to mark new VMAs.
+> 
+> My prediction is that 2) is less destructive, and the decision is
+> preserved predominantly to userspace, thus it would be a desired option.
 
-Glibc has since been fixed to be less munmap/mmap intensive and the
-system CPU usage of ebizzy is generally negligible unless configured so
-specifically use mmap/munmap instead of malloc/free which is unrealistic
-for good application behaviour.
+Let's see, how we use KSM now. It's good for virtual machines: people
+install the same distribution in several VMs, and they have the same
+packages and the same files. When you read a file inside VM, its pages
+are file cache for the VM, but they are anonymous pages for host kernel.
 
--- 
-Mel Gorman
-SUSE Labs
+Hypervisor marks VM memory as mergeable, and host KSM merges the same
+anonymous pages together. Many of file cache inside VM is constant
+content, so we have good KSM compression on such the file pages.
+The result we have is explainable and expected.
+
+But we don't know anything about pages, you have merged on your laptop.
+We can't make any assumptions before analysis of applications, which
+produce such the pages. Let's check what happens before we try to implement
+some specific design (if we really need something to implement).
+
+The rest is just technical details. We may implement everything we need
+on top of this (even implement a polling of /proc/[pid]/maps and write
+a task and address of vma to force_madvise or similar file).
+
+Kirill
 
