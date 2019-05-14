@@ -2,105 +2,106 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1ABF6C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:45:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 30BA5C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC39320879
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:44:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D724E20879
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:45:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="TQNF+mDm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC39320879
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="hAHz+/8G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D724E20879
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D8266B0006; Tue, 14 May 2019 17:44:58 -0400 (EDT)
+	id 56AE26B0007; Tue, 14 May 2019 17:44:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0601B6B0007; Tue, 14 May 2019 17:44:58 -0400 (EDT)
+	id 51D146B0008; Tue, 14 May 2019 17:44:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E43766B0008; Tue, 14 May 2019 17:44:57 -0400 (EDT)
+	id 3208D6B000A; Tue, 14 May 2019 17:44:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C50F76B0007
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:44:57 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id 201so563271ywr.13
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:57 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 163C16B0007
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:44:59 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id k23so444669ybj.6
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:mime-version;
-        bh=NaUxwXVJ6VpCy71Pstu41MAhgHdo6rxX7lcu8r6kZ84=;
-        b=B/KL6mNfp9dVhAulJJo6Hkz3SAHFL7YVZMSeuUfPC5cJwrxKJuaLQlg2vHS6FchPcc
-         phgYY9DgB0oySUirNw4wfUeMPb10VpY8GBamRMOqzmmGJXZ04dfYAUEHq9M1hgfCd/VB
-         oU9cKZwSt5MnBCYWHxT2KG02LAfe/Kz5QbvuMrKYdspe0+MjPlc1YQFwPWpCvU+sUe8K
-         GtH/Aan0Ww6gqYKw6o863fGyotFBmhr+hVZDp9yOwpsRZcw+dkWP5NImdniXRdgYtnlm
-         M8j+Ofmxfq+adfYaSD1ZDTrjIF2MkvSN/Iol+YeiGK7AisypYJMn6deos7vp2rh9QwZ0
-         G3pw==
-X-Gm-Message-State: APjAAAXl+gZeSZSv4qavXniPdQIp713WNTOamirI/9/XvHl3bIXdbLQG
-	GYb8iI/kv9VnYaaO0WY9DX4IlTji97T/wMVgz7ttbVRxQtW8k9hfvZv99hssG1/yyGq/9JTzMtt
-	N53gkfBC+BjgqdJIRKjMXkZZDDg2Uv0dWN4Uwb5o6x3ucxpn0gQKOMiU+ll0VHFnWRw==
-X-Received: by 2002:a25:ca48:: with SMTP id a69mr18482939ybg.466.1557870297486;
-        Tue, 14 May 2019 14:44:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzuGwW11u8a5E9/B5DIkNfHib0Nc9dyuKkHvUT7DztRiTBBnqRRRKQppDmlFBQYhoZb0BEy
-X-Received: by 2002:a25:ca48:: with SMTP id a69mr18482888ybg.466.1557870296493;
-        Tue, 14 May 2019 14:44:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557870296; cv=none;
+         :message-id:in-reply-to:references:mime-version;
+        bh=Gl8pp3KYsdZV699fGKd7n8I36sqXFKD3Pr1ctINiCIU=;
+        b=WzLwmAezkcXUYY0snAtE9xuNvyxcWQmgCWy++IKUAZ02yaoNBl6YhkuWdddjJF0+z9
+         Qks8QxYUfnfuaFDSrmdqfHrj1OCaRE7roJBtevoURKKh4F07VlVs4QsWOgJljOaS8zKH
+         gYyVHE86z8+F5DNa6Z31EeBkzqIm+LDe7pVBT1p1oTLgrkCFcL5Twe6wsfukN7tFRtjL
+         yQUgnKkvjplDG1zW4z+DYiWWntuHiITR3NWbQJaM7GoVW6M4qkLOLXMz1npX51tVzv04
+         L+Yk4NTCP6RBuztqt4FdEqDkwqgfF0gMyaKkj9zQIeEaCl+7O2crEenWScYrAONmCfW9
+         R7zw==
+X-Gm-Message-State: APjAAAWgUPqXkyVthYcY6YsdKmUcZ585FELo2djoZAThidi4TP6YuFzL
+	EQ19g3ngPHAnESdUX1R3lEKHhUU0LWfQHIq9XjnBTqvUvMFA2+YuG9cx1z60cAvECD15hCkj6uE
+	6X40Mo9QhWsEnnC3LNGhEPjLgpmVw1Os6R0oYvHsV5gzIT0Vcp7FJ5Rp3jqgQmGJZIA==
+X-Received: by 2002:a81:66c2:: with SMTP id a185mr18410733ywc.240.1557870298735;
+        Tue, 14 May 2019 14:44:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyG/luTKEW7UVHdQJX1fcUdJcz9RG0up2pkKI6cXbusw4m3CFOIpvy0zoBg10FgCoN6MVEC
+X-Received: by 2002:a81:66c2:: with SMTP id a185mr18410707ywc.240.1557870298060;
+        Tue, 14 May 2019 14:44:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557870298; cv=none;
         d=google.com; s=arc-20160816;
-        b=v7b/1QI67JcJdSZCTT5vKRpi6n0UThpl9pgtwBtcDCcs7VFqbKDmuG5e5pP65oXzcN
-         A6zVYlg5lUPrgSbfyNAAISAa4zFSRzep4dtidl/fI7KzgLRj9o8po8q1L0arvtSUgN3c
-         EeiRAEDdLLTBsj16zI7/K7+Nxj978Yrw47cHYGbDWys4uJKnkVeoCbV+1zVRLVvmCzMt
-         hzGWlmzPtXi1ZXgcbFv/URNaVvtisnVi5Nt8u7Dl/wq0+5VAz1+Q5BqUie188gJsXXQl
-         QPAfe8u8gdHnv5ufKl0NNgF2RO4Q9A8qIudoEBed8s4ezfkx4pTxFuKYlNvmmgdUcqqY
-         BQvw==
+        b=m/ELwqd8JemHxvBT9lDP0PV73omFzwNgLaa1FUedrgHHGK62IOnr3i26PqqJWdcZZ5
+         CZoR7GAIyQFvEaGYpfEN/2wxCdVN+mNfR14YR1TQEapOdEkhH9JWh++xqjnTKCmlsdJX
+         iW4GfeQxAqTSg9mAtwWvdJD1TV9FLrB4+Fo4lNcagpXz4yhPUjK+H7Jb9ruMpc+6JdEn
+         ELaTdMsM3wedmmMnv0Gd6e+sEb0Xa0sulPJyQtCRQTh3RtnIeEst4scZpi6ndb4u6NaK
+         e97A6stf6nGzZOdSqrypB0CaILjJAlnYU1x4wPMmQ4RajAWj7rwk9j/raEl/5NKzkYJW
+         lJ5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
-         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
-        bh=NaUxwXVJ6VpCy71Pstu41MAhgHdo6rxX7lcu8r6kZ84=;
-        b=xLL7/Ik9m41SluffT/ef6Lzi7b12bH1xEqotBt4tzyUY7n8ypTg+Idm7RApneLTY2I
-         iinsH1+m1KWxQ0M3GmIPh93N9xOK5walnGPI7+BKzxbEKsc1p85pUrIloIW0O1EVnnJK
-         v9mejA3xxWDPcgPPIx9deWKm+tnh4lPiivBsCDdnvN8dLwgvMRQAoe5tY4jT36Q+W1Ni
-         YaAaEYd3+EUF8GFhGT86Ab5xaoSXjkziv61F6TLrc4iuc8wVHqXCkQh0SXrUDRu2bKHs
-         5ekrXRHkoyPfdxnlcwYEKPWpNaEI5wOkECSHP5YZVrTlqdBGESkN+Yb82tbCuxo8uPaT
-         HOGA==
+        h=mime-version:references:in-reply-to:message-id:date:subject
+         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
+         :smtp-origin-hostprefix:dkim-signature;
+        bh=Gl8pp3KYsdZV699fGKd7n8I36sqXFKD3Pr1ctINiCIU=;
+        b=E4Vcb3wCI5WNccW8gYXDfTofiKvdZoYqH3kqpTG6QobADb1vlrGlcvWoY2+wBLHiQu
+         T/VOtLv2+reG959iYV9HSh7G7i7xsxUIpo5RYWqHU9yn581LdoCTws5KBnMiv2ndHGYs
+         1Cl/2EV6cfOgfolVnnS52uLtLFx3xZlUa6jhWW1pkNSTE7HhJsW63CBGxupQDhgJ+Y3y
+         xi1JuMtI9zUXJQ/1qpwMJtEcMLV4+cB/wEspaXOozo8ek+dSUsbxu9rN108pDJGmhVnp
+         ha+fD4yuUkxnHJ761oY6sFjKDYI3JSg/UquBb0+nNY1ECT0TFvL5oTvW9b6jzF3dnIws
+         /iRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=TQNF+mDm;
+       dkim=pass header.i=@fb.com header.s=facebook header.b="hAHz+/8G";
        spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id b77si41932ywh.269.2019.05.14.14.44.56
+        by mx.google.com with ESMTPS id x3si4735686yba.15.2019.05.14.14.44.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 14:44:56 -0700 (PDT)
+        Tue, 14 May 2019 14:44:58 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=TQNF+mDm;
+       dkim=pass header.i=@fb.com header.s=facebook header.b="hAHz+/8G";
        spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
-	by mx0b-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4ELfZia022001
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:56 -0700
+Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
+	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x4ELe6qR008329
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:57 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : mime-version : content-type; s=facebook;
- bh=NaUxwXVJ6VpCy71Pstu41MAhgHdo6rxX7lcu8r6kZ84=;
- b=TQNF+mDmIIjHJ69VrXMHQV1yUUlap6LHocKPTtspIYSXA4+bZE2RgwPfTkwrrFGdg7KU
- fXIhK0LRbDc7EcP+79Nc8bNFffmqlNjeVZKZSxlRuYuyKE7V/YoBi07chmXlSRv+AKhA
- k9mjTUsAoqdiD5uKNKBTd3cAkgjq/qSfGjs= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0b-00082601.pphosted.com with ESMTP id 2sg4chgbf7-4
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:56 -0700
-Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 14 May 2019 14:44:55 -0700
+ : date : message-id : in-reply-to : references : mime-version :
+ content-type; s=facebook; bh=Gl8pp3KYsdZV699fGKd7n8I36sqXFKD3Pr1ctINiCIU=;
+ b=hAHz+/8GBdJiBTsRVJsNZ0hxFyU0ZuVtO1tGb2HkW0JktCZ3Sp1osTJGPRmSryua6JY4
+ nF5H4VquEQ2KixfyLKOyxPe/ZRg3NgR6kqqFuao7dv47vuyl2bV+xuFQDf7HbWfEEulZ
+ C/fuyiLFSHEqHFAzgDPnthHAngR+gU1X4Bk= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by m0089730.ppops.net with ESMTP id 2sfv362atf-7
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:57 -0700
+Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
+ mail.thefacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Tue, 14 May 2019 14:44:54 -0700
 Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 756E11207729D; Tue, 14 May 2019 14:39:41 -0700 (PDT)
+	id 780BA1207729F; Tue, 14 May 2019 14:39:41 -0700 (PDT)
 Smtp-Origin-Hostprefix: devvm
 From: Roman Gushchin <guro@fb.com>
 Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
@@ -116,169 +117,161 @@ CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
         Vladimir Davydov <vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
         Roman Gushchin <guro@fb.com>
 Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v4 0/7] mm: reparent slab memory on cgroup removal
-Date: Tue, 14 May 2019 14:39:33 -0700
-Message-ID: <20190514213940.2405198-1-guro@fb.com>
+Subject: [PATCH v4 1/7] mm: postpone kmem_cache memcg pointer initialization to memcg_link_cache()
+Date: Tue, 14 May 2019 14:39:34 -0700
+Message-ID: <20190514213940.2405198-2-guro@fb.com>
 X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190514213940.2405198-1-guro@fb.com>
+References: <20190514213940.2405198-1-guro@fb.com>
 X-FB-Internal: Safe
 MIME-Version: 1.0
 Content-Type: text/plain
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_13:,,
  signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905140143
-X-FB-Internal: deliver
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-# Why do we need this?
+Initialize kmem_cache->memcg_params.memcg pointer in
+memcg_link_cache() rather than in init_memcg_params().
 
-We've noticed that the number of dying cgroups is steadily growing on most
-of our hosts in production. The following investigation revealed an issue
-in userspace memory reclaim code [1], accounting of kernel stacks [2],
-and also the mainreason: slab objects.
+Once kmem_cache will hold a reference to the memory cgroup,
+it will simplify the refcounting.
 
-The underlying problem is quite simple: any page charged
-to a cgroup holds a reference to it, so the cgroup can't be reclaimed unless
-all charged pages are gone. If a slab object is actively used by other cgroups,
-it won't be reclaimed, and will prevent the origin cgroup from being reclaimed.
+For non-root kmem_caches memcg_link_cache() is always called
+before the kmem_cache becomes visible to a user, so it's safe.
 
-Slab objects, and first of all vfs cache, is shared between cgroups, which are
-using the same underlying fs, and what's even more important, it's shared
-between multiple generations of the same workload. So if something is running
-periodically every time in a new cgroup (like how systemd works), we do
-accumulate multiple dying cgroups.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+---
+ mm/slab.c        |  2 +-
+ mm/slab.h        |  5 +++--
+ mm/slab_common.c | 14 +++++++-------
+ mm/slub.c        |  2 +-
+ 4 files changed, 12 insertions(+), 11 deletions(-)
 
-Strictly speaking pagecache isn't different here, but there is a key difference:
-we disable protection and apply some extra pressure on LRUs of dying cgroups,
-and these LRUs contain all charged pages.
-My experiments show that with the disabled kernel memory accounting the number
-of dying cgroups stabilizes at a relatively small number (~100, depends on
-memory pressure and cgroup creation rate), and with kernel memory accounting
-it grows pretty steadily up to several thousands.
-
-Memory cgroups are quite complex and big objects (mostly due to percpu stats),
-so it leads to noticeable memory losses. Memory occupied by dying cgroups
-is measured in hundreds of megabytes. I've even seen a host with more than 100Gb
-of memory wasted for dying cgroups. It leads to a degradation of performance
-with the uptime, and generally limits the usage of cgroups.
-
-My previous attempt [3] to fix the problem by applying extra pressure on slab
-shrinker lists caused a regressions with xfs and ext4, and has been reverted [4].
-The following attempts to find the right balance [5, 6] were not successful.
-
-So instead of trying to find a maybe non-existing balance, let's do reparent
-the accounted slabs to the parent cgroup on cgroup removal.
-
-
-# Implementation approach
-
-There is however a significant problem with reparenting of slab memory:
-there is no list of charged pages. Some of them are in shrinker lists,
-but not all. Introducing of a new list is really not an option.
-
-But fortunately there is a way forward: every slab page has a stable pointer
-to the corresponding kmem_cache. So the idea is to reparent kmem_caches
-instead of slab pages.
-
-It's actually simpler and cheaper, but requires some underlying changes:
-1) Make kmem_caches to hold a single reference to the memory cgroup,
-   instead of a separate reference per every slab page.
-2) Stop setting page->mem_cgroup pointer for memcg slab pages and use
-   page->kmem_cache->memcg indirection instead. It's used only on
-   slab page release, so it shouldn't be a big issue.
-3) Introduce a refcounter for non-root slab caches. It's required to
-   be able to destroy kmem_caches when they become empty and release
-   the associated memory cgroup.
-
-There is a bonus: currently we do release empty kmem_caches on cgroup
-removal, however all other are waiting for the releasing of the memory cgroup.
-These refactorings allow kmem_caches to be released as soon as they
-become inactive and free.
-
-Some additional implementation details are provided in corresponding
-commit messages.
-
-
-# Results
-
-Below is the average number of dying cgroups on two groups of our production
-hosts. They do run some sort of web frontend workload, the memory pressure
-is moderate. As we can see, with the kernel memory reparenting the number
-stabilizes in 60s range; however with the original version it grows almost
-linearly and doesn't show any signs of plateauing. The difference in slab
-and percpu usage between patched and unpatched versions also grows linearly.
-In 7 days it exceeded 200Mb.
-
-day           0    1    2    3    4    5    6    7
-original     56  362  628  752 1070 1250 1490 1560
-patched      23   46   51   55   60   57   67   69
-mem diff(Mb) 22   74  123  152  164  182  214  241
-
-
-# History
-
-v4:
-  1) removed excessive memcg != parent check in memcg_deactivate_kmem_caches()
-  2) fixed rcu_read_lock() usage in memcg_charge_slab()
-  3) fixed synchronization around dying flag in kmemcg_queue_cache_shutdown()
-  4) refreshed test results data
-  5) reworked PageTail() checks in memcg_from_slab_page()
-  6) added some comments in multiple places
-
-v3:
-  1) reworked memcg kmem_cache search on allocation path
-  2) fixed /proc/kpagecgroup interface
-
-v2:
-  1) switched to percpu kmem_cache refcounter
-  2) a reference to kmem_cache is held during the allocation
-  3) slabs stats are fixed for !MEMCG case (and the refactoring
-     is separated into a standalone patch)
-  4) kmem_cache reparenting is performed from deactivatation context
-
-v1:
-  https://lkml.org/lkml/2019/4/17/1095
-
-
-# Links
-
-[1]: commit 68600f623d69 ("mm: don't miss the last page because of
-round-off error")
-[2]: commit 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
-[3]: commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively
-small number of objects")
-[4]: commit a9a238e83fbb ("Revert "mm: slowly shrink slabs
-with a relatively small number of objects")
-[5]: https://lkml.org/lkml/2019/1/28/1865
-[6]: https://marc.info/?l=linux-mm&m=155064763626437&w=2
-
-
-Roman Gushchin (7):
-  mm: postpone kmem_cache memcg pointer initialization to
-    memcg_link_cache()
-  mm: generalize postponed non-root kmem_cache deactivation
-  mm: introduce __memcg_kmem_uncharge_memcg()
-  mm: unify SLAB and SLUB page accounting
-  mm: rework non-root kmem_cache lifecycle management
-  mm: reparent slab memory on cgroup removal
-  mm: fix /proc/kpagecgroup interface for slab pages
-
- include/linux/memcontrol.h |  10 +++
- include/linux/slab.h       |  13 +--
- mm/memcontrol.c            | 101 ++++++++++++++++-------
- mm/slab.c                  |  25 ++----
- mm/slab.h                  | 137 ++++++++++++++++++++++++-------
- mm/slab_common.c           | 162 +++++++++++++++++++++----------------
- mm/slub.c                  |  36 ++-------
- 7 files changed, 299 insertions(+), 185 deletions(-)
-
+diff --git a/mm/slab.c b/mm/slab.c
+index 2915d912e89a..f6eff59e018e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1268,7 +1268,7 @@ void __init kmem_cache_init(void)
+ 				  nr_node_ids * sizeof(struct kmem_cache_node *),
+ 				  SLAB_HWCACHE_ALIGN, 0, 0);
+ 	list_add(&kmem_cache->list, &slab_caches);
+-	memcg_link_cache(kmem_cache);
++	memcg_link_cache(kmem_cache, NULL);
+ 	slab_state = PARTIAL;
+ 
+ 	/*
+diff --git a/mm/slab.h b/mm/slab.h
+index 43ac818b8592..6a562ca72bca 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -289,7 +289,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+ }
+ 
+ extern void slab_init_memcg_params(struct kmem_cache *);
+-extern void memcg_link_cache(struct kmem_cache *s);
++extern void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg);
+ extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+ 				void (*deact_fn)(struct kmem_cache *));
+ 
+@@ -344,7 +344,8 @@ static inline void slab_init_memcg_params(struct kmem_cache *s)
+ {
+ }
+ 
+-static inline void memcg_link_cache(struct kmem_cache *s)
++static inline void memcg_link_cache(struct kmem_cache *s,
++				    struct mem_cgroup *memcg)
+ {
+ }
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 58251ba63e4a..6e00bdf8618d 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -140,13 +140,12 @@ void slab_init_memcg_params(struct kmem_cache *s)
+ }
+ 
+ static int init_memcg_params(struct kmem_cache *s,
+-		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
++			     struct kmem_cache *root_cache)
+ {
+ 	struct memcg_cache_array *arr;
+ 
+ 	if (root_cache) {
+ 		s->memcg_params.root_cache = root_cache;
+-		s->memcg_params.memcg = memcg;
+ 		INIT_LIST_HEAD(&s->memcg_params.children_node);
+ 		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
+ 		return 0;
+@@ -221,11 +220,12 @@ int memcg_update_all_caches(int num_memcgs)
+ 	return ret;
+ }
+ 
+-void memcg_link_cache(struct kmem_cache *s)
++void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg)
+ {
+ 	if (is_root_cache(s)) {
+ 		list_add(&s->root_caches_node, &slab_root_caches);
+ 	} else {
++		s->memcg_params.memcg = memcg;
+ 		list_add(&s->memcg_params.children_node,
+ 			 &s->memcg_params.root_cache->memcg_params.children);
+ 		list_add(&s->memcg_params.kmem_caches_node,
+@@ -244,7 +244,7 @@ static void memcg_unlink_cache(struct kmem_cache *s)
+ }
+ #else
+ static inline int init_memcg_params(struct kmem_cache *s,
+-		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
++				    struct kmem_cache *root_cache)
+ {
+ 	return 0;
+ }
+@@ -384,7 +384,7 @@ static struct kmem_cache *create_cache(const char *name,
+ 	s->useroffset = useroffset;
+ 	s->usersize = usersize;
+ 
+-	err = init_memcg_params(s, memcg, root_cache);
++	err = init_memcg_params(s, root_cache);
+ 	if (err)
+ 		goto out_free_cache;
+ 
+@@ -394,7 +394,7 @@ static struct kmem_cache *create_cache(const char *name,
+ 
+ 	s->refcount = 1;
+ 	list_add(&s->list, &slab_caches);
+-	memcg_link_cache(s);
++	memcg_link_cache(s, memcg);
+ out:
+ 	if (err)
+ 		return ERR_PTR(err);
+@@ -997,7 +997,7 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name,
+ 
+ 	create_boot_cache(s, name, size, flags, useroffset, usersize);
+ 	list_add(&s->list, &slab_caches);
+-	memcg_link_cache(s);
++	memcg_link_cache(s, NULL);
+ 	s->refcount = 1;
+ 	return s;
+ }
+diff --git a/mm/slub.c b/mm/slub.c
+index cd04dbd2b5d0..c5646cb02055 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4215,7 +4215,7 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
+ 	}
+ 	slab_init_memcg_params(s);
+ 	list_add(&s->list, &slab_caches);
+-	memcg_link_cache(s);
++	memcg_link_cache(s, NULL);
+ 	return s;
+ }
+ 
 -- 
 2.20.1
 
