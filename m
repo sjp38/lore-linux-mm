@@ -2,161 +2,173 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64749C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 11:56:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C737FC04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:02:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 173CA20879
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 11:56:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="JMdp8P8j"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 173CA20879
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 79CF320881
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 12:02:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79CF320881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E3E06B0006; Tue, 14 May 2019 07:56:06 -0400 (EDT)
+	id 2420E6B0007; Tue, 14 May 2019 08:02:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 994CA6B0007; Tue, 14 May 2019 07:56:06 -0400 (EDT)
+	id 1EE8A6B0008; Tue, 14 May 2019 08:02:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 883056B0008; Tue, 14 May 2019 07:56:06 -0400 (EDT)
+	id 0DDE66B000A; Tue, 14 May 2019 08:02:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A846B0006
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 07:56:06 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id h189so12216987ioa.13
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 04:56:06 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B2D006B0007
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 08:02:29 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y22so18750935eds.14
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 05:02:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=2h7qN20uj1mfv3QLUgyx27DHKcW4BdPIEEbu7qYuSi8=;
-        b=Brwf7iLOE0q4XC6uGli6QW++Jtzcd/2M+WijkxPCUlXNUW7dJy46zQxLdhPV1s6F+R
-         LyMhMyb4mvLtN9bov0Hl18oQzxFSsYolQkNnaK8cqLjMgJBNQaEq9VM257BmL+vpsi4Z
-         Gw06igOFRLKLRZpxLqy8YdYuFVBDL6nmDYr6z7LDp/FP11x1SSCTBiX8dU0VMdS7U0o9
-         ZNDJ54Nb5h5zf6rHa42s1NVIBBagVaHVLMWtVSb1DR46JWikU5X/v5Zh9pv2iZ6IiVff
-         VIvlS/+CSxPMNjELRdONKfS8jBnliTOFCh7jcFt4Iw/ny1UgG2T4dp44cRVzM8gZul7B
-         y/PQ==
-X-Gm-Message-State: APjAAAVQs65LbGiVG69dQykVZe/U+SJ9pLOd7wQf389rXo6bUcTWKQn+
-	5rf7ZJNk+ZIQ6Q2/lhM0o5wAGsv/Q9YNoi0/Qegf7/VOEI0l43/Pl7+ih5RzD4pU4R1EffRG5Tf
-	myTnGyn09gi0680ryhBrOvXOvF/PgYbaL85cQ7wH8mCyal2uPOt4HMlH9HnjBWWpQUw==
-X-Received: by 2002:a24:5a51:: with SMTP id v78mr3353725ita.49.1557834966205;
-        Tue, 14 May 2019 04:56:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDY1gi/sOgaC5PZoFFUdgYNAMTZFt0A/TCKYof/VBEYW14FO6nGJKmkMt3kxnf9rFYrUQE
-X-Received: by 2002:a24:5a51:: with SMTP id v78mr3353683ita.49.1557834965571;
-        Tue, 14 May 2019 04:56:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557834965; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xLo4b1OAYRv30TeuYjgpk/OjC183NLin3aZGUPtrEbI=;
+        b=Iq3KOmYTpdenLUxHeZ8k9AM6vZm8w/YDyTchPFc9JegHSp6fDvnLrGJEjK9r+d/f77
+         lN0ri8jbaZcMuFfgkeA12KAqK3ukDoOi/6yz/eSBqnsCsz91SKcUO7FZYDk6hz/jLOMp
+         L6OYK+dqwVvDdjqJMAwKFumXvc2XV7l2PLr64gGXNr4wFjEK8jc55kv9Zh/Fagf26+V9
+         nqiyqpts2brnc1hyS15mTeNKQKLsA0DSPVzj1I/WtL6cJqI+XU8Ne9p3/mOr/ooPNIMo
+         mrG/05O41f+uMJ2lflFET90hCSdvD97Em2iC4LNK952dxXYVs9Fu2ZUuaLJZ/eqNdTMN
+         cJsA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+X-Gm-Message-State: APjAAAW51WNndnoIPDh1rZ492+K0gZK2Urj7BzLTx1bDxDWLxeZtPSzs
+	RouImeJdaxPrUcuWb4erlMXxnEhGKkTbY5wAYt2g/6P5tEiY0FR7lmnpbQPkN8QLQlcMLLAhw9H
+	+Dgkg3Aae4A93ausd+m3cyol4ZdJ66ITskLnj0YFNCJ1uKU+B3FcRYrdFXn9JYSSdbA==
+X-Received: by 2002:a05:6402:8d8:: with SMTP id d24mr35546153edz.36.1557835349305;
+        Tue, 14 May 2019 05:02:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqweWWZtum19xI5MbPPj4hH1AJX3OaxR7VZBg616c87TFstZYKuYQwytjlYtkJiCdwAwIcdc
+X-Received: by 2002:a05:6402:8d8:: with SMTP id d24mr35546034edz.36.1557835348291;
+        Tue, 14 May 2019 05:02:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557835348; cv=none;
         d=google.com; s=arc-20160816;
-        b=DbTuFTAYDfx11vZ/6cXdwI86z24kDyURHvfuw3NjE7bxSylqX2HoXeAMUBrDaYxRVn
-         AAkRHN66bqQb/SNI4dMFpsJk7ER3DTLz3ifStrGX6iJ4Sv6Ksu2YghZLHySUk9285YLM
-         TakJlNUH++1kYm/EkVugTCxo94FC17HR+VzckfSGCBl86q44dsGI6aPAQE5tEYL/WMHr
-         PCfTjn/AejVnXPmO34XeRYcvuxcxJON/c7rqE8oKeXHA4rDQAKVpNhfYIVjQ8gCabTn5
-         Ze6CXXn2q54MA90kkZcbhWN8YQmdE82cqOAlPPjX0DDe0gGHBvDbc5jUG768EHnoiw3e
-         QZqQ==
+        b=b4bVClcjwtYLEA//cq6I/0sShBkqrY0XZtZC47V3dZE52qbMF4rsJBy8xthouJmbH7
+         C9z4WVI80TLSDD+DUyoymcvX4YtJPYa6MDnI14ni4m6kR/cWaxXre8AaWlDHlpLoA0Hw
+         UrAZPqzFqH3RFhV1GjeESIn8LPlknJDJqGEHIIQcmgyIq+ESHufuCpgZgH9evn3/GbtQ
+         JCJgaNEstCgwYVSHPwHtlPqKDXRc58NvIITYYUlJX+n92RJTsMaQnNAY33T2M8jhQMfh
+         ys+Z64Wcmb8WazNL42oEvIm0RsmAfcoZnWRNe0k28nEeOo7Eup7T6fPG7hfkt3jn6Fcq
+         LbGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=2h7qN20uj1mfv3QLUgyx27DHKcW4BdPIEEbu7qYuSi8=;
-        b=bM00i9xIRcNedEayc3QFu9Y+5jrw8J3hhwHTeuY7f/ZG0mvwzWvLKA0Dsv+r0yHa0g
-         e0cAVXO+xo35Tfyse7JyG5Yw84hLtCUmErU7Bpd7fbF/8SJ+EsqnE2cKVdH0a2fqML0i
-         mT8nie5+S1SWosrNCL5X1mGTvNJ/FhGiZ7WdB2TbXNQRuShcy8wNDkkHGJtCeA05Okz7
-         0LrCx83zAPd5/Ia474oJCqiwYeGAitUtgCvYMJJ/DwrmosciQi6M26i+Wj/dHgOMKtP1
-         qFgOIl3942sFb5fhKE0Xy9He5DUN/N71l61l0iEIdaPYMX7aB+nNLBTN+KjorUGhtBEX
-         riEA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xLo4b1OAYRv30TeuYjgpk/OjC183NLin3aZGUPtrEbI=;
+        b=rVIZCqIGkbdzkDOKIgXG+dPhA+3XM+f9bPcmV8EMfF8aKNPaxGi7oY0dd145P2wuQt
+         DDuScmgABgWNUHorxWRxreL5wZkR7qJ2kp2EZgZnHk0gW0CjD5uJLmvRcwycdhXXSRR4
+         wr6h3hxZU/kLwESIUynG0MPj6nsBCpgcPT9Pauib3+v0h+ZfooqYoRoffe5/QOFVpAxp
+         OcKOFw/PGeOwhncVcmT37kngLH/dNl8yPr4BwqeufGClJ+XPIrR2lW9ldB56lCugywyg
+         3Fz4IDhHV1jpdQe0IZga0EjPx+zreBBjhLhp0D2gT1I2zYHwl67P7QohWr8dZyv9xm2L
+         IcEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JMdp8P8j;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id y81si9148813iof.0.2019.05.14.04.56.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 04:56:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c6si1178294edb.238.2019.05.14.05.02.27
+        for <linux-mm@kvack.org>;
+        Tue, 14 May 2019 05:02:28 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JMdp8P8j;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4EBtdC0025694;
-	Tue, 14 May 2019 11:55:50 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=2h7qN20uj1mfv3QLUgyx27DHKcW4BdPIEEbu7qYuSi8=;
- b=JMdp8P8jsf5h94rLazmh6AlI/FTxzyBSN6n77ZT6tAtRLi5hZhUfWV4KFaQ1paZbCJew
- dau+s0+Bl7pUwVTJEFoL8xiR4bf2WQjWWkmToNnPdc9/SZEWxVX7Y9wHDfwFxgxNvA40
- 4uqHCJGCxeu2J+HrvSKJhGjvh0y2iXAjg80ICRU/9V90LsOgO7rQkf+iQJzQQds20FMS
- oEtb9tTJZe5VMe7po0VDokhjghqDuFOdu0e/yLvNxLPri9JXjEWqMQ4hSOA+mnBbZcYH
- o6MKzuq2mEvhJgw1Z+1rsuVmNdQAk4l48D6Ga6eMU9z9UZnm/HU+gBYe9SVXezatP6Lq yQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2sdnttnc47-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 11:55:50 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4EBqB32051268;
-	Tue, 14 May 2019 11:53:50 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3030.oracle.com with ESMTP id 2sf3cn71jn-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 11:53:50 +0000
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4EBrlLv029327;
-	Tue, 14 May 2019 11:53:48 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 14 May 2019 04:53:47 -0700
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
-Subject: Re: [PATCH] mm: Introduce page_size()
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
-Date: Tue, 14 May 2019 05:53:46 -0600
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <3C1C665D-0C89-4C3D-A6B1-5ED83B26EEB1@oracle.com>
-References: <20190510181242.24580-1-willy@infradead.org>
- <eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-X-Mailer: Apple Mail (2.3445.104.11)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=773
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905140087
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=821 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905140088
+       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3890D341;
+	Tue, 14 May 2019 05:02:27 -0700 (PDT)
+Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8F02D3F71E;
+	Tue, 14 May 2019 05:02:25 -0700 (PDT)
+Date: Tue, 14 May 2019 13:02:20 +0100
+From: Will Deacon <will.deacon@arm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, jstancek@redhat.com,
+	namit@vmware.com, minchan@kernel.org, mgorman@suse.de,
+	stable@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+Message-ID: <20190514120220.GA16314@fuggles.cambridge.arm.com>
+References: <1557444414-12090-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190513163804.GB10754@fuggles.cambridge.arm.com>
+ <20190514115223.GP2589@hirez.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190514115223.GP2589@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, May 14, 2019 at 01:52:23PM +0200, Peter Zijlstra wrote:
+> On Mon, May 13, 2019 at 05:38:04PM +0100, Will Deacon wrote:
+> > On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
+> > > diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+> > > index 99740e1..469492d 100644
+> > > --- a/mm/mmu_gather.c
+> > > +++ b/mm/mmu_gather.c
+> > > @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+> > >  {
+> > >  	/*
+> > >  	 * If there are parallel threads are doing PTE changes on same range
+> > > +	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
+> > > +	 * flush by batching, one thread may end up seeing inconsistent PTEs
+> > > +	 * and result in having stale TLB entries.  So flush TLB forcefully
+> > > +	 * if we detect parallel PTE batching threads.
+> > > +	 *
+> > > +	 * However, some syscalls, e.g. munmap(), may free page tables, this
+> > > +	 * needs force flush everything in the given range. Otherwise this
+> > > +	 * may result in having stale TLB entries for some architectures,
+> > > +	 * e.g. aarch64, that could specify flush what level TLB.
+> > >  	 */
+> > > +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
+> > > +		/*
+> > > +		 * Since we can't tell what we actually should have
+> > > +		 * flushed, flush everything in the given range.
+> > > +		 */
+> > > +		tlb->freed_tables = 1;
+> > > +		tlb->cleared_ptes = 1;
+> > > +		tlb->cleared_pmds = 1;
+> > > +		tlb->cleared_puds = 1;
+> > > +		tlb->cleared_p4ds = 1;
+> > > +
+> > > +		/*
+> > > +		 * Some architectures, e.g. ARM, that have range invalidation
+> > > +		 * and care about VM_EXEC for I-Cache invalidation, need force
+> > > +		 * vma_exec set.
+> > > +		 */
+> > > +		tlb->vma_exec = 1;
+> > > +
+> > > +		/* Force vma_huge clear to guarantee safer flush */
+> > > +		tlb->vma_huge = 0;
+> > > +
+> > > +		tlb->start = start;
+> > > +		tlb->end = end;
+> > >  	}
+> > 
+> > Whilst I think this is correct, it would be interesting to see whether
+> > or not it's actually faster than just nuking the whole mm, as I mentioned
+> > before.
+> > 
+> > At least in terms of getting a short-term fix, I'd prefer the diff below
+> > if it's not measurably worse.
+> 
+> So what point? General paranoia? Either change should allow PPC to get
+> rid of its magic mushrooms, the below would be a little bit easier for
+> them because they already do full invalidate correct.
 
+Right; a combination of paranoia (need to remember to update this code
+to "flush everything" if we add new fields to the gather structure) but
+I also expected the performance to be better on arm64, where having two
+CPUs spamming TLBI messages at the same time is likely to suck.
 
-> On May 13, 2019, at 6:43 AM, Kirill Tkhai <ktkhai@virtuozzo.com> =
-wrote:
->=20
-> Hi, Matthew,
->=20
-> Maybe we should underline commented head page limitation with =
-VM_BUG_ON()?
->=20
-> Kirill
+I'm super confused about the system time being reported as higher with
+this change.  That's really not what I expected.
 
-I like that idea as well; even if all the present callers are =
-well-vetted, it's
-inevitable someone will come along and call page_size() without reading =
-the
-head-only comment first.
-
+Will
 
