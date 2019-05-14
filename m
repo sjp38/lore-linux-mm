@@ -2,170 +2,162 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A999C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 14:41:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9087C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 14:48:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAF3E2085A
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 14:41:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAF3E2085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8A0182084E
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 14:48:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="nDY82R10"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A0182084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E5856B0008; Tue, 14 May 2019 10:41:08 -0400 (EDT)
+	id 348E36B0005; Tue, 14 May 2019 10:48:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 596596B000A; Tue, 14 May 2019 10:41:08 -0400 (EDT)
+	id 2F8B96B0008; Tue, 14 May 2019 10:48:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45D8F6B000C; Tue, 14 May 2019 10:41:08 -0400 (EDT)
+	id 1E7196B000A; Tue, 14 May 2019 10:48:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E997C6B0008
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 10:41:07 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n52so23668879edd.2
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 07:41:07 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED1F86B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 10:48:08 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id k6so16147424qkf.13
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 07:48:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4pBFWQ4DnvT7PXcFjZRNsJcu+Bsqbpj8f0CIeSOBqkE=;
-        b=tmhLN0MyDQ/MpnOqNe3W21kmgDsbGYOJrdVjOOqDVvYNuunm7QP5yMoqKpHrfjk7z+
-         ys+3dvxVKu9tU99RVZAcmlacAKetiGlpMDBg/hXP4zdpxT/6MfuWGvPBIUv+BjYBotm9
-         JAqNphEwG9JYkMd5EGppd1CCaJgg9FpTOmXCbuBXjODqhgU6+hWvyz+gVw26oWOHIIy0
-         UNBQ7kOzYA0hqNZjjSDZB5CT1f79p+yfV14lWPX3p13O9XDXHGRzAS6pQaYQeWWhaV8j
-         zx0BuhK20FtRNtEv2cw2BZIktggSZfgA2p7kmtosaXf6BzZ7dkF+IEuQJP3IPfXEMibZ
-         yU9Q==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAU8syUBZ7/UkBiT1J0DHFY2zRRZjzwJSbOJj2S0yIASfbuoWQ1u
-	7fc2uI+0xZqlCDK+qNeMO72laDCUxg7zU0PE62TvuNz3T4trjM6SK7VWrCXMz1c2PUpUoHc8y0C
-	FHaTzKm4/h8BHk4iv22Vmb/vxpzDRD4593GJpaiLBnPDEp2Gp76b8xVR5TMLRGYY=
-X-Received: by 2002:a50:a3a2:: with SMTP id s31mr36532089edb.254.1557844867452;
-        Tue, 14 May 2019 07:41:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxkS4iMTs86ieoPrznzQsXMbMgmIgYKA0n6thxnE/BvRXFtb/sqaRUoJ0y6DNhD9Zi6GwvW
-X-Received: by 2002:a50:a3a2:: with SMTP id s31mr36532018edb.254.1557844866699;
-        Tue, 14 May 2019 07:41:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557844866; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=v9eQGAXN/pUrwyhsEw4eGQ0SnWi81FsI3CN7zGHdMUY=;
+        b=R/Iixo4YJzU1WixcNeIgnKD4NuO6JsdpurbrztU9tIG3vMenO9oewLxnprh8gKZAN5
+         zxQhGHVagrheodPmOtIg7gclgs199H81E6ePUlrUWzNDrR7bnnQBbVveY9LJPGIDuJ0E
+         xfLUGX9Bpx6qgOF6lnZXm5XZd36OqAPEq/f017OQKQb0ztaYJKp2CY6ks383JUBdKgbO
+         qs8laDi/Bh0ppgnxl23ILrsVKBj3LpsKzmM494SvfJB8w0FxJ1yyDQGGiSW3pAKTx7cR
+         jAA5W0GZblj55QWPEIay8dQn+jMCuS8NEUOvf/5wCzhVw7qNKLfZRe5gmYfFQrwGsKwW
+         9CFg==
+X-Gm-Message-State: APjAAAWgYEPLIVHzVaLMuEl62yvjE+O5laxsuyqn9RHagfUWycNXpVnM
+	Zzzoa3CfI58nZChEEVo9nGx2mYv1GxR6DYPGPP8wpaLTO523VAWPWMGfFRzPnbLSRFxY+EL9Fc3
+	7NA47YZ/HcIVaz6YCIYCx7qhev79jM+ljRklEtVnXy0XQnvezOyIsIUs9sayMdVqWew==
+X-Received: by 2002:ae9:ef45:: with SMTP id d66mr28490846qkg.313.1557845288592;
+        Tue, 14 May 2019 07:48:08 -0700 (PDT)
+X-Received: by 2002:ae9:ef45:: with SMTP id d66mr28490739qkg.313.1557845287365;
+        Tue, 14 May 2019 07:48:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557845287; cv=none;
         d=google.com; s=arc-20160816;
-        b=cp7wlVb7Wq5M32sfpp8CjyJfedsjMEEPjjY2a0EcAVmD0kcK9ODz2FA4K7sFu7pRo5
-         JFJSyBgcPSyqO/0+PCxFgeGt9Pw3wKuWymJdffspmBXh8BlFnXdssPg8E0dDNhggRWOb
-         8DQ2vnMALJsdObI3AwzG4ouQDNq2UdOsxiAykoOQRvfRcBs36U6F2OOKQmmYHN/GDMAK
-         582T1qxKxL0/Q3rn2Vqh8RPFEizkDZOZsJngSAa6973i4c6DFxkmvSaPwSu+tHJadSSl
-         NrX/yg7oSH1FyrXsRq3a/BCT2dwHKHDq4OatwwgU9dcyFBCKlc4iWiy0XRwu29nsgY/O
-         +KTg==
+        b=OL/WJZCbCd+iot2wXXtGXDhJy1Hwz/gqOFBzlGpjyfpbGXDKSwGrSum8XCXNjDTlVb
+         Ckb2OIZYD3Jqtl576jn+jQFpVRodi3U/yvXvdxRvchvce0ymOU7Lx5pfGVLu4OUqoNqc
+         T8hBTM+S1wQTcTfq8bFn3E/IR6P2Br8+QWNkQ3dyECnvr+RGvDY3uT2qDhA1DnMvwTJ2
+         25veZSEHgGO7b+CsFV1Efr/N/tKyVvgmw27yaDWunCBo2qrmHnrAHD1VZIl7DKSFXp89
+         jgTTI+15hEI1lKL09v9lioultxBJGc61HNSN+KoxdCaHhvVd5LoFPwmQJvW46p+y6R5s
+         Oghw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4pBFWQ4DnvT7PXcFjZRNsJcu+Bsqbpj8f0CIeSOBqkE=;
-        b=bi6keWeOW+Qez6rrIqZL0WbbnlFIzxcQsbYzm3qZk/sWghzN3kVFa5ISkYULatzUFH
-         mtodPJ3Gbz3KakvTIBRIpSIiAJ9dRGli0Kbs6+7WRRkPpnho+H46DrrfMfMlMHElSGBg
-         avP0Lu4/DuQxmKOIEv3PehgYkH8sXn9ETfw9M3cI3vFk+9FH2Fb8KS3JgghYAhE6MRTT
-         Lof5+AR6nBlfLMwsV8O2cCjwXXTeBVzq+3O2UXoZ1wvITfC73AsDCySv1Qblcfm63Hy+
-         nyMLAPMjNRGk4SNiOJFEiHUmTbU0KqcEvPssLGeMclt1HIGbD10cY+BSw8sKfoqbcGAM
-         2Sjw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=v9eQGAXN/pUrwyhsEw4eGQ0SnWi81FsI3CN7zGHdMUY=;
+        b=r+t/8CUyD6Pn/0lUkP9Xpki4io0KqVoyR0BjdR1+2VZGF3Og3DQDWG8Yxwoo/SJ2dk
+         Xfyk+5+kd5Gm+xVXUFKFBm8b95F+goVJTKck49X0OVEPms7D+b6tKy4SN6xQeM+NG8pg
+         imw+q+bfSijzse3YePapRuILbWorimksLQoFZQi3Z7+t+a/WCx/IcwYRIcrQzVg0T+sC
+         3WUBHxp1vw+h9dHYRX1HhrIQ3+2Up423yqslnHa50turzx3l+tEvhbc2WXwYtFsOEW/4
+         0XJ91MjnoZKVBLNK757rz8cjnEZnBRVU+JVZC1CSCtshbExyD8ohraZPgVlFTGmgeJyj
+         Cfjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c3si1051445ejb.187.2019.05.14.07.41.06
+       dkim=pass header.i=@lca.pw header.s=google header.b=nDY82R10;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n13sor1563077qtk.35.2019.05.14.07.48.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 07:41:06 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 14 May 2019 07:48:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 16AAFAC38;
-	Tue, 14 May 2019 14:41:06 +0000 (UTC)
-Date: Tue, 14 May 2019 16:41:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Timofey Titovets <nefelim4ag@gmail.com>,
-	Aaron Tomlin <atomlin@redhat.com>,
-	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Subject: Re: [PATCH RFC v2 0/4] mm/ksm: add option to automerge VMAs
-Message-ID: <20190514144105.GF4683@dhcp22.suse.cz>
-References: <20190514131654.25463-1-oleksandr@redhat.com>
+       dkim=pass header.i=@lca.pw header.s=google header.b=nDY82R10;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=v9eQGAXN/pUrwyhsEw4eGQ0SnWi81FsI3CN7zGHdMUY=;
+        b=nDY82R10ZFExPQ1BFRb0cIsRXMz1+Mbb5gLhwYj+P7wenw+vz2PGDVO3MW1ll4xmEs
+         gzrdZELS8S8hCF9KgzMJiVhBrijLGGB98FkA8+R5fQM4kS6TCVEKcnjnmqEENZNN2g1i
+         MIaN+82TeYtLkyYogEUBZJs5wC36oh/Lrj/mtbiGyb+InmfWr6WcxZ5AUVWPFFlrvyBG
+         4/pj6sdMf1+RGHBtb7Fzr/WKYFSZbUrM0e04VzB3MN1farriSoCrf2lrxWkXLgFkKwSI
+         ++gDxtWGnByHUiyi82arM6CP8Kw0joJB6gqMxBIk3ySoeP2uvbbsfusBhTd61y/daTbz
+         mYOA==
+X-Google-Smtp-Source: APXvYqzApoMig2QGgNA/X1ddscMp17wEIujDVgwIUcQLacZ1b7Qm2pChC9VvoBo44rkmkDMamq2H4Q==
+X-Received: by 2002:ac8:2e38:: with SMTP id r53mr30002293qta.192.1557845286967;
+        Tue, 14 May 2019 07:48:06 -0700 (PDT)
+Received: from ovpn-120-85.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id 124sm7905551qkj.59.2019.05.14.07.48.05
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 May 2019 07:48:06 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: cl@linux.com,
+	penberg@kernel.org,
+	rientjes@google.com,
+	iamjoonsoo.kim@lge.com,
+	catalin.marinas@arm.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [RESEND PATCH] slab: skip kmemleak_object in leaks_show()
+Date: Tue, 14 May 2019 10:47:41 -0400
+Message-Id: <20190514144741.39460-1-cai@lca.pw>
+X-Mailer: git-send-email 2.20.1 (Apple Git-117)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190514131654.25463-1-oleksandr@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[This is adding a new user visible interface so you should be CCing
-linux-api mailing list. Also CC Hugh for KSM in general. Done now]
+Running tests on a debug kernel will usually generate a large number of
+kmemleak objects.
 
-On Tue 14-05-19 15:16:50, Oleksandr Natalenko wrote:
-> By default, KSM works only on memory that is marked by madvise(). And the
-> only way to get around that is to either:
-> 
->   * use LD_PRELOAD; or
->   * patch the kernel with something like UKSM or PKSM.
-> 
-> Instead, lets implement a sysfs knob, which allows marking VMAs as
-> mergeable. This can be used manually on some task in question or by some
-> small userspace helper daemon.
-> 
-> The knob is named "force_madvise", and it is write-only. It accepts a PID
-> to act on. To mark the VMAs as mergeable, use:
-> 
->    # echo PID > /sys/kernel/mm/ksm/force_madvise
-> 
-> To unmerge all the VMAs, use the same approach, prepending the PID with
-> the "minus" sign:
-> 
->    # echo -PID > /sys/kernel/mm/ksm/force_madvise
-> 
-> This patchset is based on earlier Timofey's submission [1], but it doesn't
-> use dedicated kthread to walk through the list of tasks/VMAs. Instead,
-> it is up to userspace to traverse all the tasks in /proc if needed.
-> 
-> The previous suggestion [2] was based on amending do_anonymous_page()
-> handler to implement fully automatic mode, but this approach was
-> incorrect due to improper locking and not desired due to excessive
-> complexity.
-> 
-> The current approach just implements minimal interface and leaves the
-> decision on how and when to act to userspace.
+  # grep kmemleak /proc/slabinfo
+  kmemleak_object   2243606 3436210 ...
 
-Please make sure to describe a usecase that warrants adding a new
-interface we have to maintain for ever.
+As the result, reading /proc/slab_allocators could easily loop forever
+while processing the kmemleak_object cache and any additional freeing or
+allocating objects will trigger a reprocessing. To make a situation
+worse, soft-lockups could easily happen in this sitatuion which will
+call printk() to allocate more kmemleak objects to guarantee a livelock.
 
-> 
-> Thanks.
-> 
-> [1] https://lore.kernel.org/patchwork/patch/1012142/
-> [2] http://lkml.iu.edu/hypermail/linux/kernel/1905.1/02417.html
-> 
-> Oleksandr Natalenko (4):
->   mm/ksm: introduce ksm_enter() helper
->   mm/ksm: introduce ksm_leave() helper
->   mm/ksm: introduce force_madvise knob
->   mm/ksm: add force merging/unmerging documentation
-> 
->  Documentation/admin-guide/mm/ksm.rst |  11 ++
->  mm/ksm.c                             | 160 +++++++++++++++++++++------
->  2 files changed, 137 insertions(+), 34 deletions(-)
-> 
-> -- 
-> 2.21.0
-> 
+Since kmemleak_object has a single call site (create_object()), there
+isn't much new information compared with slabinfo. Just skip it.
 
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/slab.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 20f318f4f56e..85d1d223f879 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4285,6 +4285,15 @@ static int leaks_show(struct seq_file *m, void *p)
+ 	if (!(cachep->flags & SLAB_RED_ZONE))
+ 		return 0;
+ 
++	/*
++	 * /proc/slabinfo has the same information, so skip kmemleak here due to
++	 * a high volume and its RCU free could make cachep->store_user_clean
++	 * dirty all the time.
++	 */
++	if (IS_ENABLED(CONFIG_DEBUG_KMEMLEAK) &&
++	    !strcmp("kmemleak_object", cachep->name))
++		return 0;
++
+ 	/*
+ 	 * Set store_user_clean and start to grab stored user information
+ 	 * for all objects on this cache. If some alloc/free requests comes
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1 (Apple Git-117)
 
