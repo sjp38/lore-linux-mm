@@ -2,207 +2,231 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81889C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:34:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 920D1C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:44:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1A60120862
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:34:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5326520879
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:44:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="47ccYNEq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A60120862
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="O5udvkqQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5326520879
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E65E6B0005; Tue, 14 May 2019 17:34:01 -0400 (EDT)
+	id B86916B0005; Tue, 14 May 2019 17:44:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BC226B0006; Tue, 14 May 2019 17:34:01 -0400 (EDT)
+	id B35F56B0006; Tue, 14 May 2019 17:44:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AA6E6B0007; Tue, 14 May 2019 17:34:01 -0400 (EDT)
+	id 9D6916B0007; Tue, 14 May 2019 17:44:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BE406B0005
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:34:01 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id o126so460849itc.5
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:34:01 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DF4C6B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:44:57 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id d10so392239ybn.23
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=xP/1J7WtSjWfHwARbyhttwinIWyTQ+wkt13il4qJ3gI=;
-        b=VIp/4InC1/VIGf0OX40HVZ1MXDRPP+z6VgGVkwgPBcIphVYa1OB4eId58HWYHLd1mu
-         79W8IJJITvtTH3cFGC+rv5+AOB3yhVMtiEdRqQbEOeo32SCj8DLE+NUvUQVqlJzDnGfT
-         4n+jnGO8P5NDN0bVZbiXSa/UOhq3WCqoPo+O7gClntTON/Fj5N7DXnw8fN3u+WxyN3Z+
-         8rqNhWXAgsQ4XSpfHzNcXLzXU6iY8sBPocBhIEaLKSILmUn6+vSvdP5ooeGX2Ftk+n87
-         cugTqfApU5DcFlzj1mUXomO5wjBUcMtpJxXuLlgga0ZfnAJss6Yc7ERvHhYCbpHg80JC
-         p1WA==
-X-Gm-Message-State: APjAAAX3Ij3W+4kaIUMNRnCjU/azL7pgHa42LbqsdKfJvq8YWO6fGszg
-	elu3kPy1B4vJihFMjqW1/0ZZ9yw9UPZOQzTUCtMiUPhmdhGHAVlDo38LWhLcfiSXEn+gLP/m5Cu
-	BAY+xHrj6MNjR7ZM6u892fteISq1uDObDcLI/b65UhpSFPgkKcgtENL95q36+SvpSLA==
-X-Received: by 2002:a02:8243:: with SMTP id q3mr26325294jag.37.1557869641010;
-        Tue, 14 May 2019 14:34:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyhwR3jAIh7twvQuKyTzPyGKGQw4xyCOpuFSt/c3LEV2qHWhqnysAY68XvoO5Ug8JEPklRQ
-X-Received: by 2002:a02:8243:: with SMTP id q3mr26325233jag.37.1557869640272;
-        Tue, 14 May 2019 14:34:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557869640; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=JPu1ZqgGG6VS+4jhCMwR1QB6RLw1Ggqmre9BJXnrVoY=;
+        b=eLFnr1+sBT7o/Gat9FwVMPBDeSp8YydTegMx/RF+4TkdEvbG1PsiyxiUYCP7WGluuS
+         AMjuNc9tz3GMnjca7cPbK7s4UFFalIQbYPedh8jIWlo++syhgeZs8S8fY+LLCUDMuLNL
+         Vp+orVxYXDeUMitnvRSwdYwU0n3kTXMGdhdg3WDA0+S46O+jgcFq+SV/3W2bm7chS01Q
+         J5Ea4GM+OTtq+nCfW+G+p+ETcuNYRzaV//XbE5PQHv9ISCGWDMf7QE+40hKHdgm6UqpG
+         Hx1Gcy5I7Zr/PVfUSnQ6Bs2VaneqiTbpP0SAKDHBGy4azR6KyarpqNAV5+NZHvdk+d39
+         8OoA==
+X-Gm-Message-State: APjAAAX5bIKJKuQLCtnZ1fX0ddakHktw9gxVyaN01hJVBuTlnMUdg+XB
+	Iciwq8xbSNY7Uk7qiupZ+LwUISFJD8nL/yX69bbYwg+JMwFMGcmQBOHTUviV/PkJaHyRXjLRvCq
+	wYUHTRVDDr1zC6SKioH9FnOFUi3QgtJMyuLVgj9FEUwgt+6+G4DydBbX6PGHNIOcquw==
+X-Received: by 2002:a81:5f56:: with SMTP id t83mr19875389ywb.179.1557870297249;
+        Tue, 14 May 2019 14:44:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6xsX7XliGWsl/hIJF+xXJvcaHqsZoERA951dytb24ITvU1EY8Bq/5NzltYnfa1ssXC5Ad
+X-Received: by 2002:a81:5f56:: with SMTP id t83mr19875358ywb.179.1557870296495;
+        Tue, 14 May 2019 14:44:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557870296; cv=none;
         d=google.com; s=arc-20160816;
-        b=A/CkXeQMJKePZTkWw0tzDrYBtvcSS7aiEUuYxKQk8DrjPTVCQjU/jaqcwHdccY/Fv0
-         ujl3YrUCk+iFScIHHcglkqD1/U8l951GZFC31ytelw34VbXi+N2IqG7Lqdv9/34O4ccM
-         qw7f6Ho9tdAHWYhbkLHVm4/HPtXfS/QAE3NlHePBpkUBszVaTL9eGK4cvVDSA4GQzNpM
-         +xqFQrbfcqjDhNGm2R6zmHOw08ndZwsy4epLOcsR6EF3Aee9aIdZVPe83Vk82QKoBLzB
-         9p63RBAQAWIYN9Rd6UTsszAc8Eod9Sa+yT4wACimKcfFerojRHDRZ2IyBTDu8O0z8uzf
-         2jQw==
+        b=rYY+ojwvkD9CWfGatbi7BLzZaYCWgP/J+pqH6d9dZlLOC7UX5udyR/uOflc4BTtbwB
+         l6RrU7iDU7tyYRnJ4u6/CYSNs2XAS8DlASTh4HXWFLr5qWCrZBCNMyuQ34EvdFHX7/WB
+         H51geJGEp2/56nSJday1UevIn3ABX1QjtqzVb6jfxh/9nMx41WSlHD2FclUcsP+I80uf
+         NeiENt1xlr/U/FoFqvqs+gHwboA2Jy3vN9Sh0fcPIpzDI8XdBgd9/rL2uPtUD9EGqgjm
+         9egEf86FIgYKsWh50AJXv5EHsi/DOJLwELCRZfLdq+975gs9yCQZtZ7RYxGMRQzQHhni
+         EpdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=xP/1J7WtSjWfHwARbyhttwinIWyTQ+wkt13il4qJ3gI=;
-        b=pKjxbDFlB5glx4pmi7WCLlr3IMCn3HyKsNYPqIHGwrKVSh3Sdc/U+LD6iz5ARwY1FR
-         UzHuYEi8WLat+RrM2QGQcIl65ixMop2kDDjMAh3kYxxTTd5yLArCM624c1klEmLNTm6W
-         OC7zj7nkOOH9ihPQWftqkRCzEk4GlO7v8H2E7roDbXK1VaGB5Xie2AgNdI5fwvChWHBS
-         EEZ3hPFxcr0MoDn2KhYMGh/9yvkYtGtDyePnAEVoEuPQ9duEXy0ioFGA723Ve4jLEwvv
-         Om6D8g7eml2g0hxcWe6Kn/nFzsbtdoZ9dSIlHyWP3bXTJ1GaUNOxXUATLZUfC2NPyUYz
-         WqqA==
+        h=mime-version:references:in-reply-to:message-id:date:subject
+         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
+         :smtp-origin-hostprefix:dkim-signature;
+        bh=JPu1ZqgGG6VS+4jhCMwR1QB6RLw1Ggqmre9BJXnrVoY=;
+        b=F/cfflTKL6CZmZJPQEFNzGZoRxHEXdvMZHXpozPtQDAYoMB+nk+YyopFeltnpB88xN
+         59tI2r+uwhbguk9YmocFM6L3R9Npqq+jeGzeBgTj4Sasq+MmkfekJyvueDSG72M6l0Ay
+         LfjUTT/asqEr1kXR8Y8W+dKHDK7asAqJVI7WKUcbySKSaUrAVhdxbP81OTs5Ys34xL2/
+         3RPrNP0SRjApNn0iUhtbBygwlBmnY/NslYO1ZrDeVAI5zv9ArlVQCdbygm7iQLqaQYLQ
+         nW2vdLW8ounPyXI3PVxg8js67KOW473uUSrmugb4jLBIv61+G1FhKA5vVPTtfqN1+FJQ
+         CfvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=47ccYNEq;
-       spf=pass (google.com: domain of jan.setjeeilers@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=jan.setjeeilers@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id k13si99018jah.101.2019.05.14.14.34.00
+       dkim=pass header.i=@fb.com header.s=facebook header.b=O5udvkqQ;
+       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d17si4555813ybq.356.2019.05.14.14.44.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 14:34:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jan.setjeeilers@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Tue, 14 May 2019 14:44:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=47ccYNEq;
-       spf=pass (google.com: domain of jan.setjeeilers@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=jan.setjeeilers@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ELTuN4172625;
-	Tue, 14 May 2019 21:33:38 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=xP/1J7WtSjWfHwARbyhttwinIWyTQ+wkt13il4qJ3gI=;
- b=47ccYNEqQtVdANjxK2ZSYU7cWNuAlIz3aclJ+JlSKO3kyibmZMxV9F6hNHWk0nBOHcbb
- eWoQul25jc0gcFPtlbko4rrYqrREgGZxtpPLXG+i/YeKLpFuLDUeokwnqYBB2qCtSNz3
- n5GK/gjgh4cWNyP6cfMyo9WMLR6aQ7zSSgyJDUk8AJALjqOPZlLWOlQki9atZU9VDhr9
- Qn4ylmgTtHrOsereilhau+nW9/JOENdESqjcKGLL1qpoBBUHdB6RlPVmd1LTdTO3De5N
- ZVt/mvsOGNsVYibT/I71ekgHlRyFq9Psav9nBhMdCN+wxzdalYAQvQWL67Mg41xLS0di 2g== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2120.oracle.com with ESMTP id 2sdq1qgvua-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 21:33:37 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ELVIfq134876;
-	Tue, 14 May 2019 21:31:37 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2sdmebbr4s-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 21:31:37 +0000
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4ELVR6l014023;
-	Tue, 14 May 2019 21:31:32 GMT
-Received: from tresor.us.oracle.com (/10.211.52.98)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 14 May 2019 14:31:27 -0700
-Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
-To: Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
-Cc: Liran Alon <liran.alon@oracle.com>,
-        Alexandre Chartre <alexandre.chartre@oracle.com>,
-        Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>,
-        Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-        Jonathan Adams <jwadams@google.com>
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com>
- <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
- <CALCETrXK8+tUxNA=iVDse31nFRZyiQYvcrQxV1JaidhnL4GC0w@mail.gmail.com>
- <20190514073738.GH2589@hirez.programming.kicks-ass.net>
-From: Jan Setje-Eilers <jan.setjeeilers@oracle.com>
-Message-ID: <f0d218f1-076e-e8ce-ebf8-84712a126b32@oracle.com>
-Date: Tue, 14 May 2019 14:32:28 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@fb.com header.s=facebook header.b=O5udvkqQ;
+       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4ELhtg2009938
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:56 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : in-reply-to : references : mime-version :
+ content-type; s=facebook; bh=JPu1ZqgGG6VS+4jhCMwR1QB6RLw1Ggqmre9BJXnrVoY=;
+ b=O5udvkqQlOyeiCzPAr0ial+WE4ZaoCA8UTZvbjaS8/jhDpEtTHXaO9CFxTDF1ja9JhQo
+ gxvMehqqxrNwTFGXHtPUMXQnCesCcBobpKrsz3rAjjcytiBGFrCDxOZKgchd7Wt95VgW
+ MuUg46ffASGbnPk4spaMKyBP7npMb+A7K0w= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2sg5bm840w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 14:44:56 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Tue, 14 May 2019 14:44:55 -0700
+Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
+	id 7DF75120772A3; Tue, 14 May 2019 14:39:41 -0700 (PDT)
+Smtp-Origin-Hostprefix: devvm
+From: Roman Gushchin <guro@fb.com>
+Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+        Shakeel Butt
+	<shakeelb@google.com>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Michal Hocko
+	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+        Christoph Lameter
+	<cl@linux.com>,
+        Vladimir Davydov <vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>,
+        Roman Gushchin <guro@fb.com>
+Smtp-Origin-Cluster: prn2c23
+Subject: [PATCH v4 3/7] mm: introduce __memcg_kmem_uncharge_memcg()
+Date: Tue, 14 May 2019 14:39:36 -0700
+Message-ID: <20190514213940.2405198-4-guro@fb.com>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190514213940.2405198-1-guro@fb.com>
+References: <20190514213940.2405198-1-guro@fb.com>
+X-FB-Internal: Safe
 MIME-Version: 1.0
-In-Reply-To: <20190514073738.GH2589@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=878
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905140141
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=903 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905140141
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_13:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=946 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905140143
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Let's separate the page counter modification code out of
+__memcg_kmem_uncharge() in a way similar to what
+__memcg_kmem_charge() and __memcg_kmem_charge_memcg() work.
 
-On 5/14/19 12:37 AM, Peter Zijlstra wrote:
-> On Mon, May 13, 2019 at 07:07:36PM -0700, Andy Lutomirski wrote:
->> On Mon, May 13, 2019 at 2:09 PM Liran Alon <liran.alon@oracle.com> wrote:
->>> The hope is that the very vast majority of #VMExit handlers will be
->>> able to completely run without requiring to switch to full address
->>> space. Therefore, avoiding the performance hit of (2).
->>> However, for the very few #VMExits that does require to run in full
->>> kernel address space, we must first kick the sibling hyperthread
->>> outside of guest and only then switch to full kernel address space
->>> and only once all hyperthreads return to KVM address space, then
->>> allow then to enter into guest.
->> What exactly does "kick" mean in this context?  It sounds like you're
->> going to need to be able to kick sibling VMs from extremely atomic
->> contexts like NMI and MCE.
-> Yeah, doing the full synchronous thing from NMI/MCE context sounds
-> exceedingly dodgy, howver..
->
-> Realistically they only need to send an IPI to the other sibling; they
-> don't need to wait for the VMExit to complete or anything else.
->
-> And that is something we can do from NMI context -- with a bit of care.
-> See also arch_irq_work_raise(); specifically we need to ensure we leave
-> the APIC in an idle state, such that if we interrupted an APIC sequence
-> it will not suddenly fail/violate the APIC write/state etc.
->
-  I've been experimenting with IPI'ing siblings on vmexit, primarily 
-because we know we'll need it if ASI turns out to be viable, but also 
-because I wanted to understand why previous experiments resulted in such 
-poor performance.
+This will allow to reuse this code later using a new
+memcg_kmem_uncharge_memcg() wrapper, which calls
+__memcg_kmem_uncharge_memcg() if memcg_kmem_enabled()
+check is passed.
 
-  You're correct that you don't need to wait for the sibling to come out 
-once you send the IPI. That hardware thread will not do anything other 
-than process the IPI once it's sent. There is still some need for 
-synchronization, at least for the every vmexit case, since you always 
-want to make sure that one thread is actually doing work while the other 
-one is held. I have this working for some cases, but not enough to call 
-it a general solution. I'm not at all sure that the every vmexit case 
-can be made to perform for the general case. Even the non-general case 
-uses synchronization that I fear might be overly complex.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+---
+ include/linux/memcontrol.h | 10 ++++++++++
+ mm/memcontrol.c            | 25 +++++++++++++++++--------
+ 2 files changed, 27 insertions(+), 8 deletions(-)
 
-  For the cases I do have working, simply not pinning the sibling when 
-we exit due to the quest idling is a big enough win to put performance 
-into a much more reasonable range.
-
-  Base on this, I believe that pining a sibling HT in a subset of cases, 
-when we interact with full kernel address space, is almost certainly 
-reasonable.
-
--jan
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 36bdfe8e5965..deb209510902 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -1298,6 +1298,8 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
+ void __memcg_kmem_uncharge(struct page *page, int order);
+ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+ 			      struct mem_cgroup *memcg);
++void __memcg_kmem_uncharge_memcg(struct mem_cgroup *memcg,
++				 unsigned int nr_pages);
+ 
+ extern struct static_key_false memcg_kmem_enabled_key;
+ extern struct workqueue_struct *memcg_kmem_cache_wq;
+@@ -1339,6 +1341,14 @@ static inline int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp,
+ 		return __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+ 	return 0;
+ }
++
++static inline void memcg_kmem_uncharge_memcg(struct page *page, int order,
++					     struct mem_cgroup *memcg)
++{
++	if (memcg_kmem_enabled())
++		__memcg_kmem_uncharge_memcg(memcg, 1 << order);
++}
++
+ /*
+  * helper for accessing a memcg's index. It will be used as an index in the
+  * child cache array in kmem_cache, and also to derive its name. This function
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 48a8f1c35176..b2c39f187cbb 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2750,6 +2750,22 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+ 	css_put(&memcg->css);
+ 	return ret;
+ }
++
++/**
++ * __memcg_kmem_uncharge_memcg: uncharge a kmem page
++ * @memcg: memcg to uncharge
++ * @nr_pages: number of pages to uncharge
++ */
++void __memcg_kmem_uncharge_memcg(struct mem_cgroup *memcg,
++				 unsigned int nr_pages)
++{
++	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
++		page_counter_uncharge(&memcg->kmem, nr_pages);
++
++	page_counter_uncharge(&memcg->memory, nr_pages);
++	if (do_memsw_account())
++		page_counter_uncharge(&memcg->memsw, nr_pages);
++}
+ /**
+  * __memcg_kmem_uncharge: uncharge a kmem page
+  * @page: page to uncharge
+@@ -2764,14 +2780,7 @@ void __memcg_kmem_uncharge(struct page *page, int order)
+ 		return;
+ 
+ 	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
+-
+-	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+-		page_counter_uncharge(&memcg->kmem, nr_pages);
+-
+-	page_counter_uncharge(&memcg->memory, nr_pages);
+-	if (do_memsw_account())
+-		page_counter_uncharge(&memcg->memsw, nr_pages);
+-
++	__memcg_kmem_uncharge_memcg(memcg, nr_pages);
+ 	page->mem_cgroup = NULL;
+ 
+ 	/* slab pages do not have PageKmemcg flag set */
+-- 
+2.20.1
 
