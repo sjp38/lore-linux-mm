@@ -2,152 +2,231 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1690FC04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 23:40:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 082DBC04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 23:51:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AA4EF2084E
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 23:40:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B1EF12084F
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 23:51:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kO9iPKcd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA4EF2084E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="AF0Ok7DQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1EF12084F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 032E46B0005; Tue, 14 May 2019 19:40:25 -0400 (EDT)
+	id 4BE426B0005; Tue, 14 May 2019 19:51:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F24C46B0006; Tue, 14 May 2019 19:40:24 -0400 (EDT)
+	id 46E7A6B0006; Tue, 14 May 2019 19:51:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E13276B0007; Tue, 14 May 2019 19:40:24 -0400 (EDT)
+	id 30FD46B0007; Tue, 14 May 2019 19:51:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE0036B0005
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 19:40:24 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id i124so794039qkf.14
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 16:40:24 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DFEA6B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 19:51:20 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id 23so689787ybe.16
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 16:51:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=mqlrXy5kwdDrwo0UFJq8GGPqMotywoeM6XVl2pYk4JQ=;
-        b=TJ1ICHaXQFXvO+R4SWz89OtB0O1KPjemvduvWRXOdBf9fF0vRcJ6eU3fQScGlqaUbr
-         zXG/8SpaMbe+tKg4md4dbbr4/YGamH6F6hfIVKi5t+9CWagqN8Uhfln36iqugzMRGP1T
-         X5cPqbdJ6mgy8oq2rMYs6Vn7HLS9CUktA7aVePo6n/wM1pnTy0eRvO6TOybq0mQ3h076
-         Kcxsym8mUX7I9HhINz6Gnk8Nlghyc5lbcAdw4//FBeanwxgFok11PuXKMzuhEM7mY3Pk
-         YB5tHSPBlKMzgWOW81M2k7Q1kT46zsFwEFEGk7BtOFrx10kiOi2AK1pycAFaHN+31Jg2
-         +fTA==
-X-Gm-Message-State: APjAAAUsLlootofdsaMthdE3b16NfqhtdL1VbuqRgRr9W7SyCDpfLsZ0
-	DMcldoAOmpsjvIUncynacDhajUh4FHWp/DN5aVvQUkVz36S1VGpw3dczyDD68wFwrGmjv5/TJ+v
-	X5X8/xqjpEtb/vrNn+S2S2G9sPlxhuKh+ecoifUkIpt33pDe4TnBFurPWMutV0gT4cw==
-X-Received: by 2002:ac8:3f75:: with SMTP id w50mr33589406qtk.27.1557877224495;
-        Tue, 14 May 2019 16:40:24 -0700 (PDT)
-X-Received: by 2002:ac8:3f75:: with SMTP id w50mr33589351qtk.27.1557877223692;
-        Tue, 14 May 2019 16:40:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557877223; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:in-reply-to:references:mime-version;
+        bh=mUkFppAAxjAaE2wXhVtrJ91WjjBKr6GRw5GrMLKoRzU=;
+        b=lwt9Np0BieEE5bQi9DXq8CmqP72B94R+zxenwfFgZ8rcmKA3BKy85f1p2qAzim39xo
+         KHf0RLbi7YNNufMNwXRY9hxJb/K3l0yWf9xuWN+gqUFxTCQ1nKGqHfV1SQyY0Pd7OY/y
+         uKr0/XrbrMTjihHz01yTg7CzRuDwW/3zFa/FCcZyRGqM77UbDl/OBg5PoS4g6pa61idu
+         xnxl72tuwoNMJcqnYff8TWYOYsPvCY4mnM2QCVfU0xy3+gIX63p5U/E/NGf8bbet8XYu
+         skMvCwIrDhVm6IitlHV4DJXIUmtGE2h99mo3djg/Pc3GlpG13AKXR5o8akUsZ+ErT8Ta
+         Bf4A==
+X-Gm-Message-State: APjAAAXgw86EsDb1qvE5CbPTQMxiuCLyeEhP7RGoRTChoZh4orC23sev
+	ZMKfJJi17G2ngoitaNYBaK/k4FpewvyQq9ExAlb4iETYdqJv6lr5ZcUw8sgdcgm1vAbNG/9Dwff
+	Jdi6Bj2VQrBKUvALMe9GHZpp4mKq2wcuCsds61TMruUP4aGJOyIP9eZKMDDhKiRzBGg==
+X-Received: by 2002:a81:a141:: with SMTP id y62mr5757873ywg.192.1557877879764;
+        Tue, 14 May 2019 16:51:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw7SFCpGDW2z3cr2b8b7Oj2QExOZi0InH+R/e6nNWw1dIfnfugPMhFQPkVqYEpvVtz//oh5
+X-Received: by 2002:a81:a141:: with SMTP id y62mr5757858ywg.192.1557877879107;
+        Tue, 14 May 2019 16:51:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557877879; cv=none;
         d=google.com; s=arc-20160816;
-        b=ptLIXCvt3exYeZICOTjtTxGpY2kOQkOOx1AZo2CTdkMkejsrRaofsiwptdd7wutWl7
-         gs7MIPwlQ2dHx2Nf2Fb743WsNsogCuA+ep3vkX9Gjmc9XR2jMyEstrlyuaRd/vDusasX
-         D+iZIbQTOloQmhVyJd0o2cJoIExAveNC8e6jCsX6eW8uACVh42LAEpw/mmiRbfKip9K5
-         3h4hZ74QuUUtLwNYao2ckqnjE913rSXnF/xTMHr0gzHcyXBRInslf8CT45JUlTEfXKay
-         JMKaYyA8lz1x61qWtQtd5GssThWonQsUwsslAVLZfh6o9NhiZnowFdnF0CKjNjt1NDlt
-         KBNA==
+        b=lGXMOWNg3I0IWaoBmUo0Pa6CL30Y1rjZsa2+roLoMaGgMf8MjFLdGyCDhigfEUALsh
+         pBukUicG5lyHKDaHCIIspkQqNxLgF6E0w1LgsMhwYXKpoYQi8OzhlPC+d8D9RC5gQBjc
+         34bcDNb+p+LRNdz8JYEFpXDJjF6EjBzRXpD7KkX6t3eDtWWN1wDlNam+/VFmAEZAlCZf
+         kIW9U9ECM3LiZ0sGHS/wFD+UwF5LsPnDXkMQZOGyGuqhQOkj05GQrdGd3xivQOOFsNjm
+         pvqaCsvf4qv+5txClFmV/pVwRqNIZ7pCLGdiPW11afh/uyUn8ps3g/tsn9dbTtybCW0s
+         pe9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=mqlrXy5kwdDrwo0UFJq8GGPqMotywoeM6XVl2pYk4JQ=;
-        b=ZNaSWlFzhZ8W7PVcoxhd1OHPJYRWaBVorAlI87SV+nJ/PwftoKEhJpZZyq52q2fN4B
-         J9lyrH3skKTYKaTaTD049iga7I4KKGZSzbmt8w1xQoYdAYI+ZCDsl9rJPWn84FkSwcO9
-         kWcwpflCWV6iiblY9+PWsBIB8nERbdhqpWfQP8m5BURdpvJYNUsQKZ4/l5Uf9LDKjQ7S
-         ZOf3RJHKU9Hq6aEsOwyYxjy8F6Uvqhpj7V5CUGNRmWrw0iYMnoNUOTPlTNwOQYTSWDpD
-         7m9oQNKrlYEsxqxeYwg6lQfiBlqQfUEyc09lWr90ibx2mr7eLv2wzpHNdwZUR5/VFjTq
-         5G+w==
+        h=mime-version:references:in-reply-to:message-id:date:subject
+         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
+         :smtp-origin-hostprefix:dkim-signature;
+        bh=mUkFppAAxjAaE2wXhVtrJ91WjjBKr6GRw5GrMLKoRzU=;
+        b=fAJ96nPmmGHl8Mv1p/K0s+Swbn0cnc+BBKQ4+DYjfhnnGbFoHWPhC+bI86oofXs+aY
+         fFOBHsd1egnVFKoEdIPpfQ0VcAT9ajBFZi5faZfHsf1lnbVAJKYbCzhJZSFkh2Ndruvn
+         dhzZpwHM8NY4Kbihvhiq+UJr92o3gLD6xieERCPpak1N31Gv15+1PwRzNXPLKkJFItZc
+         B44Vhoqp2ByPwmHcyq+Z896VUNc1nLYMoGbi7eRkM1PC++zQAD0N2fqWpNk8qQj8ZirP
+         DgV/4nmW67A6PK0QQfKEWNWQSXNbmFY59YrJd22sOCF2UgtXbwBnYWlqXtZxsHyTBzxG
+         0XvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kO9iPKcd;
-       spf=pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liu.song.a23@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r18sor322095qve.40.2019.05.14.16.40.23
+       dkim=pass header.i=@fb.com header.s=facebook header.b=AF0Ok7DQ;
+       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d4si64039ybr.272.2019.05.14.16.51.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 14 May 2019 16:40:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 May 2019 16:51:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kO9iPKcd;
-       spf=pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liu.song.a23@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=mqlrXy5kwdDrwo0UFJq8GGPqMotywoeM6XVl2pYk4JQ=;
-        b=kO9iPKcdYHvq7Sy8SSA7D9MRPKbtN9+us4/EErldh7Q6WJGODf0MesKSC5OhxQ7IN7
-         lPxyWzUjq99r96cm2T2CxpIw0l5KV8jnTT5Jg5O4a4n29kjPQQCyfjfxzDkFEw3RrC1C
-         Q16I9GbitKoCMSEaV4V6wt7Tt2HupryJBrlm+WwpOv/TYRHgp4VC8IdN0ygNNWTs6JFt
-         zDH91eVMgIzDnvEIToaXNoZSbRBcGtPwjJvusEUBxuRhCqb28S75HrSU6QVGvsj4qhOA
-         sS3OBF3WfP4GXaT75hzGXjBonIl3CyNpZNaLXN3sNusLlIPjy2g4Poa93CznpOcD5a2Y
-         FfSQ==
-X-Google-Smtp-Source: APXvYqzwbNTznSBrD6LoX9VLQYRvaPeKLNqZGrq7TRAldxBbjP7SsrUY2Ndu+OYRW/2V+3p4I5kx8+x21B1wcVBFZZo=
-X-Received: by 2002:a0c:aed4:: with SMTP id n20mr30980915qvd.195.1557877223375;
- Tue, 14 May 2019 16:40:23 -0700 (PDT)
+       dkim=pass header.i=@fb.com header.s=facebook header.b=AF0Ok7DQ;
+       spf=pass (google.com: domain of prvs=0037dedd0e=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0037dedd0e=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4ENhdFS022408
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 16:51:18 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : in-reply-to : references : mime-version :
+ content-type; s=facebook; bh=mUkFppAAxjAaE2wXhVtrJ91WjjBKr6GRw5GrMLKoRzU=;
+ b=AF0Ok7DQriDizVKzZBOD4/IvxG41k64FkudQjZGoUgeoSUlhZgjI3RD4N38CtZxZ69t1
+ c+ds43zMjz93JkylISnxoDGviWrHVwUrwJkeZ6Dq6FmILolxzBa9NNSM4YDrF3I5MxA7
+ 3R66NJ+77s92Ekew/l8KJ0g08ubFAFhqooo= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2sg0pkhnck-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 16:51:18 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::4) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Tue, 14 May 2019 16:51:17 -0700
+Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
+	id E265312084F4A; Tue, 14 May 2019 16:51:15 -0700 (PDT)
+Smtp-Origin-Hostprefix: devvm
+From: Roman Gushchin <guro@fb.com>
+Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin
+	<guro@fb.com>
+Smtp-Origin-Cluster: prn2c23
+Subject: [PATCH RESEND] mm: show number of vmalloc pages in /proc/meminfo
+Date: Tue, 14 May 2019 16:51:11 -0700
+Message-ID: <20190514235111.2817276-2-guro@fb.com>
+X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190514235111.2817276-1-guro@fb.com>
+References: <20190514235111.2817276-1-guro@fb.com>
+X-FB-Internal: Safe
 MIME-Version: 1.0
-References: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
-In-Reply-To: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
-From: Song Liu <liu.song.a23@gmail.com>
-Date: Tue, 14 May 2019 16:40:12 -0700
-Message-ID: <CAPhsuW5B5twTEk=SZZqZCH9_hjEjJ_KFP_GYq3T6nzv7kRSM0w@mail.gmail.com>
-Subject: Re: [PATCH] mm: filemap: correct the comment about VM_FAULT_RETRY
-To: Yang Shi <yang.shi@linux.alibaba.com>, jbacik@fb.com
-Cc: josef@toxicpanda.com, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux-MM <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_13:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905140154
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 25, 2019 at 4:22 PM Yang Shi <yang.shi@linux.alibaba.com> wrote:
->
-> The commit 6b4c9f446981 ("filemap: drop the mmap_sem for all blocking
-> operations") changed when mmap_sem is dropped during filemap page fault
-> and when returning VM_FAULT_RETRY.
->
-> Correct the comment to reflect the change.
->
-> Cc: Josef Bacik <josef@toxicpanda.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+Vmalloc() is getting more and more used these days (kernel stacks,
+bpf and percpu allocator are new top users), and the total %
+of memory consumed by vmalloc() can be pretty significant
+and changes dynamically.
 
-Looks good to me!
+/proc/meminfo is the best place to display this information:
+its top goal is to show top consumers of the memory.
 
-Acked-by: Song Liu <songliubraving@fb.com>
+Since the VmallocUsed field in /proc/meminfo is not in use
+for quite a long time (it has been defined to 0 by the
+commit a5ad88ce8c7f ("mm: get rid of 'vmalloc_info' from
+/proc/meminfo")), let's reuse it for showing the actual
+physical memory consumption of vmalloc().
 
-> ---
->  mm/filemap.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index d78f577..f0d6250 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2545,10 +2545,8 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
->   *
->   * vma->vm_mm->mmap_sem must be held on entry.
->   *
-> - * If our return value has VM_FAULT_RETRY set, it's because
-> - * lock_page_or_retry() returned 0.
-> - * The mmap_sem has usually been released in this case.
-> - * See __lock_page_or_retry() for the exception.
-> + * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
-> + * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
->   *
->   * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
->   * has not been released.
-> --
-> 1.8.3.1
->
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ fs/proc/meminfo.c       |  2 +-
+ include/linux/vmalloc.h |  2 ++
+ mm/vmalloc.c            | 10 ++++++++++
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 568d90e17c17..465ea0153b2a 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -120,7 +120,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	show_val_kb(m, "Committed_AS:   ", committed);
+ 	seq_printf(m, "VmallocTotal:   %8lu kB\n",
+ 		   (unsigned long)VMALLOC_TOTAL >> 10);
+-	show_val_kb(m, "VmallocUsed:    ", 0ul);
++	show_val_kb(m, "VmallocUsed:    ", vmalloc_nr_pages());
+ 	show_val_kb(m, "VmallocChunk:   ", 0ul);
+ 	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
+ 
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 51e131245379..9b21d0047710 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -72,10 +72,12 @@ extern void vm_unmap_aliases(void);
+ 
+ #ifdef CONFIG_MMU
+ extern void __init vmalloc_init(void);
++extern unsigned long vmalloc_nr_pages(void);
+ #else
+ static inline void vmalloc_init(void)
+ {
+ }
++static inline unsigned long vmalloc_nr_pages(void) { return 0; }
+ #endif
+ 
+ extern void *vmalloc(unsigned long size);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8d4907865614..65871ddba497 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -398,6 +398,13 @@ static void purge_vmap_area_lazy(void);
+ static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
+ static unsigned long lazy_max_pages(void);
+ 
++static atomic_long_t nr_vmalloc_pages;
++
++unsigned long vmalloc_nr_pages(void)
++{
++	return atomic_long_read(&nr_vmalloc_pages);
++}
++
+ static struct vmap_area *__find_vmap_area(unsigned long addr)
+ {
+ 	struct rb_node *n = vmap_area_root.rb_node;
+@@ -2214,6 +2221,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			BUG_ON(!page);
+ 			__free_pages(page, 0);
+ 		}
++		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
+ 
+ 		kvfree(area->pages);
+ 	}
+@@ -2390,12 +2398,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
+ 			area->nr_pages = i;
++			atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
+ 			goto fail;
+ 		}
+ 		area->pages[i] = page;
+ 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
+ 			cond_resched();
+ 	}
++	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
+ 
+ 	if (map_vm_area(area, prot, pages))
+ 		goto fail;
+-- 
+2.20.1
 
