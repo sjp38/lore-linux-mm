@@ -2,206 +2,435 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	HTML_MESSAGE,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 305AFC04A6B
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:15:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7799AC04A6B
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:21:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFC93208C3
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:15:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="UjeQp29e"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFC93208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BE3C6208C3
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:21:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE3C6208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 793786B0003; Tue, 14 May 2019 00:15:27 -0400 (EDT)
+	id 5BA636B0003; Tue, 14 May 2019 00:21:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 744086B0005; Tue, 14 May 2019 00:15:27 -0400 (EDT)
+	id 56D4F6B0005; Tue, 14 May 2019 00:21:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60B256B0007; Tue, 14 May 2019 00:15:27 -0400 (EDT)
+	id 459506B0007; Tue, 14 May 2019 00:21:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 385526B0003
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:15:27 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id e88so8511492ote.14
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:15:27 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 071706B0003
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:21:09 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id c12so11110469pfb.2
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:21:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=QpRQ5RKoCjF8LRntvBnA0N48k6E1wZWnQrRBNWvrbJk=;
-        b=V8uEu/Wo9pI4mIGovcm1XyNeHMsJUvB1E8QRnjxsjHsvxDv00IQOehT6z6eoRte6n/
-         P/+eUKVvSiJ6ASYzp7/0jKKxSjF5ZDhyKjJuiSiK8exJz/D0rMM/5nnEStYQJGs0LROg
-         TT/fkplGjfcvHZZqwavkb943QI19rgkfiKLzhw7OMBG6d3dw3dFAF0fOU+OgalmBIAQV
-         aYAQyl8Mf5ZTXVl2hBP11VmEyUGg8XRNR92xuM+bRVknBzr95sgq1LOEZVmsjoXXzVW5
-         fD+gUsjrf869dQd2MJB/OVafHk/0Hu7rfSwVGZ4+AUSYT2+xcem6RytVVEBV+BSafo7x
-         8EEA==
-X-Gm-Message-State: APjAAAXN5XoGGcqv8n3LIYdGW+t9ZiR+SM1y1rfsNAKZRN5FvFOJPh0q
-	bHrV1YR5cKe794vz2DibQFyyjT/8q34t28V/DXXhOKjDdjrASV27YTJH/HYrnqZKtdGtSqQQI5S
-	otNeXym7UZ07qBB6b6X8gTm3Qx5ibBOjAOzV7CSKpdOQVpkcyMfNwvzQCSsBWRPESkQ==
-X-Received: by 2002:aca:de56:: with SMTP id v83mr1517976oig.31.1557807326890;
-        Mon, 13 May 2019 21:15:26 -0700 (PDT)
-X-Received: by 2002:aca:de56:: with SMTP id v83mr1517952oig.31.1557807326060;
-        Mon, 13 May 2019 21:15:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557807326; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language;
+        bh=NP+3O/0LttVJ8QsrYDmvw75XaNtX6CD38Fq1+X8Q3zs=;
+        b=oxuDutWtyusfXzh9hcmWnmT07V7/0KV9KSxUjD5Psqajw+6BWXEx/DPnfwz3B5h/39
+         LqYAXg4AT+7CTyK8AsAT3cNMHHXZOF7VMn0QBrqK98kB5a0r7ahmJ7TjGeZ39bFJZVGB
+         h/zPOXIGcwc+yhgWvsgFU4zzftQwo3ogruAQzk4R6NFIjeqPtnM7uecE5ctDXZ6ofLXN
+         6/CH91ITvW4X7K6VGnAmOB9VylNkxOg6jQWd3HfMyWPzp36ZWx8NBB66jyDaTxg8Rzj/
+         comZYrpQPeVLB/Cms34LSXClyWkPhp4x5Xbj6l+SErNcV/m3fzl4wZ40IG0b5JVJXi1g
+         xK2Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXhe4XEimGhMR0fWdTqjC8QpsVVX3xAIpBvyZt4G/mzCFeU0XN+
+	FYjPTxAxeRzm2VqPHA8NzBo8YES0TyNUtOdQl/R3PqW+nZ3DH+INpJr6icD149Caq6xTV+d2EKA
+	ILxteuDjg9bcq0zUQJbubdGY/hYVazuJeG8JUGEsdT1ugWjxtv/ShwJSIV2D5Ap0VtQ==
+X-Received: by 2002:a17:902:3281:: with SMTP id z1mr34877375plb.44.1557807668680;
+        Mon, 13 May 2019 21:21:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx/D1KDPUf1I2qxG1ZbeNmhaDTJjRBnzJzPOo4XABhw2XcCkiaRcWpVinnHFcvfyxVYM9DJ
+X-Received: by 2002:a17:902:3281:: with SMTP id z1mr34877317plb.44.1557807667837;
+        Mon, 13 May 2019 21:21:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557807667; cv=none;
         d=google.com; s=arc-20160816;
-        b=SECbRqP/QbGxIGzCVT9Dgm9vUHuc1sk+5Dm29zeXjzvQNzkOCRkHJxqJklldQGWQMI
-         Zb8UFyM33tkdhqD1vHXCD7YKUfz6Ej8w9qaJh+iYtFTIZkMVCCjxDbb/Ocng31zMFE1k
-         gsbxEJ8z7b1YVzgcYSK2AywordtVTMGqG5P3MpsQilpzcczNTl0QXpTtinQYva6VBeE5
-         ophjPI5qS5p6GSqIVC9dB+4TgROJFiQs04f0dnYJlXaJ+WIkPvOtDVMgTBwcjmsJe7Ti
-         SgTymyXfPFkeuNOGHKq9RaXd5EiLrjjv3+S70XuktxasJCdL6iFyGoTsrJdSDC0LYphX
-         hJGg==
+        b=xlRC66cYsXYUZf9RPbK3EfUKv4aG6bitHqvH3AtkaNYPM5qliPNh5TgGAqDLr7Hq6g
+         OhMblqcOeRVj0WalrHua1cXsvcCZ08CN2/+/0XEjyZievFhrGmyIygxTvCL8ucS5pWEY
+         HLn8jmtLoMEqM31h0/xc9pos/ckqIdUf9g1RIlLRYCrPLd/33E+rFYEaszkqZpyF3IYD
+         St5pcGG+hTOUbRhZDjwk5RSvBKU7V+IJwF58HEKFejyzWoaIK7qNTlPxZ7AhfTzzy2kv
+         WF9b82DU6uMRCjhICrpT+4+eoEk3rrsIVzpFvnoAjF4IuQviwSFOouzfqijpLvdoCeJn
+         JRRg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=QpRQ5RKoCjF8LRntvBnA0N48k6E1wZWnQrRBNWvrbJk=;
-        b=iv96+9Groncrdk+uuSTKGZomxF69kZf+fHJ4jQjI6aJ8NG72c/9smoLXbwXjJbSzex
-         H+1eIvkuo0c54LmYK8T9CGtCrnM9fkC6yTe1Lk/s6Um3lUtw9LRfYGvlKgadAwaIWPGJ
-         2Mfa6FVUx8p4EUVinEAHfg8kPT6BqtCq1BVqdbMU+6Xax6l6dYpfLrwCTiHEcfC/w6Xu
-         eRTz3rmDF8TmzKA2hTwMhqu+YHhakvbVhCHUuHVqj3vHoKxLeZ8QTay6mqPwT+0+2HAT
-         XnHY+/eNm/EVtx6lfL7AwT0Bijs/HVHBnUEocFSe5xh7wJTbuVEV0FIWy+h8kO8kr2+0
-         by2w==
+        h=content-language:in-reply-to:mime-version:user-agent:date
+         :message-id:from:references:cc:to:subject;
+        bh=NP+3O/0LttVJ8QsrYDmvw75XaNtX6CD38Fq1+X8Q3zs=;
+        b=XW0Z2B+c6givo3IscazEb/jwWTw4MBVzEmGInYCRP0lt/PPQv14C+PrbvdkFS0RxEW
+         xevXaJYQxUWqbNs0yujInxnIsiihOWzF8qwzo5eDFq2OvN/f9R+muxUBBFwJrl+cdTbI
+         Kc3kNsSt/70ZDPmwvwtYBt3fPs0Zqfz3VptBNNNf9U31jpCO4R8NvKSS8bh01EyX7VrD
+         oawtomQUktDoOHiJX3YjtpF8MVvPGTj9DvEUyqWBNFPdjufcNjX+TttTEaZpsJJgCrsd
+         g80ptivQjmFm5XytoqQgD8MXpTMRkCO3jj4AF3XqcBARgQP+cbUoU99ASvevIRBx9bAL
+         Hygw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=UjeQp29e;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x2sor7614528otg.134.2019.05.13.21.15.25
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id f13si20881003pga.385.2019.05.13.21.21.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 May 2019 21:15:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 21:21:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=UjeQp29e;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=QpRQ5RKoCjF8LRntvBnA0N48k6E1wZWnQrRBNWvrbJk=;
-        b=UjeQp29e977K98sPeUHL7M2b26uz7ODCB1tPABTq8ycEneyS4c1UAuTfIjvJlmhKzW
-         rgT+CLkzVz6Tj12F2GaNYO9z4bvlQqIiNlC0lA9pUjUBtExWciRMAcdda9tmeKRhjiif
-         U5p6czdMWpPq57Q5YbCtPICTa2/bR8qnSDzyOdMYm/jpTVMS5P8yg+ynABoxRYVy/xMj
-         Ns8pcVkcANjUsy88CGOTiuzbT6+MMd1jobBa2rDPPNHEOEXy/dQb90zw/UeZwuo46jDs
-         3FHRbEo2GIwX+trJ5hV48Rrik7r2xZXpO8rC0CU4Xl2+3RJfOxDHNojG2wDfiY+ZDqd8
-         rBxA==
-X-Google-Smtp-Source: APXvYqxGVd1tqyXunJ456PV9dYVPRSqpzeYT2Q8gKJip9CosURLuJUd04BkNcpneRISWSBXU9PkRJuzBrm9HzMBwpUc=
-X-Received: by 2002:a9d:12f2:: with SMTP id g105mr3369334otg.116.1557807325778;
- Mon, 13 May 2019 21:15:25 -0700 (PDT)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TRg3.Bc_1557807658;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TRg3.Bc_1557807658)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 14 May 2019 12:21:01 +0800
+Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+To: Nadav Amit <namit@vmware.com>
+Cc: Will Deacon <will.deacon@arm.com>,
+ "jstancek@redhat.com" <jstancek@redhat.com>,
+ "peterz@infradead.org" <peterz@infradead.org>,
+ "minchan@kernel.org" <minchan@kernel.org>, "mgorman@suse.de"
+ <mgorman@suse.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+References: <45c6096e-c3e0-4058-8669-75fbba415e07@email.android.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <fbcc8157-b103-2a29-416e-5c84c6a2554f@linux.alibaba.com>
+Date: Mon, 13 May 2019 21:20:51 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-References: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
-In-Reply-To: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 13 May 2019 21:15:15 -0700
-Message-ID: <CAPcyv4hsTvyRnLGr3y4JB6zPzdxb7WGQgaWs=5vRqf=L1DYynQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/nvdimm: Fix kernel crash on devm_mremap_pages_release
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Keith Busch <keith.busch@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <45c6096e-c3e0-4058-8669-75fbba415e07@email.android.com>
+Content-Type: multipart/alternative;
+ boundary="------------2CF6DA1379A748B5936054C5"
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[ add Keith who was looking at something similar ]
+This is a multi-part message in MIME format.
+--------------2CF6DA1379A748B5936054C5
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 
-On Mon, May 13, 2019 at 7:54 PM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
->
-> When we initialize the namespace, if we support altmap, we don't initialize all the
-> backing struct page where as while releasing the namespace we look at some of
-> these uninitilized struct page. This results in a kernel crash as below.
->
-> kernel BUG at include/linux/mm.h:1034!
-> cpu 0x2: Vector: 700 (Program Check) at [c00000024146b870]
->     pc: c0000000003788f8: devm_memremap_pages_release+0x258/0x3a0
->     lr: c0000000003788f4: devm_memremap_pages_release+0x254/0x3a0
->     sp: c00000024146bb00
->    msr: 800000000282b033
->   current = 0xc000000241382f00
->   paca    = 0xc00000003fffd680   irqmask: 0x03   irq_happened: 0x01
->     pid   = 4114, comm = ndctl
->  c0000000009bf8c0 devm_action_release+0x30/0x50
->  c0000000009c0938 release_nodes+0x268/0x2d0
->  c0000000009b95b4 device_release_driver_internal+0x164/0x230
->  c0000000009b638c unbind_store+0x13c/0x190
->  c0000000009b4f44 drv_attr_store+0x44/0x60
->  c00000000058ccc0 sysfs_kf_write+0x70/0xa0
->  c00000000058b52c kernfs_fop_write+0x1ac/0x290
->  c0000000004a415c __vfs_write+0x3c/0x70
->  c0000000004a85ac vfs_write+0xec/0x200
->  c0000000004a8920 ksys_write+0x80/0x130
->  c00000000000bee4 system_call+0x5c/0x70
->
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> ---
->  mm/page_alloc.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 59661106da16..892eabe1ec13 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5740,8 +5740,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->
->  #ifdef CONFIG_ZONE_DEVICE
->         /*
-> -        * Honor reservation requested by the driver for this ZONE_DEVICE
-> -        * memory. We limit the total number of pages to initialize to just
-> +        * We limit the total number of pages to initialize to just
->          * those that might contain the memory mapping. We will defer the
->          * ZONE_DEVICE page initialization until after we have released
->          * the hotplug lock.
-> @@ -5750,8 +5749,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->                 if (!altmap)
->                         return;
->
-> -               if (start_pfn == altmap->base_pfn)
-> -                       start_pfn += altmap->reserve;
 
-If it's reserved then we should not be accessing, even if the above
-works in practice. Isn't the fix something more like this to fix up
-the assumptions at release time?
 
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index a856cb5ff192..9074ba14572c 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -90,6 +90,7 @@ static void devm_memremap_pages_release(void *data)
-  struct device *dev = pgmap->dev;
-  struct resource *res = &pgmap->res;
-  resource_size_t align_start, align_size;
-+ struct vmem_altmap *altmap = pgmap->altmap_valid ? &pgmap->altmap : NULL;
-  unsigned long pfn;
-  int nid;
+On 5/13/19 7:01 PM, Nadav Amit wrote:
+>
+>
+> On May 13, 2019 4:01 PM, Yang Shi <yang.shi@linux.alibaba.com> wrote:
+>
+>
+>
+>     On 5/13/19 9:38 AM, Will Deacon wrote:
+>     > On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
+>     >> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+>     >> index 99740e1..469492d 100644
+>     >> --- a/mm/mmu_gather.c
+>     >> +++ b/mm/mmu_gather.c
+>     >> @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>     >>   {
+>     >>       /*
+>     >>        * If there are parallel threads are doing PTE changes on
+>     same range
+>     >> -     * under non-exclusive lock(e.g., mmap_sem read-side) but
+>     defer TLB
+>     >> -     * flush by batching, a thread has stable TLB entry can
+>     fail to flush
+>     >> -     * the TLB by observing pte_none|!pte_dirty, for example
+>     so flush TLB
+>     >> -     * forcefully if we detect parallel PTE batching threads.
+>     >> +     * under non-exclusive lock (e.g., mmap_sem read-side) but
+>     defer TLB
+>     >> +     * flush by batching, one thread may end up seeing
+>     inconsistent PTEs
+>     >> +     * and result in having stale TLB entries.  So flush TLB
+>     forcefully
+>     >> +     * if we detect parallel PTE batching threads.
+>     >> +     *
+>     >> +     * However, some syscalls, e.g. munmap(), may free page
+>     tables, this
+>     >> +     * needs force flush everything in the given range.
+>     Otherwise this
+>     >> +     * may result in having stale TLB entries for some
+>     architectures,
+>     >> +     * e.g. aarch64, that could specify flush what level TLB.
+>     >>        */
+>     >> -    if (mm_tlb_flush_nested(tlb->mm)) {
+>     >> -            __tlb_reset_range(tlb);
+>     >> -            __tlb_adjust_range(tlb, start, end - start);
+>     >> +    if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
+>     >> +            /*
+>     >> +             * Since we can't tell what we actually should have
+>     >> +             * flushed, flush everything in the given range.
+>     >> +             */
+>     >> +            tlb->freed_tables = 1;
+>     >> +            tlb->cleared_ptes = 1;
+>     >> +            tlb->cleared_pmds = 1;
+>     >> +            tlb->cleared_puds = 1;
+>     >> +            tlb->cleared_p4ds = 1;
+>     >> +
+>     >> +            /*
+>     >> +             * Some architectures, e.g. ARM, that have range
+>     invalidation
+>     >> +             * and care about VM_EXEC for I-Cache
+>     invalidation, need force
+>     >> +             * vma_exec set.
+>     >> +             */
+>     >> +            tlb->vma_exec = 1;
+>     >> +
+>     >> +            /* Force vma_huge clear to guarantee safer flush */
+>     >> +            tlb->vma_huge = 0;
+>     >> +
+>     >> +            tlb->start = start;
+>     >> +            tlb->end = end;
+>     >>       }
+>     > Whilst I think this is correct, it would be interesting to see
+>     whether
+>     > or not it's actually faster than just nuking the whole mm, as I
+>     mentioned
+>     > before.
+>     >
+>     > At least in terms of getting a short-term fix, I'd prefer the
+>     diff below
+>     > if it's not measurably worse.
+>
+>     I did a quick test with ebizzy (96 threads with 5 iterations) on
+>     my x86
+>     VM, it shows slightly slowdown on records/s but much more sys time
+>     spent
+>     with fullmm flush, the below is the data.
+>
+>     nofullmm                 fullmm
+>     ops (records/s) 225606                  225119
+>     sys (s) 0.69                        1.14
+>
+>     It looks the slight reduction of records/s is caused by the
+>     increase of
+>     sys time.
+>
+>     >
+>     > Will
+>     >
+>     > --->8
+>     >
+>     > diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+>     > index 99740e1dd273..cc251422d307 100644
+>     > --- a/mm/mmu_gather.c
+>     > +++ b/mm/mmu_gather.c
+>     > @@ -251,8 +251,9 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>     >         * forcefully if we detect parallel PTE batching threads.
+>     >         */
+>     >        if (mm_tlb_flush_nested(tlb->mm)) {
+>     > +             tlb->fullmm = 1;
+>     >                __tlb_reset_range(tlb);
+>     > -             __tlb_adjust_range(tlb, start, end - start);
+>     > +             tlb->freed_tables = 1;
+>     >        }
+>     >
+>     >        tlb_flush_mmu(tlb);
+>
+>
+> I think that this should have set need_flush_all and not fullmm.
 
-@@ -102,7 +103,10 @@ static void devm_memremap_pages_release(void *data)
-  align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-  - align_start;
+Thanks for the suggestion. I did a quick test with ebizzy too. It looks 
+this is almost same with the v2 patch and slightly better than what Will 
+suggested.
 
-- nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
-+ pfn = align_start >> PAGE_SHIFT;
-+ if (altmap)
-+ pfn += vmem_altmap_offset(altmap);
-+ nid = page_to_nid(pfn_to_page(pfn));
+nofullmm                 fullmm                need_flush_all
+ops (records/s)              225606 225119                   225647
+sys (s)                            0.69 1.14                          0.47
 
-  mem_hotplug_begin();
-  if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
-@@ -110,8 +114,7 @@ static void devm_memremap_pages_release(void *data)
-  __remove_pages(page_zone(pfn_to_page(pfn)), pfn,
-  align_size >> PAGE_SHIFT, NULL);
-  } else {
-- arch_remove_memory(nid, align_start, align_size,
-- pgmap->altmap_valid ? &pgmap->altmap : NULL);
-+ arch_remove_memory(nid, align_start, align_size, altmap);
-  kasan_remove_zero_shadow(__va(align_start), align_size);
-  }
-  mem_hotplug_done();
+If no objection from other folks, I would respin the patch based off 
+Nadav's suggestion.
+
+
+
+
+--------------2CF6DA1379A748B5936054C5
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <p><br>
+    </p>
+    <br>
+    <div class="moz-cite-prefix">On 5/13/19 7:01 PM, Nadav Amit wrote:<br>
+    </div>
+    <blockquote type="cite"
+      cite="mid:45c6096e-c3e0-4058-8669-75fbba415e07@email.android.com">
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <div dir="auto"><br>
+        <div dir="auto"><br>
+          <div class="elided-text">On May 13, 2019 4:01 PM, Yang Shi
+            <a class="moz-txt-link-rfc2396E" href="mailto:yang.shi@linux.alibaba.com">&lt;yang.shi@linux.alibaba.com&gt;</a> wrote:<br
+              type="attribution">
+            <blockquote style="margin:0 0 0 0.8ex;border-left:1px #ccc
+              solid;padding-left:1ex">
+              <div><font size="2"><span style="font-size:11pt">
+                    <div><br>
+                      <br>
+                      On 5/13/19 9:38 AM, Will Deacon wrote:<br>
+                      &gt; On Fri, May 10, 2019 at 07:26:54AM +0800,
+                      Yang Shi wrote:<br>
+                      &gt;&gt; diff --git a/mm/mmu_gather.c
+                      b/mm/mmu_gather.c<br>
+                      &gt;&gt; index 99740e1..469492d 100644<br>
+                      &gt;&gt; --- a/mm/mmu_gather.c<br>
+                      &gt;&gt; +++ b/mm/mmu_gather.c<br>
+                      &gt;&gt; @@ -245,14 +245,39 @@ void
+                      tlb_finish_mmu(struct mmu_gather *tlb,<br>
+                      &gt;&gt;   {<!-- --><br>
+                      &gt;&gt;       /*<br>
+                      &gt;&gt;        * If there are parallel threads
+                      are doing PTE changes on same range<br>
+                      &gt;&gt; -     * under non-exclusive lock(e.g.,
+                      mmap_sem read-side) but defer TLB<br>
+                      &gt;&gt; -     * flush by batching, a thread has
+                      stable TLB entry can fail to flush<br>
+                      &gt;&gt; -     * the TLB by observing
+                      pte_none|!pte_dirty, for example so flush TLB<br>
+                      &gt;&gt; -     * forcefully if we detect parallel
+                      PTE batching threads.<br>
+                      &gt;&gt; +     * under non-exclusive lock (e.g.,
+                      mmap_sem read-side) but defer TLB<br>
+                      &gt;&gt; +     * flush by batching, one thread may
+                      end up seeing inconsistent PTEs<br>
+                      &gt;&gt; +     * and result in having stale TLB
+                      entries.  So flush TLB forcefully<br>
+                      &gt;&gt; +     * if we detect parallel PTE
+                      batching threads.<br>
+                      &gt;&gt; +     *<br>
+                      &gt;&gt; +     * However, some syscalls, e.g.
+                      munmap(), may free page tables, this<br>
+                      &gt;&gt; +     * needs force flush everything in
+                      the given range. Otherwise this<br>
+                      &gt;&gt; +     * may result in having stale TLB
+                      entries for some architectures,<br>
+                      &gt;&gt; +     * e.g. aarch64, that could specify
+                      flush what level TLB.<br>
+                      &gt;&gt;        */<br>
+                      &gt;&gt; -    if (mm_tlb_flush_nested(tlb-&gt;mm))
+                      {<!-- --><br>
+                      &gt;&gt; -            __tlb_reset_range(tlb);<br>
+                      &gt;&gt; -            __tlb_adjust_range(tlb,
+                      start, end - start);<br>
+                      &gt;&gt; +    if (mm_tlb_flush_nested(tlb-&gt;mm)
+                      &amp;&amp; !tlb-&gt;fullmm) {<!-- --><br>
+                      &gt;&gt; +            /*<br>
+                      &gt;&gt; +             * Since we can't tell what
+                      we actually should have<br>
+                      &gt;&gt; +             * flushed, flush everything
+                      in the given range.<br>
+                      &gt;&gt; +             */<br>
+                      &gt;&gt; +            tlb-&gt;freed_tables = 1;<br>
+                      &gt;&gt; +            tlb-&gt;cleared_ptes = 1;<br>
+                      &gt;&gt; +            tlb-&gt;cleared_pmds = 1;<br>
+                      &gt;&gt; +            tlb-&gt;cleared_puds = 1;<br>
+                      &gt;&gt; +            tlb-&gt;cleared_p4ds = 1;<br>
+                      &gt;&gt; +<br>
+                      &gt;&gt; +            /*<br>
+                      &gt;&gt; +             * Some architectures, e.g.
+                      ARM, that have range invalidation<br>
+                      &gt;&gt; +             * and care about VM_EXEC
+                      for I-Cache invalidation, need force<br>
+                      &gt;&gt; +             * vma_exec set.<br>
+                      &gt;&gt; +             */<br>
+                      &gt;&gt; +            tlb-&gt;vma_exec = 1;<br>
+                      &gt;&gt; +<br>
+                      &gt;&gt; +            /* Force vma_huge clear to
+                      guarantee safer flush */<br>
+                      &gt;&gt; +            tlb-&gt;vma_huge = 0;<br>
+                      &gt;&gt; +<br>
+                      &gt;&gt; +            tlb-&gt;start = start;<br>
+                      &gt;&gt; +            tlb-&gt;end = end;<br>
+                      &gt;&gt;       }<br>
+                      &gt; Whilst I think this is correct, it would be
+                      interesting to see whether<br>
+                      &gt; or not it's actually faster than just nuking
+                      the whole mm, as I mentioned<br>
+                      &gt; before.<br>
+                      &gt;<br>
+                      &gt; At least in terms of getting a short-term
+                      fix, I'd prefer the diff below<br>
+                      &gt; if it's not measurably worse.<br>
+                      <br>
+                      I did a quick test with ebizzy (96 threads with 5
+                      iterations) on my x86 <br>
+                      VM, it shows slightly slowdown on records/s but
+                      much more sys time spent <br>
+                      with fullmm flush, the below is the data.<br>
+                      <br>
+                                                          
+                      nofullmm                 fullmm<br>
+                      ops (records/s)             
+                      225606                  225119<br>
+                      sys (s)                           
+                      0.69                        1.14<br>
+                      <br>
+                      It looks the slight reduction of records/s is
+                      caused by the increase of <br>
+                      sys time.<br>
+                      <br>
+                      &gt;<br>
+                      &gt; Will<br>
+                      &gt;<br>
+                      &gt; ---&gt;8<br>
+                      &gt;<br>
+                      &gt; diff --git a/mm/mmu_gather.c
+                      b/mm/mmu_gather.c<br>
+                      &gt; index 99740e1dd273..cc251422d307 100644<br>
+                      &gt; --- a/mm/mmu_gather.c<br>
+                      &gt; +++ b/mm/mmu_gather.c<br>
+                      &gt; @@ -251,8 +251,9 @@ void
+                      tlb_finish_mmu(struct mmu_gather *tlb,<br>
+                      &gt;         * forcefully if we detect parallel
+                      PTE batching threads.<br>
+                      &gt;         */<br>
+                      &gt;        if (mm_tlb_flush_nested(tlb-&gt;mm)) {<!-- --><br>
+                      &gt; +             tlb-&gt;fullmm = 1;<br>
+                      &gt;                __tlb_reset_range(tlb);<br>
+                      &gt; -             __tlb_adjust_range(tlb, start,
+                      end - start);<br>
+                      &gt; +             tlb-&gt;freed_tables = 1;<br>
+                      &gt;        }<br>
+                      &gt;   <br>
+                      &gt;        tlb_flush_mmu(tlb);<br>
+                      <br>
+                    </div>
+                  </span></font></div>
+            </blockquote>
+          </div>
+          <br>
+        </div>
+        <div dir="auto">I think that this should have set need_flush_all
+          and not fullmm.</div>
+      </div>
+    </blockquote>
+    <br>
+    Thanks for the suggestion. I did a quick test with ebizzy too. It
+    looks this is almost same with the v2 patch and slightly better than
+    what Will suggested.<br>
+    <br>
+    <font size="2"><span style="font-size:11pt">                                    
+        nofullmm                 fullmm                need_flush_all<br>
+        ops (records/s)              225606                 
+        225119                   225647<br>
+        sys (s)                            0.69                       
+        1.14                          0.47<br>
+        <br>
+        If no objection from other folks, I would respin the patch based
+        off Nadav's suggestion.<br>
+        <br>
+        <br>
+      </span></font><br>
+  </body>
+</html>
+
+--------------2CF6DA1379A748B5936054C5--
 
