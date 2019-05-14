@@ -2,221 +2,196 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05AC2C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:23:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C7D8C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:26:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B1272086A
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:23:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B1272086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4773E20675
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 08:26:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Me7oLnU0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4773E20675
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE0276B000D; Tue, 14 May 2019 04:23:43 -0400 (EDT)
+	id D1A4E6B0010; Tue, 14 May 2019 04:26:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D682E6B000E; Tue, 14 May 2019 04:23:43 -0400 (EDT)
+	id CCB5E6B0266; Tue, 14 May 2019 04:26:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C081E6B0010; Tue, 14 May 2019 04:23:43 -0400 (EDT)
+	id B6AEF6B0269; Tue, 14 May 2019 04:26:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BF326B000D
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:23:43 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b81so11269155ywc.8
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 01:23:43 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 984E76B0010
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:26:15 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id e129so11812622iof.16
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 01:26:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=kKiJvBWnvz3OUZGCU+wkVsmbgL26LhwAtAT9BoEI3bk=;
-        b=lgnjRgu1RFvL32xTsCH1DN3IMhhxowSW5xw6Now2Y0fESEdIY3WX+v7nRkbMLBFSaW
-         Sm54Rz3B1lo0wZH1mkwuuPZd4+akHX2WsSTq4lIzSFUqfIo+jBmqnFSjZGqhbia4jsUV
-         poKLmPuJTM4L9sSazFg3kVgULbqCsYwlmYFlfqfMhWIUsIxhb79Iv7RuxA4X4SS05FLn
-         ahF+kqEDYUwop185eKNFJju3+fss20xfs3sFObJw+ryEYyjujxqm4E/b6FrPjzr6BYpB
-         kL5+rLSsX4LLhCZZbcXL9mKjdF0bPPXoQ25rSYLAwRlAryWdjFLgX2sYvbmIjHkJ6vsO
-         q+lQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAUSRFJ6GDP+SHx1tiRpObQ8RXpQpsULAPvJMPPEzGnUZPQT4j86
-	9o8CuXmdluc9gfDmj4MIOWw8OBIfIY5Qtn7GJHhvEuni6H0TBSFBNvAYu4oxlSD2z11SbUXflx+
-	bJyRGEp0S2gwhBTvAFixwWh5CJmMb4GrHYHROf/39r8fQH1O1RcnMZNg2pAmUP+7PQw==
-X-Received: by 2002:a25:2ac6:: with SMTP id q189mr15707833ybq.310.1557822223358;
-        Tue, 14 May 2019 01:23:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpdu6gArV9llX0SsaLdLpACU09tiJjuQLsyAwkbY4Y1HM1VveUJX99woBty9MvDxHHeKDz
-X-Received: by 2002:a25:2ac6:: with SMTP id q189mr15707821ybq.310.1557822222653;
-        Tue, 14 May 2019 01:23:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557822222; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=4GwONZKT5RET7N6PWlM860uaduZb6+5QuVv3rFgtIho=;
+        b=DeYBMWfBQiNWsQw/m3u9/UljGBFTv5XbQ1PPoV3WJSJjnn8WVmL4dgMhn4qvWEoXjU
+         3tb5cwBvnyl2lg9O3gobXnV9hbY9jz6g9Bu7zLFoXfWTzSlLffZKWGFmS15g8mQ5DQ7C
+         2E7QuMOPjsTVqrqPI49u4Jo4y12eZJfhvELqDZwnMx+RmND+8uhxCjigseLencBAyqw8
+         Es1r6QnZgSZEiu9ral+4SP2cAZ5FthhsCkggWKsgJ4AVv+5mtoW0WJWv8dso6ySSLwSf
+         fBb37suxua2Ng9vG4tELoK95nrLhSvmN1xGRfcTJuO93cD9GQ3pZBBXwO15fvkSGtb79
+         wwjw==
+X-Gm-Message-State: APjAAAWcjHC5DCOw57ro9QUiqp+KtQkqhFpd37rEHHQFwLtbq0qoEh+a
+	1EaZ1xsMOu9ZbF2wqTs8hCPYQLl2eUuNlXGknWVWo9JqAq4DH/A0+7LSCqK15g9J4/0YNYqeMaC
+	+waHa5Q9SfGihllIsQhAUl48fcd2QL6vUewiYiD9a8lX7o+2YxKRsSfc3+JW3ZhDz7g==
+X-Received: by 2002:a24:e3c6:: with SMTP id d189mr756272ith.145.1557822375301;
+        Tue, 14 May 2019 01:26:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwy3CxL8/LYcSdnGAiXRYFKtYCc+9IEPfxusIplWosQX8exK+EcQBFKoHdX+yD0Lrd6QGEE
+X-Received: by 2002:a24:e3c6:: with SMTP id d189mr756241ith.145.1557822374535;
+        Tue, 14 May 2019 01:26:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557822374; cv=none;
         d=google.com; s=arc-20160816;
-        b=mw58PHW2QPOk7M/NmojrO7sMCLwAyLyeGBxaQUScpeGf816Ag+5l8cDWlxU1Nelw2U
-         w57humJbtXAnsXb0IsOFy534afFd4aMEQkkY2nS9cM4H7PUk74D3dHI35+eg4+9Ua1s7
-         NhzSzCzS0tKlczfkzdx2ip/LjnQd09TQxms5QRY9LJzOeM6QAWhmYdvHvfb+pkh2a1YC
-         dcqZF2NMM6XdyiVayn5fYz2arLq5T8lMhnZrTl6DAGlbKNrZG3Ca5j/8cE2hvbdsk+Gb
-         U+JWa6qNPhaFlR6vhvLhZ1NuY+S/zsxvlWQVRqlm1e6q8bxI4DJIwd/Zu77h2U0X++MQ
-         pbJw==
+        b=gBdq5ZluPzjXTKJQTh8bpgIRWU59HzJXBWhgjuSD2rshClJ2MpZG4jwyZxoowt1+bi
+         RHO/1SvYD6+KNQT9oHSTo+gkRCQA4lSYcTrzpHrQ6qRbwgcbbu16swftTSX1tndw/a8V
+         ImoKUxsg1QWnhxCS51SEV9pnwUqQYVGp2XxocDmCJFiqnr2ekU/j908+PmZ84dFDHeNG
+         aBcw76uNwiZ+qLLdPXussXxck7pAad0li+o1VaKF1HoXKJTSF6qtNi0d6idoaudQnY/m
+         jL/vd1e0VAuRFMkMEmW3dGAd3F3d2Xvdll6HVngAqScdGfX1BExgxv3XnMV/UKFfcqYA
+         VdOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=kKiJvBWnvz3OUZGCU+wkVsmbgL26LhwAtAT9BoEI3bk=;
-        b=z8WwOX2vWLmz6c99sGvPJ06YO2iix/JWDEuieRGg7y5iOjsT4B96NYHUbMEsEie3FB
-         eK3YcDcZ+3GZeH+sY4/VLLs70W9EJ6gWP6ITjv71o0gv/wlEBcqzodob0CHTnDLU82tw
-         gSTCsjTDG6mvDeroXKAcVDuy4CiH90+D6FcGSrQf6K+tfXFkXz/d+owt8GdHzBjylH+e
-         Td/SRuVl6fohofCd66q/rAqPtLVTqRXK2PNIexxDDLOBMnt3pIF6dIO4xiD4B5pKLl4K
-         seffBr4UCPQZCWgxOtJ2WL1eoX7cFAs5Zpi80VrCyufJZtFKr5o3z5qNx5oo0US6oM54
-         mbYw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=4GwONZKT5RET7N6PWlM860uaduZb6+5QuVv3rFgtIho=;
+        b=ecukWJy6L0JjM9XAdBGOrUDQMt6cXAWmOjuj5xnrfHINXGbmEiXS25PQTtzYyFCw8E
+         HC9RkOHb/3EQmn0nh+xxm3kL3j8zZ4wbSpHkgn4QRSgRLy91HqfbRzm8LURoYSKfc/3C
+         O//PViMiSvXtMW3zPD7naeIlmf4uvfKrREI5wO0Jhzl01O9BmWNXW3h173QR6it+/svz
+         d0AzCEydhGaCjEzWeyJ4pXgMUEwSFqQ191OB3LwRXIysYn2q3IRcjgxksNzuF/SQh9wz
+         e4hPxbVi3zGqqw3YNFqaJ9ajlOlLUkaCZmgM4vPiiCx0RLO8kfWw+dSiCbw5Qbk4ZIA2
+         zPXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i204si4348031ybi.490.2019.05.14.01.23.42
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Me7oLnU0;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id n82si9378759jan.24.2019.05.14.01.26.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 May 2019 01:23:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 14 May 2019 01:26:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4E8MHEo003490
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:23:42 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2sfpne89ms-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 04:23:41 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 14 May 2019 09:23:39 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 14 May 2019 09:23:37 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4E8Na4951970092
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 14 May 2019 08:23:36 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 12FFF52051;
-	Tue, 14 May 2019 08:23:36 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id A12D952050;
-	Tue, 14 May 2019 08:23:34 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Tue, 14 May 2019 11:23:34 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] docs: reorder memory-hotplug documentation
-Date: Tue, 14 May 2019 11:23:33 +0300
-X-Mailer: git-send-email 2.7.4
-X-TM-AS-GCONF: 00
-x-cbid: 19051408-4275-0000-0000-000003348A71
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19051408-4276-0000-0000-00003844097D
-Message-Id: <1557822213-19058-1-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905140062
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Me7oLnU0;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E8NRWe038322;
+	Tue, 14 May 2019 08:26:05 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=4GwONZKT5RET7N6PWlM860uaduZb6+5QuVv3rFgtIho=;
+ b=Me7oLnU0/rmmtbQAySa5AOY/0LStOilrC3J76991LQTTFatI8eSBS258oGayJxjOmJ/D
+ yHWDyCS73SnTaafYTYObBvbUdom0TeUggz2cbj3NFCkO1ERgywX83bGDVXanVtBN1ADK
+ rA9iUbU7+FYqBDOL8FnBoQQUrjXihLOaBqP3eCUS59RzXfix50RyTJXON2aGBWJKluN4
+ nYFPxujFDsqwPztKIgZhuv4YbdpzXoGhW26Z4odBcUA885M8JB4OpiAy7A73R0NJiT0E
+ Jao0Uz8of4JvQOSHd+YQqAK/xhBmvYcu6KHzbKIrQkMWK4Qd0qKc+Pxc/nzUYRNj0Iuo ag== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2sdnttm68s-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 08:26:05 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4E8OA2d011637;
+	Tue, 14 May 2019 08:26:05 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2sf3cn4jgq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 08:26:04 +0000
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4E8Q0LQ024611;
+	Tue, 14 May 2019 08:26:00 GMT
+Received: from [10.166.106.34] (/10.166.106.34)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 14 May 2019 01:26:00 -0700
+Subject: Re: [RFC KVM 18/27] kvm/isolation: function to copy page table
+ entries for percpu buffer
+To: Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>,
+        Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+        Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+        jan.setjeeilers@oracle.com, Liran Alon <liran.alon@oracle.com>,
+        Jonathan Adams <jwadams@google.com>
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+ <1557758315-12667-19-git-send-email-alexandre.chartre@oracle.com>
+ <CALCETrWUKZv=wdcnYjLrHDakamMBrJv48wp2XBxZsEmzuearRQ@mail.gmail.com>
+ <20190514070941.GE2589@hirez.programming.kicks-ass.net>
+From: Alexandre Chartre <alexandre.chartre@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <b8487de1-83a8-2761-f4a6-26c583eba083@oracle.com>
+Date: Tue, 14 May 2019 10:25:56 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <20190514070941.GE2589@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905140062
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9256 signatures=668686
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905140062
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The "Locking Internals" section of the memory-hotplug documentation is
-duplicated in admin-guide and core-api. Drop the admin-guide copy as
-locking internals does not belong there.
 
-While on it, move the "Future Work" section to the core-api part.
+On 5/14/19 9:09 AM, Peter Zijlstra wrote:
+> On Mon, May 13, 2019 at 11:18:41AM -0700, Andy Lutomirski wrote:
+>> On Mon, May 13, 2019 at 7:39 AM Alexandre Chartre
+>> <alexandre.chartre@oracle.com> wrote:
+>>>
+>>> pcpu_base_addr is already mapped to the KVM address space, but this
+>>> represents the first percpu chunk. To access a per-cpu buffer not
+>>> allocated in the first chunk, add a function which maps all cpu
+>>> buffers corresponding to that per-cpu buffer.
+>>>
+>>> Also add function to clear page table entries for a percpu buffer.
+>>>
+>>
+>> This needs some kind of clarification so that readers can tell whether
+>> you're trying to map all percpu memory or just map a specific
+>> variable.  In either case, you're making a dubious assumption that
+>> percpu memory contains no secrets.
+> 
+> I'm thinking the per-cpu random pool is a secrit. IOW, it demonstrably
+> does contain secrits, invalidating that premise.
+> 
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- Documentation/admin-guide/mm/memory-hotplug.rst | 51 -------------------------
- Documentation/core-api/memory-hotplug.rst       | 11 ++++++
- 2 files changed, 11 insertions(+), 51 deletions(-)
+The current code unconditionally maps the entire first percpu chunk
+(pcpu_base_addr). So it assumes it doesn't contain any secret. That is
+mainly a simplification for the POC because a lot of core information
+that we need, for example just to switch mm, are stored there (like
+cpu_tlbstate, current_task...).
 
-diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
-index 5c4432c..72090ba 100644
---- a/Documentation/admin-guide/mm/memory-hotplug.rst
-+++ b/Documentation/admin-guide/mm/memory-hotplug.rst
-@@ -391,54 +391,3 @@ Physical memory remove
- Need more implementation yet....
-  - Notification completion of remove works by OS to firmware.
-  - Guard from remove if not yet.
--
--
--Locking Internals
--=================
--
--When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
--the device_hotplug_lock should be held to:
--
--- synchronize against online/offline requests (e.g. via sysfs). This way, memory
--  block devices can only be accessed (.online/.state attributes) by user
--  space once memory has been fully added. And when removing memory, we
--  know nobody is in critical sections.
--- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
--
--Especially, there is a possible lock inversion that is avoided using
--device_hotplug_lock when adding memory and user space tries to online that
--memory faster than expected:
--
--- device_online() will first take the device_lock(), followed by
--  mem_hotplug_lock
--- add_memory_resource() will first take the mem_hotplug_lock, followed by
--  the device_lock() (while creating the devices, during bus_add_device()).
--
--As the device is visible to user space before taking the device_lock(), this
--can result in a lock inversion.
--
--onlining/offlining of memory should be done via device_online()/
--device_offline() - to make sure it is properly synchronized to actions
--via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
--
--When adding/removing/onlining/offlining memory or adding/removing
--heterogeneous/device memory, we should always hold the mem_hotplug_lock in
--write mode to serialise memory hotplug (e.g. access to global/zone
--variables).
--
--In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
--mode allows for a quite efficient get_online_mems/put_online_mems
--implementation, so code accessing memory can protect from that memory
--vanishing.
--
--
--Future Work
--===========
--
--  - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
--    sysctl or new control file.
--  - showing memory block and physical device relationship.
--  - test and make it better memory offlining.
--  - support HugeTLB page migration and offlining.
--  - memmap removing at memory offline.
--  - physical remove memory.
-diff --git a/Documentation/core-api/memory-hotplug.rst b/Documentation/core-api/memory-hotplug.rst
-index de7467e..e08be1c 100644
---- a/Documentation/core-api/memory-hotplug.rst
-+++ b/Documentation/core-api/memory-hotplug.rst
-@@ -123,3 +123,14 @@ In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
- mode allows for a quite efficient get_online_mems/put_online_mems
- implementation, so code accessing memory can protect from that memory
- vanishing.
-+
-+Future Work
-+===========
-+
-+  - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
-+    sysctl or new control file.
-+  - showing memory block and physical device relationship.
-+  - test and make it better memory offlining.
-+  - support HugeTLB page migration and offlining.
-+  - memmap removing at memory offline.
-+  - physical remove memory.
--- 
-2.7.4
+If the entire first percpu chunk effectively has secret then we will
+need to individually map only buffers we need. The kvm_copy_percpu_mapping()
+function is added to copy mapping for a specified percpu buffer, so
+this used to map percpu buffers which are not in the first percpu chunk.
+
+Also note that mapping is constrained by PTE (4K), so mapped buffers
+(percpu or not) which do not fill a whole set of pages can leak adjacent
+data store on the same pages.
+
+alex.
 
