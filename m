@@ -2,153 +2,277 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0228C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:37:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2825C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:40:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD3782086A
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:37:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lBg4mAX3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD3782086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7144E2086A
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 04:40:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7144E2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B2C56B0003; Tue, 14 May 2019 00:37:17 -0400 (EDT)
+	id EAF676B0003; Tue, 14 May 2019 00:40:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 33D6D6B0005; Tue, 14 May 2019 00:37:17 -0400 (EDT)
+	id E5F7D6B0005; Tue, 14 May 2019 00:40:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 205D26B0007; Tue, 14 May 2019 00:37:17 -0400 (EDT)
+	id D26486B0007; Tue, 14 May 2019 00:40:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F33A76B0003
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:37:16 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id g19so16533173qtb.18
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:37:16 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A67C66B0003
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:40:21 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id j62so29002917ywe.3
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 21:40:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Tf3korJmRLD8o2Lf06LrqOczw1F6ZM2FyAdskXAP/yk=;
-        b=Aw8wMaY4qMcsqH/FkzJOBGmDnz+d4xqASUCQeLvWpWqT97x+Ex4M/BdnEALzjyflH0
-         +DfUCLbxcheuoJv+CRrfUdis+XKjaAT6lLqgEYP40Cogmgb7AtxFoXblpl14MNxv/194
-         cPtsaISfRBv5MUt5APSKsSRgA5gb/WP6ux9NY2nxwachULMld3+LlEAozRGdc3iOFq4s
-         4kN/Dl2yHNTOdeFZcPHQZHdPRXrEJ7SErZP+CXkFaEASHSQG57FEuX76fF3a/jA0A6xO
-         opJXClJmUjL+90cgrF3w8coGCDeQ1GMaCmrBu5J3wrsZM8tDCxtMr8abcZn6tL+kXMgI
-         IQHA==
-X-Gm-Message-State: APjAAAUYGzG0z8+MNQncpM/H94G22G25wjcGS2UlH82IbPa54qWKSzIO
-	HR9DdzBPy4+SjLRTL3PrPvEMM3e/pL9yVAqjIdHvOt7qOtU9CXoI+5RCg0VwyE0+E4M1eKTnxgA
-	FUgbIQjXmBVqvOqSXw2dPz8gSc4/ClRuP4rYNm9yIpLx1TKsRsJfjcujC02vMbT2fHw==
-X-Received: by 2002:a05:620a:1493:: with SMTP id w19mr26066742qkj.214.1557808636645;
-        Mon, 13 May 2019 21:37:16 -0700 (PDT)
-X-Received: by 2002:a05:620a:1493:: with SMTP id w19mr26066711qkj.214.1557808636086;
-        Mon, 13 May 2019 21:37:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557808636; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=Dbh30YPITRomoXBu9IvQDOczQn3nxRl1wVBFo0ynZqQ=;
+        b=FbY917qya6W8EflTF13eUFHYyKWKp0rLwitjDk45XbKzWWK+ef8yWLhfIG3yfyNimD
+         X1RCi228GeQoXqq6ZkilepoWZbjcM1o8NuXI1X9hXhfQKFmmTcP2muIMDDDociJmLLt2
+         y7Ypp5eH7/i5IlWuqhVFwJawk7i+/cMHdKmCpb5FkuUQuYffaQsFJh/qtQn+BtSgwKdD
+         +fLJShcnEbUxkmw1fCVOSC/ngwg6fxtHJlnDqDnqKE98bPqlrT7MKlOCHwzBWSPuktFf
+         0wQMFtI1KF10m1ElFNabRbidGx5QfCyDQvlPhcnurXY8OxYTCGoxH6AfFvZB9+HNhXVK
+         Qngw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVUF/iOpQfwbCXe4hBU9A/TnSs59S8BLGx1q4mtwstxviFNXPqm
+	5wkuaKyOjS9cNDaqsqMpramWnDNEKj9nwSN4QouDYv5IB8IJFgTZkL0gJFp/zCYdg/q/8U/hxuw
+	c6wanbQZPJK+XPG02weGcRvg26TlMaijy10zJKuy4cCWFnxc3HfdU8EBXLeTcycifFw==
+X-Received: by 2002:a25:ba0c:: with SMTP id t12mr16218809ybg.70.1557808817455;
+        Mon, 13 May 2019 21:40:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrdQ5KVES8mtdek1aTb+AUGr0kOsanwJF1thnSWPieQ6Wj97YkdlDwsOX7fvX0GUcqoBft
+X-Received: by 2002:a25:ba0c:: with SMTP id t12mr16218791ybg.70.1557808816787;
+        Mon, 13 May 2019 21:40:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557808816; cv=none;
         d=google.com; s=arc-20160816;
-        b=hkS+98bEKTc77mxju9sYEvg84CVhnl3BrU4jZZwFhV36rcycsZ/M6XjBYdQhwqXma3
-         8+zIcPNslC3eTXMGyjvxA4Rj1nvqpOU1rysorL1jnGqdVpjn+9KSUsCP5arPZX94LXlc
-         Vi1AZPwJWAABPZTmwg/UQf6odMshzXMITmq3+9qD1e/WVZcOWO+3lipJmaLhY8k1cHTv
-         rVf46Qa8pMbsoSdjStVQsHnT7QQDMuqWD34ENBs+0nW1DKAcGS8826KilgSlN4lO3Gff
-         taik14iNF1GUhGzASfnad5OOyx1P2V+OVKMa5Aoo2LnBUITckjjAbG+9G/sriaYmvNec
-         ajEw==
+        b=O7Y6+H8zehi0ZUFuQCXm30s+2iibHH1404uyuWR+QygilemoHlrsXgsLdxu1UN9Mrz
+         k5ZHka+zrBRB3BBUH9y/6qE/62QzxgB2LZBGjCpyAQYweb1CGrOBRQaYGu7s4Wt7fFa8
+         23FCpxWAHiGzVkoUq7kGjAzpKKzIlBuWNw+XOnxR5puJFgS1v0qCdfOO+aYiDVFfcUYn
+         zjVEaoma7VZSioyAsEk0ZT72Z900zNbGsFwA3Jwy7m/PJdjmhs4Rt3yYiPG/VDH6ubUf
+         qupp2+4361JEz7PDGn8NIYdwdQIbZSyFtBEFFLPpTLW6zFuRW6ZdinELzsjNTybTEqWZ
+         ocDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Tf3korJmRLD8o2Lf06LrqOczw1F6ZM2FyAdskXAP/yk=;
-        b=qx+qws/KRm93WBcie2rxtmdgf3PoZGWlsr61nRET/lHAHSeziKMtQwItkzHJmKw+bY
-         w0WB5WhQjsJ3gJk/S4S8Nj/D7R4Fonn2hzNVh5xYpsjv/ZFVV06zyQ+8a3HORcRgJTBR
-         ZHTu4DbU9RvqxWE/McUqQTcZhIBa3gjt13E+2u55E+T1v2d85ZcdCBMNPK/rHArF+98j
-         nG8u7txggtIv3sS54QProi4/y4hiQbWKvWuP9+1rugo4WnPhDPyErSBdcmHTTMqW1pXU
-         YjStCVSoGGsSrDx79oVWVBuTVTHzVtjm2zW3ZeLX5E0F1R88pgTxV0XPNWMaWrRJTU5S
-         Eypw==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=Dbh30YPITRomoXBu9IvQDOczQn3nxRl1wVBFo0ynZqQ=;
+        b=nar94Df0z7TnDscM+bmLs/FEZ6HSrlOot3hUx33qZsFczbrrixqZT82T9zJuz6JmSt
+         Z6BPO9cNcpiro4LecWSI5IX3ZWvJhHN6pq0gwod8Z/ozq+8K6LIZxfGiNWy+KVSLNbRc
+         w4kViXOmsjlp9eRsK1aAkFB1sxs/j9d9w1pCRfSp6LJ1xOxES9u/hoVZqt90dBcBlMvt
+         KUHO15KPY1Hsl35PwVila78GC9kGrn/9/Qj7+WfsVkqJ7kZzXqZJSFXjYXnAsyZaOKgh
+         D/whbUkVQcI8gMOEsnzKuA/w5VQAUUAat5PUqqyhp0AJ+pTyNhS718dWAj/nuT0GP6dq
+         hT/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lBg4mAX3;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s35sor20117513qtk.14.2019.05.13.21.37.16
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v2si4013996ybm.120.2019.05.13.21.40.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 13 May 2019 21:37:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 May 2019 21:40:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lBg4mAX3;
-       spf=pass (google.com: domain of shy828301@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shy828301@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Tf3korJmRLD8o2Lf06LrqOczw1F6ZM2FyAdskXAP/yk=;
-        b=lBg4mAX3TS8PJBOsb+445RvCKsl4l9r5dT0BTkb/FL86zuZPgzqK0IYwRDoq8DS/wW
-         bkN3AEQUlfMHlZU+0IVgdRfgFaOm6ajkuDV2FOR1rhtOAcMcbR1RfK+japxmOfw3PGr1
-         1KkIg29RCtaWyEWi81wAsuTrGj7UFXSekgkO7QlV3qE02GyWhbmyKqhRfqgs+DR/k+CO
-         xdanmaGLWE6F7ApSxivM8U+T/V/mz9LNfgVXI9ujMA77bvmfSG2ZBWbf2GcKqwClQ0Rj
-         UHVn5SVbESeu1MTDsvNW1+ztooPYlK9Aop1IqrJ7HASDwOGZcC5O3Ly+tDFg9XW9YDEa
-         2uaw==
-X-Google-Smtp-Source: APXvYqwh4a0o8vAEeDVZY6kolyij7RZoaYa1MYOibq43kvFPp4BJjJKs9M6IS2Pmf3oMCR3z5OP/uvmiygdphi38f9o=
-X-Received: by 2002:ac8:5409:: with SMTP id b9mr27316238qtq.326.1557808635902;
- Mon, 13 May 2019 21:37:15 -0700 (PDT)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4E4Wh7H184059
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:40:16 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sfj6d8xtv-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 00:40:16 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 14 May 2019 05:40:15 +0100
+Received: from b03cxnp08028.gho.boulder.ibm.com (9.17.130.20)
+	by e34.co.us.ibm.com (192.168.1.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 14 May 2019 05:40:12 +0100
+Received: from b03ledav002.gho.boulder.ibm.com (b03ledav002.gho.boulder.ibm.com [9.17.130.233])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4E4eBNH22282622
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 04:40:11 GMT
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 83E6D136060;
+	Tue, 14 May 2019 04:40:11 +0000 (GMT)
+Received: from b03ledav002.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7F1C7136059;
+	Tue, 14 May 2019 04:40:09 +0000 (GMT)
+Received: from [9.80.230.27] (unknown [9.80.230.27])
+	by b03ledav002.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Tue, 14 May 2019 04:40:09 +0000 (GMT)
+Subject: Re: [RFC PATCH] mm/nvdimm: Fix kernel crash on
+ devm_mremap_pages_release
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+        Keith Busch <keith.busch@intel.com>
+References: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4hsTvyRnLGr3y4JB6zPzdxb7WGQgaWs=5vRqf=L1DYynQ@mail.gmail.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Tue, 14 May 2019 10:10:07 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <1557505420-21809-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190513080929.GC24036@dhcp22.suse.cz> <c3c26c7a-748c-6090-67f4-3014bedea2e6@linux.alibaba.com>
- <20190513214503.GB25356@dhcp22.suse.cz>
-In-Reply-To: <20190513214503.GB25356@dhcp22.suse.cz>
-From: Yang Shi <shy828301@gmail.com>
-Date: Mon, 13 May 2019 21:36:59 -0700
-Message-ID: <CAHbLzkpUE2wBp8UjH72ugXjWSfFY5YjV1Ps9t5EM2VSRTUKxRw@mail.gmail.com>
-Subject: Re: [v2 PATCH] mm: vmscan: correct nr_reclaimed for THP
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, Huang Ying <ying.huang@intel.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, 
-	kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, william.kucharski@oracle.com, 
-	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4hsTvyRnLGr3y4JB6zPzdxb7WGQgaWs=5vRqf=L1DYynQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19051404-0016-0000-0000-000009B209BE
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011095; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000285; SDB=6.01203028; UDB=6.00631438; IPR=6.00983950;
+ MB=3.00026878; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-14 04:40:14
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19051404-0017-0000-0000-00004335AEC6
+Message-Id: <b775d65b-30e3-aceb-f2f8-f2413b129f52@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905140031
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 2:45 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Mon 13-05-19 14:09:59, Yang Shi wrote:
-> [...]
-> > I think we can just account 512 base pages for nr_scanned for
-> > isolate_lru_pages() to make the counters sane since PGSCAN_KSWAPD/DIRECT
-> > just use it.
-> >
-> > And, sc->nr_scanned should be accounted as 512 base pages too otherwise we
-> > may have nr_scanned < nr_to_reclaim all the time to result in false-negative
-> > for priority raise and something else wrong (e.g. wrong vmpressure).
->
-> Be careful. nr_scanned is used as a pressure indicator to slab shrinking
-> AFAIR. Maybe this is ok but it really begs for much more explaining
+On 5/14/19 9:45 AM, Dan Williams wrote:
+> [ add Keith who was looking at something similar ]
+> 
+> On Mon, May 13, 2019 at 7:54 PM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
+>>
+>> When we initialize the namespace, if we support altmap, we don't initialize all the
+>> backing struct page where as while releasing the namespace we look at some of
+>> these uninitilized struct page. This results in a kernel crash as below.
+>>
+>> kernel BUG at include/linux/mm.h:1034!
+>> cpu 0x2: Vector: 700 (Program Check) at [c00000024146b870]
+>>      pc: c0000000003788f8: devm_memremap_pages_release+0x258/0x3a0
+>>      lr: c0000000003788f4: devm_memremap_pages_release+0x254/0x3a0
+>>      sp: c00000024146bb00
+>>     msr: 800000000282b033
+>>    current = 0xc000000241382f00
+>>    paca    = 0xc00000003fffd680   irqmask: 0x03   irq_happened: 0x01
+>>      pid   = 4114, comm = ndctl
+>>   c0000000009bf8c0 devm_action_release+0x30/0x50
+>>   c0000000009c0938 release_nodes+0x268/0x2d0
+>>   c0000000009b95b4 device_release_driver_internal+0x164/0x230
+>>   c0000000009b638c unbind_store+0x13c/0x190
+>>   c0000000009b4f44 drv_attr_store+0x44/0x60
+>>   c00000000058ccc0 sysfs_kf_write+0x70/0xa0
+>>   c00000000058b52c kernfs_fop_write+0x1ac/0x290
+>>   c0000000004a415c __vfs_write+0x3c/0x70
+>>   c0000000004a85ac vfs_write+0xec/0x200
+>>   c0000000004a8920 ksys_write+0x80/0x130
+>>   c00000000000bee4 system_call+0x5c/0x70
+>>
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+>> ---
+>>   mm/page_alloc.c | 5 +----
+>>   1 file changed, 1 insertion(+), 4 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 59661106da16..892eabe1ec13 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -5740,8 +5740,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>
+>>   #ifdef CONFIG_ZONE_DEVICE
+>>          /*
+>> -        * Honor reservation requested by the driver for this ZONE_DEVICE
+>> -        * memory. We limit the total number of pages to initialize to just
+>> +        * We limit the total number of pages to initialize to just
+>>           * those that might contain the memory mapping. We will defer the
+>>           * ZONE_DEVICE page initialization until after we have released
+>>           * the hotplug lock.
+>> @@ -5750,8 +5749,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+>>                  if (!altmap)
+>>                          return;
+>>
+>> -               if (start_pfn == altmap->base_pfn)
+>> -                       start_pfn += altmap->reserve;
+> 
+> If it's reserved then we should not be accessing, even if the above
+> works in practice. Isn't the fix something more like this to fix up
+> the assumptions at release time?
+> 
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index a856cb5ff192..9074ba14572c 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -90,6 +90,7 @@ static void devm_memremap_pages_release(void *data)
+>    struct device *dev = pgmap->dev;
+>    struct resource *res = &pgmap->res;
+>    resource_size_t align_start, align_size;
+> + struct vmem_altmap *altmap = pgmap->altmap_valid ? &pgmap->altmap : NULL;
+>    unsigned long pfn;
+>    int nid;
+> 
+> @@ -102,7 +103,10 @@ static void devm_memremap_pages_release(void *data)
+>    align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+>    - align_start;
+> 
+> - nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
+> + pfn = align_start >> PAGE_SHIFT;
+> + if (altmap)
+> + pfn += vmem_altmap_offset(altmap);
+> + nid = page_to_nid(pfn_to_page(pfn));
+> 
+>    mem_hotplug_begin();
+>    if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
+> @@ -110,8 +114,7 @@ static void devm_memremap_pages_release(void *data)
+>    __remove_pages(page_zone(pfn_to_page(pfn)), pfn,
+>    align_size >> PAGE_SHIFT, NULL);
+>    } else {
+> - arch_remove_memory(nid, align_start, align_size,
+> - pgmap->altmap_valid ? &pgmap->altmap : NULL);
+> + arch_remove_memory(nid, align_start, align_size, altmap);
+>    kasan_remove_zero_shadow(__va(align_start), align_size);
+>    }
+>    mem_hotplug_done();
+> 
+I did try that first. I was not sure about that. From the memory add vs 
+remove perspective.
 
-I don't know why my company mailbox didn't receive this email, so I
-replied with my personal email.
+devm_memremap_pages:
 
-It is not used to double slab pressure any more since commit
-9092c71bb724 ("mm: use sc->priority for slab shrink targets"). It uses
-sc->priority to determine the pressure for slab shrinking now.
+align_start = res->start & ~(SECTION_SIZE - 1);
+align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+		- align_start;
+align_end = align_start + align_size - 1;
 
-So, I think we can just remove that "double slab pressure" code. It is
-not used actually and looks confusing now. Actually, the "double slab
-pressure" does something opposite. The extra inc to sc->nr_scanned
-just prevents from raising sc->priority.
+error = arch_add_memory(nid, align_start, align_size, altmap,
+				false);
 
-> than "it should be fine". This should have happened when THP swap out
-> was implemented...
->
-> --
-> Michal Hocko
-> SUSE Labs
->
+
+devm_memremap_pages_release:
+
+/* pages are dead and unused, undo the arch mapping */
+align_start = res->start & ~(SECTION_SIZE - 1);
+align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+		- align_start;
+
+arch_remove_memory(nid, align_start, align_size,
+		pgmap->altmap_valid ? &pgmap->altmap : NULL);
+
+
+Now if we are fixing the memremap_pages_release, shouldn't we adjust 
+alig_start w.r.t memremap_pages too? and I was not sure what that means 
+w.r.t add/remove alignment requirements.
+
+What is the intended usage of reserve area? I guess we want that part to 
+be added? if so shouldn't we remove them?
+
+
+-aneesh
 
