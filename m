@@ -2,175 +2,299 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30528C04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:14:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 09139C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:19:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3FC420881
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:14:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A37ED20873
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 21:19:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="OgbI2k2I"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3FC420881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="UkWlsKxO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A37ED20873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 756606B0005; Tue, 14 May 2019 17:14:45 -0400 (EDT)
+	id 3A90D6B0005; Tue, 14 May 2019 17:19:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 706916B0006; Tue, 14 May 2019 17:14:45 -0400 (EDT)
+	id 332EF6B0006; Tue, 14 May 2019 17:19:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 582096B0007; Tue, 14 May 2019 17:14:45 -0400 (EDT)
+	id 1AC646B0007; Tue, 14 May 2019 17:19:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB9F6B0005
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:14:45 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id f18so142258otf.22
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:14:45 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DABBC6B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 17:19:21 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id e5so180195oih.23
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 14:19:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=xKwa8E3jh5+W/cbcaoZsR2eB0KxE0u7jRbZGOEH9u1Q=;
-        b=iWhdYIZrTNPLFDIFXcxdZdxHIOGtMz/Uyb51aAHQ2BcQ3hoMs6OkoNcfBn1jY8EbW8
-         0DzVHUWlbGHd6MnzwBk/IyM/mrfxF5SL1cb6rHtNuqYW3hKuTAswI5NnH/uE2VxWhzJ/
-         pvSzOPEDAHkOl9srT/tuuHVykF4VOeFAD/9q95RShbLt+Bu2wxLEUEg0VtH36nwO+mS+
-         VSFrnsRKGngj67AvP/DCn+ihnrNeWlEQCabfQsxue9MK76xJhH29hus1aJKOZfovx+CP
-         +4pz/M5R2GjH8ihaSxCGW66qLUk1fKlWDJ9tuyg3I9ROoLgxIzJg+SnUh6D1Ef8K0xY0
-         2tvw==
-X-Gm-Message-State: APjAAAXV4n3rIEkgpdbyeXGZl5ciaQQEga4y2F505fXLifPkSnKLWDJT
-	T43a+95/bOiMkBPwiubUrqHcFsXZNQNF6f6eoBQ2UAltUOXE/mPzNLL9VZl+9SQY/lpWCJFFv3e
-	QvUWfe/X0rUhAJKFtPfML7PX+YtuzUgYxoC0+4KbGH7Q6xxYaAoBupPTAhQUZdxg=
-X-Received: by 2002:a9d:7102:: with SMTP id n2mr23071124otj.206.1557868484790;
-        Tue, 14 May 2019 14:14:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweP7zEL5gOkiM4rlHLR8UVoLkL+HDEE8t5Z4kH73gB0yrtu1+S0SlYkswzPAP0kOgKjU4Z
-X-Received: by 2002:a9d:7102:: with SMTP id n2mr23071090otj.206.1557868484108;
-        Tue, 14 May 2019 14:14:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557868484; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=EQWSirsGlqa3NQye335of+ycNoUAgzqdpgdwkI5ffCA=;
+        b=GWyszSxuW8yuBNIlXjgO0MC5cz6r2Hqlp5bLNsfXA9+t2JK6zgMgEUFB6Oz7WhHBsD
+         AJawYi5ll7NOt5Rrmg4YX1oFmFg+xxWZdr0l3ME7JIP66cGl5Xje0L4qWLvk+Zn/njkn
+         HRpcivr2oNsI4x6xFH1d9foQkLpYsuS89OGHUSEG4axtyR8PmHHtSWGeqJKtaBjEzJ/E
+         g9H4fbb2K0mEt0wAawdnmt78uBBqoFy/IiN48lq5lTJdrk+ydPhE+WmQXNNHx1p+haKs
+         D60mRXWdqqz4DmVTWl/BsoZO16P9WpZ/QEaaz59jLRdgbdL8rMidnUiKpxw45ZVytNGm
+         EYow==
+X-Gm-Message-State: APjAAAX7a8r1OdFXjkvuqdMo238qaRr062u0uviYxUgDPlg8Qedqy63X
+	mNmoTU7Zd8oJz2JMK43koAady+66Ynz6kr4GiA7EnHG+Nzh9P422sfNrGSNHKHcWMiuOpRAmk5x
+	JxT32sLrwVsL8a2SJJyvdiDI5WundYrjwyZZsKPHvu+Zq/2BeGA+hyCRjlJFszEQsQw==
+X-Received: by 2002:a9d:6210:: with SMTP id g16mr23581750otj.225.1557868761507;
+        Tue, 14 May 2019 14:19:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzBlSj6Nt8VlMflzcgwk1h4GuAm9IbKFvZGtZm+Hw+VfTtJo9aSwa6QJDc5KzDlRGQursmJ
+X-Received: by 2002:a9d:6210:: with SMTP id g16mr23581670otj.225.1557868760131;
+        Tue, 14 May 2019 14:19:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557868760; cv=none;
         d=google.com; s=arc-20160816;
-        b=CwFO3aiU8aJ7r8/iZlOjmIQsOjvuDG0ZMsLE3hsRw1cfcfkbxc8V8DjIiWKEqgVyJt
-         X+jyTlVRTwmZnfl3sZSXdWfdbywx1+Tob90ErXPxZa9dSubuCT8lr2uDrziOLGUj8sqH
-         Aij8SkcwS8J9kVgKtBBPbrw9dqiPJnwbzNKHK9oLA4kitmf6rOYaIIGKHJ2W+r0LYDLX
-         TAg1i0e+vh4FLYKtl8lL1HHF/QlLfh+iG7QuZ/fhXX4nRw7MO0zieZYlqiZnvu4AFBkR
-         ROblIpZIZgGEC52hRUl4t84e0h1YdTGgc3MFo7S+tCQZ3OiwWck1TOCtnVGOPsx35IuM
-         6/0g==
+        b=e42RS/vvhzt6f6OzMLLazEOqohw/3j54X0kGYIfukQBQKBf1RcJSvQrJuJa5YI09au
+         e8YvZYjsKohDAAqsFvkeC5n5mAhOmdol2pv7eFS+lvQdisA8Y9xp/4EzacXY+eYn79Bh
+         QeTj+fpfYbjZnGxaK5SUfEGgXGPkoU6EvVuy3MbLghq+8oOwm/SRgA2rZ/kfAxcu1S60
+         Jk69hhwIZVZUD+uY7K0RwIzdne9rrfUBnhtdo2gkUUhBJxy65+Jy+IKmnln5jqmE0rtN
+         owxpznegw7Vl8wkeVX6Q960HSraLSulLDGYroy8M8Xg/U8sY0Sic2cTcegAoUVWsWyze
+         zTuA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=xKwa8E3jh5+W/cbcaoZsR2eB0KxE0u7jRbZGOEH9u1Q=;
-        b=EVg5nmpTrEWhCEsyW/5fIIYZKbFAJ+sw8F+26QlRMY1bNuohZeP338R8f8jQMRG9mh
-         ZWU/26y5NJ6tHjN8+hUL56omZeWoxaM2I2brbOb31pGea3PEW7C5nUVuKuY1cOyY7+Uz
-         WCNP4N/B2OJlcUycMKEz8i3HUTtGIv3oSjBad9/AN9oQaNGx0E6x8nO+5GCB8YVPqnTS
-         ++8DI/FjQcP9m8hALq+2ijuZ0NCtgdmeY58PT7PC/J6hd2gUM6Dt6VgH/lf3y63Swc/2
-         AHGE9/kWBPRbbVxmF8+WXRSXIsktP0oGw3DGKTJDZawDWBBCcGHhw3CIPW31vjYQaG15
-         +K/A==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=EQWSirsGlqa3NQye335of+ycNoUAgzqdpgdwkI5ffCA=;
+        b=TUcJIRrsGJzjwxdeD7PeK1YMkpgr4cCBnDJVMJnp/hTih3xIpGAVKb1emdLZk91CFf
+         5nNA1CNNf4AXALND8GjLPsC8AXOA6m3HMlWlbaUvMXzrknl1WvxzoqYizE13TAHBDxmr
+         wP+RuVVHJb+JfI0AHUmXlH7myW56rSPaRLmzeY6ExA9YY/a1401cZGu8Vi2SuR6XvQX7
+         vANaY+Q4SuTmIPKIedffqHhOV+j8kA9+afDC3EmYXZaJCD6KtVcORtC0m4m9ApXzdWqo
+         FplQT5+BJbkf2YIMtLUlEYH+sGe5KjJQaezsFWN0VJKaqI/rWwr3B5fHJt8oN8uH6IGM
+         WyNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=OgbI2k2I;
-       spf=neutral (google.com: 40.107.70.81 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700081.outbound.protection.outlook.com. [40.107.70.81])
-        by mx.google.com with ESMTPS id o22si50815otl.0.2019.05.14.14.14.43
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UkWlsKxO;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id x62si77819oig.33.2019.05.14.14.19.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 14 May 2019 14:14:44 -0700 (PDT)
-Received-SPF: neutral (google.com: 40.107.70.81 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.70.81;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 May 2019 14:19:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=OgbI2k2I;
-       spf=neutral (google.com: 40.107.70.81 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amdcloud.onmicrosoft.com; s=selector1-amd-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=xKwa8E3jh5+W/cbcaoZsR2eB0KxE0u7jRbZGOEH9u1Q=;
- b=OgbI2k2ICcIgK33ij62KLuzOm94yL+XouJDOOB8Ox0OoUALQBrgJRcUD7oR95D6VsW4QK7qTQZbMCl3bLzqWLWZmQmFJCRmuhFr+wMPXdLnqTMsGrb6uKx6yeLlJfVvKqZrL916/rtdMdJgfZXGXyfeXcmmetRSRqJAqfxzZdZA=
-Received: from MN2PR12MB3949.namprd12.prod.outlook.com (10.255.238.150) by
- MN2PR12MB2989.namprd12.prod.outlook.com (20.178.241.16) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1878.25; Tue, 14 May 2019 21:14:42 +0000
-Received: from MN2PR12MB3949.namprd12.prod.outlook.com
- ([fe80::b9af:29f1:fcab:6f6f]) by MN2PR12MB3949.namprd12.prod.outlook.com
- ([fe80::b9af:29f1:fcab:6f6f%4]) with mapi id 15.20.1878.024; Tue, 14 May 2019
- 21:14:42 +0000
-From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: "jglisse@redhat.com" <jglisse@redhat.com>, "Deucher, Alexander"
-	<Alexander.Deucher@amd.com>, "airlied@gmail.com" <airlied@gmail.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "Yang, Philip" <Philip.Yang@amd.com>
-Subject: Re: [PATCH 1/2] mm/hmm: support automatic NUMA balancing
-Thread-Topic: [PATCH 1/2] mm/hmm: support automatic NUMA balancing
-Thread-Index: AQHVB2oGxdqwfWjT3keZMPNyIuFBZ6ZplnYAgAGOzIA=
-Date: Tue, 14 May 2019 21:14:42 +0000
-Message-ID: <180dbdaf-3ca4-07be-b549-08757e2ef105@amd.com>
-References: <20190510195258.9930-1-Felix.Kuehling@amd.com>
- <20190510195258.9930-2-Felix.Kuehling@amd.com>
- <20190513142720.3334a98cbabaae67b4ffbb5a@linux-foundation.org>
-In-Reply-To: <20190513142720.3334a98cbabaae67b4ffbb5a@linux-foundation.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [165.204.55.251]
-user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UkWlsKxO;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ELDlXD160157;
+	Tue, 14 May 2019 21:19:06 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=EQWSirsGlqa3NQye335of+ycNoUAgzqdpgdwkI5ffCA=;
+ b=UkWlsKxOm5yF3JEAAKMk7Fu3Ql4DnruLjduZWZQ8lkdO46S82VwlI9LjT6SClB+uPC4p
+ Ug/8SzJy/TL/nViBHIATr3OZNgTB87wr3vupEMeITYrON3jcpr0jIqjvaFWnerryH+CD
+ sru8FWnfSNp9K65VH0MPet9DFMz2XbkG4msOaLrp9GZTzEW4sc7LoMzLO4A/Adw2nfqi
+ AOBQwOEvoqW4ROhZ/+i29aqEKuthSnYjsSsrqj4MupwzDAlPnAv1izKjghLkzQ4g58I5
+ nhxiL7w361QOCttpEF+1Drl1obGHyHprEzaZHPn2XSl99xRh664sZZMX9YvzGe9zoNKU VQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2130.oracle.com with ESMTP id 2sdkwds4kg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 21:19:06 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4ELICvE069878;
+	Tue, 14 May 2019 21:19:05 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2sf3cnh6um-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 21:19:05 +0000
+Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4ELJ1tX022558;
+	Tue, 14 May 2019 21:19:02 GMT
+Received: from [10.159.158.136] (/10.159.158.136)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 14 May 2019 14:19:01 -0700
+Subject: Re: [PATCH v2 0/6] mm/devm_memremap_pages: Fix page release race
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "Rafael J. Wysocki" <rafael@kernel.org>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        linux-nvdimm <linux-nvdimm@lists.01.org>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        Linux MM <linux-mm@kvack.org>,
+        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>,
+        Bjorn Helgaas <bhelgaas@google.com>, Christoph Hellwig <hch@lst.de>
+References: <155727335978.292046.12068191395005445711.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <059859ca-3cc8-e3ff-f797-1b386931c41e@deltatee.com>
+ <17ada515-f488-d153-90ef-7a5cc5fefb0f@deltatee.com>
+ <8a7cfa6b-6312-e8e5-9314-954496d2f6ce@oracle.com>
+ <CAPcyv4i28tQMVrscQo31cfu1ZcMAb74iMkKYhu9iO_BjJvp+9A@mail.gmail.com>
+From: Jane Chu <jane.chu@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <6bd8319d-3b73-bb1e-5f41-94c580ba271b@oracle.com>
+Date: Tue, 14 May 2019 14:18:59 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
-x-clientproxiedby: YTXPR0101CA0042.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:1::19) To MN2PR12MB3949.namprd12.prod.outlook.com
- (2603:10b6:208:16b::22)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Felix.Kuehling@amd.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 7ead95ba-1d79-484c-ead8-08d6d8b12ecb
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:MN2PR12MB2989;
-x-ms-traffictypediagnostic: MN2PR12MB2989:
-x-microsoft-antispam-prvs:
- <MN2PR12MB2989011921D6100FB62179C392080@MN2PR12MB2989.namprd12.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:3044;
-x-forefront-prvs: 0037FD6480
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(136003)(366004)(376002)(346002)(39860400002)(396003)(199004)(189003)(99286004)(66946007)(71190400001)(71200400001)(52116002)(6512007)(76176011)(31696002)(86362001)(66476007)(66556008)(73956011)(256004)(14444005)(64756008)(66446008)(26005)(446003)(478600001)(6436002)(72206003)(36756003)(25786009)(54906003)(58126008)(6116002)(3846002)(66066001)(4326008)(65956001)(65806001)(6506007)(386003)(53546011)(4744005)(102836004)(316002)(2906002)(64126003)(6486002)(31686004)(486006)(476003)(305945005)(14454004)(53936002)(81156014)(81166006)(229853002)(6916009)(186003)(2616005)(7736002)(11346002)(5660300002)(8936002)(6246003)(65826007)(8676002)(68736007);DIR:OUT;SFP:1101;SCL:1;SRVR:MN2PR12MB2989;H:MN2PR12MB3949.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: amd.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- vZh2Laa8AtjRPNVAWHtiCkM6DX5wAO8Q40kRfgd1V70gP7KM67CE1PBNa7ox0dIChQvHRbz+wQtOF79Au89V/lZqej5uF3tk8MF6pL+kmjgReJZDmn55+VSdBBWX3uAj7SfeWewtFe1pJfHr3VfU9olGvjt8xC20E7wtpBKqxcrvsZk5G2GyDcCGS/IMWcqeEioEMtJsuVFf0MMOE4LhrJ4jPUaYD44Gq6l+qGeMusI1xRGm5nFwC7sHXoka+eTNQRmdE0yutx3xxEnvT9AJHCYuVW1I3cxzS1QKQgl7lc3wPWPCtS7g+QKZanLKIzSkO128Xfu8aXlrjmIVvgCqdeBXelDTWuhFWQ8NQR8IvGOGouHuZUs/W8IuiqohAHxcFWweWb2zOqOqhKmj02eLUCwhZzBPZyps2ZJ/ODlzHQU=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <37BFBE354B9EE042991B3828B0383237@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-X-OriginatorOrg: amd.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 7ead95ba-1d79-484c-ead8-08d6d8b12ecb
-X-MS-Exchange-CrossTenant-originalarrivaltime: 14 May 2019 21:14:42.8392
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MN2PR12MB2989
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000004, version=1.2.4
+In-Reply-To: <CAPcyv4i28tQMVrscQo31cfu1ZcMAb74iMkKYhu9iO_BjJvp+9A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905140140
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905140140
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gMjAxOS0wNS0xMyA1OjI3IHAubS4sIEFuZHJldyBNb3J0b24gd3JvdGU6DQo+IFtDQVVUSU9O
-OiBFeHRlcm5hbCBFbWFpbF0NCj4NCj4gT24gRnJpLCAxMCBNYXkgMjAxOSAxOTo1MzoyMyArMDAw
-MCAiS3VlaGxpbmcsIEZlbGl4IiA8RmVsaXguS3VlaGxpbmdAYW1kLmNvbT4gd3JvdGU6DQo+DQo+
-PiBGcm9tOiBQaGlsaXAgWWFuZyA8UGhpbGlwLllhbmdAYW1kLmNvbT4NCj4+DQo+PiBXaGlsZSB0
-aGUgcGFnZSBpcyBtaWdyYXRpbmcgYnkgTlVNQSBiYWxhbmNpbmcsIEhNTSBmYWlsZWQgdG8gZGV0
-ZWN0IHRoaXMNCj4+IGNvbmRpdGlvbiBhbmQgc3RpbGwgcmV0dXJuIHRoZSBvbGQgcGFnZS4gQXBw
-bGljYXRpb24gd2lsbCB1c2UgdGhlIG5ldw0KPj4gcGFnZSBtaWdyYXRlZCwgYnV0IGRyaXZlciBw
-YXNzIHRoZSBvbGQgcGFnZSBwaHlzaWNhbCBhZGRyZXNzIHRvIEdQVSwNCj4+IHRoaXMgY3Jhc2gg
-dGhlIGFwcGxpY2F0aW9uIGxhdGVyLg0KPj4NCj4+IFVzZSBwdGVfcHJvdG5vbmUocHRlKSB0byBy
-ZXR1cm4gdGhpcyBjb25kaXRpb24gYW5kIHRoZW4gaG1tX3ZtYV9kb19mYXVsdA0KPj4gd2lsbCBh
-bGxvY2F0ZSBuZXcgcGFnZS4NCj4+DQo+PiBTaWduZWQtb2ZmLWJ5OiBQaGlsaXAgWWFuZyA8UGhp
-bGlwLllhbmdAYW1kLmNvbT4NCj4gVGhpcyBzaG91bGQgaGF2ZSBpbmNsdWRlZCB5b3VyIHNpZ25l
-ZC1vZmYtYnk6LCBzaW5jZSB5b3Ugd2VyZSBvbiB0aGUNCj4gcGF0Y2ggZGVsaXZlcnkgcGF0aC4g
-IEknbGwgbWFrZSB0aGF0IGNoYW5nZSB0byBteSBjb3B5IG9mIHRoZSBwYXRjaCwNCj4gT0s/DQo+
-DQpZZXMuIFRoYW5rcyENCg0KDQo=
+On 5/14/2019 12:04 PM, Dan Williams wrote:
+
+> On Tue, May 14, 2019 at 11:53 AM Jane Chu <jane.chu@oracle.com> wrote:
+>> On 5/13/2019 12:22 PM, Logan Gunthorpe wrote:
+>>
+>> On 2019-05-08 11:05 a.m., Logan Gunthorpe wrote:
+>>
+>> On 2019-05-07 5:55 p.m., Dan Williams wrote:
+>>
+>> Changes since v1 [1]:
+>> - Fix a NULL-pointer deref crash in pci_p2pdma_release() (Logan)
+>>
+>> - Refresh the p2pdma patch headers to match the format of other p2pdma
+>>     patches (Bjorn)
+>>
+>> - Collect Ira's reviewed-by
+>>
+>> [1]: https://lore.kernel.org/lkml/155387324370.2443841.574715745262628837.stgit@dwillia2-desk3.amr.corp.intel.com/
+>>
+>> This series looks good to me:
+>>
+>> Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+>>
+>> However, I haven't tested it yet but I intend to later this week.
+>>
+>> I've tested libnvdimm-pending which includes this series on my setup and
+>> everything works great.
+>>
+>> Just wondering in a difference scenario where pmem pages are exported to
+>> a KVM guest, and then by mistake the user issues "ndctl destroy-namespace -f",
+>> will the kernel wait indefinitely until the user figures out to kill the guest
+>> and release the pmem pages?
+> It depends on whether the pages are pinned. Typically DAX memory
+> mappings assigned to a guest are not pinned in the host and can be
+> invalidated at any time. The pinning only occurs with VFIO and
+> device-assignment which isn't the common case, especially since that
+> configuration is blocked by fsdax. However, with devdax, yes you can
+> arrange for the system to go into an indefinite wait.
+>
+> This somewhat ties back to the get_user_pages() vs DAX debate. The
+> indefinite stall issue with device-assignment could be addressed with
+> a requirement to hold a lease and expect that a lease revocation event
+> may escalate to SIGKILL in response to 'ndctl destroy-namespace'. The
+> expectation with device-dax is that it is already a raw interface with
+> pointy edges and caveats, but I would not be opposed to introducing a
+> lease semantic.
+
+Thanks for the quick response Dan.
+
+I am not convinced that the get_user_pages() vs FS-DAX dilemma is a perfect
+comparison to "ndctl destroy-namespace -f" vs namespace-is-busy dilemma.
+
+Others might disagree with me, I thought that there is no risk of panic
+if we fail "ndctl destroy-namespace -f" to honor a clean shutdown of the
+user application. Also, both actions are on the same host, so in theory
+the admin could shutdown the application before attempt a destructive
+action.
+
+By allowing 'opposite' actions in competition with each other at fine
+granularity, there is potential for panic in general, not necessarily with
+pinned page I guess.  I just ran an experiment and panic'd the system.
+
+So, as Optane DCPMEM is generally for server/cloud deployment, and as
+RAS is a priority for server over administrative commands, to allow
+namespace management command to panic kernel is not an option?
+
+Here is my stress experiment -
+   
+Start out with ./create_nm.sh to create as many 48G devdax namespaces
+as possible. Once that's completed, firing up 6 actions in quick
+successions in below order:
+   -> ndctl destroy-namespace all -f
+   -> ./create_nm.sh
+   -> ndctl destroy-namespace all -f
+   -> ./create_nm.sh
+   -> ndctl destroy-namespace all -f
+   -> ./create_nm.sh
+
+==========  console message =======
+Kernel 5.1.0-rc7-next-20190501-libnvdimm-pending on an x86_64
+
+ban25uut130 login: [ 1620.866813] BUG: kernel NULL pointer dereference, address: 0000000000000020
+[ 1620.874585] #PF: supervisor read access in kernel mode
+[ 1620.880319] #PF: error_code(0x0000) - not-present page
+[ 1620.886052] PGD 0 P4D 0
+[ 1620.888879] Oops: 0000 [#1] SMP NOPTI
+[ 1620.892964] CPU: 19 PID: 5611 Comm: kworker/u130:3 Tainted: G        W         5.1.0-rc7-next-20190501-libnvdimm-pending #5
+[ 1620.905389] Hardware name: Oracle Corporation ORACLE SERVER X8-2L/ASM,MTHRBD,2U, BIOS 52020101 05/07/2019
+[ 1620.916069] Workqueue: events_unbound async_run_entry_fn
+[ 1620.921997] RIP: 0010:klist_put+0x1b/0x6c
+[ 1620.926471] Code: 48 8b 43 08 5b 41 5c 41 5d 41 5e 41 5f 5d c3 55 48 89 e5 41 56 41 89 f6 41 55 41 54 53 4c 8b 27 48 89 fb 49 83 e4 fe 4c 89 e7 <4d> 8b 6c 24 20 e8 3a d4 01 00 45 84 f6 74 10 48 8b 03 a8 01 74 02
+[ 1620.947427] RSP: 0018:ffffb1a5e6727da0 EFLAGS: 00010246
+[ 1620.953258] RAX: ffff956796604c00 RBX: ffff956796604c28 RCX: 0000000000000000
+[ 1620.961223] RDX: ffff955000c2c4d8 RSI: 0000000000000001 RDI: 0000000000000000
+[ 1620.969185] RBP: ffffb1a5e6727dc0 R08: 0000000000000002 R09: ffffffffbb54b3c0
+[ 1620.977150] R10: ffffb1a5e6727d40 R11: fefefefefefefeff R12: 0000000000000000
+[ 1620.985116] R13: ffff94d18dcfd000 R14: 0000000000000001 R15: ffff955000caf140
+[ 1620.993081] FS:  0000000000000000(0000) GS:ffff95679f4c0000(0000) knlGS:0000000000000000
+[ 1621.002113] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1621.008524] CR2: 0000000000000020 CR3: 0000009fa100a005 CR4: 00000000007606e0
+[ 1621.016487] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1621.024450] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[ 1621.032413] PKRU: 55555554
+[ 1621.035433] Call Trace:
+[ 1621.038161]  klist_del+0xe/0x10
+[ 1621.041667]  device_del+0x8a/0x2c9
+[ 1621.045463]  ? __switch_to_asm+0x34/0x70
+[ 1621.049840]  ? __switch_to_asm+0x40/0x70
+[ 1621.054220]  device_unregister+0x44/0x4f
+[ 1621.058603]  nd_async_device_unregister+0x22/0x2d [libnvdimm]
+[ 1621.065016]  async_run_entry_fn+0x47/0x15a
+[ 1621.069588]  process_one_work+0x1a2/0x2eb
+[ 1621.074064]  worker_thread+0x1b8/0x26e
+[ 1621.078239]  ? cancel_delayed_work_sync+0x15/0x15
+[ 1621.083490]  kthread+0xf8/0xfd
+[ 1621.086897]  ? kthread_destroy_worker+0x45/0x45
+[ 1621.091954]  ret_from_fork+0x1f/0x40
+[ 1621.095944] Modules linked in: xt_REDIRECT xt_nat xt_CHECKSUM iptable_mangle xt_MASQUERADE xt_conntrack ipt_REJECT nf_reject_ipv4 tun bridge stp llc ebtable_filter ebtables ip6table_filter iptable_filter scsi_transport_iscsi ip6table_nat ip6_tables iptable_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 vfat fat skx_edac intel_powerclamp coretemp kvm_intel kvm irqbypass crct10dif_pclmul crc32_pclmul ghash_clmulni_intel iTCO_wdt iTCO_vendor_support aesni_intel ipmi_si crypto_simd cryptd glue_helper ipmi_devintf ipmi_msghandler sg pcspkr dax_pmem_compat device_dax dax_pmem_core i2c_i801 pcc_cpufreq lpc_ich ioatdma wmi nfsd auth_rpcgss nfs_acl lockd grace sunrpc ip_tables xfs libcrc32c nd_pmem nd_btt sr_mod cdrom sd_mod mgag200 drm_kms_helper syscopyarea crc32c_intel sysfillrect sysimgblt fb_sys_fops ttm megaraid_sas drm igb ahci libahci ptp libata pps_core dca i2c_algo_bit nfit libnvdimm uas usb_storage dm_mirror dm_region_hash dm_log dm_mod
+[ 1621.189449] CR2: 0000000000000020
+[ 1621.193169] ---[ end trace 7c3f7029ef24aa5a ]---
+[ 1621.305383] RIP: 0010:klist_put+0x1b/0x6c
+[ 1621.309860] Code: 48 8b 43 08 5b 41 5c 41 5d 41 5e 41 5f 5d c3 55 48 89 e5 41 56 41 89 f6 41 55 41 54 53 4c 8b 27 48 89 fb 49 83 e4 fe 4c 89 e7 <4d> 8b 6c 24 20 e8 3a d4 01 00 45 84 f6 74 10 48 8b 03 a8 01 74 02
+[ 1621.330809] RSP: 0018:ffffb1a5e6727da0 EFLAGS: 00010246
+[ 1621.336642] RAX: ffff956796604c00 RBX: ffff956796604c28 RCX: 0000000000000000
+[ 1621.344606] RDX: ffff955000c2c4d8 RSI: 0000000000000001 RDI: 0000000000000000
+[ 1621.352570] RBP: ffffb1a5e6727dc0 R08: 0000000000000002 R09: ffffffffbb54b3c0
+[ 1621.360533] R10: ffffb1a5e6727d40 R11: fefefefefefefeff R12: 0000000000000000
+[ 1621.368496] R13: ffff94d18dcfd000 R14: 0000000000000001 R15: ffff955000caf140
+[ 1621.376460] FS:  0000000000000000(0000) GS:ffff95679f4c0000(0000) knlGS:0000000000000000
+[ 1621.385490] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1621.391902] CR2: 0000000000000020 CR3: 0000009fa100a005 CR4: 00000000007606e0
+[ 1621.399867] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1621.407830] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[ 1621.415793] PKRU: 55555554
+[ 1621.418814] Kernel panic - not syncing: Fatal exception
+[ 1621.424740] Kernel Offset: 0x39000000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+[ 1621.550711] ---[ end Kernel panic - not syncing: Fatal exception ]---
+
+
+Thanks!
+-jane
 
