@@ -2,200 +2,186 @@ Return-Path: <SRS0=IoHm=TO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BB5FC46460
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:07:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48106C04AA7
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:54:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 110DA21537
-	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:07:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="AWYLnYQX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 110DA21537
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 11ACE20879
+	for <linux-mm@archiver.kernel.org>; Tue, 14 May 2019 02:54:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11ACE20879
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A16786B0003; Mon, 13 May 2019 22:07:51 -0400 (EDT)
+	id 9A57E6B0003; Mon, 13 May 2019 22:54:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A0796B0005; Mon, 13 May 2019 22:07:51 -0400 (EDT)
+	id 955926B0005; Mon, 13 May 2019 22:54:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 819706B0007; Mon, 13 May 2019 22:07:51 -0400 (EDT)
+	id 843DA6B0007; Mon, 13 May 2019 22:54:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 461DD6B0003
-	for <linux-mm@kvack.org>; Mon, 13 May 2019 22:07:51 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id b24so10434838pgh.11
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 19:07:51 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F7D56B0003
+	for <linux-mm@kvack.org>; Mon, 13 May 2019 22:54:05 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id h186so28864456ywc.6
+        for <linux-mm@kvack.org>; Mon, 13 May 2019 19:54:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=HS+u+zhrivtPGNBbCaE1swQKUpAdxESip9XcNifCPoc=;
-        b=RDevuh21tIrdZqe4okXkhY7/adEQZRh0zdQTDL3or5Xbb+q9uRoemNnUdLL4LuKFYj
-         BfVfvOs5PDudFp9HxJuZ/r5fDPdmyJwssw0finNS2Hg3+pYvuX+pun9IgQdNUCr+yGDG
-         5OWsceadj5iU7gBIE8zaDyQIJiecm2uVljE0OZVkojWyQu+DiDi/V+x3/WFzv1hBfK3D
-         /29u/gosEueBXTAWhIUQBC4vv5Q/09pwxnjhoLA+Ld+7xX2nYn2pmhSSoNPhrmbRrXFx
-         wMpuS8DZBR5Ip49R9C1WLisjXhK4BtrxfRpT+6Dykn4zbiSwUjrHNrI6diFglwvRLNCf
-         83Cw==
-X-Gm-Message-State: APjAAAUAMqhbttNlbs/qXx3WetMtuKv1Sj4JEcWfDPYkMHMgqV+prSJT
-	ragXZZqofplMC88JQ9ncjXraKQ2xND/zbIU/ZpsEx1fLYJYFxKk48KUWTtxthQfUmCw2bGK43/h
-	sYYGU1W/QOt82wx4Req7T7agn5xMfIN3/d3ClVRf7+Jz/Cz8dpi18mC9sk2NR1hydhQ==
-X-Received: by 2002:a63:1055:: with SMTP id 21mr34779707pgq.200.1557799670874;
-        Mon, 13 May 2019 19:07:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwufpqAp2p818a4Ot25WTHbO5Rr+x0+mjecRx6wTgpFkLVRx3x9YQwB5NWHJpoG3dzV/oQW
-X-Received: by 2002:a63:1055:: with SMTP id 21mr34779653pgq.200.1557799669938;
-        Mon, 13 May 2019 19:07:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557799669; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=DYthXOITgd4+jGY/7nfH4nRfeWr9cB7x6dv87md5CSc=;
+        b=XrANg427wRxBIaqKuVcxRMq4YDuBnBqA5U9f7/O9rsgn2tuGbk/X+rfaXwnjw3YqAx
+         eNSrDqK6aVdnTTb2+VRKWRpGvoXg+BIyXpbBwz9+0sp+n0KbdyofMd9+AHF1cfzdq8fp
+         ZVuU3/+zsKKuEvvg+yZIXKM32JKqUEL6dLy+qzkeBPSUtjK8QCJpJ2IgfnQAIz3DLW00
+         1UPAF/qwtcqUopPJyxs0yvpjqfsF0uOyM/ugmK8rG/OmfzyygKD+4Pjt7LDW4wWC8zvL
+         QlfB5sgIuw4Kcnm3AQ6vUvLKPrRE8kde5LbYA+YLY60/z+ui7XwDjnHjtvAdzYW4IzCU
+         KgLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAW3ltm6m/xVkUwjK804rr5mxZe3w6VSLPXhZvV8srdbaqjBqgsh
+	1ljmQypiFL0t0jhJF/lAuWEhn9cavHC44fJm2A2vxgtgEMzspzJ3+qKQnkfRmSB1siCXPwAh5pg
+	n+nS2PvFKnmBErzVWCV135fWY4RgN29SHM5PAo83fU8CfrJstddLa89LJK91mSxP9jQ==
+X-Received: by 2002:a81:7bc2:: with SMTP id w185mr14841020ywc.17.1557802445089;
+        Mon, 13 May 2019 19:54:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQYlvqvDDzAq6O2wMl7T74aNM3uy9b77I8g7SNM4fBNJLgOWGBZnPVbEdMgw3lmz5AyJUF
+X-Received: by 2002:a81:7bc2:: with SMTP id w185mr14840993ywc.17.1557802443863;
+        Mon, 13 May 2019 19:54:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557802443; cv=none;
         d=google.com; s=arc-20160816;
-        b=V5wNXnySoTaA7NCUO9h9eVPE+0sBnqbyJnnDcc4EfAb1USUiqdQssc8y4dnN3B+Yll
-         4kpw23sEBrt9EgEBSpttoXqSqgybCOoo3lbqZAlttfYK+WR77ctqa4tKdaw7+ET61uMp
-         91xLbeVr0pbGHxr5f/8CcpSlY64XlG7kvSPUkTPyM4ADHeDe0CJlly5mYf2tuzUlcK5U
-         L6HJwvBUezLrutb3IFvuUv4mjIjXIRHtLnictkvooHG085EQzsWPeGdmbUNlcFXCiPKU
-         rPGjEU2/uS/TYRDtdiSGTPHXQnNGF8Cc/8iRqV42judMJLdRBqK+ThPhWc6cqnzKHk1p
-         DsLQ==
+        b=1Ai3xvjIMmQIhi9xpBiKhAz+QIlu1JYPsYkZeg4p5i+Yff8O9G6cWSyI2BhyeSg7Ca
+         VSprync9diyHoLdrlja5Msnk7H+JxDCWgtVWVdvWnc67zg6tfepOy4c8cZrCm6fIEICn
+         YJMIdIC0152/YJ9PFDdNz782IBfmrePOvV8s80YP9/F0PCFpmjrdUJmnEIGbZyHivH13
+         BdQzWQc7RG8uml4q1LMv6sSInjtkfFsauo+bIICC+aSq9+rhGu4oaIYxMYLJ1VH4dt2V
+         yTu2jaifRwzwJYE4vMyziDR46RgVEvTKo9ZYKp/Glp4adTwXH6K7IHNO9wTFXYm+2vwu
+         bkKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=HS+u+zhrivtPGNBbCaE1swQKUpAdxESip9XcNifCPoc=;
-        b=mon88tQCnPE/CjNgX1G0ESc8xLRLA3NCbG/f37AXVUHm8bKjA7Hjet5s7z6rHkBkaB
-         HaWE3wO2Xe/WvAla0HGnJXGnwAcH0btV5j9AZmbRJXWjhvUAv+n4qtOrgZPzmxEWGqTR
-         quvEFej8scckmqduQAWsRloFYwF7jOEMgmbm316VxgV17kV9YOOkV0IkHfxEeZDCu49P
-         x31UpZcSDnRV69e5PY7oPY/MGkO7VsHxNrfNE+MCkVscc6ZaIhs4Wi6HGNZLNbXzkL3M
-         TDpXa6xtsWkVEKMIrhrRGXMvPtDMof8awcbfTDg8QC25Zr32XOsixHszP3jLuHlc+2os
-         KjXA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=DYthXOITgd4+jGY/7nfH4nRfeWr9cB7x6dv87md5CSc=;
+        b=SAQkNBt0h19bJQGR7r8bCkR8rY231G41piEkYjOZ3/pvh20vo2+kp57G6yGYBIUPJG
+         ij/vNeg0bI3BfQO8ucgMoB9XFDK2hEZHCSL8ikbl9bmwU2QDOQ8YwVePmXEoOogCWmjr
+         I7+ppwg3gzTyiXAJEAth6KjjzZmv5kkRk2kaDonf/A7w71iK3LJPxnVcZG18wbj7kYGU
+         4Z/rroRhC4A7H4DJFim9dVPY/3Uja1dHY68/i1FepIhgKGmZ/5/9STARjyC+0u+Eq329
+         rPoVHz2thy+KLQlc16DaXCcVdAQLIxPVOobaF97uKAeVkm0q6jRx0pbBG9WV55qLjiYa
+         pYOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AWYLnYQX;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d2si19921360pgi.579.2019.05.13.19.07.49
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y6si4180713yby.448.2019.05.13.19.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 May 2019 19:07:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 13 May 2019 19:54:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AWYLnYQX;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f54.google.com (mail-wm1-f54.google.com [209.85.128.54])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 54195216E3
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 02:07:49 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557799669;
-	bh=194cYzJSEWelAQdAamSQ+HGCjU5m9KnJ95hz0wnBDOw=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=AWYLnYQXqecynVt8YdrwsS+Xfe7b6aCvx26D2JOr6eOFfLp34kg8+aoO6xKlIGs+n
-	 if+Vo2q8fZoCeysFzcDiUsbbBG2udM5TCiMj02dJ8dNOct9/ZqVispF3WQeOuagvIo
-	 NudBGjsk7KLG9PNcK2KUdJ8z3KuRVee+3Ctp2/cA=
-Received: by mail-wm1-f54.google.com with SMTP id c66so1209363wme.0
-        for <linux-mm@kvack.org>; Mon, 13 May 2019 19:07:49 -0700 (PDT)
-X-Received: by 2002:a7b:c844:: with SMTP id c4mr6663648wml.108.1557799667844;
- Mon, 13 May 2019 19:07:47 -0700 (PDT)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4E2kZ9V166352;
+	Mon, 13 May 2019 22:54:01 -0400
+Received: from ppma01dal.us.ibm.com (83.d6.3fa9.ip4.static.sl-reverse.com [169.63.214.131])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sfm55j3kx-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Mon, 13 May 2019 22:54:01 -0400
+Received: from pps.filterd (ppma01dal.us.ibm.com [127.0.0.1])
+	by ppma01dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x4DKuVpX024890;
+	Mon, 13 May 2019 20:58:21 GMT
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by ppma01dal.us.ibm.com with ESMTP id 2sdp14jxm2-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Mon, 13 May 2019 20:58:21 +0000
+Received: from b01ledav001.gho.pok.ibm.com (b01ledav001.gho.pok.ibm.com [9.57.199.106])
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4E2rxdV33423552
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 14 May 2019 02:53:59 GMT
+Received: from b01ledav001.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 936F92805C;
+	Tue, 14 May 2019 02:53:59 +0000 (GMT)
+Received: from b01ledav001.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8BB6028058;
+	Tue, 14 May 2019 02:53:57 +0000 (GMT)
+Received: from skywalker.ibmuc.com (unknown [9.80.221.111])
+	by b01ledav001.gho.pok.ibm.com (Postfix) with ESMTP;
+	Tue, 14 May 2019 02:53:57 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [RFC PATCH] mm/nvdimm: Fix kernel crash on devm_mremap_pages_release
+Date: Tue, 14 May 2019 08:23:54 +0530
+Message-Id: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
- <CALCETrVhRt0vPgcun19VBqAU_sWUkRg1RDVYk4osY6vK0SKzgg@mail.gmail.com> <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
-In-Reply-To: <C2A30CC6-1459-4182-B71A-D8FF121A19F2@oracle.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 13 May 2019 19:07:36 -0700
-X-Gmail-Original-Message-ID: <CALCETrXK8+tUxNA=iVDse31nFRZyiQYvcrQxV1JaidhnL4GC0w@mail.gmail.com>
-Message-ID: <CALCETrXK8+tUxNA=iVDse31nFRZyiQYvcrQxV1JaidhnL4GC0w@mail.gmail.com>
-Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
-To: Liran Alon <liran.alon@oracle.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Alexandre Chartre <alexandre.chartre@oracle.com>, 
-	Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, 
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Peter Zijlstra <peterz@infradead.org>, kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, jan.setjeeilers@oracle.com, 
-	Jonathan Adams <jwadams@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-14_01:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905140018
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2019 at 2:09 PM Liran Alon <liran.alon@oracle.com> wrote:
->
->
->
-> > On 13 May 2019, at 21:17, Andy Lutomirski <luto@kernel.org> wrote:
-> >
-> >> I expect that the KVM address space can eventually be expanded to incl=
-ude
-> >> the ioctl syscall entries. By doing so, and also adding the KVM page t=
-able
-> >> to the process userland page table (which should be safe to do because=
- the
-> >> KVM address space doesn't have any secret), we could potentially handl=
-e the
-> >> KVM ioctl without having to switch to the kernel pagetable (thus effec=
-tively
-> >> eliminating KPTI for KVM). Then the only overhead would be if a VM-Exi=
-t has
-> >> to be handled using the full kernel address space.
-> >>
-> >
-> > In the hopefully common case where a VM exits and then gets re-entered
-> > without needing to load full page tables, what code actually runs?
-> > I'm trying to understand when the optimization of not switching is
-> > actually useful.
-> >
-> > Allowing ioctl() without switching to kernel tables sounds...
-> > extremely complicated.  It also makes the dubious assumption that user
-> > memory contains no secrets.
->
-> Let me attempt to clarify what we were thinking when creating this patch =
-series:
->
-> 1) It is never safe to execute one hyperthread inside guest while it=E2=
-=80=99s sibling hyperthread runs in a virtual address space which contains =
-secrets of host or other guests.
-> This is because we assume that using some speculative gadget (such as hal=
-f-Spectrev2 gadget), it will be possible to populate *some* CPU core resour=
-ce which could then be *somehow* leaked by the hyperthread running inside g=
-uest. In case of L1TF, this would be data populated to the L1D cache.
->
-> 2) Because of (1), every time a hyperthread runs inside host kernel, we m=
-ust make sure it=E2=80=99s sibling is not running inside guest. i.e. We mus=
-t kick the sibling hyperthread outside of guest using IPI.
->
-> 3) From (2), we should have theoretically deduced that for every #VMExit,=
- there is a need to kick the sibling hyperthread also outside of guest unti=
-l the #VMExit is completed. Such a patch series was implemented at some poi=
-nt but it had (obviously) significant performance hit.
->
->
-4) The main goal of this patch series is to preserve (2), but to avoid
-the overhead specified in (3).
->
-> The way this patch series achieves (4) is by observing that during the ru=
-n of a VM, most #VMExits can be handled rather quickly and locally inside K=
-VM and doesn=E2=80=99t need to reference any data that is not relevant to t=
-his VM or KVM code. Therefore, if we will run these #VMExits in an isolated=
- virtual address space (i.e. KVM isolated address space), there is no need =
-to kick the sibling hyperthread from guest while these #VMExits handlers ru=
-n.
+When we initialize the namespace, if we support altmap, we don't initialize all the
+backing struct page where as while releasing the namespace we look at some of
+these uninitilized struct page. This results in a kernel crash as below.
 
-Thanks!  This clarifies a lot of things.
+kernel BUG at include/linux/mm.h:1034!
+cpu 0x2: Vector: 700 (Program Check) at [c00000024146b870]
+    pc: c0000000003788f8: devm_memremap_pages_release+0x258/0x3a0
+    lr: c0000000003788f4: devm_memremap_pages_release+0x254/0x3a0
+    sp: c00000024146bb00
+   msr: 800000000282b033
+  current = 0xc000000241382f00
+  paca    = 0xc00000003fffd680   irqmask: 0x03   irq_happened: 0x01
+    pid   = 4114, comm = ndctl
+ c0000000009bf8c0 devm_action_release+0x30/0x50
+ c0000000009c0938 release_nodes+0x268/0x2d0
+ c0000000009b95b4 device_release_driver_internal+0x164/0x230
+ c0000000009b638c unbind_store+0x13c/0x190
+ c0000000009b4f44 drv_attr_store+0x44/0x60
+ c00000000058ccc0 sysfs_kf_write+0x70/0xa0
+ c00000000058b52c kernfs_fop_write+0x1ac/0x290
+ c0000000004a415c __vfs_write+0x3c/0x70
+ c0000000004a85ac vfs_write+0xec/0x200
+ c0000000004a8920 ksys_write+0x80/0x130
+ c00000000000bee4 system_call+0x5c/0x70
 
-> The hope is that the very vast majority of #VMExit handlers will be able =
-to completely run without requiring to switch to full address space. Theref=
-ore, avoiding the performance hit of (2).
-> However, for the very few #VMExits that does require to run in full kerne=
-l address space, we must first kick the sibling hyperthread outside of gues=
-t and only then switch to full kernel address space and only once all hyper=
-threads return to KVM address space, then allow then to enter into guest.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ mm/page_alloc.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-What exactly does "kick" mean in this context?  It sounds like you're
-going to need to be able to kick sibling VMs from extremely atomic
-contexts like NMI and MCE.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 59661106da16..892eabe1ec13 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5740,8 +5740,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 
+ #ifdef CONFIG_ZONE_DEVICE
+ 	/*
+-	 * Honor reservation requested by the driver for this ZONE_DEVICE
+-	 * memory. We limit the total number of pages to initialize to just
++	 * We limit the total number of pages to initialize to just
+ 	 * those that might contain the memory mapping. We will defer the
+ 	 * ZONE_DEVICE page initialization until after we have released
+ 	 * the hotplug lock.
+@@ -5750,8 +5749,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		if (!altmap)
+ 			return;
+ 
+-		if (start_pfn == altmap->base_pfn)
+-			start_pfn += altmap->reserve;
+ 		end_pfn = altmap->base_pfn + vmem_altmap_offset(altmap);
+ 	}
+ #endif
+-- 
+2.21.0
 
