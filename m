@@ -2,147 +2,167 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A81DAC04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:33:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27F1AC04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:36:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 705692084E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:33:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 705692084E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9D0CB2084E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:36:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="fG6szY4A"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D0CB2084E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 02A736B0005; Wed, 15 May 2019 04:33:25 -0400 (EDT)
+	id 2E71E6B0006; Wed, 15 May 2019 04:36:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F1C8F6B0006; Wed, 15 May 2019 04:33:24 -0400 (EDT)
+	id 2979B6B0007; Wed, 15 May 2019 04:36:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E0C006B0007; Wed, 15 May 2019 04:33:24 -0400 (EDT)
+	id 1872B6B0008; Wed, 15 May 2019 04:36:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 913656B0005
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:33:24 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z5so2768212edz.3
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:33:24 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A7D676B0006
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:36:35 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id y62so429060lfc.16
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:36:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=w/mCSJ42tMOjHxwrKiZFswluDHd9J+p4R9eSNk8N1rA=;
-        b=IAgE02KfngkJn7+9m3k7L9f64NDU2sJUAsOnwLMyL0q7K1UyBHR2EYSyp7UfIz2o4l
-         YfgIvP3dtxZVaKiEF0aTmLhbBsqllerFXvCEJnzm0r7CT8hkF9UAzFqPJw5WKqJf0TvV
-         34s0sKc7LuhJ9jjLAx7QGpyf2pQYndo3IsTlfXPLOZPcXYRZ+LKsUyI4hYC5bqlvQTjN
-         B0o8JHx8mL3CvHhEM7ag7CiX9+CsJZuRF/cTrDRSKzC3VFp9eI6rdKJYQnZS7Xsx3k+j
-         cai0Tl8F5WYjFKc01AO+fPYZUbcgV1j1NaCDF0Z+i/3EdKZhZuRx5LATaJB+w0rfeglp
-         JmQw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXbgYVWVcxGYILzinP5btnNFoQS6u/9bWVkkTbny6GTuFQOMopp
-	9hpmvuXu7jG5oz48OjxijMvvRcUOd42suwRcMuhRSc/2st4APUolg6yrzkld5gi3ZlZ8epEl5CX
-	m9DoVC1xuyjSUsCbwlnzXnrvMa7bAs/ZIjdV3U+wY1lPV4GotZQKb59QSpWUiUak=
-X-Received: by 2002:a17:906:2e58:: with SMTP id r24mr8144721eji.184.1557909204148;
-        Wed, 15 May 2019 01:33:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3a6BH76aF7MNr/WLGxddYIsQ15cV50ZyEhKIJB7z+rPs8TbeaubzbuaMzPVxk7NP8O3G1
-X-Received: by 2002:a17:906:2e58:: with SMTP id r24mr8144677eji.184.1557909203290;
-        Wed, 15 May 2019 01:33:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557909203; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=+V/qixzhLPwbC9jsVHGnQ96lDXhr7tMgZ+aRfAzVw2k=;
+        b=kWnCovMlJ3WqCDMfIvs0xhgeaeePqKxo703PuXdo0SHuI5tkVTtkgPeQXVF6yuYyII
+         BCNXXcYdMTzDx8YEw0YmzXiyuoz9j9jCirXWj1smMAAJ3d0iBzKr9Lgzhsn/Dqss4KUk
+         xJwQVCS1WMARNLAN+p+YbPSsBxvh4nNlfMSt0l5wENzr1zQc2qq+sAppI9GEWkcXKec7
+         FFyYtmHsOXH8mQteiWv24ZQDsapo2z0/zIgclzMy9hSN3Q4Y11Ul0aZzeK2kC1iRurRx
+         v7PCLQTAjKT3YIymytSFPQ3v1BopWCQ1HbsMLFJrCdBzaL6YDuYOB5X04sfKCzy6+9yV
+         hddQ==
+X-Gm-Message-State: APjAAAWDwsf6C3499HyGU6pzBl1VcPW2mO3ZqVs/liIEakibD1I6qYSx
+	XW2ocY+NAchBnMZKhYfDWl4272+NKGY7dZ/V3szr2PHYkFGHKASGHrP8Zkc0gpJz1ln0cLoZt64
+	HanJWGLyHKNcto4tYs1P4zY0vJVtKYi/WO0Luf8VcBYWhvCITjzC4pzAKMFiHuoK/oA==
+X-Received: by 2002:ac2:5a04:: with SMTP id q4mr7892262lfn.90.1557909395091;
+        Wed, 15 May 2019 01:36:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxzrz2RYofjs8kkVtgZ6KYglBIF2qVAwoluRPJAPXJ2BedUGxZO5GWgZfI0K2AT4RZSZM/Z
+X-Received: by 2002:ac2:5a04:: with SMTP id q4mr7892226lfn.90.1557909394343;
+        Wed, 15 May 2019 01:36:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557909394; cv=none;
         d=google.com; s=arc-20160816;
-        b=wTosqw6JtYNbkuqJ4IYDOjc80mzDyURdExfDN+4OUdSDqqQn1Qxjiquvetlwrt8Gxi
-         BIwyIRZCtRXQ/soJMXn4zh/MmZBi1tgYsRH39Ds1BGxwYdcvewuM61I9LTDXY5zQd9Em
-         9R7MsSAFYr+XXnQSVPr9qZR4jIB9XdSKvVJAK80d1/bpF2xrAtlwkDpDOml5713Cu0s5
-         D2+WkAuoBaoXd25cKMt5fK+L9N4exApc0g4tjbLnI5gh487gBA34d/9jiud94CJPydpA
-         lo6AILbdEsiPF+5FgRak3tDqJJTLOeCXQvwnGcdG/ByRD1OU11CCApMLEZZYHg4zZxlR
-         dShw==
+        b=RMtc0eAax/9gbgiYQefzNxizN4nEpeoaLxuUop/iiA8VVZc2oc5MpfbqzOn4aG7axq
+         Y3VyjOIf2iCJPR+L0dTIfMu80DrtzICJFFaQACSXwSpkLhYjlaBntj+Kv/xMYfxqwXef
+         CtahgtPHCX64JBZ5YfwyOYkN+UQZ2p7FEuDGg9x2lKtnwr34XmV0jA0HsbhRNY1uWnA2
+         3WjE8DaIu5rQAAELhKbD+k6Pzi5E8pZPGVASLUQDU/KMr0RXH3BLj0EvBWMbUZbfQEas
+         gWdOFRACblW41Gl5PZGc7EvEc9P55ZhZ7GJrUTO+PD0k++743dj8K4ST6c5DWw/PNwKZ
+         pWqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=w/mCSJ42tMOjHxwrKiZFswluDHd9J+p4R9eSNk8N1rA=;
-        b=oQQ7esdq9ch12Sexg54vyoIUUxyxTMG2fRzyB8Tcd+4WRKjFFk3zAYvY0AWWQ+UKKf
-         WqYYyhhiyc+GMzyOzdm0vxHbmgm6ho+7kuFF4mLZ6mGh9Y4U39w6i6Xltc2egUQDQQCW
-         f+1myN5CFHpIgTPb36RpUfrywoo0P2yGX5yTjT6ljkXvS0AxjW4LFxC7C+d/Ak0Y17nc
-         ZLHbtmt1v4u8tMndMkG1pB8XLJly9+7WGxQCfois0yhOR4IWK7F2/hECyYEi1nJLam9L
-         8siLH6zPYGkJXrkC9+ZVthL8xmZhI5GfFVVZzaq+FPkg49ZMddZ8DmKCF6gGhxrfLun9
-         HiSQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=+V/qixzhLPwbC9jsVHGnQ96lDXhr7tMgZ+aRfAzVw2k=;
+        b=WHbQVj9zNftzhaFcPW7c/F+sKdly6SXudA6XCkJxzIHoqqxJiK0kR2FZGL+5s5yNdn
+         6LLC1PYOH+tV71CGD5TUdqPEXwkKDeqsx8sJZVug1O5VnXAv3phfKYU4WMWwNac9Iin6
+         g1jgxMQrjBa61Fc3XREvzn3EU4Q0xVXiqpj+oELmbP0OvcPVeWgSW058iNhrGpV5TC9b
+         YesKjtrkIpETy7Jl/zgMz+Lc0gTGWlDII+z9N9Fv0Mu6yLD2OSVVYlmEr3gN0hSe4p8i
+         lfXuZAmWcg/87gY1lz9vACfL9METxaDRCmBHMiYHPv41XOL0Nr27cq00OjYMjknjCHK3
+         J4kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i26si944905ejc.361.2019.05.15.01.33.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 01:33:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=fG6szY4A;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [5.45.199.163])
+        by mx.google.com with ESMTP id x9si890625ljx.110.2019.05.15.01.36.34
+        for <linux-mm@kvack.org>;
+        Wed, 15 May 2019 01:36:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) client-ip=5.45.199.163;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 92802AFA7;
-	Wed, 15 May 2019 08:33:22 +0000 (UTC)
-Date: Wed, 15 May 2019 10:33:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Timofey Titovets <nefelim4ag@gmail.com>,
-	Aaron Tomlin <atomlin@redhat.com>,
-	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
-	linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH RFC v2 0/4] mm/ksm: add option to automerge VMAs
-Message-ID: <20190515083321.GC16651@dhcp22.suse.cz>
-References: <20190514131654.25463-1-oleksandr@redhat.com>
- <20190514144105.GF4683@dhcp22.suse.cz>
- <20190514145122.GG4683@dhcp22.suse.cz>
- <20190515062523.5ndf7obzfgugilfs@butterfly.localdomain>
- <20190515065311.GB16651@dhcp22.suse.cz>
- <20190515073723.wbr522cpyjfelfav@butterfly.localdomain>
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=fG6szY4A;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
+	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id BEA8F2E14C9;
+	Wed, 15 May 2019 11:36:33 +0300 (MSK)
+Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
+	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id FiL44lb1Xj-aXwiN7Xh;
+	Wed, 15 May 2019 11:36:33 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1557909393; bh=+V/qixzhLPwbC9jsVHGnQ96lDXhr7tMgZ+aRfAzVw2k=;
+	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
+	b=fG6szY4AI+sLKK0Ror9iZxVfH8KcIEIjDFDqPEpGgy5aw9sgoY4eXQrnKLKdMCUVp
+	 lkCjNFVFoGT6SsD+bCEIXfiPtyQuzbVhAGbwy2/3uAj0l8Gx4i7QqeF9OZsIcCqirl
+	 E6oaDZeudZXfcsdJP8n7pE7CsY9JkJr2vQ+sYzCM=
+Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:ed19:3833:7ce1:2324])
+	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id elKpxPcxty-aW8q7Dnp;
+	Wed, 15 May 2019 11:36:33 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH] mm: fix protection of mm_struct fields in get_cmdline()
+To: Oscar Salvador <osalvador@suse.de>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+ Yang Shi <yang.shi@linux.alibaba.com>, mkoutny@suse.com
+References: <155790813764.2995.13706842444028749629.stgit@buzz>
+ <20190515082222.GA21259@linux>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <e86ce7c9-5093-816d-3141-1cc0d3ba8ad9@yandex-team.ru>
+Date: Wed, 15 May 2019 11:36:32 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190515073723.wbr522cpyjfelfav@butterfly.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190515082222.GA21259@linux>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 15-05-19 09:37:23, Oleksandr Natalenko wrote:
-[...]
-> > This is way too generic. Please provide something more specific. Ideally
-> > with numbers. Why those usecases cannot use an existing interfaces.
-> > Remember you are trying to add a new user interface which we will have
-> > to maintain for ever.
+
+
+On 15.05.2019 11:22, Oscar Salvador wrote:
+> On Wed, May 15, 2019 at 11:15:37AM +0300, Konstantin Khlebnikov wrote:
+>> Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|
+>> end and env_start|end in mm_struct") related mm fields are protected with
+>> separate spinlock and mmap_sem held for read is not enough for protection.
+>>
+>> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 > 
-> For my current setup with 2 Firefox instances I get 100 to 200 MiB saved
-> for the second instance depending on the amount of tabs.
+> This was already addressed by [1]?
 
-What does prevent Firefox (an opensource project) to be updated to use
-the explicit merging?
+Yep.
 
-[...]
-
-> Answering your question regarding using existing interfaces, since
-> there's only one, madvise(2), this requires modifying all the
-> applications one wants to de-duplicate. In case of containers with
-> arbitrary content or in case of binary-only apps this is pretty hard if
-> not impossible to do properly.
-
-OK, this makes more sense. Please note that there are other people who
-would like to see certain madvise operations to be done on a remote
-process - e.g. to allow external memory management (Android would like
-to control memory aging so something like MADV_DONTNEED without loosing
-content and more probably) and potentially other madvise operations.
-Or maybe we need a completely new interface other than madvise.
-
-In general, having a more generic API that would cover more usecases is
-definitely much more preferable than one ad-hoc API that handles a very
-specific usecase. So please try to think about a more generic
--- 
-Michal Hocko
-SUSE Labs
+> 
+> [1] https://patchwork.kernel.org/patch/10923003/
+> 
+>> ---
+>>   mm/util.c |    4 ++--
+>>   1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/util.c b/mm/util.c
+>> index e2e4f8c3fa12..540e7c157cf2 100644
+>> --- a/mm/util.c
+>> +++ b/mm/util.c
+>> @@ -717,12 +717,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+>>   	if (!mm->arg_end)
+>>   		goto out_mm;	/* Shh! No looking before we're done */
+>>   
+>> -	down_read(&mm->mmap_sem);
+>> +	spin_lock(&mm->arg_lock);
+>>   	arg_start = mm->arg_start;
+>>   	arg_end = mm->arg_end;
+>>   	env_start = mm->env_start;
+>>   	env_end = mm->env_end;
+>> -	up_read(&mm->mmap_sem);
+>> +	spin_unlock(&mm->arg_lock);
+>>   
+>>   	len = arg_end - arg_start;
+>>   
+>>
+> 
 
