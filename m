@@ -2,398 +2,178 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A28CC46470
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77548C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:16:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C4A02084E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C4A02084E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 2AA9720862
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:16:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=kroah.com header.i=@kroah.com header.b="gHkvdyLX";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="gtRcPgCq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AA9720862
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kroah.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BAA696B000C; Wed, 15 May 2019 11:11:49 -0400 (EDT)
+	id BA54C6B000A; Wed, 15 May 2019 11:16:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE4AE6B000D; Wed, 15 May 2019 11:11:49 -0400 (EDT)
+	id B566E6B000D; Wed, 15 May 2019 11:16:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FB766B000E; Wed, 15 May 2019 11:11:49 -0400 (EDT)
+	id 9D0216B000E; Wed, 15 May 2019 11:16:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 359F16B000C
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:11:49 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id g15so456970ljk.8
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:11:49 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 79CB86B000A
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:16:03 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x23so2548135qka.19
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:16:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:date:message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=XTDiFLs1g6MB9cJ5m0upXpXhxwoNltSaX8PRg4fpGGw=;
-        b=QLMAFJwdHIqOsN9tkrOjBjmvem0VHxNTm/5IxCzC4ZKI0CkepZZA3kv9S1QPDcl1/B
-         srH3Nag0AKSBvBO4ylCnK7fBLJO0i72yjYYGjdCCmWmuvrJwXrCY9wMFJ2Cwi/3ssZ/b
-         Mfk6r6f09lkwamtE47BQ6V3A45GVUpi27ZYWC6bqW8jzwgOm1TyY7SFuyKFWTpvIr877
-         M8IBFA4HGjEj/qQ0nWpXQ2R+O2jutTV4m+v9il5Ld2iZ/1iLcS35E3qGLQQD1Xbwxk9I
-         U/NB4MxScZ6KRMIpvKkyo1letWu10XIuK40qyTp2s/mBS+PNVntXBf0+ejCCv114ab4c
-         5REQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAVYi9zxwkjr3A/tzW5Ny/HwIH101r+8R5asCE9+MB+RPSya16dK
-	YV/rlQD/i0v9c3eXX1JC+GV8CdRYoi1aVyV8h7plfAZxywbLY67Bi4kf8dgFgGsD5CELo3FljOH
-	iUK8NeHa5iTwdcl5UfLAKcevEQtv6iEEnmIDahWTzvFgFv6IgQI1YcUBnGq9hasPvKA==
-X-Received: by 2002:a2e:88ce:: with SMTP id a14mr13999265ljk.122.1557933108652;
-        Wed, 15 May 2019 08:11:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVHJzku8QTZQMfLbqXiSh0tkm6m70U5a1H/3dZ9ep0Kt+iwXobgrem09KYP3JSBgIHArFy
-X-Received: by 2002:a2e:88ce:: with SMTP id a14mr13999220ljk.122.1557933107585;
-        Wed, 15 May 2019 08:11:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557933107; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=vwxG4zfHU1KFopIJRohTDTKqQxnzS9PnCdczIsuquQE=;
+        b=K/u48m71Pbxi85wCv3LXkJv4aytbL66Y+k7TT+2WNpkJGuvSamwY+hNVGEt2NA48iJ
+         /5VrgHKCArjDYtbrDaq6Lz6MzhK5kqj7l9cr+gH4KsqUy3HIWXjVAZl9iN1gdKWXcCXm
+         imZv0o5s2Hwz2VQrbFla00PrZKBSXsDW0AZ5+GUtY9H+/0FX/yZsjZxJcnDvZ0p9zmyc
+         kue0ZLFd7smj9OEOJM9NvRhc+obtkF6RmpgP30DqOfM1WJf2oDTf6PE/m5kobCxZagkz
+         S8ATEk84IpRu1A6wD8IWuHEQCdfU+n4UUqk2PpR1jkkNHFkN9aOVtsojn3gXc2iwrRdd
+         umpw==
+X-Gm-Message-State: APjAAAU82cFBQY3KJIypf4UhKDILP5pWKV/3EjwPZROaYSkHMAgbEuXO
+	l1ozTdtWTYSJeOAA09rTPYhv/8RaafVgpHr05CLqXFqaahemaay88VLZUSunIa+NGEVO6Xl7bKP
+	tt9oY0CgT0cBGip1VDleZ5eC22zhAoiVQqXzRqvOoL+vaLTGcZrvyq6SFHc2VkbP0SQ==
+X-Received: by 2002:a0c:9523:: with SMTP id l32mr35645441qvl.75.1557933363208;
+        Wed, 15 May 2019 08:16:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzZ0dmySDMmtaPGMZUeeh6v+MoswzXNmgsCtPGRgoRCySdnVd3w85Dzjslw/y7CRlklb36i
+X-Received: by 2002:a0c:9523:: with SMTP id l32mr35645380qvl.75.1557933362548;
+        Wed, 15 May 2019 08:16:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557933362; cv=none;
         d=google.com; s=arc-20160816;
-        b=WLctVfeVlI1qy/qspkyhSuCt1oeHGnPSNpzmEfpn0WYyle473PRuyFMCrwhzFK4+4L
-         fI+2ft7dJSkl6MgG4k/Ya2DzJpW8D6LUT9KpoFcCweAU/8GI47ftqEA/IE0ixtgxK3No
-         q68GjWXWyY9OVNs+KlSZbhCOYXpYrEoMd2r2KAtb79+SQRWilSFRakrK2SiOqdmIBdKF
-         Fi4nhDIoAPnWCqNgQN2wH9D2CaFkBo0YvOU9U6W7aAhLe1Pxa1idheAs0gztXMjGPauw
-         ubnbcS8lzLcr5EYKk8JaIM3UDyo63qiyfDxJXNbO0mq4iwh3TCIHkJqNs9NxhS/Euq/3
-         2AaA==
+        b=zEyKGEmrY1A147nvbea2lno7YEUzsrMpQVdVyaXldl1WgnKCOYYSHr+qGcIXKzmaj2
+         HU7doNLCJc+Nh3WJ+yNcPBS9SeS64yrdHrUzR5aR4GnO+hVxcXxUd5yDwSfzDP44WFR4
+         eqtmlngQ4Z7ynNkpkimpzg2KcXQ+en0re57zxPbujha3gXmzQs+/hC9tXcacpuXWMUXn
+         m9tZr189RBwuFt5KynCn/qQLoHqve3Vg29PZFwZDEEL/nvB6ggzDEhlXVsdpW0e2fP6y
+         bteeWiT0GqT39WOcdQdZho+qLUTTSSwuZj806nJQTxDec9Hn9WIgCKH2wJk4h/v/Nxu0
+         bCAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:to:from:subject;
-        bh=XTDiFLs1g6MB9cJ5m0upXpXhxwoNltSaX8PRg4fpGGw=;
-        b=MMrUweUKUFohCBaab9w/U+C3bn43meCVnhvBj6/lYiK9ozPvuOq68phaITBZ0eVC7r
-         akmS7rNr4CEhIP3nqSxhlTMVnkMgDi1x/9Dg005D/vQCJaVhlYeRKuHDgKL3s8PQZLEN
-         KmuXk9ZWfCdSgLoRGWf1H0qLua+7r5SkX+JcVcg9VdEsyEyv+H+o9M37RwkK2rTKRCQF
-         Gok0EGhlDYmcKcriKN3/52TUMD9hG5fHiBVYIpp5seH+JcsybUGg/cs7ufb5wc4BLPsh
-         EmoPkyLYJb4oAAMuV2lg06Ez7NaizlFqSIp6HvbtIo+Tt4VqKarbL4yXZkUfNCE5gK+F
-         WiNA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=vwxG4zfHU1KFopIJRohTDTKqQxnzS9PnCdczIsuquQE=;
+        b=QePS/pZYRV9HokBRpwiuQG9XiS/8X6vnQ+FoaiLDYBYm0BxazjOuNer+zqcXxDh3uZ
+         ZETqp3uX4XpQd/7PDVotDol2FRF44RXer2mYFQFknMczh6pdfeAmg0zLbC0vsgrwa8I6
+         MJbn9fezsDEqhTV61YXeoa1CvRK/5N1yJGtLhsKI95jv4rrZA1xnNxuk2RNjpusoJksH
+         5H42Pyy9F7HJHI5I4+GwSDYrWAuJz3Wq2vaMjKAQGhxdbzq2NSykJtCaVMrCboUpi71G
+         NFXRSX+/HlBaYowfjdiXI89wjdmHIt+OUEmzAh5E/zzWzru7y+nI7To3U+3GMfSqbPZg
+         EA7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id v13si1758574lji.214.2019.05.15.08.11.47
+       dkim=pass header.i=@kroah.com header.s=fm3 header.b=gHkvdyLX;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=gtRcPgCq;
+       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.221 as permitted sender) smtp.mailfrom=greg@kroah.com
+Received: from new1-smtp.messagingengine.com (new1-smtp.messagingengine.com. [66.111.4.221])
+        by mx.google.com with ESMTPS id g70si1058400qke.265.2019.05.15.08.16.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 08:11:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Wed, 15 May 2019 08:16:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of greg@kroah.com designates 66.111.4.221 as permitted sender) client-ip=66.111.4.221;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169] (helo=localhost.localdomain)
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hQvZI-0001YA-DL; Wed, 15 May 2019 18:11:44 +0300
-Subject: [PATCH RFC 5/5] mm: Add process_vm_mmap()
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-To: akpm@linux-foundation.org, dan.j.williams@intel.com, ktkhai@virtuozzo.com,
- mhocko@suse.com, keith.busch@intel.com, kirill.shutemov@linux.intel.com,
- pasha.tatashin@oracle.com, alexander.h.duyck@linux.intel.com,
- ira.weiny@intel.com, andreyknvl@google.com, arunks@codeaurora.org,
- vbabka@suse.cz, cl@linux.com, riel@surriel.com, keescook@chromium.org,
- hannes@cmpxchg.org, npiggin@gmail.com, mathieu.desnoyers@efficios.com,
- shakeelb@google.com, guro@fb.com, aarcange@redhat.com, hughd@google.com,
- jglisse@redhat.com, mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 15 May 2019 18:11:44 +0300
-Message-ID: <155793310413.13922.4749810361688380807.stgit@localhost.localdomain>
-In-Reply-To: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
-References: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
-User-Agent: StGit/0.18
+       dkim=pass header.i=@kroah.com header.s=fm3 header.b=gHkvdyLX;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=gtRcPgCq;
+       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.221 as permitted sender) smtp.mailfrom=greg@kroah.com
+Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
+	by mailnew.nyi.internal (Postfix) with ESMTP id 09669B881;
+	Wed, 15 May 2019 11:16:02 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute6.internal (MEProxy); Wed, 15 May 2019 11:16:02 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kroah.com; h=
+	date:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm3; bh=vwxG4zfHU1KFopIJRohTDTKqQxn
+	zS9PnCdczIsuquQE=; b=gHkvdyLXIDp0vGK+W7yRjq/rjgDBR7tzxR9R7z0JJ1t
+	ETMPawT6EO98yeb7fpVVWt78adtbwr/Q37R6ICQ7ZwRkAQ8vUCi0d75RMV5sb3eO
+	0xSr5dWVddZu+LzMa6uIh58y3U7HetT2sfUzDyjUzv27XnzaERYulO/VlhQQXWNd
+	QuJ76pupaP85prOYolxkTr2nSaBiE97VCOL8LJl7wOggdplGlOHDeqSTYi/l5aU9
+	kJtY3WWhxfjjFWVSm4/hnfcVNvvlvUJXggpjlWD4as3sUr0doQ0LcsnMbF1t2KvF
+	wa1kF5teSJTxaOrkcMaK2wFnufZCFGLivbQIb5ch4DA==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=vwxG4z
+	fHU1KFopIJRohTDTKqQxnzS9PnCdczIsuquQE=; b=gtRcPgCq3KlYjNgN5VkUbh
+	vPRqtf232eMydJaBzRhgEFMZPVJPaepK61PHnjsTO+aI6xO3+7vnL/QBNCYW0npR
+	mdjON24eCAjS6h/CQZbl5kSg45zXOyaWlWtJoFkhcT0qKt7ACvNcdSx8DeVfrI3V
+	Fu0gV/rF7R27mDeD5OJIQgbAn+yPoLzLGeiwa+uXa/geqqpcbNl1YzklJid0l0vX
+	9a34M5XrENZALRRrYViU+9A/9NK9oBeRjVzf9HCuAli4jeKE1usn5PEv6h1JSmSh
+	1PYMfmNLU+/Q08L4tp1ioiGimAOCbgcjleRwUgiZZbUu3NyXTOxvsAwpWkmtpHLQ
+	==
+X-ME-Sender: <xms:Ly3cXIqtEcRx9UKvtT31bHQPGHtqif2FimXrV5sg9rf5MZDW0qE-TA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrleekgdekvdcutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpeffhffvuffkfhggtggujggfsehttdertddtredvnecuhfhrohhmpefirhgvghcu
+    mffjuceoghhrvghgsehkrhhorghhrdgtohhmqeenucfkphepkeefrdekiedrkeelrddutd
+    ejnecurfgrrhgrmhepmhgrihhlfhhrohhmpehgrhgvgheskhhrohgrhhdrtghomhenucev
+    lhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:MC3cXDmYW1qVvqbi6kuOuyKLMhJdj57T6xm-YL-Bzw-5gC_7Eyls_w>
+    <xmx:MC3cXIvjo27jTfAB63rKqho2w26r_LTW_30RhoeNi8vMnmwkQPw7ZQ>
+    <xmx:MC3cXDDKfweBa9OM_nuhIdbZJYf_IXPTRxGZvsw3KAjiMz0KJMEQWQ>
+    <xmx:MS3cXKbqACB4COtIQLCVlB1vCPAk72yRC4uF8X0KOiQ7lOfuM8BeuA>
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 71077103CB;
+	Wed, 15 May 2019 11:15:59 -0400 (EDT)
+Date: Wed, 15 May 2019 17:15:57 +0200
+From: Greg KH <greg@kroah.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oleksandr Natalenko <oleksandr@redhat.com>,
+	linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Matthew Wilcox <willy@infradead.org>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Timofey Titovets <nefelim4ag@gmail.com>,
+	Aaron Tomlin <atomlin@redhat.com>,
+	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
+	linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH RFC v2 0/4] mm/ksm: add option to automerge VMAs
+Message-ID: <20190515151557.GA23969@kroah.com>
+References: <20190514131654.25463-1-oleksandr@redhat.com>
+ <20190514144105.GF4683@dhcp22.suse.cz>
+ <20190514145122.GG4683@dhcp22.suse.cz>
+ <20190515062523.5ndf7obzfgugilfs@butterfly.localdomain>
+ <20190515065311.GB16651@dhcp22.suse.cz>
+ <20190515145151.GG16651@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190515145151.GG16651@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This adds a new syscall to map from or to another
-process vma. Flag PVMMAP_FIXED may be specified,
-its meaning is similar to mmap()'s MAP_FIXED.
+On Wed, May 15, 2019 at 04:51:51PM +0200, Michal Hocko wrote:
+> [Cc Suren and Minchan - the email thread starts here 20190514131654.25463-1-oleksandr@redhat.com]
+> 
+> On Wed 15-05-19 08:53:11, Michal Hocko wrote:
+> [...]
+> > I will try to comment on the interface itself later. But I have to say
+> > that I am not impressed. Abusing sysfs for per process features is quite
+> > gross to be honest.
+> 
+> I have already commented on this in other email. I consider sysfs an
+> unsuitable interface for per-process API.
 
-@pid > 0 means to map from process of @pid to current,
-@pid < 0 means to map from current to @pid process.
+Wait, what?  A new sysfs file/directory per process?  That's crazy, no
+one must have benchmarked it :)
 
-VMA are merged on destination, i.e. if source task
-has VMA with address [start; end], and we map it sequentially
-twice:
+And I agree, sysfs is not for that, please don't abuse it.  Proc is for
+process apis.
 
-process_vm_mmap(@pid, start, start + (end - start)/2, ...);
-process_vm_mmap(@pid, start + (end - start)/2, end,   ...);
+thanks,
 
-the destination task will have single vma [start, end].
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- include/linux/mm.h                     |    4 +
- include/linux/mm_types.h               |    2 +
- include/uapi/asm-generic/mman-common.h |    5 +
- mm/mmap.c                              |  108 ++++++++++++++++++++++++++++++++
- mm/process_vm_access.c                 |   71 +++++++++++++++++++++
- 5 files changed, 190 insertions(+)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 54328d08dbdd..c49bcfac593c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2382,6 +2382,10 @@ extern int __do_munmap(struct mm_struct *, unsigned long, size_t,
- 		       struct list_head *uf, bool downgrade);
- extern int do_munmap(struct mm_struct *, unsigned long, size_t,
- 		     struct list_head *uf);
-+extern unsigned long mmap_process_vm(struct mm_struct *, unsigned long,
-+				     struct mm_struct *, unsigned long,
-+				     unsigned long, unsigned long,
-+				     struct list_head *);
- 
- static inline unsigned long
- do_mmap_pgoff(struct file *file, unsigned long addr,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 1815fbc40926..885f256f2fb7 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -261,11 +261,13 @@ struct vm_region {
- 
- #ifdef CONFIG_USERFAULTFD
- #define NULL_VM_UFFD_CTX ((struct vm_userfaultfd_ctx) { NULL, })
-+#define IS_NULL_VM_UFFD_CTX(uctx) ((uctx)->ctx == NULL)
- struct vm_userfaultfd_ctx {
- 	struct userfaultfd_ctx *ctx;
- };
- #else /* CONFIG_USERFAULTFD */
- #define NULL_VM_UFFD_CTX ((struct vm_userfaultfd_ctx) {})
-+#define IS_NULL_VM_UFFD_CTX(uctx) (true)
- struct vm_userfaultfd_ctx {};
- #endif /* CONFIG_USERFAULTFD */
- 
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index abd238d0f7a4..44cb6cf77e93 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -28,6 +28,11 @@
- /* 0x0100 - 0x80000 flags are defined in asm-generic/mman.h */
- #define MAP_FIXED_NOREPLACE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
- 
-+/*
-+ * Flags for process_vm_mmap
-+ */
-+#define PVMMAP_FIXED	0x01
-+
- /*
-  * Flags for mlock
-  */
-diff --git a/mm/mmap.c b/mm/mmap.c
-index b2a1f77643cd..3dbf280e9f8e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3274,6 +3274,114 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	return NULL;
- }
- 
-+static int do_mmap_process_vm(struct vm_area_struct *src_vma,
-+			      unsigned long src_addr,
-+			      struct mm_struct *dst_mm,
-+			      unsigned long dst_addr,
-+			      unsigned long len,
-+			      struct list_head *uf)
-+{
-+	struct vm_area_struct *dst_vma;
-+	unsigned long pgoff, ret;
-+	bool unused;
-+
-+	if (do_munmap(dst_mm, dst_addr, len, uf))
-+		return -ENOMEM;
-+
-+	if (src_vma->vm_flags & VM_ACCOUNT) {
-+		if (security_vm_enough_memory_mm(dst_mm, len >> PAGE_SHIFT))
-+			return -ENOMEM;
-+	}
-+
-+	pgoff = src_vma->vm_pgoff +
-+			((src_addr - src_vma->vm_start) >> PAGE_SHIFT);
-+	dst_vma = copy_vma(&src_vma, dst_mm, dst_addr,
-+			   len, pgoff, &unused, false);
-+	if (!dst_vma) {
-+		ret = -ENOMEM;
-+		goto unacct;
-+	}
-+
-+	ret = copy_page_range(dst_mm, src_vma->vm_mm, src_vma,
-+			      dst_addr, src_addr, src_addr + len);
-+	if (ret) {
-+		do_munmap(dst_mm, dst_addr, len, uf);
-+		return -ENOMEM;
-+	}
-+
-+	if (dst_vma->vm_file)
-+		uprobe_mmap(dst_vma);
-+	perf_event_mmap(dst_vma);
-+
-+	dst_vma->vm_flags |= VM_SOFTDIRTY;
-+	vma_set_page_prot(dst_vma);
-+
-+	vm_stat_account(dst_mm, dst_vma->vm_flags, len >> PAGE_SHIFT);
-+	return 0;
-+
-+unacct:
-+	vm_unacct_memory(len >> PAGE_SHIFT);
-+	return ret;
-+}
-+
-+unsigned long mmap_process_vm(struct mm_struct *src_mm,
-+			      unsigned long src_addr,
-+			      struct mm_struct *dst_mm,
-+			      unsigned long dst_addr,
-+			      unsigned long len,
-+			      unsigned long flags,
-+			      struct list_head *uf)
-+{
-+	struct vm_area_struct *src_vma = find_vma(src_mm, src_addr);
-+	unsigned long gua_flags = 0;
-+	unsigned long ret;
-+
-+	if (!src_vma || src_vma->vm_start > src_addr)
-+		return -EFAULT;
-+	if (len > src_vma->vm_end - src_addr)
-+		return -EFAULT;
-+	if (src_vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
-+		return -EFAULT;
-+	if (is_vm_hugetlb_page(src_vma) || (src_vma->vm_flags & VM_IO))
-+		return -EINVAL;
-+        if (dst_mm->map_count + 2 > sysctl_max_map_count)
-+                return -ENOMEM;
-+	if (!IS_NULL_VM_UFFD_CTX(&src_vma->vm_userfaultfd_ctx))
-+		return -ENOTSUPP;
-+
-+	if (src_vma->vm_flags & VM_SHARED)
-+		gua_flags |= MAP_SHARED;
-+	else
-+		gua_flags |= MAP_PRIVATE;
-+	if (vma_is_anonymous(src_vma) || vma_is_shmem(src_vma))
-+		gua_flags |= MAP_ANONYMOUS;
-+	if (flags & PVMMAP_FIXED)
-+		gua_flags |= MAP_FIXED;
-+	ret = get_unmapped_area(src_vma->vm_file, dst_addr, len,
-+				src_vma->vm_pgoff +
-+				((src_addr - src_vma->vm_start) >> PAGE_SHIFT),
-+				gua_flags);
-+	if (offset_in_page(ret))
-+                return ret;
-+	dst_addr = ret;
-+
-+	/* Check against address space limit. */
-+	if (!may_expand_vm(dst_mm, src_vma->vm_flags, len >> PAGE_SHIFT)) {
-+		unsigned long nr_pages;
-+
-+		nr_pages = count_vma_pages_range(dst_mm, dst_addr, dst_addr + len);
-+		if (!may_expand_vm(dst_mm, src_vma->vm_flags,
-+					(len >> PAGE_SHIFT) - nr_pages))
-+			return -ENOMEM;
-+	}
-+
-+	ret = do_mmap_process_vm(src_vma, src_addr, dst_mm, dst_addr, len, uf);
-+	if (ret)
-+                return ret;
-+
-+	return dst_addr;
-+}
-+
- /*
-  * Return true if the calling process may expand its vm space by the passed
-  * number of pages
-diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
-index a447092d4635..7fca2c5c7edd 100644
---- a/mm/process_vm_access.c
-+++ b/mm/process_vm_access.c
-@@ -17,6 +17,8 @@
- #include <linux/ptrace.h>
- #include <linux/slab.h>
- #include <linux/syscalls.h>
-+#include <linux/mman.h>
-+#include <linux/userfaultfd_k.h>
- 
- #ifdef CONFIG_COMPAT
- #include <linux/compat.h>
-@@ -295,6 +297,68 @@ static ssize_t process_vm_rw(pid_t pid,
- 	return rc;
- }
- 
-+static unsigned long process_vm_mmap(pid_t pid, unsigned long src_addr,
-+				     unsigned long len, unsigned long dst_addr,
-+				     unsigned long flags)
-+{
-+	struct mm_struct *src_mm, *dst_mm;
-+	struct task_struct *task;
-+	unsigned long ret;
-+	int depth = 0;
-+	LIST_HEAD(uf);
-+
-+	len = PAGE_ALIGN(len);
-+	src_addr = round_down(src_addr, PAGE_SIZE);
-+	if (flags & PVMMAP_FIXED)
-+		dst_addr = round_down(dst_addr, PAGE_SIZE);
-+	else
-+		dst_addr = round_hint_to_min(dst_addr);
-+
-+	if ((flags & ~PVMMAP_FIXED) || len == 0 || len > TASK_SIZE ||
-+	    src_addr == 0 || dst_addr > TASK_SIZE - len)
-+		return -EINVAL;
-+	task = find_get_task_by_vpid(pid > 0 ? pid : -pid);
-+	if (!task)
-+		return -ESRCH;
-+	if (unlikely(task->flags & PF_KTHREAD)) {
-+		ret = -EINVAL;
-+		goto out_put_task;
-+	}
-+
-+	src_mm = mm_access(task, PTRACE_MODE_ATTACH_REALCREDS);
-+	if (!src_mm || IS_ERR(src_mm)) {
-+		ret = IS_ERR(src_mm) ? PTR_ERR(src_mm) : -ESRCH;
-+		goto out_put_task;
-+	}
-+	dst_mm = current->mm;
-+	mmget(dst_mm);
-+
-+	if (pid < 0)
-+		swap(src_mm, dst_mm);
-+
-+	/* Double lock mm in address order: smallest is the first */
-+	if (src_mm < dst_mm) {
-+		down_write(&src_mm->mmap_sem);
-+		depth = SINGLE_DEPTH_NESTING;
-+	}
-+	down_write_nested(&dst_mm->mmap_sem, depth);
-+	if (src_mm > dst_mm)
-+		down_write_nested(&src_mm->mmap_sem, SINGLE_DEPTH_NESTING);
-+
-+	ret = mmap_process_vm(src_mm, src_addr, dst_mm, dst_addr, len, flags, &uf);
-+
-+	up_write(&dst_mm->mmap_sem);
-+	if (dst_mm != src_mm)
-+		up_write(&src_mm->mmap_sem);
-+
-+	userfaultfd_unmap_complete(dst_mm, &uf);
-+	mmput(src_mm);
-+	mmput(dst_mm);
-+out_put_task:
-+	put_task_struct(task);
-+	return ret;
-+}
-+
- SYSCALL_DEFINE6(process_vm_readv, pid_t, pid, const struct iovec __user *, lvec,
- 		unsigned long, liovcnt, const struct iovec __user *, rvec,
- 		unsigned long, riovcnt,	unsigned long, flags)
-@@ -310,6 +374,13 @@ SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
- 	return process_vm_rw(pid, lvec, liovcnt, rvec, riovcnt, flags, 1);
- }
- 
-+SYSCALL_DEFINE5(process_vm_mmap, pid_t, pid,
-+		unsigned long, src_addr, unsigned long, len,
-+		unsigned long, dst_addr, unsigned long, flags)
-+{
-+	return process_vm_mmap(pid, src_addr, len, dst_addr, flags);
-+}
-+
- #ifdef CONFIG_COMPAT
- 
- static ssize_t
+greg k-h
 
