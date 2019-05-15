@@ -2,145 +2,145 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E14FFC04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:38:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E713C04E84
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:40:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ACC702082E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:38:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACC702082E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id C46972082E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:40:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="c4eMVd1c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C46972082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E80736B000A; Wed, 15 May 2019 04:38:31 -0400 (EDT)
+	id 57B556B000C; Wed, 15 May 2019 04:40:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DBA7B6B000C; Wed, 15 May 2019 04:38:31 -0400 (EDT)
+	id 505A46B000D; Wed, 15 May 2019 04:40:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB25D6B000D; Wed, 15 May 2019 04:38:31 -0400 (EDT)
+	id 3CCF56B000E; Wed, 15 May 2019 04:40:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 692BA6B000A
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:38:31 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id 17so430176lfr.14
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:38:31 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C95936B000C
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:40:57 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id f15so432571lfc.10
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:40:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BAqHI2ypPGaioUF0B32f2/XIYx142pgDOlaWD+A8+sw=;
-        b=PfE+Wa1oC78pg5AsGGLSn7cKECxg8VhrPK3snV2h6qPzjexh+haFNA/anL7SsfZ3sZ
-         tUzziu83zoyDguA2GAUfBQQerdx76uL/j1297gHOfr6A0nr77O8F5W0Py9XByWZ1LRGK
-         uJmYZj09N0weQutP2Cvmb9jLjfoUDbMq94Updc4Xp23k1hHED4z+OiIipsk60YVjl7nj
-         k1XLZWPM1ApDFceY6Td/nm10oE6CnHhdvA/c1zsWSxS6/Hb2GFekP8JDLl6mF7tV5Y3x
-         g3b3P0JsYx8gExPi76YOV4NKXUmGLHJhqzw/kYTTxx+oWYQKlesqWku3HFQeBlmNOIkU
-         gmAQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAW6GaN2h12yquGIurf1r0VEyMwV28hInwXPLEIwSXahIcq+gx7l
-	Wb6idsjpBMb0qHnp5yLcZ8ixLG7IF8xFWNP2atqI1ZY2GvVTc1amr2jUx82TlwOV4PUUHZxvOyu
-	NZ+sWFSt1lOcZMt0qksgqr2S6ND5kxZ51MGp3LAbD+4XYP9trE+WLfIhY2X8y6Y0QZQ==
-X-Received: by 2002:a19:6f4d:: with SMTP id n13mr19490817lfk.57.1557909510853;
-        Wed, 15 May 2019 01:38:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwZpQlO1IFxrZ6s/IHzfQobgS4x6PVRqnFeVidmpt8+RL6d7PH1q6L0LfLE/neYwu8GStw5
-X-Received: by 2002:a19:6f4d:: with SMTP id n13mr19490786lfk.57.1557909510095;
-        Wed, 15 May 2019 01:38:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557909510; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to:cc;
+        bh=PqVaSFiBytC8hxBsEh/HgINdW7HiuF2nkdZ+Xr3sRJM=;
+        b=Q5mdCx5ayLvbeGbbyKRnJmhcAeAx7lZFmshPYQ9UQG//reXFFa8tm/3wWfHu9Ie9x3
+         XWhAKtKjlbodPbHT3js5Rqk1QZT5u7PIAcCP/MTM8Q00FK1p/hvA2XCuG7J7wh7LNh5U
+         WMK+UrO/CoLfdrWGKW5R/GxvepucEab6mAwfFCzErQ7g6kIweHmA3IPZkbRWijdSqWbY
+         8rnDjVURtBF67fRlW7CakeqvWyRn9gW9LICdQTUO5WgwK+XPDM0aY79TAyzSLNlr4Qv8
+         3StLfGP9NBMSJ92v60Is0z55GpyyvAMvCcVs8sRn0pjE4nLqQb+TTNOsHj1gcVdulYi/
+         YgCA==
+X-Gm-Message-State: APjAAAUqiykWdsZOSKZpLI/HhBsZUa7imQRm2u7D+IdzHaY8GG4WCmrY
+	sUiSKl4tQ+uZ0wYVVD2BjzGnKbyEMKH9DroiNBKgcIyNx5RlIH4P9nu1N6RxBHU9xpM3cDbqp6g
+	gxgz8fgOELGeAspbnfqjTNC//CwlxRA3Stz+viAdny0PWRhW+/ksIrx75aoEhuZpklw==
+X-Received: by 2002:a2e:5c08:: with SMTP id q8mr4733481ljb.113.1557909657162;
+        Wed, 15 May 2019 01:40:57 -0700 (PDT)
+X-Received: by 2002:a2e:5c08:: with SMTP id q8mr4733395ljb.113.1557909655407;
+        Wed, 15 May 2019 01:40:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557909655; cv=none;
         d=google.com; s=arc-20160816;
-        b=pZlBn1nXnpFafyCCeM0san88r0DuNWCUh6h7gCKlc4FymsbWLOIboN4TRzJvvxSzzG
-         CekxOOsHawfodRR3Tf/cdLPLg/JrMv08KVgp7IxTeE5JJX475+dgY5FwyjUaxyczQWhb
-         3kKCdSV2TP9odeB9zRYQ0AJMsMAaZgUe3+18piGqqNY0SaDQGIb2d0ymTfL27BKARIc+
-         YZsnx8GzUDYzubm8ZOJEbi1KxU8Qor0RtrWlRgCn2OEoYSAVe0l6JdKj/QQpMMQXhRr6
-         rF4pOehcvXOG4xYVyag8T43T9+Gnn8l7wfPq+FIu6gSkMEC/oTgSWKLBqLyUD9TVfqWV
-         vDGg==
+        b=mb5kTHoMDv3Oj5HlAOzuuFYGxzcWaaIQYmQiI9ckspJhOSU16WeN1vk3LR5XA667LT
+         y8llj3aRIivqc64l8x6qTq3Ye0xIPFZuQL3f79eupB5W16TnUbdyo0syvb825p0A3xBK
+         y0RQUGHLM3JyUeOziyYHeLs6vrf3g0WBdea8rd91IXmCBRlDZvFUOQMW2mWyDXtErA4+
+         LN2I/LxWInhaINPxcMOa9J8tkaiXlNt8imyEGUG+yiWsJU+FbZirzVI19xicEd0QkKJV
+         QU89JW7Rdh5O4h5N+5auegm0xYkL5BiWv+QqQ16kmI0C0DUSvGwwu2SCUYZ0a9wm+KwT
+         ojSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=BAqHI2ypPGaioUF0B32f2/XIYx142pgDOlaWD+A8+sw=;
-        b=p+xkHJ9/WO8WMwaoyCTKk3nH4vAqj2oxXWnOh+mmPeeaSWmuUtRk84+Ct/oiiWa/Mf
-         OLsZ0LylVc+9bhpBwEwR+O22np0f5rBgGSFeEjHuCz4BSDiVI16KA81/JyeakTDur36M
-         ula45bh6ng1lPWonncqAC2jFC0mBtcB4yJuFZt5hWQA3/Mtca+ZyP+YDEBiIJorISz/1
-         PNSkejiO8lmwWZEzZv6p+pLY4TIDs3vDbceA/FCDfRbi9M12g0dMBI+5NiBQDkGbTFev
-         +fRIEOI7K7k7NgrO4dTe7FWW1fXiRRmgCovelrdc2ry71hcZqsUE6iZGP6CK9vBvGZGC
-         WwRg==
+        h=cc:to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=PqVaSFiBytC8hxBsEh/HgINdW7HiuF2nkdZ+Xr3sRJM=;
+        b=ar+uot0/RfTIhLqUxHWtVgM78m1RlbuQpJ8khN5yjEkIErN/T6eKg1hGLVlOLvVIYK
+         KyVV90RomzOdzKzaRpph3jZTFkt8uH6eNIzsviCVuS+6WLvADJz9aXa9T3z5Cb0rqPUh
+         3Aw8/g/AHEPdPq9HIA2VDnfM+/VnIzq3MvxhEjoho0O2apZe583rjkfrMDEYcvJ8ExR/
+         bXnh8c7TAXpLIXGWzIq8Xo23mDPCgqrGKzLrCsS4e0QNBnCaxxYKqI30T/HjtdxewTks
+         Z8USSmRK8iAbu062HZp7mO3hobjGCq04Rx0VZGbv0mvs//VddYOeav53jQAoczplk+Hs
+         R0Ig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id h5si1031072ljk.81.2019.05.15.01.38.29
+       dkim=pass header.i=@linaro.org header.s=google header.b=c4eMVd1c;
+       spf=pass (google.com: domain of naresh.kamboju@linaro.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=naresh.kamboju@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y17sor399921lfh.61.2019.05.15.01.40.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 01:38:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Wed, 15 May 2019 01:40:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of naresh.kamboju@linaro.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hQpQZ-0006hD-8M; Wed, 15 May 2019 11:38:19 +0300
-Subject: Re: [PATCH] mm: fix protection of mm_struct fields in get_cmdline()
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org,
- mkoutny@suse.com, Andrew Morton <akpm@linux-foundation.org>,
- linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, Yang Shi <yang.shi@linux.alibaba.com>
-References: <155790813764.2995.13706842444028749629.stgit@buzz>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <f0978f70-716c-0272-d8f0-87dc163d0784@virtuozzo.com>
-Date: Wed, 15 May 2019 11:38:18 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@linaro.org header.s=google header.b=c4eMVd1c;
+       spf=pass (google.com: domain of naresh.kamboju@linaro.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=naresh.kamboju@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=mime-version:from:date:message-id:subject:to:cc;
+        bh=PqVaSFiBytC8hxBsEh/HgINdW7HiuF2nkdZ+Xr3sRJM=;
+        b=c4eMVd1cLxlB6SJBmNhemOrHGlx22bRWlhjGFOgNaLhbLW2OsPnJ6q7IN/0qHO2SJT
+         44NH8SW7Cz7C3NbkZ6LUVyuc+HzNnulv1amtnBP+4BzX65YCeVqIiFPthbsIvGNRastI
+         FbjiJSRIsNnOy55OzOM24lwDTwQ8e3guvD/twvzX8/U23YRpw/0O0FdUM5g8ol8rvtGT
+         3HQfxeXNsLpmFjaOI0s2beybpvYsZWr56AL1iTqZnKWFCOtzAIRlXYsgw/i9aL/6NEPD
+         g7GWfCO0vCdWKEMkUAxLxifdzh0t3jxTgaNvygX4vDQBbW/QJM0RreiOZzIYruK6B9fL
+         hGdA==
+X-Google-Smtp-Source: APXvYqz27fihyYyeqJzcm9uZcyrM35iaJPBOLqtP38PCvZvb3HdahvBJTwe31L0dHMb3DcwxQ1okZ20YuVymiVG6A6k=
+X-Received: by 2002:a19:6b0e:: with SMTP id d14mr16922584lfa.137.1557909654616;
+ Wed, 15 May 2019 01:40:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <155790813764.2995.13706842444028749629.stgit@buzz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+From: Naresh Kamboju <naresh.kamboju@linaro.org>
+Date: Wed, 15 May 2019 14:10:43 +0530
+Message-ID: <CA+G9fYu254sYc77jOVifOmxrd_jNmr4wNHTrqnW54a8F=EQZ6Q@mail.gmail.com>
+Subject: LTP: mm: overcommit_memory01, 03...06 failed
+To: ltp@lists.linux.it, linux-mm@kvack.org
+Cc: open list <linux-kernel@vger.kernel.org>, Jan Stancek <jstancek@redhat.com>, 
+	lkft-triage@lists.linaro.org, dengke.du@windriver.com, petr.vorel@gmail.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Konstantin,
+ltp-mm-tests failed on Linux mainline kernel  5.1.0,
+  * overcommit_memory01 overcommit_memory
+  * overcommit_memory03 overcommit_memory -R 30
+  * overcommit_memory04 overcommit_memory -R 80
+  * overcommit_memory05 overcommit_memory -R 100
+  * overcommit_memory06 overcommit_memory -R 200
 
-On 15.05.2019 11:15, Konstantin Khlebnikov wrote:
-> Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|
-> end and env_start|end in mm_struct") related mm fields are protected with
-> separate spinlock and mmap_sem held for read is not enough for protection.
-> 
-> Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+mem.c:814: INFO: set overcommit_memory to 0
+overcommit_memory.c:185: INFO: malloc 8094844 kB successfully
+overcommit_memory.c:204: PASS: alloc passed as expected
+overcommit_memory.c:189: INFO: malloc 32379376 kB failed
+overcommit_memory.c:210: PASS: alloc failed as expected
+overcommit_memory.c:185: INFO: malloc 16360216 kB successfully
+overcommit_memory.c:212: FAIL: alloc passed, expected to fail
 
-is this already fixed in Michal's series: https://lkml.org/lkml/2019/5/2/422 ?
+Failed test log,
+https://lkft.validation.linaro.org/scheduler/job/726417#L22852
 
-Thanks,
-Kirill
+LTP version 20190115
 
-> ---
->  mm/util.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/util.c b/mm/util.c
-> index e2e4f8c3fa12..540e7c157cf2 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -717,12 +717,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
->  	if (!mm->arg_end)
->  		goto out_mm;	/* Shh! No looking before we're done */
->  
-> -	down_read(&mm->mmap_sem);
-> +	spin_lock(&mm->arg_lock);
->  	arg_start = mm->arg_start;
->  	arg_end = mm->arg_end;
->  	env_start = mm->env_start;
->  	env_end = mm->env_end;
-> -	up_read(&mm->mmap_sem);
-> +	spin_unlock(&mm->arg_lock);
->  
->  	len = arg_end - arg_start;
->  
-> 
+Test case link,
+https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/tunable/overcommit_memory.c#L212
+
+First bad commit:
+git branch master
+git commit e0654264c4806dc436b291294a0fbf9be7571ab6
+git describe v5.1-10706-ge0654264c480
+git repo https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+Last good commit:
+git branch master
+git commit 7e9890a3500d95c01511a4c45b7e7192dfa47ae2
+git describe v5.1-10326-g7e9890a3500d
+git repo https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+Best regards
+Naresh Kamboju
 
