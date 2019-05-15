@@ -2,101 +2,112 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C6B5C04E87
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 07:41:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFAC6C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:15:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D0585206BF
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 07:41:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0585206BF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5FCFC20862
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:15:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="yiIhTfm8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FCFC20862
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B90A6B0007; Wed, 15 May 2019 03:41:44 -0400 (EDT)
+	id C6CF16B0005; Wed, 15 May 2019 04:15:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 66BC66B0008; Wed, 15 May 2019 03:41:44 -0400 (EDT)
+	id C1D2C6B0006; Wed, 15 May 2019 04:15:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 558DD6B000A; Wed, 15 May 2019 03:41:44 -0400 (EDT)
+	id AE4956B0007; Wed, 15 May 2019 04:15:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 04AFB6B0007
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 03:41:44 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l3so2524901edl.10
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 00:41:43 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 480F36B0005
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:15:41 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id l26so410907lfk.4
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:15:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=PpGnbLyCPRayCEAVb6qcecWM7aI0BFGBOUnm3WrZtig=;
-        b=G9XZ0Z8Oo8ecxyb5CmZP73dR4rCuQtdHduUht+lqqYXyC1uci2bd230JCsOfYIQjDz
-         tV6Vnlrh10HuhD564JlrWNAPlbKOfwsRW69VC1k8nEUVdFd1xYWBcgZQ/szdYISV+KBo
-         yRsblavZnu4Do6hOnqZ7S7L9ZBsZ4GdcUH5ibQiCtweGM4yXDN3IoIDG0DbMvq4kocOW
-         5/ITvoOQzpsy3CJqJKqOg8rYGE59lGikJlZz8nFReVptO/J8CEEj/KTIlOSQP0SRL5I3
-         zgbB2Cza6v2oMH1hESdYW9pKY5X26K0dpMGOwfi0kFSUco2Pf1SjYR2O7f8y9KlxhEIE
-         qjFQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAXzpbd0P1poDFiR2Krp5nEYKc5MAZ0vF85xUiR/SZY4jEl0P4J1
-	ZmU/MaRRNxvwNhiwYAbWqUh7YJEf+XrIxdK5Nwob86MyKXkn+JJHcFEJjgWU5l7qr57AMtjT43q
-	wk7rNaNGNl3dnzeaYUcgNUi9ywLlRzc1TiB96jVGgEGjIukxDkfvUb3fxtNX72Vs8rw==
-X-Received: by 2002:a17:906:1e0f:: with SMTP id g15mr31794772ejj.241.1557906103552;
-        Wed, 15 May 2019 00:41:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz8/CJZAhvKmHkEe7dVtBGdnsCVx8uG4NZy9bsvjnh+QjQtQqK1DOBjrvet7hJFoRv3MoG8
-X-Received: by 2002:a17:906:1e0f:: with SMTP id g15mr31794723ejj.241.1557906102777;
-        Wed, 15 May 2019 00:41:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557906102; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
+        b=kbwhZxpGRt1FDd490BLX3CBnxo65QsPGsUnxxF5WeTlMBoZ+qEMyDW6EanhDn79yxu
+         TmAK/wHwZ152hbv8hHNUu0kZhCVIcNDtlOA2QftR1971tF+0Wh1qi3xI6S/mNg4sEcgI
+         9Gen7gfFdOfKnkEiLozo1PKxk9EIftf3m3S5h79y0IlWRWXSUg3bwt+vsbW53nRYMABc
+         kD+yj1xChI/0o9VrR9SaxdDju/0sLWelM3nlwM2MYBiqsxUU3r487Rp3LUCZ2b+cP/pz
+         m5xs+8rwGky7dw92HM2ke+vSgLbGylNlrpZ0rTU7pHiBFqirq7PceIDPjbcr2/Ma2aCh
+         RC5Q==
+X-Gm-Message-State: APjAAAUJ0ulPrR2aAfkYkOUaLP1UgvGGOiA6qeNX9lGqe00p7ro0fjyy
+	uG3yhDXLFZaiCPPVhVlQ4SldWf+mIQQVZ1yxNwELASIPiQ03/kxMNvJJjVL3yK15ZrTBaycHE5A
+	d3fJzDRD3bvB6PomtnQHjIXSYgxcpc8/6gaenQKz95r2TPgL4klSBGbUPiPEjuxRtGQ==
+X-Received: by 2002:a19:9e47:: with SMTP id h68mr17448881lfe.91.1557908140394;
+        Wed, 15 May 2019 01:15:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYm6ESyYlmVBn2ODDDIcGZqnlv78APIGY114oiGu5SRJy4cdTeOxXt6TuU6Ui6gqDuf0Uk
+X-Received: by 2002:a19:9e47:: with SMTP id h68mr17448837lfe.91.1557908139249;
+        Wed, 15 May 2019 01:15:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557908139; cv=none;
         d=google.com; s=arc-20160816;
-        b=ex5rvb8cK+V1HRQ5h6aJzmTb0kPpLF6qu8O9OcrEOLhcvBARf34vti2ocwoNDuZW9w
-         7I6eSr9wqHFyQWtk67yeaJ4v1lREyT8Ie+5WxLKWSBzYr9NQfoCiRWd5fZfehuqWa8ks
-         ObjR6R4aVf+kTFfG1SunRE8Cbz4BDL8HJjvQMaVDo3cJx30uVLk6NcdYQ+6XiHoYY2tp
-         vs+17Lp0qNpft4R7clTWNgG3CF3XJk4hJqwHQsLRMN6C7ygGsiPqTH637ujUxnrPbWp0
-         EHpv9TsMIPGaPh1f/u8SEMs/xD+H+n/S691HfnOUFbeLfs+tgVVaGiXUAgwBMnBz644a
-         6raQ==
+        b=CHXd6sxVlsfNyxd4PAZP4UyCDQpP6VEO7h2nDdfZguB87VoevwyLtlbCnim8wzL1lT
+         sIeghzSCxj7b0TL0nSz8Gx0ipGSli0d4w4YyjwzOnFLVT4PPTGWMJ4iNMT03sGcwziQA
+         g/XLCQGfNwAtIQwF05qxGai5KYmClUItKlTnKvXg5zhA4UYgkFJTkVHczgvLtrX33Gry
+         JlIAEeyMhc9rtwQvbSWEE4hkMYUAKc05s4OsNLm91AfKxjy7+ke3+nwYQfmjRxhJljQ8
+         BjD8l/9cKIIxkNyrSNkvzMUr0gyD3ZT5mFRKe/xgTrvL/SNuQf4/UjlY6h8UOGQZrY6Q
+         K4jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=PpGnbLyCPRayCEAVb6qcecWM7aI0BFGBOUnm3WrZtig=;
-        b=df4K1wP2BaJTcCk6GLf8TD/pdu/F6wk7t/I9v8ZY0z0vWsFy0qWlAY9L9hBqV99icj
-         TeaF6pkxNNY33NBNfdc6Kr2vFo0GIcS1SiqqmtNdN1nYLtRtoNw0npH6R4RvAJy+nmfw
-         RosFvyBao5QcK7BAqkrD+y+fmVCkZJoARRqCm8mH8fWSToc7muvakZVevJq/hVO0QHSw
-         dr2ZiR5/T3LevMtPvQTqjqCkcQyeNbz5uWHOKPlVUMNZSbNosUm6nF8YPtW/BLo4gxbQ
-         YXNKiJ/tr8Ctlb6wva0nShbTqcSzuclYLmCU8a1xDmu6xfZXqUaisKQZj2sEtnlLsV+x
-         zSKg==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
+        b=L5iLe/VRrTBoE1kH+RFM33dOv47UkczU2kHGMyWuNYhxuzAoPIbpD940pA15YRX7LZ
+         Bjlvt7g8/BqTun9eKM8fjwttR5i8dPvz2XI/2b1nmiU4BLnxbe6rmT5Wg85YaYYEcV++
+         F4hPFksJaQOg8kkhGQQT2znJ19zbQKza/ZFdE5wrkUsmNA/I7Bjy/TDWEEV24EotRyZl
+         98rCzVMfmzGfQKgihbJA5wY7hnwrwBNTk2PmFLclgbpXlSXsHDBX8vqcBmSUBXR23zYd
+         8rdprE6E6Ea1X1m6bJd44BlhFj668gJAkLYXWJt6EweEEfunWnaReYnBQkLHGmQIEI8x
+         wC3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f16si769441ede.53.2019.05.15.00.41.42
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yiIhTfm8;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1p.mail.yandex.net (forwardcorp1p.mail.yandex.net. [2a02:6b8:0:1472:2741:0:8b6:217])
+        by mx.google.com with ESMTP id m11si937399lji.201.2019.05.15.01.15.38
         for <linux-mm@kvack.org>;
-        Wed, 15 May 2019 00:41:42 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Wed, 15 May 2019 01:15:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) client-ip=2a02:6b8:0:1472:2741:0:8b6:217;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 941F1374;
-	Wed, 15 May 2019 00:41:41 -0700 (PDT)
-Received: from [10.163.1.137] (unknown [10.163.1.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5B9F93F71E;
-	Wed, 15 May 2019 00:41:36 -0700 (PDT)
-Subject: Re: [PATCH] mm: refactor __vunmap() to avoid duplicated call to
- find_vm_area()
-To: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com,
- Johannes Weiner <hannes@cmpxchg.org>, Matthew Wilcox <willy@infradead.org>,
- Vlastimil Babka <vbabka@suse.cz>
-References: <20190514235111.2817276-1-guro@fb.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <7ad2b16d-c1a3-b826-df4d-6d9ed1d9fc9f@arm.com>
-Date: Wed, 15 May 2019 13:11:46 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yiIhTfm8;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
+	by forwardcorp1p.mail.yandex.net (Yandex) with ESMTP id A73FB2E0987;
+	Wed, 15 May 2019 11:15:38 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id RoCJEKO4OP-Fc0KCJcQ;
+	Wed, 15 May 2019 11:15:38 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1557908138; bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
+	h=Message-ID:Date:To:From:Subject:Cc;
+	b=yiIhTfm8Y8WhZ27MzSCHygSHiu5oBt8MnnCw4imtDEH6qA2novSoggL0Mk1CNqZ9T
+	 7xF4+sJ+Uco+w51uWRsqF5JueXBt2YYU1CZvrsjb3//DVbmxezl4Kkc7S2+eC/xLEJ
+	 XdmVbHG1DwYMOOkK8yT+YETJRQD++p45vkpsltKw=
+Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:ed19:3833:7ce1:2324])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id TMPGL1lslS-Fbl0Xd6Q;
+	Wed, 15 May 2019 11:15:37 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: [PATCH] mm: fix protection of mm_struct fields in get_cmdline()
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.com>, Yang Shi <yang.shi@linux.alibaba.com>
+Date: Wed, 15 May 2019 11:15:37 +0300
+Message-ID: <155790813764.2995.13706842444028749629.stgit@buzz>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-In-Reply-To: <20190514235111.2817276-1-guro@fb.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -104,114 +115,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|
+end and env_start|end in mm_struct") related mm fields are protected with
+separate spinlock and mmap_sem held for read is not enough for protection.
 
+Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ mm/util.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-On 05/15/2019 05:21 AM, Roman Gushchin wrote:
-> __vunmap() calls find_vm_area() twice without an obvious reason:
-> first directly to get the area pointer, second indirectly by calling
-> vm_remove_mappings()->remove_vm_area(), which is again searching
-> for the area.
-> 
-> To remove this redundancy, let's split remove_vm_area() into
-> __remove_vm_area(struct vmap_area *), which performs the actual area
-> removal, and remove_vm_area(const void *addr) wrapper, which can
-> be used everywhere, where it has been used before. Let's pass
-> a pointer to the vm_area instead of vm_struct to vm_remove_mappings(),
-> so it can pass it to __remove_vm_area() and avoid the redundant area
-> lookup.
-> 
-> On my test setup, I've got 5-10% speed up on vfree()'ing 1000000
-> of 4-pages vmalloc blocks.
-> 
-> Perf report before:
->   29.44%  cat      [kernel.kallsyms]  [k] free_unref_page
->   11.88%  cat      [kernel.kallsyms]  [k] find_vmap_area
->    9.28%  cat      [kernel.kallsyms]  [k] __free_pages
->    7.44%  cat      [kernel.kallsyms]  [k] __slab_free
->    7.28%  cat      [kernel.kallsyms]  [k] vunmap_page_range
->    4.56%  cat      [kernel.kallsyms]  [k] __vunmap
->    3.64%  cat      [kernel.kallsyms]  [k] __purge_vmap_area_lazy
->    3.04%  cat      [kernel.kallsyms]  [k] __free_vmap_area
-> 
-> Perf report after:
->   32.41%  cat      [kernel.kallsyms]  [k] free_unref_page
->    7.79%  cat      [kernel.kallsyms]  [k] find_vmap_area
->    7.40%  cat      [kernel.kallsyms]  [k] __slab_free
->    7.31%  cat      [kernel.kallsyms]  [k] vunmap_page_range
->    6.84%  cat      [kernel.kallsyms]  [k] __free_pages
->    6.01%  cat      [kernel.kallsyms]  [k] __vunmap
->    3.98%  cat      [kernel.kallsyms]  [k] smp_call_function_single
->    3.81%  cat      [kernel.kallsyms]  [k] __purge_vmap_area_lazy
->    2.77%  cat      [kernel.kallsyms]  [k] __free_vmap_area
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/vmalloc.c | 52 +++++++++++++++++++++++++++++-----------------------
->  1 file changed, 29 insertions(+), 23 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index c42872ed82ac..8d4907865614 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2075,6 +2075,22 @@ struct vm_struct *find_vm_area(const void *addr)
->  	return NULL;
->  }
->  
-> +static struct vm_struct *__remove_vm_area(struct vmap_area *va)
-> +{
-> +	struct vm_struct *vm = va->vm;
-> +
-> +	spin_lock(&vmap_area_lock);
-> +	va->vm = NULL;
-> +	va->flags &= ~VM_VM_AREA;
-> +	va->flags |= VM_LAZY_FREE;
-> +	spin_unlock(&vmap_area_lock);
-> +
-> +	kasan_free_shadow(vm);
-> +	free_unmap_vmap_area(va);
-> +
-> +	return vm;
-> +}
-> +
->  /**
->   * remove_vm_area - find and remove a continuous kernel virtual area
->   * @addr:	    base address
-> @@ -2087,26 +2103,14 @@ struct vm_struct *find_vm_area(const void *addr)
->   */
->  struct vm_struct *remove_vm_area(const void *addr)
->  {
-> +	struct vm_struct *vm = NULL;
->  	struct vmap_area *va;
->  
-> -	might_sleep();
-
-Is not this necessary any more ?
-
-> -
->  	va = find_vmap_area((unsigned long)addr);
-> -	if (va && va->flags & VM_VM_AREA) {
-> -		struct vm_struct *vm = va->vm;
-> -
-> -		spin_lock(&vmap_area_lock);
-> -		va->vm = NULL;
-> -		va->flags &= ~VM_VM_AREA;
-> -		va->flags |= VM_LAZY_FREE;
-> -		spin_unlock(&vmap_area_lock);
-> -
-> -		kasan_free_shadow(vm);
-> -		free_unmap_vmap_area(va);
-> +	if (va && va->flags & VM_VM_AREA)
-> +		vm = __remove_vm_area(va);
->  
-> -		return vm;
-> -	}
-> -	return NULL;
-> +	return vm;
->  }
-
-Other callers of remove_vm_area() cannot use __remove_vm_area() directly as well
-to save a look up ?
+diff --git a/mm/util.c b/mm/util.c
+index e2e4f8c3fa12..540e7c157cf2 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -717,12 +717,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
+ 	if (!mm->arg_end)
+ 		goto out_mm;	/* Shh! No looking before we're done */
+ 
+-	down_read(&mm->mmap_sem);
++	spin_lock(&mm->arg_lock);
+ 	arg_start = mm->arg_start;
+ 	arg_end = mm->arg_end;
+ 	env_start = mm->env_start;
+ 	env_end = mm->env_end;
+-	up_read(&mm->mmap_sem);
++	spin_unlock(&mm->arg_lock);
+ 
+ 	len = arg_end - arg_start;
+ 
 
