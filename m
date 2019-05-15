@@ -2,136 +2,187 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3943BC04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:20:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 620E9C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:24:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3E1120881
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:20:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1756620873
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:24:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hwwkkVyu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3E1120881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HsFn1bjM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1756620873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 90A2A6B0006; Wed, 15 May 2019 11:20:41 -0400 (EDT)
+	id 86C056B0003; Wed, 15 May 2019 11:24:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8BB806B0007; Wed, 15 May 2019 11:20:41 -0400 (EDT)
+	id 81B916B0006; Wed, 15 May 2019 11:24:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A9846B000D; Wed, 15 May 2019 11:20:41 -0400 (EDT)
+	id 70B916B0007; Wed, 15 May 2019 11:24:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 452B46B0006
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:20:41 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n4so104156pgm.19
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:20:41 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B2146B0003
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:24:27 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id g15so468124ljk.8
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:24:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=2jOakzpA8HKNq+MMsYE/nSV1Gu2XO1Vws64soAe0Eko=;
-        b=DyUFUDnHqBz0AEYp1OcDwYP6rrKfOIu1QtD/vQWgf4LKLvdNeq2/dYasR9gkHLvC8x
-         3wpuJrwTeSvXFcMXjq8/xZD4qwglaeNNaIZ51QHXYhtquaAYZyCT9eYni+Qs7akrV1DN
-         4jSLgbLs77ktFXLHLYhCYM1c87FZGmbsgMMVV7HL70Ehmw+mn6+1rwR0ZulNgKtrOncO
-         v1aOBXzQaQeLHVA4QuAT44nRIcATTETDihQMwMn+Edlys1/4FnJEFNfi0xyEsOeD4R0G
-         m7LSdhp/QeHWuL/ZQKOokloB345FKqwVS9CYwDCUPdff4riBesqkq3mkhftrUaLp/Y2C
-         a0uA==
-X-Gm-Message-State: APjAAAU0QL1kDLufG5LIngHc5uEvg8LCZFmL25K2a2ODQA+EaGjPcr+S
-	2EjiZ7GhsSZaxa2fSuecXjM52LrwMM6qhfEpLXhsqCd723jiev8+m/x2WRtzYBEqlt3ilKJUFIb
-	lVMPmgu/NDtd/ZdmEGGoOZOQMAVnvRMoKV39Ha1YLlGPKUJ2hzCOsELK2jze2jWuJOw==
-X-Received: by 2002:a17:902:968b:: with SMTP id n11mr44311791plp.118.1557933640906;
-        Wed, 15 May 2019 08:20:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyilPKphsboJnu7d1rS5Qu9xwwajLw3myo9QLC1OudhBOAyRfDG8Ul58ZWKWTbDmqZCVaug
-X-Received: by 2002:a17:902:968b:: with SMTP id n11mr44311698plp.118.1557933639737;
-        Wed, 15 May 2019 08:20:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557933639; cv=none;
+        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
+        b=J4XniYzMl8WiMkxHcyW/ieJukg3hgT3AqbfFdq0cZcoe3lN2/OuMdm6Jwt8qAyag2o
+         giMpoYKCIwHACuoqB9sOriV/91JI8bP8EeA9o8beBllGfLZKRGCIwqY11EjzCwpExgNG
+         Xpqh83SpJj3SfQ20UQ3UZivPzr5JU2Vsq/Mtsltw7U9BqUrvn684PFNUWGZA+QUh0EhY
+         qnowjSm8lWZ96QxPa7H8H0dREZKYXCt6jSV4U5K3wBImFUt6TFCAeVDyqdWP+luah7h1
+         GkutZBPGkW9PJLf/4tEIplLpC1GXtoQJ/DnD8fRjAbeQ3B9vrymwTx9Jvs+NsvtWz3WR
+         fLuA==
+X-Gm-Message-State: APjAAAWiJ2LkaPssv9hazv4gcsq+tSTufkzfIc3VeHgdjoiHHbbLo6dw
+	Ln6WSZ7RVmHPnpQWbex2gPjL4d4Z5nCm/UlozG8PuNWiYVhFHvGrxRXSNsrBWRIkc22niWXlqOp
+	X7kosc9G/UrDnJdPCsEJf6HfiCP22fLw4KpvoLo/0linBBsLyQsKGeXLRHcB/JdT3BQ==
+X-Received: by 2002:ac2:528f:: with SMTP id q15mr3111482lfm.37.1557933866382;
+        Wed, 15 May 2019 08:24:26 -0700 (PDT)
+X-Received: by 2002:ac2:528f:: with SMTP id q15mr3111436lfm.37.1557933865495;
+        Wed, 15 May 2019 08:24:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557933865; cv=none;
         d=google.com; s=arc-20160816;
-        b=rHQiwe1CcEzuCz4b/6imIz4wf/8sXNiwMJH79bmd0IHMowKpmDj3DRClw/9tOW6X4e
-         DUqrIiZg1G3cWbp2N5FRz1dmTO+uAz+Q+Qya9cn92YiJAbX4jV4JkWpvlXaRLIbpupVv
-         WbbohlW5xc4Xn0EsbsayiRgwy6BYRSKkwrXOesrnIK85r8R4npd5Ptis+p9R4MwDrlrt
-         Xf30LBECQMQ5pB+HhbVS5upjcg8L1XIyF46Ks51RyD+0H9p434yK0i/4RZuBr4GwZmBk
-         jdrmVZ8slIAZt9PyyY7efM6EgFMMw4YmyH/sJByg5eCenSce8BDlv9l3rsKhFCr+1pw3
-         Q4AQ==
+        b=pgZrGxJ76RzKdm5+akjzUuIBYbgZpN9nP+8E0xtTCqQS84+RcV+Eq8hSwwFMhQX1+Z
+         eDckmAxFES+8AURG3H4KOMu2zYAS/7Q7hPRsUOdAaraOoYBtkJVpAGEpXGRq2mTw4wKF
+         pbyDmK4/RHQ9dsvfu9u24FW46UjWRnRcSy2uYJVu357Zcvzpe/xcmTLIrZfo54j9XIBo
+         D9/ar0wdzqhVQEifID1DFYLO7TViFOmt/HCkqzfAoBsozegGFJWTNyzJMPes9SiJCswV
+         bs3dE6fVYk8bBKjdnbMjSGECSJ9iYR3niOaf617+B2xCpPMJ+qU00Gch4KR/U6FwTact
+         zNjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2jOakzpA8HKNq+MMsYE/nSV1Gu2XO1Vws64soAe0Eko=;
-        b=SlCKtKiH/0f7JiaHrKowxPIw5flWXZS10kUcFX1N6RD8+ET0aOQI/x3fzlWTLRUXqN
-         Rem437nzqqucsGhh+OLcayG1XFYzFHvqdVfWO0eblrmDNila18gDe3qCy7rPXtA5u2Sg
-         SP0vn5BA4UIYi2IZN5zy/ov+6i4aW6LxZUArLDu4CuapzGlJl3MGvEA7HKyQMh9KwGh3
-         GKHYa9v2y/u6jBFe1W9KVy/W4SitMuoGalvk3u3769m6KR8xlVmr2lVVK0LAJb6ccCTS
-         p41KxLaPV5bvneNziRwXy4UCV0fsOwNHDJjIK5BzSxV1qxfH4R5PDSeLIatnq/ZflU4P
-         F4pg==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
+        b=vIA6qDBU+hfZZWtmhRNQhdyzVhHqSbKxKLqimU1MZS+fQmpWIRAL4KTsbSU+9q8mDp
+         V5XfFqjsS7eF/EXTHTq+nlcc+KWjP7l3+vOSXUL6iAZ1d8gSe6u0Y2ISEDcx9kes/UA7
+         +6pzZ980xUQsJGwkuGwfkX1LcISMTD8v5UIuqECfixFlewZWvgYxx7eJ5A9EzJ+C2B3v
+         BGhoqnPNfrRNHKVqk/mfYMDvGmgz8PVGs81ogIqvkthhwnHBR+Fy1DfuQlJxxUivcVQd
+         +G74ruXzcdFbwzzQGFYOUuD9xmRUZC+O5au2cHdir7aU8gxSxFJ1SHm4hRCwDgTQR7XL
+         y6CA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hwwkkVyu;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w10si1998815pgr.296.2019.05.15.08.20.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HsFn1bjM;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 8sor788850lfz.14.2019.05.15.08.24.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 15 May 2019 08:20:39 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Wed, 15 May 2019 08:24:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hwwkkVyu;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=2jOakzpA8HKNq+MMsYE/nSV1Gu2XO1Vws64soAe0Eko=; b=hwwkkVyuaLcdnbwQd2fZShmvB
-	IvrVb7LY6X+R+frjUuT7TpC4b1FzEjCxx0QoqzwleoMNaGqbqJpGJK2BdtaqJFqqcNIS1m0W3oTmB
-	pVM9ErECGTK4io52yDjGq/aXBr+xeiQAatOgNO1bf6JnAHvopKYSr29gfew6ibjVXDELWatWjGoyj
-	H0S3BWvLQKDvzsusmplujOJX9mzeuAIYavwj4W7A+z/xRj84uLXxtzEGTasqLQgUKHriszFqSRZFS
-	f5L5njCt5zdARgmv6dggXtZQhuyFcxSLR4NAzXcQ+bUJPAMPePX6SQ9pn/HfSWLXTOjSS2/Cec2f9
-	pz2eECTLw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hQvhr-0003gl-Rb; Wed, 15 May 2019 15:20:35 +0000
-Date: Wed, 15 May 2019 08:20:35 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Lech Perczak <l.perczak@camlintechnologies.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Eric Dumazet <edumazet@google.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Piotr Figiel <p.figiel@camlintechnologies.com>,
-	Krzysztof =?utf-8?Q?Drobi=C5=84ski?= <k.drobinski@camlintechnologies.com>,
-	Pawel Lenkow <p.lenkow@camlintechnologies.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
- when running stress tests involving drop_caches
-Message-ID: <20190515152035.GE31704@bombadil.infradead.org>
-References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
- <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
- <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com>
- <20190515144352.GC31704@bombadil.infradead.org>
- <20190515150406.GA22540@kroah.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HsFn1bjM;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
+        b=HsFn1bjMaUtH6jvwg7mjfmu3U0DtRpt953VIQJ/7/ad6c9WQN+io5di4dRZeS3BqEw
+         FWsU1kKWqXgIihVIEKSV7Hp/aaja3i7d8aZ8iDK54Z+r5FpWx4wyfrDKdwtYpvEJIu4L
+         mdmp2wGGaavoRnMbme7zB+9eHN0sYwRGd9mRYzfjKXIyyCUN/h9L0EuNU/gSc9eb09Or
+         nHex62htpbDf4uSd+yEkV43l5gnYDOiq2MDu1p2vBx8x9Hjx7TOGyw0RPzGK35u9P1rQ
+         7EAF52IqiycKQnEMUepkhO1xjmpVgdn6Dq2OoBNX4jLorYOnyC3tXJHdyquK3EbQ9gFg
+         rUNg==
+X-Google-Smtp-Source: APXvYqwY1WTXGYR3o8YWyC3tnZWmG25a3r9RgDDvY4fSzidz1fEOKxmhCfonNsCioDkWtFA/gCSy9Q==
+X-Received: by 2002:a19:5513:: with SMTP id n19mr7074764lfe.21.1557933864947;
+        Wed, 15 May 2019 08:24:24 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id h24sm398640ljk.10.2019.05.15.08.24.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 15 May 2019 08:24:24 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Wed, 15 May 2019 17:24:15 +0200
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
+	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v4 1/3] mm/vmap: keep track of free blocks for vmap
+ allocation
+Message-ID: <20190515152415.lcbnqvcjppype7i5@pc636>
+References: <20190406183508.25273-1-urezki@gmail.com>
+ <20190406183508.25273-2-urezki@gmail.com>
+ <20190514141942.23271725e5d1b8477a44f102@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190515150406.GA22540@kroah.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190514141942.23271725e5d1b8477a44f102@linux-foundation.org>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 15, 2019 at 05:04:06PM +0200, Greg Kroah-Hartman wrote:
-> > Greg, can you consider 6daef95b8c914866a46247232a048447fff97279 for
-> > backporting to stable?  Nobody realised it was a bugfix at the time it
-> > went in.  I suspect there aren't too many of us running HIGHMEM kernels
-> > any more.
-> > 
-> 
-> Sure, what kernel version(s) should this go to?  4.19 and newer?
+Hello, Andrew.
 
-Looks like the problem was introduced with commit
-a90bcb86ae700c12432446c4aa1819e7b8e172ec so 4.14 and newer, I think.
+> An earlier version of this patch was accused of crashing the kernel:
+> 
+> https://lists.01.org/pipermail/lkp/2019-April/010004.html
+> 
+> does the v4 series address this?
+I tried before to narrow down that crash but i did not succeed, so
+i have never seen that before on my test environment as well as
+during running lkp-tests including trinity test case:
+
+test-url: http://codemonkey.org.uk/projects/trinity/
+
+But after analysis of the Call-trace and slob_alloc(): 
+
+<snip>
+[    0.395722] Call Trace:
+[    0.395722]  slob_alloc+0x1c9/0x240
+[    0.395722]  kmem_cache_alloc+0x70/0x80
+[    0.395722]  acpi_ps_alloc_op+0xc0/0xca
+[    0.395722]  acpi_ps_get_next_arg+0x3fa/0x6ed
+<snip>
+
+<snip>
+    /* Attempt to alloc */
+    prev = sp->lru.prev;
+    b = slob_page_alloc(sp, size, align);
+    if (!b)
+        continue;
+
+    /* Improve fragment distribution and reduce our average
+     * search time by starting our next search here. (see
+     * Knuth vol 1, sec 2.5, pg 449) */
+    if (prev != slob_list->prev &&
+            slob_list->next != prev->next)
+        list_move_tail(slob_list, prev->next); <- Crash is here in __list_add_valid()
+    break;
+}
+<snip>
+
+i see that it tries to manipulate with "prev" node that may be removed
+from the list by slob_page_alloc() earlier if whole page is used. I think
+that crash has to be fixed by the below commit:
+
+https://www.spinics.net/lists/mm-commits/msg137923.html
+
+it was introduced into 5.1-rc3 kernel.
+
+Why ("mm/vmalloc.c: keep track of free blocks for vmap allocation")
+was accused is probably because it uses "kmem cache allocations with struct alignment"
+instead of kmalloc()/kzalloc(). Maybe because of bigger size requests
+it became easier to trigger the BUG. But that is theory.
+
+--
+Vlad Rezki
 
