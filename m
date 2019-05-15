@@ -2,134 +2,156 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 80436C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:01:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2410BC04E84
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:36:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3DDD62084E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:01:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BF6C42082E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:36:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=toxicpanda-com.20150623.gappssmtp.com header.i=@toxicpanda-com.20150623.gappssmtp.com header.b="nMdKe4p3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DDD62084E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=toxicpanda.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Vl4rPNMI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF6C42082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C950A6B0003; Wed, 15 May 2019 12:01:50 -0400 (EDT)
+	id 17E656B0007; Wed, 15 May 2019 12:36:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C46526B0006; Wed, 15 May 2019 12:01:50 -0400 (EDT)
+	id 12F6E6B0008; Wed, 15 May 2019 12:36:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B34CA6B0007; Wed, 15 May 2019 12:01:50 -0400 (EDT)
+	id 01E2D6B000A; Wed, 15 May 2019 12:36:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9550B6B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 12:01:50 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id h4so279317qtq.3
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 09:01:50 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C21796B0007
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 12:36:31 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id e69so262173pgc.7
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 09:36:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
-        b=MhjHYJ0lSbXLHrcoxRg0lkx517yK1M/Udvird4aRUG/zKO7wujzaXthD7bjqpZQ2qa
-         TIa+s6GudR5rPsCvNOw9cEz4wz5vRui2vLXFU9jYF1fDDatWersCdr8F6SL04EOOQMkU
-         z2/jcXgyeaMIEfv2lpumWvYx316L1uhOkfNQVZkQGdE7qcNA3jAXwcmQubAUOHj6/KAz
-         WPvcEQxkOUwiWZ/Zwxk2nWKcdoVUOgYMCDwHHgoOi5FcqMnbVbYeI7t9WV+cUbCefwwh
-         7RXs+vIi432Ss7ManMBWQIRLwxq9p7AHxfJEQb4NDfB/sRhLDJfIDLCogP7q7MLm3tWw
-         IaXg==
-X-Gm-Message-State: APjAAAUvfPWo3NMKSVefI7rrZff0t1W54mxw074svK6pv3XusrSBzipn
-	4bpz2a3lDbVW+6Mtuq/hUteFCYGob5m7/rewgn6AhPRHWKaXKf4cgV2Zu6QDwkhXIuJLIUhHMtg
-	f9UcH5e3P6E2HL3i98oH9k1IRyK9tpiTdN6mLRR5BeC/7If4djLYCMBmxNHltYAwtZg==
-X-Received: by 2002:a0c:b758:: with SMTP id q24mr33376938qve.69.1557936110339;
-        Wed, 15 May 2019 09:01:50 -0700 (PDT)
-X-Received: by 2002:a0c:b758:: with SMTP id q24mr33376866qve.69.1557936109661;
-        Wed, 15 May 2019 09:01:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557936109; cv=none;
+        bh=fCWOmMbYwBQjYpMUOZu+jCfA4EruupzyVhAEZXgIrgA=;
+        b=RCZ/NLCzbx4xjY4rhpyd0bgwfVlbi8/tH2kpPhpiFoc/Cy5V+WzVBMqELFdVff0S/E
+         DlWOfAr1QfpbEXk7eIsltRxm6r4JU5Kv3wdn2wldRdOJuHtZqwXvowEe0CkQihEMwo8j
+         iKY/7oCNC3nI1jUPIxrTV7/8IdkqifeEWydjWbTwaCidGlI+hJhtmRv4bG7t4MfAIDzK
+         iK0HpwA5nkiYfBIwL3KEamIcd4ncDnV1LOB65oCsqCLIyRqQC7lBeGwjNTYG1ZUIp12B
+         1vToLrR2xi0kVfuC4WYnds2TyVyJzzAj4VaLDk4DBUw/z2Qi3wH6t4XCvKrUQBairIbN
+         oUsQ==
+X-Gm-Message-State: APjAAAXdkPVt0Pqt5xvx6tWZItQKuDgZEBCeFTKDH0ioL0IGRqj3mp7N
+	G4tvkFtH6r67tCa1zpYnFb2b7lUK7FNFoAQbhG8+q/NUIi2f6SoOz2zx/S29xla6Kiil3VTC+IT
+	preaDpCo9QtzLgK+V+mVMBzVGkMfHS6mybf7z/ofl7B09t1cZpv4ETPE9Xke2+e+Y+w==
+X-Received: by 2002:a63:4c15:: with SMTP id z21mr1669125pga.395.1557938191230;
+        Wed, 15 May 2019 09:36:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrELojJ8kY7eUaub6pUygPMKJIaOiyWS03JXuaReKwqYu+4e5EyaGLKz607pdRTu2DVm9g
+X-Received: by 2002:a63:4c15:: with SMTP id z21mr1669055pga.395.1557938190344;
+        Wed, 15 May 2019 09:36:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557938190; cv=none;
         d=google.com; s=arc-20160816;
-        b=YQHfM4xTEPvTmYM/QmFV4puG5vsPKDzAkw7BFT2lz42A4Tlr1/S8IEuYz+Pzs3lw+X
-         F7Z0AwdwJ1tFWJ0icmlZQLaPItkgrU8Q4giTbR94rVXHsOcKLm2cO/lPjFjCIubSj5CZ
-         ZKMx+ebvWTJiDAikZ9FVMXR2D/BdBTFJTjwJN3G6qpm9zLZqjdhWXKV1i6JbuQoYK/ZK
-         qBWVZLEpIfpfPmYGwKVQs4sbRWA/AeERmiaEP6Zx1qqtNoR0UulRQh7OdknEiFIeaEdZ
-         YM+xzhZp8q6djt4VEeO58EICDzDC0mf/CyGUwDjj38sgx1hA1XrG764FlwAR2ugWQCzI
-         jSMA==
+        b=XOTXmThK8+90f3yaCR5g7IhPX+86wpF7/BTjoMrMwi6zDa741rKsP1LpHveVEIIYON
+         tt3LyuPbzaFu/gl4boHWGCdngvqH2t0q/CdIOSzgGiwwS1yp/MtoXpWEQw1dqcj66taX
+         qqbt5Yc/pRageGBb0H0qPtXzM/eKSfpG14WuWzQUkokR6yC8ZGvzjE9YXwVPBDVQ0FJL
+         N2nWARwkc5UFXVbsTbLkYE6on+/Wt8ohVeOHodTa5QLE2wTKcFuYCd82dCQZ1M+J3AhZ
+         prlMb30SlGouT4MPDRwgWimW878kArssahMHLtX6AaeplzsxiGzcqVGC683KpNeYCBNQ
+         9X+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
-        b=UI4YWRC4bzka8cUA0C+47W9nvscHU2Cs8NNpJBkmAoR2xNwswhhcl/NRnzUBiOldpK
-         gzCEBVQWb9S1rk5Rzq7TJidP8/TtjbEbQeiD7whEtLzjoxdrX57MCpn26dMBOLP94VyR
-         H+IChjxCsFc0Fa34Pr4SJlCcjg71jitgx6tic1wzy9ZA0WI2HepK0P9HYUhC+aLcP5RK
-         TlWriZJjjVuSll6Ztf+TReVutp3cmRE0iYZbos7FHTnO1TYu+VKiO7KcCk5PaR8ip22O
-         2uGkUB/SRjmWTOcwolrpnZGYYt35W7W3VNP/Ic7Cf40hzUprOgBvVWYbf5H/Uk8wvNEn
-         6Kdw==
+        bh=fCWOmMbYwBQjYpMUOZu+jCfA4EruupzyVhAEZXgIrgA=;
+        b=uFPWhb+i+FKW/v+k+trf/LL7ZCYx7xpva0w4ZfcL2BBB0LAd/eEuIJdOmurPoAAcQQ
+         g4rdHpDusNMx9u5va1iLwgIZLvlnvw6fSWpPZVZQCdXaBNJTPlCrmCaRQ+7Rz4C7ZzXg
+         BjzLQtywMFY1S1hH2B6Tv2j3B2OrgAVP/xiUetOQOsxRLcBOnuM+EWEA5F511Z/vuSt9
+         hCHDMQHLvN/mL4tigUY6y4ylNyWCL+zWqm+o6bifoFaUN5Gy9dvac1t8PgpN+JzmhsNU
+         w6kUkLoJgDQmKe8Ds6ZkkrA2VKkWci5/Kz2fIO5l34THfuSK27G1D7BJPoRdseNGW1B4
+         +aJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=nMdKe4p3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q5sor2049234qve.45.2019.05.15.09.01.49
+       dkim=pass header.i=@kernel.org header.s=default header.b=Vl4rPNMI;
+       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b12si2297159pgl.77.2019.05.15.09.36.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 May 2019 09:01:49 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=nMdKe4p3;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=toxicpanda-com.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
-        b=nMdKe4p3aF+xVyxfSk0pT8Zlqzg6/bn0U+5PqM0uOEZbamU2dToVvVrtN1ODTZKa0X
-         EFkVsBDayJ2NH3cs7kMkrA1sYkJSKH7rRTHYhXvjPOx9CTVgQgCWE7Lj2XmmrwVM9hf+
-         T5psHQVnACl/TqF+KUv18k3P/VR2QhgByTB1xwMGgmqa/mnfQD1M4JGZcuwvfOFFtxRz
-         CItw9xiMnUyGWj6YFfe0jVyKELSEInBr+SoekmkF7yEPzwjMmBZHiTU7469kTxaRUd5x
-         TN6749/HLAk/HJl7jGdpNlnbOhNeM5C7tzfPOwSxCOjB65QuEoEa8VHvIRnQfO/GWGLR
-         o5TA==
-X-Google-Smtp-Source: APXvYqwV4+KcNeGJbIdrCbzY3gisqJkBjc81DjssqjrPCuGEYTm4AuvHyXhtYW5MdQ4zAHHbU5Ue8w==
-X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr34276654qvf.132.1557936109209;
-        Wed, 15 May 2019 09:01:49 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:480::bca1])
-        by smtp.gmail.com with ESMTPSA id z63sm1204403qkb.7.2019.05.15.09.01.48
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 09:01:48 -0700 (PDT)
-Date: Wed, 15 May 2019 12:01:47 -0400
-From: Josef Bacik <josef@toxicpanda.com>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: josef@toxicpanda.com, akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: filemap: correct the comment about VM_FAULT_RETRY
-Message-ID: <20190515160146.te5tpydtclguxs6a@macbook-pro-91.dhcp.thefacebook.com>
-References: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
+        Wed, 15 May 2019 09:36:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Vl4rPNMI;
+       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [37.142.3.125])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 54BB72082E;
+	Wed, 15 May 2019 16:36:29 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1557938190;
+	bh=fCWOmMbYwBQjYpMUOZu+jCfA4EruupzyVhAEZXgIrgA=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=Vl4rPNMIsxH2DcxFK2owU3okuYZCpInKI99vk4sctLlCNg7BZhhHibDPCniiSF8RS
+	 ixCupc9hSrdnfljl/6k+yWflkSx3qFAFZHpzJhfqBdzBncW5+Kj9HVTHC1EH6vtKcV
+	 a0cGXjLOZAAKMxhb+r/GLYVh4DRkm1Efd7O513bQ=
+Date: Wed, 15 May 2019 19:36:26 +0300
+From: Leon Romanovsky <leon@kernel.org>
+To: Yuval Shaia <yuval.shaia@oracle.com>
+Cc: RDMA mailing list <linux-rdma@vger.kernel.org>,
+	linux-netdev <netdev@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Doug Ledford <dledford@redhat.com>
+Subject: Re: CFP: 4th RDMA Mini-Summit at LPC 2019
+Message-ID: <20190515163626.GO5225@mtr-leonro.mtl.com>
+References: <20190514122321.GH6425@mtr-leonro.mtl.com>
+ <20190515153050.GB2356@lap1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190515153050.GB2356@lap1>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 26, 2019 at 07:22:11AM +0800, Yang Shi wrote:
-> The commit 6b4c9f446981 ("filemap: drop the mmap_sem for all blocking
-> operations") changed when mmap_sem is dropped during filemap page fault
-> and when returning VM_FAULT_RETRY.
-> 
-> Correct the comment to reflect the change.
-> 
-> Cc: Josef Bacik <josef@toxicpanda.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
+On Wed, May 15, 2019 at 06:30:51PM +0300, Yuval Shaia wrote:
+> On Tue, May 14, 2019 at 03:23:21PM +0300, Leon Romanovsky wrote:
+> > This is a call for proposals for the 4th RDMA mini-summit at the Linux
+> > Plumbers Conference in Lisbon, Portugal, which will be happening on
+> > September 9-11h, 2019.
+> >
+> > We are looking for topics with focus on active audience discussions
+> > and problem solving. The preferable topic is up to 30 minutes with
+> > 3-5 slides maximum.
+>
+> Abstract: Expand the virtio portfolio with RDMA
+>
+> Description:
+> Data center backends use more and more RDMA or RoCE devices and more and
+> more software runs in virtualized environment.
+> There is a need for a standard to enable RDMA/RoCE on Virtual Machines.
+> Virtio is the optimal solution since is the de-facto para-virtualizaton
+> technology and also because the Virtio specification allows Hardware
+> Vendors to support Virtio protocol natively in order to achieve bare metal
+> performance.
+> This talk addresses challenges in defining the RDMA/RoCE Virtio
+> Specification and a look forward on possible implementation techniques.
 
-Reviewed-by: Josef Bacik <josef@toxicpanda.com>
+Yuval,
 
-Thanks,
+Who is going to implement it?
 
-Josef
+Thanks
+
+>
+> >
+> > This year, the LPC will include netdev track too and it is
+> > collocated with Kernel Summit, such timing makes an excellent
+> > opportunity to drive cross-tree solutions.
+> >
+> > BTW, RDMA is not accepted yet as a track in LPC, but let's think
+> > positive and start collect topics.
+> >
+> > Thanks
 
