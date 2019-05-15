@@ -2,104 +2,110 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 011D7C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 10:10:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA9D8C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 11:49:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BDCB82084A
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 10:10:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDCB82084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 844472053B
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 11:49:52 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="znIzqg9/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 844472053B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5ACB66B0006; Wed, 15 May 2019 06:10:41 -0400 (EDT)
+	id E3BA16B0005; Wed, 15 May 2019 07:49:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55D826B0007; Wed, 15 May 2019 06:10:41 -0400 (EDT)
+	id DEC416B0006; Wed, 15 May 2019 07:49:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44D2A6B0008; Wed, 15 May 2019 06:10:41 -0400 (EDT)
+	id CDAC96B0007; Wed, 15 May 2019 07:49:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E76AD6B0006
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 06:10:40 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z5so3139877edz.3
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 03:10:40 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0586B0005
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 07:49:51 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id y62so547195lfc.16
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 04:49:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=xPHvV6MplxAj87ntXnCFc+YS5ZR+uPiy/SsXzFQRa+I=;
-        b=iPNhsZKUkXhgJ42mPehVZwZbN8kvw0oAGD2WCS0P/Hw0Cn3SAH4dxHQ/9yh0jKuxwJ
-         B5kHsTK/B0ctR1FJ8uc6BSDAnhdDlQKdu50ULf/UBzPqpxORSNKgeHZHUTodFkJiwD5T
-         i6R80HILKKdOZv/mh9ACXHrvlQYd8a0kabGu5TPaZyG8cJ9oCDmV0poK+cehcqazewQ9
-         jUDdU28Rd4Wub4ruWNHHN67EooRKwCLcdNlv3rJAnV3danDsRhJtoaIoio1hQFlUf7kR
-         dloHaXzcFgsnG0+C/YiU2TxtiXR/nD6oiVzs5qhu1EAIA9XYPaYbdtw1dp2Tzmoid5qo
-         Gjpg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUcZTT2ofYkTi91QltMd9X2oVR0SX0zXOC+kgcwLB0PvTBPtao/
-	MvwgfwXkZ/pr6tr2pxXy20NEqwxnbrsNWy5e3dEdHDF86NU1pEgNZs3qei/TIuoWy45Yr6WnTBQ
-	2onmTdOmz21ckk/CFd6xaamHHYs7cvBxzIIIxMd779hr13PtIZD4iBshLfkf1N+fU5g==
-X-Received: by 2002:a17:906:1343:: with SMTP id x3mr31817127ejb.218.1557915040502;
-        Wed, 15 May 2019 03:10:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIT5V6tKNjbDAZ6bK7pMhGyXzme7DDzyvH8g2s4nssC2DshN6D7BWpdBmgj+1mSrVvQd0k
-X-Received: by 2002:a17:906:1343:: with SMTP id x3mr31817078ejb.218.1557915039833;
-        Wed, 15 May 2019 03:10:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557915039; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:date:message-id
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=alH5k1PNJm4GaPT+kDtijaHC8uREaNw9t/O/7YUmZy4=;
+        b=ewSzbO1PGynkeW0UNclH68vImG78pcKX01UckE85Sc9AQveYNEoqTYFBFZfEQg25fj
+         Sb1BS3DsA1ue/7yaoDveTRUlKCamzqRkRFHdSCyo7KM6ydAioB7kKR8K0BBEqlzKyycn
+         06mwn7EevIKLg61/mQ45rGHKIseaEuXbPONlD3xhvjIxnDXD7UFPZlb0eR5F51YVk/bd
+         Iy2kgaZjtzgyiSZkB7usne8PHHVnZf8vE0r/nH5o8uHZIJvZa+dNUP7hYl6h0i9aEYIr
+         //dLli8GZl1YMs/HEMfk+6y+ilsisXZ2vP5A8n9F++WjTTdW8xF1iQwyFCcoZyMGw+hT
+         Dgag==
+X-Gm-Message-State: APjAAAWt9lYcWfwNK8YwqU22cuPtQnzghESISkGhrTRSnG6uynKUHQwo
+	UL1aUEhG3YhAwR5lPw5/K4b38uN+2LEZ54PmBhe1lMqo5W8Mymt2Mu3kZzX/+gbeFQS3yLWq3B9
+	aC3q96wQ2P2a5+7FthIYZkpQbgIlcSJocCKYurTj2vCy3HmgvF1RkES6gp8NSntl2qQ==
+X-Received: by 2002:a05:6512:6c:: with SMTP id i12mr1477500lfo.130.1557920990732;
+        Wed, 15 May 2019 04:49:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxChAZ688gux2Bjq8Al/WThOdeem+MprtA6cmCHjEP0Mly+GpnV3pX69z8lzV1w+GRgq+EH
+X-Received: by 2002:a05:6512:6c:: with SMTP id i12mr1477433lfo.130.1557920989360;
+        Wed, 15 May 2019 04:49:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557920989; cv=none;
         d=google.com; s=arc-20160816;
-        b=LWW430iHGjaXrlcFzr6jkebhBBydSQATvk9/Ph4L3HDFnVNWh9nlsunOcZ7PC04O9W
-         +gE0tyYj3KJEIBJPaJ0SoMI/DRetIdqFFmX8+ZJltD/BRtu8B2uaackJu0e5qkFcK50G
-         vo8W28E8ywg7t4ruPIOS5AbXwfctK+/4Js+RhIIi4ddVsvLX1aLHBsThAbxfiGNjGjY/
-         6CW6uQhOAN2C/6ywQtTZfetuz/MBklUqmhI6dfBzHYdhnOXffddZ3YdslSVoJv3P3hrT
-         DZ/mxmfF4z2xXdqjQhCg+GOSGVLeOJOml3M1sZxa/yIOEIqcgno8j4BAmH4LPnHcHOOV
-         TOwQ==
+        b=TCOVt67zUe08wWNqGePqhU45g6Tlm9VZIV67hKxsRAJCpfQYhk4DL7pkPIknPO0DzZ
+         BgzPlOJGP5x3kNITgEwQ1zhFs/L+zNVphvXynPek+axp3KnyK0+xMmXZuS00pdizG+Cj
+         pAM/aTXeTEFo9w3H2+4aX2CiULDOla4AMeePamNQK/YOZZA9UuXHpiKf7++RguIgFBs6
+         Nqoy4cnO1u0Ly0I4q/Ut9Z8EQGcRbKyybN0btB88KqpGlypJJcqkqeM8xf9ghAXQhfgQ
+         cZDbrHVH+Z33tCJHE6D/tSntizcbktvwD7a3I9hc5X9sXsypKZB/aMxMPnOyWsEc/X6i
+         QfOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=xPHvV6MplxAj87ntXnCFc+YS5ZR+uPiy/SsXzFQRa+I=;
-        b=WX6MGsCHzplQh8kb9QRfwgbOrnvh9PtS1Vzq9/Y8yN7yriPeIZQjEJ4cElJnXuq0+L
-         zO5YSIrFLiDhm68/IafLHflzfUhTuvACfj3ixAG831zZWENSQS8ehcZXWzH+dF7oVCHL
-         BrSrb57J1CCm6aS2Mb53+mXBdv+WRuZp1T/JoxCX1B6oZziCkiyDOr/c/7TLXgze9QJI
-         FsLickskPog5jXlX0PfBDDtNDrXV9VqgfVN+nJaKooQmHh+mKQHY6ElxZ7XoPodqPKO4
-         z3fxN8fdmOhlKbINtMaGekMzjMlQ/HeB5y+n1m5JNcQHA1m0zQ+tXAQzg1njW3PrRpQq
-         W+Sg==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :to:from:subject:dkim-signature;
+        bh=alH5k1PNJm4GaPT+kDtijaHC8uREaNw9t/O/7YUmZy4=;
+        b=dd2Y3k3B2xOqhG4CVZ+rebiK0SWgJdf9KZ7XS99oFObT69/vArmnCEqja7dNw97pY2
+         TIzAOjdtTxtnrgPlSaxPx87hcpr45deR/rTF7c+O2FPedggmX4tq551LwKs84XM+2JPP
+         2cajK9FFfEYuy/K8KrATWeLlUfvI8Nx+Ud5AF3spWB44f8Nqev31mQ2OoZ0v92wYg+rq
+         IAwVVK5A7FNIa71Iiac+5LaQ1P+eexNd62D9IQNlpfC6eFMgkZHkVNh+5+jImmFpa7Qb
+         /nGsqkhud+S7L+fmGRWYq6hY3PVUyrcaSOJF+1szd5z/chnh4JoGmvagJf0N0yEIqoFP
+         vdhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n14si1039113eju.288.2019.05.15.03.10.39
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b="znIzqg9/";
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [5.45.199.163])
+        by mx.google.com with ESMTP id v22si1221494ljc.99.2019.05.15.04.49.49
         for <linux-mm@kvack.org>;
-        Wed, 15 May 2019 03:10:39 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Wed, 15 May 2019 04:49:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) client-ip=5.45.199.163;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A5D0280D;
-	Wed, 15 May 2019 03:10:38 -0700 (PDT)
-Received: from [10.163.1.137] (unknown [10.163.1.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 143C63F703;
-	Wed, 15 May 2019 03:10:32 -0700 (PDT)
-Subject: Re: [PATCH V4] mm/ioremap: Check virtual address alignment while
- creating huge mappings
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- Toshi Kani <toshi.kani@hpe.com>, Andrew Morton <akpm@linux-foundation.org>,
- Chintan Pandya <cpandya@codeaurora.org>, Thomas Gleixner
- <tglx@linutronix.de>, Catalin Marinas <catalin.marinas@arm.com>
-References: <a893db51-c89a-b061-d308-2a3a1f6cc0eb@arm.com>
- <1557887716-17918-1-git-send-email-anshuman.khandual@arm.com>
- <20190515094655.GB24357@fuggles.cambridge.arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <a0c3f9db-c6ae-556c-bc89-bd6b87b14029@arm.com>
-Date: Wed, 15 May 2019 15:40:40 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b="znIzqg9/";
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 5.45.199.163 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
+	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id D60B82E149B;
+	Wed, 15 May 2019 14:49:48 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id pJ6tum1Z9K-nm0OmG23;
+	Wed, 15 May 2019 14:49:48 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1557920988; bh=alH5k1PNJm4GaPT+kDtijaHC8uREaNw9t/O/7YUmZy4=;
+	h=Message-ID:Date:To:From:Subject;
+	b=znIzqg9/ngOeS3fHiE8MN2BO+J2dJ6ks5jQ+p1cRHJMbe2W0/uzVk8wq6yhiG8zns
+	 ChZzw7O3mUfGMNH/9nEcuU1BXNh9cFalHl9jlGpnxrwSrOeivKTgLSg5XTMhV9ZXh5
+	 znBZ2y+31vvCp6gcMKP0r2/TwqssR19FpPwgEXCE=
+Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:ed19:3833:7ce1:2324])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id b7fTz8WA2V-nml8HR87;
+	Wed, 15 May 2019 14:49:48 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: [PATCH RFC] proc/meminfo: add KernelMisc counter
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Date: Wed, 15 May 2019 14:49:48 +0300
+Message-ID: <155792098821.1536.17069603544573830315.stgit@buzz>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-In-Reply-To: <20190515094655.GB24357@fuggles.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -107,41 +113,124 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Some kernel memory allocations are not accounted anywhere.
+This adds easy-read counter for them by subtracting all tracked kinds.
 
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ Documentation/filesystems/proc.txt |    2 ++
+ fs/proc/meminfo.c                  |   41 +++++++++++++++++++++++++-----------
+ 2 files changed, 30 insertions(+), 13 deletions(-)
 
-On 05/15/2019 03:16 PM, Will Deacon wrote:
-> On Wed, May 15, 2019 at 08:05:16AM +0530, Anshuman Khandual wrote:
->> Virtual address alignment is essential in ensuring correct clearing for all
->> intermediate level pgtable entries and freeing associated pgtable pages. An
->> unaligned address can end up randomly freeing pgtable page that potentially
->> still contains valid mappings. Hence also check it's alignment along with
->> existing phys_addr check.
->>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> Cc: Toshi Kani <toshi.kani@hpe.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Will Deacon <will.deacon@arm.com>
->> Cc: Chintan Pandya <cpandya@codeaurora.org>
->> Cc: Thomas Gleixner <tglx@linutronix.de>
->> Cc: Catalin Marinas <catalin.marinas@arm.com>
->> ---
->> Changes in V4:
->>
->> - Added similar check for ioremap_try_huge_p4d() as per Toshi Kani
-> 
-> Sorry to be a pain, but in future please can you just resend the entire
-> series as a v4 (after giving it a few days for any other comments to come
-> in) if you make an update? It's a bit fiddly tracking which replies to which
-> individual patches need to be picked up, although I'm sure this varies
-> between maintainers.
-
-I wondered for some time about both the ways before landing on this side as it was
-pretty minor change. I understand the concern and will follow the suggestion next
-time around. If this one requires further update, will make it V5 and carry the
-change logs from here.
-
-> 
-> No need to do anything this time, but just a small ask for future patches.
-
-Sure will do.
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 66cad5c86171..f11ce167124c 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -891,6 +891,7 @@ VmallocTotal:   112216 kB
+ VmallocUsed:       428 kB
+ VmallocChunk:   111088 kB
+ Percpu:          62080 kB
++KernelMisc:     212856 kB
+ HardwareCorrupted:   0 kB
+ AnonHugePages:   49152 kB
+ ShmemHugePages:      0 kB
+@@ -988,6 +989,7 @@ VmallocTotal: total size of vmalloc memory area
+ VmallocChunk: largest contiguous block of vmalloc area which is free
+       Percpu: Memory allocated to the percpu allocator used to back percpu
+               allocations. This stat excludes the cost of metadata.
++  KernelMisc: All other kinds of kernel memory allocaitons
+ 
+ ..............................................................................
+ 
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 568d90e17c17..7bc14716fc5d 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -38,15 +38,21 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	long cached;
+ 	long available;
+ 	unsigned long pages[NR_LRU_LISTS];
+-	unsigned long sreclaimable, sunreclaim;
++	unsigned long sreclaimable, sunreclaim, misc_reclaimable;
++	unsigned long kernel_stack_kb, page_tables, percpu_pages;
++	unsigned long anon_pages, file_pages, swap_cached;
++	long kernel_misc;
+ 	int lru;
+ 
+ 	si_meminfo(&i);
+ 	si_swapinfo(&i);
+ 	committed = percpu_counter_read_positive(&vm_committed_as);
+ 
+-	cached = global_node_page_state(NR_FILE_PAGES) -
+-			total_swapcache_pages() - i.bufferram;
++	anon_pages = global_node_page_state(NR_ANON_MAPPED);
++	file_pages = global_node_page_state(NR_FILE_PAGES);
++	swap_cached = total_swapcache_pages();
++
++	cached = file_pages - swap_cached - i.bufferram;
+ 	if (cached < 0)
+ 		cached = 0;
+ 
+@@ -56,13 +62,25 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	available = si_mem_available();
+ 	sreclaimable = global_node_page_state(NR_SLAB_RECLAIMABLE);
+ 	sunreclaim = global_node_page_state(NR_SLAB_UNRECLAIMABLE);
++	misc_reclaimable = global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
++	kernel_stack_kb = global_zone_page_state(NR_KERNEL_STACK_KB);
++	page_tables = global_zone_page_state(NR_PAGETABLE);
++	percpu_pages = pcpu_nr_pages();
++
++	/* all other kinds of kernel memory allocations */
++	kernel_misc = i.totalram - i.freeram - anon_pages - file_pages
++		      - sreclaimable - sunreclaim - misc_reclaimable
++		      - (kernel_stack_kb >> (PAGE_SHIFT - 10))
++		      - page_tables - percpu_pages;
++	if (kernel_misc < 0)
++		kernel_misc = 0;
+ 
+ 	show_val_kb(m, "MemTotal:       ", i.totalram);
+ 	show_val_kb(m, "MemFree:        ", i.freeram);
+ 	show_val_kb(m, "MemAvailable:   ", available);
+ 	show_val_kb(m, "Buffers:        ", i.bufferram);
+ 	show_val_kb(m, "Cached:         ", cached);
+-	show_val_kb(m, "SwapCached:     ", total_swapcache_pages());
++	show_val_kb(m, "SwapCached:     ", swap_cached);
+ 	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] +
+ 					   pages[LRU_ACTIVE_FILE]);
+ 	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] +
+@@ -92,20 +110,16 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		    global_node_page_state(NR_FILE_DIRTY));
+ 	show_val_kb(m, "Writeback:      ",
+ 		    global_node_page_state(NR_WRITEBACK));
+-	show_val_kb(m, "AnonPages:      ",
+-		    global_node_page_state(NR_ANON_MAPPED));
++	show_val_kb(m, "AnonPages:      ", anon_pages);
+ 	show_val_kb(m, "Mapped:         ",
+ 		    global_node_page_state(NR_FILE_MAPPED));
+ 	show_val_kb(m, "Shmem:          ", i.sharedram);
+-	show_val_kb(m, "KReclaimable:   ", sreclaimable +
+-		    global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE));
++	show_val_kb(m, "KReclaimable:   ", sreclaimable + misc_reclaimable);
+ 	show_val_kb(m, "Slab:           ", sreclaimable + sunreclaim);
+ 	show_val_kb(m, "SReclaimable:   ", sreclaimable);
+ 	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
+-	seq_printf(m, "KernelStack:    %8lu kB\n",
+-		   global_zone_page_state(NR_KERNEL_STACK_KB));
+-	show_val_kb(m, "PageTables:     ",
+-		    global_zone_page_state(NR_PAGETABLE));
++	seq_printf(m, "KernelStack:    %8lu kB\n", kernel_stack_kb);
++	show_val_kb(m, "PageTables:     ", page_tables);
+ #ifdef CONFIG_QUICKLIST
+ 	show_val_kb(m, "Quicklists:     ", quicklist_total_size());
+ #endif
+@@ -122,7 +136,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		   (unsigned long)VMALLOC_TOTAL >> 10);
+ 	show_val_kb(m, "VmallocUsed:    ", 0ul);
+ 	show_val_kb(m, "VmallocChunk:   ", 0ul);
+-	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
++	show_val_kb(m, "Percpu:         ", percpu_pages);
++	show_val_kb(m, "KernelMisc:     ", kernel_misc);
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	seq_printf(m, "HardwareCorrupted: %5lu kB\n",
 
