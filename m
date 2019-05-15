@@ -2,159 +2,156 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7C53C46460
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:58:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7982C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:02:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 808BE206BF
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:58:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 808BE206BF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 56C1920818
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:02:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="K8tajLnU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56C1920818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 214FF6B0003; Wed, 15 May 2019 10:58:54 -0400 (EDT)
+	id A4FE76B0006; Wed, 15 May 2019 11:02:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C6526B0006; Wed, 15 May 2019 10:58:54 -0400 (EDT)
+	id A01226B0007; Wed, 15 May 2019 11:02:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08E286B0007; Wed, 15 May 2019 10:58:54 -0400 (EDT)
+	id 8EEA66B0008; Wed, 15 May 2019 11:02:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBCB56B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 10:58:53 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id n65so2485845qke.12
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 07:58:53 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FF6F6B0006
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:02:32 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id d10so2239571ybn.23
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:02:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=tszhKujCKsRERdzN5TNEwD05H7rg2No04ol0gNO9QuM=;
-        b=hmB54Nk4zn6gKXFWTRVscVHvlFL3EnX01LRzXruEVhRdU01H9bDsTWqby0MxmlASFU
-         SbzswjtKJon/V+UoU5vuYNYuru8/RfhxjD3x6bZKNnbmpUHlAcTmsesKbghIRdw/Ls+d
-         er9J3o79tU7VzKBgftTA4ycCvsIvVIhVOnFi8Xk/GoESxf9wgWs6Ze/T1qXEcIlf8XwE
-         bITrOjpruKzHAa9f/fc08UQTE+9A5sQwMV4YV1hrfnpl+tqyQS2FIWCzIbZNNw6jRSEG
-         PVamk5OFL6uq5Aoq/buzYThkNgBylbPJrQvBpywUkphYX0eH+L1vwkLchyFqzpLHQ0+w
-         RT0g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWg4G/+htz+NDKO9NLnRf846V2Tri85PJr/XPwHTMhFNQnKAsyA
-	2ohV2l4C2z30JytdUC4GKdpGlC0KC9JQ9LSyH3vzIoaVmovXipqG+UvTWZdIAtYnVWEmNmVd5/S
-	As96KSA/ZCIdQjqVX/EOfbBMYsIjZNGWYAvIJVoHe1CZJxUdAsCypOlUtZw8M2qYBdQ==
-X-Received: by 2002:a37:4d0d:: with SMTP id a13mr27659970qkb.143.1557932333638;
-        Wed, 15 May 2019 07:58:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFdHYV4GMmmNbEj0JfzeBdCt7JT0wtmXGqjgdrAst0hRqkey3xcxASQkS1JhGPR64Mg7hE
-X-Received: by 2002:a37:4d0d:: with SMTP id a13mr27659933qkb.143.1557932333040;
-        Wed, 15 May 2019 07:58:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557932333; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=JOLdwTp5zRnKj+hnZ/GDoFywULiYCABqyveX8EJm5BY=;
+        b=php6Xb6+vuWejOclRQEefj9LJwxQGECc+yISReR3WOXNadr1Ra5WfX9DYkbGjCoxWO
+         7KWu4sznZtQhUunkCcq5mm8QLc/0LUckbSf4e1ZNnNJ8wBLRQ9Ftx53Q8QHqNezNsLrY
+         B7tf1nA/tN1OMC3oZ++Qqn6pUjaWFjRIz2/d0ySI0lWErrK6K7bJriT5auxo+yudzVKF
+         MGgnUiVL664xb2lc/hr3mKR69Jyp2oLNShUEzcbGM42YbOKbIvSWWb9UQDyaG4vLttFt
+         5u5WBGN/CsE8S+18StFW7bZdlKgHNpHumHlNA/pSbivKniYdKG1y4FOlIAEDadZZZ1aL
+         /j/Q==
+X-Gm-Message-State: APjAAAUKzfiwullT6DPvvbLd9VSsHxhbqq6yqj2osqjB0xXcB+qgf6jM
+	QnTgiP9c7jfpfobPy4sP675fUwP2VGxZSjcRyh0Rq4+/tgEbNi/Nz2VVk2gDxlNGtsVYP9UZ/Km
+	m+gWq0DPkWeKUiwdL95kG8kzP9+9knyoVg3AdPw1+L1yeIjqD6ah5gi9QmxO08tivrA==
+X-Received: by 2002:a81:5e0a:: with SMTP id s10mr21787399ywb.451.1557932552067;
+        Wed, 15 May 2019 08:02:32 -0700 (PDT)
+X-Received: by 2002:a81:5e0a:: with SMTP id s10mr21787327ywb.451.1557932551317;
+        Wed, 15 May 2019 08:02:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557932551; cv=none;
         d=google.com; s=arc-20160816;
-        b=z0sb47yWh/x1c+49d5PgL1tiMpe0f3rxjl+9CPQPuJPoixwiHwoxhmTN+9yAdvjEMO
-         0f/ukXrOQoSTWLMxXwVbW2tLF+E5o2avdxlqKhF/qtd1jR8OtDShRgysZ4D8eiOySHoq
-         48AtSUlprl9R30vk8scLB5adsp115y35vDXGs5wD4Qjlq3dB6IftiWKI0tj7m3x03Ru+
-         vcbsgRbFpyrwFilKBuubfhYhQsisHfRGJNXhNEKo2SF4KioNcYVSESZSRUJgmKYvbewv
-         y1tvUmE+WXe656XbKjK915a6EheDlCypUAzsp0eeoov/pAK4h2w0tg1QJ5u/azBDUqbL
-         l7ag==
+        b=ZoofNq9Vm0m1qq7E3/A+2nn333MsNaORcZMyAdQsS6Nl5epu1O7EXrXA/g+7QEywcl
+         IE27ucrcjsKHrnN3wqZ95JAYcK915gKAh8ACA5ABJ7396xhr1pTNlj+N/xngiBtfVFJH
+         CFiKMxmFcye4pMMm8/JExNqg2KHspnHU0UhGdxwos4DMKZV/ySLAqSC8o8LxiFFHxwP1
+         zDoYPDoxs8RWq2r3XQ5TVJuebNmqfDo1FKNUsIacQZGq1gkQVTxzwZCmHKqTL9AGVIpf
+         Gb1gHtfSM/ZSeX0Oy7C6R5GOttBF/Z7fCS7UakKb6LiTm2xMldT2bVtZhzFZUhghOeyF
+         wO3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=tszhKujCKsRERdzN5TNEwD05H7rg2No04ol0gNO9QuM=;
-        b=Wu+nhosXIR3RBsnvCp/bXZ9JiZN0Ut/yKgHlW6t3HDlNsn+L+eQYcyrkmvmQLFlspu
-         GtM5ol/dPg/GkT9D4l1RKS+ElYdwiDyrLGjXFKoru8MzVKz3CsmFqzYzHFtnkpa6xQEg
-         7YN+cm8rh4hsgMcgqqg3wZRRmAV634QqAyJyPdTKncGOAiUwvD9uTn5tx6zOrLpIV1Qc
-         qjK23gUefVWPrcOsmt+dkOOtzYXNtNQtZWSVBlvx2TgwI69IEXVC3jxgbA6O+/aPNhkm
-         akcGz71a14z4MdV3OtTEfH8ZSNtkHnMdMnuWcudNgLFjjfnb7O4HGSEkPLTU2Lj2TToo
-         gjIA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=JOLdwTp5zRnKj+hnZ/GDoFywULiYCABqyveX8EJm5BY=;
+        b=ZwJaABHlLDL4r+1SZ3ke01tNFYSg9ncCHPRcQy210qUbrYs6iNHtOz2/aSxArgV0nP
+         zjX9CPKbXA9gdpRusv0cUrfN7OZbTs0ESNguaZd/xKNNyh/XIGQJJdoEplOIbO/vVzMQ
+         JthcjTi4ewEBsEGMbSq0xVfIFxHVlNySLZTsxDWIZ6L1IdhOGniN0qndZrVMyfvKBk45
+         6CWKoABYsAeZH/8ssr4MSM/2T+aKopcat4LqxPV9cJNsuEnqo+gGNy3h3TAUWBO8LFIo
+         YNTu+WDbpZ0MQJCgNA+ilN/WQvBibGdDibzkwZFNwYCLS7t0mExhbcaATz2LvBkPaoSP
+         3BXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 55si344295qvv.71.2019.05.15.07.58.52
+       dkim=pass header.i=@google.com header.s=20161025 header.b=K8tajLnU;
+       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=edumazet@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e7sor1206392ywa.47.2019.05.15.08.02.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 07:58:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 15 May 2019 08:02:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of edumazet@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9483430BB36D;
-	Wed, 15 May 2019 14:58:41 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.159])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 8F97719C7C;
-	Wed, 15 May 2019 14:58:35 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed, 15 May 2019 16:58:38 +0200 (CEST)
-Date: Wed, 15 May 2019 16:58:32 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Sultan Alsawaf <sultan@kerneltoast.com>
-Cc: Christian Brauner <christian@brauner.io>,
-	Daniel Colascione <dancol@google.com>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
-	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
-	linux-mm <linux-mm@kvack.org>,
-	kernel-team <kernel-team@android.com>,
-	Andy Lutomirski <luto@amacapital.net>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Kees Cook <keescook@chromium.org>,
-	Joel Fernandes <joel@joelfernandes.org>
-Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
-Message-ID: <20190515145831.GD18892@redhat.com>
-References: <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
- <20190319231020.tdcttojlbmx57gke@brauner.io>
- <20190320015249.GC129907@google.com>
- <20190507021622.GA27300@sultan-box.localdomain>
- <20190507153154.GA5750@redhat.com>
- <20190507163520.GA1131@sultan-box.localdomain>
- <20190509155646.GB24526@redhat.com>
- <20190509183353.GA13018@sultan-box.localdomain>
- <20190510151024.GA21421@redhat.com>
- <20190513164555.GA30128@sultan-box.localdomain>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=K8tajLnU;
+       spf=pass (google.com: domain of edumazet@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=edumazet@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=JOLdwTp5zRnKj+hnZ/GDoFywULiYCABqyveX8EJm5BY=;
+        b=K8tajLnUevxTs9F5zqowM410qkZAK9RFWtlu34lJ/mIkKmEnPdLHEDzVZZyuvMO4Cl
+         ZT7hha/aWIN1JOqcnWJtq9c5byixcK6V73iTabiaIrYYXU1NuX9vAmE8/jcTJlcR7Yox
+         t6YMB70z2IBohCh621ydwKso4naAlxgtPFpmsZeSq8dyMQ1YjH4lim4h1TVnGqWSYxwn
+         Z7xuOkWOCe5xh/XxJegCGbY+qx7DeGwJ9Ut2heb16Q1CLBF3bFQo2WF95e8yNFm+uhug
+         OkxNjXwqnXWCw7t8wdlkk/20/kul3QspQZpFzaQ3JCKeU3hpRUdc2qnWrMbSmbT4SlNT
+         YTBg==
+X-Google-Smtp-Source: APXvYqxGnVrqH3KQxncl63mkJGYEYCoRKq72QJ6MHEZ+nCms2p/s0E4Z0+F6m1GJjsJtLGvK8ocwvuD0CoB3jyv1g/I=
+X-Received: by 2002:a81:27cc:: with SMTP id n195mr21182715ywn.60.1557932550591;
+ Wed, 15 May 2019 08:02:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190513164555.GA30128@sultan-box.localdomain>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 15 May 2019 14:58:52 +0000 (UTC)
+References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
+ <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
+ <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com> <20190515144352.GC31704@bombadil.infradead.org>
+In-Reply-To: <20190515144352.GC31704@bombadil.infradead.org>
+From: Eric Dumazet <edumazet@google.com>
+Date: Wed, 15 May 2019 08:02:17 -0700
+Message-ID: <CANn89iJ0r116a8q_+jUgP_8wPX4iS6WVppQ6HvgZFt9v9CviKA@mail.gmail.com>
+Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
+ when running stress tests involving drop_caches
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Lech Perczak <l.perczak@camlintechnologies.com>, Al Viro <viro@zeniv.linux.org.uk>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	Piotr Figiel <p.figiel@camlintechnologies.com>, 
+	=?UTF-8?Q?Krzysztof_Drobi=C5=84ski?= <k.drobinski@camlintechnologies.com>, 
+	Pawel Lenkow <p.lenkow@camlintechnologies.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/13, Sultan Alsawaf wrote:
+On Wed, May 15, 2019 at 7:43 AM Matthew Wilcox <willy@infradead.org> wrote:
 >
-> On Fri, May 10, 2019 at 05:10:25PM +0200, Oleg Nesterov wrote:
-> > I am starting to think I am ;)
-> >
-> > If you have task1 != task2 this code
-> >
-> > 	task_lock(task1);
-> > 	task_lock(task2);
-> >
-> > should trigger print_deadlock_bug(), task1->alloc_lock and task2->alloc_lock are
-> > the "same" lock from lockdep pov, held_lock's will have the same hlock_class().
+> > > W dniu 25.04.2019 o 11:25, Lech Perczak pisze:
+> > >> Some time ago, after upgrading the Kernel on our i.MX6Q-based boards=
+ to mainline 4.18, and now to LTS 4.19 line, during stress tests we started=
+ noticing strange warnings coming from 'read' syscall, when page_copy_sane(=
+) check failed. Typical reproducibility is up to ~4 events per 24h. Warning=
+s origin from different processes, mostly involved with the stress tests, b=
+ut not necessarily with block devices we're stressing. If the warning appea=
+red in process relating to block device stress test, it would be accompanie=
+d by corrupted data, as the read operation gets aborted.
+> > >>
+> > >> When I started debugging the issue, I noticed that in all cases we'r=
+e dealing with highmem zero-order pages. In this case, page_head(page) =3D=
+=3D page, so page_address(page) should be equal to page_address(head).
+> > >> However, it isn't the case, as page_address(head) in each case retur=
+ns zero, causing the value of "v" to explode, and the check to fail.
 >
-> Okay, I've stubbed out debug_locks_off(), and lockdep is now complaining about a
-> bunch of false positives so it is _really_ enabled this time.
+> You're seeing a race between page_address(page) being called twice.
+> Between those two calls, something has caused the page to be removed from
+> the page_address_map() list.  Eric's patch avoids calling page_address(),
+> so apply it and be happy.
 
-Could you explain in detail what exactly did you do and what do you see in dmesg?
+Hmm... wont the kmap_atomic() done later, after page_copy_sane() would
+suffer from the race ?
 
-Just in case, lockdep complains only once, print_circular_bug() does debug_locks_off()
-so it it has already reported another false positive __lock_acquire() will simply
-return after that.
+It seems there is a real bug somewhere to fix.
 
-Oleg.
+>
+> Greg, can you consider 6daef95b8c914866a46247232a048447fff97279 for
+> backporting to stable?  Nobody realised it was a bugfix at the time it
+> went in.  I suspect there aren't too many of us running HIGHMEM kernels
+> any more.
+>
 
