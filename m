@@ -5,108 +5,107 @@ X-Spam-Level:
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DD4CC04AB7
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 00:49:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 603E8C04AB4
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 00:54:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0222E20879
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 00:49:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 15CE62082E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 00:54:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RFv0sQvm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0222E20879
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bL4UagPL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15CE62082E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D0036B0005; Tue, 14 May 2019 20:49:28 -0400 (EDT)
+	id A0D2D6B0005; Tue, 14 May 2019 20:54:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 359546B0006; Tue, 14 May 2019 20:49:28 -0400 (EDT)
+	id 9BD266B0006; Tue, 14 May 2019 20:54:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D3516B0007; Tue, 14 May 2019 20:49:28 -0400 (EDT)
+	id 885846B0007; Tue, 14 May 2019 20:54:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3D306B0005
-	for <linux-mm@kvack.org>; Tue, 14 May 2019 20:49:27 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id r78so392822oie.8
-        for <linux-mm@kvack.org>; Tue, 14 May 2019 17:49:27 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E0A56B0005
+	for <linux-mm@kvack.org>; Tue, 14 May 2019 20:54:32 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id f143so391384oig.13
+        for <linux-mm@kvack.org>; Tue, 14 May 2019 17:54:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=/1dfnZvzmXyrAvmLqG8QuEKEEuBLjYOpAGmByOmcw20=;
-        b=jJ7Rep6OmW7S0ZkOYCvqxJCaheC6EfMipnb3YkOMrap+qXRs4KTqrL4w53esLMLKvB
-         P/Iu3ELrKWU7z6X/SvhGKmiWAc5Kn6sh0577tVZDnp31WGiV6fx/+998SKYUhZqtvNZR
-         Qn56L/aaFONXEhktsmIgu6sSsVudyszsgq9v3VXpc410vjtitSDwOsIemUSmAszcl28q
-         QcATx2sygDXx5HVfAPdVFd4mE+Bq98xG2D8FZ583FUzSKBo/xQ8I01HoeW5DhlAAxo4s
-         zTvO8QPW6OmoyUQbjtq0IZiunLwrppGfl+KpCvNDK/v28fsrxHYS4Fysu+3tXgvgruKy
-         22zg==
-X-Gm-Message-State: APjAAAXbuFXsH8bHokLKoxAGfwp5nW4P0TOgmd6TG5ytWt/OLbZN9JOx
-	BgCNKV5zeYuouCJZ2YU8UqR4zX/S8INAV+3qF381QEwx3fcEjYSIIL5RwWU0ekn3KsTaw2Xz0st
-	3c6izwDfcJPMwZaQwWtz/a5vdbWyuo60VfirtJCYaWD+fs8czLkw/l2s+22BBx5H3WQ==
-X-Received: by 2002:a9d:71d1:: with SMTP id z17mr18352146otj.22.1557881367574;
-        Tue, 14 May 2019 17:49:27 -0700 (PDT)
-X-Received: by 2002:a9d:71d1:: with SMTP id z17mr18352105otj.22.1557881366677;
-        Tue, 14 May 2019 17:49:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557881366; cv=none;
+        bh=o3pBh+WZzfqafN5dlWW0Wq5LSopVGwQt/9grztsVP8Q=;
+        b=IVlidJ7ig8gIwEF5i4NVoOAwnE5F5JtCP1t9WfnaQKj8zz/YnBx7c7Pd9EmIzbZdtJ
+         B/CG5lbXAhJ9L/ju663XCsjQVE/PfHYWdce3xKzXdkiBQxzj4SDoYapjzy7gT2hMVyeY
+         BYIPRrgnOIJ/DH885Xwaq7HIZ4E9ISiSUR8Hc6IGCJbAn+uPtu9pbm0zGzgm373guAGf
+         19bCzaSCf1CQrlR7KnxsyzC17MKkYZ+wTRnB42D4UTKYOXkccyMzLG4r+reVuwN/JtPC
+         BqfEsx9n41z5tvVpdteCFE2Eg4kI+OR4p1J13GAiYFLjsWAzewaxsCfa8X1oOJs3tgWM
+         kRAw==
+X-Gm-Message-State: APjAAAVYDBZzzC+0TgR1XUQ3oGaihQWz6GzFkrwlf9CuPPL8a20EcooY
+	7yCODoARlJj154YRyzltLNo+9w6I3fTF1+JOnNFGpIOdW397Rh8qYRGisRM/m0C/5WPsQo1af4j
+	jXDXvgNfPf4xYE6eOH+5o0UifcdcmBDUnhYpkNc0DfdXVzH0H2CvfSSnLKWCv+Qs3Ag==
+X-Received: by 2002:a05:6830:1291:: with SMTP id z17mr3326508otp.325.1557881672109;
+        Tue, 14 May 2019 17:54:32 -0700 (PDT)
+X-Received: by 2002:a05:6830:1291:: with SMTP id z17mr3326462otp.325.1557881671513;
+        Tue, 14 May 2019 17:54:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557881671; cv=none;
         d=google.com; s=arc-20160816;
-        b=PDV9isGmZOBb4MsiLzkXWrMHyxJQo+b9zn+rVCKILi4kIx4Inuim6UjuRMhDWVm6Mc
-         yF/jhKHIm1xbdzLs8RiRBxZuXPxKAUB8LcNIiggcvRP2kaIMmvI6oY3vXF0yIqB8KjkT
-         8SgzUf31dV2wCaZbk/Iez+edh26teYtEFRp3MQHWxuM0iu6wwiLyANaKV4nR18eaoLGV
-         05/RVvtdSuwoN/ve2ZaKeVfmUEdydCXKKrc8+mGxkWdibiWPA+Q499Lv4CVXqJ0M5VrK
-         m4nUBpYNdAnb/4ItN/wx/BzDeE5Wcml4AR7LnZl+9JxZGmfDm/hbKmcphpYmY9JJw7oS
-         azEg==
+        b=Xkm8KYZvdP3sWPpJvB4ETCfOA7rN91KuTFgQLVzFPWXB3JESuWcVJi9z8qr0M2dzUe
+         bsfU8jMgCroSOU+oPF236HAgW8TOLZnelyV2/QpcycTYFUN9SiGxQZuu3LBig0sr4Dy2
+         G4ntjlOO2SrOpnSO7gkNySpXJ5pkWeUr/4Zl8yd2djyuMbN2B0a8RXhMY3ZdWaOdOm35
+         d398PAVxGwuLeBJETSQHSORskKZYzQXeEIE11eSvQLhqNv0k+5R11ypx8g3dg3LMnZWz
+         B/Kv+/sh9kVjL2AIE+4VahFqICpAoq4jwtUGMD+EX08oyVfn0SRnxFQH9lRxthmL5WaE
+         Sh0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:cc:to:subject:message-id:date:from
          :in-reply-to:references:mime-version:dkim-signature;
-        bh=/1dfnZvzmXyrAvmLqG8QuEKEEuBLjYOpAGmByOmcw20=;
-        b=zT+xvJVDLBvcxPQNUiG0aZRf9lKo5I1e1vVJJjXH7AOJkcH/j6UYM9QOqZ8mAWY1QD
-         yNFNPOBT0EUBZVUVsq3dEjjJauujipbLfkeAY2o/F5fPCzF5P8xlHFD9h5Qeub7Iu8Wk
-         ONhVAd4ItGo7+A33x/Lzw7qSaFomGFX1H/sEpXu7SCd1h7828tOQKdvhyEgcn4fCfbIi
-         8DzRFGWzSH6DHZquPV0+vp6f5h55jV7+KF9mMqqA+puspAig0ihRf1Z+mYYPFx/i11Hs
-         Pc8v9v2qYIzxOzKdYR5pPu7m+5I4mbGyJFG/HuhnerRbRH5rkKtbk5SSMTQG21QrDeqa
-         v+0Q==
+        bh=o3pBh+WZzfqafN5dlWW0Wq5LSopVGwQt/9grztsVP8Q=;
+        b=P1ScrIKDxECkYnEaDWZkxBNHqu/zuI/yfa/nktYn+6FXXZnJQQTm49BLBuF7dexW86
+         1zFogHwzYXciP2IEPuTavv7v7GLbr4PvJ66bDL6Tudxc1ur82s7YRR8+yxvyut5PbnAb
+         EzFQHIxXwUBQZTGjY2rafK6fvAkQbqGnMqLGeb5SsCPSPqlh/E6Zu1O2k/BbgO+stAC5
+         5weGMoiyOYYJuwt9tBhySZiO2cvn/RMMsNaGrZWSPUnDxXJpZtiZFt7vOh8g/MmSR+eD
+         g2i+X3zgHUomwSVU7pPqcXlWzQM502MTCVi/Vi3Cca6qDLl1vSpZo/10/z3pBzbvrNr7
+         jeMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RFv0sQvm;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bL4UagPL;
        spf=pass (google.com: domain of nefelim4ag@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nefelim4ag@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g22sor219725otn.44.2019.05.14.17.49.26
+        by mx.google.com with SMTPS id v6sor199775oic.136.2019.05.14.17.54.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 14 May 2019 17:49:26 -0700 (PDT)
+        Tue, 14 May 2019 17:54:31 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nefelim4ag@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RFv0sQvm;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bL4UagPL;
        spf=pass (google.com: domain of nefelim4ag@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nefelim4ag@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc:content-transfer-encoding;
-        bh=/1dfnZvzmXyrAvmLqG8QuEKEEuBLjYOpAGmByOmcw20=;
-        b=RFv0sQvmISAFd9Ve2FjMlX11/QOSAOV+YV9EFixhjjqagkW5Rl16XKucfQ8FEimzrw
-         zWNCH83bLqJ/pEKJDdQLEIygK45lIH4oR1RpCJOyQKYEocfjkblbEkcjFckiHU43oBFo
-         EMRq00C5bYAGzoV7CuJKL2kwribUEJikiHcaiO7oGamTgweIULopvfimyI6ECAj9+jij
-         E/M5KYjQYi1BcFCnTNsyUTNkGFoll8OdhkkLklO0c2FANIBK+XfMozRecxy6mime+RrI
-         B3ssMGSNcSWJXxJmuC+kJ18q40m3lqe24nIAuygz1JeFtXv60+dZPI1NOpbPLViGRhDA
-         7/mA==
-X-Google-Smtp-Source: APXvYqzk7v2yFXq2EBQuAvscQ5ewNjVlUAKstnHwHAVlx48z8B9NF1ZYHulrWQGeJcLpHj6vQIs3i5xIW3NdLJvc4I4=
-X-Received: by 2002:a9d:458c:: with SMTP id x12mr3117938ote.211.1557881365991;
- Tue, 14 May 2019 17:49:25 -0700 (PDT)
+        bh=o3pBh+WZzfqafN5dlWW0Wq5LSopVGwQt/9grztsVP8Q=;
+        b=bL4UagPLt/A/WHre/vmyevp4cdF/uZaIIauthXb/RSLU9boFflblpd0Igw0mDxecZ7
+         OKh0jTET33oGC4lJ4iDWw1ztFq7aNdwe/1f2N6NepkwT23N1kXq4x/yBp6LThhqxTnNd
+         mxH+VqHVcEDljU0cFZ4HSirp7abOy0L0gfHCzOPtfoTw4PEYpJG4QugwQdXnCAvMQ/tM
+         FjN/LZUhJzwirenb+ZJ9NvSBV/+ZmBa7XbRdyvPpqgArPUPBxygDZu4abMWUDvvl4hML
+         YVNJbFJ8d/r/0AnWOdikBf3g1MQIdSqPrH1HGUFbN3AVEt+mN9e91ZFm4dmYw4Wjs0jh
+         IZdQ==
+X-Google-Smtp-Source: APXvYqzLzjVzAuF91k9Rvra27CP94F8xT9tqGHftDUVQde0+Qqr/bBS2NaHTqcycqFttq3MebFh7YnEg8yJb4h/sK8E=
+X-Received: by 2002:aca:f007:: with SMTP id o7mr4859752oih.59.1557881671192;
+ Tue, 14 May 2019 17:54:31 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190514131654.25463-1-oleksandr@redhat.com> <20190514131654.25463-4-oleksandr@redhat.com>
- <20190514132249.h233crdsz3b7akys@atomlin.usersys.com>
-In-Reply-To: <20190514132249.h233crdsz3b7akys@atomlin.usersys.com>
+References: <20190514131654.25463-1-oleksandr@redhat.com> <20190514131654.25463-5-oleksandr@redhat.com>
+In-Reply-To: <20190514131654.25463-5-oleksandr@redhat.com>
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Wed, 15 May 2019 03:48:50 +0300
-Message-ID: <CAGqmi77dtid9M8fZuWimeiWMw8r9Awu579mo8UsaVGTECwxRwA@mail.gmail.com>
-Subject: Re: [PATCH RFC v2 3/4] mm/ksm: introduce force_madvise knob
-To: Aaron Tomlin <atomlin@redhat.com>
-Cc: Oleksandr Natalenko <oleksandr@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, 
-	Kirill Tkhai <ktkhai@virtuozzo.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, 
-	Matthew Wilcox <willy@infradead.org>, Pavel Tatashin <pasha.tatashin@soleen.com>, 
+Date: Wed, 15 May 2019 03:53:55 +0300
+Message-ID: <CAGqmi77gESF0h8ZduHm8TTPKRqQLGFdCP15TAW5skDwZnL85YA@mail.gmail.com>
+Subject: Re: [PATCH RFC v2 4/4] mm/ksm: add force merging/unmerging documentation
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Aaron Tomlin <atomlin@redhat.com>, 
 	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
@@ -116,138 +115,52 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-LGTM
+LGTM for whole series
 
 Reviewed-by: Timofey Titovets <nefelim4ag@gmail.com>
 
-=D0=B2=D1=82, 14 =D0=BC=D0=B0=D1=8F 2019 =D0=B3. =D0=B2 16:22, Aaron Tomlin=
- <atomlin@redhat.com>:
+=D0=B2=D1=82, 14 =D0=BC=D0=B0=D1=8F 2019 =D0=B3. =D0=B2 16:17, Oleksandr Na=
+talenko <oleksandr@redhat.com>:
 >
-> On Tue 2019-05-14 15:16 +0200, Oleksandr Natalenko wrote:
-> > Present a new sysfs knob to mark task's anonymous memory as mergeable.
-> >
-> > To force merging task's VMAs, its PID is echoed in a write-only file:
-> >
-> >    # echo PID > /sys/kernel/mm/ksm/force_madvise
-> >
-> > Force unmerging is done similarly, but with "minus" sign:
-> >
-> >    # echo -PID > /sys/kernel/mm/ksm/force_madvise
-> >
-> > "0" or "-0" can be used to control the current task.
-> >
-> > To achieve this, previously introduced ksm_enter()/ksm_leave() helpers
-> > are used in the "store" handler.
-> >
-> > Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
-> > ---
-> >  mm/ksm.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  1 file changed, 68 insertions(+)
-> >
-> > diff --git a/mm/ksm.c b/mm/ksm.c
-> > index e9f3901168bb..22c59fb03d3a 100644
-> > --- a/mm/ksm.c
-> > +++ b/mm/ksm.c
-> > @@ -2879,10 +2879,77 @@ static void wait_while_offlining(void)
-> >
-> >  #define KSM_ATTR_RO(_name) \
-> >       static struct kobj_attribute _name##_attr =3D __ATTR_RO(_name)
-> > +#define KSM_ATTR_WO(_name) \
-> > +     static struct kobj_attribute _name##_attr =3D __ATTR_WO(_name)
-> >  #define KSM_ATTR(_name) \
-> >       static struct kobj_attribute _name##_attr =3D \
-> >               __ATTR(_name, 0644, _name##_show, _name##_store)
-> >
-> > +static ssize_t force_madvise_store(struct kobject *kobj,
-> > +                                  struct kobj_attribute *attr,
-> > +                                  const char *buf, size_t count)
-> > +{
-> > +     int err;
-> > +     pid_t pid;
-> > +     bool merge =3D true;
-> > +     struct task_struct *tsk;
-> > +     struct mm_struct *mm;
-> > +     struct vm_area_struct *vma;
-> > +
-> > +     err =3D kstrtoint(buf, 10, &pid);
-> > +     if (err)
-> > +             return -EINVAL;
-> > +
-> > +     if (pid < 0) {
-> > +             pid =3D abs(pid);
-> > +             merge =3D false;
-> > +     }
-> > +
-> > +     if (!pid && *buf =3D=3D '-')
-> > +             merge =3D false;
-> > +
-> > +     rcu_read_lock();
-> > +     if (pid) {
-> > +             tsk =3D find_task_by_vpid(pid);
-> > +             if (!tsk) {
-> > +                     err =3D -ESRCH;
-> > +                     rcu_read_unlock();
-> > +                     goto out;
-> > +             }
-> > +     } else {
-> > +             tsk =3D current;
-> > +     }
-> > +
-> > +     tsk =3D tsk->group_leader;
-> > +
-> > +     get_task_struct(tsk);
-> > +     rcu_read_unlock();
-> > +
-> > +     mm =3D get_task_mm(tsk);
-> > +     if (!mm) {
-> > +             err =3D -EINVAL;
-> > +             goto out_put_task_struct;
-> > +     }
-> > +     down_write(&mm->mmap_sem);
-> > +     vma =3D mm->mmap;
-> > +     while (vma) {
-> > +             if (merge)
-> > +                     ksm_enter(vma->vm_mm, vma, &vma->vm_flags);
-> > +             else
-> > +                     ksm_leave(vma, vma->vm_start, vma->vm_end, &vma->=
-vm_flags);
-> > +             vma =3D vma->vm_next;
-> > +     }
-> > +     up_write(&mm->mmap_sem);
-> > +     mmput(mm);
-> > +
-> > +out_put_task_struct:
-> > +     put_task_struct(tsk);
-> > +
-> > +out:
-> > +     return err ? err : count;
-> > +}
-> > +KSM_ATTR_WO(force_madvise);
-> > +
-> >  static ssize_t sleep_millisecs_show(struct kobject *kobj,
-> >                                   struct kobj_attribute *attr, char *bu=
-f)
-> >  {
-> > @@ -3185,6 +3252,7 @@ static ssize_t full_scans_show(struct kobject *ko=
-bj,
-> >  KSM_ATTR_RO(full_scans);
-> >
-> >  static struct attribute *ksm_attrs[] =3D {
-> > +     &force_madvise_attr.attr,
-> >       &sleep_millisecs_attr.attr,
-> >       &pages_to_scan_attr.attr,
-> >       &run_attr.attr,
+> Document respective sysfs knob.
 >
-> Looks fine to me.
+> Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
+> ---
+>  Documentation/admin-guide/mm/ksm.rst | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
 >
-> Reviewed-by: Aaron Tomlin <atomlin@redhat.com>
+> diff --git a/Documentation/admin-guide/mm/ksm.rst b/Documentation/admin-g=
+uide/mm/ksm.rst
+> index 9303786632d1..4302b92910ec 100644
+> --- a/Documentation/admin-guide/mm/ksm.rst
+> +++ b/Documentation/admin-guide/mm/ksm.rst
+> @@ -78,6 +78,17 @@ KSM daemon sysfs interface
+>  The KSM daemon is controlled by sysfs files in ``/sys/kernel/mm/ksm/``,
+>  readable by all but writable only by root:
 >
+> +force_madvise
+> +        write-only control to force merging/unmerging for specific
+> +        task.
+> +
+> +        To mark the VMAs as mergeable, use:
+> +        ``echo PID > /sys/kernel/mm/ksm/force_madvise``
+> +
+> +        To unmerge all the VMAs, use:
+> +        ``echo -PID > /sys/kernel/mm/ksm/force_madvise``
+> +        (note the prepending "minus")
+> +
+In patch 3/4 you have special case with PID 0,
+may be that also must be documented here?
+
+>  pages_to_scan
+>          how many pages to scan before ksmd goes to sleep
+>          e.g. ``echo 100 > /sys/kernel/mm/ksm/pages_to_scan``.
 > --
-> Aaron Tomlin
+> 2.21.0
+>
 
 
-
---=20
+--
 Have a nice day,
 Timofey.
 
