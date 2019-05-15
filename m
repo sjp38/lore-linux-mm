@@ -2,200 +2,196 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81192C04E84
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 18:12:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BA10C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 18:15:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 368C72087E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 18:12:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C22BB20815
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 18:15:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="oeDGU3G/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 368C72087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="aW6+HG7z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C22BB20815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0B5A6B0005; Wed, 15 May 2019 14:12:11 -0400 (EDT)
+	id 468086B0006; Wed, 15 May 2019 14:15:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BBC3D6B0006; Wed, 15 May 2019 14:12:11 -0400 (EDT)
+	id 3F1C16B0007; Wed, 15 May 2019 14:15:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AAAD66B0007; Wed, 15 May 2019 14:12:11 -0400 (EDT)
+	id 293026B0008; Wed, 15 May 2019 14:15:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DCB26B0005
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 14:12:11 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id 18so1239764eds.5
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 11:12:11 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E0AB86B0006
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 14:15:50 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b8so332340pls.22
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 11:15:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=cRze2NwhKxUmrX+tzMEVzIsVCeW3eu3pdWGyD6SSofc=;
-        b=pl5/7UcnZeC4KY3PrhXKrGqd/54NMVwg9TSK4/mlmSHNDDG949i6ucfMQ4YIJ/Aon0
-         QeBPcERhmPQ5ZSRWJISWNnjjuQU5OlInmJLW/0kl406BDT8+7mCr25WAwUk5NEl5VraZ
-         LO1jePBft72qkJJYpJO4dY1U13Y3uxecQn/IbuLCyhMnRyNijjimjuC2sl+YrewuJaEI
-         lLWP3hvAC+uEYHmUoCpvrNgO3tYKUjmFXfbB/YK1IgS6CFwf+69Ak50hmdFzxTucwHjm
-         6Wq9VrWQvV9MRC3cAap3XZWq85QMMwZl6ukvJ5iUq7mHGUANz2s9SSYGvjVX5HJH3ns1
-         DOKA==
-X-Gm-Message-State: APjAAAWRr2ncS0HEiXuL7zA5AwS9P3Cf84EYfDEXA7qptbjxLsvKIUiM
-	B3PxtzDHzkwQqjCKT77nZVS3l7gXNv/whFeuYSlYLtlsp8N+YuKXJKtzYEosPgK+ps0kOE3Nbn8
-	zwwrFaKbBe9M9+R2Bh3p6UsqPB5Mofsvpt3+D7Joz/EJbEdCw3KNrnX4/F6ZvnaQNGw==
-X-Received: by 2002:a17:906:261b:: with SMTP id h27mr19522506ejc.97.1557943930952;
-        Wed, 15 May 2019 11:12:10 -0700 (PDT)
-X-Received: by 2002:a17:906:261b:: with SMTP id h27mr19522403ejc.97.1557943929773;
-        Wed, 15 May 2019 11:12:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557943929; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=v50nlXpVfnXeYNEuOAWmVcGj2GBr2Lsy6iwXW/Ee2xk=;
+        b=onbWZtQi5J0a75l9/k//qay0XqxbgG3wbFwzD/604H52sr4zrRFNJ998yb7tVRDwWM
+         3gvyvkSetLDVCtWm8kE8htssEGwE+cYtFRO0QcNpjJ9Gw8HDoTB+xSVKNETfM8DgcKM1
+         R1CMwxIQCmFApn4L0HxI1bISGEwiPJX3etmx7KubypEsqnmQq0TioMQ4Xs2SXmRhdVZs
+         GEHJvQ6l8P39HISMr+t068x2P+/pc0Kn03G+F2b8dII2J6WSmuKjoK9fVvVuYTfMRx2T
+         GdW57I9+KwsbGH6eKIetVAYqb78NFr/O2IIxyL+P5jotNBWrqNmyX/D1O6xI62rmZ1hO
+         f5/A==
+X-Gm-Message-State: APjAAAWdHa2b7FqLcPdNDa01/QwN6QYDZiQ47FIypJZJ4hbvRloEwdWP
+	/9tQhUGubN9/6p1EroqbLwf6X4sS50Sb+tWHlJGmvg9pB9SFH8OtaC7edAlovfkvpPO9G95vnoY
+	rLPqj0fuFgTrSrxBEtue4fUFFdEiyL4ruRu4jjM5+arBAflBIUNngXPaLycm0bxnXog==
+X-Received: by 2002:a17:902:7609:: with SMTP id k9mr46366303pll.335.1557944150341;
+        Wed, 15 May 2019 11:15:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZWXKEfiwLiGOeNlhgr0om7KMDgsHWvJTbyw9LdpZx1t2tlv1yDKbDzmM+npamzzoh0dQW
+X-Received: by 2002:a17:902:7609:: with SMTP id k9mr46366221pll.335.1557944149498;
+        Wed, 15 May 2019 11:15:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557944149; cv=none;
         d=google.com; s=arc-20160816;
-        b=MsmmOzJPAjsX7ogrYwJ2DsHId09xMt+EgeuJvezUfdPHap7TxevmTnJLkSTqAa4ksn
-         t6jSYU3QWKWQauy52EPOTq0zyD7hvotfYLcgiJipIgVB3mYWoywj48+iiqQ7imZKqbMB
-         YeOQ970guQ8RIDYVg/uijBASLkjXNaoiGF/ua8wUSw2VyyjtOe6RuXk+mGVSVoOf/NWK
-         igLq9m2vBeJjZ3o4dUMhSTu6vUWOdrJhsaGXyAPsoK49oJOF1XUER9w7mhuQNxxD1gn4
-         StfflX8LdRUN+v8sRUAJwpXfZR/wo0N0T8/NIdAkfQ6jm/HaNaYua6dcBporFG4CO0Sj
-         Kncg==
+        b=ACYHBy+nhv7i6bHP4FXpLF51KJqEE28gqKEBR0gbwCdrdORr2x8u8xzUfDq1vE7bd3
+         EwSOr5kY6MCC4jlksYbO53EjWmFDYc/9KisG//caETtn79flF2UpWd1vQQIKT5a5EN4U
+         y4tcBOPkKJ8ZTnMRW7o/xtPyDhJUn94VGIEIZ42uBK0Zsqka5XFIm9+87IymzhCVoCwB
+         E/DEX/qkL1GX8OP4F4Vg4qcSNfFyshdP0Lm52JoK9dM8dlp/PgqcHYEKI98xKyXi4KwF
+         ffPnPItLWohcTOd289f5+9ju/JrpFrBeFvhJrixpNlt8AIx96MwvKRJZhjiT5b5luMqG
+         glfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=cRze2NwhKxUmrX+tzMEVzIsVCeW3eu3pdWGyD6SSofc=;
-        b=qQgbl8QFecg659iyVsdw21fEFWF63/RWwXnYP+BshxeutX53mFeaRj5LA1VNhxcZ/g
-         +YpO1Ynn9xQa40YD3Z9kdb/0XSNCloIl+U4dTaFCNn7Tgz1ZItFKgaDXZvmZLT+QeCFX
-         wvBEO0cocU/edlHXEtph8ZaaAU+uK78GXu7z2TQjsIEYi0JM+nNYcuAarPh19vVvcrBX
-         A9XmSCLtPmgcm3xiI6CucnKQyvBz4k6SdCC2UqGvtLj+ny9O0caApA+mSTbIQVt/0qMp
-         acgU7EXVFY/oChSx1BhSSH/VrmEMonrnJwZ1niAY+sZ83Inze27k2P5s73DhpxFcY6ov
-         7InQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=v50nlXpVfnXeYNEuOAWmVcGj2GBr2Lsy6iwXW/Ee2xk=;
+        b=tB7ExBj+jWeXk+VntI9IWs9xcK1o8Zs+xRDZQ8XNmr1E4Sj/cUbjBlqwpTScvFiLhG
+         RjGLTimP2pEEk5RqRu35OWAjZGmoZeEWnxIZ5nF/lN/ZZK6DE0KmFlZQPJ2UysohnLUS
+         NjXD+WVWdAhga3zSfSBR1zCTk6u7gpXnEjdECjshSQHYkB4J6Gu44/EIJ5Vsk8UvgWJO
+         pcx54B6K58pQyTeBp5M5nkRB0Uwp+XK7V0LbL9wQnNsislAL5mxAqmkrIZmxMtC97MJe
+         OZqfXVDzVomIa/XOV3XtjOTy67P2pEzu5EpNGA9UL0Fh2+wRWwNJ1E5Nx+7n6S/lZtBL
+         e3RA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b="oeDGU3G/";
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u9sor1064852ejx.18.2019.05.15.11.12.09
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=aW6+HG7z;
+       spf=pass (google.com: domain of yuval.shaia@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=yuval.shaia@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id t136si2810576pfc.144.2019.05.15.11.15.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 May 2019 11:12:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 May 2019 11:15:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuval.shaia@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@soleen.com header.s=google header.b="oeDGU3G/";
-       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=soleen.com; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=cRze2NwhKxUmrX+tzMEVzIsVCeW3eu3pdWGyD6SSofc=;
-        b=oeDGU3G/EXvFp7MfI+JKrqpXLbgsT6KAvUNZwN8SvRY8NFh8phZ9eN40SJQs3yP2fF
-         xQNVjFfygUwrlQzRAqlFFs3367XKy6ATqv70WcrTiffrGv7U/o3QoC81OUCvJzdZRG8p
-         fqksNru7bvmonPrCDmNwVrVxLr0kycm3ve3KadWmE1UFyAX2ZtlcSctN9f0/UTLoaQED
-         uqdMTABej7gKmQzFPgmWzXufN8r0wCE/82Oi8MK3COsE69Q3aMhsB5hZM2JLeEJBuvHb
-         A5JnLn4InCloW4LPV1lgyTA4tT/OifK8s0UGspOPwh+TZm33S8DDhDFfnfUf5QC8KTZX
-         SCiw==
-X-Google-Smtp-Source: APXvYqziaXhGwhi8bJ4LWNTeRpPXVwzEAL199XnjwVbC6ahkOtixM/ml3bxeFuTijrrGJ9mfac3GS9qVcSia6Y2UUt0=
-X-Received: by 2002:a17:906:5c0f:: with SMTP id e15mr34389391ejq.151.1557943929264;
- Wed, 15 May 2019 11:12:09 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=aW6+HG7z;
+       spf=pass (google.com: domain of yuval.shaia@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=yuval.shaia@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FI47PS172168;
+	Wed, 15 May 2019 18:15:46 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=v50nlXpVfnXeYNEuOAWmVcGj2GBr2Lsy6iwXW/Ee2xk=;
+ b=aW6+HG7ztSpn1tkLHF4Zv+JTF+cUwq2MXiwj33eLClqkEE9YtFUsjeBj6xhoA8D1zt0i
+ Gaq/dYQKWwXGRbFHpV+QgPSuugL+KKI+ICnInOu2w94vcKVzycro04GwJxbQTpvIh61U
+ BFgzeo0q+6nUqKu49hYnaJeFnImeoJiG1jNb6yaVWe0bgye9hkeyP5msjJTMOAKsKQAB
+ XhGS/bXIkWhLZW8fvBwzOxvE2BvEqNmTb27ULEyWr9WfPu9PA+yhnbkfs7k707p1/vVH
+ +l02xG0uHOrURHoX+ktYqnrRR84iEU8+KZKoHvwErYdxyQRC9Saj6gPtqnFcXUMilYRJ Lw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2130.oracle.com with ESMTP id 2sdkwdxvcf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 18:15:46 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FIED17038245;
+	Wed, 15 May 2019 18:15:45 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2sgkx3mnn4-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 18:15:45 +0000
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4FIFhL8024505;
+	Wed, 15 May 2019 18:15:44 GMT
+Received: from lap1 (/77.138.183.59)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 15 May 2019 11:15:43 -0700
+Date: Wed, 15 May 2019 21:15:38 +0300
+From: Yuval Shaia <yuval.shaia@oracle.com>
+To: Leon Romanovsky <leon@kernel.org>
+Cc: RDMA mailing list <linux-rdma@vger.kernel.org>,
+        linux-netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+        Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>,
+        Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
+Subject: Re: CFP: 4th RDMA Mini-Summit at LPC 2019
+Message-ID: <20190515181537.GA5720@lap1>
+References: <20190514122321.GH6425@mtr-leonro.mtl.com>
+ <20190515153050.GB2356@lap1>
+ <20190515163626.GO5225@mtr-leonro.mtl.com>
 MIME-Version: 1.0
-References: <20190502184337.20538-1-pasha.tatashin@soleen.com> <76dfe7943f2a0ceaca73f5fd23e944dfdc0309d1.camel@intel.com>
-In-Reply-To: <76dfe7943f2a0ceaca73f5fd23e944dfdc0309d1.camel@intel.com>
-From: Pavel Tatashin <pasha.tatashin@soleen.com>
-Date: Wed, 15 May 2019 14:11:58 -0400
-Message-ID: <CA+CK2bCKcJjXo7BGAVxvbQNYQFSDVLH5aB=S9yTmZWEfexOvtg@mail.gmail.com>
-Subject: Re: [v5 0/3] "Hotremove" persistent memory
-To: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, 
-	"tiwai@suse.de" <tiwai@suse.de>, "sashal@kernel.org" <sashal@kernel.org>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "david@redhat.com" <david@redhat.com>, 
-	"bp@suse.de" <bp@suse.de>, "Williams, Dan J" <dan.j.williams@intel.com>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, 
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, 
-	"zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com" <mhocko@suse.com>, 
-	"Jiang, Dave" <dave.jiang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, 
-	"Busch, Keith" <keith.busch@intel.com>, "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, 
-	"Huang, Ying" <ying.huang@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, 
-	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190515163626.GO5225@mtr-leonro.mtl.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905150110
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905150110
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Hi Pavel,
->
-> I am working on adding this sort of a workflow into a new daxctl command
-> (daxctl-reconfigure-device)- this will allow changing the 'mode' of a
-> dax device to kmem, online the resulting memory, and with your patches,
-> also attempt to offline the memory, and change back to device-dax.
->
-> In running with these patches, and testing the offlining part, I ran
-> into the following lockdep below.
->
-> This is with just these three patches on top of -rc7.
->
->
-> [  +0.004886] ======================================================
-> [  +0.001576] WARNING: possible circular locking dependency detected
-> [  +0.001506] 5.1.0-rc7+ #13 Tainted: G           O
-> [  +0.000929] ------------------------------------------------------
-> [  +0.000708] daxctl/22950 is trying to acquire lock:
-> [  +0.000548] 00000000f4d397f7 (kn->count#424){++++}, at: kernfs_remove_by_name_ns+0x40/0x80
-> [  +0.000922]
->               but task is already holding lock:
-> [  +0.000657] 000000002aa52a9f (mem_sysfs_mutex){+.+.}, at: unregister_memory_section+0x22/0xa0
+On Wed, May 15, 2019 at 07:36:26PM +0300, Leon Romanovsky wrote:
+> On Wed, May 15, 2019 at 06:30:51PM +0300, Yuval Shaia wrote:
+> > On Tue, May 14, 2019 at 03:23:21PM +0300, Leon Romanovsky wrote:
+> > > This is a call for proposals for the 4th RDMA mini-summit at the Linux
+> > > Plumbers Conference in Lisbon, Portugal, which will be happening on
+> > > September 9-11h, 2019.
+> > >
+> > > We are looking for topics with focus on active audience discussions
+> > > and problem solving. The preferable topic is up to 30 minutes with
+> > > 3-5 slides maximum.
+> >
+> > Abstract: Expand the virtio portfolio with RDMA
+> >
+> > Description:
+> > Data center backends use more and more RDMA or RoCE devices and more and
+> > more software runs in virtualized environment.
+> > There is a need for a standard to enable RDMA/RoCE on Virtual Machines.
+> > Virtio is the optimal solution since is the de-facto para-virtualizaton
+> > technology and also because the Virtio specification allows Hardware
+> > Vendors to support Virtio protocol natively in order to achieve bare metal
+> > performance.
+> > This talk addresses challenges in defining the RDMA/RoCE Virtio
+> > Specification and a look forward on possible implementation techniques.
+> 
+> Yuval,
+> 
+> Who is going to implement it?
+> 
+> Thanks
 
-I have studied this issue, and now have a clear understanding why it
-happens, I am not yet sure how to fix it, so suggestions are welcomed
-:)
+It is going to be an open source effort by an open source contributors.
+Probably as with qemu-pvrdma it would be me and Marcel and i have an
+unofficial approval from extra person that gave promise to join (can't say
+his name but since he is also on this list then he welcome to raise a
+hand).
+I also recall once someone from Mellanox wanted to join but not sure about
+his availability now.
 
-Here is the problem:
-
-When we offline pages we have the following call stack:
-
-# echo offline > /sys/devices/system/memory/memory8/state
-ksys_write
- vfs_write
-  __vfs_write
-   kernfs_fop_write
-    kernfs_get_active
-     lock_acquire                       kn->count#122 (lock for
-"memory8/state" kn)
-    sysfs_kf_write
-     dev_attr_store
-      state_store
-       device_offline
-        memory_subsys_offline
-         memory_block_action
-          offline_pages
-           __offline_pages
-            percpu_down_write
-             down_write
-              lock_acquire              mem_hotplug_lock.rw_sem
-
-When we unbind dax0.0 we have the following  stack:
-# echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
-drv_attr_store
- unbind_store
-  device_driver_detach
-   device_release_driver_internal
-    dev_dax_kmem_remove
-     remove_memory                      device_hotplug_lock
-      try_remove_memory                 mem_hotplug_lock.rw_sem
-       arch_remove_memory
-        __remove_pages
-         __remove_section
-          unregister_memory_section
-           remove_memory_section        mem_sysfs_mutex
-            unregister_memory
-             device_unregister
-              device_del
-               device_remove_attrs
-                sysfs_remove_groups
-                 sysfs_remove_group
-                  remove_files
-                   kernfs_remove_by_name
-                    kernfs_remove_by_name_ns
-                     __kernfs_remove    kn->count#122
-
-So, lockdep found the ordering issue with the above two stacks:
-
-1. kn->count#122 -> mem_hotplug_lock.rw_sem
-2. mem_hotplug_lock.rw_sem -> kn->count#122
+> 
+> >
+> > >
+> > > This year, the LPC will include netdev track too and it is
+> > > collocated with Kernel Summit, such timing makes an excellent
+> > > opportunity to drive cross-tree solutions.
+> > >
+> > > BTW, RDMA is not accepted yet as a track in LPC, but let's think
+> > > positive and start collect topics.
+> > >
+> > > Thanks
 
