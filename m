@@ -7,104 +7,104 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFAC6C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:15:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DFE2C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:21:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5FCFC20862
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:15:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E314620862
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 08:21:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="yiIhTfm8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FCFC20862
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="fHGe8418"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E314620862
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6CF16B0005; Wed, 15 May 2019 04:15:41 -0400 (EDT)
+	id 7FB536B0005; Wed, 15 May 2019 04:21:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1D2C6B0006; Wed, 15 May 2019 04:15:41 -0400 (EDT)
+	id 7AC0F6B0006; Wed, 15 May 2019 04:21:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE4956B0007; Wed, 15 May 2019 04:15:41 -0400 (EDT)
+	id 6E9EC6B0007; Wed, 15 May 2019 04:21:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 480F36B0005
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:15:41 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id l26so410907lfk.4
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:15:41 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BCA16B0005
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 04:21:22 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id m2so282654ljj.13
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 01:21:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:user-agent:mime-version:content-transfer-encoding;
-        bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
-        b=kbwhZxpGRt1FDd490BLX3CBnxo65QsPGsUnxxF5WeTlMBoZ+qEMyDW6EanhDn79yxu
-         TmAK/wHwZ152hbv8hHNUu0kZhCVIcNDtlOA2QftR1971tF+0Wh1qi3xI6S/mNg4sEcgI
-         9Gen7gfFdOfKnkEiLozo1PKxk9EIftf3m3S5h79y0IlWRWXSUg3bwt+vsbW53nRYMABc
-         kD+yj1xChI/0o9VrR9SaxdDju/0sLWelM3nlwM2MYBiqsxUU3r487Rp3LUCZ2b+cP/pz
-         m5xs+8rwGky7dw92HM2ke+vSgLbGylNlrpZ0rTU7pHiBFqirq7PceIDPjbcr2/Ma2aCh
-         RC5Q==
-X-Gm-Message-State: APjAAAUJ0ulPrR2aAfkYkOUaLP1UgvGGOiA6qeNX9lGqe00p7ro0fjyy
-	uG3yhDXLFZaiCPPVhVlQ4SldWf+mIQQVZ1yxNwELASIPiQ03/kxMNvJJjVL3yK15ZrTBaycHE5A
-	d3fJzDRD3bvB6PomtnQHjIXSYgxcpc8/6gaenQKz95r2TPgL4klSBGbUPiPEjuxRtGQ==
-X-Received: by 2002:a19:9e47:: with SMTP id h68mr17448881lfe.91.1557908140394;
-        Wed, 15 May 2019 01:15:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYm6ESyYlmVBn2ODDDIcGZqnlv78APIGY114oiGu5SRJy4cdTeOxXt6TuU6Ui6gqDuf0Uk
-X-Received: by 2002:a19:9e47:: with SMTP id h68mr17448837lfe.91.1557908139249;
-        Wed, 15 May 2019 01:15:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557908139; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:date:message-id
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=rH/t30KXMBGr4dF0FJuUrEPHJpTL3NQhSuLj3xwva+0=;
+        b=Oov+C4+0S2m8DXmq87u4K2Vy/vX8G/vSy7iiskiR1x0a3TZbrIidAiiVvGig1BCRMH
+         HkY/xvNe2Ga7wH3Vk2EGqQGVDqWl7kYnziIAPBDrgjdSRrKJE4k4b3BTo5Sy/MEVwnLv
+         770rzO2aZq6o+ySFR7jtD2kBm7tzlEKSaDLFwKefr8G7Juq3hUs2PYuBGLtLylsJSF1N
+         S8/ybA2Ld24C570zl+dV0+/h2DB+/6xw2RSFDmJPl2/7Y3FjrVqZKKlRG2rsFbR2Wdio
+         GVrDPz3b0jyPlOmF03rAnywQwB8yvuUbKck8rx9yN8xN33H9ihZD/oenlxdcjZNoLeD0
+         KmzA==
+X-Gm-Message-State: APjAAAUJhxe8NeDbMr6ThO15LR24+2DdKoTAtn9ciFEYbHkNbeDgDlJ3
+	7ZDn5OC/tLFg6NJeO11I3jHRA+5MHVYDvcBd7TTdX/enZsOqOXEIdbXgjO+MsjV9TurzMYpsk3f
+	Mgnj0dvYrVOoSBcXRRJJ5AS281okfVkDvJLjRUC7pGXOAUvFOTxlIXBl/uxhuAaQTeQ==
+X-Received: by 2002:a2e:568d:: with SMTP id k13mr19127016lje.194.1557908481148;
+        Wed, 15 May 2019 01:21:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz14bp+ySn+TmfvPSF4v4EKF5bGKzF5O+uXT5uh/MuuxiWxR+WJQw9/0njCZEZluquDy6er
+X-Received: by 2002:a2e:568d:: with SMTP id k13mr19126972lje.194.1557908480306;
+        Wed, 15 May 2019 01:21:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557908480; cv=none;
         d=google.com; s=arc-20160816;
-        b=CHXd6sxVlsfNyxd4PAZP4UyCDQpP6VEO7h2nDdfZguB87VoevwyLtlbCnim8wzL1lT
-         sIeghzSCxj7b0TL0nSz8Gx0ipGSli0d4w4YyjwzOnFLVT4PPTGWMJ4iNMT03sGcwziQA
-         g/XLCQGfNwAtIQwF05qxGai5KYmClUItKlTnKvXg5zhA4UYgkFJTkVHczgvLtrX33Gry
-         JlIAEeyMhc9rtwQvbSWEE4hkMYUAKc05s4OsNLm91AfKxjy7+ke3+nwYQfmjRxhJljQ8
-         BjD8l/9cKIIxkNyrSNkvzMUr0gyD3ZT5mFRKe/xgTrvL/SNuQf4/UjlY6h8UOGQZrY6Q
-         K4jw==
+        b=nN+EQ1ja/Z0yPPDqjseezE6fHNAdQROe2KG74BKQgp+Mj0JklQYb9KOowDkz4Sgbgw
+         KyoBVDsTy48H1FIKryegqHUik/HAIczxumDXOra7USzSFDxy8kj3YSdZvgi+jGAeDtdw
+         xtGJhJBBpq4P5yutDR1qvZhtoDehSu6i5ldzfXOIBCBzx5ghtbDezQIWMyZ0kL7MLnmc
+         T0GSh0mvW64EsoBdMIPZxIttyq63YFnEXtQRCKp7w/EwZTG6TZ5qQC16M/OREkCsEAyV
+         uZsF6dnMg7Yh84if1TpMYmIxcbzJsC3BBROo97U4TSwSGzEdzzA6D+q5w3G9DQRw47NV
+         VrXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :cc:to:from:subject:dkim-signature;
-        bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
-        b=L5iLe/VRrTBoE1kH+RFM33dOv47UkczU2kHGMyWuNYhxuzAoPIbpD940pA15YRX7LZ
-         Bjlvt7g8/BqTun9eKM8fjwttR5i8dPvz2XI/2b1nmiU4BLnxbe6rmT5Wg85YaYYEcV++
-         F4hPFksJaQOg8kkhGQQT2znJ19zbQKza/ZFdE5wrkUsmNA/I7Bjy/TDWEEV24EotRyZl
-         98rCzVMfmzGfQKgihbJA5wY7hnwrwBNTk2PmFLclgbpXlSXsHDBX8vqcBmSUBXR23zYd
-         8rdprE6E6Ea1X1m6bJd44BlhFj668gJAkLYXWJt6EweEEfunWnaReYnBQkLHGmQIEI8x
-         wC3Q==
+         :to:from:subject:dkim-signature;
+        bh=rH/t30KXMBGr4dF0FJuUrEPHJpTL3NQhSuLj3xwva+0=;
+        b=aINiMQNhxa216eg+Aou4SO8TGHWVJs7rsYqwFVXzIPg/BVu1cAxELbUIahMx+9orxE
+         EfuLm9zE54xag8TFqIarf6fLmtnnR/fkJaNjf7DMmpjAUntKYTSxOROjFazBlzp2SdJL
+         AAXEO/08cooHoqb5gUVpCcYiCs0rI2p2PoQAStIofMMpcKJIDs2HtoVNQtPpxU5t5Frp
+         6svF/hRGLjQUIKVpR1pwAPAXfe7I8ERmR4llTko/byVppwSudnZSwhYMYbw11C2qV4aN
+         oQW1Znn0wce8iW0FR7VNfhe1HgSLmDLC116FFvFqGyJBKTjnM3cLHHJeX9H2BgSHL0ek
+         TDgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yiIhTfm8;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=fHGe8418;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1p.mail.yandex.net (forwardcorp1p.mail.yandex.net. [2a02:6b8:0:1472:2741:0:8b6:217])
-        by mx.google.com with ESMTP id m11si937399lji.201.2019.05.15.01.15.38
+Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [95.108.205.193])
+        by mx.google.com with ESMTP id p70si1033879ljp.7.2019.05.15.01.21.20
         for <linux-mm@kvack.org>;
-        Wed, 15 May 2019 01:15:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) client-ip=2a02:6b8:0:1472:2741:0:8b6:217;
+        Wed, 15 May 2019 01:21:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) client-ip=95.108.205.193;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yiIhTfm8;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=fHGe8418;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
-	by forwardcorp1p.mail.yandex.net (Yandex) with ESMTP id A73FB2E0987;
-	Wed, 15 May 2019 11:15:38 +0300 (MSK)
-Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
-	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id RoCJEKO4OP-Fc0KCJcQ;
-	Wed, 15 May 2019 11:15:38 +0300
+Received: from mxbackcorp1o.mail.yandex.net (mxbackcorp1o.mail.yandex.net [IPv6:2a02:6b8:0:1a2d::301])
+	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id A784B2E147B;
+	Wed, 15 May 2019 11:21:19 +0300 (MSK)
+Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
+	by mxbackcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTP id DwA5FsojOl-LJ0GRkIN;
+	Wed, 15 May 2019 11:21:19 +0300
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1557908138; bh=jHxTX7+w5XRXWiyeoOBtShSglDK2yw1HqwPBfT2YxAA=;
-	h=Message-ID:Date:To:From:Subject:Cc;
-	b=yiIhTfm8Y8WhZ27MzSCHygSHiu5oBt8MnnCw4imtDEH6qA2novSoggL0Mk1CNqZ9T
-	 7xF4+sJ+Uco+w51uWRsqF5JueXBt2YYU1CZvrsjb3//DVbmxezl4Kkc7S2+eC/xLEJ
-	 XdmVbHG1DwYMOOkK8yT+YETJRQD++p45vkpsltKw=
-Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+	t=1557908479; bh=rH/t30KXMBGr4dF0FJuUrEPHJpTL3NQhSuLj3xwva+0=;
+	h=Message-ID:Date:To:From:Subject;
+	b=fHGe8418tN46yDfQFsQ6wSmHFaUCKDn9hk25OB75c5F8CZaDVuzJE3eqbZhBq6oTD
+	 KIU4i3rNGp8X6ahgcORt5JIudN3gzYuTn/Q8xJy2ex/jLMfmHd5kABXrLZg/WNLYXo
+	 n7e5PNwGicPSEkyRzqIMK5WMjAeFBYiNWrHhO/lE=
+Authentication-Results: mxbackcorp1o.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
 Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:ed19:3833:7ce1:2324])
-	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id TMPGL1lslS-Fbl0Xd6Q;
-	Wed, 15 May 2019 11:15:37 +0300
+	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id fxC6AkQBIj-LJd0oVGu;
+	Wed, 15 May 2019 11:21:19 +0300
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(Client certificate not present)
-Subject: [PATCH] mm: fix protection of mm_struct fields in get_cmdline()
+Subject: [PATCH] mm: use down_read_killable for locking mmap_sem in
+ access_remote_vm
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, Yang Shi <yang.shi@linux.alibaba.com>
-Date: Wed, 15 May 2019 11:15:37 +0300
-Message-ID: <155790813764.2995.13706842444028749629.stgit@buzz>
+ linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
+Date: Wed, 15 May 2019 11:21:18 +0300
+Message-ID: <155790847881.2798.7160461383704600177.stgit@buzz>
 User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
@@ -115,33 +115,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since commit 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|
-end and env_start|end in mm_struct") related mm fields are protected with
-separate spinlock and mmap_sem held for read is not enough for protection.
+This function is used by ptrace and proc files like /proc/pid/cmdline and
+/proc/pid/environ. Return 0 (bytes read) if current task is killed.
 
-Fixes: 88aa7cc688d4 ("mm: introduce arg_lock to protect arg_start|end and env_start|end in mm_struct")
+Mmap_sem could be locked for a long time or forever if something wrong.
+
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- mm/util.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/memory.c |    4 +++-
+ mm/nommu.c  |    3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/mm/util.c b/mm/util.c
-index e2e4f8c3fa12..540e7c157cf2 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -717,12 +717,12 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
- 	if (!mm->arg_end)
- 		goto out_mm;	/* Shh! No looking before we're done */
+diff --git a/mm/memory.c b/mm/memory.c
+index 96f1d473c89a..2e6846d09023 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4348,7 +4348,9 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	void *old_buf = buf;
+ 	int write = gup_flags & FOLL_WRITE;
  
 -	down_read(&mm->mmap_sem);
-+	spin_lock(&mm->arg_lock);
- 	arg_start = mm->arg_start;
- 	arg_end = mm->arg_end;
- 	env_start = mm->env_start;
- 	env_end = mm->env_end;
--	up_read(&mm->mmap_sem);
-+	spin_unlock(&mm->arg_lock);
++	if (down_read_killable(&mm->mmap_sem))
++		return 0;
++
+ 	/* ignore errors, just check how much was successfully transferred */
+ 	while (len) {
+ 		int bytes, ret, offset;
+diff --git a/mm/nommu.c b/mm/nommu.c
+index b492fd1fcf9f..cad8fb34088f 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1791,7 +1791,8 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+ 	struct vm_area_struct *vma;
+ 	int write = gup_flags & FOLL_WRITE;
  
- 	len = arg_end - arg_start;
+-	down_read(&mm->mmap_sem);
++	if (down_read_killable(&mm->mmap_sem))
++		return 0;
  
+ 	/* the access must start within one of the target process's mappings */
+ 	vma = find_vma(mm, addr);
 
