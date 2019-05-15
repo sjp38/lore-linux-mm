@@ -2,144 +2,159 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17C63C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:51:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7C53C46460
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:58:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB30F20881
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:51:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB30F20881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 808BE206BF
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:58:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 808BE206BF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6AE356B0003; Wed, 15 May 2019 10:51:55 -0400 (EDT)
+	id 214FF6B0003; Wed, 15 May 2019 10:58:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 65EA46B0006; Wed, 15 May 2019 10:51:55 -0400 (EDT)
+	id 1C6526B0006; Wed, 15 May 2019 10:58:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 526466B0007; Wed, 15 May 2019 10:51:55 -0400 (EDT)
+	id 08E286B0007; Wed, 15 May 2019 10:58:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A226B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 10:51:55 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d15so392768edm.7
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 07:51:54 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DBCB56B0003
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 10:58:53 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id n65so2485845qke.12
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 07:58:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=hTMYy1EaK3LKS3t54o0/p3Sni3y6a5O4w65M/yOf9YI=;
-        b=EQV+2ktWcGYX3q2FrmIni6FhriLtzot0mRL0a11RQ1PJpWqOAdycItWeJWbGy/hBpJ
-         WAcQoHiu4cF9B+DKveYlj+LeXSqrasL0IOf45X/qXMCWx+MDS7hojhzjm+4yazY6I0Rq
-         YGgEGEXhECN30G71K5WNAftj/YSbcWjfhB3Z8ujB76acnRYL/PT/9bs2AdlLic5fEPLA
-         p2okB7mupmiBtGTr/orvoeF7vmxqu710R8WRQ3VHLAnp7Sgtsm+jyzYWVhNb3iK4J+2G
-         Fj8t0AneJudxshxzjNvMebYrrwWbPb9IQ5rXvkMP/g0Fr2vIfQyv/yHKXXukbuoP6Pob
-         OADA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWP45oyCa0WOJ58YRE/f1M+wVoKNwNZxna5Dzx5EYOkRegARxa2
-	8P4twpsuJehnfyvAybecjXFjQ2lbMaIlzJynzpm2BDaYfLG8VhNQ4yRl4x2Konyc4QI92muOKHE
-	qmN/w3l3fZwrgOFp0Cc4PTdgf4OHQAW5ewEs2P9SiT3h34fdZof4th+mhcOka/N0=
-X-Received: by 2002:a17:906:1856:: with SMTP id w22mr34005540eje.130.1557931914578;
-        Wed, 15 May 2019 07:51:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYMjQz01kttTIYDcP1q8O2kONBFQL9y6pFZqduME3IKusjSRgiEWMiCfl7nMZLPL3r8mbT
-X-Received: by 2002:a17:906:1856:: with SMTP id w22mr34005462eje.130.1557931913698;
-        Wed, 15 May 2019 07:51:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557931913; cv=none;
+        bh=tszhKujCKsRERdzN5TNEwD05H7rg2No04ol0gNO9QuM=;
+        b=hmB54Nk4zn6gKXFWTRVscVHvlFL3EnX01LRzXruEVhRdU01H9bDsTWqby0MxmlASFU
+         SbzswjtKJon/V+UoU5vuYNYuru8/RfhxjD3x6bZKNnbmpUHlAcTmsesKbghIRdw/Ls+d
+         er9J3o79tU7VzKBgftTA4ycCvsIvVIhVOnFi8Xk/GoESxf9wgWs6Ze/T1qXEcIlf8XwE
+         bITrOjpruKzHAa9f/fc08UQTE+9A5sQwMV4YV1hrfnpl+tqyQS2FIWCzIbZNNw6jRSEG
+         PVamk5OFL6uq5Aoq/buzYThkNgBylbPJrQvBpywUkphYX0eH+L1vwkLchyFqzpLHQ0+w
+         RT0g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWg4G/+htz+NDKO9NLnRf846V2Tri85PJr/XPwHTMhFNQnKAsyA
+	2ohV2l4C2z30JytdUC4GKdpGlC0KC9JQ9LSyH3vzIoaVmovXipqG+UvTWZdIAtYnVWEmNmVd5/S
+	As96KSA/ZCIdQjqVX/EOfbBMYsIjZNGWYAvIJVoHe1CZJxUdAsCypOlUtZw8M2qYBdQ==
+X-Received: by 2002:a37:4d0d:: with SMTP id a13mr27659970qkb.143.1557932333638;
+        Wed, 15 May 2019 07:58:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzFdHYV4GMmmNbEj0JfzeBdCt7JT0wtmXGqjgdrAst0hRqkey3xcxASQkS1JhGPR64Mg7hE
+X-Received: by 2002:a37:4d0d:: with SMTP id a13mr27659933qkb.143.1557932333040;
+        Wed, 15 May 2019 07:58:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557932333; cv=none;
         d=google.com; s=arc-20160816;
-        b=bJTrU/7T4B4UXXtWn2kjiLhgR8RLxCuvxpMbYgp91JPn3g++bKS8s9haZOAg+9Tux5
-         w7kxfWpMrYF/mONqZaJ6yy6hMxw2yY9Hb4z1xT8oTuBt48MOrzN/onAeuT0gJ6ZfzmV0
-         T2cmWE2MY4IrpCF2UqxUCVjhmkrGTEDcCuLyDbgZGvAVPzKVNW0S1/MOVzsOc8O0v2aL
-         PXGoW3UZb6ej68Gxi576Cr/481nVKOIofMls3kswuU3fqxicPUSY7bjzv40ZkE06Opjf
-         AgjwiRrzjJ1cWQHwQ6/19qayPZNZ2PTBT/w5b8MiCxZd/6EwSEVMlW5CTfjDnkhhLJjS
-         8s3w==
+        b=z0sb47yWh/x1c+49d5PgL1tiMpe0f3rxjl+9CPQPuJPoixwiHwoxhmTN+9yAdvjEMO
+         0f/ukXrOQoSTWLMxXwVbW2tLF+E5o2avdxlqKhF/qtd1jR8OtDShRgysZ4D8eiOySHoq
+         48AtSUlprl9R30vk8scLB5adsp115y35vDXGs5wD4Qjlq3dB6IftiWKI0tj7m3x03Ru+
+         vcbsgRbFpyrwFilKBuubfhYhQsisHfRGJNXhNEKo2SF4KioNcYVSESZSRUJgmKYvbewv
+         y1tvUmE+WXe656XbKjK915a6EheDlCypUAzsp0eeoov/pAK4h2w0tg1QJ5u/azBDUqbL
+         l7ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=hTMYy1EaK3LKS3t54o0/p3Sni3y6a5O4w65M/yOf9YI=;
-        b=S2DBdCAj0YZt9Y/eOUbIjIFiX5WuSzSBcGoVWLUhqKycs/2E9HNt9EvFOTT//gcwzt
-         DsTaABLX9BiF4sbvfxiu13/iKzrGQ893UC+X/wHl4shpYnxP5tCq8fEf+mg/uk1X/m5W
-         SPFHFroWP0/vUzfdEBY/lyLyMz/cqBzmkchPPy4Pw+PwzeUMUecdNWWjuwh5fDPTwyrz
-         GaW3vOGSbboQS1oknmABUwqttdVRDIYSeZw0wDJqfaLhfDwkcCmXftI2JBOwOBqVboZu
-         P9d9hyykoF3A2StNouBtzdZsSVgWWBSXXSHIRKlyqvRBUtnB4NA3OgG2Xp9gFmDmXqPG
-         N4+w==
+        bh=tszhKujCKsRERdzN5TNEwD05H7rg2No04ol0gNO9QuM=;
+        b=Wu+nhosXIR3RBsnvCp/bXZ9JiZN0Ut/yKgHlW6t3HDlNsn+L+eQYcyrkmvmQLFlspu
+         GtM5ol/dPg/GkT9D4l1RKS+ElYdwiDyrLGjXFKoru8MzVKz3CsmFqzYzHFtnkpa6xQEg
+         7YN+cm8rh4hsgMcgqqg3wZRRmAV634QqAyJyPdTKncGOAiUwvD9uTn5tx6zOrLpIV1Qc
+         qjK23gUefVWPrcOsmt+dkOOtzYXNtNQtZWSVBlvx2TgwI69IEXVC3jxgbA6O+/aPNhkm
+         akcGz71a14z4MdV3OtTEfH8ZSNtkHnMdMnuWcudNgLFjjfnb7O4HGSEkPLTU2Lj2TToo
+         gjIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g17si1513499ejd.378.2019.05.15.07.51.53
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 55si344295qvv.71.2019.05.15.07.58.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 07:51:53 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 15 May 2019 07:58:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 281DAAFDD;
-	Wed, 15 May 2019 14:51:53 +0000 (UTC)
-Date: Wed, 15 May 2019 16:51:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Timofey Titovets <nefelim4ag@gmail.com>,
-	Aaron Tomlin <atomlin@redhat.com>,
-	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
-	linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9483430BB36D;
+	Wed, 15 May 2019 14:58:41 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.159])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 8F97719C7C;
+	Wed, 15 May 2019 14:58:35 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Wed, 15 May 2019 16:58:38 +0200 (CEST)
+Date: Wed, 15 May 2019 16:58:32 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Sultan Alsawaf <sultan@kerneltoast.com>
+Cc: Christian Brauner <christian@brauner.io>,
+	Daniel Colascione <dancol@google.com>,
 	Suren Baghdasaryan <surenb@google.com>,
-	Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH RFC v2 0/4] mm/ksm: add option to automerge VMAs
-Message-ID: <20190515145151.GG16651@dhcp22.suse.cz>
-References: <20190514131654.25463-1-oleksandr@redhat.com>
- <20190514144105.GF4683@dhcp22.suse.cz>
- <20190514145122.GG4683@dhcp22.suse.cz>
- <20190515062523.5ndf7obzfgugilfs@butterfly.localdomain>
- <20190515065311.GB16651@dhcp22.suse.cz>
+	Steven Rostedt <rostedt@goodmis.org>,
+	Tim Murray <timmurray@google.com>, Michal Hocko <mhocko@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>,
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"open list:ANDROID DRIVERS" <devel@driverdev.osuosl.org>,
+	linux-mm <linux-mm@kvack.org>,
+	kernel-team <kernel-team@android.com>,
+	Andy Lutomirski <luto@amacapital.net>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Kees Cook <keescook@chromium.org>,
+	Joel Fernandes <joel@joelfernandes.org>
+Subject: Re: [RFC] simple_lmk: Introduce Simple Low Memory Killer for Android
+Message-ID: <20190515145831.GD18892@redhat.com>
+References: <CAKOZuessqcjrZ4rfGLgrnOhrLnsVYiVJzOj4Aa=o3ZuZ013d0g@mail.gmail.com>
+ <20190319231020.tdcttojlbmx57gke@brauner.io>
+ <20190320015249.GC129907@google.com>
+ <20190507021622.GA27300@sultan-box.localdomain>
+ <20190507153154.GA5750@redhat.com>
+ <20190507163520.GA1131@sultan-box.localdomain>
+ <20190509155646.GB24526@redhat.com>
+ <20190509183353.GA13018@sultan-box.localdomain>
+ <20190510151024.GA21421@redhat.com>
+ <20190513164555.GA30128@sultan-box.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190515065311.GB16651@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190513164555.GA30128@sultan-box.localdomain>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 15 May 2019 14:58:52 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc Suren and Minchan - the email thread starts here 20190514131654.25463-1-oleksandr@redhat.com]
+On 05/13, Sultan Alsawaf wrote:
+>
+> On Fri, May 10, 2019 at 05:10:25PM +0200, Oleg Nesterov wrote:
+> > I am starting to think I am ;)
+> >
+> > If you have task1 != task2 this code
+> >
+> > 	task_lock(task1);
+> > 	task_lock(task2);
+> >
+> > should trigger print_deadlock_bug(), task1->alloc_lock and task2->alloc_lock are
+> > the "same" lock from lockdep pov, held_lock's will have the same hlock_class().
+>
+> Okay, I've stubbed out debug_locks_off(), and lockdep is now complaining about a
+> bunch of false positives so it is _really_ enabled this time.
 
-On Wed 15-05-19 08:53:11, Michal Hocko wrote:
-[...]
-> I will try to comment on the interface itself later. But I have to say
-> that I am not impressed. Abusing sysfs for per process features is quite
-> gross to be honest.
+Could you explain in detail what exactly did you do and what do you see in dmesg?
 
-I have already commented on this in other email. I consider sysfs an
-unsuitable interface for per-process API. Not to mention this particular
-one is very KSM specific while the question about setting different
-hints on memory of a remote process is a more generic question. As
-already mentioned there are usecases where people would like to say
-that a certain memory is cold from outside of the process context (e.g.
-monitor application). So essentially a form of a user space memory
-management. And this usecase sounds a bit similar to me and having a
-common api sounds more sensible to me.
+Just in case, lockdep complains only once, print_circular_bug() does debug_locks_off()
+so it it has already reported another false positive __lock_acquire() will simply
+return after that.
 
-One thing we were discussing at LSFMM this year was a way to either
-provide madvise_remote(pid, addr, length, advice) or a fadvise
-alternative over /proc/<pid>/map_vmas/<range> file descriptors
-(essentially resembling the existing map_files api) to achieve such a
-functionality. This is still a very rough idea but the api would sound
-much more generic to me and it would allow much wider range of usecases.
-
-But maybe I am completely wrong and this is just opens a can of worms
-that we do not want.
--- 
-Michal Hocko
-SUSE Labs
+Oleg.
 
