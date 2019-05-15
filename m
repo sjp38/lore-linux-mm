@@ -2,141 +2,134 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BA7AC04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:37:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80436C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:01:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E14920873
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:37:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3DDD62084E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 16:01:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="esXearoJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E14920873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (2048-bit key) header.d=toxicpanda-com.20150623.gappssmtp.com header.i=@toxicpanda-com.20150623.gappssmtp.com header.b="nMdKe4p3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DDD62084E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=toxicpanda.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E8AF6B0003; Wed, 15 May 2019 11:37:43 -0400 (EDT)
+	id C950A6B0003; Wed, 15 May 2019 12:01:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 99A606B0006; Wed, 15 May 2019 11:37:43 -0400 (EDT)
+	id C46526B0006; Wed, 15 May 2019 12:01:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 888E86B0007; Wed, 15 May 2019 11:37:43 -0400 (EDT)
+	id B34CA6B0007; Wed, 15 May 2019 12:01:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5261A6B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:37:43 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id r75so54136pfc.15
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:37:43 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9550B6B0003
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 12:01:50 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id h4so279317qtq.3
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 09:01:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=Vh6bWSTbkW68l7AoeMuMXgvnZlk2i0Osj181aaqGeEs=;
-        b=GsYkKx33IwbV7xUhL8PwQUhQvg34c0NSngeoUn3rt2KkX2L5llw3Qqz1HGeTntNYeh
-         cBT9RZIG7u7NHSaGAFSaQW2umofQCTxRfJn3mqMs030nwHDJ6A5iZWnex+XpxjJktpU0
-         tNT3Cm376O3C3MGF9k6D4/QWcKHH5ISIn7GKpctn+qdKPgyvf/vmxk9APp0mezu6Hctk
-         2GleoZkfvbY2iYY48L9Dg+qM6wC6Eg6ojpXBUhrdArAVdol5uWHPBvU05XZ/+j53uDQz
-         YqqHHPtXxSDooooxbDlVSNWt4WVjdRKqwnNywUijDofLluwMsBpshg58zIdW2X2LS79W
-         6RXw==
-X-Gm-Message-State: APjAAAVzsgwYNDyjmqfEoAaC5Osyd7qDGeP6I47EFAt+gcAFuB0/5rlv
-	s53cSlcSp0t3UG3nC+A8fHFXte46m/tKGsMOh8h5oqswMlJ7RtFjjXFsgVjiNVRmj43SvDygCyW
-	pOZuNjan2OElcxT+dC7pQBC0+bd10R9SA2C4N6L2iqpIBuceTUJTgj31e+y3fv43kAg==
-X-Received: by 2002:a63:f703:: with SMTP id x3mr43767824pgh.394.1557934661700;
-        Wed, 15 May 2019 08:37:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7KV2OrRzLUyXqsBDZC64B+gJcS69ENLgxm2irjrY4zubDWVUEHHiTAW6AORTn+EIxFUnW
-X-Received: by 2002:a63:f703:: with SMTP id x3mr43767776pgh.394.1557934661000;
-        Wed, 15 May 2019 08:37:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557934660; cv=none;
+        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
+        b=MhjHYJ0lSbXLHrcoxRg0lkx517yK1M/Udvird4aRUG/zKO7wujzaXthD7bjqpZQ2qa
+         TIa+s6GudR5rPsCvNOw9cEz4wz5vRui2vLXFU9jYF1fDDatWersCdr8F6SL04EOOQMkU
+         z2/jcXgyeaMIEfv2lpumWvYx316L1uhOkfNQVZkQGdE7qcNA3jAXwcmQubAUOHj6/KAz
+         WPvcEQxkOUwiWZ/Zwxk2nWKcdoVUOgYMCDwHHgoOi5FcqMnbVbYeI7t9WV+cUbCefwwh
+         7RXs+vIi432Ss7ManMBWQIRLwxq9p7AHxfJEQb4NDfB/sRhLDJfIDLCogP7q7MLm3tWw
+         IaXg==
+X-Gm-Message-State: APjAAAUvfPWo3NMKSVefI7rrZff0t1W54mxw074svK6pv3XusrSBzipn
+	4bpz2a3lDbVW+6Mtuq/hUteFCYGob5m7/rewgn6AhPRHWKaXKf4cgV2Zu6QDwkhXIuJLIUhHMtg
+	f9UcH5e3P6E2HL3i98oH9k1IRyK9tpiTdN6mLRR5BeC/7If4djLYCMBmxNHltYAwtZg==
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr33376938qve.69.1557936110339;
+        Wed, 15 May 2019 09:01:50 -0700 (PDT)
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr33376866qve.69.1557936109661;
+        Wed, 15 May 2019 09:01:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557936109; cv=none;
         d=google.com; s=arc-20160816;
-        b=iSg5zSlIgeOlnnH08N59Ykpe5KqV/OzgrlonOu8XvbVZVYzSDx69nBpo9Sg8vy4WtB
-         fNRxTb+E2uDUF4IMzHV2LCqQG+Zt1xyKEqSM91ZOYLS5DsJDaPYXXhIfJuYmLXyMgST+
-         4F5greg0XR8PTXye3fv5jKu/JGkCi10ZJnXZ6SrbXxNdJ3ObKX3U0k2gOVXpHS9rAIck
-         42bp0jSBQ/BvIJL2h0lKrX2hE6pI9Cf8Ndnrp+X51VopBYBhq0oQKHaLJMg5LU0pxwwd
-         zQweDh2b8VMVD0l2tR0BXf6aXa27OJta1YXb/PD4upp3yZciRfOtmRnxjPWbTaH/SAqw
-         2Lxg==
+        b=YQHfM4xTEPvTmYM/QmFV4puG5vsPKDzAkw7BFT2lz42A4Tlr1/S8IEuYz+Pzs3lw+X
+         F7Z0AwdwJ1tFWJ0icmlZQLaPItkgrU8Q4giTbR94rVXHsOcKLm2cO/lPjFjCIubSj5CZ
+         ZKMx+ebvWTJiDAikZ9FVMXR2D/BdBTFJTjwJN3G6qpm9zLZqjdhWXKV1i6JbuQoYK/ZK
+         qBWVZLEpIfpfPmYGwKVQs4sbRWA/AeERmiaEP6Zx1qqtNoR0UulRQh7OdknEiFIeaEdZ
+         YM+xzhZp8q6djt4VEeO58EICDzDC0mf/CyGUwDjj38sgx1hA1XrG764FlwAR2ugWQCzI
+         jSMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Vh6bWSTbkW68l7AoeMuMXgvnZlk2i0Osj181aaqGeEs=;
-        b=smPPEz9bpV8kNVp13OQahrgoK3wuBXB7pc7/1LKqpt0YMeNrGYRXfuogrCUl8X3Mwa
-         sGypTXwadBRDoJGGPyzbgwe+ML/mAupwPIVkEJb5YnS6WeH0beQyu9l+B35llcjucfj8
-         AETOTz1kN8ICXmHVmqMe/Lgo+E27Am83coxNRmV3RBixa4txK6X7q2zih6/SbR+X/PAU
-         u/3CBdPsigQahbrXzZoqZ6dv16/y5VjJCqWlVlbsXFsI+5g1rPBsdETZzYFY56f0J5uH
-         9Ysh0nNkUKr4rc2XMdTFdWbHHNo3xgqGV3lB3J9aTfE848J5Be0VhMPyOSSXUFtzryh0
-         xTWQ==
+        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
+        b=UI4YWRC4bzka8cUA0C+47W9nvscHU2Cs8NNpJBkmAoR2xNwswhhcl/NRnzUBiOldpK
+         gzCEBVQWb9S1rk5Rzq7TJidP8/TtjbEbQeiD7whEtLzjoxdrX57MCpn26dMBOLP94VyR
+         H+IChjxCsFc0Fa34Pr4SJlCcjg71jitgx6tic1wzy9ZA0WI2HepK0P9HYUhC+aLcP5RK
+         TlWriZJjjVuSll6Ztf+TReVutp3cmRE0iYZbos7FHTnO1TYu+VKiO7KcCk5PaR8ip22O
+         2uGkUB/SRjmWTOcwolrpnZGYYt35W7W3VNP/Ic7Cf40hzUprOgBvVWYbf5H/Uk8wvNEn
+         6Kdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=esXearoJ;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y36si2083532pgl.336.2019.05.15.08.37.40
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=nMdKe4p3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q5sor2049234qve.45.2019.05.15.09.01.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 08:37:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 15 May 2019 09:01:49 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=esXearoJ;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2F41A20818;
-	Wed, 15 May 2019 15:37:40 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1557934660;
-	bh=lIwfUgZLsOETAqKmdIH6ivluhJ74dnvjF64W3zo7G3U=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=esXearoJXyErGlUIXkOrnIwNQRHkRzCAqnhw7vp9RJR39xntePk7hOYLZEhbxtgA4
-	 AaJRauP72JOUeasJHE7Wimfzcs5d/cquM0J5pC1xnS4aRGQ0Bcs/uw8xgNuQvJXYTk
-	 Ip/EGnYVhJ/lQ34norEhZKVj9l199Bg7B6z4b690=
-Date: Wed, 15 May 2019 17:37:38 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Lech Perczak <l.perczak@camlintechnologies.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Eric Dumazet <edumazet@google.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Piotr Figiel <p.figiel@camlintechnologies.com>,
-	Krzysztof =?utf-8?Q?Drobi=C5=84ski?= <k.drobinski@camlintechnologies.com>,
-	Pawel Lenkow <p.lenkow@camlintechnologies.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
- when running stress tests involving drop_caches
-Message-ID: <20190515153738.GA27219@kroah.com>
-References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
- <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
- <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com>
- <20190515144352.GC31704@bombadil.infradead.org>
- <20190515150406.GA22540@kroah.com>
- <20190515152035.GE31704@bombadil.infradead.org>
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=nMdKe4p3;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=toxicpanda-com.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2C5ZLXS5pnK1SekssJfYLby68kNl/Hg91yqFVlQmDMw=;
+        b=nMdKe4p3aF+xVyxfSk0pT8Zlqzg6/bn0U+5PqM0uOEZbamU2dToVvVrtN1ODTZKa0X
+         EFkVsBDayJ2NH3cs7kMkrA1sYkJSKH7rRTHYhXvjPOx9CTVgQgCWE7Lj2XmmrwVM9hf+
+         T5psHQVnACl/TqF+KUv18k3P/VR2QhgByTB1xwMGgmqa/mnfQD1M4JGZcuwvfOFFtxRz
+         CItw9xiMnUyGWj6YFfe0jVyKELSEInBr+SoekmkF7yEPzwjMmBZHiTU7469kTxaRUd5x
+         TN6749/HLAk/HJl7jGdpNlnbOhNeM5C7tzfPOwSxCOjB65QuEoEa8VHvIRnQfO/GWGLR
+         o5TA==
+X-Google-Smtp-Source: APXvYqwV4+KcNeGJbIdrCbzY3gisqJkBjc81DjssqjrPCuGEYTm4AuvHyXhtYW5MdQ4zAHHbU5Ue8w==
+X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr34276654qvf.132.1557936109209;
+        Wed, 15 May 2019 09:01:49 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:480::bca1])
+        by smtp.gmail.com with ESMTPSA id z63sm1204403qkb.7.2019.05.15.09.01.48
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 May 2019 09:01:48 -0700 (PDT)
+Date: Wed, 15 May 2019 12:01:47 -0400
+From: Josef Bacik <josef@toxicpanda.com>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: josef@toxicpanda.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: filemap: correct the comment about VM_FAULT_RETRY
+Message-ID: <20190515160146.te5tpydtclguxs6a@macbook-pro-91.dhcp.thefacebook.com>
+References: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190515152035.GE31704@bombadil.infradead.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <1556234531-108228-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 15, 2019 at 08:20:35AM -0700, Matthew Wilcox wrote:
-> On Wed, May 15, 2019 at 05:04:06PM +0200, Greg Kroah-Hartman wrote:
-> > > Greg, can you consider 6daef95b8c914866a46247232a048447fff97279 for
-> > > backporting to stable?  Nobody realised it was a bugfix at the time it
-> > > went in.  I suspect there aren't too many of us running HIGHMEM kernels
-> > > any more.
-> > > 
-> > 
-> > Sure, what kernel version(s) should this go to?  4.19 and newer?
+On Fri, Apr 26, 2019 at 07:22:11AM +0800, Yang Shi wrote:
+> The commit 6b4c9f446981 ("filemap: drop the mmap_sem for all blocking
+> operations") changed when mmap_sem is dropped during filemap page fault
+> and when returning VM_FAULT_RETRY.
 > 
-> Looks like the problem was introduced with commit
-> a90bcb86ae700c12432446c4aa1819e7b8e172ec so 4.14 and newer, I think.
+> Correct the comment to reflect the change.
+> 
+> Cc: Josef Bacik <josef@toxicpanda.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> ---
 
-Ok, I'll look into it after this round of stable kernels are released,
-thanks.
+Reviewed-by: Josef Bacik <josef@toxicpanda.com>
 
-greg k-h
+Thanks,
+
+Josef
 
