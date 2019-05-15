@@ -2,140 +2,149 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 60258C04E87
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:11:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C327DC04E84
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:24:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22DC92084E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:11:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="diNffEIX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22DC92084E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 86F692070D
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 14:24:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86F692070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B13A56B0005; Wed, 15 May 2019 10:11:43 -0400 (EDT)
+	id 22EEC6B0005; Wed, 15 May 2019 10:24:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9B666B0006; Wed, 15 May 2019 10:11:43 -0400 (EDT)
+	id 1DE8E6B0006; Wed, 15 May 2019 10:24:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9628B6B0007; Wed, 15 May 2019 10:11:43 -0400 (EDT)
+	id 0B1846B0007; Wed, 15 May 2019 10:24:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E3B86B0005
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 10:11:43 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id f138so2175090yba.4
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 07:11:43 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ADEFF6B0005
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 10:24:23 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id 18so285143eds.5
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 07:24:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=DkABSB9+ocVSEDM1acJkspFNCkj7bZrir9llBRZBZbk=;
-        b=GjLgmhKoEaHwcQYjMIVNGCs/HGUiKgOoUGGbe8XD0zKZvCu12A43EJmtHxdZ1i/sZs
-         +5xrgnenw7NpTQCviWmqNt+q34f2WrJ8ziZViu9I8HbmF2mm5amzd1BZTu89fOujoI3q
-         K9gqQmEWMKQJPAMn24X4O3YGKJM4fciKBhnNndmCFyBnmcHLXgjrwdNf4Gt0ml2YTj2c
-         tRhL3p6c0F60fj18fmWtbIip5BZTFYSgaHsbHCTEV2JJGCiF1lg8f6fVpOsfNRX0gZfV
-         Nw9DEFsNjN5VXUfRPEKvOzDqICZotpS9EMUC45bfV04Iq6R2IkJWBNIkP0L7f9zsPAsB
-         uHJQ==
-X-Gm-Message-State: APjAAAVtbgQbhuh1IqKeJl6T0higox73j9fB6owiqMXemHLDZGIv8cU1
-	Wfe809Bis7D0VFmBYTJW2HDE18HJqsVewwbRgePwbY3gEvlhAGXkJOhDGOL4GVkFrn2sm9o3IFE
-	8fGGiGxHzUGarmF1zVytPvoTNMQgRGQcpdbeNtoOSSfyR53f2ABivSMcGe/u8rWKyLw==
-X-Received: by 2002:a81:340b:: with SMTP id b11mr18598874ywa.98.1557929503039;
-        Wed, 15 May 2019 07:11:43 -0700 (PDT)
-X-Received: by 2002:a81:340b:: with SMTP id b11mr18598839ywa.98.1557929502465;
-        Wed, 15 May 2019 07:11:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557929502; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=R6SfYUURybcFTNACeHn1BEBuqop/WIQBpGhDMXT5TSE=;
+        b=oFDK46E7Tl83Hthp5wdDgRr6zWo1TGzlUlfXVLcOgixhXiEnon8gzCQtRclF+IBmEb
+         BfrRFvSsPHjyqdN67/z8CNgjrJ+W4JU4DikTiWoDeic7/K+CxsFoe2eDwntydI85gGxl
+         eX/LmwTK04Hoj+FPflZ1MGVoYFc8ZC5/ko4kbfMbbBTgZcgk9m0W48VRVOT/Ogo/cHr0
+         KWE/l4zOAqQvdxCkww0MuWpcy8rCqAP7Xk9lDy8c+Bsn2zzGE/chrk9wn/PlVUcG/L5i
+         OnL4wRcn1NN4pxL+Ka1JsM7YU3MC3TG6Cfy7pQMYLyO+6IimuRzW0m4ZI1FHaaLM/99G
+         8UNA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVnOaN9dNW/4njY6k8oMmiHRVE1473wGxcPAWUa8fV+Dnw9M18G
+	9jAf+MTaNN39u3fkcnv0R88jtoCXnwBwHIEqxitj3FNlkbvsm9Bj/jeeqECflsbpDQ7eKerG8Wc
+	mVWstOuyfklwdxwrkQkxEwWRloruwkdfhp8OiaEsTXt+Fqvw7u0zicgajTVi52I4=
+X-Received: by 2002:a50:a5b4:: with SMTP id a49mr44541028edc.30.1557930263286;
+        Wed, 15 May 2019 07:24:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzb3V8h2vTQTERWSUQTmaFRv6WzAT9K3iigoOTFkd88Ub2/5YykuyNRW4y69Rih3iPkJ2WM
+X-Received: by 2002:a50:a5b4:: with SMTP id a49mr44540902edc.30.1557930262133;
+        Wed, 15 May 2019 07:24:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557930262; cv=none;
         d=google.com; s=arc-20160816;
-        b=oOfFsundHXbyAYFF8Hcvl2nDArXO56Fn97DnuAK80ShfluzlkDCUex778MmUBS3/9B
-         5eZBga1HtwFFvhF7Ty6NMD+xOHSUuPnl4ue90xUxj9I6MFYIZ9uvEz03hnv77YnzWCzs
-         MRKv3cBelukO+55QvHNs+Ollfyes1VYn36xqgy+lQX2u53S00jQcLp6dkMX4SO5ligic
-         Ju8MgObLAryQOJq/IJ5UzwQgPtZb8vSKvOlhmuaO6Y40CVVUjXNOHyv1N2hXznsGwXnP
-         3QxY9cy6WFKwVzEKHNRIJPChPJi+rUslJokZOYg7f0ZZcJYFNg4JEJYy+RwpuxLqgWQI
-         nRCw==
+        b=SVNjnv42Yr3WFUdhj7KX9omh7hoT2xmW9aD4PTlxUB/RgJJ2K2VeG8FLgayWBC632D
+         VjkGoeKuJqk8/PMgMPQjZxqaPLT0SFaPVFt0o4zjJiDLgvrL5aipkSj7d4XjEYTA9B1m
+         LH+bcgQbvymrSCzWdIVahCyEa0xUTS7ycn5ZgPBtUk3CSd7REMZwFNDXNCd/AdgCIXnc
+         C2DD23ri9CiWYWlAvlq+FyMTNdfuX9eW9J9oiVViFNCHzK9FJ9dDr2Hs8r7LsaVsyZj5
+         XMOcofy9Fgazvc3yWgoKxtKQVnZY3px0sFBAT/UGe43JHCMfcCYdtTy+BTh21PYAxbzW
+         DL5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=DkABSB9+ocVSEDM1acJkspFNCkj7bZrir9llBRZBZbk=;
-        b=RPe8xJK11XiVklDhmpG25ynsv40Nb7oVJeXGmYC46IbiL7tdHmMIeImZrpg+9M2E/Y
-         nids+/ynr9aJN2+3QtZ4pJhXq1zVb2+k7sGXmPSsH+hl3FWr16LE8IAx+z8faTDiq33e
-         zUDzfN7YpQFUYZLD/bDYHhinDVPCA3AEuehMLuss9PgKSNtZAKf3ZK70zBPnJ4IuctdF
-         CJeht0qZJHYGppY44V1Rv+s4OzHYj0fd1LpA8L8ZajRjofbhk4IlYTMxxZzjbUJVjz2v
-         DIBwSjWAe0BJzPTV0JVtSlJ7PolwItMy/HfQEOYSL6xbQb0Ehm9wWdG7HI2wyx59M/5g
-         74nA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=R6SfYUURybcFTNACeHn1BEBuqop/WIQBpGhDMXT5TSE=;
+        b=CePI7EM3q+BOktJV5cjXS+4+sUr4+C2lr0ruM5IH8Gy3yygwCoSri619bHLfgu2MGo
+         b5oYQVu/dlqLTl3aWE1c9jG8tu9FMHwoEKtopQoMe1zoOy6FTevNp3GppXDEg+lnLh0o
+         l8e2kHxCPX5AOetAZkLQckgCktjT5vye4xVEJ+yqhvz/2exbHDind7oPqBgt3vBR+F+v
+         83eBPHmmcKTv3in37/UIQ0BZYau4UiiwxPiipJH44pBBzUMP/Icsowx3OcgEkvE6MfyC
+         RwL/Rj31iL/SYjZvy1kqp4KFtVeL1k77AJzbSUOvKTpXyZgQEdYVr1TmvALcXfvFrLZ2
+         wzyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=diNffEIX;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y9sor1026917ybh.81.2019.05.15.07.11.42
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l4si1460635edd.297.2019.05.15.07.24.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 May 2019 07:11:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 May 2019 07:24:22 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=diNffEIX;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=DkABSB9+ocVSEDM1acJkspFNCkj7bZrir9llBRZBZbk=;
-        b=diNffEIXfA/QFvQ4JDN4yWPbBFk9QYgBHQ4+BVJ1NfD0TF6g+5vVE0YSL1BnVjtejf
-         CrAeQK4hrTmj1WQuMCeXacIymo+qMfuKsRMkXThtVIfdGWD3UWU68tOQie85EkAx3kZA
-         YA78rnXPrmWhtTDNmjqohIlpLATlRKpAgbVUzdHZ/0oIWDRCWeJPe4MkeQfL4NNPlAhb
-         5gw18O/g48n/nZ7gRYd6s2xdXe7fCpmxbuVDtTd8Fhd7nK4blg8+HLxt6MmLicorJV+J
-         ANLAPFx1lNLWprZ3HdLcTYYUg1gfx/xT6ADtn2L5nwfSQpvrZp2SEK2dbyUh8ZEYZ9Xq
-         UKcQ==
-X-Google-Smtp-Source: APXvYqwFVrkJc6Ars41vZLv1PWwWvp79P7NNy1HRLGKPliMA4SZgci9iPnaAggH1BDGnbrEDsgGovH0KqGY39VpJ6TM=
-X-Received: by 2002:a25:4147:: with SMTP id o68mr20740148yba.148.1557929501573;
- Wed, 15 May 2019 07:11:41 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 08E71ACF5;
+	Wed, 15 May 2019 14:24:21 +0000 (UTC)
+Date: Wed, 15 May 2019 16:24:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Matthew Wilcox <willy@infradead.org>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Timofey Titovets <nefelim4ag@gmail.com>,
+	Aaron Tomlin <atomlin@redhat.com>,
+	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
+	linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH RFC v2 0/4] mm/ksm: add option to automerge VMAs
+Message-ID: <20190515142419.GD16651@dhcp22.suse.cz>
+References: <20190514131654.25463-1-oleksandr@redhat.com>
+ <20190514144105.GF4683@dhcp22.suse.cz>
+ <20190514145122.GG4683@dhcp22.suse.cz>
+ <20190515062523.5ndf7obzfgugilfs@butterfly.localdomain>
+ <20190515065311.GB16651@dhcp22.suse.cz>
+ <20190515073723.wbr522cpyjfelfav@butterfly.localdomain>
+ <20190515083321.GC16651@dhcp22.suse.cz>
+ <20190515085158.hyuamrxkxhjhx6go@butterfly.localdomain>
 MIME-Version: 1.0
-References: <20190514213940.2405198-1-guro@fb.com> <20190514213940.2405198-6-guro@fb.com>
- <0100016abbcb13b1-a1f70846-1d8c-4212-8e74-2b9be8c32ce7-000000@email.amazonses.com>
-In-Reply-To: <0100016abbcb13b1-a1f70846-1d8c-4212-8e74-2b9be8c32ce7-000000@email.amazonses.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 15 May 2019 07:11:30 -0700
-Message-ID: <CALvZod5dMM50pZWuOR5SN7aPPG8Zsp-+U3Y+q-UHTNo=Dgz-Nw@mail.gmail.com>
-Subject: Re: [PATCH v4 5/7] mm: rework non-root kmem_cache lifecycle management
-To: Christopher Lameter <cl@linux.com>
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Kernel Team <kernel-team@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190515085158.hyuamrxkxhjhx6go@butterfly.localdomain>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Christopher Lameter <cl@linux.com>
-Date: Wed, May 15, 2019 at 7:00 AM
-To: Roman Gushchin
-Cc: Andrew Morton, Shakeel Butt, <linux-mm@kvack.org>,
-<linux-kernel@vger.kernel.org>, <kernel-team@fb.com>, Johannes Weiner,
-Michal Hocko, Rik van Riel, Vladimir Davydov,
-<cgroups@vger.kernel.org>
+On Wed 15-05-19 10:51:58, Oleksandr Natalenko wrote:
+> On Wed, May 15, 2019 at 10:33:21AM +0200, Michal Hocko wrote:
+> > > For my current setup with 2 Firefox instances I get 100 to 200 MiB saved
+> > > for the second instance depending on the amount of tabs.
+> > 
+> > What does prevent Firefox (an opensource project) to be updated to use
+> > the explicit merging?
+> 
+> This was rather an example of a big project. Other big projects may be
+> closed source, of course.
 
-> On Tue, 14 May 2019, Roman Gushchin wrote:
->
-> > To make this possible we need to introduce a new percpu refcounter
-> > for non-root kmem_caches. The counter is initialized to the percpu
-> > mode, and is switched to atomic mode after deactivation, so we never
-> > shutdown an active cache. The counter is bumped for every charged page
-> > and also for every running allocation. So the kmem_cache can't
-> > be released unless all allocations complete.
->
-> Increase refcounts during each allocation? Looks to be quite heavy
-> processing.
+Again, specific examples are usually considered a much better
+justification than "something might use the feature".
 
-Not really, it's a percpu refcnt. Basically the memcg's
-percpu_ref_tryget* is replaced with kmem_cache's percpu_ref_tryget,
-so, no additional processing.
+[...]
+
+> > OK, this makes more sense. Please note that there are other people who
+> > would like to see certain madvise operations to be done on a remote
+> > process - e.g. to allow external memory management (Android would like
+> > to control memory aging so something like MADV_DONTNEED without loosing
+> > content and more probably) and potentially other madvise operations.
+> > Or maybe we need a completely new interface other than madvise.
+> 
+> I didn't know about those intentions. Could you please point me to a
+> relevant discussion so that I can check the details?
+
+I am sorry I do not have any specific links to patches under discussion.
+We have discussed that topic at LSFMM this year
+(https://lwn.net/Articles/787217/) and Google guys should be sending
+something soon.
+-- 
+Michal Hocko
+SUSE Labs
 
