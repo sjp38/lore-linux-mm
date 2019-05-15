@@ -2,252 +2,266 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72A22C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 11:55:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 955DCC04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 12:53:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26FBD20657
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 11:55:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2046C2082E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 12:53:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="J2Ynm2oD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26FBD20657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="NK1N5xkJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2046C2082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C89F66B0007; Wed, 15 May 2019 07:55:45 -0400 (EDT)
+	id 83ED36B0005; Wed, 15 May 2019 08:53:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C140E6B0008; Wed, 15 May 2019 07:55:45 -0400 (EDT)
+	id 7C9086B0006; Wed, 15 May 2019 08:53:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B02196B000A; Wed, 15 May 2019 07:55:45 -0400 (EDT)
+	id 66A146B0007; Wed, 15 May 2019 08:53:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4782A6B0007
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 07:55:45 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id x10so551325lfe.20
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 04:55:45 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4354F6B0005
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 08:53:20 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id m66so1164185itm.2
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 05:53:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:date:message-id
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=CfT2mw9Voryfx7z4pzvbGxS8fdbuS8Bjj6c0PWDezKs=;
-        b=tvxZdubxILfxYL6Fd016V0geEsi6QCsD+B1cUhRZwki8pQhOjZ3W33jdFikZF/Q9bY
-         a3k+RSovN4aQHgcBFi//jv+lGzNbBaI5afATaeD15vjHxTO0dkPrQIMK5SfVu9mj5t7U
-         gqIITKpbzy4gZM5ewa0694EipLLzsxeP5uCmNwBmpZRnUHQv9XVctX2N+wluNZPjBK8R
-         HYvvKnZlaFBkx2XTNkiRbUkOQ7DYZVgqYN5oUlDUkLwnrOQTo4xJ81VoGfwMnwHUDJR+
-         0I/eJJgtrDAGZ8eYcxoUEkfA25rp5j9pnkn2hGM6hlMLxrU0M7XXW6Fn5yaKb5/LjSQY
-         JSWQ==
-X-Gm-Message-State: APjAAAWhLqRTx9cbBFCUGTQ1wNsiILdGJjE7GJYM7f+eYUSgKvT73Uco
-	zqj7ubtWBCsAXtREClJ+2t8j+/vmRWhe1j91ari1e8DP3QDC1GeV9nb1ERcDVKu6cwr79pUI7V1
-	anTfTvgL99dFptneds2pQoRwQYS+yYznhKsYGZbV+uv8jrgqHbgCIeOnUFzTMy1ztuQ==
-X-Received: by 2002:a2e:824b:: with SMTP id j11mr19556807ljh.197.1557921344710;
-        Wed, 15 May 2019 04:55:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+YzHRjsWnGxjhwSIOSB6lNXbRMNoynJdrt8KXNWsTV5c9YejV7loiocLr7Q+aLsgL0F6K
-X-Received: by 2002:a2e:824b:: with SMTP id j11mr19556756ljh.197.1557921343459;
-        Wed, 15 May 2019 04:55:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557921343; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=qqsyAWE2i/voQnpUJu/NRs+qTwt/c05VpPNY04BS1Jg=;
+        b=CQQjd8guDdw0EhkE4LssR3CO26QpRVJNMWbs1eprlJa3mhDj2aPnkM3egNwSDKw6z+
+         OWwfbtb7aMiU+6lYI62P/FaV1UZw5iGKQD8WD/obeqwYrvQ20xc9fiH7/3cF5xhfgRVx
+         f90+7j2uUCWAAgyH5FtVPur9j4no5bPjrkkuRgScKUYm7xqPeMrtLq35Wee0sOb2uGV9
+         kNZbBQblOoRJGD36PvuDcoRSuVGi5pjEjkCZ0AeLRn4F8X616KyEsec8hHJYyHsvUQDO
+         ThTxwAYpRDtp0srMahb720Yzf8Xv/ZdS8WtuDH6hD/Eq9ZxeG4gOvuKGnPMqTAZKNEgP
+         ExDA==
+X-Gm-Message-State: APjAAAW8OTpTbq+dIVY1lDTwftYZjKXfNtiZaW3Hy0LVVW0ZrIYVZdlZ
+	dYAMBzrn9BOlMKFfpUZBo4MavIUS30z7WQSEPcLWAxKCTFOZNA71qgltx2hPayip+r1+y0GokMk
+	hBnDEAlapAFytGUj58/PSsQIBv7Od8Z5yXg2ocQkqX/rbMymZhhfTJ1pLBW9T20lWjQ==
+X-Received: by 2002:a02:8585:: with SMTP id d5mr28243018jai.69.1557924799914;
+        Wed, 15 May 2019 05:53:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzG/0A8dneq/5VJr8sFgkUZqvWjBPuBNuqCOzkMzIXosNVfQVROsbHwZHg6+Nmm/iDpNo0w
+X-Received: by 2002:a02:8585:: with SMTP id d5mr28242963jai.69.1557924798772;
+        Wed, 15 May 2019 05:53:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557924798; cv=none;
         d=google.com; s=arc-20160816;
-        b=cZYtfkQSSnKXFrbHQvS2iu7sJrpPxAs07sza6cUJR3F8DcTZyYTKoIiSoe9uR6kcWR
-         sHQDjSV80zoE8A2FZtTb4wFjLx7X7ms+axV2MSVJx13khCi19iR85h4RnwWx97WI5XR1
-         HKuauKQB4L6Xm9vZnpETv+86WA8TWurlIUW3hedMUYeog0/ZiIXcEL2xIQkhIxUS6l8D
-         8WZFFY92zfCdVNKVi1WljIdACX8k2U9PuCWIXXj2QeuSzUSVmvnEAHoPLIaXQqn65YAc
-         9a02ExW6W/nV+fC6xe7cCzozUS5s4vnKrE8YjLptB7xkXCJd9mE9NgBQA145R2df6RS2
-         evBA==
+        b=akik6fmYRHTXxn/8aZtgNIah2jin9dIc9Yor2EZB/WYCPSsJp2sRT6qbMSKOCT/eL8
+         oXaeHKuZ3shwFD8rm7lqEKjRFP8wPZ26Tc73C/WL8PqQxKE8AULM1ymsjWvHTMHVvZL6
+         QstzKrTSSt8VHq3dQAyaXvy5NGLKHxDLRet9obQluDkjgkd8crw93xxdoaki8Xn5rOYv
+         XPdLVydd93XDIGEId2wdiqR5Ky4kYdGiSOomVSW57w4kGXI1qGslrMZd8YGkxrNjI3h9
+         o1u4cfMxWoiGFlPNqAxwNrtQYd9YRWw39j66cGdjjMq0IZuUI20gRCdgqIbA8EYiPGZZ
+         1rhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :to:from:subject:dkim-signature;
-        bh=CfT2mw9Voryfx7z4pzvbGxS8fdbuS8Bjj6c0PWDezKs=;
-        b=hBvbu4hm/j+h1+WIioBjNDKFSsv5wv2u8SzObZurG7cmjxyzs3nOuyXTgtPIQokjMS
-         aSpCFjqNIgu5eXDE+irqe+Vxe3B/hdLiOVzjkfoyb74NTO8vQA1EBqUdRlTygEc5ByTO
-         UP+H73tzc0JIcAiRQ2CMjBqf+1ep2Qk75DQGPEAMIixb0y9/O3Do/pgo+Q1DQOZZCSM+
-         TcsWljBg8nC2zHaqywmONuoZtQ2IJpssuwUyI/svMTbYskMj1r+A6hGrinzJpvo7UAkM
-         fMOKM/W62LQX10e1AHWMfKQsh0MntdorpKqE5KB70FsM+JEAvoctBZ1iIS38vb0T64WX
-         xoDA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=qqsyAWE2i/voQnpUJu/NRs+qTwt/c05VpPNY04BS1Jg=;
+        b=C+GyQKDIYaebwE/O8I258m8hRMbcCL9DkB/rySvRrDBKPI6dK12hR2u6sskRXmlayp
+         +bpdh/lf/wTEVbyMfKDFv2cIjX4w4u6KTCTBrJs0ZC4yV5TLssMdt42LWMqZ+W0tpKA6
+         5vdvf86SDx18Ko3H39Wvz6T5hvX827OiiDHTcud3nr3WlOrjFEy8NNJBKNcfOZJqUDz5
+         2wWrhcQY6WIJRtyqj+cesXmx4LIMdcBjKZrqlznH/XHNBHW0JlP9ptEFSJAOW9j9QaMO
+         0sQmjnY+SwkiodvBd/yPHSa2waWrFD1DXJBhCECiHaKVeuFis4y1Y3j3Pl7eKv2iBynX
+         TaLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=J2Ynm2oD;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1p.mail.yandex.net (forwardcorp1p.mail.yandex.net. [2a02:6b8:0:1472:2741:0:8b6:217])
-        by mx.google.com with ESMTP id f9si1797161ljj.216.2019.05.15.04.55.43
-        for <linux-mm@kvack.org>;
-        Wed, 15 May 2019 04:55:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) client-ip=2a02:6b8:0:1472:2741:0:8b6:217;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=NK1N5xkJ;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id z20si1075254iod.130.2019.05.15.05.53.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 May 2019 05:53:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=J2Ynm2oD;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1p.mail.yandex.net (Yandex) with ESMTP id D738C2E0ABC;
-	Wed, 15 May 2019 14:55:42 +0300 (MSK)
-Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id 7Uaf6EnKr8-tgsS7u6u;
-	Wed, 15 May 2019 14:55:42 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1557921342; bh=CfT2mw9Voryfx7z4pzvbGxS8fdbuS8Bjj6c0PWDezKs=;
-	h=Message-ID:Date:To:From:Subject;
-	b=J2Ynm2oDP1Lw2/V1Y9ufeN0W22FUMXnolWMJrZE6QZQ3N9yRRA+POCOF3gWyPv2d7
-	 JlSLIwIdfa3ZsjusBfq51I9nYvXGu0NIorP9fsPGzs+NUcDwaazaG0SrYIc13KDJE9
-	 AgFvJ6E+avYNVjR2T1fMO4kxaFzu/iFhiWAqq5MY=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:ed19:3833:7ce1:2324])
-	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id GGfHxKOueD-tglO5KqC;
-	Wed, 15 May 2019 14:55:42 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: [PATCH RFC] proc/meminfo: add NetBuffers counter for socket buffers
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
-Date: Wed, 15 May 2019 14:55:41 +0300
-Message-ID: <155792134187.1641.3858215257559626632.stgit@buzz>
-User-Agent: StGit/0.17.1-dirty
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=NK1N5xkJ;
+       spf=pass (google.com: domain of alexandre.chartre@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=alexandre.chartre@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FCmdlc060905;
+	Wed, 15 May 2019 12:53:00 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=qqsyAWE2i/voQnpUJu/NRs+qTwt/c05VpPNY04BS1Jg=;
+ b=NK1N5xkJDCeLh4n4t5QRRa/QeUiCSiZ62sXI+pIViFP/bG4kce7PUYzx3CgY8gjYJWYG
+ QGZPV5rp0I5IydXmkaIrqcS3703IpyPk74fRV1A8fvNG8J+whG30zwkGWzqpeDyLn5j8
+ REvESvk1q1afxajKj2RMI6P3of80n0R4PhZnTtJHn+jnyV7mJS2VKrViFvw5N1V+OJjg
+ UfTL0WpjgEEzw2spLdP0xMyx6jAPOd0E9va6CwCikusw+ND21CwKnjmjxBng9VcMNL3b
+ uXar1ljkEbdQ6MUtrtBhJyks8FLTQxOp3I37wkGqnUJSpQFRV4Bvhw7HsvFK/WBsBTNZ /w== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2sdnttvj3v-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 12:53:00 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FCpMpl025522;
+	Wed, 15 May 2019 12:52:59 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3020.oracle.com with ESMTP id 2sggdutcgt-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 12:52:59 +0000
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4FCqs75023757;
+	Wed, 15 May 2019 12:52:55 GMT
+Received: from [10.166.106.34] (/10.166.106.34)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 15 May 2019 05:52:54 -0700
+Subject: Re: [RFC KVM 00/27] KVM Address Space Isolation
+To: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
+        mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+        dave.hansen@linux.intel.com, luto@kernel.org, peterz@infradead.org,
+        kvm@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Cc: konrad.wilk@oracle.com, jan.setjeeilers@oracle.com, liran.alon@oracle.com,
+        jwadams@google.com
+References: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+From: Alexandre Chartre <alexandre.chartre@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <b5ebe77f-14f5-5f87-a4bd-8befb71a9969@oracle.com>
+Date: Wed, 15 May 2019 14:52:50 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1557758315-12667-1-git-send-email-alexandre.chartre@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905150082
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905150082
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Socket buffers always were dark-matter that lives by its own rules.
-This patch adds line NetBuffers that exposes most common kinds of them.
 
-TCP and UDP are most important species.
-SCTP is added as example of modular protocol.
-UNIX have no memory counter for now, should be easy to add.
+Thanks all for your replies and comments. I am trying to summarize main
+feedback below, and define next steps.
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
----
- fs/proc/meminfo.c  |    5 ++++-
- include/linux/mm.h |    6 ++++++
- mm/page_alloc.c    |    3 ++-
- net/core/sock.c    |   20 ++++++++++++++++++++
- net/sctp/socket.c  |    2 +-
- 5 files changed, 33 insertions(+), 3 deletions(-)
+But first, let me clarify what should happen when exiting the KVM isolated
+address space (i.e. when we need to access to the full kernel). There was
+some confusion because this was not clearly described in the cover letter.
+Thanks to Liran for this better explanation:
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 7bc14716fc5d..0ee2300a916d 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -41,6 +41,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	unsigned long sreclaimable, sunreclaim, misc_reclaimable;
- 	unsigned long kernel_stack_kb, page_tables, percpu_pages;
- 	unsigned long anon_pages, file_pages, swap_cached;
-+	unsigned long net_buffers;
- 	long kernel_misc;
- 	int lru;
- 
-@@ -66,12 +67,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	kernel_stack_kb = global_zone_page_state(NR_KERNEL_STACK_KB);
- 	page_tables = global_zone_page_state(NR_PAGETABLE);
- 	percpu_pages = pcpu_nr_pages();
-+	net_buffers = total_netbuffer_pages();
- 
- 	/* all other kinds of kernel memory allocations */
- 	kernel_misc = i.totalram - i.freeram - anon_pages - file_pages
- 		      - sreclaimable - sunreclaim - misc_reclaimable
- 		      - (kernel_stack_kb >> (PAGE_SHIFT - 10))
--		      - page_tables - percpu_pages;
-+		      - page_tables - percpu_pages - net_buffers;
- 	if (kernel_misc < 0)
- 		kernel_misc = 0;
- 
-@@ -137,6 +139,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	show_val_kb(m, "VmallocUsed:    ", 0ul);
- 	show_val_kb(m, "VmallocChunk:   ", 0ul);
- 	show_val_kb(m, "Percpu:         ", percpu_pages);
-+	show_val_kb(m, "NetBuffers:     ", net_buffers);
- 	show_val_kb(m, "KernelMisc:     ", kernel_misc);
- 
- #ifdef CONFIG_MEMORY_FAILURE
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0e8834ac32b7..d0a58355bfb7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2254,6 +2254,12 @@ extern void si_meminfo_node(struct sysinfo *val, int nid);
- extern unsigned long arch_reserved_kernel_pages(void);
- #endif
- 
-+#ifdef CONFIG_NET
-+extern unsigned long total_netbuffer_pages(void);
-+#else
-+static inline unsigned long total_netbuffer_pages(void) { return 0; }
-+#endif
-+
- extern __printf(3, 4)
- void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3b13d3914176..fcdd7c6e72b9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5166,7 +5166,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
- 		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
- 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
--		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
-+		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu net_buffers:%lu\n"
- 		" free:%lu free_pcp:%lu free_cma:%lu\n",
- 		global_node_page_state(NR_ACTIVE_ANON),
- 		global_node_page_state(NR_INACTIVE_ANON),
-@@ -5184,6 +5184,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		global_node_page_state(NR_SHMEM),
- 		global_zone_page_state(NR_PAGETABLE),
- 		global_zone_page_state(NR_BOUNCE),
-+		total_netbuffer_pages(),
- 		global_zone_page_state(NR_FREE_PAGES),
- 		free_pcp,
- 		global_zone_page_state(NR_FREE_CMA_PAGES));
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 75b1c950b49f..dfca4e024b74 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -142,6 +142,7 @@
- #include <trace/events/sock.h>
- 
- #include <net/tcp.h>
-+#include <net/udp.h>
- #include <net/busy_poll.h>
- 
- static DEFINE_MUTEX(proto_list_mutex);
-@@ -3573,3 +3574,22 @@ bool sk_busy_loop_end(void *p, unsigned long start_time)
- }
- EXPORT_SYMBOL(sk_busy_loop_end);
- #endif /* CONFIG_NET_RX_BUSY_POLL */
-+
-+#if IS_ENABLED(CONFIG_IP_SCTP)
-+atomic_long_t sctp_memory_allocated;
-+EXPORT_SYMBOL_GPL(sctp_memory_allocated);
-+#endif
-+
-+unsigned long total_netbuffer_pages(void)
-+{
-+	unsigned long ret = 0;
-+
-+#if IS_ENABLED(CONFIG_IP_SCTP)
-+	ret += atomic_long_read(&sctp_memory_allocated);
-+#endif
-+#ifdef CONFIG_INET
-+	ret += atomic_long_read(&tcp_memory_allocated);
-+	ret += atomic_long_read(&udp_memory_allocated);
-+#endif
-+	return ret;
-+}
-diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-index e4e892cc5644..9d11afdeeae4 100644
---- a/net/sctp/socket.c
-+++ b/net/sctp/socket.c
-@@ -107,7 +107,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
- 			     enum sctp_socket_type type);
- 
- static unsigned long sctp_memory_pressure;
--static atomic_long_t sctp_memory_allocated;
-+extern atomic_long_t sctp_memory_allocated;
- struct percpu_counter sctp_sockets_allocated;
- 
- static void sctp_enter_memory_pressure(struct sock *sk)
+   When a hyperthread needs to switch from KVM isolated address space to
+   kernel full address space, it should first kick all sibling hyperthreads
+   outside of guest and only then safety switch to full kernel address
+   space. Only once all sibling hyperthreads are running with KVM isolated
+   address space, it is safe to enter guest.
+
+   The main point of this address space is to avoid kicking all sibling
+   hyperthreads on *every* VMExit from guest but instead only kick them when
+   switching address space. The assumption is that the vast majority of exits
+   can be handled in KVM isolated address space and therefore do not require
+   to kick the sibling hyperthreads outside of guest.
+
+   “kick” in this context means sending an IPI to all sibling hyperthreads.
+   This IPI will cause these sibling hyperthreads to exit from guest to host
+   on EXTERNAL_INTERRUPT and wait for a condition that again allows to enter
+   back into guest. This condition will be once all hyperthreads of CPU core
+   is again running only within KVM isolated address space of this VM.
+
+
+Feedback
+========
+
+Page-table Management
+
+- Need to cleanup terminology mm vs page-table. It looks like we just need
+   a KVM page-table, not a KVM mm.
+
+- Interfaces for creating and managing page-table should be provided by
+   the kernel, and not implemented in KVM. KVM shouldn't access kernel
+   low-level memory management functions.
+
+KVM Isolation Enter/Exit
+
+- Changing CR3 in #PF could be a natural extension as #PF can already
+   change page-tables, but we need a very coherent design and strong
+   rules.
+
+- Reduce kernel code running without the whole kernel mapping to the
+   minimum.
+
+- Avoid using current and task_struct while running with KVM page table.
+
+- Ensure KVM page-table is not used with vmalloc.
+
+- Try to avoid copying parts of the vmalloc page tables. This
+   interacts unpleasantly with having the kernel stack.  We can freely
+   use a different stack (the IRQ stack, for example) as long as
+   we don't schedule, but that means we can't run preemptable code.
+
+- Potential issues with tracing, kprobes... A solution would be to
+   compile the isolated code with tracing off.
+
+- Better centralize KVM isolation exit on IRQ, NMI, MCE, faults...
+   Switch back to full kernel before switching to IRQ stack or
+   shorlty after.
+
+- Can we disable IRQ while running with KVM page-table?
+
+   For IRQs it's somewhat feasible, but not for NMIs since NMIs are
+   unblocked on VMX immediately after VM-Exit
+
+   Exits due to INTR, NMI and #MC are considered high priority and are
+   serviced before re-enabling IRQs and preemption[1].  All other exits
+   are handled after IRQs and preemption are re-enabled.
+
+   A decent number of exit handlers are quite short, but many exit
+   handlers require significantly longer flows. In short, leaving
+   IRQs disabled across all exits is not practical.
+
+   It makes sense to pinpoint exactly what exits are:
+   a) in the hot path for the use case (configuration)
+   b) can be handled fast enough that they can run with IRQs disabled.
+
+   Generating that list might allow us to tightly bound the contents
+   of kvm_mm and sidestep many of the corner cases, i.e. select VM-Exits
+   are handle with IRQs disabled using KVM's mm, while "slow" VM-Exits
+   go through the full context switch.
+
+
+KVM Page Table Content
+
+- Check and reduce core mappings (kernel text size, cpu_entry_area,
+   espfix64, IRQ stack...)
+
+- Check and reduce percpu mapping, percpu memory can contain secrets (e.g.
+   percpu random pool)
+
+
+Next Steps
+==========
+
+I will investigate Sean's suggestion to see which VM-Exits can be handled
+fast enough so that they can run with IRQs disabled (fast VM-Exits),
+and which slow VM-Exits are in the hot path.
+
+So I will work on a new POC which just handles fast VM-Exits with IRQs
+disabled. This should largely reduce mappings required in the KVM page
+table. I will also try to just have a KVM page-table and not a KVM mm.
+
+After this new POC, we should be able to evaluate the need for handling
+slow VM-Exits. And if there's an actual need, we can investigate how
+to handle them with IRQs enabled.
+
+
+Thanks,
+
+alex.
 
