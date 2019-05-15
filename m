@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DCB79C04E87
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEFD3C04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9B6E72084E
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B6E72084E
+	by mail.kernel.org (Postfix) with ESMTP id 7CF3B2084E
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:11:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CF3B2084E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD77D6B0006; Wed, 15 May 2019 11:11:34 -0400 (EDT)
+	id 0D6D86B0007; Wed, 15 May 2019 11:11:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE3B06B000A; Wed, 15 May 2019 11:11:34 -0400 (EDT)
+	id EDC086B0008; Wed, 15 May 2019 11:11:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 936F26B0007; Wed, 15 May 2019 11:11:34 -0400 (EDT)
+	id DA6026B000A; Wed, 15 May 2019 11:11:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 22E616B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:11:34 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id z15so457430ljj.15
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:11:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 713016B0007
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:11:38 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id g15so456816ljk.8
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:11:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:date:message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=ZpcaA7VN6vMI3XLyf20y8pejyNByYJW9fpibn7OB86k=;
-        b=f1aium3fdeQ3tc8Rt2+n83b6uyuP6J++IhS8PyxCEtfzoBcw+JtOKuFKQUJEJRvb0P
-         4APTiED2E9thCF9ajFbrtwkPmKPfcNSFm0HPjU+PGvp1+BnxSJJE6Q4N57ydMDco+ry0
-         V4BoJJzX/QwT55Qt6VtU+v8z/IpAW02F3o8SWznSb7f4vgJoTciJVY78X4bHCWnzdB8O
-         NdOj3Am3JnOXe7XM7mi99RoG4y9S20+FQLznUnVbiwvI05aEgy+VVlO1QsdFYZBEuxxF
-         AvHJo/v4C4hO5JzdaoZd3kg5JwxdOUmbWicsydGfn8GfCYRIbf5ss713yxjH1X4ff4iq
-         fkvw==
+        bh=Yfs8d2jF/T6jQEdvza+WxJDpKG02YKvUPUgE54J0ka4=;
+        b=Ba9E2vlnUA0hp4F37xSb4WgCg3GuH3/tkmPd9V3dKvI611Y4W95dkZg2WGb5UnhKk5
+         tj+UluJ97woJnSzwoG/gqb89s3gnuGnsv91bhzcCskmOOP18bfuM/EgFVCs3tS/Nszii
+         UvWWaDkHygaRV7MSCzVwK8kKF8+Lh1zOVpNVvSVaKUuHyhD3dtLjmQslBmmt+6TNJjet
+         mqo6Evj5Jr/3SMwLh9WDutKWR9t1QnuNa+AmlDqsh1KhiSI7nat3UlORiq/I2Xhz2of0
+         ASGBKq+tKHDDZW51BnG3NQD8r+wFnAP+AN/wMtDm1fC5DhR+BhPtwLM+P338xzhwokDQ
+         W0Og==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAXfMfEKix50C4XKEh4UvxIkIcGLqHVqW5qoSttV/LAEVA9ojVyV
-	+vUydPHD9Fc46dzGy6VU9ei9D4TEsZ6ripCb+DgiMKifpxL38pz+uYW3A6YchIluMpRRkcRPPS6
-	O5JK/rFTDiRQpo30pVzqTtaZPdnc154y/ApAyuMq1N4kDeYenRD3e6d/Yx2/oZt0raQ==
-X-Received: by 2002:ac2:4471:: with SMTP id y17mr11099794lfl.23.1557933093356;
-        Wed, 15 May 2019 08:11:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+eSQZnssZUfgHO7ShTOx/V5nJGnNcboqgAfHNPOstimtXTnKeZ05y7zD6NAt2LuvBfHpw
-X-Received: by 2002:ac2:4471:: with SMTP id y17mr11099742lfl.23.1557933092265;
-        Wed, 15 May 2019 08:11:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557933092; cv=none;
+X-Gm-Message-State: APjAAAVtssmNt9b8GTeA4zTVJHvm0E4bDo6/OnfuNumYLWvqPWDd38j5
+	I/7GFlgvKpOytVBhNaNA0UqNBAhAqwX9AGTebe1sSFpcJ++pC67437pezOjyeCxFjGsQNon5ceP
+	7T8s75sDElRtv2w+adWcNnF6yMwqqeqaYktQ3fQcsC/9xo+OccHlosTSj9Y3PxwJtcA==
+X-Received: by 2002:ac2:494b:: with SMTP id o11mr20746442lfi.9.1557933097902;
+        Wed, 15 May 2019 08:11:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwdua4s3zHu61XDOPN5UoP7fllaNk2EFmVwPRreuBo3UOL5XqQLhvJqkKwEt7pbE1hYC95L
+X-Received: by 2002:ac2:494b:: with SMTP id o11mr20746388lfi.9.1557933096596;
+        Wed, 15 May 2019 08:11:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557933096; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZK90Ie8dhsiuuGDlC8ZxQTk4mUe8r5CuRwGwjGnVWkSWzB/8TtWXy5KESVzkWTSk8X
-         qhXZn5ax8LXrfwe4BocJiowjvADJYILKfeEqt+0U7xQ6BmaubMhxukxq/dcBw346BeYJ
-         g9Ebk8D4USGZseYlHvcZqSJ6+T2WHvhqKZzBspZ13PLbN2xNarg1dGYX/8QXR42FjSyf
-         2DJZ+lTdo2IQKI1oUr6zJFHMteMSj+2bVPH6wB7Z3xfNiwS/cOVmmvfLCe13blAsihKE
-         k1JOUrrM5k7sZyJkmYW0mrEYFRu+SuEZfW006rkXmNhUO57lUTSP+jhsajDuXdejxol0
-         0tTQ==
+        b=N/WVBgSGfeDSblXyFv4JGmpwqd8xLozQUaKijqlHf0+kB/x7jDXrJKsOLVl5kh/9PZ
+         dPzn0AhazJAHlxzCorl1N70uDluXjuoAIailAjnGjpJbj34jHj+4h25TAj//3PpZhZLP
+         XfDi0oRF0dDmPRo/UL+AZUFpEmSiwbWU8h4/B8AvflQHlKC94NOS21as0tgdiOh7WNFq
+         jyJwDNB57EZuW5qePlstIbpuHeUm2rScJCWrTG2kFrm5cPqc/XfnO8p/8aStHT0UX/xG
+         Z+xwlq5Jjt9XtFcLcC36Jiv7Mqqlwrax1A8BGGg32J7mni78EMdKybf/evunFlGpIRw4
+         8AKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:to:from:subject;
-        bh=ZpcaA7VN6vMI3XLyf20y8pejyNByYJW9fpibn7OB86k=;
-        b=fbiA/dRHqxZotDEnhvQqvDQCvSAoah5HVLPL6nNYNvnoq/noGB2x34WLP4Mx4v1ayt
-         HGBh9C/LQDjRWYnIhEcStwnV05vLSCLlYkGVPmh8klOoQ/bFOELN/4ngeOqExUu6HK/1
-         PEEDtREe8h/wDsckVIoQEx4aNmVLKTa5NTk8mzIMrHuIS7pz/t5RZetDMnMJrAazUotl
-         tls59xyH8baR2eNN/JS1LTFZrQnrD8plnZCUMnZPpGWza8l8QdY0/wy6CEvwxNXKcxZ7
-         19uVRhCtZ4movhlbwZfVoSx3Pr+IBBZxOPK/E/83q2Q6Aw+dJUOI+SnVsvwHxT/U+qSm
-         xgig==
+        bh=Yfs8d2jF/T6jQEdvza+WxJDpKG02YKvUPUgE54J0ka4=;
+        b=LijyBCiCA1CZW5SHf0CM06SBcwm5B9TuzK9kfU0dk9NSLTX/VZwvOpLESJ4o6fE2AW
+         vcyVMScjg66h1ZbYxhX2lzUfSAGRaDg1LWTPOeZZN82rMTav2efC7pwVze4krgnKriGl
+         ByfGdMhlENm6s8X6+gOtZZxeriNP5rdbc41WZF6YUGbaWlIijd/nKlprY41m+OcBfx8E
+         GNre6OL+4XTSpG/NxrvNPIVSOK0uK/HlYgp7lgzzvRLNWConyCc7fbwAr16712oMff+i
+         38cTt5kud6BJSl8ITV4JY1o/+K1f3CY3HTXNNBovxTTBxkUbC2wYaV3LD7A09vT71Cg0
+         T72w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
 Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id a30si1909560lfo.17.2019.05.15.08.11.31
+        by mx.google.com with ESMTPS id r10si1794042lfi.8.2019.05.15.08.11.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 08:11:32 -0700 (PDT)
+        Wed, 15 May 2019 08:11:36 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
@@ -81,8 +81,8 @@ Authentication-Results: mx.google.com;
 Received: from [172.16.25.169] (helo=localhost.localdomain)
 	by relay.sw.ru with esmtp (Exim 4.91)
 	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hQvYw-0001X8-JJ; Wed, 15 May 2019 18:11:22 +0300
-Subject: [PATCH RFC 1/5] mm: Add process_vm_mmap() syscall declaration
+	id 1hQvZ2-0001XF-8q; Wed, 15 May 2019 18:11:28 +0300
+Subject: [PATCH RFC 2/5] mm: Extend copy_vma()
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
 To: akpm@linux-foundation.org, dan.j.williams@intel.com, ktkhai@virtuozzo.com,
  mhocko@suse.com, keith.busch@intel.com, kirill.shutemov@linux.intel.com,
@@ -93,8 +93,8 @@ To: akpm@linux-foundation.org, dan.j.williams@intel.com, ktkhai@virtuozzo.com,
  shakeelb@google.com, guro@fb.com, aarcange@redhat.com, hughd@google.com,
  jglisse@redhat.com, mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
  linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 15 May 2019 18:11:22 +0300
-Message-ID: <155793308232.13922.18307403112092259417.stgit@localhost.localdomain>
+Date: Wed, 15 May 2019 18:11:27 +0300
+Message-ID: <155793308777.13922.13297821989540731131.stgit@localhost.localdomain>
 In-Reply-To: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
 References: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
 User-Agent: StGit/0.18
@@ -107,114 +107,115 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Similar to process_vm_readv() and process_vm_writev(),
-add declarations of a new syscall, which will allow
-to map memory from or to another process.
+This prepares the function to copy a vma between
+two processes. Two new arguments are introduced.
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- arch/x86/entry/syscalls/syscall_32.tbl |    1 +
- arch/x86/entry/syscalls/syscall_64.tbl |    2 ++
- include/linux/syscalls.h               |    5 +++++
- include/uapi/asm-generic/unistd.h      |    5 ++++-
- init/Kconfig                           |    9 +++++----
- kernel/sys_ni.c                        |    2 ++
- 6 files changed, 19 insertions(+), 5 deletions(-)
+ include/linux/mm.h |    4 ++--
+ mm/mmap.c          |   33 ++++++++++++++++++++++++---------
+ mm/mremap.c        |    4 ++--
+ 3 files changed, 28 insertions(+), 13 deletions(-)
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 4cd5f982b1e5..bf8cc5de918f 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -438,3 +438,4 @@
- 425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
- 426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
- 427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
-+428	i386	process_vm_mmap		sys_process_vm_mmap		__ia32_compat_sys_process_vm_mmap
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 64ca0d06259a..5af619c2d512 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -355,6 +355,7 @@
- 425	common	io_uring_setup		__x64_sys_io_uring_setup
- 426	common	io_uring_enter		__x64_sys_io_uring_enter
- 427	common	io_uring_register	__x64_sys_io_uring_register
-+428	common	process_vm_mmap		__x64_sys_process_vm_mmap
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0e8834ac32b7..afe07e4a76f8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2329,8 +2329,8 @@ extern void __vma_link_rb(struct mm_struct *, struct vm_area_struct *,
+ 	struct rb_node **, struct rb_node *);
+ extern void unlink_file_vma(struct vm_area_struct *);
+ extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
+-	unsigned long addr, unsigned long len, pgoff_t pgoff,
+-	bool *need_rmap_locks);
++	struct mm_struct *, unsigned long addr, unsigned long len,
++	pgoff_t pgoff, bool *need_rmap_locks, bool clear_flags_ctx);
+ extern void exit_mmap(struct mm_struct *);
  
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-@@ -398,3 +399,4 @@
- 545	x32	execveat		__x32_compat_sys_execveat/ptregs
- 546	x32	preadv2			__x32_compat_sys_preadv64v2
- 547	x32	pwritev2		__x32_compat_sys_pwritev64v2
-+548	x32	process_vm_mmap		__x32_compat_sys_process_vm_mmap
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index e2870fe1be5b..7d8ae36589cf 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -997,6 +997,11 @@ asmlinkage long sys_fspick(int dfd, const char __user *path, unsigned int flags)
- asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
- 				       siginfo_t __user *info,
- 				       unsigned int flags);
-+asmlinkage long sys_process_vm_mmap(pid_t pid,
-+				    unsigned long src_addr,
-+				    unsigned long len,
-+				    unsigned long dst_addr,
-+				    unsigned long flags);
+ static inline int check_data_rlimit(unsigned long rlim,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9cf52bdb22a8..46266f6825ae 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3194,19 +3194,21 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+ }
  
  /*
-  * Architecture-specific system calls
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index dee7292e1df6..1273d86bf546 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -832,9 +832,12 @@ __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
- __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
- #define __NR_io_uring_register 427
- __SYSCALL(__NR_io_uring_register, sys_io_uring_register)
-+#define __NR_process_vm_mmap 428
-+__SC_COMP(__NR_process_vm_mmap, sys_process_vm_mmap, \
-+          compat_sys_process_vm_mmap)
+- * Copy the vma structure to a new location in the same mm,
+- * prior to moving page table entries, to effect an mremap move.
++ * Copy the vma structure to new location in the same vma
++ * prior to moving page table entries, to effect an mremap move;
+  */
+ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+-	unsigned long addr, unsigned long len, pgoff_t pgoff,
+-	bool *need_rmap_locks)
++				struct mm_struct *mm, unsigned long addr,
++				unsigned long len, pgoff_t pgoff,
++				bool *need_rmap_locks, bool clear_flags_ctx)
+ {
+ 	struct vm_area_struct *vma = *vmap;
+ 	unsigned long vma_start = vma->vm_start;
+-	struct mm_struct *mm = vma->vm_mm;
++	struct vm_userfaultfd_ctx uctx;
+ 	struct vm_area_struct *new_vma, *prev;
+ 	struct rb_node **rb_link, *rb_parent;
+ 	bool faulted_in_anon_vma = true;
++	unsigned long flags;
  
- #undef __NR_syscalls
--#define __NR_syscalls 428
-+#define __NR_syscalls 429
+ 	/*
+ 	 * If anonymous vma has not yet been faulted, update new pgoff
+@@ -3219,15 +3221,25 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
  
- /*
-  * 32 bit systems traditionally used different
-diff --git a/init/Kconfig b/init/Kconfig
-index 8b9ffe236e4f..604db5f14718 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -320,13 +320,14 @@ config POSIX_MQUEUE_SYSCTL
- 	default y
+ 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent))
+ 		return NULL;	/* should never get here */
+-	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
+-			    vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
+-			    vma->vm_userfaultfd_ctx);
++
++	uctx = vma->vm_userfaultfd_ctx;
++	flags = vma->vm_flags;
++	if (clear_flags_ctx) {
++		uctx = NULL_VM_UFFD_CTX;
++		flags &= ~(VM_UFFD_MISSING | VM_UFFD_WP | VM_MERGEABLE |
++			   VM_LOCKED | VM_LOCKONFAULT | VM_WIPEONFORK |
++			   VM_DONTCOPY);
++	}
++
++	new_vma = vma_merge(mm, prev, addr, addr + len, flags, vma->anon_vma,
++			    vma->vm_file, pgoff, vma_policy(vma), uctx);
+ 	if (new_vma) {
+ 		/*
+ 		 * Source vma may have been merged into new_vma
+ 		 */
+ 		if (unlikely(vma_start >= new_vma->vm_start &&
+-			     vma_start < new_vma->vm_end)) {
++			     vma_start < new_vma->vm_end) &&
++			     vma->vm_mm == mm) {
+ 			/*
+ 			 * The only way we can get a vma_merge with
+ 			 * self during an mremap is if the vma hasn't
+@@ -3248,6 +3260,9 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 		new_vma = vm_area_dup(vma);
+ 		if (!new_vma)
+ 			goto out;
++		new_vma->vm_mm = mm;
++		new_vma->vm_flags = flags;
++		new_vma->vm_userfaultfd_ctx = uctx;
+ 		new_vma->vm_start = addr;
+ 		new_vma->vm_end = addr + len;
+ 		new_vma->vm_pgoff = pgoff;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 37b5b2ad91be..9a96cfc28675 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -352,8 +352,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+ 		return err;
  
- config CROSS_MEMORY_ATTACH
--	bool "Enable process_vm_readv/writev syscalls"
-+	bool "Enable process_vm_readv/writev/mmap syscalls"
- 	depends on MMU
- 	default y
- 	help
--	  Enabling this option adds the system calls process_vm_readv and
--	  process_vm_writev which allow a process with the correct privileges
--	  to directly read from or write to another process' address space.
-+	  Enabling this option adds the system calls process_vm_readv,
-+	  process_vm_writev and process_vm_mmap, which allow a process
-+	  with the correct privileges to directly read from or write to
-+	  or mmap another process' address space.
- 	  See the man page for more details.
+ 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
+-	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
+-			   &need_rmap_locks);
++	new_vma = copy_vma(&vma, mm, new_addr, new_len, new_pgoff,
++			   &need_rmap_locks, false);
+ 	if (!new_vma)
+ 		return -ENOMEM;
  
- config USELIB
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 4d9ae5ea6caf..6f51634f4f7e 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -316,6 +316,8 @@ COND_SYSCALL(process_vm_readv);
- COND_SYSCALL_COMPAT(process_vm_readv);
- COND_SYSCALL(process_vm_writev);
- COND_SYSCALL_COMPAT(process_vm_writev);
-+COND_SYSCALL(process_vm_mmap);
-+COND_SYSCALL_COMPAT(process_vm_mmap);
- 
- /* compare kernel pointers */
- COND_SYSCALL(kcmp);
 
