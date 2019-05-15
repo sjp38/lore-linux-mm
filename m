@@ -2,187 +2,175 @@ Return-Path: <SRS0=idO3=TP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 620E9C04E53
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:24:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7851BC04E53
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:31:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1756620873
-	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:24:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2AAFF20862
+	for <linux-mm@archiver.kernel.org>; Wed, 15 May 2019 15:31:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HsFn1bjM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1756620873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="uWWnZxvM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AAFF20862
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86C056B0003; Wed, 15 May 2019 11:24:27 -0400 (EDT)
+	id B9A7C6B0003; Wed, 15 May 2019 11:31:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 81B916B0006; Wed, 15 May 2019 11:24:27 -0400 (EDT)
+	id B24496B0006; Wed, 15 May 2019 11:31:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70B916B0007; Wed, 15 May 2019 11:24:27 -0400 (EDT)
+	id 9C4786B0007; Wed, 15 May 2019 11:31:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2146B0003
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:24:27 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id g15so468124ljk.8
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:24:26 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7801E6B0003
+	for <linux-mm@kvack.org>; Wed, 15 May 2019 11:31:07 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id l193so327216ita.8
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 08:31:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
-        b=J4XniYzMl8WiMkxHcyW/ieJukg3hgT3AqbfFdq0cZcoe3lN2/OuMdm6Jwt8qAyag2o
-         giMpoYKCIwHACuoqB9sOriV/91JI8bP8EeA9o8beBllGfLZKRGCIwqY11EjzCwpExgNG
-         Xpqh83SpJj3SfQ20UQ3UZivPzr5JU2Vsq/Mtsltw7U9BqUrvn684PFNUWGZA+QUh0EhY
-         qnowjSm8lWZ96QxPa7H8H0dREZKYXCt6jSV4U5K3wBImFUt6TFCAeVDyqdWP+luah7h1
-         GkutZBPGkW9PJLf/4tEIplLpC1GXtoQJ/DnD8fRjAbeQ3B9vrymwTx9Jvs+NsvtWz3WR
-         fLuA==
-X-Gm-Message-State: APjAAAWiJ2LkaPssv9hazv4gcsq+tSTufkzfIc3VeHgdjoiHHbbLo6dw
-	Ln6WSZ7RVmHPnpQWbex2gPjL4d4Z5nCm/UlozG8PuNWiYVhFHvGrxRXSNsrBWRIkc22niWXlqOp
-	X7kosc9G/UrDnJdPCsEJf6HfiCP22fLw4KpvoLo/0linBBsLyQsKGeXLRHcB/JdT3BQ==
-X-Received: by 2002:ac2:528f:: with SMTP id q15mr3111482lfm.37.1557933866382;
-        Wed, 15 May 2019 08:24:26 -0700 (PDT)
-X-Received: by 2002:ac2:528f:: with SMTP id q15mr3111436lfm.37.1557933865495;
-        Wed, 15 May 2019 08:24:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557933865; cv=none;
+        bh=BdPtnDR11Vdn7XWeNGSG6wyyu26x7E5yMudl0+Igi6Y=;
+        b=e1Rsmr5m0zyFpCE79VKidGJuustkhE7xtwt5OF1bFyqtqXkN9a823uCYmfQ0BGfrnQ
+         RYsW/hk/zf53JtRJZlESgwKVziDL5wjnXZhnzipJ9LsvNdRqvAKlRwRa1d9m6O2r6AJL
+         owekAtOSwbcGNWxSV0nr7VKxjXZeSex9YgSfkP0I/rDEQb+X9cLH1t2cpM0kcg4aeZBa
+         3+aI5xCzF5L0B9eFcokSIxuBMdmpqIUqHYUqeM6k3xElj/v4CD8Con+kvheu7vqNNMFK
+         LpnTF/eO5hAM+RYIzUkugAj0Cpz5d38K6H/PiaOm/H6/SUbh1HdxeUcFEsx2U9MHmH0e
+         6jBg==
+X-Gm-Message-State: APjAAAXgDj2gNaJ2jnwwSrngdCGs29tUIW5DlW+HOJVrNb6wFF5JsXJr
+	6RlBjOegxUZFLc3U7+28+ksEdoBV4W0C0Vx15nyt9jiqFIg8lPwWHyMz3IWLUDhN9WTh1xm97uk
+	rwvF+W1bWlrRfFY2Gh0XEBRZYxhTeCVTElhzbt86zarIyXw4JBY3hGuvY9QLkgjgRBQ==
+X-Received: by 2002:a02:b1cd:: with SMTP id u13mr27696642jah.60.1557934267201;
+        Wed, 15 May 2019 08:31:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6to6y3j740UXTdOSlMhYaVIsdaPXaznR5r23Q8lUNSr+vvUX4UzDxJiww79Yu2w+EaAYR
+X-Received: by 2002:a02:b1cd:: with SMTP id u13mr27696590jah.60.1557934266428;
+        Wed, 15 May 2019 08:31:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557934266; cv=none;
         d=google.com; s=arc-20160816;
-        b=pgZrGxJ76RzKdm5+akjzUuIBYbgZpN9nP+8E0xtTCqQS84+RcV+Eq8hSwwFMhQX1+Z
-         eDckmAxFES+8AURG3H4KOMu2zYAS/7Q7hPRsUOdAaraOoYBtkJVpAGEpXGRq2mTw4wKF
-         pbyDmK4/RHQ9dsvfu9u24FW46UjWRnRcSy2uYJVu357Zcvzpe/xcmTLIrZfo54j9XIBo
-         D9/ar0wdzqhVQEifID1DFYLO7TViFOmt/HCkqzfAoBsozegGFJWTNyzJMPes9SiJCswV
-         bs3dE6fVYk8bBKjdnbMjSGECSJ9iYR3niOaf617+B2xCpPMJ+qU00Gch4KR/U6FwTact
-         zNjg==
+        b=TyAVt2bsKOVZxYOFc9BG2GlI0E8Xb+QSJp44cuKTEcBYomlO/IkA2Vm4ABvWIP+o+/
+         FPLoZBszjNiUdPO38dOzGF9IEZs9qXeuz1KzYDBy+FF1w0ADBD8ZHj0BjC3XsMgU1fMr
+         puQx287NSKUJmVEBeUtVhBjXAmfifY1QsNSadLb9spWqWqnYXpTukZHe+JcgRnCacopF
+         UqVsLtpoCmeaf0nH1SVLp7SCMKkYe6IapYFV1YvEr3mHXZKRWZvnhm/Yby4BEO3p0EOE
+         5kxytPl/QMgx8EJ/zgU6luqYZXiJ33FGnXNB7qrH12PQlgTMIDCxAVb+/GaH/T/sURPN
+         8HBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
-        b=vIA6qDBU+hfZZWtmhRNQhdyzVhHqSbKxKLqimU1MZS+fQmpWIRAL4KTsbSU+9q8mDp
-         V5XfFqjsS7eF/EXTHTq+nlcc+KWjP7l3+vOSXUL6iAZ1d8gSe6u0Y2ISEDcx9kes/UA7
-         +6pzZ980xUQsJGwkuGwfkX1LcISMTD8v5UIuqECfixFlewZWvgYxx7eJ5A9EzJ+C2B3v
-         BGhoqnPNfrRNHKVqk/mfYMDvGmgz8PVGs81ogIqvkthhwnHBR+Fy1DfuQlJxxUivcVQd
-         +G74ruXzcdFbwzzQGFYOUuD9xmRUZC+O5au2cHdir7aU8gxSxFJ1SHm4hRCwDgTQR7XL
-         y6CA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=BdPtnDR11Vdn7XWeNGSG6wyyu26x7E5yMudl0+Igi6Y=;
+        b=kNclQClPCnz3XQ+OH7pJVQXv/Uss5p8GxKCbD5Vo0AVf3WAo+7FV/mXj1c6sgDvsgs
+         wMwzcInwyXo7KcZMaIDkoK3jISX0hEBGrh2E5860GUSJqKImuoA9Sg1g+etr1a5u2K9s
+         o4DLaYzUxhEzqaDHBojNXui72Ktgh/z8XkRh037HWvY8jyMV9fSNNrOBo1gul5Sm1up2
+         Khp8/GDZBPMiZk9E6uL6IXrqsTyogbIZ9O7u4Bw1GIZ0oIhb5fYG5UcTrIPurC61QQdB
+         3JdU8cancJ26uvVW1OMqZF/3+8PA8dDcXMrD44pRIZa3ljs/cf5IB4bQ1Jd7kszSyNlM
+         YJgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HsFn1bjM;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 8sor788850lfz.14.2019.05.15.08.24.25
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uWWnZxvM;
+       spf=pass (google.com: domain of yuval.shaia@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=yuval.shaia@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id p197si1543156jap.20.2019.05.15.08.31.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 May 2019 08:24:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 May 2019 08:31:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuval.shaia@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HsFn1bjM;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bp9aZsP8Ihx3GbkK6sVw6F2oBHeQXKwNHmb8Yt9P0/A=;
-        b=HsFn1bjMaUtH6jvwg7mjfmu3U0DtRpt953VIQJ/7/ad6c9WQN+io5di4dRZeS3BqEw
-         FWsU1kKWqXgIihVIEKSV7Hp/aaja3i7d8aZ8iDK54Z+r5FpWx4wyfrDKdwtYpvEJIu4L
-         mdmp2wGGaavoRnMbme7zB+9eHN0sYwRGd9mRYzfjKXIyyCUN/h9L0EuNU/gSc9eb09Or
-         nHex62htpbDf4uSd+yEkV43l5gnYDOiq2MDu1p2vBx8x9Hjx7TOGyw0RPzGK35u9P1rQ
-         7EAF52IqiycKQnEMUepkhO1xjmpVgdn6Dq2OoBNX4jLorYOnyC3tXJHdyquK3EbQ9gFg
-         rUNg==
-X-Google-Smtp-Source: APXvYqwY1WTXGYR3o8YWyC3tnZWmG25a3r9RgDDvY4fSzidz1fEOKxmhCfonNsCioDkWtFA/gCSy9Q==
-X-Received: by 2002:a19:5513:: with SMTP id n19mr7074764lfe.21.1557933864947;
-        Wed, 15 May 2019 08:24:24 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id h24sm398640ljk.10.2019.05.15.08.24.23
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 15 May 2019 08:24:24 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Wed, 15 May 2019 17:24:15 +0200
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v4 1/3] mm/vmap: keep track of free blocks for vmap
- allocation
-Message-ID: <20190515152415.lcbnqvcjppype7i5@pc636>
-References: <20190406183508.25273-1-urezki@gmail.com>
- <20190406183508.25273-2-urezki@gmail.com>
- <20190514141942.23271725e5d1b8477a44f102@linux-foundation.org>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uWWnZxvM;
+       spf=pass (google.com: domain of yuval.shaia@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=yuval.shaia@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FFNsAX013479;
+	Wed, 15 May 2019 15:31:04 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=BdPtnDR11Vdn7XWeNGSG6wyyu26x7E5yMudl0+Igi6Y=;
+ b=uWWnZxvML88GDB2B0uUzOE8auo8d+Kcumm+yrje6UE4Io8lI4TzL64qQi9UaCu7LKHh9
+ mmdesnwP0yVIdC38FHD1l3lgcXIxoxpkD3TlNEAgG5wY9zjeRkdva9ipeNaEmZR3ns5k
+ hSQNSiNi9KNrPBUcHjXxcQEZzCHsLxVdhTA7PQHAnKbfxAy9a2nyuu+T28HTLfqBBHdd
+ xZnwUVFMakHOPllfGxS4wkzapMc51X8c/nZVIqsYtie+2ksPEaTsFeWTszM4VqGs+AiD
+ j+QKUOAfaCM9kSGPmxHAlKRdmEmRsXbwysXN/Sl/RWEDtN8h28+Rzt3wkYwjQLs3FZbb 8g== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2sdnttwnuf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 15:31:04 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4FFTMHe069829;
+	Wed, 15 May 2019 15:31:03 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3020.oracle.com with ESMTP id 2sgk76jtdw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 15 May 2019 15:31:03 +0000
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4FFV1mJ022122;
+	Wed, 15 May 2019 15:31:02 GMT
+Received: from lap1 (/77.138.183.59)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 15 May 2019 08:31:01 -0700
+Date: Wed, 15 May 2019 18:30:51 +0300
+From: Yuval Shaia <yuval.shaia@oracle.com>
+To: Leon Romanovsky <leon@kernel.org>
+Cc: RDMA mailing list <linux-rdma@vger.kernel.org>,
+        linux-netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+        Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>
+Subject: Re: CFP: 4th RDMA Mini-Summit at LPC 2019
+Message-ID: <20190515153050.GB2356@lap1>
+References: <20190514122321.GH6425@mtr-leonro.mtl.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190514141942.23271725e5d1b8477a44f102@linux-foundation.org>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190514122321.GH6425@mtr-leonro.mtl.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905150095
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9257 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905150095
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Andrew.
-
-> An earlier version of this patch was accused of crashing the kernel:
+On Tue, May 14, 2019 at 03:23:21PM +0300, Leon Romanovsky wrote:
+> This is a call for proposals for the 4th RDMA mini-summit at the Linux
+> Plumbers Conference in Lisbon, Portugal, which will be happening on
+> September 9-11h, 2019.
 > 
-> https://lists.01.org/pipermail/lkp/2019-April/010004.html
+> We are looking for topics with focus on active audience discussions
+> and problem solving. The preferable topic is up to 30 minutes with
+> 3-5 slides maximum.
+
+Abstract: Expand the virtio portfolio with RDMA 
+
+Description:
+Data center backends use more and more RDMA or RoCE devices and more and
+more software runs in virtualized environment.
+There is a need for a standard to enable RDMA/RoCE on Virtual Machines.
+Virtio is the optimal solution since is the de-facto para-virtualizaton
+technology and also because the Virtio specification allows Hardware
+Vendors to support Virtio protocol natively in order to achieve bare metal
+performance.
+This talk addresses challenges in defining the RDMA/RoCE Virtio
+Specification and a look forward on possible implementation techniques.
+
 > 
-> does the v4 series address this?
-I tried before to narrow down that crash but i did not succeed, so
-i have never seen that before on my test environment as well as
-during running lkp-tests including trinity test case:
-
-test-url: http://codemonkey.org.uk/projects/trinity/
-
-But after analysis of the Call-trace and slob_alloc(): 
-
-<snip>
-[    0.395722] Call Trace:
-[    0.395722]  slob_alloc+0x1c9/0x240
-[    0.395722]  kmem_cache_alloc+0x70/0x80
-[    0.395722]  acpi_ps_alloc_op+0xc0/0xca
-[    0.395722]  acpi_ps_get_next_arg+0x3fa/0x6ed
-<snip>
-
-<snip>
-    /* Attempt to alloc */
-    prev = sp->lru.prev;
-    b = slob_page_alloc(sp, size, align);
-    if (!b)
-        continue;
-
-    /* Improve fragment distribution and reduce our average
-     * search time by starting our next search here. (see
-     * Knuth vol 1, sec 2.5, pg 449) */
-    if (prev != slob_list->prev &&
-            slob_list->next != prev->next)
-        list_move_tail(slob_list, prev->next); <- Crash is here in __list_add_valid()
-    break;
-}
-<snip>
-
-i see that it tries to manipulate with "prev" node that may be removed
-from the list by slob_page_alloc() earlier if whole page is used. I think
-that crash has to be fixed by the below commit:
-
-https://www.spinics.net/lists/mm-commits/msg137923.html
-
-it was introduced into 5.1-rc3 kernel.
-
-Why ("mm/vmalloc.c: keep track of free blocks for vmap allocation")
-was accused is probably because it uses "kmem cache allocations with struct alignment"
-instead of kmalloc()/kzalloc(). Maybe because of bigger size requests
-it became easier to trigger the BUG. But that is theory.
-
---
-Vlad Rezki
+> This year, the LPC will include netdev track too and it is
+> collocated with Kernel Summit, such timing makes an excellent
+> opportunity to drive cross-tree solutions.
+> 
+> BTW, RDMA is not accepted yet as a track in LPC, but let's think
+> positive and start collect topics.
+> 
+> Thanks
 
