@@ -2,241 +2,189 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45AE5C04E84
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:10:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C8CEC04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:18:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C518020657
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:10:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C321620657
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:18:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="VBWQprmA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C518020657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (1024-bit key) header.d=camlinlimited.onmicrosoft.com header.i=@camlinlimited.onmicrosoft.com header.b="FrUcXCu/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C321620657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=camlintechnologies.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01D306B0007; Thu, 16 May 2019 11:10:21 -0400 (EDT)
+	id 5E4E86B0007; Thu, 16 May 2019 11:18:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F10D86B0008; Thu, 16 May 2019 11:10:20 -0400 (EDT)
+	id 5BB226B0008; Thu, 16 May 2019 11:18:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFEE46B000A; Thu, 16 May 2019 11:10:20 -0400 (EDT)
+	id 484A16B000A; Thu, 16 May 2019 11:18:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A1D6B0007
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 11:10:20 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id y9so2182541plt.11
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 08:10:20 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F1DD76B0007
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 11:18:26 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id u124so808976wmg.1
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 08:18:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=WgItyBJzDLlqz5Gik0C+96TskxzuElNQz9xK2Z679ZU=;
-        b=pBLh189hXgfbZzYvKvtAFQ0hbtKuCA0VczRjGrksjQuD3d5k1zGgUMSJu9h7LHPM4N
-         xq9eHr2pZkXt162dumQC4Re9UA7w63tQR10qR9e1UHjjaCgVOnJ1yaL7z/lZXciLSysq
-         fA3VLyhz+XHOK05UKXximCb8QMiJm9vLmmd7pXnMoVFFF90EtT/Nw3ROrezLdmnNwFtR
-         A41nZKwnyCMPYekgyp4jBhVeblgMY0GKZwDg3Euv+eNfjDb842eWaz3G9MlZcwoLlpXl
-         HrnJRWxwfYfSfY/0JrCRhyFhAPC+SueDGz0SW4KQ2lKAn6O52sx8BY81sRoGzjItwGwd
-         0RZw==
-X-Gm-Message-State: APjAAAVe6ALWyBwDXVr9oKBgEyH5XXHeSSM1pYQdikSXZIoNee6cCAZF
-	ie4PoQoby+uRAzkPn5zWB7X6SS3mp6Qc0qoB4I5fpukMAfEwqc99q1liCxr7i3P+9p5u4ux26hp
-	yM3JQbWxmd4YliRNtuNSOwhx1u66nwzZo1JtJnf8kN4ggusyN6J40E6HhLFSWqG0J7w==
-X-Received: by 2002:a17:902:b584:: with SMTP id a4mr14082042pls.333.1558019420105;
-        Thu, 16 May 2019 08:10:20 -0700 (PDT)
-X-Received: by 2002:a17:902:b584:: with SMTP id a4mr14081896pls.333.1558019418750;
-        Thu, 16 May 2019 08:10:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558019418; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
+        b=uHipC/X03XodJUqOHyb8ljgO1D5P9rjLBact91iLO5rFALwAiN3MqQaXi8S/k6pJ0C
+         48nKfKwKkFi+1CH8T81DJNW+bsCEB5C21B5CvSRNR8H6Ns6J0mOdmBciScvfjzPzXmoK
+         MdOzboXru+9R87/KBS4ezBv9qcrZh/l2SMY5hHZhHJMb6ZlnFMsZptEh+xiizukLXQiX
+         XSWR2c8NcJKncOJzxc7yUNcDf0ZLSQOdAwS6RUhzpGmsGCaa45Xl45H1fWvPekjOcMV0
+         dgyKIlEjYjIY8hMYyJe3eix6Ub4hTDy2ILi0GPpG54zCoXC2RJs7j8pu4lU1UDki9PRy
+         xfrQ==
+X-Gm-Message-State: APjAAAV50QT+crZQUqN3HASxkSVJdkS3Tp1Q9PjeCSmhCpddl4nyv7oy
+	JaYubI67Ks8v+VJKVKbBmpgv76cxp3Ey+wCVjENsXQH/0bnQb3J2qRHYMlt9q3WYjIAAxfWyts3
+	jWoGIeKL+kKrxzDgeHuoESLTVQSAypK7edx4SAQasTni58u4CAFFWzISqH1/E4UvobQ==
+X-Received: by 2002:a1c:c108:: with SMTP id r8mr7705053wmf.78.1558019906479;
+        Thu, 16 May 2019 08:18:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxu7H5yQ6BESI58OZhjKMoOby7sCaB6Y4mUdbNuRykwk2dEetdaqxP7y/JxG+oxZJqKOya/
+X-Received: by 2002:a1c:c108:: with SMTP id r8mr7705001wmf.78.1558019905572;
+        Thu, 16 May 2019 08:18:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558019905; cv=none;
         d=google.com; s=arc-20160816;
-        b=RrJZ/3Kc/c7Y63aHgfH851W7JW2PZOM0X1U3mfmbMZysgZUm0eFrK3a3OHW03y64/F
-         jc5a0W70q8ffGmfrC4eGQWz5IM2m8Ra0QdWIuRm94iGiFpgCrJAcnMJsD6uxKWy7JXuc
-         v/yj3O7v3K/lsMd8gOMDEQ9DpTWBQxq4zigyiMr16a2IA+Bjpu09SEIsguKqPDSog8IR
-         mPxTI9mlks7opJrKDQbVHYbxzcfwzEFkdR2o14QZLUo/fcdCnraZcfnp/U8Vw02M17aq
-         i58KXA/alIfptioc/rrvPJvQBG5qthLb1rTuD3yaR8Hy8/7grU6vlqTxHroUf0ylVxaj
-         tjaA==
+        b=Cg+uL4jJHWvpSjRBm638jnZOZwGSo/AcfkTo3e6mWAfdSfgLaBRw6No6LKaEg+qNYJ
+         danWQ9vEilG3WUgFCF/cY03j9pSe92MZn1FeRnrfrEsvqu43y5pe7gpRNP3Cygo4jwPg
+         nNV7aMg5wdbC4w1eJW2omuSWb8oQivtfTdUEG+XfNibHqbNRO2XMQ+5ByEoIJ4zQnlrS
+         TZbHz4dWGGL+HbYIrPTMBBQDI6IlSsdaKvzqKplxOEnvycPMUnb37vJkuCI8EtDW+iTk
+         cpFlMoSkLD239B4L8R6qi2vAsN1b+YXl5oMLflUc3rnWiUSVjp2F+rGhWnIJpql0xQz1
+         ewmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=WgItyBJzDLlqz5Gik0C+96TskxzuElNQz9xK2Z679ZU=;
-        b=go8mwVGdr0o0mWwZ0IkbjVjYHkLODrZ1Jnh7KnS5F8PIDVNg6tdfKbo24Ng33z3fZi
-         g3DhNMPNHs+0egImp2KUQMyt6nbYqNx+nLDNmoRxa/fZhSe+rPpGyLxKCxb0epUmyBZK
-         FHrMwMCsseFPTXych4n3G1xg4mQn1FqRjVOf+qJaoS76bmr/A6WoP2pKq8UXiTP4lpGK
-         VNEqntmE2GyO3zwzseOM4E+cx1AdoZqEDiCHl3kV/p6NroYoIqLpTGd3Y/ZAyUbtWK1M
-         OUQSv1nsfjKUbDbeSo2zLiezyAbs8GKw+46Fi8mlhNH9LkWhQDarQhM5Lel6vwBjMoTZ
-         p96Q==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
+        b=RD3nSQh/rrVStmwpcXX05JS3GKRS5KMONVi7b8vjiPaAPi90fwRLmxgZkMAYK1WCk/
+         YXt5Zp5TszLIVPgLbzwWRr1UIwp4GmP2pzFjec8hAFE9My+q+JwFBSGuPlpkH0Cy4I80
+         ioj95h7FsFUmQAwDXzvMfBdRKeCWKSTboTCVbjKx1tkmj0x9RrLdZp1+WZTESzCEgfiD
+         rvKEhHzimEa0laKqsRfGjh7o7ObK5iBRem9FjBSlSaGQbUJPkV3YzKFL9cDAwH23CUKx
+         CJMqZazeVSphyz4osNQOhMxopbB2uMC3A0fmgG67KoW/AxdjE4utagUwwIwhTijOa680
+         qvlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=VBWQprmA;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q65sor6333643pfi.11.2019.05.16.08.10.15
+       dkim=pass header.i=@camlinlimited.onmicrosoft.com header.s=selector1-camlinlimited-onmicrosoft-com header.b="FrUcXCu/";
+       spf=pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) smtp.mailfrom=l.perczak@camlintechnologies.com
+Received: from GBR01-LO2-obe.outbound.protection.outlook.com (mail-eopbgr100086.outbound.protection.outlook.com. [40.107.10.86])
+        by mx.google.com with ESMTPS id a206si3811816wmh.146.2019.05.16.08.18.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 May 2019 08:10:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 16 May 2019 08:18:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) client-ip=40.107.10.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=VBWQprmA;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@camlinlimited.onmicrosoft.com header.s=selector1-camlinlimited-onmicrosoft-com header.b="FrUcXCu/";
+       spf=pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) smtp.mailfrom=l.perczak@camlintechnologies.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=WgItyBJzDLlqz5Gik0C+96TskxzuElNQz9xK2Z679ZU=;
-        b=VBWQprmA5MZXlwsCQ6SwCKgJVN0e1o1lvPIlSlGB0YXBQ7jqt4v8fvoD4mi76vuqSM
-         QiH7hBI2bl3frHolfT0kMLi9jGMjn/GJmWA9bakf6lgiL2WDCmE2w/PKCPQzWhp7Iem1
-         sx0za8uNbzuAfjm3n7SLvyCizmCpY72aj8AJwWVjGE1aKvynWqKQlnH7DBbSYU8W6X73
-         HCRpNHtdeWlBzb0QDCSzzJvEK2zPMKrw6F+oxIu/i0TNSezxiKi6pina0dLKUXOYU8Ma
-         dUBa6NTSwUcZ/i8rc54cgBQGa5FBv9k8D4OhJdGdLZMRa3XAHOM3+B2fOA04NwYBN714
-         gw1Q==
-X-Google-Smtp-Source: APXvYqzKlIoNcZy0ZhhqzXFmL2Ia8ljcPo6txDYTujPDJiGwxQFbwyA5fAqpvMifyWIYzSQHgX3fKw==
-X-Received: by 2002:a65:63d5:: with SMTP id n21mr51006664pgv.330.1558019414956;
-        Thu, 16 May 2019 08:10:14 -0700 (PDT)
-Received: from localhost ([2620:10d:c090:180::b2f6])
-        by smtp.gmail.com with ESMTPSA id p2sm6305231pgd.63.2019.05.16.08.10.13
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 16 May 2019 08:10:14 -0700 (PDT)
-Date: Thu, 16 May 2019 11:10:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Yang Shi <shy828301@gmail.com>,
-	Huang Ying <ying.huang@intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>,
-	Shakeel Butt <shakeelb@google.com>, william.kucharski@oracle.com,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: Re: [v2 PATCH] mm: vmscan: correct nr_reclaimed for THP
-Message-ID: <20190516151012.GA20038@cmpxchg.org>
-References: <1557505420-21809-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190513080929.GC24036@dhcp22.suse.cz>
- <c3c26c7a-748c-6090-67f4-3014bedea2e6@linux.alibaba.com>
- <20190513214503.GB25356@dhcp22.suse.cz>
- <CAHbLzkpUE2wBp8UjH72ugXjWSfFY5YjV1Ps9t5EM2VSRTUKxRw@mail.gmail.com>
- <20190514062039.GB20868@dhcp22.suse.cz>
- <509de066-17bb-e3cf-d492-1daf1cb11494@linux.alibaba.com>
+ d=camlinlimited.onmicrosoft.com; s=selector1-camlinlimited-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
+ b=FrUcXCu/zzpOyJ2fmMQ5yoZ7fGy1foz48EcfU2723pXOlPE8dE9gg5NXBU7YVEd72ONnkcUBnve2uu1Gqos/r3bwdWtTTxMVZ35OAegzegKjoVsIwHFg3siOCLih0nZqwTIDB1jdYYYomdkR1KDnmG6W0YSkoi6VQUikQI7WXqA=
+Received: from CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM (20.176.63.151) by
+ CWXP123MB1848.GBRP123.PROD.OUTLOOK.COM (20.179.108.16) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1900.16; Thu, 16 May 2019 15:18:24 +0000
+Received: from CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
+ ([fe80::a94b:e878:949e:25e0]) by CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
+ ([fe80::a94b:e878:949e:25e0%6]) with mapi id 15.20.1878.024; Thu, 16 May 2019
+ 15:18:24 +0000
+From: Lech Perczak <l.perczak@camlintechnologies.com>
+To: Matthew Wilcox <willy@infradead.org>, Eric Dumazet <edumazet@google.com>
+CC: Al Viro <viro@zeniv.linux.org.uk>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Piotr Figiel
+	<p.figiel@camlintechnologies.com>, =?utf-8?B?S3J6eXN6dG9mIERyb2JpxYRza2k=?=
+	<k.drobinski@camlintechnologies.com>, Pawel Lenkow
+	<p.lenkow@camlintechnologies.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
+ when running stress tests involving drop_caches
+Thread-Topic: Recurring warning in page_copy_sane (inside copy_page_to_iter)
+ when running stress tests involving drop_caches
+Thread-Index:
+ AQHU+0je8+eBBHiobkyiBc3+zJz+BKZOQv6AgB4pdgD///Y0AIAABSWAgAAEdQCAAZJcAA==
+Date: Thu, 16 May 2019 15:18:23 +0000
+Message-ID: <79c406af-3cc4-1e63-80d5-267900520ef8@camlintechnologies.com>
+References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
+ <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
+ <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com>
+ <20190515144352.GC31704@bombadil.infradead.org>
+ <CANn89iJ0r116a8q_+jUgP_8wPX4iS6WVppQ6HvgZFt9v9CviKA@mail.gmail.com>
+ <20190515151814.GD31704@bombadil.infradead.org>
+In-Reply-To: <20190515151814.GD31704@bombadil.infradead.org>
+Accept-Language: pl-PL, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: HE1PR0701CA0083.eurprd07.prod.outlook.com
+ (2603:10a6:3:64::27) To CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
+ (2603:10a6:401:75::23)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=l.perczak@camlintechnologies.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [95.143.242.242]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 91d43b09-b5a6-4658-2239-08d6da11bce0
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:CWXP123MB1848;
+x-ms-traffictypediagnostic: CWXP123MB1848:
+x-microsoft-antispam-prvs:
+ <CWXP123MB1848D56FB17A4E53070F89A9870A0@CWXP123MB1848.GBRP123.PROD.OUTLOOK.COM>
+x-ms-oob-tlc-oobclassifiers: OLM:2657;
+x-forefront-prvs: 0039C6E5C5
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(366004)(396003)(376002)(136003)(39850400004)(346002)(189003)(199004)(55674003)(14444005)(316002)(71190400001)(71200400001)(26005)(6246003)(256004)(81166006)(99286004)(81156014)(14454004)(6116002)(3846002)(86362001)(25786009)(68736007)(31696002)(36756003)(4326008)(8676002)(2906002)(8936002)(53936002)(66446008)(76176011)(31686004)(66946007)(6512007)(53546011)(73956011)(386003)(6506007)(11346002)(446003)(102836004)(478600001)(2616005)(66556008)(66476007)(64756008)(186003)(54906003)(110136005)(229853002)(66066001)(5660300002)(305945005)(476003)(52116002)(486006)(6436002)(6486002)(7736002);DIR:OUT;SFP:1101;SCL:1;SRVR:CWXP123MB1848;H:CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: camlintechnologies.com does not
+ designate permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ rv0ghT8rdQT7+nayjC9C2IzRbrKx0X9QV53RIOhP4S93SSNYevCoTXJAgKZxyQE3kQU7Fnna6uozBAVtl6fhZ196q2tqUbSrA/uNXZMz+FrYtK+bI3N81U2uZqEGt4v7XBaDSISGAfKKG3K57fVfO8bgMGK/xFg8PN/xvm6+Lls/qcsjZ9l9gF/Y7E5ieU5VqGabAi+1VnDw5rvPPgSNqewxQ4+YHDRV2bJj+6Bay0yxT01JohRDNI7ISXD2FTRysKTCaXCfBorSsA8nB0VHfv0RUfrQcW6xORNAWyMLsH8KB/6jalgZBbQM9OOjx8jiOhgySbhl4hmWIBArNlFH7qDfkWwpQlv0loElheAeEgjiUEagyVnKBk0f1VxV97PMMKxXDCKs28DGEyCHPbIr5xemxL9OOz49YELUJYPbvjs=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <56B38E369B89C84693A52CD5C99E478F@GBRP123.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <509de066-17bb-e3cf-d492-1daf1cb11494@linux.alibaba.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-OriginatorOrg: camlintechnologies.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 91d43b09-b5a6-4658-2239-08d6da11bce0
+X-MS-Exchange-CrossTenant-originalarrivaltime: 16 May 2019 15:18:23.9877
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: fd4b1729-b18d-46d2-9ba0-2717b852b252
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CWXP123MB1848
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2019 at 01:44:35PM -0700, Yang Shi wrote:
-> On 5/13/19 11:20 PM, Michal Hocko wrote:
-> > On Mon 13-05-19 21:36:59, Yang Shi wrote:
-> > > On Mon, May 13, 2019 at 2:45 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > On Mon 13-05-19 14:09:59, Yang Shi wrote:
-> > > > [...]
-> > > > > I think we can just account 512 base pages for nr_scanned for
-> > > > > isolate_lru_pages() to make the counters sane since PGSCAN_KSWAPD/DIRECT
-> > > > > just use it.
-> > > > > 
-> > > > > And, sc->nr_scanned should be accounted as 512 base pages too otherwise we
-> > > > > may have nr_scanned < nr_to_reclaim all the time to result in false-negative
-> > > > > for priority raise and something else wrong (e.g. wrong vmpressure).
-> > > > Be careful. nr_scanned is used as a pressure indicator to slab shrinking
-> > > > AFAIR. Maybe this is ok but it really begs for much more explaining
-> > > I don't know why my company mailbox didn't receive this email, so I
-> > > replied with my personal email.
-> > > 
-> > > It is not used to double slab pressure any more since commit
-> > > 9092c71bb724 ("mm: use sc->priority for slab shrink targets"). It uses
-> > > sc->priority to determine the pressure for slab shrinking now.
-> > > 
-> > > So, I think we can just remove that "double slab pressure" code. It is
-> > > not used actually and looks confusing now. Actually, the "double slab
-> > > pressure" does something opposite. The extra inc to sc->nr_scanned
-> > > just prevents from raising sc->priority.
-> > I have to get in sync with the recent changes. I am aware there were
-> > some patches floating around but I didn't get to review them. I was
-> > trying to point out that nr_scanned used to have a side effect to be
-> > careful about. If it doesn't have anymore then this is getting much more
-> > easier of course. Please document everything in the changelog.
-> 
-> Thanks for reminding. Yes, I remembered nr_scanned would double slab
-> pressure. But, when I inspected into the code yesterday, it turns out it is
-> not true anymore. I will run some test to make sure it doesn't introduce
-> regression.
-
-Yeah, sc->nr_scanned is used for three things right now:
-
-1. vmpressure - this looks at the scanned/reclaimed ratio so it won't
-change semantics as long as scanned & reclaimed are fixed in parallel
-
-2. compaction/reclaim - this is broken. Compaction wants a certain
-number of physical pages freed up before going back to compacting.
-Without Yang Shi's fix, we can overreclaim by a factor of 512.
-
-3. kswapd priority raising - this is broken. kswapd raises priority if
-we scan fewer pages than the reclaim target (which itself is obviously
-expressed in order-0 pages). As a result, kswapd can falsely raise its
-aggressiveness even when it's making great progress.
-
-Both sc->nr_scanned & sc->nr_reclaimed should be fixed.
-
-> BTW, I noticed the counter of memory reclaim is not correct with THP swap on
-> vanilla kernel, please see the below:
-> 
-> pgsteal_kswapd 21435
-> pgsteal_direct 26573329
-> pgscan_kswapd 3514
-> pgscan_direct 14417775
-> 
-> pgsteal is always greater than pgscan, my patch could fix the problem.
-
-Ouch, how is that possible with the current code?
-
-I think it happens when isolate_lru_pages() counts 1 nr_scanned for a
-THP, then shrink_page_list() splits the THP and we reclaim tail pages
-one by one. This goes all the way back to the initial THP patch!
-
-isolate_lru_pages() needs to be fixed. Its return value, nr_taken, is
-correct, but its *nr_scanned parameter is wrong, which causes issues:
-
-1. The trace point, as Yang Shi pointed out, will underreport the
-number of pages scanned, as it reports it along with nr_to_scan (base
-pages) and nr_taken (base pages)
-
-2. vmstat and memory.stat count 'struct page' operations rather than
-base pages, which makes zero sense to neither user nor kernel
-developers (I routinely multiply these counters by 4096 to get a sense
-of work performed).
-
-All of isolate_lru_pages()'s accounting should be in base pages, which
-includes nr_scanned and PGSCAN_SKIPPED.
-
-That should also simplify the code; e.g.:
-
-	for (total_scan = 0;
-	     scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src);
-	     total_scan++) {
-
-scan < nr_to_scan && nr_taken >= nr_to_scan is a weird condition that
-does not make sense in page reclaim imo. Reclaim cares about physical
-memory - freeing one THP is as much progress for reclaim as freeing
-512 order-0 pages.
-
-IMO *all* '++' in vmscan.c are suspicious and should be reviewed:
-nr_scanned, nr_reclaimed, nr_dirty, nr_unqueued_dirty, nr_congested,
-nr_immediate, nr_writeback, nr_ref_keep, nr_unmap_fail, pgactivate,
-total_scan & scan, nr_skipped.
-
-Yang Shi, it would be nice if you could convert all of these to base
-page accounting in one patch, as it's a single logical fix for the
-initial introduction of THP that had huge pages show up on the LRUs.
-
-[ check_move_unevictable_pages() seems weird. It gets a pagevec from
-  find_get_entries(), which, if I understand the THP page cache code
-  correctly, might contain the same compound page over and over. It'll
-  be !unevictable after the first iteration, so will only run once. So
-  it produces incorrect numbers now, but it is probably best to ignore
-  it until we figure out THP cache. Maybe add an XXX comment. ]
+DQpXIGRuaXUgMTUuMDUuMjAxOSBvwqAxNzoxOCwgTWF0dGhldyBXaWxjb3ggcGlzemU6DQo+IE9u
+IFdlZCwgTWF5IDE1LCAyMDE5IGF0IDA4OjAyOjE3QU0gLTA3MDAsIEVyaWMgRHVtYXpldCB3cm90
+ZToNCj4+IE9uIFdlZCwgTWF5IDE1LCAyMDE5IGF0IDc6NDMgQU0gTWF0dGhldyBXaWxjb3ggPHdp
+bGx5QGluZnJhZGVhZC5vcmc+IHdyb3RlOg0KPj4+IFlvdSdyZSBzZWVpbmcgYSByYWNlIGJldHdl
+ZW4gcGFnZV9hZGRyZXNzKHBhZ2UpIGJlaW5nIGNhbGxlZCB0d2ljZS4NCj4+PiBCZXR3ZWVuIHRo
+b3NlIHR3byBjYWxscywgc29tZXRoaW5nIGhhcyBjYXVzZWQgdGhlIHBhZ2UgdG8gYmUgcmVtb3Zl
+ZCBmcm9tDQo+Pj4gdGhlIHBhZ2VfYWRkcmVzc19tYXAoKSBsaXN0LiAgRXJpYydzIHBhdGNoIGF2
+b2lkcyBjYWxsaW5nIHBhZ2VfYWRkcmVzcygpLA0KPj4+IHNvIGFwcGx5IGl0IGFuZCBiZSBoYXBw
+eS4NCj4+IEhtbS4uLiB3b250IHRoZSBrbWFwX2F0b21pYygpIGRvbmUgbGF0ZXIsIGFmdGVyIHBh
+Z2VfY29weV9zYW5lKCkgd291bGQNCj4+IHN1ZmZlciBmcm9tIHRoZSByYWNlID8NCj4+DQo+PiBJ
+dCBzZWVtcyB0aGVyZSBpcyBhIHJlYWwgYnVnIHNvbWV3aGVyZSB0byBmaXguDQo+IE5vLiAgcGFn
+ZV9hZGRyZXNzKCkgY2FsbGVkIGJlZm9yZSB0aGUga21hcF9hdG9taWMoKSB3aWxsIGxvb2sgdGhy
+b3VnaA0KPiB0aGUgbGlzdCBvZiBtYXBwaW5ncyBhbmQgc2VlIGlmIHRoYXQgcGFnZSBpcyBtYXBw
+ZWQgc29tZXdoZXJlLiAgV2UgdW5tYXANCj4gbGF6aWx5LCBzbyBhbGwgaXQgdGFrZXMgdG8gdHJp
+Z2dlciB0aGlzIHJhY2UgaXMgdGhhdCB0aGUgcGFnZSBfaGFzXw0KPiBiZWVuIG1hcHBlZCBiZWZv
+cmUsIGFuZCBpdHMgbWFwcGluZyBnZXRzIHRvcm4gZG93biBkdXJpbmcgdGhpcyBjYWxsLg0KPg0K
+PiBXaGlsZSB0aGUgcGFnZSBpcyBrbWFwcGVkLCBpdHMgbWFwcGluZyBjYW5ub3QgYmUgdG9ybiBk
+b3duLg0KDQpBbmQgdGhhdCdzIHRoZSBhbnN3ZXIgSSdtIHJlYWxseSBnbGFkIHRvIGhlYXIuIA0K
+SW4gdGhlIG1lYW50aW1lIEkndmUgc2V0IHVwIGEgdGVzdCBydW4gd2l0aCBDT05GSUdfSElHSE1F
+TSBkaXNhYmxlZA0KdG8gYmUgZXh0cmEgc3VyZSwgaG93ZXZlciBxdWl0ZSBleHBlY3RlZGx5IGl0
+IHJvYnMgdGhlIHN5c3RlbSBvZiAyNTZNaUINCm9mIGFjY2Vzc2libGUgbWVtb3J5Lg0KDQpVbmZv
+cnR1bmF0bHksIGxvb2tpbmcgdGhyb3VnaCBkZWZjb25maWdzIGZvciAzMi1iaXQgQVJNLCBDT05G
+SUdfSElHSE1FTQ0KaXMgZW5hYmxlZCBpbiBxdWl0ZSBhIGZldyBvZiB0aGVtLCBpLk1YIGluY2x1
+ZGVkLg0KDQpJJ2xsIHBpY2sgdXAgdGhlIHBhdGNoIHRoZW4gYW5kIGRyb3AgaXQgd2hlbiBpdCBn
+ZXRzIGluY2x1ZGVkIGluIDQuMTkueS4NClRoYW5rcyENCg0KLS0NCldpdGgga2luZCByZWdhcmRz
+LA0KTGVjaA0KDQo=
 
